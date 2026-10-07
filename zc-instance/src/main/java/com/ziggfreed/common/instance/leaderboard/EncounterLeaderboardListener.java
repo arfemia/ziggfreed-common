@@ -32,9 +32,11 @@ import com.ziggfreed.common.util.SafeLog;
  * so the fastest clear is free; and the stat bag carries the raw damage dealt and taken under the
  * two keys below.
  *
- * <p>The board is this listener's own ({@value #BOARD}), kept beside the library's other data
- * files, because no consumer board exists on a server running the library alone; a consumer that
- * wants the rows on a board of its own reads them back through {@link #board()}.
+ * <p>The board is this listener's own ({@value #BOARD}), kept beside the library's owner files
+ * ({@code mods/ziggfreedcommon/}), because no consumer board exists on a server running the library
+ * alone; a consumer that wants the rows on a board of its own reads them back through
+ * {@link #board()}. Before 2.2.0 the file sat in the library's data folder, and the first load that
+ * finds it only there moves it across ({@link Leaderboard#init(Path, Path)}).
  */
 public final class EncounterLeaderboardListener {
 
@@ -63,8 +65,16 @@ public final class EncounterLeaderboardListener {
      * only, from the instance bootstrap; every decision stays in {@link #record}.
      */
     public static void install(@Nonnull PluginBase plugin, @Nullable Path dataDir) {
+        install(plugin, dataDir, null);
+    }
+
+    /**
+     * As {@link #install(PluginBase, Path)}, moving the board's file from {@code oldDir}, the folder it
+     * sat in before, on the first load that finds it only there.
+     */
+    public static void install(@Nonnull PluginBase plugin, @Nullable Path dataDir, @Nullable Path oldDir) {
         Leaderboard board = new Leaderboard(BOARD);
-        board.init(dataDir);
+        board.init(dataDir, oldDir);
         INSTALLED.set(board);
         plugin.getEventRegistry().registerGlobal(EncounterDefeatedEvent.class, EncounterLeaderboardListener::onDefeated);
     }
@@ -73,6 +83,25 @@ public final class EncounterLeaderboardListener {
     @Nullable
     public static Leaderboard board() {
         return INSTALLED.get();
+    }
+
+    /**
+     * Write the board's rows still waiting on their debounce: the library's stop, through
+     * {@code InstanceBootstrap.shutdown}. Nothing before install; never throws.
+     */
+    public static void flushNow() {
+        Leaderboard board = INSTALLED.get();
+        if (board != null) {
+            board.flushNow();
+        }
+    }
+
+    /**
+     * Put {@code board} where the defeats are written, or forget it with null: a test's own board,
+     * since {@link #install} needs a plugin to hang the listener on. Never called in production.
+     */
+    public static void installForTests(@Nullable Leaderboard board) {
+        INSTALLED.set(board);
     }
 
     /** Guarded whole: a listener that throws must never take the defeat down with it. */

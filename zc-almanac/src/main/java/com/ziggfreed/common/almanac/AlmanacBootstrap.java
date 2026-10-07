@@ -19,7 +19,8 @@ import com.ziggfreed.common.util.SafeLog;
  * per-player record and its connect hook (before any world loads), the server's own totals and their
  * file, the owner's switch, the feature, the destination, the moment counter, the book's Seasons
  * statistics and the {@code /zigalmanac} family. The page store itself is registered with the other framework stores. Registration only
- * ({@code RootRegistrationOnlyTest}).
+ * ({@code RootRegistrationOnlyTest}). Its {@link #shutdown} is called from the wiring root's
+ * {@code shutdown()} and writes the server's totals one last time.
  */
 public final class AlmanacBootstrap {
 
@@ -33,13 +34,29 @@ public final class AlmanacBootstrap {
     public static void install(@Nonnull PluginBase plugin) {
         AlmanacComponent.register(plugin.getEntityStoreRegistry());
         AlmanacComponent.install(plugin);
-        ServerTallies.shared().init(plugin.getDataDirectory());
+        // Beside the owner files; the 2.2.0 builds before its release kept the totals in the library's
+        // data folder, and the first load that finds them only there moves them across.
+        ServerTallies.shared().init(AlmanacOwnerLayers.directory(), plugin.getDataDirectory());
         AlmanacOwnerLayers.readSwitch();
         registerVocabulary();
         try {
             plugin.getCommandRegistry().registerCommand(new ZigAlmanacCommand());
         } catch (Throwable t) {
             SafeLog.warn("[almanac] the /zigalmanac command could not be registered", t);
+        }
+    }
+
+    /**
+     * Write the server's totals still waiting on their debounce, so the counts of the last seconds before
+     * a stop are kept. Called from the library's {@code shutdown()}, which the server runs after it has
+     * disconnected every player and shut every world down, so nothing counts after it. A stop with nothing
+     * new writes nothing, and it never throws.
+     */
+    public static void shutdown() {
+        try {
+            ServerTallies.shared().flushNow();
+        } catch (Throwable t) {
+            SafeLog.warn("[almanac] the server totals could not be written at shutdown", t);
         }
     }
 

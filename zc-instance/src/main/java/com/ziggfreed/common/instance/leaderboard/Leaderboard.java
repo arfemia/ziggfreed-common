@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -20,6 +21,7 @@ import com.google.gson.GsonBuilder;
 import com.hypixel.hytale.server.core.HytaleServer;
 import com.hypixel.hytale.server.core.util.io.FileUtil;
 import com.ziggfreed.common.CommonLog;
+import com.ziggfreed.common.util.DataFileMove;
 
 /**
  * A generic, mod-agnostic, bucketed, UUID-keyed leaderboard persisted as JSON - the
@@ -34,6 +36,13 @@ import com.ziggfreed.common.CommonLog;
  * ({@link FileUtil#writeStringAtomic} temp-file rename + {@code .bak} fallback), so the
  * caller never blocks on disk and concurrent records coalesce into one write. A corrupt
  * file degrades to the {@code .bak}, then to an empty board.
+ *
+ * <p><b>At a stop</b>: the debounce may never run before the server exits, so whoever owns a
+ * board calls {@link #flushNow} from its own {@code shutdown()} (the library does for the
+ * encounter board). A write carries only what changed since the last one and writes nothing
+ * otherwise, writes run one at a time (the engine's writer shares one temp file per target),
+ * and a write that fails keeps the change for the next, so a stop, a late debounced write and
+ * a second stop never collide or rewrite the same rows.
  */
 public final class Leaderboard {
 
@@ -44,6 +53,11 @@ public final class Leaderboard {
     /** bucket key -> uuid -> entry. */
     private final ConcurrentHashMap<String, ConcurrentHashMap<UUID, LeaderboardEntry>> buckets = new ConcurrentHashMap<>();
     private final AtomicBoolean flushPending = new AtomicBoolean(false);
+    /** A row memory holds that the file does not yet. */
+    private final AtomicBoolean dirty = new AtomicBoolean(false);
+    /** One write at a time. */
+    private final Object writeLock = new Object();
+    private final Executor flusher;
     @Nullable private volatile Path file;
 
     /** On-disk shape: bucket(string) -> uuid(string) -> entry. */
@@ -53,16 +67,35 @@ public final class Leaderboard {
 
     /** @param name the board file base name (e.g. {@code "leaderboard"} -> {@code leaderboard.json}). */
     public Leaderboard(@Nonnull String name) {
+        this(name, Leaderboard::onServerScheduler);
+    }
+
+    /**
+     * As {@link #Leaderboard(String)}, with the debounced write handed to {@code flushOn} instead of
+     * the server's scheduler (three seconds later): a test's own executor, or a consumer's.
+     */
+    public Leaderboard(@Nonnull String name, @Nonnull Executor flushOn) {
         this.fileName = name.endsWith(".json") ? name : name + ".json";
+        this.flusher = flushOn;
     }
 
     /** Resolve the data file under {@code dataDir} and load any existing board. Call once at setup. */
     public void init(@Nullable Path dataDir) {
+        init(dataDir, null);
+    }
+
+    /**
+     * As {@link #init(Path)} for a board whose file moved folders: a load that finds it only in
+     * {@code oldDir}, the folder it sat in before, moves it (and its {@code .bak}) to {@code dataDir}
+     * first; a file in both keeps the one in {@code dataDir} and leaves the old alone; a move that fails
+     * reads and writes the old file this session ({@link DataFileMove}). Call once at setup.
+     */
+    public void init(@Nullable Path dataDir, @Nullable Path oldDir) {
         if (dataDir == null) {
             warn("leaderboard '" + fileName + "': no data directory; persistence disabled this session.");
             return;
         }
-        this.file = dataDir.resolve(fileName);
+        this.file = DataFileMove.settle("leaderboard", dataDir, oldDir, fileName).file();
         load();
     }
 
@@ -105,6 +138,8 @@ public final class Leaderboard {
             e.counters().mergeSums(statDeltas);
             return e;
         });
+        // Marked after the row lands, so a write that takes the mark also carries the row.
+        dirty.set(true);
         scheduleFlush();
     }
 
@@ -220,37 +255,50 @@ public final class Leaderboard {
         }
         if (flushPending.compareAndSet(false, true)) {
             try {
-                HytaleServer.SCHEDULED_EXECUTOR.schedule(() -> {
+                flusher.execute(() -> {
                     flushPending.set(false);
                     flushNow();
-                }, FLUSH_DEBOUNCE_SECONDS, TimeUnit.SECONDS);
+                });
             } catch (Throwable t) {
                 flushPending.set(false); // no server scheduler (unit JVM) -> skip persistence
             }
         }
     }
 
-    private void flushNow() {
-        Path f = file;
-        if (f == null) {
-            return;
-        }
-        try {
-            Dto dto = new Dto();
-            dto.buckets = new HashMap<>();
-            for (Map.Entry<String, ConcurrentHashMap<UUID, LeaderboardEntry>> be : buckets.entrySet()) {
-                Map<String, LeaderboardEntry> bucket = new HashMap<>();
-                for (Map.Entry<UUID, LeaderboardEntry> pe : be.getValue().entrySet()) {
-                    bucket.put(pe.getKey().toString(), pe.getValue());
+    /** The server's scheduler, the debounce later; in a JVM with no server it throws and the caller skips the flush. */
+    private static void onServerScheduler(@Nonnull Runnable task) {
+        HytaleServer.SCHEDULED_EXECUTOR.schedule(task, FLUSH_DEBOUNCE_SECONDS, TimeUnit.SECONDS);
+    }
+
+    /**
+     * Write the board now if anything was recorded since the last write: the debounced write, and
+     * the owner's stop. Nothing new, or no data directory, writes nothing. One write at a time, from
+     * any thread; a write that fails is logged, never thrown, and the next one tries again.
+     */
+    public void flushNow() {
+        synchronized (writeLock) {
+            Path f = file;
+            if (f == null || !dirty.getAndSet(false)) {
+                return;
+            }
+            try {
+                Dto dto = new Dto();
+                dto.buckets = new HashMap<>();
+                for (Map.Entry<String, ConcurrentHashMap<UUID, LeaderboardEntry>> be : buckets.entrySet()) {
+                    Map<String, LeaderboardEntry> bucket = new HashMap<>();
+                    for (Map.Entry<UUID, LeaderboardEntry> pe : be.getValue().entrySet()) {
+                        bucket.put(pe.getKey().toString(), pe.getValue());
+                    }
+                    dto.buckets.put(be.getKey(), bucket);
                 }
-                dto.buckets.put(be.getKey(), bucket);
+                if (f.getParent() != null) {
+                    Files.createDirectories(f.getParent());
+                }
+                FileUtil.writeStringAtomic(f, gson.toJson(dto), true);
+            } catch (Throwable t) {
+                dirty.set(true);
+                warn("leaderboard '" + fileName + "' flush failed: " + t.getMessage());
             }
-            if (f.getParent() != null) {
-                Files.createDirectories(f.getParent());
-            }
-            FileUtil.writeStringAtomic(f, gson.toJson(dto), true);
-        } catch (Throwable t) {
-            warn("leaderboard '" + fileName + "' flush failed: " + t.getMessage());
         }
     }
 

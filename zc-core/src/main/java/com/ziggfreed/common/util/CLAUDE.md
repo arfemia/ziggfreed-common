@@ -8,5 +8,6 @@
 - Never repoint an already-shipped `SplitMix64` stream at `mix` unless the result is bit-identical.
 - `PeriodMath` is the one repeating-window authority (UTC `floorDiv`; `millisUntilNext` is always positive; `nextBoundaryMs` saturates at `Long.MAX_VALUE`); quest repeats and shop rotations both delegate to it.
 - Every `mods/ziggfreedcommon/*.json` owner file follows `OwnerFiles`: a `$`-prefixed key is never an entry id, and a file declaring a newer `$SchemaVersion` is refused whole.
+- A data file that moves to another folder is found through `DataFileMove.settle`, never a hand-rolled move: only in the old folder, it moves with its `.bak` (never over a `.bak` already there); in both, the new one is used and the old left alone; a failed move keeps using the old file that run. A move, a file in both and a failed move each log one line; it never throws.
 - `JsonOverrideWriter` never overwrites a malformed file, and the caller owns number type fidelity (`Integer` for an integer codec, `Double` for a double one).
 - `AssetIndexCache` never caches `0` or a sentinel (index 0 is many maps' none slot); `DamageCauseCache` caches any index `>= 0`; both retry an unresolved id. A stat channel uses zc-entity's `StatIndexCache`, since a custom channel may sit at index 0.

@@ -1,7 +1,9 @@
 # instance/leaderboard/
 
 - A bucket key is the consumer's own string, except `*`, reserved for the synthesized All tab, and `total_points`, reserved for the total counter and never a consumer stat key.
-- `Leaderboard.record` mutates in memory and schedules a debounced off-thread atomic flush; an unreadable file falls back to its `.bak`.
+- `Leaderboard.record` mutates in memory and schedules a debounced off-thread atomic flush (on the server's scheduler 3 seconds later, or on the `Executor` a test hands the constructor); an unreadable file falls back to its `.bak`. `flushNow` writes only what changed since the last write, one write at a time (the engine's atomic writer shares one `.tmp` per file), and a failed write keeps the change for the next. The encounter board is written once more at the library's stop (`InstanceBootstrap.shutdown` calls `EncounterLeaderboardListener.flushNow`, from the wiring root's `shutdown()`); a consumer's own board writes at its own stop by calling `flushNow`.
+- The engine's `FileUtil.writeStringAtomic` loads on Update 7 only under the engine's log manager: a test that reads back a file a board wrote is tagged `engine-items` (those methods alone), and the untagged `LeaderboardStopTest.aWriteThatCannotHappenNeverReachesTheCaller` proves a failed write never reaches the caller.
+- The encounter board (`encounter-leaderboard.json`) lives in `mods/ziggfreedcommon/` (`EncounterOwnerLayers.directory()`). Before 2.2.0 it sat in the library's data folder (`mods/Ziggfreed_ZiggfreedCommon/`): `Leaderboard.init(dir, oldDir)` moves a board once through zc-core's `util/DataFileMove`, and a move that fails keeps reading and writing the old file that session.
 - `LeaderboardPage` keeps no state across events: every binding round-trips the full state, and every exit path sends a response.
 - The stats row has four cells (`StatColumnDef.MAX_STAT_COLUMNS`); extra columns are dropped.
 - `EncounterLeaderboardListener` only listens, and a binding row naming no `Bucket` writes nothing.

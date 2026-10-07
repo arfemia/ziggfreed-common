@@ -538,6 +538,11 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
     @Override
     protected void shutdown() {
         CalendarBootstrap.shutdown();
+        // The Almanac's server totals and the encounter board are written by a 3-second debounce the
+        // server may never run before it exits, so the last counts and defeats are written here; every
+        // player has left and every world has shut down by now, so nothing is counted after it.
+        AlmanacBootstrap.shutdown();
+        InstanceBootstrap.shutdown();
         // Nothing to write for placements: each one rides its own chunk's save, so a restart finds
         // them exactly where it left them without this plugin persisting anything of its own.
         AssetStoreWriter.shutdown();

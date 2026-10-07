@@ -17,6 +17,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.hypixel.hytale.server.core.HytaleServer;
 import com.hypixel.hytale.server.core.util.io.FileUtil;
+import com.ziggfreed.common.util.DataFileMove;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -25,18 +26,28 @@ import com.ziggfreed.common.util.SafeLog;
  * reader's own figure. Counts only: the file names no player.
  *
  * <p>Kept the leaderboard way: {@link #add} changes the in-memory map at once (safe from the world thread
- * the moment arrives on) and asks for one debounced flush, which writes {@code <dataDir>/}
- * {@value #FILE_NAME} atomically through {@link FileUtil#writeStringAtomic} with the previous write kept as
- * {@code .bak}. A file that will not read falls back to the {@code .bak}, then to empty; a server with no
- * data folder counts in memory and writes nothing. Nothing is counted while the Almanac is switched off.
+ * the moment arrives on) and asks for one debounced flush, which writes {@value #FILE_NAME} atomically
+ * through {@link FileUtil#writeStringAtomic} with the previous write kept as {@code .bak}. The library's
+ * stop calls {@link #flushNow} once more, so the counts of the last seconds before a server stops are
+ * kept too: a write carries only what changed since the last one and writes nothing otherwise, and writes
+ * run one at a time (the engine's writer shares one temp file per target), so the stop, a late debounced
+ * write and a second stop never collide or rewrite the same totals. A file that will not read falls back
+ * to the {@code .bak}, then to empty; a server with no data folder counts in memory and writes nothing.
+ * Nothing is counted while the Almanac is switched off.
+ *
+ * <p>The file sits beside the library's owner files ({@code mods/ziggfreedcommon/}). The 2.2.0 builds
+ * before its release kept it in the library's data folder; {@link #init(Path, Path)} moves it across
+ * once, through {@link DataFileMove}.
  */
 public final class ServerTallies {
 
-    /** The totals' file, in the library's data folder. */
+    /** The totals' file, beside the library's owner files. */
     public static final String FILE_NAME = "almanac-server-tallies.json";
 
     /** How long a flush waits for more counts to ride along. */
     private static final long FLUSH_DEBOUNCE_MS = 3000L;
+
+    private static final String LOG_TAG = "almanac";
 
     /** Runs a task once, after a delay; the production one is the server's scheduler. */
     @FunctionalInterface
@@ -50,6 +61,10 @@ public final class ServerTallies {
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     private final ConcurrentHashMap<String, Long> totals = new ConcurrentHashMap<>();
     private final AtomicBoolean flushPending = new AtomicBoolean(false);
+    /** A count memory holds that the file does not yet. */
+    private final AtomicBoolean dirty = new AtomicBoolean(false);
+    /** One write, or one re-point, at a time. */
+    private final Object writeLock = new Object();
     @Nullable private volatile Path file;
 
     /** The file's shape: a version for a later reader, and the totals by key. */
@@ -70,14 +85,27 @@ public final class ServerTallies {
 
     /** Point the totals at {@code dataDir} and read what an earlier run saved there. Once, at setup. */
     public void init(@Nullable Path dataDir) {
-        totals.clear();
-        if (dataDir == null) {
-            file = null;
-            return;
+        init(dataDir, null);
+    }
+
+    /**
+     * Point the totals at {@code homeDir} and read what an earlier run saved, moving the file there first
+     * when a load finds it only in {@code oldDir}, the folder it sat in before ({@link DataFileMove}: a
+     * file in both keeps the new one, and a move that fails reads and writes the old file this run). A null
+     * {@code homeDir} counts in memory and writes nothing. Once, at setup.
+     */
+    public void init(@Nullable Path homeDir, @Nullable Path oldDir) {
+        synchronized (writeLock) {
+            totals.clear();
+            dirty.set(false);
+            if (homeDir == null) {
+                file = null;
+                return;
+            }
+            Path target = DataFileMove.settle(LOG_TAG, homeDir, oldDir, FILE_NAME).file();
+            file = target;
+            load(target);
         }
-        Path target = dataDir.resolve(FILE_NAME);
-        file = target;
-        load(target);
     }
 
     /** What every player together has counted under {@code key}; 0 for a key nothing counted. */
@@ -95,6 +123,8 @@ public final class ServerTallies {
             return;
         }
         totals.merge(fold(key), amount, Long::sum);
+        // Marked after the count lands, so a write that takes the mark also carries the count.
+        dirty.set(true);
         scheduleFlush();
     }
 
@@ -111,21 +141,30 @@ public final class ServerTallies {
         }
     }
 
-    /** Write the totals now. A server with no data folder writes nothing. */
+    /**
+     * Write the totals now if anything was counted since the last write: the debounced write, and the
+     * library's stop ({@code AlmanacBootstrap.shutdown}). Nothing new, or no data folder, writes nothing.
+     * One write at a time, from any thread; a write that fails is logged, never thrown, and the next one
+     * tries again.
+     */
     public void flushNow() {
-        Path target = file;
-        if (target == null) {
-            return;
-        }
-        try {
-            Dto dto = new Dto();
-            dto.totals = new TreeMap<>(totals);
-            if (target.getParent() != null) {
-                Files.createDirectories(target.getParent());
+        synchronized (writeLock) {
+            Path target = file;
+            if (target == null || !dirty.getAndSet(false)) {
+                return;
             }
-            FileUtil.writeStringAtomic(target, gson.toJson(dto), true);
-        } catch (Throwable t) {
-            SafeLog.warn("[almanac] the server totals could not be written to " + target + ": " + t.getMessage());
+            try {
+                Dto dto = new Dto();
+                dto.totals = new TreeMap<>(totals);
+                if (target.getParent() != null) {
+                    Files.createDirectories(target.getParent());
+                }
+                FileUtil.writeStringAtomic(target, gson.toJson(dto), true);
+            } catch (Throwable t) {
+                dirty.set(true);
+                SafeLog.warn("[" + LOG_TAG + "] the server totals could not be written to " + target + ": "
+                        + t.getMessage());
+            }
         }
     }
 
