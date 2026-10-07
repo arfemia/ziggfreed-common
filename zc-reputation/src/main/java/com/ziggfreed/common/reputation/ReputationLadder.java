@@ -4,14 +4,18 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * The server's one rank ladder as zc reads it: every loaded native {@code ReputationRank}, sorted by
- * {@code MinValue}. A value's rank is the HIGHEST rank whose floor it reaches, and a value below the bottom
- * reads as the bottom rank, so a gap or an overlap between authored ranks never leaves a value rankless.
+ * The rank ladder as zc reads it: the server's shared native {@code ReputationRank}s sorted by
+ * {@code MinValue}, plus, for one reputation, its own tiers above the shared top
+ * ({@link #of(Collection, Map)}). A value's rank is the HIGHEST rank whose floor it reaches, and a value
+ * below the bottom reads as the bottom rank, so a gap or an overlap between authored ranks never leaves a
+ * value rankless.
  * Below two ranks the ladder is unusable (the engine's own clamp is garbage then) and answers no rank.
  * Pure: the engine snapshot comes in through {@link ReputationNative#ranks()}.
  */
@@ -43,6 +47,95 @@ public final class ReputationLadder {
         List<Rank> sorted = new ArrayList<>(ranks);
         sorted.sort(Comparator.comparingInt(Rank::min));
         return new ReputationLadder(sorted);
+    }
+
+    /** Why a rank of a reputation's own is left off its ladder. */
+    public enum Refusal {
+        /** {@code From} on one of the server's shared ranks, whose floors every reputation shares. */
+        SHARED_RANK,
+        /** {@code From} at or below the shared top's floor, or at or past its ceiling. */
+        OUT_OF_RANGE,
+        /** {@code From} equal to another tier's, so one of the two could never be reached. */
+        SHARED_FLOOR
+    }
+
+    /** One tier a reputation authored that its ladder leaves out, and why. */
+    public record RefusedTier(@Nonnull String id, int from, @Nonnull Refusal refusal) {
+    }
+
+    /**
+     * The ladder ONE reputation reads: the server's shared {@code global} ranks, then the reputation's own
+     * tiers above the shared top, each from its {@code From} floor to the next tier's floor, the highest to
+     * the shared top's ceiling; the shared top then reaches only to the first tier. A floor on a shared rank
+     * id, at or below the shared top's floor (or at or past its ceiling), or equal to another tier's is left
+     * out ({@link #refusedTiers}), so the shared floors never move. With no tiers this is {@link #of(Collection)}.
+     */
+    @Nonnull
+    public static ReputationLadder of(@Nonnull Collection<Rank> global, @Nonnull Map<String, Integer> fromFloors) {
+        return fold(global, fromFloors).ladder();
+    }
+
+    /** The tiers {@link #of(Collection, Map)} leaves out of {@code fromFloors}, in floor order, each with why. */
+    @Nonnull
+    public static List<RefusedTier> refusedTiers(@Nonnull Collection<Rank> global,
+            @Nonnull Map<String, Integer> fromFloors) {
+        return fold(global, fromFloors).refused();
+    }
+
+    /** One walk, two answers, so the ladder and the audit cannot disagree about a tier. */
+    private record Fold(@Nonnull ReputationLadder ladder, @Nonnull List<RefusedTier> refused) {
+    }
+
+    @Nonnull
+    private static Fold fold(@Nonnull Collection<Rank> global, @Nonnull Map<String, Integer> fromFloors) {
+        ReputationLadder shared = of(global);
+        if (fromFloors.isEmpty()) {
+            return new Fold(shared, List.of());
+        }
+        Rank top = shared.top();
+        List<Map.Entry<String, Integer>> tiers = new ArrayList<>();
+        for (Map.Entry<String, Integer> entry : fromFloors.entrySet()) {
+            if (entry.getKey() != null && !entry.getKey().isBlank() && entry.getValue() != null) {
+                tiers.add(Map.entry(entry.getKey().trim(), entry.getValue()));
+            }
+        }
+        tiers.sort(Comparator.comparingInt((Map.Entry<String, Integer> tier) -> tier.getValue())
+                .thenComparing(tier -> tier.getKey().toLowerCase(Locale.ROOT)));
+        List<Rank> kept = new ArrayList<>();
+        List<RefusedTier> refused = new ArrayList<>();
+        for (Map.Entry<String, Integer> tier : tiers) {
+            Refusal why = refusalOf(shared, top, kept, tier.getKey(), tier.getValue());
+            if (why != null) {
+                refused.add(new RefusedTier(tier.getKey(), tier.getValue(), why));
+            } else {
+                kept.add(new Rank(tier.getKey(), tier.getValue(), tier.getValue()));
+            }
+        }
+        if (kept.isEmpty()) {
+            return new Fold(shared, List.copyOf(refused));
+        }
+        List<Rank> ranks = new ArrayList<>(shared.ranks());
+        ranks.set(ranks.size() - 1, new Rank(top.id(), top.min(), kept.get(0).min()));
+        for (int i = 0; i < kept.size(); i++) {
+            int max = i + 1 < kept.size() ? kept.get(i + 1).min() : top.max();
+            ranks.add(new Rank(kept.get(i).id(), kept.get(i).min(), max));
+        }
+        return new Fold(new ReputationLadder(ranks), List.copyOf(refused));
+    }
+
+    @Nullable
+    private static Refusal refusalOf(@Nonnull ReputationLadder shared, @Nullable Rank top, @Nonnull List<Rank> kept,
+            @Nonnull String id, int from) {
+        if (shared.byId(id) != null) {
+            return Refusal.SHARED_RANK;
+        }
+        if (top == null || !shared.usable() || from <= top.min() || from >= top.max()) {
+            return Refusal.OUT_OF_RANGE;
+        }
+        if (!kept.isEmpty() && kept.get(kept.size() - 1).min() == from) {
+            return Refusal.SHARED_FLOOR;
+        }
+        return null;
     }
 
     /** Every rank, bottom first. */

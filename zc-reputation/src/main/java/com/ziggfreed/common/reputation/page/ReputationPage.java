@@ -175,7 +175,7 @@ public final class ReputationPage extends InteractiveCustomUIPage<ReputationEven
     private static List<ReputationView.Row> rows(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
         try {
             ReputationService service = ReputationRuntime.service();
-            return ReputationView.rows(service.met(store, ref), service.ladder());
+            return ReputationView.rows(service.met(store, ref), service::ladderFor);
         } catch (Throwable t) {
             SafeLog.warn("[reputation] the page could not read the player's standing", t);
             return List.of();

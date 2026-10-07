@@ -101,4 +101,20 @@ class ReputationAssetTest {
         assertEquals(2000, child.beyondEvery());
         assertEquals(1, child.beyondRewards().size(), "Beyond merges leaf by leaf, so the parent's Rewards stay");
     }
+
+    @Test
+    void aRankAboveTheTopCarriesItsFloorAndAChildMayMoveIt() {
+        ReputationAsset rep = ReputationFixtures.companion("Test_Festival", """
+                { "Ranks": { "Friendly": { "Name": "test.festival.rank.friendly" },
+                             "Test_Wayfarer": { "Name": "test.festival.rank.wayfarer", "From": 60000 } } }
+                """);
+        assertEquals(Map.of("Test_Wayfarer", 60_000), rep.tierFloors(), "only an entry with a From is a tier");
+        assertEquals("test.festival.rank.wayfarer", rep.rankNameKey("test_wayfarer"));
+        ReputationAsset child = ReputationFixtures.companion("Test_Festival", """
+                { "Ranks": { "Test_Wayfarer": { "From": 70000 } } }
+                """, rep);
+        assertEquals(Map.of("Test_Wayfarer", 70_000), child.tierFloors());
+        assertEquals("test.festival.rank.wayfarer", child.rankNameKey("Test_Wayfarer"),
+                "the entry merges leaf by leaf, so the name it did not restate stays");
+    }
 }

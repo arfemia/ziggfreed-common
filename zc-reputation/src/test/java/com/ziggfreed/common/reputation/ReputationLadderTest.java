@@ -7,7 +7,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
@@ -101,5 +103,41 @@ class ReputationLadderTest {
         assertEquals(26_000, ReputationLadder.nextRewardAt(25_000, 21_000, 5_000));
         assertEquals(26_000, ReputationLadder.nextRewardAt(10_000, 21_000, 5_000));
         assertEquals(31_000, ReputationLadder.nextRewardAt(26_000, 21_000, 5_000));
+    }
+
+    @Test
+    void withNoTiersAReputationsLadderIsTheSharedOne() {
+        assertEquals(LADDER.ranks(), ReputationLadder.of(ReputationFixtures.LADDER, Map.of()).ranks(),
+                "the same ranks, floors and ceilings: a reputation with no tiers reads exactly as before");
+        assertTrue(ReputationLadder.refusedTiers(ReputationFixtures.LADDER, Map.of()).isEmpty());
+    }
+
+    @Test
+    void tiersStandAboveTheTopInFloorOrderAndABadFloorIsLeftOutWithItsReason() {
+        Map<String, Integer> floors = new LinkedHashMap<>();
+        floors.put("Test_Luminary", 150_000);
+        floors.put("Exalted", 50_000);
+        floors.put("Test_Wayfarer", 60_000);
+        floors.put("Test_Low", 21_000);
+        floors.put("Test_Zeal", 60_000);
+        floors.put("Test_Past", 2_000_000_000);
+
+        ReputationLadder tiered = ReputationLadder.of(ReputationFixtures.LADDER, floors);
+
+        assertEquals(List.of("Hated", "Unfriendly", "Neutral", "Friendly", "Honored", "Revered", "Exalted",
+                "Test_Wayfarer", "Test_Luminary"), ids(tiered.ranks()));
+        assertEquals(new Rank("Exalted", 21_000, 60_000), tiered.byId("Exalted"),
+                "Exalted keeps its floor and reaches only to the first tier");
+        assertEquals(new Rank("Test_Wayfarer", 60_000, 150_000), tiered.byId("test_wayfarer"));
+        assertEquals(new Rank("Test_Luminary", 150_000, 2_000_000_000), tiered.top(),
+                "the highest tier reaches the shared top's ceiling");
+        assertEquals(List.of(
+                        new ReputationLadder.RefusedTier("Test_Low", 21_000, ReputationLadder.Refusal.OUT_OF_RANGE),
+                        new ReputationLadder.RefusedTier("Exalted", 50_000, ReputationLadder.Refusal.SHARED_RANK),
+                        new ReputationLadder.RefusedTier("Test_Zeal", 60_000, ReputationLadder.Refusal.SHARED_FLOOR),
+                        new ReputationLadder.RefusedTier("Test_Past", 2_000_000_000,
+                                ReputationLadder.Refusal.OUT_OF_RANGE)),
+                ReputationLadder.refusedTiers(ReputationFixtures.LADDER, floors),
+                "in floor order; of two tiers on one floor the first by id stands");
     }
 }
