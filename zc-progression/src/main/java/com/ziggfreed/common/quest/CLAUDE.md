@@ -9,6 +9,7 @@
 - `QuestEngine.clearQuest` is the only re-arm and reports through `QuestResets` (`store().clearQuest` is not a shortcut). It keeps the completion record; `wipeQuest` and `wipeAllQuests` are the admin wipe.
 - `CompletionRecord` keeps two tallies: `repeatCheck` reads finishes, `quest_completions` reads collections, and a one-shot writes no record.
 - `Quest.repeat()` is nullable and its presence is the repeatable flag. A `Reset` window is one length, never a daily or weekly enum; `QuestCadence` is the one bucketing, and `CooldownFrom` is an anchor, not a mode.
+- `Repeat.PerRun` is keyed (event, year) on the completion record's `runYear` and `runCount` (`PerRuns`), never by whether now is inside a run; an old record with no run year belongs to the run whose days hold its last finish. `Quest.available()` ANDs the event's running switch, and nothing wipes a carried quest when its run ends.
 - The quest-log cap counts `logSlotsUsed` (`Quest.occupiesLog`), not `activeCount`. `available` and `maxActive` are live consumer suppliers, and the refusals built on them stay in the engine.
 - `STAT_THRESHOLD` steps are re-read on accept, in `selfHeal` and after a dispatch that moved the same quest; never add a poll or a sweep.
 - Quest moments go through the feedback hook unconditionally (`nativeEvents` switches only the event bus). `Quest_Completed` and `Quest_Claimed` carry the grant receipt and `Quest_Parked` the promise; each `try*` twin answers the payout, and its boolean, void or int form is a thin wrapper over it.

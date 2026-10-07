@@ -2,6 +2,7 @@ package com.ziggfreed.common.quest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -56,5 +57,16 @@ class CompletionRecordTest {
         assertTrue(CompletionRecord.NONE.isEmpty());
         assertFalse(new CompletionRecord(0L, 0, 1, 0).isEmpty(),
                 "one finish with the reward still owing is a record, not an absence");
+    }
+
+    @Test
+    void theFourNumberFormKeepsNoRunTallyAndARunCountNeedsARunYear() {
+        QuestProgressStore.CompletionRecord plain = new QuestProgressStore.CompletionRecord(5L, 1, 2, 2);
+        assertNull(plain.runYear());
+        assertEquals(0, plain.runCount());
+        assertEquals(0, new QuestProgressStore.CompletionRecord(5L, 1, 2, 2, null, 4).runCount(),
+                "a count with no run to belong to is nothing");
+        assertEquals(Integer.valueOf(2026), new QuestProgressStore.CompletionRecord(5L, 1, 2, 2, 2026, 1).runYear());
+        assertEquals(1, new QuestProgressStore.CompletionRecord(5L, 1, 2, 2, 2026, 1).runCount());
     }
 }

@@ -19,6 +19,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -329,6 +330,31 @@ class QuestReaderTest {
         assertTrue(engine.track(player, active.id()));
         assertEquals(Mark.TRACKED, reader().row(active).mark());
         assertTrue(reader().tracked(active));
+    }
+
+    @Test
+    void aStartedQuestTheCatalogueStopsOfferingLeavesTheJournalAndTheTrackerAndComesBackWithItsProgress() {
+        AtomicBoolean running = new AtomicBoolean(true);
+        Quest seasonal = Quest.builder("q_seasonal").category("main").objective(mine("mine", 0))
+                .available(running::get).build();
+        set(seasonal);
+        assertTrue(engine.accept(player, seasonal));
+        assertTrue(engine.track(player, "q_seasonal"));
+        engine.dispatch(player, "BREAK_BLOCK", "Copper_Ore", null, 1);
+        assertTrue(reader().listed().stream().anyMatch(q -> q.id().equals("q_seasonal")), "listed while it runs");
+
+        running.set(false);
+        assertFalse(reader().listed().stream().anyMatch(q -> q.id().equals("q_seasonal")),
+                "off-season a started quest leaves the journal");
+        assertTrue(engine.trackedActive(player).isEmpty(), "and the tracked-quest HUD");
+        assertEquals(QuestStatus.ACTIVE, engine.status(player, seasonal), "it is still carried");
+        assertEquals(1, engine.progressOf(player, "q_seasonal", "mine").current(), "with its progress");
+
+        running.set(true);
+        assertTrue(reader().listed().stream().anyMatch(q -> q.id().equals("q_seasonal")), "back in the journal");
+        assertEquals(List.of("q_seasonal"), engine.trackedActive(player).stream().map(Quest::id).toList(),
+                "and on the tracker, its pin kept");
+        assertEquals(1, engine.progressOf(player, "q_seasonal", "mine").current(), "where the player left it");
     }
 
     // ==================== giver-bound (GiverBoundQuestTest, ported) ====================

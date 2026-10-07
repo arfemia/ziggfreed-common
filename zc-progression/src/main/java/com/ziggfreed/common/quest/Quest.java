@@ -15,6 +15,7 @@ import com.ziggfreed.common.progress.ContentText;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.asset.QuestIndicatorSpec;
+import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.util.PeriodMath;
 
 /**
@@ -45,10 +46,11 @@ public final class Quest {
      * boolean inside, because a flag saying false on an object that exists is the ambiguity this
      * shape removes.
      *
-     * <p><b>Three independent constraints, ANDed, each with a neutral value.</b> A rolling
-     * {@link #cooldownMs()} wait, a calendar {@link Reset} allowance, and a lifetime
-     * {@link #maxCompletions()} cap: author one, two, or all three, and
-     * {@link QuestLifecycle#repeatCheck} settles the lot. Every one of them neutral - the EMPTY
+     * <p><b>Four independent constraints, ANDed, each with a neutral value:</b> a rolling
+     * {@link #cooldownMs()} wait, a calendar {@link Reset} allowance, a lifetime
+     * {@link #maxCompletions()} cap, and a once-a-run {@link PerRun} allowance over a calendar
+     * event's runs. Author any of them, and {@link QuestLifecycle#repeatCheck} settles the lot.
+     * Every one of them neutral - the EMPTY
      * group - means the quest holds nothing back and is offerable again the moment it settles,
      * which is what an externally governed quest wants: whatever rotating offer hands it out owns
      * when it comes round.
@@ -59,7 +61,8 @@ public final class Quest {
     public record Repeat(long cooldownMs,
                          @Nonnull CooldownFrom cooldownFrom,
                          @Nullable Reset reset,
-                         int maxCompletions) {
+                         int maxCompletions,
+                         @Nullable PerRun perRun) {
 
         /** Where a rolling cooldown's clock starts. */
         public enum CooldownFrom {
@@ -131,10 +134,35 @@ public final class Quest {
             }
         }
 
+        /**
+         * Once a run of a calendar event. The quest is offered only while a run of {@code event} is going
+         * on, and at most {@code times} finishes count in one run. Runs are keyed (event, year), the year a
+         * run STARTS in, so a run forced on, a run whose days an owner moved and a run crossing the new year
+         * each count as the one run they are ({@link PerRuns}).
+         *
+         * @param event the calendar event's id, as its file names it
+         * @param times how many finishes one run allows; at least 1
+         */
+        public record PerRun(@Nonnull String event, int times) {
+
+            public PerRun {
+                if (event == null || event.isBlank()) {
+                    throw new IllegalArgumentException("a once-a-run rule names its calendar event");
+                }
+                event = event.trim();
+                times = Math.max(1, times);
+            }
+        }
+
         public Repeat {
             cooldownMs = Math.max(0L, cooldownMs);
             cooldownFrom = cooldownFrom == null ? CooldownFrom.CLAIM : cooldownFrom;
             maxCompletions = Math.max(0, maxCompletions);
+        }
+
+        /** The four-knob form: no once-a-run allowance. */
+        public Repeat(long cooldownMs, @Nonnull CooldownFrom cooldownFrom, @Nullable Reset reset, int maxCompletions) {
+            this(cooldownMs, cooldownFrom, reset, maxCompletions, null);
         }
 
         /**
@@ -452,9 +480,19 @@ public final class Quest {
      * the server is up - a feature toggle, an owner file reloaded, a dependency that came back - and
      * the catalogue is only rebuilt when content reloads. A consumer supplies the predicate; the
      * decision to refuse an accept on it stays the engine's.
+     *
+     * <p>A once-a-run quest ({@link Repeat.PerRun}) is also available only while a run of its event is
+     * going on: the event's running switch, read through zc-core's {@code SeasonGate} exactly as a
+     * {@code Season} leaf reads it.
      */
     public boolean available() {
-        return available.getAsBoolean();
+        return available.getAsBoolean() && inRun();
+    }
+
+    /** Is a run of this quest's once-a-run event going on? True for a quest with no such rule. */
+    public boolean inRun() {
+        Repeat.PerRun perRun = repeat == null ? null : repeat.perRun();
+        return perRun == null || SeasonGate.live(perRun.event());
     }
 
     /**
