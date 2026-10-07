@@ -28,6 +28,7 @@ public final class ReputationText {
     public static final List<String> SPOKEN = List.of(
             "rank.hated", "rank.unfriendly", "rank.neutral", "rank.friendly", "rank.honored", "rank.revered",
             "rank.exalted", "rank.none",
+            "factor.rank_with",
             "reward.gain", "reward.loss",
             "page.title", "page.lead", "page.empty.title", "page.empty", "page.section",
             "row.next", "row.reward", "row.top", "row.gear", "row.gear.loss",

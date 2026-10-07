@@ -14,7 +14,13 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.hypixel.hytale.assetstore.AssetExtraInfo;
+import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.ziggfreed.common.factor.DerivedFactorAsset;
+import com.ziggfreed.common.factor.DerivedFactorConfig;
 import com.ziggfreed.common.factor.FactorContext;
+import com.ziggfreed.common.factor.FactorNames;
+import com.ziggfreed.common.i18n.LangCatalog;
 import com.ziggfreed.common.reputation.asset.ReputationAsset;
 import com.ziggfreed.common.reputation.page.ReputationView;
 
@@ -46,6 +52,8 @@ class ShippedReputationsTest {
     @AfterEach
     void clear() {
         ReputationFixtures.reset();
+        DerivedFactorConfig.getInstance().mergePackLayer(Map.of());
+        LangCatalog.overrideForTests(null);
     }
 
     static String fixture(String path) throws IOException {
@@ -108,5 +116,24 @@ class ShippedReputationsTest {
                 new ReputationNative.Group(HALLOWED, 0, List.of()));
         assertEquals(List.of(), ReputationValidator.audit(List.of(jack, hallowed), groups, engine.ranks(),
                 group -> true, stat -> true, item -> true));
+    }
+
+    @Test
+    void theShippedGatesKeepTheirOwnLockLines() throws IOException {
+        DerivedFactorConfig.getInstance().mergePackLayer(Map.of("hallows_eve_old_jack_favor",
+                DerivedFactorAsset.CODEC.decodeAndInheritJsonAsset(
+                        RawJsonReader.fromJsonString(fixture("Factors/Hallows_Eve_Old_Jack_Favor.json")), null,
+                        new AssetExtraInfo<>(new AssetExtraInfo.Data(DerivedFactorAsset.class,
+                                "Hallows_Eve_Old_Jack_Favor", null)))));
+        LangCatalog.overrideForTests(Map.of(
+                "hallowseve.progression.factor.hallows_eve_old_jack.friendly", "Regular with Old Jack",
+                "hallowseve.progression.factor.hallows_eve_old_jack.honored", "Trusted with Old Jack"));
+        ReputationFactors.contribute(service);
+
+        assertEquals("hallowseve.progression.factor.hallows_eve_old_jack.friendly",
+                FactorNames.name(ReputationFactors.RANK, JACK + "/Friendly").getMessageId(),
+                "the pack's own words for its gate still win over the composed line");
+        assertEquals("hallowseve.progression.factor.hallows_eve_old_jack.honored",
+                FactorNames.name(ReputationFactors.RANK, JACK + "/Honored").getMessageId());
     }
 }
