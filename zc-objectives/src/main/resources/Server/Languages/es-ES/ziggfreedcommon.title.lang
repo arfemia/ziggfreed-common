@@ -15,7 +15,6 @@ unlocked_hint = Elige el título que muestras con /zigtitle open
 picker.title = Títulos
 picker.subtitle = Elige el título que se muestra junto a tu nombre en los menús y las clasificaciones.
 picker.preview = Apareces como: {0}
-picker.none = Aún no has conseguido ningún título.
 picker.on = Mostrado
 picker.off = Mostrar
 picker.back = Volver

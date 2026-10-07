@@ -15,7 +15,6 @@ unlocked_hint = A megjelenített címet itt választhatod ki: /zigtitle open
 picker.title = Címek
 picker.subtitle = Válaszd ki a neved mellett megjelenő címet a menükben és a ranglistákon.
 picker.preview = Így jelensz meg: {0}
-picker.none = Még nem szereztél címet.
 picker.on = Látható
 picker.off = Mutat
 picker.back = Vissza

@@ -15,7 +15,6 @@ unlocked_hint = Choose the title you show with /zigtitle open
 picker.title = Titles
 picker.subtitle = Choose the title shown beside your name in menus and leaderboards.
 picker.preview = You appear as: {0}
-picker.none = You have not earned a title yet.
 picker.on = Shown
 picker.off = Show
 picker.back = Back
@@ -29,3 +28,13 @@ picker.settings_heading = Title
 picker.settings_tile = Your title
 picker.settings_wearing = Showing {0}
 picker.settings_none = No title shown
+
+# The picker's earned tiles and the titles still to earn; picker.on and picker.off above are a tile's Show
+# button. The two section heads draw in capitals. In from, {0} is the achievement that gives the title, {1}
+# the player's count toward it and {2} its target.
+picker.earned = Earned
+picker.not_earned = Not earned yet
+picker.show_none = Show none
+picker.from = From "{0}", {1, number} / {2, number}
+picker.none_yet = No titles yet. These achievements give one:
+picker.none_on_server = This server has no titles to earn.
