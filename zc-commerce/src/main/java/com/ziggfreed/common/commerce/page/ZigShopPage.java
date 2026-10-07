@@ -28,11 +28,11 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.commerce.CommerceStores;
 import com.ziggfreed.common.commerce.asset.WhereAxis;
-import com.ziggfreed.common.commerce.fold.CommerceCatalogs;
 import com.ziggfreed.common.commerce.fold.CommerceDefaults;
 import com.ziggfreed.common.commerce.fold.CommerceEngines;
 import com.ziggfreed.common.commerce.fold.ShelfSpec;
 import com.ziggfreed.common.commerce.fold.ShopEntryOffer;
+import com.ziggfreed.common.commerce.fold.StorefrontView;
 import com.ziggfreed.common.cost.Cost;
 import com.ziggfreed.common.currency.CurrencyEngine;
 import com.ziggfreed.common.i18n.Msg;
@@ -229,7 +229,7 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
         CurrencyEngine currencies = CommerceDefaults.currencyEngine();
         CommerceChips.render(cmd, "#BalanceRow",
                 CommerceChips.balances(currencies, subject,
-                        asset == null ? List.of() : asset.currencyIds(), deps.currencyNames()),
+                        StorefrontView.currencyIds(shopId), deps.currencyNames()),
                 MAX_CHIPS);
 
         // Switched off, hidden by a feature that reads off, or not in the world this player stands
@@ -241,8 +241,8 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
         }
 
         long now = System.currentTimeMillis();
-        ShopEngine engine = CommerceEngines.shops();
-        List<Run> runs = runsOf(engine, subject, asset, now);
+        ShopEngine engine = CommerceEngines.shopsAt(shopId);
+        List<Run> runs = runsOf(engine, subject, now);
         if (runs.isEmpty()) {
             // The filters stay hidden with nothing to narrow: an empty storefront is its own line.
             showEmpty(cmd, text("shop.empty.nothing"));
@@ -360,11 +360,10 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
      * the storefront asked for.
      */
     @Nonnull
-    private List<Run> runsOf(@Nonnull ShopEngine engine, @Nonnull Subject subject,
-            @Nullable StorefrontAsset asset, long now) {
+    private List<Run> runsOf(@Nonnull ShopEngine engine, @Nonnull Subject subject, long now) {
         List<Run> runs = new ArrayList<>();
         List<String> shelved = new ArrayList<>();
-        for (ShelfSpec shelf : CommerceCatalogs.shelvesOf(shopId)) {
+        for (ShelfSpec shelf : StorefrontView.shelves(shopId)) {
             List<ShopOffer> drawn = engine.activeShelfFor(subject, shelf, now);
             if (drawn.isEmpty()) {
                 continue;
@@ -384,9 +383,10 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
 
         List<ShopSections.Entry> standing = new ArrayList<>();
         Map<String, ShopOffer> byId = new LinkedHashMap<>();
-        // Only what is on sale right now: an offer switched off, hidden by a feature that reads off,
-        // or standing in a storefront that is gone is absent from the page, never shown locked.
-        for (ShopEntryOffer offer : CommerceCatalogs.shopContent().availableOffersOf(shopId)) {
+        // Only what is on sale right now: an offer switched off, hidden by a feature or its Season, or
+        // standing in a storefront that is gone is absent from the page, never shown locked. An included
+        // storefront's offers follow this one's own, standing in this one (StorefrontView).
+        for (ShopEntryOffer offer : StorefrontView.offers(shopId)) {
             String id = CommerceText.normalize(offer.offerId());
             if (offer.poolId() != null || shelved.contains(id)) {
                 // A shelf offer stands on its shelf or nowhere: showing it twice would let one
@@ -399,7 +399,7 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
                     offer.asset().getListing() == null ? 0
                             : offer.asset().getListing().sortOrderOrZero()));
         }
-        List<String> categoryOrder = asset == null ? List.of() : asset.categoryOrder();
+        List<String> categoryOrder = StorefrontView.categoryOrder(shopId);
         for (ShopSections.Section section : ShopSections.standing(standing, categoryOrder)) {
             List<ShopOffer> offers = new ArrayList<>();
             for (String id : section.offerIds()) {
@@ -409,7 +409,7 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
                 }
             }
             if (!offers.isEmpty()) {
-                runs.add(new Run(categoryHeading(asset, section.id()), null, offers,
+                runs.add(new Run(categoryHeading(section.id()), null, offers,
                         ShopSections.Kind.CATEGORY, section.id()));
             }
         }
@@ -417,17 +417,18 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
     }
 
     /**
-     * What a category run is called, on the one ladder both screens use: what the storefront wrote
-     * beside that category, then what a consumer ships for it, then this library's own word for the
-     * common shelves, then the category itself. The bucket carrying no category at all is not a
-     * shelf, so it reads as the generic catalogue line instead.
+     * What a category run is called, on the one ladder both screens use: what the storefront (or a
+     * storefront it includes) wrote beside that category, then what a consumer ships for it, then this
+     * library's own word for the common shelves, then the category itself. The bucket carrying no
+     * category at all is not a shelf, so it reads as the generic catalogue line instead.
      */
     @Nonnull
-    private Message categoryHeading(@Nullable StorefrontAsset shop, @Nonnull String categoryId) {
+    private Message categoryHeading(@Nonnull String categoryId) {
         if (categoryId.isEmpty()) {
             return text("shop.section.catalogue");
         }
-        return CommerceLabels.category(shop, categoryId, deps.titleArgs());
+        return CommerceLabels.category(StorefrontView.namingCategory(shopId, categoryId), categoryId,
+                deps.titleArgs());
     }
 
     /**
@@ -588,7 +589,7 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
         }
         String category = categoryOf(offer);
         if (category != null) {
-            cmd.set("#DetailCategory.TextSpans", categoryHeading(shopAsset(), category));
+            cmd.set("#DetailCategory.TextSpans", categoryHeading(category));
             cmd.set("#DetailCategory.Visible", true);
         }
 
@@ -767,7 +768,7 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
             return;
         }
         Subject subject = subjectOf(store, ref);
-        ShopEngine engine = CommerceEngines.shops();
+        ShopEngine engine = CommerceEngines.shopsAt(shopId);
         ShopOffer offer = selectedOfferId == null ? null : engine.catalog().offer(selectedOfferId);
         if (subject == null || offer == null) {
             player.getPageManager().openCustomPage(ref, store, this);
@@ -794,7 +795,7 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
         // An arm left standing behind a different row would charge for a click that was never about
         // it, so changing what the panel shows forgets every arm.
         rerollArm.reset();
-        ShopEngine engine = CommerceEngines.shops();
+        ShopEngine engine = CommerceEngines.shopsAt(shopId);
         ShopOffer offer = offerId == null ? null : engine.catalog().offer(offerId);
         int row = builtRows.indexOf(offerId);
         Subject subject = subjectOf(store, ref);
@@ -1015,7 +1016,7 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
 
     @Nullable
     private ShelfSpec shelfById(@Nonnull String shelfId) {
-        for (ShelfSpec shelf : CommerceCatalogs.shelvesOf(shopId)) {
+        for (ShelfSpec shelf : StorefrontView.shelves(shopId)) {
             if (CommerceText.sameId(shelf.shelfId(), shelfId)) {
                 return shelf;
             }

@@ -88,7 +88,7 @@ public final class ShopValidator {
 
         for (Map.Entry<String, StorefrontAsset> entry : shops.entrySet()) {
             if (entry.getValue() != null) {
-                validateShop(entry.getKey(), entry.getValue(), currencies, gateKinds, knownFactors, out);
+                validateShop(entry.getKey(), entry.getValue(), shops, currencies, gateKinds, knownFactors, out);
             }
         }
         for (Map.Entry<String, ShopPoolAsset> entry : pools.entrySet()) {
@@ -108,6 +108,7 @@ public final class ShopValidator {
     // ==================== storefronts ====================
 
     private static void validateShop(@Nonnull String id, @Nonnull StorefrontAsset shop,
+            @Nonnull Map<String, StorefrontAsset> shops,
             @Nullable CurrencyProbe currencies, @Nullable GateKindRegistry gateKinds,
             @Nullable Predicate<String> knownFactors, @Nonnull List<Finding> out) {
 
@@ -130,6 +131,20 @@ public final class ShopValidator {
         }
         out.addAll(GateValidator.validate(shop.getRequires(), DOMAIN, id, "storefront",
                 gateKinds, knownFactors, null));
+        for (String included : shop.includeIds()) {
+            if (!shops.containsKey(included)) {
+                out.add(Finding.warning(DOMAIN, "UNKNOWN_INCLUDE",
+                        "Includes names '" + included + "', which nothing defines, so it adds nothing here; it "
+                                + "comes back on its own if the pack owning that storefront is installed", id));
+            }
+        }
+        List<String> loop = StorefrontIncludes.loopFrom(id, shops::get);
+        if (!loop.isEmpty()) {
+            out.add(Finding.error(DOMAIN, "INCLUDES_CYCLE",
+                    "Includes leads back to this storefront (" + String.join(" -> ", loop) + "); the page cuts "
+                            + "the loop where it comes back round and lists each storefront once, but the loop "
+                            + "is a mistake: drop one of those Includes", id));
+        }
     }
 
     // ==================== shelves ====================

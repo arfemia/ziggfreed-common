@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Nested;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.schema.SchemaContext;
+import com.hypixel.hytale.codec.schema.config.ArraySchema;
 import com.hypixel.hytale.codec.schema.config.Schema;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.board.BoardSpec;
@@ -50,6 +52,12 @@ class CommerceCodecTest {
         AssetExtraInfo.Data data = new AssetExtraInfo.Data(StorefrontAsset.class, id, null);
         return StorefrontAsset.CODEC.decodeAndInheritJsonAsset(
                 RawJsonReader.fromJsonString(json), null, new AssetExtraInfo<>(data));
+    }
+
+    static StorefrontAsset shop(String json, String id, String parentId, StorefrontAsset parent) throws IOException {
+        AssetExtraInfo.Data data = new AssetExtraInfo.Data(StorefrontAsset.class, id, parentId);
+        return StorefrontAsset.CODEC.decodeAndInheritJsonAsset(
+                RawJsonReader.fromJsonString(json), parent, new AssetExtraInfo<>(data));
     }
 
     static ShopPoolAsset pool(String json, String id) throws IOException {
@@ -570,6 +578,38 @@ class CommerceCodecTest {
                     { "Currencies": ["Bounty_Token", "Life_Essence"] }
                     """, "Daily", null, null);
             assertEquals(java.util.List.of("bounty_token", "life_essence"), daily.currencyIds());
+        }
+    }
+
+    @Nested
+    class Storefront {
+
+        @Test
+        void includesNameOtherStorefrontsLowerCasedOnceEachInAuthoredOrder() throws Exception {
+            StorefrontAsset host = shop("""
+                    { "Includes": [ "Test_Festival_Stall", " ", "Test_Extras", "test_festival_stall" ] }
+                    """, "Test_Host");
+            assertEquals(List.of("test_festival_stall", "test_extras"), host.includeIds());
+            assertEquals(List.of(), shop("{}", "Test_Plain").includeIds(), "unauthored includes nothing");
+        }
+
+        @Test
+        void aChildStorefrontsIncludesReplaceTheParentsWhole() throws Exception {
+            StorefrontAsset base = shop("{ \"Includes\": [ \"Test_Festival_Stall\" ] }", "Test_Host", null, null);
+            StorefrontAsset child = shop("{ \"Includes\": [ \"Test_Other_Stall\" ] }", "Test_Host_Child",
+                    "test_host", base);
+            StorefrontAsset quiet = shop("{ \"Order\": 5 }", "Test_Host_Quiet", "test_host", base);
+
+            assertEquals(List.of("test_other_stall"), child.includeIds(), "Includes is one leaf, like Currencies");
+            assertEquals(List.of("test_festival_stall"), quiet.includeIds(), "a child that leaves it out inherits it");
+        }
+
+        @Test
+        void includesIsADocumentedArrayTheEditorCanFill() {
+            Schema includes = StorefrontAsset.CODEC.toSchema(new SchemaContext()).getProperties().get("Includes");
+            assertNotNull(includes, "the storefront declares its Includes leaf");
+            assertNotNull(includes.getMarkdownDescription(), "and says what it does");
+            assertNotNull(((ArraySchema) includes).getItems(), "an array declares what it holds");
         }
     }
 }
