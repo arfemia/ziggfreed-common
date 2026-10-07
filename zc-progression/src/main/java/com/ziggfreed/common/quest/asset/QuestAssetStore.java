@@ -14,6 +14,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.quest.asset.QuestGeneratorExpander.Expansion;
+import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.validation.ValidationReport;
@@ -248,7 +249,13 @@ public final class QuestAssetStore {
         Collections.sort(authoredIds);
         for (String id : authoredIds) {
             QuestAsset asset = authored.get(id);
-            if (asset == null || asset.isAbstract()) {
+            if (asset == null) {
+                continue;
+            }
+            // Once per authored file, a skeleton included: a generated child inherits its base's season
+            // and is never reported again, so one typo is one line.
+            SeasonGate.checkKnown(issues, QuestPoolValidator.DOMAIN, asset.getSeason(), id);
+            if (asset.isAbstract()) {
                 continue;
             }
             out.put(id, asset.toDefinition(null));

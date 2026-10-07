@@ -12,6 +12,7 @@ import javax.annotation.Nullable;
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FeatureFlags;
 import com.ziggfreed.common.factor.ModFactors;
+import com.ziggfreed.common.season.SeasonGate;
 
 /**
  * Lifts a TOP-LEVEL feature or mod-presence condition out of a {@code Requires} block and into the
@@ -203,6 +204,24 @@ public final class FeatureLift {
             }
         }
         return true;
+    }
+
+    /**
+     * Is content present RIGHT NOW: switched on, its {@code Season} running ({@link SeasonGate#live}),
+     * and every lifted condition on? The one presence read: the quest and contract folds hand it to
+     * their engine as {@code available}, and every commerce type's hide axis answers through it. A
+     * season is read here and never in a {@code Requires} block, so it hides and never locks.
+     */
+    public static boolean present(boolean enabled, @Nullable String season, @Nonnull List<Lifted> lifted) {
+        return enabled && SeasonGate.live(season) && allOn(lifted);
+    }
+
+    /**
+     * Can {@link #present} change while the server runs? Only when there is a season or a lifted
+     * condition to read; otherwise a fold hands its engine the constant {@code Enabled}.
+     */
+    public static boolean isLive(@Nullable String season, @Nonnull List<Lifted> lifted) {
+        return SeasonGate.isSeasonal(season) || !lifted.isEmpty();
     }
 
     /**
