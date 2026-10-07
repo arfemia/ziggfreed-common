@@ -33,6 +33,7 @@ import com.ziggfreed.common.quest.NpcOffer;
 import com.ziggfreed.common.quest.NpcOfferProviders;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
+import com.ziggfreed.common.quest.QuestTurnInSite;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.kit.ActionSlot;
 import com.ziggfreed.common.ui.kit.DetailAction;
@@ -56,6 +57,8 @@ import com.ziggfreed.common.ui.kit.Tone;
 class NpcQuestPagePlanTest {
 
     private static final String GUIDE = "guide";
+    private static final String STRANGER = "stranger";
+    private static final String JOURNAL = "ziggfreedcommon.journal.";
 
     private QuestEngine engine;
     private Subject player;
@@ -304,6 +307,47 @@ class NpcQuestPagePlanTest {
 
         assertEquals(reading(inBook), reading(page));
         assertEquals(actions(inBook), actions(page));
+    }
+
+    /**
+     * A quest taken here whose rewards belong to another character lists under Collect elsewhere, and the row the
+     * page builds for it says so: Elsewhere, not a gold Collect; its page offers no Collect and names who collects
+     * it. At that character the same quest reads Collect in gold, with the button.
+     */
+    @Test
+    void aQuestCollectedByAnotherCharacterReadsElsewhereOnTheRowThePageBuilds() {
+        Quest quest = Quest.builder("q_sited").turnInAt(QuestTurnInSite.character(GUIDE))
+                .objective(ObjectiveDef.builder("mine", "BREAK_BLOCK").target("Copper_Ore").amount(3).build())
+                .build();
+        engine.setQuests(List.of(quest));
+        assertTrue(engine.accept(player, quest, STRANGER));
+        engine.markUnclaimed(player, quest);
+        QuestReader reader = QuestReader.of(engine, player, QuestPresentation.of(NpcQuestPageDeps.builder()
+                .npcNames(id -> GUIDE.equals(id) ? Msg.raw("Guide Maren") : null).build()), null, 0L);
+
+        CharacterQuestListing listing = new CharacterQuestListing(engine, player, Set.of(STRANGER));
+        CharacterQuestListing here = NpcQuestPagePlan.place(STRANGER, listing);
+        LedgerModel model = NpcQuestPagePlan.model(NpcQuestPagePlan.entries(
+                NpcQuestPagePlan.quests(NpcQuestPagePlan.TAB_HERE, listing, engine, player), listing::sectionOf,
+                null), id -> NpcQuestPagePlan.row(reader, engine.quest(id), here), NpcQuestPagePlanTest::label,
+                Map.of());
+        assertEquals(List.of("parked"), sectionIds(model), "taken here, collected elsewhere");
+        LedgerRow row = model.sections().get(0).rows().get(0);
+        assertEquals(JOURNAL + "state.elsewhere", row.state().getMessageId(), "never a Collect it cannot honour");
+        assertEquals(Tone.NEUTRAL, row.tone());
+
+        DetailView page = NpcQuestPagePlan.page(reader, quest, here);
+        assertNull(page.action(ActionSlot.PRIMARY), "nothing to press here");
+        assertEquals(JOURNAL + "hint.collect_from", page.hint().getMessageId());
+        assertEquals("Guide Maren", page.hint().getFormattedMessage().messageParams.get("0").rawText);
+
+        CharacterQuestListing atGuide = NpcQuestPagePlan.place(GUIDE,
+                new CharacterQuestListing(engine, player, Set.of(GUIDE)));
+        LedgerRow there = NpcQuestPagePlan.row(reader, quest, atGuide);
+        assertEquals(JOURNAL + "state.collect", there.state().getMessageId());
+        assertEquals(Tone.COLLECT, there.tone());
+        assertEquals(QuestActions.COLLECT,
+                NpcQuestPagePlan.page(reader, quest, atGuide).action(ActionSlot.PRIMARY).actionId());
     }
 
     // ==================== helpers ====================

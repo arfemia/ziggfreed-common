@@ -34,6 +34,9 @@ import com.ziggfreed.common.ui.kit.DetailAction;
  * Available there (a giver-bound quest included, since this is where it is taken); Hand in when a step resolves
  * there ({@link CharacterQuestListing#turnInHere}), read as finishing the step when it delivers nothing; Collect only
  * where the quest may be collected (nothing for one parked for another character); Abandon on a carried quest.
+ *
+ * <p>Both places ask one rule for Collect ({@link #collectableHere}), the same one the reader's Elsewhere state word
+ * asks, so a row never reads Collect where its page has no Collect button.
  */
 public final class QuestActions {
 
@@ -137,14 +140,21 @@ public final class QuestActions {
                         ? action(ActionSlot.PRIMARY, QuestReader.text("action.hand_in"), ActionLook.NORMAL, HAND_IN)
                         : null;
             }
-            case COMPLETED_UNCLAIMED -> {
-                boolean collectable = here != null ? here.collectionSite(q) != null : q.turnInAt() == null;
-                yield collectable
-                        ? action(ActionSlot.PRIMARY, QuestReader.text("action.collect"), ActionLook.COLLECT, COLLECT)
-                        : null;
-            }
+            case COMPLETED_UNCLAIMED -> collectableHere(q, here)
+                    ? action(ActionSlot.PRIMARY, QuestReader.text("action.collect"), ActionLook.COLLECT, COLLECT)
+                    : null;
             case ON_COOLDOWN, COMPLETED -> null;
         };
+    }
+
+    /**
+     * Whether a finished quest can be collected where the player stands: at {@code here}, under an id the character
+     * answers to ({@link CharacterQuestListing#collectionSite}); in the book, only when it names no site, since the
+     * engine refuses a site-bound payout from nowhere. Where this is false the row reads Elsewhere
+     * ({@link QuestReader#collectsElsewhere}) and there is no Collect.
+     */
+    public static boolean collectableHere(@Nonnull Quest q, @Nullable CharacterQuestListing here) {
+        return here != null ? here.collectionSite(q) != null : q.turnInAt() == null;
     }
 
     @Nonnull

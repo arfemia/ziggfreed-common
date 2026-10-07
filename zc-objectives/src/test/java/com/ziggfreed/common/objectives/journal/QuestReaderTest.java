@@ -11,9 +11,12 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Matcher;
@@ -27,6 +30,7 @@ import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.protocol.FormattedMessage;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -34,6 +38,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.objectives.book.BookVerbs;
 import com.ziggfreed.common.objectives.questlist.CharacterQuestListing;
+import com.ziggfreed.common.objectives.questlist.NpcQuestSections;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.progress.runtime.ProgressionTextSource;
@@ -46,6 +51,7 @@ import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.text.ContentTextAsset;
 import com.ziggfreed.common.ui.kit.ActionLook;
 import com.ziggfreed.common.ui.kit.ActionSlot;
+import com.ziggfreed.common.ui.kit.DetailAction;
 import com.ziggfreed.common.ui.kit.DetailBlock;
 import com.ziggfreed.common.ui.kit.DetailLine;
 import com.ziggfreed.common.ui.kit.DetailView;
@@ -68,6 +74,7 @@ class QuestReaderTest {
     private static final String J = "ziggfreedcommon.journal.";
     private static final long HOUR = 3_600_000L;
     private static final String GUIDE = "guide";
+    private static final String STRANGER = "stranger";
 
     private long now = 1_000_000_000L;
     private QuestEngine engine;
@@ -78,6 +85,8 @@ class QuestReaderTest {
     static final class FakePresentation implements QuestPresentation {
 
         final Set<String> managed = new HashSet<>();
+        /** Names by character id, asked ahead of {@link #npcName}, which answers for any id. */
+        final Map<String, Message> names = new HashMap<>();
         @Nullable Message requirement;
         @Nullable Message npcName;
 
@@ -120,7 +129,8 @@ class QuestReaderTest {
         @Nullable
         @Override
         public Message npcName(@Nullable String npcId) {
-            return npcName;
+            Message named = npcId == null ? null : names.get(npcId);
+            return named != null ? named : npcName;
         }
     }
 
@@ -190,9 +200,32 @@ class QuestReaderTest {
         engine.setQuests(List.of(quests));
     }
 
+    /** A quest collected only at {@code site}. */
+    private static Quest sited(String id, QuestTurnInSite site) {
+        return Quest.builder(id).category("main").turnInAt(site).objective(mine("mine", 0)).build();
+    }
+
+    /** {@code quest}, the only one in the catalogue, taken at {@code takenAt} and finished, its rewards waiting. */
+    private Quest finishedAt(Quest quest, String takenAt) {
+        set(quest);
+        assertTrue(engine.accept(player, quest, takenAt));
+        engine.markUnclaimed(player, quest);
+        assertEquals(QuestStatus.COMPLETED_UNCLAIMED, engine.status(player, quest));
+        return quest;
+    }
+
     private static String id(@Nullable Message message) {
         assertNotNull(message, "a message is there");
         return message.getMessageId();
+    }
+
+    /** The name nested as a message's first param. */
+    private static String named(@Nullable Message message) {
+        assertNotNull(message, "a message is there");
+        FormattedMessage formatted = message.getFormattedMessage();
+        FormattedMessage name = formatted.messageParams == null ? null : formatted.messageParams.get("0");
+        assertNotNull(name, "the name rides as a nested message");
+        return name.rawText;
     }
 
     // ==================== sections ====================
@@ -411,6 +444,119 @@ class QuestReaderTest {
         assertEquals(QuestActions.COLLECT, page.action(ActionSlot.PRIMARY).actionId());
         assertEquals(ActionLook.COLLECT, page.action(ActionSlot.PRIMARY).look());
         assertNull(page.action(ActionSlot.DANGER), "a finished quest cannot be dropped");
+    }
+
+    // ==================== collected elsewhere ====================
+
+    /**
+     * At a character, a finished quest whose rewards belong to another character (the NPC page's "Collect elsewhere"
+     * section) reads Elsewhere, offers no Collect, and its hint names the character that collects it.
+     */
+    @Test
+    void atACharacterAQuestParkedForAnotherReadsElsewhereAndNamesWhoCollectsIt() {
+        Quest quest = finishedAt(sited("q_site", QuestTurnInSite.character(GUIDE)), STRANGER);
+        presentation.names.put(GUIDE, Msg.raw("Guide Maren"));
+        presentation.names.put(STRANGER, Msg.raw("A Stranger"));
+
+        CharacterQuestListing atStranger = new CharacterQuestListing(engine, player, Set.of(STRANGER));
+        assertEquals(NpcQuestSections.Section.PARKED, atStranger.sectionOf(quest), "listed under Collect elsewhere");
+        QuestReader r = reader();
+        LedgerRow row = r.row(quest, atStranger);
+        assertEquals(J + "state.elsewhere", id(row.state()), "never Collect where it cannot be collected");
+        assertEquals(Tone.NEUTRAL, row.tone(), "nothing to do here, and nothing refuses it");
+
+        DetailView page = r.page(quest, atStranger);
+        assertNull(page.action(ActionSlot.PRIMARY), "no Collect button here");
+        assertEquals(J + "hint.collect_from", id(page.hint()));
+        assertEquals("Guide Maren", named(page.hint()),
+                "the hint names who collects it, not the character in front of the player");
+    }
+
+    @Test
+    void atItsOwnSiteTheSameQuestStillCollectsInGold() {
+        Quest quest = finishedAt(sited("q_site", QuestTurnInSite.character(GUIDE)), STRANGER);
+        presentation.names.put(GUIDE, Msg.raw("Guide Maren"));
+
+        CharacterQuestListing atGuide = new CharacterQuestListing(engine, player, Set.of(GUIDE));
+        assertEquals(NpcQuestSections.Section.READY, atGuide.sectionOf(quest));
+        QuestReader r = reader();
+        LedgerRow row = r.row(quest, atGuide);
+        assertEquals(J + "state.collect", id(row.state()));
+        assertEquals(Tone.COLLECT, row.tone());
+
+        DetailView page = r.page(quest, atGuide);
+        DetailAction collect = page.action(ActionSlot.PRIMARY);
+        assertNotNull(collect, "collected here");
+        assertEquals(QuestActions.COLLECT, collect.actionId());
+        assertEquals(ActionLook.COLLECT, collect.look());
+        assertNull(page.hint(), "nothing to say about where");
+    }
+
+    /** In the book, a quest collected only at its site reads Elsewhere and its hint names the site's character. */
+    @Test
+    void inTheBookASiteBoundQuestReadsElsewhereAndNamesWhoCollectsIt() {
+        Quest quest = finishedAt(sited("q_site", QuestTurnInSite.character(GUIDE)), GUIDE);
+        presentation.names.put(GUIDE, Msg.raw("Guide Maren"));
+
+        QuestReader r = reader();
+        assertEquals(QuestSection.READY, r.sectionOf(quest), "its section is the quest's own, wherever it is read");
+        LedgerRow row = r.row(quest);
+        assertEquals(J + "state.elsewhere", id(row.state()));
+        assertEquals(Tone.NEUTRAL, row.tone());
+        assertEquals(J + "state.elsewhere", id(r.compactRow(quest).state()), "the compact row reads the same");
+        LedgerModel journal = r.journal(r.listed(), "all", "all", "all", "");
+        assertEquals(J + "state.elsewhere", id(journal.sections().get(0).rows().get(0).state()), "and the journal's");
+
+        DetailView page = r.page(quest);
+        assertNull(page.action(ActionSlot.PRIMARY), "the engine refuses a placeless payout, so no Collect");
+        assertEquals(J + "hint.collect_from", id(page.hint()));
+        assertEquals("Guide Maren", named(page.hint()));
+
+        presentation.names.clear();
+        assertEquals(J + "hint.collect_at_site", id(reader().page(quest).hint()), "no name known, the plain line");
+    }
+
+    /** A quest collected wherever it was taken names that place, in the book and at another character alike. */
+    @Test
+    void aQuestCollectedWhereItWasTakenNamesThatPlace() {
+        Quest quest = finishedAt(sited("q_back", QuestTurnInSite.ACCEPT_SITE), GUIDE);
+        presentation.names.put(GUIDE, Msg.raw("Guide Maren"));
+        CharacterQuestListing atStranger = new CharacterQuestListing(engine, player, Set.of(STRANGER));
+        CharacterQuestListing atGuide = new CharacterQuestListing(engine, player, Set.of(GUIDE));
+
+        QuestReader r = reader();
+        assertEquals(J + "state.elsewhere", id(r.row(quest).state()));
+        assertEquals("Guide Maren", named(r.page(quest).hint()), "the book names where it was taken");
+        assertEquals(J + "state.elsewhere", id(r.row(quest, atStranger).state()));
+        assertEquals("Guide Maren", named(r.page(quest, atStranger).hint()));
+
+        assertEquals(J + "state.collect", id(r.row(quest, atGuide).state()), "back where it was taken: Collect");
+        assertEquals(QuestActions.COLLECT, r.page(quest, atGuide).action(ActionSlot.PRIMARY).actionId());
+    }
+
+    /** A quest naming no site is collected anywhere: Collect in gold, its button and no hint, in the book or not. */
+    @Test
+    void aQuestWithNoSiteCollectsInGoldWhereverItIsRead() {
+        Quest quest = plain("q_ready");
+        set(quest);
+        assertTrue(engine.accept(player, quest));
+        engine.markUnclaimed(player, quest);
+        presentation.names.put(GUIDE, Msg.raw("Guide Maren"));
+        CharacterQuestListing atStranger = new CharacterQuestListing(engine, player, Set.of(STRANGER));
+
+        QuestReader r = reader();
+        for (CharacterQuestListing here : Arrays.asList(null, atStranger)) {
+            String where = here == null ? "in the book" : "at a character";
+            LedgerRow row = r.row(quest, here);
+            assertEquals(J + "state.collect", id(row.state()), where);
+            assertEquals(Tone.COLLECT, row.tone(), where);
+            DetailView page = r.page(quest, here);
+            assertEquals(QuestActions.COLLECT, page.action(ActionSlot.PRIMARY).actionId(), where);
+            assertEquals(ActionLook.COLLECT, page.action(ActionSlot.PRIMARY).look(), where);
+            assertNull(page.hint(), where);
+        }
+        assertEquals(J + "state.collect", id(r.row(quest).state()), "the book's own row");
+        assertEquals(J + "state.collect", id(r.compactRow(quest).state()));
     }
 
     // ==================== the page ====================

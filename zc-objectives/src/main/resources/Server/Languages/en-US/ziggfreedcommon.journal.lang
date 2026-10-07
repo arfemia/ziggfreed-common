@@ -54,3 +54,6 @@ empty.line = People around Orbis have work for you. When you take a quest it sho
 hint.talk_to_plain = Talk to its quest giver to take this quest
 reward.waiting = Waiting
 search.placeholder = Search quests...
+# A finished quest collected somewhere other than where the player stands: its state word, and its hint, where {0} is the character who collects it.
+state.elsewhere = Elsewhere
+hint.collect_from = Collect it from {0}

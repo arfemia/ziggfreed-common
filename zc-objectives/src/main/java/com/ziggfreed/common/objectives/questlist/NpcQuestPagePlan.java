@@ -263,6 +263,15 @@ final class NpcQuestPagePlan {
         return npcId == null ? null : listing;
     }
 
+    /**
+     * A quest's row on the list: the book's row, read at {@code here} ({@link #place}), so a quest whose rewards
+     * belong to another character reads Elsewhere rather than a gold Collect its page cannot honour.
+     */
+    @Nonnull
+    static LedgerRow row(@Nonnull QuestReader reader, @Nonnull Quest quest, @Nullable CharacterQuestListing here) {
+        return reader.row(quest, here);
+    }
+
     /** The quest's page: the book's page, with the buttons and hint {@code here} gives it. */
     @Nonnull
     static DetailView page(@Nonnull QuestReader reader, @Nonnull Quest quest, @Nullable CharacterQuestListing here) {

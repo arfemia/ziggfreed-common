@@ -12,12 +12,16 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.MonthDay;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Deque;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -59,7 +63,8 @@ import com.ziggfreed.common.ui.menu.MenuFrame;
  * The page document against the Java that paints it. The page cannot run in a unit JVM (its build reaches the
  * player's store), but what it paints can: {@link AlmanacPage#paint} is driven here with full plans (under the
  * engine's log manager, in {@code engineItemTest}) and every selector it sends is held to the documents it lands
- * in, since a command against an id a document lacks disconnects the player. Beside the ids: every picture slot is an {@code AssetImage} (the season list's row
+ * in, id by id through the templates it enters, since a command against an id a document lacks disconnects the
+ * player. Beside the ids: every picture slot is an {@code AssetImage} (the season list's row
  * included), every text size is a {@code Common/ZigType.ui} step at the floor or above, every colour is a token,
  * and {@link AlmanacLayout} is the document's geometry.
  */
@@ -67,9 +72,6 @@ class AlmanacPageDocumentTest {
 
     private static final String KIT = "Common/ZigKit.ui";
     private static final String FRAMES = "Common/ZigFrames.ui";
-
-    /** A declaration of an element: its id, then the brace that opens its block. */
-    private static final Pattern DECLARED = Pattern.compile("#([A-Za-z][A-Za-z0-9]*)\\s*\\{");
 
     private static final Pattern FONT_SIZE = Pattern.compile("(?:MinShrinkTextToFitFontSize|FontSize)\\s*:\\s*([^,;)]+)");
     private static final Set<String> STEPS = Set.of("Caption", "Section", "Body", "Emphasis", "Heading", "Subtitle",
@@ -80,18 +82,20 @@ class AlmanacPageDocumentTest {
 
     // ---- every id the page addresses exists ----
 
-    /** Tagged {@code engine-items}: a {@link UICommandBuilder}'s static init reaches the engine's item codec. */
+    /**
+     * Every selector the page sends resolves id by id where it lands: its first id is declared in the page document
+     * or in the frame it sits in, and each id after it is declared inside the element the path has reached so far,
+     * that element's template included ({@code #Hero #HeroItems} inside {@code @ZigHeroPlate}). An id that exists
+     * only somewhere else in the kit does not count.
+     *
+     * <p>Tagged {@code engine-items}: a {@link UICommandBuilder}'s static init reaches the engine's item codec.
+     */
     @Test
     @Tag("engine-items")
     void everyIdThePageAddressesIsDeclaredWhereItLands() throws IOException {
-        Set<String> declared = new HashSet<>();
-        for (String doc : List.of(AlmanacPage.PAGE_TEMPLATE, KIT, FRAMES)) {
-            Matcher m = DECLARED.matcher(document(doc));
-            while (m.find()) {
-                declared.add(m.group(1));
-            }
-        }
+        UiTree tree = new UiTree();
         List<String> missing = new ArrayList<>();
+        int checked = 0;
         for (AlmanacPagePlan plan : List.of(fullPlan(composedHero()), fullPlan(artHero()), fullPlan(pictureHero()),
                 emptyPlan())) {
             UICommandBuilder cmd = new UICommandBuilder();
@@ -104,17 +108,45 @@ class AlmanacPageDocumentTest {
                 }
             }
             for (CustomUIEventBinding binding : events.getEvents()) {
-                selectors.add(binding.selector);
-            }
-            for (String selector : selectors) {
-                for (String id : ownIds(selector)) {
-                    if (!declared.contains(id)) {
-                        missing.add(selector + " (#" + id + ")");
-                    }
+                if (binding.selector != null) {
+                    selectors.add(binding.selector);
                 }
             }
+            for (String selector : selectors) {
+                String wrong = tree.unresolved(AlmanacPage.PAGE_TEMPLATE, FRAMES, path(selector));
+                if (wrong != null) {
+                    missing.add(selector + " (" + wrong + ")");
+                }
+                checked++;
+            }
         }
-        assertTrue(missing.isEmpty(), "the page sends commands to ids no document declares: " + missing);
+        assertTrue(checked > 0, "the plans paint something to check");
+        assertTrue(missing.isEmpty(), "the page sends commands to ids not declared where they land: " + missing);
+    }
+
+    /** The resolver itself: a kit id in the wrong template, or a template id as a first id, does not resolve. */
+    @Test
+    void anIdDeclaredOnlyElsewhereInTheKitDoesNotResolve() throws IOException {
+        UiTree tree = new UiTree();
+        String page = AlmanacPage.PAGE_TEMPLATE;
+        assertEquals(null, tree.unresolved(page, FRAMES, path("#Hero #HeroItems")), "the hero plate's own child");
+        assertEquals(null, tree.unresolved(page, FRAMES, path("#Hero #HeroChip #Label.TextSpans")),
+                "a pill inside the plate, through two templates");
+        assertEquals(null, tree.unresolved(page, FRAMES, path("#Month3 #Marks")), "a page template's child");
+        assertEquals(null, tree.unresolved(page, FRAMES, path("#Content #LeftColumn")),
+                "the page's own columns, added to the frame's #Content");
+        assertEquals(null, tree.unresolved(page, FRAMES, path("#MenuList")), "the frame's own ids");
+        assertEquals(null, tree.unresolved(page, FRAMES, path("#SeasonList[0] #Anything")),
+                "what follows an index is an appended template's");
+
+        assertEquals("#DActions is not declared inside #Hero", tree.unresolved(page, FRAMES,
+                path("#Hero #DActions")), "a detail page's id is not the hero plate's");
+        assertEquals("#HeroItems is not declared inside #BannerPic", tree.unresolved(page, FRAMES,
+                path("#BannerPic #HeroItems")));
+        assertEquals("#HeroTitle is not declared in the page or its frame", tree.unresolved(page, FRAMES,
+                path("#HeroTitle.TextSpans")), "a template's child is reached through its instance");
+        assertEquals("#Marks is not declared in the page or its frame", tree.unresolved(page, FRAMES,
+                path("#Marks")), "twelve months declare one: a first id is the page's own");
     }
 
     @Test
@@ -342,20 +374,214 @@ class AlmanacPageDocumentTest {
     }
 
     /**
-     * The ids a selector names in documents the page declares: everything before the first index (what follows an
-     * index is an appended template's, which the kit's own tests pin), each property suffix dropped.
+     * The ids a selector names in documents the page declares, in order: everything before the first index (what
+     * follows an index is an appended template's, which the kit's own tests pin), each property suffix dropped.
      */
     @Nonnull
-    private static Set<String> ownIds(@Nonnull String selector) {
+    private static List<String> path(@Nonnull String selector) {
         int index = selector.indexOf('[');
         String head = index < 0 ? selector : selector.substring(0, index);
-        Set<String> ids = new TreeSet<>();
+        List<String> ids = new ArrayList<>();
         for (String token : head.trim().split("\\s+")) {
             if (token.startsWith("#")) {
                 ids.add(token.substring(1).split("\\.")[0]);
             }
         }
         return ids;
+    }
+
+    /**
+     * The shipped documents as element trees, enough to follow a selector id by id: each element's type, id and
+     * children, each document's imports and named templates. An element whose type names a template ({@code @Name}
+     * from its own document, {@code $Alias.@Name} from an imported one) holds that template's children beside its
+     * own, so a path that enters an instance finds what the template declares; a child written with no type
+     * ({@code #Content { ... }}) is the instance adding to the template's child of that id. A document the classpath
+     * does not ship (vanilla {@code Common.ui}) has no templates to enter.
+     */
+    private static final class UiTree {
+
+        private static final Pattern IMPORT = Pattern.compile("\\$(\\w+)\\s*=\\s*\"([^\"]+)\"\\s*;");
+        private static final Pattern TEMPLATE = Pattern.compile("@(\\w+)\\s*=\\s*([$\\w.@]+)");
+        private static final Pattern STRING = Pattern.compile("\"[^\"\\n]*\"");
+
+        /** One element, or a template's body: the document it is written in, its type, its id, its own children. */
+        private record Node(@Nonnull String doc, @Nullable String type, @Nullable String id,
+                @Nonnull List<Node> children) {
+        }
+
+        private record Doc(@Nonnull Map<String, String> imports, @Nonnull Map<String, Node> templates,
+                @Nonnull List<Node> roots) {
+        }
+
+        private final Map<String, Doc> docs = new HashMap<>();
+        private final Set<String> unshipped = new HashSet<>();
+
+        /**
+         * Why {@code ids} does not resolve on {@code page}, or null when it does: the first id among the page's own
+         * elements and the frame's ({@code frames}' templates entered, no other), each next id inside the elements
+         * the path has reached, every template entered.
+         */
+        @Nullable
+        String unresolved(@Nonnull String page, @Nonnull String frames, @Nonnull List<String> ids) throws IOException {
+            if (ids.isEmpty()) {
+                return null;
+            }
+            Doc doc = doc(page);
+            assertNotNull(doc, "the classpath ships " + page);
+            List<Node> reached = under(List.of(new Node(page, null, null, doc.roots())), ids.get(0), frames);
+            if (reached.isEmpty()) {
+                return "#" + ids.get(0) + " is not declared in the page or its frame";
+            }
+            for (int i = 1; i < ids.size(); i++) {
+                List<Node> next = under(reached, ids.get(i), null);
+                if (next.isEmpty()) {
+                    return "#" + ids.get(i) + " is not declared inside #" + ids.get(i - 1);
+                }
+                reached = next;
+            }
+            return null;
+        }
+
+        /** Every element with {@code id} below {@code from}, entering the templates of {@code onlyDoc} (all if null). */
+        @Nonnull
+        private List<Node> under(@Nonnull List<Node> from, @Nonnull String id, @Nullable String onlyDoc)
+                throws IOException {
+            List<Node> found = new ArrayList<>();
+            Set<Node> seen = Collections.newSetFromMap(new IdentityHashMap<>());
+            Deque<Node> todo = new ArrayDeque<>();
+            for (Node node : from) {
+                todo.addAll(children(node, onlyDoc));
+            }
+            while (!todo.isEmpty()) {
+                Node node = todo.pop();
+                if (!seen.add(node)) {
+                    continue;
+                }
+                if (id.equals(node.id())) {
+                    found.add(node);
+                }
+                todo.addAll(children(node, onlyDoc));
+            }
+            return found;
+        }
+
+        /** An element's own children, then its template's (and that template's own template's). */
+        @Nonnull
+        private List<Node> children(@Nonnull Node node, @Nullable String onlyDoc) throws IOException {
+            List<Node> out = new ArrayList<>(node.children());
+            Node template = node;
+            for (int depth = 0; depth < 8; depth++) {
+                template = template(template);
+                if (template == null || (onlyDoc != null && !onlyDoc.equals(template.doc()))) {
+                    break;
+                }
+                out.addAll(template.children());
+            }
+            return out;
+        }
+
+        /** The template {@code node}'s type names, or null for a plain element or one the classpath lacks. */
+        @Nullable
+        private Node template(@Nonnull Node node) throws IOException {
+            String type = node.type();
+            int at = type == null ? -1 : type.indexOf('@');
+            if (at < 0) {
+                return null;
+            }
+            String where = node.doc();
+            if (at > 0) {
+                Doc from = doc(node.doc());
+                where = from == null || !type.startsWith("$") ? null : from.imports().get(type.substring(1, at - 1));
+            }
+            Doc doc = where == null ? null : doc(where);
+            return doc == null ? null : doc.templates().get(type.substring(at + 1));
+        }
+
+        /** {@code path} parsed, or null when the classpath does not ship it. */
+        @Nullable
+        private Doc doc(@Nonnull String path) throws IOException {
+            if (unshipped.contains(path)) {
+                return null;
+            }
+            Doc cached = docs.get(path);
+            if (cached != null) {
+                return cached;
+            }
+            String text;
+            try (InputStream in = AlmanacPageDocumentTest.class.getResourceAsStream("/Common/UI/Custom/" + path)) {
+                if (in == null) {
+                    unshipped.add(path);
+                    return null;
+                }
+                text = withoutComments(new String(in.readAllBytes(), StandardCharsets.UTF_8));
+            }
+            Map<String, String> imports = new HashMap<>();
+            Matcher imported = IMPORT.matcher(text);
+            while (imported.find()) {
+                imports.put(imported.group(1), resolve(path, imported.group(2)));
+            }
+            Doc doc = parse(path, STRING.matcher(text).replaceAll("\"\""), imports);
+            docs.put(path, doc);
+            return doc;
+        }
+
+        /**
+         * The document's element tree: at each opening brace, the text since the last {@code ;}, <code>{</code> or
+         * <code>}</code> is the header, {@code @Name = Type} a template, {@code Type #Id}, {@code #Id} or
+         * {@code Type} an element.
+         */
+        @Nonnull
+        private static Doc parse(@Nonnull String path, @Nonnull String text, @Nonnull Map<String, String> imports) {
+            List<Node> roots = new ArrayList<>();
+            Map<String, Node> templates = new HashMap<>();
+            Deque<List<Node>> open = new ArrayDeque<>();
+            open.push(roots);
+            int header = 0;
+            for (int i = 0; i < text.length(); i++) {
+                char c = text.charAt(i);
+                if (c == ';') {
+                    header = i + 1;
+                } else if (c == '{') {
+                    String head = text.substring(header, i).trim();
+                    List<Node> children = new ArrayList<>();
+                    Matcher template = TEMPLATE.matcher(head);
+                    if (template.matches()) {
+                        templates.put(template.group(1), new Node(path, template.group(2), null, children));
+                    } else {
+                        String[] tokens = head.isEmpty() ? new String[0] : head.split("\\s+");
+                        String last = tokens.length == 0 ? null : tokens[tokens.length - 1];
+                        boolean named = last != null && last.startsWith("#");
+                        String type = named ? (tokens.length > 1 ? tokens[0] : null) : last;
+                        open.peek().add(new Node(path, type, named ? last.substring(1) : null, children));
+                    }
+                    open.push(children);
+                    header = i + 1;
+                } else if (c == '}') {
+                    assertFalse(open.size() <= 1, path + " closes a block it never opened at " + i);
+                    open.pop();
+                    header = i + 1;
+                }
+            }
+            assertEquals(1, open.size(), path + " leaves a block open");
+            return new Doc(imports, templates, roots);
+        }
+
+        /** An import's path, relative to the document importing it, as the classpath names it. */
+        @Nonnull
+        private static String resolve(@Nonnull String from, @Nonnull String relative) {
+            Deque<String> parts = new ArrayDeque<>(List.of(from.split("/")));
+            parts.removeLast();
+            for (String part : relative.split("/")) {
+                if (part.equals("..")) {
+                    if (!parts.isEmpty()) {
+                        parts.removeLast();
+                    }
+                } else if (!part.isEmpty() && !part.equals(".")) {
+                    parts.addLast(part);
+                }
+            }
+            return String.join("/", parts);
+        }
     }
 
     @Nonnull
@@ -369,13 +595,19 @@ class AlmanacPageDocumentTest {
     private static String document(@Nonnull String template) throws IOException {
         try (InputStream in = AlmanacPageDocumentTest.class.getResourceAsStream("/Common/UI/Custom/" + template)) {
             assertNotNull(in, "the classpath ships " + template);
-            StringBuilder out = new StringBuilder();
-            for (String line : new String(in.readAllBytes(), StandardCharsets.UTF_8).split("\n")) {
-                int at = line.indexOf("//");
-                out.append(at < 0 ? line : line.substring(0, at)).append('\n');
-            }
-            return out.toString();
+            return withoutComments(new String(in.readAllBytes(), StandardCharsets.UTF_8));
         }
+    }
+
+    /** {@code ui} with every {@code //} comment removed. */
+    @Nonnull
+    private static String withoutComments(@Nonnull String ui) {
+        StringBuilder out = new StringBuilder();
+        for (String line : ui.split("\n")) {
+            int at = line.indexOf("//");
+            out.append(at < 0 ? line : line.substring(0, at)).append('\n');
+        }
+        return out.toString();
     }
 
     /** The block the element {@code id} declares, from its type to the brace that closes it; fails for none. */
