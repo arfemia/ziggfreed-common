@@ -1,0 +1,26 @@
+{
+  "$Comment": [
+    "The Hallowed: the name, picture and payouts of the game's reputation group of the same id",
+    "(NPC/Reputation/Groups/Hallows_Eve_Hallowed.json), a reputation with no characters in it.",
+    "",
+    "Kills pays Amount favor for each creature put down whose role is in one of the listed NPC",
+    "groups; Hallows_Eve_Event_Mobs (NPC/Groups) holds the season's four night creatures. Gear names",
+    "the stat the Jack Shield and the Hallowed set add to. With no Cap, favor keeps climbing past",
+    "Exalted, and Beyond pays its Rewards each time earned favor passes another multiple of Every",
+    "above Exalted's floor: here the loot table Hallows_Eve_Hallowed_Cache."
+  ],
+  "Text": {
+    "TitleKey": "reputation.hallows_eve_hallowed.name",
+    "FlavorKey": "reputation.hallows_eve_hallowed.flavor"
+  },
+  "Icon": "Hallows_Eve_Hollow_Lantern",
+  "Order": 20,
+  "Gear": { "Stat": "Reputation_Hallows_Eve_Hallowed" },
+  "Kills": [
+    { "NPCGroups": [ "Hallows_Eve_Event_Mobs" ], "Amount": 2 }
+  ],
+  "Beyond": {
+    "Every": 5000,
+    "Rewards": [ { "Kind": "Lootable", "Params": { "Lootable": "Hallows_Eve_Hallowed_Cache" } } ]
+  }
+}

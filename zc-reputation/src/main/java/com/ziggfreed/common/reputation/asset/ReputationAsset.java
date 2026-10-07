@@ -36,8 +36,9 @@ import com.ziggfreed.common.text.ContentTextAsset;
  *   "Icon": "Your_Trader_Badge",
  *   "Order": 0,
  *   "Gear": { "Stat": "Reputation_Your_Traders" },
- *   "Cap": 21000,
- *   "Ranks": { "Friendly": { "Name": "yourmod.reputation.traders.rank.friendly" } },
+ *   "Cap": 100000,
+ *   "Ranks": { "Friendly": { "Name": "yourmod.reputation.traders.rank.friendly" },
+ *              "Your_Trusted_Partner": { "Name": "yourmod.reputation.traders.rank.partner", "From": 60000 } },
  *   "Kills": [ { "NPCGroups": [ "Your_Bandits" ], "Amount": 5 } ],
  *   "Beyond": { "Every": 5000, "Rewards": [ { "Kind": "Lootable", "Params": { "Lootable": "Your_Cache" } } ] } }
  * }</pre>
@@ -46,7 +47,10 @@ import com.ziggfreed.common.text.ContentTextAsset;
  * kills. {@code Enabled: false} makes the reputation ABSENT (its readings answer nothing, rewards naming it
  * are refused, the page hides it); the standing players hold is never touched. Every leaf is nullable and
  * inherited through {@code Parent}: {@code Ranks} merges by rank id, {@code Kills} replaces whole, every
- * group merges leaf by leaf. The server owner retunes any of it in {@code mods/ziggfreedcommon/reputation.json}.
+ * group merges leaf by leaf. A {@code Ranks} entry with {@code From} is a rank of this reputation's own
+ * above the server's top rank; every reading of this reputation, its bar, its page and its Beyond read it,
+ * while the shared ranks keep their floors. The server owner retunes any of it in
+ * {@code mods/ziggfreedcommon/reputation.json}.
  */
 public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, ReputationAsset>> {
 
@@ -105,8 +109,10 @@ public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAs
                     + "ladder.").add()
             .appendInherited(new KeyedCodec<>("Ranks", new InheritMapCodec<>(RankName.CODEC), false),
                     (a, v) -> a.ranks = v, a -> a.ranks, (a, p) -> a.ranks = p.ranks)
-            .documentation("What this reputation calls each rank of the server's ladder, by rank id (Neutral, "
-                    + "Friendly, ...). A rank it does not name reads with the library's own word.").add()
+            .documentation("What this reputation calls each rank, by rank id: the server's shared ranks (Neutral, "
+                    + "Friendly, ...) and any ranks of its own above the top one, which carry a From floor. A rank "
+                    + "it does not name reads with the library's own word. Under Parent this merges by rank id.")
+            .add()
             .appendInherited(new KeyedCodec<>("Kills", new ArrayCodec<>(Kill.CODEC, Kill[]::new), false),
                     (a, v) -> a.kills = v, a -> a.kills, (a, p) -> a.kills = p.kills)
             .documentation("Standing a player gains, or loses with a negative Amount, for each kill of an NPC "
@@ -114,8 +120,9 @@ public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAs
                     + "parent's whole.").add()
             .appendInherited(new KeyedCodec<>("Beyond", Beyond.CODEC, false),
                     (a, v) -> a.beyond = v, a -> a.beyond, (a, p) -> a.beyond = p.beyond)
-            .documentation("Rewards for standing earned past the top rank's floor, paid each time earned "
-                    + "standing crosses another multiple of Every.").add()
+            .documentation("Rewards for standing earned past the floor of this reputation's top rank (its own "
+                    + "highest rank when Ranks adds some above the server's top), paid each time earned standing "
+                    + "crosses another multiple of Every.").add()
             .build();
 
     public ReputationAsset() {
@@ -200,6 +207,22 @@ public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAs
         return null;
     }
 
+    /** Every rank this file gives a floor ({@code From}): the rank id as authored to its floor; empty when none. */
+    @Nonnull
+    public Map<String, Integer> tierFloors() {
+        Map<String, Integer> out = new LinkedHashMap<>();
+        if (ranks == null) {
+            return out;
+        }
+        for (Map.Entry<String, RankName> entry : ranks.entrySet()) {
+            Integer from = entry.getValue() == null ? null : entry.getValue().from;
+            if (entry.getKey() != null && !entry.getKey().isBlank() && from != null) {
+                out.put(entry.getKey().trim(), from);
+            }
+        }
+        return out;
+    }
+
     /** The kill rows, in authored order; empty when none. */
     @Nonnull
     public List<Kill> kills() {
@@ -259,16 +282,24 @@ public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAs
         }
     }
 
-    /** One rank's name under this reputation. */
+    /** One rank's name under this reputation, and for a rank of its own above the server's top, its floor. */
     public static final class RankName {
 
         @Nullable protected String name;
+        @Nullable protected Integer from;
 
         public static final BuilderCodec<RankName> CODEC = BuilderCodec.builder(RankName.class, RankName::new)
                 .appendInherited(new KeyedCodec<>("Name", Codec.STRING, false),
                         (o, v) -> o.name = v, o -> o.name, (o, p) -> o.name = p.name)
                 .documentation("Localization key for this rank's name with this reputation, in your own lang "
                         + "file.").add()
+                .appendInherited(new KeyedCodec<>("From", Codec.INTEGER, false),
+                        (o, v) -> o.from = v, o -> o.from, (o, p) -> o.from = p.from)
+                .documentation("Only on a rank of this reputation's own above the server's top rank (Exalted): "
+                        + "the standing it starts at, above the top rank's floor. Each such rank lasts until the "
+                        + "next one's floor, and Beyond pays past the highest. Leave it out on the server's shared "
+                        + "ranks (Neutral, Friendly, ...): their floors are the same for every reputation, so a "
+                        + "From there is reported and ignored.").add()
                 .build();
 
         public RankName() {

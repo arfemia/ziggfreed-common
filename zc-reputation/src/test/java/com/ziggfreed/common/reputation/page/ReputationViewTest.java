@@ -46,7 +46,7 @@ class ReputationViewTest {
     }
 
     private List<ReputationView.Row> rows() {
-        return ReputationView.rows(service.met(null, null), service.ladder());
+        return ReputationView.rows(service.met(null, null), service::ladderFor);
     }
 
     private static List<String> ids(List<Message> lines) {

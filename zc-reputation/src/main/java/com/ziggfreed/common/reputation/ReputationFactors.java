@@ -12,7 +12,8 @@ import com.ziggfreed.common.factor.FactorContributions;
  * <ul>
  *   <li>{@value #STANDING}: effective standing, gear included;</li>
  *   <li>{@value #EARNED}: earned standing alone;</li>
- *   <li>{@value #RANK} (Param {@code <Id>/<Rank>}): 1 at or above that rank's floor by effective standing, else 0.</li>
+ *   <li>{@value #RANK} (Param {@code <Id>/<Rank>}): 1 at or above that rank's floor by effective standing, else 0;
+ *       the rank may be one of the reputation's own above the top.</li>
  * </ul>
  * Null (fail closed) for an unknown, disabled or switched-off reputation, an unknown rank, a ladder of
  * fewer than two ranks (rank reading only), or no live player; a known untouched reputation reads its
@@ -60,13 +61,13 @@ public final class ReputationFactors {
         if (slash <= 0 || slash == param.length() - 1) {
             return null;
         }
-        ReputationLadder ladder = service.ladder();
+        String reputationId = param.substring(0, slash).trim();
+        ReputationLadder ladder = service.ladderOf(reputationId);
         ReputationLadder.Rank rank = ladder.usable() ? ladder.byId(param.substring(slash + 1)) : null;
         if (rank == null) {
             return null;
         }
-        ReputationService.Standing standing = service.standing(ctx.store(), ctx.subject(),
-                param.substring(0, slash).trim());
+        ReputationService.Standing standing = service.standing(ctx.store(), ctx.subject(), reputationId);
         return standing == null ? null : standing.effective() >= rank.min() ? 1.0 : 0.0;
     }
 }

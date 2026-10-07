@@ -1,0 +1,27 @@
+{
+  "$Comment": [
+    "Old Jack's Favor: the name, picture and limits of the game's reputation group of the same id",
+    "(NPC/Reputation/Groups/Hallows_Eve_Old_Jack.json), which keeps each player's number.",
+    "",
+    "Gear names the stat whose Max equipped items add on top of what a player has earned; the Jack",
+    "Helm adds to it. Cap is the most favor earning can reach: Exalted's floor, so Jack's Own is as",
+    "far as it goes. Ranks renames the library's ranks for Old Jack alone; a rank left out keeps the",
+    "library's name. Order places him on the Reputation page. Favor comes from the Reputation rewards",
+    "on his quests and board contracts and from his daily board line."
+  ],
+  "Text": {
+    "TitleKey": "reputation.hallows_eve_old_jack.name",
+    "FlavorKey": "reputation.hallows_eve_old_jack.flavor"
+  },
+  "Icon": "Hallows_Eve_Jack_Helm",
+  "Order": 10,
+  "Gear": { "Stat": "Reputation_Hallows_Eve_Old_Jack" },
+  "Cap": 21000,
+  "Ranks": {
+    "Neutral": { "Name": "reputation.hallows_eve_old_jack.rank.neutral" },
+    "Friendly": { "Name": "reputation.hallows_eve_old_jack.rank.friendly" },
+    "Honored": { "Name": "reputation.hallows_eve_old_jack.rank.honored" },
+    "Revered": { "Name": "reputation.hallows_eve_old_jack.rank.revered" },
+    "Exalted": { "Name": "reputation.hallows_eve_old_jack.rank.exalted" }
+  }
+}

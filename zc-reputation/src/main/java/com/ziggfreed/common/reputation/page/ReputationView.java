@@ -2,6 +2,7 @@ package com.ziggfreed.common.reputation.page;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -40,11 +41,18 @@ public final class ReputationView {
     private ReputationView() {
     }
 
+    /**
+     * One row per met reputation, each read on its own ladder ({@code ladderOf}: the shared ranks plus the
+     * reputation's own above the top): the rank above it, or past its top rank, where the next Beyond
+     * reward lands.
+     */
     @Nonnull
-    public static List<Row> rows(@Nonnull List<ReputationService.Standing> met, @Nonnull ReputationLadder ladder) {
+    public static List<Row> rows(@Nonnull List<ReputationService.Standing> met,
+            @Nonnull Function<ReputationDef, ReputationLadder> ladderOf) {
         List<Row> out = new ArrayList<>(met.size());
-        ReputationLadder.Rank top = ladder.top();
         for (ReputationService.Standing standing : met) {
+            ReputationLadder ladder = ladderOf.apply(standing.reputation());
+            ReputationLadder.Rank top = ladder.top();
             ReputationLadder.Rank next = ladder.next(standing.rank());
             int every = standing.reputation().beyondEvery();
             Long reward = next == null && top != null && every > 0

@@ -1,9 +1,11 @@
 package com.ziggfreed.common.reputation;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 import javax.annotation.Nonnull;
@@ -72,10 +74,32 @@ public final class ReputationService {
         return ReputationConfig.getInstance().isGlobalEnabled() && engine.available();
     }
 
-    /** The server's ladder, or {@link ReputationLadder#EMPTY} while the module is off. */
+    /**
+     * The server's shared ladder (the ranks every reputation shares), or {@link ReputationLadder#EMPTY} while
+     * the module is off. One reputation's own ladder is {@link #ladderOf}.
+     */
     @Nonnull
     public ReputationLadder ladder() {
         return isOn() ? ReputationLadder.of(engine.ranks()) : ReputationLadder.EMPTY;
+    }
+
+    /**
+     * The ladder {@code reputationId} (any case) reads: the shared ranks plus its own tiers above the top
+     * ({@link ReputationLadder#of(Collection, Map)}); the shared ladder for an unknown id, and
+     * {@link ReputationLadder#EMPTY} while the module is off.
+     */
+    @Nonnull
+    public ReputationLadder ladderOf(@Nullable String reputationId) {
+        return isOn() ? ladderFor(known(reputationId)) : ReputationLadder.EMPTY;
+    }
+
+    /** {@link #ladderOf} for a reputation already in hand; the shared ladder for null. */
+    @Nonnull
+    public ReputationLadder ladderFor(@Nullable ReputationDef def) {
+        if (!isOn()) {
+            return ReputationLadder.EMPTY;
+        }
+        return ReputationLadder.of(engine.ranks(), def == null ? Map.of() : def.tierFloors());
     }
 
     /** The switched-on reputation {@code id} names (any case), or null. */
@@ -116,7 +140,7 @@ public final class ReputationService {
         if (def == null || !engine.live(store, ref)) {
             return null;
         }
-        return standingOf(store, ref, def, ladder());
+        return standingOf(store, ref, def, ladderFor(def));
     }
 
     /** Every switched-on reputation the player has met, by Order, then id. */
@@ -126,9 +150,8 @@ public final class ReputationService {
         if (!engine.live(store, ref)) {
             return out;
         }
-        ReputationLadder ladder = ladder();
         for (ReputationDef def : all()) {
-            Standing standing = standingOf(store, ref, def, ladder);
+            Standing standing = standingOf(store, ref, def, ladderFor(def));
             if (standing != null && standing.met()) {
                 out.add(standing);
             }
@@ -176,7 +199,7 @@ public final class ReputationService {
         if (after.intValue() == before.intValue()) {
             return new Result(Status.UNCHANGED, null);
         }
-        ReputationLadder ladder = ladder();
+        ReputationLadder ladder = ladderFor(def);
         long gear = engine.statMax(store, ref, def.gearStat());
         ReputationLadder.Rank top = ladder.top();
         int crossings = top == null ? 0 : ReputationLadder.crossings(before, after, top.min(), def.beyondEvery());
@@ -203,8 +226,8 @@ public final class ReputationService {
         if (player == null) {
             return;
         }
-        ReputationLadder ladder = ladder();
         for (ReputationDef def : all()) {
+            ReputationLadder ladder = ladderFor(def);
             Standing standing = standingOf(store, ref, def, ladder);
             if (standing != null) {
                 observe(store, ref, player, def, standing.effective(), ladder, trigger);

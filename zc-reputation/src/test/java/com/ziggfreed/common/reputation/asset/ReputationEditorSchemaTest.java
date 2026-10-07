@@ -84,6 +84,13 @@ class ReputationEditorSchemaTest {
         assertNotNull(((ArraySchema) beyond.getProperties().get("Rewards")).getItems());
     }
 
+    @Test
+    void aRankEntryDeclaresItsFloorWithASentence() {
+        ObjectSchema rank = ReputationAsset.RankName.CODEC.toSchema(new SchemaContext());
+        assertNotNull(rank.getProperties().get("From"), "a rank entry declares From");
+        assertNotNull(rank.getProperties().get("From").getMarkdownDescription(), "and says when it applies");
+    }
+
     /** The object a leaf describes: itself, or the definition it references (unwrapping a nullable union). */
     @Nonnull
     private static ObjectSchema objectOf(@Nonnull Schema leaf, @Nonnull SchemaContext context) {

@@ -1,5 +1,5 @@
 {
-  "$Comment": "The top rank, open-ended in practice: the engine keeps earned standing one below this MaxValue. A reputation's Beyond block pays rewards for standing earned past this rank's floor. Every reputation shares these seven ranks.",
+  "$Comment": "The top rank every reputation shares, open-ended in practice: the engine keeps earned standing one below this MaxValue. A reputation's Beyond block pays rewards for standing earned past this rank's floor, or past its own highest rank when its Ranks add ranks above this one (each with a From floor). Every reputation shares these seven ranks and their floors.",
   "MinValue": 21000,
   "MaxValue": 2000000000,
   "Attitude": "Revered"
