@@ -25,8 +25,9 @@ import com.ziggfreed.common.occurrence.OccurrenceSource;
  * uses or an attendance record cannot save}, no readable Window, or no FirstYear from 1970 to 9999) is
  * not enabled, never live, has no history and no next run, whatever a force says. A force then beats
  * the dates: forced off is never live; forced on runs the run of the current year (never before
- * FirstYear) even outside its dates, so what a forced run earns is filed under that year. The next run
- * is the dates' next one that is not the run going on.
+ * FirstYear) with that year's days even outside them, and has nothing to run in a year the window dates
+ * no run, so what a forced run earns is filed under that year. The next run is the dates' next one that
+ * is not the run going on, or none once a window of per-year days has run out.
  *
  * <p><b>The years and the clock outlive the switches.</b> {@link #firstYear}, {@link #currentYear} and
  * {@link #zone} answer for any loaded event, switched on or not, so what a player earned in a past run
@@ -106,7 +107,7 @@ public final class CalendarService implements OccurrenceSource {
         List<Occurrence> out = new ArrayList<>();
         int lastYear = AnnualWindow.yearOf(nowMs, zone);
         for (int year = event.firstYear(); year <= lastYear; year++) {
-            if (window.startMs(year, zone) <= nowMs) {
+            if (window.hasRun(year) && window.startMs(year, zone) <= nowMs) {
                 out.add(occurrence(event, window, zone, year));
             }
         }
@@ -152,7 +153,7 @@ public final class CalendarService implements OccurrenceSource {
      * the run {@link #live} answers (runs compared by year, since a forced-on run keeps its window's
      * dates): forced on ahead of its dates, this year's run is going on already and the next is the year
      * after; forced off, nothing is going on and the next is whenever the dates next come round. Null when
-     * the event is absent.
+     * the event is absent or no run is left (a window of per-year days that has run out).
      */
     @Override
     @Nullable
@@ -163,13 +164,15 @@ public final class CalendarService implements OccurrenceSource {
         }
         AnnualWindow window = event.annualWindow();
         ZoneId zone = event.zone();
-        // A run starts at its first day's midnight in its own clock, so that instant's year is the run's year.
-        int year = AnnualWindow.yearOf(window.nextStartMs(nowMs, zone, event.firstYear()), zone);
+        // A run starts at its first day's midnight in its own clock and in its own year, so that instant's
+        // year is the run's year.
+        Long start = window.nextStartMs(nowMs, zone, event.firstYear());
+        Integer year = start == null ? null : AnnualWindow.yearOf(start, zone);
         Occurrence running = liveOf(event, nowMs);
-        if (running != null && year <= running.year()) {
-            year = running.year() + 1;
+        if (running != null && (year == null || year <= running.year())) {
+            year = window.nextRunYear(running.year() + 1);
         }
-        return occurrence(event, window, zone, year);
+        return year == null ? null : occurrence(event, window, zone, year);
     }
 
     /**
@@ -196,7 +199,7 @@ public final class CalendarService implements OccurrenceSource {
         return out;
     }
 
-    /** When {@code eventId} next starts by its dates (a force aside), or null when it is absent. */
+    /** When {@code eventId} next starts by its dates (a force aside), or null when it is absent or no run is left. */
     @Nullable
     public Long nextStartMs(@Nonnull String eventId, long nowMs) {
         CalendarEventAsset event = runnable(eventId);
@@ -228,7 +231,9 @@ public final class CalendarService implements OccurrenceSource {
             return occurrence(event, window, zone, year);
         }
         if (Boolean.TRUE.equals(forced)) {
-            return occurrence(event, window, zone, Math.max(firstYear, AnnualWindow.yearOf(nowMs, zone)));
+            int forcedYear = Math.max(firstYear, AnnualWindow.yearOf(nowMs, zone));
+            // A force keeps that year's days, a moving rule's included; a year the window dates no run has none to keep.
+            return window.hasRun(forcedYear) ? occurrence(event, window, zone, forcedYear) : null;
         }
         return null;
     }

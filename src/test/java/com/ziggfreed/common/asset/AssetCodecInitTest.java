@@ -22,6 +22,7 @@ import com.ziggfreed.common.board.asset.BoardSlotAsset;
 import com.ziggfreed.common.board.asset.BountyAsset;
 import com.ziggfreed.common.calendar.asset.CalendarEventAsset;
 import com.ziggfreed.common.calendar.asset.CalendarSpawnAsset;
+import com.ziggfreed.common.calendar.asset.WindowRules;
 import com.ziggfreed.common.calendar.attendance.CalendarAttendanceComponent;
 import com.ziggfreed.common.commerce.asset.CostAsset;
 import com.ziggfreed.common.commerce.asset.RerollAsset;
@@ -198,6 +199,10 @@ class AssetCodecInitTest {
         assertNotNull(CalendarEventAsset.Presentation.CODEC, "the Presentation group codec must static-init");
         assertNotNull(CalendarEventAsset.Herald.CODEC, "the Herald group codec must static-init");
         assertNotNull(CalendarEventAsset.HeraldLine.CODEC, "the herald line codec must static-init");
+        assertNotNull(WindowRules.CODEC, "the Window Rule union must static-init");
+        assertNotNull(WindowRules.Fixed.CODEC, "the Fixed rule codec must static-init");
+        assertNotNull(WindowRules.Easter.CODEC, "the Easter rule codec must static-init");
+        assertNotNull(WindowRules.Weekday.CODEC, "the Weekday rule codec must static-init");
         assertNotNull(CalendarSpawnAsset.CODEC, "CalendarSpawnAsset.CODEC must static-init (PascalCase keys)");
         assertNotNull(CalendarAttendanceComponent.CODEC,
                 "CalendarAttendanceComponent.CODEC must static-init (PascalCase keys)");
