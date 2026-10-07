@@ -9,3 +9,4 @@
 - `Indicator` is one block at three scopes (the global `Server/ZiggfreedCommon/QuestIndicators/Default.json`, a quest, a step), decoded only through `QuestIndicatorSpec`.
 - Presentation data stays on `QuestDefinition`, never on `Quest`; the collection site lives on `Quest` because the engine enforces it.
 - `QuestGeneratorTest.ByteEquivalence` (a hand-written and a generated quest must match) gates any generator change.
+- `Season` (zc-core `SeasonLeaf`) hides a quest outside its calendar event and survives `Parent` whatever a child writes in `Requires`; `resolve` reports an id no event declares (`UNKNOWN_SEASON`) once per authored file, a skeleton included, never per generated child.
