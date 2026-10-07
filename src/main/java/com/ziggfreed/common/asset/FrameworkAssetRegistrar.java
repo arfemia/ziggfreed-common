@@ -1,5 +1,7 @@
 package com.ziggfreed.common.asset;
 
+import java.util.function.Predicate;
+
 import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.assetstore.event.LoadedAssetsEvent;
@@ -535,8 +537,9 @@ public final class FrameworkAssetRegistrar {
                 QuestAsset::getId, QuestAsset.CODEC, null);
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, QuestAsset.class,
                 (LoadedAssetsEvent<String, QuestAsset, DefaultAssetMap<String, QuestAsset>> ev) -> {
-                    QuestAssetStore.getInstance().mergeQuests(AssetMergeAdapter.layer(ev.getAssetMap(),
-                            q -> GateSpec.passesModGate(q.getRequires())));
+                    Predicate<QuestAsset> loadsHere = q -> GateSpec.passesModGate(q.getRequires());
+                    QuestAssetStore.getInstance().mergeQuests(AssetMergeAdapter.layer(ev.getAssetMap(), loadsHere),
+                            AssetMergeAdapter.refused(ev.getAssetMap(), loadsHere));
                     ProgressionDefaults.republishAssetContent();
                 });
 
@@ -672,8 +675,9 @@ public final class FrameworkAssetRegistrar {
                 ShopEntryAsset::getId, ShopEntryAsset.CODEC, null);
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, ShopEntryAsset.class,
                 (LoadedAssetsEvent<String, ShopEntryAsset, DefaultAssetMap<String, ShopEntryAsset>> ev) -> {
-                    ShopAssetStore.getInstance().mergeEntries(AssetMergeAdapter.layer(ev.getAssetMap(),
-                            o -> GateSpec.passesModGate(o.getRequires())));
+                    Predicate<ShopEntryAsset> loadsHere = o -> GateSpec.passesModGate(o.getRequires());
+                    ShopAssetStore.getInstance().mergeEntries(AssetMergeAdapter.layer(ev.getAssetMap(), loadsHere),
+                            AssetMergeAdapter.refused(ev.getAssetMap(), loadsHere));
                     CommerceCatalogs.refreshShops();
                 });
 

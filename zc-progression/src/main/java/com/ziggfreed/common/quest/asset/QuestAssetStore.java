@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nonnull;
@@ -13,6 +14,7 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.asset.QuestGeneratorExpander.Expansion;
 import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.util.SafeLog;
@@ -85,21 +87,40 @@ public final class QuestAssetStore {
     private final Map<String, QuestAsset> contributed = new LinkedHashMap<>();
     /** What the last {@link #mergeContributed} noticed about that layer, replayed by every fold. */
     private final List<Finding> contributedFindings = new ArrayList<>();
+    /**
+     * Quest ids the mod gate refused at load (zc-core {@code ModGates}, through the registrar): a
+     * generator naming one as its {@code Base} writes nothing and reports nothing, since the whole
+     * family belongs to a mod this server does not run.
+     */
+    private final Set<String> gatedOut = ConcurrentHashMap.newKeySet();
 
     private QuestAssetStore() {
     }
 
+    /** Rebuild the quest layer from a load event's decoded assets, refusing nothing. Idempotent on re-import. */
+    public synchronized void mergeQuests(@Nonnull Map<String, QuestAsset> layer) {
+        mergeQuests(layer, Set.of());
+    }
+
     /**
-     * Rebuild the quest layer from a load event's decoded assets. Idempotent on re-import.
+     * Rebuild the quest layer from a load event's decoded assets, remembering the ids the mod gate left
+     * out of it ({@code AssetMergeAdapter.refused}), so a family over one of them stays silent.
+     * Idempotent on re-import.
      *
      * <p>Each quest is filed under its OWN id rather than the key the event carries, because a
      * {@code _}-marked folder folds into that id ({@code asset/NestedAssetId}) and the event key is
      * only ever the bare filename. Two files landing on one id is reported rather than silently
      * letting the later one win, since the loser simply never appears.
      */
-    public synchronized void mergeQuests(@Nonnull Map<String, QuestAsset> layer) {
+    public synchronized void mergeQuests(@Nonnull Map<String, QuestAsset> layer, @Nonnull Set<String> refusedIds) {
         quests.clear();
         layerFindings.clear();
+        gatedOut.clear();
+        for (String refused : refusedIds) {
+            if (refused != null && !refused.isBlank()) {
+                gatedOut.add(refused.trim().toLowerCase(Locale.ROOT));
+            }
+        }
         file(layer, quests, layerFindings, "files");
     }
 
@@ -275,6 +296,9 @@ public final class QuestAssetStore {
             issues.addAll(expansion.issues());
             for (GeneratedQuestBody body : expansion.bodies()) {
                 QuestAsset base = authored.get(body.baseId());
+                if (base == null && gatedOut.contains(body.baseId())) {
+                    continue; // the base belongs to a mod this server lacks, so the family is absent on purpose
+                }
                 if (base == null) {
                     issues.add(Finding.error(QuestPoolValidator.DOMAIN, "UNKNOWN_BASE",
                             "Base '" + body.baseId() + "' is not a quest anybody authored, so '" + body.id()
@@ -295,8 +319,8 @@ public final class QuestAssetStore {
                     continue;
                 }
                 QuestAsset decoded = decodeGenerated(body, base, generatorId, issues);
-                if (decoded == null || decoded.isAbstract()) {
-                    continue;
+                if (decoded == null || decoded.isAbstract() || !GateSpec.passesModGate(decoded.getRequires())) {
+                    continue; // a generated child obeys the file rule: gated on an absent mod, it is not here
                 }
                 out.put(body.id(), decoded.toDefinition(generatorId));
                 issues.addAll(QuestPoolValidator.repeatFindings(decoded.getRepeat(), body.id()));
