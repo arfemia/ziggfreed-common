@@ -14,7 +14,7 @@ import com.ziggfreed.common.progress.asset.CategoryPresentationAsset;
 
 /**
  * How one QUEST category is presented: where it sits in a list, what icon stands for it, what it is
- * called and the accent it is marked in. Authored at
+ * called (its accent is decoded and kept, but no surface draws it yet). Authored at
  * {@code Server/ZiggfreedCommon/QuestCategories/<category>.json}; the asset id IS the category name,
  * lower-cased at decode, so {@code Errands.json} describes the category a quest's
  * {@code Listing.Category} writes as {@code "errands"}.
