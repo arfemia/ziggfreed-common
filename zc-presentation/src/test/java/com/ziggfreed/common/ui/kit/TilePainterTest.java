@@ -79,6 +79,32 @@ class TilePainterTest {
     }
 
     @Test
+    void aTileUnderwayShowsItsCompletionRingAndACompleteTileItsCheckInstead() {
+        CollectionTile underway = new CollectionTile("combat", Message.raw("Combat"), null, Picture.NONE,
+                new Progress(3, 12), false, null, null, false);
+        CollectionTile complete = new CollectionTile("seasons", Message.raw("Seasons"), null, Picture.NONE,
+                new Progress(9, 9), true, null, null, false);
+        CollectionTile counted = new CollectionTile("feats", Message.raw("Feats"), null, Picture.NONE, null, false,
+                null, null, false);
+        UICommandBuilder cmd = new UICommandBuilder();
+        TilePainter.collection(cmd, new UIEventBuilder(), "#G", List.of(underway, complete, counted), t -> null);
+        Painted p = Painted.of(cmd);
+
+        assertTrue(p.shown("#G[0] #Tile #Ring.Visible"), "a category underway wears its ring");
+        assertEquals("0.25", ringValue(p.set("#G[0] #Tile #Ring.Value")), "the ring reads the tile's own fraction");
+        assertFalse(p.shown("#G[1] #Tile #Ring.Visible"), "a complete tile shows its check, never a full ring");
+        assertTrue(p.shown("#G[1] #Tile #Check.Visible"));
+        assertFalse(p.shown("#G[2] #Tile #Ring.Visible"), "a tile with no progress (the Feats tile) has no ring");
+        assertFalse(p.has("#G[2] #Tile #Ring.Value"));
+    }
+
+    /** A set command's value, unwrapped from {@code {"0": value}}. */
+    private static String ringValue(String data) {
+        int colon = data.indexOf(':');
+        return data.substring(colon + 1, data.lastIndexOf('}')).trim();
+    }
+
+    @Test
     void aKeepsakeShowsExactlyItsStatesLayer() {
         KeepsakeTile earned = new KeepsakeTile("2026", Message.raw("2026"), Message.raw("Earned"),
                 Picture.texture(TEXTURE), KeepsakeState.EARNED, true, Message.raw("Lantern Keeper 2026"));

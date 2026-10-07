@@ -80,8 +80,6 @@ npcquests.toast.untracked = Missione non più seguita.
 npcquests.toast.track_full = Stai già seguendo tutte le missioni che puoi.
 npcquests.toast.turn_in_short = Non basta ancora: {0}/{1}.
 
-tracked.empty = Segui una missione per vederla qui.
-
 # The lifted quest-log surface (categories, statuses, row actions, objectives, requirements).
 book.quests.count = {0} Missioni
 book.quests.active_count = {0} Attive

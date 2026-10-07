@@ -104,20 +104,6 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
                 blankIfNull(searchText), blankIfNull(filterTag)));
     }
 
-    /**
-     * The pre-redesign whole-state form (the subcategory is gone: the list groups by it). Kept so a consumer
-     * built against it still links.
-     */
-    public ObjectiveBookPage(@Nonnull PlayerRef playerRef, @Nullable String tab,
-                             @Nullable String filterCategory, @Nullable String filterStatus,
-                             @Nullable String searchText, @Nullable String filterTag,
-                             @Nullable String filterSubcategory, @Nullable String sortMode,
-                             @Nullable String selectedId) {
-        this(playerRef, BookState.of(tab).withFilters(blankIfNull(filterCategory), blankIfNull(filterStatus),
-                blankIfNull(sortMode), blankIfNull(searchText), blankIfNull(filterTag))
-                .withSelected(selectedId).showingSelection());
-    }
-
     @Nonnull
     private static String blankIfNull(@Nullable String value) {
         return value == null ? "" : value;

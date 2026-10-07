@@ -80,8 +80,6 @@ npcquests.toast.untracked = Quest wird nicht mehr verfolgt.
 npcquests.toast.track_full = Du verfolgst bereits so viele Quests wie möglich.
 npcquests.toast.turn_in_short = Noch nicht genug: {0}/{1}.
 
-tracked.empty = Verfolge eine Quest, um sie hier zu sehen.
-
 # The lifted quest-log surface (categories, statuses, row actions, objectives, requirements).
 book.quests.count = {0} Quests
 book.quests.active_count = {0} Aktiv

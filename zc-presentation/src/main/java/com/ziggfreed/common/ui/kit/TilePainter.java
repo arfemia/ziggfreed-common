@@ -28,13 +28,19 @@ public final class TilePainter {
     public static final String KEEPSAKE_TEMPLATE = "Pages/ZigKeepsakeTile.ui";
     public static final String STAT_TEMPLATE = "Pages/ZigStatTile.ui";
 
+    /**
+     * Whether a category tile underway wears its completion ring ({@code #Ring}, vanilla's
+     * {@code CircularProgressBar}) beside its bar. The one switch: false leaves the bar alone.
+     */
+    static final boolean RINGS = true;
+
     private TilePainter() {
     }
 
     /**
-     * Category tiles into {@code grid}: picture, name, count, bar, the check and complete style when complete, the
-     * pill, the accent strip (clamped to the row contrast floor), the "new" mark; each tile bound to
-     * {@code binding}'s answer (null leaves it unbound).
+     * Category tiles into {@code grid}: picture, name, count, bar, the check and complete style when complete (the
+     * completion ring while underway), the pill, the accent strip (clamped to the row contrast floor), the "new"
+     * mark; each tile bound to {@code binding}'s answer (null leaves it unbound).
      */
     public static void collection(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events, @Nonnull String grid,
             @Nonnull List<CollectionTile> tiles, @Nonnull Function<CollectionTile, EventData> binding) {
@@ -55,6 +61,11 @@ public final class TilePainter {
                 cmd.set(t + " #Bar.Value", progress.fraction());
             }
             cmd.set(t + " #Check.Visible", tile.complete());
+            boolean ring = RINGS && progress != null && !tile.complete();
+            cmd.set(t + " #Ring.Visible", ring);
+            if (ring) {
+                cmd.set(t + " #Ring.Value", progress.fraction());
+            }
             Pill badge = tile.badge();
             cmd.set(t + " #Badge.Visible", badge != null);
             if (badge != null) {

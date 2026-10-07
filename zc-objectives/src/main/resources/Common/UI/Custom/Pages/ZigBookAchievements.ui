@@ -212,10 +212,21 @@ Group #Achievements {
           }
         }
 
+        // The ladder's rung markers (Pages/ZigMilestoneRung.ui), shown for a ladder of two rungs or more. #Rungs has
+        // no layout of its own: each marker is placed by its whole Anchor from Java. #RungsEnd matches #MsCount's
+        // width, so #Rungs spans exactly the bar above it.
         Group #Track {
-          LayoutMode: Full;
+          LayoutMode: Left;
           Anchor: (Height: 12, Top: $ZK.@ZigSpace1);
           Visible: false;
+
+          Group #Rungs {
+            FlexWeight: 1;
+          }
+
+          Group #RungsEnd {
+            Anchor: (Width: 160);
+          }
         }
 
         Group #MsFoot {

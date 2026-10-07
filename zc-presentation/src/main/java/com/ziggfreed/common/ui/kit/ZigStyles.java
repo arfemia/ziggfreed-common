@@ -1,6 +1,7 @@
 package com.ziggfreed.common.ui.kit;
 
 import java.util.function.Function;
+import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -34,6 +35,12 @@ public final class ZigStyles {
 
     /** The default theme document, rooted at {@code Common/UI/Custom/} as {@code Value.ref} takes it. */
     public static final String DOCUMENT = "Common/ZigStyles.ui";
+
+    /** Where theme documents live, rooted at {@code Common/UI/Custom/}: each defines every {@link Name}. */
+    public static final String THEMES = "Common/Themes/";
+
+    /** A theme document's path: directly under {@link #THEMES}, a letter then letters or digits, {@code .ui}. */
+    private static final Pattern THEME_PATH = Pattern.compile("Common/Themes/[A-Za-z][A-Za-z0-9]*[.]ui");
 
     /**
      * The kit's text-style document ({@code Common/ZigText.ui}): not themed, read by the painters to put a label back
@@ -137,8 +144,9 @@ public final class ZigStyles {
     }
 
     /**
-     * The theme document for {@code viewer}: the installed chooser's answer when it names one, else
-     * {@link #DOCUMENT}. Never throws; a chooser that fails or answers blank reads as the default.
+     * The theme document for {@code viewer}: the installed chooser's answer when it names a theme document under
+     * {@link #THEMES} ({@link #accept}), else {@link #DOCUMENT}. Never throws; a chooser that fails, answers blank or
+     * names anything else reads as the default.
      */
     @Nonnull
     public static String document(@Nullable PlayerRef viewer) {
@@ -147,19 +155,41 @@ public final class ZigStyles {
             return DOCUMENT;
         }
         try {
-            String chosen = current.apply(viewer);
-            return chosen == null || chosen.isBlank() ? DOCUMENT : chosen;
+            return accept(current.apply(viewer));
         } catch (RuntimeException e) {
             return DOCUMENT;
         }
     }
 
     /**
-     * Install the theme seam: a function from a viewer to the style document their pages use (a theme document
-     * defines every {@link Name}). Null removes it. Set once at setup.
+     * Install the theme seam: a function from a viewer to the style document their pages use, {@link #DOCUMENT} or a
+     * theme document under {@link #THEMES} ({@link #themeDocument}); a theme document defines every {@link Name}
+     * ({@code ZigStylesDocumentTest} holds every shipped one to that). Null removes it. Set once at setup.
      */
     public static void documents(@Nullable Function<PlayerRef, String> themeChooser) {
         chooser = themeChooser;
+    }
+
+    /**
+     * The theme document named {@code themeId}: {@code Common/Themes/<themeId>.ui}, the path a theme asset's leaf
+     * names and a chooser answers. Not checked here; {@link #document} reads only a well-formed one.
+     */
+    @Nonnull
+    public static String themeDocument(@Nonnull String themeId) {
+        return THEMES + themeId + ".ui";
+    }
+
+    /**
+     * What a chooser's answer becomes: the default, or a theme document directly under {@link #THEMES} whose name is
+     * a letter then letters or digits; anything else (a typo, another folder, a page document) reads as the default,
+     * since a reference into a document the client lacks breaks the page it is sent to.
+     */
+    @Nonnull
+    static String accept(@Nullable String chosen) {
+        if (chosen == null) {
+            return DOCUMENT;
+        }
+        return THEME_PATH.matcher(chosen).matches() ? chosen : DOCUMENT;
     }
 
     /** Remove the theme seam. */

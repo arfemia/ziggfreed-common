@@ -126,8 +126,10 @@ public final class AchievementsTab implements BookTab {
     static final String MS_COUNT = "#MsCount";
     static final String MS_REWARDS = "#MsRewards";
     static final String MS_AFTER = "#MsAfter";
-    /** The milestone card's hidden host for rung markers placed along its bar. */
+    /** The milestone card's track row, hidden until a ladder of two rungs or more ({@link MilestoneTrack}). */
     static final String TRACK = "#Track";
+    /** The track row's rung host, where {@link MilestoneTrack} places its markers along the bar. */
+    static final String RUNGS = "#Rungs";
     static final String CATEGORIES_LABEL = "#CategoriesLabel";
     static final String TILES = "#Tiles";
     static final String PINNED_LIST = "#PinnedList";
@@ -160,9 +162,9 @@ public final class AchievementsTab implements BookTab {
     /** Every id this class addresses by name (each must exist in the document, once). */
     static final List<String> ADDRESSED = List.of(ROOT, TOOLBAR, VIEWS, SEARCH, FILTERS, STATUSES, CATEGORY, SORT,
             OVERVIEW, HERO, HERO_EARNED, HERO_POINTS, HERO_BAR, HERO_PERCENT, HERO_WAITING, HERO_WAITING_LINE,
-            HERO_SHOW, MILESTONE, MS_TITLE, MS_COLLECT, MS_BAR, MS_COUNT, MS_REWARDS, MS_AFTER, CATEGORIES_LABEL,
-            TILES, PINNED_LIST, PINNED_EMPTY, RECENT_LIST, RECENT_EMPTY, NEARLY_LIST, NEARLY_EMPTY, SPLIT, LIST,
-            LIST_EMPTY, PAGE, PAGE_EMPTY, EMPTY);
+            HERO_SHOW, MILESTONE, MS_TITLE, MS_COLLECT, MS_BAR, MS_COUNT, MS_REWARDS, MS_AFTER, TRACK, RUNGS,
+            CATEGORIES_LABEL, TILES, PINNED_LIST, PINNED_EMPTY, RECENT_LIST, RECENT_EMPTY, NEARLY_LIST, NEARLY_EMPTY,
+            SPLIT, LIST, LIST_EMPTY, PAGE, PAGE_EMPTY, EMPTY);
 
     // ==================== the tab's own numbers (LedgerLayout holds the book's) ====================
 
@@ -462,6 +464,7 @@ public final class AchievementsTab implements BookTab {
         DetailPainter.bindActionsOnce(ctx.events(), ctx.at(PAGE), slot -> ctx.binding(ACT, slot.name()),
                 plan.browse() ? ctx.binding(BookActions.PIN) : ctx.binding(ACT, TOGGLE));
         if (plan.browse()) {
+            markSeen(ctx, subject, overview, BrowseFilter.of(ctx.state()).category());
             LedgerModel model = read.reader().browse(BrowseFilter.of(ctx.state()));
             String selected = ctx.state().selectedId();
             shown = selected != null && read.reader().achievement(selected) != null
@@ -474,6 +477,33 @@ public final class AchievementsTab implements BookTab {
             paintList(ctx, model, true);
         }
         showPage(ctx, read, shown, pageFor(read, shown));
+    }
+
+    /**
+     * Browse opened on a category the player has not seen since something was earned there: mark it seen, so its
+     * tile's "new" mark clears. Only a category that reads new is marked, so an open that changes nothing writes
+     * nothing.
+     */
+    static void markSeen(@Nonnull BookContext ctx, @Nonnull Subject subject,
+            @Nonnull AchievementOverview.Overview overview, @Nullable String category) {
+        CollectionTile tile = unseenTile(overview.tiles(), category);
+        if (tile != null) {
+            ctx.deps().markSeenGuarded(subject, tile.id(), ctx.nowMs());
+        }
+    }
+
+    /** The tile for {@code category} when it reads new, else null (no category, "all", or nothing new there). */
+    @Nullable
+    static CollectionTile unseenTile(@Nonnull List<CollectionTile> tiles, @Nullable String category) {
+        if (category == null || category.isBlank() || BookState.ALL.equalsIgnoreCase(category)) {
+            return null;
+        }
+        for (CollectionTile tile : tiles) {
+            if (tile.id().equalsIgnoreCase(category.trim())) {
+                return tile.unseen() ? tile : null;
+            }
+        }
+        return null;
     }
 
     /** Nobody to read for, or nothing to list: one empty state across the tab, inside its own document. */
@@ -576,7 +606,7 @@ public final class AchievementsTab implements BookTab {
         hero(ctx, overview);
         events.addEventBinding(CustomUIEventBindingType.Activating, ctx.at(HERO_SHOW),
                 ctx.binding(BookActions.STATUS, BrowseFilter.STATUS_WAITING));
-        milestone(ctx, overview.next());
+        milestone(ctx, overview.next(), overview.points());
         // Bound once, with no threshold: a press collects the rung the card shows at that moment.
         events.addEventBinding(CustomUIEventBindingType.Activating, ctx.at(MS_COLLECT),
                 ctx.binding(BookActions.CLAIM_MILESTONE));
@@ -611,15 +641,22 @@ public final class AchievementsTab implements BookTab {
         }
     }
 
-    /** The next-milestone card, hidden without a ladder; painted both ways so a partial repaint is clean. */
-    private static void milestone(@Nonnull BookContext ctx, @Nullable AchievementOverview.MilestoneCard card) {
+    /**
+     * The next-milestone card, hidden without a ladder; painted both ways so a partial repaint is clean. With a
+     * ladder of two rungs or more its track shows the rungs along the bar, and the bar reads on the ladder's scale.
+     */
+    private static void milestone(@Nonnull BookContext ctx, @Nullable AchievementOverview.MilestoneCard card,
+            long points) {
         UICommandBuilder cmd = ctx.cmd();
         cmd.set(ctx.at(MILESTONE) + ".Visible", card != null);
         if (card == null) {
             return;
         }
         cmd.set(ctx.at(MS_TITLE) + ".TextSpans", card.title());
-        cmd.set(ctx.at(MS_BAR) + ".Value", card.progress().fraction());
+        boolean track = MilestoneTrack.paint(cmd, ctx.at(TRACK), ctx.at(RUNGS), card.thresholds(), points,
+                card.allCollected() ? -1 : card.threshold());
+        cmd.set(ctx.at(MS_BAR) + ".Value",
+                track ? MilestoneTrack.barFraction(card.thresholds(), points) : card.progress().fraction());
         cmd.set(ctx.at(MS_COUNT) + ".TextSpans", KitText.count(card.progress().current(), card.progress().total()));
         optional(cmd, ctx.at(MS_REWARDS), card.rewards());
         optional(cmd, ctx.at(MS_AFTER), card.after());
@@ -968,7 +1005,7 @@ public final class AchievementsTab implements BookTab {
         }
         ctx.verbs().claimMilestone(threshold);
         AchievementOverview.Overview overview = new Reading(ctx, subject).overview();
-        milestone(ctx, overview.next());
+        milestone(ctx, overview.next(), overview.points());
         hero(ctx, overview);
         header(ctx, overview);
         ctx.sendPartial();

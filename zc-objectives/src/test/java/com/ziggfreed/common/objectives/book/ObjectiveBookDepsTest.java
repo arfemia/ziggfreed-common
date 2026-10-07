@@ -110,7 +110,6 @@ class ObjectiveBookDepsTest {
     @Test
     void nullFillsFallBackToDefaults() {
         ObjectiveBookDeps deps = ObjectiveBookDeps.builder()
-                .sidePanelPainter(null)
                 .extHandler(null)
                 .boardManaged(null)
                 .requirementText(null)
@@ -126,7 +125,6 @@ class ObjectiveBookDepsTest {
                 .build();
         assertSame(DetailBlockSource.NONE, deps.detailBlocks());
         assertSame(SeenMarks.NONE, deps.seen());
-        assertSame(ObjectiveBookDeps.NO_CHROME, deps.sidePanelPainter());
         assertSame(ObjectiveBookDeps.NO_EXT, deps.extHandler());
         assertSame(ObjectiveBookDeps.NO_BOARDS, deps.boardManaged());
         assertSame(ObjectiveBookDeps.NO_FIRST_CLAIMS, deps.firstClaims());

@@ -51,6 +51,7 @@ class ZigProgressComponentTest {
         assertEquals(AchievementStatus.LOCKED, component.milestoneStatus(50));
         assertTrue(component.knownMilestones().isEmpty());
         assertTrue(component.achievementPins().isEmpty());
+        assertTrue(component.achievementSeenMarks().isEmpty());
     }
 
     @Test
@@ -332,5 +333,77 @@ class ZigProgressComponentTest {
         assertEquals(CompletionRecord.NONE, component.questCompletions("q_daily"));
         assertFalse(component.knownQuestIds().contains("q_daily"),
                 "an empty record is stored as absence, so a wipe leaves nothing behind");
+    }
+
+    // ==================== achievement seen marks (the appended AchievementSeen leaf) ====================
+
+    @Test
+    void aSeenMarkRoundTripsThroughItsOwnLeaf() {
+        ZigProgressComponent component = new ZigProgressComponent();
+        component.setAchievementSeen("Combat", 1_700_000_000_000L);
+        component.setAchievementSeen("seasons", 1_800_000_000_000L);
+
+        BsonDocument encoded = ZigProgressComponent.CODEC.encode(component, ExtraInfo.THREAD_LOCAL.get());
+        assertTrue(encoded.containsKey("AchievementSeen"), "the marks travel in their own leaf");
+        ZigProgressComponent back = new ZigProgressComponent();
+        ZigProgressComponent.CODEC.decode(BsonDocument.parse(encoded.toJson()), back, ExtraInfo.THREAD_LOCAL.get());
+
+        assertEquals(1_700_000_000_000L, back.achievementSeen("combat"), "a category reads under any casing");
+        assertEquals(1_800_000_000_000L, back.achievementSeen("Seasons"));
+        assertEquals(0L, back.achievementSeen("gathering"), "a category never opened reads 0");
+        assertEquals(Map.of("combat", 1_700_000_000_000L, "seasons", 1_800_000_000_000L), back.achievementSeenMarks());
+    }
+
+    @Test
+    void theSeenLeafIsAppendedAfterEveryOlderLeaf() {
+        ZigProgressComponent component = new ZigProgressComponent();
+        component.setAchievementSeen("combat", 5L);
+        component.setDialogueMemory("flag");
+        component.claimMigration("m1");
+
+        BsonDocument encoded = ZigProgressComponent.CODEC.encode(component, ExtraInfo.THREAD_LOCAL.get());
+        String last = null;
+        for (String key : encoded.keySet()) {
+            last = key;
+        }
+        assertEquals("AchievementSeen", last, "a new leaf goes on the end of the codec, never in the middle");
+    }
+
+    @Test
+    void aBlobSavedBeforeTheSeenLeafExistedReadsWithNoMarks() {
+        BsonDocument saved = new BsonDocument();
+        saved.put("AchievementPins", new BsonString("a_first=5"));
+        saved.put("Migrations", new BsonString(""));
+        ZigProgressComponent older = ZigProgressComponent.CODEC.decode(saved, new ExtraInfo());
+
+        assertTrue(older.achievementSeenMarks().isEmpty());
+        assertEquals(0L, older.achievementSeen("combat"));
+        assertEquals(Map.of("a_first", 5L), older.achievementPins(), "the older leaves read as before");
+    }
+
+    @Test
+    void aSeenMarkIsReplacedClearedAndRefusesAReservedCategory() {
+        ZigProgressComponent component = new ZigProgressComponent();
+        component.setAchievementSeen("combat", 5L);
+        component.setAchievementSeen("COMBAT", 9L);
+        assertEquals(Map.of("combat", 9L), component.achievementSeenMarks(), "one mark per category, the latest");
+
+        component.setAchievementSeen("combat", 0L);
+        assertTrue(component.achievementSeenMarks().isEmpty(), "a non-positive stamp clears the mark");
+
+        component.setAchievementSeen("a|b", 5L);
+        component.setAchievementSeen("a=b", 5L);
+        component.setAchievementSeen(" ", 5L);
+        assertTrue(component.achievementSeenMarks().isEmpty(), "a category the blob format reserves is refused");
+    }
+
+    @Test
+    void cloneCopiesTheSeenMarks() {
+        ZigProgressComponent original = new ZigProgressComponent();
+        original.setAchievementSeen("combat", 5L);
+        ZigProgressComponent copy = original.clone();
+        copy.setAchievementSeen("combat", 9L);
+        assertEquals(5L, original.achievementSeen("combat"));
+        assertEquals(9L, copy.achievementSeen("combat"));
     }
 }

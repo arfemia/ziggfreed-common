@@ -133,6 +133,19 @@ class ZigStylesTest {
         assertEquals(ZigStyles.DOCUMENT, ZigStyles.document(null));
     }
 
+    @Test
+    void theThemeSeamTakesOnlyTheDefaultOrADocumentUnderThemes() {
+        assertEquals("Common/Themes/Hallowed.ui", ZigStyles.accept("Common/Themes/Hallowed.ui"));
+        assertEquals(ZigStyles.DOCUMENT, ZigStyles.accept(ZigStyles.DOCUMENT));
+        assertEquals("Common/Themes/Hallowed.ui", ZigStyles.themeDocument("Hallowed"));
+        for (String refused : new String[] {null, "", "  ", "Pages/ZigBookAchievements.ui", "Common/Themes/../Evil.ui",
+                "Common/Themes/Sub/Deep.ui", "Common/Themes/Bad_Name.ui", "Common/Themes/Hallowed",
+                "../Common/Themes/Hallowed.ui", "common/themes/Hallowed.ui"}) {
+            assertEquals(ZigStyles.DOCUMENT, ZigStyles.accept(refused),
+                    "a chooser's answer that is not a theme document reads as the default: " + refused);
+        }
+    }
+
     /** A set command wraps its value as {@code {"0": value}}; the string value alone. */
     private static String unwrap(String data) {
         int colon = data.indexOf(':');

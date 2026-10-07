@@ -80,8 +80,6 @@ npcquests.toast.untracked = Квест больше не отслеживает�
 npcquests.toast.track_full = Вы уже отслеживаете максимум квестов.
 npcquests.toast.turn_in_short = Пока недостаточно: {0}/{1}.
 
-tracked.empty = Отслеживайте квест, чтобы видеть его здесь.
-
 # The lifted quest-log surface (categories, statuses, row actions, objectives, requirements).
 book.quests.count = {0} Квестов
 book.quests.active_count = {0} Активных
