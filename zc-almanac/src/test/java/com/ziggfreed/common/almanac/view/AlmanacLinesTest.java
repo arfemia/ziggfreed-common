@@ -99,6 +99,21 @@ class AlmanacLinesTest {
     }
 
     @Test
+    void aMovingDateNamesItsRunsYearRatherThanEveryYear() {
+        Timing moving = new Timing(true, 10, false, null, false, MonthDay.of(3, 18), MonthDay.of(4, 4),
+                LocalDate.of(2028, 4, 6), false, 2027);
+        Message window = AlmanacLines.window(moving);
+        assertNotNull(window);
+        assertKey("window.year", window);
+        FormattedMessage formatted = window.getFormattedMessage();
+        assertEquals("2027", formatted.messageParams.get("0").rawText, "a year is text, so no locale groups it");
+        assertEquals(AlmanacText.PREFIX + "month.3", formatted.messageParams.get("1").messageId);
+        assertEquals(18L, ((LongParamValue) formatted.params.get("2")).value);
+        assertEquals(AlmanacText.PREFIX + "month.4", formatted.messageParams.get("3").messageId);
+        assertEquals(4L, ((LongParamValue) formatted.params.get("4")).value);
+    }
+
+    @Test
     void theScopeHeaderCarriesTheYearAsTextAndEverySeasonByItsOwnWords() {
         Message year = AlmanacLines.scopeHeader(new Scope(2026));
         assertKey("scope.year", year);

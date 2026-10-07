@@ -34,10 +34,11 @@ public interface AlmanacCalendar {
     /**
      * What the calendar knows of a season's runs at one moment: the run going on (forces counted), the
      * next run to start, every run begun so far oldest first (the one going on included), the first year,
-     * and the clock its days are counted in. A run's {@code endMs} is the midnight after its last day.
+     * the clock its days are counted in, and whether its days move from year to year. A run's {@code endMs}
+     * is the midnight after its last day.
      */
     record Dates(@Nullable Occurrence live, @Nullable Occurrence next, @Nonnull List<Occurrence> history,
-                 @Nullable Integer firstYear, @Nonnull ZoneId zone) {
+                 @Nullable Integer firstYear, @Nonnull ZoneId zone, boolean datesMove) {
 
         /** Nothing known: no runs, no years, counted in UTC. What an absent season or a dateless calendar says. */
         public static final Dates UNKNOWN = new Dates(null, null, List.of(), null, ZoneOffset.UTC);
@@ -45,6 +46,12 @@ public interface AlmanacCalendar {
         public Dates {
             history = history == null ? List.of() : List.copyOf(history);
             zone = zone == null ? ZoneOffset.UTC : zone;
+        }
+
+        /** Days that are the same every year. */
+        public Dates(@Nullable Occurrence live, @Nullable Occurrence next, @Nonnull List<Occurrence> history,
+                @Nullable Integer firstYear, @Nonnull ZoneId zone) {
+            this(live, next, history, firstYear, zone, false);
         }
     }
 

@@ -22,16 +22,21 @@ row.live = {0}: running, the {1} run, through {2}.
 row.live.forced = {0}: running because it was forced on, the {1} run, through {2}.
 row.stopped = {0}: stopped by a command.
 row.waiting = {0}: next starts {1}.
+row.done = {0}: no runs left, since its last dated year has passed.
 
 status.window = Runs {0} every year, counted in {1}.
+status.window.moving = Runs {0}, counted in {1}; its days move from year to year.
+status.run = The {0} run: {1} to {2}.
 status.first = First year: {0}.
 status.first.none = No first year, so it never runs.
 status.history = Runs so far: {0}.
 status.history.none = No runs yet.
 status.problem = Problem: {0}.
+status.note = Note: {0}.
 
 force.unknown = There is no calendar event named {0}.
 force.absent = {0} is switched off or cannot run, so forcing it changes nothing.
+force.on.nodates = {0} has no dates this year, so it cannot be forced on.
 force.on.done = {0} is running now. It stays forced until you clear it or the server restarts.
 force.off.done = {0} is stopped now. It stays stopped until you clear it or the server restarts.
 force.clear.done = {0} follows its dates again.

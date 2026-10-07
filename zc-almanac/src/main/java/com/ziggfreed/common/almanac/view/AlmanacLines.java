@@ -18,8 +18,9 @@ import com.ziggfreed.common.almanac.view.AlmanacView.Timing;
  * surface that shows a season (its row, its hero chip, a consumer's tile) reads it the same way. Which
  * line a countdown takes is decided here: "On now - N days left" while it runs, "Last day" on its last,
  * "Returns in N days" up to {@value #RETURNS_COUNTDOWN_DAYS} days out, "Returns October 1" further off,
- * "Starts in N days" before its first run, "Between seasons" with no next run. Numbers bind typed, a
- * month nests as its own key, and a year is text so no locale groups it.
+ * "Starts in N days" before its first run, "Between seasons" with no next run. The dates line reads
+ * "Every year, ..." for days that are the same every year, naming the run's year when its days move.
+ * Numbers bind typed, a month nests as its own key, and a year is text so no locale groups it.
  */
 public final class AlmanacLines {
 
@@ -53,13 +54,21 @@ public final class AlmanacLines {
         return AlmanacText.line("chip.between");
     }
 
-    /** "Every year, October 1 to November 3", or null when the calendar gave no dates. */
+    /**
+     * "Every year, October 1 to November 3" for days that are the same every year; "In 2027, March 18 to
+     * April 4" for days that move, naming the run the line frames; null when the calendar gave no dates.
+     */
     @Nullable
     public static Message window(@Nonnull Timing timing) {
         MonthDay start = timing.windowStart();
         MonthDay end = timing.windowEnd();
         if (start == null || end == null) {
             return null;
+        }
+        Integer year = timing.windowYear();
+        if (year != null) {
+            return AlmanacText.line("window.year", String.valueOf(year), month(start.getMonthValue()),
+                    (long) start.getDayOfMonth(), month(end.getMonthValue()), (long) end.getDayOfMonth());
         }
         return AlmanacText.line("window", month(start.getMonthValue()), (long) start.getDayOfMonth(),
                 month(end.getMonthValue()), (long) end.getDayOfMonth());

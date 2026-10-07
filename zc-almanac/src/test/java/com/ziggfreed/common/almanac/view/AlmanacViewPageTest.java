@@ -202,6 +202,20 @@ class AlmanacViewPageTest {
         assertEquals(MonthDay.of(1, 5), timing.windowEnd());
     }
 
+    @Test
+    void aSeasonWhoseDatesMoveNamesTheYearOfTheRunItFrames() {
+        Occurrence run = FixedCalendar.run("egg_hunt", 2027, "2027-03-18", "2027-04-04", UTC);
+        Occurrence next = FixedCalendar.run("egg_hunt", 2028, "2028-04-06", "2028-04-23", UTC);
+        Season hunt = new Season("egg_hunt", null, null, null, true, 2027);
+
+        Timing moving = AlmanacView.timing(hunt, new Dates(run, next, List.of(run), 2027, UTC, true), noon("2027-03-20"));
+        assertEquals(Integer.valueOf(2027), moving.windowYear(), "the run on now frames the dates line");
+        assertEquals(MonthDay.of(3, 18), moving.windowStart());
+
+        Timing fixed = AlmanacView.timing(hunt, new Dates(run, next, List.of(run), 2027, UTC), noon("2027-03-20"));
+        assertNull(fixed.windowYear(), "days that are the same every year name no year");
+    }
+
     // ---- years and scope ----
 
     @Test

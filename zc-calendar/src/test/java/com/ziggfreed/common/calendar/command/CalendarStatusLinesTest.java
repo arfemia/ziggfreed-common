@@ -19,6 +19,11 @@ import com.ziggfreed.common.calendar.command.CalendarStatusLines.Line;
 /** What an administrator reads about an event, as keys and raw data: running, waiting, forced, off, broken. */
 class CalendarStatusLinesTest {
 
+    private static final String EASTER_HUNT = """
+            { "Window": { "Start": "04-01", "End": "04-10",
+                          "Rule": { "Type": "Easter", "Before": 10, "After": 7 } }, "FirstYear": 2027 }
+            """;
+
     private final CalendarService service =
             new CalendarService(CalendarEventConfig.getInstance(), CalendarForces.getInstance());
 
@@ -77,5 +82,26 @@ class CalendarStatusLinesTest {
         assertEquals(List.of("10-01..11-03", "UTC"), lines.get(1).args());
         assertEquals(List.of("2026"), lines.get(2).args());
         assertEquals(List.of("2026"), lines.get(3).args());
+    }
+
+    @Test
+    void aMovingWindowSaysItsRuleAndTheDaysOfTheRunItFrames() {
+        CalendarFixtures.loadEvents(Map.of("egg_hunt", CalendarFixtures.event("Egg_Hunt", EASTER_HUNT)));
+        List<Line> lines = CalendarStatusLines.detail(service, "egg_hunt", at("2027-01-10T12:00:00Z"));
+        assertEquals(List.of("row.waiting", "status.window.moving", "status.run", "status.first",
+                "status.history.none", "status.note"), lines.stream().map(Line::key).toList());
+        assertEquals(List.of("Easter -10..+7", "UTC"), lines.get(1).args(), "never 'every year'");
+        assertEquals(List.of("2027", "2027-03-18", "2027-04-04"), lines.get(2).args(),
+                "the run it frames is the next one, with its own days");
+        assertEquals(List.of("START_END_IGNORED"), lines.get(5).args());
+    }
+
+    @Test
+    void aWindowOfPerYearDaysThatRanOutSaysSoRatherThanOff() {
+        CalendarFixtures.loadEvents(Map.of("fair", CalendarFixtures.event("Fair",
+                "{ \"Window\": { \"Years\": { \"2026\": { \"Start\": \"06-01\", \"End\": \"06-07\" } } },"
+                        + " \"FirstYear\": 2026 }")));
+        assertEquals(new Line("row.done", List.of("fair")),
+                CalendarStatusLines.row(service, "fair", at("2027-01-01T00:00:00Z")));
     }
 }

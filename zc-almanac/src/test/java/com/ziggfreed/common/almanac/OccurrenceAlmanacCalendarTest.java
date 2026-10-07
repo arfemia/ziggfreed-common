@@ -1,8 +1,10 @@
 package com.ziggfreed.common.almanac;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.ZoneId;
 import java.util.List;
@@ -181,5 +183,35 @@ class OccurrenceAlmanacCalendarTest {
 
         assertSame(Dates.UNKNOWN, lambda.dates(FixedCalendar.TEST_SEASON, NOW),
                 "a one-method calendar (a test's lambda) knows no dates");
+    }
+
+    @Test
+    void aCalendarWhoseDatesMoveSaysSoToThePage() {
+        OccurrenceSource moving = new OccurrenceSource() {
+            @Override
+            public boolean isEnabled(@Nonnull String eventId) {
+                return FixedCalendar.TEST_SEASON.equals(eventId);
+            }
+
+            @Override
+            @Nullable
+            public Occurrence live(@Nonnull String eventId, long nowMs) {
+                return null;
+            }
+
+            @Override
+            @Nonnull
+            public List<Occurrence> history(@Nonnull String eventId, long nowMs) {
+                return List.of();
+            }
+
+            @Override
+            public boolean datesMove(@Nonnull String eventId) {
+                return true;
+            }
+        };
+        assertTrue(calendar(moving).dates(FixedCalendar.TEST_SEASON, NOW).datesMove());
+        assertFalse(calendar(new Source(true, null, null, List.of(), 2026, BERLIN))
+                .dates(FixedCalendar.TEST_SEASON, NOW).datesMove(), "a source that knows no rule says they do not");
     }
 }
