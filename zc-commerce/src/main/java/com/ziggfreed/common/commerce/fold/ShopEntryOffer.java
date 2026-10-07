@@ -9,6 +9,7 @@ import com.ziggfreed.common.cost.Cost;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.shop.PurchaseLimits;
+import com.ziggfreed.common.shop.ShopCatalog;
 import com.ziggfreed.common.shop.ShopOffer;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.shop.asset.ShopEntryAsset;
@@ -33,6 +34,7 @@ public final class ShopEntryOffer implements ShopOffer {
     private final Cost cost;
     private final List<RewardSpec> rewards;
     private final PurchaseLimits limits;
+    @Nullable private final String hostId;
 
     private ShopEntryOffer(@Nonnull ShopEntryAsset asset) {
         this.asset = asset;
@@ -40,12 +42,33 @@ public final class ShopEntryOffer implements ShopOffer {
         this.cost = CommerceFold.cost(asset.getCost(), id);
         this.rewards = CommerceFold.rewards(asset.rewardsOrEmpty());
         this.limits = CommerceFold.limits(asset.getLimits());
+        this.hostId = null;
+    }
+
+    private ShopEntryOffer(@Nonnull ShopEntryOffer listed, @Nonnull String hostId) {
+        this.asset = listed.asset;
+        this.cost = listed.cost;
+        this.rewards = listed.rewards;
+        this.limits = listed.limits;
+        this.hostId = hostId;
     }
 
     /** The engine view of {@code asset}. */
     @Nonnull
     public static ShopEntryOffer of(@Nonnull ShopEntryAsset asset) {
         return new ShopEntryOffer(asset);
+    }
+
+    /**
+     * This offer as listed at {@code hostId}, a storefront that {@code Includes} its own: the same asset,
+     * price, rewards, limits and id (so a purchase counts the same wherever it is made), with its storefront
+     * presence and lock read off the host instead of its own storefront. Its own storefront is not asked, so
+     * a stall switched off on its own still supplies every storefront that includes it. The offer's own
+     * {@code Enabled}, {@code Requires} and {@code Season} still apply.
+     */
+    @Nonnull
+    public ShopEntryOffer at(@Nonnull String hostId) {
+        return new ShopEntryOffer(this, ShopCatalog.normalize(hostId));
     }
 
     /** What the author wrote, for everything a purchase does not ask about. */
@@ -79,9 +102,10 @@ public final class ShopEntryOffer implements ShopOffer {
     }
 
     /**
-     * On sale right now: the offer is available, and so is the storefront it names. Read live, so a
-     * press on a page drawn before the storefront was hidden refuses rather than sells. An offer
-     * naming a storefront nothing defines answers by its own file; the audit names that storefront.
+     * On sale right now: the offer is available, and so is the storefront it stands in, which is the
+     * host it is listed at for a view from {@link #at}, else its own. Read live, so a press on a page
+     * drawn before the storefront was hidden refuses rather than sells. An offer naming a storefront
+     * nothing defines answers by its own file; the audit names that storefront.
      */
     @Override
     public boolean enabled() {
@@ -96,7 +120,10 @@ public final class ShopEntryOffer implements ShopOffer {
         return asset.lockRequires();
     }
 
-    /** The lock of the storefront this offer stands in, read live; null when there is none to ask. */
+    /**
+     * The lock of the storefront it stands in (the host, for a view from {@link #at}), read live; null
+     * when there is none to ask.
+     */
     @Override
     @Nullable
     public GateSpec storefrontRequires() {
@@ -104,10 +131,10 @@ public final class ShopEntryOffer implements ShopOffer {
         return storefront == null ? null : storefront.lockRequires();
     }
 
-    /** The storefront this offer names, read live, or null when it names none or none is defined. */
+    /** The storefront this view answers presence and lock by: the host it is listed at, else its own. */
     @Nullable
     private StorefrontAsset storefront() {
-        String shopId = asset.getShop();
+        String shopId = hostId != null ? hostId : asset.getShop();
         return shopId == null ? null : ShopConfig.getInstance().resolve(shopId);
     }
 
