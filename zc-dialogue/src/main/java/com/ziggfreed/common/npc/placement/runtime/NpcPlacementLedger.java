@@ -38,7 +38,8 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p>Persisted to {@code mods/ziggfreedcommon/npc-placement-ledger.json}. Reads are lock-free;
  * writes are synchronized and small. A row is dropped when its placement is removed, gate-denied,
- * or its world is gone.
+ * or its world is deleted. A world merely removed (every world at a server stop, one an admin
+ * unloads) keeps its rows, since it comes back with its NPCs.
  */
 public final class NpcPlacementLedger {
 
@@ -208,7 +209,10 @@ public final class NpcPlacementLedger {
         return out;
     }
 
-    /** Drop every row for a world (the world was deleted; an instance world is never coming back). */
+    /**
+     * Drop every row for a world that was deleted, never one merely removed
+     * ({@link NpcPlacementReconciler#onWorldRemoved}): a deleted world never comes back under its name.
+     */
     public void dropWorld(@Nonnull String worldName) {
         String prefix = worldName.toLowerCase(Locale.ROOT) + KEY_SEP;
         if (uuidByKey.keySet().removeIf(k -> k.startsWith(prefix))) {
