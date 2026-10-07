@@ -16,6 +16,7 @@ import com.ziggfreed.common.npc.NpcDestinations;
 import com.ziggfreed.common.npc.NpcNames;
 import com.ziggfreed.common.npc.placement.registry.AnchorResolverRegistry;
 import com.ziggfreed.common.npc.placement.registry.PlacementFactorRegistry;
+import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.ui.route.Destinations;
 import com.ziggfreed.common.validation.Finding;
@@ -131,6 +132,7 @@ public final class NpcPlacementValidator {
         checkWhereMatchesALoadedWorld(placement, id, out);
         checkAnchorProvider(placement, id, out);
         checkRequiresFactors(placement, id, out);
+        SeasonGate.checkKnown(out, DOMAIN, placement.getSeason(), id);
         checkChanceFormulaFactors(placement, id, out);
         checkDestinationParams(placement, id, out);
         checkDialogueExists(placement, id, out);

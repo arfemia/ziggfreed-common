@@ -51,6 +51,12 @@ public class DialogueOption {
      * hands out ({@link DialogueExtension#of}), never on a decoded row.
      */
     @Nullable private String injectedBy;
+    /**
+     * The {@code Season} of the extension that put this line here, or null: a line it hands out is
+     * offered only while that season runs ({@code DialogueEngine#optionAvailable}). Set only on an
+     * extension's copy, never on a decoded row.
+     */
+    @Nullable private String injectedSeason;
 
     public DialogueOption() {
     }
@@ -106,12 +112,16 @@ public class DialogueOption {
     /** True when a dialogue extension added this line rather than the conversation writing it. */
     public boolean isInjected() { return injectedBy != null; }
 
+    /** The season of the extension that added this line, or null (all year, and every line a conversation wrote). */
+    @Nullable public String getInjectedSeason() { return injectedSeason; }
+
     /**
-     * A copy of this line marked as added by {@code extensionId}. An extension splices the copy, so
-     * the row it decoded (which a {@code Parent} chain may share) is never marked in place.
+     * A copy of this line marked as added by {@code extensionId}, offered only while {@code season}
+     * runs (null for all year). An extension splices the copy, so the row it decoded (which a
+     * {@code Parent} chain may share) is never marked in place.
      */
     @Nonnull
-    DialogueOption injectedCopy(@Nonnull String extensionId) {
+    DialogueOption injectedCopy(@Nonnull String extensionId, @Nullable String season) {
         DialogueOption copy = new DialogueOption();
         copy.labelKey = labelKey;
         copy.label = label;
@@ -124,6 +134,7 @@ public class DialogueOption {
         copy.sugar = sugar;
         copy.doAtoms = doAtoms;
         copy.injectedBy = extensionId;
+        copy.injectedSeason = season;
         return copy;
     }
 

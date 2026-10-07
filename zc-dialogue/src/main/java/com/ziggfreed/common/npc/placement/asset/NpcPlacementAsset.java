@@ -17,6 +17,7 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.asset.EditorDataSets;
+import com.ziggfreed.common.asset.SeasonLeaf;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.codec.ScalarStringCodec;
 import com.ziggfreed.common.codec.Vec3;
@@ -24,6 +25,7 @@ import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.npc.NpcDestinations;
 import com.ziggfreed.common.npc.placement.registry.AnchorResolverRegistry;
+import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.world.WorldSelector;
 
@@ -68,6 +70,8 @@ import com.ziggfreed.common.world.WorldSelector;
  *       each an independent instance. See that class for the multi-anchor rules.</li>
  *   <li><b>{@link Requires}</b> - whether it appears at all, in authored terms (see
  *       {@link FactorCondition}); it feeds the same gate chain an admin override does.</li>
+ *   <li><b>{@code Season}</b> - the calendar event it stands for; outside that event's run it is not
+ *       placed, and a standing NPC is despawned on the next sweep.</li>
  *   <li><b>{@link Limits}</b> - how many, and how likely.</li>
  *   <li><b>{@link Lifecycle}</b> - what happens to it afterwards. Every knob is OPT-IN and
  *       defaults false, because each one costs something (a pinned chunk, a re-place, a health
@@ -96,8 +100,9 @@ public final class NpcPlacementAsset
     @Nullable private Limits limits;
     @Nullable private Lifecycle lifecycle;
     @Nullable private Interact interact;
+    @Nullable private String season;
 
-    public static final AssetBuilderCodec<String, NpcPlacementAsset> CODEC = AssetBuilderCodec.builder(
+    public static final AssetBuilderCodec<String, NpcPlacementAsset> CODEC = SeasonLeaf.append(AssetBuilderCodec.builder(
                     NpcPlacementAsset.class,
                     NpcPlacementAsset::new,
                     Codec.STRING,
@@ -156,7 +161,8 @@ public final class NpcPlacementAsset
                     (a, v) -> a.interact = v, a -> a.interact, (a, p) -> a.interact = p.interact)
             .documentation("What pressing F on this NPC opens: a conversation, or any destination a mod on "
                     + "this server registered.")
-            .add()
+            .add(),
+                    (a, v) -> a.season = v, a -> a.season)
             .build();
 
     public NpcPlacementAsset() {
@@ -188,6 +194,12 @@ public final class NpcPlacementAsset
     /** {@code Enabled}, reader-defaulted to {@code true} (a placement ships on unless it says otherwise). */
     public boolean isEnabled() {
         return enabled == null || enabled;
+    }
+
+    /** The calendar event this placement stands for, trimmed, or null when it stands all year. */
+    @Nullable
+    public String getSeason() {
+        return SeasonGate.normalize(season);
     }
 
     @Nullable

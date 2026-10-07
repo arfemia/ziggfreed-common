@@ -26,6 +26,7 @@
 - `Limits.SpawnChance` and `Limits.ChanceFormula` are two knobs: the formula wins when both are authored, an empty formula falls back to the scalar, and the roll is a deterministic `SplitMix64` over `(worldSeed, placementId, anchorKey)`.
 - `NpcPlacementAuthoring.place` is the one writer behind `/zignpc place` and any consumer alias (owner-file write, owner-layer re-read, forced sweep); never add a second.
 - After writing the owner switch file `mods/ziggfreedcommon/npc-placements.json`, call `NpcPlacementReconciler.forceSweep`, or the change waits for the next restart.
+- `Season` (zc-core `SeasonLeaf`) stands a placement only while that calendar event runs: `PlacementGates` reads it third, after `Enabled` and the owner override and before `Requires`, denying with `placement.denied.season`, and it survives `Parent` whatever a child writes in `Requires`. The calendar's start and end sweeps move it with no `Requires` of its own.
 
 ## Audit
 
