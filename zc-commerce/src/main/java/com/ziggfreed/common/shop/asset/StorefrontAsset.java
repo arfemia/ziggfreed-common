@@ -40,6 +40,7 @@ import com.ziggfreed.common.world.WorldSelector;
  *   "Order": 0,
  *   "Currencies": ["Bounty_Token", "Life_Essence"],
  *   "CategoryOrder": ["Items", "Boosts", "Conversion", "Featured"],
+ *   "Includes": ["Festival_Stall"],
  *   "Categories": { "Relics": { "TitleKey": "shop.category.relics" } } }
  * }</pre>
  *
@@ -62,6 +63,14 @@ import com.ziggfreed.common.world.WorldSelector;
  * shelves read in every language without it. Author it for a shelf of your own invention and point
  * its {@code TitleKey} at a line in your own lang file; until you do, the shelf reads as the word you
  * typed, which is honest but is only in one language.
+ *
+ * <p><b>{@code Includes} lists other storefronts' offers and shelves on this page</b>, after its own: a
+ * shelf of offers written once can stand at several stalls. An included storefront supplies them even while
+ * it is switched off itself, which keeps a shared stall out of every list. Here, each of its offers stands in
+ * THIS storefront (its presence and lock are this one's) and keeps its own price, {@code Requires},
+ * {@code Season} and limits; a purchase counts against the same limit wherever it is made. Includes reach
+ * through, each storefront once; the included storefronts' categories follow this one's
+ * {@code CategoryOrder}, and their wallets join the header.
  *
  * <p><b>{@code Where} decides which worlds this storefront exists in at all</b>, in the one
  * world-targeting grammar every file on this server uses. Leave it out and it exists everywhere,
@@ -91,6 +100,7 @@ public final class StorefrontAsset implements JsonAssetWithMap<String, DefaultAs
     @Nullable private GateSpec requires;
     @Nullable private String season;
     @Nullable private WorldSelector where;
+    @Nullable private String[] includes;
     @Nullable private Map<String, JsonElement> meta;
 
     public static final AssetBuilderCodec<String, StorefrontAsset> CODEC = SeasonLeaf.append(AssetBuilderCodec.builder(
@@ -165,6 +175,17 @@ public final class StorefrontAsset implements JsonAssetWithMap<String, DefaultAs
                     + "named by what it is CALLED or by the gameplay config it runs, the same grammar every "
                     + "world-targeted file here uses. A player standing anywhere else is not shown it, never "
                     + "lands on it as the unnamed default, and finds it closed if something opens it by name.")
+            .add()
+            .appendInherited(new KeyedCodec<>("Includes", Codec.STRING_ARRAY, false),
+                    (a, v) -> a.includes = v, a -> a.includes, (a, p) -> a.includes = p.includes)
+            .metadata(new UIEditor(new UIEditor.Dropdown(CommerceEditorDataSets.SHOPS)))
+            .documentation("Other storefronts whose offers and shelves this page also shows, after its own, by "
+                    + "id. A shelf of offers written once can stand at several stalls this way, and the included "
+                    + "storefront may stay switched off itself so it never shows on its own. Here each offer "
+                    + "stands in this storefront and keeps its own price, Requires, Season and limits, and a "
+                    + "purchase counts against the same limit wherever it is made. Includes reach through, each "
+                    + "storefront once. Their categories follow this storefront's CategoryOrder, and their "
+                    + "wallets join the header. This is ONE leaf: authoring it replaces an inherited list whole.")
             .add()
             .appendInherited(new KeyedCodec<>(ContentMeta.KEY, ContentMeta.CODEC, false),
                     (a, v) -> a.meta = v, a -> a.meta, (a, p) -> a.meta = p.meta)
@@ -257,6 +278,18 @@ public final class StorefrontAsset implements JsonAssetWithMap<String, DefaultAs
     @Nonnull
     public List<String> categoryOrder() {
         return lowerList(categoryOrder);
+    }
+
+    /** The storefronts this one Includes, ids lower-cased, blanks and repeats dropped, in authored order. */
+    @Nonnull
+    public List<String> includeIds() {
+        List<String> out = new ArrayList<>();
+        for (String included : lowerList(includes)) {
+            if (!out.contains(included)) {
+                out.add(included);
+            }
+        }
+        return out;
     }
 
     /**

@@ -13,6 +13,7 @@ import com.ziggfreed.common.board.QuestEngineBoardQuests;
 import com.ziggfreed.common.cost.CostEngine;
 import com.ziggfreed.common.progress.gate.GateEvaluator;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
+import com.ziggfreed.common.shop.ShopCatalog;
 import com.ziggfreed.common.shop.ShopEngine;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
@@ -156,8 +157,24 @@ public final class CommerceEngines {
      */
     @Nonnull
     public static ShopEngine shops() {
+        return shopsOver(CommerceCatalogs.shops());
+    }
+
+    /**
+     * {@link #shops()} as the storefront {@code storefrontId}'s page sees it: its catalogue hands back an
+     * offer of a storefront this one {@code Includes} bound to it ({@link StorefrontView#catalogAt}), so a
+     * press, a shelf draw and a reroll on that page judge the offer's storefront by this one. The page builds
+     * its engine here, per call.
+     */
+    @Nonnull
+    public static ShopEngine shopsAt(@Nonnull String storefrontId) {
+        return shopsOver(StorefrontView.catalogAt(storefrontId));
+    }
+
+    @Nonnull
+    private static ShopEngine shopsOver(@Nonnull ShopCatalog catalog) {
         return ShopEngine.builder(costs(), gates())
-                .catalog(CommerceCatalogs.shops())
+                .catalog(catalog)
                 .retryQueue(retryQueue())
                 .build();
     }

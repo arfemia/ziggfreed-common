@@ -196,6 +196,27 @@ class CommerceValidatorTest {
 
             assertEquals(Severity.WARNING, find(findings, "UNKNOWN_FACTOR").severity());
         }
+
+        @Test
+        void anIncludesLoopIsAnErrorOnEachStorefrontOnItAndAnUnknownIncludeAWarning() throws Exception {
+            Map<String, StorefrontAsset> shops = new LinkedHashMap<>();
+            shops.put("loop_a", shop("{ \"Currencies\": [\"bounty_token\"], \"Includes\": [\"Loop_B\"] }", "Loop_A"));
+            shops.put("loop_b", shop("{ \"Currencies\": [\"bounty_token\"], \"Includes\": [\"Loop_A\", \"Stall\"] }",
+                    "Loop_B"));
+            shops.put("stall", shop("{ \"Enabled\": false, \"Currencies\": [\"bounty_token\"], "
+                    + "\"Includes\": [\"Nowhere\"] }", "Stall"));
+
+            List<Finding> findings = ShopValidator.validate(Map.of(), shops, Map.of(), WALLETS, null, null, null);
+
+            List<Finding> loops = findings.stream().filter(f -> "INCLUDES_CYCLE".equals(f.code())).toList();
+            assertEquals(List.of("loop_a", "loop_b"), loops.stream().map(Finding::sourceId).toList(),
+                    "each storefront on the loop is told; one merely reached from it is not");
+            assertEquals(Severity.ERROR, loops.get(0).severity());
+            assertTrue(loops.get(0).message().contains("loop_a -> loop_b -> loop_a"), loops.get(0).message());
+            Finding unknown = find(findings, "UNKNOWN_INCLUDE");
+            assertEquals(Severity.WARNING, unknown.severity(), "the pack that ships it may not be installed here");
+            assertEquals("stall", unknown.sourceId(), "a switched-off storefront's own Includes are still checked");
+        }
     }
 
     // ==================== a reward that pays only inside a pass ====================
