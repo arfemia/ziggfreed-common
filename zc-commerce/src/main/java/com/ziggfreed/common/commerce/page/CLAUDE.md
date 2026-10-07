@@ -3,6 +3,7 @@
 - Emit every authored or convention key through zc-core's `i18n/ContentKeys`, never `Msg.key`: `I18nModule` prefixes each key with its `.lang` filename, so an authored key sent as written renders raw. `Msg.key` is only for a fully qualified id (this module's `ziggfreedcommon.commerce.*` chrome, a native `server.*` name).
 - `CommercePageDeps` is the one deps object for both screens. Its `titleArgs` is where the mod owning generated ids names them: every authored argument is asked, and an unanswered one passes through as authored.
 - A band or shelf label resolves through `CommerceLabels`: the board's `Grades` or the storefront's `Categories` entry, then the convention key, then the raw word.
+- A grade word's colour is `CommerceLabels.gradeInk`: the band's `BoardSpec.gradeColor`, else the surface's own; a surface never reads an authored colour unclamped.
 - Take the `Subject` from the shared progression runtime (`ProgressionRuntime.subjects()`); a locally built one reads zero balances and silently drops writes.
 - Every press re-asks the engine and never trusts the last render. Anything that could leave a player short (a lapse, a period lock, a reroll probe, the accept site) is engine behaviour, never a page decision.
 - Build engines per call through `fold/CommerceEngines`, never hold one in a field: a reload replaces every offer, and a consumer may install its own store after this module's setup.

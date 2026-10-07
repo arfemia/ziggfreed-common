@@ -17,6 +17,7 @@ import com.ziggfreed.common.rotation.PoolSlot;
 import com.ziggfreed.common.rotation.RerollSpec;
 import com.ziggfreed.common.rotation.RotationSpec;
 import com.ziggfreed.common.rotation.SelectionSpec;
+import com.ziggfreed.common.ui.kit.ZigTokens;
 
 /**
  * One authored board, as the board engine sees it.
@@ -100,6 +101,15 @@ public final class BoardAssetSpec implements BoardSpec {
     @Nullable
     public GateSpec slotRequires(int slotIndex) {
         return slotIndex >= 0 && slotIndex < slotGates.size() ? slotGates.get(slotIndex) : null;
+    }
+
+    @Override
+    @Nullable
+    public String gradeColor(@Nonnull String band) {
+        String authored = asset.gradeColor(band);
+        // Clamped the way every authored data accent is: kept when it reads at 3:1 on a row, else the
+        // shared accent.
+        return authored == null ? null : ZigTokens.clampAccent(authored);
     }
 
     @Override

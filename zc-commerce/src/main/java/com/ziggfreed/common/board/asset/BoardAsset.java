@@ -50,7 +50,7 @@ import com.ziggfreed.common.world.WorldSelector;
  *              { "Difficulty": "Hard", "Optional": true } ],
  *   "Currencies": ["Bounty_Token", "Life_Essence"],
  *   "Reroll": { "Cost": { "Currencies": { "Bounty_Token": 25 } }, "MaxPerPeriod": 3 },
- *   "Grades": { "Skirmish": { "TitleKey": "board.grade.skirmish" } },
+ *   "Grades": { "Skirmish": { "TitleKey": "board.grade.skirmish", "Color": "#c08a3a" } },
  *   "AcceptRequires": {
  *     "Normal": { "Factors": [ { "Factor": "hytale:stat", "Param": "MMO_CombatLevel", "Min": 25 } ] },
  *     "Hard":   { "Factors": [ { "Factor": "hytale:stat", "Param": "MMO_CombatLevel", "Min": 60 } ] } } }
@@ -71,7 +71,9 @@ import com.ziggfreed.common.world.WorldSelector;
  * file; without one, the band reads as the word you typed, which is honest but is only in one
  * language. The map belongs to the BOARD, so an UNSLOTTED board (one with no {@code Slots} block at
  * all, posting whatever it holds) names its bands the same way. Under {@code Parent} this merges per
- * BAND, so a child board can rename one and keep the rest.
+ * BAND, so a child board can rename one and keep the rest. An entry's {@code Color} is the band's
+ * colour on the board and in a quest log; a surface reads it through {@code BoardSpec.gradeColor},
+ * which clamps it to read on a row.
  *
  * <p><b>{@code AcceptRequires} gates a whole difficulty band</b>, keyed by the band's own word, and
  * each value is the ordinary {@code Requires} block every gated thing on this server uses. So a band
@@ -106,7 +108,7 @@ public final class BoardAsset implements JsonAssetWithMap<String, DefaultAssetMa
     @Nullable private BoardSlotAsset[] slots;
     @Nullable private String[] currencies;
     @Nullable private RerollAsset reroll;
-    @Nullable private Map<String, ContentTextAsset> grades;
+    @Nullable private Map<String, BoardGradeSpec> grades;
     @Nullable private Map<String, GateSpec> acceptRequires;
     @Nullable private GateSpec requires;
     @Nullable private String season;
@@ -175,14 +177,16 @@ public final class BoardAsset implements JsonAssetWithMap<String, DefaultAssetMa
             .documentation("What it costs a player to swap one posting for another, and how often they may. "
                     + "Unauthored means the board stands as posted until it turns over.")
             .add()
-            .appendInherited(new KeyedCodec<>("Grades", new InheritMapCodec<>(ContentTextAsset.CODEC), false),
+            .appendInherited(new KeyedCodec<>("Grades", new InheritMapCodec<>(BoardGradeSpec.CODEC), false),
                     (a, v) -> a.grades = v, a -> a.grades, (a, p) -> a.grades = p.grades)
-            .documentation("What each difficulty band is CALLED, keyed by the band's own word, as a localization "
-                    + "key in your own lang file. The common bands (training/easy/normal/hard/elite) already read "
-                    + "in words with no entry here; author one for a band you invent and point its TitleKey at a "
-                    + "line of yours, and until you do that band reads as the word you typed it as. The map belongs "
-                    + "to the board, so a board with no Slots block names its bands the same way. Under Parent this "
-                    + "merges per BAND, so a child board can rename one band and keep the rest.")
+            .documentation("What each difficulty band is CALLED and what colour it wears, keyed by the band's own "
+                    + "word. TitleKey is a localization key in your own lang file: the common bands "
+                    + "(training/easy/normal/hard/elite) already read in words with no entry here, and a band you "
+                    + "invent reads as the word you typed until you point a TitleKey at a line of yours. Color "
+                    + "(#rrggbb) tints the band's grade word on the board and its pill in a quest log; leave it out "
+                    + "and each surface uses its own. The map belongs to the board, so a board with no Slots block "
+                    + "names its bands the same way. Under Parent this merges per BAND and leaf by leaf, so a child "
+                    + "board can rename or recolour one band and keep the rest.")
             .add()
             .appendInherited(new KeyedCodec<>("AcceptRequires", new InheritMapCodec<>(GateSpec.CODEC), false),
                     (a, v) -> a.acceptRequires = v, a -> a.acceptRequires,
@@ -328,14 +332,14 @@ public final class BoardAsset implements JsonAssetWithMap<String, DefaultAssetMa
         return reroll;
     }
 
-    /** What each band is CALLED, band words lower-cased; empty when the board names none of them. */
+    /** What each band is CALLED and wears, band words lower-cased; empty when the board names none of them. */
     @Nonnull
-    public Map<String, ContentTextAsset> grades() {
+    public Map<String, BoardGradeSpec> grades() {
         if (grades == null) {
             return Map.of();
         }
-        Map<String, ContentTextAsset> out = new LinkedHashMap<>();
-        for (Map.Entry<String, ContentTextAsset> entry : grades.entrySet()) {
+        Map<String, BoardGradeSpec> out = new LinkedHashMap<>();
+        for (Map.Entry<String, BoardGradeSpec> entry : grades.entrySet()) {
             String band = entry.getKey();
             if (band != null && !band.isBlank() && entry.getValue() != null) {
                 out.put(band.trim().toLowerCase(Locale.ROOT), entry.getValue());
@@ -349,11 +353,21 @@ public final class BoardAsset implements JsonAssetWithMap<String, DefaultAssetMa
      * either was capitalized, the same way every other id here compares.
      */
     @Nullable
-    public ContentTextAsset gradeText(@Nullable String gradeId) {
+    public BoardGradeSpec gradeText(@Nullable String gradeId) {
         if (gradeId == null || gradeId.isBlank()) {
             return null;
         }
         return grades().get(gradeId.trim().toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * The colour this board gives the {@code gradeId} band, exactly as written, or null when it gives
+     * none. Painted only through {@code BoardSpec.gradeColor}, which clamps it to read on a row.
+     */
+    @Nullable
+    public String gradeColor(@Nullable String gradeId) {
+        BoardGradeSpec grade = gradeText(gradeId);
+        return grade == null ? null : grade.color();
     }
 
     /** The per-band accept gates, band words lower-cased; empty when every band is open. */

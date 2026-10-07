@@ -76,6 +76,16 @@ public interface BoardSpec {
     }
 
     /**
+     * The colour a band's grade word and pill wear on this board, an opaque {@code #rrggbb} already clamped
+     * to read on a row, or null when the board gives that band no colour (a surface then uses its own).
+     * The band is matched case-insensitively, like every band word.
+     */
+    @Nullable
+    default String gradeColor(@Nonnull String band) {
+        return null;
+    }
+
+    /**
      * Who may take the contract the slot at {@code slotIndex} (its position in {@link #slots()}) posts,
      * whatever its grade, or null when that slot is open to everyone. Checked at ACCEPT only, after
      * {@link #requires()} and the grade's {@link #acceptRequires()}, so the posting stays on show. A spec

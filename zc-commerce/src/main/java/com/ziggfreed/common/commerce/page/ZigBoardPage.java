@@ -131,6 +131,9 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
     private static final String ROW_PRESSED_TINT = "#344156";
     private static final String ROW_TEXT = "#b6c9de";
 
+    /** A grade word's colour when the board gives its band none: the row and detail templates' own. */
+    private static final String GRADE_TEXT = "#c8a86a";
+
     /**
      * A section heading is a HEADING: it reads at least as brightly as the rows under it, or a
      * player takes "Available" and "Locked" for greyed-out entries rather than for the two runs they
@@ -430,6 +433,7 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
         Message grade = gradeLabel(ref, board);
         if (grade != null) {
             cmd.set(sel + " #RowBadge.TextSpans", grade);
+            cmd.set(sel + " #RowBadge.Style.TextColor", gradeInk(ref, board));
             cmd.set(sel + " #RowBadge.Visible", true);
         }
         if (CommerceText.sameId(ref.bountyId(), selectedBountyId)) {
@@ -526,6 +530,8 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
         cmd.set("#DetailTitle.TextSpans", bountyName(ref));
         cmd.set("#DetailStatus.TextSpans", sectionText(section));
         cmd.set("#DetailStatus.Style.TextColor", dotColor(section));
+        // Painted both ways: the panel is re-rendered in place, so the last contract's colour must not survive.
+        cmd.set("#DetailGrade.Style.TextColor", gradeInk(ref, board));
         Message grade = gradeLabel(ref, board);
         if (grade != null) {
             cmd.set("#DetailGrade.TextSpans", grade);
@@ -1044,6 +1050,13 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
         String grade = CommerceText.normalize(ref.difficultyOn(board.boardId()));
         return grade.isEmpty() ? null
                 : CommerceLabels.grade(board.asset(), grade, deps.titleArgs());
+    }
+
+    /** The colour this contract's grade word wears on this board ({@link CommerceLabels#gradeInk}). */
+    @Nonnull
+    private static String gradeInk(@Nonnull BountyRef ref, @Nonnull BoardAssetSpec board) {
+        return CommerceLabels.gradeInk(board, CommerceText.normalize(ref.difficultyOn(board.boardId())),
+                GRADE_TEXT);
     }
 
     @Nonnull
