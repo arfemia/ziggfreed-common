@@ -21,6 +21,7 @@ import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.entity.UUIDComponent;
 import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.WorldConfig;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.cast.WorldEvictors;
@@ -299,9 +300,15 @@ public final class NpcPlacementReconciler {
     }
 
     /**
-     * Drop a removed world's sweep state. Also drops its ledger rows and cached positions: an
-     * instance world is destroyed outright and is never coming back under the same name, so a row
-     * for it would be a permanent orphan.
+     * Drop a removed world's sweep state, and its ledger rows and cached positions only when the world
+     * is deleted with its removal ({@link #isDeleted}).
+     *
+     * <p>A removal is not a deletion. The engine removes every world at a server stop, and a world an
+     * admin unloads keeps its folder: either comes back under the same name with its placed NPCs saved
+     * in its chunks, and only its rows tell the next sweep which of them were already placed. Dropping
+     * them at every stop made each boot re-adopt the world's NPCs, and brought back a placement without
+     * {@code Respawn} whose NPC had been killed. A deleted world (an instance or portal world torn down,
+     * a pruned world) never comes back under its name, so a row for it would be a permanent orphan.
      */
     public static void onWorldRemoved(@Nullable World world) {
         if (world == null) {
@@ -313,10 +320,33 @@ public final class NpcPlacementReconciler {
         RETRY_EXHAUSTED.remove(world);
         String name = NpcPlacementService.worldName(world);
         if (!name.isEmpty()) {
-            IN_FLIGHT.removeIf(k -> k.startsWith(name + '|'));
-            SECTION_REQUESTS.removeIf(k -> k.startsWith(name + '|'));
-            NpcPlacementLedger.getInstance().dropWorld(name);
-            NpcPlacementPositionCache.forgetWorld(name);
+            WorldConfig config = world.getWorldConfig();
+            forgetWorld(name, isDeleted(config.isDeleteOnRemove(), config.isDeleteOnUniverseStart()));
+        }
+    }
+
+    /**
+     * Whether a removed world goes with its removal, from its config's two delete flags, the engine's own
+     * signals: {@code DeleteOnRemove} deletes the world's folder right after the removal event (at a
+     * server stop as anywhere else), and {@code DeleteOnUniverseStart} has the next start delete the
+     * folder instead of loading it. The removal reason cannot tell: a server stop removes every world as
+     * {@code EXCEPTIONAL}, the reason a crash carries. Package-private for the test.
+     */
+    static boolean isDeleted(boolean deleteOnRemove, boolean deleteOnUniverseStart) {
+        return deleteOnRemove || deleteOnUniverseStart;
+    }
+
+    /**
+     * The name-keyed half of {@link #onWorldRemoved}: the world's in-flight claims and section requests
+     * on any removal, its ledger rows and cached positions only when it is {@code deleted}. A cached
+     * position follows its row: one whose row stayed is still true. Package-private for the test.
+     */
+    static void forgetWorld(@Nonnull String worldName, boolean deleted) {
+        IN_FLIGHT.removeIf(k -> k.startsWith(worldName + '|'));
+        SECTION_REQUESTS.removeIf(k -> k.startsWith(worldName + '|'));
+        if (deleted) {
+            NpcPlacementLedger.getInstance().dropWorld(worldName);
+            NpcPlacementPositionCache.forgetWorld(worldName);
         }
     }
 
