@@ -33,6 +33,7 @@ import com.ziggfreed.common.quest.LockReasons;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.quest.QuestStatus;
+import com.ziggfreed.common.quest.QuestTurnInSite;
 import com.ziggfreed.common.quest.asset.QuestCategoryAsset;
 import com.ziggfreed.common.quest.asset.QuestCategoryConfig;
 import com.ziggfreed.common.subject.Subject;
@@ -70,6 +71,10 @@ import com.ziggfreed.common.util.SafeLog;
  * taken, Objectives (a later order group under its own "Step N" heading, ticks done, current and locked, a hidden
  * locked step left out), Rewards (what waits to be collected wears a pill) and any consumer blocks; the action bar
  * ({@link QuestActions}) and its hint.
+ *
+ * <p><b>Where it stands.</b> A row and a page read the same in the book and at a character, except for what the place
+ * decides: a finished quest that cannot be collected where the player stands ({@link #collectsElsewhere}) reads
+ * Elsewhere rather than a gold Collect, and its hint names the character it is collected from.
  */
 public final class QuestReader {
 
@@ -192,29 +197,51 @@ public final class QuestReader {
 
     // ==================== rows ====================
 
-    /** {@code q}'s standard list row. */
+    /** {@code q}'s standard list row, as the book reads it. */
     @Nonnull
     public LedgerRow row(@Nonnull Quest q) {
-        return row(q, false);
+        return row(q, null);
     }
 
-    /** {@code q}'s compact row (an overview strip, the Skills page panel): no meta line. */
+    /** {@code q}'s standard list row; with {@code here}, as it reads at that character (the NPC quest page). */
+    @Nonnull
+    public LedgerRow row(@Nonnull Quest q, @Nullable CharacterQuestListing here) {
+        return read(q, here, false);
+    }
+
+    /** {@code q}'s compact row (an overview strip, the Skills page panel), as the book reads it: no meta line. */
     @Nonnull
     public LedgerRow compactRow(@Nonnull Quest q) {
-        return row(q, true);
+        return read(q, null, true);
     }
 
+    /**
+     * A row: its section's tone and state word, except that a finished quest that cannot be collected where the
+     * player stands reads Elsewhere in the neutral tone, since there is nothing to press here and nothing refuses it.
+     */
     @Nonnull
-    private LedgerRow row(@Nonnull Quest q, boolean compact) {
+    private LedgerRow read(@Nonnull Quest q, @Nullable CharacterQuestListing here, boolean compact) {
         QuestStatus status = status(q);
         QuestSection section = sectionOf(q);
         QuestEngine.ObjectiveTally tally = carried(status) ? engine.tally(subject, q) : null;
         Message value = tally == null ? null : KitText.count(tally.completed(), tally.total());
         Progress progress = tally != null && status == QuestStatus.ACTIVE
                 ? new Progress(tally.completed(), tally.total()) : null;
-        return new LedgerRow(q.id(), title(q), compact ? null : meta(q), picture(q), section.tone(),
-                stateWord(q, section), value, progress, tracked(q) ? Mark.TRACKED : Mark.NONE,
-                section == QuestSection.COMPLETED);
+        boolean elsewhere = collectsElsewhere(q, here);
+        return new LedgerRow(q.id(), title(q), compact ? null : meta(q), picture(q),
+                elsewhere ? Tone.NEUTRAL : section.tone(),
+                elsewhere ? text("state.elsewhere") : stateWord(q, section), value, progress,
+                tracked(q) ? Mark.TRACKED : Mark.NONE, section == QuestSection.COMPLETED);
+    }
+
+    /**
+     * Whether {@code q} is finished and waits to be collected somewhere other than where the player stands: at
+     * {@code here}, a character none of whose ids it may be collected under; in the book, a quest collected only at
+     * its site ({@link QuestActions#collectableHere}). Such a quest reads Elsewhere, offers no Collect, and its hint
+     * says where it is collected.
+     */
+    public boolean collectsElsewhere(@Nonnull Quest q, @Nullable CharacterQuestListing here) {
+        return status(q) == QuestStatus.COMPLETED_UNCLAIMED && !QuestActions.collectableHere(q, here);
     }
 
     /** The state word a row wears, in its section's tone. */
@@ -492,9 +519,30 @@ public final class QuestReader {
         return switch (status) {
             case NOT_STARTED -> here != null ? null : notStartedHint(q);
             case ON_COOLDOWN -> text("state.back_in", waitLine(q));
-            case COMPLETED_UNCLAIMED -> here == null && q.turnInAt() != null ? text("hint.collect_at_site") : null;
+            case COMPLETED_UNCLAIMED -> collectsElsewhere(q, here) ? whereToCollect(q) : null;
             case ACTIVE, COMPLETED -> null;
         };
+    }
+
+    /** Where a quest that is not collected here is collected: from its character by name, else the plain line. */
+    @Nonnull
+    private Message whereToCollect(@Nonnull Quest q) {
+        String site = collectionSiteOf(q);
+        Message name = site == null ? null : presentation.npcName(site);
+        return name != null ? text("hint.collect_from", name) : text("hint.collect_at_site");
+    }
+
+    /**
+     * The id {@code q} is collected at: the character its site names, or, for a quest collected wherever it was
+     * taken, the place the player took it from. Null for a quest collected anywhere, or a place nothing recorded.
+     */
+    @Nullable
+    private String collectionSiteOf(@Nonnull Quest q) {
+        QuestTurnInSite site = q.turnInAt();
+        if (site == null) {
+            return null;
+        }
+        return site.isAcceptSite() ? engine.acceptSiteOf(subject, q.id()) : site.id();
     }
 
     /** Where to take a quest the book does not hand out, or why the log cannot take it now. */

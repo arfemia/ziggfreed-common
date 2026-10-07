@@ -291,6 +291,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
             @Nonnull Subject subject, @Nonnull CharacterQuestListing listing, boolean partial) {
         List<Quest> quests = NpcQuestPagePlan.quests(activeTab, listing, engine, subject);
         QuestReader reader = reader(engine, subject);
+        CharacterQuestListing here = NpcQuestPagePlan.place(npcId, listing);
         Map<String, Quest> byId = new LinkedHashMap<>();
         for (Quest quest : quests) {
             byId.put(quest.id(), quest);
@@ -299,7 +300,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
                 NpcQuestPagePlan.entries(quests, listing::sectionOf, highlightQuestId),
                 id -> {
                     Quest quest = byId.get(id);
-                    return quest == null ? null : reader.row(quest);
+                    return quest == null ? null : NpcQuestPagePlan.row(reader, quest, here);
                 },
                 this::sectionLabel, caps);
         this.model = next;
