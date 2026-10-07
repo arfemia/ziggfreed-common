@@ -10,6 +10,7 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.ziggfreed.common.factor.FactorCondition;
+import com.ziggfreed.common.factor.ModGates;
 
 /**
  * A whole {@code Requires} block: the four shared requirement leaves (see
@@ -91,6 +92,16 @@ public final class GateSpec extends GateClause {
         spec.anyOf = anyOf == null ? null : anyOf.clone();
         spec.not = not == null ? null : not.clone();
         return spec;
+    }
+
+    /**
+     * Does a file whose top-level block is {@code requires} load on this server? False only when a
+     * plain top-level {@code hytale:mod_installed} condition with {@code Min: 1} names a mod this server
+     * does not run (zc-core {@code ModGates}); every other condition, and any nested one, is left to the
+     * fold and the gate. The keep filter a quest, achievement or commerce store's load handler passes.
+     */
+    public static boolean passesModGate(@Nullable GateSpec requires) {
+        return requires == null || ModGates.keep(requires.factorsOrEmpty());
     }
 
     @Nullable
