@@ -10,3 +10,4 @@
 - Presentation data stays on `QuestDefinition`, never on `Quest`; the collection site lives on `Quest` because the engine enforces it.
 - `QuestGeneratorTest.ByteEquivalence` (a hand-written and a generated quest must match) gates any generator change.
 - `Season` (zc-core `SeasonLeaf`) hides a quest outside its calendar event and survives `Parent` whatever a child writes in `Requires`; `resolve` reports an id no event declares (`UNKNOWN_SEASON`) once per authored file, a skeleton included, never per generated child.
+- A generated family follows its base through the mod gate: a generator whose `Base` the load handler refused (`mergeQuests(layer, refused)`) writes nothing and reports nothing, a base nobody authored still reports `UNKNOWN_BASE`, and a generated child whose body names an absent mod is dropped like a file. A generator has no `Requires`; gate its base.

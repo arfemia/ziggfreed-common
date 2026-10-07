@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nonnull;
@@ -15,6 +16,7 @@ import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.progress.asset.GeneratedBody;
 import com.ziggfreed.common.progress.asset.GeneratorCore;
+import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.validation.ValidationReport;
@@ -65,14 +67,30 @@ public final class ShopAssetStore {
     private final Map<String, ShopEntryGeneratorAsset> generators = new ConcurrentHashMap<>();
     /** What the last {@link #mergeEntries} noticed about the layer itself, replayed by every fold. */
     private final List<Finding> layerFindings = new ArrayList<>();
+    /** Offer ids the mod gate refused at load: a generator over one writes nothing and reports nothing. */
+    private final Set<String> gatedOut = ConcurrentHashMap.newKeySet();
 
     private ShopAssetStore() {
     }
 
-    /** Rebuild the offer layer from a load event's decoded assets. Idempotent on re-import. */
+    /** Rebuild the offer layer from a load event's decoded assets, refusing nothing. Idempotent on re-import. */
     public synchronized void mergeEntries(@Nonnull Map<String, ShopEntryAsset> layer) {
+        mergeEntries(layer, Set.of());
+    }
+
+    /**
+     * Rebuild the offer layer from a load event's decoded assets, remembering the ids the mod gate left
+     * out ({@code AssetMergeAdapter.refused}). Idempotent on re-import.
+     */
+    public synchronized void mergeEntries(@Nonnull Map<String, ShopEntryAsset> layer, @Nonnull Set<String> refusedIds) {
         entries.clear();
         layerFindings.clear();
+        gatedOut.clear();
+        for (String refused : refusedIds) {
+            if (refused != null && !refused.isBlank()) {
+                gatedOut.add(refused.trim().toLowerCase(Locale.ROOT));
+            }
+        }
         for (Map.Entry<String, ShopEntryAsset> e : layer.entrySet()) {
             ShopEntryAsset asset = e.getValue();
             if (e.getKey() == null || asset == null) {
@@ -157,6 +175,9 @@ public final class ShopAssetStore {
             issues.addAll(expansion.issues());
             for (GeneratedBody body : expansion.bodies()) {
                 ShopEntryAsset base = entries.get(body.baseId());
+                if (base == null && gatedOut.contains(body.baseId())) {
+                    continue; // the base belongs to a mod this server lacks, so the family is absent on purpose
+                }
                 if (base == null) {
                     issues.add(Finding.error(ShopValidator.DOMAIN, "UNKNOWN_BASE",
                             "Base '" + body.baseId() + "' is not an offer anybody authored, so '" + body.id()
@@ -177,8 +198,8 @@ public final class ShopAssetStore {
                     continue;
                 }
                 ShopEntryAsset decoded = decodeGenerated(body, base, generatorId, issues);
-                if (decoded == null || decoded.isAbstract()) {
-                    continue;
+                if (decoded == null || decoded.isAbstract() || !GateSpec.passesModGate(decoded.getRequires())) {
+                    continue; // a generated offer obeys the file rule: gated on an absent mod, it is not here
                 }
                 out.put(body.id(), decoded);
             }
