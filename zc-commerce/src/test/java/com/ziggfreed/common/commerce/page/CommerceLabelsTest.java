@@ -17,9 +17,11 @@ import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.board.asset.BoardAsset;
+import com.ziggfreed.common.commerce.fold.BoardAssetSpec;
 import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.LangCatalog;
 import com.ziggfreed.common.text.ContentTextAsset;
+import com.ziggfreed.common.ui.kit.ZigTokens;
 
 /**
  * Which key a band or a shelf is printed under, which is the whole of the bug this ladder exists for:
@@ -136,6 +138,23 @@ class CommerceLabelsTest {
                 "rung 1 is empty, so the band is printed under whichever lower rung ships a word");
         assertNull(word.getRawText(),
                 "the raw band word is the last rung of all, reached only when nothing ships one");
+    }
+
+    @Test
+    @DisplayName("a grade word wears the board's own colour for its band, else the surface's own")
+    void aGradeWordWearsItsBandsColour() throws IOException {
+        BoardAsset harvest = board("""
+                { "Grades": { "Feast": { "TitleKey": "board.grade.feast", "Color": "#c08a3a" },
+                              "Dusk": { "Color": "#1f2a3a" } } }
+                """, "harvest");
+        BoardAssetSpec spec = BoardAssetSpec.of(harvest);
+
+        assertEquals("#c08a3a", CommerceLabels.gradeInk(spec, "feast", "#c8a86a"));
+        assertEquals(ZigTokens.ACCENT, CommerceLabels.gradeInk(spec, "dusk", "#c8a86a"),
+                "a low-contrast colour is clamped, never painted unreadable");
+        assertEquals("#c8a86a", CommerceLabels.gradeInk(spec, "hard", "#c8a86a"),
+                "a band the board gives no colour keeps the surface's own");
+        assertEquals("#c8a86a", CommerceLabels.gradeInk(null, "feast", "#c8a86a"), "no board, no colour");
     }
 
     // ==================== the library's own shipped default ====================

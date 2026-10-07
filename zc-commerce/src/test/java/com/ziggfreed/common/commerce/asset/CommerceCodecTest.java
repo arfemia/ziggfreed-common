@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.util.Map;
 
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -16,7 +17,9 @@ import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.schema.SchemaContext;
 import com.hypixel.hytale.codec.schema.config.Schema;
 import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.ziggfreed.common.board.BoardSpec;
 import com.ziggfreed.common.board.asset.BoardAsset;
+import com.ziggfreed.common.board.asset.BoardGradeSpec;
 import com.ziggfreed.common.board.asset.BoardSlotAsset;
 import com.ziggfreed.common.board.asset.BountyAsset;
 import com.ziggfreed.common.commerce.fold.BoardAssetSpec;
@@ -27,6 +30,7 @@ import com.ziggfreed.common.quest.asset.QuestDefinition;
 import com.ziggfreed.common.shop.asset.StorefrontAsset;
 import com.ziggfreed.common.shop.asset.ShopEntryAsset;
 import com.ziggfreed.common.shop.asset.ShopPoolAsset;
+import com.ziggfreed.common.ui.kit.ZigTokens;
 
 /**
  * The commerce types' decode contract, and above all what native {@code Parent} inheritance does to
@@ -492,6 +496,72 @@ class CommerceCodecTest {
             assertNotNull(hardcore.gradeText("skirmish"),
                     "the band the child never mentioned survives: the map merges per band");
             assertEquals("board.grade.skirmish", hardcore.gradeText("skirmish").getTitleKey());
+        }
+
+        @Test
+        void theShippedGradeShapeDecodesUnchangedAndCarriesNoColour() throws Exception {
+            // The two shipped Grades blocks, verbatim: the bounty pack's Daily and Hallow's Eve's Daily.
+            BoardAsset daily = board("""
+                    { "Grades": { "Seasonal": { "TitleKey": "board.grade.seasonal" } } }
+                    """, "Daily", null, null);
+            BoardAsset hallows = board("""
+                    { "Grades": {
+                        "Hallows_Eve_Night": { "TitleKey": "board.hallows_eve_daily.grade.night" },
+                        "Hallows_Eve_Day": { "TitleKey": "board.hallows_eve_daily.grade.day" } } }
+                    """, "Hallows_Eve_Daily", null, null);
+
+            assertEquals("board.grade.seasonal", daily.gradeText("seasonal").getTitleKey());
+            assertEquals("board.hallows_eve_daily.grade.night",
+                    hallows.gradeText("HALLOWS_EVE_NIGHT").getTitleKey());
+            assertEquals("board.hallows_eve_daily.grade.day", hallows.gradeText("hallows_eve_day").key(),
+                    "key() is the TitleKey a band is called by");
+            assertNull(daily.gradeColor("seasonal"), "an unauthored Color is no colour");
+            assertNull(BoardAssetSpec.of(daily).gradeColor("seasonal"), "so every surface keeps its own");
+            assertNull(BoardAssetSpec.of(hallows).gradeColor("hallows_eve_night"));
+        }
+
+        @Test
+        void aGradesColourReachesTheEngineViewClampedForARow() throws Exception {
+            BoardAsset harvest = board("""
+                    { "Grades": {
+                        "Harvest_Feast_Skill": { "TitleKey": "board.grade.seasonal", "Color": "#C08A3A" },
+                        "Harvest_Feast_Dusk": { "Color": "#1f2a3a" },
+                        "Harvest_Feast_Odd": { "Color": "orange" } } }
+                    """, "Harvest_Feast_Daily", null, null);
+            BoardSpec spec = BoardAssetSpec.of(harvest);
+
+            assertEquals("#C08A3A", harvest.gradeColor("harvest_feast_skill"), "the asset keeps what was written");
+            assertEquals("#c08a3a", spec.gradeColor("HARVEST_FEAST_SKILL"),
+                    "a colour that reads at 3:1 on a row is kept, the band matched in any case");
+            assertEquals(ZigTokens.ACCENT, spec.gradeColor("harvest_feast_dusk"),
+                    "one too dark against a row is replaced by the shared accent, as every authored accent is");
+            assertEquals(ZigTokens.ACCENT, spec.gradeColor("harvest_feast_odd"),
+                    "a colour that is not #rrggbb paints in the shared accent too");
+            assertNull(spec.gradeColor("hard"), "a band the board gives no colour has none");
+        }
+
+        @Test
+        void aChildBoardMayRecolourOneBandAndKeepItsName() throws Exception {
+            BoardAsset base = board("""
+                    { "Grades": { "Hard": { "TitleKey": "board.grade.hard" } } }
+                    """, "Daily", null, null);
+
+            BoardAsset tinted = board("""
+                    { "Grades": { "Hard": { "Color": "#ffaa4a" } } }
+                    """, "Daily_Tinted", "daily", base);
+
+            assertEquals("board.grade.hard", tinted.gradeText("hard").getTitleKey(),
+                    "the name the child did not restate is kept: the entry merges leaf by leaf");
+            assertEquals("#ffaa4a", tinted.gradeColor("hard"));
+        }
+
+        @Test
+        void aGradeOffersEveryTextLeafAndADocumentedColour() {
+            Map<String, Schema> leaves = BoardGradeSpec.CODEC.toSchema(new SchemaContext()).getProperties();
+            assertNotNull(leaves.get("TitleKey"), "a grade still offers the shared text leaves");
+            assertNotNull(leaves.get("DisplayName"));
+            assertNotNull(leaves.get("Color"), "and its colour");
+            assertNotNull(leaves.get("Color").getMarkdownDescription(), "which says what it does");
         }
 
         @Test

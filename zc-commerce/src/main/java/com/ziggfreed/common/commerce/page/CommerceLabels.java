@@ -5,6 +5,7 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.Message;
 
+import com.ziggfreed.common.board.BoardSpec;
 import com.ziggfreed.common.board.asset.BoardAsset;
 import com.ziggfreed.common.commerce.fold.BoardAssetSpec;
 import com.ziggfreed.common.commerce.fold.CommerceCatalogs;
@@ -70,6 +71,16 @@ public final class CommerceLabels {
     public static Message gradeOn(@Nullable String boardId, @Nonnull String gradeId,
             @Nullable CommerceText.ArgResolver resolver) {
         return grade(boardOf(boardId), CommerceText.normalize(gradeId), resolver);
+    }
+
+    /**
+     * The colour a contract's grade word wears on {@code board}: the band's own {@code Color}, already
+     * clamped to read on a row ({@link BoardSpec#gradeColor}), else {@code fallback}, the surface's own.
+     */
+    @Nonnull
+    public static String gradeInk(@Nullable BoardSpec board, @Nonnull String gradeId, @Nonnull String fallback) {
+        String own = board == null || gradeId.isBlank() ? null : board.gradeColor(gradeId);
+        return own != null ? own : fallback;
     }
 
     /**

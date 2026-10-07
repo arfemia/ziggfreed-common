@@ -50,8 +50,12 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
  *
  * <p>Every leaf is {@code appendInherited}, so a file with a {@code Parent} can retitle without
  * losing the description it did not mention.
+ *
+ * <p>Not final: a group that is this one plus a leaf of its own (a board's grade adds {@code Color})
+ * extends it and builds its codec with {@link #CODEC} as the parent codec, so each leaf here keeps one
+ * declaration and one schema.
  */
-public final class ContentTextAsset {
+public class ContentTextAsset {
 
     /**
      * The one argument sentinel this library names, so every consumer spells it the same: the
