@@ -1,6 +1,7 @@
 package com.ziggfreed.common.reputation;
 
 import java.util.List;
+import java.util.Map;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -47,6 +48,12 @@ public record ReputationDef(@Nonnull String id, int initial, @Nullable Reputatio
     @Nullable
     public String rankNameKey(@Nonnull String rankId) {
         return companion == null ? null : companion.rankNameKey(rankId);
+    }
+
+    /** This reputation's own ranks above the server's top, rank id to floor; empty without a companion. */
+    @Nonnull
+    public Map<String, Integer> tierFloors() {
+        return companion == null ? Map.of() : companion.tierFloors();
     }
 
     @Nonnull
