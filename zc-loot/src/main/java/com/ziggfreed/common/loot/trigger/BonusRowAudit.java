@@ -14,6 +14,7 @@ import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.loot.LootableValidator;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.match.NamePattern;
+import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.validation.Finding;
 
 /**
@@ -51,11 +52,18 @@ public final class BonusRowAudit {
     private BonusRowAudit() {
     }
 
-    /** The library's own rows, against the given vocabularies; a null one skips its own check. */
+    /**
+     * The library's own rows, against the given vocabularies; a null one skips its own check. Every
+     * enabled row is read whatever its {@code Season}, and a season no calendar event declares is named.
+     */
     @Nonnull
     public static List<Finding> auditAll(@Nullable RewardKindRegistry kinds, @Nullable FactorRegistry factors) {
         BonusRowConfig config = BonusRowConfig.getInstance();
-        return audit(config.table(), config.momentlessRows(), CODES, kinds, factors, UnaryOperator.identity());
+        // Every enabled row whatever its season, so a row out of season today is still checked.
+        List<Finding> findings = audit(config.authoredTable(), config.momentlessRows(), CODES, kinds, factors,
+                UnaryOperator.identity());
+        config.seasonsByRow().forEach((id, season) -> SeasonGate.checkKnown(findings, DOMAIN, season, id));
+        return findings;
     }
 
     /** Any table, stamped with {@code codes}; its loot findings pass through {@code lootFold}. */
