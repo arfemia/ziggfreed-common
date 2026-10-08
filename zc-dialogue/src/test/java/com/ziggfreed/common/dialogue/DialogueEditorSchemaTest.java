@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.codec.schema.SchemaContext;
 import com.hypixel.hytale.codec.schema.config.ArraySchema;
+import com.hypixel.hytale.codec.schema.config.BooleanSchema;
 import com.hypixel.hytale.codec.schema.config.ObjectSchema;
 import com.hypixel.hytale.codec.schema.config.Schema;
 import com.hypixel.hytale.codec.schema.config.StringSchema;
@@ -101,6 +102,18 @@ class DialogueEditorSchemaTest {
         assertArrayEquals(new String[] {"Daily", "Weekly"}, period.getEnum(),
                 "the reader understands exactly these two words, so the editor may offer them as a list");
         assertNotNull(period.getMarkdownDescription());
+    }
+
+    @Test
+    void aOncePerConversationLeafIsABooleanThatDeclaresItsUnauthoredFalse() {
+        Schema once = DialogueOnce.CODEC.toSchema(new SchemaContext());
+        ObjectSchema group = (ObjectSchema) once.getAnyOf()[1];
+        Schema leaf = group.getProperties().get("PerConversation");
+        assertNotNull(leaf, "the group carries the PerConversation leaf");
+        assertTrue(leaf instanceof BooleanSchema, "a knob, not a mode: " + leaf.getClass().getSimpleName());
+        assertEquals(Boolean.FALSE, ((BooleanSchema) leaf).getDefault(),
+                "the editor shows what an unauthored leaf means");
+        assertNotNull(leaf.getMarkdownDescription(), "the leaf says what it changes");
     }
 
     @Test

@@ -30,6 +30,7 @@ import com.ziggfreed.common.world.WorldSelector;
  * "Once": { "Where": { "Match": ["forgotten_temple"] } }           once per world
  * "Once": { "Where": { "GameplayConfig": ["ForgottenTemple"] } }   once per instance world
  * "Once": { "Period": "Daily" }                                   once per character per day
+ * "Once": { "Period": "Daily", "PerConversation": true }          an extension line: per conversation per day
  * }</pre>
  *
  * <p>Both forms are the same group - {@code true} is shorthand for the empty group {@code {}} and
@@ -69,6 +70,16 @@ import com.ziggfreed.common.world.WorldSelector;
  * ({@link Slot}). A word that is neither {@code Daily} nor {@code Weekly} reads as {@code Daily},
  * the way a quest's {@code Reset} reads one, and the content audit names it.
  *
+ * <h2>{@code PerConversation}</h2>
+ *
+ * <p>A line a dialogue extension adds is one line wherever it lands, so its Once is keyed by the
+ * extension and spent with every character the line reaches at once. {@code PerConversation} adds the
+ * host conversation's id to that key ({@link DialogueStateKeys#extensionOnce(String, String, String)}),
+ * so the line is spent in each conversation on its own: "talk to three different villagers" is then
+ * one line, taken once from each. It is per CONVERSATION, not per character, so characters that open
+ * the same conversation share it. On a conversation's own line it changes nothing, since that key is
+ * per conversation already. A knob beside {@code Period} and {@code Where}: unauthored means false.
+ *
  * <h2>{@code Where}</h2>
  *
  * <p>The shared world selector - the same {@code {Match, GameplayConfig, ExcludeMatch}} group an NPC
@@ -97,7 +108,15 @@ public final class DialogueOnce {
                     + "at midnight UTC, Weekly at midnight UTC going into Monday. Leave it out and the Once "
                     + "is spent for good. It works beside Where, which keeps one per world as well.";
 
-    /** The group form, {@code {"Where": {...}, "Period": "..."}}. */
+    /** What the {@code PerConversation} leaf is for, in the editor and in this class's own words. */
+    public static final String PER_CONVERSATION_DOC =
+            "For a line a dialogue extension adds: spend it once in each conversation it reaches instead "
+                    + "of once for all of them, so taking it from one character leaves it offered by the "
+                    + "others until it is taken there too. Characters that share one conversation share it. "
+                    + "A conversation's own lines are kept per conversation already, so it changes nothing "
+                    + "there. Unauthored means false. It works beside Period and Where.";
+
+    /** The group form, {@code {"Where": {...}, "Period": "...", "PerConversation": true}}. */
     private static final BuilderCodec<DialogueOnce> GROUP =
             BuilderCodec.builder(DialogueOnce.class, DialogueOnce::new)
                     .append(new KeyedCodec<>("Where", WorldSelector.CODEC, false),
@@ -109,6 +128,10 @@ public final class DialogueOnce {
                             "Daily", "Offered again from midnight UTC every day",
                             "Weekly", "Offered again from midnight UTC every Monday"))
                     .documentation(PERIOD_DOC).add()
+                    .append(new KeyedCodec<>("PerConversation", Codec.BOOLEAN, false),
+                            (o, v) -> o.perConversation = v, o -> o.perConversation)
+                    .metadata(EditorSchema.defaultValue(false))
+                    .documentation(PER_CONVERSATION_DOC).add()
                     .append(new KeyedCodec<>("World", DialogueFlagScope.RETIRED_WORLD_LEAF, false),
                             (o, v) -> { /* never decoded: the leaf refuses and says what to write */ },
                             o -> null)
@@ -162,6 +185,9 @@ public final class DialogueOnce {
     /** The authored window word, exactly as written; parsed on read so a serializer writes the author's words. */
     @Nullable protected String period;
 
+    /** The authored {@code PerConversation} knob, or null when unauthored (read as false). */
+    @Nullable protected Boolean perConversation;
+
     /** The internal scope carrier; built lazily, dropped by the setter so it cannot go stale. */
     @Nullable private volatile DialogueFlagScope scope;
 
@@ -208,6 +234,15 @@ public final class DialogueOnce {
         }
         Period parsed = Period.parse(period);
         return parsed == null ? Period.DAILY : parsed;
+    }
+
+    /**
+     * True when a line a dialogue extension adds is spent per conversation it reaches rather than
+     * once for all of them. Unauthored means false. A conversation's own line is keyed per
+     * conversation already, so there it changes nothing.
+     */
+    public boolean isPerConversation() {
+        return Boolean.TRUE.equals(perConversation);
     }
 
     /** True when a window word was written that is neither {@code Daily} nor {@code Weekly}. */

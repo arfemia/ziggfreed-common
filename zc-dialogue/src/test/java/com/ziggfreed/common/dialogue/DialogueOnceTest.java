@@ -75,6 +75,23 @@ class DialogueOnceTest {
     }
 
     @Test
+    void perConversationIsAKnobThatReadsFalseUnlessAuthoredTrue() {
+        DialogueEngine engine = engine();
+        NpcDialogue d = engine.decode("t",
+                "{\"Nodes\":{\"g\":{\"Options\":["
+                        + "{\"LabelKey\":\"a\",\"Once\":{\"PerConversation\":true}},"
+                        + "{\"LabelKey\":\"b\",\"Once\":{\"Period\":\"Daily\",\"PerConversation\":false}},"
+                        + "{\"LabelKey\":\"c\",\"Once\":{\"Period\":\"Daily\"}},"
+                        + "{\"LabelKey\":\"e\",\"Once\":true}]}}}");
+        assertNotNull(d);
+        List<DialogueOption> options = d.getNode("g").getOptions();
+        assertTrue(options.get(0).getOnce().isPerConversation());
+        assertFalse(options.get(1).getOnce().isPerConversation());
+        assertFalse(options.get(2).getOnce().isPerConversation(), "unauthored means false");
+        assertFalse(options.get(3).getOnce().isPerConversation(), "the boolean shorthand authors no knob");
+    }
+
+    @Test
     void sugarNormalizationIsIdempotent() {
         DialogueEngine engine = engine();
         // A body already through the pass (the group form) decodes identically the second time.
@@ -193,6 +210,23 @@ class DialogueOnceTest {
                 "an option's Once must key on its label, never on its index");
         assertTrue(engine.optionAvailable(reordered, "camp",
                 reordered.getNode("camp").getOptions().get(0), moved));
+    }
+
+    @Test
+    void onAConversationsOwnLinePerConversationChangesNothing() {
+        DialogueEngine engine = engine();
+        NpcDialogue d = engine.decode("guide",
+                "{\"Start\":{\"First\":[{\"Node\":\"camp\"}]},\"Nodes\":{\"camp\":{\"Options\":["
+                        + "{\"LabelKey\":\"opt.bread\",\"Once\":{\"PerConversation\":true}}]}}}");
+        assertNotNull(d);
+        TestDialogueContext ctx = new TestDialogueContext(d);
+        DialogueOption bread = d.getNode("camp").getOptions().get(0);
+
+        engine.consumeOnce(null, d, "camp", bread, ctx);
+
+        assertEquals(Set.of("once:o:guide:camp:opt.bread"), ctx.state().keys,
+                "a conversation's own line is keyed per conversation already, so the knob adds nothing");
+        assertFalse(engine.optionAvailable(d, "camp", bread, ctx));
     }
 
     @Test

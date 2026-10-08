@@ -16,6 +16,7 @@ import javax.annotation.Nullable;
  * once:e:<dialogueId>:<nodeId>                        an entry-level Once (a first-visit beat)
  * once:o:<dialogueId>:<nodeId>:<labelKey|OnceId>      an option-level Once
  * once:x:<extensionId>:<labelKey|OnceId>              a Once on a line a dialogue extension adds
+ * once:x:<extensionId>:<dialogueId>:<labelKey|OnceId> the same, PerConversation (kept per host conversation)
  * mem:d:<dialogueId>:<name>                           a memory declared by one dialogue
  * mem:s:<name>                                        a memory declared Shared across dialogues
  * }</pre>
@@ -124,11 +125,29 @@ public final class DialogueStateKeys {
     /**
      * The unscoped key for a {@code Once} on a line an extension adds: filed under the EXTENSION and
      * the line's {@code OnceId} or {@code LabelKey}, never the conversation or screen it was shown on,
-     * so spending it with one character spends it with every character it reaches.
+     * so spending it with one character spends it with every character it reaches. A
+     * {@code PerConversation} Once uses {@link #extensionOnce(String, String, String)} instead.
      */
     @Nonnull
     public static String extensionOnce(@Nonnull String extensionId, @Nonnull String discriminator) {
         return ONCE_EXTENSION_PREFIX + SEP + segment(extensionId) + SEP + segment(discriminator);
+    }
+
+    /**
+     * The unscoped key for a {@code PerConversation} {@code Once} on a line an extension adds: the
+     * extension, then the HOST conversation it was shown in, then the line's {@code OnceId} or
+     * {@code LabelKey}. Spent in one conversation, the line is still offered in every other until spent
+     * there too; the screen it was shown on still plays no part.
+     *
+     * <p>It carries one segment more than {@link #extensionOnce(String, String)}, and no segment can
+     * hold a separator, so a per-conversation key and a shared one never meet, and a periodic spend's
+     * family prefix (which ends in the upper-case window marker) never reaches across them.
+     */
+    @Nonnull
+    public static String extensionOnce(@Nonnull String extensionId, @Nonnull String dialogueId,
+                                       @Nonnull String discriminator) {
+        return ONCE_EXTENSION_PREFIX + SEP + segment(extensionId) + SEP + segment(dialogueId)
+                + SEP + segment(discriminator);
     }
 
     /** The unscoped, un-prefixed key for memory {@code name} (shared or dialogue-private). */
