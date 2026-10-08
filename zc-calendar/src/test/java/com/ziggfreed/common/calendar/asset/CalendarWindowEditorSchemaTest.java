@@ -13,15 +13,17 @@ import javax.annotation.Nonnull;
 import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.codec.schema.SchemaContext;
+import com.hypixel.hytale.codec.schema.config.ArraySchema;
+import com.hypixel.hytale.codec.schema.config.BooleanSchema;
 import com.hypixel.hytale.codec.schema.config.IntegerSchema;
 import com.hypixel.hytale.codec.schema.config.ObjectSchema;
 import com.hypixel.hytale.codec.schema.config.Schema;
 import com.hypixel.hytale.codec.schema.config.StringSchema;
 
 /**
- * What the Window tells the in-game Asset Editor: the Rule union advertises all three shapes and its
- * Type key, the shifts declare their zero defaults, the weekday is a closed dropdown, the Years map
- * knows its $Comment key, and every leaf carries a sentence.
+ * What the Window tells the in-game Asset Editor: the Rule union advertises all five shapes and its
+ * Type key, the shifts and the repeat leaves declare their defaults, the weekday is a closed dropdown,
+ * Months is a list, the Years map knows its $Comment key, and every leaf carries a sentence.
  */
 class CalendarWindowEditorSchemaTest {
 
@@ -29,10 +31,28 @@ class CalendarWindowEditorSchemaTest {
     void theRuleUnionAdvertisesEveryShape() {
         Schema rule = WindowRules.CODEC.toSchema(new SchemaContext());
         assertNotNull(rule.getAnyOf());
-        assertEquals(3, rule.getAnyOf().length, "one arm per shape the codec decodes");
+        assertEquals(5, rule.getAnyOf().length, "one arm per shape the codec decodes");
         assertEquals("Type", rule.getHytaleSchemaTypeField().getProperty());
-        assertEquals(Set.of(WindowRules.FIXED, WindowRules.EASTER, WindowRules.WEEKDAY),
-                Set.of(rule.getHytaleSchemaTypeField().getValues()));
+        assertEquals(Set.of(WindowRules.FIXED, WindowRules.EASTER, WindowRules.WEEKDAY, WindowRules.MONTHLY,
+                WindowRules.WEEKLY), Set.of(rule.getHytaleSchemaTypeField().getValues()));
+    }
+
+    @Test
+    void theRepeatingShapesDeclareTheirDefaultsAndListTheirMonths() {
+        ObjectSchema monthly = WindowRules.Monthly.CODEC.toSchema(new SchemaContext());
+        assertEquals(Integer.valueOf(1), ((IntegerSchema) monthly.getProperties().get("Days")).getDefault());
+        assertEquals(Integer.valueOf(1), ((IntegerSchema) monthly.getProperties().get("Every")).getDefault());
+        assertEquals(Boolean.FALSE, ((BooleanSchema) monthly.getProperties().get("UntilNext")).getDefault());
+        assertEquals(7, ((StringSchema) monthly.getProperties().get("Weekday")).getEnum().length);
+        assertTrue(monthly.getProperties().get("Months") instanceof ArraySchema, "a list of month numbers");
+        for (String leaf : List.of("Day", "Weekday", "Nth", "Days", "At", "Length", "UntilNext", "Every", "Anchor",
+                "Months")) {
+            assertNotNull(monthly.getProperties().get(leaf), leaf + " is not exported");
+            assertNotNull(monthly.getProperties().get(leaf).getMarkdownDescription(), leaf + " carries no sentence");
+        }
+        ObjectSchema weekly = WindowRules.Weekly.CODEC.toSchema(new SchemaContext());
+        assertEquals(Integer.valueOf(1), ((IntegerSchema) weekly.getProperties().get("Days")).getDefault());
+        assertNotNull(weekly.getProperties().get("At"));
     }
 
     @Test

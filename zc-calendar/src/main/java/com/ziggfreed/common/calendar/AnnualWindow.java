@@ -2,15 +2,18 @@ package com.ziggfreed.common.calendar;
 
 import java.time.DateTimeException;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.MonthDay;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -18,43 +21,86 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * The days an event runs, year by year: an every-year {@link YearRule} (fixed month-days, a span around
- * Easter Sunday, or a span around the Nth weekday of a month) and days for particular years, which win
- * over the rule for their year.
+ * The runs of an event, year by year: an every-year {@link YearRule} (fixed month-days, several spans of them,
+ * a span around Easter Sunday or the Nth weekday of a month, a run each month or each week) and the runs of
+ * particular years, which win over the rule for their WHOLE year.
  *
- * <p>Both days of a run are IN it: {@code 10-01} to {@code 11-03} runs from the first instant of October
- * 1st to the last instant of November 3rd. A run belongs to the year it STARTS in, and every run starts in
- * its own year (the asset refuses a rule whose runs could start in the year before), so the year of a
- * run's first instant, in the event's zone, is the run's year. February 29th falls back to the 28th in a
- * year without one ({@link MonthDay#atYear}).
+ * <p>A run of whole days runs from its first day's midnight to the midnight after its last, both days in; a
+ * run with a time of day starts then and lasts its length, on the event's clock. A run belongs to the year it
+ * STARTS in, and every run starts in its own year, so the year of a run's first instant, in the event's zone,
+ * is the run's year. February 29th falls back to the 28th in a year without one ({@link MonthDay#atYear}).
  *
- * <p>A window made of per-year days alone has no run in a year it does not list, and none after its last.
+ * <p><b>A run's NUMBER is its authored position</b>: its place in the order the year's rule gives its runs
+ * ({@link YearRule#runs}), from 1. In a list of spans that is the span's place in the list, whatever its
+ * dates; a monthly or weekly rule gives its runs in the order of the months or weeks it runs in. The window
+ * never re-sorts them, so a re-date never renumbers a run. Every question asked in time ({@link #runContaining},
+ * {@link #nextRun}, {@link #after}, {@link #forcedRun}) is answered by the dates, and the run it finds keeps
+ * its number. Within a year, number order is date order for every rule but a list of spans written out of
+ * date order.
+ *
+ * <p><b>Runs of one event never overlap.</b> A run that meets a run kept before it in that order is SET ASIDE
+ * ({@link #setAside}): the run written first is kept, and the number of the run set aside is never handed to
+ * another. Across the new year a year's runs are weighed against the year before's runs as that year dates
+ * them, so the rule reads one year back and no further. A valid rule never meets itself
+ * ({@link YearRule#valid}), so only spans, and the runs of particular years beside a rule, are ever set aside.
+ * Nothing is dated before the floor (the event's FirstYear): a run that never happens sets nothing aside.
+ *
+ * <p>A window made of per-year runs alone has no run in a year it does not list, and none after its last.
  * {@link #nextStartMs} is bounded by that last year, or by {@link #LAST_YEAR}, so it can never loop.
  *
- * <p>Pure: no clock, no store, no engine type. Not {@code util/PeriodMath}: that answers fixed-length
- * windows on the UTC grid, and a calendar window is calendar arithmetic (month lengths, leap years, Easter,
- * a zone's own midnight), so it is java.time's.
+ * <p>Pure: no clock, no store, no engine type; each year's runs are worked out once and kept. Not
+ * {@code util/PeriodMath}: that answers fixed-length windows on the UTC grid, and a calendar window is calendar
+ * arithmetic (month lengths, leap years, Easter, a zone's own midnight), so it is java.time's.
  */
 public final class AnnualWindow {
 
     /** The last year a run can be dated in: the last four-digit year. */
     public static final int LAST_YEAR = 9999;
 
+    /** No floor: the window dates every year its rule or its listed years name. */
+    public static final int NO_FLOOR = Integer.MIN_VALUE;
+
     private static final Pattern MONTH_DAY = Pattern.compile("(\\d{2})-(\\d{2})");
 
-    @Nullable private final YearRule every;
-    @Nonnull private final NavigableMap<Integer, YearRule.Fixed> years;
+    /** Runs in time: by start. Kept runs never overlap, so this is also their order by end. */
+    private static final Comparator<DatedRun> BY_START = Comparator.comparing(run -> run.days().start());
 
-    private AnnualWindow(@Nullable YearRule every, @Nonnull NavigableMap<Integer, YearRule.Fixed> years) {
+    /** One run as the window dates it: its year, its number (its authored position, from 1), and its days. */
+    public record DatedRun(int year, int number, @Nonnull RunDays days) {
+    }
+
+    /**
+     * A run of {@code year} the window set aside: its {@code number}, which no other run takes, its days, and the
+     * days of the run kept before it that it meets (one of the year before's, for a run crossing the new year).
+     */
+    public record SetAside(int year, int number, @Nonnull RunDays run, @Nonnull RunDays meets) {
+    }
+
+    /** One year's runs kept, in number order, and the ones set aside, in number order. */
+    private record YearRuns(@Nonnull List<DatedRun> kept, @Nonnull List<SetAside> setAside) {
+
+        static final YearRuns NONE = new YearRuns(List.of(), List.of());
+    }
+
+    @Nullable private final YearRule every;
+    @Nonnull private final NavigableMap<Integer, YearRule> years;
+    private final int floor;
+    /** Each year's runs as its own layer dates them, a run meeting one kept before it in that year set aside. */
+    private final Map<Integer, YearRuns> dated = new ConcurrentHashMap<>();
+    /** Each year's runs as the window keeps them. */
+    private final Map<Integer, YearRuns> kept = new ConcurrentHashMap<>();
+
+    private AnnualWindow(@Nullable YearRule every, @Nonnull NavigableMap<Integer, YearRule> years, int floor) {
         this.every = every;
         this.years = years;
+        this.floor = floor;
     }
 
     /** The every-year window from {@code first} to {@code last} ({@code MM-DD} each), or null when either is not a real day. */
     @Nullable
     public static AnnualWindow parse(@Nullable String first, @Nullable String last) {
         YearRule.Fixed fixed = fixed(first, last);
-        return fixed == null ? null : new AnnualWindow(fixed, Collections.emptyNavigableMap());
+        return fixed == null ? null : new AnnualWindow(fixed, Collections.emptyNavigableMap(), NO_FLOOR);
     }
 
     /** Fixed month-days from two {@code MM-DD} strings, or null when either is not a real day. */
@@ -65,22 +111,35 @@ public final class AnnualWindow {
         return from == null || to == null ? null : new YearRule.Fixed(from, to);
     }
 
+    /** {@link #of(YearRule, Map, int)} with no floor. */
+    @Nullable
+    public static AnnualWindow of(@Nullable YearRule every, @Nonnull Map<Integer, ? extends YearRule> years) {
+        return of(every, years, NO_FLOOR);
+    }
+
     /**
-     * The window an every-year rule and per-year days make, or null when there is neither. A per-year
-     * entry wins over the rule for its year.
+     * The window an every-year rule and the runs of particular years make, dating nothing before {@code floor}
+     * (the event's FirstYear, or {@link #NO_FLOOR}); null when there is neither rule nor listed year. A listed
+     * year's rule dates that year's whole runs.
      *
-     * @throws IllegalArgumentException for a rule that is not {@link YearRule#valid()}: its runs could start
-     *         in the year before, and a run's year would no longer be its first day's
+     * @throws IllegalArgumentException for a rule, every-year or a listed year's, that is not {@link YearRule#valid()}
      */
     @Nullable
-    public static AnnualWindow of(@Nullable YearRule every, @Nonnull Map<Integer, YearRule.Fixed> years) {
+    public static AnnualWindow of(@Nullable YearRule every, @Nonnull Map<Integer, ? extends YearRule> years,
+            int floor) {
         if (every != null && !every.valid()) {
             throw new IllegalArgumentException("not a valid yearly rule: " + every.describe());
+        }
+        for (Map.Entry<Integer, ? extends YearRule> entry : years.entrySet()) {
+            if (entry.getValue() == null || !entry.getValue().valid()) {
+                throw new IllegalArgumentException("not valid runs for " + entry.getKey());
+            }
         }
         if (every == null && years.isEmpty()) {
             return null;
         }
-        return new AnnualWindow(every, Collections.unmodifiableNavigableMap(new TreeMap<>(years)));
+        return new AnnualWindow(every, Collections.unmodifiableNavigableMap(new TreeMap<Integer, YearRule>(years)),
+                floor);
     }
 
     /** {@code MM-DD} as a month-day, or null for anything else ({@code 1-5}, {@code 02-30}, {@code 13-01}). */
@@ -118,27 +177,54 @@ public final class AnnualWindow {
         return Instant.ofEpochMilli(nowMs).atZone(zone).getYear();
     }
 
-    /** The days of the run that starts in {@code year}, or null when the window dates none that year. */
+    /** The runs that start in {@code year}, in number order; empty when the window dates none that year. */
+    @Nonnull
+    public List<RunDays> runs(int year) {
+        return keptIn(year).kept().stream().map(DatedRun::days).toList();
+    }
+
+    /**
+     * The runs that start in {@code year} with their numbers, in number order; empty when the window dates none
+     * that year. A number set aside is missing, never taken by the run after it.
+     */
+    @Nonnull
+    public List<DatedRun> datedRuns(int year) {
+        return keptIn(year).kept();
+    }
+
+    /** The runs of {@code year} set aside, in number order, each because it meets a run kept before it. */
+    @Nonnull
+    public List<SetAside> setAside(int year) {
+        return keptIn(year).setAside();
+    }
+
+    /** Run {@code number} of {@code year}, or null when the year has no such run (or set it aside). */
+    @Nullable
+    public RunDays run(int year, int number) {
+        DatedRun found = dated(year, number);
+        return found == null ? null : found.days();
+    }
+
+    /** The year's first run (the lowest-numbered still standing, run 1 unless set aside), or null when it has none. */
     @Nullable
     public RunDays days(int year) {
-        if (year > LAST_YEAR) {
-            return null;
-        }
-        YearRule.Fixed dated = years.get(year);
-        if (dated != null) {
-            return dated.days(year);
-        }
-        return every == null ? null : every.days(year);
+        List<DatedRun> runs = datedRuns(year);
+        return runs.isEmpty() ? null : runs.get(0).days();
     }
 
-    /** Does the window date a run that starts in {@code year}? */
+    /** Does the window date any run that starts in {@code year}? */
     public boolean hasRun(int year) {
-        return days(year) != null;
+        return !datedRuns(year).isEmpty();
     }
 
-    /** Do the days differ from one year to the next: a moving rule (Easter, a weekday) or any per-year days? */
+    /** Do the days differ from one year to the next: a moving rule (Easter, a weekday) or any per-year runs? */
     public boolean moves() {
         return !years.isEmpty() || (every != null && every.moves());
+    }
+
+    /** Can the window date more than one run in a year: its rule, or the runs of any listed year? */
+    public boolean several() {
+        return (every != null && every.several()) || years.values().stream().anyMatch(YearRule::several);
     }
 
     /** Does the every-year rule cross the new year (fixed month-days whose last comes before its first)? */
@@ -147,73 +233,276 @@ public final class AnnualWindow {
     }
 
     /**
-     * The first instant of the run that starts in {@code year}.
+     * The first instant of the year's first run ({@link #days(int)}).
      *
      * @throws IllegalArgumentException when the window dates no run that year ({@link #hasRun})
      */
     public long startMs(int year, @Nonnull ZoneId zone) {
-        return required(year).first().atStartOfDay(zone).toInstant().toEpochMilli();
+        return firstOf(year).startMs(zone);
     }
 
     /**
-     * The first instant AFTER the run that starts in {@code year}: the midnight after its last day.
+     * The first instant AFTER the year's first run ({@link #days(int)}).
      *
      * @throws IllegalArgumentException when the window dates no run that year ({@link #hasRun})
      */
     public long endMs(int year, @Nonnull ZoneId zone) {
-        return required(year).last().plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli();
+        return firstOf(year).endMs(zone);
     }
 
-    /** The year whose run contains {@code nowMs}, or null when no run does. */
+    /**
+     * The first instant of run {@code number} of {@code year}.
+     *
+     * @throws IllegalArgumentException when the year has no such run
+     */
+    public long startMs(int year, int number, @Nonnull ZoneId zone) {
+        return required(year, number).startMs(zone);
+    }
+
+    /**
+     * The first instant after run {@code number} of {@code year}.
+     *
+     * @throws IllegalArgumentException when the year has no such run
+     */
+    public long endMs(int year, int number, @Nonnull ZoneId zone) {
+        return required(year, number).endMs(zone);
+    }
+
+    /** The run going on at {@code nowMs}, or null when none is. A run of the year before crossing the new year is found too. */
+    @Nullable
+    public DatedRun runContaining(long nowMs, @Nonnull ZoneId zone) {
+        int year = yearOf(nowMs, zone);
+        DatedRun found = containing(year, nowMs, zone);
+        // A run crossing the new year from the year before: no run reaches two years past the one it starts in.
+        return found != null ? found : containing(year - 1, nowMs, zone);
+    }
+
+    /** The year of the run going on at {@code nowMs}, or null when none is. */
     @Nullable
     public Integer yearContaining(long nowMs, @Nonnull ZoneId zone) {
-        int year = yearOf(nowMs, zone);
-        if (contains(year, nowMs, zone)) {
-            return year;
-        }
-        // A run that crosses the new year and started last year: no run lasts more than 366 days.
-        if (contains(year - 1, nowMs, zone)) {
-            return year - 1;
+        DatedRun run = runContaining(nowMs, zone);
+        return run == null ? null : run.year();
+    }
+
+    /**
+     * The first year from {@code fromYear} on that has a run, or null when none is left: under an every-year rule
+     * the first year from it the window dates any run in, else the first listed year from it that does.
+     */
+    @Nullable
+    public Integer nextRunYear(int fromYear) {
+        for (Integer year = candidate(fromYear); year != null; year = candidate(year + 1)) {
+            if (hasRun(year)) {
+                return year;
+            }
         }
         return null;
     }
 
     /**
-     * The first year from {@code fromYear} on that has a run, or null when none is left: {@code fromYear}
-     * itself under an every-year rule, else the first listed year from it. No loop.
+     * The first run to start strictly after {@code nowMs} by the dates, never in a year before {@code fromYear};
+     * null when none is left. Bounded: each step moves to a later year with a run, and runs start in their own year.
      */
     @Nullable
-    public Integer nextRunYear(int fromYear) {
+    public DatedRun nextRun(long nowMs, @Nonnull ZoneId zone, int fromYear) {
+        Integer year = nextRunYear(Math.max(fromYear, yearOf(nowMs, zone) - 1));
+        while (year != null) {
+            DatedRun soonest = null;
+            for (DatedRun run : datedRuns(year)) {
+                if (run.days().startMs(zone) > nowMs && (soonest == null || BY_START.compare(run, soonest) < 0)) {
+                    soonest = run;
+                }
+            }
+            if (soonest != null) {
+                return soonest;
+            }
+            year = year >= LAST_YEAR ? null : nextRunYear(year + 1);
+        }
+        return null;
+    }
+
+    /** The first run start strictly after {@code nowMs}, never in a year before {@code fromYear}; null when no run is left. */
+    @Nullable
+    public Long nextStartMs(long nowMs, @Nonnull ZoneId zone, int fromYear) {
+        DatedRun next = nextRun(nowMs, zone, fromYear);
+        return next == null ? null : next.days().startMs(zone);
+    }
+
+    /**
+     * The run after run {@code number} of {@code year} by the dates: the same year's run starting soonest after
+     * it, else the earliest run of the next year that has one; null when none is left. For a run the year does
+     * not have (or set aside), the earliest run of the next year that has one.
+     */
+    @Nullable
+    public DatedRun after(int year, int number) {
+        DatedRun from = dated(year, number);
+        if (from != null) {
+            DatedRun soonest = null;
+            for (DatedRun run : datedRuns(year)) {
+                if (BY_START.compare(run, from) > 0 && (soonest == null || BY_START.compare(run, soonest) < 0)) {
+                    soonest = run;
+                }
+            }
+            if (soonest != null) {
+                return soonest;
+            }
+        }
+        Integer next = year >= LAST_YEAR ? null : nextRunYear(year + 1);
+        return next == null ? null : inTime(next).get(0);
+    }
+
+    /**
+     * The run a force runs in {@code year}: by the dates, its first run not yet over at {@code nowMs}, else its
+     * last; null when the window dates none that year. A force so brings the year's next run forward, and never
+     * runs again a run that is over while a later one is still to come. The run keeps its number.
+     */
+    @Nullable
+    public DatedRun forcedRun(int year, long nowMs, @Nonnull ZoneId zone) {
+        List<DatedRun> runs = inTime(year);
+        if (runs.isEmpty()) {
+            return null;
+        }
+        for (DatedRun run : runs) {
+            if (run.days().endMs(zone) > nowMs) {
+                return run;
+            }
+        }
+        return runs.get(runs.size() - 1);
+    }
+
+    /** The run of {@code year} going on at {@code nowMs}; kept runs never overlap, so at most one is. */
+    @Nullable
+    private DatedRun containing(int year, long nowMs, @Nonnull ZoneId zone) {
+        for (DatedRun run : datedRuns(year)) {
+            if (nowMs >= run.days().startMs(zone) && nowMs < run.days().endMs(zone)) {
+                return run;
+            }
+        }
+        return null;
+    }
+
+    /** Run {@code number} of {@code year} as kept, or null. */
+    @Nullable
+    private DatedRun dated(int year, int number) {
+        for (DatedRun run : datedRuns(year)) {
+            if (run.number() == number) {
+                return run;
+            }
+        }
+        return null;
+    }
+
+    /** {@code year}'s kept runs in time, the earliest first. */
+    @Nonnull
+    private List<DatedRun> inTime(int year) {
+        List<DatedRun> runs = new ArrayList<>(datedRuns(year));
+        runs.sort(BY_START);
+        return runs;
+    }
+
+    /** The next year from {@code fromYear} that could have a run: any year under an every-year rule, else a listed one. */
+    @Nullable
+    private Integer candidate(int fromYear) {
         if (fromYear > LAST_YEAR) {
             return null;
         }
         return every != null ? Integer.valueOf(fromYear) : years.ceilingKey(fromYear);
     }
 
-    /**
-     * The first run start strictly after {@code nowMs}, never in a year before {@code fromYear}; null when no
-     * run is left. Bounded: each step moves to a later year with a run, and runs start in their own year, so
-     * it takes at most three steps under an every-year rule and at most one per listed year without one.
-     */
+    /** The rule that dates {@code year}: its listed runs, else the every-year rule; null before the floor and after {@link #LAST_YEAR}. */
     @Nullable
-    public Long nextStartMs(long nowMs, @Nonnull ZoneId zone, int fromYear) {
-        Integer year = nextRunYear(Math.max(fromYear, yearOf(nowMs, zone) - 1));
-        while (year != null) {
-            long start = startMs(year, zone);
-            if (start > nowMs) {
-                return start;
+    private YearRule layer(int year) {
+        if (year < floor || year > LAST_YEAR) {
+            return null;
+        }
+        YearRule listed = years.get(year);
+        return listed != null ? listed : every;
+    }
+
+    /**
+     * {@code year}'s runs as its own layer dates them, numbered by the order the rule gives them, a run meeting
+     * one kept before it in that order set aside.
+     */
+    @Nonnull
+    private YearRuns datedIn(int year) {
+        YearRuns known = dated.get(year);
+        if (known != null) {
+            return known;
+        }
+        YearRule rule = layer(year);
+        YearRuns made = YearRuns.NONE;
+        if (rule != null) {
+            List<RunDays> authored = rule.runs(year);
+            List<DatedRun> runs = new ArrayList<>();
+            List<SetAside> aside = new ArrayList<>();
+            for (int i = 0; i < authored.size(); i++) {
+                RunDays run = authored.get(i);
+                DatedRun met = firstMet(runs, run);
+                if (met != null) {
+                    aside.add(new SetAside(year, i + 1, run, met.days()));
+                } else {
+                    runs.add(new DatedRun(year, i + 1, run));
+                }
             }
-            year = nextRunYear(year + 1);
+            made = new YearRuns(List.copyOf(runs), List.copyOf(aside));
+        }
+        dated.putIfAbsent(year, made);
+        return made;
+    }
+
+    /** {@code year}'s runs as kept: as dated, less any that meets one of the year before's runs, as that year dates them. */
+    @Nonnull
+    private YearRuns keptIn(int year) {
+        YearRuns known = kept.get(year);
+        if (known != null) {
+            return known;
+        }
+        YearRuns own = datedIn(year);
+        YearRuns made = own;
+        List<DatedRun> reaching = own.kept().isEmpty() || year <= floor ? List.of() : reachingInto(year);
+        if (!reaching.isEmpty()) {
+            List<DatedRun> runs = new ArrayList<>();
+            List<SetAside> aside = new ArrayList<>(own.setAside());
+            for (DatedRun run : own.kept()) {
+                DatedRun met = firstMet(reaching, run.days());
+                if (met != null) {
+                    aside.add(new SetAside(year, run.number(), run.days(), met.days()));
+                } else {
+                    runs.add(run);
+                }
+            }
+            aside.sort(Comparator.comparingInt(SetAside::number));
+            made = new YearRuns(List.copyOf(runs), List.copyOf(aside));
+        }
+        kept.putIfAbsent(year, made);
+        return made;
+    }
+
+    /** The year before's runs, as that year dates them, that end after {@code year} begins. */
+    @Nonnull
+    private List<DatedRun> reachingInto(int year) {
+        LocalDateTime newYear = LocalDateTime.of(year, 1, 1, 0, 0);
+        List<DatedRun> out = new ArrayList<>();
+        for (DatedRun run : datedIn(year - 1).kept()) {
+            if (run.days().end().isAfter(newYear)) {
+                out.add(run);
+            }
+        }
+        return out;
+    }
+
+    /** The first of {@code runs} that {@code run} meets, or null when it meets none. */
+    @Nullable
+    private static DatedRun firstMet(@Nonnull List<DatedRun> runs, @Nonnull RunDays run) {
+        for (DatedRun other : runs) {
+            if (run.meets(other.days())) {
+                return other;
+            }
         }
         return null;
     }
 
-    private boolean contains(int year, long nowMs, @Nonnull ZoneId zone) {
-        return hasRun(year) && nowMs >= startMs(year, zone) && nowMs < endMs(year, zone);
-    }
-
     @Nonnull
-    private RunDays required(int year) {
+    private RunDays firstOf(int year) {
         RunDays run = days(year);
         if (run == null) {
             throw new IllegalArgumentException("the window dates no run in " + year);
@@ -221,7 +510,16 @@ public final class AnnualWindow {
         return run;
     }
 
-    /** {@code MM-DD..MM-DD} for fixed days, the rule's own data form otherwise, then any dated years. */
+    @Nonnull
+    private RunDays required(int year, int number) {
+        RunDays run = run(year, number);
+        if (run == null) {
+            throw new IllegalArgumentException("the window dates no run " + number + " in " + year);
+        }
+        return run;
+    }
+
+    /** The rule's own data form ({@code MM-DD..MM-DD} for fixed days), then any dated years. */
     @Override
     @Nonnull
     public String toString() {
