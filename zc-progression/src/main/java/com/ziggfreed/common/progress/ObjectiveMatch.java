@@ -1,5 +1,6 @@
 package com.ziggfreed.common.progress;
 
+import java.util.Collection;
 import java.util.Locale;
 
 import javax.annotation.Nonnull;
@@ -15,7 +16,9 @@ import javax.annotation.Nullable;
  * matches everything under every {@link MatchMode} (the match-all shorthand every broad tally
  * wants), and an EMPTY authored qualifier matches only an event that carries no qualifier at all.
  * A qualifier has a comparison of its own ({@link #qualifierMatches(String, MatchMode, String)}),
- * the same three shapes the target has, compared whole unless the objective says otherwise.
+ * the same three shapes the target has, compared whole unless the objective says otherwise, and
+ * an objective may accept several qualifiers at once
+ * ({@link #qualifierMatches(String, Collection, MatchMode, String)}: any one of them counts).
  * Quest objectives and achievement criteria - and every other consumer of this engine family -
  * match by the same rule, so a criterion moved between content types never changes what it counts.
  *
@@ -51,6 +54,21 @@ public final class ObjectiveMatch {
                                   @Nonnull String eventTarget, @Nullable String eventQualifier) {
         return targetMatches(authoredTarget, mode, eventTarget)
                 && qualifierMatches(authoredQualifier, qualifierMode, eventQualifier);
+    }
+
+    /**
+     * The whole predicate with several accepted qualifiers: target under {@code mode} AND the
+     * event's qualifier matching {@code authoredQualifier} or any of {@code authoredQualifiers},
+     * each under {@code qualifierMode} (see
+     * {@link #qualifierMatches(String, Collection, MatchMode, String)}). An empty list is exactly
+     * the single-qualifier form.
+     */
+    public static boolean matches(@Nonnull String authoredTarget, @Nonnull MatchMode mode,
+                                  @Nullable String authoredQualifier, @Nonnull Collection<String> authoredQualifiers,
+                                  @Nonnull MatchMode qualifierMode,
+                                  @Nonnull String eventTarget, @Nullable String eventQualifier) {
+        return targetMatches(authoredTarget, mode, eventTarget)
+                && qualifierMatches(authoredQualifier, authoredQualifiers, qualifierMode, eventQualifier);
     }
 
     /**
@@ -109,6 +127,45 @@ public final class ObjectiveMatch {
             case CONTAINS -> event.contains(authored);
             case PREFIX -> event.startsWith(authored);
         };
+    }
+
+    /**
+     * Qualifier comparison against SEVERAL accepted qualifiers: {@code authoredQualifier} (the
+     * {@code Qualifier} leaf) plus every entry of {@code authoredQualifiers} (the
+     * {@code Qualifiers} leaf). The event matches when its qualifier matches ANY of them under the
+     * one {@code mode}, each entry by {@link #qualifierMatches(String, MatchMode, String)}'s rule. A
+     * union, because both leaves read "accept these" and a union never silently ignores an
+     * authored value.
+     *
+     * <ul>
+     *   <li>A null, empty or blank list entry is ignored: it is never read as the empty
+     *       "specifically unqualified" value, which only {@code Qualifier} can author.</li>
+     *   <li>With nothing accepted (no {@code Qualifier} and no real entry) there is no filter, so
+     *       any qualifier matches, as an objective that authors neither leaf always has.</li>
+     *   <li>With an empty list this is exactly the single-qualifier form, so a file that authors
+     *       only {@code Qualifier} keeps its meaning byte for byte.</li>
+     * </ul>
+     */
+    public static boolean qualifierMatches(@Nullable String authoredQualifier,
+                                           @Nonnull Collection<String> authoredQualifiers,
+                                           @Nonnull MatchMode mode, @Nullable String eventQualifier) {
+        boolean namedAny = false;
+        if (authoredQualifier != null) {
+            if (qualifierMatches(authoredQualifier, mode, eventQualifier)) {
+                return true;
+            }
+            namedAny = true;
+        }
+        for (String entry : authoredQualifiers) {
+            if (entry == null || entry.isBlank()) {
+                continue;
+            }
+            if (qualifierMatches(entry, mode, eventQualifier)) {
+                return true;
+            }
+            namedAny = true;
+        }
+        return !namedAny;
     }
 
     /**

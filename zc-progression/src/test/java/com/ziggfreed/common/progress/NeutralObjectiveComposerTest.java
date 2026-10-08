@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -15,6 +16,7 @@ import com.hypixel.hytale.protocol.FormattedMessage;
 import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.i18n.LangCatalog;
 import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.i18n.NativeNames;
 
 
 /**
@@ -107,6 +109,34 @@ class NeutralObjectiveComposerTest {
         } finally {
             LangCatalog.overrideForTests(null);
         }
+    }
+
+    /**
+     * Several accepted qualifiers name the FIRST one: {@code Qualifier} when it is authored (so its
+     * text never moves when a list joins it), else the list's first entry. The line then never
+     * promises credit the engine refuses; the author picks which kind it names by the order.
+     */
+    @Test
+    void severalQualifiersNameTheFirstAcceptedOne() {
+        NeutralObjectiveComposer composer = over(Set.of(
+                NS + "objective.complete_quest.any", NS + "objective.qualifier"));
+
+        ObjectiveDef listOnly = ObjectiveDef.builder("step", "COMPLETE_QUEST").amount(10)
+                .qualifiers(List.of(" ", "REPEATABLE", "SEASONAL")).build();
+        Message line = composer.compose(listOnly, null);
+        assertEquals(NS + "objective.qualifier", line.getMessageId());
+        assertEquals(NativeNames.prettify("REPEATABLE"), param(line, "0").rawText,
+                "the first real entry names the step; a blank one is skipped");
+
+        ObjectiveDef both = ObjectiveDef.builder("step", "COMPLETE_QUEST").amount(10)
+                .qualifier("NORMAL").qualifiers(List.of("SEASONAL")).build();
+        assertEquals(NativeNames.prettify("NORMAL"), param(composer.compose(both, null), "0").rawText,
+                "an authored Qualifier keeps its phrase whatever list joins it");
+
+        ObjectiveDef blanks = ObjectiveDef.builder("step", "COMPLETE_QUEST").amount(10)
+                .qualifiers(List.of(" ")).build();
+        assertEquals(NS + "objective.complete_quest.any", composer.compose(blanks, null).getMessageId(),
+                "a list of blanks names nothing, as no qualifier at all does");
     }
 
     @Test
