@@ -2,6 +2,7 @@ package com.ziggfreed.common.almanac.view;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.MonthDay;
 import java.time.YearMonth;
 import java.time.ZoneId;
@@ -35,6 +36,7 @@ import com.ziggfreed.common.almanac.asset.AlmanacStatAsset;
 import com.ziggfreed.common.counter.CounterMap;
 import com.ziggfreed.common.inventory.ItemIds;
 import com.ziggfreed.common.occurrence.Occurrence;
+import com.ziggfreed.common.occurrence.Recurrence;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.kit.KeepsakeState;
 import com.ziggfreed.common.ui.route.Destination;
@@ -122,11 +124,13 @@ public final class AlmanacView {
      * day. Between runs: the days until the next start, and whether that is within {@link #SOON_DAYS}.
      * The window's month-days come from the run going on, else the next, else the last; {@code
      * startsLater} is a season whose first run is still ahead. {@code windowYear} is the framing run's
-     * year when the season's days move, null when they are the same every year.
+     * year when the season's days move, null when they are the same every year. {@code recurring} is how a
+     * season that comes round monthly or weekly recurs, with its next run, null for any other season.
      */
     public record Timing(boolean live, @Nullable Integer daysLeft, boolean lastDay, @Nullable Integer daysUntil,
                          boolean soon, @Nullable MonthDay windowStart, @Nullable MonthDay windowEnd,
-                         @Nullable LocalDate nextStart, boolean startsLater, @Nullable Integer windowYear) {
+                         @Nullable LocalDate nextStart, boolean startsLater, @Nullable Integer windowYear,
+                         @Nullable Recurring recurring) {
 
         /** A season whose days are the same every year: no run's year to name. */
         public Timing(boolean live, @Nullable Integer daysLeft, boolean lastDay, @Nullable Integer daysUntil,
@@ -134,6 +138,23 @@ public final class AlmanacView {
                 @Nullable LocalDate nextStart, boolean startsLater) {
             this(live, daysLeft, lastDay, daysUntil, soon, windowStart, windowEnd, nextStart, startsLater, null);
         }
+
+        /** A season that does not come round monthly or weekly. */
+        public Timing(boolean live, @Nullable Integer daysLeft, boolean lastDay, @Nullable Integer daysUntil,
+                boolean soon, @Nullable MonthDay windowStart, @Nullable MonthDay windowEnd,
+                @Nullable LocalDate nextStart, boolean startsLater, @Nullable Integer windowYear) {
+            this(live, daysLeft, lastDay, daysUntil, soon, windowStart, windowEnd, nextStart, startsLater, windowYear,
+                    null);
+        }
+    }
+
+    /**
+     * How a season that comes round monthly or weekly recurs, as the calendar's rule says it, and its next run's
+     * first instant and the first instant after it, on the season's own clock (both null when none is due): what
+     * its dates line says in place of one run's days.
+     */
+    public record Recurring(@Nonnull Recurrence rule, @Nullable LocalDateTime nextStart,
+                            @Nullable LocalDateTime nextEnd) {
     }
 
     /** One year a player can read: whether it is the run on now, whether they took part, and its keepsake. */
@@ -405,6 +426,8 @@ public final class AlmanacView {
         MonthDay windowEnd = framing == null ? null : MonthDay.from(lastDay(framing, zone));
         LocalDate nextStart = next == null ? null : day(next.startMs(), zone);
         Integer windowYear = dates.datesMove() && framing != null ? Integer.valueOf(framing.year()) : null;
+        Recurring recurring = dates.recurrence() == null ? null : new Recurring(dates.recurrence(),
+                next == null ? null : moment(next.startMs(), zone), next == null ? null : moment(next.endMs(), zone));
         if (live != null || season.live()) {
             Integer daysLeft = null;
             boolean lastDay = false;
@@ -414,13 +437,13 @@ public final class AlmanacView {
                 lastDay = !today.isBefore(last);
             }
             return new Timing(true, daysLeft, lastDay, null, false, windowStart, windowEnd, nextStart, false,
-                    windowYear);
+                    windowYear, recurring);
         }
         Integer daysUntil = nextStart == null ? null : (int) Math.max(0L, ChronoUnit.DAYS.between(today, nextStart));
         boolean soon = daysUntil != null && daysUntil <= SOON_DAYS;
         boolean startsLater = next != null && dates.history().isEmpty();
         return new Timing(false, null, false, daysUntil, soon, windowStart, windowEnd, nextStart, startsLater,
-                windowYear);
+                windowYear, recurring);
     }
 
     /**
@@ -818,6 +841,12 @@ public final class AlmanacView {
     @Nonnull
     private static LocalDate day(long ms, @Nonnull ZoneId zone) {
         return Instant.ofEpochMilli(ms).atZone(zone).toLocalDate();
+    }
+
+    /** {@code ms} as the day and time of day on {@code zone}'s clock. */
+    @Nonnull
+    private static LocalDateTime moment(long ms, @Nonnull ZoneId zone) {
+        return Instant.ofEpochMilli(ms).atZone(zone).toLocalDateTime();
     }
 
     /** A run's last day: its end is the midnight after it. */
