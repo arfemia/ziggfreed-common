@@ -281,8 +281,9 @@ public final class QuestEngine implements QuestStateReader {
     }
 
     /**
-     * Say so ONCE per quest when a quest asks for a calendar allowance or a lifetime cap and the
-     * store behind this engine cannot remember completions, so those knobs quietly do nothing.
+     * Say so ONCE per quest when a quest asks for a calendar allowance, a lifetime cap or a once-a-run
+     * allowance and the store behind this engine cannot remember completions, so those knobs quietly do
+     * nothing (a once-a-run quest would then come round again within its run as often as it is finished).
      *
      * <p>Here rather than at every accept because this is the one moment both facts are settled and
      * known together: the store was fixed when the engine was built, and the catalogue has just
@@ -294,12 +295,13 @@ public final class QuestEngine implements QuestStateReader {
         }
         for (Quest quest : catalogue) {
             Quest.Repeat repeat = quest.repeat();
-            if (repeat == null || (repeat.reset() == null && repeat.maxCompletions() <= 0)) {
+            if (repeat == null
+                    || (repeat.reset() == null && repeat.maxCompletions() <= 0 && repeat.perRun() == null)) {
                 continue;
             }
-            warnOnce("repeat:" + quest.id(), "Quest '" + quest.id() + "' authors a Reset window or"
-                    + " MaxCompletions, but this runtime's progress store cannot remember completions,"
-                    + " so both are ignored and only its rolling cooldown applies");
+            warnOnce("repeat:" + quest.id(), "Quest '" + quest.id() + "' authors a Reset window,"
+                    + " MaxCompletions or PerRun, but this runtime's progress store cannot remember completions,"
+                    + " so those tallies count nothing and only its rolling cooldown holds it back");
         }
     }
 
@@ -370,12 +372,15 @@ public final class QuestEngine implements QuestStateReader {
      * where they went, and would refuse them the next contract for a log they are not filling. What
      * makes the difference is the quest's own {@link Quest#occupiesLog()} switch, so whoever folds
      * the content says which it is.
+     *
+     * <p>A carried quest not on offer ({@link Quest#available()} false) holds no slot either: it is
+     * frozen and out of sight, and takes its slot back when it is offered again.
      */
     public int logSlotsUsed(@Nonnull Subject subject) {
         int count = 0;
         for (String questId : store.knownQuestIds(subject)) {
             Quest quest = quests.get(questId);
-            if (quest != null && quest.occupiesLog()
+            if (quest != null && quest.occupiesLog() && quest.available()
                     && store.status(subject, questId) == QuestStatus.ACTIVE) {
                 count++;
             }
@@ -604,6 +609,10 @@ public final class QuestEngine implements QuestStateReader {
      * objective, settle any quest that just finished, and (in a tapped dispatch) let the consumer's
      * {@link ProgressDispatchTap} see the event whether or not anything matched.
      *
+     * <p>A quest not on offer ({@link Quest#available()} false: out of its run, its season off, switched
+     * off) is FROZEN: it counts nothing here, nor at a hand-in or a threshold re-read, so it comes back
+     * exactly where the player left it and can only finish while it is offered.
+     *
      * <p>Order of business, and each step is there for a reason:
      * <ol>
      *   <li>the tap fires FIRST, before any objective is touched, so a counter records the action
@@ -646,7 +655,9 @@ public final class QuestEngine implements QuestStateReader {
                 continue;
             }
             Quest quest = quests.get(entry.ownerId());
-            if (quest == null) {
+            if (quest == null || !quest.available()) {
+                // Frozen while not on offer (out of its run, its season off, switched off): it comes back
+                // exactly where the player left it, and so can only ever finish while it is offered.
                 continue;
             }
             if (!isActive(subject, quest.id()) && !tryAutoAcceptOnEvent(subject, quest)) {
@@ -880,7 +891,8 @@ public final class QuestEngine implements QuestStateReader {
         if (atId == null || atId.isBlank()) {
             return false;
         }
-        if (status(subject, quest) != QuestStatus.ACTIVE) {
+        // A quest not on offer is frozen, so no place is where its next step happens.
+        if (status(subject, quest) != QuestStatus.ACTIVE || !quest.available()) {
             return false;
         }
         if (firstActiveTurnIn(subject, quest, atId) != null) {
@@ -1063,7 +1075,8 @@ public final class QuestEngine implements QuestStateReader {
     @Nonnull
     public TurnInOutcome tryTurnIn(@Nonnull Subject subject, @Nonnull Quest quest,
                                    @Nonnull String objectiveId, @Nullable String atId) {
-        if (!isActive(subject, quest.id())) {
+        // A quest not on offer is frozen: nothing is taken and nothing is credited.
+        if (!isActive(subject, quest.id()) || !quest.available()) {
             return TurnInOutcome.NOTHING;
         }
         ObjectiveDef objective = quest.objective(objectiveId);
@@ -1558,9 +1571,10 @@ public final class QuestEngine implements QuestStateReader {
         int runCount = 0;
         Quest.Repeat.PerRun perRun = repeat.perRun();
         if (perRun != null) {
-            // Keyed (event, year): the run going on, else the next one a carried-over quest is finished for.
+            // Keyed (event, year): the run going on, else the next one, never earlier than the run the
+            // record already counts for (runs only move forward).
             OccurrenceSource occurrences = Occurrences.source();
-            runYear = PerRuns.yearFor(perRun, nowMs, occurrences);
+            runYear = PerRuns.yearToRecord(prior, perRun, nowMs, occurrences);
             if (runYear != null) {
                 runCount = raised(PerRuns.spentIn(prior, runYear, perRun, nowMs, occurrences));
             }
@@ -1579,12 +1593,12 @@ public final class QuestEngine implements QuestStateReader {
      * rather than counting it a second time.
      *
      * <p>The same clamp means an EMPTY prior record absorbs the collection entirely, since a
-     * collected count cannot rise above a finish count of zero. <b>That is what an UPGRADE looks
-     * like</b>, and it is the ordinary case rather than an exotic one: no released build ever wrote
-     * a completion record, so a player arriving from one has none for any quest, and a reward they
-     * parked before the upgrade pays out afterwards while this tally stays at zero. That is the
-     * wanted answer - the run predates the tally entirely, so it neither counts nor over-counts, and
-     * the count simply starts from their first finish after the upgrade. The same absorption covers
+     * collected count cannot rise above a finish count of zero. <b>That is what an UPGRADE from before
+     * the record looks like</b>: releases before zc 2.1.0 wrote no completion record, so a player
+     * arriving from one has none for any quest, and a reward they parked before the upgrade pays out
+     * afterwards while this tally stays at zero. That is the wanted answer - the run predates the
+     * tally entirely, so it neither counts nor over-counts, and the count simply starts from their
+     * first finish after the upgrade. The same absorption covers
      * the one in-play route to it, a quest parked while it carried no {@link Quest.Repeat} group and
      * then given one before the player came back: recording the collection alone would claim a
      * payout for a run this record has no memory of.
@@ -1760,7 +1774,8 @@ public final class QuestEngine implements QuestStateReader {
      * @return how many steps this call advanced
      */
     public int refreshStatThresholds(@Nonnull Subject subject, @Nonnull Quest quest) {
-        if (statProbe == null) {
+        // A quest not on offer is frozen: its steps are re-read once it is offered again.
+        if (statProbe == null || !quest.available()) {
             return 0;
         }
         Map<String, ObjectiveProgressState> progress = null;
@@ -1862,7 +1877,9 @@ public final class QuestEngine implements QuestStateReader {
     /**
      * Pin a quest to the player's tracker. Dead pins are reclaimed first, so the cap is measured
      * against live ones and a player looking at two pinned quests is never told they already have
-     * the maximum.
+     * the maximum. A pin whose quest is not on offer ({@link Quest#available()} false) is kept but
+     * takes no slot; when that quest returns over the cap, {@link #trackedActive}'s oldest-first cap
+     * decides which pins show.
      *
      * @return false when the id is unknown or the player is already at the cap
      */
@@ -1873,7 +1890,7 @@ public final class QuestEngine implements QuestStateReader {
         pruneStaleTracked(subject);
         Map<String, Long> pins = store.trackedPins(subject);
         boolean fresh = !pins.containsKey(questId);
-        if (fresh && pins.size() >= maxTracked) {
+        if (fresh && pinsTakingASlot(pins) >= maxTracked) {
             return false;
         }
         store.setTrackedPin(subject, questId, now());
@@ -1884,6 +1901,18 @@ public final class QuestEngine implements QuestStateReader {
             fireTracked(questId, subject, true);
         }
         return true;
+    }
+
+    /** The pins the tracker cap counts: every pin but those of quests not on offer right now. */
+    private int pinsTakingASlot(@Nonnull Map<String, Long> pins) {
+        int counted = 0;
+        for (String pinned : pins.keySet()) {
+            Quest quest = quests.get(pinned);
+            if (quest == null || quest.available()) {
+                counted++;
+            }
+        }
+        return counted;
     }
 
     /**

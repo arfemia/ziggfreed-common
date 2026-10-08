@@ -18,6 +18,7 @@ import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.quest.QuestProgressStore;
 import com.ziggfreed.common.quest.QuestTurnInSite;
+import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.time.DurationGroup;
 import com.ziggfreed.common.util.PeriodMath;
 import com.ziggfreed.common.loot.reward.CollectingRewardKind;
@@ -44,6 +45,12 @@ public final class QuestPoolValidator {
 
     /** The content family these findings belong to. */
     public static final String DOMAIN = "quest";
+
+    /**
+     * A {@code Repeat.PerRun} naming an event no loaded calendar file declares: a WARNING, as an unknown
+     * {@code Season} is, since the quest simply stays hidden.
+     */
+    public static final String REPEAT_PER_RUN_UNKNOWN_EVENT = "REPEAT_PER_RUN_UNKNOWN_EVENT";
 
     /** What one piece of this content is CALLED in a message written for the author. */
     private static final String NOUN = "quest";
@@ -150,6 +157,10 @@ public final class QuestPoolValidator {
      * clock starts, or which window is counted. A number outside its legal range is a WARNING,
      * because the clamp lands where anybody would guess.
      *
+     * <p>A {@code PerRun} event no loaded calendar declares is a WARNING
+     * ({@link #REPEAT_PER_RUN_UNKNOWN_EVENT}), read as the {@code Season} leaf's check reads it, so ask
+     * this after the calendar has folded its events: before that, every event reads unknown.
+     *
      * @return the findings for this block, empty when there is nothing wrong or nothing authored
      */
     @Nonnull
@@ -183,6 +194,13 @@ public final class QuestPoolValidator {
                 out.add(Finding.error(DOMAIN, "REPEAT_PER_RUN_NO_EVENT",
                         "Repeat.PerRun names no Event, so it is ignored and the quest comes round by its other "
                                 + "Repeat leaves alone; name the calendar event whose runs it counts by", questId));
+            } else if (!SeasonGate.known(perRun.getEvent())) {
+                // The Season leaf's UNKNOWN_SEASON, for the event a once-a-run quest counts by: the same
+                // running switch hides it, so an id no calendar declares hides it for good.
+                out.add(Finding.warning(DOMAIN, REPEAT_PER_RUN_UNKNOWN_EVENT,
+                        "Repeat.PerRun.Event names '" + perRun.getEvent().trim() + "', which no calendar event "
+                                + "on this server defines, so this quest is never offered. Add that event's "
+                                + "calendar file, or correct the id.", questId));
             }
             Integer times = perRun.getTimes();
             if (times != null && times.intValue() < 1) {

@@ -50,10 +50,9 @@ public final class Quest {
      * {@link #cooldownMs()} wait, a calendar {@link Reset} allowance, a lifetime
      * {@link #maxCompletions()} cap, and a once-a-run {@link PerRun} allowance over a calendar
      * event's runs. Author any of them, and {@link QuestLifecycle#repeatCheck} settles the lot.
-     * Every one of them neutral - the EMPTY
-     * group - means the quest holds nothing back and is offerable again the moment it settles,
-     * which is what an externally governed quest wants: whatever rotating offer hands it out owns
-     * when it comes round.
+     * Every one of them neutral - the EMPTY group - means the quest holds nothing back and is
+     * offerable again the moment it settles, which is what an externally governed quest wants:
+     * whatever rotating offer hands it out owns when it comes round.
      *
      * <p>{@link CooldownFrom} is an ANCHOR, not a mode: it bundles no switches and toggles nothing
      * else, it names the single instant one clock counts from. Nothing else changes with it.

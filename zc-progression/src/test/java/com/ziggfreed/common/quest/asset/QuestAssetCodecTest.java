@@ -15,10 +15,13 @@ import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.ziggfreed.common.factor.FeatureFlags;
 import com.ziggfreed.common.progress.MatchMode;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.quest.Quest;
+import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.validation.Finding;
+import com.ziggfreed.common.validation.Severity;
 
 /**
  * {@link QuestAsset}'s decode contract, and above all what native {@code Parent} inheritance does to
@@ -304,6 +307,23 @@ class QuestAssetCodecTest {
             assertNull(asset.toDefinition(null).quest().repeat().perRun());
             assertTrue(codes(asset).contains("REPEAT_PER_RUN_NO_EVENT"));
             assertTrue(codes(asset).contains("REPEAT_PER_RUN_TIMES_NON_POSITIVE"));
+        }
+
+        @Test
+        void aPerRunNamingAnEventNoCalendarDeclaresIsAWarning() throws Exception {
+            FeatureFlags.register(SeasonGate.NAMESPACE, SeasonGate.featureOf("Spring_Fair"), "test", () -> true);
+            try {
+                QuestAsset known = decodeRoot("{ \"Repeat\": { \"PerRun\": { \"Event\": \"Spring_Fair\" } } }", "fair");
+                QuestAsset typo = decodeRoot("{ \"Repeat\": { \"PerRun\": { \"Event\": \"Spring_Fiar\" } } }", "fiar");
+
+                assertTrue(codes(known).isEmpty(), "an event the calendar declares says nothing");
+                List<Finding> findings = QuestPoolValidator.repeatFindings(typo.getRepeat(), "fiar");
+                assertEquals(List.of("REPEAT_PER_RUN_UNKNOWN_EVENT"), findings.stream().map(Finding::code).toList());
+                assertEquals(Severity.WARNING, findings.get(0).severity(),
+                        "an unknown id is a warning: the quest stays hidden, nothing breaks");
+            } finally {
+                FeatureFlags.reset();
+            }
         }
 
         @Test

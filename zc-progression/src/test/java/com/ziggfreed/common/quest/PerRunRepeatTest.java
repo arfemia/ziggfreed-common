@@ -150,6 +150,8 @@ class PerRunRepeatTest {
         Quest quest = onceARun(1, 1, 0);
         QuestEngine engine = engine(quest);
         // Saved while the quest still came round on a rolling wait: one finish in the 2026 run, no run year.
+        // A released four-number save of a quest retrofitted to PerRun (the yearly lantern quest) is
+        // exactly this record, and its retrofit relies on it reading as spent for its own run.
         store.setStatus(player, quest.id(), QuestStatus.COMPLETED);
         store.setCompletions(player, quest.id(),
                 new QuestProgressStore.CompletionRecord(FakeRuns.at("2026-10-15T12:00:00Z"), 0, 1, 1));
@@ -228,6 +230,71 @@ class PerRunRepeatTest {
         assertFalse(offeredAt(engine, quest, "2027-10-03T12:00:00Z"));
         assertEquals(List.of(QuestGates.REASON_MAX_COMPLETIONS), engine.canAccept(player, quest).reasons(),
                 "three finishes spend the lifetime cap, which is the truer thing to say");
+    }
+
+    /**
+     * Runs only move forward. A record already counted for a later run (here the 2027 run, as a save
+     * made before this rule could hold it: a carried quest finished between runs) reads as spent for an
+     * earlier run forced on later in 2026, so the quest is paid at most once across the two.
+     */
+    @Test
+    void aRecordCountedForALaterRunIsSpentForAnEarlierForcedRunSoNoRunPaysTwice() {
+        runs.run(2026, "2026-10-01", "2026-11-03").run(2027, "2027-10-01", "2027-11-03");
+        Quest quest = onceARun(1, 1, 0);
+        QuestEngine engine = engine(quest);
+        store.setStatus(player, quest.id(), QuestStatus.COMPLETED);
+        store.setCompletions(player, quest.id(),
+                new QuestProgressStore.CompletionRecord(FakeRuns.at("2026-11-20T12:00:00Z"), 0, 1, 1, 2027, 1));
+
+        runs.force(true);
+        assertFalse(offeredAt(engine, quest, "2026-12-10T12:00:00Z"),
+                "forced on later in 2026, a quest already counted for 2027 is spent for 2026");
+        assertEquals(List.of(QuestGates.REASON_RUN_SPENT), engine.canAccept(player, quest).reasons());
+        assertFalse(engine.accept(player, quest), "and nothing takes it");
+
+        runs.force(null);
+        assertFalse(offeredAt(engine, quest, "2027-10-02T12:00:00Z"), "the 2027 run it counted for is spent too");
+        assertEquals(1, store.completions(player, quest.id()).totalCount(), "one payout across both runs");
+        assertEquals(Integer.valueOf(2027), store.completions(player, quest.id()).runYear());
+    }
+
+    @Test
+    void aCloseOutInAnEarlierRunNeverMovesTheRecordBack() {
+        runs.run(2026, "2026-10-01", "2026-11-03").run(2027, "2027-10-01", "2027-11-03");
+        Quest quest = onceARun(1, 1, 0);
+        QuestEngine engine = engine(quest);
+        store.setStatus(player, quest.id(), QuestStatus.COMPLETED);
+        store.setCompletions(player, quest.id(),
+                new QuestProgressStore.CompletionRecord(FakeRuns.at("2026-11-20T12:00:00Z"), 0, 1, 1, 2027, 1));
+
+        runs.force(true);
+        clock.set(FakeRuns.at("2026-12-10T12:00:00Z"));
+        assertTrue(engine.forceComplete(player, quest), "an administrator closes it out in the forced 2026 run");
+        assertEquals(Integer.valueOf(2027), store.completions(player, quest.id()).runYear(),
+                "the finish joins the run the record already counts for, never an earlier one");
+        assertEquals(2, store.completions(player, quest.id()).runCount());
+
+        runs.force(null);
+        assertFalse(offeredAt(engine, quest, "2027-10-02T12:00:00Z"), "so the 2027 run cannot pay it again");
+    }
+
+    @Test
+    void aCarriedQuestCountsNoProgressBetweenRunsAndCountsAgainOnceTheNextRunStarts() {
+        runs.run(2026, "2026-10-01", "2026-11-03").run(2027, "2027-10-01", "2027-11-03");
+        Quest quest = onceARun(1, 3, 0);
+        QuestEngine engine = engine(quest);
+        clock.set(FakeRuns.at("2026-10-30T12:00:00Z"));
+        assertTrue(engine.accept(player, quest));
+        engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 1);
+
+        clock.set(FakeRuns.at("2026-12-01T12:00:00Z"));
+        engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 5);
+        assertEquals(1, engine.progressOf(player, quest.id(), "logs").current(), "between runs nothing counts");
+        assertEquals(QuestStatus.ACTIVE, store.status(player, quest.id()), "so it cannot finish between runs");
+
+        clock.set(FakeRuns.at("2027-10-02T12:00:00Z"));
+        engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 1);
+        assertEquals(2, engine.progressOf(player, quest.id(), "logs").current(), "once the run starts it counts");
     }
 
     @Test

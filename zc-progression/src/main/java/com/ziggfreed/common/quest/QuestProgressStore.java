@@ -98,13 +98,14 @@ public interface QuestProgressStore {
          * reach for it, and neither is an ordinary writer.
          *
          * <p>The first is a STORE'S DECODER reading a value with no fourth field, which is a
-         * development-tree courtesy and nothing wider. No released build ever wrote a completion
-         * record of ANY width, so a save that has actually been out in the world carries none: it
-         * reads as nothing recorded and simply starts counting from the first finish or collection
-         * after the upgrade. A three-number value exists only where a tree was run against an
-         * earlier build of this same unreleased cycle, and reading it as nothing collected would
-         * take a completed prerequisite away from a player who had earned it under the rule that
-         * build was written under, where a finish WAS the payout.
+         * development-tree courtesy and nothing wider. Every release from zc 2.1.0 on writes four
+         * numbers, so a released save carries its last finish and both tallies that way (and is read
+         * as it was written); a release before 2.1.0 wrote no completion record at all, so a save from
+         * one reads as nothing recorded and simply starts counting from the first finish or collection
+         * after the upgrade. A three-number value exists only where a tree was run against a
+         * development build from before 2.1.0, and reading it as nothing collected would take a
+         * completed prerequisite away from a player who had earned it under the rule that build was
+         * written under, where a finish WAS the payout.
          *
          * <p>The second is a TEST FIXTURE standing in for a player with nothing left uncollected,
          * which is the shape most cases about the repeat rules want. What is NOT sanctioned is
