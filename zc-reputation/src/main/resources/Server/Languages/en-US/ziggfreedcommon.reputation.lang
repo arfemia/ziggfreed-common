@@ -34,27 +34,57 @@ objective.reputation_rank.any = Reach a new rank
 
 # The Reputation page.
 page.title = Reputation
-page.empty = Nobody knows you yet. Help someone out and it shows up here.
-# A row: {0} the reputation, {1} the rank held.
-page.row = {0}: {1}
-# The row with what comes next: {0} the row so far, {1} how far, {2} the next rank.
-page.row.next = {0}, {1, number} to {2}
-# Past the top: {0} the row so far, {1} how far to the next reward.
-page.row.reward = {0}, {1, number} to the next reward
-# With gear: {0} the row so far, {1} what gear adds (or takes, in the .loss line).
-page.row.gear = {0} (+{1, number} from gear)
-page.row.gear.loss = {0} ({1, number} from gear)
-# The row's badge: the standing, gear included.
-page.badge = {0, number}
+page.lead = How well the people and powers of this world know you. Help them out to climb the ranks, and each rank opens something new.
+page.empty.title = Nobody knows you yet
+page.empty = Help someone out and they show up here.
+# The list's one section.
+page.section = Who knows you
 
-# The detail lines.
-detail.earned = Earned: {0, number}
-detail.gear = From gear: +{0, number}
-detail.gear.loss = From gear: {0, number}
-detail.next = Next rank: {0} at {1, number}
-detail.reward = Next reward at {0, number}
-detail.top = You have reached the top rank.
-detail.cap = The most you can earn: {0, number}
+# A row's second line. {0} how far, {1} the next rank.
+row.next = {0, number} to {1}
+# Past the top rank: {0} how much more earns the next reward.
+row.reward = {0, number} to the next reward
+row.top = Top rank reached
+# With gear: {0} the line so far, {1} what gear adds (or takes, in the .loss line).
+row.gear = {0} (+{1, number} from gear)
+row.gear.loss = {0} ({1, number} from gear)
+
+# The reading page. The pill under the name: {0} the rank held.
+detail.rank = Your rank: {0}
+# Over the bar: {0} how far into the rank, {1} the whole rank, {2} the next rank.
+detail.standing = {0, number} / {1, number} toward {2}
+# Past the top: {0} earned toward the next reward, {1} what each reward takes.
+detail.standing.reward = {0, number} / {1, number} toward the next reward
+detail.standing.top = Top rank reached
+# At the foot of the page, for a reputation gear adds to.
+hint.gear = Gear that adds to this counts toward your rank while you wear it.
+
+# How to earn it, when the reputation says nothing of its own.
+block.earn = How to earn
+earn.kills = Defeating certain creatures earns it.
+earn.gear = Some gear adds to it while you wear it.
+earn.default = Help them out: their quests and requests raise it.
+
+# Every rank, with the standing it takes and what it opens.
+block.ranks = Ranks
+block.ranks.meta = Standing needed
+# Something a rank opens: {0} what it is, {1} where to find it.
+unlock.at = {0} at {1}
+unlock.open = Unlocked
+
+# Past the top rank: {0} the top rank's name; the meta line {0} how much earned each payout takes.
+block.beyond = Past {0}
+block.beyond.meta = Every {0, number} earned
+# {0} the earned standing the next payout lands at.
+beyond.next = The next reward comes at {0, number} earned.
+
+# The numbers behind the standing.
+block.standing = Your standing
+standing.earned = Earned
+standing.gear = From gear you wear
+# What gear adds: {0} the amount.
+standing.gear.count = +{0, number}
+standing.cap = The most you can earn
 
 # The shared menu's tab.
 menu.tab = Reputation

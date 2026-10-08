@@ -30,10 +30,14 @@ public final class ReputationText {
             "rank.exalted", "rank.none",
             "reward.gain", "reward.loss",
             "hud.caption",
-            "page.title", "page.empty", "page.row", "page.row.next", "page.row.reward", "page.row.gear",
-            "page.row.gear.loss", "page.badge",
-            "detail.earned", "detail.gear", "detail.gear.loss", "detail.next", "detail.reward", "detail.top",
-            "detail.cap", "menu.tab");
+            "page.title", "page.lead", "page.empty.title", "page.empty", "page.section",
+            "row.next", "row.reward", "row.top", "row.gear", "row.gear.loss",
+            "detail.rank", "detail.standing", "detail.standing.reward", "detail.standing.top", "hint.gear",
+            "block.earn", "earn.kills", "earn.gear", "earn.default",
+            "block.ranks", "block.ranks.meta", "unlock.at", "unlock.open",
+            "block.beyond", "block.beyond.meta", "beyond.next",
+            "block.standing", "standing.earned", "standing.gear", "standing.gear.count", "standing.cap",
+            "menu.tab");
 
     private ReputationText() {
     }

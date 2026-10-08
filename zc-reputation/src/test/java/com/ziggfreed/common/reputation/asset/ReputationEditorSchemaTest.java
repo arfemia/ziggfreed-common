@@ -27,7 +27,7 @@ import com.hypixel.hytale.codec.schema.config.StringSchema;
 class ReputationEditorSchemaTest {
 
     private static final List<String> LEAVES = List.of(
-            "Enabled", "Text", "Icon", "Order", "Gear", "Cap", "Ranks", "Kills", "Beyond");
+            "Enabled", "Text", "Icon", "Order", "Gear", "Cap", "Ranks", "Kills", "Beyond", "Earn");
 
     @Test
     void theTopLevelLeavesDeclareTheirDefaultsAndSentences() {
@@ -76,6 +76,13 @@ class ReputationEditorSchemaTest {
         ObjectSchema beyond = ReputationAsset.Beyond.CODEC.toSchema(new SchemaContext());
         assertEquals(Integer.valueOf(0), ((IntegerSchema) beyond.getProperties().get("Every")).getDefault(),
                 "an unauthored Every pays nothing, and the schema must say so");
+    }
+
+    @Test
+    void theEarnLinesSayWhatTheyHold() {
+        ObjectSchema earn = ReputationAsset.Earn.CODEC.toSchema(new SchemaContext());
+        assertNotNull(((ArraySchema) earn.getProperties().get("Lines")).getItems(), "each entry is one line's key");
+        assertNotNull(earn.getProperties().get("Lines").getMarkdownDescription());
     }
 
     @Test

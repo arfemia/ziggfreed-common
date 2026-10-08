@@ -11,6 +11,7 @@ import com.ziggfreed.common.commerce.CommerceStore;
 import com.ziggfreed.common.commerce.CommerceStores;
 import com.ziggfreed.common.commerce.ComponentCommerceStore;
 import com.ziggfreed.common.currency.CurrencyEngine;
+import com.ziggfreed.common.progress.gate.GatedContent;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -42,12 +43,14 @@ public final class CommerceDefaults {
 
     /**
      * Install the defaults, once, from the wiring root's {@code setup()}: the component-backed state
-     * store, the currency engine over the authored wallets, and the connect hook that gives each
-     * player somewhere to keep it.
+     * store, the currency engine over the authored wallets, the connect hook that gives each
+     * player somewhere to keep it, and the gated offers and board slots a requirement's reader
+     * lists ({@link CommerceGatedContent}).
      */
     public static void install(@Nonnull PluginBase plugin) {
         CommerceStores.install(ComponentCommerceStore.INSTANCE);
         installCurrencyEngine(assetBacked());
+        GatedContent.register(CommerceGatedContent.ID, CommerceGatedContent::entries);
         plugin.getEventRegistry().register(PlayerConnectEvent.class, CommerceDefaults::onPlayerConnect);
         SafeLog.info("[commerce] economy ready: wallets, prices and rotations read the authored "
                 + "content, and commerce state is kept on a per-player component saved with the world");

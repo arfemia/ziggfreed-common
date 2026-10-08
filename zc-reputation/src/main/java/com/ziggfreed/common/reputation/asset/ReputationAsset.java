@@ -39,7 +39,8 @@ import com.ziggfreed.common.text.ContentTextAsset;
  *   "Cap": 21000,
  *   "Ranks": { "Friendly": { "Name": "yourmod.reputation.traders.rank.friendly" } },
  *   "Kills": [ { "NPCGroups": [ "Your_Bandits" ], "Amount": 5 } ],
- *   "Beyond": { "Every": 5000, "Rewards": [ { "Kind": "Lootable", "Params": { "Lootable": "Your_Cache" } } ] } }
+ *   "Beyond": { "Every": 5000, "Rewards": [ { "Kind": "Lootable", "Params": { "Lootable": "Your_Cache" } } ] },
+ *   "Earn": { "Lines": [ "yourmod.reputation.traders.earn.contracts" ] } }
  * }</pre>
  *
  * <p>A native group with no file here still works: it reads by its id, with no gear, no cap and no
@@ -65,6 +66,7 @@ public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAs
     @Nullable protected Map<String, RankName> ranks;
     @Nullable protected Kill[] kills;
     @Nullable protected Beyond beyond;
+    @Nullable protected Earn earn;
 
     public static final AssetBuilderCodec<String, ReputationAsset> CODEC = AssetBuilderCodec.builder(
                     ReputationAsset.class,
@@ -116,6 +118,11 @@ public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAs
                     (a, v) -> a.beyond = v, a -> a.beyond, (a, p) -> a.beyond = p.beyond)
             .documentation("Rewards for standing earned past the top rank's floor, paid each time earned "
                     + "standing crosses another multiple of Every.").add()
+            .appendInherited(new KeyedCodec<>("Earn", Earn.CODEC, false),
+                    (a, v) -> a.earn = v, a -> a.earn, (a, p) -> a.earn = p.earn)
+            .documentation("How a player earns this reputation, in your own words, for the Reputation page's "
+                    + "How to earn block. Leave it out and the page says only what the library can see "
+                    + "(kills that count, gear that adds).").add()
             .build();
 
     public ReputationAsset() {
@@ -236,6 +243,21 @@ public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAs
         return List.copyOf(out);
     }
 
+    /** The localization keys of the How to earn lines, in authored order, blanks dropped; empty when none. */
+    @Nonnull
+    public List<String> earnKeys() {
+        List<String> out = new ArrayList<>();
+        if (earn != null && earn.lines != null) {
+            for (String line : earn.lines) {
+                String key = blankToNull(line);
+                if (key != null) {
+                    out.add(key);
+                }
+            }
+        }
+        return List.copyOf(out);
+    }
+
     @Nullable
     static String blankToNull(@Nullable String value) {
         return value == null || value.isBlank() ? null : value.trim();
@@ -314,6 +336,23 @@ public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAs
         /** The standing one kill moves; 0 when unauthored. */
         public int amount() {
             return amount == null ? 0 : amount;
+        }
+    }
+
+    /** The Earn group: how a player earns this reputation, as lines the page reads out. */
+    public static final class Earn {
+
+        @Nullable protected String[] lines;
+
+        public static final BuilderCodec<Earn> CODEC = BuilderCodec.builder(Earn.class, Earn::new)
+                .appendInherited(new KeyedCodec<>("Lines", Codec.STRING_ARRAY, false),
+                        (o, v) -> o.lines = v, o -> o.lines, (o, p) -> o.lines = p.lines)
+                .documentation("Localization keys in your own lang file, one line each, in the order the page "
+                        + "lists them: what earns this reputation (\"Finish Old Jack's quests\", \"Take his "
+                        + "board contracts\"). Under Parent this list replaces the parent's whole.").add()
+                .build();
+
+        public Earn() {
         }
     }
 
