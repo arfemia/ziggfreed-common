@@ -1,5 +1,9 @@
 package com.ziggfreed.common.quest;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -23,10 +27,13 @@ import com.ziggfreed.common.quest.QuestProgressStore.CompletionRecord;
  * from outside play lands between runs.
  *
  * <p><b>An old record</b>, saved before the run tally existed, carries no run year: it belongs to the run
- * whose days hold its last finish, and holds one finish there. A last finish no run's days hold belongs
- * to no run.
+ * nearest its last finish by the event's dates as they stand now ({@code nearestRunYear}), and holds one
+ * finish there. A record with no last finish belongs to no run.
  */
 public final class PerRuns {
+
+    /** The calendar dates no first year after it: a stored finish later than this is a corrupt value. */
+    private static final int LAST_FINISH_YEAR = 9999;
 
     private PerRuns() {
     }
@@ -43,23 +50,62 @@ public final class PerRuns {
         return next == null ? null : next.year();
     }
 
-    /** The run year {@code record} counts for: its own, else (an old record) the run whose days hold its last finish. */
+    /**
+     * The run year {@code record} counts for: its own, else (an old record) the run nearest its last finish
+     * ({@code nearestRunYear}), which the reader's clock does not move.
+     */
     @Nullable
     public static Integer runYearOf(@Nonnull CompletionRecord record, @Nonnull Quest.Repeat.PerRun perRun,
             long nowMs, @Nonnull OccurrenceSource occurrences) {
         if (record.runYear() != null) {
             return record.runYear();
         }
-        long last = record.lastCompletionMs();
-        if (last <= 0L) {
+        return nearestRunYear(perRun, record.lastCompletionMs(), occurrences);
+    }
+
+    /**
+     * The run an old record (one saved before the run tally, so with no run year) belongs to: the run of
+     * {@code perRun}'s event nearest its last finish at {@code finishMs}, by the event's dates as they
+     * stand now. A run whose days hold the finish wins outright; otherwise the run least far from it wins
+     * (the time until it starts, or since it ended), among the runs of the finish's own year on the
+     * event's clock and the years either side, and on a tie the earlier run. An old record holds one
+     * finish, in this run.
+     *
+     * <p>Every such record was finished inside a run of a once-a-year event, since a once-a-run quest is
+     * on offer only while its run is going on, so this is its own run after any re-dating of less than
+     * half a year. It needs nothing saved, and it holds whenever the player next logs in, even when the
+     * owner moved the dates before that. Null when the record holds no finish (or one dated past the
+     * calendar's years), or no run of those years exists (the event absent, or not yet at its first year).
+     */
+    @Nullable
+    static Integer nearestRunYear(@Nonnull Quest.Repeat.PerRun perRun, long finishMs,
+            @Nonnull OccurrenceSource occurrences) {
+        if (finishMs <= 0L) {
             return null;
         }
-        for (Occurrence run : occurrences.history(perRun.event(), nowMs)) {
-            if (run.contains(last)) {
+        ZoneId zone = occurrences.zone(perRun.event());
+        int year = Instant.ofEpochMilli(finishMs).atZone(zone).getYear();
+        if (year > LAST_FINISH_YEAR) {
+            return null;
+        }
+        // A run's year is the year it starts in, so every run of the year after has begun by that year's end.
+        long horizon = LocalDate.of(year + 2, 1, 1).atStartOfDay(zone).toInstant().toEpochMilli() - 1L;
+        Occurrence nearest = null;
+        long nearestGap = Long.MAX_VALUE;
+        for (Occurrence run : occurrences.history(perRun.event(), horizon)) {
+            if (run.year() < year - 1 || run.year() > year + 1) {
+                continue;
+            }
+            if (run.contains(finishMs)) {
                 return run.year();
             }
+            long gap = finishMs < run.startMs() ? run.startMs() - finishMs : finishMs - run.endMs();
+            if (nearest == null || gap < nearestGap || (gap == nearestGap && run.year() < nearest.year())) {
+                nearest = run;
+                nearestGap = gap;
+            }
         }
-        return null;
+        return nearest == null ? null : nearest.year();
     }
 
     /**

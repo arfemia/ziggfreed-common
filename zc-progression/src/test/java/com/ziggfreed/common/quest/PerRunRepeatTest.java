@@ -10,6 +10,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,7 +27,7 @@ import com.ziggfreed.common.subject.Subject;
 /**
  * Once a run of a calendar event: a quest finished in a run is not offered again in that run, whatever
  * moves the run (a force, an owner moving its days, the new year inside it); an old record with no run
- * year counts for the run its last finish fell in; and an unfinished quest keeps its progress into the
+ * year counts for the run nearest its last finish; and an unfinished quest keeps its progress into the
  * next run, where finishing it counts. Runs are keyed (event, year), never by whether now is in them.
  */
 class PerRunRepeatTest {
@@ -160,6 +161,112 @@ class PerRunRepeatTest {
         assertFalse(offeredAt(engine, quest, "2026-10-20T12:00:00Z"),
                 "a player who finished it in 2026 is not offered it again in 2026");
         assertTrue(offeredAt(engine, quest, "2027-10-02T12:00:00Z"), "but is in 2027");
+    }
+
+    /** A save from before the run tally (four numbers, no run year): one finish of {@code quest} at {@code iso}. */
+    private void savedBeforeTheRunTally(@Nonnull Quest quest, @Nonnull String iso) {
+        store.setStatus(player, quest.id(), QuestStatus.COMPLETED);
+        store.setCompletions(player, quest.id(),
+                new QuestProgressStore.CompletionRecord(FakeRuns.at(iso), 0, 1, 1));
+    }
+
+    /** The run year {@code record} counts for at {@code iso}, read as the engine reads it. */
+    @Nullable
+    private Integer countedFor(@Nonnull QuestProgressStore.CompletionRecord record, @Nonnull String iso) {
+        return PerRuns.runYearOf(record, new Quest.Repeat.PerRun(EVENT, 1), FakeRuns.at(iso), runs);
+    }
+
+    /**
+     * The yearly lantern case: a save from before the run tally holds a finish on October 15, and mid-run
+     * the owner moves the event's start from October 1 to October 20. The run no longer holds the finish,
+     * yet it is still the run nearest it, so the finish stays spent there, by its new dates and in a run
+     * forced on before them.
+     */
+    @Test
+    void anOldRecordStaysSpentForItsRunAfterTheOwnerMovesTheStartPastItsFinish() {
+        runs.run(2025, "2025-10-01", "2025-11-03").run(2026, "2026-10-01", "2026-11-03")
+                .run(2027, "2027-10-01", "2027-11-03");
+        Quest quest = onceARun(1, 1, 0);
+        QuestEngine engine = engine(quest);
+        savedBeforeTheRunTally(quest, "2026-10-15T12:00:00Z");
+
+        runs.run(2025, "2025-10-20", "2025-11-03").run(2026, "2026-10-20", "2026-11-03")
+                .run(2027, "2027-10-20", "2027-11-03");
+        runs.force(true);
+        assertFalse(offeredAt(engine, quest, "2026-10-18T12:00:00Z"),
+                "forced on before its new start, it is the run the finish was in, and spent");
+
+        runs.force(null);
+        assertFalse(offeredAt(engine, quest, "2026-10-25T12:00:00Z"),
+                "by its new dates too: the run that starts five days after the finish is the one it was in");
+        assertEquals(List.of(QuestGates.REASON_RUN_SPENT), engine.canAccept(player, quest).reasons());
+        assertEquals(Integer.valueOf(2026), countedFor(store.completions(player, quest.id()), "2026-10-25T12:00:00Z"));
+        assertEquals(1, store.completions(player, quest.id()).totalCount(), "nothing was paid twice");
+    }
+
+    @Test
+    void thatOldRecordIsNotSpentForTheNextYearsRun() {
+        runs.run(2025, "2025-10-20", "2025-11-03").run(2026, "2026-10-20", "2026-11-03")
+                .run(2027, "2027-10-20", "2027-11-03");
+        Quest quest = onceARun(1, 1, 0);
+        QuestEngine engine = engine(quest);
+        savedBeforeTheRunTally(quest, "2026-10-15T12:00:00Z");
+
+        finishAt(engine, quest, "2027-10-25T12:00:00Z");
+        assertEquals(Integer.valueOf(2027), store.completions(player, quest.id()).runYear(),
+                "the 2027 run is a new run, and finishing it there counts for it");
+        assertEquals(1, store.completions(player, quest.id()).runCount(), "as its first finish");
+        assertFalse(offeredAt(engine, quest, "2027-10-26T12:00:00Z"));
+    }
+
+    @Test
+    void anOldRecordInAYearCrossingRunCountsForItsDecemberYearAlsoAfterASmallReDate() {
+        runs.run(2026, "2026-12-15", "2027-01-06").run(2027, "2027-12-15", "2028-01-06");
+        Quest quest = onceARun(1, 1, 0);
+        QuestEngine engine = engine(quest);
+        savedBeforeTheRunTally(quest, "2027-01-03T12:00:00Z");
+        QuestProgressStore.CompletionRecord old = store.completions(player, quest.id());
+        assertEquals(Integer.valueOf(2026), countedFor(old, "2027-01-04T12:00:00Z"),
+                "the run that began in December holds the January finish");
+
+        runs.run(2026, "2026-12-20", "2027-01-02").run(2027, "2027-12-20", "2028-01-02");
+        assertEquals(Integer.valueOf(2026), countedFor(old, "2027-01-04T12:00:00Z"),
+                "moved to end on January 2, the December run is still the nearest");
+        assertTrue(offeredAt(engine, quest, "2027-12-21T12:00:00Z"),
+                "and the run that begins in December 2027 is the next one");
+    }
+
+    @Test
+    void aRecordWithARunYearKeepsItWhateverRunIsNearestItsFinish() {
+        runs.run(2026, "2026-10-01", "2026-11-03").run(2027, "2027-10-01", "2027-11-03");
+        Quest quest = onceARun(1, 1, 0);
+        QuestEngine engine = engine(quest);
+        runs.force(true);
+        finishAt(engine, quest, "2027-04-10T12:00:00Z");
+        QuestProgressStore.CompletionRecord forced = store.completions(player, quest.id());
+        assertEquals(Integer.valueOf(2027), forced.runYear(), "forced on in April it is the 2027 run");
+        QuestProgressStore.CompletionRecord asIfOld =
+                new QuestProgressStore.CompletionRecord(forced.lastCompletionMs(), 0, 1, 1);
+        assertEquals(Integer.valueOf(2026), countedFor(asIfOld, "2027-04-11T12:00:00Z"),
+                "as an old record the same finish would sit nearer the 2026 run");
+
+        runs.force(null);
+        assertEquals(Integer.valueOf(2027), countedFor(forced, "2027-10-02T12:00:00Z"), "its own run year stands");
+        assertFalse(offeredAt(engine, quest, "2027-10-02T12:00:00Z"), "so the 2027 run is spent");
+    }
+
+    @Test
+    void anOldRecordAsFarFromTwoRunsCountsForTheEarlier() {
+        runs.run(2025, "2025-03-01", "2025-08-31").run(2026, "2026-03-01", "2026-08-31")
+                .run(2027, "2027-03-01", "2027-08-31");
+        // 90 and a half days after the 2026 run ends on September 1, and as long before the 2027 run starts.
+        long midway = FakeRuns.at("2026-11-30T12:00:00Z");
+        assertEquals(Integer.valueOf(2026),
+                countedFor(new QuestProgressStore.CompletionRecord(midway, 0, 1, 1), "2027-04-01T12:00:00Z"),
+                "a tie goes to the earlier run");
+        assertEquals(Integer.valueOf(2027),
+                countedFor(new QuestProgressStore.CompletionRecord(midway + 1L, 0, 1, 1), "2027-04-01T12:00:00Z"),
+                "a moment later the later run is the nearer");
     }
 
     @Test
