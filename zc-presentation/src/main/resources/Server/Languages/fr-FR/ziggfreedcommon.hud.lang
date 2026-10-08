@@ -11,6 +11,7 @@ spot.bottom_left = Bas gauche
 # Les deux panneaux, tels que les sélecteurs et les réponses les nomment.
 panel.activity_ledger = Progression de la fabrication
 panel.world_bars = Gains d'XP et de réputation
+panel.center_bars = Changements de réputation dans les menus
 
 # La page des paramètres HUD.
 settings.title = Barres HUD
@@ -51,7 +52,7 @@ desc.place = Placer un panneau à un emplacement nommé, pour vous.
 desc.hide = Masquer un panneau pour vous, ou tous les panneaux.
 desc.show = Afficher un panneau que vous aviez masqué, ou tous les panneaux.
 desc.default = Définir l'emplacement d'un panneau pour tous.
-desc.arg.panel = Le panneau : Activity_Ledger (le journal d'activité) ou World_Bars (les barres du monde).
+desc.arg.panel = Le panneau : Activity_Ledger (le journal d'activité), World_Bars (les barres du monde) ou Center_Bars (les changements de réputation faits dans un menu).
 desc.arg.placement = L'emplacement, par son ID, ou "server" pour suivre le choix du serveur.
 desc.arg.player = Dont modifier le HUD. Par défaut, le vôtre.
 desc.arg.panel_or_all = Le panneau, ou "all" pour tous les panneaux. Par défaut, tous.
@@ -60,7 +61,7 @@ open.needsPlayer = Exécutez cette commande en jeu : les paramètres vous appart
 open.failed = Les paramètres n'ont pas pu être ouverts.
 player.needed = Nommez un joueur avec --player=<name>, ou exécutez cette commande en jeu.
 player.offline = Ce joueur n'est pas connecté.
-panel.unknown = Aucun panneau n'est appelé « {0} ». Utilisez Activity_Ledger ou World_Bars.
+panel.unknown = Aucun panneau n'est appelé « {0} ». Utilisez Activity_Ledger, World_Bars ou Center_Bars.
 spot.unknown = Aucun emplacement n'est appelé « {0} ».
 spot.unfit = {0} n'a pas été mesuré pour {1}, donc il n'est pas proposé là.
 place.done = {0} se trouve maintenant à {1}.

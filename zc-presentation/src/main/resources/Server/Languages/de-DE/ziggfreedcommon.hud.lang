@@ -11,6 +11,7 @@ spot.bottom_left = Unten links
 # Die beiden Panels, wie die Picker und die Antworten sie nennen.
 panel.activity_ledger = Herstellungsfortschritt
 panel.world_bars = XP- und Ruf-Gewinne
+panel.center_bars = Ruf-Änderungen in Menüs
 
 # Die HUD-Einstellungsseite.
 settings.title = HUD-Leisten
@@ -51,7 +52,7 @@ desc.place = Platzieren Sie ein Panel an einer benannten Position für sich selb
 desc.hide = Verstecken Sie ein Panel für sich selbst oder alle Panels.
 desc.show = Zeigen Sie ein Panel an, das Sie versteckt haben, oder alle Panels.
 desc.default = Legen Sie die Position fest, an der ein Panel für alle sitzt.
-desc.arg.panel = Das Panel: Activity_Ledger (das Aktivitätsprotokoll) oder World_Bars (die Welt-Leisten).
+desc.arg.panel = Das Panel: Activity_Ledger (das Aktivitätsprotokoll), World_Bars (die Welt-Leisten) oder Center_Bars (in einem Menü vorgenommene Ruf-Änderungen).
 desc.arg.placement = Die Position nach ihrer ID, oder "server" um der Wahl des Servers zu folgen.
 desc.arg.player = Wessen HUD soll geändert werden. Standard sind Sie.
 desc.arg.panel_or_all = Das Panel oder "all" für alle Panels. Standard ist all.
@@ -60,7 +61,7 @@ open.needsPlayer = Führen Sie dies im Spiel aus: Die Einstellungen sind Ihre, u
 open.failed = Die Einstellungen konnten nicht geöffnet werden.
 player.needed = Nennen Sie einen Spieler mit --player=<name> oder führen Sie dies im Spiel aus.
 player.offline = Dieser Spieler ist nicht online.
-panel.unknown = Kein Panel heißt "{0}". Verwenden Sie Activity_Ledger oder World_Bars.
+panel.unknown = Kein Panel heißt "{0}". Verwenden Sie Activity_Ledger, World_Bars oder Center_Bars.
 spot.unknown = Keine Position heißt "{0}".
 spot.unfit = {0} wurde nicht für {1} gemessen, daher wird es dort nicht angeboten.
 place.done = {0} sitzt jetzt bei {1}.

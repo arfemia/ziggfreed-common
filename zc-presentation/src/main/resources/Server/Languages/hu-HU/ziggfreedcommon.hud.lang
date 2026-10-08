@@ -10,6 +10,7 @@ spot.bottom_left = Bal lent
 # A két panel, ahogyan a választók és a válaszok nevezik őket.
 panel.activity_ledger = Barkácsolás haladása
 panel.world_bars = XP és hírnév szerzés
+panel.center_bars = Hírnévváltozások a menükben
 
 # A HUD beállítások oldal.
 settings.title = HUD sávok
@@ -50,7 +51,7 @@ desc.place = Helyezz el egy panelt egy elnevezett helyen, magadnak.
 desc.hide = Rejtsd el egy panelt magadnak, vagy minden panelt.
 desc.show = Mutasd meg a panelt, amit elrejtetted, vagy minden panelt.
 desc.default = Állítsd be a helyet, ahol egy panel mindenki számára helyezkedik el.
-desc.arg.panel = A panel: Activity_Ledger (a tevékenység napló) vagy World_Bars (a világ sávok).
+desc.arg.panel = A panel: Activity_Ledger (a tevékenység napló), World_Bars (a világ sávok) vagy Center_Bars (egy menüben történt hírnévváltozások).
 desc.arg.placement = A hely az azonosítója szerint, vagy "server" a szerver választása követéséhez.
 desc.arg.player = Kinek a HUD-ját módosítsd. Alapértelmezés szerint a tiéd.
 desc.arg.panel_or_all = A panel, vagy "all" minden panelhez. Alapértelmezés szerint mind.
@@ -59,7 +60,7 @@ open.needsPlayer = Futtasd ezt a játékban: a beállítások a tieid, és a kon
 open.failed = A beállítások nem nyithatók meg.
 player.needed = Nevezz meg egy játékost a --player=<name> segítségével, vagy futtasd ezt a játékban.
 player.offline = Ez a játékos nem online.
-panel.unknown = Nincs "{0}" nevű panel. Használd az Activity_Ledger-t vagy a World_Bars-t.
+panel.unknown = Nincs "{0}" nevű panel. Használd az Activity_Ledger-t, a World_Bars-t vagy a Center_Bars-t.
 spot.unknown = Nincs "{0}" nevű hely.
 spot.unfit = {0} nem lett mérve a {1} számára, ezért nincs ott felkínálva.
 place.done = {0} most a {1} helyen ül.

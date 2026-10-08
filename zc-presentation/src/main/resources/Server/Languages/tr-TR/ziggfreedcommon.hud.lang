@@ -11,6 +11,7 @@ spot.bottom_left = Sol altta
 # İki panel, seçicilerin ve yanıtların adlandırdıkları şekilde.
 panel.activity_ledger = Üretim ilerlemesi
 panel.world_bars = XP ve itibar kazançları
+panel.center_bars = Menülerdeki itibar değişiklikleri
 
 # HUD ayarları sayfası.
 settings.title = HUD çubukları
@@ -51,7 +52,7 @@ desc.place = Paneli adlandırılmış bir konuma kendine ait olarak yerleştir.
 desc.hide = Bir paneli kendine ait olarak veya tüm panelleri gizle.
 desc.show = Gizlediğin bir paneli veya tüm panelleri göster.
 desc.default = Bir panelin herkes için oturduğu konumu ayarla.
-desc.arg.panel = Panel: Activity_Ledger (aktivite defteri) veya World_Bars (dünya çubukları).
+desc.arg.panel = Panel: Activity_Ledger (aktivite defteri), World_Bars (dünya çubukları) veya Center_Bars (bir menüde yapılan itibar değişiklikleri).
 desc.arg.placement = Yer, kimliğine göre veya sunucunun seçimini izlemek için "server".
 desc.arg.player = Kimin HUD'u değiştirecek. Varsayılan olarak sensin.
 desc.arg.panel_or_all = Panel veya tüm paneller için "all". Varsayılan tümü.
@@ -60,7 +61,7 @@ open.needsPlayer = Bunu oyunda çalıştır: ayarlar senindir ve konsolun HUD'u 
 open.failed = Ayarlar açılamadı.
 player.needed = Bir oyuncuyu --player=<name> ile adlandır veya bunu oyunda çalıştır.
 player.offline = Bu oyuncu çevrimiçi değil.
-panel.unknown = "{0}" adında bir panel yok. Activity_Ledger ya da World_Bars kullan.
+panel.unknown = "{0}" adında bir panel yok. Activity_Ledger, World_Bars ya da Center_Bars kullan.
 spot.unknown = "{0}" adında bir yer yok.
 spot.unfit = {0}, {1} için ölçülmedi, bu yüzden orada sunulmamaktadır.
 place.done = {0} artık {1} konumunda oturuyor.

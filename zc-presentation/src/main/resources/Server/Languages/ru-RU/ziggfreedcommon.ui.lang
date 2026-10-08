@@ -11,6 +11,7 @@ hud.bar.gain = +{0, number}
 # The same gain from ten thousand up, arriving already written compact ("12.3k") because the wide
 # panel's gain column has no room for the grouped form; the entry only signs it.
 hud.bar.gain.compact = +{0}
+hud.bar.loss = -{0, number}
 
 menu.desc = Открыть меню заданий, достижений и не только.
 menu.open.needsPlayer = Открыть меню может только игрок.

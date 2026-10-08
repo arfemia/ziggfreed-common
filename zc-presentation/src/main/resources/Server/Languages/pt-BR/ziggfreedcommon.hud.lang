@@ -11,6 +11,7 @@ spot.bottom_left = Canto inferior esquerdo
 # Os dois painéis, como os seletores e as respostas os nomeiam.
 panel.activity_ledger = Progresso de criação
 panel.world_bars = Ganhos de XP e reputação
+panel.center_bars = Mudanças de reputação em menus
 
 # A página de configurações do HUD.
 settings.title = Barras HUD
@@ -51,7 +52,7 @@ desc.place = Coloque um painel em um local nomeado, para você mesmo.
 desc.hide = Oculte um painel para você, ou cada painel.
 desc.show = Mostre um painel que você ocultou, ou cada painel.
 desc.default = Defina o local onde um painel fica para todos.
-desc.arg.panel = O painel: Activity_Ledger (o registro de atividades) ou World_Bars (as barras do mundo).
+desc.arg.panel = O painel: Activity_Ledger (o registro de atividades), World_Bars (as barras do mundo) ou Center_Bars (mudanças de reputação feitas em um menu).
 desc.arg.placement = O local, por seu id, ou "server" para seguir a escolha do servidor.
 desc.arg.player = Cujo HUD mudar. Padrão é você.
 desc.arg.panel_or_all = O painel, ou "all" para cada painel. Padrão é all.
@@ -60,7 +61,7 @@ open.needsPlayer = Execute isto no jogo: as configurações são suas, e o conso
 open.failed = As configurações não puderam ser abertas.
 player.needed = Nomeie um jogador com --player=<name>, ou execute isto no jogo.
 player.offline = Esse jogador não está online.
-panel.unknown = Nenhum painel é chamado "{0}". Use Activity_Ledger ou World_Bars.
+panel.unknown = Nenhum painel é chamado "{0}". Use Activity_Ledger, World_Bars ou Center_Bars.
 spot.unknown = Nenhum local é chamado "{0}".
 spot.unfit = {0} não foi medido para {1}, então não é oferecido lá.
 place.done = {0} agora fica em {1}.
