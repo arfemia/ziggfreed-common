@@ -89,6 +89,8 @@ class ZigStylesDocumentTest {
         }
         assertTrue(style(ui, "@ZigRowTitleOnSelectedStyle").contains("TextColor: $ZK.@ZigInkBright"),
                 "white on the selected row (4.9:1)");
+        assertTrue(style(ui, "@ZigRowTitleOnSelectedStyle").contains("...$ZX.@ZigLedgerTitleStyle"),
+                "the selected row's title is the two-line list title, so selecting never cuts its second line (M515)");
     }
 
     @Test

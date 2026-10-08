@@ -107,6 +107,8 @@ class ZigKitDocumentsTest {
                 "MinShrinkTextToFitFontSize: $ZT.@ZigFontCaption"));
         styles.put("@ZigRowTitleStyle", List.of("Emphasis", "ZigInkStrong", "RenderBold: true", "Wrap: true",
                 "WrapMaxLines: 1"));
+        styles.put("@ZigLedgerTitleStyle", List.of("Emphasis", "ZigInkStrong", "RenderBold: true",
+                "VerticalAlignment: Center", "Wrap: true", "WrapMaxLines: 2"));
         styles.put("@ZigTileNameStyle", List.of("Emphasis", "ZigInkStrong", "RenderBold: true",
                 "FontName: \"Secondary\"", "RenderUppercase: true", "WrapMaxLines: 2"));
         styles.put("@ZigHeadingStyle", List.of("Heading", "ZigInkStrong", "RenderBold: true"));
@@ -132,20 +134,21 @@ class ZigKitDocumentsTest {
     @Test
     void theLedgerRowCarriesTheSeamIdsInsideOneButton() throws IOException {
         String ui = document("Pages/ZigLedgerRow.ui");
-        assertEquals(56, size(leaf(property(block(ui, "#ZigLedgerRow"), "Anchor"), "Height")), "a row is 56 high");
+        assertEquals(56, strut(block(ui, "#Select"), "#RowStrut", "the standard row"),
+                "a row with a one-line title is 56 high");
         assertNull(leaf(property(block(ui, "#ZigLedgerRow"), "Anchor"), "Width"), "a row fills its parent's width");
         assertLedgerRow(ui, 32);
         String select = block(ui, "#Select");
         assertTrue(declares(select, "#Meta"), "the standard row's second line");
         assertOneLine(property(block(ui, "#Meta"), "Style"), "$ZX.@ZigCaptionStyle");
-        assertEquals("$ZX.@ZigRowTitleStyle", property(block(ui, "#Title"), "Style"));
+        assertEquals("$ZX.@ZigLedgerTitleStyle", property(block(ui, "#Title"), "Style"));
     }
 
     @Test
     void theCompactRowHasTheSameIdsWithoutAMetaLine() throws IOException {
         String ui = document("Pages/ZigLedgerRowCompact.ui");
-        assertEquals(44, size(leaf(property(block(ui, "#ZigLedgerRowCompact"), "Anchor"), "Height")),
-                "a compact row is 44 high");
+        assertEquals(44, strut(block(ui, "#Select"), "#RowStrut", "the compact row"),
+                "a compact row with a one-line title is 44 high");
         assertLedgerRow(ui, 28);
         assertFalse(declares(ui, "#Meta"), "a compact row has no second line");
     }
@@ -153,8 +156,9 @@ class ZigKitDocumentsTest {
     /**
      * The tall row (M369): the standard row with its meta line let onto a second line, for a list whose meta runs
      * long ("On now - 27 days left"). Every id the standard row declares is declared here as often, so a painter
-     * treats the two alike; the title stays the one-line row title; {@code #Meta} is the same caption, wrapping to
-     * two lines, its height doubled; and the row grows by exactly that second line, its height a named token.
+     * treats the two alike; the title is the standard row's; {@code #Meta} is the same caption, wrapping to two
+     * lines, its height doubled; and the row's least height (its strut) grows by exactly that second line, a named
+     * token.
      */
     @Test
     void theTallRowIsTheStandardRowWithAMetaLineThatWrapsToTwo() throws IOException {
@@ -173,7 +177,7 @@ class ZigKitDocumentsTest {
         }
         assertLedgerRow(ui, 32);
         assertEquals(property(block(standard, "#Title"), "Style"), property(block(ui, "#Title"), "Style"),
-                "the title stays the one-line row title");
+                "the title is the standard row's, wrapping the same way");
 
         String meta = property(block(ui, "#Meta"), "Style");
         assertTrue(meta != null && meta.contains("$ZX.@ZigCaptionStyle") && meta.contains("Wrap: true")
@@ -186,9 +190,11 @@ class ZigKitDocumentsTest {
                 "the meta's height doubled, so its second line is drawn");
 
         String rowAnchor = property(block(ui, "#ZigLedgerRowTall"), "Anchor");
-        assertEquals("$ZK.@ZigTallRowHeight", leaf(rowAnchor, "Height"), "the tall row's height is a named token");
-        assertEquals(size(leaf(property(block(standard, "#ZigLedgerRow"), "Anchor"), "Height")) + oneLine,
-                size(leaf(rowAnchor, "Height")), "the row grows by the meta's second line and nothing else");
+        assertEquals("$ZK.@ZigTallRowHeight", leaf(property(block(ui, "#RowStrut"), "Anchor"), "Height"),
+                "the tall row's height is a named token");
+        assertEquals(strut(block(standard, "#Select"), "#RowStrut", "the standard row") + oneLine,
+                strut(block(ui, "#Select"), "#RowStrut", "the tall row"),
+                "the row grows by the meta's second line and nothing else");
         assertEquals(leaf(property(block(standard, "#ZigLedgerRow"), "Anchor"), "Bottom"), leaf(rowAnchor, "Bottom"),
                 "the gap under a row is the standard row's");
         assertNull(leaf(rowAnchor, "Width"), "a row fills its parent's width");
@@ -196,9 +202,9 @@ class ZigKitDocumentsTest {
     }
 
     /**
-     * Each row size is its template: the height a list lays out by is the template root's authored height, and a
-     * size says it has a meta line exactly when its template declares {@code #Meta} (a painter never addresses one
-     * that is not there).
+     * Each row size is its template: the height a list can count on is the least the template's row keeps (its
+     * strut's height, the row with a one-line title), and a size says it has a meta line exactly when its template
+     * declares {@code #Meta} (a painter never addresses one that is not there).
      */
     @Test
     void everyRowSizeIsItsTemplatesHeightAndMetaLine() throws IOException {
@@ -206,11 +212,81 @@ class ZigKitDocumentsTest {
             String path = rowSize.template();
             assertTrue(DOCUMENTS.contains(path), path + " is a kit document, so every generic kit check covers it");
             String ui = document(path);
-            String root = "#" + path.substring(path.indexOf('/') + 1, path.length() - ".ui".length());
-            assertEquals(rowSize.height(), size(leaf(property(block(ui, root), "Anchor"), "Height")),
-                    rowSize + " is " + path + "'s height");
+            assertEquals(rowSize.height(), strut(block(ui, "#Select"), "#RowStrut", path),
+                    rowSize + " is " + path + "'s height with a one-line title");
             assertEquals(rowSize.hasMeta(), declares(ui, "#Meta"), rowSize + " has a meta line iff " + path
                     + " declares one");
+        }
+    }
+
+    /**
+     * A row's title wraps onto a second line instead of ending in "..." (M515), and the row grows to fit it, in every
+     * row size. No row fixes its height: the root and its button take none, so the row is as tall as its tallest part
+     * (the client's own notification row, {@code Interface/InGame/Hud/Notification.ui}, and its map player row, a
+     * Button with no Height, {@code Interface/InGame/Pages/MapPagePlayerListEntry.ui}), and an invisible strut,
+     * {@code #RowStrut}, holds it at its size's height, so a title that fits one line looks as it did. The title is a
+     * FlexWeight label with no Height (the client's report hint, {@code Interface/InGame/Overlays/OnlinePlaySettings.ui}),
+     * capped at two lines. On a row with a meta line the title sits in {@code #TitleLine}, which grows the same way
+     * over its own strut, so the meta stays under the title's last line. The badge and the pin keep their places: the
+     * trail is last in the row and stacks from its top, and the mark follows the title, anchored to the top of its
+     * line, never centred on a taller one.
+     */
+    @Test
+    void everyRowGrowsToFitATitleOnTwoLines() throws IOException {
+        Integer titleLine = null;
+        for (RowSize rowSize : RowSize.values()) {
+            String path = rowSize.template();
+            String ui = document(path);
+            String root = "#" + path.substring(path.indexOf('/') + 1, path.length() - ".ui".length());
+            String rootAnchor = property(block(ui, root), "Anchor");
+            assertNull(leaf(rootAnchor, "Height"), path + ": the row fixes no height, so it grows with its title");
+            assertEquals("$ZK.@ZigSpace1", leaf(rootAnchor, "Bottom"), path + ": the gap under a row stays");
+            String select = block(ui, "#Select");
+            assertNull(leaf(property(select, "Anchor"), "Height"), path + ": the row's button grows with it");
+            strut(select, "#RowStrut", path);
+            for (String part : List.of("#Body", "#Trail")) {
+                if (declares(select, part)) {
+                    assertFalse(declares(block(select, part), "#RowStrut"),
+                            path + ": the row's strut is the button's own child, not " + part + "'s");
+                }
+            }
+
+            String title = block(ui, "#Title");
+            assertEquals("Label", type(ui, "#Title"));
+            assertEquals("1", property(title, "FlexWeight"), path + ": the title takes the row's free width");
+            assertNull(leaf(property(title, "Anchor"), "Height"),
+                    path + ": the title fixes no height, so its second line grows its line");
+            assertEquals("$ZX.@ZigLedgerTitleStyle", property(title, "Style"),
+                    path + ": the title is the kit's two-line list title");
+
+            String titleHost = rowSize.hasMeta() ? block(ui, "#TitleLine") : select;
+            assertTrue(at(titleHost, "#Title") < at(titleHost, "#Mark"), path + ": the pin follows the title");
+            String mark = property(block(ui, "#Mark"), "Anchor");
+            assertNotNull(leaf(mark, "Top"), path + ": the pin is anchored to the top of the title's line");
+            assertNull(leaf(mark, "Bottom"), path + ": the pin is anchored to the top, never centred");
+
+            String trail = block(select, "#Trail");
+            assertEquals("Top", property(trail, "LayoutMode"), path + ": the badge stacks from the row's top");
+            assertNull(leaf(property(trail, "Anchor"), "Height"), path + ": the trail fixes no height");
+            assertNotNull(leaf(property(trail, "Padding"), "Top"), path + ": the badge keeps its offset from the top");
+            assertTrue(at(select, "#Trail") > at(select, rowSize.hasMeta() ? "#Body" : "#Title"),
+                    path + ": the badge stays at the row's end");
+
+            if (rowSize.hasMeta()) {
+                String line = block(ui, "#TitleLine");
+                assertEquals("Left", property(line, "LayoutMode"), path + ": the pin sits beside the title");
+                assertNull(leaf(property(line, "Anchor"), "Height"), path + ": the title's line grows with it");
+                int oneLine = strut(line, "#TitleStrut", path + "'s title line");
+                assertTrue(size(leaf(mark, "Top")) + size(leaf(mark, "Height")) <= oneLine,
+                        path + ": the pin fits a one-line title's line");
+                if (titleLine != null) {
+                    assertEquals(titleLine.intValue(), oneLine, path + ": every row's title line is the same height");
+                }
+                titleLine = oneLine;
+                String body = block(ui, "#Body");
+                assertEquals("Top", property(body, "LayoutMode"));
+                assertTrue(at(body, "#TitleLine") < at(body, "#Meta"), path + ": the meta stays under the title");
+            }
         }
     }
 
@@ -755,6 +831,30 @@ class ZigKitDocumentsTest {
         assertEquals("$ZS.@ZigStateStyle", property(block(trail, "#State"), "Style"));
         assertEquals(1, count(ui, "\\bButton\\s+#"), "no other button in a row");
         assertFalse(ui.contains("TooltipText"), "no tooltip in a row");
+    }
+
+    /**
+     * {@code id} in {@code host} is a strut: an empty Group with no width and a fixed height, never hidden (a hidden
+     * element takes no room) and drawing nothing. The least height its line or row keeps; returned.
+     */
+    private static int strut(@Nonnull String host, @Nonnull String id, @Nonnull String where) throws IOException {
+        assertEquals("Group", type(host, id), where + ": " + id + " is a Group");
+        String strut = block(host, id);
+        assertFalse(strut.substring(1).contains("{"), where + ": " + id + " holds nothing");
+        String anchor = property(strut, "Anchor");
+        assertEquals(Integer.valueOf(0), size(leaf(anchor, "Width")), where + ": " + id + " takes no width");
+        Integer height = size(leaf(anchor, "Height"));
+        assertNotNull(height, where + ": " + id + " has a height");
+        assertNull(property(strut, "Visible"), where + ": " + id + " is never hidden, or it would take no room");
+        assertNull(property(strut, "Background"), where + ": " + id + " draws nothing");
+        return height;
+    }
+
+    /** Where {@code host} declares {@code id} ({@code Type #Id {}}), so two ids' order can be compared. */
+    private static int at(@Nonnull String host, @Nonnull String id) {
+        Matcher m = Pattern.compile(Pattern.quote(id) + "\\s*\\{").matcher(host);
+        assertTrue(m.find(), "declares " + id);
+        return m.start();
     }
 
     /** {@code id} is a {@code @ZigPicture} instance at {@code rung} pixels. */

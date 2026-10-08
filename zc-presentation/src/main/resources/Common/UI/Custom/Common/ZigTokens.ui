@@ -57,7 +57,8 @@
 @ZigSpace5 = 24;
 @ZigSpace6 = 32;
 
-// Heights.
+// Heights. A list row's three are its least, with a one-line title (its #RowStrut): a title on two lines grows the
+// row (M515).
 @ZigRowHeight = 56;
 @ZigCompactRowHeight = 44;
 @ZigTallRowHeight = 74;

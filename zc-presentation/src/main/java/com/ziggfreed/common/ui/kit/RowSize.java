@@ -5,15 +5,23 @@ import javax.annotation.Nonnull;
 /**
  * Which ledger row template a list paints: the standard two-line row, the compact one-line row, or the tall row
  * whose meta line wraps to two.
+ *
+ * <p>In every size a long title wraps onto a second line instead of ending in "...", a title longer still ends
+ * its second line with "...", and the row grows to fit it: a template fixes no height, only its least one (a strut,
+ * {@code #RowStrut}). So {@link #height()} is what a row takes with a one-line title, the least a list can count on
+ * per row, never its exact height; size a list host to scroll, not to a count of rows.
  */
 public enum RowSize {
-    /** {@code Pages/ZigLedgerRow.ui}: title and meta, 56 high. */
+    /** {@code Pages/ZigLedgerRow.ui}: title and meta, 56 high with a one-line title. */
     STANDARD("Pages/ZigLedgerRow.ui", ZigTokens.ROW_HEIGHT, true, false),
-    /** {@code Pages/ZigLedgerRowCompact.ui}: title and bar on one line, no meta, 44 high. */
+    /**
+     * {@code Pages/ZigLedgerRowCompact.ui}: title and bar on one line, no meta, 44 high; a title on two lines grows it
+     * only if the client draws the two lines taller than that.
+     */
     COMPACT("Pages/ZigLedgerRowCompact.ui", ZigTokens.COMPACT_ROW_HEIGHT, false, false),
     /**
-     * {@code Pages/ZigLedgerRowTall.ui}: title and a meta line that wraps to two, 74 high; for a list whose meta runs
-     * long ("On now - 27 days left").
+     * {@code Pages/ZigLedgerRowTall.ui}: title and a meta line that wraps to two, 74 high with a one-line title; for a
+     * list whose meta runs long ("On now - 27 days left").
      */
     TALL("Pages/ZigLedgerRowTall.ui", ZigTokens.TALL_ROW_HEIGHT, true, true);
 
@@ -35,7 +43,10 @@ public enum RowSize {
         return template;
     }
 
-    /** The row's authored height. */
+    /**
+     * The row's height with a one-line title, its template's strut: the least it takes, since a title on two lines
+     * grows it.
+     */
     public int height() {
         return height;
     }

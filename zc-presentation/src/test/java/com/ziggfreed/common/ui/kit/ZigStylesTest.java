@@ -101,7 +101,8 @@ class ZigStylesTest {
         ZigStyles.applyText(cmd, "#T.Style", ZigStyles.Text.ROW_TITLE, true);
         ZigStyles.applyText(cmd, "#U.Style", ZigStyles.Text.FAINT, false);
         Painted p = Painted.of(cmd);
-        assertTrue(p.references("#T.Style", ZigStyles.TEXT_DOCUMENT, "ZigRowTitleStyle"));
+        assertTrue(p.references("#T.Style", ZigStyles.TEXT_DOCUMENT, "ZigLedgerTitleStyle"),
+                "a list row's title goes back to the kit's two-line list title (M515)");
         assertEquals(ZigTokens.INK_FAINT, unwrap(p.set("#U.Style.TextColor")));
     }
 

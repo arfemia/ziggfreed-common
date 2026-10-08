@@ -88,6 +88,10 @@ public final class ZigStyles {
         STATE_BLOCKED("ZigStateBlockedStyle", Kind.LABEL, ZigTokens.TONE_BLOCKED_TEXT),
         STATE_DANGER("ZigStateDangerStyle", Kind.LABEL, ZigTokens.TONE_DANGER_TEXT),
         FIGURE_ACCENT("ZigFigureAccentStyle", Kind.LABEL, ZigTokens.ACCENT),
+        /**
+         * A selected list row's title, white on the steel blue; the two-line list title, so a theme's must wrap to two
+         * lines too, or selecting a row cuts its name back to one (M515).
+         */
         ROW_TITLE_ON_SELECTED("ZigRowTitleOnSelectedStyle", Kind.LABEL, ZigTokens.INK_BRIGHT),
         /** A selected row's meta line, white on the steel blue (the muted ink does not read there). */
         ROW_META_ON_SELECTED("ZigRowMetaOnSelectedStyle", Kind.LABEL, ZigTokens.INK_BRIGHT),
@@ -133,7 +137,8 @@ public final class ZigStyles {
      * replaced them. Not themed; the fallback form sends the colour alone.
      */
     enum Text {
-        ROW_TITLE("ZigRowTitleStyle", ZigTokens.INK_STRONG),
+        /** A list row's title at rest: the two-line list title its templates author (M515). */
+        ROW_TITLE("ZigLedgerTitleStyle", ZigTokens.INK_STRONG),
         FAINT("ZigFaintStyle", ZigTokens.INK_FAINT);
 
         private final String styleName;

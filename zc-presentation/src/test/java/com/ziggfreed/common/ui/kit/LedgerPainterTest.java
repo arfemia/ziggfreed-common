@@ -31,8 +31,8 @@ import com.ziggfreed.common.ui.menu.MenuPalette;
 /**
  * What a ledger paint sends: one section template per section and one row template per row of an open section, by
  * index, inside the templates' own roots; a row's parts on its button (title, meta, picture, the tone's accent and
- * state style, value, bar, mark); the selected row swapped to its named styles (a tall row's meta keeping its second
- * line through every swap); a cap that ends in "Show N more";
+ * state style, value, bar, mark); the selected row swapped to its named styles (every row's title and a tall row's
+ * meta keeping their second line through every swap); a cap that ends in "Show N more";
  * and the partial updates (select, open, close) addressing only what the paint put there, binding only what they
  * append. Tagged {@code engine-items}: a {@link UICommandBuilder}'s static init reaches the engine's item codec.
  */
@@ -235,25 +235,56 @@ class LedgerPainterTest {
         UICommandBuilder cmd = new UICommandBuilder();
         LedgerIndex index = LedgerPainter.paint(cmd, new UIEventBuilder(), LIST, model, Set.of(), "l", bindings(),
                 RowSize.TALL, null);
-        MetaLook authored = metaLook(new UICommandBuilder(), liveRow);
+        Look authored = metaLook(new UICommandBuilder(), liveRow);
         assertEquals(2, authored.lines(), "the tall template's meta wraps to two lines");
         assertEquals(ZigTokens.INK_MUTED, authored.ink(), "in the meta's muted ink");
 
-        MetaLook livePainted = metaLook(cmd, liveRow);
+        Look livePainted = metaLook(cmd, liveRow);
         assertTrue(livePainted.lines() >= 2, "the selected tall row's meta keeps its second line: " + livePainted);
         assertEquals(ZigTokens.INK_BRIGHT, livePainted.ink(), "and reads white on the steel blue");
-        MetaLook donePainted = metaLook(cmd, doneRow);
+        Look donePainted = metaLook(cmd, doneRow);
         assertTrue(donePainted.lines() >= 2, "a finished tall row's meta keeps its second line: " + donePainted);
         assertEquals(ZigTokens.INK_FAINT, donePainted.ink(), "and reads in the faint ink");
 
         UICommandBuilder moved = new UICommandBuilder();
         LedgerPainter.select(moved, index, "l", "d", null);
-        MetaLook letGo = metaLook(cmd, moved, liveRow);
+        Look letGo = metaLook(cmd, moved, liveRow);
         assertTrue(letGo.lines() >= 2, "a tall row let go keeps its second line: " + letGo);
         assertEquals(ZigTokens.INK_MUTED, letGo.ink(), "and goes back to the muted ink");
-        MetaLook picked = metaLook(cmd, moved, doneRow);
+        Look picked = metaLook(cmd, moved, doneRow);
         assertTrue(picked.lines() >= 2, "a finished tall row selected keeps its second line: " + picked);
         assertEquals(ZigTokens.INK_BRIGHT, picked.ink(), "and reads white");
+    }
+
+    /**
+     * A row's title keeps its second line in every state and every row size (M515): read in the order the client
+     * applies them, every whole-style write to {@code #Title} names a style capped at the two lines the template
+     * authors, so selecting a row or letting it go never cuts its title back to one line ending in "...". The words
+     * still read: white on the selected row, back in the strong ink when let go.
+     */
+    @Test
+    void aRowsTitleKeepsTwoLinesSelectedAndLetGo() throws IOException {
+        for (RowSize size : RowSize.values()) {
+            UICommandBuilder cmd = new UICommandBuilder();
+            LedgerIndex index = LedgerPainter.paint(cmd, new UIEventBuilder(), LIST, model(), Set.of(), "r1",
+                    bindings(), size, null);
+            Look authored = look(List.of(new UICommandBuilder()), size, ROW1, "#Title");
+            assertEquals(2, authored.lines(), size + ": the template's title wraps to two lines and no more");
+            assertEquals(ZigTokens.INK_STRONG, authored.ink(), size + ": in the title's strong ink");
+
+            Look selected = look(List.of(cmd), size, ROW0, "#Title");
+            assertEquals(2, selected.lines(), size + ": the selected row's title keeps its second line");
+            assertEquals(ZigTokens.INK_BRIGHT, selected.ink(), size + ": and reads white on the steel blue");
+
+            UICommandBuilder moved = new UICommandBuilder();
+            LedgerPainter.select(moved, index, "r1", "r2", null);
+            Look letGo = look(List.of(cmd, moved), size, ROW0, "#Title");
+            assertEquals(2, letGo.lines(), size + ": a row let go keeps its title's second line");
+            assertEquals(ZigTokens.INK_STRONG, letGo.ink(), size + ": and goes back to the strong ink");
+            Look picked = look(List.of(cmd, moved), size, ROW1, "#Title");
+            assertEquals(2, picked.lines(), size + ": a row selected by a partial keeps its title's second line");
+            assertEquals(ZigTokens.INK_BRIGHT, picked.ink(), size + ": and reads white");
+        }
     }
 
     @Test
@@ -263,7 +294,7 @@ class LedgerPainterTest {
         LedgerPainter.select(cmd, run.index, "r1", "r2", null);
         Painted p = Painted.of(cmd);
         assertTrue(p.references(ROW0 + ".Style", ZigStyles.DOCUMENT, "ZigRowStyle"));
-        assertTrue(p.references(ROW0 + " #Title.Style", ZigStyles.TEXT_DOCUMENT, "ZigRowTitleStyle"));
+        assertTrue(p.references(ROW0 + " #Title.Style", ZigStyles.TEXT_DOCUMENT, "ZigLedgerTitleStyle"));
         assertTrue(p.set(ROW0 + " #Meta.Style.TextColor").contains(ZigTokens.INK_MUTED), "the meta back in its ink");
         assertTrue(p.set(ROW0 + " #Value.Style.TextColor").contains(ZigTokens.INK_BODY));
         assertTrue(p.references(ROW0 + " #State.Style", ZigStyles.DOCUMENT, "ZigStateActiveStyle"),
@@ -419,39 +450,41 @@ class LedgerPainterTest {
     private record Run(Painted p, LedgerIndex index) {
     }
 
-    /** What a row's {@code #Meta} ends up as: the lines its style lets it draw, and its ink as {@code #rrggbb}. */
-    private record MetaLook(int lines, String ink) {
+    /** What a row's label ends up as: the lines its style lets it draw, and its ink as {@code #rrggbb}. */
+    private record Look(int lines, String ink) {
     }
 
     private static final Pattern REF_DOCUMENT = Pattern.compile("\"\\$Document\"\\s*:\\s*\"([^\"]+)\"");
     private static final Pattern REF_VALUE = Pattern.compile("\"@Value\"\\s*:\\s*\"([^\"]+)\"");
     private static final Pattern STRING_VALUE = Pattern.compile("\\{\\s*\"0\"\\s*:\\s*\"([^\"]*)\"\\s*}");
 
+    /** A tall row's {@code #Meta} after {@code paint} ({@link #look}). */
+    @Nonnull
+    private static Look metaLook(@Nonnull UICommandBuilder paint, @Nonnull String row) throws IOException {
+        return look(List.of(paint), RowSize.TALL, row, "#Meta");
+    }
+
+    /** A tall row's {@code #Meta} after a paint and then a partial update ({@link #look}). */
+    @Nonnull
+    private static Look metaLook(@Nonnull UICommandBuilder paint, @Nonnull UICommandBuilder update,
+            @Nonnull String row) throws IOException {
+        return look(List.of(paint, update), RowSize.TALL, row, "#Meta");
+    }
+
     /**
-     * A tall row's {@code #Meta} after the client applies {@code builders} in order, starting from the look the tall
-     * template authors: a whole-style write replaces the look with the named style's (its line cap and its ink,
-     * read through any spread it builds on), a {@code .TextColor} leaf replaces the ink alone.
+     * A row's {@code label} after the client applies {@code builders} in order, starting from the look the
+     * {@code size}'s template authors: a whole-style write replaces the look with the named style's (its line cap and
+     * its ink, read through any spread it builds on), a {@code .TextColor} leaf replaces the ink alone.
      */
     @Nonnull
-    private static MetaLook metaLook(@Nonnull UICommandBuilder paint, @Nonnull String row) throws IOException {
-        return metaLook(List.of(paint), row);
-    }
-
-    /** {@link #metaLook(UICommandBuilder, String)} after a paint and then a partial update. */
-    @Nonnull
-    private static MetaLook metaLook(@Nonnull UICommandBuilder paint, @Nonnull UICommandBuilder update,
-            @Nonnull String row) throws IOException {
-        return metaLook(List.of(paint, update), row);
-    }
-
-    @Nonnull
-    private static MetaLook metaLook(@Nonnull List<UICommandBuilder> builders, @Nonnull String row) throws IOException {
-        String doc = RowSize.TALL.template();
-        String authored = KitDocs.property(KitDocs.block(KitDocs.document(doc), "#Meta"), "Style");
-        assertNotNull(authored, doc + "'s #Meta has a style");
+    private static Look look(@Nonnull List<UICommandBuilder> builders, @Nonnull RowSize size, @Nonnull String row,
+            @Nonnull String label) throws IOException {
+        String doc = size.template();
+        String authored = KitDocs.property(KitDocs.block(KitDocs.document(doc), label), "Style");
+        assertNotNull(authored, doc + "'s " + label + " has a style");
         int lines = lines(doc, authored);
         String ink = ink(doc, authored);
-        String whole = row + " #Meta.Style";
+        String whole = row + " " + label + ".Style";
         for (UICommandBuilder builder : builders) {
             for (CustomUICommand command : builder.getCommands()) {
                 if (command.type != CustomUICommandType.Set) {
@@ -471,7 +504,7 @@ class LedgerPainterTest {
                 }
             }
         }
-        return new MetaLook(lines, ink);
+        return new Look(lines, ink);
     }
 
     /** The lines a label style lets its text draw: its {@code WrapMaxLines}, unbounded when it wraps with none, else 1. */
@@ -494,9 +527,17 @@ class LedgerPainterTest {
         return MenuPalette.fromMarkup(markup);
     }
 
-    /** One leaf of a style's body ({@code (...)}), its own or the one it spreads ({@code ...$ZX.@Name}). */
+    /**
+     * One leaf of a style: a named style it is ({@code $ZX.@Name}), or its body's ({@code (...)}), its own or the one
+     * it spreads ({@code ...$ZX.@Name}).
+     */
     private static String styleLeaf(@Nonnull String doc, @Nonnull String style, @Nonnull String leaf)
             throws IOException {
+        Matcher named = Pattern.compile("\\$([A-Za-z]+)\\.@([A-Za-z][A-Za-z0-9]*)").matcher(style.trim());
+        if (named.matches()) {
+            String from = imported(doc, named.group(1));
+            return styleLeaf(from, KitDocs.style(KitDocs.document(from), "@" + named.group(2)), leaf);
+        }
         Matcher own = Pattern.compile("(?<![\\w@.])" + Pattern.quote(leaf) + "\\s*:\\s*([^,)]+)").matcher(style);
         if (own.find()) {
             return own.group(1).trim();

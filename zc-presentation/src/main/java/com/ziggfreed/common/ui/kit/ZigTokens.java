@@ -91,11 +91,17 @@ public final class ZigTokens {
     public static final int SPACE_4 = integer("ZigSpace4", 16);
     public static final int SPACE_5 = integer("ZigSpace5", 24);
     public static final int SPACE_6 = integer("ZigSpace6", 32);
-    /** {@code Pages/ZigLedgerRow.ui}, vanilla's World Event row. */
+    /**
+     * {@code Pages/ZigLedgerRow.ui} with a one-line title, vanilla's World Event row; a title on two lines grows it
+     * ({@link RowSize}).
+     */
     public static final int ROW_HEIGHT = integer("ZigRowHeight", 56);
-    /** {@code Pages/ZigLedgerRowCompact.ui}. */
+    /** {@code Pages/ZigLedgerRowCompact.ui}, its least height ({@link RowSize}). */
     public static final int COMPACT_ROW_HEIGHT = integer("ZigCompactRowHeight", 44);
-    /** {@code Pages/ZigLedgerRowTall.ui}: the standard row plus its meta's second line. */
+    /**
+     * {@code Pages/ZigLedgerRowTall.ui} with a one-line title: the standard row plus its meta's second line; a title on
+     * two lines grows it ({@link RowSize}).
+     */
     public static final int TALL_ROW_HEIGHT = integer("ZigTallRowHeight", 74);
     public static final int SECTION_HEAD_HEIGHT = integer("ZigSectionHeadHeight", 32);
     /** {@code Pages/ZigDetailLine.ui}. */

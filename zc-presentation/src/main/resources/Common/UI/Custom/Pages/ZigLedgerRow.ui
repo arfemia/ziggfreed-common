@@ -5,28 +5,46 @@ $ZW = "../Common/ZigKit.ui";
 
 // One row of a kit list (a quest, an achievement, a season, a skill's tier), appended by
 // com.ziggfreed.common.ui.kit.LedgerPainter into a section's #Rows and addressed by index as
-// "#Rows[i] #Select", so a page never spells these ids. 56 high, it fills its parent's width.
+// "#Rows[i] #Select", so a page never spells these ids. It fills its parent's width and grows to fit its title:
+// 56 high with a one-line title, taller when the title runs onto a second line (M515).
 //
 // Vanilla's World Event list row (Pages/WorldEvent/WorldEventListRow.ui): one Button, #Select, holds the whole
 // row, so a click anywhere on it selects it, and it swaps between ZigRowStyle and ZigRowSelectedStyle by
 // reference (Common/ZigStyles.ui). Inside it, left to right:
+//   #RowStrut an empty, zero-wide Group 56 high: the row's least height (below)
 //   #Accent   a 4px bar in the row's tone (its one colour; a tone's fill is pushed onto its Background)
 //   #Pic      the 32px picture slot, painted through IconRenderer.applyPlainIcon (no tooltip, no rarity square)
-//   #Title    the name, one line, ended with "..."; #Mark beside it shows #Pinned or #Tracked
+//   #Title    the name, up to two lines, a longer one ending its second line with "..."; #Mark after it shows #Pinned or #Tracked
 //   #Meta     one line under the title ("3 / 10 ghouls", "Tier 3 of 5")
 //   #BarTrack a 4px progress bar under the meta, hidden without progress
 //   #Trail    92 wide at the end: #Value (points, a count) over #State (the tone's state word)
 // No other button and no tooltip in a row: a label with a tooltip would swallow the row's click.
+//
+// The row fixes no height. The root and #Select are Left rows with no Height, so each is as tall as its tallest
+// part, the way the client's own notification row is (Interface/InGame/Hud/Notification.ui: a Left row with no
+// Height over a fixed 48px icon and a FlexWeight text column holding a wrapped Label with no Height); a Button
+// sizes the same way (the client's Interface/InGame/Pages/MapPagePlayerListEntry.ui, vanilla's
+// Pages/SubcommandCard.ui). #RowStrut is the fixed part here, a zero-wide Group as the client's
+// Interface/MainMenu/TopBar/TopBar.ui spells one, so a one-line title draws exactly as the old fixed 56 row did.
+// #TitleLine grows the same way over its own 22px strut, #TitleStrut: #Title is a FlexWeight Label with no Height
+// that wraps, as the client's report hint is (Interface/InGame/Overlays/OnlinePlaySettings.ui, #ReportHint), so
+// a second line pushes #Meta down and the row with it. #Pic, #Mark and #Trail keep their places: each is anchored
+// to the top (a Top anchor, or a Top stack's padding), so on a taller row the picture, the pin and the state word
+// stay level with the title's first line while #Accent and the button's fill run the row's whole height.
 
 Group #ZigLedgerRow {
   LayoutMode: Left;
-  Anchor: (Height: $ZK.@ZigRowHeight, Bottom: $ZK.@ZigSpace1);
+  Anchor: (Bottom: $ZK.@ZigSpace1);
 
   Button #Select {
     FlexWeight: 1;
     LayoutMode: Left;
     Padding: (Right: $ZK.@ZigSpace3);
     Style: $ZS.@ZigRowStyle;
+
+    Group #RowStrut {
+      Anchor: (Width: 0, Height: $ZK.@ZigRowHeight);
+    }
 
     Group #Accent {
       Anchor: (Width: 4, Right: 10);
@@ -45,12 +63,15 @@ Group #ZigLedgerRow {
 
       Group #TitleLine {
         LayoutMode: Left;
-        Anchor: (Height: 22);
+
+        Group #TitleStrut {
+          Anchor: (Width: 0, Height: 22);
+        }
 
         Label #Title {
           FlexWeight: 1;
           Text: "";
-          Style: $ZX.@ZigRowTitleStyle;
+          Style: $ZX.@ZigLedgerTitleStyle;
         }
 
         Group #Mark {

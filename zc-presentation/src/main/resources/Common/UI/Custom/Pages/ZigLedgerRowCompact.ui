@@ -4,19 +4,30 @@ $ZS = "../Common/ZigStyles.ui";
 $ZW = "../Common/ZigKit.ui";
 
 // The kit's compact row (an overview strip, a tracked or pinned panel), 44 high: Pages/ZigLedgerRow.ui's ids
-// without its #Meta line, the title and its bar on one line. Appended by
+// without its #Body column (no #Meta line), the title and its bar on one line. Appended by
 // com.ziggfreed.common.ui.kit.LedgerPainter and addressed by index as "#Rows[i] #Select", like the standard row;
-// a painter treats the two alike, so the ids here match that row's exactly.
+// a painter treats the two alike, so every id it addresses here matches that row's.
+//
+// Like the standard row it fixes no height (M515): the root and #Select size to their tallest part over #RowStrut,
+// a zero-wide Group 44 high, and #Title is a FlexWeight Label with no Height that wraps to two lines, the second
+// ended with "...". A one-line title sits centred in the 44 row as it always did; a second line grows the row only
+// if the client draws the two lines taller than 44. #Pic, #Mark and #BarTrack keep their
+// Top anchors and #Trail stacks from the top, so they stay where they were. Pages/ZigLedgerRow.ui names the
+// client's and vanilla's documents each shape comes from.
 
 Group #ZigLedgerRowCompact {
   LayoutMode: Left;
-  Anchor: (Height: $ZK.@ZigCompactRowHeight, Bottom: $ZK.@ZigSpace1);
+  Anchor: (Bottom: $ZK.@ZigSpace1);
 
   Button #Select {
     FlexWeight: 1;
     LayoutMode: Left;
     Padding: (Right: 10);
     Style: $ZS.@ZigRowStyle;
+
+    Group #RowStrut {
+      Anchor: (Width: 0, Height: $ZK.@ZigCompactRowHeight);
+    }
 
     Group #Accent {
       Anchor: (Width: 4, Right: $ZK.@ZigSpace2);
@@ -30,9 +41,8 @@ Group #ZigLedgerRowCompact {
 
     Label #Title {
       FlexWeight: 1;
-      Anchor: (Height: $ZK.@ZigCompactRowHeight);
       Text: "";
-      Style: $ZX.@ZigRowTitleStyle;
+      Style: $ZX.@ZigLedgerTitleStyle;
     }
 
     Group #Mark {

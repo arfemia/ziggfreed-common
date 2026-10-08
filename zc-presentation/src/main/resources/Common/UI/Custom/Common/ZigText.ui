@@ -24,8 +24,11 @@ $ZK = "ZigTokens.ui";
 @ZigBodyStyle = LabelStyle(FontSize: $ZT.@ZigFontBody, TextColor: $ZK.@ZigInkBody, VerticalAlignment: Center);
 // The label inside every kit Button (#Label): bold, and shrinking to fit a fixed width, never under 13.
 @ZigButtonLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontBody, TextColor: $ZK.@ZigInkBright, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: $ZT.@ZigFontCaption);
-// A list row's, a tile's or a card's name: one line.
+// A tile's or a card's name: one line.
 @ZigRowTitleStyle = LabelStyle(FontSize: $ZT.@ZigFontEmphasis, TextColor: $ZK.@ZigInkStrong, RenderBold: true, VerticalAlignment: Center, Wrap: true, WrapMaxLines: 1);
+// A kit list row's name (Pages/ZigLedgerRow*.ui): the row title's look, wrapping onto a second line rather than
+// ending in "..."; a longer name ends its second line with "...". The row grows to fit it; a fixed-height label never takes this style.
+@ZigLedgerTitleStyle = LabelStyle(FontSize: $ZT.@ZigFontEmphasis, TextColor: $ZK.@ZigInkStrong, RenderBold: true, VerticalAlignment: Center, Wrap: true, WrapMaxLines: 2);
 // A category tile's name: the headline face, uppercase, two lines.
 @ZigTileNameStyle = LabelStyle(FontSize: $ZT.@ZigFontEmphasis, TextColor: $ZK.@ZigInkStrong, RenderBold: true, FontName: "Secondary", RenderUppercase: true, VerticalAlignment: Center, Wrap: true, WrapMaxLines: 2);
 // A card's or a block's title.
