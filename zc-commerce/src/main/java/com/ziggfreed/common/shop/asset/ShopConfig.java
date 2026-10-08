@@ -27,9 +27,13 @@ import com.ziggfreed.common.world.WhereValidator.LoadedWorld;
  */
 public final class ShopConfig extends AbstractKeyedAssetConfig<StorefrontAsset> {
 
+    /** The store's mod-gate label, which its drop lines carry (a contract the season boot pair parses). */
+    public static final String MOD_GATE_STORE = "Shops";
+
     private static final ShopConfig INSTANCE = new ShopConfig();
 
     private ShopConfig() {
+        super(MOD_GATE_STORE);
     }
 
     @Nonnull

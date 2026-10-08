@@ -30,6 +30,9 @@ import com.ziggfreed.common.util.SafeLog;
  */
 public final class BonusRowConfig extends AbstractKeyedAssetConfig<BonusRowAsset> {
 
+    /** The store's mod-gate label, which its drop lines carry (a contract the season boot pair parses). */
+    public static final String MOD_GATE_STORE = "BonusRows";
+
     private static final BonusRowConfig INSTANCE = new BonusRowConfig();
 
     /**
@@ -47,6 +50,7 @@ public final class BonusRowConfig extends AbstractKeyedAssetConfig<BonusRowAsset
     private final BonusRolls rolls = new BonusRolls(SafeLog::warn);
 
     private BonusRowConfig() {
+        super(MOD_GATE_STORE);
     }
 
     @Nonnull

@@ -1,7 +1,9 @@
 package com.ziggfreed.common.quest.asset;
 
 import static com.ziggfreed.common.quest.asset.QuestAssetStoreContributionTest.amountOf;
+import static com.ziggfreed.common.quest.asset.QuestAssetStoreContributionTest.quest;
 import static com.ziggfreed.common.quest.asset.QuestGatedBaseTest.foldAsTheLoadHandlerDoes;
+import static com.ziggfreed.common.quest.asset.QuestGeneratorTest.generator;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -117,6 +119,76 @@ class QuestOwnerModGateTest {
         assertNotNull(pool.definition("owner_mmo_errand"));
         assertNotNull(pool.definition("owner_mmo_sequel"));
         assertNotNull(pool.definition("owner_hunt_sequel"));
+        assertTrue(lines.isEmpty(), "nothing dropped says nothing: " + lines);
+    }
+
+    // ==================== the owner's own gate on a quest the pack ships ungated (M295 fix round) ====================
+
+    /**
+     * The owner gates two quests that ship with no gate: the pack's {@code Harvest_Gather} and a contributed
+     * {@code Harvest_Hunt}. An owner sequel names the first as its Parent, a generator family stands on it,
+     * and a second generator writes a quest under the second's id.
+     */
+    private void anOwnerGateOverQuestsThatShipUngated() throws Exception {
+        Path folder = dir.resolve(QuestOwnerLayers.FOLDER);
+        write(folder, "Harvest_Gather.json", "{ " + GATE + " }");
+        write(folder, "Harvest_Hunt.json", "{ " + GATE + " }");
+        write(folder, "Owner_Harvest_Sequel.json",
+                "{ \"Parent\": \"Harvest_Gather\", \"Text\": { \"TitleKey\": \"quest.harvest_sequel\" } }");
+        STORE.mergeContributed(Map.of("harvest_hunt", quest("harvest_hunt", 4)));
+        STORE.mergeGenerators(Map.of(
+                "harvest_ladder", generator("{ \"Base\": \"harvest_gather\", \"IdPattern\": \"harvest_gather_{material}\","
+                        + " \"ForEach\": [ { \"Token\": \"material\", \"Values\": [\"copper\"] } ],"
+                        + " \"Child\": { \"Objectives\": { \"collect\": { \"Target\": \"{material}_Ore\" } } } }",
+                        "harvest_ladder"),
+                "errand_ladder", generator("{ \"Base\": \"owner_errand\", \"IdPattern\": \"harvest_{kind}\","
+                        + " \"ForEach\": [ { \"Token\": \"kind\", \"Values\": [\"hunt\"] } ],"
+                        + " \"Child\": { \"Objectives\": { \"collect\": { \"Target\": \"Bone\" } } } }",
+                        "errand_ladder")));
+    }
+
+    /**
+     * The maintainer's ruling: an owner quest gated on a missing mod takes that whole id out, the pack's
+     * version and the contributed one included, exactly as a gated pack file would. The id then counts as
+     * refused: a family over it and a quest whose Parent it is follow it out, a generated quest under its id
+     * is out too, and no finding names it. The store's owner line counts each.
+     */
+    @Test
+    void withoutTheMmoAnOwnerGateOnAnUngatedQuestTakesTheWholeIdOutAndWhatStandsOnItFollows() throws Exception {
+        anOwnerGateOverQuestsThatShipUngated();
+        mmoInstalled(false);
+        foldAsTheLoadHandlerDoes(packs);
+
+        QuestAssetStore.Resolution resolution = STORE.resolve(null);
+        QuestPool pool = resolution.pool();
+
+        assertNull(pool.definition("harvest_gather"), "the pack's ungated quest does not stand in for the owner's");
+        assertNull(pool.definition("harvest_hunt"), "nor does the contributed one, or one a generator writes");
+        assertNull(pool.definition("owner_harvest_sequel"), "a quest whose Parent it is follows it out");
+        assertNull(pool.definition("harvest_gather_copper"), "and so does the family over it");
+        for (Finding finding : resolution.issues()) {
+            assertFalse((finding.sourceId() + " " + finding.message()).toLowerCase(Locale.ROOT).contains("harvest_"),
+                    "no finding names a quest the owner's gate took out: " + finding);
+        }
+        assertEquals(List.of(
+                "[zc] mod gate: Quests dropped 2 pack file(s) gated on a missing mod (" + MMO + ")",
+                "[zc] mod gate: Quests dropped 7 owner override(s) gated on a missing mod (" + MMO + ")"), lines);
+        assertFalse(STORE.composedAssets().containsKey("harvest_gather"), "the composed view leaves it out too");
+    }
+
+    @Test
+    void withTheMmoTheOwnersGateMergesOverTheUngatedQuestAndKeepsIt() throws Exception {
+        anOwnerGateOverQuestsThatShipUngated();
+        mmoInstalled(true);
+        foldAsTheLoadHandlerDoes(packs);
+
+        QuestPool pool = STORE.resolve(null).pool();
+
+        assertEquals(5, amountOf(pool, "harvest_gather"), "it keeps the step the pack wrote");
+        assertNotNull(STORE.composedAssets().get("harvest_gather").getRequires(), "and the gate the owner added");
+        assertEquals(4, amountOf(pool, "harvest_hunt"), "the contributed quest's step, under the owner's gate");
+        assertNotNull(pool.definition("owner_harvest_sequel"));
+        assertNotNull(pool.definition("harvest_gather_copper"));
         assertTrue(lines.isEmpty(), "nothing dropped says nothing: " + lines);
     }
 }

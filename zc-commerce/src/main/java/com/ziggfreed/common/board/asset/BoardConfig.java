@@ -28,9 +28,13 @@ import com.ziggfreed.common.world.WhereValidator.LoadedWorld;
  */
 public final class BoardConfig extends AbstractKeyedAssetConfig<BoardAsset> {
 
+    /** The store's mod-gate label, which its drop lines carry (a contract the season boot pair parses). */
+    public static final String MOD_GATE_STORE = "Boards";
+
     private static final BoardConfig INSTANCE = new BoardConfig();
 
     private BoardConfig() {
+        super(MOD_GATE_STORE);
     }
 
     @Nonnull

@@ -130,4 +130,66 @@ class NpcPlacementOwnerModGateTest {
         assertEquals("Zc_Guard", roleOf("owner_mmo_guard"));
         assertTrue(lines.isEmpty(), "nothing dropped says nothing: " + lines);
     }
+
+    // ==================== the owner's own gate on a placement the pack ships ungated (M295 fix round) ====================
+
+    /** The owner file now gates the greeter, which the pack ships with no gate, and writes nothing else. */
+    private void ownerGatesTheGreeter() throws IOException {
+        Path file = NpcPlacementOverrides.getInstance().getFile();
+        Files.writeString(file, "{ \"Harvest_Greeter\": { " + GATE + " } }", StandardCharsets.UTF_8);
+        NpcPlacementOverrides.getInstance().load();
+    }
+
+    /**
+     * The maintainer's ruling: an owner placement gated on a missing mod takes that whole id out, the
+     * pack's ungated placement included, so nothing stands for it; it counts as refused and the owner line
+     * counts it. Nothing names it.
+     */
+    @Test
+    void withoutTheMmoAnOwnerGateOnAnUngatedPlacementTakesTheWholeIdOut() throws IOException {
+        ownerGatesTheGreeter();
+        mmoInstalled(false);
+
+        load();
+
+        NpcPlacementConfig config = NpcPlacementConfig.getInstance();
+        assertNull(config.resolve("harvest_greeter"), "the pack's ungated placement does not stand in for it");
+        assertFalse(config.all().containsKey("harvest_greeter"));
+        assertFalse(config.rolesByPlacement().containsKey("harvest_greeter"), "so no audit reads its role");
+        assertEquals(MMO, config.modGateRefused().get("harvest_greeter"), "it counts as refused");
+        assertEquals(List.of(
+                "[zc] mod gate: NpcPlacements dropped 1 pack file(s) gated on a missing mod (" + MMO + ")",
+                "[zc] mod gate: NpcPlacements dropped 1 owner override(s) gated on a missing mod (" + MMO + ")"),
+                lines);
+    }
+
+    @Test
+    void withTheMmoTheOwnersGateMergesOverThePackPlacementAndKeepsIt() throws IOException {
+        ownerGatesTheGreeter();
+        mmoInstalled(true);
+
+        load();
+
+        assertEquals("Zc_Greeter", roleOf("harvest_greeter"), "it keeps the role the pack wrote");
+        assertNotNull(NpcPlacementConfig.getInstance().resolve("harvest_greeter").getRequires(),
+                "and the gate the owner added");
+        assertTrue(lines.isEmpty(), "nothing dropped says nothing: " + lines);
+    }
+
+    /**
+     * A re-read decodes each body against the packs' answer again, never against what the last read left
+     * (an id it took out reads as nothing at all), so the entry still merges over the pack's placement.
+     */
+    @Test
+    void aReadAfterATakeOutStillDecodesTheEntryAgainstThePackPlacement() throws IOException {
+        ownerGatesTheGreeter();
+        mmoInstalled(false);
+        load();
+        assertNull(NpcPlacementConfig.getInstance().resolve("harvest_greeter"));
+
+        mmoInstalled(true);
+        load();
+
+        assertEquals("Zc_Greeter", roleOf("harvest_greeter"), "the entry inherits the pack's role again");
+    }
 }

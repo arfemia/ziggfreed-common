@@ -34,6 +34,9 @@ import com.ziggfreed.common.validation.ValidationReport;
  */
 public final class NpcPlacementConfig extends AbstractKeyedAssetConfig<NpcPlacementAsset> {
 
+    /** The store's mod-gate label, which its drop lines carry (a contract the season boot pair parses). */
+    public static final String MOD_GATE_STORE = "NpcPlacements";
+
     private static final NpcPlacementConfig INSTANCE = new NpcPlacementConfig();
 
     /** Whether the late audit has already had its one run this boot. */
@@ -44,6 +47,7 @@ public final class NpcPlacementConfig extends AbstractKeyedAssetConfig<NpcPlacem
     private volatile String lateAuditOwner;
 
     private NpcPlacementConfig() {
+        super(MOD_GATE_STORE);
     }
 
     @Nonnull

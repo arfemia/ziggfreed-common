@@ -37,6 +37,9 @@ import com.ziggfreed.common.validation.ValidationReport;
  */
 public final class AchievementAssetStore {
 
+    /** The store's mod-gate label, which its drop lines carry (a contract the season boot pair parses). */
+    public static final String MOD_GATE_STORE = "Achievements";
+
     private static final AchievementAssetStore INSTANCE = new AchievementAssetStore();
 
     @Nonnull

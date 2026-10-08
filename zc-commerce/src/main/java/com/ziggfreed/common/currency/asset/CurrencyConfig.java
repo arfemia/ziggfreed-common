@@ -26,9 +26,13 @@ import com.ziggfreed.common.validation.ValidationReport;
  */
 public final class CurrencyConfig extends AbstractKeyedAssetConfig<CurrencyAsset> {
 
+    /** The store's mod-gate label, which its drop lines carry (a contract the season boot pair parses). */
+    public static final String MOD_GATE_STORE = "Currencies";
+
     private static final CurrencyConfig INSTANCE = new CurrencyConfig();
 
     private CurrencyConfig() {
+        super(MOD_GATE_STORE);
     }
 
     @Nonnull

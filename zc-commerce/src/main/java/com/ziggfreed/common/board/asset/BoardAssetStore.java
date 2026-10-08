@@ -38,6 +38,9 @@ import com.ziggfreed.common.validation.ValidationReport;
  */
 public final class BoardAssetStore {
 
+    /** The store's mod-gate label, which its drop lines carry (a contract the season boot pair parses). */
+    public static final String MOD_GATE_STORE = "Bounties";
+
     private static final BoardAssetStore INSTANCE = new BoardAssetStore();
 
     @Nonnull

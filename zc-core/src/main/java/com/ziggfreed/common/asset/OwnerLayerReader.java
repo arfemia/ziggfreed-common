@@ -42,10 +42,13 @@ import com.ziggfreed.common.util.SafeLog;
  * from setup.
  *
  * <p><b>Owner files follow the mod gate.</b> An entry whose id the last gated pack fold refused
- * ({@link AbstractKeyedAssetConfig#modGateRefused}) goes with that file, before it is even decoded,
+ * ({@link AbstractKeyedAssetConfig#packModGateRefused}) goes with that file, before it is even decoded,
  * whatever it writes; and a gated store's caller passes its {@code missingMod} read, so an entry whose
- * own {@code Requires} gates on a missing mod is dropped like a pack file would be. Neither names the
- * entry anywhere: the store logs one counted line per missing mod ({@code ModGates.reportOwnerOverrides}).
+ * own {@code Requires} gates on a missing mod takes its whole id out, exactly as a gated pack file would
+ * (M295's ruling): the pack's version and the jar default under that id answer nothing, and the id reads
+ * as refused ({@link AbstractKeyedAssetConfig#mergeOwnerLayer(Map, Map)}), so the owner's restriction is
+ * never undone by a pack that ships the id ungated. Neither names the entry anywhere: the store logs one
+ * counted line per missing mod under its contract label ({@code ModGates.reportOwnerOverrides}).
  */
 public final class OwnerLayerReader {
 
@@ -68,8 +71,8 @@ public final class OwnerLayerReader {
 
     /**
      * Read one owner file and replace {@code config}'s owner layer with what it says, following the mod
-     * gate: an entry overriding a refused pack file, or whose own {@code Requires} names a missing mod,
-     * is dropped and counted in the store's owner drop line.
+     * gate: an entry overriding a refused pack file is dropped, one whose own {@code Requires} names a
+     * missing mod takes its whole id out of the store, and each is counted in the store's owner drop line.
      *
      * @param missingMod the store's read of a decoded entry's top-level {@code Requires} (its
      *                   {@code missingMod} helper): the mod that keeps it out, or null when it loads here
@@ -88,8 +91,9 @@ public final class OwnerLayerReader {
             return;
         }
 
-        Map<String, String> refused = config.modGateRefused();
+        Map<String, String> refused = config.packModGateRefused();
         Map<String, T> layer = new LinkedHashMap<>();
+        Map<String, String> gatedOut = new LinkedHashMap<>();
         List<String> dropped = new ArrayList<>();
         for (Map.Entry<String, JsonElement> entry : root.entrySet()) {
             String key = entry.getKey();
@@ -97,9 +101,8 @@ public final class OwnerLayerReader {
                 continue; // $Comment, $SchemaVersion and friends are file-level, not entries
             }
             String id = key.trim().toLowerCase(Locale.ROOT);
-            String refusedFor = refused.get(id);
-            if (refusedFor != null) {
-                dropped.add(refusedFor); // an override goes with the pack file the mod gate refused
+            if (refused.containsKey(id)) {
+                dropped.add(refused.get(id)); // an override goes with the pack file the mod gate refused
                 continue;
             }
             T decoded = decode(logTag, entry.getValue(), id, assetClass, codec, config, file, noun);
@@ -108,13 +111,16 @@ public final class OwnerLayerReader {
             }
             String missing = missingMod.apply(decoded);
             if (missing != null) {
-                dropped.add(missing); // gated on a mod this server lacks, like a pack file would be
+                // Gated on a mod this server lacks: the whole id goes, the pack's own version included,
+                // exactly as a gated pack file would.
+                gatedOut.put(id, missing);
+                dropped.add(missing);
                 continue;
             }
             layer.put(id, decoded);
         }
 
-        config.mergeOwnerLayer(layer);
+        config.mergeOwnerLayer(layer, gatedOut);
         ModGates.reportOwnerOverrides(config.modGateStore(), dropped);
         if (!layer.isEmpty()) {
             SafeLog.info("[" + logTag + "] " + file + ": " + layer.size() + " " + noun
@@ -133,7 +139,7 @@ public final class OwnerLayerReader {
                     + "' is not a block of settings, so it was skipped");
             return null;
         }
-        T base = config.resolve(id);
+        T base = config.resolveBelowOwner(id);
         try {
             AssetExtraInfo.Data data =
                     new AssetExtraInfo.Data(assetClass, id, base == null ? null : id);
