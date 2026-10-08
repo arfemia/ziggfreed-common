@@ -1,6 +1,8 @@
 package com.ziggfreed.common.almanac.page;
 
 import com.ziggfreed.common.almanac.view.AlmanacView;
+import com.ziggfreed.common.ui.kit.RowSize;
+import com.ziggfreed.common.ui.kit.ZigTokens;
 import com.ziggfreed.common.ui.menu.MenuFrame;
 
 /**
@@ -47,8 +49,12 @@ public final class AlmanacLayout {
     public static final int RECORD_GAP = 12;
     public static final int RECORD_HEIGHT = 100;
 
-    /** The least the season list keeps: one section head and three rows. */
-    public static final int LIST_MIN_HEIGHT = 224;
+    /**
+     * The least the season list keeps: one section head and three of the kit's tall rows it paints, each with the
+     * gap under it (266 today).
+     */
+    public static final int LIST_MIN_HEIGHT = ZigTokens.SECTION_HEAD_HEIGHT
+            + 3 * (RowSize.TALL.height() + ZigTokens.SPACE_1);
 
     // ---- the right column ----
 

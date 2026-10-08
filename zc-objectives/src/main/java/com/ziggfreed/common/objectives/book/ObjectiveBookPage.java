@@ -38,9 +38,10 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * The Objective Book: the progression book inside the shared menu frame, quests and achievements each a tab on
  * the frame's rail, over THE shared progression runtime. This class is the shell: the frame and the rail, the
- * header band ({@code #TitleContainer}, {@code #PanelTitle} and {@code #BrandingDescriptionRight} kept for a
- * consumer's white-label branding, the subtitle and three stats), the {@code #TabBody} the active
- * {@link BookTab} appends its document into, the toasts, the self-heal on open, and the answer to every event.
+ * header band ({@code #BrandingLogo}, {@code #TitleContainer}, {@code #PanelTitle} and
+ * {@code #BrandingDescriptionRight} kept for a consumer's white-label branding, the subtitle and three stats), the
+ * {@code #TabBody} the active {@link BookTab} appends its document into, the toasts, the self-heal on open, and the
+ * answer to every event.
  *
  * <p><b>State.</b> One {@link BookState} per page instance: every binding carries it, every reopen starts from
  * it, and a tab's partial update records what it changed ({@link BookContext#keep}), so a selection or a toggled

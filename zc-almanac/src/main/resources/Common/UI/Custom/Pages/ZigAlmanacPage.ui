@@ -12,7 +12,8 @@ $ZW = "../Common/ZigKit.ui";
 //
 // LEFT (#LeftColumn, 300): the title and its lead; #BannerCard, the cross-season achievement (hidden until one is
 // in circulation or earned); #SeasonList, where the kit's LedgerPainter appends a section per group (On now, then
-// All seasons) of Pages/ZigLedgerRow.ui rows; #Glance, the year at a glance, twelve month rows each holding one
+// All seasons) of Pages/ZigLedgerRowTall.ui rows (the kit's tall row, so a season's meta line runs onto a second
+// line); #Glance, the year at a glance, twelve month rows each holding one
 // Pages/ZigAlmanacMonthMark.ui dot per season running that month (a click opens the first); #RecordCard, seasons
 // taken part in and keepsakes earned, under the list.
 //

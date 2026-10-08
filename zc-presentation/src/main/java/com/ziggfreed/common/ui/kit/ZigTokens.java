@@ -95,6 +95,8 @@ public final class ZigTokens {
     public static final int ROW_HEIGHT = integer("ZigRowHeight", 56);
     /** {@code Pages/ZigLedgerRowCompact.ui}. */
     public static final int COMPACT_ROW_HEIGHT = integer("ZigCompactRowHeight", 44);
+    /** {@code Pages/ZigLedgerRowTall.ui}: the standard row plus its meta's second line. */
+    public static final int TALL_ROW_HEIGHT = integer("ZigTallRowHeight", 74);
     public static final int SECTION_HEAD_HEIGHT = integer("ZigSectionHeadHeight", 32);
     /** {@code Pages/ZigDetailLine.ui}. */
     public static final int LINE_HEIGHT = integer("ZigLineHeight", 32);

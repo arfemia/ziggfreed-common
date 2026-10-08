@@ -167,7 +167,12 @@ public final class LedgerPainter {
         if (size.hasMeta()) {
             KitPaint.optional(cmd, row + " #Meta", data.meta());
             if (data.faint() && data.meta() != null) {
-                ZigStyles.applyText(cmd, row + " #Meta.Style", ZigStyles.Text.FAINT);
+                if (size.metaWraps()) {
+                    // The faint style is one line: a meta that wraps keeps its own style and takes the ink alone.
+                    cmd.set(row + " #Meta.Style.TextColor", ZigTokens.INK_FAINT);
+                } else {
+                    ZigStyles.applyText(cmd, row + " #Meta.Style", ZigStyles.Text.FAINT);
+                }
             }
         }
         KitPaint.picture(cmd, row + " #Pic", data.picture());
@@ -208,6 +213,11 @@ public final class LedgerPainter {
      * own inks (the title by its text style, the state word by its tone's style, the meta and value by colour, which
      * keeps the one-line shape the selected styles share with the resting ones). A label the row does not show is
      * left alone.
+     *
+     * <p>A row whose meta wraps to two lines ({@link RowSize#TALL}) turns its meta white by the colour leaf alone,
+     * never by {@link ZigStyles.Name#ROW_META_ON_SELECTED}, a one-line style that would clip its second line. The
+     * trade-off: a theme document cannot restyle a tall row's selected meta (no theme ships, and the white is that
+     * style's own fallback leaf).
      */
     private static void rowState(@Nonnull UICommandBuilder cmd, @Nonnull String row, @Nullable LedgerRow data,
             boolean selected, @Nonnull RowSize size, @Nullable PlayerRef viewer) {
@@ -217,7 +227,9 @@ public final class LedgerPainter {
         boolean state = data != null && data.state() != null;
         if (selected) {
             ZigStyles.apply(cmd, row + " #Title.Style", ZigStyles.Name.ROW_TITLE_ON_SELECTED, viewer);
-            if (meta) {
+            if (meta && size.metaWraps()) {
+                cmd.set(row + " #Meta.Style.TextColor", ZigTokens.INK_BRIGHT);
+            } else if (meta) {
                 ZigStyles.apply(cmd, row + " #Meta.Style", ZigStyles.Name.ROW_META_ON_SELECTED, viewer);
             }
             if (value) {

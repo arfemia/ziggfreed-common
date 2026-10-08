@@ -57,6 +57,33 @@ class ZigMenuDocumentsTest {
         assertFalse(rail.contains("ContainerPanelPatch"), "no panel patch under the rail");
     }
 
+    /**
+     * The rail's branding name and description wrap instead of clipping (M364): neither has a fixed height, so a
+     * wrapped label in the rail's Top stack sizes itself to its lines (vanilla {@code PrefabEditorExitConfirm.ui}),
+     * and each keeps a bottom margin before what follows. Both still ship hidden, since a painter shows them.
+     */
+    @Test
+    void theRailsBrandingLabelsWrapInsteadOfClipping() throws IOException {
+        String rail = block(template(document("Common/ZigFrames.ui"), "@ZigMenuFrame"), MenuFrame.RAIL);
+        for (String id : List.of("#BrandingServerName", "#BrandingDescription")) {
+            String label = own(block(rail, id));
+            Matcher anchor = Pattern.compile("Anchor:\\s*\\(([^)]*)\\)").matcher(label);
+            assertTrue(anchor.find(), id + " keeps an Anchor for its margin");
+            assertFalse(anchor.group(1).contains("Height"),
+                    id + " has no fixed height, so a wrapped line is not clipped: " + anchor.group());
+            assertTrue(anchor.group(1).contains("Bottom:"), id + " keeps its bottom margin: " + anchor.group());
+            Matcher style = Pattern.compile("Style:\\s*([^;]+);").matcher(label);
+            assertTrue(style.find(), id + " has a style");
+            assertTrue(style.group(1).contains("Wrap: true"), id + "'s style wraps: " + style.group(1));
+            assertFalse(style.group(1).contains("WrapMaxLines: 1"), id + " is not held to one line: " + style.group(1));
+            assertTrue(label.contains("Visible: false"), id + " ships hidden until a painter shows it");
+        }
+        assertTrue(own(block(rail, "#BrandingServerName")).contains("@ZigBodyLabelStyle"),
+                "the name keeps the body step");
+        assertTrue(own(block(rail, "#BrandingDescription")).contains("@ZigCaptionLabelStyle"),
+                "the description keeps the caption step");
+    }
+
     @Test
     void theSeparatorStandsBetweenTheRailAndThePage() throws IOException {
         String frame = template(document("Common/ZigFrames.ui"), "@ZigMenuFrame");

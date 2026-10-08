@@ -32,6 +32,7 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.protocol.packets.interface_.CustomUICommand;
+import com.hypixel.hytale.protocol.packets.interface_.CustomUICommandType;
 import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBinding;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
@@ -57,6 +58,7 @@ import com.ziggfreed.common.almanac.view.AlmanacView.YearKeepsake;
 import com.ziggfreed.common.ui.icon.IconRenderer;
 import com.ziggfreed.common.ui.kit.KeepsakeState;
 import com.ziggfreed.common.ui.kit.RowSize;
+import com.ziggfreed.common.ui.kit.ZigTokens;
 import com.ziggfreed.common.ui.menu.MenuFrame;
 
 /**
@@ -165,10 +167,36 @@ class AlmanacPageDocumentTest {
 
     // ---- pictures ----
 
+    /**
+     * The season list paints the kit's tall row (M369), so a season's meta line ("On now - 27 days left", "Starts in
+     * 12 days", "Returns in 40 days") runs onto a second line instead of being cut off; every row the page appends
+     * into a section of the list is that template.
+     *
+     * <p>Tagged {@code engine-items}: a {@link UICommandBuilder}'s static init reaches the engine's item codec.
+     */
+    @Test
+    @Tag("engine-items")
+    void theSeasonListPaintsTheTallRowSoAMetaLineRunsOntoASecond() {
+        UICommandBuilder cmd = new UICommandBuilder();
+        AlmanacPage.paint(cmd, new UIEventBuilder(), fullPlan(composedHero()), null);
+        Pattern rowsHost = Pattern.compile("#SeasonList\\[\\d+] #Rows");
+        List<String> rows = new ArrayList<>();
+        for (CustomUICommand command : cmd.getCommands()) {
+            if (command.type == CustomUICommandType.Append && command.selector != null
+                    && rowsHost.matcher(command.selector).matches() && command.text.startsWith("Pages/ZigLedgerRow")) {
+                rows.add(command.text);
+            }
+        }
+        assertFalse(rows.isEmpty(), "the full plan lists seasons");
+        for (String row : rows) {
+            assertEquals(RowSize.TALL.template(), row, "each season's row is the kit's tall row");
+        }
+    }
+
     @Test
     void eachListedSeasonsRowHasThePictureSlotThePagePaintsItsPictureInto() throws IOException {
-        assertEquals("Pages/ZigLedgerRow.ui", RowSize.STANDARD.template(), "the season list paints the kit's row");
-        String row = document(RowSize.STANDARD.template());
+        assertEquals("Pages/ZigLedgerRowTall.ui", RowSize.TALL.template(), "the season list paints the kit's tall row");
+        String row = document(RowSize.TALL.template());
         assertTrue(Pattern.compile("\\$ZW\\.@ZigPicture\\s+#Pic\\s*\\{").matcher(row).find(),
                 "the row declares the kit's picture slot #Pic, which the painter draws each season's picture into");
         assertFalse(row.contains("ItemGrid") || row.contains("ItemIcon"),
@@ -247,6 +275,10 @@ class AlmanacPageDocumentTest {
                 - (AlmanacLayout.GLANCE_GAP + AlmanacLayout.GLANCE_HEIGHT)
                 - (AlmanacLayout.RECORD_GAP + AlmanacLayout.RECORD_HEIGHT);
         assertTrue(left >= AlmanacLayout.LIST_MIN_HEIGHT, "the season list keeps room beside every fixed block: " + left);
+        assertTrue(AlmanacLayout.LIST_MIN_HEIGHT >= ZigTokens.SECTION_HEAD_HEIGHT
+                + 3 * (RowSize.TALL.height() + ZigTokens.SPACE_1),
+                "the list's least room holds one section head and three of the tall rows it paints, each with the gap "
+                        + "under it: " + AlmanacLayout.LIST_MIN_HEIGHT);
 
         String ui = document(AlmanacPage.PAGE_TEMPLATE);
         assertEquals(AlmanacLayout.LEFT_WIDTH, anchor(ui, "#LeftColumn", "Width"));

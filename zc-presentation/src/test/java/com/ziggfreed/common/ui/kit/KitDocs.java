@@ -24,7 +24,8 @@ final class KitDocs {
 
     /** Every kit document under {@code Common/UI/Custom/}: the shared documents, then the appended templates. */
     static final List<String> DOCUMENTS = List.of("Common/ZigTokens.ui", "Common/ZigText.ui", "Common/ZigStyles.ui",
-            "Common/ZigKit.ui", "Pages/ZigLedgerRow.ui", "Pages/ZigLedgerRowCompact.ui", "Pages/ZigLedgerSection.ui",
+            "Common/ZigKit.ui", "Pages/ZigLedgerRow.ui", "Pages/ZigLedgerRowCompact.ui", "Pages/ZigLedgerRowTall.ui",
+            "Pages/ZigLedgerSection.ui",
             "Pages/ZigShowMoreRow.ui", "Pages/ZigDetailBlock.ui", "Pages/ZigDetailLine.ui", "Pages/ZigCollectionTile.ui",
             "Pages/ZigKeepsakeTile.ui", "Pages/ZigStatTile.ui", "Pages/ZigSegment.ui", "Pages/ZigViewTab.ui",
             "Pages/ZigPill.ui");

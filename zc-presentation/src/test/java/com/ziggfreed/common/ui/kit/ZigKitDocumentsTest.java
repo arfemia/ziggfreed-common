@@ -150,6 +150,70 @@ class ZigKitDocumentsTest {
         assertFalse(declares(ui, "#Meta"), "a compact row has no second line");
     }
 
+    /**
+     * The tall row (M369): the standard row with its meta line let onto a second line, for a list whose meta runs
+     * long ("On now - 27 days left"). Every id the standard row declares is declared here as often, so a painter
+     * treats the two alike; the title stays the one-line row title; {@code #Meta} is the same caption, wrapping to
+     * two lines, its height doubled; and the row grows by exactly that second line, its height a named token.
+     */
+    @Test
+    void theTallRowIsTheStandardRowWithAMetaLineThatWrapsToTwo() throws IOException {
+        assertEquals("Pages/ZigLedgerRowTall.ui", RowSize.TALL.template());
+        assertTrue(RowSize.TALL.hasMeta(), "the tall row is for its meta line");
+        String standard = document(RowSize.STANDARD.template());
+        String ui = document(RowSize.TALL.template());
+
+        for (String id : declaredIds(standard)) {
+            if (id.equals("#ZigLedgerRow")) {
+                continue;
+            }
+            assertEquals(declarations(standard, id), declarations(ui, id), "the tall row declares " + id
+                    + " as the standard row does");
+            assertEquals(type(standard, id), type(ui, id), id + " is the same element in both rows");
+        }
+        assertLedgerRow(ui, 32);
+        assertEquals(property(block(standard, "#Title"), "Style"), property(block(ui, "#Title"), "Style"),
+                "the title stays the one-line row title");
+
+        String meta = property(block(ui, "#Meta"), "Style");
+        assertTrue(meta != null && meta.contains("$ZX.@ZigCaptionStyle") && meta.contains("Wrap: true")
+                && meta.contains("WrapMaxLines: 2"), "the meta is the caption, wrapping to two lines: " + meta);
+        assertTrue(meta.contains("VerticalAlignment: Start"),
+                "a one-line meta sits under the title, not centred in its two-line box: " + meta);
+        Integer oneLine = size(leaf(property(block(standard, "#Meta"), "Anchor"), "Height"));
+        assertNotNull(oneLine, "the standard row's meta line has a height");
+        assertEquals(2 * oneLine, size(leaf(property(block(ui, "#Meta"), "Anchor"), "Height")),
+                "the meta's height doubled, so its second line is drawn");
+
+        String rowAnchor = property(block(ui, "#ZigLedgerRowTall"), "Anchor");
+        assertEquals("$ZK.@ZigTallRowHeight", leaf(rowAnchor, "Height"), "the tall row's height is a named token");
+        assertEquals(size(leaf(property(block(standard, "#ZigLedgerRow"), "Anchor"), "Height")) + oneLine,
+                size(leaf(rowAnchor, "Height")), "the row grows by the meta's second line and nothing else");
+        assertEquals(leaf(property(block(standard, "#ZigLedgerRow"), "Anchor"), "Bottom"), leaf(rowAnchor, "Bottom"),
+                "the gap under a row is the standard row's");
+        assertNull(leaf(rowAnchor, "Width"), "a row fills its parent's width");
+        assertEquals(ZigTokens.TALL_ROW_HEIGHT, RowSize.TALL.height());
+    }
+
+    /**
+     * Each row size is its template: the height a list lays out by is the template root's authored height, and a
+     * size says it has a meta line exactly when its template declares {@code #Meta} (a painter never addresses one
+     * that is not there).
+     */
+    @Test
+    void everyRowSizeIsItsTemplatesHeightAndMetaLine() throws IOException {
+        for (RowSize rowSize : RowSize.values()) {
+            String path = rowSize.template();
+            assertTrue(DOCUMENTS.contains(path), path + " is a kit document, so every generic kit check covers it");
+            String ui = document(path);
+            String root = "#" + path.substring(path.indexOf('/') + 1, path.length() - ".ui".length());
+            assertEquals(rowSize.height(), size(leaf(property(block(ui, root), "Anchor"), "Height")),
+                    rowSize + " is " + path + "'s height");
+            assertEquals(rowSize.hasMeta(), declares(ui, "#Meta"), rowSize + " has a meta line iff " + path
+                    + " declares one");
+        }
+    }
+
     @Test
     void aSectionIsAHeadButtonOverItsRows() throws IOException {
         String ui = document("Pages/ZigLedgerSection.ui");
@@ -777,6 +841,20 @@ class ZigKitDocumentsTest {
 
     private static boolean ships(@Nonnull String underCustom) {
         return ZigKitDocumentsTest.class.getResource("/Common/UI/Custom/" + underCustom) != null;
+    }
+
+    /** Every element id {@code ui} declares ({@code Type #Id {}} or a template instance), each once, in order. */
+    @Nonnull
+    private static List<String> declaredIds(@Nonnull String ui) {
+        Matcher m = Pattern.compile("(?:[A-Za-z]+|\\$[A-Za-z]+\\.@[A-Za-z][A-Za-z0-9]*|@[A-Za-z][A-Za-z0-9]*)\\s+"
+                + "(#[A-Za-z][A-Za-z0-9]*)\\s*\\{").matcher(ui);
+        List<String> out = new ArrayList<>();
+        while (m.find()) {
+            if (!out.contains(m.group(1))) {
+                out.add(m.group(1));
+            }
+        }
+        return out;
     }
 
     /** The index of every brace that opens at the document's top level. */
