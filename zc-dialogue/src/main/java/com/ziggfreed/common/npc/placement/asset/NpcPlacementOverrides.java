@@ -277,7 +277,8 @@ public final class NpcPlacementOverrides {
      *
      * <p>A body follows the mod gate as every owner file does: one over a placement the pack fold's gate
      * refused goes with it, whatever it writes, and one whose own {@code Requires} gates on a missing mod
-     * is dropped like a pack file. Neither is named; the store logs one counted line per missing mod.
+     * takes its whole id out, the pack's ungated placement included, exactly as a gated pack placement
+     * would (M295's ruling). Neither is named; the store logs one counted line per missing mod.
      */
     public void applyOwnerLayer() {
         NpcPlacementConfig config = NpcPlacementConfig.getInstance();
@@ -287,13 +288,13 @@ public final class NpcPlacementOverrides {
             return;
         }
 
-        Map<String, String> refused = config.modGateRefused();
+        Map<String, String> refused = config.packModGateRefused();
         Map<String, NpcPlacementAsset> layer = new LinkedHashMap<>();
+        Map<String, String> gatedOut = new LinkedHashMap<>();
         List<String> dropped = new ArrayList<>();
         for (Map.Entry<String, JsonObject> e : snapshot.entrySet()) {
-            String refusedFor = refused.get(e.getKey());
-            if (refusedFor != null) {
-                dropped.add(refusedFor); // a body goes with the pack placement the mod gate refused
+            if (refused.containsKey(e.getKey())) {
+                dropped.add(refused.get(e.getKey())); // a body goes with the pack placement the gate refused
                 continue;
             }
             NpcPlacementAsset decoded = decode(e.getKey(), e.getValue(), config);
@@ -302,12 +303,14 @@ public final class NpcPlacementOverrides {
             }
             String missing = NpcPlacementAsset.Requires.missingMod(decoded.getRequires());
             if (missing != null) {
-                dropped.add(missing); // gated on a mod this server lacks, like a pack placement would be
+                // Gated on a mod this server lacks: the whole id goes, the pack's own placement included.
+                gatedOut.put(e.getKey(), missing);
+                dropped.add(missing);
                 continue;
             }
             layer.put(e.getKey(), decoded);
         }
-        config.mergeOwnerLayer(layer);
+        config.mergeOwnerLayer(layer, gatedOut);
         ModGates.reportOwnerOverrides(config.modGateStore(), dropped);
         if (!layer.isEmpty()) {
             SafeLog.info("[placement] " + file + ": " + layer.size() + " placement(s) authored or"
@@ -315,11 +318,15 @@ public final class NpcPlacementOverrides {
         }
     }
 
-    /** One entry, decoded against whatever the packs already say about its id. */
+    /**
+     * One entry, decoded against whatever the packs already say about its id: never against the last
+     * read's owner layer, so a re-read neither stacks on it nor loses the pack's leaves for an id that
+     * read took out.
+     */
     @Nullable
     private NpcPlacementAsset decode(@Nonnull String id, @Nonnull JsonObject body,
             @Nonnull NpcPlacementConfig config) {
-        NpcPlacementAsset base = config.resolve(id);
+        NpcPlacementAsset base = config.resolveBelowOwner(id);
         try {
             AssetExtraInfo.Data data =
                     new AssetExtraInfo.Data(NpcPlacementAsset.class, id, base == null ? null : id);

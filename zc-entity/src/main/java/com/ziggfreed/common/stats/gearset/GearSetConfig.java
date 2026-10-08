@@ -17,6 +17,9 @@ import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
  */
 public final class GearSetConfig extends AbstractKeyedAssetConfig<GearSetAsset> {
 
+    /** The store's mod-gate label, which its drop lines carry (a contract the season boot pair parses). */
+    public static final String MOD_GATE_STORE = "GearSets";
+
     private static final GearSetConfig INSTANCE = new GearSetConfig();
 
     private volatile GearSetIndex index;
@@ -27,6 +30,7 @@ public final class GearSetConfig extends AbstractKeyedAssetConfig<GearSetAsset> 
     }
 
     private GearSetConfig() {
+        super(MOD_GATE_STORE);
     }
 
     @Override
