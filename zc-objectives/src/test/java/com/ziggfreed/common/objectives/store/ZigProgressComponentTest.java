@@ -302,19 +302,20 @@ class ZigProgressComponentTest {
     }
 
     /**
-     * A run forced on outside its dates is still the run of its year, yet a finish in it falls on none
-     * of that run's days. Only the saved run year keeps the quest spent for that run once the player
-     * logs back in: read back as four numbers, it would be an old record whose last finish no run's
-     * days hold, offered again in the very run it was finished in.
+     * A run forced on outside its dates is still the run of its year, yet a finish in it can sit nearer
+     * another year's run than its own: forced on in April, the 2027 run's days are October's, and the
+     * 2026 run ended fewer months before. Only the saved run year keeps the quest spent for that run once
+     * the player logs back in: read back as four numbers, it would be an old record placed in the run
+     * nearest its last finish, the 2026 one, and offered again in the very run it was finished in.
      */
     @Test
     void aFinishInARunForcedOnOutsideItsDatesStaysSpentForThatRunThroughASave() {
         ForcedFair fair = new ForcedFair();
         Quest.Repeat repeat = new Quest.Repeat(0L, Quest.Repeat.CooldownFrom.CLAIM, null, 0,
                 new Quest.Repeat.PerRun(ForcedFair.EVENT, 1));
-        long forcedFinish = at("2026-12-10T12:00:00Z");
+        long forcedFinish = at("2027-04-10T12:00:00Z");
         Integer counted = PerRuns.yearFor(repeat.perRun(), forcedFinish, fair);
-        assertEquals(Integer.valueOf(2026), counted, "forced on in December it is the 2026 run");
+        assertEquals(Integer.valueOf(2027), counted, "forced on in April it is the 2027 run");
         CompletionRecord finished = new CompletionRecord(forcedFinish, 0, 1, 1, counted, 1);
 
         ZigProgressComponent component = new ZigProgressComponent();
@@ -325,9 +326,9 @@ class ZigProgressComponentTest {
         CompletionRecord back = loaded.questCompletions("q_fair");
         assertEquals(finished, back, "the run tally survives a save and a load");
 
-        long laterInTheForcedRun = at("2026-12-15T12:00:00Z");
+        long laterInTheForcedRun = at("2027-04-15T12:00:00Z");
         QuestLifecycle.RepeatCheck check = QuestLifecycle.repeatCheck(repeat, 0L, back, laterInTheForcedRun, fair);
-        assertFalse(check.available(), "still spent for the 2026 run");
+        assertFalse(check.available(), "still spent for the 2027 run");
         assertEquals(QuestGates.REASON_RUN_SPENT, check.reason());
         assertTrue(QuestLifecycle.repeatCheck(repeat, 0L, new CompletionRecord(forcedFinish, 0, 1, 1),
                 laterInTheForcedRun, fair).available(), "four numbers alone would have offered it twice in one run");
