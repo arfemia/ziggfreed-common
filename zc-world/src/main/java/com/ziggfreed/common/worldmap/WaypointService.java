@@ -2,6 +2,7 @@ package com.ziggfreed.common.worldmap;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -13,6 +14,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.World;
+import com.ziggfreed.common.cast.WorldEvictors;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -59,7 +61,7 @@ public final class WaypointService {
     private final WaypointPositionResolver resolver;
     private final WaypointSnapshots snapshots;
 
-    /** Worlds whose provider is already registered - register exactly once per world. */
+    /** Worlds whose provider is already registered, by {@link #worldKey}: register exactly once per live world. */
     private final Set<String> registeredWorlds = ConcurrentHashMap.newKeySet();
 
     private WaypointService(@Nonnull Builder b) {
@@ -68,6 +70,9 @@ public final class WaypointService {
         this.forceCompass = b.forceCompass;
         this.resolver = b.resolver;
         this.snapshots = new WaypointSnapshots(b.providerKey, b.defaultIcon, b.warn);
+        // A world going away takes its registration with it, so a world that comes back under the
+        // same name (a pinned instance respawning) registers again.
+        WorldEvictors.registerEvictor(world -> registeredWorlds.remove(worldKey(world)));
     }
 
     /**
@@ -134,7 +139,7 @@ public final class WaypointService {
      */
     public boolean registerForWorld(@Nonnull World world) {
         try {
-            if (!registeredWorlds.add(world.getName())) {
+            if (!registeredWorlds.add(worldKey(world))) {
                 return false;
             }
             if (forceCompass) {
@@ -143,7 +148,7 @@ public final class WaypointService {
                 world.setCompassUpdating(true);
             }
             return WorldMapMarkers.registerProvider(world, providerKey, ignoreViewDistance,
-                    (w, player, viewerId) -> markersFor(w.getName(), viewerId));
+                    (w, player, viewerId) -> markersFor(w.getName(), viewerId, WorldMapMarkers.viewerOf(player)));
         } catch (Throwable t) {
             SafeLog.warn("[waypoint] provider '" + providerKey + "' could not be registered for world '"
                     + world.getName() + "': " + t.getMessage());
@@ -153,14 +158,39 @@ public final class WaypointService {
 
     /** Stop providing markers in {@code world}. */
     public boolean unregisterForWorld(@Nonnull World world) {
-        registeredWorlds.remove(world.getName());
+        registeredWorlds.remove(worldKey(world));
         return WorldMapMarkers.unregisterProvider(world, providerKey);
     }
 
-    /** This viewer's markers in this world, built from the snapshot. Runs on the map tracker. */
+    /**
+     * The key one live world is registered under: its uuid, which a respawned instance gets anew even
+     * when an InstanceKey pins its name (World equality is by name), else its name.
+     */
     @Nonnull
-    private List<MapMarker> markersFor(@Nonnull String worldName, @Nonnull UUID viewerId) {
-        List<WaypointSnapshots.MarkerSpec> specs = snapshots.markerSpecsFor(worldName, viewerId, resolver);
+    static String worldKey(@Nonnull World world) {
+        UUID uuid = null;
+        try {
+            uuid = world.getWorldConfig().getUuid();
+        } catch (Throwable ignored) {
+            // A world whose config cannot be read is keyed by its name, as before.
+        }
+        return worldKey(world.getName(), uuid);
+    }
+
+    /** {@link #worldKey(World)} over its two parts. */
+    @Nonnull
+    static String worldKey(@Nonnull String worldName, @Nullable UUID uuid) {
+        return uuid != null ? uuid.toString() : "name:" + worldName.toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * This viewer's markers in this world, built from the snapshot, for a viewer standing at
+     * {@code viewer} (null when the tracker cannot tell). Runs on the map tracker.
+     */
+    @Nonnull
+    private List<MapMarker> markersFor(@Nonnull String worldName, @Nonnull UUID viewerId,
+            @Nullable WaypointViewer viewer) {
+        List<WaypointSnapshots.MarkerSpec> specs = snapshots.markerSpecsFor(worldName, viewerId, resolver, viewer);
         if (specs.isEmpty()) {
             return List.of();
         }

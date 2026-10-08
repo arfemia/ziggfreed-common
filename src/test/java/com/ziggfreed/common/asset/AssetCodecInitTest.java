@@ -100,6 +100,7 @@ import com.ziggfreed.common.ui.hud.card.HudCardAsset;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.world.WeightedPrefabPlacementAsset;
 import com.ziggfreed.common.world.WorldSelector;
+import com.ziggfreed.common.worldmap.GatewayAsset;
 
 /**
  * Forces each common framework asset CODEC to static-initialize, so a lower-case first
@@ -243,6 +244,12 @@ class AssetCodecInitTest {
     @Test
     void weightedPrefabPlacementAssetCodecInitializes() {
         assertNotNull(WeightedPrefabPlacementAsset.CODEC, "WeightedPrefabPlacementAsset.CODEC must static-init (PascalCase keys)");
+    }
+
+    @Test
+    void gatewayAssetCodecInitializes() {
+        assertNotNull(GatewayAsset.CODEC, "GatewayAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(GatewayAsset.Into.CODEC, "the Into group codec must static-init (PascalCase keys)");
     }
 
     @Test

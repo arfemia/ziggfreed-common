@@ -3,6 +3,7 @@ package com.ziggfreed.common.worldmap;
 import java.util.List;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Turns a {@link WaypointTarget#positionKey()} into the coordinates it means IN ONE WORLD.
@@ -26,4 +27,16 @@ public interface WaypointPositionResolver {
     /** Every position {@code positionKey} means in {@code worldName}; empty when it means none. */
     @Nonnull
     List<WaypointPosition> resolve(@Nonnull String worldName, @Nonnull String positionKey);
+
+    /**
+     * Every position {@code positionKey} means in {@code worldName}, for a viewer standing at
+     * {@code viewer} (null when the map tracker does not know yet). The default ignores where the
+     * viewer stands; a resolver pointing at the nearest of several copies of a place overrides it.
+     * Called on the map tracker, like the two-argument form.
+     */
+    @Nonnull
+    default List<WaypointPosition> resolve(@Nonnull String worldName, @Nonnull String positionKey,
+            @Nullable WaypointViewer viewer) {
+        return resolve(worldName, positionKey);
+    }
 }
