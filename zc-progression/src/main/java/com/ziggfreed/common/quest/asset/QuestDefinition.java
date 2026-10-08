@@ -8,6 +8,7 @@ import javax.annotation.Nullable;
 
 import com.google.gson.JsonElement;
 import com.ziggfreed.common.progress.ContentText;
+import com.ziggfreed.common.progress.ConventionKeys;
 import com.ziggfreed.common.progress.ObjectiveComposer;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.asset.ContentListingAsset.ChainMembership;
@@ -104,9 +105,11 @@ public record QuestDefinition(@Nonnull String id, @Nonnull Quest quest, @Nullabl
         long amount = quest.objectives().isEmpty() ? 0L : quest.objectives().get(0).amount();
         ContentText.Builder text = ContentText.builder()
                 .titleKey(titleKey)
+                .titleConventionKey(ConventionKeys.questTitle(quest.id()))
                 .displayName(displayName)
                 .titleArgs(ContentText.amountArgs(titleArgs, amount))
                 .flavorKey(flavorKey)
+                .flavorConventionKey(ConventionKeys.questFlavor(quest.id()))
                 .flavorArgs(ContentText.amountArgs(flavorArgs, amount));
         for (Map.Entry<String, String> entry : lore.entrySet()) {
             text.lore(entry.getKey(), entry.getValue());

@@ -11,6 +11,8 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.i18n.LangCatalog;
+import com.ziggfreed.common.progress.ConventionKeys;
 import com.ziggfreed.common.progress.ObjectiveKindRegistry;
 import com.ziggfreed.common.progress.gate.GateKindRegistry;
 import com.ziggfreed.common.quest.InMemoryQuestProgressStore;
@@ -292,5 +294,26 @@ class QuestPoolValidatorTest {
         assertFalse(codes(issues).contains("UNKNOWN_KIND"),
                 "a caller with no vocabularies yet knows nothing, so it must claim nothing");
         assertTrue(issues.isEmpty());
+    }
+
+    @Test
+    void aQuestIsNamedByConventionAndANameThatResolvesNowhereIsAWarning() {
+        QuestPool pool = poolOf("errand", """
+                { "Text": { "TitleKey": "quest.typo.title" },
+                  "Objectives": { "a": { "Kind": "PICKUP_ITEM", "Target": "Copper_Ore", "Amount": 1 } } }
+                """);
+        assertEquals("quest.errand.title", pool.definition("errand").quest().text().titleConventionKey());
+        assertEquals("quest.errand.flavor", pool.definition("errand").quest().text().flavorConventionKey());
+        assertFalse(codes(validate(pool)).contains(ConventionKeys.UNRESOLVED_TITLE),
+                "no catalogue loaded: nothing can be judged");
+        try {
+            LangCatalog.overrideForTests(Map.of("somepack.quest.unrelated", "x"));
+            assertTrue(codes(validate(pool)).contains(ConventionKeys.UNRESOLVED_TITLE));
+            LangCatalog.overrideForTests(Map.of("somepack.quest.errand.title", "Errand"));
+            assertFalse(codes(validate(pool)).contains(ConventionKeys.UNRESOLVED_TITLE),
+                    "quest.<id>.title names it although its own key is a typo");
+        } finally {
+            LangCatalog.overrideForTests(null);
+        }
     }
 }

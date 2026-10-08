@@ -9,6 +9,7 @@ import javax.annotation.Nullable;
 import com.google.gson.JsonElement;
 import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.progress.ContentText;
+import com.ziggfreed.common.progress.ConventionKeys;
 import com.ziggfreed.common.progress.ObjectiveComposer;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.asset.ContentListingAsset.ChainMembership;
@@ -77,11 +78,15 @@ public record AchievementDefinition(@Nonnull String id, @Nonnull Achievement ach
             @Nonnull List<String> titleArgs, @Nonnull List<String> flavorArgs,
             @Nonnull Map<String, String> criterionTextKeys) {
         long amount = achievement.criteria().isEmpty() ? 0L : achievement.criteria().get(0).amount();
+        // The convention rungs: a file that writes no key is still named, every yearly copy by its base.
+        String conventionId = conventionId(achievement);
         ContentText.Builder text = ContentText.builder()
                 .titleKey(titleKey)
+                .titleConventionKey(ConventionKeys.achievementTitle(conventionId))
                 .displayName(displayName)
                 .titleArgs(ContentText.amountArgs(titleArgs, amount))
                 .flavorKey(flavorKey)
+                .flavorConventionKey(ConventionKeys.achievementDescription(conventionId))
                 .flavorArgs(ContentText.amountArgs(flavorArgs, amount));
         // A criterion is addressed by its authored KEY, which is the id the engine gives it and
         // therefore the id a surface asks about.
@@ -98,6 +103,16 @@ public record AchievementDefinition(@Nonnull String id, @Nonnull Achievement ach
             text.objectiveLine(criterion.id(), () -> ObjectiveComposer.line(criterion, authoredKey));
         }
         return text.build();
+    }
+
+    /**
+     * The id an achievement's convention keys are built from: a yearly copy's BASE id, so one line
+     * names every year's copy, else the achievement's own id.
+     */
+    @Nonnull
+    public static String conventionId(@Nonnull Achievement achievement) {
+        Achievement.Occurrence occurrence = achievement.occurrence();
+        return occurrence != null ? occurrence.baseId() : achievement.id();
     }
 
     /**
