@@ -80,6 +80,16 @@ class QuestCadenceTest {
     }
 
     @Test
+    void aOnceARunQuestIsSeasonalWhateverItsOtherClocks() {
+        Repeat.PerRun fair = new Repeat.PerRun("Spring_Fair", 1);
+        assertEquals(QuestCadence.SEASONAL, QuestCadence.of(new Repeat(0L, CooldownFrom.CLAIM, null, 0, fair)),
+                "no clock of its own beside the run would read REPEATABLE");
+        assertEquals(QuestCadence.SEASONAL, QuestCadence.of(new Repeat(60 * DAY, CooldownFrom.CLAIM, null, 0, fair)),
+                "a long wait beside it would read WEEKLY");
+        assertEquals("SEASONAL", QuestCadence.SEASONAL.qualifier(), "the word a criterion is written against");
+    }
+
+    @Test
     void theInstanceReadAndTheStaticReadAgree() {
         for (Repeat repeat : new Repeat[] {rolling(2 * HOUR), rolling(DAY), calendar(8 * HOUR),
                 calendar(DAY), calendar(14 * DAY), Repeat.EXTERNALLY_GOVERNED}) {

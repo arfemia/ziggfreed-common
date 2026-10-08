@@ -26,6 +26,8 @@ import com.ziggfreed.common.util.PeriodMath;
  *
  * <p>Anything shorter is {@link #REPEATABLE} - an eight-hour window, a two-hour wait, and the EMPTY
  * group whose timing something else governs. A quest with no repeat rule at all is {@link #NONE}.
+ *
+ * <p>A rule with a once-a-run allowance is {@link #SEASONAL} before either clock is weighed.
  */
 public enum QuestCadence {
 
@@ -39,7 +41,13 @@ public enum QuestCadence {
     DAILY,
 
     /** Comes round about once a week, or less often. */
-    WEEKLY;
+    WEEKLY,
+
+    /**
+     * Comes round once a run of a calendar event ({@link Repeat#perRun()}), whatever other clock it
+     * carries: a season's quest, offered while its event runs.
+     */
+    SEASONAL;
 
     /** The shortest "how often" that reads as {@link #DAILY}: twenty hours. */
     public static final long DAILY_FROM_MS = 20L * PeriodMath.HOUR_MS;
@@ -53,6 +61,9 @@ public enum QuestCadence {
         if (repeat == null) {
             return NONE;
         }
+        if (repeat.perRun() != null) {
+            return SEASONAL;
+        }
         long howOftenMs = Math.max(repeat.cooldownMs(), repeat.periodMs());
         if (howOftenMs >= WEEKLY_FROM_MS) {
             return WEEKLY;
@@ -63,7 +74,8 @@ public enum QuestCadence {
     /**
      * The word a finished quest of this cadence carries as the qualifier of its
      * {@code COMPLETE_QUEST} moment, so a criterion authoring {@code "Qualifier": "DAILY"} counts the
-     * dailies a player finishes: {@code NORMAL} for a one-shot, every other cadence its own name.
+     * dailies a player finishes: {@code NORMAL} for a one-shot, every other cadence its own name
+     * ({@code REPEATABLE}, {@code DAILY}, {@code WEEKLY}, {@code SEASONAL}).
      * The spelling is what content is written against, so it never changes.
      */
     @Nonnull

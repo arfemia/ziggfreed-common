@@ -32,6 +32,8 @@ import org.junit.jupiter.api.Test;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.FormattedMessage;
+import com.hypixel.hytale.protocol.IntParamValue;
+import com.hypixel.hytale.protocol.LongParamValue;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -863,6 +865,49 @@ class QuestReaderTest {
         assertEquals(Tone.COLLECT, stats.get(1).tone(), "something to collect reads gold");
         assertEquals(J + "stat.tracking", id(stats.get(2).label()));
         assertEquals(J + "subtitle", id(reader().subtitle()));
+    }
+
+    /**
+     * "In progress N/M" is read against the cap, so N is the number the cap measures ({@code logSlotsUsed}): a
+     * carried quest out of season and a board contract that keeps no log slot are left out of the stat and the
+     * subtitle alike, and the header never reads full while the log still takes a quest.
+     */
+    @Test
+    void theHeadersInProgressCountsWhatTheLogCapCounts() {
+        AtomicBoolean running = new AtomicBoolean(true);
+        Quest seasonal = Quest.builder("q_seasonal").category("main").objective(mine("mine", 0))
+                .available(running::get).build();
+        Quest contract = Quest.builder("q_contract").category("main").occupiesLog(false)
+                .objective(mine("mine", 0)).build();
+        Quest active = plain("q_active");
+        Quest next = plain("q_next");
+        QuestEngine capped = QuestEngine.builder().nativeEvents(false).warn(message -> { })
+                .maxActive(2).clock(() -> now).build();
+        capped.setQuests(List.of(seasonal, contract, active, next));
+        presentation.managed.add(contract.id());
+        assertTrue(capped.accept(player, seasonal));
+        assertTrue(capped.accept(player, contract));
+        assertTrue(capped.accept(player, active));
+        running.set(false);
+        assertTrue(capped.canAccept(player, next).allowed(),
+                "a quest out of season and a contract hold no log slot, so the log takes another quest");
+
+        QuestReader r = QuestReader.of(capped, player, presentation, player.id(), now);
+        Message inProgress = r.stats().get(0).value();
+        assertEquals(1L, number(inProgress, "0"), "the one log quest on offer, as the cap counts it");
+        assertEquals(2L, number(inProgress, "1"), "read over the cap");
+        assertEquals(1L, number(r.subtitle(), "0"), "the subtitle says the same number");
+    }
+
+    /** A message's numeric param, whichever width it was bound at. */
+    private static long number(@Nonnull Message message, @Nonnull String param) {
+        FormattedMessage formatted = message.getFormattedMessage();
+        assertNotNull(formatted.params, "a count binds as a typed number");
+        return switch (formatted.params.get(param)) {
+            case LongParamValue value -> value.value;
+            case IntParamValue value -> value.value;
+            case null, default -> throw new AssertionError("param " + param + " is not a typed number");
+        };
     }
 
     // ==================== the lang file ====================

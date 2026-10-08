@@ -91,8 +91,8 @@ public final class ZigQuestCompletionProducer {
     /**
      * The qualifier a collected quest's {@code COMPLETE_QUEST} moment carries: the first answer a
      * registered {@link QuestCompletionQualifier} gives, else the quest's own cadence word
-     * ({@link QuestCadence#qualifier()}: {@code NORMAL}, {@code REPEATABLE}, {@code DAILY} or
-     * {@code WEEKLY}), else none for a quest the runtime does not hold.
+     * ({@link QuestCadence#qualifier()}: {@code NORMAL}, {@code REPEATABLE}, {@code DAILY},
+     * {@code WEEKLY} or {@code SEASONAL}), else none for a quest the runtime does not hold.
      *
      * @param quest the quest as the runtime holds it, or null when it holds none under that id
      */
