@@ -5,6 +5,7 @@ import java.nio.file.Path;
 import javax.annotation.Nonnull;
 
 import com.ziggfreed.common.asset.OwnerLayerReader;
+import com.ziggfreed.common.asset.PresenceRequiresCodec;
 
 /**
  * The server owner's last word on the library's bonus rows, at
@@ -17,7 +18,9 @@ import com.ziggfreed.common.asset.OwnerLayerReader;
  * }</pre>
  *
  * <p>An id no pack authored stands on its own as a new row. Read from the store's own load event,
- * since an owner entry has nothing to inherit from until the packs have landed.
+ * since an owner entry has nothing to inherit from until the packs have landed. An entry follows the
+ * mod gate as a row file does: one gated on a missing mod, or retuning a row the gate kept out, is
+ * dropped.
  */
 public final class BonusRowOwnerLayers {
 
@@ -49,6 +52,6 @@ public final class BonusRowOwnerLayers {
     /** (Re)read the owner file into the row fold's owner layer. */
     public static void reload() {
         OwnerLayerReader.apply(LOG_TAG, file(), BonusRowAsset.class, BonusRowAsset.CODEC,
-                BonusRowConfig.getInstance(), "bonus row");
+                BonusRowConfig.getInstance(), "bonus row", r -> PresenceRequiresCodec.missingMod(r.getRequires()));
     }
 }

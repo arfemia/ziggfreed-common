@@ -14,6 +14,7 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.ziggfreed.common.asset.ModGateFold;
 import com.ziggfreed.common.progress.asset.GeneratedBody;
 import com.ziggfreed.common.progress.asset.GeneratorCore;
 import com.ziggfreed.common.progress.gate.GateSpec;
@@ -76,6 +77,14 @@ public final class ShopAssetStore {
     /** Rebuild the offer layer from a load event's decoded assets, refusing nothing. Idempotent on re-import. */
     public synchronized void mergeEntries(@Nonnull Map<String, ShopEntryAsset> layer) {
         mergeEntries(layer, Set.of());
+    }
+
+    /**
+     * Rebuild the offer layer from the load handler's gated fold ({@code AssetMergeAdapter.gate}): its
+     * layer, and the ids it refused, so a family over one stays silent. Idempotent on re-import.
+     */
+    public synchronized void mergeEntries(@Nonnull ModGateFold<ShopEntryAsset> fold) {
+        mergeEntries(fold.layer(), fold.refusedIds());
     }
 
     /**

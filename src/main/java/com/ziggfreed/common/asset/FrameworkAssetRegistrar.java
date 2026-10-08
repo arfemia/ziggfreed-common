@@ -1,7 +1,5 @@
 package com.ziggfreed.common.asset;
 
-import java.util.function.Predicate;
-
 import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.assetstore.event.LoadedAssetsEvent;
@@ -220,14 +218,16 @@ public final class FrameworkAssetRegistrar {
 
         // --- Lootables (Pattern A) - named, reusable conditional loot tables anything can reference
         //     by id, including the score-tiered pools an instance preset names. Common ships no loot
-        //     CONTENT; every table is consumer pack JSON. ---
+        //     CONTENT; every table is consumer pack JSON. Like every store whose files carry a
+        //     Requires, it folds through AssetMergeAdapter.gate under its own store name: a file gated
+        //     on a missing mod is dropped, and the drop is one counted line per store per mod. ---
         AssetStoreRegistrar.registerStore(LootableAsset.class,
                 new DefaultAssetMap<String, LootableAsset>(), LootableAsset.TYPE_ROOT,
                 LootableAsset::getId, LootableAsset.CODEC, null);
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, LootableAsset.class,
                 (LoadedAssetsEvent<String, LootableAsset, DefaultAssetMap<String, LootableAsset>> ev) ->
-                        LootableConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap(),
-                                t -> PresenceRequiresCodec.passesModGate(t.getRequires()))));
+                        LootableConfig.getInstance().mergePackLayer(AssetMergeAdapter.gate("Lootables",
+                                ev.getAssetMap(), t -> PresenceRequiresCodec.missingMod(t.getRequires()))));
 
         // --- Roll pools (Pattern A) - named, reusable stat-roll tables a stamp draws from. ---
         AssetStoreRegistrar.registerStore(RollPoolAsset.class,
@@ -247,8 +247,8 @@ public final class FrameworkAssetRegistrar {
                 BonusRowAsset::getId, BonusRowAsset.CODEC, null);
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, BonusRowAsset.class,
                 (LoadedAssetsEvent<String, BonusRowAsset, DefaultAssetMap<String, BonusRowAsset>> ev) -> {
-                    BonusRowConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap(),
-                            r -> PresenceRequiresCodec.passesModGate(r.getRequires())));
+                    BonusRowConfig.getInstance().mergePackLayer(AssetMergeAdapter.gate("BonusRows",
+                            ev.getAssetMap(), r -> PresenceRequiresCodec.missingMod(r.getRequires())));
                     BonusRowOwnerLayers.reload();
                 });
 
@@ -386,8 +386,8 @@ public final class FrameworkAssetRegistrar {
                 NpcPlacementAsset::getId, NpcPlacementAsset.CODEC, null);
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, NpcPlacementAsset.class,
                 (LoadedAssetsEvent<String, NpcPlacementAsset, DefaultAssetMap<String, NpcPlacementAsset>> ev) -> {
-                    NpcPlacementConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap(),
-                            p -> NpcPlacementAsset.Requires.passesModGate(p.getRequires())));
+                    NpcPlacementConfig.getInstance().mergePackLayer(AssetMergeAdapter.gate("NpcPlacements",
+                            ev.getAssetMap(), p -> NpcPlacementAsset.Requires.missingMod(p.getRequires())));
                     // The owner file's own placements land HERE rather than at setup, for the same
                     // reason the commerce owner layers do: an owner entry is decoded against
                     // whatever the packs already say about that id, so it has nothing to inherit
@@ -537,9 +537,8 @@ public final class FrameworkAssetRegistrar {
                 QuestAsset::getId, QuestAsset.CODEC, null);
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, QuestAsset.class,
                 (LoadedAssetsEvent<String, QuestAsset, DefaultAssetMap<String, QuestAsset>> ev) -> {
-                    Predicate<QuestAsset> loadsHere = q -> GateSpec.passesModGate(q.getRequires());
-                    QuestAssetStore.getInstance().mergeQuests(AssetMergeAdapter.layer(ev.getAssetMap(), loadsHere),
-                            AssetMergeAdapter.refused(ev.getAssetMap(), loadsHere));
+                    QuestAssetStore.getInstance().mergeQuests(AssetMergeAdapter.gate("Quests",
+                            ev.getAssetMap(), q -> GateSpec.missingMod(q.getRequires())));
                     ProgressionDefaults.republishAssetContent();
                 });
 
@@ -569,8 +568,8 @@ public final class FrameworkAssetRegistrar {
                 new Class<?>[]{CalendarEventAsset.class});
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, AchievementAsset.class,
                 (LoadedAssetsEvent<String, AchievementAsset, DefaultAssetMap<String, AchievementAsset>> ev) -> {
-                    AchievementAssetStore.getInstance().merge(AssetMergeAdapter.layer(ev.getAssetMap(),
-                            a -> GateSpec.passesModGate(a.getRequires())));
+                    AchievementAssetStore.getInstance().merge(AssetMergeAdapter.gate("Achievements",
+                            ev.getAssetMap(), a -> GateSpec.missingMod(a.getRequires())).layer());
                     ProgressionDefaults.republishAssetContent();
                 });
 
@@ -635,8 +634,8 @@ public final class FrameworkAssetRegistrar {
                 CurrencyAsset::getId, CurrencyAsset.CODEC, null);
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, CurrencyAsset.class,
                 (LoadedAssetsEvent<String, CurrencyAsset, DefaultAssetMap<String, CurrencyAsset>> ev) -> {
-                    CurrencyConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap(),
-                            c -> GateSpec.passesModGate(c.getRequires())));
+                    CurrencyConfig.getInstance().mergePackLayer(AssetMergeAdapter.gate("Currencies",
+                            ev.getAssetMap(), c -> GateSpec.missingMod(c.getRequires())));
                     CommerceOwnerLayers.reloadCurrencies();
                 });
 
@@ -649,8 +648,8 @@ public final class FrameworkAssetRegistrar {
                 StorefrontAsset::getId, StorefrontAsset.CODEC, null);
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, StorefrontAsset.class,
                 (LoadedAssetsEvent<String, StorefrontAsset, DefaultAssetMap<String, StorefrontAsset>> ev) -> {
-                    ShopConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap(),
-                            s -> GateSpec.passesModGate(s.getRequires())));
+                    ShopConfig.getInstance().mergePackLayer(AssetMergeAdapter.gate("Shops",
+                            ev.getAssetMap(), s -> GateSpec.missingMod(s.getRequires())));
                     CommerceOwnerLayers.reloadShops();
                 });
 
@@ -675,9 +674,8 @@ public final class FrameworkAssetRegistrar {
                 ShopEntryAsset::getId, ShopEntryAsset.CODEC, null);
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, ShopEntryAsset.class,
                 (LoadedAssetsEvent<String, ShopEntryAsset, DefaultAssetMap<String, ShopEntryAsset>> ev) -> {
-                    Predicate<ShopEntryAsset> loadsHere = o -> GateSpec.passesModGate(o.getRequires());
-                    ShopAssetStore.getInstance().mergeEntries(AssetMergeAdapter.layer(ev.getAssetMap(), loadsHere),
-                            AssetMergeAdapter.refused(ev.getAssetMap(), loadsHere));
+                    ShopAssetStore.getInstance().mergeEntries(AssetMergeAdapter.gate("ShopEntries",
+                            ev.getAssetMap(), o -> GateSpec.missingMod(o.getRequires())));
                     CommerceCatalogs.refreshShops();
                 });
 
@@ -702,8 +700,8 @@ public final class FrameworkAssetRegistrar {
                 BoardAsset::getId, BoardAsset.CODEC, null);
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, BoardAsset.class,
                 (LoadedAssetsEvent<String, BoardAsset, DefaultAssetMap<String, BoardAsset>> ev) -> {
-                    BoardConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap(),
-                            b -> GateSpec.passesModGate(b.getRequires())));
+                    BoardConfig.getInstance().mergePackLayer(AssetMergeAdapter.gate("Boards",
+                            ev.getAssetMap(), b -> GateSpec.missingMod(b.getRequires())));
                     CommerceOwnerLayers.reloadBoards();
                 });
 
@@ -720,8 +718,8 @@ public final class FrameworkAssetRegistrar {
                 BountyAsset::getId, BountyAsset.CODEC, null);
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, BountyAsset.class,
                 (LoadedAssetsEvent<String, BountyAsset, DefaultAssetMap<String, BountyAsset>> ev) -> {
-                    BoardAssetStore.getInstance().merge(AssetMergeAdapter.layer(ev.getAssetMap(),
-                            b -> GateSpec.passesModGate(b.getRequires())));
+                    BoardAssetStore.getInstance().merge(AssetMergeAdapter.gate("Bounties",
+                            ev.getAssetMap(), b -> GateSpec.missingMod(b.getRequires())).layer());
                     CommerceCatalogs.publishBounties();
                 });
 
@@ -763,8 +761,8 @@ public final class FrameworkAssetRegistrar {
                 GearSetAsset::getId, GearSetAsset.CODEC, null);
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, GearSetAsset.class,
                 (LoadedAssetsEvent<String, GearSetAsset, DefaultAssetMap<String, GearSetAsset>> ev) -> {
-                    GearSetConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap(),
-                            s -> PresenceRequiresCodec.passesModGate(s.getRequires())));
+                    GearSetConfig.getInstance().mergePackLayer(AssetMergeAdapter.gate("GearSets",
+                            ev.getAssetMap(), s -> PresenceRequiresCodec.missingMod(s.getRequires())));
                     GearSetOwnerLayers.reload();
                     GearSets.onContentChanged();
                 });

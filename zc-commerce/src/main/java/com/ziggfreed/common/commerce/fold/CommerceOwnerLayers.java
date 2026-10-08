@@ -2,6 +2,7 @@ package com.ziggfreed.common.commerce.fold;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.function.Function;
 
 import javax.annotation.Nonnull;
 
@@ -13,6 +14,7 @@ import com.ziggfreed.common.board.asset.BoardAsset;
 import com.ziggfreed.common.board.asset.BoardConfig;
 import com.ziggfreed.common.currency.asset.CurrencyAsset;
 import com.ziggfreed.common.currency.asset.CurrencyConfig;
+import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.shop.asset.StorefrontAsset;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.shop.asset.ShopPoolAsset;
@@ -54,7 +56,9 @@ import com.ziggfreed.common.util.OwnerFiles;
  *
  * <p>Read AFTER the pack layer has merged, which is why the wiring root calls each of these from the
  * store's own load event rather than from setup. The reading itself is the library-wide
- * {@link OwnerLayerReader}; this class only says which four files the economy keeps and where.
+ * {@link OwnerLayerReader}; this class only says which four files the economy keeps and where, and
+ * which of them follow the mod gate (wallets, storefronts and boards, whose files carry a
+ * {@code Requires}).
  */
 public final class CommerceOwnerLayers {
 
@@ -96,29 +100,37 @@ public final class CommerceOwnerLayers {
     /** (Re)read {@code currencies.json} into the wallet fold's owner layer. */
     public static void reloadCurrencies() {
         apply(CURRENCIES_FILE, CurrencyAsset.class, CurrencyAsset.CODEC, CurrencyConfig.getInstance(),
-                "wallet");
+                "wallet", c -> GateSpec.missingMod(c.getRequires()));
     }
 
     /** (Re)read {@code shops.json} into the storefront fold's owner layer. */
     public static void reloadShops() {
-        apply(SHOPS_FILE, StorefrontAsset.class, StorefrontAsset.CODEC, ShopConfig.getInstance(), "storefront");
+        apply(SHOPS_FILE, StorefrontAsset.class, StorefrontAsset.CODEC, ShopConfig.getInstance(), "storefront",
+                s -> GateSpec.missingMod(s.getRequires()));
     }
 
     /** (Re)read {@code boards.json} into the board fold's owner layer. */
     public static void reloadBoards() {
-        apply(BOARDS_FILE, BoardAsset.class, BoardAsset.CODEC, BoardConfig.getInstance(), "board");
+        apply(BOARDS_FILE, BoardAsset.class, BoardAsset.CODEC, BoardConfig.getInstance(), "board",
+                b -> GateSpec.missingMod(b.getRequires()));
     }
 
-    /** (Re)read {@code shop-pools.json} into the shelf fold's owner layer. */
+    /** (Re)read {@code shop-pools.json} into the shelf fold's owner layer. A shelf carries no gate. */
     public static void reloadShopPools() {
         apply(SHOP_POOLS_FILE, ShopPoolAsset.class, ShopPoolAsset.CODEC,
-                ShopPoolConfig.getInstance(), "shelf");
+                ShopPoolConfig.getInstance(), "shelf", p -> null);
     }
 
-    /** Read one owner file under the commerce directory through the shared reader. */
+    /**
+     * Read one owner file under the commerce directory through the shared reader.
+     *
+     * @param missingMod the store's mod-gate read of an entry, so an owner entry gated on a missing mod
+     *                   is dropped like a pack file
+     */
     private static <T extends JsonAsset<String>> void apply(@Nonnull String fileName,
             @Nonnull Class<T> assetClass, @Nonnull AssetBuilderCodec<String, T> codec,
-            @Nonnull AbstractKeyedAssetConfig<T> config, @Nonnull String noun) {
-        OwnerLayerReader.apply(LOG_TAG, directory.resolve(fileName), assetClass, codec, config, noun);
+            @Nonnull AbstractKeyedAssetConfig<T> config, @Nonnull String noun,
+            @Nonnull Function<T, String> missingMod) {
+        OwnerLayerReader.apply(LOG_TAG, directory.resolve(fileName), assetClass, codec, config, noun, missingMod);
     }
 }

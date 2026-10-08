@@ -12,7 +12,6 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Predicate;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -89,7 +88,7 @@ class QuestGatedBaseTest {
     // ==================== a base under a _-marked folder ====================
 
     /** The engine's quest map with its pack-loading door opened, as the load event hands it over. */
-    private static final class PackMap extends DefaultAssetMap<String, QuestAsset> {
+    static final class PackMap extends DefaultAssetMap<String, QuestAsset> {
 
         /**
          * Load one quest FILE at {@code path}: the engine keys it by its filename alone, while the
@@ -105,9 +104,8 @@ class QuestGatedBaseTest {
     }
 
     /** Fold the quest map exactly as the registrar's Quests load handler does. */
-    private static void foldAsTheLoadHandlerDoes(DefaultAssetMap<String, QuestAsset> files) {
-        Predicate<QuestAsset> loadsHere = q -> GateSpec.passesModGate(q.getRequires());
-        STORE.mergeQuests(AssetMergeAdapter.layer(files, loadsHere), AssetMergeAdapter.refused(files, loadsHere));
+    static void foldAsTheLoadHandlerDoes(DefaultAssetMap<String, QuestAsset> files) {
+        STORE.mergeQuests(AssetMergeAdapter.gate("Quests", files, q -> GateSpec.missingMod(q.getRequires())));
     }
 
     /**

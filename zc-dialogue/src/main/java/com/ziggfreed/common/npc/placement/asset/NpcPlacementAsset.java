@@ -781,7 +781,16 @@ public final class NpcPlacementAsset
          * (zc-core {@code ModGates}): such a placement never reaches the store, a sweep or the audit.
          */
         public static boolean passesModGate(@Nullable Requires requires) {
-            return requires == null || ModGates.keep(requires.conditionsOrEmpty());
+            return missingMod(requires) == null;
+        }
+
+        /**
+         * The mod ({@code Group:Name}) that keeps a placement carrying {@code requires} off this server,
+         * or null when it loads here: the read the load handler and the owner file pass on.
+         */
+        @Nullable
+        public static String missingMod(@Nullable Requires requires) {
+            return requires == null ? null : ModGates.missingMod(requires.conditionsOrEmpty());
         }
     }
 
