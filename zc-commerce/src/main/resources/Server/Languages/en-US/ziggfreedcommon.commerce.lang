@@ -88,12 +88,12 @@ board.action.accept = Take it
 board.action.turn_in = Hand in
 board.action.report = Report back
 board.action.claim = Collect
-board.action.abandon = Give up
+board.action.abandon = Abandon
 board.action.reroll = Reroll
 
 board.toast.accepted = Contract taken.
 board.toast.claim_failed = There is nothing to collect right now.
-board.toast.abandoned = Contract given up.
+board.toast.abandoned = Contract abandoned.
 board.toast.turned_in = Handed in.
 board.toast.turn_in_failed = That could not be handed in.
 board.toast.turn_in_short = You have {0} of {1}.

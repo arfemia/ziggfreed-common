@@ -7,5 +7,5 @@ factor.calendar_year = the year of a running calendar event
 factor.feature = a feature this server has switched on
 
 # The attendance step: {1} is the event it names. The .any twin reads when a step names no event.
-objective.calendar_attended = Attend {1}
-objective.calendar_attended.any = Attend a calendar event
+objective.calendar_attended = Take part in {1}
+objective.calendar_attended.any = Take part in a seasonal event
