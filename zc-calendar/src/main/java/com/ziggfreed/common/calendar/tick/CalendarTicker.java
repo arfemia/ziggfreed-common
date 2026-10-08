@@ -24,8 +24,9 @@ import com.ziggfreed.common.util.SafeLog;
  * is the boot's (every run already going is a RESUMED start), and a world added during the universe's own
  * start never sees a calendar write. A change of content or of a switch asks for a look soon through
  * {@link #requestEvaluation()}. The look reads the calendar under {@link CalendarService#lock()}, the lock
- * a reload folds both layers under, so a tick never sees half a reload; events and listeners then run
- * outside that lock, on the tick's own thread.
+ * a reload folds both layers under, so a tick never sees half a reload, and there it clears every force whose
+ * run is over (the only place one is cleared but a command); events and listeners then run outside that lock,
+ * on the tick's own thread.
  */
 public final class CalendarTicker {
 
@@ -94,6 +95,8 @@ public final class CalendarTicker {
         long now = clock.getAsLong();
         CalendarTick tick;
         synchronized (service.lock()) {
+            // The one writer of a spent force: under the lock a reload folds under, so never on half a reload.
+            service.clearSpentForces(now);
             Map<String, Occurrence> current = service.liveAll(now);
             tick = CalendarTransitions.diff(live, current, service::isEnabled, now, booting);
             live.clear();

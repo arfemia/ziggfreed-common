@@ -4,6 +4,7 @@ import static com.ziggfreed.common.calendar.CalendarFixtures.at;
 import static com.ziggfreed.common.calendar.CalendarFixtures.waitsFor;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -288,7 +289,7 @@ class CalendarTickerTest {
         now[0] = at("2026-06-01T00:00:00Z");
         ticker.start();
         assertTrue(fired.isEmpty());
-        CalendarForces.getInstance().force("Hallows_Eve", true);
+        CalendarRuntime.service().forceOn("Hallows_Eve", now[0]);
         ticker.requestEvaluation();
         scheduler.drain();
         assertEquals(1, starts().size());
@@ -298,6 +299,25 @@ class CalendarTickerTest {
         scheduler.drain();
         assertEquals(1, ends().size());
         assertFalse(ends().get(0).switchedOff());
+    }
+
+    // M330: a force on stops once its run's days end; the tick's look, under the calendar's lock, clears it.
+    @Test
+    void aForcedRunEndsWithItsDaysAndTheTicksLookClearsTheForce() {
+        now[0] = at("2026-06-01T00:00:00Z");
+        ticker.start();
+        CalendarRuntime.service().forceOn("Hallows_Eve", now[0]);
+        ticker.requestEvaluation();
+        scheduler.drain();
+        assertEquals(1, starts().size(), "brought forward from October");
+        assertEquals(Boolean.TRUE, CalendarForces.getInstance().forced("hallows_eve"));
+        now[0] = at("2026-11-04T00:00:00Z");
+        ticker.requestEvaluation();
+        scheduler.drain();
+        assertEquals(1, ends().size(), "it ends with its days");
+        assertFalse(ends().get(0).switchedOff(), "a real end");
+        assertNull(CalendarForces.getInstance().forced("hallows_eve"), "and the look cleared the force");
+        assertEquals(1, starts().size(), "bringing no other run forward");
     }
 
     @Test

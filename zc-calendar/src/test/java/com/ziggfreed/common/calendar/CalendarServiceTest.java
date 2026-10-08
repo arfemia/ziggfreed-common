@@ -127,7 +127,7 @@ class CalendarServiceTest {
     @Test
     void forcingOnRunsThisYearsRunOutsideItsDates() {
         long june = at("2026-06-01T00:00:00Z");
-        CalendarForces.getInstance().force("Hallows_Eve", true);
+        service.forceOn("Hallows_Eve", june);
         Occurrence forced = service.live("hallows_eve", june);
         assertNotNull(forced);
         assertEquals(2026, forced.year(), "what a forced run earns is filed under this year");
@@ -138,7 +138,7 @@ class CalendarServiceTest {
     @Test
     void forcingOffStopsARunningEventAndClearingHandsItBackToItsDates() {
         long during = at("2026-10-02T12:00:00Z");
-        CalendarForces.getInstance().force("hallows_eve", false);
+        CalendarForces.getInstance().forceOff("hallows_eve");
         assertNull(service.live("hallows_eve", during));
         assertTrue(service.isEnabled("hallows_eve"), "stopped is not switched off");
         CalendarForces.getInstance().clear("HALLOWS_EVE");
@@ -147,7 +147,7 @@ class CalendarServiceTest {
 
     @Test
     void theOwnersSwitchBeatsAForce() {
-        CalendarForces.getInstance().force("hallows_eve", true);
+        service.forceOn("hallows_eve", at("2026-06-01T00:00:00Z"));
         CalendarEventConfig.getInstance().setGlobalEnabled(false);
         assertNull(service.live("hallows_eve", at("2026-06-01T00:00:00Z")));
     }
@@ -219,7 +219,7 @@ class CalendarServiceTest {
     @Test
     void forcedOffTheNextRunIsWhenItsDatesNextComeRound() {
         long during = at("2026-10-02T12:00:00Z");
-        CalendarForces.getInstance().force("Hallows_Eve", false);
+        CalendarForces.getInstance().forceOff("Hallows_Eve");
         assertNull(service.live("hallows_eve", during));
         assertEquals(hallowsEveIn(2027), service.next("hallows_eve", during),
                 "a stopped run returns next October, since this October's start has passed");
@@ -230,7 +230,7 @@ class CalendarServiceTest {
     @Test
     void forcedOnAheadOfItsDatesTheRunGoingOnIsNeverTheNext() {
         long june = at("2026-06-01T00:00:00Z");
-        CalendarForces.getInstance().force("hallows_eve", true);
+        service.forceOn("hallows_eve", june);
         assertEquals(2026, service.live("hallows_eve", june).year());
         assertEquals(hallowsEveIn(2027), service.next("hallows_eve", june),
                 "this year's run is going on already, forced, so the next is next year's");
@@ -239,7 +239,7 @@ class CalendarServiceTest {
 
         CalendarFixtures.loadEvents(Map.of("later_fair", CalendarFixtures.event("Later_Fair",
                 "{ \"Window\": { \"Start\": \"10-01\", \"End\": \"11-03\" }, \"FirstYear\": 2028 }")));
-        CalendarForces.getInstance().force("later_fair", true);
+        service.forceOn("later_fair", june);
         assertEquals(2028, service.live("later_fair", june).year(), "a forced run is filed under the first year");
         assertEquals(2029, service.next("later_fair", june).year(), "so the next run is the year after it");
     }
@@ -257,7 +257,7 @@ class CalendarServiceTest {
         assertNull(service.next("no_year", june), "it cannot run");
         assertNull(service.next("no_such_event", june), "not loaded");
         assertNotNull(service.next("harvest_moon", june));
-        CalendarForces.getInstance().force("harvest_moon", true);
+        service.forceOn("harvest_moon", june);
         CalendarEventConfig.getInstance().setGlobalEnabled(false);
         assertNull(service.next("harvest_moon", june), "the owner's switch beats the dates and a force");
     }
@@ -355,7 +355,7 @@ class CalendarServiceTest {
         long june = at("2026-06-01T00:00:00Z");
         assertEquals(Integer.valueOf(2026), service.currentYear("later_fair", june),
                 "before the first run it is the calendar year, earlier than the first year");
-        CalendarForces.getInstance().force("Later_Fair", true);
+        service.forceOn("Later_Fair", june);
         Occurrence forced = service.live("later_fair", june);
         assertNotNull(forced);
         assertEquals(2028, forced.year(), "a forced run is never filed before the first year");

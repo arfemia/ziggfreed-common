@@ -54,10 +54,26 @@ class CalendarStatusLinesTest {
     @Test
     void forcedAndStoppedEventsSaySo() {
         long october = at("2026-10-02T12:00:00Z");
-        CalendarForces.getInstance().force("harvest_moon", true);
+        service.forceOn("harvest_moon", october);
         assertEquals("row.live.forced", CalendarStatusLines.row(service, "harvest_moon", october).key());
-        CalendarForces.getInstance().force("hallows_eve", false);
+        CalendarForces.getInstance().forceOff("hallows_eve");
         assertEquals(new Line("row.stopped", List.of("hallows_eve")), CalendarStatusLines.row(service, "hallows_eve", october));
+    }
+
+    @Test
+    void aForcedRunSaysItRunsThroughTheForcesOwnEnd() {
+        long october = at("2026-10-02T12:00:00Z");
+        service.forceOn("harvest_moon", october);
+        assertEquals(new Line("row.live.forced", List.of("harvest_moon", "2026", "2026-10-31")),
+                CalendarStatusLines.row(service, "harvest_moon", october), "brought forward: through its own last day");
+        long december = at("2026-12-10T12:00:00Z");
+        service.forceOn("hallows_eve", december);
+        assertEquals(new Line("row.live.forced", List.of("hallows_eve", "2026", "2027-01-13")),
+                CalendarStatusLines.row(service, "hallows_eve", december),
+                "run again in December: its usual 34 days from the force, through January 13th");
+        assertEquals(new Line("row.waiting", List.of("harvest_moon", "2027-10-29")),
+                CalendarStatusLines.row(service, "harvest_moon", at("2026-11-01T00:00:00Z")),
+                "a force whose run is over reads as the dates, before the tick's look clears it");
     }
 
     @Test
