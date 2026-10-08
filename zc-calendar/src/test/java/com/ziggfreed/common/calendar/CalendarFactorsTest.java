@@ -64,7 +64,7 @@ class CalendarFactorsTest {
                 "{ \"Enabled\": false, \"Window\": { \"Start\": \"10-01\", \"End\": \"11-03\" }, \"FirstYear\": 2026 }")));
         assertNull(CalendarFactors.live(service, "Hallows_Eve", october), "its own switch, the same");
         CalendarFixtures.loadDesignEvents();
-        CalendarForces.getInstance().force("Hallows_Eve", false);
+        CalendarForces.getInstance().forceOff("Hallows_Eve");
         assertEquals(0.0, CalendarFactors.live(service, "Hallows_Eve", october),
                 "stopped by a command is not switched off");
     }
