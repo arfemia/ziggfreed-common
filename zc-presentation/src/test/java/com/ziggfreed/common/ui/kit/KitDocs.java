@@ -26,7 +26,8 @@ final class KitDocs {
     static final List<String> DOCUMENTS = List.of("Common/ZigTokens.ui", "Common/ZigText.ui", "Common/ZigStyles.ui",
             "Common/ZigKit.ui", "Pages/ZigLedgerRow.ui", "Pages/ZigLedgerRowCompact.ui", "Pages/ZigLedgerSection.ui",
             "Pages/ZigShowMoreRow.ui", "Pages/ZigDetailBlock.ui", "Pages/ZigDetailLine.ui", "Pages/ZigCollectionTile.ui",
-            "Pages/ZigKeepsakeTile.ui", "Pages/ZigStatTile.ui", "Pages/ZigSegment.ui", "Pages/ZigPill.ui");
+            "Pages/ZigKeepsakeTile.ui", "Pages/ZigStatTile.ui", "Pages/ZigSegment.ui", "Pages/ZigViewTab.ui",
+            "Pages/ZigPill.ui");
 
     /** The appended templates (a page appends each by path), each rooted at a Group named after its file. */
     static final List<String> APPENDED = DOCUMENTS.subList(4, DOCUMENTS.size());

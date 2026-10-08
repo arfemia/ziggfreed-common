@@ -20,6 +20,7 @@ import javax.annotation.Nonnull;
 import org.junit.jupiter.api.Test;
 
 import com.ziggfreed.common.objectives.book.LedgerLayout;
+import com.ziggfreed.common.ui.kit.ViewTabPainter;
 
 /**
  * The Achievements tab's document ({@code Pages/ZigBookAchievements.ui}) holds every id the tab addresses, each once
@@ -99,7 +100,15 @@ class ZigBookAchievementsDocumentTest {
                 "Anchor: (Height: " + LedgerLayout.BODY_HEIGHT + ");"), "the tab fills the shell's tab body");
         String toolbarRow = "Anchor: (Height: " + LedgerLayout.TOOLBAR_HEIGHT + ", Bottom: " + LedgerLayout.TOOLBAR_GAP
                 + ");";
-        assertTrue(own(block(ui, "Group " + AchievementsTab.TOOLBAR)).contains(toolbarRow));
+        String toolbar = own(block(ui, "Group " + AchievementsTab.TOOLBAR));
+        assertTrue(toolbar.contains("LayoutMode: Top;") && toolbar.contains("Anchor: (Height: "
+                + (LedgerLayout.TOOLBAR_HEIGHT + LedgerLayout.TOOLBAR_GAP) + ");"),
+                "the view strip, its rule and the gap fill a toolbar row and its gap, so nothing below moves");
+        assertTrue(own(block(ui, "Group " + AchievementsTab.TOOLBAR_ROW)).contains(
+                "Anchor: (Height: " + ViewTabPainter.HEIGHT + ");"), "the strip is a view tab high");
+        String rule = own(block(ui, "Group " + AchievementsTab.VIEWS_RULE));
+        assertTrue(rule.contains("Anchor: (Height: " + AchievementsTab.RULE_HEIGHT + ");")
+                && rule.contains("Background: (Color: $ZK.@ZigDivider);"), "a thin line under the strip");
         String filters = own(block(ui, "Group " + AchievementsTab.FILTERS));
         assertTrue(filters.contains(toolbarRow), "the filter row is a toolbar row too");
         assertTrue(filters.contains("Visible: false;"), "Browse shows the filter row");
@@ -119,7 +128,8 @@ class ZigBookAchievementsDocumentTest {
         assertTrue(own(block(ui, "Group " + AchievementsTab.STATUSES)).contains(
                 "Anchor: (Width: " + AchievementsTab.STATUSES_WIDTH + ");"));
         assertTrue(block(ui, "$S.@ZigSearchRow " + AchievementsTab.SEARCH).contains(
-                "@Anchor = (Width: " + AchievementsTab.SEARCH_WIDTH + ");"));
+                "@Anchor = (Width: " + AchievementsTab.SEARCH_WIDTH + ", Top: " + AchievementsTab.SEARCH_TOP + ");"),
+                "the search row sits centred on the strip");
         assertTrue(own(block(ui, "$C.@DropdownBox " + AchievementsTab.CATEGORY)).contains(
                 "Anchor: (Width: " + AchievementsTab.CATEGORY_WIDTH + ", Height: " + LedgerLayout.TOOLBAR_HEIGHT + ");"));
         assertTrue(own(block(ui, "$C.@DropdownBox " + AchievementsTab.SORT)).contains(
@@ -128,7 +138,11 @@ class ZigBookAchievementsDocumentTest {
 
     @Test
     void theToolbarRowsFitTheBody() {
-        assertEquals(3 * AchievementsTab.SEGMENT_STEP, AchievementsTab.VIEWS_WIDTH, "room for every view");
+        assertEquals(3 * ViewTabPainter.STEP, AchievementsTab.VIEWS_WIDTH, "room for every view tab");
+        assertTrue(ViewTabPainter.HEIGHT + AchievementsTab.RULE_HEIGHT
+                <= LedgerLayout.TOOLBAR_HEIGHT + LedgerLayout.TOOLBAR_GAP, "the strip and its rule fit the row");
+        assertEquals((ViewTabPainter.HEIGHT - LedgerLayout.TOOLBAR_HEIGHT) / 2, AchievementsTab.SEARCH_TOP,
+                "the 32-high search row centred on the strip");
         assertEquals(BrowseFilter.STATUSES.size() * AchievementsTab.SEGMENT_STEP, AchievementsTab.STATUSES_WIDTH,
                 "room for every status");
         assertTrue(AchievementsTab.VIEWS_WIDTH + AchievementsTab.SEARCH_WIDTH <= LedgerLayout.INNER_WIDTH);

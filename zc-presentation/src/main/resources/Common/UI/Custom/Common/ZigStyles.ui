@@ -60,6 +60,25 @@ $ZX = "ZigText.ui";
   Sounds: $C.@ButtonSounds
 );
 
+// ── View tabs (Pages/ZigViewTab.ui): a page's views as tabs, never a filter's boxed segment. A faint pane and a
+// muted name at rest, the row's hover under the cursor; the chosen tab on the row fill, its name the rail's gold. ──
+@ZigViewTabStyle = ButtonStyle(
+  Default: (Background: (Color: $ZK.@ZigSurfacePane)),
+  Hovered: (Background: (Color: $ZK.@ZigSurfaceRowHover)),
+  Pressed: (Background: (Color: $ZK.@ZigSurfaceRowPressed)),
+  Sounds: $C.@ButtonSounds
+);
+
+@ZigViewTabOnStyle = ButtonStyle(
+  Default: (Background: (Color: $ZK.@ZigSurfaceRow)),
+  Hovered: (Background: (Color: $ZK.@ZigSurfaceRowHover)),
+  Pressed: (Background: (Color: $ZK.@ZigSurfaceRowPressed)),
+  Sounds: $C.@ButtonSounds
+);
+
+@ZigViewTabLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontBody, TextColor: $ZK.@ZigInkMuted, RenderBold: true, RenderUppercase: true, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: $ZT.@ZigFontCaption);
+@ZigViewTabLabelOnStyle = LabelStyle(...@ZigViewTabLabelStyle, TextColor: $ZK.@ZigAccent);
+
 // ── Tiles: vanilla's Memories tiles (Border 8), lighter under the cursor ──
 @ZigTileStyle = ButtonStyle(
   Default: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileDefault.png", Border: 8)),

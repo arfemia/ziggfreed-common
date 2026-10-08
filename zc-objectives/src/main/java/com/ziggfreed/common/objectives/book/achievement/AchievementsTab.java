@@ -64,10 +64,11 @@ import com.ziggfreed.common.ui.kit.SegmentPainter;
 import com.ziggfreed.common.ui.kit.Stat;
 import com.ziggfreed.common.ui.kit.TilePainter;
 import com.ziggfreed.common.ui.kit.Tone;
+import com.ziggfreed.common.ui.kit.ViewTabPainter;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * The book's Achievements tab: three views on one document ({@link #DOCUMENT}), chosen by the segment at the left of
+ * The book's Achievements tab: three views on one document ({@link #DOCUMENT}), chosen by the view tabs at the left of
  * the toolbar and carried in {@code BookState.view()}.
  * <ul>
  *   <li><b>Overview</b> (the default): the hero (earned of total, points, one bar, the rewards still to collect with
@@ -103,7 +104,11 @@ public final class AchievementsTab implements BookTab {
 
     static final String ROOT = "#Achievements";
     static final String TOOLBAR = "#Toolbar";
+    /** The view tabs and the search row, over {@link #VIEWS_RULE}. */
+    static final String TOOLBAR_ROW = "#ToolbarRow";
     static final String VIEWS = "#Views";
+    /** The thin line under the view tabs. */
+    static final String VIEWS_RULE = "#ViewsRule";
     static final String SEARCH = "#Search";
     static final String FILTERS = "#Filters";
     static final String STATUSES = "#Statuses";
@@ -170,9 +175,14 @@ public final class AchievementsTab implements BookTab {
 
     /** One appended segment ({@code Pages/ZigSegment.ui}): 132 wide and 6 to the next. */
     static final int SEGMENT_STEP = 138;
-    static final int VIEWS_WIDTH = 3 * SEGMENT_STEP;
+    /** Room for every view tab ({@code Pages/ZigViewTab.ui}). */
+    static final int VIEWS_WIDTH = 3 * ViewTabPainter.STEP;
+    /** The line under the view tabs. */
+    static final int RULE_HEIGHT = 1;
     static final int STATUSES_WIDTH = BrowseFilter.STATUSES.size() * SEGMENT_STEP;
     static final int SEARCH_WIDTH = 346;
+    /** The 32-high search row's offset, centring it on the taller view tabs. */
+    static final int SEARCH_TOP = (ViewTabPainter.HEIGHT - LedgerLayout.TOOLBAR_HEIGHT) / 2;
     static final int CATEGORY_WIDTH = 240;
     static final int SORT_WIDTH = 220;
     static final int TOOL_GAP = 8;
@@ -255,7 +265,7 @@ public final class AchievementsTab implements BookTab {
     /**
      * What one build shows, decided before anything paints.
      *
-     * @param views      the view segments offered, in order
+     * @param views      the view tabs offered, in order
      * @param view       the view shown: the state's own when offered, else Overview
      * @param selectedId the state's selection, carried whatever the view
      * @param milestones whether the consumer ships a milestone ladder
@@ -309,6 +319,21 @@ public final class AchievementsTab implements BookTab {
                 : List.of(BookState.VIEW_OVERVIEW, BookState.VIEW_BROWSE);
         String view = views.contains(state.view()) ? state.view() : BookState.VIEW_OVERVIEW;
         return new Plan(views, view, state.selectedId(), milestones);
+    }
+
+    /**
+     * A view tab's picture, an item's own icon (M327): the map for Overview, the bookcase for Browse, the copper bar
+     * for Statistics; none for a view this tab does not offer. The rail's own pictures (the trophy, the scroll, the
+     * gold bar) are left to the rail.
+     */
+    @Nullable
+    static String viewPicture(@Nonnull String view) {
+        return switch (view) {
+            case BookState.VIEW_OVERVIEW -> "Deco_Map";
+            case BookState.VIEW_BROWSE -> "Furniture_Village_Bookcase";
+            case BookState.VIEW_STATISTICS -> "Ingredient_Bar_Copper";
+            default -> null;
+        };
     }
 
     /** A category tile's click: Browse on that category, every status, no search; the Feats tile: Browse on Feats. */
@@ -535,13 +560,13 @@ public final class AchievementsTab implements BookTab {
         ctx.header().stats(stats);
     }
 
-    /** The view segments and the search row; on Browse, the status segments and the two dropdowns. */
+    /** The view tabs and the search row; on Browse, the status segments and the two dropdowns. */
     private static void toolbar(@Nonnull BookContext ctx, @Nonnull Plan plan, @Nonnull Reading read) {
         UICommandBuilder cmd = ctx.cmd();
         UIEventBuilder events = ctx.events();
         for (String v : plan.views()) {
-            SegmentPainter.append(cmd, events, ctx.at(VIEWS), ctx.text("book.view." + v), v.equals(plan.view()),
-                    false, false, ctx.binding(BookActions.VIEW).append(BookState.KEY_VIEW, v));
+            ViewTabPainter.append(cmd, events, ctx.at(VIEWS), ctx.text("book.view." + v), Picture.item(viewPicture(v)),
+                    v.equals(plan.view()), ctx.binding(BookActions.VIEW).append(BookState.KEY_VIEW, v));
         }
         cmd.set(ctx.at(SEARCH) + ".Visible", plan.search());
         if (plan.search()) {

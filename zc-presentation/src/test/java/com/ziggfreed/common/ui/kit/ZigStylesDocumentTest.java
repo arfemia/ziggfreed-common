@@ -43,7 +43,8 @@ class ZigStylesDocumentTest {
             "ZigButtonSecondaryStyle", "ZigButtonCollectStyle", "ZigButtonDangerStyle", "ZigStateStyle",
             "ZigStateActiveStyle", "ZigStateCollectStyle", "ZigStateDoneStyle", "ZigStateLiveStyle",
             "ZigStateAvailableStyle", "ZigStateWaitingStyle", "ZigStateBlockedStyle", "ZigStateDangerStyle",
-            "ZigFigureAccentStyle", "ZigRowTitleOnSelectedStyle");
+            "ZigFigureAccentStyle", "ZigRowTitleOnSelectedStyle", "ZigViewTabStyle", "ZigViewTabOnStyle",
+            "ZigViewTabLabelStyle", "ZigViewTabLabelOnStyle");
 
     /** The eight tones a state word takes (the neutral word is {@code ZigStateStyle}, in body ink). */
     private static final List<String> TONES = List.of("Active", "Collect", "Done", "Live", "Available", "Waiting",
@@ -106,7 +107,7 @@ class ZigStylesDocumentTest {
         String ui = document(DEFAULT_THEME);
         for (String name : List.of("@ZigRowStyle", "@ZigRowSelectedStyle", "@ZigSegmentStyle", "@ZigSegmentOnStyle",
                 "@ZigTileStyle", "@ZigTileCompleteStyle", "@ZigButtonPrimaryStyle", "@ZigButtonSecondaryStyle",
-                "@ZigButtonCollectStyle", "@ZigButtonDangerStyle")) {
+                "@ZigButtonCollectStyle", "@ZigButtonDangerStyle", "@ZigViewTabStyle", "@ZigViewTabOnStyle")) {
             assertTrue(style(ui, name).contains("Sounds: $C.@"), name + " clicks with a sound");
         }
         assertTrue(style(ui, "@ZigButtonDangerStyle").contains("Sounds: $C.@ButtonsCancel"),
@@ -117,6 +118,22 @@ class ZigStylesDocumentTest {
                 "@ZigButtonDangerStyle")) {
             assertTrue(style(ui, name).contains("Disabled:"), name + " greys out when Java disables it");
         }
+    }
+
+    @Test
+    void aViewTabReadsAsNavigationNotAsAFilter() throws IOException {
+        String ui = document(DEFAULT_THEME);
+        assertTrue(style(ui, "@ZigViewTabStyle").contains("Default: (Background: (Color: $ZK.@ZigSurfacePane))"),
+                "a tab at rest is a faint pane, not a segment's boxed patch");
+        assertTrue(style(ui, "@ZigViewTabOnStyle").contains("Default: (Background: (Color: $ZK.@ZigSurfaceRow))"),
+                "the chosen tab sits on the row fill");
+        String label = style(ui, "@ZigViewTabLabelStyle");
+        assertTrue(label.contains("RenderUppercase: true") && label.contains("RenderBold: true")
+                && label.contains("FontSize: $ZT.@ZigFontBody") && label.contains("TextColor: $ZK.@ZigInkMuted"),
+                "a tab names its view in body-size bold capitals, muted at rest: " + label);
+        String on = style(ui, "@ZigViewTabLabelOnStyle");
+        assertTrue(on.contains("...@ZigViewTabLabelStyle") && on.contains("TextColor: $ZK.@ZigAccent"),
+                "the chosen tab's name is the rail's gold: " + on);
     }
 
     @Test

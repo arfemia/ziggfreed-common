@@ -48,6 +48,16 @@ class AchievementsTabPlanTest {
     // ==================== views ====================
 
     @Test
+    void eachViewTabCarriesItsOwnPicture() {
+        assertEquals("Deco_Map", AchievementsTab.viewPicture(BookState.VIEW_OVERVIEW), "the lay of the land (M327)");
+        assertEquals("Furniture_Village_Bookcase", AchievementsTab.viewPicture(BookState.VIEW_BROWSE),
+                "browse the shelves");
+        assertEquals("Ingredient_Bar_Copper", AchievementsTab.viewPicture(BookState.VIEW_STATISTICS),
+                "bars, a nod to a bar chart, apart from the Leaderboard's gold bar");
+        assertNull(AchievementsTab.viewPicture("no-such-view"), "an unknown view draws no picture");
+    }
+
+    @Test
     void withoutContributionsTheSegmentOffersOverviewAndBrowse() {
         AchievementsTab.Plan plan = AchievementsTab.plan(fresh(), false, false);
         assertEquals(List.of(BookState.VIEW_OVERVIEW, BookState.VIEW_BROWSE), plan.views());

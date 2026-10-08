@@ -1,0 +1,39 @@
+$ZK = "../Common/ZigTokens.ui";
+$ZS = "../Common/ZigStyles.ui";
+$ZW = "../Common/ZigKit.ui";
+
+// One tab of a view strip (the views a page switches between, drawn as tabs so they never read as a filter),
+// appended by com.ziggfreed.common.ui.kit.ViewTabPainter and addressed by index as "#Host[i] #Tab": 186 x 40, a
+// Button #Tab (37 high) holding a 28px plain item picture #Pic and an uppercase #Label, over the 3px gold #Bar the
+// chosen tab shows. At rest a tab is a faint pane with a muted name; the chosen one swaps to ZigViewTabOnStyle and
+// its name to ZigViewTabLabelOnStyle by reference. The page draws a thin rule under the strip.
+
+Group #ZigViewTab {
+  LayoutMode: Top;
+  Anchor: (Width: 186, Height: 40, Right: $ZK.@ZigSpace1);
+
+  Button #Tab {
+    Anchor: (Height: 37);
+    LayoutMode: Left;
+    Padding: (Horizontal: $ZK.@ZigSpace3);
+    Style: $ZS.@ZigViewTabStyle;
+
+    $ZW.@ZigPicture #Pic {
+      @Size = $ZK.@ZigPicLine;
+      @Anchor = (Top: 4, Right: $ZK.@ZigSpace2);
+    }
+
+    Label #Label {
+      FlexWeight: 1;
+      Anchor: (Height: 37);
+      Text: "";
+      Style: $ZS.@ZigViewTabLabelStyle;
+    }
+  }
+
+  Group #Bar {
+    Anchor: (Height: 3);
+    Background: (Color: $ZK.@ZigAccent);
+    Visible: false;
+  }
+}

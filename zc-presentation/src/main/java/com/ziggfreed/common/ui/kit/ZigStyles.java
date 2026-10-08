@@ -94,7 +94,17 @@ public final class ZigStyles {
         /** A selected row's trail value, white on the steel blue. */
         ROW_VALUE_ON_SELECTED("ZigRowValueOnSelectedStyle", Kind.LABEL, ZigTokens.INK_BRIGHT),
         /** A selected row's state word, white on the steel blue (no tone colour reads there). */
-        STATE_ON_SELECTED("ZigStateOnSelectedStyle", Kind.LABEL, ZigTokens.INK_BRIGHT);
+        STATE_ON_SELECTED("ZigStateOnSelectedStyle", Kind.LABEL, ZigTokens.INK_BRIGHT),
+        /** A view tab at rest ({@link ViewTabPainter}): the faint pane, the row's hover under the cursor. */
+        VIEW_TAB("ZigViewTabStyle", Kind.BUTTON, ZigTokens.SURFACE_PANE, ZigTokens.SURFACE_ROW_HOVER,
+                ZigTokens.SURFACE_ROW_PRESSED),
+        /** The chosen view tab, on the row fill. */
+        VIEW_TAB_ON("ZigViewTabOnStyle", Kind.BUTTON, ZigTokens.SURFACE_ROW, ZigTokens.SURFACE_ROW_HOVER,
+                ZigTokens.SURFACE_ROW_PRESSED),
+        /** A view tab's name at rest, muted. */
+        VIEW_TAB_LABEL("ZigViewTabLabelStyle", Kind.LABEL, ZigTokens.INK_MUTED),
+        /** The chosen view tab's name, the rail's gold. */
+        VIEW_TAB_LABEL_ON("ZigViewTabLabelOnStyle", Kind.LABEL, ZigTokens.ACCENT);
 
         private final String styleName;
         private final Kind kind;

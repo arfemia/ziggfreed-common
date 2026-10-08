@@ -37,7 +37,8 @@ class ZigStylesTest {
             "ZigStateActiveStyle", "ZigStateCollectStyle", "ZigStateDoneStyle", "ZigStateLiveStyle",
             "ZigStateAvailableStyle", "ZigStateWaitingStyle", "ZigStateBlockedStyle", "ZigStateDangerStyle",
             "ZigFigureAccentStyle", "ZigRowTitleOnSelectedStyle", "ZigRowMetaOnSelectedStyle",
-            "ZigRowValueOnSelectedStyle", "ZigStateOnSelectedStyle");
+            "ZigRowValueOnSelectedStyle", "ZigStateOnSelectedStyle", "ZigViewTabStyle", "ZigViewTabOnStyle",
+            "ZigViewTabLabelStyle", "ZigViewTabLabelOnStyle");
 
     @AfterEach
     void reset() {

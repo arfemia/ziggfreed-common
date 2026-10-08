@@ -9,9 +9,10 @@ $ZW = "../Common/ZigKit.ui";
 // appended into the shell's #TabBody: 1266 wide, 896 high (book/LedgerLayout). AchievementsTab holds every number
 // spelled here and ZigBookAchievementsDocumentTest holds the two together.
 //
-// #Toolbar is on every view: the view segments (Overview, Browse, and Statistics while a module contributes any)
-// at the left, the shared search row at the right. #Filters is Browse's second row: the status segments, the
-// category dropdown and the sort dropdown. Segments are Pages/ZigSegment.ui, appended by the kit's SegmentPainter.
+// #Toolbar is on every view: the view tabs (Overview, Browse, and Statistics while a module contributes any;
+// Pages/ZigViewTab.ui, appended by the kit's ViewTabPainter) at the left and the shared search row at the right,
+// then a thin rule, filling a toolbar row and its gap. #Filters is Browse's second row: the status segments
+// (Pages/ZigSegment.ui, the kit's SegmentPainter), the category dropdown and the sort dropdown.
 //
 // #Overview scrolls: the hero card and the next-milestone card, the category tiles (Pages/ZigCollectionTile.ui in
 // a wrapping grid), and three strips of compact rows (Pinned, Recently earned, Nearly there).
@@ -26,22 +27,32 @@ Group #Achievements {
   LayoutMode: Top;
 
   Group #Toolbar {
-    LayoutMode: Left;
-    Anchor: (Height: 32, Bottom: 12);
+    LayoutMode: Top;
+    Anchor: (Height: 44);
 
-    Group #Views {
+    Group #ToolbarRow {
       LayoutMode: Left;
-      Anchor: (Width: 414);
+      Anchor: (Height: 40);
+
+      Group #Views {
+        LayoutMode: Left;
+        Anchor: (Width: 570);
+      }
+
+      Group #ToolbarSpace {
+        FlexWeight: 1;
+      }
+
+      $S.@ZigSearchRow #Search {
+        @Anchor = (Width: 346, Top: 4);
+        @Height = 32;
+        @Placeholder = %ziggfreedcommon.progression.book.achievements.searchPlaceholder;
+      }
     }
 
-    Group #ToolbarSpace {
-      FlexWeight: 1;
-    }
-
-    $S.@ZigSearchRow #Search {
-      @Anchor = (Width: 346);
-      @Height = 32;
-      @Placeholder = %ziggfreedcommon.progression.book.achievements.searchPlaceholder;
+    Group #ViewsRule {
+      Anchor: (Height: 1);
+      Background: (Color: $ZK.@ZigDivider);
     }
   }
 

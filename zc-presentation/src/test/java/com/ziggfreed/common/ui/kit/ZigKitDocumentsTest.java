@@ -300,6 +300,26 @@ class ZigKitDocumentsTest {
     }
 
     @Test
+    void theViewTabIsAPictureALabelAndAGoldBar() throws IOException {
+        String ui = document("Pages/ZigViewTab.ui");
+        String root = block(ui, "#ZigViewTab");
+        assertEquals("Top", property(root, "LayoutMode"), "the tab over its bar");
+        assertEquals(ViewTabPainter.WIDTH, size(leaf(property(root, "Anchor"), "Width")));
+        assertEquals(ViewTabPainter.HEIGHT, size(leaf(property(root, "Anchor"), "Height")));
+        assertEquals("Button", type(ui, "#Tab"), "a tab is a Button with an inner #Label, never a TextButton");
+        String tab = block(ui, "#Tab");
+        assertEquals("$ZS.@ZigViewTabStyle", property(tab, "Style"));
+        assertEquals(ViewTabPainter.HEIGHT - ViewTabPainter.BAR, size(leaf(property(tab, "Anchor"), "Height")));
+        assertEquals("$ZW.@ZigPicture", type(ui, "#Pic"), "the picture is the kit's plain slot");
+        assertEquals("$ZK.@ZigPicLine", parameter(block(ui, "#Pic"), "Size"), "a 28px picture, as the rail's");
+        assertEquals("$ZS.@ZigViewTabLabelStyle", property(block(ui, "#Label"), "Style"));
+        String bar = block(ui, "#Bar");
+        assertEquals(ViewTabPainter.BAR, size(leaf(property(bar, "Anchor"), "Height")));
+        assertEquals("$ZK.@ZigAccent", leaf(property(bar, "Background"), "Color"), "the rail's gold");
+        assertEquals("false", property(bar, "Visible"), "only the chosen tab shows its bar");
+    }
+
+    @Test
     void thePillDocumentIsTheKitsPill() throws IOException {
         String ui = document("Pages/ZigPill.ui");
         assertEquals("$ZW.@ZigPill", type(ui, "#Pill"));

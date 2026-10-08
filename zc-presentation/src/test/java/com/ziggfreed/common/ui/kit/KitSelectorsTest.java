@@ -130,6 +130,11 @@ class KitSelectorsTest {
                 EventData.of("Year", "2026"));
         SegmentPainter.append(r.cmd(), r.events(), "#Years", Message.raw("All"), false, false, false,
                 EventData.of("Year", "all"));
+        r.cmd().clear("#Views");
+        ViewTabPainter.append(r.cmd(), r.events(), "#Views", Message.raw("Overview"), Picture.texture(TEXTURE), true,
+                EventData.of("View", "overview"));
+        ViewTabPainter.append(r.cmd(), r.events(), "#Views", Message.raw("Browse"), Picture.NONE, false,
+                EventData.of("View", "browse"));
         DetailAction clear = new DetailAction(ActionSlot.PRIMARY, KitText.clearFilters(), ActionLook.NORMAL, "clear",
                 null, true, null);
         EmptyStatePainter.paint(r.cmd(), r.events(), "#Empty", new EmptyState(Picture.texture(TEXTURE),
