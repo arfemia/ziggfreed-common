@@ -45,6 +45,9 @@ public final class TitleValidator {
 
     public static final String DOMAIN = "title";
 
+    /** The label the title audit's lines carry when it is logged whole (zc's boot audit). */
+    public static final String LOG_LABEL = "[title] audit";
+
     public static final String ID_UNSAVABLE = "TITLE_ID_UNSAVABLE";
     public static final String UNNAMED_TITLE = "UNNAMED_TITLE";
     public static final String UNKNOWN_TITLE_REWARD = "UNKNOWN_TITLE_REWARD";

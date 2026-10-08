@@ -20,6 +20,9 @@ import com.ziggfreed.common.validation.ValidationReport;
  */
 public final class NpcIdentityConfig extends AbstractKeyedAssetConfig<NpcIdentityAsset> {
 
+    /** The label this audit's lines carry, at every fold and in zc's boot audit. */
+    public static final String LOG_LABEL = "[identity]";
+
     private static final NpcIdentityConfig INSTANCE = new NpcIdentityConfig();
 
     private NpcIdentityConfig() {
@@ -58,6 +61,6 @@ public final class NpcIdentityConfig extends AbstractKeyedAssetConfig<NpcIdentit
 
     /** Log this config's findings once per fold: an error as a warning line, anything else at info. */
     public void logFindings() {
-        ValidationReport.logAll("[identity]", audit(), SafeLog::warn, SafeLog::info);
+        ValidationReport.logAll(LOG_LABEL, audit(), SafeLog::warn, SafeLog::info);
     }
 }
