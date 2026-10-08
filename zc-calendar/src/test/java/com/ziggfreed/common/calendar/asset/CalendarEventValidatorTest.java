@@ -122,6 +122,37 @@ class CalendarEventValidatorTest {
     }
 
     @Test
+    void aRunSetAsideIsAWarningNamingItsDaysAndTheEventStillRuns() {
+        List<Finding> findings = audit(CalendarFixtures.event("Two_Fairs", """
+                { "Window": { "Rule": { "Type": "Fixed", "Runs": [ { "Start": "09-01", "End": "09-25" },
+                                                                  { "Start": "09-20", "End": "09-26" } ] } },
+                  "FirstYear": 2026 }
+                """));
+        assertEquals(List.of(CalendarEventAsset.PROBLEM_RUN_SET_ASIDE), codes(findings),
+                "one finding for the one span, though the audit reads five years");
+        Finding aside = only(findings, CalendarEventAsset.PROBLEM_RUN_SET_ASIDE);
+        assertEquals(Severity.WARNING, aside.severity(), "the first run is always kept, so the event runs");
+        assertTrue(aside.message().contains("2026-09-20") && aside.message().contains("2026-09-25"), aside.message());
+        assertTrue(aside.message().contains("run 2 of 2026"), "named by its place in the list: " + aside.message());
+    }
+
+    @Test
+    void aSkipTheYearDoesNotHaveIsAWarningForEachNumberAndTheEventStillRuns() {
+        List<Finding> findings = audit(CalendarFixtures.event("Market", """
+                { "Window": { "Rule": { "Type": "Monthly", "Day": 15, "Days": 2, "Months": [3, 12] },
+                              "Years": { "2027": { "Skip": [13, 12, 5] } } }, "FirstYear": 2026 }
+                """));
+        assertEquals(List.of(CalendarEventAsset.PROBLEM_SKIP_UNKNOWN_RUN, CalendarEventAsset.PROBLEM_SKIP_UNKNOWN_RUN),
+                codes(findings), "one finding per number the year lacks; December's 12 is a run, and skipped");
+        for (Finding finding : findings) {
+            assertEquals(Severity.WARNING, finding.severity(), "a skip that leaves nothing out never stops the event");
+            assertEquals("market", finding.sourceId());
+        }
+        assertTrue(findings.get(0).message().contains("run 5 of 2027"), findings.get(0).message());
+        assertTrue(findings.get(1).message().contains("run 13 of 2027"), findings.get(1).message());
+    }
+
+    @Test
     void anIdAnotherSwitchUsesOrTheAttendanceRecordCannotSaveIsAnError() {
         List<Finding> findings = audit(CalendarFixtures.event("Almanac", CalendarFixtures.HARVEST_MOON),
                 CalendarFixtures.event("Spring|Fair", CalendarFixtures.HARVEST_MOON));

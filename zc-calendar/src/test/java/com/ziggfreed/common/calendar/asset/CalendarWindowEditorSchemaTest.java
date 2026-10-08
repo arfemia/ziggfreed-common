@@ -1,6 +1,7 @@
 package com.ziggfreed.common.calendar.asset;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -23,7 +24,8 @@ import com.hypixel.hytale.codec.schema.config.StringSchema;
 /**
  * What the Window tells the in-game Asset Editor: the Rule union advertises all five shapes and its
  * Type key, the shifts and the repeat leaves declare their defaults, the weekday is a closed dropdown,
- * Months is a list, the Years map knows its $Comment key, and every leaf carries a sentence.
+ * Months is a list, the Years map knows its $Comment key, a Years entry is a shape of its own (no Type) with
+ * lists of spans and of run numbers to skip, and every leaf carries a sentence.
  */
 class CalendarWindowEditorSchemaTest {
 
@@ -77,6 +79,32 @@ class CalendarWindowEditorSchemaTest {
         assertTrue(years.getProperties().containsKey("$Comment"),
                 "a $Comment inside the map is a known key, so the editor's property pane mounts");
         assertNotNull(years.getAdditionalProperties(), "any other key is a year");
+    }
+
+    @Test
+    void aYearsEntryIsItsOwnShapeAndOffersNoTypeKey() {
+        SchemaContext context = new SchemaContext();
+        ObjectSchema window = CalendarEventAsset.Window.CODEC.toSchema(context);
+        ObjectSchema years = objectOf(window.getProperties().get("Years"), context);
+        ObjectSchema entry = objectOf((Schema) years.getAdditionalProperties(), context);
+        for (String leaf : List.of("Start", "End", "Runs", "Skip")) {
+            assertNotNull(entry.getProperties().get(leaf), leaf + " is not exported");
+            assertNotNull(entry.getProperties().get(leaf).getMarkdownDescription(), leaf + " carries no sentence");
+        }
+        assertFalse(entry.getProperties().containsKey(WindowRules.TYPE_KEY),
+                "a Years entry is no Rule shape, so the editor never offers it a Type");
+        assertTrue(entry.getProperties().get("Runs") instanceof ArraySchema runs && runs.getItems() != null,
+                "Runs is a list of spans, and declares them");
+        assertTrue(entry.getProperties().get("Skip") instanceof ArraySchema skip
+                && skip.getItems() instanceof IntegerSchema, "Skip is a list of run numbers");
+        SchemaContext fixedContext = new SchemaContext();
+        ObjectSchema fixed = WindowRules.Fixed.CODEC.toSchema(fixedContext);
+        assertTrue(fixed.getProperties().get("Runs") instanceof ArraySchema, "a Fixed Rule lists spans the same way");
+        ObjectSchema span = objectOf((Schema) ((ArraySchema) fixed.getProperties().get("Runs")).getItems(), fixedContext);
+        for (String leaf : List.of("Start", "End")) {
+            assertNotNull(span.getProperties().get(leaf), "a span's " + leaf + " is not exported");
+            assertNotNull(span.getProperties().get(leaf).getMarkdownDescription(), "a span's " + leaf + " carries no sentence");
+        }
     }
 
     /** The object a leaf describes: itself, or the definition it references (unwrapping a nullable union). */

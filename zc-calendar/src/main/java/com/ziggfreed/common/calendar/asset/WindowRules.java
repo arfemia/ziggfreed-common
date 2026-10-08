@@ -6,9 +6,12 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.Month;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.TreeSet;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -16,6 +19,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.codec.lookup.CodecMapCodec;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.calendar.AnnualWindow;
@@ -28,6 +32,7 @@ import com.ziggfreed.common.calendar.YearRule;
  * "Rule": { "Type": "Easter", "Before": 10, "After": 7 }
  * "Rule": { "Type": "Weekday", "Month": 11, "Weekday": "Thursday", "Nth": 4, "Before": 6, "After": 5 }
  * "Rule": { "Type": "Fixed", "Start": "11-20", "End": "12-01" }
+ * "Rule": { "Type": "Fixed", "Runs": [ { "Start": "04-10", "End": "04-16" }, { "Start": "09-20", "End": "09-26" } ] }
  * "Rule": { "Type": "Monthly", "Weekday": "Sunday", "Nth": 1, "Days": 7 }
  * "Rule": { "Type": "Monthly", "Day": 1, "UntilNext": true }
  * "Rule": { "Type": "Monthly", "Day": 15, "Days": 2, "Months": [3, 6, 9, 12] }
@@ -43,8 +48,10 @@ import com.ziggfreed.common.calendar.YearRule;
  * {@code Type} and nothing to inherit one from cannot be read.
  *
  * <p>The union lives on this holder, outside the shapes' own class hierarchy, so whichever class loads
- * first the union finds every shape's codec already built. A shape's codec reads only its own class and its
- * bases ({@link Rule#WEEKDAYS}), never this holder.
+ * first the union finds every shape's codec already built. A shape's codec reads only its own class, its
+ * bases ({@link Rule#WEEKDAYS}) and the span it lists ({@link Span#LIST}), never this holder.
+ *
+ * <p>A {@code Years} entry is {@link YearDays}, never one of these shapes, so it carries no {@code Type}.
  */
 public final class WindowRules {
 
@@ -126,23 +133,26 @@ public final class WindowRules {
         }
     }
 
-    /** {@code Start} and {@code End} as {@code MM-DD}, the same every year; also the shape of one {@code Years} entry. */
-    public static final class Fixed extends Rule {
+    /** One run's month-days: an entry of a {@code Runs} list. */
+    public static final class Span {
 
         @Nullable private String start;
         @Nullable private String end;
 
-        public static final BuilderCodec<Fixed> CODEC = BuilderCodec.builder(Fixed.class, Fixed::new)
+        public static final BuilderCodec<Span> CODEC = BuilderCodec.builder(Span.class, Span::new)
                 .appendInherited(new KeyedCodec<>("Start", Codec.STRING, false),
                         (o, v) -> o.start = v, o -> o.start, (o, p) -> o.start = p.start)
-                .documentation("The first day, as MM-DD (11-20 is November 20th).").add()
+                .documentation("The run's first day, as MM-DD (04-10 is April 10th).").add()
                 .appendInherited(new KeyedCodec<>("End", Codec.STRING, false),
                         (o, v) -> o.end = v, o -> o.end, (o, p) -> o.end = p.end)
-                .documentation("The last day, as MM-DD; the run goes through the whole of it. An End before its "
-                        + "Start runs into the next year.").add()
+                .documentation("The run's last day, as MM-DD; the run goes through the whole of it. An End before "
+                        + "its Start runs into the next year.").add()
                 .build();
 
-        public Fixed() {
+        /** A {@code Runs} list. */
+        public static final ArrayCodec<Span> LIST = new ArrayCodec<>(CODEC, Span[]::new);
+
+        public Span() {
         }
 
         /** The two days, or null when either is not a real MM-DD day. */
@@ -151,10 +161,73 @@ public final class WindowRules {
             return AnnualWindow.fixed(start, end);
         }
 
+        /** Each span's days, in the order written; null when one is not a pair of real MM-DD days. */
+        @Nullable
+        static List<YearRule.Fixed> days(@Nonnull Span[] runs) {
+            List<YearRule.Fixed> out = new ArrayList<>();
+            for (Span span : runs) {
+                YearRule.Fixed days = span == null ? null : span.toFixed();
+                if (days == null) {
+                    return null;
+                }
+                out.add(days);
+            }
+            return out;
+        }
+    }
+
+    /**
+     * The same month-days every year: one run from {@code Start} to {@code End}, or one per span of {@code Runs},
+     * which wins. A span's run is numbered by its place in the list.
+     */
+    public static final class Fixed extends Rule {
+
+        @Nullable private String start;
+        @Nullable private String end;
+        @Nullable private Span[] runs;
+
+        public static final BuilderCodec<Fixed> CODEC = BuilderCodec.builder(Fixed.class, Fixed::new)
+                .appendInherited(new KeyedCodec<>("Start", Codec.STRING, false),
+                        (o, v) -> o.start = v, o -> o.start, (o, p) -> o.start = p.start)
+                .documentation("The first day, as MM-DD (11-20 is November 20th). Not used when Runs is written.")
+                .add()
+                .appendInherited(new KeyedCodec<>("End", Codec.STRING, false),
+                        (o, v) -> o.end = v, o -> o.end, (o, p) -> o.end = p.end)
+                .documentation("The last day, as MM-DD; the run goes through the whole of it. An End before its "
+                        + "Start runs into the next year. Not used when Runs is written.").add()
+                .appendInherited(new KeyedCodec<>("Runs", Span.LIST, false),
+                        (o, v) -> o.runs = v, o -> o.runs, (o, p) -> o.runs = p.runs)
+                .documentation("Several runs every year, one span each: [{\"Start\": \"04-10\", \"End\": \"04-16\"}, "
+                        + "{\"Start\": \"09-20\", \"End\": \"09-26\"}]. Wins over Start and End. Each run is numbered "
+                        + "by its place in the list (the first is run 1) wherever its days move, so add a new run at "
+                        + "the end to keep the others' numbers. Runs of one event never overlap: of two that meet, the "
+                        + "one written first is kept and the other is set aside, its number given to no other run.")
+                .add()
+                .build();
+
+        public Fixed() {
+        }
+
+        /** {@code Start} and {@code End}, or null when either is not a real MM-DD day. */
+        @Nullable
+        public YearRule.Fixed toFixed() {
+            return AnnualWindow.fixed(start, end);
+        }
+
+        /** {@code Runs} when written (null when it is empty or a span is unreadable), else {@code Start} and {@code End}. */
         @Override
         @Nullable
         public YearRule toYearRule() {
-            return toFixed();
+            if (runs == null) {
+                return toFixed();
+            }
+            List<YearRule.Fixed> spans = Span.days(runs);
+            return spans == null || spans.isEmpty() ? null : new YearRule.FixedRuns(spans);
+        }
+
+        /** Are {@code Start} or {@code End} written beside {@code Runs}, which wins over them? */
+        public boolean runsBesideDays() {
+            return runs != null && (start != null || end != null);
         }
     }
 
@@ -401,6 +474,82 @@ public final class WindowRules {
             DayOfWeek named = dayOfWeek(weekday);
             return cadence == null || runLength == null || named == null ? null
                     : new YearRule.Weekly(named, cadence, runLength);
+        }
+    }
+
+    /**
+     * One {@code Years} entry. Its own days date that year's WHOLE runs: one run ({@code Start} and {@code End}) or
+     * several ({@code Runs}, which wins; an empty list is no run that year). {@code Skip} leaves runs out by number:
+     * of those own days, or, written alone, of the runs the rest of the Window dates that year. Never a Rule shape,
+     * so it carries no {@code Type}.
+     */
+    public static final class YearDays {
+
+        @Nullable private String start;
+        @Nullable private String end;
+        @Nullable private Span[] runs;
+        @Nullable private int[] skip;
+
+        public static final BuilderCodec<YearDays> CODEC = BuilderCodec.builder(YearDays.class, YearDays::new)
+                .appendInherited(new KeyedCodec<>("Start", Codec.STRING, false),
+                        (o, v) -> o.start = v, o -> o.start, (o, p) -> o.start = p.start)
+                .documentation("That year's first day, as MM-DD. Not used when Runs is written.").add()
+                .appendInherited(new KeyedCodec<>("End", Codec.STRING, false),
+                        (o, v) -> o.end = v, o -> o.end, (o, p) -> o.end = p.end)
+                .documentation("That year's last day, as MM-DD; an End before its Start runs into the next year. "
+                        + "Not used when Runs is written.").add()
+                .appendInherited(new KeyedCodec<>("Runs", Span.LIST, false),
+                        (o, v) -> o.runs = v, o -> o.runs, (o, p) -> o.runs = p.runs)
+                .documentation("That year's runs when it has several, one span each, numbered by their place in "
+                        + "the list (the first is run 1); wins over Start and End. An empty list means the event does "
+                        + "not run that year.").add()
+                .appendInherited(new KeyedCodec<>("Skip", Codec.INT_ARRAY, false),
+                        (o, v) -> o.skip = v, o -> o.skip, (o, p) -> o.skip = p.skip)
+                .documentation("Run numbers to leave out that year, such as [3, 7]. Written alone, it keeps the runs "
+                        + "the Rule (or the Window's Start and End) gives that year, less those; beside this entry's "
+                        + "own Start and End or Runs, it leaves out those of them. A run in a list is numbered by its "
+                        + "place (the first is 1) wherever its days move; a Monthly run by its month (December's is "
+                        + "12) and a Weekly run by its calendar week (from Monday, week 1 holding January 1st), so "
+                        + "adding or dropping months or weeks never renumbers it, though another Weekday can. A "
+                        + "skipped number is never given to another run.").add()
+                .build();
+
+        public YearDays() {
+        }
+
+        /**
+         * That year's own runs as a rule; null when a day is not a real MM-DD day or the entry writes no days (as
+         * one of {@code Skip} alone does). An empty {@code Runs} dates no run.
+         */
+        @Nullable
+        public YearRule toYearRule() {
+            if (runs == null) {
+                return AnnualWindow.fixed(start, end);
+            }
+            List<YearRule.Fixed> spans = Span.days(runs);
+            return spans == null ? null : new YearRule.FixedRuns(spans);
+        }
+
+        /** Are {@code Start} or {@code End} written beside {@code Runs}, which wins over them? */
+        public boolean runsBesideDays() {
+            return runs != null && (start != null || end != null);
+        }
+
+        /** Does the entry write {@code Skip} and no days of its own, so its year keeps the Window's runs less those? */
+        public boolean skipsOnly() {
+            return skip != null && runs == null && start == null && end == null;
+        }
+
+        /** The run numbers {@code Skip} leaves out, in order; empty when it names none. */
+        @Nonnull
+        public Set<Integer> skipped() {
+            Set<Integer> out = new TreeSet<>();
+            if (skip != null) {
+                for (int number : skip) {
+                    out.add(number);
+                }
+            }
+            return out;
         }
     }
 

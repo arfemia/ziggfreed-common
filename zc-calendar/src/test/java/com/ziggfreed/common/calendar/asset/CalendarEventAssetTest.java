@@ -12,9 +12,11 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.calendar.AnnualWindow;
 import com.ziggfreed.common.calendar.CalendarFixtures;
 import com.ziggfreed.common.calendar.RunDays;
 
@@ -310,5 +312,182 @@ class CalendarEventAssetTest {
                 "{ \"Window\": { \"Rule\": { \"Days\": 3 } } }", parent);
         assertEquals(new RunDays(LocalDate.of(2027, 1, 3), LocalDate.of(2027, 1, 5)),
                 child.annualWindow().runs(2027).get(0), "the child keeps the parent's Type, Weekday and Nth");
+    }
+
+    private static RunDays days(String first, String last) {
+        return new RunDays(LocalDate.parse(first), LocalDate.parse(last));
+    }
+
+    /** The numbers of {@code year}'s runs as the window keeps them, in order. */
+    private static List<Integer> numbers(AnnualWindow window, int year) {
+        return window.datedRuns(year).stream().map(AnnualWindow.DatedRun::number).toList();
+    }
+
+    // Several runs a year from one Fixed Rule. A list's run is its place in the list (the maintainer's ruling), so
+    // the span written second is run 2 whatever its days; Runs wins over Start and End.
+    @Test
+    void aFixedRuleWithRunsDatesSeveralRunsAYearAndRunsWinOverStartAndEnd() {
+        CalendarEventAsset fairs = CalendarFixtures.event("Two_Fairs", """
+                { "Window": { "Rule": { "Type": "Fixed", "Start": "05-01", "End": "05-02",
+                                        "Runs": [ { "Start": "09-20", "End": "09-26" },
+                                                  { "Start": "04-10", "End": "04-16" } ] } }, "FirstYear": 2026 }
+                """);
+        assertTrue(fairs.problems().isEmpty(), fairs.problems().toString());
+        assertEquals(List.of(days("2026-09-20", "2026-09-26"), days("2026-04-10", "2026-04-16")),
+                fairs.annualWindow().runs(2026), "numbered by their place in the list; Runs wins over Start and End");
+        assertEquals(days("2026-04-10", "2026-04-16"), fairs.annualWindow().run(2026, 2),
+                "the spring span, written second, is run 2 though it starts first");
+        assertEquals(List.of(CalendarEventAsset.NOTE_START_END_BESIDE_RUNS), fairs.notes());
+        assertEquals(List.of(CalendarEventAsset.PROBLEM_WINDOW_UNREADABLE),
+                rule("{ \"Type\": \"Fixed\", \"Runs\": [] }").problems(), "a rule that dates no run at all");
+        assertEquals(List.of(CalendarEventAsset.PROBLEM_WINDOW_UNREADABLE),
+                rule("{ \"Type\": \"Fixed\", \"Runs\": [ { \"Start\": \"06-31\", \"End\": \"07-02\" } ] }").problems());
+        assertEquals(List.of(CalendarEventAsset.PROBLEM_WINDOW_RUN_INVALID),
+                rule("{ \"Type\": \"Fixed\", \"Runs\": [ { \"Start\": \"02-29\", \"End\": \"02-28\" } ] }").problems(),
+                "a span that meets its own next run");
+    }
+
+    @Test
+    void aYearsEntryDatesItsWholeYearWithSeveralRunsOrNone() {
+        CalendarEventAsset fair = CalendarFixtures.event("Traveling_Fair", """
+                { "Window": { "Rule": { "Type": "Monthly", "Weekday": "Sunday", "Nth": 1, "Days": 7 },
+                              "Years": { "2028": { "Runs": [ { "Start": "05-01", "End": "05-07" },
+                                                             { "Start": "11-01", "End": "11-07" } ] },
+                                         "2029": { "Runs": [] } } }, "FirstYear": 2027 }
+                """);
+        assertTrue(fair.problems().isEmpty(), fair.problems().toString());
+        assertEquals(2, fair.annualWindow().runs(2028).size(), "the entry's runs are 2028's only runs");
+        assertTrue(fair.annualWindow().runs(2029).isEmpty(), "an empty list is no run that year");
+        assertEquals(12, fair.annualWindow().runs(2030).size(), "and the Rule again after it");
+        assertEquals(List.of(CalendarEventAsset.PROBLEM_YEARS_ENTRY_IGNORED), CalendarFixtures.event("Fair", """
+                { "Window": { "Start": "06-01", "End": "06-07",
+                              "Years": { "2027": { "Runs": [ { "Start": "06-31", "End": "07-02" } ] } } },
+                  "FirstYear": 2026 }
+                """).problems(), "an unreadable span costs that entry alone");
+        CalendarEventAsset leap = CalendarFixtures.event("Fair", """
+                { "Window": { "Start": "06-01", "End": "06-07",
+                              "Years": { "2028": { "Runs": [ { "Start": "02-29", "End": "02-28" } ] } } },
+                  "FirstYear": 2026 }
+                """);
+        assertEquals(List.of(CalendarEventAsset.PROBLEM_YEARS_ENTRY_IGNORED), leap.problems(),
+                "a span from February 29th through February 28th is refused");
+        assertEquals(days("2028-06-01", "2028-06-07"), leap.annualWindow().days(2028), "and the year keeps Start and End");
+        assertTrue(CalendarEventConfig.sentence(CalendarEventAsset.PROBLEM_YEARS_ENTRY_IGNORED).contains("February 29th"),
+                "the log says such a span is refused");
+    }
+
+    @Test
+    void runsThatMeetAreSetAsideAndEachIsNamedOnce() {
+        CalendarEventAsset overlapping = CalendarFixtures.event("Two_Fairs", """
+                { "Window": { "Rule": { "Type": "Fixed", "Runs": [ { "Start": "09-01", "End": "09-25" },
+                                                                  { "Start": "09-20", "End": "09-26" } ] } },
+                  "FirstYear": 2026 }
+                """);
+        assertEquals(List.of(CalendarEventAsset.PROBLEM_RUN_SET_ASIDE), overlapping.problems());
+        assertTrue(overlapping.canRun(), "the first run is always kept");
+        assertEquals(1, overlapping.setAside().size(), "set aside every year, named once");
+        assertEquals(new AnnualWindow.SetAside(2026, 2, days("2026-09-20", "2026-09-26"), days("2026-09-01", "2026-09-25")),
+                overlapping.setAside().get(0), "named by its place in the list, in the first year it is set aside");
+
+        CalendarEventAsset crossing = CalendarFixtures.event("Two_Fairs", """
+                { "Window": { "Rule": { "Type": "Fixed", "Runs": [ { "Start": "01-05", "End": "01-11" },
+                                                                  { "Start": "06-01", "End": "06-07" } ] },
+                              "Years": { "2027": { "Runs": [ { "Start": "12-20", "End": "01-08" } ] } } },
+                  "FirstYear": 2026 }
+                """);
+        assertEquals(List.of(CalendarEventAsset.PROBLEM_RUN_SET_ASIDE), crossing.problems());
+        assertEquals(1, crossing.setAside().size());
+        assertEquals(2028, crossing.setAside().get(0).year(), "the year after a listed year is read too");
+        assertEquals(days("2028-01-05", "2028-01-11"), crossing.setAside().get(0).run());
+        assertEquals(1, crossing.setAside().get(0).number());
+
+        CalendarEventAsset twice = CalendarFixtures.event("Two_Fairs", """
+                { "Window": { "Rule": { "Type": "Fixed", "Runs": [ { "Start": "09-01", "End": "09-25" },
+                                                                  { "Start": "09-20", "End": "09-26" },
+                                                                  { "Start": "09-20", "End": "09-26" } ] } },
+                  "FirstYear": 2026 }
+                """);
+        assertEquals(List.of(2, 3), twice.setAside().stream().map(AnnualWindow.SetAside::number).toList(),
+                "two runs on the same days are two runs set aside");
+        CalendarEventAsset leap = CalendarFixtures.event("Two_Fairs", """
+                { "Window": { "Rule": { "Type": "Fixed", "Runs": [ { "Start": "02-20", "End": "03-01" },
+                                                                  { "Start": "02-29", "End": "03-05" } ] } },
+                  "FirstYear": 2027 }
+                """);
+        assertEquals(1, leap.setAside().size(),
+                "a span set aside in common and leap years alike is one span, though February 29th falls back");
+        for (String code : List.of(CalendarEventAsset.PROBLEM_RUN_SET_ASIDE,
+                CalendarEventAsset.NOTE_START_END_BESIDE_RUNS, CalendarEventAsset.PROBLEM_SKIP_UNKNOWN_RUN)) {
+            assertFalse(CalendarEventConfig.sentence(code).startsWith("has a problem"),
+                    code + " is told in a sentence of its own");
+        }
+    }
+
+    // The maintainer's skip list: a Years entry of Skip alone keeps the Rule's runs that year less those numbers,
+    // and a number skipped is never handed to another run.
+    @Test
+    void aYearsEntryOfSkipAloneKeepsTheRulesRunsLessThoseNumbers() {
+        CalendarEventAsset market = CalendarFixtures.event("Market", """
+                { "Window": { "Rule": { "Type": "Monthly", "Day": 15, "Days": 2 },
+                              "Years": { "2027": { "Skip": [3, 7] } } }, "FirstYear": 2026 }
+                """);
+        assertTrue(market.problems().isEmpty(), market.problems().toString());
+        AnnualWindow window = market.annualWindow();
+        assertEquals(List.of(1, 2, 4, 5, 6, 8, 9, 10, 11, 12), numbers(window, 2027),
+                "March and July are left out, and every other month keeps its number");
+        assertNull(window.run(2027, 3));
+        assertNull(window.runContaining(CalendarFixtures.at("2027-03-15T12:00:00Z"), ZoneOffset.UTC));
+        assertEquals(12, window.runs(2026).size(), "the years around it keep every run");
+        assertEquals(12, window.runs(2028).size());
+        assertEquals(new AnnualWindow.DatedRun(2027, 4, days("2027-04-15", "2027-04-16")), window.after(2027, 3),
+                "after a skipped run comes the year's next, sought from where the skipped one falls");
+        assertTrue(window.moves(), "a year that skips runs differs from the next");
+        assertTrue(market.unknownSkips().isEmpty());
+    }
+
+    @Test
+    void aSkipBesideAnEntrysOwnDaysLeavesOutThoseOfItsPlaces() {
+        CalendarEventAsset fair = CalendarFixtures.event("Fair", """
+                { "Window": { "Start": "06-01", "End": "06-07",
+                              "Years": { "2027": { "Runs": [ { "Start": "04-10", "End": "04-16" },
+                                                             { "Start": "06-01", "End": "06-07" },
+                                                             { "Start": "09-20", "End": "09-26" } ], "Skip": [1] },
+                                         "2028": { "Start": "06-02", "End": "06-08", "Skip": [1] } } },
+                  "FirstYear": 2026 }
+                """);
+        assertTrue(fair.problems().isEmpty(), fair.problems().toString());
+        AnnualWindow window = fair.annualWindow();
+        assertEquals(List.of(new AnnualWindow.DatedRun(2027, 2, days("2027-06-01", "2027-06-07")),
+                new AnnualWindow.DatedRun(2027, 3, days("2027-09-20", "2027-09-26"))), window.datedRuns(2027),
+                "the entry's own runs, numbered by place, less the first");
+        assertEquals(new AnnualWindow.DatedRun(2027, 2, days("2027-06-01", "2027-06-07")), window.after(2027, 1),
+                "after the skipped April run comes June's, sought from April's own days");
+        assertFalse(window.hasRun(2028), "skipping a year's one run leaves it none");
+        assertEquals(new AnnualWindow.DatedRun(2029, 1, days("2029-06-01", "2029-06-07")), window.after(2027, 3),
+                "after 2027's last run, the next year that has one");
+    }
+
+    @Test
+    void aSkipOfARunTheYearDoesNotHaveIsAProblemThatNeverStopsTheEvent() {
+        CalendarEventAsset market = CalendarFixtures.event("Market", """
+                { "Window": { "Rule": { "Type": "Monthly", "Day": 15, "Days": 2, "Months": [3, 12] },
+                              "Years": { "2027": { "Skip": [13, 12, 5, 0] },
+                                         "2028": { "Runs": [ { "Start": "06-01", "End": "06-07" } ], "Skip": [2] } } },
+                  "FirstYear": 2026 }
+                """);
+        assertEquals(List.of(CalendarEventAsset.PROBLEM_SKIP_UNKNOWN_RUN), market.problems());
+        assertTrue(market.canRun(), "a skip that leaves nothing out costs nothing");
+        assertEquals(Map.of(2027, List.of(0, 5, 13), 2028, List.of(2)), market.unknownSkips(),
+                "May is not among its Months, 0 and 13 are no month, and 2028's list has one run");
+        assertEquals(List.of(3), numbers(market.annualWindow(), 2027), "December's run 12 is still skipped");
+        assertEquals(new AnnualWindow.DatedRun(2029, 3, days("2029-03-15", "2029-03-16")),
+                market.annualWindow().after(2028, 2), "a place the list lacks names no date: the next year's earliest");
+        CalendarEventAsset mondays = CalendarFixtures.event("Mondays", """
+                { "Window": { "Rule": { "Type": "Weekly", "Weekday": "Monday" },
+                              "Years": { "2027": { "Skip": [1, 2] } } }, "FirstYear": 2026 }
+                """);
+        assertEquals(Map.of(2027, List.of(1)), mondays.unknownSkips(),
+                "2027 begins on a Friday, so its week 1 holds no Monday");
+        assertEquals(3, numbers(mondays.annualWindow(), 2027).get(0), "and week 2's Monday is skipped");
     }
 }

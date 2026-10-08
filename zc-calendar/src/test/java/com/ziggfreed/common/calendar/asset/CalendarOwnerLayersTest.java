@@ -300,4 +300,28 @@ class CalendarOwnerLayersTest {
         assertEquals(new RunDays(LocalDate.of(2032, 3, 25), LocalDate.of(2032, 4, 10)), window.days(2032),
                 "a year the owner did not name keeps the pack's days");
     }
+
+    // The maintainer's skip list: an owner leaves out a run of one year by its number instead of rewriting the year.
+    @Test
+    void anOwnersSkipLeavesOutARunOfOneYearWithoutRewritingIt() throws IOException {
+        CalendarFixtures.loadEvents(Map.of("fairs", CalendarFixtures.event("Fairs", """
+                { "Window": { "Rule": { "Type": "Fixed", "Runs": [ { "Start": "04-10", "End": "04-16" },
+                                                                  { "Start": "09-20", "End": "09-26" } ] },
+                              "Years": { "2028": { "Runs": [ { "Start": "04-02", "End": "04-08" },
+                                                             { "Start": "06-01", "End": "06-07" },
+                                                             { "Start": "09-24", "End": "09-30" } ] } } },
+                  "FirstYear": 2026 }
+                """)));
+        write("{ \"Fairs\": { \"Window\": { \"Years\": { \"2027\": { \"Skip\": [2] }, \"2028\": { \"Skip\": [1] } } } } }");
+        CalendarOwnerLayers.reload();
+        CalendarEventAsset fairs = resolved("fairs");
+        assertTrue(fairs.problems().isEmpty(), fairs.problems().toString());
+        AnnualWindow window = fairs.annualWindow();
+        assertEquals(List.of(1), window.datedRuns(2027).stream().map(AnnualWindow.DatedRun::number).toList(),
+                "a year the pack never listed keeps the Rule's runs, less the autumn fair");
+        assertEquals(List.of(2, 3), window.datedRuns(2028).stream().map(AnnualWindow.DatedRun::number).toList(),
+                "a year the pack lists keeps its own runs, less the first, and the others keep their numbers");
+        assertEquals(new RunDays(LocalDate.of(2028, 6, 1), LocalDate.of(2028, 6, 7)), window.run(2028, 2));
+        assertEquals(2, window.runs(2026).size(), "the years the owner did not name keep every run");
+    }
 }

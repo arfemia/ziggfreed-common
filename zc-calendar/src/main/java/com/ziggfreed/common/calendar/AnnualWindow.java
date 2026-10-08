@@ -7,11 +7,13 @@ import java.time.MonthDay;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
@@ -54,6 +56,11 @@ import javax.annotation.Nullable;
  * ({@link YearRule#valid}), so only spans, and the runs of particular years beside a rule, are ever set aside.
  * Nothing is dated before the floor (the event's FirstYear): a run that never happens sets nothing aside.
  *
+ * <p><b>A year may skip runs by number</b> ({@link #of(YearRule, Map, int, Map)}), whichever rule dates it: a
+ * skipped run is left out before any weighing, so it meets no other run, its number is never handed to another,
+ * and the run after it is sought from its own days ({@link #after}). A number the year's runs never had skips
+ * nothing ({@link #unknownSkips}).
+ *
  * <p>A window made of per-year runs alone has no run in a year it does not list, and none after its last.
  * {@link #nextStartMs} is bounded by that last year, or by {@link #LAST_YEAR}, so it can never loop.
  *
@@ -88,31 +95,39 @@ public final class AnnualWindow {
     public record SetAside(int year, int number, @Nonnull RunDays run, @Nonnull RunDays meets) {
     }
 
-    /** One year's runs kept, in number order, and the ones set aside, in number order. */
-    private record YearRuns(@Nonnull List<DatedRun> kept, @Nonnull List<SetAside> setAside) {
+    /**
+     * One year's runs kept, in number order; the ones set aside, in number order; and the ones its skip list leaves
+     * out, in number order.
+     */
+    private record YearRuns(@Nonnull List<DatedRun> kept, @Nonnull List<SetAside> setAside,
+                            @Nonnull List<DatedRun> skipped) {
 
-        static final YearRuns NONE = new YearRuns(List.of(), List.of());
+        static final YearRuns NONE = new YearRuns(List.of(), List.of(), List.of());
     }
 
     @Nullable private final YearRule every;
     @Nonnull private final NavigableMap<Integer, YearRule> years;
     private final int floor;
+    /** The run numbers each year leaves out, whichever rule dates it; a year skipping none is absent. */
+    @Nonnull private final Map<Integer, Set<Integer>> skips;
     /** Each year's runs as its own layer dates them, a run meeting one kept before it in that year set aside. */
     private final Map<Integer, YearRuns> dated = new ConcurrentHashMap<>();
     /** Each year's runs as the window keeps them. */
     private final Map<Integer, YearRuns> kept = new ConcurrentHashMap<>();
 
-    private AnnualWindow(@Nullable YearRule every, @Nonnull NavigableMap<Integer, YearRule> years, int floor) {
+    private AnnualWindow(@Nullable YearRule every, @Nonnull NavigableMap<Integer, YearRule> years, int floor,
+            @Nonnull Map<Integer, Set<Integer>> skips) {
         this.every = every;
         this.years = years;
         this.floor = floor;
+        this.skips = skips;
     }
 
     /** The every-year window from {@code first} to {@code last} ({@code MM-DD} each), or null when either is not a real day. */
     @Nullable
     public static AnnualWindow parse(@Nullable String first, @Nullable String last) {
         YearRule.Fixed fixed = fixed(first, last);
-        return fixed == null ? null : new AnnualWindow(fixed, Collections.emptyNavigableMap(), NO_FLOOR);
+        return fixed == null ? null : new AnnualWindow(fixed, Collections.emptyNavigableMap(), NO_FLOOR, Map.of());
     }
 
     /** Fixed month-days from two {@code MM-DD} strings, or null when either is not a real day. */
@@ -129,16 +144,24 @@ public final class AnnualWindow {
         return of(every, years, NO_FLOOR);
     }
 
+    /** {@link #of(YearRule, Map, int, Map)} with no run skipped. */
+    @Nullable
+    public static AnnualWindow of(@Nullable YearRule every, @Nonnull Map<Integer, ? extends YearRule> years,
+            int floor) {
+        return of(every, years, floor, Map.of());
+    }
+
     /**
      * The window an every-year rule and the runs of particular years make, dating nothing before {@code floor}
      * (the event's FirstYear, or {@link #NO_FLOOR}); null when there is neither rule nor listed year. A listed
-     * year's rule dates that year's whole runs.
+     * year's rule dates that year's whole runs, and {@code skips} leaves out runs of a year by number, whichever
+     * rule dates it.
      *
      * @throws IllegalArgumentException for a rule, every-year or a listed year's, that is not {@link YearRule#valid()}
      */
     @Nullable
     public static AnnualWindow of(@Nullable YearRule every, @Nonnull Map<Integer, ? extends YearRule> years,
-            int floor) {
+            int floor, @Nonnull Map<Integer, ? extends Collection<Integer>> skips) {
         if (every != null && !every.valid()) {
             throw new IllegalArgumentException("not a valid yearly rule: " + every.describe());
         }
@@ -150,8 +173,14 @@ public final class AnnualWindow {
         if (every == null && years.isEmpty()) {
             return null;
         }
+        Map<Integer, Set<Integer>> skipped = new TreeMap<>();
+        for (Map.Entry<Integer, ? extends Collection<Integer>> entry : skips.entrySet()) {
+            if (entry.getValue() != null && !entry.getValue().isEmpty()) {
+                skipped.put(entry.getKey(), Set.copyOf(entry.getValue()));
+            }
+        }
         return new AnnualWindow(every, Collections.unmodifiableNavigableMap(new TreeMap<Integer, YearRule>(years)),
-                floor);
+                floor, Collections.unmodifiableMap(skipped));
     }
 
     /** {@code MM-DD} as a month-day, or null for anything else ({@code 1-5}, {@code 02-30}, {@code 13-01}). */
@@ -197,7 +226,7 @@ public final class AnnualWindow {
 
     /**
      * The runs that start in {@code year} with their numbers, in number order; empty when the window dates none
-     * that year. A number set aside is missing, never taken by the run after it.
+     * that year. A number set aside or skipped is missing, never taken by the run after it.
      */
     @Nonnull
     public List<DatedRun> datedRuns(int year) {
@@ -210,7 +239,7 @@ public final class AnnualWindow {
         return keptIn(year).setAside();
     }
 
-    /** Run {@code number} of {@code year}, or null when the year has no such run (or set it aside). */
+    /** Run {@code number} of {@code year}, or null when the year has no such run (or set it aside, or skips it). */
     @Nullable
     public RunDays run(int year, int number) {
         DatedRun found = dated(year, number);
@@ -229,9 +258,26 @@ public final class AnnualWindow {
         return !datedRuns(year).isEmpty();
     }
 
-    /** Do the days differ from one year to the next: a moving rule (Easter, a weekday) or any per-year runs? */
+    /**
+     * Do the days differ from one year to the next: a moving rule (Easter, a weekday), any per-year runs, or a year
+     * that skips some?
+     */
     public boolean moves() {
-        return !years.isEmpty() || (every != null && every.moves());
+        return !years.isEmpty() || !skips.isEmpty() || (every != null && every.moves());
+    }
+
+    /**
+     * The numbers {@code year}'s skip list names that its runs never had (a month or week its rule does not run
+     * in, a place past the end of its list), in order: such a skip leaves nothing out. Empty when it skips none.
+     */
+    @Nonnull
+    public List<Integer> unknownSkips(int year) {
+        Set<Integer> skip = skips.getOrDefault(year, Set.of());
+        if (skip.isEmpty()) {
+            return List.of();
+        }
+        List<Integer> left = keptIn(year).skipped().stream().map(DatedRun::number).toList();
+        return skip.stream().filter(number -> !left.contains(number)).sorted().toList();
     }
 
     /** Can the window date more than one run in a year: its rule, or the runs of any listed year? */
@@ -342,10 +388,10 @@ public final class AnnualWindow {
     /**
      * The run after run {@code number} of {@code year} by the dates: the same year's run starting soonest after
      * it, else the earliest run of the next year that has one; null when none is left. A run the year set aside
-     * is followed from its own days. A number the year does not have is followed from where the year's rule puts
-     * it ({@link YearRule#numberStart}: the start of that month, or of that calendar week), so a run whose month
-     * an owner dropped is followed by the year's next run; a list of spans names no date for a place it lacks,
-     * so that is followed by the next year's earliest run.
+     * or skipped is followed from its own days. A number the year does not have is followed from where the year's
+     * rule puts it ({@link YearRule#numberStart}: the start of that month, or of that calendar week), so a run
+     * whose month an owner dropped is followed by the year's next run; a list of spans names no date for a place
+     * it lacks, so that is followed by the next year's earliest run.
      */
     @Nullable
     public DatedRun after(int year, int number) {
@@ -362,8 +408,8 @@ public final class AnnualWindow {
     }
 
     /**
-     * Where run {@code number} of {@code year} starts, to seek the run after it: its own start, kept or set
-     * aside, else where the year's rule puts that number; null when nothing dates it.
+     * Where run {@code number} of {@code year} starts, to seek the run after it: its own start, kept, set aside
+     * or skipped, else where the year's rule puts that number; null when nothing dates it.
      */
     @Nullable
     private LocalDateTime startOf(int year, int number) {
@@ -374,6 +420,11 @@ public final class AnnualWindow {
         for (SetAside aside : setAside(year)) {
             if (aside.number() == number) {
                 return aside.run().start();
+            }
+        }
+        for (DatedRun skipped : keptIn(year).skipped()) {
+            if (skipped.number() == number) {
+                return skipped.days().start();
             }
         }
         YearRule rule = layer(year);
@@ -450,7 +501,8 @@ public final class AnnualWindow {
 
     /**
      * {@code year}'s runs as its own layer dates them, each numbered by that layer's rule ({@link YearRule#number}),
-     * a run meeting one kept before it in the order the rule gives them set aside.
+     * the numbers the year skips left out first, then a run meeting one kept before it in the order the rule gives
+     * them set aside.
      */
     @Nonnull
     private YearRuns datedIn(int year) {
@@ -461,12 +513,19 @@ public final class AnnualWindow {
         YearRule rule = layer(year);
         YearRuns made = YearRuns.NONE;
         if (rule != null) {
+            Set<Integer> skip = skips.getOrDefault(year, Set.of());
             List<RunDays> authored = rule.runs(year);
             List<DatedRun> runs = new ArrayList<>();
             List<SetAside> aside = new ArrayList<>();
+            List<DatedRun> skipped = new ArrayList<>();
             for (int i = 0; i < authored.size(); i++) {
                 RunDays run = authored.get(i);
                 int number = rule.number(run, i + 1);
+                if (skip.contains(number)) {
+                    // Left out before any weighing: a run that never happens meets no other.
+                    skipped.add(new DatedRun(year, number, run));
+                    continue;
+                }
                 DatedRun met = firstMet(runs, run);
                 if (met != null) {
                     aside.add(new SetAside(year, number, run, met.days()));
@@ -474,7 +533,7 @@ public final class AnnualWindow {
                     runs.add(new DatedRun(year, number, run));
                 }
             }
-            made = new YearRuns(List.copyOf(runs), List.copyOf(aside));
+            made = new YearRuns(List.copyOf(runs), List.copyOf(aside), List.copyOf(skipped));
         }
         dated.putIfAbsent(year, made);
         return made;
@@ -502,7 +561,7 @@ public final class AnnualWindow {
                 }
             }
             aside.sort(Comparator.comparingInt(SetAside::number));
-            made = new YearRuns(List.copyOf(runs), List.copyOf(aside));
+            made = new YearRuns(List.copyOf(runs), List.copyOf(aside), own.skipped());
         }
         kept.putIfAbsent(year, made);
         return made;
