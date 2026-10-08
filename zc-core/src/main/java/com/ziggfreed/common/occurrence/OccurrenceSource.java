@@ -136,4 +136,16 @@ public interface OccurrenceSource {
     default boolean datesMove(@Nonnull String eventId) {
         return false;
     }
+
+    /**
+     * How {@code eventId} comes round when it runs monthly or weekly: the rule dating the year it is in at
+     * {@code nowMs} (its first year's, before that), for a reader that says "the first Sunday of every month"
+     * rather than one run's days. Null for an event that comes round once a year or less, for a year whose days
+     * the event sets out itself, for an event the source does not know, and from a source that knows no rules (the
+     * default). Answers for any event LOADED whatever its switches say, as {@link #datesMove} does.
+     */
+    @Nullable
+    default Recurrence recurrence(@Nonnull String eventId, long nowMs) {
+        return null;
+    }
 }
