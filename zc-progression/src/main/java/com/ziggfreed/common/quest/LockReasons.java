@@ -29,13 +29,14 @@ import com.ziggfreed.common.util.NumberFormatter;
  * fixed line - every one of them, so a daily finished today reads "Comes back in 5h 12m" and a
  * quest already carried reads "Already in your quest log" rather than both collapsing onto the
  * catch-all. The three clock tokens ({@code on_cooldown}, {@code period_spent}, {@code run_spent})
- * quote WHEN when the caller hands over the remaining wait beside the tokens ({@link #lines(List, long)} and its
- * siblings, or the {@link QuestEngine.AcceptCheck} forms that carry it already), and fall back to
- * their no-clock twins when a caller has no wait to hand over (a token lifted from somewhere with
- * no record behind it). The wait is composed by {@link #waitLine} as its own translatable line, whole
- * numbers bound as typed params so each client writes its own digits, and rides the lock line as a
- * NESTED param. This class holds no clock: the wait is always passed in, never read here. The
- * requirement evaluator's tokens ({@link GateEvaluator}) are STRUCTURED - {@code
+ * quote WHEN when the caller hands over the remaining wait beside the tokens
+ * ({@link #lines(List, long)} and its siblings, or the {@link QuestEngine.AcceptCheck} forms that
+ * carry it already), and fall back to their no-clock twins when a caller has no wait to hand over
+ * (a token lifted from somewhere with no record behind it). The wait is composed by
+ * {@link #waitLine} as its own translatable line, whole numbers bound as typed params so each client
+ * writes its own digits, and rides the lock line as a NESTED param. This class holds no clock: the
+ * wait is always passed in, never read here. The requirement evaluator's tokens
+ * ({@link GateEvaluator}) are STRUCTURED - {@code
  * quest:<id>}, {@code factor:<id>}, {@code gate:<kind>} - and several render as the actual ask
  * rather than being discarded: a quest requirement names the quest ("Complete quest: X"), and a
  * FACTOR requirement whose factor has a naming overlay ({@link FactorNames}, the

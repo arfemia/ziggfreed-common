@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
@@ -476,6 +477,43 @@ class QuestEngineFlowTest {
         }
 
         @Test
+        void aCarriedQuestNotOnOfferTakesNoQuestLogSlot() {
+            AtomicBoolean offered = new AtomicBoolean(true);
+            Quest seasonal = quest("q_seasonal").objective(objective("x", "BREAK_BLOCK", "Oak_Log", 2))
+                    .available(offered::get).build();
+            Quest other = quest("q_other").objective(objective("x", "BREAK_BLOCK", "Stone", 1)).build();
+            QuestEngine engine = engine().maxActive(1).build();
+            engine.setQuests(List.of(seasonal, other));
+            assertTrue(engine.accept(player, seasonal));
+            assertTrue(engine.canAccept(player, other).reasons().contains(QuestGates.REASON_LOG_FULL));
+
+            offered.set(false);
+            assertEquals(0, engine.logSlotsUsed(player), "hidden, it is carried but holds no slot");
+            assertTrue(engine.canAccept(player, other).allowed(), "so the cap counts only what is on offer");
+            assertEquals(QuestStatus.ACTIVE, engine.status(player, seasonal), "and nothing is taken away");
+        }
+
+        @Test
+        void aCarriedQuestNotOnOfferCountsNoProgressAndResumesWhereItStopped() {
+            AtomicBoolean offered = new AtomicBoolean(true);
+            Quest seasonal = quest("q_seasonal").objective(objective("x", "BREAK_BLOCK", "Oak_Log", 3))
+                    .available(offered::get).build();
+            QuestEngine engine = engine().build();
+            engine.setQuests(List.of(seasonal));
+            engine.accept(player, seasonal);
+            engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 1);
+
+            offered.set(false);
+            engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 5);
+            assertEquals(1, engine.progressOf(player, "q_seasonal", "x").current(), "frozen while not on offer");
+            assertEquals(QuestStatus.ACTIVE, engine.status(player, seasonal), "so it cannot finish hidden");
+
+            offered.set(true);
+            engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 1);
+            assertEquals(2, engine.progressOf(player, "q_seasonal", "x").current(), "and counts again once back");
+        }
+
+        @Test
         void aFinishedRepeatableRefusesUntilItsCooldownElapses() {
             Quest daily = quest("q_daily")
                     .objective(objective("x", "BREAK_BLOCK", "Oak_Log", 1))
@@ -647,6 +685,36 @@ class QuestEngineFlowTest {
             assertTrue(engine.track(player, "q_c"), "and the freed slot is usable");
             assertEquals(List.of("q_b", "q_c"), engine.trackedActive(player).stream()
                     .map(Quest::id).toList());
+        }
+
+        @Test
+        void aPinnedQuestNotOnOfferTakesNoPinSlotAndTheOldestPinsShowWhenItReturns() {
+            AtomicBoolean offered = new AtomicBoolean(true);
+            Quest seasonal = quest("q_seasonal").objective(objective("x", "BREAK_BLOCK", "Oak_Log", 1))
+                    .available(offered::get).build();
+            Quest b = quest("q_b").objective(objective("x", "BREAK_BLOCK", "Stone", 1)).build();
+            Quest c = quest("q_c").objective(objective("x", "BREAK_BLOCK", "Sand", 1)).build();
+            Quest d = quest("q_d").objective(objective("x", "BREAK_BLOCK", "Gravel", 1)).build();
+            QuestEngine engine = engine().maxTracked(2).build();
+            engine.setQuests(List.of(seasonal, b, c, d));
+            engine.accept(player, seasonal);
+            engine.accept(player, b);
+            engine.accept(player, c);
+            engine.accept(player, d);
+            assertTrue(engine.track(player, "q_seasonal"));
+            clock.addAndGet(10);
+            assertTrue(engine.track(player, "q_b"));
+
+            offered.set(false);
+            clock.addAndGet(10);
+            assertTrue(engine.track(player, "q_c"), "a hidden quest's pin holds no slot");
+            assertEquals(List.of("q_seasonal", "q_b", "q_c"), engine.tracked(player), "and is kept");
+            assertEquals(List.of("q_b", "q_c"), engine.trackedActive(player).stream().map(Quest::id).toList());
+
+            offered.set(true);
+            assertEquals(List.of("q_seasonal", "q_b"), engine.trackedActive(player).stream().map(Quest::id).toList(),
+                    "back over the cap, the oldest pins show");
+            assertFalse(engine.track(player, "q_d"), "and a new pin waits until the player is under the cap");
         }
 
         @Test
@@ -862,6 +930,27 @@ class QuestEngineFlowTest {
             assertTrue(warnings.get(0).contains("q_windowed"));
             assertTrue(engine.accept(player, windowed),
                     "with nothing to count against, the window simply does not apply");
+        }
+
+        @Test
+        void aOnceARunRuleOnAStoreThatCannotRememberCompletionsIsWarnedToo() {
+            List<String> warnings = new ArrayList<>();
+            Quest fair = quest("q_fair")
+                    .objective(objective("x", "BREAK_BLOCK", "Oak_Log", 1))
+                    .repeat(new Quest.Repeat(0L, Quest.Repeat.CooldownFrom.CLAIM, null, 0,
+                            new Quest.Repeat.PerRun("Spring_Fair", 1)))
+                    .build();
+            QuestEngine engine = QuestEngine.builder()
+                    .store(new ForgetfulStore())
+                    .clock(clock::get)
+                    .nativeEvents(false)
+                    .warn(warnings::add)
+                    .build();
+            engine.setQuests(List.of(fair));
+
+            assertEquals(1, warnings.size(), "with no tally, a run would allow any number of finishes");
+            assertTrue(warnings.get(0).contains("q_fair"));
+            assertTrue(warnings.get(0).contains("PerRun"));
         }
 
         /** A store that deliberately cannot remember completions, like a round-scoped one. */
