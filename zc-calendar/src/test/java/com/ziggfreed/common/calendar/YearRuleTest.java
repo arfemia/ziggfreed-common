@@ -2,6 +2,7 @@ package com.ziggfreed.common.calendar;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.DayOfWeek;
@@ -11,6 +12,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.Month;
 import java.time.MonthDay;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
@@ -216,6 +218,80 @@ class YearRuleTest {
         assertTrue(fairs.several());
         assertFalse(fairs.moves());
         assertEquals("09-20..09-26, 04-10..04-16", fairs.describe());
+    }
+
+    // A run's number (the maintainer's ruling): a span's is its place in the list, a monthly run's its month and a
+    // weekly run's its calendar week: weeks run Monday to Sunday, week 1 holds January 1st however short it is,
+    // and a week is counted within its day's own year, never an ISO-8601 week-based year.
+    @Test
+    void aRunIsNumberedByItsPlaceItsMonthOrItsCalendarWeek() {
+        YearRule.FixedRuns fairs = new YearRule.FixedRuns(List.of(
+                new YearRule.Fixed(MonthDay.of(12, 1), MonthDay.of(12, 7)),
+                new YearRule.Fixed(MonthDay.of(3, 1), MonthDay.of(3, 7))));
+        assertEquals(1, fairs.number(fairs.runs(2026).get(0), 1), "a span is numbered by its place, December's too");
+        assertEquals(2, fairs.number(fairs.runs(2026).get(1), 2));
+        YearRule.Monthly quarterly = new YearRule.Monthly(15, null, 0,
+                new YearRule.Cadence(1, null, Set.of(Month.MARCH, Month.DECEMBER)), YearRule.RunLength.ofDays(2));
+        assertEquals(3, quarterly.number(quarterly.runs(2026).get(0), 1), "a monthly run by its month");
+        assertEquals(12, quarterly.number(quarterly.runs(2026).get(1), 2));
+        YearRule.Weekly thursdays = new YearRule.Weekly(DayOfWeek.THURSDAY,
+                new YearRule.Cadence(1, null, Set.of(Month.DECEMBER)), YearRule.RunLength.ofDays(3));
+        assertEquals(53, thursdays.number(thursdays.runs(2026).get(4), 5), "a weekly run by its week, from its start");
+        Set<DayOfWeek> newYearsDays = EnumSet.noneOf(DayOfWeek.class);
+        for (int year = 2023; year <= 2030; year++) {
+            LocalDate newYear = LocalDate.of(year, 1, 1);
+            newYearsDays.add(newYear.getDayOfWeek());
+            assertEquals(1, YearRule.Weekly.weekOfYear(newYear), "January 1st " + year + " is in week 1");
+        }
+        assertEquals(EnumSet.allOf(DayOfWeek.class), newYearsDays, "whatever its weekday");
+        assertEquals(1, YearRule.Weekly.weekOfYear(LocalDate.of(2026, 1, 4)), "2026's week 1 runs Thursday to Sunday");
+        assertEquals(2, YearRule.Weekly.weekOfYear(LocalDate.of(2026, 1, 5)), "and week 2 starts on the Monday");
+        assertEquals(1, YearRule.Weekly.weekOfYear(LocalDate.of(2023, 1, 1)), "a Sunday January 1st is week 1 alone");
+        assertEquals(2, YearRule.Weekly.weekOfYear(LocalDate.of(2023, 1, 2)), "and Monday the 2nd starts week 2");
+        assertEquals(53, YearRule.Weekly.weekOfYear(LocalDate.of(2026, 12, 31)));
+        assertEquals(53, YearRule.Weekly.weekOfYear(LocalDate.of(2012, 12, 30)));
+        assertEquals(54, YearRule.Weekly.weekOfYear(LocalDate.of(2012, 12, 31)),
+                "a leap year starting on a Sunday ends on a Monday, in week 54");
+        assertEquals(53, YearRule.Weekly.weekOfYear(LocalDate.of(2025, 12, 29)),
+                "late December stays in its own year (ISO-8601 calls this day week 1 of 2026)");
+        assertEquals(1, YearRule.Weekly.weekOfYear(LocalDate.of(2027, 1, 1)),
+                "and early January in its own (ISO-8601 calls this day week 53 of 2026)");
+    }
+
+    // Where a number the year lacks would start, for seeking the run after it: its month, or its calendar week.
+    @Test
+    void aNumberTheYearLacksStartsWhereItsMonthOrWeekDoes() {
+        YearRule.Monthly quarterly = new YearRule.Monthly(15, null, 0,
+                new YearRule.Cadence(1, null, Set.of(Month.MARCH, Month.DECEMBER)), YearRule.RunLength.ofDays(2));
+        assertEquals(LocalDateTime.of(2026, 5, 1, 0, 0), quarterly.numberStart(2026, 5));
+        assertNull(quarterly.numberStart(2026, 13), "no thirteenth month");
+        YearRule.Weekly mondays = new YearRule.Weekly(DayOfWeek.MONDAY, ALWAYS, YearRule.RunLength.ofDays(1));
+        assertEquals(LocalDateTime.of(2026, 1, 1, 0, 0), mondays.numberStart(2026, 1), "week 1 starts on January 1st");
+        assertEquals(LocalDateTime.of(2026, 1, 5, 0, 0), mondays.numberStart(2026, 2), "and week 2 on its Monday");
+        assertEquals(LocalDateTime.of(2026, 12, 28, 0, 0), mondays.numberStart(2026, 53));
+        assertNull(mondays.numberStart(2026, 54), "2026 has 53 weeks");
+        assertNull(mondays.numberStart(2026, 0));
+        assertEquals(LocalDateTime.of(2012, 12, 31, 0, 0), mondays.numberStart(2012, 54));
+        assertNull(new YearRule.FixedRuns(List.of(new YearRule.Fixed(MonthDay.of(6, 1), MonthDay.of(6, 7))))
+                .numberStart(2026, 2), "a place in a list names no date");
+    }
+
+    @Test
+    void aSpanOfMonthDaysLastsAtMostAWholeLeapYear() {
+        assertEquals(YearRule.MAX_RUN_DAYS, new YearRule.Fixed(MonthDay.of(1, 1), MonthDay.of(12, 31)).days(2028).length());
+        assertEquals(YearRule.MAX_RUN_DAYS, new YearRule.Fixed(MonthDay.of(3, 1), MonthDay.of(2, 29)).days(2027).length(),
+                "March 1st 2027 through February 29th 2028");
+        long longest = 0;
+        for (int from = 1; from <= 366; from++) {
+            for (int to = 1; to <= 366; to++) {
+                YearRule.Fixed span = new YearRule.Fixed(MonthDay.from(LocalDate.ofYearDay(2028, from)),
+                        MonthDay.from(LocalDate.ofYearDay(2028, to)));
+                for (int year = 2026; year <= 2028; year++) {
+                    longest = Math.max(longest, span.days(year).length());
+                }
+            }
+        }
+        assertEquals(YearRule.MAX_RUN_DAYS, longest, "no span of month-days, crossing the new year or not, lasts longer");
     }
 
     @Test
