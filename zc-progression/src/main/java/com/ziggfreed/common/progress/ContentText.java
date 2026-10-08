@@ -94,7 +94,13 @@ public final class ContentText {
         this.lore = Map.copyOf(b.lore);
     }
 
-    /** True when nothing was carried at all, so a source can skip this row without resolving it. */
+    /**
+     * True when this carries nothing at all, a convention key included, so a source can skip the
+     * row without resolving it. A fold stamps convention keys from every id, so content folded with
+     * an id is never empty here even when nothing ships its keys; what it can actually show is
+     * {@link #title()}'s and {@link #flavor()}'s answer, and an unshipped convention key alone
+     * answers null there.
+     */
     public boolean isEmpty() {
         return titleKey == null && titleConventionKey == null && displayName == null
                 && flavorKey == null && flavorConventionKey == null && description == null
@@ -235,8 +241,11 @@ public final class ContentText {
 
     /**
      * The key a surface should ask a client to resolve for this content's NAME, or null when there
-     * is none: the explicit key when it resolves, else the convention key when it does. Handing a
-     * key rather than a {@link Message} is what an offer listing wants, since it carries keys across
+     * is none: the explicit key when it resolves, else the convention key when it does, else the
+     * explicit key as written. A convention key that ships nowhere is never handed over: a fold
+     * derives one from every id, so content named only by a DisplayName would reach a reader of
+     * null (which falls back to the name it knows) as a raw, untranslatable key. Handing a key
+     * rather than a {@link Message} is what an offer listing wants, since it carries keys across
      * to whatever paints it.
      */
     @Nullable
@@ -247,7 +256,7 @@ public final class ContentText {
         if (titleConventionKey != null && ContentKeys.known(titleConventionKey)) {
             return titleConventionKey;
         }
-        return titleKey != null ? titleKey : titleConventionKey;
+        return titleKey;
     }
 
     /**

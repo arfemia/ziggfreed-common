@@ -1,5 +1,7 @@
 package com.ziggfreed.common.progress;
 
+import java.util.function.Supplier;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -79,6 +81,28 @@ public final class ConventionKeys {
         return Finding.warning(domain, UNRESOLVED_TITLE, asked + ", so its name falls back to a plain "
                 + "DisplayName, the first step's line or the raw key; ship "
                 + (convention == null ? "a key" : "'" + convention + "'") + " in the pack's own lang file", id);
+    }
+
+    /**
+     * As {@link #unresolvedTitle(String, String, ContentText)}, for an audit that has to FOLD the
+     * content to read its words. The fold runs only once a catalogue is loaded, and a fold that
+     * throws (or answers null) costs this one finding: an audit never throws over one malformed
+     * file, and that file's other findings still report.
+     */
+    @Nullable
+    public static Finding unresolvedTitle(@Nonnull String domain, @Nonnull String id,
+            @Nonnull Supplier<ContentText> fold) {
+        if (LangCatalog.catalogue().isEmpty()) {
+            return null;
+        }
+        ContentText text;
+        try {
+            text = fold.get();
+        } catch (Throwable foldFailed) {
+            // Nothing to read, so nothing to judge; the store's own fold meets the same file.
+            return null;
+        }
+        return text == null ? null : unresolvedTitle(domain, id, text);
     }
 
     @Nullable
