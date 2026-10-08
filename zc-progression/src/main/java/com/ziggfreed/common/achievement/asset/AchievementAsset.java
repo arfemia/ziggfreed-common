@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.function.BooleanSupplier;
+import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -168,7 +169,10 @@ public final class AchievementAsset
             .documentation("A capstone over every achievement these leaves pick, beside any MetaChildren listed "
                     + "by id: an achievement is picked when it matches every leaf written here. It never picks "
                     + "this achievement itself or any other capstone, and a yearly copy (see Occurrence) picks "
-                    + "only that year's copies of the same event. A selector writing no leaf picks nothing.")
+                    + "only that year's copies of the same event. With AnyYear, an ordinary capstone stands on "
+                    + "every year's copies instead, counted once per calendar event; Needs says how many must be "
+                    + "earned, and AtLeast is a floor under that number. A selector writing no Category, "
+                    + "Subcategory or Tags picks nothing.")
             .add()
             .appendInherited(new KeyedCodec<>("Rewards", ContentRewardsAsset.CODEC, false),
                     (a, v) -> a.rewards = v, a -> a.rewards, (a, p) -> a.rewards = p.rewards)
@@ -299,6 +303,19 @@ public final class AchievementAsset
     @Nonnull
     public Map<String, JsonElement> metaOrEmpty() {
         return ContentMeta.orEmpty(meta);
+    }
+
+    /**
+     * Would {@code selector} pick this file's achievements by what they are filed under: its Category,
+     * Subcategory and every one of its Tags (inherited ones included)? The occurrence and capstone
+     * rules the fold adds are not asked here; this is the reading for a check over the loaded files.
+     */
+    public boolean matchedBy(@Nonnull MetaSelector selector) {
+        Listing filed = listing;
+        List<String> tags = filed == null ? List.of() : filed.tagList();
+        return selector.matches(filed == null ? null : filed.getCategory(),
+                filed == null ? null : filed.getSubcategory(),
+                wanted -> tags.stream().anyMatch(tag -> tag.equalsIgnoreCase(wanted)));
     }
 
     /**
@@ -535,13 +552,22 @@ public final class AchievementAsset
 
     /**
      * Which achievements a capstone stands on, picked by what they are filed under rather than by id:
-     * {@code "MetaSelector": { "Category": "festival", "Tags": [ "lanterns" ] }}.
+     * {@code "MetaSelector": { "Category": "festival", "Tags": [ "lanterns" ] }}. With {@code AnyYear}
+     * (an ordinary capstone only) every year's copy of a yearly achievement stands for its base, and
+     * the picks are counted once per calendar event; {@code Needs} says how many must be earned, and
+     * {@code AtLeast} is a floor under that number.
      */
     public static final class MetaSelector {
+
+        /** What an unauthored {@code AtLeast} reads as: every capstone needs one group earned anyway. */
+        public static final int DEFAULT_AT_LEAST = 1;
 
         @Nullable protected String category;
         @Nullable protected String subcategory;
         @Nullable protected String[] tags;
+        @Nullable protected Boolean anyYear;
+        @Nullable protected Integer needs;
+        @Nullable protected Integer atLeast;
 
         public static final BuilderCodec<MetaSelector> CODEC = BuilderCodec.builder(MetaSelector.class, MetaSelector::new)
                 .appendInherited(new KeyedCodec<>("Category", Codec.STRING, false),
@@ -553,28 +579,76 @@ public final class AchievementAsset
                 .appendInherited(new KeyedCodec<>("Tags", Codec.STRING_ARRAY, false),
                         (o, v) -> o.tags = v, o -> o.tags, (o, p) -> o.tags = p.tags)
                 .documentation("Pick what carries every one of these Listing.Tags.").add()
+                .appendInherited(new KeyedCodec<>("AnyYear", Codec.BOOLEAN, false),
+                        (o, v) -> o.anyYear = v, o -> o.anyYear, (o, p) -> o.anyYear = p.anyYear)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("Let every year's copy of a yearly achievement (see Occurrence) stand for it, and "
+                        + "count what is picked once per calendar event: two years of one event count once, and "
+                        + "an event this server switched off leaves the count until it is switched back on. Only "
+                        + "on an ordinary capstone. Unauthored means false: an ordinary capstone never picks a "
+                        + "yearly copy.").add()
+                .appendInherited(new KeyedCodec<>("Needs", Codec.INTEGER, false),
+                        (o, v) -> o.needs = v, o -> o.needs, (o, p) -> o.needs = p.needs)
+                .documentation("How many groups must each hold one earned pick: with AnyYear a group is one "
+                        + "calendar event, otherwise each pick and each MetaChildren id is its own group. "
+                        + "Unauthored means all of them, read live, so the number grows when a new season "
+                        + "ships; once earned, the capstone stays earned.").add()
+                .appendInherited(new KeyedCodec<>("AtLeast", Codec.INTEGER, false),
+                        (o, v) -> o.atLeast = v, o -> o.atLeast, (o, p) -> o.atLeast = p.atLeast)
+                .metadata(EditorSchema.defaultValue(DEFAULT_AT_LEAST))
+                .documentation("A floor under how many groups must be earned: never fewer than this, whether "
+                        + "Needs names the number or it is all of them. On a server running fewer events than a "
+                        + "ladder was written for, it keeps an all-of-them rung from coming before a rung that "
+                        + "names a number. Unauthored means " + DEFAULT_AT_LEAST + ", which every capstone needs "
+                        + "anyway.").add()
                 .build();
 
         public MetaSelector() {
         }
 
-        /** True when no leaf was written, which picks nothing. */
+        /** True when no Category, Subcategory or Tags was written, which picks nothing. */
         public boolean isEmpty() {
             return blankToNull(category) == null && blankToNull(subcategory) == null && tagList().isEmpty();
         }
 
+        /** Does a yearly copy stand for its base, counted once per calendar event? Unauthored means false. */
+        public boolean isAnyYear() {
+            return anyYear != null && anyYear;
+        }
+
+        /** How many groups must be earned, as authored; null means every counted group. */
+        @Nullable
+        public Integer getNeeds() {
+            return needs;
+        }
+
+        /** The floor under how many groups must be earned, as authored; null means none was written. */
+        @Nullable
+        public Integer getAtLeast() {
+            return atLeast;
+        }
+
         /** Does {@code candidate} match every leaf written here, without regard to case? */
         public boolean matches(@Nonnull Achievement candidate) {
+            return matches(candidate.category(), candidate.subcategory(), candidate::hasTag);
+        }
+
+        /**
+         * The same test over listing facts alone: a category, a subcategory, and whether a tag is
+         * carried (the caller answers it without regard to case).
+         */
+        public boolean matches(@Nullable String candidateCategory, @Nullable String candidateSubcategory,
+                @Nonnull Predicate<String> carriesTag) {
             String wantedCategory = blankToNull(category);
-            if (wantedCategory != null && !wantedCategory.equalsIgnoreCase(candidate.category())) {
+            if (wantedCategory != null && !wantedCategory.equalsIgnoreCase(candidateCategory)) {
                 return false;
             }
             String wantedSubcategory = blankToNull(subcategory);
-            if (wantedSubcategory != null && !wantedSubcategory.equalsIgnoreCase(candidate.subcategory())) {
+            if (wantedSubcategory != null && !wantedSubcategory.equalsIgnoreCase(candidateSubcategory)) {
                 return false;
             }
             for (String tag : tagList()) {
-                if (!candidate.hasTag(tag)) {
+                if (!carriesTag.test(tag)) {
                     return false;
                 }
             }

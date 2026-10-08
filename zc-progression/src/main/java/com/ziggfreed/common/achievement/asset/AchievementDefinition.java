@@ -141,4 +141,27 @@ public record AchievementDefinition(@Nonnull String id, @Nonnull Achievement ach
                 displayName, titleArgs, flavorArgs, category, subcategory, sortOrder, chains, icon,
                 requires, criterionTextKeys, meta);
     }
+
+    /**
+     * This definition counting {@code groups} instead (see {@link Achievement.MetaGroup}), {@code needs}
+     * of them earned (null: every counted group), everything else unchanged; its meta children become
+     * the groups' union. The compact constructor re-stamps the authoring and listing facts as before.
+     */
+    @Nonnull
+    public AchievementDefinition withMetaGroups(@Nonnull List<Achievement.MetaGroup> groups,
+            @Nullable Integer needs) {
+        return withMetaGroups(groups, needs, null);
+    }
+
+    /**
+     * {@link #withMetaGroups(List, Integer)} with a floor under what the groups need, never fewer than
+     * {@code atLeast} (null: no floor); see {@link Achievement#metaAtLeast()}.
+     */
+    @Nonnull
+    public AchievementDefinition withMetaGroups(@Nonnull List<Achievement.MetaGroup> groups,
+            @Nullable Integer needs, @Nullable Integer atLeast) {
+        return new AchievementDefinition(id, achievement.withMetaGroups(groups, needs, atLeast), titleKey,
+                flavorKey, displayName, titleArgs, flavorArgs, category, subcategory, sortOrder, chains, icon,
+                requires, criterionTextKeys, meta);
+    }
 }

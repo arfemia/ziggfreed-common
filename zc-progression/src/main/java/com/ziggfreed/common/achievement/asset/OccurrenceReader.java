@@ -19,9 +19,10 @@ import com.ziggfreed.common.occurrence.Occurrences;
  * {@link OccurrenceSource#currentYear}), so an event switched off keeps every yearly copy, and what a
  * player earned of it stays theirs. The RUN question does not: {@link #isLive} holds only while the
  * source answers a run going on ({@link OccurrenceSource#live}, which reads a switched-off event as
- * absent) and that run is the asked year's, so nothing counts toward an event that is off. Every
- * answer is cheap and safe from any thread by the slot's contract, which is what lets {@link #isLive}
- * be asked on every availability read.
+ * absent) and that run is the asked year's, so nothing counts toward an event that is off.
+ * {@link #isEnabled} answers the owner's switch itself, for a reader that drops a switched-off event
+ * from a count. Every answer is cheap and safe from any thread by the slot's contract, which is what
+ * lets {@link #isLive} be asked on every availability read.
  *
  * <p>Each question reads the slot and the clock afresh: the slot is filled at setup, after this class
  * may have loaded, so a source kept in a field would read "no calendar" for the life of the server.
@@ -59,5 +60,10 @@ final class OccurrenceReader {
     boolean isLive(@Nonnull String eventId, int year) {
         Occurrence run = source.get().live(eventId, clock.getAsLong());
         return run != null && run.year() == year;
+    }
+
+    /** Is the event on this server and switched on, whether or not it is running now? */
+    boolean isEnabled(@Nonnull String eventId) {
+        return source.get().isEnabled(eventId);
     }
 }
