@@ -218,13 +218,16 @@ public final class QuestReader {
     /**
      * A row: its section's tone and state word, except that a finished quest that cannot be collected where the
      * player stands reads Elsewhere in the neutral tone, since there is nothing to press here and nothing refuses it.
+     * The trail's figure is the step tally for a quest being carried, and how long until it comes back for one that
+     * waits ("23h 59m" over WAITING, as "0 / 2" sits over IN PROGRESS), so the narrow trail never holds a sentence.
      */
     @Nonnull
     private LedgerRow read(@Nonnull Quest q, @Nullable CharacterQuestListing here, boolean compact) {
         QuestStatus status = status(q);
         QuestSection section = sectionOf(q);
         QuestEngine.ObjectiveTally tally = carried(status) ? engine.tally(subject, q) : null;
-        Message value = tally == null ? null : KitText.count(tally.completed(), tally.total());
+        Message value = section == QuestSection.WAITING ? waitLine(q)
+                : tally == null ? null : KitText.count(tally.completed(), tally.total());
         Progress progress = tally != null && status == QuestStatus.ACTIVE
                 ? new Progress(tally.completed(), tally.total()) : null;
         boolean elsewhere = collectsElsewhere(q, here);
@@ -252,7 +255,7 @@ public final class QuestReader {
             case IN_PROGRESS -> text("state.progress");
             case AVAILABLE -> text("state.available");
             case NOT_YET -> text("state.locked");
-            case WAITING -> text("state.back_in", waitLine(q));
+            case WAITING -> text("state.waiting");
             case COMPLETED -> text("state.done");
         };
     }

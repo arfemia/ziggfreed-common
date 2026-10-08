@@ -13,8 +13,10 @@
     "The moment carries 'quest' (its id), 'title' (its name in the reader's language),",
     "'collected', the outcome as 'granted' / 'queued' / 'failed' reward counts, and 'rewards'",
     "(what the payout actually put in the player's hands, one entry per thing). 'player' is",
-    "always the name of who was paid. Add a Sound group to the Variants entry to give collecting a",
-    "jingle of its own.",
+    "always the name of who was paid. The Variants entry's Sound is collecting's jingle, the",
+    "legendary chest opening. It plays on every Collect, wherever the toast shows or whether it shows",
+    "at all, and the Collect button's own toast on a quest page or a board stays silent, so a press is",
+    "one sound.",
     "",
     "PlayerLevel true hands the toast to each player's own notification level, chosen on their",
     "Settings tab: Every update, Milestones, Finishes or None. A variant replaces the whole toast,",
@@ -39,6 +41,9 @@
         },
         "Tone": "Reward",
         "PlayerLevel": true
+      },
+      "Sound": {
+        "Id": "SFX_Chest_Legendary_Open"
       }
     }
   ]

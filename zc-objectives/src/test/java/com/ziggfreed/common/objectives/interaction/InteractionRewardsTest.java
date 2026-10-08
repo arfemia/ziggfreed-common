@@ -29,6 +29,7 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.toast.ToastKind;
+import com.ziggfreed.common.ui.toast.ToastSounds;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 
 /**
@@ -59,6 +60,8 @@ class InteractionRewardsTest {
         assertEquals(List.of("Test_Sweets 12", "Test_Favor 5"),
                 toast.lines().stream().map(l -> l.text().getFormattedMessage().rawText).toList(),
                 "one row per thing the roll paid, read through the chip source");
+        assertEquals(ToastSounds.RECEIPT, toast.effectiveSoundId(),
+                "no moment fires for a payout outside a quest, so the receipt plays its own sound");
     }
 
     @Test

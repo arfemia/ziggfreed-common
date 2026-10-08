@@ -31,6 +31,7 @@ import com.ziggfreed.common.progress.gate.FeatureLift;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestTurnInSite;
+import com.ziggfreed.common.quest.asset.QuestAsset;
 import com.ziggfreed.common.quest.asset.QuestDefinition;
 import com.ziggfreed.common.quest.asset.QuestObjectiveAsset;
 import com.ziggfreed.common.text.ContentTextAsset;
@@ -58,7 +59,10 @@ import com.ziggfreed.common.text.ContentTextAsset;
  * than listed in a quest log, and coming round again when the board turns over rather than on a
  * private timer: none of that is authorable, because a contract that got any of it wrong would
  * quietly lose a player their reward when the board rotated. Write the work and the pay; the rest is
- * the same for every contract on the server. {@code Rewards} is the shared two-bucket group every
+ * the same for every contract on the server. How the player drives it is the quest schema's own
+ * {@code Flow} group, read the same way: {@code AutoTrack}, {@code Sequential} and
+ * {@code HideLockedSteps} mean what they mean on a quest, and {@code AutoAccept} is ignored, since a
+ * contract is only ever taken at a board. {@code Rewards} is the shared two-bucket group every
  * kind of progression content pays through: {@code Claim} waits to be collected at the board the
  * contract was taken from (the bucket a contract's pay belongs in, and what makes a finished one
  * park there), {@code Auto} lands in the field the instant the work is done - the deliberate choice
@@ -88,6 +92,7 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
     @Nullable private Boolean isAbstract;
     @Nullable private ContentTextAsset text;
     @Nullable private Listing listing;
+    @Nullable private QuestAsset.Flow flow;
     @Nullable private BoardMembership[] boards;
     @Nullable private GateSpec requires;
     @Nullable private Map<String, QuestObjectiveAsset> objectives;
@@ -129,6 +134,14 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
                     (a, v) -> a.listing = v, a -> a.listing, (a, p) -> a.listing = p.listing)
             .documentation("How the contract is grouped and ordered wherever contracts are listed, and which "
                     + "ladders it is a rung of.")
+            .add()
+            .appendInherited(new KeyedCodec<>("Flow", QuestAsset.Flow.CODEC, false),
+                    (a, v) -> a.flow = v, a -> a.flow, (a, p) -> a.flow = p.flow)
+            .documentation("The quest schema's own Flow group, read the same way and inherited leaf by leaf. A "
+                    + "contract honours AutoTrack (pinned to the tracker when it is taken at its board, if there "
+                    + "is room; it never displaces a pin the player chose), Sequential and HideLockedSteps. "
+                    + "Unauthored, each is false. AutoAccept is ignored: a contract exists because a board "
+                    + "posted it, so it is only ever taken there.")
             .add()
             .appendInherited(new KeyedCodec<>("Boards",
                             new ArrayCodec<>(BoardMembership.CODEC, BoardMembership[]::new), false),
@@ -207,6 +220,12 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
         return listing;
     }
 
+    /** The authored Flow group (the quest schema's own), or null when the file and its parents wrote none. */
+    @Nullable
+    public QuestAsset.Flow getFlow() {
+        return flow;
+    }
+
     /** The boards this contract can be posted on, blanks dropped, in authored order. */
     @Nonnull
     public List<BoardMembership> boardMemberships() {
@@ -273,7 +292,10 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
      * burn the next period's slot, and no leaf exists to author one. The payout moment is the one
      * choice the shared {@code Rewards} group leaves to the author: {@code Claim} parks at the
      * board (where a contract's pay belongs, so it cannot be lost to the board turning over),
-     * {@code Auto} lands in the field the instant the work is done.
+     * {@code Auto} lands in the field the instant the work is done. The other is {@code Flow}, the
+     * quest schema's own group: {@code AutoTrack}, {@code Sequential} and {@code HideLockedSteps}
+     * fold exactly as a quest's do (unauthored, false), and {@code AutoAccept} folds to false
+     * whatever it says.
      *
      * <p><b>The hide axis is folded here, exactly as the shared quest fold folds it.</b> A plain
      * top-level feature or mod-presence condition in {@code Requires} leaves the gate
@@ -293,11 +315,15 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
         boolean enabled = isEnabled();
 
         Quest.Builder quest = Quest.builder(contractId)
-                // Steps run in whatever order the player meets them unless a step authors its own.
-                .sequential(false)
-                // Never handed out on its own: a contract exists because a board posted it.
+                // Steps run in whatever order the player meets them unless a step authors its own, or
+                // the contract's Flow says Sequential.
+                .sequential(flow != null && flow.isSequential())
+                .hideLockedSteps(flow != null && flow.isHideLockedSteps())
+                // Never handed out on its own, whatever Flow says: a contract exists because a board
+                // posted it.
                 .autoAccept(false)
-                .autoTrack(false)
+                // Pinned on accept only when the contract's Flow asks, exactly as a quest's does.
+                .autoTrack(flow != null && flow.isAutoTrack())
                 // Externally governed: whatever posts it decides when it comes round again, and the
                 // clock that matters runs from FINISHING rather than from collecting, so a late
                 // collection never eats into the next posting.

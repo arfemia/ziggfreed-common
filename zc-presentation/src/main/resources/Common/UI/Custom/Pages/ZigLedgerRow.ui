@@ -17,7 +17,8 @@ $ZW = "../Common/ZigKit.ui";
 //   #Title    the name, up to two lines, a longer one ending its second line with "..."; #Mark after it shows #Pinned or #Tracked
 //   #Meta     one line under the title ("3 / 10 ghouls", "Tier 3 of 5")
 //   #BarTrack a 4px progress bar under the meta, hidden without progress
-//   #Trail    92 wide at the end: #Value (points, a count) over #State (the tone's state word)
+//   #Trail    92 wide at the end: #Value (points, a count, how long until a quest comes back) over #State (the
+//             tone's state word: one or two words, never a sentence, so it reads whole at 92)
 // No other button and no tooltip in a row: a label with a tooltip would swallow the row's click.
 //
 // The row fixes no height. The root and #Select are Left rows with no Height, so each is as tall as its tallest

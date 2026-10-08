@@ -26,6 +26,7 @@ import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.subject.PlayerRefSubjectHandle;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.toast.ToastDelivery;
+import com.ziggfreed.common.ui.toast.ToastSounds;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -131,7 +132,8 @@ public final class InteractionRewards {
      * The gold toast for what {@code paid} handed over: "Rewards received." over one row per entry of its
      * receipt read through {@code chips}, capped on the book's "+N more" line; null when the receipt is empty
      * (a lost roll, a reward that only queued or failed), since a toast over nothing reads as a payout of
-     * nothing.
+     * nothing. It carries {@link ToastSounds#RECEIPT}, played wherever it shows: no moment fires for a payout
+     * outside a quest, so the toast owns the sound.
      */
     @Nullable
     public static ToastSpec receiptToast(@Nonnull RewardGrants.GrantOutcome paid,
@@ -140,7 +142,7 @@ public final class InteractionRewards {
             return null;
         }
         return ClaimToasts.rewardToast(Msg.tr(PREFIX, DOMAIN + RECEIVED_KEY), paid.receipt(), chips,
-                InteractionRewards::more);
+                InteractionRewards::more).withSound(ToastSounds.RECEIPT);
     }
 
     /**

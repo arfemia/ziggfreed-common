@@ -8,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -22,11 +24,15 @@ import com.ziggfreed.common.board.asset.BountyAsset;
 import com.ziggfreed.common.commerce.fold.BoardAssetSpec;
 import com.ziggfreed.common.currency.asset.CurrencyAsset;
 import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.quest.InMemoryQuestProgressStore;
+import com.ziggfreed.common.quest.Quest;
+import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.quest.QuestTurnInSite;
 import com.ziggfreed.common.quest.asset.QuestDefinition;
 import com.ziggfreed.common.shop.asset.StorefrontAsset;
 import com.ziggfreed.common.shop.asset.ShopEntryAsset;
 import com.ziggfreed.common.shop.asset.ShopPoolAsset;
+import com.ziggfreed.common.subject.Subject;
 
 /**
  * The commerce types' decode contract, and above all what native {@code Parent} inheritance does to
@@ -360,6 +366,60 @@ class CommerceCodecTest {
                             + " working several contracts still has their whole log and is never"
                             + " refused the next one for a log they are not filling");
             assertFalse(folded.quest().autoAccept());
+        }
+
+        /**
+         * A contract reads the quest schema's own Flow group rather than a switch of its own: AutoTrack,
+         * Sequential and HideLockedSteps fold as a quest's do, unauthored meaning off, and a child keeps
+         * the leaves its base wrote. AutoAccept stays off whatever the file says, since a contract is only
+         * ever taken at a board.
+         */
+        @Test
+        void aContractReadsTheQuestSchemasFlowGroup() throws Exception {
+            Quest plain = bounty("{}", "plain", null, null).toDefinition(null).quest();
+            assertFalse(plain.autoTrack(), "unauthored, a contract is not pinned");
+            assertFalse(plain.sequential());
+            assertFalse(plain.hideLockedSteps());
+
+            BountyAsset base = bounty("""
+                    { "Abstract": true,
+                      "Flow": { "AutoTrack": true, "AutoAccept": true, "Sequential": true, "HideLockedSteps": true } }
+                    """, "Contract_Base", null, null);
+            BountyAsset child = bounty("""
+                    { "Flow": { "Sequential": false } }
+                    """, "Contract_Child", "contract_base", base);
+            Quest folded = child.toDefinition(null).quest();
+
+            assertTrue(folded.autoTrack(), "the child keeps the AutoTrack its base wrote");
+            assertTrue(folded.hideLockedSteps());
+            assertFalse(folded.sequential(), "and its own Sequential wins over the base's");
+            assertFalse(folded.autoAccept(), "a contract is never taken on its own, whatever Flow says");
+        }
+
+        /** The engine pins a contract authored with AutoTrack when it is taken, and leaves one without it alone. */
+        @Test
+        void aContractAuthoredWithAutoTrackIsPinnedOnAccept() throws Exception {
+            Quest tracked = bounty("""
+                    { "Flow": { "AutoTrack": true },
+                      "Objectives": { "main": { "Kind": "KILL_ENTITY", "Target": "Trork", "Amount": 8 } } }
+                    """, "Contract_Tracked", null, null).toDefinition(null).quest();
+            Quest untracked = bounty("""
+                    { "Objectives": { "main": { "Kind": "KILL_ENTITY", "Target": "Trork", "Amount": 8 } } }
+                    """, "Contract_Untracked", null, null).toDefinition(null).quest();
+            QuestEngine engine = QuestEngine.builder()
+                    .store(new InMemoryQuestProgressStore())
+                    .clock(() -> 1_000_000L)
+                    .nativeEvents(false)
+                    .warn(message -> { })
+                    .build();
+            engine.setQuests(List.of(tracked, untracked));
+            Subject player = Subject.of(UUID.randomUUID(), "tester");
+
+            assertTrue(engine.accept(player, tracked, "test_board"));
+            assertTrue(engine.accept(player, untracked, "test_board"));
+
+            assertEquals(List.of("contract_tracked"), engine.tracked(player),
+                    "only the contract that asked is on the tracker");
         }
 
         @Test

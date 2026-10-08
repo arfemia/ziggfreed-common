@@ -157,8 +157,12 @@ public final class BookVerbs {
                 ? Msg.raw("") : NativeNames.itemNameMsg(objective.target());
         int required = objective == null ? 0 : objective.amountAsInt();
         if (handed > 0) {
-            // Counts are data; the item name is a nested client-resolved Message.
-            toast(ToastKind.SUCCESS, ctx.text("book.toast.turn_in", handed, required, itemName));
+            // Counts are data; the item name is a nested client-resolved Message. A hand-in that finished the
+            // quest fires its completion moment (Quest_Completed or Quest_Parked), which plays the sound for this
+            // press, so the line is silent then.
+            ToastSpec line = ToastSpec.of(ToastKind.SUCCESS,
+                    ctx.text("book.toast.turn_in", handed, required, itemName));
+            ctx.toast(engine.status(subject, quest) == QuestStatus.ACTIVE ? line : line.silent());
         } else {
             ObjectiveProgressState progress = engine.progressOf(subject, quest.id(), step);
             int current = progress != null ? progress.current() : 0;

@@ -287,14 +287,15 @@ public final class NpcQuestPageDeps {
      * somewhere else): the plain success line {@code parkedHeadline} and no rows at all. Gold is
      * the payout colour and a "complete" headline over an empty receipt reads as a payout that
      * paid nothing, when in truth nothing has been paid yet; the moment the engine fires alongside
-     * says where it waits, so this line does not.
+     * says where it waits, so this line does not, and plays the sound, so this line is silent.
      */
     @Nonnull
     public ToastSpec handInToast(@Nonnull Quest quest, @Nullable RewardGrants.GrantOutcome paid,
             @Nonnull Message paidHeadline, @Nonnull Message parkedHeadline,
             @Nullable IntFunction<Message> overflow) {
         if (paid == null) {
-            return ToastSpec.of(ToastKind.SUCCESS, parkedHeadline);
+            // Silent: the engine's Quest_Parked moment for the same press owns the sound.
+            return ToastSpec.of(ToastKind.SUCCESS, parkedHeadline).silent();
         }
         return resolveCompletionToast(quest, paid.receipt(), paidHeadline, overflow);
     }

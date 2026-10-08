@@ -319,8 +319,11 @@ class QuestReaderTest {
 
         LedgerRow row = reader().row(waiting);
         assertEquals(Tone.WAITING, row.tone());
-        assertEquals(J + "state.back_in", id(row.state()));
-        assertNotNull(row.state().getFormattedMessage().messageParams.get("0"), "the wait rides as a nested line");
+        assertEquals(J + "state.waiting", id(row.state()),
+                "the state word is a word, as every other row's is, so the narrow trail never cuts it");
+        assertNotNull(row.value(), "how long until it comes back is the trail's figure");
+        assertTrue(id(row.value()).contains("wait."), "the figure is the wait line itself: " + id(row.value()));
+        assertTrue(id(reader().compactRow(waiting).value()).contains("wait."), "the compact row reads the same");
 
         DetailView page = reader().page(waiting);
         assertNull(page.action(ActionSlot.PRIMARY), "nothing to press while it waits");
