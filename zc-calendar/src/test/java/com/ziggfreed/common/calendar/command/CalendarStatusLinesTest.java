@@ -15,6 +15,7 @@ import com.ziggfreed.common.calendar.CalendarForces;
 import com.ziggfreed.common.calendar.CalendarService;
 import com.ziggfreed.common.calendar.asset.CalendarEventConfig;
 import com.ziggfreed.common.calendar.command.CalendarStatusLines.Line;
+import com.ziggfreed.common.occurrence.Occurrence;
 
 /** What an administrator reads about an event, as keys and raw data: running, waiting, forced, off, broken. */
 class CalendarStatusLinesTest {
@@ -116,5 +117,41 @@ class CalendarStatusLinesTest {
         assertEquals(List.of("Years 2026", "UTC"), lines.get(1).args());
         assertEquals(List.of("2026", "2026-06-01", "2026-06-07"), lines.get(2).args(),
                 "with no run on and none ahead, the last run frames the dates");
+    }
+
+    @Test
+    void anEventOfSeveralRunsAYearSaysSoAndNamesEachRunByItsLabel() {
+        CalendarFixtures.loadEvents(Map.of("two_fairs", CalendarFixtures.event("Two_Fairs", """
+                { "Window": { "Rule": { "Type": "Monthly", "Day": 10, "Days": 7, "Months": [4, 9] } }, "FirstYear": 2026 }
+                """)));
+        List<Line> june = CalendarStatusLines.detail(service, "two_fairs", at("2026-06-01T12:00:00Z"));
+        assertEquals(List.of("row.waiting", "status.window.several", "status.run", "status.first", "status.history"),
+                june.stream().map(Line::key).toList());
+        assertEquals(List.of("Monthly day 10 x7 in 04,09", "UTC"), june.get(1).args());
+        assertEquals(List.of("2026#9", "2026-09-10", "2026-09-16"), june.get(2).args(), "the run it frames is the next");
+        assertEquals(List.of("2026#4"), june.get(4).args(), "the spring run so far, by its month");
+        assertEquals(new Line("row.live", List.of("two_fairs", "2026#9", "2026-09-16")),
+                CalendarStatusLines.row(service, "two_fairs", at("2026-09-11T12:00:00Z")));
+        assertEquals(List.of("2026#4,9"),
+                CalendarStatusLines.detail(service, "two_fairs", at("2026-10-01T12:00:00Z")).get(4).args(),
+                "a year of several runs names each run it has had");
+    }
+
+    @Test
+    void theRunsSoFarNameEachYearsRunsByNumberWhereverTheNumbersSkip() {
+        assertEquals("", CalendarStatusLines.runsSoFar(List.of()));
+        assertEquals("2025, 2026", CalendarStatusLines.runsSoFar(List.of(run(2025, 1), run(2026, 1))),
+                "a year whose one run is its first reads as the bare year, as a once-a-year event's always has");
+        assertEquals("2026#2..4,7, 2027, 2028#3", CalendarStatusLines.runsSoFar(
+                        List.of(run(2026, 2), run(2026, 3), run(2026, 4), run(2026, 7), run(2027, 1), run(2028, 3))),
+                "runs one after another read as a stretch; a gap and a year's lone later run read as themselves");
+        assertEquals("2026#1..2", CalendarStatusLines.runsSoFar(List.of(run(2026, 2), run(2026, 1))),
+                "by number, whichever came round first");
+    }
+
+    /** Run {@code number} of {@code year} of one event, its days its number's hour of the year. */
+    private static Occurrence run(int year, int number) {
+        long start = at(year + "-01-01T00:00:00Z") + number * 3_600_000L;
+        return new Occurrence("fair", year, number, start, start + 1_000L);
     }
 }

@@ -22,6 +22,8 @@ import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.occurrence.Occurrence;
+
 /**
  * The runs of an event, year by year: an every-year {@link YearRule} (fixed month-days, several spans of them,
  * a span around Easter Sunday or the Nth weekday of a month, a run each month or each week) and the runs of
@@ -86,6 +88,12 @@ public final class AnnualWindow {
      * a month, a calendar week), and its days.
      */
     public record DatedRun(int year, int number, @Nonnull RunDays days) {
+
+        /** This run of {@code eventId}, its days counted in {@code zone}. */
+        @Nonnull
+        public Occurrence occurrence(@Nonnull String eventId, @Nonnull ZoneId zone) {
+            return new Occurrence(eventId, year, number, days.startMs(zone), days.endMs(zone));
+        }
     }
 
     /**
