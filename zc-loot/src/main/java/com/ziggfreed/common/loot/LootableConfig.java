@@ -54,6 +54,9 @@ import com.ziggfreed.common.asset.OwnedSources;
  */
 public final class LootableConfig extends AbstractKeyedAssetConfig<LootableAsset> {
 
+    /** The store's mod-gate label, which its drop lines carry (a contract the season boot pair parses). */
+    public static final String MOD_GATE_STORE = "Lootables";
+
     private static final LootableConfig INSTANCE = new LootableConfig();
 
     /** Enriched tables by id, rebuilt whenever a layer changes. Empty when nothing contributes. */
@@ -91,6 +94,7 @@ public final class LootableConfig extends AbstractKeyedAssetConfig<LootableAsset
     }
 
     private LootableConfig() {
+        super(MOD_GATE_STORE);
     }
 
     @Override

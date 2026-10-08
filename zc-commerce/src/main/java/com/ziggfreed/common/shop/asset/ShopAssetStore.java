@@ -45,6 +45,9 @@ import com.ziggfreed.common.validation.ValidationReport;
  */
 public final class ShopAssetStore {
 
+    /** The store's mod-gate label, which its drop lines carry (a contract the season boot pair parses). */
+    public static final String MOD_GATE_STORE = "ShopEntries";
+
     /** What one produced entry is called in a message written for the author. */
     private static final String NOUN = "offer";
 
