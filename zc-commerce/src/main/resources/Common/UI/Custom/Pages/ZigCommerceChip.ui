@@ -2,50 +2,57 @@ $C = "../Common.ui";
 $Z = "../Common/ZigButtons.ui";
 $ZT = "../Common/ZigType.ui";
 
-// One chip of a commerce strip: a picture and a number, side by side. A balance reading in a page
-// header, one component of a price, one component of a reroll's price - all the same chip, appended
-// into a left-laid-out container and addressed via the INDEXED PARENT ("#BalanceRow[0] #ChipText").
+// One chip of a commerce strip: a picture and how much ("6 Hallow Sweets"), side by side. A balance
+// reading in a page header, one component of a price, one component of a reroll's price - all the same
+// chip, appended into a container and addressed via the INDEXED PARENT ("#BalanceRow[0] #ChipText").
 //
-// A chip is deliberately NARROW and fixed-height: a strip is read at a glance, so a wallet with a
-// long name shows its picture and its number here and says its name in a line instead.
+// The chip is as wide as its words, the way the kit's @ZigPill is: #ChipBox, the drawn box, is a Left
+// row with only a Height around its picture and its label, and the label has no Width and no FlexWeight.
+// The root is a transparent Left row 30 high around it, so appended into a Left container the chips sit
+// side by side, and appended into a Top container (a page's wallet strip) they stack one per line, each
+// box hugging its own words at the start of its line with a 4px gap under it.
 //
-// The picture slot hides itself when a wallet has no icon, and the number lands on
-// #ChipText.TextSpans like every other piece of text in this library.
+// The picture slot hides itself when a wallet has no icon, and the line lands on #ChipText.TextSpans
+// like every other piece of text in this library.
 //
 // Two sibling pictures, exactly one ever visible. #ChipIcon is an item slot, for an item price: its
 // own tooltip names the item, which is the point. #IcoTex draws a wallet's picture plain (the item's
 // own icon texture, through IconRenderer.applyPlainIcon), because a wallet's Icon is an item borrowed
-// for its picture and an item slot would name that item on hover; the chip itself then carries the
-// wallet's name as its TooltipText, which is why it carries the tooltip style (a TooltipText with no
+// for its picture and an item slot would name that item on hover; the box then carries the wallet's
+// name as its TooltipText, which is why it carries the tooltip style (a TooltipText with no
 // TextTooltipStyle draws nothing).
 
 Group #ZigCommerceChip {
   LayoutMode: Left;
-  Anchor: (Width: 92, Height: 26, Right: 6);
-  Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
-  Padding: (Left: 6, Right: 6);
-  TextTooltipStyle: $C.@DefaultTextTooltipStyle;
+  Anchor: (Height: 30, Right: 6);
 
-  Group #ChipIconSlot {
-    Anchor: (Width: 18, Height: 18, Top: 4, Right: 6);
-    ItemGrid #ChipIcon {
-      Anchor: (Width: 18, Height: 18);
-      SlotsPerRow: 1;
-      AreItemsDraggable: false;
-      DisplayItemQuantity: false;
-      Style: $Z.@ZigIconGrid18;
-    }
-
-    AssetImage #IcoTex {
-      Anchor: (Width: 18, Height: 18);
-      Visible: false;
-    }
-  }
-
-  Label #ChipText {
-    FlexWeight: 1;
-    Text: "";
+  Group #ChipBox {
+    LayoutMode: Left;
     Anchor: (Height: 26);
-    Style: (FontSize: $ZT.@ZigFontBody, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
+    Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
+    Padding: (Left: 6, Right: 8);
+    TextTooltipStyle: $C.@DefaultTextTooltipStyle;
+
+    Group #ChipIconSlot {
+      Anchor: (Width: 18, Height: 18, Top: 4, Right: 6);
+      ItemGrid #ChipIcon {
+        Anchor: (Width: 18, Height: 18);
+        SlotsPerRow: 1;
+        AreItemsDraggable: false;
+        DisplayItemQuantity: false;
+        Style: $Z.@ZigIconGrid18;
+      }
+
+      AssetImage #IcoTex {
+        Anchor: (Width: 18, Height: 18);
+        Visible: false;
+      }
+    }
+
+    Label #ChipText {
+      Text: "";
+      Anchor: (Height: 26);
+      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
+    }
   }
 }

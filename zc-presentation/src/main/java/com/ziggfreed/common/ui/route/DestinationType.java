@@ -7,7 +7,8 @@ import com.hypixel.hytale.codec.Codec;
 
 /**
  * ONE registrable destination: the {@code Type} discriminator, the class it decodes into, its field
- * codec, the {@link DestinationHandler} that opens it, and an optional {@link DestinationCheck}.
+ * codec, the {@link DestinationHandler} that opens it, an optional {@link DestinationCheck}, and an
+ * optional {@link DestinationKind} saying what kind of screen it opens.
  *
  * <p>They travel together so schema, behaviour and audit cannot drift: the id an author writes, the
  * fields they may write beside it, what happens when it is opened, and what a validator says about
@@ -16,7 +17,8 @@ import com.hypixel.hytale.codec.Codec;
  * <pre>{@code
  * Destinations.register("mymod", DestinationType.of(
  *         "Mymod_Shop", ShopDestination.class, ShopDestination.CODEC, MyPages::openShop)
- *         .withCheck((destination, sourceId) -> checkStorefront(destination, sourceId)));
+ *         .withCheck((destination, sourceId) -> checkStorefront(destination, sourceId))
+ *         .withKind(DestinationKind.SHOP));
  * }</pre>
  *
  * @param <D> the destination class this type decodes into
@@ -28,15 +30,17 @@ public final class DestinationType<D extends Destination> {
     private final Codec<D> codec;
     private final DestinationHandler<D> handler;
     @Nullable private final DestinationCheck<D> check;
+    @Nullable private final DestinationKind kind;
 
     private DestinationType(@Nonnull String typeId, @Nonnull Class<D> destinationClass,
             @Nonnull Codec<D> codec, @Nonnull DestinationHandler<D> handler,
-            @Nullable DestinationCheck<D> check) {
+            @Nullable DestinationCheck<D> check, @Nullable DestinationKind kind) {
         this.typeId = typeId;
         this.destinationClass = destinationClass;
         this.codec = codec;
         this.handler = handler;
         this.check = check;
+        this.kind = kind;
     }
 
     /**
@@ -48,13 +52,23 @@ public final class DestinationType<D extends Destination> {
     public static <D extends Destination> DestinationType<D> of(@Nonnull String typeId,
             @Nonnull Class<D> destinationClass, @Nonnull Codec<D> codec,
             @Nonnull DestinationHandler<D> handler) {
-        return new DestinationType<>(typeId, destinationClass, codec, handler, null);
+        return new DestinationType<>(typeId, destinationClass, codec, handler, null, null);
     }
 
     /** A copy that also audits its own authored fields. */
     @Nonnull
     public DestinationType<D> withCheck(@Nonnull DestinationCheck<D> check) {
-        return new DestinationType<>(typeId, destinationClass, codec, handler, check);
+        return new DestinationType<>(typeId, destinationClass, codec, handler, check, kind);
+    }
+
+    /**
+     * A copy that also says what kind of screen this opens, so a surface offering a way there (a
+     * conversation's answer) can show it before the player presses. Presentation only: it never
+     * changes what opening does.
+     */
+    @Nonnull
+    public DestinationType<D> withKind(@Nonnull DestinationKind kind) {
+        return new DestinationType<>(typeId, destinationClass, codec, handler, check, kind);
     }
 
     @Nonnull
@@ -80,5 +94,11 @@ public final class DestinationType<D extends Destination> {
     @Nullable
     public DestinationCheck<D> check() {
         return check;
+    }
+
+    /** What kind of screen this opens, or null when the type declared none. */
+    @Nullable
+    public DestinationKind kind() {
+        return kind;
     }
 }

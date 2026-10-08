@@ -15,6 +15,7 @@ import com.ziggfreed.common.ui.menu.MenuEntry;
 import com.ziggfreed.common.ui.menu.MenuSlot;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.ui.route.DestinationContext;
+import com.ziggfreed.common.ui.route.DestinationKind;
 import com.ziggfreed.common.ui.route.DestinationType;
 import com.ziggfreed.common.ui.route.Destinations;
 
@@ -39,7 +40,8 @@ public final class RecordsDestinations {
 
     /** Seed the type, at setup, before any asset decodes. */
     public static void register() {
-        Destinations.register(OWNER, DestinationType.of(TYPE, Records.class, Records.CODEC, RecordsDestinations::open));
+        Destinations.register(OWNER, DestinationType.of(TYPE, Records.class, Records.CODEC, RecordsDestinations::open)
+                .withKind(DestinationKind.TROPHY));
     }
 
     /** The Records tab in the shared menu. */

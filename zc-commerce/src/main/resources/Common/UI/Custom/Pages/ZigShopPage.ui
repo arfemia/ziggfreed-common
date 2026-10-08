@@ -7,7 +7,7 @@ $ZT = "../Common/ZigType.ui";
 // left, the offer being read on the right, and what the buyer is carrying across the top.
 //
 // LEFT: the shop's name and icon, the wallet strip (#BalanceRow, one Pages/ZigCommerceChip.ui per
-// currency the shop authored), the two list filters (#FilterRow: a run of the catalogue by name,
+// currency the shop authored, one per line), the two list filters (#FilterRow: a run of the catalogue by name,
 // and rotating vs standing stock), a count, and the scrolling #OfferList the page appends
 // Pages/ZigSelectRow.ui into - rotating shelves first, each under a heading carrying its
 // countdown, then the standing catalogue by category. #EmptyLabel carries the one line an empty
@@ -66,9 +66,10 @@ $F.@ZigDecoratedFrame {
         }
       }
 
+      // One wallet per line, each chip as wide as its words: no fixed height, so the strip grows.
       Group #BalanceRow {
-        LayoutMode: Left;
-        Anchor: (Height: 28, Bottom: 8);
+        LayoutMode: Top;
+        Anchor: (Bottom: 4);
       }
 
       // The two list filters: one run of the catalogue by name, and rotating vs standing stock.

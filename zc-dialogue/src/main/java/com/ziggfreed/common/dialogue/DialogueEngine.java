@@ -1088,11 +1088,10 @@ public final class DialogueEngine {
     }
 
     /**
-     * The decisive look for an option: an explicit {@code Style} kind override if authored
+     * The COLOUR an option row reads in: an explicit {@code Style} kind override if authored
      * ({@link DialogueOption#getStyleKind}, resolved through {@link DialogueOptionStyle#byKey}), else
-     * the first action whose registered type declared a {@link DialogueOptionStyle}, else
-     * {@link DialogueOptionStyle#CONTINUE} (an option with no Goto/Close re-renders its node, which
-     * reads as a continue).
+     * {@link #actionStyle}. An authored {@code Style} decides only the colour; the glyph leading the
+     * row says what the option does, which is {@link #actionStyle} and {@link #decisiveAction}.
      */
     @Nonnull
     public DialogueOptionStyle classifyOption(@Nonnull DialogueOption option) {
@@ -1103,13 +1102,34 @@ public final class DialogueEngine {
                 return explicit;
             }
         }
+        return actionStyle(option);
+    }
+
+    /**
+     * What an option DOES, as the kind its {@link #decisiveAction} declared, whatever {@code Style} it
+     * authored: {@link DialogueOptionStyle#CONTINUE} when no action declared one (an option with no
+     * Goto/Close re-renders its node, which reads as talking on).
+     */
+    @Nonnull
+    public DialogueOptionStyle actionStyle(@Nonnull DialogueOption option) {
+        DialogueAction decisive = decisiveAction(option);
+        DialogueOptionStyle style = decisive == null ? null : styles.get(decisive.getClass());
+        return style == null ? DialogueOptionStyle.CONTINUE : style;
+    }
+
+    /**
+     * The action that decides what an option does: the first whose registered type declared a
+     * {@link DialogueOptionStyle} (an accept, a hand-in, a jump, a page it opens, a goodbye), or null
+     * when none did. A page reads an {@code OpenPage}'s destination off it to show what it opens.
+     */
+    @Nullable
+    public DialogueAction decisiveAction(@Nonnull DialogueOption option) {
         for (DialogueAction action : option.getActions()) {
-            DialogueOptionStyle style = styles.get(action.getClass());
-            if (style != null) {
-                return style;
+            if (styles.get(action.getClass()) != null) {
+                return action;
             }
         }
-        return DialogueOptionStyle.CONTINUE;
+        return null;
     }
 
     // ==================== Builder ====================

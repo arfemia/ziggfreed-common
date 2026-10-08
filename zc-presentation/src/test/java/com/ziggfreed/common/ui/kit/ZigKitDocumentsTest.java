@@ -55,9 +55,12 @@ class ZigKitDocumentsTest {
             "@ZigProgressBar", "@ZigProgressBlock", "@ZigSectionHeader", "@ZigPicture", "@ZigDetailPage",
             "@ZigActionBar", "@ZigEmptyState", "@ZigHeroPlate");
 
-    /** The glyph set ({@code Common/Glyphs/}), white on transparent. */
+    /**
+     * The glyph set ({@code Common/Glyphs/}), white on transparent, the last six the kinds of screen a
+     * conversation's answer opens (Pages/ZigDialogueOptionRow.ui).
+     */
     private static final List<String> GLYPHS = List.of("Pin", "PinFilled", "Lock", "ChevronRight", "ChevronDown",
-            "Dot", "Star", "Blank");
+            "Dot", "Star", "Blank", "Talk", "Quest", "Bag", "Board", "Book", "Trophy");
 
     /** The vanilla textures the kit draws, by their path under {@code Common/UI/Custom/}: the game ships them. */
     private static final Set<String> VANILLA_TEXTURES = Set.of("Common/ProgressBar.png", "Common/ProgressBarFill.png",

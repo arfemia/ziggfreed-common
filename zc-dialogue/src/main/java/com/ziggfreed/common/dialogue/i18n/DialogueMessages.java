@@ -40,8 +40,8 @@ public final class DialogueMessages {
     }
 
     /**
-     * One of the PAGE's own lines, in the library's namespace: {@code farewell}, {@code missing},
-     * {@code active_objective}. For text an author wrote, use {@link #resolve} instead.
+     * One of the PAGE's own lines, in the library's namespace: {@code farewell}, {@code missing}.
+     * For text an author wrote, use {@link #resolve} instead.
      */
     @Nonnull
     public static Message page(@Nonnull String unprefixedKey, @Nonnull Object... args) {

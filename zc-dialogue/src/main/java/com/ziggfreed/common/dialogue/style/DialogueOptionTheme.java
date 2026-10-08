@@ -18,7 +18,8 @@ import javax.annotation.Nullable;
  * @param color       the default button tint ({@code #rrggbb}), or null to use the enum default
  * @param hover       the hovered tint, or null to derive from {@code color} / use the enum
  * @param press       the pressed tint, or null to derive from {@code color} / use the enum
- * @param glyphToken  the leading glyph token (accept / turnin / continue / open / farewell), or
+ * @param glyphToken  the leading glyph token (accept / turnin / continue / open / farewell / talk,
+ *                    or a destination kind: quest / shop / board / standing / book / trophy), or
  *                    null to use the enum's glyph
  */
 public record DialogueOptionTheme(@Nullable String color, @Nullable String hover,

@@ -210,4 +210,21 @@ class DestinationsTest {
         assertNotNull(Destinations.info().get("yourmod_board"));
         assertEquals("yourmod", Destinations.info().get("yourmod_board").owner());
     }
+
+    @Test
+    void aDeclaredKindIsReadBackOffTheDestinationAndSurvivesACheck() {
+        Destinations.register("yourmod", DestinationType.of("Yourmod_Board", Board.class, Board.CODEC,
+                        (destination, ctx) -> true)
+                .withKind(DestinationKind.BOARD)
+                .withCheck((destination, sourceId) -> List.of()));
+        Destinations.register("yourmod", DestinationType.of("Hub", Hub.class, Hub.CODEC,
+                (destination, ctx) -> true));
+
+        assertEquals(DestinationKind.BOARD, Destinations.kindOf(new Board()),
+                "a check added after the kind keeps it");
+        assertNull(Destinations.kindOf(new Hub()), "a type that declared no kind has none");
+        assertNull(Destinations.kindOf(null));
+        assertEquals(DestinationKind.STANDING, DestinationKind.byKey(" Standing "));
+        assertNull(DestinationKind.byKey("nonsense"));
+    }
 }

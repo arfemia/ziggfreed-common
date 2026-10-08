@@ -7,12 +7,14 @@ import com.ziggfreed.common.dialogue.type.DialogueActionType;
 
 /**
  * The semantic look of a dialogue option row: a per-state button tint family plus
- * an optional leading glyph element id. An option's style is DERIVED from its
+ * an optional leading glyph element id. An option's kind is DERIVED from its
  * decisive action's registered kind (a consumer action declares its kind via
  * {@link DialogueActionType}); the page overwrites the shared option button's
  * three {@code .Background.Color} states and reveals the matching pre-authored
  * glyph in the row's {@code #OptIcon} gutter (the glyph TEXTURE lives in markup;
- * a {@code "../Common/..."} path set from Java renders a red X).
+ * a {@code "../Common/..."} path set from Java renders a red X). An authored
+ * {@code Style} picks only the tint; the glyph always follows what the option does
+ * ({@link DialogueOptionGlyphs}).
  *
  * <p>The tint hexes match the families in the shared {@code Common/ZigButtons.ui}
  * comment vocabulary (green = accept, blue = turn-in, steel = neutral/continue,
@@ -25,8 +27,8 @@ public enum DialogueOptionStyle {
     ACCEPT("accept", "#4aff7f", "#7affa0", "#33cc66", "#IcoAccept"),
     /** Hand-off / turn in. Blue, with a checkmark. */
     TURN_IN("turnin", "#5ab0ff", "#8acbff", "#3f8fd6", "#IcoTurnIn"),
-    /** Jump to another node (re-renders elsewhere). Steel, with a right chevron. */
-    CONTINUE("continue", "#b6c9de", "#d6e3f0", "#97aabf", "#IcoContinue"),
+    /** Jump to another node (re-renders elsewhere): talking on. Steel, with a speech bubble. */
+    CONTINUE("continue", "#b6c9de", "#d6e3f0", "#97aabf", "#IcoTalk"),
     /** Open another page / nav. Steel, with a gold "open" chevron. */
     NEUTRAL("neutral", "#b6c9de", "#d6e3f0", "#97aabf", "#IcoOpen"),
     /** End the dialogue. Muted, with an X. */
