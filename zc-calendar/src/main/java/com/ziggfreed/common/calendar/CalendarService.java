@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 import javax.annotation.Nonnull;
@@ -30,8 +31,11 @@ import com.ziggfreed.common.util.SafeLog;
  * the dates. Forced off is never live. Forced on runs the run going on, else the current year's first run
  * not yet over, else its last (never before FirstYear), with that run's own days and number even outside
  * them, so what a forced run earns is filed under that run; a year the window dates no run has nothing to
- * run. The force keeps that one run and clears itself once the run is over: when its days end, or, for a
- * run forced again after its days ended, when the event's next run begins. Every run is (event, year,
+ * run. {@link #forceOn} takes that one run as it writes the force, and the force keeps it: a run brought
+ * forward (or going on) stops when its days end; a run forced again after its days ended (a replay) runs its
+ * usual length from the force, or until the event's next run begins by its dates if that comes first. Once
+ * the forced run is over every answer is the dates', and no answer writes: only the tick's look clears the
+ * spent force ({@link #clearSpentForces}), under {@link #lock()}. Every run is (event, year,
  * number), its number the one its year's rule gives it (a month, a calendar week, a span's place, 1 for a
  * rule with one run a year), so runs are ordered by start, never by number. The next run is the dates'
  * next one after the run going on, or none once a window of per-year days has run out.
@@ -86,10 +90,72 @@ public final class CalendarService implements OccurrenceSource {
         return config.isGlobalEnabled();
     }
 
-    /** The force standing on {@code eventId}, or null. */
+    /**
+     * The force standing on {@code eventId}, or null. A force on whose run is over stands until the tick's next
+     * look clears it, though no answer heeds it any more ({@link #forceEndsMs} says whether it is still in force).
+     */
     @Nullable
     public Boolean forced(@Nullable String eventId) {
         return eventId == null || eventId.isBlank() ? null : forces.forced(eventId);
+    }
+
+    /**
+     * Force {@code eventId} on at {@code nowMs}: take the run a force set now runs (the run going on, else the
+     * year's first run not yet over, else its last) and write the force pinned to it, a replay when that run's
+     * days are already over. Answers that run; null, writing nothing, when the event is absent or its window
+     * dates no run that year, so a refusal leaves the standing force (a force off included) as it was. Decided
+     * under {@link #lock()}, so the run it takes is never read from half a reload; nothing in it waits for the
+     * asset lock or a world thread.
+     */
+    @Nullable
+    public Occurrence forceOn(@Nonnull String eventId, long nowMs) {
+        synchronized (lock) {
+            CalendarEventAsset event = runnable(eventId);
+            Occurrence run = event == null ? null : liveOf(event, nowMs, Boolean.TRUE);
+            if (run == null) {
+                return null;
+            }
+            Long replayEndsMs = run.endMs() <= nowMs ? nowMs + (run.endMs() - run.startMs()) : null;
+            forces.forceOn(event.getId(), new CalendarForces.Pin(run.year(), run.number(), replayEndsMs));
+            return run;
+        }
+    }
+
+    /**
+     * When the force on standing on {@code eventId} stops, if it is still in force at {@code nowMs}: its run's end
+     * for a run brought forward, the replay's end for a run forced again. Null when no force on stands, or its
+     * run is over (or the dates no longer have it).
+     */
+    @Nullable
+    public Long forceEndsMs(@Nonnull String eventId, long nowMs) {
+        CalendarEventAsset event = runnable(eventId);
+        CalendarForces.Force force = event == null ? null : forces.standing(event.getId());
+        if (force == null || force.pin() == null) {
+            return null;
+        }
+        Long end = forceEnd(event, force.pin());
+        return end != null && nowMs < end ? end : null;
+    }
+
+    /**
+     * Clear every force on whose run is over at {@code nowMs}, or whose run the dates no longer have (an owner
+     * took it away). The tick's look calls this under {@link #lock()}, the lock a reload folds under, so half a
+     * reload never ends a force; every other reader only answers such an event by its dates. An event switched
+     * off or unable to run keeps its force for when it runs again.
+     */
+    public void clearSpentForces(long nowMs) {
+        eachEvent(forces.forcedOn(), id -> {
+            CalendarEventAsset event = runnable(id);
+            CalendarForces.Force force = event == null ? null : forces.standing(id);
+            CalendarForces.Pin pin = force == null ? null : force.pin();
+            if (pin != null) {
+                Long end = forceEnd(event, pin);
+                if (end == null || nowMs >= end) {
+                    forces.spend(id, force);
+                }
+            }
+            return null;
+        });
     }
 
     @Override
@@ -224,19 +290,30 @@ public final class CalendarService implements OccurrenceSource {
         return window != null && (window.moves() || window.several());
     }
 
-    /** Every event running at {@code nowMs}, by id, in id order. One event that cannot answer costs only itself. */
+    /**
+     * Every event running at {@code nowMs}, by id, in id order. One event that cannot answer costs only itself:
+     * it reads as not running, so the tick sees its run end (a real end) and start afresh once it answers again.
+     * Its last answer is not carried forward, since a carried run could outlive its own end.
+     */
     @Nonnull
     public Map<String, Occurrence> liveAll(long nowMs) {
         return eachEvent(config.ids(), id -> live(id, nowMs));
     }
 
-    /**
-     * {@code answer} for each of {@code ids}, in id order, leaving out a null answer. An event whose answer
-     * throws is left out too, and said once in the log until it answers again, so one broken event never
-     * stops the others being asked.
-     */
+    /** {@link #eachEvent(List, Function, BiConsumer)}, saying a failure through {@link SafeLog}. */
     @Nonnull
     <T> Map<String, T> eachEvent(@Nonnull List<String> ids, @Nonnull Function<String, T> answer) {
+        return eachEvent(ids, answer, (message, cause) -> SafeLog.warn(message, cause));
+    }
+
+    /**
+     * {@code answer} for each of {@code ids}, in id order, leaving out a null answer. An event whose answer
+     * throws is left out too, and said to {@code warn} once until it answers again, so one broken event never
+     * stops the others being asked and never fills the log a line a minute.
+     */
+    @Nonnull
+    <T> Map<String, T> eachEvent(@Nonnull List<String> ids, @Nonnull Function<String, T> answer,
+            @Nonnull BiConsumer<String, RuntimeException> warn) {
         Map<String, T> out = new TreeMap<>();
         for (String id : ids) {
             T value;
@@ -244,7 +321,7 @@ public final class CalendarService implements OccurrenceSource {
                 value = answer.apply(id);
             } catch (RuntimeException e) {
                 if (failing.add(id)) {
-                    SafeLog.warn("[calendar] could not answer for event " + id + "; the others still run", e);
+                    warn.accept("[calendar] could not answer for event " + id + "; the others still run", e);
                 }
                 continue;
             }
@@ -260,8 +337,7 @@ public final class CalendarService implements OccurrenceSource {
      * Would forcing {@code eventId} on at {@code nowMs} run it? True when it is switched on and a run is going on
      * by its dates or its window dates one in the force's year (the year's next run not yet over, else its last);
      * false when the window dates no run that year (nothing to force on) or the event is absent. A read: it
-     * writes no force, so a command that asks it first and refuses changes nothing, and nothing is ever live for
-     * a force it then takes back.
+     * writes no force; {@link #forceOn} decides the same way and writes only when this would answer true.
      */
     public boolean canForceOn(@Nonnull String eventId, long nowMs) {
         CalendarEventAsset event = runnable(eventId);
@@ -287,64 +363,56 @@ public final class CalendarService implements OccurrenceSource {
 
     /**
      * The run of a runnable {@code event} going on at {@code nowMs}: its standing force first, then its dates. A
-     * force on takes its run the first time it is read here (the run a force set at that moment would run) and
-     * keeps it: the run's own days and number, an owner's re-dating followed. Once that run is over the force
-     * clears itself and the dates answer.
+     * force on runs the run it took ({@link #forceOn}) with that run's current days and number, an owner's
+     * re-dating followed, until the force's end ({@link #forceEnd}); from then on, or while the dates do not
+     * have that run, the dates answer. Pure: it never writes the force, so a reader that catches a reload half
+     * done answers wrong for that moment only.
      */
     @Nullable
     private Occurrence liveOf(@Nonnull CalendarEventAsset event, long nowMs) {
-        String id = event.getId();
-        CalendarForces.Force force = forces.standing(id);
+        CalendarForces.Force force = forces.standing(event.getId());
         if (force == null) {
             return liveOf(event, nowMs, null);
         }
-        if (force.running() && force.pin() == null) {
-            Occurrence pick = liveOf(event, nowMs, Boolean.TRUE);
-            if (pick == null) {
-                // Nothing to run this year: the force waits, untaken (the command refuses such a force).
-                return null;
-            }
-            force = forces.pin(id, force, new CalendarForces.Pin(pick.year(), pick.number(), nowMs));
-            if (force == null) {
-                return liveOf(event, nowMs, null);
-            }
-        }
-        if (!force.running()) {
-            return null;
-        }
         CalendarForces.Pin pin = force.pin();
         if (pin == null) {
-            // Another force on replaced this one while it was being taken: it answers as it will be taken.
-            return liveOf(event, nowMs, Boolean.TRUE);
+            return null;
         }
         AnnualWindow window = event.annualWindow();
         ZoneId zone = event.zone();
         RunDays days = window.run(pin.year(), pin.number());
-        if (days == null || spent(window, zone, pin, days, nowMs)) {
-            // The forced run is over, or the owner's dates no longer have it: the force clears itself.
-            forces.spend(id, force);
+        if (days == null || nowMs >= forceEnd(window, zone, pin, days)) {
+            // Over, or not in the dates as they read now: the dates answer; the tick's look clears a spent force.
             return liveOf(event, nowMs, null);
         }
         AnnualWindow.DatedRun dated = window.runContaining(nowMs, zone);
         if (dated != null && dated.year() >= event.firstYear()) {
-            return dated.occurrence(id, zone);
+            return dated.occurrence(event.getId(), zone);
         }
-        return new AnnualWindow.DatedRun(pin.year(), pin.number(), days).occurrence(id, zone);
+        return new AnnualWindow.DatedRun(pin.year(), pin.number(), days).occurrence(event.getId(), zone);
+    }
+
+    /** When the force on {@code event} pinned to {@code pin} ends; null when the dates no longer have its run. */
+    @Nullable
+    private static Long forceEnd(@Nonnull CalendarEventAsset event, @Nonnull CalendarForces.Pin pin) {
+        AnnualWindow window = event.annualWindow();
+        RunDays days = window.run(pin.year(), pin.number());
+        return days == null ? null : forceEnd(window, event.zone(), pin, days);
     }
 
     /**
-     * Is the run a force took over at {@code nowMs}? A run taken before its days ended is over when they end.
-     * One taken after them (a year's last run, forced again once it was over) runs until the event's next run
-     * begins by its dates, so it never comes back after that one.
+     * When a force on the run {@code days} ends. A run brought forward or going on ends with its days, as they
+     * now read. A replay (a run forced again once its days were over) ends its usual length after the force, or
+     * when the event's next run begins by its dates if that comes first, so it never comes back after that run.
      */
-    private static boolean spent(@Nonnull AnnualWindow window, @Nonnull ZoneId zone, @Nonnull CalendarForces.Pin pin,
-            @Nonnull RunDays days, long nowMs) {
-        long end = days.endMs(zone);
-        if (end > pin.sinceMs()) {
-            return nowMs >= end;
+    private static long forceEnd(@Nonnull AnnualWindow window, @Nonnull ZoneId zone,
+            @Nonnull CalendarForces.Pin pin, @Nonnull RunDays days) {
+        Long replayEndsMs = pin.replayEndsMs();
+        if (replayEndsMs == null) {
+            return days.endMs(zone);
         }
         AnnualWindow.DatedRun later = window.after(pin.year(), pin.number());
-        return later != null && nowMs >= later.days().startMs(zone);
+        return later == null ? replayEndsMs : Math.min(replayEndsMs, later.days().startMs(zone));
     }
 
     /**

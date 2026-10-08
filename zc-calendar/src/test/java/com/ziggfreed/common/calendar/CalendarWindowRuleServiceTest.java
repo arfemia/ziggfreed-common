@@ -163,7 +163,8 @@ class CalendarWindowRuleServiceTest {
         assertNull(service.live("fair", at("2028-06-05T00:00:00Z")), "a year the table does not list has no run");
         assertTrue(service.isEnabled("fair"), "it is still switched on; it has simply run out of days");
 
-        CalendarForces.getInstance().force("fair", true);
+        assertNull(service.forceOn("fair", at("2028-06-05T00:00:00Z")),
+                "a year the table does not date has nothing to force on, so nothing is written");
         assertNull(service.live("fair", at("2028-06-05T00:00:00Z")),
                 "a force has no days to run in a year the table does not date");
     }
@@ -172,7 +173,7 @@ class CalendarWindowRuleServiceTest {
     void aForcedRunKeepsItsRulesDaysForTheForcedYear() {
         load("Egg_Hunt", EASTER_HUNT);
         long july = at("2027-07-01T00:00:00Z");
-        CalendarForces.getInstance().force("Egg_Hunt", true);
+        service.forceOn("Egg_Hunt", july);
         Occurrence forced = service.live("egg_hunt", july);
         assertNotNull(forced);
         assertEquals(2027, forced.year(), "what a forced run earns is filed under this year");
@@ -189,7 +190,7 @@ class CalendarWindowRuleServiceTest {
         CalendarForces forces = CalendarForces.getInstance();
         CalendarAttendanceComponent record = new CalendarAttendanceComponent();
 
-        forces.force("Harvest_Feast", true);
+        service.forceOn("Harvest_Feast", october);
         Occurrence forced = service.live("harvest_feast", october);
         assertNotNull(forced, "forced on a month before its dates, it runs");
         assertEquals(2026, forced.year(), "the run of the current year");
@@ -198,9 +199,9 @@ class CalendarWindowRuleServiceTest {
         assertEquals(List.of(2026), years(service.history("harvest_feast", october)), "one 2026 run, listed once");
         assertTrue(record.markAttended(forced.eventId(), forced.year()), "the forced run's attendance is credited");
 
-        forces.force("Harvest_Feast", false);
+        forces.forceOff("Harvest_Feast");
         assertNull(service.live("harvest_feast", october), "forced off, nothing runs");
-        forces.force("Harvest_Feast", true);
+        service.forceOn("Harvest_Feast", october);
         Occurrence again = service.live("harvest_feast", october);
         assertNotNull(again);
         assertEquals(forced.eventId(), again.eventId());
@@ -235,7 +236,7 @@ class CalendarWindowRuleServiceTest {
         load("Fair", GAPPED_FAIR);
         long undated = at("2027-07-01T00:00:00Z");
         CalendarForces forces = CalendarForces.getInstance();
-        forces.force("Fair", false);
+        forces.forceOff("Fair");
 
         assertFalse(service.canForceOn("fair", undated), "2027 dates no run, so there is nothing to force on");
         assertEquals(Boolean.FALSE, forces.forced("fair"), "deciding wrote nothing: the earlier force off stands");

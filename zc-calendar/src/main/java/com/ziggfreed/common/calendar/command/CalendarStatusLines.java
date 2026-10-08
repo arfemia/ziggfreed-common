@@ -56,12 +56,14 @@ public final class CalendarStatusLines {
             return Line.of("row.broken", id, String.join(", ", event.problems()));
         }
         Occurrence run = service.live(id, nowMs);
-        Boolean forced = service.forced(id);
         if (run != null) {
-            return Line.of(Boolean.TRUE.equals(forced) ? "row.live.forced" : "row.live", id, run.label(),
-                    day(run.endMs() - 1, event.zone()));
+            // Through the force's own end while one is in force: a replay ends its usual length after the force.
+            Long forcedUntil = service.forceEndsMs(id, nowMs);
+            return forcedUntil != null
+                    ? Line.of("row.live.forced", id, run.label(), day(forcedUntil - 1, event.zone()))
+                    : Line.of("row.live", id, run.label(), day(run.endMs() - 1, event.zone()));
         }
-        if (Boolean.FALSE.equals(forced)) {
+        if (Boolean.FALSE.equals(service.forced(id))) {
             return Line.of("row.stopped", id);
         }
         Long next = service.nextStartMs(id, nowMs);
