@@ -8,6 +8,7 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.ui.route.DestinationContext;
+import com.ziggfreed.common.ui.route.DestinationKind;
 import com.ziggfreed.common.ui.route.DestinationType;
 import com.ziggfreed.common.ui.route.Destinations;
 
@@ -38,7 +39,8 @@ public final class AlmanacDestinations {
 
     /** Seed the type into the shared vocabulary, at setup, before any asset decodes. */
     public static void register() {
-        Destinations.register(OWNER, DestinationType.of(TYPE, Almanac.class, Almanac.CODEC, AlmanacDestinations::open));
+        Destinations.register(OWNER, DestinationType.of(TYPE, Almanac.class, Almanac.CODEC, AlmanacDestinations::open)
+                .withKind(DestinationKind.BOOK));
     }
 
     private static boolean open(@Nonnull Almanac destination, @Nonnull DestinationContext ctx) {

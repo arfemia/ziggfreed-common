@@ -7,7 +7,7 @@ $ZT = "../Common/ZigType.ui";
 // left, the contract being read on the right, and the clock to the next turnover across the top.
 //
 // LEFT: the board's name, icon and line, the countdown (#RefreshLabel), the wallet strip
-// (#BalanceRow, one Pages/ZigCommerceChip.ui per currency the board authored), a two-button tab bar
+// (#BalanceRow, one Pages/ZigCommerceChip.ui per currency the board authored, one per line), a two-button tab bar
 // (#TabBoard / #TabMine) and the scrolling #BountyList the page appends Pages/ZigSelectRow.ui
 // into. #EmptyLabel carries the one line an empty list shows; the tab bar stays visible behind it,
 // since hiding it would leave no route to the other list.
@@ -78,9 +78,10 @@ $F.@ZigDecoratedFrame {
         Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #9fb3c8, VerticalAlignment: Center);
       }
 
+      // One wallet per line, each chip as wide as its words: no fixed height, so the strip grows.
       Group #BalanceRow {
-        LayoutMode: Left;
-        Anchor: (Height: 28, Bottom: 8);
+        LayoutMode: Top;
+        Anchor: (Bottom: 4);
       }
 
       Group #TabBar {

@@ -4,4 +4,5 @@
 
 farewell = Farewell.
 missing = There is nothing to talk about right now.
-active_objective = Current: {0}
+active_step = {0}: {1}
+active_step_count = {0}: {1} ({2, number}/{3, number})

@@ -8,6 +8,7 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.ui.route.DestinationContext;
+import com.ziggfreed.common.ui.route.DestinationKind;
 import com.ziggfreed.common.ui.route.DestinationType;
 import com.ziggfreed.common.ui.route.Destinations;
 
@@ -33,9 +34,11 @@ public final class ObjectiveBookDestinations {
     /** Seed both types, at setup, before any asset decodes. */
     public static void register() {
         Destinations.register(OWNER, DestinationType.of(QUEST_LOG_TYPE, QuestLog.class, QuestLog.CODEC,
-                (d, ctx) -> open(ObjectiveBookPage.TAB_QUESTS, d.getSelect(), ctx)));
+                        (d, ctx) -> open(ObjectiveBookPage.TAB_QUESTS, d.getSelect(), ctx))
+                .withKind(DestinationKind.QUEST));
         Destinations.register(OWNER, DestinationType.of(ACHIEVEMENTS_TYPE, Achievements.class,
-                Achievements.CODEC, (d, ctx) -> open(ObjectiveBookPage.TAB_ACHIEVEMENTS, d.getSelect(), ctx)));
+                        Achievements.CODEC, (d, ctx) -> open(ObjectiveBookPage.TAB_ACHIEVEMENTS, d.getSelect(), ctx))
+                .withKind(DestinationKind.TROPHY));
     }
 
     private static boolean open(@Nonnull String tab, @Nullable String select, @Nonnull DestinationContext ctx) {

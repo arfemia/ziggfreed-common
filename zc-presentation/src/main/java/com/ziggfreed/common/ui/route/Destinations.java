@@ -218,6 +218,19 @@ public final class Destinations {
         return type == null ? null : type.typeId();
     }
 
+    /**
+     * What kind of screen {@code destination} opens, as its registered type declared it
+     * ({@link DestinationType#withKind}), or null when it declared none or nothing registered it.
+     */
+    @Nullable
+    public static DestinationKind kindOf(@Nullable Destination destination) {
+        if (destination == null) {
+            return null;
+        }
+        DestinationType<?> type = assembled().byClass.get(destination.getClass());
+        return type == null ? null : type.kind();
+    }
+
     /** Is {@code typeId} claimed? Matched case-insensitively, unlike the decode itself. */
     public static boolean isRegistered(@Nullable String typeId) {
         return LEDGER.isRegistered(typeId);

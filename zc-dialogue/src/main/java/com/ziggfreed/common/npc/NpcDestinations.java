@@ -12,6 +12,7 @@ import com.ziggfreed.common.dialogue.DialogueQuestView;
 import com.ziggfreed.common.dialogue.page.DialogueOpener;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.ui.route.DestinationContext;
+import com.ziggfreed.common.ui.route.DestinationKind;
 import com.ziggfreed.common.ui.route.DestinationType;
 import com.ziggfreed.common.ui.route.Destinations;
 import com.ziggfreed.common.util.SafeLog;
@@ -56,10 +57,14 @@ public final class NpcDestinations {
      * hosts are registered by then.
      */
     public static void register() {
+        // Each declares what kind of screen it opens, so a conversation's answer that leads there shows
+        // a speech bubble or a quest mark before the player presses it.
         Destinations.register(OWNER, DestinationType.of(
-                DIALOGUE_TYPE, Dialogue.class, Dialogue.CODEC, NpcDestinations::openDialogue));
+                        DIALOGUE_TYPE, Dialogue.class, Dialogue.CODEC, NpcDestinations::openDialogue)
+                .withKind(DestinationKind.TALK));
         Destinations.register(OWNER, DestinationType.of(
-                QUESTS_TYPE, Quests.class, Quests.CODEC, NpcDestinations::openQuests));
+                        QUESTS_TYPE, Quests.class, Quests.CODEC, NpcDestinations::openQuests)
+                .withKind(DestinationKind.QUEST));
         // What a conversation's Start quest row fires. The engine reads quest STATE and hands over a
         // quest id; turning that into "this character's list, with that quest called out" is this
         // layer's business, which is why the engine takes it back through a seam it never inspects.

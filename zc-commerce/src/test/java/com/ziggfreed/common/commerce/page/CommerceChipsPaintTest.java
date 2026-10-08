@@ -47,10 +47,12 @@ class CommerceChipsPaintTest {
         assertFalse(shown(sets, "#Price[0] #ChipIcon.Visible"), "a wallet never fills the item slot");
         assertFalse(sets.containsKey("#Price[0] #ChipIcon.Slots"));
         assertTrue(sets.containsKey("#Price[0] #ChipIconSlot #IcoTex.Visible"), "it draws as a plain picture");
-        assertNotNull(sets.get("#Price[0].TooltipText"), "hovering the chip names the wallet");
-        assertTrue(sets.get("#Price[0].TooltipText").contains("Hallow Sweets"));
+        assertNotNull(sets.get("#Price[0] #ChipBox.TooltipText"), "hovering the chip's box names the wallet");
+        assertTrue(sets.get("#Price[0] #ChipBox.TooltipText").contains("Hallow Sweets"));
+        assertFalse(sets.containsKey("#Price[0].TooltipText"),
+                "the root spans a stacked strip's whole line, so the name rides the box the player sees");
 
-        assertFalse(sets.containsKey("#Price[1].TooltipText"), "an item price keeps the item's own tooltip");
+        assertFalse(sets.containsKey("#Price[1] #ChipBox.TooltipText"), "an item price keeps the item's own tooltip");
     }
 
     @Test
@@ -76,9 +78,25 @@ class CommerceChipsPaintTest {
         assertTrue(slot > 0);
         assertTrue(ui.indexOf("AssetImage #IcoTex", slot) > slot, "the plain picture sits in the chip's picture slot");
         assertTrue(ui.indexOf("ItemGrid #ChipIcon", slot) > slot, "the item slot stays for an item price");
+        int box = ui.indexOf("Group #ChipBox");
+        assertTrue(box > 0 && box < slot, "the drawn box holds the picture slot");
+        assertTrue(ui.indexOf("TextTooltipStyle:", box) > box && ui.indexOf("TextTooltipStyle:", box) < slot,
+                "a TooltipText with no TextTooltipStyle draws nothing, so the box carries the style");
+    }
+
+    @Test
+    void theChipIsAsWideAsItsWords() throws IOException {
+        String ui = resource(CHIP_DOC);
         int root = ui.indexOf("Group #ZigCommerceChip");
-        assertTrue(ui.indexOf("TextTooltipStyle:", root) > root && ui.indexOf("TextTooltipStyle:", root) < slot,
-                "a TooltipText with no TextTooltipStyle draws nothing, so the chip itself carries the style");
+        int box = ui.indexOf("Group #ChipBox");
+        int label = ui.indexOf("Label #ChipText");
+        assertTrue(root >= 0 && box > root && label > box);
+        assertFalse(ui.substring(root, box).contains("Width"), "the root fixes no width, so it hugs its box");
+        String boxHead = ui.substring(box, ui.indexOf("Group #ChipIconSlot", box));
+        assertFalse(boxHead.contains("Width"), "the box fixes no width, so it hugs its picture and words");
+        String labelBody = ui.substring(label, ui.indexOf('}', label));
+        assertFalse(labelBody.contains("FlexWeight"), "a flexing label would stretch the chip to its container");
+        assertFalse(labelBody.contains("Width"), "the label is as wide as its line");
     }
 
     @Nonnull

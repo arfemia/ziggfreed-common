@@ -24,7 +24,8 @@ import com.ziggfreed.common.subject.Subject;
 
 /**
  * The {@code ActiveObjective} header source: under the speaker's name, what the player is currently
- * meant to be doing on a quest THIS character gave them.
+ * meant to be doing on a quest THIS character gave them, named by its quest so a player with two of
+ * this character's quests can tell which one it is: "Pumpkin Patch: Bring 3 Hallowed Pumpkins (0/3)".
  *
  * <p>A conversation asks for it by name and gets it; nothing about it is any one mod's, because
  * quests are the library's. Which character hands a quest out rides on the quest itself
@@ -44,6 +45,12 @@ public final class ActiveObjectiveHeader {
 
     /** The name a conversation writes in its {@code Header} list. */
     public static final String NAME = "ActiveObjective";
+
+    /** "{quest}: {step}", for a step with nothing to count. */
+    static final String LINE_KEY = "ziggfreedcommon.dialogue.active_step";
+
+    /** "{quest}: {step} ({current}/{required})", the two counts typed numbers. */
+    static final String COUNTED_KEY = "ziggfreedcommon.dialogue.active_step_count";
 
     private ActiveObjectiveHeader() {
     }
@@ -72,7 +79,8 @@ public final class ActiveObjectiveHeader {
             if (!NpcIdentities.primaryAnswersTo(contextNpcId, quest.npcViewId())) {
                 continue;
             }
-            Message line = firstUnfinished(engine, subject, quest);
+            Message line = firstUnfinished(engine, subject, quest,
+                    ProgressionTexts.titleOrUntitled(quest.id()));
             if (line != null) {
                 return line;
             }
@@ -87,7 +95,7 @@ public final class ActiveObjectiveHeader {
      */
     @Nullable
     private static Message firstUnfinished(@Nonnull QuestEngine engine, @Nonnull Subject subject,
-            @Nonnull Quest quest) {
+            @Nonnull Quest quest, @Nonnull Message title) {
         List<ObjectiveDef> step = engine.activeStepObjectives(subject, quest);
         Map<String, ObjectiveProgressState> progress = engine.progressOf(subject, quest.id());
         for (ObjectiveDef objective : step) {
@@ -98,15 +106,20 @@ public final class ActiveObjectiveHeader {
             Message text = ProgressionTexts.objectiveOrUntitled(quest.id(), objective.id());
             int required = state != null ? state.required() : objective.amountAsInt();
             int current = state != null ? state.current() : 0;
-            return Msg.key("ziggfreedcommon.dialogue.active_objective",
-                    required > 1 ? withCount(text, current, required) : text);
+            return line(title, text, current, required);
         }
         return null;
     }
 
-    /** The step plus its {@code current/required} tally, as one message the caller can nest. */
+    /**
+     * The note itself: the quest's name, its step, and the step's tally when there is more than one
+     * thing to do. The tally's numbers are typed params, so the player's own client writes them, and
+     * the lang value decides how the parts sit together.
+     */
     @Nonnull
-    private static Message withCount(@Nonnull Message text, int current, int required) {
-        return Msg.cat(text, Msg.raw(" (" + current + "/" + required + ")"));
+    static Message line(@Nonnull Message title, @Nonnull Message step, int current, int required) {
+        return required > 1
+                ? Msg.key(COUNTED_KEY, title, step, current, required)
+                : Msg.key(LINE_KEY, title, step);
     }
 }

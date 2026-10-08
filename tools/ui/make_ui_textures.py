@@ -7,8 +7,10 @@ Every output is generated here and committed; rerun this script to change one, n
 Writes under zc-presentation/src/main/resources/Common/UI/Custom/Common/:
 
   Glyphs/<Name>.png (20 x 20) and Glyphs/<Name>@2x.png (40 x 40) for Pin, PinFilled, Lock, ChevronRight,
-      ChevronDown, Dot, Star and Blank. White on transparent, so a PatchStyle Color tints a glyph to any tone
-      (a tint multiplies). Blank is fully transparent: the fallback an AssetImage shows for a missing picture.
+      ChevronDown, Dot, Star, Blank, and the kinds of screen a conversation's answer can open: Talk (a speech
+      bubble), Quest (a scroll), Bag (a shop), Board (a notice board), Book (an open book) and Trophy (a cup);
+      Star stands for standing. White on transparent, so a PatchStyle Color tints a glyph to any tone (a tint
+      multiplies). Blank is fully transparent: the fallback an AssetImage shows for a missing picture.
   ZigHeroFade.png (962 x 140) and @2x: a vertical ramp of #0a1119 from transparent at the top to 0.85 at the
       bottom, laid over hero art so the season's name reads on any picture.
   ZigHeroPlate.png (962 x 240) and @2x: the hero's plate when a season has no art, #101925 with a faint vignette.
@@ -117,6 +119,68 @@ def star(draw, big):
     draw.polygon(poly(big, points), fill=WHITE)
 
 
+CLEAR = (0, 0, 0, 0)
+
+
+def box(big, x0, y0, x1, y1):
+    return [*pt(big, x0, y0), *pt(big, x1, y1)]
+
+
+def talk(draw, big):
+    """A speech bubble, its tail down and to the left, three dots cut out of it."""
+    draw.rounded_rectangle(box(big, 0.06, 0.12, 0.94, 0.68), radius=0.18 * big, fill=WHITE)
+    draw.polygon(poly(big, [(0.22, 0.60), (0.46, 0.60), (0.18, 0.90)]), fill=WHITE)
+    r = 0.07
+    for x in (0.30, 0.50, 0.70):
+        draw.ellipse(box(big, x - r, 0.40 - r, x + r, 0.40 + r), fill=CLEAR)
+
+
+def quest(draw, big):
+    """A scroll: a sheet between two rolls, three lines of writing cut out of it."""
+    draw.rectangle(box(big, 0.20, 0.16, 0.80, 0.84), fill=WHITE)
+    draw.rounded_rectangle(box(big, 0.10, 0.06, 0.90, 0.24), radius=0.09 * big, fill=WHITE)
+    draw.rounded_rectangle(box(big, 0.10, 0.76, 0.90, 0.94), radius=0.09 * big, fill=WHITE)
+    w = max(1, round(0.07 * big))
+    for y in (0.37, 0.50, 0.63):
+        draw.line([pt(big, 0.32, y), pt(big, 0.68, y)], fill=CLEAR, width=w)
+
+
+def bag(draw, big):
+    """A coin sack: a round body, a neck tied off under a ruffled top, a coin cut into it."""
+    draw.ellipse(box(big, 0.10, 0.34, 0.90, 0.96), fill=WHITE)
+    draw.polygon(poly(big, [(0.36, 0.30), (0.64, 0.30), (0.68, 0.44), (0.32, 0.44)]), fill=WHITE)
+    draw.polygon(poly(big, [(0.20, 0.04), (0.38, 0.12), (0.50, 0.05), (0.62, 0.12), (0.80, 0.04),
+                            (0.66, 0.24), (0.34, 0.24)]), fill=WHITE)
+    draw.ellipse(box(big, 0.38, 0.54, 0.62, 0.78), outline=CLEAR, width=max(1, round(0.06 * big)))
+
+
+def board(draw, big):
+    """A notice board on two legs, two notes pinned to it."""
+    w = 0.09
+    stroke(draw, big, [(0.10, 0.12), (0.90, 0.12), (0.90, 0.70), (0.10, 0.70), (0.10, 0.12)], w)
+    stroke(draw, big, [(0.24, 0.70), (0.20, 0.94)], w)
+    stroke(draw, big, [(0.76, 0.70), (0.80, 0.94)], w)
+    draw.rectangle(box(big, 0.24, 0.26, 0.46, 0.56), fill=WHITE)
+    draw.rectangle(box(big, 0.54, 0.30, 0.76, 0.58), fill=WHITE)
+
+
+def book(draw, big):
+    """An open book: two pages leaning up from the spine."""
+    draw.polygon(poly(big, [(0.04, 0.20), (0.46, 0.28), (0.46, 0.88), (0.04, 0.80)]), fill=WHITE)
+    draw.polygon(poly(big, [(0.54, 0.28), (0.96, 0.20), (0.96, 0.80), (0.54, 0.88)]), fill=WHITE)
+
+
+def trophy(draw, big):
+    """A cup with two handles on a stem and a base."""
+    w = max(1, round(0.08 * big))
+    draw.arc(box(big, 0.06, 0.14, 0.40, 0.48), start=90, end=270, fill=WHITE, width=w)
+    draw.arc(box(big, 0.60, 0.14, 0.94, 0.48), start=270, end=450, fill=WHITE, width=w)
+    draw.polygon(poly(big, [(0.24, 0.08), (0.76, 0.08), (0.72, 0.42), (0.58, 0.58), (0.42, 0.58),
+                            (0.28, 0.42)]), fill=WHITE)
+    draw.rectangle(box(big, 0.44, 0.56, 0.56, 0.76), fill=WHITE)
+    draw.rounded_rectangle(box(big, 0.26, 0.76, 0.74, 0.92), radius=0.04 * big, fill=WHITE)
+
+
 GLYPHS = {
     "Pin": lambda d, b: pin(d, b, filled=False),
     "PinFilled": lambda d, b: pin(d, b, filled=True),
@@ -126,6 +190,12 @@ GLYPHS = {
     "Dot": dot,
     "Star": star,
     "Blank": lambda d, b: None,
+    "Talk": talk,
+    "Quest": quest,
+    "Bag": bag,
+    "Board": board,
+    "Book": book,
+    "Trophy": trophy,
 }
 
 

@@ -17,6 +17,7 @@ import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.shop.asset.ShopValidator;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.ui.route.DestinationContext;
+import com.ziggfreed.common.ui.route.DestinationKind;
 import com.ziggfreed.common.ui.route.DestinationType;
 import com.ziggfreed.common.ui.route.Destinations;
 import com.ziggfreed.common.validation.Finding;
@@ -76,10 +77,12 @@ public final class CommerceDestinations {
     public static void register() {
         Destinations.register(OWNER, DestinationType.of(
                         SHOP_TYPE, Shop.class, Shop.CODEC, CommerceDestinations::openShop)
-                .withCheck(CommerceDestinations::checkShop));
+                .withCheck(CommerceDestinations::checkShop)
+                .withKind(DestinationKind.SHOP));
         Destinations.register(OWNER, DestinationType.of(
                         BOARD_TYPE, Board.class, Board.CODEC, CommerceDestinations::openBoard)
-                .withCheck(CommerceDestinations::checkBoard));
+                .withCheck(CommerceDestinations::checkBoard)
+                .withKind(DestinationKind.BOARD));
     }
 
     // ==================== Shop ====================

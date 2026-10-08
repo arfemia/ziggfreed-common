@@ -259,9 +259,10 @@ public class DialogueOption {
     }
 
     /**
-     * The icon for an option row: an {@code Item} (any game item id, rendered via the
-     * item-grid slot mechanism) OR a {@code Glyph} (a fixed token naming a pre-authored
-     * glyph in the row {@code .ui}). Both nullable; {@code Item} wins when both are set.
+     * The icon for an option row: an {@code Item} (any game item id, drawn as that item's
+     * own picture, with no item tooltip) OR a {@code Glyph} (a fixed token naming a
+     * pre-authored glyph in the row {@code .ui}). Both nullable; {@code Item} wins when both
+     * are set, and the glyph shows when the item has no picture.
      */
     public static final class Icon {
         public static final BuilderCodec<Icon> CODEC = BuilderCodec.builder(Icon.class, Icon::new)
@@ -277,7 +278,11 @@ public class DialogueOption {
         /** A game item id whose icon renders in the row slot, or null. */
         @Nullable public String getItem() { return item; }
 
-        /** A fixed glyph token (e.g. {@code accept}/{@code turnin}) naming a row {@code .ui} glyph, or null. */
+        /**
+         * A fixed glyph token naming a row {@code .ui} glyph, or null: {@code accept}, {@code turnin},
+         * {@code continue}, {@code open}, {@code farewell}, {@code talk}, {@code quest}, {@code shop},
+         * {@code board}, {@code standing}, {@code book} or {@code trophy}.
+         */
         @Nullable public String getGlyph() { return glyph; }
     }
 }

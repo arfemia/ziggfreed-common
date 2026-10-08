@@ -36,8 +36,11 @@ import com.ziggfreed.common.dialogue.style.DialogueOptionTheme;
  *   <li>{@code Color} - the default button tint ({@code #rrggbb}).</li>
  *   <li>{@code HoverColor} / {@code PressColor} - the hover / press tints; omit either to derive it
  *       from {@code Color} (lightened / darkened) at paint time.</li>
- *   <li>{@code Glyph} - the leading glyph token (accept / turnin / continue / open / farewell);
- *       omit to keep the kind's default glyph.</li>
+ *   <li>{@code Glyph} - the leading glyph token (accept / turnin / continue / open / farewell / talk,
+ *       or a destination kind: quest / shop / board / standing / book / trophy); omit to keep the
+ *       kind's default glyph. It leads every option that DOES this kind (its decisive action), since
+ *       an option's authored {@code Style} picks only its colour; an option that opens a screen whose
+ *       destination declared a kind shows that kind instead.</li>
  * </ul>
  */
 public final class DialogueOptionThemeAsset

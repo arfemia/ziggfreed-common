@@ -14,8 +14,6 @@ import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.protocol.packets.interface_.Page;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.inventory.ItemStack;
-import com.hypixel.hytale.server.core.ui.ItemGridSlot;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
@@ -30,6 +28,7 @@ import com.ziggfreed.common.dialogue.DialogueQuestView;
 import com.ziggfreed.common.dialogue.quest.DialogueQuests;
 import com.ziggfreed.common.dialogue.quest.ParkedQuestWatch;
 import com.ziggfreed.common.dialogue.schema.DialogueOption;
+import com.ziggfreed.common.dialogue.style.DialogueOptionGlyphs;
 import com.ziggfreed.common.dialogue.style.DialogueOptionStyle;
 import com.ziggfreed.common.dialogue.style.DialogueOptionTheme;
 import com.ziggfreed.common.dialogue.style.DialogueOptionThemeConfig;
@@ -42,8 +41,10 @@ import com.ziggfreed.common.dialogue.i18n.DialogueMessages;
 import com.ziggfreed.common.npc.NpcNames;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.UiText;
+import com.ziggfreed.common.ui.icon.IconRenderer;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.ui.route.DestinationContext;
+import com.ziggfreed.common.ui.route.DestinationKind;
 import com.ziggfreed.common.ui.route.Destinations;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 import com.ziggfreed.common.ui.toast.ToastablePage;
@@ -51,8 +52,10 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The generic branching NPC dialogue page: a name header, an optional one-line
- * annotation, the localized node text, one button per option whose conditions
- * pass, and an implicit "Farewell" close row when none of the rendered options
+ * annotation, then one scrolling body holding the localized node text (as tall as its
+ * words) over one button per option whose conditions pass, so a short line leaves room
+ * for a long menu and a long one still reads whole; and an implicit "Farewell" close row
+ * when none of the rendered options
  * already closes the dialogue themselves (see {@link DialogueOption#anyCloses};
  * an option filtered out by its own conditions never reaches the rendered list,
  * so a currently-hidden Close option still yields the implicit row).
@@ -265,7 +268,8 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
             UiText.setText(commandBuilder, sel + " #OptionBtn.Text",
                     resolveOptionLabel(dialogue, nodeId, i, option));
             DialogueOptionStyle style = engine.classifyOption(option);
-            applyOptionLook(commandBuilder, sel, style, themeFor(style), option.getPresentation());
+            applyOptionLook(commandBuilder, sel, style, themeFor(style), option.getPresentation(),
+                    glyphFor(engine, option));
             eventBuilder.addEventBinding(CustomUIEventBindingType.Activating, sel + " #OptionBtn",
                     EventData.of("Action", "choose")
                             .append("Node", nodeId)
@@ -291,7 +295,9 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
         cmd.append("#OptionsList", OPTION_ROW_TEMPLATE);
         String sel = "#OptionsList[" + row + "]";
         UiText.setText(cmd, sel + " #OptionBtn.Text", farewellText(dialogue));
-        applyOptionLook(cmd, sel, DialogueOptionStyle.FAREWELL, themeFor(DialogueOptionStyle.FAREWELL), null);
+        DialogueOptionTheme theme = themeFor(DialogueOptionStyle.FAREWELL);
+        applyOptionLook(cmd, sel, DialogueOptionStyle.FAREWELL, theme, null,
+                DialogueOptionGlyphs.resolve(DialogueOptionStyle.FAREWELL, null, theme, null));
         EventData data = EventData.of("Action", "farewell");
         if (nodeId != null) {
             data = data.append("Node", nodeId);
@@ -335,23 +341,39 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
     }
 
     /**
-     * Paint an appended option row from its semantic {@link DialogueOptionStyle}, resolved through
-     * the data-driven {@link DialogueOptionTheme} (authored in {@code DialogueOptionTheme/*.json},
-     * folded {@code defaults < pack < owner}), then let an explicit per-option
-     * {@link DialogueOption.Presentation} override the colour and/or icon. The {@code style} enum is
-     * only the per-leaf fail-closed fallback (used when a theme leaf, or the whole kind, is absent).
+     * What leads an option's row: what the option DOES (its decisive action, never its authored
+     * {@code Style}), and for an option that opens a screen, the kind of screen its destination
+     * declared. {@link DialogueOptionGlyphs} holds the order.
+     */
+    @Nonnull
+    private static DialogueOptionGlyphs.Glyph glyphFor(@Nonnull DialogueEngine engine,
+                                                       @Nonnull DialogueOption option) {
+        DialogueOptionStyle does = engine.actionStyle(option);
+        DestinationKind kind = engine.decisiveAction(option) instanceof DialogueAction.OpenPage open
+                ? Destinations.kindOf(open.getTarget()) : null;
+        return DialogueOptionGlyphs.resolve(does, kind, themeFor(does), option.getPresentation());
+    }
+
+    /**
+     * Paint an appended option row: its colour from its semantic {@link DialogueOptionStyle} (an
+     * authored {@code Style}, else what the option does), resolved through the data-driven
+     * {@link DialogueOptionTheme} (authored in {@code DialogueOptionTheme/*.json}, folded
+     * {@code defaults < pack < owner}), with an explicit per-option {@link DialogueOption.Presentation}
+     * colour over it; and its leading picture from {@code glyph}. The {@code style} enum is only the
+     * per-leaf fail-closed fallback (used when a theme leaf, or the whole kind, is absent).
      *
      * <p>Colour precedence per state: {@code Presentation.Color} (hover/press derived) &gt; the
      * theme's {@code Color}/{@code HoverColor}/{@code PressColor} (a missing hover/press derives from
-     * {@code Color}) &gt; the enum tints. Icon: {@code Presentation.Icon.Item} reveals
-     * {@code #OptIconItem} with the game item icon; else a glyph token from the Presentation, else the
-     * theme's {@code Glyph}, else the enum glyph. Glyph TEXTURES live in markup - Java only flips
-     * {@code Visible} / sets {@code Slots}.
+     * {@code Color}) &gt; the enum tints. Picture: an item draws as its own icon texture in
+     * {@code #OptPic} (the kit's plain picture, so it shows no item tooltip and no rarity square);
+     * else, or when the item has no picture, the glyph element is revealed. Glyph TEXTURES live in
+     * markup - Java only flips {@code Visible}.
      */
     private static void applyOptionLook(@Nonnull UICommandBuilder cmd, @Nonnull String sel,
                                         @Nonnull DialogueOptionStyle style,
                                         @Nullable DialogueOptionTheme theme,
-                                        @Nullable DialogueOption.Presentation presentation) {
+                                        @Nullable DialogueOption.Presentation presentation,
+                                        @Nonnull DialogueOptionGlyphs.Glyph glyph) {
         // Base colours from the theme per leaf, falling back to the enum. A theme that authors only
         // Color derives hover/press from it; a theme with no Color at all uses the enum tints.
         String themeColor = theme != null ? theme.color() : null;
@@ -370,41 +392,14 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
         }
         UiRetint.retintButtonStates(cmd, sel + " #OptionBtn", def, hov, prs);
 
-        DialogueOption.Icon icon = presentation != null ? presentation.getIcon() : null;
-        String itemId = icon != null ? icon.getItem() : null;
-        if (itemId != null && !itemId.isBlank()) {
-            cmd.set(sel + " #OptIcon #OptIconItem.Visible", true);
-            cmd.set(sel + " #OptIcon #OptIconItem.Slots", List.of(new ItemGridSlot(new ItemStack(itemId, 1))));
+        // An item's own picture, drawn plain: an item slot would show the item's tooltip and rarity
+        // square, and the answer is not offering that item. One with no picture falls back to the glyph.
+        if (glyph.itemId() != null
+                && IconRenderer.applyPlainIcon(cmd, sel + " #OptIcon #OptPic", glyph.itemId(), null)) {
             return;
         }
-        // Glyph precedence: Presentation.Icon.Glyph > the theme's Glyph token > the enum's element id.
-        String presGlyph = icon != null ? icon.getGlyph() : null;
-        String themeGlyph = theme != null ? theme.glyphToken() : null;
-        String glyphElem;
-        if (presGlyph != null && !presGlyph.isBlank()) {
-            glyphElem = glyphElementId(presGlyph);
-        } else if (themeGlyph != null && !themeGlyph.isBlank()) {
-            glyphElem = glyphElementId(themeGlyph);
-        } else {
-            glyphElem = style.iconElementId();
-        }
-        if (glyphElem != null) {
-            cmd.set(sel + " #OptIcon " + glyphElem + ".Visible", true);
-        }
-    }
-
-    /** Map a {@code Presentation.Icon.Glyph} token to a pre-authored glyph element id, or null. */
-    @Nullable
-    private static String glyphElementId(@Nonnull String token) {
-        switch (token.toLowerCase(Locale.ROOT)) {
-            case "accept": return "#IcoAccept";
-            case "turnin":
-            case "turn_in": return "#IcoTurnIn";
-            case "continue": return "#IcoContinue";
-            case "open": return "#IcoOpen";
-            case "farewell":
-            case "close": return "#IcoFarewell";
-            default: return null;
+        if (glyph.elementId() != null) {
+            cmd.set(sel + " #OptIcon " + glyph.elementId() + ".Visible", true);
         }
     }
 

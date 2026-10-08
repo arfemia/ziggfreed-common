@@ -26,8 +26,8 @@ import com.ziggfreed.common.ui.icon.IconRenderer;
 import com.ziggfreed.common.subject.Subject;
 
 /**
- * The two repeatable things every commerce screen paints: a CHIP (a picture and a number, side by
- * side) and a LINE (a picture and a sentence, stacked).
+ * The two repeatable things every commerce screen paints: a CHIP (a picture and how much, side by
+ * side, as wide as its words) and a LINE (a picture and a sentence, stacked).
  *
  * <p>A wallet reading, a price, a reward and a refusal are all one of those two, so both pages
  * append the same two templates through this one class rather than each growing its own idea of what
@@ -40,7 +40,7 @@ import com.ziggfreed.common.subject.Subject;
  */
 public final class CommerceChips {
 
-    /** A picture and a number, laid out along a row. */
+    /** A picture and how much, laid out along a row or stacked one per line. */
     public static final String CHIP_TEMPLATE = "Pages/ZigCommerceChip.ui";
 
     /** A picture and a sentence, stacked down a panel. */
@@ -88,7 +88,8 @@ public final class CommerceChips {
     /**
      * Paint {@code chips} into {@code container}, at most {@code max} of them (zero or less for all).
      * The container is CLEARED first, so a re-render for a different selection cannot collide with
-     * the chips of the last one.
+     * the chips of the last one. Each chip is as wide as its words, laid along a {@code Left}
+     * container or stacked one per line in a {@code Top} one.
      */
     public static void render(@Nonnull UICommandBuilder cmd, @Nonnull String container,
             @Nonnull List<Chip> chips, int max) {
@@ -104,18 +105,19 @@ public final class CommerceChips {
                 applyIcon(cmd, sel + " #ChipIconSlot", sel + " #ChipIcon", chip.iconItemId());
                 continue;
             }
-            // A wallet: its picture drawn plain, and the whole chip names the wallet on hover.
+            // A wallet: its picture drawn plain, and the chip's box names the wallet on hover.
             cmd.set(sel + " #ChipIcon.Visible", false);
             cmd.set(sel + " #ChipIconSlot.Visible",
                     IconRenderer.applyPlainIcon(cmd, sel + " #ChipIconSlot", chip.iconItemId(), null));
-            UiText.setText(cmd, sel + ".TooltipText", chip.tooltip());
+            UiText.setText(cmd, sel + " #ChipBox.TooltipText", chip.tooltip());
         }
     }
 
     /**
      * What the subject is carrying, one chip per wallet a storefront or board authored, in authored
-     * order. A wallet no layer defines is skipped rather than drawn as a zero, since a reading for
-     * something that does not exist is worse than no reading.
+     * order, each reading its wallet's amount line ("7 Hallow Sweets", {@link CurrencyText#amountOf})
+     * with the wallet's name on hover. A wallet no layer defines is skipped rather than drawn as a
+     * zero, since a reading for something that does not exist is worse than no reading.
      */
     @Nonnull
     public static List<Chip> balances(@Nonnull CurrencyEngine currencies, @Nonnull Subject subject,
@@ -131,8 +133,8 @@ public final class CommerceChips {
                 continue;
             }
             long balance = currencies.balance(subject, def);
-            // A typed numeric param, so the player's own client decides the digit grouping.
-            out.add(new Chip(CurrencyText.iconOf(def), Msg.num(balance), COLOR_BALANCE,
+            // A typed numeric param inside the line, so the player's own client decides the digits.
+            out.add(new Chip(CurrencyText.iconOf(def), CurrencyText.amountOf(def, balance, names), COLOR_BALANCE,
                     CurrencyText.nameOf(def, names)));
         }
         return out;
@@ -142,7 +144,8 @@ public final class CommerceChips {
      * A price, one chip per component, each coloured by whether this subject can cover it right now.
      *
      * <p>Colouring per COMPONENT rather than per price is what makes a two-currency price legible:
-     * the player sees which half they are short of instead of a whole row turning red.
+     * the player sees which half they are short of instead of a whole row turning red. A wallet's
+     * component reads its amount line ("6 Hallow Sweets"), so a price names what it costs in.
      */
     @Nonnull
     public static List<Chip> price(@Nonnull Cost cost, @Nonnull CurrencyEngine currencies,
@@ -155,7 +158,8 @@ public final class CommerceChips {
             CurrencyDef def = catalog.get(id);
             String icon = def == null ? null : CurrencyText.iconOf(def);
             boolean afford = currencies.canAfford(subject, id, amount);
-            out.add(new Chip(icon, Msg.num(amount), afford ? COLOR_AFFORDABLE : COLOR_SHORT,
+            out.add(new Chip(icon, def == null ? Msg.num(amount) : CurrencyText.amountOf(def, amount, names),
+                    afford ? COLOR_AFFORDABLE : COLOR_SHORT,
                     def == null ? null : CurrencyText.nameOf(def, names)));
         }
         for (ItemCost item : cost.items()) {
@@ -199,11 +203,17 @@ public final class CommerceChips {
         return Msg.key(REWARD_AMOUNT_KEY, amount, name);
     }
 
-    /** What one wallet is called beside how much of it a price wants, for a toast or a status line. */
+    /**
+     * How much of one wallet a price wants, for a toast or a status line: the same reading as a price
+     * chip ({@link CurrencyText#amountOf}, the wallet's own amount line when it ships one), so a
+     * confirm line and the chip above it never word one price two ways.
+     */
     @Nonnull
     public static Message amountAndName(@Nonnull CurrencyEngine currencies, @Nonnull String currencyId,
             long amount, @Nullable CurrencyText.Source names) {
-        return priceAmount(amount, nameOf(currencies, currencyId, names));
+        CurrencyDef def = currencyId.isBlank() ? null : currencies.catalog().get(currencyId);
+        return def == null ? priceAmount(amount, nameOf(currencies, currencyId, names))
+                : CurrencyText.amountOf(def, amount, names);
     }
 
     /**

@@ -36,6 +36,12 @@ import com.ziggfreed.common.i18n.Msg;
  * key matching the convention exactly is emitted only when something on this server ships it, while
  * an authored key is emitted as written: an author who wrote a key meant what they wrote, including
  * when it points at another namespace entirely.
+ *
+ * <p>How MUCH of a wallet is one line too ({@link #amountOf}): a wallet may ship an amount line,
+ * {@code currency.<id>.amount}, whose value writes the number and the plural around one typed
+ * {@code {0}} ("{0, number} {0, plural, one {Hallow Sweet} other {Hallow Sweets}}"), since only a line written
+ * per wallet can put a name in its plural in every language. Without one, the amount sits beside the
+ * wallet's name ({@code ziggfreedcommon.commerce.price.amount_and_name}).
  */
 public final class CurrencyText {
 
@@ -80,6 +86,29 @@ public final class CurrencyText {
             }
         }
         return Msg.raw(def.id());
+    }
+
+    /**
+     * How much of this wallet, as one line ("6 Hallow Sweets"): the wallet's own amount line when this
+     * server ships {@link #amountKey}, else the amount beside {@link #nameOf}. The amount is a typed
+     * number either way, so the player's own client writes its digits.
+     */
+    @Nonnull
+    public static Message amountOf(@Nonnull CurrencyDef def, long amount, @Nullable Source source) {
+        String key = amountKey(def.id());
+        if (ContentKeys.known(key)) {
+            return ContentKeys.tr(key, amount);
+        }
+        return CommerceChips.priceAmount(amount, nameOf(def, source));
+    }
+
+    /**
+     * The optional amount line a wallet may ship, {@code currency.<id>.amount}, the same lower-cased id
+     * its name key {@code currency.<id>.name} carries.
+     */
+    @Nonnull
+    public static String amountKey(@Nonnull String currencyId) {
+        return "currency." + CurrencyDef.normalizeId(currencyId) + ".amount";
     }
 
     /** The picture beside a balance or a price, or null when this wallet has none. */
