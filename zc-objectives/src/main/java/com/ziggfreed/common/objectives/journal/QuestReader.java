@@ -703,7 +703,7 @@ public final class QuestReader {
     /** The header's three stats: in progress (over the cap), to collect (gold when any), tracking (over the cap). */
     @Nonnull
     public List<Stat> stats() {
-        int active = engine.activeCount(subject);
+        int active = inProgress();
         int maxActive = engine.maxActive();
         int tracking = engine.trackedActive(subject).size();
         int maxTracked = engine.maxTracked();
@@ -719,7 +719,16 @@ public final class QuestReader {
     /** The header's one-sentence summary of the log. */
     @Nonnull
     public Message subtitle() {
-        return text("subtitle", engine.activeCount(subject), toCollect());
+        return text("subtitle", inProgress(), toCollect());
+    }
+
+    /**
+     * What the header counts as in progress: the quest-log slots the cap measures ({@link QuestEngine#logSlotsUsed}),
+     * never every carried quest, so "N/M" cannot read full while the log still takes a quest. A carried quest out of
+     * season and an errand kept off the log (a board contract) are left out, with a cap or without one.
+     */
+    private int inProgress() {
+        return engine.logSlotsUsed(subject);
     }
 
     private int toCollect() {

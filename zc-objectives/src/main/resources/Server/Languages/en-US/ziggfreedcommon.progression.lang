@@ -18,6 +18,7 @@ book.tooltip.pin = Pin this achievement
 quest.cadence.repeatable = Repeatable
 quest.cadence.daily = Daily
 quest.cadence.weekly = Weekly
+quest.cadence.seasonal = Seasonal
 
 book.quests.section.active = In progress
 book.quests.section.ready = Ready to collect

@@ -47,6 +47,7 @@ public final class QuestCadenceBadge {
             case REPEATABLE -> text("quest.cadence.repeatable");
             case DAILY -> text("quest.cadence.daily");
             case WEEKLY -> text("quest.cadence.weekly");
+            case SEASONAL -> text("quest.cadence.seasonal");
         };
     }
 
