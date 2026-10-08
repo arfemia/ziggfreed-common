@@ -30,12 +30,16 @@ import com.ziggfreed.common.validation.ValidationReport;
  * ({@link #logFindings()}), which are answerable from the file alone and therefore true whatever
  * else has loaded. The CROSS-ASSET findings - an id in another store, a registry entry, a loaded
  * model - are only trustworthy once every store has folded and every mod's {@code setup()} has run,
- * so they wait for {@link #runLateAudit()} on the first player ready.
+ * so they wait for {@link #runLateAudit()} on the first player ready, or for zc's boot audit, which
+ * takes that same one run at the boot event ({@link #claimLateFindings()}).
  */
 public final class NpcPlacementConfig extends AbstractKeyedAssetConfig<NpcPlacementAsset> {
 
     /** The store's mod-gate label, which its drop lines carry (a contract the season boot pair parses). */
     public static final String MOD_GATE_STORE = "NpcPlacements";
+
+    /** The label this pool's audit lines carry, at every fold, at the late audit and in zc's boot audit. */
+    public static final String LOG_LABEL = "[placement]";
 
     private static final NpcPlacementConfig INSTANCE = new NpcPlacementConfig();
 
@@ -127,7 +131,7 @@ public final class NpcPlacementConfig extends AbstractKeyedAssetConfig<NpcPlacem
      * The cross-asset half is deliberately absent here - see {@link #runLateAudit()}.
      */
     public void logFindings() {
-        ValidationReport.logAll("[placement]", auditFileLocal(), SafeLog::warn, SafeLog::info);
+        ValidationReport.logAll(LOG_LABEL, auditFileLocal(), SafeLog::warn, SafeLog::info);
     }
 
     // ==================== the late, cross-asset audit ====================
@@ -180,11 +184,26 @@ public final class NpcPlacementConfig extends AbstractKeyedAssetConfig<NpcPlacem
         String owner = lateAuditOwner;
         if (owner != null) {
             if (noteSink != null) {
-                noteSink.accept("[placement] cross-asset content findings are reported by " + owner);
+                noteSink.accept(LOG_LABEL + " cross-asset content findings are reported by " + owner);
             }
             return;
         }
-        ValidationReport.logAll("[placement]", audit(), errorSink, noteSink);
+        ValidationReport.logAll(LOG_LABEL, audit(), errorSink, noteSink);
+    }
+
+    /**
+     * The late audit's findings, claimed exactly as {@link #runLateAudit()} claims its one run, for a
+     * caller that logs them itself (zc-core's {@code BootAudit}, at the boot event): empty when the run
+     * is already spent this boot, so the first player's join prints nothing more. Empty too, with the
+     * run left unspent, where a consumer claimed the cross-asset audit ({@link #claimLateAudit(String)}):
+     * that consumer reports these findings itself, and the first join still names it.
+     */
+    @Nonnull
+    public List<Finding> claimLateFindings() {
+        if (lateAuditOwner != null || !lateAudited.compareAndSet(false, true)) {
+            return List.of();
+        }
+        return audit();
     }
 
     /** Re-arm the late audit and drop any claim, so a test can drive it more than once. */
