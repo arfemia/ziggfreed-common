@@ -19,4 +19,7 @@ dependencies {
     implementation project(':zc-presentation')
     implementation project(':zc-world')
     implementation project(':zc-progression')
+    // ItemPropEntityService: a placement's Props are drawn as the library's still, intangible item props.
+    // zc-entity rests on zc-core alone (zc-world already depends on it), so the edge is one-way.
+    implementation project(':zc-entity')
 }
