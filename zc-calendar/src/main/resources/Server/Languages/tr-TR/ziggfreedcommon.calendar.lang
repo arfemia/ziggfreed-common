@@ -6,5 +6,5 @@ factor.calendar_live = çalışan bir takvim etkinliği
 factor.calendar_year = çalışan bir takvim etkinliğinin yılı
 factor.feature = bu sunucunun açtığı bir özellik
 objective.calendar_attended = {1} etkinliğine katıl
-objective.calendar_attended.any = Bir takvim etkinliğine katıl
+objective.calendar_attended.any = Bir sezonluk etkinliğe katıl
 

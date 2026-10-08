@@ -8,5 +8,5 @@ factor.feature = egy funkció, amelyet ez a szerver bekapcsolt
 
 # A részvételi lépés: az {1} a megnevezett esemény. A .any változat akkor szól, ha a lépés nem nevez eseményt.
 objective.calendar_attended = Vegyél részt itt: {1}
-objective.calendar_attended.any = Vegyél részt egy naptári eseményen
+objective.calendar_attended.any = Vegyél részt egy szezonális eseményen
 

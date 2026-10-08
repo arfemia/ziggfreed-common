@@ -7,6 +7,6 @@ factor.calendar_year = год идущего события календаря
 factor.feature = функция, включённая на этом сервере
 
 # Шаг посещения: {1} - событие, которое он называет. Вариант .any читается, если шаг не называет событие.
-objective.calendar_attended = Посетите: {1}
-objective.calendar_attended.any = Посетите событие календаря
+objective.calendar_attended = Примите участие: {1}
+objective.calendar_attended.any = Примите участие в сезонном событии
 

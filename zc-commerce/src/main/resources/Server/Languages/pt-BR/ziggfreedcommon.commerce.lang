@@ -68,7 +68,7 @@ board.action.accept = Aceitar
 board.action.turn_in = Entregar
 board.action.report = Prestar contas
 board.action.claim = Receber
-board.action.abandon = Desistir
+board.action.abandon = Abandonar
 board.action.reroll = Trocar
 
 board.toast.accepted = Contrato aceito.

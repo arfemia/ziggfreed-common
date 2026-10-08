@@ -68,7 +68,7 @@ board.action.accept = Elvállalom
 board.action.turn_in = Leadás
 board.action.report = Jelentés
 board.action.claim = Átvétel
-board.action.abandon = Feladom
+board.action.abandon = Feladás
 board.action.reroll = Csere
 
 board.toast.accepted = Megbízás elvállalva.

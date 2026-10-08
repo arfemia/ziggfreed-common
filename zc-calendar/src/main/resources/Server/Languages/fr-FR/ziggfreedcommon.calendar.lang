@@ -8,5 +8,5 @@ factor.feature = une fonctionnalité activée sur ce serveur
 
 # L'étape de participation : {1} est l'événement nommé. La variante .any se lit quand l'étape ne nomme aucun événement.
 objective.calendar_attended = Participez à {1}
-objective.calendar_attended.any = Participez à un événement du calendrier
+objective.calendar_attended.any = Participez à un événement saisonnier
 

@@ -7,6 +7,6 @@ factor.calendar_year = el año de un evento del calendario en curso
 factor.feature = una función que este servidor ha activado
 
 # El paso de asistencia: {1} es el evento que nombra. La variante .any se lee cuando un paso no nombra ningún evento.
-objective.calendar_attended = Asiste a {1}
-objective.calendar_attended.any = Asiste a un evento del calendario
+objective.calendar_attended = Participa en {1}
+objective.calendar_attended.any = Participa en un evento de temporada
 

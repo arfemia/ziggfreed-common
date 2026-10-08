@@ -6,5 +6,5 @@ factor.calendar_live = un evento del calendario in corso
 factor.calendar_year = l'anno di un evento del calendario in corso
 factor.feature = una funzione attivata su questo server
 objective.calendar_attended = Partecipa a {1}
-objective.calendar_attended.any = Partecipa a un evento del calendario
+objective.calendar_attended.any = Partecipa a un evento stagionale
 

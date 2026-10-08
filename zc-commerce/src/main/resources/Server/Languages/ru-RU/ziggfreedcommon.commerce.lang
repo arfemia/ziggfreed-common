@@ -73,7 +73,7 @@ board.action.reroll = Заменить
 
 board.toast.accepted = Контракт взят.
 board.toast.claim_failed = Сейчас нечего забирать.
-board.toast.abandoned = Контракт брошен.
+board.toast.abandoned = Вы отказались от контракта.
 board.toast.turned_in = Сдано.
 board.toast.turn_in_failed = Это не удалось сдать.
 board.toast.turn_in_short = У вас {0} из {1}.

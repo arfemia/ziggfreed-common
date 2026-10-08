@@ -8,5 +8,5 @@ factor.feature = um recurso que este servidor ligou
 
 # O passo de presença: {1} é o evento que ele nomeia. A versão .any vale quando o passo não nomeia evento.
 objective.calendar_attended = Participe de {1}
-objective.calendar_attended.any = Participe de um evento do calendário
+objective.calendar_attended.any = Participe de um evento sazonal
 
