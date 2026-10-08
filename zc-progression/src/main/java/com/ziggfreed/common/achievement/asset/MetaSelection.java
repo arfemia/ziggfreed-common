@@ -1,10 +1,16 @@
 package com.ziggfreed.common.achievement.asset;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.function.BooleanSupplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -18,22 +24,34 @@ import com.ziggfreed.common.validation.Finding;
  * id, none twice.
  *
  * <p>A selector never picks the capstone itself or ANY capstone (one listing children by id, or one
- * selecting), so no two capstones can ever wait on each other; and it picks only inside the
- * capstone's own occurrence, so a yearly copy stands on its own year's copies of the same event and
- * an ordinary capstone on ordinary achievements, never on a set that grows every year.
+ * selecting), so no two capstones can ever wait on each other. Without {@code AnyYear} it picks only
+ * inside the capstone's own occurrence, so a yearly copy stands on its own year's copies of the same
+ * event and an ordinary capstone on ordinary achievements, never on a set that grows every year.
+ *
+ * <p>{@code AnyYear} (an ordinary capstone only) lets every year's copy stand for its base and counts
+ * the picks in GROUPS keyed by the calendar event a copy comes back with: two years of one season are
+ * one group, and a group whose event this server switched off is out of the count, asked live.
+ * {@code Needs} says how many groups must be earned (every counted one when unauthored), and
+ * {@code AtLeast} is a floor under that number. A selector writing any of the three is grouped; one
+ * writing none stands on a plain list, exactly as before.
  */
 final class MetaSelection {
+
+    /** Always in the count: a group that is no calendar event's. */
+    private static final BooleanSupplier ALWAYS = () -> true;
 
     private MetaSelection() {
     }
 
     /** Rewrite every selector capstone in {@code out}; {@code selectors} is keyed by folded id. */
     static void apply(@Nonnull Map<String, AchievementDefinition> out,
-            @Nonnull Map<String, AchievementAsset.MetaSelector> selectors, @Nonnull List<Finding> issues) {
+            @Nonnull Map<String, AchievementAsset.MetaSelector> selectors, @Nonnull OccurrenceReader calendar,
+            @Nonnull List<Finding> issues) {
         if (selectors.isEmpty()) {
             return;
         }
         Map<String, AchievementDefinition> folded = new LinkedHashMap<>(out);
+        Set<String> reported = new HashSet<>();
         for (Map.Entry<String, AchievementAsset.MetaSelector> entry : selectors.entrySet()) {
             AchievementDefinition capstone = folded.get(entry.getKey());
             if (capstone == null) {
@@ -47,26 +65,46 @@ final class MetaSelection {
                         capstone.id()));
                 continue;
             }
-            List<String> picked = new ArrayList<>();
-            for (AchievementDefinition candidate : folded.values()) {
-                if (picks(capstone, selector, candidate, selectors)) {
-                    picked.add(candidate.id());
-                }
+            boolean anyYear = anyYear(capstone, selector, reported, issues);
+            Integer needs = needs(capstone, selector, reported, issues);
+            Map<String, List<String>> picks = select(capstone, selector, anyYear, folded.values(), selectors);
+            if (anyYear || selector.getNeeds() != null || selector.getAtLeast() != null) {
+                out.put(capstone.id(), capstone.withMetaGroups(groups(capstone, picks, folded, calendar), needs,
+                        selector.getAtLeast()));
+            } else {
+                out.put(capstone.id(), capstone.withMetaChildren(plainChildren(capstone, picks)));
             }
-            Collections.sort(picked);
-            List<String> children = new ArrayList<>(capstone.achievement().metaChildren());
-            for (String id : picked) {
-                if (!children.contains(id)) {
-                    children.add(id);
-                }
-            }
-            out.put(capstone.id(), capstone.withMetaChildren(children));
         }
+    }
+
+    /**
+     * What {@code selector} on {@code capstone} picks from {@code candidates}, in groups: keyed by the
+     * calendar event a yearly copy comes back with when {@code anyYear} holds, else by the pick's own
+     * id, so each pick is its own group. Keys and each group's ids are sorted, so a fold is stable.
+     */
+    @Nonnull
+    static Map<String, List<String>> select(@Nonnull AchievementDefinition capstone,
+            @Nonnull AchievementAsset.MetaSelector selector, boolean anyYear,
+            @Nonnull Collection<AchievementDefinition> candidates,
+            @Nonnull Map<String, AchievementAsset.MetaSelector> selectors) {
+        Map<String, List<String>> groups = new TreeMap<>();
+        for (AchievementDefinition candidate : candidates) {
+            if (!picks(capstone, selector, anyYear, candidate, selectors)) {
+                continue;
+            }
+            Achievement.Occurrence occurrence = candidate.achievement().occurrence();
+            String key = anyYear && occurrence != null ? occurrence.eventId() : candidate.id();
+            groups.computeIfAbsent(key, ignored -> new ArrayList<>()).add(candidate.id());
+        }
+        for (List<String> ids : groups.values()) {
+            Collections.sort(ids);
+        }
+        return groups;
     }
 
     /** Does {@code selector} on {@code capstone} pick {@code candidate}? */
     static boolean picks(@Nonnull AchievementDefinition capstone, @Nonnull AchievementAsset.MetaSelector selector,
-            @Nonnull AchievementDefinition candidate,
+            boolean anyYear, @Nonnull AchievementDefinition candidate,
             @Nonnull Map<String, AchievementAsset.MetaSelector> selectors) {
         if (candidate.id().equals(capstone.id())) {
             return false;
@@ -74,7 +112,8 @@ final class MetaSelection {
         if (candidate.achievement().isMeta() || selectors.containsKey(candidate.id())) {
             return false;
         }
-        if (!sameOccurrence(capstone.achievement().occurrence(), candidate.achievement().occurrence())) {
+        // AnyYear: any year's copy of any event stands for its base. Otherwise, only the same occurrence.
+        if (!anyYear && !sameOccurrence(capstone.achievement().occurrence(), candidate.achievement().occurrence())) {
             return false;
         }
         return selector.matches(candidate.achievement());
@@ -86,5 +125,103 @@ final class MetaSelection {
             return a == b;
         }
         return a.year() == b.year() && a.eventId().equals(b.eventId());
+    }
+
+    /** Today's plain list: explicit children first, then every pick by id, none twice. */
+    @Nonnull
+    private static List<String> plainChildren(@Nonnull AchievementDefinition capstone,
+            @Nonnull Map<String, List<String>> picks) {
+        List<String> picked = new ArrayList<>();
+        for (List<String> ids : picks.values()) {
+            picked.addAll(ids);
+        }
+        Collections.sort(picked);
+        List<String> children = new ArrayList<>(capstone.achievement().metaChildren());
+        for (String id : picked) {
+            if (!children.contains(id)) {
+                children.add(id);
+            }
+        }
+        return children;
+    }
+
+    /** A grouped capstone's groups: each explicit child its own group, then the picks, none twice. */
+    @Nonnull
+    private static List<Achievement.MetaGroup> groups(@Nonnull AchievementDefinition capstone,
+            @Nonnull Map<String, List<String>> picks, @Nonnull Map<String, AchievementDefinition> folded,
+            @Nonnull OccurrenceReader calendar) {
+        List<Achievement.MetaGroup> out = new ArrayList<>();
+        Set<String> listed = new LinkedHashSet<>();
+        for (String child : capstone.achievement().metaChildren()) {
+            if (listed.add(child)) {
+                out.add(new Achievement.MetaGroup(child, List.of(child), ALWAYS));
+            }
+        }
+        for (Map.Entry<String, List<String>> pick : picks.entrySet()) {
+            List<String> ids = new ArrayList<>();
+            for (String id : pick.getValue()) {
+                if (listed.add(id)) {
+                    ids.add(id);
+                }
+            }
+            if (!ids.isEmpty()) {
+                out.add(new Achievement.MetaGroup(pick.getKey(), ids,
+                        countedFor(pick.getKey(), folded.get(ids.get(0)), calendar)));
+            }
+        }
+        return out;
+    }
+
+    /** A season's group is counted while its event is switched on, asked live; any other group always. */
+    @Nonnull
+    private static BooleanSupplier countedFor(@Nonnull String key, @Nullable AchievementDefinition first,
+            @Nonnull OccurrenceReader calendar) {
+        Achievement.Occurrence occurrence = first == null ? null : first.achievement().occurrence();
+        if (occurrence == null || !occurrence.eventId().equals(key)) {
+            return ALWAYS;
+        }
+        String eventId = occurrence.eventId();
+        return () -> calendar.isEnabled(eventId);
+    }
+
+    /** AnyYear as it applies: only an ordinary capstone stands on every year (reported once otherwise). */
+    private static boolean anyYear(@Nonnull AchievementDefinition capstone,
+            @Nonnull AchievementAsset.MetaSelector selector, @Nonnull Set<String> reported,
+            @Nonnull List<Finding> issues) {
+        if (!selector.isAnyYear()) {
+            return false;
+        }
+        Achievement.Occurrence occurrence = capstone.achievement().occurrence();
+        if (occurrence == null) {
+            return true;
+        }
+        reportOnce(reported, "ANY_YEAR_ON_YEARLY_CAPSTONE", occurrence.baseId(),
+                "MetaSelector.AnyYear is written on a yearly achievement, whose copies each stand on their own"
+                        + " year; it is read as false. Put AnyYear on an ordinary capstone instead", issues);
+        return false;
+    }
+
+    /** Needs as it applies: one or more, else every counted group (reported once). */
+    @Nullable
+    private static Integer needs(@Nonnull AchievementDefinition capstone,
+            @Nonnull AchievementAsset.MetaSelector selector, @Nonnull Set<String> reported,
+            @Nonnull List<Finding> issues) {
+        Integer needs = selector.getNeeds();
+        if (needs == null || needs >= 1) {
+            return needs;
+        }
+        Achievement.Occurrence occurrence = capstone.achievement().occurrence();
+        reportOnce(reported, "BAD_META_NEEDS", occurrence == null ? capstone.id() : occurrence.baseId(),
+                "MetaSelector.Needs is " + needs + ", which no count can mean; it is read as every group in"
+                        + " the count. Write 1 or more, or leave it out", issues);
+        return null;
+    }
+
+    /** One finding per file and code, however many yearly copies the file minted. */
+    private static void reportOnce(@Nonnull Set<String> reported, @Nonnull String code, @Nonnull String sourceId,
+            @Nonnull String message, @Nonnull List<Finding> issues) {
+        if (reported.add(code + "|" + sourceId)) {
+            issues.add(Finding.warning(AchievementPoolValidator.DOMAIN, code, message, sourceId));
+        }
     }
 }

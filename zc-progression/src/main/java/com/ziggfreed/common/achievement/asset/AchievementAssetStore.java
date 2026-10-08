@@ -167,7 +167,7 @@ public final class AchievementAssetStore {
                 }
             }
         }
-        MetaSelection.apply(out, selectors, issues);
+        MetaSelection.apply(out, selectors, calendar, issues);
         return new Resolution(new AchievementPool(out), issues);
     }
 

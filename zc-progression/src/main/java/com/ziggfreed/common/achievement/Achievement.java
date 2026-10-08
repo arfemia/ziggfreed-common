@@ -2,9 +2,11 @@ package com.ziggfreed.common.achievement;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.BooleanSupplier;
 
 import javax.annotation.Nonnull;
@@ -31,7 +33,9 @@ import com.ziggfreed.common.progress.gate.GateSpec;
  * for - which is what makes {@link AchievementStatus#CLAIMED} reachable without a second interaction.
  *
  * <p>A META achievement has no criteria of its own: it earns itself when every achievement in
- * {@link #metaChildren()} is earned.
+ * {@link #metaChildren()} is earned, or, for a GROUPED capstone, when {@link #metaNeeds()} of its
+ * counted {@link #metaGroups()} each hold one earned child (every counted group when unauthored),
+ * never fewer than {@link #metaAtLeast()}.
  *
  * <p>The knobs are independent rather than bundled into achievement "types": hidden-until-earned,
  * whether the points count toward a total, and whether it is in circulation at all are three
@@ -43,6 +47,9 @@ public final class Achievement {
     private final String id;
     private final List<ObjectiveDef> criteria;
     private final List<String> metaChildren;
+    private final List<MetaGroup> metaGroups;
+    @Nullable private final Integer metaNeeds;
+    @Nullable private final Integer metaAtLeast;
     private final List<RewardSpec> autoRewards;
     private final List<RewardSpec> claimRewards;
     private final List<String> tags;
@@ -67,7 +74,12 @@ public final class Achievement {
     private Achievement(@Nonnull Builder b) {
         this.id = b.id;
         this.criteria = List.copyOf(b.criteria);
-        this.metaChildren = List.copyOf(b.metaChildren);
+        this.metaGroups = List.copyOf(b.metaGroups);
+        // A grouped capstone stands on the union of its groups, so the cascade index and every reader
+        // of the plain list see each child once; a plain capstone keeps its list as given.
+        this.metaChildren = b.metaGroups.isEmpty() ? List.copyOf(b.metaChildren) : unionOf(b.metaGroups);
+        this.metaNeeds = b.metaGroups.isEmpty() ? null : b.metaNeeds;
+        this.metaAtLeast = b.metaGroups.isEmpty() ? null : b.metaAtLeast;
         this.autoRewards = List.copyOf(b.autoRewards);
         this.claimRewards = List.copyOf(b.claimRewards);
         this.tags = List.copyOf(b.tags);
@@ -123,15 +135,44 @@ public final class Achievement {
 
     /**
      * This achievement standing on {@code children} instead of its own meta children, everything
-     * else carried over. For a fold that works out a capstone's children only once the whole
-     * catalogue is folded (a selector over it). A copy beside {@link #withAuthoring}, for the same
-     * reason that one lives here.
+     * else carried over: a plain capstone needing every child, so any groups it had go. For a fold
+     * that works out a capstone's children only once the whole catalogue is folded (a selector over
+     * it). A copy beside {@link #withAuthoring}, for the same reason that one lives here.
      */
     @Nonnull
     public Achievement withMetaChildren(@Nonnull List<String> children) {
         Builder copy = toBuilder();
         copy.metaChildren.clear();
         copy.metaChildren.addAll(children);
+        copy.metaGroups.clear();
+        copy.metaNeeds = null;
+        copy.metaAtLeast = null;
+        return copy.build();
+    }
+
+    /**
+     * This achievement counting {@code groups} instead (see {@link MetaGroup}), {@code needs} of them
+     * earned (null: every counted group), everything else carried over; its meta children become the
+     * groups' union. A copy beside {@link #withAuthoring}, for the same reason that one lives here.
+     */
+    @Nonnull
+    public Achievement withMetaGroups(@Nonnull List<MetaGroup> groups, @Nullable Integer needs) {
+        return withMetaGroups(groups, needs, null);
+    }
+
+    /**
+     * {@link #withMetaGroups(List, Integer)} with a floor: however many groups {@code needs} or the
+     * count comes to, never fewer than {@code atLeast} (null: no floor). See {@link #metaAtLeast()}.
+     */
+    @Nonnull
+    public Achievement withMetaGroups(@Nonnull List<MetaGroup> groups, @Nullable Integer needs,
+            @Nullable Integer atLeast) {
+        Builder copy = toBuilder();
+        copy.metaChildren.clear();
+        copy.metaGroups.clear();
+        copy.metaGroups.addAll(groups);
+        copy.metaNeeds = needs;
+        copy.metaAtLeast = atLeast;
         return copy.build();
     }
 
@@ -145,6 +186,9 @@ public final class Achievement {
         return builder(id)
                 .criteria(criteria)
                 .metaChildren(metaChildren)
+                .metaGroups(metaGroups)
+                .metaNeeds(metaNeeds)
+                .metaAtLeast(metaAtLeast)
                 .autoRewards(autoRewards)
                 .claimRewards(claimRewards)
                 .tags(tags)
@@ -210,6 +254,35 @@ public final class Achievement {
     /** Does this achievement earn itself off other achievements rather than off criteria? */
     public boolean isMeta() {
         return !metaChildren.isEmpty();
+    }
+
+    /**
+     * The groups a GROUPED capstone counts, in order; empty for a capstone that needs every child,
+     * and for an ordinary achievement. See {@link MetaGroup}.
+     */
+    @Nonnull
+    public List<MetaGroup> metaGroups() {
+        return metaGroups;
+    }
+
+    /**
+     * How many of {@link #metaGroups()} must each hold an earned child, or null for every group in
+     * the count. Null for a plain capstone, which needs every child.
+     */
+    @Nullable
+    public Integer metaNeeds() {
+        return metaNeeds;
+    }
+
+    /**
+     * The floor under what a GROUPED capstone needs: whatever {@link #metaNeeds()} or the count of
+     * groups comes to, never fewer than this, or null for no floor. A count that shrinks (fewer
+     * groups in it on this server) can then never earn a capstone written to need more. Null for a
+     * plain capstone.
+     */
+    @Nullable
+    public Integer metaAtLeast() {
+        return metaAtLeast;
     }
 
     /** Paid the instant it is earned. */
@@ -360,6 +433,43 @@ public final class Achievement {
     }
 
     /**
+     * One group a grouped capstone counts: the children that stand for it (any one of them earned
+     * earns the group) and whether the group is in the count at all, read LIVE on every look. A
+     * capstone over seasons keys a group by its calendar event, so two years of one season are one
+     * group, and a season the owner switched off is out of the count until it is switched back on.
+     *
+     * <p>A reading that throws keeps the group in the count: a broken read must never shrink "every
+     * group" and earn a capstone that is never taken back.
+     */
+    public record MetaGroup(@Nonnull String key, @Nonnull List<String> children,
+                            @Nonnull BooleanSupplier counted) {
+
+        public MetaGroup {
+            key = key.trim().toLowerCase(Locale.ROOT);
+            children = List.copyOf(children);
+        }
+
+        /** Is this group in the count right now? */
+        public boolean isCounted() {
+            try {
+                return counted.getAsBoolean();
+            } catch (Throwable unreadable) {
+                return true;
+            }
+        }
+    }
+
+    /** Every child of {@code groups}, in group order, each once. */
+    @Nonnull
+    private static List<String> unionOf(@Nonnull List<MetaGroup> groups) {
+        Set<String> out = new LinkedHashSet<>();
+        for (MetaGroup group : groups) {
+            out.addAll(group.children());
+        }
+        return List.copyOf(out);
+    }
+
+    /**
      * Named values this achievement carries into every feedback moment about it, beside the ones
      * the engine composes itself (which win on a clash). Empty when it carries none.
      *
@@ -438,6 +548,9 @@ public final class Achievement {
         private final String id;
         private final List<ObjectiveDef> criteria = new ArrayList<>();
         private final List<String> metaChildren = new ArrayList<>();
+        private final List<MetaGroup> metaGroups = new ArrayList<>();
+        @Nullable private Integer metaNeeds;
+        @Nullable private Integer metaAtLeast;
         private final List<RewardSpec> autoRewards = new ArrayList<>();
         private final List<RewardSpec> claimRewards = new ArrayList<>();
         private final List<String> tags = new ArrayList<>();
@@ -479,6 +592,27 @@ public final class Achievement {
         @Nonnull
         public Builder metaChildren(@Nonnull List<String> metaChildren) {
             this.metaChildren.addAll(metaChildren);
+            return this;
+        }
+
+        /** Count the children in these groups ({@link Achievement#metaGroups()}); the meta children become their union. */
+        @Nonnull
+        public Builder metaGroups(@Nonnull List<MetaGroup> groups) {
+            this.metaGroups.addAll(groups);
+            return this;
+        }
+
+        /** How many groups must be earned ({@link Achievement#metaNeeds()}); null means every counted one. */
+        @Nonnull
+        public Builder metaNeeds(@Nullable Integer needs) {
+            this.metaNeeds = needs;
+            return this;
+        }
+
+        /** The floor under what the groups need ({@link Achievement#metaAtLeast()}); null means none. */
+        @Nonnull
+        public Builder metaAtLeast(@Nullable Integer atLeast) {
+            this.metaAtLeast = atLeast;
             return this;
         }
 

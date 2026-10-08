@@ -57,6 +57,13 @@ final class FakeCalendar implements OccurrenceSource {
         return this;
     }
 
+    /** The owner switched the event back on. */
+    @Nonnull
+    FakeCalendar switchedOn(@Nonnull String eventId) {
+        switchedOff.remove(key(eventId));
+        return this;
+    }
+
     /** Every run question throws, as a broken calendar would on a live read. */
     @Nonnull
     FakeCalendar throwing() {
