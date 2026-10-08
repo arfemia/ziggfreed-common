@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -12,6 +13,7 @@ import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.calendar.AnnualWindow;
 import com.ziggfreed.common.inventory.ItemIds;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
@@ -34,7 +36,9 @@ import com.ziggfreed.common.validation.TextKeyAudit;
  *       {@code WINDOW_MISSING}, {@code WINDOW_UNREADABLE}, {@code WINDOW_RUN_INVALID}, {@code FIRST_YEAR_MISSING},
  *       {@code FIRST_YEAR_OUT_OF_RANGE}), {@link #SPAWN_NO_EVENT}, {@link #SPAWN_NO_RULE_BODY};</li>
  *   <li>WARNING every other problem ({@code CLOCK_UNKNOWN}: the event runs, on UTC; {@code YEARS_ENTRY_IGNORED}:
- *       the event runs, without that one Years entry), {@link #UNKNOWN_ICON},
+ *       the event runs, without that one Years entry; {@code RUN_SET_ASIDE}: the event runs without each run set
+ *       aside, one finding per run, naming it; {@code SKIP_UNKNOWN_RUN}: the event runs, and a Skip number its
+ *       year does not have leaves nothing out, one finding per number), {@link #UNKNOWN_ICON},
  *       {@link #HERALD_WITHOUT_TITLE}, {@link #SPAWN_UNKNOWN_EVENT}, and {@link TextKeyAudit#UNKNOWN_TEXT_KEY}
  *       for a Presentation or Herald key no loaded lang file ships.</li>
  * </ul>
@@ -112,6 +116,29 @@ public final class CalendarEventValidator {
         String id = event.getId();
         String where = "the calendar event '" + id + "'";
         for (String problem : event.problems()) {
+            if (CalendarEventAsset.PROBLEM_RUN_SET_ASIDE.equals(problem)) {
+                // One finding per run set aside, each naming its number, its days and the run it meets.
+                for (AnnualWindow.SetAside aside : event.setAside()) {
+                    out.add(Finding.warning(DOMAIN, problem, where + " sets aside its run " + aside.number() + " of "
+                            + aside.year() + ", " + aside.run().first() + " to " + aside.run().last()
+                            + ", which meets its run of " + aside.meets().first() + " to " + aside.meets().last()
+                            + " (before it in the list, or the year before's): runs of one event never overlap, so "
+                            + "the one written first is kept and this one does not run", id));
+                }
+                continue;
+            }
+            if (CalendarEventAsset.PROBLEM_SKIP_UNKNOWN_RUN.equals(problem)) {
+                // One finding per number a year's Skip names that the year does not have.
+                for (Map.Entry<Integer, List<Integer>> year : event.unknownSkips().entrySet()) {
+                    for (int number : year.getValue()) {
+                        out.add(Finding.warning(DOMAIN, problem, where + " skips run " + number + " of "
+                                + year.getKey() + " in its Window Years, a run that year does not have (a run in a "
+                                + "list is its place, a Monthly run its month, a Weekly run its calendar week), so "
+                                + "the skip leaves nothing out", id));
+                    }
+                }
+                continue;
+            }
             String message = where + " " + CalendarEventConfig.sentence(problem);
             out.add(NEVER_RUNS.contains(problem)
                     ? Finding.error(DOMAIN, problem, message, id)

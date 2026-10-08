@@ -60,9 +60,10 @@ public final class CalendarEventConfig extends AbstractKeyedAssetConfig<Calendar
                             + " runs; rename its file";
             case CalendarEventAsset.PROBLEM_WINDOW_MISSING -> "has no Window, so it never runs";
             case CalendarEventAsset.PROBLEM_WINDOW_UNREADABLE ->
-                    "has a Window whose days cannot be read (a Start or End that is not an MM-DD day, or a Rule "
-                            + "missing a leaf it needs, or naming a weekday, a month, an At time, a Length or an "
-                            + "Anchor it cannot read, or an Every past 1 with no Anchor), so it never runs";
+                    "has a Window whose days cannot be read (a Start or End that is not an MM-DD day, a Fixed Rule "
+                            + "whose Runs is empty or holds such a span, or a Rule missing a leaf it needs, or naming "
+                            + "a weekday, a month, an At time, a Length or an Anchor it cannot read, or an Every past "
+                            + "1 with no Anchor), so it never runs";
             case CalendarEventAsset.PROBLEM_WINDOW_RUN_INVALID ->
                     "has a Window whose runs could start in the year before or run into the next one (a negative "
                             + "Before or After, a span too long to stay clear of next year's run, an Nth other than 1 "
@@ -71,10 +72,22 @@ public final class CalendarEventConfig extends AbstractKeyedAssetConfig<Calendar
                             + "29th through February 28th), so it never runs";
             case CalendarEventAsset.PROBLEM_YEARS_ENTRY_IGNORED ->
                     "has a Window Years entry that is not a four-digit year from its FirstYear on with MM-DD "
-                            + "Start and End days, so that entry is not used";
+                            + "days (Start and End, or each of its Runs; February 29th through February 28th is "
+                            + "refused, since it meets its own next run), so that entry is not used";
+            case CalendarEventAsset.PROBLEM_RUN_SET_ASIDE ->
+                    "has a run that meets a run before it (in its list, or the year before's), so that run is set "
+                            + "aside: runs of one event never overlap, the one written first is kept, and the "
+                            + "content audit names each run set aside";
+            case CalendarEventAsset.PROBLEM_SKIP_UNKNOWN_RUN ->
+                    "has a Window Years entry whose Skip names a run number its year does not have (a run in a "
+                            + "list is its place, a Monthly run its month, a Weekly run its calendar week), so that "
+                            + "number skips nothing; the content audit names each";
             case CalendarEventAsset.NOTE_START_END_IGNORED ->
                     "has a Window Rule, so its Window Start and End are not used; to give it the same days "
                             + "every year, write Rule { Type: Fixed, Start, End }";
+            case CalendarEventAsset.NOTE_START_END_BESIDE_RUNS ->
+                    "has Start and End beside Runs in a Fixed Rule or a Years entry; Runs wins, so that Start "
+                            + "and End are not used";
             case CalendarEventAsset.PROBLEM_FIRST_YEAR_MISSING -> "has no FirstYear, so it never runs";
             case CalendarEventAsset.PROBLEM_FIRST_YEAR_OUT_OF_RANGE ->
                     "has a FirstYear before " + CalendarEventAsset.MIN_FIRST_YEAR + " or after "

@@ -3,11 +3,15 @@ package com.ziggfreed.common.calendar.asset;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedSet;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
@@ -52,10 +56,13 @@ import com.ziggfreed.common.season.SeasonGate;
  * ({@code {"Type": "Weekly", "Weekday": "Sunday", "At": "14:00", "Length": "PT2H"}}), and {@code Years} sets the
  * days of particular years ({@code {"2031": {"Start": "04-01", "End": "04-20"}}}). Years win over a Rule,
  * a Rule over Start and End, and every run must start in its own year and stay clear of the next. A year may
- * hold several runs: a monthly rule numbers each by its month (December's is run 12) and a weekly rule by its
- * calendar week (Monday to Sunday, week 1 the one holding January 1st), so adding or dropping months or weeks
- * never renumbers the others. Another day of the month keeps a monthly run's number; another weekday can move a
- * weekly run into a neighbouring week, and so change its number.
+ * hold several runs: a Fixed Rule's {@code Runs}, or a Years entry's, list spans, each numbered by its place in
+ * the list wherever its days move; a monthly rule numbers each by its month (December's is run 12) and a weekly
+ * rule by its calendar week (Monday to Sunday, week 1 the one holding January 1st), so adding or dropping months
+ * or weeks never renumbers the others. Another day of the month keeps a monthly run's number; another weekday can
+ * move a weekly run into a neighbouring week, and so change its number. A run meeting one before it is set aside
+ * ({@link #setAside()}), and a Years entry's {@code Skip} leaves runs out by number; neither number goes to
+ * another run.
  *
  * <p><b>{@code Enabled: false} makes the event ABSENT, not locked</b>: content gated on it vanishes,
  * as it does when the server owner switches every event off ({@code mods/ziggfreedcommon/calendar.json},
@@ -79,7 +86,10 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
     public static final String PROBLEM_ID_UNSAVABLE = "ID_UNSAVABLE";
     /** The file states no Window at all. */
     public static final String PROBLEM_WINDOW_MISSING = "WINDOW_MISSING";
-    /** A Start or End that is not a real MM-DD day, or a Rule missing a leaf it needs; the event never runs. */
+    /**
+     * A Start or End that is not a real MM-DD day, a Fixed Rule whose Runs is empty or holds such a span, or a Rule
+     * missing a leaf it needs; the event never runs.
+     */
     public static final String PROBLEM_WINDOW_UNREADABLE = "WINDOW_UNREADABLE";
     /** The file states no FirstYear. */
     public static final String PROBLEM_FIRST_YEAR_MISSING = "FIRST_YEAR_MISSING";
@@ -90,12 +100,21 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
     /** A Window whose runs could start in the year before or meet the rule's next run; the event never runs. */
     public static final String PROBLEM_WINDOW_RUN_INVALID = "WINDOW_RUN_INVALID";
     /**
-     * A Years entry that is not a four-digit year from FirstYear on, or whose days are not MM-DD (or run February
-     * 29th through February 28th); that entry is not used.
+     * A Years entry that is not a four-digit year from FirstYear on, or whose days (Start and End, or a span of its
+     * Runs) are not MM-DD or run February 29th through February 28th; that entry is not used.
      */
     public static final String PROBLEM_YEARS_ENTRY_IGNORED = "YEARS_ENTRY_IGNORED";
     /** Start and End beside a Rule, which wins over them: a note, never a problem. */
     public static final String NOTE_START_END_IGNORED = "START_END_IGNORED";
+    /** A run that meets one before it, set aside; the event still runs ({@link #setAside()}). */
+    public static final String PROBLEM_RUN_SET_ASIDE = "RUN_SET_ASIDE";
+    /** Start and End beside Runs (in a Fixed Rule or a Years entry), which wins over them: a note, never a problem. */
+    public static final String NOTE_START_END_BESIDE_RUNS = "START_END_BESIDE_RUNS";
+    /** A Years entry's Skip names a run number its year does not have, so it skips nothing ({@link #unknownSkips()}). */
+    public static final String PROBLEM_SKIP_UNKNOWN_RUN = "SKIP_UNKNOWN_RUN";
+
+    /** How many years from FirstYear the audit reads for runs set aside: a leap year with both its edges among them. */
+    static final int AUDIT_YEARS = 5;
 
     /** A Years key: exactly four digits. */
     private static final Pattern YEAR_KEY = Pattern.compile("\\d{4}");
@@ -223,20 +242,50 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
         return cached;
     }
 
-    /** The Window read once: the days it gives, what stops or trims it, and what it authors that is unused. */
+    /**
+     * The runs the Window sets aside because each meets a run before it, each named once (in the first year it
+     * is); empty when none is. The audit reads {@link #AUDIT_YEARS} years from FirstYear and each listed year with
+     * the year after it.
+     */
+    @Nonnull
+    public List<AnnualWindow.SetAside> setAside() {
+        return parsed().setAside();
+    }
+
+    /**
+     * The run numbers each Years entry's Skip names that its year does not have, by year, each year's in order;
+     * empty when every skip leaves a run out.
+     */
+    @Nonnull
+    public Map<Integer, List<Integer>> unknownSkips() {
+        return parsed().unknownSkips();
+    }
+
+    /**
+     * The Window read once: the days it gives, what stops or trims it, what it authors that is unused, the runs it
+     * sets aside and the skips that leave nothing out.
+     */
     private record ParsedWindow(@Nullable AnnualWindow window, @Nonnull List<String> problems,
-                                @Nonnull List<String> notes) {
+                                @Nonnull List<String> notes, @Nonnull List<AnnualWindow.SetAside> setAside,
+                                @Nonnull Map<Integer, List<Integer>> unknownSkips) {
+
+        /** A Window that dates nothing, for {@code problems}. */
+        @Nonnull
+        static ParsedWindow none(@Nonnull List<String> problems, @Nonnull List<String> notes) {
+            return new ParsedWindow(null, List.copyOf(problems), List.copyOf(notes), List.of(), Map.of());
+        }
     }
 
     /**
      * Years win over a Rule, a Rule over Start and End. A Rule, or Start and End, that cannot be read, or whose
      * runs could start in the year before or meet the next run, stops the event; a bad Years entry costs that
-     * entry alone. Nothing is dated before a FirstYear from 1970 to 9999.
+     * entry alone, and a Years entry of Skip alone leaves those runs out of what the rest dates. Nothing is dated
+     * before a FirstYear from 1970 to 9999.
      */
     @Nonnull
     private static ParsedWindow readWindow(@Nullable Window authored, @Nullable Integer firstYear) {
         if (authored == null || authored.isEmpty()) {
-            return new ParsedWindow(null, List.of(PROBLEM_WINDOW_MISSING), List.of());
+            return ParsedWindow.none(List.of(PROBLEM_WINDOW_MISSING), List.of());
         }
         List<String> notes = new ArrayList<>();
         YearRule every = null;
@@ -244,41 +293,123 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
             if (authored.start != null || authored.end != null) {
                 notes.add(NOTE_START_END_IGNORED);
             }
+            if (authored.rule instanceof WindowRules.Fixed fixed && fixed.runsBesideDays()) {
+                notes.add(NOTE_START_END_BESIDE_RUNS);
+            }
             every = authored.rule.toYearRule();
             if (every == null) {
-                return new ParsedWindow(null, List.of(PROBLEM_WINDOW_UNREADABLE), List.copyOf(notes));
+                return ParsedWindow.none(List.of(PROBLEM_WINDOW_UNREADABLE), notes);
             }
         } else if (authored.start != null || authored.end != null) {
             every = AnnualWindow.fixed(authored.start, authored.end);
             if (every == null) {
-                return new ParsedWindow(null, List.of(PROBLEM_WINDOW_UNREADABLE), List.of());
+                return ParsedWindow.none(List.of(PROBLEM_WINDOW_UNREADABLE), List.of());
             }
         }
         if (every != null && !every.valid()) {
             // Start and End as well as a Rule: February 29th through February 28th meets its own next run.
-            return new ParsedWindow(null, List.of(PROBLEM_WINDOW_RUN_INVALID), List.copyOf(notes));
+            return ParsedWindow.none(List.of(PROBLEM_WINDOW_RUN_INVALID), notes);
         }
-        Map<Integer, YearRule.Fixed> years = new TreeMap<>();
+        Map<Integer, YearRule> years = new TreeMap<>();
+        Map<Integer, Set<Integer>> skips = new TreeMap<>();
         boolean ignored = false;
-        for (Map.Entry<String, WindowRules.Fixed> entry : authored.yearsOrEmpty().entrySet()) {
+        boolean beside = false;
+        for (Map.Entry<String, WindowRules.YearDays> entry : authored.yearsOrEmpty().entrySet()) {
             Integer year = yearKey(entry.getKey());
-            YearRule.Fixed days = entry.getValue() == null ? null : entry.getValue().toFixed();
-            if (year == null || days == null || !days.valid() || (firstYear != null && year < firstYear)) {
+            WindowRules.YearDays value = entry.getValue();
+            if (year == null || value == null || (firstYear != null && year < firstYear)) {
                 ignored = true;
-            } else {
+                continue;
+            }
+            if (!value.skipsOnly()) {
+                YearRule days = value.toYearRule();
+                if (days == null || !days.valid()) {
+                    ignored = true;
+                    continue;
+                }
                 years.put(year, days);
+                beside |= value.runsBesideDays();
+            }
+            if (!value.skipped().isEmpty()) {
+                skips.put(year, value.skipped());
             }
         }
+        if (beside && !notes.contains(NOTE_START_END_BESIDE_RUNS)) {
+            notes.add(NOTE_START_END_BESIDE_RUNS);
+        }
+        int floor = firstYear != null && isFirstYearInRange(firstYear) ? firstYear : AnnualWindow.NO_FLOOR;
+        AnnualWindow parsed = AnnualWindow.of(every, years, floor, skips);
         List<String> problems = new ArrayList<>();
-        AnnualWindow parsed = AnnualWindow.of(every, years,
-                firstYear != null && isFirstYearInRange(firstYear) ? firstYear : AnnualWindow.NO_FLOOR);
+        List<AnnualWindow.SetAside> setAside = List.of();
+        Map<Integer, List<Integer>> unknownSkips = Map.of();
         if (parsed == null) {
             problems.add(PROBLEM_WINDOW_UNREADABLE);
+        } else {
+            // A year that skips runs weighs the rest afresh, so it is read like a listed year.
+            Set<Integer> ownDays = new TreeSet<>(years.keySet());
+            ownDays.addAll(skips.keySet());
+            setAside = setAsideIn(parsed, floor, ownDays);
+            unknownSkips = unknownSkipsIn(parsed, skips.keySet());
         }
         if (ignored) {
             problems.add(PROBLEM_YEARS_ENTRY_IGNORED);
         }
-        return new ParsedWindow(parsed, List.copyOf(problems), List.copyOf(notes));
+        if (!setAside.isEmpty()) {
+            problems.add(PROBLEM_RUN_SET_ASIDE);
+        }
+        if (!unknownSkips.isEmpty()) {
+            problems.add(PROBLEM_SKIP_UNKNOWN_RUN);
+        }
+        return new ParsedWindow(parsed, List.copyOf(problems), List.copyOf(notes), setAside, unknownSkips);
+    }
+
+    /**
+     * The runs {@code window} sets aside, each named once: in the {@link #AUDIT_YEARS} years from {@code floor} (a
+     * leap year and both its edges among them, so every span's yearly meeting shows), and in each {@code listed}
+     * year (one a Years entry dates or skips runs of) and the year after it. A year the every-year rule dates
+     * against itself sets the same runs aside each year, so there a run is named by its number in the first year it
+     * is; a listed year's, and the next year's, by year and number.
+     */
+    @Nonnull
+    private static List<AnnualWindow.SetAside> setAsideIn(@Nonnull AnnualWindow window, int floor,
+            @Nonnull Set<Integer> listed) {
+        SortedSet<Integer> years = new TreeSet<>();
+        if (floor != AnnualWindow.NO_FLOOR) {
+            for (int year = floor; year < floor + AUDIT_YEARS && year <= MAX_FIRST_YEAR; year++) {
+                years.add(year);
+            }
+        }
+        for (int year : listed) {
+            years.add(year);
+            if (year < MAX_FIRST_YEAR) {
+                years.add(year + 1);
+            }
+        }
+        List<AnnualWindow.SetAside> out = new ArrayList<>();
+        Set<String> named = new HashSet<>();
+        for (int year : years) {
+            boolean ownYear = listed.contains(year) || listed.contains(year - 1);
+            for (AnnualWindow.SetAside aside : window.setAside(year)) {
+                if (named.add(ownYear ? year + "#" + aside.number() : "#" + aside.number())) {
+                    out.add(aside);
+                }
+            }
+        }
+        return List.copyOf(out);
+    }
+
+    /** The numbers each of {@code years} skips that its runs never had, by year; years that name none are absent. */
+    @Nonnull
+    private static Map<Integer, List<Integer>> unknownSkipsIn(@Nonnull AnnualWindow window,
+            @Nonnull Set<Integer> years) {
+        Map<Integer, List<Integer>> out = new TreeMap<>();
+        for (int year : years) {
+            List<Integer> unknown = window.unknownSkips(year);
+            if (!unknown.isEmpty()) {
+                out.put(year, unknown);
+            }
+        }
+        return Collections.unmodifiableMap(out);
     }
 
     /** A Years key as its year: four digits, 1970 or later; null for anything else. */
@@ -389,17 +520,19 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
     /**
      * The Window group. {@code Start} and {@code End} are the same month-days every year; a {@code Rule}
      * works each year's days out and wins over them ({@link WindowRules}); {@code Years} sets the days of
-     * particular years and wins over both. Years merge by year under {@code Parent} and in an owner entry.
+     * particular years, or skips some of their runs, and wins over both: each entry is a
+     * {@link WindowRules.YearDays}, never a Rule shape. Years merge by year, and an entry leaf by leaf, under
+     * {@code Parent} and in an owner entry.
      */
     public static final class Window {
 
-        private static final InheritMapCodec<WindowRules.Fixed> YEARS_CODEC =
-                new InheritMapCodec<>(WindowRules.Fixed.CODEC);
+        private static final InheritMapCodec<WindowRules.YearDays> YEARS_CODEC =
+                new InheritMapCodec<>(WindowRules.YearDays.CODEC);
 
         @Nullable private String start;
         @Nullable private String end;
         @Nullable private WindowRules.Rule rule;
-        @Nullable private Map<String, WindowRules.Fixed> years;
+        @Nullable private Map<String, WindowRules.YearDays> years;
 
         public static final BuilderCodec<Window> CODEC = BuilderCodec.builder(Window.class, Window::new)
                 .appendInherited(new KeyedCodec<>("Start", Codec.STRING, false),
@@ -420,8 +553,11 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
                 .appendInherited(new KeyedCodec<>("Years", YEARS_CODEC, false),
                         (o, v) -> o.years = v, o -> o.years, (o, p) -> o.years = p.years)
                 .documentation("Days for particular years, keyed by the four-digit year: {\"2031\": {\"Start\": "
-                        + "\"04-01\", \"End\": \"04-20\"}}. A year listed here runs on these days whatever the Rule "
-                        + "or Start and End say. A Window of Years alone has no run in a year it does not list.").add()
+                        + "\"04-01\", \"End\": \"04-20\"}}, several runs that year with {\"Runs\": [...]}, or none "
+                        + "with {\"Runs\": []}. A year given days here runs on them alone, whatever the Rule or Start "
+                        + "and End say. {\"Skip\": [3, 7]} leaves those run numbers out of that year; written alone, "
+                        + "it keeps the rest of the year's runs. A Window of Years alone has no run in a year it does "
+                        + "not list.").add()
                 .build();
 
         public Window() {
@@ -433,7 +569,7 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
         }
 
         @Nonnull
-        Map<String, WindowRules.Fixed> yearsOrEmpty() {
+        Map<String, WindowRules.YearDays> yearsOrEmpty() {
             return years == null ? Map.of() : years;
         }
     }
