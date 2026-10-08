@@ -104,6 +104,47 @@ class QuestIndicatorSpecTest {
     }
 
     @Test
+    void aRepeatingQuestReadsTheRepeatableStateAndAOneOffItsOwn() throws Exception {
+        QuestIndicatorSpec spec = decode("""
+                { "Available": { "State": "Guild_Scroll", "Repeatable": { "State": "Guild_Scroll_Daily" } } }
+                """);
+
+        assertEquals("Guild_Scroll_Daily", spec.resolve(QuestSituation.AVAILABLE, true).state());
+        assertEquals("Guild_Scroll", spec.resolve(QuestSituation.AVAILABLE, false).state());
+        assertEquals("Guild_Scroll", spec.resolve(QuestSituation.AVAILABLE).state(),
+                "the one-argument form reads a one-off quest");
+    }
+
+    @Test
+    void anUnwrittenRepeatableStateKeepsTheSituationsOwn() throws Exception {
+        QuestIndicatorSpec spec = decode("""
+                { "Available": { "State": "Guild_Scroll", "Repeatable": { } } }
+                """);
+
+        assertEquals("Guild_Scroll", spec.resolve(QuestSituation.AVAILABLE, true).state());
+        assertEquals(QuestSituation.TURN_IN.defaultState(), spec.resolve(QuestSituation.TURN_IN, true).state());
+    }
+
+    @Test
+    void theRepeatableStateMergesLeafByLeafAcrossScopes() throws Exception {
+        QuestIndicatorSpec global = decode("""
+                { "Available": { "Repeatable": { "State": "Global_Daily" } } }
+                """);
+        QuestIndicatorSpec quest = decode("""
+                { "Available": { "State": "Quest_Scroll" } }
+                """);
+        QuestIndicatorSpec questWithOwn = decode("""
+                { "Available": { "Repeatable": { "State": "Quest_Daily" } } }
+                """);
+
+        QuestIndicatorSpec merged = QuestIndicatorSpec.merge(global, quest);
+        assertEquals("Global_Daily", merged.resolve(QuestSituation.AVAILABLE, true).state());
+        assertEquals("Quest_Scroll", merged.resolve(QuestSituation.AVAILABLE, false).state());
+        assertEquals("Quest_Daily",
+                QuestIndicatorSpec.merge(global, questWithOwn).resolve(QuestSituation.AVAILABLE, true).state());
+    }
+
+    @Test
     void aBlankStateReadsAsTheDefaultAndTheSituationKeysRoundTrip() throws Exception {
         QuestIndicatorSpec spec = decode("{ \"Collect\": { \"State\": \"   \" } }");
         assertEquals(QuestSituation.COLLECT.defaultState(), spec.resolve(QuestSituation.COLLECT).state());

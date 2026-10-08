@@ -147,6 +147,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `State` | `string` | `null` | The overhead state to show, matching a look file at Server/ZiggfreedCommon/OverheadIndicators/<State>.json. Unauthored means the situation's own state (Quest_Reward_Ready, Quest_Ready_To_Turn_In, Quest_Available, Quest_In_Progress). |
 | `Overhead` | [Overhead](#field-questasset-indicator-collect-overhead) | `null` | The marker over the character's head. |
 | `Map` | [MapMark](#field-questasset-indicator-collect-map) | `null` | The marker on the world map and compass. |
+| `Repeatable` | [Repeatable](#field-questasset-indicator-collect-repeatable) | `null` | How this situation reads instead when the quest repeats. Unauthored reads the same as a one-off quest. |
 
 <a id="field-questasset-indicator-turnin"></a>
 #### QuestAsset.Indicator.TurnIn
@@ -157,6 +158,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `State` | `string` | `null` | The overhead state to show, matching a look file at Server/ZiggfreedCommon/OverheadIndicators/<State>.json. Unauthored means the situation's own state (Quest_Reward_Ready, Quest_Ready_To_Turn_In, Quest_Available, Quest_In_Progress). |
 | `Overhead` | [Overhead](#field-questasset-indicator-turnin-overhead) | `null` | The marker over the character's head. |
 | `Map` | [MapMark](#field-questasset-indicator-turnin-map) | `null` | The marker on the world map and compass. |
+| `Repeatable` | [Repeatable](#field-questasset-indicator-turnin-repeatable) | `null` | How this situation reads instead when the quest repeats. Unauthored reads the same as a one-off quest. |
 
 <a id="field-questasset-indicator-available"></a>
 #### QuestAsset.Indicator.Available
@@ -167,6 +169,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `State` | `string` | `null` | The overhead state to show, matching a look file at Server/ZiggfreedCommon/OverheadIndicators/<State>.json. Unauthored means the situation's own state (Quest_Reward_Ready, Quest_Ready_To_Turn_In, Quest_Available, Quest_In_Progress). |
 | `Overhead` | [Overhead](#field-questasset-indicator-available-overhead) | `null` | The marker over the character's head. |
 | `Map` | [MapMark](#field-questasset-indicator-available-map) | `null` | The marker on the world map and compass. |
+| `Repeatable` | [Repeatable](#field-questasset-indicator-available-repeatable) | `null` | How this situation reads instead when the quest repeats. Unauthored reads the same as a one-off quest. |
 
 <a id="field-questasset-indicator-inprogress"></a>
 #### QuestAsset.Indicator.InProgress
@@ -177,6 +180,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `State` | `string` | `null` | The overhead state to show, matching a look file at Server/ZiggfreedCommon/OverheadIndicators/<State>.json. Unauthored means the situation's own state (Quest_Reward_Ready, Quest_Ready_To_Turn_In, Quest_Available, Quest_In_Progress). |
 | `Overhead` | [Overhead](#field-questasset-indicator-inprogress-overhead) | `null` | The marker over the character's head. |
 | `Map` | [MapMark](#field-questasset-indicator-inprogress-map) | `null` | The marker on the world map and compass. |
+| `Repeatable` | [Repeatable](#field-questasset-indicator-inprogress-repeatable) | `null` | How this situation reads instead when the quest repeats. Unauthored reads the same as a one-off quest. |
 
 <a id="field-questasset-indicator-collect-overhead"></a>
 ##### QuestAsset.Indicator.Collect.Overhead
@@ -193,6 +197,13 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Enabled` | `boolean` | `null` | Whether the character is marked on the world map and compass for this situation. Unauthored means no. |
 | `Icon` | `string` | `null` | The map marker texture, e.g. "Coordinate.png". Unauthored takes whatever the marker service draws by default. |
 
+<a id="field-questasset-indicator-collect-repeatable"></a>
+##### QuestAsset.Indicator.Collect.Repeatable
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `State` | `string` | `null` | The overhead state shown instead when the quest repeats, matching a look file at Server/ZiggfreedCommon/OverheadIndicators/<State>.json. Unauthored keeps the situation's own state. |
+
 <a id="field-questasset-indicator-turnin-overhead"></a>
 ##### QuestAsset.Indicator.TurnIn.Overhead
 
@@ -207,6 +218,13 @@ Every field is optional and defaults to `null` unless its Default column reads *
 |---|---|---|---|
 | `Enabled` | `boolean` | `null` | Whether the character is marked on the world map and compass for this situation. Unauthored means no. |
 | `Icon` | `string` | `null` | The map marker texture, e.g. "Coordinate.png". Unauthored takes whatever the marker service draws by default. |
+
+<a id="field-questasset-indicator-turnin-repeatable"></a>
+##### QuestAsset.Indicator.TurnIn.Repeatable
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `State` | `string` | `null` | The overhead state shown instead when the quest repeats, matching a look file at Server/ZiggfreedCommon/OverheadIndicators/<State>.json. Unauthored keeps the situation's own state. |
 
 <a id="field-questasset-indicator-available-overhead"></a>
 ##### QuestAsset.Indicator.Available.Overhead
@@ -223,6 +241,13 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Enabled` | `boolean` | `null` | Whether the character is marked on the world map and compass for this situation. Unauthored means no. |
 | `Icon` | `string` | `null` | The map marker texture, e.g. "Coordinate.png". Unauthored takes whatever the marker service draws by default. |
 
+<a id="field-questasset-indicator-available-repeatable"></a>
+##### QuestAsset.Indicator.Available.Repeatable
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `State` | `string` | `null` | The overhead state shown instead when the quest repeats, matching a look file at Server/ZiggfreedCommon/OverheadIndicators/<State>.json. Unauthored keeps the situation's own state. |
+
 <a id="field-questasset-indicator-inprogress-overhead"></a>
 ##### QuestAsset.Indicator.InProgress.Overhead
 
@@ -237,6 +262,13 @@ Every field is optional and defaults to `null` unless its Default column reads *
 |---|---|---|---|
 | `Enabled` | `boolean` | `null` | Whether the character is marked on the world map and compass for this situation. Unauthored means no. |
 | `Icon` | `string` | `null` | The map marker texture, e.g. "Coordinate.png". Unauthored takes whatever the marker service draws by default. |
+
+<a id="field-questasset-indicator-inprogress-repeatable"></a>
+##### QuestAsset.Indicator.InProgress.Repeatable
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `State` | `string` | `null` | The overhead state shown instead when the quest repeats, matching a look file at Server/ZiggfreedCommon/OverheadIndicators/<State>.json. Unauthored keeps the situation's own state. |
 
 <a id="type-questobjective"></a>
 ## QuestObjective
@@ -276,6 +308,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `State` | `string` | `null` | The overhead state to show, matching a look file at Server/ZiggfreedCommon/OverheadIndicators/<State>.json. Unauthored means the situation's own state (Quest_Reward_Ready, Quest_Ready_To_Turn_In, Quest_Available, Quest_In_Progress). |
 | `Overhead` | [Overhead](#field-questobjective-indicator-collect-overhead) | `null` | The marker over the character's head. |
 | `Map` | [MapMark](#field-questobjective-indicator-collect-map) | `null` | The marker on the world map and compass. |
+| `Repeatable` | [Repeatable](#field-questobjective-indicator-collect-repeatable) | `null` | How this situation reads instead when the quest repeats. Unauthored reads the same as a one-off quest. |
 
 <a id="field-questobjective-indicator-turnin"></a>
 #### QuestObjective.Indicator.TurnIn
@@ -286,6 +319,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `State` | `string` | `null` | The overhead state to show, matching a look file at Server/ZiggfreedCommon/OverheadIndicators/<State>.json. Unauthored means the situation's own state (Quest_Reward_Ready, Quest_Ready_To_Turn_In, Quest_Available, Quest_In_Progress). |
 | `Overhead` | [Overhead](#field-questobjective-indicator-turnin-overhead) | `null` | The marker over the character's head. |
 | `Map` | [MapMark](#field-questobjective-indicator-turnin-map) | `null` | The marker on the world map and compass. |
+| `Repeatable` | [Repeatable](#field-questobjective-indicator-turnin-repeatable) | `null` | How this situation reads instead when the quest repeats. Unauthored reads the same as a one-off quest. |
 
 <a id="field-questobjective-indicator-available"></a>
 #### QuestObjective.Indicator.Available
@@ -296,6 +330,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `State` | `string` | `null` | The overhead state to show, matching a look file at Server/ZiggfreedCommon/OverheadIndicators/<State>.json. Unauthored means the situation's own state (Quest_Reward_Ready, Quest_Ready_To_Turn_In, Quest_Available, Quest_In_Progress). |
 | `Overhead` | [Overhead](#field-questobjective-indicator-available-overhead) | `null` | The marker over the character's head. |
 | `Map` | [MapMark](#field-questobjective-indicator-available-map) | `null` | The marker on the world map and compass. |
+| `Repeatable` | [Repeatable](#field-questobjective-indicator-available-repeatable) | `null` | How this situation reads instead when the quest repeats. Unauthored reads the same as a one-off quest. |
 
 <a id="field-questobjective-indicator-inprogress"></a>
 #### QuestObjective.Indicator.InProgress
@@ -306,6 +341,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `State` | `string` | `null` | The overhead state to show, matching a look file at Server/ZiggfreedCommon/OverheadIndicators/<State>.json. Unauthored means the situation's own state (Quest_Reward_Ready, Quest_Ready_To_Turn_In, Quest_Available, Quest_In_Progress). |
 | `Overhead` | [Overhead](#field-questobjective-indicator-inprogress-overhead) | `null` | The marker over the character's head. |
 | `Map` | [MapMark](#field-questobjective-indicator-inprogress-map) | `null` | The marker on the world map and compass. |
+| `Repeatable` | [Repeatable](#field-questobjective-indicator-inprogress-repeatable) | `null` | How this situation reads instead when the quest repeats. Unauthored reads the same as a one-off quest. |
 
 <a id="field-questobjective-indicator-collect-overhead"></a>
 ##### QuestObjective.Indicator.Collect.Overhead
@@ -322,6 +358,13 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Enabled` | `boolean` | `null` | Whether the character is marked on the world map and compass for this situation. Unauthored means no. |
 | `Icon` | `string` | `null` | The map marker texture, e.g. "Coordinate.png". Unauthored takes whatever the marker service draws by default. |
 
+<a id="field-questobjective-indicator-collect-repeatable"></a>
+##### QuestObjective.Indicator.Collect.Repeatable
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `State` | `string` | `null` | The overhead state shown instead when the quest repeats, matching a look file at Server/ZiggfreedCommon/OverheadIndicators/<State>.json. Unauthored keeps the situation's own state. |
+
 <a id="field-questobjective-indicator-turnin-overhead"></a>
 ##### QuestObjective.Indicator.TurnIn.Overhead
 
@@ -336,6 +379,13 @@ Every field is optional and defaults to `null` unless its Default column reads *
 |---|---|---|---|
 | `Enabled` | `boolean` | `null` | Whether the character is marked on the world map and compass for this situation. Unauthored means no. |
 | `Icon` | `string` | `null` | The map marker texture, e.g. "Coordinate.png". Unauthored takes whatever the marker service draws by default. |
+
+<a id="field-questobjective-indicator-turnin-repeatable"></a>
+##### QuestObjective.Indicator.TurnIn.Repeatable
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `State` | `string` | `null` | The overhead state shown instead when the quest repeats, matching a look file at Server/ZiggfreedCommon/OverheadIndicators/<State>.json. Unauthored keeps the situation's own state. |
 
 <a id="field-questobjective-indicator-available-overhead"></a>
 ##### QuestObjective.Indicator.Available.Overhead
@@ -352,6 +402,13 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Enabled` | `boolean` | `null` | Whether the character is marked on the world map and compass for this situation. Unauthored means no. |
 | `Icon` | `string` | `null` | The map marker texture, e.g. "Coordinate.png". Unauthored takes whatever the marker service draws by default. |
 
+<a id="field-questobjective-indicator-available-repeatable"></a>
+##### QuestObjective.Indicator.Available.Repeatable
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `State` | `string` | `null` | The overhead state shown instead when the quest repeats, matching a look file at Server/ZiggfreedCommon/OverheadIndicators/<State>.json. Unauthored keeps the situation's own state. |
+
 <a id="field-questobjective-indicator-inprogress-overhead"></a>
 ##### QuestObjective.Indicator.InProgress.Overhead
 
@@ -366,6 +423,13 @@ Every field is optional and defaults to `null` unless its Default column reads *
 |---|---|---|---|
 | `Enabled` | `boolean` | `null` | Whether the character is marked on the world map and compass for this situation. Unauthored means no. |
 | `Icon` | `string` | `null` | The map marker texture, e.g. "Coordinate.png". Unauthored takes whatever the marker service draws by default. |
+
+<a id="field-questobjective-indicator-inprogress-repeatable"></a>
+##### QuestObjective.Indicator.InProgress.Repeatable
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `State` | `string` | `null` | The overhead state shown instead when the quest repeats, matching a look file at Server/ZiggfreedCommon/OverheadIndicators/<State>.json. Unauthored keeps the situation's own state. |
 
 <a id="type-questcategoryasset"></a>
 ## QuestCategoryAsset

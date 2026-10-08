@@ -37,6 +37,7 @@ import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.factor.HytaleFactors;
 import com.ziggfreed.common.inventory.InventoryUtil;
 import com.ziggfreed.common.objectives.hud.TrackedQuestHuds;
+import com.ziggfreed.common.objectives.marker.QuestMarkers;
 import com.ziggfreed.common.objectives.producer.EncounterQuestAxes;
 import com.ziggfreed.common.objectives.producer.ZigBlockBreakProducer;
 import com.ziggfreed.common.objectives.producer.ZigCalendarProducer;
@@ -198,9 +199,10 @@ public final class ProgressionDefaults {
      * its own), and the tracked-quest HUD with its six event subscriptions. All of it is
      * unconditional, and so is every dispatch those producers make.
      *
-     * <p>The HUD installs itself LAST and guards itself, so a failure there costs the tracker and
-     * nothing registered before it. Its attach rides the ready event at a LATER priority than the
-     * maintenance pass registered here, so a player's first paint already shows what that pass did.
+     * <p>The HUD installs itself after everything above and guards itself, so a failure there costs the
+     * tracker and nothing registered before it. The quest marks install after it, guarded the same way.
+     * The HUD's attach rides the ready event at a LATER priority than the maintenance pass registered
+     * here, so a player's first paint already shows what that pass did.
      */
     public static void install(@Nonnull PluginBase plugin) {
         register();
@@ -222,6 +224,7 @@ public final class ProgressionDefaults {
                 + " (a mod firing a new moment calls ProgressDispatch.fire directly, no registration"
                 + " needed)");
         TrackedQuestHuds.install(plugin);
+        QuestMarkers.install(plugin);
     }
 
     /**
