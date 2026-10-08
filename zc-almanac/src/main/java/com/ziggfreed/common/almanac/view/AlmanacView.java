@@ -9,6 +9,7 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -22,16 +23,24 @@ import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.google.gson.JsonObject;
+import com.hypixel.hytale.codec.ExtraInfo;
+import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.hypixel.hytale.server.core.asset.common.CommonAssetRegistry;
 import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.achievement.AchievementEngine;
 import com.ziggfreed.common.almanac.AlmanacCalendar;
 import com.ziggfreed.common.almanac.AlmanacCalendar.Dates;
+import com.ziggfreed.common.almanac.AlmanacCollection;
 import com.ziggfreed.common.almanac.AlmanacKeys;
 import com.ziggfreed.common.almanac.ServerTallies;
+import com.ziggfreed.common.almanac.asset.AlmanacAchievementsAsset;
+import com.ziggfreed.common.almanac.asset.AlmanacBannerAsset;
+import com.ziggfreed.common.almanac.asset.AlmanacCollectionAsset;
 import com.ziggfreed.common.almanac.asset.AlmanacEntryAsset;
 import com.ziggfreed.common.almanac.asset.AlmanacHeroAsset;
 import com.ziggfreed.common.almanac.asset.AlmanacLinkAsset;
+import com.ziggfreed.common.almanac.asset.AlmanacSectionAsset;
 import com.ziggfreed.common.almanac.asset.AlmanacStatAsset;
 import com.ziggfreed.common.counter.CounterMap;
 import com.ziggfreed.common.inventory.ItemIds;
@@ -40,6 +49,8 @@ import com.ziggfreed.common.occurrence.Recurrence;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.kit.KeepsakeState;
 import com.ziggfreed.common.ui.route.Destination;
+import com.ziggfreed.common.ui.route.Destinations;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * What the Almanac shows, as plain data: which seasons it lists, what one season's page says for one
@@ -80,6 +91,32 @@ public final class AlmanacView {
     public static final int GLOW_X_MAX = 1442;
     public static final int GLOW_Y_MIN = -480;
     public static final int GLOW_Y_MAX = 720;
+
+    /**
+     * An inline banner's plate: the body's content width ({@code AlmanacLayout.CONTENT_WIDTH}, which the
+     * page's document test holds equal), its unauthored height, and the range its height is kept to.
+     */
+    public static final int BANNER_WIDTH = 906;
+    public static final int BANNER_HEIGHT = 120;
+    public static final int BANNER_MIN = 64;
+    public static final int BANNER_MAX = 240;
+
+    /** How many items a collection's grid draws. */
+    public static final int COLLECTION_MAX_ITEMS = AlmanacEntryAsset.COLLECTION_MAX_ITEMS;
+
+    /** How many {@code Sections} entries a page draws. */
+    public static final int SECTIONS_MAX = AlmanacEntryAsset.SECTIONS_MAX;
+
+    /**
+     * The book's destination type, zc-objectives' {@code ObjectiveBookDestinations.ACHIEVEMENTS_TYPE}, named
+     * here as a string because the Almanac has no edge to that module: it reaches the book through the shared
+     * vocabulary alone.
+     */
+    public static final String ACHIEVEMENTS_TYPE = "Achievements";
+
+    /** The two leaves the call to action writes on the book's destination: its category and subcategory. */
+    private static final String BOOK_CATEGORY_KEY = "Category";
+    private static final String BOOK_SUBCATEGORY_KEY = "Subcategory";
 
     /** A season returning within this many days is "soon": its chip and row take the near tone. */
     public static final int SOON_DAYS = 14;
@@ -204,6 +241,60 @@ public final class AlmanacView {
     public record SeasonLink(@Nonnull String textKey, @Nonnull Destination destination) {
     }
 
+    /** One part of a season's page body, in the order it is drawn. */
+    public sealed interface Section permits TalliesSection, KeepsakesSection, AchievementsSection, LinksSection,
+            BannerSection, CollectionSection {
+    }
+
+    /** The year chips and the tallies. */
+    public record TalliesSection() implements Section {
+    }
+
+    /** The keepsake shelf. */
+    public record KeepsakesSection() implements Section {
+    }
+
+    /** The page's links. */
+    public record LinksSection() implements Section {
+    }
+
+    /**
+     * The season's achievements, with the button into the book: where it goes (null: no button) and its words
+     * (null: the library's own).
+     */
+    public record AchievementsSection(@Nullable Destination destination, @Nullable String textKey) implements Section {
+    }
+
+    /** An inline banner: its shipped art, else its composition (never both), its height, its words and its button. */
+    public record BannerSection(@Nullable String art, @Nullable HeroComposition composition, int height,
+            @Nullable String titleKey, @Nullable String flavorKey, @Nullable SeasonLink button) implements Section {
+    }
+
+    /** One item of a collection: its picture, whether the player has had it once, whether it hides until then, its source line. */
+    public record CollectionItem(@Nonnull String itemId, @Nonnull String iconPath, boolean owned, boolean hidden,
+            @Nullable String sourceKey) {
+    }
+
+    /** The items a player can find this season, in order, with the grid's words and its button. */
+    public record CollectionSection(@Nullable String titleKey, @Nullable String flavorKey,
+            @Nonnull List<CollectionItem> items, @Nullable SeasonLink button) implements Section {
+
+        /** How many of the items the player has had once. */
+        public int owned() {
+            int owned = 0;
+            for (CollectionItem item : items) {
+                if (item.owned()) {
+                    owned++;
+                }
+            }
+            return owned;
+        }
+    }
+
+    /** The order a page that writes no Sections reads, before its button into the book is resolved. */
+    public static final List<Section> TODAYS_ORDER = List.of(new TalliesSection(), new KeepsakesSection(),
+            new AchievementsSection(null, null), new LinksSection());
+
     /** One month of the year at a glance (1 to 12) and the seasons running in it, in list order. */
     public record MonthMarks(int month, @Nonnull List<String> eventIds) {
     }
@@ -255,12 +346,23 @@ public final class AlmanacView {
      * whether the player took part in that scope, the tiles, the keepsake shelf (null: the section is
      * absent, for a season with no keepsake, no subject loaded, or a first run still ahead), the
      * achievements (null: absent, nothing filed or no subject), the resolved hero, the season's authored
-     * accent ({@code #rrggbb}, unclamped; null when none) and the links.
+     * accent ({@code #rrggbb}, unclamped; null when none), the links, and the body's parts in the order
+     * drawn ({@link #sections}).
      */
     public record SeasonPage(@Nonnull Season season, @Nonnull Timing timing, @Nonnull List<YearChip> years,
                              @Nonnull Scope scope, boolean tookPartInScope, @Nonnull List<Tally> tallies,
                              @Nullable List<YearKeepsake> keepsakes, @Nullable SeasonAchievements achievements,
-                             @Nonnull Hero hero, @Nullable String accentHex, @Nonnull List<SeasonLink> links) {
+                             @Nonnull Hero hero, @Nullable String accentHex, @Nonnull List<SeasonLink> links,
+                             @Nonnull List<Section> sections) {
+
+        /** A page in today's order ({@link #TODAYS_ORDER}), with no button into the book. */
+        public SeasonPage(@Nonnull Season season, @Nonnull Timing timing, @Nonnull List<YearChip> years,
+                @Nonnull Scope scope, boolean tookPartInScope, @Nonnull List<Tally> tallies,
+                @Nullable List<YearKeepsake> keepsakes, @Nullable SeasonAchievements achievements,
+                @Nonnull Hero hero, @Nullable String accentHex, @Nonnull List<SeasonLink> links) {
+            this(season, timing, years, scope, tookPartInScope, tallies, keepsakes, achievements, hero, accentHex,
+                    links, TODAYS_ORDER);
+        }
     }
 
     private AlmanacView() {
@@ -434,7 +536,8 @@ public final class AlmanacView {
         return new SeasonPage(season, timing, years, scope, tookPartIn(scope, years),
                 tallies(page, eventId, tallies, scope, server), keepsakes(page, engine, subject, copies, earned, years),
                 achievements(eventId, page, engine, subject), hero(season, page, textureShips, iconPaths),
-                page == null ? null : page.accent(), links(page));
+                page == null ? null : page.accent(), links(page),
+                sections(eventId, page, tallies, textureShips, iconPaths));
     }
 
     /** When {@code season} runs, as the calendar knows it at {@code nowMs}: its chip, row line and dates. */
@@ -623,6 +726,171 @@ public final class AlmanacView {
         return List.copyOf(out);
     }
 
+    // ==================== the body's sections ====================
+
+    /**
+     * The body's parts in the order drawn. With no page, or a page that writes no {@code Sections}: today's
+     * order, Tallies, Keepsakes, Achievements (its button into the book resolved), Links. Else the first
+     * {@link #SECTIONS_MAX} entries in the order written: an entry naming no part is skipped, a built-in part
+     * already drawn is skipped, and a banner or a collection with nothing it can draw is skipped. Which
+     * built-in parts have anything to show is the plan's question, not this one.
+     */
+    @Nonnull
+    static List<Section> sections(@Nonnull String eventId, @Nullable AlmanacEntryAsset page,
+            @Nonnull CounterMap tallies, @Nonnull Predicate<String> textureShips,
+            @Nonnull Function<String, String> iconPaths) {
+        List<AlmanacSectionAsset> authored = page == null ? null : page.sections();
+        if (authored == null) {
+            return List.of(new TalliesSection(), new KeepsakesSection(), callToAction(eventId, null),
+                    new LinksSection());
+        }
+        String accent = page.accent();
+        Set<String> drawn = new HashSet<>();
+        List<Section> out = new ArrayList<>();
+        for (int i = 0; i < authored.size() && i < SECTIONS_MAX; i++) {
+            AlmanacSectionAsset entry = authored.get(i);
+            String part = entry.part();
+            if (part == null) {
+                continue;
+            }
+            Section section;
+            if (AlmanacSectionAsset.BANNER.equals(part)) {
+                section = banner(entry.banner(), accent, textureShips, iconPaths);
+            } else if (AlmanacSectionAsset.COLLECTION.equals(part)) {
+                section = collection(entry.collection(), tallies, iconPaths);
+            } else if (!drawn.add(part)) {
+                section = null;
+            } else if (AlmanacSectionAsset.ACHIEVEMENTS.equals(part)) {
+                section = callToAction(eventId, entry.achievements());
+            } else if (AlmanacSectionAsset.TALLIES.equals(part)) {
+                section = new TalliesSection();
+            } else if (AlmanacSectionAsset.KEEPSAKES.equals(part)) {
+                section = new KeepsakesSection();
+            } else {
+                section = new LinksSection();
+            }
+            if (section != null) {
+                out.add(section);
+            }
+        }
+        return List.copyOf(out);
+    }
+
+    /**
+     * The achievements section with its button into the book: none when the section says
+     * {@code ShowButton: false}; else where its {@code Button} sends it, else the book opened on this season
+     * ({@link #seasonAchievements}), with the {@code Button}'s words when it writes them (null: the
+     * library's). With nowhere to go, no button.
+     */
+    @Nonnull
+    static AchievementsSection callToAction(@Nonnull String eventId, @Nullable AlmanacAchievementsAsset authored) {
+        if (authored != null && !authored.showButton()) {
+            return new AchievementsSection(null, null);
+        }
+        Destination written = authored == null ? null : authored.buttonDestination();
+        Destination destination = written != null ? written : seasonAchievements(eventId);
+        if (destination == null) {
+            return new AchievementsSection(null, null);
+        }
+        return new AchievementsSection(destination, authored == null ? null : authored.buttonTextKey());
+    }
+
+    /**
+     * The book opened on {@code eventId}'s achievements, {@code { "Type": "Achievements", "Category":
+     * "seasons", "Subcategory": "<event id>" }}, decoded through the shared vocabulary at run time so the
+     * Almanac needs no edge to the book's module. Null when no installed mod registers the book's type, or
+     * the decode fails.
+     */
+    @Nullable
+    public static Destination seasonAchievements(@Nonnull String eventId) {
+        if (!Destinations.isRegistered(ACHIEVEMENTS_TYPE)) {
+            return null;
+        }
+        JsonObject json = new JsonObject();
+        json.addProperty(Destination.TYPE_KEY, ACHIEVEMENTS_TYPE);
+        json.addProperty(BOOK_CATEGORY_KEY, SEASONS_CATEGORY);
+        json.addProperty(BOOK_SUBCATEGORY_KEY, AlmanacKeys.normalize(eventId));
+        try {
+            return Destination.CODEC.decodeJson(RawJsonReader.fromJsonString(json.toString()), new ExtraInfo());
+        } catch (Throwable t) {
+            SafeLog.fine("[almanac] the button into the book could not be built for '" + eventId + "': "
+                    + t.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * An inline banner on its own plate, {@link #BANNER_WIDTH} wide and its {@code Height} tall (kept to
+     * {@link #BANNER_MIN} through {@link #BANNER_MAX}). Its art when it ships; else its composition on the
+     * banner's plate (a colour band when no item draws); else a plate in the season's accent, darkened. Null
+     * when it has no picture of its own and no title, line or button either.
+     */
+    @Nullable
+    static BannerSection banner(@Nullable AlmanacBannerAsset authored, @Nullable String accent,
+            @Nonnull Predicate<String> textureShips, @Nonnull Function<String, String> iconPaths) {
+        if (authored == null) {
+            return null;
+        }
+        int height = clamp(authored.height(), BANNER_HEIGHT, BANNER_MIN, BANNER_MAX);
+        SeasonLink button = seasonLink(authored.button());
+        String art = authored.art();
+        if (art != null && ships(art, textureShips)) {
+            return new BannerSection(art, null, height, authored.titleKey(), authored.flavorKey(), button);
+        }
+        HeroComposition composition = composition(authored.composition(), accent, textureShips, iconPaths,
+                BANNER_WIDTH, height, true);
+        if (composition == null && authored.titleKey() == null && authored.flavorKey() == null && button == null) {
+            return null;
+        }
+        return new BannerSection(null, composition != null ? composition
+                : new HeroComposition(darken(accent), null, null, null, List.of()), height, authored.titleKey(),
+                authored.flavorKey(), button);
+    }
+
+    /**
+     * A collection's grid for one player: its items in the order written, each once (matched without case),
+     * each the server has a picture for (else skipped), at most {@link #COLLECTION_MAX_ITEMS} drawn, each
+     * owned when the player has had it once. Null when no item draws.
+     */
+    @Nullable
+    static CollectionSection collection(@Nullable AlmanacCollectionAsset authored, @Nonnull CounterMap tallies,
+            @Nonnull Function<String, String> iconPaths) {
+        if (authored == null) {
+            return null;
+        }
+        Set<String> seen = new HashSet<>();
+        List<CollectionItem> items = new ArrayList<>();
+        for (AlmanacCollectionAsset.Slot slot : authored.slots()) {
+            if (items.size() >= COLLECTION_MAX_ITEMS) {
+                break;
+            }
+            String itemId = slot.item();
+            if (!seen.add(AlmanacKeys.normalize(itemId))) {
+                continue;
+            }
+            String icon = iconPath(itemId, iconPaths);
+            if (icon == null) {
+                continue;
+            }
+            items.add(new CollectionItem(itemId, icon, AlmanacCollection.owned(tallies, itemId), slot.hidden(),
+                    slot.sourceKey()));
+        }
+        if (items.isEmpty()) {
+            return null;
+        }
+        return new CollectionSection(authored.titleKey(), authored.flavorKey(), List.copyOf(items),
+                seasonLink(authored.button()));
+    }
+
+    /** A usable authored button as the view's link, or null. */
+    @Nullable
+    private static SeasonLink seasonLink(@Nullable AlmanacLinkAsset link) {
+        if (link == null || link.textKey() == null || link.destination() == null) {
+            return null;
+        }
+        return new SeasonLink(link.textKey(), link.destination());
+    }
+
     /**
      * Every yearly copy of the season's keepsake in the catalogue, by year: an achievement minted for an
      * occurrence of the page's {@code Keepsake} base id, else one whose id is {@code <Keepsake>_<yyyy>}.
@@ -731,9 +999,23 @@ public final class AlmanacView {
     private static HeroComposition composition(@Nullable AlmanacHeroAsset.Composition authored,
             @Nullable String accent, @Nonnull Predicate<String> textureShips,
             @Nonnull Function<String, String> iconPaths) {
+        return composition(authored, accent, textureShips, iconPaths, HERO_WIDTH, HERO_HEIGHT, false);
+    }
+
+    /**
+     * {@code authored} read onto a {@code plateWidth} x {@code plateHeight} plate: each item's side kept to 24
+     * through the smaller of 128 and the plate's height, its corner kept so the whole picture shows, unknown
+     * items skipped, the first twelve drawn. With no item drawn it is null unless {@code keepEmpty} (a banner's
+     * colour band); the hero's top needs at least one.
+     */
+    @Nullable
+    private static HeroComposition composition(@Nullable AlmanacHeroAsset.Composition authored,
+            @Nullable String accent, @Nonnull Predicate<String> textureShips,
+            @Nonnull Function<String, String> iconPaths, int plateWidth, int plateHeight, boolean keepEmpty) {
         if (authored == null) {
             return null;
         }
+        int sideMax = Math.min(HERO_ITEM_MAX, plateHeight);
         List<HeroItem> items = new ArrayList<>();
         for (AlmanacHeroAsset.Placement placement : authored.items()) {
             if (items.size() >= HERO_MAX_ITEMS) {
@@ -743,11 +1025,11 @@ public final class AlmanacView {
             if (icon == null) {
                 continue;
             }
-            int size = clamp(placement.size(), HERO_ITEM_SIZE, HERO_ITEM_MIN, HERO_ITEM_MAX);
-            items.add(new HeroItem(placement.item(), icon, clamp(placement.x(), 0, 0, HERO_WIDTH - size),
-                    clamp(placement.y(), 0, 0, HERO_HEIGHT - size), size));
+            int size = clamp(placement.size(), HERO_ITEM_SIZE, HERO_ITEM_MIN, sideMax);
+            items.add(new HeroItem(placement.item(), icon, clamp(placement.x(), 0, 0, plateWidth - size),
+                    clamp(placement.y(), 0, 0, plateHeight - size), size));
         }
-        if (items.isEmpty()) {
+        if (items.isEmpty() && !keepEmpty) {
             return null;
         }
         AlmanacHeroAsset.Gradient sky = authored.gradient();

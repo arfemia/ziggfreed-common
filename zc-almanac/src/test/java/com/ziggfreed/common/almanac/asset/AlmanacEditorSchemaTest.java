@@ -1,6 +1,7 @@
 package com.ziggfreed.common.almanac.asset;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -13,6 +14,7 @@ import com.hypixel.hytale.codec.schema.SchemaContext;
 import com.hypixel.hytale.codec.schema.config.ObjectSchema;
 import com.hypixel.hytale.codec.schema.config.Schema;
 import com.ziggfreed.common.almanac.page.AlmanacDestinations;
+import com.ziggfreed.common.almanac.view.AlmanacView;
 import com.ziggfreed.common.ui.route.Destinations;
 
 /**
@@ -57,5 +59,37 @@ class AlmanacEditorSchemaTest {
 
         assertNotNull(showArt.get("default"), showArt.toJson());
         assertTrue(showArt.getBoolean("default").getValue());
+    }
+
+    @Test
+    void theSectionsLeafExportsAndEveryPartIsOffered() {
+        AlmanacDestinations.register();
+        BsonDocument page = Schema.CODEC.encode(AlmanacEntryAsset.CODEC.toSchema(new SchemaContext()), new ExtraInfo())
+                .asDocument().getDocument("properties");
+        assertTrue(page.containsKey("Sections"), page.keySet().toString());
+
+        BsonDocument entry = Schema.CODEC.encode(AlmanacSectionAsset.CODEC.toSchema(new SchemaContext()), new ExtraInfo())
+                .asDocument().getDocument("properties");
+        for (String part : AlmanacSectionAsset.PARTS) {
+            assertTrue(entry.containsKey(part), "a Sections entry offers " + part + ": " + entry.keySet());
+        }
+    }
+
+    @Test
+    void aCollectionItemOffersTheItemPickerAndDeclaresHiddenFalse() {
+        BsonDocument slot = Schema.CODEC.encode(AlmanacCollectionAsset.Slot.CODEC.toSchema(new SchemaContext()),
+                new ExtraInfo()).asDocument().getDocument("properties");
+        assertEquals("Item", slot.getDocument("Item").getString("hytaleAssetRef").getValue());
+        assertFalse(slot.getDocument("Hidden").getBoolean("default").getValue());
+    }
+
+    @Test
+    void aBannersHeightAndTheAchievementsButtonDeclareTheirUnauthoredValues() {
+        BsonDocument banner = Schema.CODEC.encode(AlmanacBannerAsset.CODEC.toSchema(new SchemaContext()),
+                new ExtraInfo()).asDocument().getDocument("properties");
+        assertEquals(AlmanacView.BANNER_HEIGHT, banner.getDocument("Height").getNumber("default").intValue());
+        BsonDocument achievements = Schema.CODEC.encode(AlmanacAchievementsAsset.CODEC.toSchema(new SchemaContext()),
+                new ExtraInfo()).asDocument().getDocument("properties");
+        assertTrue(achievements.getDocument("ShowButton").getBoolean("default").getValue());
     }
 }

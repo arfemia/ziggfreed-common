@@ -9,6 +9,7 @@ import static com.ziggfreed.common.almanac.FixedCalendar.liveIn;
 import static com.ziggfreed.common.almanac.FixedCalendar.noon;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -27,10 +28,14 @@ import java.util.function.Predicate;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import com.hypixel.hytale.codec.Codec;
+import com.hypixel.hytale.codec.KeyedCodec;
+import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.achievement.AchievementEngine;
 import com.ziggfreed.common.almanac.AlmanacCalendar.Dates;
 import com.ziggfreed.common.almanac.AlmanacCalendar.SeasonState;
+import com.ziggfreed.common.almanac.AlmanacCollection;
 import com.ziggfreed.common.almanac.AlmanacFixtures;
 import com.ziggfreed.common.almanac.AlmanacKeys;
 import com.ziggfreed.common.almanac.AlmanacText;
@@ -38,16 +43,25 @@ import com.ziggfreed.common.almanac.FixedCalendar;
 import com.ziggfreed.common.almanac.ServerTallies;
 import com.ziggfreed.common.almanac.asset.AlmanacEntryAsset;
 import com.ziggfreed.common.almanac.page.AlmanacDestinations;
+import com.ziggfreed.common.almanac.page.AlmanacDestinations.Almanac;
+import com.ziggfreed.common.almanac.view.AlmanacView.AchievementsSection;
+import com.ziggfreed.common.almanac.view.AlmanacView.BannerSection;
+import com.ziggfreed.common.almanac.view.AlmanacView.CollectionItem;
+import com.ziggfreed.common.almanac.view.AlmanacView.CollectionSection;
 import com.ziggfreed.common.almanac.view.AlmanacView.Hero;
 import com.ziggfreed.common.almanac.view.AlmanacView.HeroGlow;
 import com.ziggfreed.common.almanac.view.AlmanacView.HeroGradient;
 import com.ziggfreed.common.almanac.view.AlmanacView.HeroItem;
+import com.ziggfreed.common.almanac.view.AlmanacView.KeepsakesSection;
+import com.ziggfreed.common.almanac.view.AlmanacView.LinksSection;
 import com.ziggfreed.common.almanac.view.AlmanacView.MonthMarks;
 import com.ziggfreed.common.almanac.view.AlmanacView.Scope;
 import com.ziggfreed.common.almanac.view.AlmanacView.Season;
 import com.ziggfreed.common.almanac.view.AlmanacView.SeasonAchievements;
 import com.ziggfreed.common.almanac.view.AlmanacView.SeasonLink;
 import com.ziggfreed.common.almanac.view.AlmanacView.SeasonPage;
+import com.ziggfreed.common.almanac.view.AlmanacView.Section;
+import com.ziggfreed.common.almanac.view.AlmanacView.TalliesSection;
 import com.ziggfreed.common.almanac.view.AlmanacView.Tally;
 import com.ziggfreed.common.almanac.view.AlmanacView.Timing;
 import com.ziggfreed.common.almanac.view.AlmanacView.YearChip;
@@ -56,6 +70,8 @@ import com.ziggfreed.common.counter.CounterMap;
 import com.ziggfreed.common.occurrence.Occurrence;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.kit.KeepsakeState;
+import com.ziggfreed.common.ui.route.Destination;
+import com.ziggfreed.common.ui.route.DestinationType;
 import com.ziggfreed.common.ui.route.Destinations;
 
 /**
@@ -800,6 +816,140 @@ class AlmanacViewPageTest {
         assertTrue(bare.links().isEmpty());
         assertTrue(bare.tallies().isEmpty());
         assertNull(bare.keepsakes());
+    }
+
+    // ---- the body's sections ----
+
+    /** Stands in for the book's Achievements destination: the two leaves the call to action writes. */
+    public static final class FakeBook extends Destination {
+        String category;
+        String subcategory;
+        static final BuilderCodec<FakeBook> CODEC = BuilderCodec.builder(FakeBook.class, FakeBook::new)
+                .append(new KeyedCodec<>("Category", Codec.STRING, false), (d, v) -> d.category = v, d -> d.category).add()
+                .append(new KeyedCodec<>("Subcategory", Codec.STRING, false), (d, v) -> d.subcategory = v, d -> d.subcategory).add()
+                .build();
+    }
+
+    private static void registerBook() {
+        Destinations.register("test", DestinationType.of(AlmanacView.ACHIEVEMENTS_TYPE, FakeBook.class, FakeBook.CODEC,
+                (d, ctx) -> true));
+    }
+
+    @Test
+    void withNoSectionsThePageReadsTodaysOrderAndItsButtonOpensTheBookOnTheSeason() throws Exception {
+        registerBook();
+        SeasonPage page = read(live(2026), seasonPage(), new CounterMap(), null, null, null, liveIn(2026, 2026),
+                noon("2026-10-07"));
+
+        assertEquals(List.of(TalliesSection.class, KeepsakesSection.class, AchievementsSection.class, LinksSection.class),
+                page.sections().stream().map(Object::getClass).toList());
+        FakeBook book = assertInstanceOf(FakeBook.class, ((AchievementsSection) page.sections().get(2)).destination());
+        assertEquals("seasons", book.category);
+        assertEquals(TEST_SEASON, book.subcategory, "the season's own subcategory, its event id");
+        assertNull(((AchievementsSection) page.sections().get(2)).textKey(), "the library's words");
+    }
+
+    @Test
+    void withNoBookRegisteredOrShowButtonFalseThereIsNoButton() throws Exception {
+        SeasonPage bare = read(live(2026), seasonPage(), new CounterMap(), null, null, null, liveIn(2026, 2026),
+                noon("2026-10-07"));
+        assertNull(((AchievementsSection) bare.sections().get(2)).destination(), "nothing opens the book here");
+
+        registerBook();
+        AlmanacEntryAsset off = AlmanacFixtures.page("{ \"Sections\": [ { \"Achievements\": { \"ShowButton\": false } } ] }",
+                "Test_Season");
+        assertNull(((AchievementsSection) read(live(2026), off, new CounterMap(), null, null, null, liveIn(2026, 2026),
+                noon("2026-10-07")).sections().get(0)).destination());
+    }
+
+    @Test
+    void anAuthoredButtonRelabelsTheCallToActionOrSendsItElsewhere() throws Exception {
+        registerBook();
+        AlmanacDestinations.register();
+        AlmanacEntryAsset page = AlmanacFixtures.page("""
+                { "Sections": [ { "Achievements": { "Button": { "TextKey": "almanac.test.relabel" } } },
+                                { "Achievements": { "Button": { "Destination": { "Type": "Almanac", "Event": "Other" } } } } ] }
+                """, "Test_Season");
+        List<Section> sections = read(live(2026), page, new CounterMap(), null, null, null, liveIn(2026, 2026),
+                noon("2026-10-07")).sections();
+
+        AchievementsSection relabelled = (AchievementsSection) sections.get(0);
+        assertEquals("almanac.test.relabel", relabelled.textKey());
+        assertInstanceOf(FakeBook.class, relabelled.destination(), "words alone keep the book");
+        assertEquals(1, sections.size(), "a built-in part draws once, at its first place");
+
+        AlmanacEntryAsset elsewhere = AlmanacFixtures.page("""
+                { "Sections": [ { "Achievements": { "Button": { "Destination": { "Type": "Almanac", "Event": "Other" } } } } ] }
+                """, "Test_Season");
+        AchievementsSection sent = (AchievementsSection) read(live(2026), elsewhere, new CounterMap(), null, null, null,
+                liveIn(2026, 2026), noon("2026-10-07")).sections().get(0);
+        assertInstanceOf(Almanac.class, sent.destination(), "a Destination alone sends it elsewhere");
+        assertNull(sent.textKey(), "with the library's words");
+    }
+
+    @Test
+    void sectionsKeepTheirAuthoredOrderAndSkipWhatCannotDraw() throws Exception {
+        AlmanacEntryAsset page = AlmanacFixtures.page("""
+                { "Sections": [ { "Banner": { "Text": { "TitleKey": "almanac.test.t" } } },
+                                { "Collection": { "Items": [ { "Item": "Unknown_Item" } ] } },
+                                { "Banner": { "Art": "Elsewhere/Missing.png" } },
+                                { "Tallies": {} }, {}, { "Keepsakes": {} } ] }
+                """, "Test_Season");
+        List<Section> sections = read(live(2026), page, new CounterMap(), null, null, null, liveIn(2026, 2026),
+                noon("2026-10-07")).sections();
+
+        assertEquals(List.of(BannerSection.class, TalliesSection.class, KeepsakesSection.class),
+                sections.stream().map(Object::getClass).toList(),
+                "a collection of unknown items, art that does not ship with nothing else, and an empty entry are left out");
+    }
+
+    @Test
+    void aCollectionReadsWhatThePlayerOwnsWhatIsHiddenAndSkipsTheUnknown() throws Exception {
+        CounterMap tallies = new CounterMap();
+        AlmanacCollection.markOwned(tallies, "Test_Lantern");
+        AlmanacEntryAsset page = AlmanacFixtures.page("""
+                { "Sections": [ { "Collection": { "Text": { "TitleKey": "almanac.test.items" }, "Items": [
+                    { "Item": "Test_Lantern", "Hidden": true },
+                    { "Item": "Test_Pumpkin", "Hidden": true, "SourceKey": "almanac.test.source" },
+                    { "Item": "Unknown_Item" },
+                    { "Item": "Test_Bomb" } ] } } ] }
+                """, "Test_Season");
+        CollectionSection collection = (CollectionSection) read(live(2026), page, tallies, null, null, null,
+                liveIn(2026, 2026), noon("2026-10-07")).sections().get(0);
+
+        assertEquals(List.of("Test_Lantern", "Test_Pumpkin", "Test_Bomb"),
+                collection.items().stream().map(CollectionItem::itemId).toList());
+        assertTrue(collection.items().get(0).owned() && collection.items().get(0).hidden(), "owned: shown for good");
+        assertFalse(collection.items().get(1).owned());
+        assertEquals("almanac.test.source", collection.items().get(1).sourceKey());
+        assertEquals("Icons/ItemsGenerated/Test_Bomb.png", collection.items().get(2).iconPath());
+        assertEquals(1, collection.owned());
+        assertEquals("almanac.test.items", collection.titleKey());
+    }
+
+    @Test
+    void aBannerComposesOnItsOwnPlateAndAPlainOneTakesTheAccent() throws Exception {
+        AlmanacEntryAsset page = AlmanacFixtures.page("""
+                { "Accent": "#E8752A", "Sections": [
+                  { "Banner": { "Height": 500, "Composition": { "Items": [ { "Item": "Test_Lantern", "X": 2000, "Y": 400, "Size": 128 } ] } } },
+                  { "Banner": { "Height": 10, "Text": { "TitleKey": "almanac.test.t" } } },
+                  { "Banner": { "Art": "UI/Custom/Almanac/Band.png", "Composition": { "Items": [ { "Item": "Test_Lantern" } ] } } } ] }
+                """, "Test_Season");
+        List<Section> sections = read(live(2026), page, new CounterMap(), null, null, null, liveIn(2026, 2026),
+                noon("2026-10-07")).sections();
+
+        BannerSection tall = (BannerSection) sections.get(0);
+        assertEquals(AlmanacView.BANNER_MAX, tall.height());
+        HeroItem item = tall.composition().items().get(0);
+        assertEquals(AlmanacView.BANNER_WIDTH - 128, item.x(), "kept on the banner's own plate");
+        assertEquals(AlmanacView.BANNER_MAX - 128, item.y());
+        BannerSection plain = (BannerSection) sections.get(1);
+        assertEquals(AlmanacView.BANNER_MIN, plain.height());
+        assertEquals(AlmanacView.darken("#e8752a"), plain.composition().backgroundHex(), "no picture: the accent, darkened");
+        assertTrue(plain.composition().items().isEmpty());
+        BannerSection art = (BannerSection) sections.get(2);
+        assertEquals("UI/Custom/Almanac/Band.png", art.art(), "art that ships wins");
+        assertNull(art.composition());
     }
 
     @Test

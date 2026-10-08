@@ -364,6 +364,139 @@ class AlmanacEntryAssetTest {
         assertEquals("#1a0f08", resolved.hero().composition().background());
     }
 
+    // ---- Sections: the page's body in authored order ----
+
+    private static final String SECTIONED = """
+            { "Icon": "Test_Icon", "Accent": "#E8752A",
+              "Sections": [
+                { "Banner": { "Height": 96, "Text": { "TitleKey": "almanac.test.banner.title" },
+                              "Composition": { "Items": [ { "Item": "Test_Lantern", "X": 700, "Y": 10, "Size": 64 } ] } } },
+                { "Achievements": { "ShowButton": false } },
+                { "Collection": { "Items": [ { "Item": "Test_Lantern", "Hidden": true, "SourceKey": "almanac.test.source" },
+                                             { "Item": "Test_Pumpkin" } ] } },
+                { "Tallies": {} },
+                { "Links": {} } ] }
+            """;
+
+    @Test
+    void sectionsDecodeInAuthoredOrderOnePartEach() throws Exception {
+        AlmanacEntryAsset page = AlmanacFixtures.page(SECTIONED, "Test_Season");
+
+        assertEquals(List.of("Banner", "Achievements", "Collection", "Tallies", "Links"),
+                page.sections().stream().map(AlmanacSectionAsset::part).toList());
+        AlmanacBannerAsset banner = page.sections().get(0).banner();
+        assertEquals(96, banner.height());
+        assertEquals("almanac.test.banner.title", banner.titleKey());
+        assertEquals(1, banner.composition().items().size());
+        assertFalse(page.sections().get(1).achievements().showButton());
+        List<AlmanacCollectionAsset.Slot> slots = page.sections().get(2).collection().slots();
+        assertTrue(slots.get(0).hidden());
+        assertEquals("almanac.test.source", slots.get(0).sourceKey());
+        assertFalse(slots.get(1).hidden(), "Hidden is false unless written");
+        assertTrue(page.findings().isEmpty(), page.findings().toString());
+    }
+
+    @Test
+    void unauthoredSectionsReadAsNoneAndAnEmptyListAsAuthored() throws Exception {
+        assertNull(AlmanacFixtures.page("{ \"Icon\": \"Test_Icon\" }", "Test_Season").sections(),
+                "unauthored: the view reads today's order");
+        assertEquals(List.of(), AlmanacFixtures.page("{ \"Sections\": [] }", "Test_Season").sections());
+        assertNull(AlmanacFixtures.page("{ \"Sections\": [ { \"Tallies\": {} } ] }", "Test_Season")
+                .sections().get(0).banner());
+    }
+
+    @Test
+    void aChildsSectionsReplaceTheParentsWholeAndAChildWithoutSectionsKeepsThem() throws Exception {
+        AlmanacEntryAsset parent = AlmanacFixtures.page(SECTIONED, "Test_Season");
+        AlmanacEntryAsset own = AlmanacFixtures.page("{ \"Sections\": [ { \"Keepsakes\": {} } ] }",
+                "Test_Season_Own", "test_season", parent);
+        AlmanacEntryAsset plain = AlmanacFixtures.page("{ \"Accent\": \"#3A8FE8\" }", "Test_Season_Plain",
+                "test_season", parent);
+
+        assertEquals(List.of("Keepsakes"), own.sections().stream().map(AlmanacSectionAsset::part).toList(),
+                "a list replaces, never appends");
+        assertEquals(5, plain.sections().size(), "an inherited list comes whole");
+    }
+
+    @Test
+    void anOwnersSectionsReplaceThePacksWhole() throws Exception {
+        // ownerOver's pack page is DRESSED_PAGE; give it sections first if it has none, then layer the owner's.
+        AlmanacEntryAsset resolved = ownerOver("{ \"Test_Season\": { \"Sections\": [ { \"Tallies\": {} } ] } }");
+
+        assertEquals(List.of("Tallies"), resolved.sections().stream().map(AlmanacSectionAsset::part).toList());
+        assertNotNull(resolved.hero(), "the owner's other leaves are the pack's");
+    }
+
+    @Test
+    void anEntryNamingNoPartOrTwoIsReportedAndTheFirstPartIsKept() throws Exception {
+        AlmanacEntryAsset page = AlmanacFixtures.page("""
+                { "Sections": [ {}, { "Tallies": {}, "Banner": { "Text": { "TitleKey": "almanac.test.t" } } } ] }
+                """, "Test_Season");
+
+        assertEquals("Banner", page.sections().get(1).part(), "declaration order picks the part");
+        assertEquals(List.of(AlmanacEntryAsset.FINDING_SECTION_EMPTY, AlmanacEntryAsset.FINDING_SECTION_HAS_TWO),
+                page.findings().stream().map(Finding::code).toList());
+    }
+
+    @Test
+    void aBuiltInPartPlacedTwiceAndTooManyEntriesAreReported() throws Exception {
+        StringBuilder many = new StringBuilder("{ \"Sections\": [ { \"Tallies\": {} }, { \"Tallies\": {} }");
+        for (int i = 0; i < AlmanacEntryAsset.SECTIONS_MAX; i++) {
+            many.append(", { \"Banner\": { \"Text\": { \"TitleKey\": \"almanac.test.t\" } } }");
+        }
+        AlmanacEntryAsset page = AlmanacFixtures.page(many.append(" ] }").toString(), "Test_Season");
+
+        List<String> codes = page.findings().stream().map(Finding::code).toList();
+        assertTrue(codes.contains(AlmanacEntryAsset.FINDING_SECTION_REPEATED), codes.toString());
+        assertTrue(codes.contains(AlmanacEntryAsset.FINDING_SECTIONS_OVER_CAP), codes.toString());
+    }
+
+    @Test
+    void aCollectionOverItsCapOrRepeatingAnItemIsReported() throws Exception {
+        StringBuilder items = new StringBuilder("{ \"Item\": \"Test_Lantern\" }, { \"Item\": \"test_lantern\" }");
+        for (int i = 0; i < AlmanacEntryAsset.COLLECTION_MAX_ITEMS; i++) {
+            items.append(", { \"Item\": \"Test_Item_").append(i).append("\" }");
+        }
+        AlmanacEntryAsset page = AlmanacFixtures.page("{ \"Sections\": [ { \"Collection\": { \"Items\": [ "
+                + items + " ] } } ] }", "Test_Season");
+
+        List<String> codes = page.findings().stream().map(Finding::code).toList();
+        assertTrue(codes.contains(AlmanacEntryAsset.FINDING_COLLECTION_ITEM_REPEATED), "matched without case");
+        assertTrue(codes.contains(AlmanacEntryAsset.FINDING_COLLECTION_ITEMS_OVER_CAP), codes.toString());
+    }
+
+    @Test
+    void aBannerWithNothingToShowABadColourOrTooManyItemsIsReported() throws Exception {
+        StringBuilder items = new StringBuilder("{ \"Item\": \"Test_Lantern\" }");
+        for (int i = 0; i < AlmanacEntryAsset.HERO_MAX_ITEMS; i++) {
+            items.append(", { \"Item\": \"Test_Pumpkin\" }");
+        }
+        AlmanacEntryAsset page = AlmanacFixtures.page("{ \"Sections\": [ { \"Banner\": {} }, { \"Banner\": { "
+                + "\"Composition\": { \"Background\": \"orange\", \"Items\": [ " + items + " ] } } } ] }",
+                "Test_Season");
+
+        List<String> codes = page.findings().stream().map(Finding::code).toList();
+        assertTrue(codes.contains(AlmanacEntryAsset.FINDING_BANNER_EMPTY), codes.toString());
+        assertTrue(codes.contains(AlmanacEntryAsset.FINDING_COLOUR), codes.toString());
+        assertTrue(codes.contains(AlmanacEntryAsset.FINDING_BANNER_ITEMS), codes.toString());
+    }
+
+    @Test
+    void aBannersOrACollectionsButtonWithNoWordsOrNowhereToGoIsLeftOut() throws Exception {
+        AlmanacDestinations.register();
+        AlmanacEntryAsset page = AlmanacFixtures.page("""
+                { "Sections": [
+                  { "Banner": { "Text": { "TitleKey": "almanac.test.t" }, "Button": { "Destination": "Almanac" } } },
+                  { "Collection": { "Items": [ { "Item": "Test_Lantern" } ],
+                                    "Button": { "TextKey": "almanac.test.b", "Destination": { "Type": "Nowhere" } } } },
+                  { "Achievements": { "Button": { "TextKey": "almanac.test.relabel" } } } ] }
+                """, "Test_Season");
+
+        assertEquals(2, page.findings().stream().filter(f -> f.code().equals(AlmanacEntryAsset.FINDING_LINK)).count(),
+                "the achievements button may write its words alone: " + page.findings());
+        assertNull(page.sections().get(0).banner().button(), "a button that cannot draw is left out");
+    }
+
     /** The fixture pack season, with {@code ownerFile} written as the server owner's almanac.json. */
     private AlmanacEntryAsset ownerOver(String ownerFile) throws Exception {
         AlmanacDestinations.register();
