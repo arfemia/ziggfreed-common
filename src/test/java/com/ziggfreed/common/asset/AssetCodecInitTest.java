@@ -205,6 +205,9 @@ class AssetCodecInitTest {
         assertNotNull(WindowRules.Weekday.CODEC, "the Weekday rule codec must static-init");
         assertNotNull(WindowRules.Monthly.CODEC, "the Monthly rule codec must static-init");
         assertNotNull(WindowRules.Weekly.CODEC, "the Weekly rule codec must static-init");
+        assertNotNull(WindowRules.Span.CODEC, "the Runs span codec must static-init");
+        assertNotNull(WindowRules.Span.LIST, "the Runs list codec must static-init");
+        assertNotNull(WindowRules.YearDays.CODEC, "the Years entry codec must static-init");
         assertNotNull(CalendarSpawnAsset.CODEC, "CalendarSpawnAsset.CODEC must static-init (PascalCase keys)");
         assertNotNull(CalendarAttendanceComponent.CODEC,
                 "CalendarAttendanceComponent.CODEC must static-init (PascalCase keys)");

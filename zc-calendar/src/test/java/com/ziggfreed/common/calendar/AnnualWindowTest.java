@@ -499,6 +499,41 @@ class AnnualWindowTest {
                 "with no floor the 2025 run is dated, and meets 2026's January run");
     }
 
+    // A year may skip runs by number (the maintainer's skip list): a skipped run is never dated and meets no other
+    // run, its number goes to no other, and the run after it is sought from its own days.
+    @Test
+    void aSkippedRunIsNeverDatedMeetsNoOtherAndKeepsItsNumberToItself() {
+        AnnualWindow window = AnnualWindow.of(new YearRule.FixedRuns(
+                List.of(span("09-01", "09-25"), span("09-20", "09-26"), span("10-10", "10-12"))), Map.of(), 2026,
+                Map.of(2027, Set.of(1)));
+        assertNotNull(window);
+        assertEquals(List.of(new AnnualWindow.SetAside(2026, 2, days("2026-09-20", "2026-09-26"),
+                days("2026-09-01", "2026-09-25"))), window.setAside(2026), "a year keeping both: run 2 meets run 1");
+        assertEquals(List.of(new AnnualWindow.DatedRun(2027, 2, days("2027-09-20", "2027-09-26")),
+                new AnnualWindow.DatedRun(2027, 3, days("2027-10-10", "2027-10-12"))), window.datedRuns(2027),
+                "with run 1 skipped, run 2 meets nothing and runs, under its own number");
+        assertTrue(window.setAside(2027).isEmpty());
+        assertNull(window.run(2027, 1), "a skipped number is no run's");
+        assertEquals(new AnnualWindow.DatedRun(2027, 2, days("2027-09-20", "2027-09-26")), window.after(2027, 1),
+                "followed from the skipped run's own days");
+        assertTrue(window.unknownSkips(2027).isEmpty());
+        assertTrue(window.moves(), "a year that skips a run differs from the next");
+        assertFalse(AnnualWindow.of(span("06-01", "06-07"), Map.of(), 2026).moves());
+
+        AnnualWindow crossing = AnnualWindow.of(
+                new YearRule.FixedRuns(List.of(span("01-05", "01-11"), span("06-01", "06-07"))),
+                Map.of(2027, new YearRule.FixedRuns(List.of(span("12-20", "01-08")))), 2026, Map.of(2027, Set.of(1)));
+        assertFalse(crossing.hasRun(2027), "the listed year's one run is skipped");
+        assertEquals(List.of(1, 2), numbers(crossing, 2028), "so it reaches into no January and sets nothing aside");
+        assertTrue(crossing.setAside(2028).isEmpty());
+
+        AnnualWindow once = AnnualWindow.of(span("06-01", "06-07"), Map.of(), 2026, Map.of(2026, Set.of(4, 1, 3)));
+        assertFalse(once.hasRun(2026));
+        assertEquals(List.of(3, 4), once.unknownSkips(2026), "a once-a-year rule has run 1 alone");
+        assertEquals(new AnnualWindow.DatedRun(2027, 1, days("2027-06-01", "2027-06-07")), once.after(2026, 1));
+        assertTrue(once.unknownSkips(2027).isEmpty(), "a year that skips nothing names nothing");
+    }
+
     @Test
     void aListedYearWithNoRunsHasNoneAndAnInvalidRuleOrYearIsRefused() {
         AnnualWindow window = AnnualWindow.of(span("06-01", "06-07"),
