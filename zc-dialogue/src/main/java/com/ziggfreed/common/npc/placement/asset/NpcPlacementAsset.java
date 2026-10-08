@@ -1,6 +1,9 @@
 package com.ziggfreed.common.npc.placement.asset;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -15,6 +18,7 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
+import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.asset.SeasonLeaf;
@@ -49,7 +53,8 @@ import com.ziggfreed.common.world.WorldSelector;
  *   "Requires": { "Factors": [ {"Factor": "yourmod:feature", "Param": "shop", "Min": 1} ] },
  *   "Limits":   { "SpawnChance": 1.0, "OncePerWorld": true },
  *   "Lifecycle":{ "KeepAlive": true, "Fortify": true },
- *   "Interact": { "Dialogue": "guide_intro" } }
+ *   "Interact": { "Dialogue": "guide_intro" },
+ *   "Props":    [ { "Item": "Furniture_Tavern_Table", "Offset": {"Z": 1.5}, "Yaw": 90 } ] }
  * }</pre>
  *
  * <p><b>The groups, and why each is where it is.</b>
@@ -80,6 +85,10 @@ import com.ziggfreed.common.world.WorldSelector;
  *   <li><b>{@link Interact}</b> - what press-F opens. {@code Dialogue} is the terse spelling of a
  *       conversation, {@code Open} names any registered destination; both are the same value
  *       underneath, so author one or the other.</li>
+ *   <li><b>{@link Prop Props}</b> - decorations drawn at the placement's spot while it stands (a
+ *       feast table beside a seasonal cook), gone with it. With props, {@code Identity.Role} is
+ *       optional: a placement naming no role draws only its props, with no NPC, no conversation and
+ *       nothing to press F on.</li>
  * </ul>
  *
  * <p>To re-tune a placement someone else shipped, override the file by id (a same-named file in a
@@ -101,6 +110,7 @@ public final class NpcPlacementAsset
     @Nullable private Limits limits;
     @Nullable private Lifecycle lifecycle;
     @Nullable private Interact interact;
+    @Nullable private Prop[] props;
     @Nullable private String season;
 
     public static final AssetBuilderCodec<String, NpcPlacementAsset> CODEC = SeasonLeaf.append(AssetBuilderCodec.builder(
@@ -162,6 +172,15 @@ public final class NpcPlacementAsset
                     (a, v) -> a.interact = v, a -> a.interact, (a, p) -> a.interact = p.interact)
             .documentation("What pressing F on this NPC opens: a conversation, or any destination a mod on "
                     + "this server registered.")
+            .add()
+            .appendInherited(new KeyedCodec<>("Props", new ArrayCodec<>(Prop.CODEC, Prop[]::new), false),
+                    (a, v) -> a.props = v, a -> a.props, (a, p) -> a.props = p.props)
+            .documentation("Decorations drawn at this placement's spot while it stands, such as a table beside "
+                    + "a cook: one still item per entry, which a swing or an arrow passes through and nobody can "
+                    + "sit on, pick up or press F on. They go whenever the placement does (its season ending, its "
+                    + "Requires failing, an owner switching it off). With Props, Identity.Role is optional: a "
+                    + "placement naming no role draws only its props. Authoring this replaces the parent's whole "
+                    + "list rather than adding to it.")
             .add(),
                     (a, v) -> a.season = v, a -> a.season)
             .build();
@@ -184,6 +203,17 @@ public final class NpcPlacementAsset
         a.limits = limits;
         a.lifecycle = lifecycle;
         a.interact = interact;
+        return a;
+    }
+
+    /** As the nine-group {@code of}, with the decorations it draws (none authored when {@code props} is empty). */
+    @Nonnull
+    public static NpcPlacementAsset of(@Nonnull String id, @Nullable Boolean enabled, @Nullable Identity identity,
+            @Nullable WorldSelector where, @Nullable Anchor anchor, @Nullable Requires requires,
+            @Nullable Limits limits, @Nullable Lifecycle lifecycle, @Nullable Interact interact,
+            @Nullable Prop... props) {
+        NpcPlacementAsset a = of(id, enabled, identity, where, anchor, requires, limits, lifecycle, interact);
+        a.props = props == null ? null : props.clone();
         return a;
     }
 
@@ -236,6 +266,24 @@ public final class NpcPlacementAsset
     @Nullable
     public Interact getInteract() {
         return interact;
+    }
+
+    /**
+     * The decorations this placement draws, in authored order (an entry's place in the list is its
+     * identity): empty when it authors none, never null. An entry may be null where the file wrote one.
+     */
+    @Nonnull
+    public List<Prop> getProps() {
+        return props == null || props.length == 0 ? List.of()
+                : Collections.unmodifiableList(Arrays.asList(props.clone()));
+    }
+
+    /**
+     * True when at least one prop entry is authored. That is what makes {@code Identity.Role}
+     * optional: a placement with props and no role draws only its props.
+     */
+    public boolean hasProps() {
+        return props != null && props.length > 0;
     }
 
     // ==================== Identity ====================
@@ -1071,6 +1119,116 @@ public final class NpcPlacementAsset
         /** True when both spellings are authored, which is one press-F described twice. */
         public boolean hasBothForms() {
             return open != null && dialogue != null && !dialogue.isBlank();
+        }
+    }
+
+    // ==================== Props ====================
+
+    /**
+     * One decoration drawn at the placement's spot: an item (a block item draws its own block model),
+     * shifted by a world-space {@code Offset}, turned to its own {@code Yaw}, at a {@code Scale}.
+     *
+     * <p><b>The spot.</b> {@code Offset} is from the placement's own resolved position (its anchor plus
+     * the anchor group's own {@code Offset}), in WORLD axes: the anchor's {@code Yaw} turns the NPC, never
+     * its props' offsets, so a prop authored 1.5 blocks along Z stays there whichever way the NPC faces.
+     *
+     * <p><b>Decorative only.</b> The runtime draws it as the library's item prop
+     * ({@code entity/ItemPropEntityService}), intangible, unpickable and with no interaction, and never
+     * saves it: it is drawn again whenever its chunk section ticks, so a placement that stops standing
+     * leaves nothing behind.
+     *
+     * <p><b>The item stays a plain string.</b> {@code EditorSchema.assetRef} gives the editor its item
+     * picker and nothing is checked at decode: an id this server does not have skips that entry at
+     * runtime and is the validator's {@code UNKNOWN_PROP_ITEM} warning, never a refused file.
+     */
+    public static final class Prop {
+
+        @Nullable protected String item;
+        @Nullable protected Vec3 offset;
+        @Nullable protected Double yaw;
+        @Nullable protected Double scale;
+
+        /** The size a prop is drawn at when it names none: the item's own. */
+        public static final double DEFAULT_SCALE = 1.0;
+
+        public static final BuilderCodec<Prop> CODEC = BuilderCodec.builder(Prop.class, Prop::new)
+                .appendInherited(new KeyedCodec<>("Item", Codec.STRING, false),
+                        (o, v) -> o.item = v, o -> o.item, (o, p) -> o.item = p.item)
+                .metadata(EditorSchema.assetRef(Item.class))
+                .documentation("The item to draw, by its id, matched case for case. A block item (furniture, a "
+                        + "lantern, a crate) draws its own block model. An id this server does not have is "
+                        + "skipped, and the rest of the props still draw.").add()
+                .appendInherited(new KeyedCodec<>("Offset", Vec3.CODEC, false),
+                        (o, v) -> o.offset = v, o -> o.offset, (o, p) -> o.offset = p.offset)
+                .documentation("Shift from the placement's own spot (its anchor plus the anchor's Offset), in "
+                        + "blocks, along the world's own axes: the anchor's Yaw does not turn it. Unauthored axes "
+                        + "are 0.").add()
+                .appendInherited(new KeyedCodec<>("Yaw", Codec.DOUBLE, false),
+                        (o, v) -> o.yaw = v, o -> o.yaw, (o, p) -> o.yaw = p.yaw)
+                .metadata(EditorSchema.defaultValue(0.0))
+                .documentation("The prop's own facing in degrees, like the anchor's Yaw; unauthored means 0.").add()
+                .appendInherited(new KeyedCodec<>("Scale", Codec.DOUBLE, false),
+                        (o, v) -> o.scale = v, o -> o.scale, (o, p) -> o.scale = p.scale)
+                .metadata(EditorSchema.defaultValue(DEFAULT_SCALE))
+                .documentation("How large to draw it: 1 is the item's own size, so a block item is one block "
+                        + "wide. Unauthored, or 0 and below, means 1.").add()
+                .build();
+
+        public Prop() {
+        }
+
+        /** Java-side construction (tests, a consumer building a placement in code). */
+        @Nonnull
+        public static Prop of(@Nullable String item, @Nullable Vec3 offset, @Nullable Double yaw,
+                @Nullable Double scale) {
+            Prop p = new Prop();
+            p.item = item;
+            p.offset = offset;
+            p.yaw = yaw;
+            p.scale = scale;
+            return p;
+        }
+
+        /** The authored item id, as written. */
+        @Nullable
+        public String getItem() {
+            return item;
+        }
+
+        /** The item id trimmed, or null when none is authored, so the entry draws nothing. */
+        @Nullable
+        public String itemId() {
+            if (item == null) {
+                return null;
+            }
+            String trimmed = item.trim();
+            return trimmed.isEmpty() ? null : trimmed;
+        }
+
+        /** The authored world-space offset from the placement's spot, or null for none. */
+        @Nullable
+        public Vec3 getOffset() {
+            return offset;
+        }
+
+        @Nullable
+        public Double getYaw() {
+            return yaw;
+        }
+
+        @Nullable
+        public Double getScale() {
+            return scale;
+        }
+
+        /** {@code Yaw} in degrees, reader-defaulted to 0. */
+        public double effectiveYaw() {
+            return yaw != null ? yaw : 0.0;
+        }
+
+        /** {@code Scale}, reader-defaulted to {@link #DEFAULT_SCALE}; a value at or below 0 would draw nothing. */
+        public double effectiveScale() {
+            return scale != null && scale > 0 ? scale : DEFAULT_SCALE;
         }
     }
 

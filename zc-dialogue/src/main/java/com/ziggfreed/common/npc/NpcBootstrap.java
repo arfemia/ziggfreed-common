@@ -20,6 +20,7 @@ import com.ziggfreed.common.npc.placement.asset.NpcPlacementOverrides;
 import com.ziggfreed.common.npc.placement.runtime.NpcPlacementReconciler;
 import com.ziggfreed.common.npc.placement.runtime.PlacedNpcComponent;
 import com.ziggfreed.common.npc.placement.runtime.PlacementFortifySystem;
+import com.ziggfreed.common.npc.placement.runtime.PropSectionWatch;
 import com.ziggfreed.common.npc.placement.anchor.PlacementMarkerSystem;
 import com.ziggfreed.common.npc.placement.interact.PlacementNpcActions;
 import com.ziggfreed.common.npc.placement.command.ZigNpcCommand;
@@ -74,6 +75,14 @@ public final class NpcBootstrap {
             // module's to read; zc-core holds only the seam.
             Portraits.roleArt(NpcPlacementAuthoring::roleIcon);
             plugin.getEntityStoreRegistry().registerSystem(new PlacementMarkerSystem());
+            // A placement's props are drawn, never saved, so a section going to sleep drops them: its
+            // loading or waking again sweeps the world, which draws them back.
+            try {
+                PropSectionWatch.register(plugin.getChunkStoreRegistry());
+            } catch (Throwable t) {
+                SafeLog.warn("[placement] could not register the props' section watch: a placement's props come"
+                        + " back only at the world's next sweep once their section has slept", t);
+            }
             NpcPlacementOverrides.getInstance().load();
             plugin.getCommandRegistry().registerCommand(new ZigNpcCommand());
             NpcPlacementLedger.getInstance().load();
