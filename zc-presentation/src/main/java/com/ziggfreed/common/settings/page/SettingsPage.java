@@ -82,9 +82,11 @@ public final class SettingsPage extends ToastablePage<SettingsEventData> {
         ZigMenu.appendThemed(cmd, PAGE_TEMPLATE, MenuFrame.RAIL);
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton", EventData.of("Action", "close"));
         Player player = store.getComponent(ref, Player.getComponentType());
+        // The page's own title first: the document declares the title row's branding hosts, so the paint below is
+        // told so (titleRow true), and a consumer's right-mode server name written onto #PanelTitle wins over it.
+        cmd.set("#PanelTitle.TextSpans", SettingsText.line("title"));
         // The shared menu's rail, the Settings tab selected; painted before anything that could return early.
-        rail = ZigMenu.paint(cmd, events, store, ref, player, MenuSlot.SETTINGS.id(), false);
-        cmd.set("#SettingsTitle.TextSpans", SettingsText.line("title"));
+        rail = ZigMenu.paint(cmd, events, store, ref, player, MenuSlot.SETTINGS.id(), true);
         cmd.set("#SettingsDescription.TextSpans", SettingsText.line("description"));
 
         drawn.clear();

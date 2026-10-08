@@ -68,6 +68,7 @@ class ZigTokensDocumentTest {
         }
         expected.put("ZigRowHeight", 56);
         expected.put("ZigCompactRowHeight", 44);
+        expected.put("ZigTallRowHeight", 74);
         expected.put("ZigSectionHeadHeight", 32);
         expected.put("ZigLineHeight", 32);
         expected.put("ZigControlHeight", 32);

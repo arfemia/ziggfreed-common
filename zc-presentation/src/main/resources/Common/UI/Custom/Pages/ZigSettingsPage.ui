@@ -6,6 +6,13 @@ $K = "../Common/ZigCards.ui";
 // server, one headed card per section, inside the shared menu frame (the frame's rail comes first, the
 // Settings tab selected). The frame owns the size, the padding and the close button.
 //
+// #TitleContainer is the title row and a right-mode branding host: the page writes its own title on
+// #PanelTitle, then a consumer's branding painter (told the page has the title row) may show the owner's
+// logo in #BrandingLogo (ONE scaled AssetImage in the logo's 260:97 shape, hidden, a blank fallback),
+// write the server name over #PanelTitle, and show its description in #BrandingDescriptionRight, which
+// wraps under the row. A command against an id this document lacks disconnects the player, so each of
+// those four is declared here once.
+//
 // #Sections is the appendable list and MUST stay childless here: each section is
 // Pages/ZigSettingsSection.ui appended by index ("#Sections[2]"), its rows the shared
 // Pages/ZigForm*Row.ui templates appended into its #Rows, its tiles Pages/ZigSettingsTile.ui appended
@@ -20,10 +27,28 @@ $F.@ZigMenuFrame {
       LayoutMode: Top;
       Padding: (Left: 12);
 
-      Label #SettingsTitle {
+      Group #TitleContainer {
+        LayoutMode: Left;
+        Anchor: (Height: 50, Bottom: 2);
+
+        AssetImage #BrandingLogo {
+          Anchor: (Width: 134, Height: 50, Right: 12);
+          Visible: false;
+          FallbackTexturePath: "UI/Custom/Common/Glyphs/Blank.png";
+        }
+
+        Label #PanelTitle {
+          Text: "";
+          FlexWeight: 1;
+          Style: $K.@ZigPageTitleStyle;
+        }
+      }
+
+      Label #BrandingDescriptionRight {
         Text: "";
-        Anchor: (Height: 28, Bottom: 2);
-        Style: $K.@ZigPageTitleStyle;
+        Visible: false;
+        Anchor: (Bottom: 4);
+        Style: $K.@ZigPageDescriptionStyle;
       }
 
       Label #SettingsDescription {

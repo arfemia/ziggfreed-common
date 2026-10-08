@@ -1,5 +1,6 @@
 package com.ziggfreed.common.settings.page;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -47,6 +48,27 @@ class SettingsPageSourceTest {
             assertTrue(body.contains("answer();"), name + " answers a click its plan cannot resolve");
         }
         assertTrue(page.contains("renderToastInto(cmd);"), "the toast host is appended on every build");
+    }
+
+    /**
+     * The Settings tab declares the title row's branding hosts (M356), so it tells the painter so: the paint passes
+     * {@code titleRow} true. The page writes its own title onto {@code #PanelTitle} BEFORE the paint, so a
+     * right-mode server name the painter writes there wins (the last write is what the client shows), and it never
+     * addresses the retired {@code #SettingsTitle}, which the document no longer declares.
+     */
+    @Test
+    void theTitleIsWrittenBeforeTheRailSoARightModeServerNameWins() throws IOException {
+        String page = source("SettingsPage.java");
+        int build = page.indexOf("public void build(");
+        assertTrue(build > 0, "the page has a build");
+        int title = page.indexOf("cmd.set(\"#PanelTitle.TextSpans\"", build);
+        int paint = page.indexOf("ZigMenu.paint(", build);
+        assertTrue(title > 0, "the page writes its title onto #PanelTitle");
+        assertTrue(paint > 0 && title < paint, "its own title first, then the painter's branding over it");
+        String call = page.substring(paint, page.indexOf(';', paint)).replaceAll("\\s+", " ");
+        assertTrue(call.endsWith(", true)"), "the paint is told the page has the title row: " + call);
+        assertFalse(page.contains("#SettingsTitle"), "the retired id would disconnect the player");
+        assertTrue(page.contains("cmd.set(\"#SettingsDescription.TextSpans\""), "the page's own description stays");
     }
 
     @Test

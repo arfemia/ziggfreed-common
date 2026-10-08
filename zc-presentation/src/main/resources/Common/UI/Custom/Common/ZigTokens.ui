@@ -60,6 +60,7 @@
 // Heights.
 @ZigRowHeight = 56;
 @ZigCompactRowHeight = 44;
+@ZigTallRowHeight = 74;
 @ZigSectionHeadHeight = 32;
 @ZigLineHeight = 32;
 @ZigControlHeight = 32;

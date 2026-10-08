@@ -7,9 +7,13 @@ $ZW = "../Common/ZigKit.ui";
 // frame: the frame's rail on the left (ui/menu/ZigMenu paints it, with the book's Quests or Achievements tab
 // selected), then one column of the book's own.
 //
-// #Header is the band every tab shares: the page title in #TitleContainer (a consumer's white-label branding
-// writes #TitleContainer, #PanelTitle and #BrandingDescriptionRight), a one-sentence #PageSubtitle, and three
-// stat blocks the active tab fills. #TabBody is empty here: the active tab appends its own document into it
+// #Header is the band every tab shares: the owner's logo first (#BrandingLogo, ONE scaled AssetImage in the
+// logo's 260:97 shape at the band's height, hidden, a blank fallback), then the page title in #TitleContainer, a
+// one-sentence #PageSubtitle, and three stat blocks the active tab fills. A consumer's right-mode branding writes
+// #BrandingLogo (its AssetPath, then shows it), #PanelTitle (the server name) and #BrandingDescriptionRight (the
+// description, shown); the page writes its own title first, so the branding wins. #BrandingDescriptionRight keeps
+// its fixed 17px line here, since the band's height is fixed: a description longer than one line is cut off in the
+// book, where the Settings tab lets it wrap. #TabBody is empty here: the active tab appends its own document into it
 // (Pages/ZigBookJournal.ui or Pages/ZigBookAchievements.ui). #BookEmpty shows across the body instead when there
 // is no progress to show.
 //
@@ -28,6 +32,12 @@ $F.@ZigMenuFrame {
       Group #Header {
         LayoutMode: Left;
         Anchor: (Height: 60, Bottom: 12);
+
+        AssetImage #BrandingLogo {
+          Anchor: (Width: 161, Height: 60, Right: 12);
+          Visible: false;
+          FallbackTexturePath: "UI/Custom/Common/Glyphs/Blank.png";
+        }
 
         Group #TitleBlock {
           FlexWeight: 1;

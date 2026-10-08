@@ -366,8 +366,9 @@ public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData>
             EmptyStatePainter.paint(cmd, events, "#AlmanacEmpty", plan.empty(), null);
             return;
         }
+        // The tall row: a season's meta ("On now - 27 days left") runs onto a second line in the narrow column.
         LedgerPainter.paint(cmd, events, "#SeasonList", plan.seasons(), Set.of(), plan.selected(), SEASON_ROWS,
-                RowSize.STANDARD, viewer);
+                RowSize.TALL, viewer);
         paintGlance(cmd, events, plan.months());
         paintRecord(cmd, plan.record());
         paintHero(cmd, body.hero());

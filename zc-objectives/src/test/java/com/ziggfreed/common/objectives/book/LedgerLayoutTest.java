@@ -1,6 +1,7 @@
 package com.ziggfreed.common.objectives.book;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -71,13 +72,50 @@ class LedgerLayoutTest {
         assertTrue(own(block(ui, "Group #StatGap0")).contains("Anchor: (Width: " + LedgerLayout.STAT_GAP + ")"));
     }
 
+    /**
+     * The header band leads with the owner's logo as ONE scaled picture, never a branding block (M362, M370): an
+     * {@code AssetImage #BrandingLogo}, the band's first child, before {@code #TitleBlock}; hidden, with a blank
+     * fallback, since a consumer's right-mode painter sets its {@code .AssetPath} and shows it; the logo's 260:97
+     * shape at the band's height, with a gap before the title. The title block keeps its three ids.
+     */
+    @Test
+    void theHeaderLeadsWithTheOwnersLogo() throws IOException {
+        String header = block(code(SHELL), "Group #Header");
+        int logo = header.indexOf("AssetImage #BrandingLogo {");
+        int titleBlock = header.indexOf("Group #TitleBlock {");
+        assertTrue(logo > 0 && logo < titleBlock, "the logo comes before the title block");
+        assertFalse(header.substring(1, logo).contains("{"), "the logo is the band's first child");
+
+        String image = own(block(header, "AssetImage #BrandingLogo"));
+        assertTrue(image.contains("Visible: false"), "the logo ships hidden until a painter shows it");
+        assertTrue(image.contains("FallbackTexturePath: \"UI/Custom/Common/Glyphs/Blank.png\""),
+                "an owner with no logo draws nothing, not a red X");
+        Matcher anchor = Pattern.compile("Anchor:\\s*\\(([^)]*)\\)").matcher(image);
+        assertTrue(anchor.find(), "the logo has an Anchor");
+        assertEquals(LedgerLayout.HEADER_HEIGHT, leaf(anchor.group(1), "Height"), "the logo fills the band's height");
+        assertEquals(Math.round(LedgerLayout.HEADER_HEIGHT * 260 / 97.0), leaf(anchor.group(1), "Width"),
+                "the logo keeps its 260:97 shape at that height");
+        assertTrue(leaf(anchor.group(1), "Right") > 0, "a gap between the logo and the title");
+
+        String title = block(header, "Group #TitleBlock");
+        for (String id : List.of("Group #TitleContainer {", "Label #PanelTitle {", "Label #PageSubtitle {",
+                "Label #BrandingDescriptionRight {")) {
+            assertTrue(title.contains(id), "the title block keeps " + id);
+        }
+        assertFalse(title.contains("#BrandingLogo"), "one logo, in the band, not a second in the title row");
+    }
+
     @Test
     void everyIdTheShellAndThePlaceholderTabsAddressIsDeclared() throws IOException {
         String shell = code(SHELL);
-        for (String id : List.of("Label #PanelTitle", "Group #TitleContainer", "Label #BrandingDescriptionRight",
-                "Label " + BookHeader.SUBTITLE, "Group " + BookContext.TAB_BODY,
+        for (String id : List.of("AssetImage #BrandingLogo", "Label #PanelTitle", "Group #TitleContainer",
+                "Label #BrandingDescriptionRight", "Label " + BookHeader.SUBTITLE, "Group " + BookContext.TAB_BODY,
                 "$ZW.@ZigEmptyState " + ObjectiveBookPage.NO_PROGRESS)) {
             assertTrue(shell.contains(id + " {"), "the shell declares " + id);
+        }
+        for (String host : List.of("#BrandingLogo", "#TitleContainer", "#PanelTitle", "#BrandingDescriptionRight")) {
+            assertEquals(1, Pattern.compile("\\S+\\s+" + Pattern.quote(host) + "\\s*\\{").matcher(shell).results().count(),
+                    "the header declares the branding host " + host + " exactly once");
         }
         for (int i = 0; i < LedgerLayout.STATS; i++) {
             assertTrue(shell.contains("$ZW.@ZigStat " + BookHeader.statSelector(i) + " {"));
@@ -92,6 +130,13 @@ class LedgerLayoutTest {
             assertTrue(ui.contains("Anchor: (Height: " + LedgerLayout.BODY_HEIGHT + ");"),
                     tab + " fills the tab body");
         }
+    }
+
+    /** An integer leaf of an object value's contents ({@code Width: 4, Right: 8}); fails when it is not there. */
+    private static long leaf(@Nonnull String object, @Nonnull String name) {
+        Matcher m = Pattern.compile("(?<![\\w@])" + Pattern.quote(name) + "\\s*:\\s*(-?\\d+)").matcher(object);
+        assertTrue(m.find(), "(" + object + ") says " + name);
+        return Long.parseLong(m.group(1));
     }
 
     /** A document with every {@code //} comment removed. */

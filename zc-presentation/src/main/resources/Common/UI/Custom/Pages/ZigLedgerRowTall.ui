@@ -1,0 +1,104 @@
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
+$ZW = "../Common/ZigKit.ui";
+
+// The kit's tall row (a list whose meta line runs long: the Almanac's seasons, "On now - 27 days left"), 74 high:
+// Pages/ZigLedgerRow.ui with its #Meta let onto a second line, the row grown by exactly that line. Appended by
+// com.ziggfreed.common.ui.kit.LedgerPainter and addressed by index as "#Rows[i] #Select", like the standard row;
+// a painter treats the two alike, so every id here matches that row's. The kit's named meta styles are one line,
+// so the painter recolours this #Meta by its colour leaf alone (RowSize.metaWraps) and never swaps its style.
+//   #Accent   a 4px bar in the row's tone
+//   #Pic      the 32px picture slot, painted through IconRenderer.applyPlainIcon
+//   #Title    the name, one line, ended with "..."; #Mark beside it shows #Pinned or #Tracked
+//   #Meta     up to two lines under the title, the second ended with "..."
+//   #BarTrack a 4px progress bar under the meta, hidden without progress
+//   #Trail    92 wide at the end: #Value over #State
+// No other button and no tooltip in a row: a label with a tooltip would swallow the row's click.
+
+Group #ZigLedgerRowTall {
+  LayoutMode: Left;
+  Anchor: (Height: $ZK.@ZigTallRowHeight, Bottom: $ZK.@ZigSpace1);
+
+  Button #Select {
+    FlexWeight: 1;
+    LayoutMode: Left;
+    Padding: (Right: $ZK.@ZigSpace3);
+    Style: $ZS.@ZigRowStyle;
+
+    Group #Accent {
+      Anchor: (Width: 4, Right: 10);
+      Background: (Color: $ZK.@ZigToneBlockedFill);
+    }
+
+    $ZW.@ZigPicture #Pic {
+      @Size = $ZK.@ZigPicRow;
+      @Anchor = (Top: 12, Right: 10);
+    }
+
+    Group #Body {
+      FlexWeight: 1;
+      LayoutMode: Top;
+      Padding: (Top: 7);
+
+      Group #TitleLine {
+        LayoutMode: Left;
+        Anchor: (Height: 22);
+
+        Label #Title {
+          FlexWeight: 1;
+          Text: "";
+          Style: $ZX.@ZigRowTitleStyle;
+        }
+
+        Group #Mark {
+          Anchor: (Width: 16, Height: 16, Top: 3, Left: 6);
+          LayoutMode: Full;
+          Visible: false;
+
+          Group #Pinned {
+            Anchor: (Full: 0);
+            Background: (TexturePath: "../Common/Glyphs/PinFilled.png", Color: $ZK.@ZigAccent);
+            Visible: false;
+          }
+
+          Group #Tracked {
+            Anchor: (Full: 0);
+            Background: (TexturePath: "../Common/Glyphs/Pin.png", Color: $ZK.@ZigInkSection);
+            Visible: false;
+          }
+        }
+      }
+
+      Label #Meta {
+        Anchor: (Height: 36);
+        Text: "";
+        Style: (...$ZX.@ZigCaptionStyle, VerticalAlignment: Start, Wrap: true, WrapMaxLines: 2);
+      }
+
+      $ZW.@ZigProgressBar #BarTrack {
+        @Height = 4;
+        @Anchor = (Top: 2, Right: 8);
+        Visible: false;
+      }
+    }
+
+    Group #Trail {
+      Anchor: (Width: 92, Left: $ZK.@ZigSpace2);
+      LayoutMode: Top;
+      Padding: (Top: 9);
+
+      Label #Value {
+        Anchor: (Height: 19);
+        Text: "";
+        Style: $ZX.@ZigCountStyle;
+      }
+
+      Label #State {
+        Anchor: (Height: 19);
+        Text: "";
+        Style: $ZS.@ZigStateStyle;
+      }
+    }
+  }
+}

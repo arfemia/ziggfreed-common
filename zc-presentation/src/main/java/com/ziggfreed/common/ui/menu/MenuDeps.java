@@ -31,9 +31,12 @@ public final class MenuDeps {
 
     /**
      * Paints branding into the rail's hosts ({@code #BrandingContainerLeft}, {@code #BrandingServerName},
-     * {@code #BrandingDescription}). {@code titleRow} is true when the page also declares the header
-     * row's hosts ({@code #TitleContainer}, {@code #PanelTitle}, {@code #BrandingDescriptionRight}); a
-     * painter writes those only then, since a selector the page lacks disconnects the player.
+     * {@code #BrandingDescription}; the name and description wrap). {@code titleRow} is true when the page
+     * also declares the header row's four hosts: {@code #TitleContainer}, {@code #BrandingLogo} (an
+     * {@code AssetImage} in the logo's 260:97 shape, hidden with a blank fallback, for the painter to give an
+     * {@code .AssetPath} and show), {@code #PanelTitle} (the page writes its own title there first, so a
+     * server name written over it wins) and {@code #BrandingDescriptionRight} (hidden). A painter writes those
+     * only then, since a selector the page lacks disconnects the player.
      */
     @FunctionalInterface
     public interface BrandingPainter {

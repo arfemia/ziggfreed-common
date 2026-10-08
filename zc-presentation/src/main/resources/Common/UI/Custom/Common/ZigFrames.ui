@@ -90,18 +90,20 @@ $ZT = "ZigType.ui";
         Visible: false;
       }
 
+      // The branding name and description wrap rather than clip: no fixed height, so each sizes itself to its
+      // lines in the rail's Top stack (vanilla PrefabEditorExitConfirm.ui), a bottom margin before what follows.
       Label #BrandingServerName {
         Text: "";
         Visible: false;
-        Anchor: (Height: 20, Bottom: 2);
-        Style: (...@ZigBodyLabelStyle, TextColor: #ffffff, RenderBold: true);
+        Anchor: (Bottom: 2);
+        Style: (...@ZigBodyLabelStyle, TextColor: #ffffff, RenderBold: true, Wrap: true);
       }
 
       Label #BrandingDescription {
         Text: "";
         Visible: false;
-        Anchor: (Height: 18, Bottom: 8);
-        Style: @ZigCaptionLabelStyle;
+        Anchor: (Bottom: 8);
+        Style: (...@ZigCaptionLabelStyle, Wrap: true);
       }
 
       Group #MenuList {
