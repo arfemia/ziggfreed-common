@@ -39,6 +39,14 @@ public abstract class AbstractKeyedAssetConfig<T> {
     private final Map<String, T> pack = new ConcurrentHashMap<>();
     private final Map<String, T> owner = new ConcurrentHashMap<>();
 
+    /** The registrar's name for this store, as the last gated pack fold carried it; null before one. */
+    @Nullable
+    private volatile String modGateStore;
+
+    /** What the last pack fold's mod gate refused: lower-cased id to the missing mod. */
+    @Nonnull
+    private volatile Map<String, String> modGateRefused = Map.of();
+
     protected AbstractKeyedAssetConfig() {
     }
 
@@ -48,10 +56,42 @@ public abstract class AbstractKeyedAssetConfig<T> {
         defaults.putAll(lower(jarDefaults));
     }
 
-    /** Rebuild the pack layer from a load event's decoded entries (idempotent on re-import). */
+    /**
+     * Rebuild the pack layer from a load event's decoded entries (idempotent on re-import). A layer
+     * handed in this way refused nothing, so no owner override follows an earlier fold's refusal.
+     */
     public synchronized void mergePackLayer(@Nonnull Map<String, T> layer) {
         pack.clear();
         pack.putAll(lower(layer));
+        modGateRefused = Map.of();
+    }
+
+    /**
+     * Rebuild the pack layer from a gated store's fold ({@link AssetMergeAdapter#gate}) and remember
+     * what its mod gate refused, so the owner layer read after it drops an override of a refused file
+     * along with that file ({@link OwnerLayerReader}). The subclass's own {@link #mergePackLayer(Map)}
+     * still runs, derived views and all.
+     */
+    public synchronized void mergePackLayer(@Nonnull ModGateFold<T> fold) {
+        mergePackLayer(fold.layer());
+        modGateStore = fold.store();
+        modGateRefused = fold.refused();
+    }
+
+    /** What the last pack fold's mod gate refused, lower-cased id to the missing mod; empty when nothing. */
+    @Nonnull
+    public Map<String, String> modGateRefused() {
+        return modGateRefused;
+    }
+
+    /**
+     * The registrar's name for this store, which its drop lines carry: the last gated fold's, or the
+     * config's own class name before any gated fold has run.
+     */
+    @Nonnull
+    public String modGateStore() {
+        String store = modGateStore;
+        return store == null ? getClass().getSimpleName() : store;
     }
 
     /** Rebuild the owner-override layer (a {@code mods/<mod>/<type>.json} file, same CODEC). */

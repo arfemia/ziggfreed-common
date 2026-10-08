@@ -63,6 +63,15 @@ public final class PresenceRequiresCodec {
 
     /** Does a file carrying {@code requires} load on this server? True when it authors no block. */
     public static boolean passesModGate(@Nullable Block requires) {
-        return requires == null || ModGates.keep(requires.factorsOrEmpty());
+        return missingMod(requires) == null;
+    }
+
+    /**
+     * The mod ({@code Group:Name}) that keeps a file carrying {@code requires} off this server, or null
+     * when it loads here: the read a gated store's load handler and owner file pass on.
+     */
+    @Nullable
+    public static String missingMod(@Nullable Block requires) {
+        return requires == null ? null : ModGates.missingMod(requires.factorsOrEmpty());
     }
 }

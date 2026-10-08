@@ -14,6 +14,8 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.ziggfreed.common.asset.ModGateFold;
+import com.ziggfreed.common.factor.ModGates;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.asset.QuestGeneratorExpander.Expansion;
 import com.ziggfreed.common.season.SeasonGate;
@@ -88,11 +90,17 @@ public final class QuestAssetStore {
     /** What the last {@link #mergeContributed} noticed about that layer, replayed by every fold. */
     private final List<Finding> contributedFindings = new ArrayList<>();
     /**
-     * Quest ids the mod gate refused at load (zc-core {@code ModGates}, through the registrar): a
-     * generator naming one as its {@code Base} writes nothing and reports nothing, since the whole
-     * family belongs to a mod this server does not run.
+     * Quest ids the mod gate refused at load (zc-core {@code ModGates}, through the registrar), each to
+     * the missing mod that refused it (null when the caller named none): a generator naming one as its
+     * {@code Base} writes nothing and reports nothing, since the whole family belongs to a mod this
+     * server does not run, and an owner file over one goes with it ({@link QuestOwnerLayers}).
      */
-    private final Set<String> gatedOut = ConcurrentHashMap.newKeySet();
+    @Nonnull
+    private volatile Map<String, String> gatedOut = Map.of();
+
+    /** The registrar's name for this store, as the load handler's fold carried it, for the drop lines. */
+    @Nonnull
+    private volatile String gateStore = QuestAssetStore.class.getSimpleName();
 
     private QuestAssetStore() {
     }
@@ -105,7 +113,8 @@ public final class QuestAssetStore {
     /**
      * Rebuild the quest layer from a load event's decoded assets, remembering the ids the mod gate left
      * out of it ({@code AssetMergeAdapter.refused}), so a family over one of them stays silent.
-     * Idempotent on re-import.
+     * Idempotent on re-import. This form names no missing mod; the load handler's fold
+     * ({@link #mergeQuests(ModGateFold)}) does.
      *
      * <p>Each quest is filed under its OWN id rather than the key the event carries, because a
      * {@code _}-marked folder folds into that id ({@code asset/NestedAssetId}) and the event key is
@@ -113,14 +122,33 @@ public final class QuestAssetStore {
      * letting the later one win, since the loser simply never appears.
      */
     public synchronized void mergeQuests(@Nonnull Map<String, QuestAsset> layer, @Nonnull Set<String> refusedIds) {
+        Map<String, String> refused = new LinkedHashMap<>();
+        for (String id : refusedIds) {
+            refused.put(id, null);
+        }
+        rebuild(layer, refused);
+    }
+
+    /**
+     * Rebuild the quest layer from the load handler's gated fold ({@code AssetMergeAdapter.gate}): its
+     * layer, and each refused id with the mod that refused it, so a family over one stays silent and an
+     * owner file over one goes with it, counted in the store's drop line. Idempotent on re-import.
+     */
+    public synchronized void mergeQuests(@Nonnull ModGateFold<QuestAsset> fold) {
+        gateStore = fold.store();
+        rebuild(fold.layer(), fold.refused());
+    }
+
+    private void rebuild(@Nonnull Map<String, QuestAsset> layer, @Nonnull Map<String, String> refused) {
         quests.clear();
         layerFindings.clear();
-        gatedOut.clear();
-        for (String refused : refusedIds) {
-            if (refused != null && !refused.isBlank()) {
-                gatedOut.add(refused.trim().toLowerCase(Locale.ROOT));
+        Map<String, String> out = new LinkedHashMap<>();
+        for (Map.Entry<String, String> e : refused.entrySet()) {
+            if (e.getKey() != null && !e.getKey().isBlank()) {
+                out.put(e.getKey().trim().toLowerCase(Locale.ROOT), e.getValue());
             }
         }
+        gatedOut = Collections.unmodifiableMap(out);
         file(layer, quests, layerFindings, "files");
     }
 
@@ -201,6 +229,7 @@ public final class QuestAssetStore {
      * them, and the owner folder over both, read from disk right now. Every finding the layers
      * carry and every finding the folder read produced goes onto {@code issues}. Generators expand
      * against exactly this, so what they inherit from and what beats them is what a reader sees.
+     * The owner folder follows the mod gate; what it drops is one counted line per missing mod.
      */
     @Nonnull
     private synchronized Map<String, QuestAsset> compose(@Nonnull List<Finding> issues) {
@@ -209,7 +238,9 @@ public final class QuestAssetStore {
         Map<String, QuestAsset> below = new LinkedHashMap<>(quests);
         below.putAll(contributed);
         Map<String, QuestAsset> out = new LinkedHashMap<>(below);
-        out.putAll(QuestOwnerLayers.read(below, issues));
+        List<String> dropped = new ArrayList<>();
+        out.putAll(QuestOwnerLayers.read(below, gatedOut, dropped, issues));
+        ModGates.reportOwnerOverrides(gateStore, dropped);
         return out;
     }
 
@@ -296,7 +327,7 @@ public final class QuestAssetStore {
             issues.addAll(expansion.issues());
             for (GeneratedQuestBody body : expansion.bodies()) {
                 QuestAsset base = authored.get(body.baseId());
-                if (base == null && gatedOut.contains(body.baseId())) {
+                if (base == null && gatedOut.containsKey(body.baseId())) {
                     continue; // the base belongs to a mod this server lacks, so the family is absent on purpose
                 }
                 if (base == null) {

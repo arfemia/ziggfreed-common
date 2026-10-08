@@ -101,7 +101,17 @@ public final class GateSpec extends GateClause {
      * fold and the gate. The keep filter a quest, achievement or commerce store's load handler passes.
      */
     public static boolean passesModGate(@Nullable GateSpec requires) {
-        return requires == null || ModGates.keep(requires.factorsOrEmpty());
+        return missingMod(requires) == null;
+    }
+
+    /**
+     * The mod ({@code Group:Name}) that keeps a file whose top-level block is {@code requires} off this
+     * server, or null when it loads here (zc-core {@code ModGates.missingMod}): the read a gated store's
+     * load handler and owner layer pass on, so a drop line can name the mod.
+     */
+    @Nullable
+    public static String missingMod(@Nullable GateSpec requires) {
+        return requires == null ? null : ModGates.missingMod(requires.factorsOrEmpty());
     }
 
     @Nullable

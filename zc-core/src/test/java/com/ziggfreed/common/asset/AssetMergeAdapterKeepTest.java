@@ -5,9 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 import javax.annotation.Nullable;
@@ -28,8 +31,10 @@ import com.ziggfreed.common.factor.ModGates;
 /**
  * The keep-filter fold: a file the filter refuses never enters the layer, every other one does under its
  * lower-cased id, the mapper form drops the same files, and {@code refused} names exactly the ones left
- * out. Driven through the engine's own map, with its pack-loading door opened for the test, and a
- * stand-in asset carrying {@link PresenceRequiresCodec}'s block.
+ * out. The reporting fold a load handler runs ({@code gate}) leaves out the same files, names the mod
+ * that refused each, and logs one counted line per missing mod. Driven through the engine's own map,
+ * with its pack-loading door opened for the test, and a stand-in asset carrying
+ * {@link PresenceRequiresCodec}'s block.
  */
 class AssetMergeAdapterKeepTest {
 
@@ -56,7 +61,7 @@ class AssetMergeAdapterKeepTest {
     }
 
     /** The engine map with its pack-loading door opened for a test. */
-    private static final class PackMap extends DefaultAssetMap<String, Probe> {
+    static final class PackMap extends DefaultAssetMap<String, Probe> {
 
         PackMap load(String id, String json) throws IOException {
             Probe asset = Probe.CODEC.decodeAndInheritJsonAsset(RawJsonReader.fromJsonString(json), null,
@@ -69,20 +74,30 @@ class AssetMergeAdapterKeepTest {
 
     private static final Predicate<Probe> LOADS_HERE = p -> PresenceRequiresCodec.passesModGate(p.requires);
 
+    /** The same read in the reporting form a load handler passes to {@code gate}. */
+    static final Function<Probe, String> MISSING_MOD = p -> PresenceRequiresCodec.missingMod(p.requires);
+
+    /** A body gated on the MMO, in the shape every store writes. */
+    static final String GATED = "{ \"Requires\": { \"Factors\": [ { \"Factor\": \"hytale:mod_installed\","
+            + " \"Param\": \"" + MMO + "\", \"Min\": 1 } ] } }";
+
     private PackMap map;
+
+    private final List<String> lines = new ArrayList<>();
 
     @BeforeEach
     void twoFilesOneGated() throws IOException {
         ModGates.useProbeForTests(param -> param != null && MMO.equals(param.trim()) ? 0.0 : 1.0);
+        ModGates.reportIntoForTests(lines::add);
         map = new PackMap()
-                .load("Mmo_Skill_Job", "{ \"Requires\": { \"Factors\": [ { \"Factor\": \"hytale:mod_installed\","
-                        + " \"Param\": \"" + MMO + "\", \"Min\": 1 } ] } }")
+                .load("Mmo_Skill_Job", GATED)
                 .load("Harvest_Feast_Job", "{}");
     }
 
     @AfterEach
     void restore() {
         ModGates.useProbeForTests(null);
+        ModGates.reportIntoForTests(null);
     }
 
     @Test
@@ -105,5 +120,38 @@ class AssetMergeAdapterKeepTest {
 
         assertEquals(Set.of("mmo_skill_job", "harvest_feast_job"), AssetMergeAdapter.layer(map, LOADS_HERE).keySet());
         assertTrue(AssetMergeAdapter.refused(map, LOADS_HERE).isEmpty());
+    }
+
+    // ==================== the reporting fold a load handler runs ====================
+
+    @Test
+    void theGateFoldLeavesOutWhatTheKeepFilterDoesAndNamesTheModThatRefusedEach() {
+        ModGateFold<Probe> fold = AssetMergeAdapter.gate("Bounties", map, MISSING_MOD);
+
+        assertEquals("Bounties", fold.store());
+        assertEquals(AssetMergeAdapter.layer(map, LOADS_HERE).keySet(), fold.layer().keySet());
+        assertEquals(Map.of("mmo_skill_job", MMO), fold.refused());
+        assertEquals(AssetMergeAdapter.refused(map, LOADS_HERE), fold.refusedIds());
+    }
+
+    @Test
+    void theGateFoldLogsOneCountedLinePerMissingModAndNoId() throws IOException {
+        map.load("Mmo_Second_Job", GATED);
+
+        AssetMergeAdapter.gate("Bounties", map, MISSING_MOD);
+
+        assertEquals(List.of("[zc] mod gate: Bounties dropped 2 pack file(s) gated on a missing mod (" + MMO + ")"),
+                lines);
+    }
+
+    @Test
+    void aFoldThatDropsNothingSaysNothing() {
+        ModGates.useProbeForTests(param -> 1.0);
+
+        ModGateFold<Probe> fold = AssetMergeAdapter.gate("Bounties", map, MISSING_MOD);
+
+        assertTrue(fold.refused().isEmpty());
+        assertEquals(2, fold.layer().size());
+        assertTrue(lines.isEmpty());
     }
 }

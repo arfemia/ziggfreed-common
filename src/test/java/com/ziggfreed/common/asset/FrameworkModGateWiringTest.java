@@ -6,15 +6,18 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
 /**
- * Every store whose files carry a top-level {@code Requires} folds its load event through a mod-gate
- * keep filter, so a file gated on a mod this server lacks never reaches the store. A source scan,
- * because the alternative is standing up the engine's asset registry for one lambda argument, and
- * because a handler that silently lost its filter would let a server without the MMO log MMO lines.
+ * Every store whose files carry a top-level {@code Requires} folds its load event through the reporting
+ * mod-gate fold ({@code AssetMergeAdapter.gate}) under its own store name, with its {@code missingMod}
+ * read, so a file gated on a mod this server lacks never reaches the store, and the drop is logged as one
+ * counted line under the name the season boot pair parses. A source scan, because the alternative is
+ * standing up the engine's asset registry for one lambda argument, and because a handler that silently
+ * lost its fold would let a server without the MMO log MMO lines.
  *
  * <p>Not listed, because their files carry no top-level {@code Requires} and so cannot be gated:
  * QuestGenerators and ShopEntryGenerators (a family follows its {@code Base}); DialogueFragments,
@@ -31,22 +34,36 @@ class FrameworkModGateWiringTest {
     private static final Path REGISTRAR = Path.of("src", "main", "java", "com", "ziggfreed",
             "common", "asset", "FrameworkAssetRegistrar.java");
 
-    /** Every asset class with a top-level Requires whose store the registrar loads. */
-    private static final List<String> GATED = List.of(
-            "LootableAsset", "BonusRowAsset", "NpcPlacementAsset", "QuestAsset", "AchievementAsset",
-            "CurrencyAsset", "StorefrontAsset", "ShopEntryAsset", "BoardAsset", "BountyAsset", "GearSetAsset");
+    /** Every asset class with a top-level Requires whose store the registrar loads, to its store name. */
+    private static final Map<String, String> GATED = new LinkedHashMap<>();
+
+    static {
+        GATED.put("LootableAsset", "Lootables");
+        GATED.put("BonusRowAsset", "BonusRows");
+        GATED.put("NpcPlacementAsset", "NpcPlacements");
+        GATED.put("QuestAsset", "Quests");
+        GATED.put("AchievementAsset", "Achievements");
+        GATED.put("CurrencyAsset", "Currencies");
+        GATED.put("StorefrontAsset", "Shops");
+        GATED.put("ShopEntryAsset", "ShopEntries");
+        GATED.put("BoardAsset", "Boards");
+        GATED.put("BountyAsset", "Bounties");
+        GATED.put("GearSetAsset", "GearSets");
+    }
 
     @Test
-    void everyGatedStoresLoadHandlerPassesItsModGateFilter() throws IOException {
+    void everyGatedStoresLoadHandlerFoldsThroughTheReportingGateUnderItsStoreName() throws IOException {
         assertTrue(Files.isRegularFile(REGISTRAR), "missing " + REGISTRAR.toAbsolutePath());
         String source = Files.readString(REGISTRAR, StandardCharsets.UTF_8);
 
-        for (String asset : GATED) {
+        for (Map.Entry<String, String> gated : GATED.entrySet()) {
+            String asset = gated.getKey();
             String handler = handlerOf(source, asset);
-            assertTrue(handler.contains("passesModGate("),
-                    () -> asset + "'s load handler must fold through AssetMergeAdapter.layer(map, keep) with its "
-                            + "passesModGate filter, or a file gated on an absent mod reaches the store. It reads: "
-                            + handler);
+            String fold = "AssetMergeAdapter.gate(\"" + gated.getValue() + "\",";
+            assertTrue(handler.contains(fold) && handler.contains("missingMod("),
+                    () -> asset + "'s load handler must fold through " + fold + " ...) with its missingMod read, or "
+                            + "a file gated on an absent mod reaches the store, or its drop line names the wrong "
+                            + "store. It reads: " + handler);
         }
     }
 

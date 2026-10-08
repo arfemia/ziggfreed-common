@@ -1,9 +1,16 @@
 package com.ziggfreed.common.factor;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Whether a FILE loads on this server at all: false only when a plain top-level
@@ -22,18 +29,33 @@ import javax.annotation.Nullable;
  * a {@code Min} below 1, is a requirement (the "only where it is NOT installed" half among them), and
  * stays where it was written. A condition nested in {@code AnyOf} or {@code Not} is never handed here:
  * a store passes its TOP-LEVEL {@code Factors} only.
+ *
+ * <p><b>A drop is logged, never an id.</b> Each store's fold reports what it dropped through
+ * {@link #reportPackFiles} and {@link #reportOwnerOverrides}: one INFO line per store per missing mod,
+ * only when something was dropped, counting the files and naming the mod. The wording is a contract (a
+ * season boot check parses it), and a line naming a dropped file would put the missing mod's content
+ * ids into the log of the very server that lacks it.
  */
 public final class ModGates {
 
+    /**
+     * What a dropped file's mod reads as when nothing named it: a condition with no {@code Param}, or a
+     * caller that refused an id without naming its mod (a test's plain id set).
+     */
+    private static final String UNNAMED_MOD = "?";
+
     /** What a mod's presence reads as: the factor's own reading, unless a test swapped it. */
     private static volatile Function<String, Double> probe = ModFactors::installed;
+
+    /** Where a drop line goes: the library's log, unless a test swapped it. */
+    private static volatile Consumer<String> reports = SafeLog::info;
 
     private ModGates() {
     }
 
     /** {@link #keep(FactorCondition[])} over a list. */
     public static boolean keep(@Nullable List<FactorCondition> topLevelFactors) {
-        return topLevelFactors == null || keep(topLevelFactors.toArray(new FactorCondition[0]));
+        return missingMod(topLevelFactors) == null;
     }
 
     /**
@@ -41,15 +63,76 @@ public final class ModGates {
      * of them is a presence gate ({@link #isPresenceGate}) on a mod that reads a definite 0.
      */
     public static boolean keep(@Nullable FactorCondition[] topLevelFactors) {
+        return missingMod(topLevelFactors) == null;
+    }
+
+    /** {@link #missingMod(FactorCondition[])} over a list. */
+    @Nullable
+    public static String missingMod(@Nullable List<FactorCondition> topLevelFactors) {
+        return topLevelFactors == null ? null : missingMod(topLevelFactors.toArray(new FactorCondition[0]));
+    }
+
+    /**
+     * The mod that keeps a file with these top-level {@code Factors} out of this server, as its condition
+     * wrote it ({@code Group:Name}, trimmed): the first presence gate ({@link #isPresenceGate}) whose mod
+     * reads a definite 0. Null exactly when {@link #keep} is true, so a store's drop line can say which
+     * mod a file waits for.
+     */
+    @Nullable
+    public static String missingMod(@Nullable FactorCondition[] topLevelFactors) {
         if (topLevelFactors == null) {
-            return true;
+            return null;
         }
         for (FactorCondition condition : topLevelFactors) {
             if (isPresenceGate(condition) && isAbsent(condition.getParam())) {
-                return false;
+                return modName(condition.getParam());
             }
         }
-        return true;
+        return null;
+    }
+
+    /**
+     * Log what a store's pack fold dropped: one line per missing mod, counting the files, never naming
+     * one. Nothing at all when {@code missingMods} is empty.
+     *
+     * @param store       the registrar's name for the store ({@code Quests}, {@code GearSets}, ...)
+     * @param missingMods one entry per dropped file: the mod it waited for
+     */
+    public static void reportPackFiles(@Nonnull String store, @Nonnull Collection<String> missingMods) {
+        report(store, "pack file(s)", missingMods);
+    }
+
+    /**
+     * Log what a store's owner layer dropped (an owner entry gated on a missing mod, or an override of
+     * a pack file the gate refused): one line per missing mod, counting the entries, never naming one.
+     *
+     * @param missingMods one entry per dropped owner entry: the mod it, or the pack file it follows,
+     *                    waited for
+     */
+    public static void reportOwnerOverrides(@Nonnull String store, @Nonnull Collection<String> missingMods) {
+        report(store, "owner override(s)", missingMods);
+    }
+
+    /** Send the drop lines to {@code sink} instead of the log; null puts the log back. */
+    public static void reportIntoForTests(@Nullable Consumer<String> sink) {
+        reports = sink == null ? SafeLog::info : sink;
+    }
+
+    private static void report(@Nonnull String store, @Nonnull String what, @Nonnull Collection<String> missingMods) {
+        Map<String, Integer> counts = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        for (String mod : missingMods) {
+            counts.merge(modName(mod), 1, Integer::sum);
+        }
+        Consumer<String> sink = reports;
+        for (Map.Entry<String, Integer> count : counts.entrySet()) {
+            sink.accept("[zc] mod gate: " + store + " dropped " + count.getValue() + " " + what
+                    + " gated on a missing mod (" + count.getKey() + ")");
+        }
+    }
+
+    @Nonnull
+    private static String modName(@Nullable String param) {
+        return param == null || param.isBlank() ? UNNAMED_MOD : param.trim();
     }
 
     /**

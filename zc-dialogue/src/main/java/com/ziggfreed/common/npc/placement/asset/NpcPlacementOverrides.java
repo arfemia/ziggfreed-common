@@ -4,8 +4,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -17,6 +19,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.ziggfreed.common.factor.ModGates;
 import com.ziggfreed.common.util.JsonOverrideWriter;
 import com.ziggfreed.common.util.OwnerFiles;
 import com.ziggfreed.common.util.SafeLog;
@@ -271,6 +274,10 @@ public final class NpcPlacementOverrides {
      * placement somebody shipped keeps every other leaf; run before the packs land, that base is
      * empty and a partial entry would silently become the whole placement. A single unreadable entry
      * is skipped and named rather than costing the rest of the file.
+     *
+     * <p>A body follows the mod gate as every owner file does: one over a placement the pack fold's gate
+     * refused goes with it, whatever it writes, and one whose own {@code Requires} gates on a missing mod
+     * is dropped like a pack file. Neither is named; the store logs one counted line per missing mod.
      */
     public void applyOwnerLayer() {
         NpcPlacementConfig config = NpcPlacementConfig.getInstance();
@@ -280,14 +287,28 @@ public final class NpcPlacementOverrides {
             return;
         }
 
+        Map<String, String> refused = config.modGateRefused();
         Map<String, NpcPlacementAsset> layer = new LinkedHashMap<>();
+        List<String> dropped = new ArrayList<>();
         for (Map.Entry<String, JsonObject> e : snapshot.entrySet()) {
-            NpcPlacementAsset decoded = decode(e.getKey(), e.getValue(), config);
-            if (decoded != null) {
-                layer.put(e.getKey(), decoded);
+            String refusedFor = refused.get(e.getKey());
+            if (refusedFor != null) {
+                dropped.add(refusedFor); // a body goes with the pack placement the mod gate refused
+                continue;
             }
+            NpcPlacementAsset decoded = decode(e.getKey(), e.getValue(), config);
+            if (decoded == null) {
+                continue;
+            }
+            String missing = NpcPlacementAsset.Requires.missingMod(decoded.getRequires());
+            if (missing != null) {
+                dropped.add(missing); // gated on a mod this server lacks, like a pack placement would be
+                continue;
+            }
+            layer.put(e.getKey(), decoded);
         }
         config.mergeOwnerLayer(layer);
+        ModGates.reportOwnerOverrides(config.modGateStore(), dropped);
         if (!layer.isEmpty()) {
             SafeLog.info("[placement] " + file + ": " + layer.size() + " placement(s) authored or"
                     + " overridden by the server owner");

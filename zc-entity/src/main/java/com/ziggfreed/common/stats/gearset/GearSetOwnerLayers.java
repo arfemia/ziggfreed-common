@@ -6,6 +6,7 @@ import java.nio.file.Paths;
 import javax.annotation.Nonnull;
 
 import com.ziggfreed.common.asset.OwnerLayerReader;
+import com.ziggfreed.common.asset.PresenceRequiresCodec;
 
 /**
  * The SERVER OWNER's last word on gear sets, at {@code mods/ziggfreedcommon/gear-sets.json}: a bare
@@ -22,7 +23,8 @@ import com.ziggfreed.common.asset.OwnerLayerReader;
  *
  * <p>Read from the store's own load event (an owner entry has nothing to inherit from until the
  * packs have landed). Remember that {@code Bonuses} replaces wholesale: an owner retuning one tier
- * restates the ladder.
+ * restates the ladder. An entry follows the mod gate as a set file does: one gated on a missing mod,
+ * or retuning a set the gate kept out, is dropped.
  */
 public final class GearSetOwnerLayers {
 
@@ -54,6 +56,7 @@ public final class GearSetOwnerLayers {
     /** (Re)read {@code gear-sets.json} into the fold's owner layer. */
     public static void reload() {
         OwnerLayerReader.apply(LOG_TAG, directory.resolve(FILE), GearSetAsset.class,
-                GearSetAsset.CODEC, GearSetConfig.getInstance(), "gear set");
+                GearSetAsset.CODEC, GearSetConfig.getInstance(), "gear set",
+                s -> PresenceRequiresCodec.missingMod(s.getRequires()));
     }
 }
