@@ -7,11 +7,12 @@ import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
 /**
  * The {@code defaults < pack < owner} fold of {@link HudPanelAsset}, keyed by panel id.
  *
- * <p>The library ships {@code Activity_Ledger.json} and {@code World_Bars.json} in its own jar's
- * asset pack, so they ride the PACK layer and a consumer's same-id file replaces one by pack order; the owner
- * layer, from {@code mods/ziggfreedcommon/hud-panels.json}, wins over both. Both readers always
- * answer: before anything has loaded, or if a shipped file were removed, the caller gets the
- * all-defaults panel rather than nothing.
+ * <p>The library ships {@code Activity_Ledger.json}, {@code World_Bars.json} and
+ * {@code Center_Bars.json} in its own jar's asset pack, so they ride the PACK layer and a
+ * consumer's same-id file replaces one by pack order; the owner layer, from
+ * {@code mods/ziggfreedcommon/hud-panels.json}, wins over both. Both readers always answer: before
+ * anything has loaded, or if a shipped file were removed, the caller gets the all-defaults panel
+ * rather than nothing.
  */
 public final class HudPanelConfig extends AbstractKeyedAssetConfig<HudPanelAsset> {
 

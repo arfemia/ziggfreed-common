@@ -12,6 +12,10 @@ hud.bar.gain = +{0, number}
 # panel's gain column has no room for the grouped form; the entry only signs it.
 hud.bar.gain.compact = +{0}
 
+# A loss beside a bar: how much was lost, as a number the player's own client groups. The sign is
+# written here, so the number itself is always the size of the loss.
+hud.bar.loss = -{0, number}
+
 # The shared menu's command, /ziggui. menu.desc is what the engine's help shows for it.
 menu.desc = Open your menu of quests, achievements and more.
 menu.open.needsPlayer = Only a player can open the menu.

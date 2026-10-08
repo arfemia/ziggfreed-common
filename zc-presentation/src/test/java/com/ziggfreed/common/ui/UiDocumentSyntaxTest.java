@@ -20,8 +20,7 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 import com.ziggfreed.common.ui.hud.panel.HudPanelLayout;
-import com.ziggfreed.common.ui.hud.panel.LedgerPanelHud;
-import com.ziggfreed.common.ui.hud.panel.WorldPanelHud;
+import com.ziggfreed.common.ui.hud.panel.HudPanels;
 
 /**
  * Holds every shipped {@code .ui} document to what the client's parser will actually accept: every zc module's,
@@ -186,7 +185,8 @@ class UiDocumentSyntaxTest {
 
     @Test
     void everySlotTheBarPanelsAddressActuallyExistsInTheirDocuments() throws IOException {
-        for (HudPanelLayout layout : List.of(LedgerPanelHud.LAYOUT, WorldPanelHud.LAYOUT)) {
+        // Every panel a player carries, so a panel added to the attach list is checked the day it is added.
+        for (HudPanelLayout layout : HudPanels.panels()) {
             Path doc = document(layout.template());
             String text = Files.readString(doc, StandardCharsets.UTF_8);
             assertTrue(text.contains(layout.root()),

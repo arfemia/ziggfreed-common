@@ -1,7 +1,9 @@
 package com.ziggfreed.common.reputation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -35,8 +37,9 @@ import com.ziggfreed.common.ui.hud.panel.HudRowDisplay;
 
 /**
  * What the production fan-out says: the change event with every fact, the ranks-held event a credit
- * raises, the bar's row, reading and look, the rank notice's values, the Beyond payout held to its
- * ceiling, and the two shipped files that go with them.
+ * raises, the bar's row, reading and look, which change goes to the centred panel instead (one made
+ * while a page is open; one row per reputation, the World bar's reading, full only at the cap), the rank
+ * notice's values, the Beyond payout held to its ceiling, and the two shipped files that go with them.
  */
 class ReputationFanOutTest {
 
@@ -112,6 +115,62 @@ class ReputationFanOutTest {
         assertEquals("ziggfreedcommon.reputation.hud.caption", display.label().getMessageId());
         assertEquals(Integer.valueOf(2), display.order());
         assertNotNull(display.icon());
+    }
+
+    @Test
+    void onlyAChangeMadeWhileAPageIsOpenGoesToTheCentreAndEveryOtherToTheWorldBar() {
+        ReputationChange up = change(500, 1_000);
+        ReputationChange down = change(1_500, -200);
+
+        assertTrue(EngineReputationFanOut.centred(up, true), "a gain made in a page waits in the centre");
+        assertTrue(EngineReputationFanOut.centred(down, true), "and so does a loss");
+        assertFalse(EngineReputationFanOut.centred(up, false), "out in the world it is the World bar's alone");
+        assertFalse(EngineReputationFanOut.centred(down, false));
+
+        HudBarReading reading = EngineReputationFanOut.toastReading(up);
+        assertEquals(500.0, reading.current(), "the bar is the progress through the rank held: 500 into Friendly");
+        assertEquals(2_000.0, reading.maximum(), "of the 2,000 to Honored");
+        assertEquals(300.0, EngineReputationFanOut.toastReading(down).current(),
+                "a loss shows the standing it left: 1,300 is 300 into Friendly");
+    }
+
+    @Test
+    void gainsCloseTogetherMergeOnTheReputationsOneRowAndTwoReputationsKeepTheirOwn() {
+        engine.group("Test_Traders", 0);
+        ReputationChange first = change(500, 100);
+        ReputationChange second = change(600, 25);
+        service.change(null, null, "Test_Traders", 50, "quest:test");
+        ReputationChange other = recorded.changes.get(recorded.changes.size() - 1);
+
+        assertEquals(EngineReputationFanOut.rowId(first), EngineReputationFanOut.rowId(second),
+                "one row per reputation, so its +N adds the two gains up while it is up");
+        assertNotEquals(EngineReputationFanOut.rowId(first), EngineReputationFanOut.rowId(other),
+                "a second reputation gets a row of its own");
+    }
+
+    @Test
+    void atTheTopRankTheCentredBarCountsTowardTheNextBeyondPayoutAsTheWorldBarDoes() {
+        ReputationFixtures.loadCompanions(Map.of("test_old_jack", ReputationFixtures.companion(ReputationFixtures.OLD_JACK,
+                "{ \"Beyond\": { \"Every\": 5000, \"Rewards\": [ { \"Kind\": \"Item\", \"Params\": { \"Item\": \"Test_Cache\" } } ] } }")));
+        ReputationChange top = change(22_000, 100);
+
+        assertEquals(EngineReputationFanOut.reading(top), EngineReputationFanOut.toastReading(top),
+                "the World bar's own reading, toward the next Beyond payout");
+        assertEquals(1_100.0, EngineReputationFanOut.toastReading(top).current(), "22,100 is 1,100 past Exalted's floor");
+        assertEquals(5_000.0, EngineReputationFanOut.toastReading(top).maximum(), "of the 5,000 to the next payout");
+    }
+
+    @Test
+    void atTheCapTheCentredBarIsFull() {
+        ReputationFixtures.loadCompanions(Map.of("test_old_jack", ReputationFixtures.companion(ReputationFixtures.OLD_JACK,
+                "{ \"Cap\": 2000 }")));
+        ReputationChange capped = change(1_500, 1_000);
+
+        assertEquals(500, capped.delta(), "the cap cut the gain to what was left");
+        assertEquals(2_000, capped.earnedAfter());
+        assertEquals(1.0, EngineReputationFanOut.toastReading(capped).fraction(), 1e-9,
+                "nothing more to earn reads full, mid-rank or not");
+        assertEquals(0.5, EngineReputationFanOut.reading(capped).fraction(), 1e-9, "2,000 is halfway through Friendly");
     }
 
     @Test

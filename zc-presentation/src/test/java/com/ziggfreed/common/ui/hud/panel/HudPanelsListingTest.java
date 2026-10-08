@@ -19,8 +19,8 @@ import com.google.gson.JsonParser;
 /**
  * Which panel a settings page lists first is the panel's own {@code Order}, read off the fold, and
  * never the order the library attaches the panels in: the attach order decides what draws over
- * what where two overlap and is fixed in Java. The two shipped files list the World bars ahead of
- * the Activity ledger; the numbers below are otherwise the test's own.
+ * what where two overlap and is fixed in Java. The shipped files list the World bars ahead of the
+ * Activity ledger and the centred panel after both; the numbers below are otherwise the test's own.
  */
 class HudPanelsListingTest {
 
@@ -46,17 +46,17 @@ class HudPanelsListingTest {
         fold.mergePackLayer(Map.of(
                 HudPanelAsset.WORLD_ID, panel(HudPanelAsset.WORLD_ID, 10),
                 HudPanelAsset.LEDGER_ID, panel(HudPanelAsset.LEDGER_ID, 20)));
-        assertEquals(List.of(HudPanelAsset.WORLD_ID, HudPanelAsset.LEDGER_ID), HudPanels.listing(fold),
-                "the lower Order lists first");
+        assertEquals(List.of(HudPanelAsset.WORLD_ID, HudPanelAsset.LEDGER_ID, HudPanelAsset.CENTER_ID),
+                HudPanels.listing(fold), "the lower Order lists first, and a panel naming none after them");
 
         fold.mergeOwnerLayer(Map.of(HudPanelAsset.LEDGER_ID, panel(HudPanelAsset.LEDGER_ID, 5)));
-        assertEquals(List.of(HudPanelAsset.LEDGER_ID, HudPanelAsset.WORLD_ID), HudPanels.listing(fold),
-                "an owner's Order reorders the listing on the next open");
+        assertEquals(List.of(HudPanelAsset.LEDGER_ID, HudPanelAsset.WORLD_ID, HudPanelAsset.CENTER_ID),
+                HudPanels.listing(fold), "an owner's Order reorders the listing on the next open");
     }
 
     @Test
     void panelsNamingNoOrderListByIdAndAnEmptyFoldStillAnswers() {
-        assertEquals(List.of(HudPanelAsset.LEDGER_ID, HudPanelAsset.WORLD_ID),
+        assertEquals(List.of(HudPanelAsset.LEDGER_ID, HudPanelAsset.CENTER_ID, HudPanelAsset.WORLD_ID),
                 HudPanels.listing(HudPanelConfig.getInstance()),
                 "nothing authored: every panel reads the default order, so the ids decide");
         assertEquals(HudPanelAsset.DEFAULT_ORDER, HudPanelAsset.defaults().order());
@@ -65,8 +65,8 @@ class HudPanelsListingTest {
     @Test
     void theAttachOrderIsNotWhatTheTabsSortBy() throws Exception {
         List<String> before = attached();
-        assertEquals(List.of(HudPanelAsset.LEDGER_ID, HudPanelAsset.WORLD_ID), before,
-                "the ledger attaches first, so the World bars draw over it where the two overlap");
+        assertEquals(List.of(HudPanelAsset.LEDGER_ID, HudPanelAsset.WORLD_ID, HudPanelAsset.CENTER_ID), before,
+                "the ledger attaches first, so the World bars draw over it, and the centred panel over both");
 
         HudPanelConfig fold = HudPanelConfig.getInstance();
         fold.mergePackLayer(Map.of(
@@ -77,15 +77,19 @@ class HudPanelsListingTest {
     }
 
     @Test
-    void theShippedFilesListTheWorldBarsAheadOfTheActivityLedger() throws Exception {
+    void theShippedFilesListTheWorldBarsAheadOfTheActivityLedgerAndTheCentredPanelLast() throws Exception {
         int world = shippedOrder("World_Bars.json");
         int ledger = shippedOrder("Activity_Ledger.json");
+        int center = shippedOrder("Center_Bars.json");
         assertTrue(world < ledger, "World_Bars (" + world + ") lists ahead of Activity_Ledger (" + ledger + ")");
+        assertTrue(ledger < center, "Center_Bars (" + center + ") lists after Activity_Ledger (" + ledger + ")");
         HudPanelConfig fold = HudPanelConfig.getInstance();
         fold.mergePackLayer(Map.of(
                 HudPanelAsset.WORLD_ID, panel(HudPanelAsset.WORLD_ID, world),
-                HudPanelAsset.LEDGER_ID, panel(HudPanelAsset.LEDGER_ID, ledger)));
-        assertEquals(List.of(HudPanelAsset.WORLD_ID, HudPanelAsset.LEDGER_ID), HudPanels.listing(fold));
+                HudPanelAsset.LEDGER_ID, panel(HudPanelAsset.LEDGER_ID, ledger),
+                HudPanelAsset.CENTER_ID, panel(HudPanelAsset.CENTER_ID, center)));
+        assertEquals(List.of(HudPanelAsset.WORLD_ID, HudPanelAsset.LEDGER_ID, HudPanelAsset.CENTER_ID),
+                HudPanels.listing(fold));
     }
 
     private static int shippedOrder(String file) throws Exception {

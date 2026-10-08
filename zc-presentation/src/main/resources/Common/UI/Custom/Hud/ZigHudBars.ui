@@ -5,6 +5,10 @@
 // appear; Server/ZiggfreedCommon/HudRows/*.json is an optional per-row override and
 // Server/ZiggfreedCommon/HudPanels/Activity_Ledger.json names the spot this panel sits at.
 //
+// The centred panel (ui/hud/panel/CenterPanelHud, Center_Bars.json) draws this same document in a
+// layer of its own, one short column hung from the top centre of the screen: every measure below is
+// its too, through CenterPanelHud.LAYOUT, which copies LedgerPanelHud.LAYOUT's.
+//
 // A row that draws a fill is two lines: its name with the gain beside it, and the bar underneath
 // between its two end captions. A row about an item is the first line alone, with #Bar hidden.
 // Fill rows sit above item rows. The panel hides when nothing is showing.

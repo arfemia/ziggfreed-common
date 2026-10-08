@@ -42,6 +42,20 @@ public record HudPanelLayout(@Nonnull String panelId, @Nonnull String hudKey, @N
         int columnGapPx, int trackInnerWidthPx, int verticalPaddingPx, int rowMarginPx, int lineHeightPx,
         int barBlockPx, @Nonnull HudPosition defaultPosition) {
 
+    /**
+     * This same document, drawn as another panel: its own id, its own key on the native
+     * {@code HudManager} (a key is one HUD layer per player, so two panels drawing one document each
+     * hold a copy of it) and its own fallback corner, with every number that mirrors the document
+     * kept, since they describe the document and not the panel.
+     */
+    @Nonnull
+    public HudPanelLayout drawnAs(@Nonnull String otherPanelId, @Nonnull String otherHudKey,
+            @Nonnull HudPosition otherDefaultPosition) {
+        return new HudPanelLayout(otherPanelId, otherHudKey, template, root, columns, slotsPerColumn, paddingPx,
+                columnWidthPx, columnGapPx, trackInnerWidthPx, verticalPaddingPx, rowMarginPx, lineHeightPx,
+                barBlockPx, otherDefaultPosition);
+    }
+
     /** Every slot the document declares, across all its columns: the ceiling on what can be drawn. */
     public int totalSlots() {
         return columns * slotsPerColumn;

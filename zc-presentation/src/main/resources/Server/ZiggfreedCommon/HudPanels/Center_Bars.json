@@ -1,0 +1,45 @@
+{
+  "$Comment": [
+    "The centred panel: a short stack in the middle of the screen for a value that moved while a",
+    "player had a page open (a shop, a board, the book, a conversation), where the game draws no HUD.",
+    "As shipped, a reputation change made in a page lands here, and one made out in the world stays",
+    "on the World bars. A row adds every further change to the same thing to the one number it shows",
+    "(+N, or -N for a net loss) and goes away a few seconds after it can be seen. Which panel a row",
+    "lands on is decided by the mod reporting it.",
+    "",
+    "HoldWhilePageOpen is what makes it work: a row moved while a page is open waits, and shows for",
+    "its whole time once the player has no page open. A row already up when a page opens waits too",
+    "and shows again after.",
+    "MaxVisible is both how many rows show at once and the most that wait while a page stays open;",
+    "past it the oldest goes first. Set HoldWhilePageOpen to false to let rows run out under a page.",
+    "",
+    "No spot is measured for this panel, so it names no Placement and states its own Position: a",
+    "corner preset plus pixel offsets. TopCenter hangs it from the top edge on the screen's centre",
+    "line, and OffsetY is how far down, clear of the boss bar and the zone banner the game draws",
+    "near the top; a nonzero OffsetX nudges it off centre. Columns 1 with RowsPerColumn 4 keeps it",
+    "one short column. Players may show or hide it on their Settings tab; with no spot offered, they",
+    "cannot move it. LabelKey names it there, and Order is where it is listed: lower numbers first,",
+    "so it comes after the World bars (10) and the Activity ledger (20).",
+    "",
+    "To change a leaf without copying this file, add an entry keyed 'Center_Bars' to",
+    "mods/ziggfreedcommon/hud-panels.json with only the leaves you want different, or use the",
+    "server HUD layout page. Set Enabled to false to switch the whole panel off for everyone."
+  ],
+  "Enabled": true,
+  "LabelKey": "ziggfreedcommon.hud.panel.center_bars",
+  "Position": {
+    "Preset": "TopCenter",
+    "OffsetX": 0,
+    "OffsetY": 300
+  },
+  "Columns": 1,
+  "RowsPerColumn": 4,
+  "MaxVisible": 4,
+  "HoldWhilePageOpen": true,
+  "Order": 30,
+  "RepaintMs": 250,
+  "Player": {
+    "Show": { "Default": true, "Locked": false },
+    "Spot": { "Locked": false }
+  }
+}

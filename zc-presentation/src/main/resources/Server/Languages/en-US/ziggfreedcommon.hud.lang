@@ -8,9 +8,12 @@ spot.top_left = Top left
 spot.top_right = Top right
 spot.bottom_left = Bottom left
 
-# The two panels, as the pickers and the answers name them.
+# The three panels, as the pickers and the answers name them.
 panel.activity_ledger = Crafting progress
 panel.world_bars = XP and reputation gains
+# The short stack in the middle of the screen (Center_Bars): a reputation change made while a menu,
+# a shop, a board or a conversation was open, shown once it closes.
+panel.center_bars = Reputation changes in menus
 
 # The HUD settings page.
 settings.title = HUD bars
@@ -51,7 +54,7 @@ desc.place = Put a panel at a named spot, for yourself.
 desc.hide = Hide a panel for yourself, or every panel.
 desc.show = Show a panel you hid, or every panel.
 desc.default = Set the spot a panel sits at for everyone.
-desc.arg.panel = The panel: Activity_Ledger (the activity ledger) or World_Bars (the world bars).
+desc.arg.panel = The panel: Activity_Ledger (the activity ledger), World_Bars (the world bars) or Center_Bars (reputation changes made in a menu).
 desc.arg.placement = The spot, by its id, or "server" to follow the server's choice.
 desc.arg.player = Whose HUD to change. Defaults to you.
 desc.arg.panel_or_all = The panel, or "all" for every panel. Defaults to all.
@@ -60,7 +63,7 @@ open.needsPlayer = Run this in game: the settings are yours, and the console has
 open.failed = The settings could not be opened.
 player.needed = Name a player with --player=<name>, or run this in game.
 player.offline = That player is not online.
-panel.unknown = No panel is called "{0}". Use Activity_Ledger or World_Bars.
+panel.unknown = No panel is called "{0}". Use Activity_Ledger, World_Bars or Center_Bars.
 spot.unknown = No spot is called "{0}".
 spot.unfit = {0} was not measured for {1}, so it is not offered there.
 place.done = {0} now sits at {1}.

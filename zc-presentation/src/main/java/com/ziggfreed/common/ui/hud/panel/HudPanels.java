@@ -27,18 +27,18 @@ import com.ziggfreed.common.util.SafeLog;
  * The way in to the shared progress-bar panels: their lifecycle on every player, and the calls a
  * consumer makes when a value it owns has moved.
  *
- * <p><b>Attach and detach.</b> Every player gets BOTH panels at ready and loses them at disconnect:
- * {@link LedgerPanelHud}, the Activity ledger, and {@link WorldPanelHud}, the World bars. They are
- * attached LATE on the ready event so they land after whatever a consumer does there, and kept in
- * {@link #LIVE} by player uuid so a change reported from any thread finds the right one in two
- * map reads. Where each sits for a given player is resolved per paint
- * ({@link HudSpot}), and a player changing their own pick or hiding a panel
+ * <p><b>Attach and detach.</b> Every player gets all three panels at ready and loses them at
+ * disconnect: {@link LedgerPanelHud}, the Activity ledger, {@link WorldPanelHud}, the World bars, and
+ * {@link CenterPanelHud}, the centred panel. They are attached LATE on the ready event so they land
+ * after whatever a consumer does there, and kept in {@link #LIVE} by player uuid so a change
+ * reported from any thread finds the right one in two map reads. Where each sits for a given player
+ * is resolved per paint ({@link HudSpot}), and a player changing their own pick or hiding a panel
  * ({@link HudPreferences}) repaints theirs through the watcher this class registers at install.
  *
  * <p><b>Which panel a row lands on is the CALLER's choice, made by which call it makes</b>
- * ({@link #moved} or {@link #movedInWorld}), never by anything this class reads out of the row. Only
- * the mod reporting a movement knows what the player is in the middle of, and that is the whole
- * basis of the choice.
+ * ({@link #moved}, {@link #movedInWorld} or {@link #movedInCenter}), never by anything this class
+ * reads out of the row. Only the mod reporting a movement knows what the player is in the middle
+ * of, and that is the whole basis of the choice.
  *
  * <p><b>Rows come from the calls, not from files.</b> {@link #moved} names a row id, a delta, where
  * the value now stands ({@link HudBarReading}) and how the row should look ({@link HudRowDisplay});
@@ -70,11 +70,13 @@ public final class HudPanels {
     static final Map<UUID, Map<String, HudPanelHud>> LIVE = new ConcurrentHashMap<>();
 
     /**
-     * The two panels every player carries, in ATTACH order: the client draws a later document over
+     * The three panels every player carries, in ATTACH order: the client draws a later document over
      * an earlier one, so this order decides which panel wins where two overlap on screen, and it
-     * never follows an authored leaf. Where a settings page lists them is {@link #listing}.
+     * never follows an authored leaf. The centred panel is last, so a gain shown there is never
+     * under another panel. Where a settings page lists them is {@link #listing}.
      */
-    private static final List<HudPanelLayout> PANELS = List.of(LedgerPanelHud.LAYOUT, WorldPanelHud.LAYOUT);
+    private static final List<HudPanelLayout> PANELS =
+            List.of(LedgerPanelHud.LAYOUT, WorldPanelHud.LAYOUT, CenterPanelHud.LAYOUT);
 
     private HudPanels() {
     }
@@ -136,7 +138,7 @@ public final class HudPanels {
         return null;
     }
 
-    // ==================== the two calls ====================
+    // ==================== the calls ====================
 
     /** The prefix of the row an item's output is counted on: {@code item:<ItemId>}. */
     public static final String ITEM_ROW_PREFIX = "item:";
@@ -150,6 +152,20 @@ public final class HudPanels {
     public static boolean moved(@Nullable PlayerRef playerRef, @Nonnull String rowId, double delta,
             @Nonnull HudBarReading reading, @Nonnull HudRowDisplay display) {
         return report(playerRef, LedgerPanelHud.HUD_KEY, rowId, reading, null, delta, display, false);
+    }
+
+    /**
+     * As {@link #moved}, on the centred panel instead: a short stack in the middle of the screen for
+     * a value that moved while the player had a page open, where the client draws no HUD and a corner
+     * panel's row would run out unseen. Further moves under the same id add to the one figure the row
+     * shows. As shipped the panel holds such a row until the player has no page open
+     * ({@link HudPanelAsset#holdsWhilePageOpen}), so a change made in a shop or a conversation shows
+     * once it closes. Whether a page is open is the caller's to ask
+     * ({@link KeyedCustomHud#coveredByPage}), on the world thread.
+     */
+    public static boolean movedInCenter(@Nullable PlayerRef playerRef, @Nonnull String rowId, double delta,
+            @Nonnull HudBarReading reading, @Nonnull HudRowDisplay display) {
+        return report(playerRef, CenterPanelHud.HUD_KEY, rowId, reading, null, delta, display, false);
     }
 
     /**
@@ -218,10 +234,11 @@ public final class HudPanels {
     }
 
     /**
-     * Send every row {@code playerRef} currently has on either panel away within {@code withinMs},
+     * Send every row {@code playerRef} currently has on any panel away within {@code withinMs},
      * whatever each was going to do on its own: what ends a set of rows held through a stretch of
      * activity ({@link HudRowLook#LINGER_HELD}) when that activity finishes. A row already fading
-     * sooner keeps its own time, and a player with no panel is a no-op.
+     * sooner keeps its own time, a row waiting under a page keeps waiting (its time has not
+     * started), and a player with no panel is a no-op.
      */
     public static void fadeAll(@Nullable PlayerRef playerRef, long withinMs) {
         for (HudPanelHud hud : panelsOf(playerRef)) {
@@ -304,9 +321,13 @@ public final class HudPanels {
             }
             HudPanelHud stack = new LedgerPanelHud(playerRef);
             HudPanelHud grid = new WorldPanelHud(playerRef);
-            LIVE.put(uuid, Map.of(LedgerPanelHud.HUD_KEY, stack, WorldPanelHud.HUD_KEY, grid));
+            HudPanelHud center = new CenterPanelHud(playerRef);
+            LIVE.put(uuid, Map.of(LedgerPanelHud.HUD_KEY, stack, WorldPanelHud.HUD_KEY, grid,
+                    CenterPanelHud.HUD_KEY, center));
+            // In PANELS order: a later layer draws over an earlier one.
             player.getHudManager().addCustomHud(playerRef, stack);
             player.getHudManager().addCustomHud(playerRef, grid);
+            player.getHudManager().addCustomHud(playerRef, center);
         } catch (Throwable t) {
             SafeLog.warn("[hud] progress-bar panel attach failed on the world thread", t);
         }
@@ -337,8 +358,9 @@ public final class HudPanels {
             }
             Player player = ref.getStore().getComponent(ref, Player.getComponentType());
             if (player != null) {
-                player.getHudManager().removeCustomHud(playerRef, LedgerPanelHud.HUD_KEY);
-                player.getHudManager().removeCustomHud(playerRef, WorldPanelHud.HUD_KEY);
+                for (HudPanelLayout layout : PANELS) {
+                    player.getHudManager().removeCustomHud(playerRef, layout.hudKey());
+                }
             }
         } catch (Throwable t) {
             SafeLog.warn("[hud] progress-bar panel detach failed on the world thread", t);

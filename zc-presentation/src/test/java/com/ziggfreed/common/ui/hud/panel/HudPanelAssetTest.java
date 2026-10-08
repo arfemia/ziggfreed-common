@@ -147,6 +147,18 @@ class HudPanelAssetTest {
     }
 
     @Test
+    void holdingWhileAPageIsOpenIsOffUnlessAuthoredAndAChildKeepsIt() throws Exception {
+        assertFalse(HudPanelAsset.defaults().holdsWhilePageOpen(), "unauthored, a row runs its own clock");
+
+        HudPanelAsset holding = panel("{ \"HoldWhilePageOpen\": true }", "Center_Bars", null, null);
+        assertTrue(holding.holdsWhilePageOpen());
+        assertTrue(panel("{ \"MaxVisible\": 2 }", "Center_Bars", "Center_Bars", holding).holdsWhilePageOpen(),
+                "a child that does not restate it keeps it");
+        assertFalse(panel("{ \"HoldWhilePageOpen\": false }", "Center_Bars", "Center_Bars", holding)
+                .holdsWhilePageOpen(), "an owner switches it off by restating it");
+    }
+
+    @Test
     void thePlayerGroupReadsBackAndAChildKeepsWhatItDoesNotRestate() throws Exception {
         assertSame(SurfaceRules.NONE, HudPanelAsset.defaults().player(), "unauthored: shown, nothing fixed");
 

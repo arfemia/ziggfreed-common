@@ -177,6 +177,17 @@ public abstract class KeyedCustomHud extends CustomUIHud {
     }
 
     /**
+     * Whether {@code playerRef} has a custom page open (a shop, a board, a conversation, the menu):
+     * the client draws no HUD at all while one is, so whatever a HUD paints then is not seen until it
+     * closes. Reads the engine's own record of the page it last opened for them, which clears when the
+     * client dismisses it or the server closes it. False for a player who is gone. World thread.
+     */
+    public static boolean coveredByPage(@Nonnull PlayerRef playerRef) {
+        Player player = resolvePlayer(playerRef);
+        return player != null && player.getPageManager().getCustomPage() != null;
+    }
+
+    /**
      * The alive world holding {@code playerRef}'s entity right now, or null when they are gone. Read
      * off the entity's own store rather than the reference's last-ticked world uuid, because that
      * uuid lags a hop by up to a tick and a paint queued on the world the player just LEFT would

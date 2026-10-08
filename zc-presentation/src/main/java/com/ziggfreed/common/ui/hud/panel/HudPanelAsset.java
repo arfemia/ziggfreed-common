@@ -23,8 +23,9 @@ import com.ziggfreed.common.ui.hud.card.HudCardLook;
  * panel a row lands on is decided by the mod reporting the movement, by calling that panel's entry
  * point on {@link HudPanels}.
  *
- * <p>Authored at {@code Server/ZiggfreedCommon/HudPanels/<id>.json}. This library ships two:
- * {@code Activity_Ledger.json}, the tall ledger, and {@code World_Bars.json}, the wide block. A
+ * <p>Authored at {@code Server/ZiggfreedCommon/HudPanels/<id>.json}. This library ships three:
+ * {@code Activity_Ledger.json}, the tall ledger, {@code World_Bars.json}, the wide block, and
+ * {@code Center_Bars.json}, the short stack in the middle of the screen. A
  * pack or a server owner's {@code mods/ziggfreedcommon/hud-panels.json} restates only the leaves
  * it wants different:
  * <pre>{@code
@@ -54,6 +55,9 @@ public final class HudPanelAsset
     /** The id of the World bars, the wide panel (the file is {@code World_Bars.json}). */
     public static final String WORLD_ID = "World_Bars";
 
+    /** The id of the centred panel, for a gain worth stopping the eye on (the file is {@code Center_Bars.json}). */
+    public static final String CENTER_ID = "Center_Bars";
+
     /** Where a panel is listed in the HUD settings when it names no order: after every one that did. */
     public static final int DEFAULT_ORDER = 1000;
 
@@ -80,6 +84,7 @@ public final class HudPanelAsset
     @Nullable private Integer minHeight;
     @Nullable private String color;
     @Nullable private Long repaintMs;
+    @Nullable private Boolean holdWhilePageOpen;
     @Nullable private SurfaceRules player;
 
     public static final AssetBuilderCodec<String, HudPanelAsset> CODEC = AssetBuilderCodec.builder(
@@ -182,6 +187,17 @@ public final class HudPanelAsset
                     + "sooner is drawn at the window's end instead, so the number on screen is never "
                     + "waiting on a later movement to catch up. Lower is livelier and costs more "
                     + "packets.")
+            .add()
+            .appendInherited(new KeyedCodec<>("HoldWhilePageOpen", Codec.BOOLEAN, false),
+                    (a, v) -> a.holdWhilePageOpen = v, a -> a.holdWhilePageOpen,
+                    (a, p) -> a.holdWhilePageOpen = p.holdWhilePageOpen)
+            .metadata(EditorSchema.defaultValue(false))
+            .documentation("Whether a bar moved while the player has a page open (a shop, a board, a "
+                    + "conversation, the menu) waits until they have none open, then shows for its whole "
+                    + "time. The game draws no HUD over a page, so without it a bar that moves there can "
+                    + "come and go unseen. A bar already showing when a page opens waits too, and shows "
+                    + "again when it closes. While a page stays open the most bars kept waiting is "
+                    + "MaxVisible, the oldest going first. Unauthored reads false.")
             .add()
             .appendInherited(new KeyedCodec<>("Player", SurfaceRules.CODEC, false),
                     (a, v) -> a.player = v, a -> a.player, (a, p) -> a.player = p.player)
@@ -304,6 +320,14 @@ public final class HudPanelAsset
     /** How often the panel redraws at most; {@value #DEFAULT_REPAINT_MS} ms when unauthored or nonsense. */
     public long repaintMs() {
         return repaintMs != null && repaintMs > 0 ? repaintMs : DEFAULT_REPAINT_MS;
+    }
+
+    /**
+     * Whether a row moved while the player has a page open waits, its clock stopped, until no page
+     * is open; false when unauthored.
+     */
+    public boolean holdsWhilePageOpen() {
+        return Boolean.TRUE.equals(holdWhilePageOpen);
     }
 
     /** What a player may change about this panel for themselves; {@link SurfaceRules#NONE} when unauthored. */

@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Nothing the Settings tab shows a player says "bar" or "panel": every en-US value its pages, cards,
- * rows, dropdowns and tiles show (the library's own and the two displays' names) is checked here, across
+ * rows, dropdowns and tiles show (the library's own and the three displays' names) is checked here, across
  * the modules that author them.
  */
 class SettingsWordingTest {
@@ -41,6 +41,7 @@ class SettingsWordingTest {
             new Key("zc-presentation", UI, "settings.show"),
             new Key("zc-presentation", HUD, "panel.world_bars"),
             new Key("zc-presentation", HUD, "panel.activity_ledger"),
+            new Key("zc-presentation", HUD, "panel.center_bars"),
             new Key("zc-presentation", HUD, "settings.spot"),
             new Key("zc-presentation", HUD, "settings.server_spot"),
             new Key("zc-presentation", HUD, "settings.on"),

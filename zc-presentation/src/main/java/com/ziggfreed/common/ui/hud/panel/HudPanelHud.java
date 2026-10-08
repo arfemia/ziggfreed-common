@@ -2,6 +2,7 @@ package com.ziggfreed.common.ui.hud.panel;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -64,6 +65,15 @@ import com.ziggfreed.common.util.SafeLog;
  * rows, so showing it again mid-run shows the ledger as it stands. Everything that touches the
  * player runs on their world thread.
  *
+ * <p><b>A row's clock may stand still under a page.</b> The client draws no HUD while the player
+ * has a custom page open, so on a panel whose file sets {@code HoldWhilePageOpen}
+ * ({@link HudPanelAsset#holdsWhilePageOpen}) a row moved under a page, or still up when one opens,
+ * waits with no expiry, and runs its whole linger, as if just moved, once no page is open
+ * ({@link HudRowClock}). While any row lives on such a panel, one page watch at a time looks on the
+ * player's world thread every quarter second ({@link KeyedCustomHud#coveredByPage}),
+ * and lapses the moment nothing is live; a move re-arms it. At most {@code MaxVisible} rows wait, the
+ * oldest going first, so a long stay in a page never piles them up.
+ *
  * <p><b>The document.</b> Slots are declared up front in columns ({@code #ZigBarCol<c>} holding
  * {@code #ZigBarC<c>R<r>}), addressed by index and hidden when surplus, because a partial update can
  * restyle an element that exists but never add one. Each slot is a {@code #Line} (icon pair,
@@ -121,6 +131,12 @@ public abstract class HudPanelHud extends KeyedCustomHud {
     /** How wide that pulse is; it is held narrower on a bar too short to hold it. */
     private static final int PULSE_WIDTH_PX = 18;
 
+    /**
+     * How often a panel that holds while a page is open looks again whether the player has one, while
+     * any of its rows lives: the most a row waits past the page closing before it shows.
+     */
+    static final long PAGE_WATCH_MS = 250L;
+
     /** The shared word for a gain, {@code +{0, number}}, grouped by each player's own client. */
     static final String GAIN_KEY = "ziggfreedcommon.ui.hud.bar.gain";
 
@@ -129,6 +145,18 @@ public abstract class HudPanelHud extends KeyedCustomHud {
      * gain the grouped form would not fit beside the name.
      */
     static final String GAIN_COMPACT_KEY = "ziggfreedcommon.ui.hud.bar.gain.compact";
+
+    /**
+     * The word for a loss, {@code -{0, number}}: a row whose moves add up to less than nothing shows
+     * its size here, the sign in the lang file like the gain's. It has no compact twin, so a loss is
+     * always the whole figure.
+     */
+    static final String LOSS_KEY = "ziggfreedcommon.ui.hud.bar.loss";
+
+    /** Whether a row's number shows beside its name: a gain or a loss does, moves that cancel out do not. */
+    static boolean showsFigure(double gain) {
+        return gain != 0;
+    }
 
     /**
      * The gain at or past which the panel's own wording writes it compact: the wide panel's gain
@@ -148,6 +176,10 @@ public abstract class HudPanelHud extends KeyedCustomHud {
     private final RepaintCoalescer coalescer = new RepaintCoalescer(this::paintNow);
     private final AtomicBoolean paintDeferred = new AtomicBoolean();
     private final AtomicBoolean sweepArmed = new AtomicBoolean();
+    private final AtomicBoolean pageWatchArmed = new AtomicBoolean();
+
+    /** Whether the player had a page open when the world thread last looked; what a move waits on. */
+    private final AtomicBoolean pageOpen = new AtomicBoolean();
 
     /** Which panel this is: its document, its element names, its declared slots and its fallback corner. */
     private final HudPanelLayout layout;
@@ -183,16 +215,19 @@ public abstract class HudPanelHud extends KeyedCustomHud {
 
     /**
      * One row's moving state: the two parts it was moved with (the reading its fill is drawn from,
-     * an item it counts), the display its last move came with, the gain since it came up and when
-     * it goes away. Mutated under its own lock.
+     * an item it counts), the display its last move came with, the gain since it came up, how long it
+     * lingers and its clock (when it last moved, when it goes, whether it waits under a page).
+     * Mutated under its own lock.
      */
     private static final class LiveBar {
         @Nullable HudBarReading reading;
         @Nullable String itemId;
         @Nonnull HudRowDisplay display = HudRowDisplay.NONE;
         double gain;
-        long lastMovedMs;
-        long expiresAtMs;
+        long lingerMs;
+        // No expiry until the move that created it sets its clock, so a paint landing between the two
+        // cannot sweep a row that has not been moved yet.
+        @Nonnull HudRowClock clock = new HudRowClock(0L, HudRowClock.NEVER, false);
     }
 
     /**
@@ -331,7 +366,9 @@ public abstract class HudPanelHud extends KeyedCustomHud {
     /**
      * The row {@code rowId} moved by {@code delta}: create it if this is its first move, remember
      * the two parts it was moved with and the display that came along, add the delta to the gain
-     * shown since it came up, restart its linger, and paint. Any thread; the paint runs on the
+     * shown since it came up, restart its linger, and paint. On a panel that holds while a page is
+     * open, a move made while the player last had one open waits instead of starting its linger
+     * ({@link HudRowClock}), and the page watch is kept armed. Any thread; the paint runs on the
      * player's world thread.
      *
      * @param reading where the value now stands, drawn as the row's fill, or null for a row with no fill
@@ -341,6 +378,8 @@ public abstract class HudPanelHud extends KeyedCustomHud {
             @Nonnull HudRowDisplay display, boolean absolute) {
         long now = System.currentTimeMillis();
         long linger = HudRowLook.resolve(rowId, HudRowConfig.getInstance().bySource(rowId), display).lingerMs();
+        boolean holds = panel().holdsWhilePageOpen();
+        boolean underPage = holds && pageOpen.get();
         LiveBar state = live.computeIfAbsent(rowId, id -> new LiveBar());
         long expiresAt;
         synchronized (state) {
@@ -350,14 +389,21 @@ public abstract class HudPanelHud extends KeyedCustomHud {
             // A mod that keeps its own running total for the stretch of activity a row belongs to
             // states the number outright; one that only knows what just happened adds it on.
             state.gain = absolute ? delta : state.gain + delta;
-            state.lastMovedMs = now;
-            // A HELD row has no expiry at all rather than one a very long way off, so the arithmetic
-            // cannot overflow into a time already past and quietly drop the row on its first sweep.
-            state.expiresAtMs = linger == HudRowLook.LINGER_HELD ? Long.MAX_VALUE : now + linger;
-            expiresAt = state.expiresAtMs;
+            state.lingerMs = linger;
+            // A HELD or waiting row has no expiry at all rather than one a very long way off, so the
+            // arithmetic cannot overflow into a time already past and quietly drop the row on its
+            // first sweep.
+            state.clock = HudRowClock.moved(now, linger, underPage);
+            expiresAt = state.clock.expiresAtMs();
+        }
+        if (underPage) {
+            capWaiting();
         }
         requestPaint(now);
-        if (expiresAt != Long.MAX_VALUE) {
+        if (holds) {
+            armPageWatch();
+        }
+        if (expiresAt != HudRowClock.NEVER) {
             armSweep(expiresAt, now);
         }
     }
@@ -365,16 +411,18 @@ public abstract class HudPanelHud extends KeyedCustomHud {
     /**
      * Bring every live row's expiry forward to at most {@code withinMs} from now, so a set of rows
      * held for a stretch of activity goes away together when that activity ends instead of hanging
-     * on its own clock. A row already fading sooner keeps its own time. World thread not required.
+     * on its own clock. A row already fading sooner keeps its own time, and a row waiting under a
+     * page keeps waiting ({@link HudRowClock#fadeBy}). World thread not required.
      */
     void fadeAll(long withinMs) {
         long now = System.currentTimeMillis();
-        long deadline = now + Math.max(0L, withinMs);
+        long deadline = HudRowClock.expiryFrom(now, withinMs);
         boolean any = false;
         for (LiveBar state : live.values()) {
             synchronized (state) {
-                if (state.expiresAtMs > deadline) {
-                    state.expiresAtMs = deadline;
+                HudRowClock faded = state.clock.fadeBy(deadline);
+                if (faded != state.clock) {
+                    state.clock = faded;
                     any = true;
                 }
             }
@@ -414,6 +462,104 @@ public abstract class HudPanelHud extends KeyedCustomHud {
         }, delay, TimeUnit.MILLISECONDS);
     }
 
+    /**
+     * Arm the one page watch, a quarter second out, unless one is already waiting. It runs
+     * {@link #watchPage} on the player's world thread; a player who has gone (no alive world) lets it
+     * lapse, and the next move arms it again.
+     */
+    private void armPageWatch() {
+        if (!pageWatchArmed.compareAndSet(false, true)) {
+            return;
+        }
+        HytaleServer.SCHEDULED_EXECUTOR.schedule(() -> {
+            pageWatchArmed.set(false);
+            World world = aliveWorldOf(getPlayerRef());
+            if (world == null) {
+                return;
+            }
+            try {
+                world.execute(this::watchPage);
+            } catch (Throwable refused) {
+                // A world that stopped taking tasks: the watch lapses and the next move arms it again.
+            }
+        }, PAGE_WATCH_MS, TimeUnit.MILLISECONDS);
+    }
+
+    /**
+     * World thread: look whether the player has a page open, start the clocks of the rows that
+     * waited under one that has closed (and paint them), and look again while anything lives. A
+     * panel whose file stopped holding lets everything waiting go at once.
+     */
+    private void watchPage() {
+        try {
+            if (live.isEmpty()) {
+                return;
+            }
+            long now = System.currentTimeMillis();
+            boolean holds = panel().holdsWhilePageOpen();
+            if (observePage(now, holds)) {
+                requestPaint(now);
+            }
+            if (holds) {
+                armPageWatch();
+            }
+        } catch (Throwable t) {
+            SafeLog.warn("[hud] the page watch on a bar panel failed for " + getPlayerRef().getUsername()
+                    + ": " + t.getMessage());
+        }
+    }
+
+    /**
+     * World thread: whether the player has a page open now, remembered for the next move. Under a
+     * page every row still up stops its clock and what waits is held to the cap; with none open
+     * (or on a panel that does not hold) every waiting row runs its whole linger from now. Returns
+     * whether any row came out from under a page, which the caller paints.
+     */
+    private boolean observePage(long now, boolean holds) {
+        boolean covered = holds && coveredByPage(getPlayerRef());
+        pageOpen.set(covered);
+        if (covered) {
+            for (LiveBar state : live.values()) {
+                synchronized (state) {
+                    state.clock = state.clock.pageOpened(now);
+                }
+            }
+            capWaiting();
+            return false;
+        }
+        boolean released = false;
+        for (LiveBar state : live.values()) {
+            synchronized (state) {
+                if (state.clock.waiting()) {
+                    state.clock = state.clock.pageClosed(now, state.lingerMs);
+                    released = true;
+                }
+            }
+        }
+        return released;
+    }
+
+    /**
+     * Forget the oldest waiting rows past the panel's {@code MaxVisible} ({@link HudRowClock#beyondCap}),
+     * so however long a page stays open no more rows wait than the panel would draw. Any thread.
+     */
+    private void capWaiting() {
+        Map<String, Long> waiting = new HashMap<>();
+        Map<String, LiveBar> states = new HashMap<>();
+        for (Map.Entry<String, LiveBar> entry : live.entrySet()) {
+            LiveBar state = entry.getValue();
+            synchronized (state) {
+                if (state.clock.waiting()) {
+                    waiting.put(entry.getKey(), state.clock.lastMovedMs());
+                    states.put(entry.getKey(), state);
+                }
+            }
+        }
+        for (String id : HudRowClock.beyondCap(waiting, panel().maxVisible(layout.totalSlots()))) {
+            live.remove(id, states.get(id));
+        }
+    }
+
     /** Arm the one sweep, at {@code expiresAt}, unless one is already waiting. */
     private void armSweep(long expiresAt, long now) {
         if (!sweepArmed.compareAndSet(false, true)) {
@@ -432,16 +578,18 @@ public abstract class HudPanelHud extends KeyedCustomHud {
     // ==================== the paint ====================
 
     /**
-     * World thread: drop what has expired, read what is left, draw, and keep a sweep armed while
-     * anything lives. A panel the player hid paints only its own {@code Visible} false: its rows are
-     * kept and swept exactly as if it showed, so showing it again shows the ledger as it stands.
+     * World thread: stop or start the clocks a page decides ({@link #observePage}), drop what has
+     * expired, read what is left, draw, and keep a sweep armed while anything lives. A panel the
+     * player hid paints only its own {@code Visible} false: its rows are kept and swept exactly as if
+     * it showed, so showing it again shows the ledger as it stands.
      */
     private void paintNow() {
         try {
             markPushed();
             long now = System.currentTimeMillis();
-            List<Row> rows = collectLive(now);
             HudPanelAsset panel = panel();
+            observePage(now, panel.holdsWhilePageOpen());
+            List<Row> rows = collectLive(now);
             HudSpot spot = spot();
             UICommandBuilder cmd = new UICommandBuilder();
             if (HudPreferences.isHidden(getPlayerRef(), layout.panelId())) {
@@ -473,37 +621,37 @@ public abstract class HudPanelHud extends KeyedCustomHud {
             String itemId;
             HudRowDisplay display;
             double gain;
-            long lastMoved;
-            long expiresAt;
+            HudRowClock clock;
             synchronized (state) {
                 reading = state.reading;
                 itemId = state.itemId;
                 display = state.display;
                 gain = state.gain;
-                lastMoved = state.lastMovedMs;
-                expiresAt = state.expiresAtMs;
+                clock = state.clock;
             }
             HudRowAsset override = HudRowConfig.getInstance().bySource(id);
-            if (expiresAt <= now || (override != null && !override.enabled())) {
+            if (clock.expired(now) || (override != null && !override.enabled())) {
                 live.remove(id, state);
                 continue;
             }
-            rows.add(new Row(id, HudRowLook.resolve(id, override, display), itemId, gain, lastMoved, reading));
+            rows.add(new Row(id, HudRowLook.resolve(id, override, display), itemId, gain, clock.lastMovedMs(),
+                    reading));
         }
         return rows;
     }
 
     /** After a paint, keep one sweep waiting for the earliest expiry still live. */
     private void rearmSweep(long now) {
-        long earliest = Long.MAX_VALUE;
+        long earliest = HudRowClock.NEVER;
         for (LiveBar state : live.values()) {
             synchronized (state) {
-                earliest = Math.min(earliest, state.expiresAtMs);
+                earliest = Math.min(earliest, state.clock.expiresAtMs());
             }
         }
-        // Long.MAX_VALUE is both "nothing is live" and "everything live is HELD"; neither wants a
-        // sweep, and a held row is sent away by fadeAll rather than by a clock.
-        if (earliest != Long.MAX_VALUE) {
+        // NEVER is "nothing is live", "everything live is HELD" and "everything live waits under a
+        // page"; none wants a sweep: a held row is sent away by fadeAll and a waiting one starts its
+        // clock when the page watch sees the page gone.
+        if (earliest != HudRowClock.NEVER) {
             armSweep(earliest, now);
         }
     }
@@ -807,7 +955,7 @@ public abstract class HudPanelHud extends KeyedCustomHud {
         cmd.setObject(slot + ".Anchor", rowAnchor(layout, layout.rowMarginPx() + pushPx));
         // .TextSpans, never .Text: a Message on a Label's String sink crashes the client.
         cmd.set(slot + " #Line #Label.TextSpans", look.label());
-        boolean hasGain = row.gain() > 0;
+        boolean hasGain = showsFigure(row.gain());
         cmd.set(slot + " #Line #Gain.Visible", hasGain);
         if (hasGain) {
             cmd.set(slot + " #Line #Gain.TextSpans", gain(row.gain(), look.countKey()));
@@ -868,12 +1016,16 @@ public abstract class HudPanelHud extends KeyedCustomHud {
      * nothing. That figure is server-written text, so it rides the compact twin of the key as a
      * nested raw message and the sign stays in the lang file. A row wording its own number is bound
      * the whole figure at every magnitude: its key is the reporting mod's, and only that mod knows
-     * what its wording has room for.
+     * what its wording has room for. A row whose moves add up to a loss shows its size on
+     * {@link #LOSS_KEY} ("-25"), always whole.
      */
     @Nonnull
     static Message gain(double gain, @Nullable String countKey) {
         if (countKey != null && !countKey.isBlank()) {
             return figure(countKey, gain);
+        }
+        if (gain < 0) {
+            return figure(LOSS_KEY, -gain);
         }
         if (gain >= COMPACT_GAIN_FROM) {
             // NUMBER-OK: a compact magnitude ("12.3k") that no client-side number format produces, in a gain column too narrow for the grouped form

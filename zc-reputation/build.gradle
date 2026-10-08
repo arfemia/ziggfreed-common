@@ -4,7 +4,8 @@ apply from: "$rootDir/gradle/zc-module.gradle"
 // rank ladder (seven native ReputationRank files), the companion asset zc keeps beside a native
 // ReputationGroup of the same id (names, gear favor, cap, rank names, kill standing, the payout past the
 // top rank), the one writer over the native value, three readings, the Reputation reward kind, the change
-// event, the World bar, the rank notice, the kill table and the rail tab.
+// event, the World bar (or the centred row for a change made in a page), the rank notice, the kill table
+// and the rail tab.
 //
 // Nothing in the library depends on this module except zc-objectives, which turns
 // ZigReputationRanksHeldEvent (the ranks a check credits) into REPUTATION_RANK progress from above
@@ -23,6 +24,7 @@ dependencies {
     // The shared moment stream the kill table listens on, the reward entry shape, the runtime's subjects
     // and its reward retry queue.
     implementation project(':zc-progression')
-    // The World bars, the feedback engine, the destination vocabulary, the shared menu and its rows.
+    // The World bars, the centred panel and the page check, the feedback engine, the destination
+    // vocabulary, the shared menu and its rows.
     implementation project(':zc-presentation')
 }

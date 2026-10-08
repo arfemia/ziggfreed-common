@@ -8,7 +8,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
@@ -18,6 +20,9 @@ import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 
 import org.junit.jupiter.api.Test;
+
+import com.ziggfreed.common.ui.hud.panel.HudPanelLayout;
+import com.ziggfreed.common.ui.hud.panel.HudPanels;
 
 /**
  * Every line the {@code /zighud} family sends a player, and every command and argument description it
@@ -63,6 +68,19 @@ class HudCommandKeysTest {
         }
         assertTrue(missing.isEmpty(), "/zighud sends keys en-US " + ENGLISH.getFileName()
                 + " does not carry, so the player reads the raw key: " + missing);
+    }
+
+    @Test
+    void theHelpAndTheUnknownPanelAnswerNameEveryPanelAPlayerCarries() throws IOException {
+        Map<String, String> english = englishValues();
+        for (String key : List.of("desc.arg.panel", "panel.unknown")) {
+            String value = english.get(key);
+            for (HudPanelLayout layout : HudPanels.panels()) {
+                assertTrue(value != null && value.contains(layout.panelId()),
+                        key + " = '" + value + "' does not name " + layout.panelId()
+                                + ", so a player is never told the id that panel answers to");
+            }
+        }
     }
 
     @Nonnull
@@ -124,6 +142,19 @@ class HudCommandKeysTest {
     @Nonnull
     private static String read(@Nonnull Path file) throws IOException {
         return Files.readString(file, StandardCharsets.UTF_8).replace("\r\n", "\n");
+    }
+
+    @Nonnull
+    private static Map<String, String> englishValues() throws IOException {
+        Map<String, String> values = new HashMap<>();
+        for (String raw : Files.readAllLines(ENGLISH, StandardCharsets.UTF_8)) {
+            String line = raw.trim();
+            int eq = line.indexOf('=');
+            if (!line.isEmpty() && !line.startsWith("#") && eq > 0) {
+                values.put(line.substring(0, eq).trim(), line.substring(eq + 1).trim());
+            }
+        }
+        return values;
     }
 
     @Nonnull
