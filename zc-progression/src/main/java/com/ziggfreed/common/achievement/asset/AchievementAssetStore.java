@@ -10,6 +10,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nonnull;
 
+import com.ziggfreed.common.factor.ModGates;
+import com.ziggfreed.common.progress.asset.ContentRewardsAsset;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.validation.ValidationReport;
@@ -121,10 +123,29 @@ public final class AchievementAssetStore {
      * STENCIL whose id is a pattern a consumer stamps out against its own runtime roster. A
      * consumer that knows how to expand one reads it off {@link #assets()} and expands it there;
      * nothing unearnable ever reaches a pool.
+     *
+     * <p>A reward row whose own {@code Requires} names a missing mod is absent from what the pool pays
+     * ({@code RewardEntryAsset.toSpec}); this fold counts those rows once per file that folds, whatever its
+     * yearly copies (a skeleton's only through the files that inherit them), in the store's one row line
+     * per missing mod.
      */
     @Nonnull
     public Resolution resolve() {
-        return resolve(achievements, layerFindings, OccurrenceReader.LIVE);
+        Resolution resolution = resolve(achievements, layerFindings, OccurrenceReader.LIVE);
+        ModGates.reportRewardRows(MOD_GATE_STORE, gatedRows(achievements));
+        return resolution;
+    }
+
+    /** One entry per reward row the mod gate leaves out of the files that fold, naming its missing mod. */
+    @Nonnull
+    private static List<String> gatedRows(@Nonnull Map<String, AchievementAsset> assets) {
+        List<String> out = new ArrayList<>();
+        for (AchievementAsset asset : assets.values()) {
+            if (asset != null && !asset.isAbstract()) {
+                ContentRewardsAsset.collectMissingMods(asset.getRewards(), out);
+            }
+        }
+        return out;
     }
 
     /**

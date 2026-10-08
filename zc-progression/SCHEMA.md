@@ -558,8 +558,16 @@ Every field is optional and defaults to `null` unless its Default column reads *
 
 | Key | Type | Default | Documentation |
 |---|---|---|---|
-| `Kind` | `string` | `null` | Which registered reward kind pays this out, by id: Item, Lootable, Stamped_Item, Effect, Droplist, Command and Flair come with the framework, and a kind a mod brings carries that mod's prefix (Yourmod_Coin). A kind nothing registered is reported rather than silently skipped, so an owner can see which mod was expected to provide it. |
+| `Kind` | `string` | `null` | Which registered reward kind pays this out, by id: Item, Lootable, Stamped_Item, Effect, Droplist, Command and Flair come with the framework, and a kind a mod brings carries that mod's prefix (Yourmod_Coin). A kind nothing registered is reported rather than silently skipped, so an owner can see which mod was expected to provide it; a row that only some servers can pay names its mod in Requires instead. |
 | `Params` | map of `scalarString` | `null` | The kind's own parameters. Which keys matter is documented by whoever registered the kind; nothing here interprets them. A number or true/false may be written bare (Amount: 50), a value with any other shape takes quotes. |
+| `Requires` | [Block](#field-rewardentry-requires) | `null` | Whether this reward row exists on this server at all. A condition { "Factor": "hytale:mod_installed", "Param": "Group:Name", "Min": 1 } leaves the row out where that mod is not installed: it pays nothing, shows nowhere and is not reported, while the rest of the list pays as written. Write Min 1: a condition with no bound is satisfied by a missing mod too. Other conditions here are not read. |
+
+<a id="field-rewardentry-requires"></a>
+### RewardEntry.Requires
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Factors` | array of [FactorCondition](#type-factorcondition) | `null` | The conditions. A plain hytale:mod_installed condition with Min 1 decides whether the file or reward row carrying this block loads; authoring this list replaces an inherited one whole. |
 
 <a id="type-requires"></a>
 ## Requires

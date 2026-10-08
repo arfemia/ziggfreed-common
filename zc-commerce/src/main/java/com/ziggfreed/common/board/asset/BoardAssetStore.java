@@ -10,6 +10,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nonnull;
 
+import com.ziggfreed.common.factor.ModGates;
+import com.ziggfreed.common.progress.asset.ContentRewardsAsset;
 import com.ziggfreed.common.quest.asset.QuestDefinition;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
@@ -103,11 +105,16 @@ public final class BoardAssetStore {
     /**
      * Fold every postable contract, with the contract policy stamped on. Skeletons are left out:
      * they exist to be inherited from, never to be posted.
+     *
+     * <p>A reward row whose own {@code Requires} names a missing mod is absent from what its contract pays
+     * ({@code RewardEntryAsset.toSpec}); this fold counts those rows across every contract it posts, in the
+     * store's one row line per missing mod.
      */
     @Nonnull
     public Resolution resolve() {
         List<Finding> issues = new ArrayList<>(layerFindings);
         Map<String, QuestDefinition> out = new LinkedHashMap<>();
+        List<String> gatedRows = new ArrayList<>();
 
         List<String> authoredIds = new ArrayList<>(bounties.keySet());
         Collections.sort(authoredIds);
@@ -117,7 +124,9 @@ public final class BoardAssetStore {
                 continue;
             }
             out.put(id, asset.toDefinition(null));
+            ContentRewardsAsset.collectMissingMods(asset.getRewards(), gatedRows);
         }
+        ModGates.reportRewardRows(MOD_GATE_STORE, gatedRows);
         return new Resolution(out, issues);
     }
 

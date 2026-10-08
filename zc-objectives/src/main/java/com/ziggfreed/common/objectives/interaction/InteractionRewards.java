@@ -34,7 +34,11 @@ public final class InteractionRewards {
     private InteractionRewards() {
     }
 
-    /** The rewards {@code entries} pay, in order; an entry naming no Kind pays nothing and is dropped. */
+    /**
+     * The rewards {@code entries} pay, in order; an entry naming no Kind, or one whose own {@code Requires}
+     * names a mod this server lacks, pays nothing and is dropped. No store folds an inline list, so such a
+     * row is never counted in a mod-gate line.
+     */
     @Nonnull
     public static List<RewardSpec> specs(@Nullable RewardEntryAsset[] entries) {
         if (entries == null || entries.length == 0) {
