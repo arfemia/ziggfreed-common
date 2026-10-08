@@ -148,7 +148,9 @@ public final class AchievementAsset
             .documentation("The calendar event this achievement comes back with every year. One copy is kept "
                     + "per yearly occurrence, named '<this id>_<year>' and earned separately; a copy counts "
                     + "progress only while its own year runs, and afterwards it is a feat its earners keep and "
-                    + "nobody else can earn. Unauthored means an ordinary achievement.")
+                    + "nobody else can earn. Each year's copy is named by achievement.<this id>_<year>.title when "
+                    + "a lang file ships that line, else by the title every copy shares. Unauthored means an "
+                    + "ordinary achievement.")
             .add()
             .appendInherited(new KeyedCodec<>("Criteria",
                             new InheritMapCodec<>(ObjectiveLeafAsset.CODEC), false),
@@ -535,7 +537,9 @@ public final class AchievementAsset
                 .appendInherited(new KeyedCodec<>("Event", Codec.STRING, false),
                         (o, v) -> o.event = v, o -> o.event, (o, p) -> o.event = p.event)
                 .documentation("The calendar event's id (its file name). Write @year in Text.TextArgs, or as a "
-                        + "reward parameter's whole value, for the copy's own year.").add()
+                        + "reward parameter's whole value, for the copy's own year. Each year's copy is named by "
+                        + "achievement.<this id>_<year>.title when a lang file ships that line, else by the title "
+                        + "every copy shares.").add()
                 .build();
 
         public Occurrence() {

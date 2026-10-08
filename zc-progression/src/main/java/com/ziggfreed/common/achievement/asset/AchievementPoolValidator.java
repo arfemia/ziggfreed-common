@@ -68,7 +68,7 @@ public final class AchievementPoolValidator {
             @Nullable AchievementProgressStore store, @Nullable GateKindRegistry gateKinds) {
 
         List<Finding> out = new ArrayList<>();
-        Set<String> named = new HashSet<>();
+        Set<String> unnamedBases = new HashSet<>();
         for (Map.Entry<String, AchievementDefinition> entry : pool.definitions().entrySet()) {
             AchievementDefinition definition = entry.getValue();
             String id = entry.getKey();
@@ -81,7 +81,7 @@ public final class AchievementPoolValidator {
             }
 
             validateShape(definition, pool, out);
-            validateName(definition, named, out);
+            validateName(definition, unnamedBases, out);
             out.addAll(ContentListingAsset.chainFindings(definition.chains(), DOMAIN, id));
 
             validateCriteria(definition, objectiveKinds, store, out);
@@ -119,15 +119,20 @@ public final class AchievementPoolValidator {
         }
     }
 
-    /** A name that resolves in no loaded catalogue, once per base: every year's copy shares its base's key. */
-    private static void validateName(@Nonnull AchievementDefinition definition, @Nonnull Set<String> named,
+    /**
+     * A name that resolves in no loaded catalogue, once per base: every year's copy shares its base's
+     * key. A year's own line names that year alone, so each copy is asked until one is unnamed, and
+     * only then is its base reported and marked.
+     */
+    private static void validateName(@Nonnull AchievementDefinition definition, @Nonnull Set<String> reported,
             @Nonnull List<Finding> out) {
         String base = AchievementDefinition.conventionId(definition.achievement());
-        if (!named.add(base)) {
+        if (reported.contains(base)) {
             return;
         }
         Finding unnamed = ConventionKeys.unresolvedTitle(DOMAIN, base, definition.achievement().text());
         if (unnamed != null) {
+            reported.add(base);
             out.add(unnamed);
         }
     }
