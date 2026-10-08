@@ -1,7 +1,7 @@
 # objectives/book/ - the objective book
 
 - `canDeliverTurnInAt(subject, quest, null)` is always false, so never gate the Hand in button on it: the book uses `firstActiveTurnIn(subject, quest, null)` and then `attemptTurnIn`, which re-checks everything. A hand-in locked to a character can never complete from the book.
-- A giver-bound quest (`BookVerbs.giverBound`) is never accepted from the book; `QuestEngine.canAccept` stays open, because the NPC quest page is where that quest is taken.
+- A quest taken at its giver (`BookVerbs.takenAtGiver`: a giver and no `Flow.AutoAccept`) is never accepted from the book; `QuestEngine.canAccept` stays open, because the NPC quest page is where that quest is taken. A quest that arms itself is taken from the book like one with no giver, its giver recorded as the accept site the way the engine's auto-accept pass records it; `giverBound` only says a quest names a giver, never whether the book may take it.
 - Any String-only sink (an item slot's hover name, a dropdown label, the search haystacks, a sort key) goes through `UiText.flatten`; everything else stays a client-resolved `Message` on `.TextSpans`.
 - A partial update keeps the scroll: clear the repainted hosts, re-append, bind only the fresh elements in the update's own event builder, then `sendUpdate(cmd, events, false)`. Reopen only where a partial cannot tell the truth (a filter, search, sort or tab change, or a change that re-ranks every row).
 - The Achievements tab is `achievement/AchievementsTab`; what it shows is read by the pure `achievement/AchievementReader` (rows, pages, browse sections, the overview) and painted through zc-presentation's kit. Quests read the same way through `journal/QuestReader`.

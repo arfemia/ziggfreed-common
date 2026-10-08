@@ -24,11 +24,11 @@ import com.ziggfreed.common.ui.kit.DetailAction;
  * page show it as the header toggle instead). The three buttons are bound once, with no quest in the binding, and a
  * press is {@link #dispatch}ed on what the quest is when it lands, so a page repainted by a partial never re-binds.
  *
- * <p><b>In the book</b> ({@code here} null): Accept only for a quest the log may take now that has no giver and no
- * board (a giver-bound quest is taken at its giver, a board's at its board); Hand in when a step can be handed in
- * somewhere unlocked ({@code firstActiveTurnIn(subject, quest, null)}; a hand-in locked to a character never
- * completes from the book); Collect for a finished quest unless it is collected only at its site; Abandon on a
- * carried quest, a board's too.
+ * <p><b>In the book</b> ({@code here} null): Accept only for a quest the log may take now that is taken neither at its
+ * giver ({@link BookVerbs#takenAtGiver}; a quest that arms itself never is) nor at a board; Hand in when a step can be
+ * handed in somewhere unlocked ({@code firstActiveTurnIn(subject, quest, null)}; a hand-in locked to a character
+ * never completes from the book); Collect for a finished quest unless it is collected only at its site; Abandon on
+ * a carried quest, a board's too.
  *
  * <p><b>At a character</b> ({@code here} non-null, the NPC quest page), the place decides: Accept for anything
  * Available there (a giver-bound quest included, since this is where it is taken); Hand in when a step resolves
@@ -115,7 +115,7 @@ public final class QuestActions {
             case NOT_STARTED -> {
                 boolean offered = here != null
                         ? here.sectionOf(q) == NpcQuestSections.Section.AVAILABLE
-                        : r.acceptable(q) && !BookVerbs.giverBound(q);
+                        : r.acceptable(q) && !BookVerbs.takenAtGiver(q);
                 yield offered && !managed
                         ? action(ActionSlot.PRIMARY, QuestReader.text("action.accept"), ActionLook.NORMAL, ACCEPT)
                         : null;

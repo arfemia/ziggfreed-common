@@ -66,8 +66,10 @@ public final class BookVerbs {
     }
 
     /**
-     * Accept {@code quest}. A quest with a giver is taken AT that giver: the book refuses it with the hint
-     * naming where (the NPC quest page is where it is legitimately accepted, so the engine's path stays open).
+     * Accept {@code quest}. A quest {@link #takenAtGiver taken at its giver} is refused with the hint naming
+     * where (the NPC quest page is where it is legitimately accepted, so the engine's path stays open). A quest
+     * that arms itself is taken here as the engine arms it, its giver recorded as the place it was taken, so a
+     * hand-in or a collection that goes back there reads the same whichever way it reached the log.
      */
     public boolean accept(@Nonnull Quest quest) {
         QuestEngine engine = ProgressionRuntime.quests();
@@ -75,7 +77,7 @@ public final class BookVerbs {
         if (subject == null) {
             return false;
         }
-        if (giverBound(quest)) {
+        if (takenAtGiver(quest)) {
             toast(ToastKind.INFO, giverHint(quest));
             return false;
         }
@@ -86,7 +88,9 @@ public final class BookVerbs {
         // feedback seam lists that receipt rather than the authored promise.
         AtomicReference<RewardGrants.GrantOutcome> settled = new AtomicReference<>();
         boolean ok = Boolean.TRUE.equals(ProgressionRuntime.questScope().around(subject, s -> {
-            boolean accepted = engine.canAccept(s, quest).allowed() && engine.accept(s, quest);
+            // The giver is the accept site, as the engine's own auto-accept pass records it; a quest with no
+            // giver records none, which is what the book has always passed.
+            boolean accepted = engine.canAccept(s, quest).allowed() && engine.accept(s, quest, quest.npcViewId());
             if (accepted) {
                 // Retroactive completions (a standing value already met) finish it at once.
                 settled.set(engine.trySettle(s, quest));
@@ -313,17 +317,29 @@ public final class BookVerbs {
     }
 
     /**
-     * A quest with a giver ({@link Quest#npcViewId()}) is taken AT that giver, so the book never offers Accept
-     * for one: its page shows where to go instead, and {@link #accept} refuses it. Everything else (listing,
-     * objectives, rewards, hand-in, abandon) is untouched.
+     * Whether {@code quest} names a giver ({@link Quest#npcViewId()}): the character its hand-in or its collection
+     * may go back to. Whether it is also TAKEN there is {@link #takenAtGiver}'s question, which the book asks
+     * before offering Accept.
      */
     public static boolean giverBound(@Nonnull Quest quest) {
         return quest.npcViewId() != null;
     }
 
     /**
-     * Where a giver-bound quest is taken, naming the character when the placement and identity assets can (the
-     * reading every other surface uses, so the hint and the nameplate never disagree); the plain hint otherwise.
+     * Whether {@code quest} is taken AT its giver, so the book never offers Accept for it: its page shows where to
+     * go instead, and {@link #accept} refuses it. A quest that arms itself ({@link Quest#autoAccept()}) never is:
+     * the engine puts it in the log rather than the giver handing it out, so its giver is only where it is handed
+     * in, and a player who dropped it takes it back from the book like a quest with no giver. Everything else
+     * (listing, objectives, rewards, hand-in, abandon) is untouched.
+     */
+    public static boolean takenAtGiver(@Nonnull Quest quest) {
+        return giverBound(quest) && !quest.autoAccept();
+    }
+
+    /**
+     * Where a quest {@link #takenAtGiver taken at its giver} is taken, naming the character when the placement
+     * and identity assets can (the reading every other surface uses, so the hint and the nameplate never
+     * disagree); the plain hint otherwise.
      */
     @Nonnull
     public static Message giverHint(@Nonnull Quest quest) {

@@ -27,8 +27,9 @@ import com.ziggfreed.common.ui.kit.DetailAction;
 
 /**
  * The action bar is read off the quest's live state, and a press dispatches on the state the quest is in when it
- * lands: the same button is Accept, then Hand in, then a gold Collect. The book never offers Accept for a giver-bound
- * or a board-managed quest; at a character the place decides instead.
+ * lands: the same button is Accept, then Hand in, then a gold Collect. The book never offers Accept for a quest taken
+ * at its giver or a board-managed quest, but does for one that arms itself, whose giver only takes it in; at a
+ * character the place decides instead.
  */
 class QuestActionsTest {
 
@@ -60,6 +61,13 @@ class QuestActionsTest {
 
     private static Quest reportBack(String id) {
         return Quest.builder(id).npcViewId(GUIDE)
+                .objective(ObjectiveDef.builder("tell", "TURN_IN").target("").amount(1).turnInLockId(GUIDE).build())
+                .build();
+    }
+
+    /** {@link #reportBack}, but a quest that arms itself: the engine puts it in the log, its giver only takes it in. */
+    private static Quest selfArming(String id) {
+        return Quest.builder(id).npcViewId(GUIDE).autoAccept(true)
                 .objective(ObjectiveDef.builder("tell", "TURN_IN").target("").amount(1).turnInLockId(GUIDE).build())
                 .build();
     }
@@ -128,6 +136,48 @@ class QuestActionsTest {
         assertNull(QuestActions.dispatch(ActionSlot.PRIMARY, board, reader()), "taken at its board");
         assertNull(verb(QuestActions.of(giver, reader()), ActionSlot.PRIMARY));
         assertNull(verb(QuestActions.of(board, reader()), ActionSlot.PRIMARY));
+    }
+
+    @Test
+    void theBookOffersAcceptForAQuestThatArmsItselfThoughItNamesAGiver() {
+        Quest selfArming = selfArming("q_meet");
+        Quest giver = reportBack("q_giver");
+        engine.setQuests(List.of(selfArming, giver));
+
+        assertEquals(QuestActions.ACCEPT, QuestActions.dispatch(ActionSlot.PRIMARY, selfArming, reader()),
+                "the engine puts it in the log, so the log may take it back");
+        assertNull(QuestActions.dispatch(ActionSlot.PRIMARY, giver, reader()),
+                "a giver's quest that does not arm itself is still taken at its giver");
+    }
+
+    @Test
+    void noAcceptForAQuestThatArmsItselfWhileTheEngineRefusesIt() {
+        engine = QuestEngine.builder().nativeEvents(false).warn(message -> { })
+                .possessionProbe((itemId, count) -> true)
+                .maxActive(1)
+                .build();
+        Quest filler = handIn("q_filler");
+        Quest selfArming = selfArming("q_meet");
+        engine.setQuests(List.of(filler, selfArming));
+        assertTrue(engine.accept(player, filler));
+
+        assertNull(QuestActions.dispatch(ActionSlot.PRIMARY, selfArming, reader()), "the log is full");
+    }
+
+    @Test
+    void aQuestThatArmsItselfIsStillHandedInAtItsGiver() {
+        Quest quest = selfArming("q_meet");
+        engine.setQuests(List.of(quest));
+        assertTrue(engine.accept(player, quest, GUIDE));
+
+        assertNull(verb(QuestActions.of(quest, reader()), ActionSlot.PRIMARY),
+                "a hand-in locked to its giver is never handed in from the book");
+        assertEquals(QuestActions.ABANDON, QuestActions.dispatch(ActionSlot.DANGER, quest, reader()));
+        CharacterQuestListing atGuide = new CharacterQuestListing(engine, player, Set.of(GUIDE));
+        assertEquals(QuestActions.HAND_IN, QuestActions.dispatch(ActionSlot.PRIMARY, quest, reader(), atGuide),
+                "its giver takes it in");
+        CharacterQuestListing elsewhere = new CharacterQuestListing(engine, player, Set.of("stranger"));
+        assertNull(verb(QuestActions.of(quest, reader(), elsewhere), ActionSlot.PRIMARY));
     }
 
     @Test

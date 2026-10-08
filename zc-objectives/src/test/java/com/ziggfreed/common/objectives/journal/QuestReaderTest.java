@@ -66,8 +66,9 @@ import com.ziggfreed.common.ui.kit.Tone;
 
 /**
  * The quest reader over a real engine with an in-memory store: every state a quest can be in, read into its section,
- * its row and its page, against the cases that change what a page may offer (board-managed, giver-bound, a hand-in,
- * a quest collected only at its site, a cooldown, ordered and hidden steps) and the journal's cap.
+ * its row and its page, against the cases that change what a page may offer (board-managed, giver-bound, a quest that
+ * arms itself, a hand-in, a quest collected only at its site, a cooldown, ordered and hidden steps) and the journal's
+ * cap.
  */
 class QuestReaderTest {
 
@@ -167,6 +168,12 @@ class QuestReaderTest {
 
     private static Quest giverBound(String id) {
         return Quest.builder(id).category("main").npcViewId("Mmo_Mastery_Trainer").objective(mine("mine", 0)).build();
+    }
+
+    /** {@link #giverBound}, but a quest that arms itself: the engine puts it in the log, never its giver. */
+    private static Quest selfArming(String id) {
+        return Quest.builder(id).category("main").npcViewId("Mmo_Mastery_Trainer").autoAccept(true)
+                .objective(mine("mine", 0)).build();
     }
 
     /** A gate refusing every quest whose id starts {@code q_locked}, the way a prerequisite would. */
@@ -340,6 +347,18 @@ class QuestReaderTest {
         assertFalse(BookVerbs.giverBound(Quest.builder("q_plain").build()));
     }
 
+    @Test
+    void aQuestThatArmsItselfIsNeverTakenAtItsGiver() {
+        assertTrue(BookVerbs.takenAtGiver(Quest.builder("q_giver").npcViewId("Mmo_Mastery_Trainer").build()));
+        assertFalse(BookVerbs.takenAtGiver(
+                Quest.builder("q_meet").npcViewId("Mmo_Mastery_Trainer").autoAccept(true).build()),
+                "the engine puts it in the log; its giver only takes it in");
+        assertTrue(BookVerbs.giverBound(Quest.builder("q_meet").npcViewId("Mmo_Mastery_Trainer").autoAccept(true)
+                .build()), "it still names a giver");
+        assertFalse(BookVerbs.takenAtGiver(Quest.builder("q_plain").build()));
+        assertFalse(BookVerbs.takenAtGiver(Quest.builder("q_auto").autoAccept(true).build()));
+    }
+
     /**
      * The engine must keep accepting giver-bound quests: the refusal lives in the book, never in
      * {@code QuestEngine.canAccept}, or the NPC quest page could no longer hand them out.
@@ -374,6 +393,63 @@ class QuestReaderTest {
 
         presentation.npcName = null;
         assertEquals(J + "hint.talk_to_plain", id(reader().page(quest).hint()), "no name, the plain hint");
+    }
+
+    // ==================== a quest that arms itself ====================
+
+    /**
+     * A quest that arms itself is put in the log by the engine, never handed out, so its giver is only where it is
+     * handed in: the book takes it the way it takes a quest with no giver, Accept and no word of the giver.
+     */
+    @Test
+    void aQuestThatArmsItselfIsTakenFromTheBookWithNoWordOfItsGiver() {
+        Quest selfArming = selfArming("q_meet");
+        Quest giver = giverBound("q_giver");
+        set(selfArming, giver);
+        presentation.npcName = Msg.raw("Old Jack");
+
+        QuestReader r = reader();
+        assertEquals(QuestSection.AVAILABLE, r.sectionOf(selfArming));
+        DetailView page = r.page(selfArming);
+        assertNotNull(page.action(ActionSlot.PRIMARY), "Accept in the book, as for a quest with no giver");
+        assertEquals(QuestActions.ACCEPT, page.action(ActionSlot.PRIMARY).actionId());
+        assertNull(page.hint(), "no word of its giver for taking it");
+
+        DetailView other = r.page(giver);
+        assertNull(other.action(ActionSlot.PRIMARY), "a giver's quest that does not arm itself is still taken there");
+        assertEquals(J + "hint.talk_to", id(other.hint()));
+    }
+
+    @Test
+    void aQuestThatArmsItselfButIsRefusedHasNoAcceptAndNoWordOfItsGiver() {
+        Quest refused = Quest.builder("q_locked_meet").category("main").npcViewId("Mmo_Mastery_Trainer")
+                .autoAccept(true).objective(mine("mine", 0)).build();
+        set(refused);
+        presentation.npcName = Msg.raw("Old Jack");
+
+        QuestReader r = reader();
+        assertEquals(QuestSection.NOT_YET, r.sectionOf(refused), "the gate refuses it");
+        DetailView page = r.page(refused);
+        assertNull(page.action(ActionSlot.PRIMARY), "nothing to take while the engine refuses it");
+        assertNull(page.hint(), "and its giver is no way round the refusal");
+    }
+
+    @Test
+    void aQuestThatArmsItselfWithTheLogFullSaysSoLikeAQuestWithNoGiver() {
+        engine = QuestEngine.builder().nativeEvents(false).warn(message -> { })
+                .possessionProbe((itemId, count) -> true)
+                .maxActive(1)
+                .clock(() -> now)
+                .build();
+        Quest filler = plain("q_filler");
+        Quest selfArming = selfArming("q_meet");
+        set(filler, selfArming);
+        assertTrue(engine.accept(player, filler));
+        presentation.npcName = Msg.raw("Old Jack");
+
+        DetailView page = reader().page(selfArming);
+        assertNull(page.action(ActionSlot.PRIMARY));
+        assertEquals(J + "hint.log_full", id(page.hint()), "why the log cannot take it, not where to go");
     }
 
     // ==================== board-managed ====================

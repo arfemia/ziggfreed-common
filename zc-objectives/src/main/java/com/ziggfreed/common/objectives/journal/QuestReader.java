@@ -548,7 +548,7 @@ public final class QuestReader {
     /** Where to take a quest the book does not hand out, or why the log cannot take it now. */
     @Nullable
     private Message notStartedHint(@Nonnull Quest q) {
-        if (BookVerbs.giverBound(q)) {
+        if (BookVerbs.takenAtGiver(q)) {
             Message name = presentation.npcName(q.npcViewId());
             return name != null ? text("hint.talk_to", name) : text("hint.talk_to_plain");
         }
