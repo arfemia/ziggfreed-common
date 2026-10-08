@@ -14,6 +14,9 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
+import com.hypixel.hytale.codec.schema.SchemaContext;
+import com.hypixel.hytale.codec.schema.config.ArraySchema;
+import com.hypixel.hytale.codec.schema.config.Schema;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.factor.FeatureFlags;
 import com.ziggfreed.common.progress.MatchMode;
@@ -480,6 +483,30 @@ class QuestAssetCodecTest {
             assertFalse(quest.objective("b").matches("Wolf_Grey", "Elite_Pack_Alpha"));
             assertEquals(MatchMode.EXACT, quest.objective("c").qualifierMatchMode(),
                     "an unreadable qualifier mode falls back to compare-whole rather than to the target's default");
+        }
+
+        @Test
+        void aStepNamesSeveralQualifiersUnderTheOneQualifierComparison() throws Exception {
+            QuestAsset asset = decodeRoot("""
+                    { "Objectives": { "a": { "Kind": "COMPLETE_QUEST", "Qualifiers": ["REPEATABLE", "SEASONAL"] },
+                                      "b": { "Kind": "KILL_ENTITY", "Qualifier": "Elite",
+                                             "Qualifiers": ["Boss"], "QualifierMatchMode": "PREFIX" } } }
+                    """, "q");
+            Quest quest = asset.toDefinition(null).quest();
+            assertTrue(quest.objective("a").matches("Any_Quest", "seasonal"));
+            assertTrue(quest.objective("a").matches("Any_Quest", "REPEATABLE"));
+            assertFalse(quest.objective("a").matches("Any_Quest", "DAILY"));
+            assertTrue(quest.objective("b").matches("Wolf", "Elite_Alpha"), "Qualifier joins the list");
+            assertTrue(quest.objective("b").matches("Wolf", "Boss_Final"), "and PREFIX reads every entry");
+            assertFalse(quest.objective("b").matches("Wolf", "Normal"));
+        }
+
+        @Test
+        void theQuestStepSchemaDeclaresTheQualifiersArrayToo() {
+            Schema qualifiers = QuestObjectiveAsset.CODEC.toSchema(new SchemaContext()).getProperties()
+                    .get("Qualifiers");
+            assertTrue(qualifiers instanceof ArraySchema, "a quest step gets the shared leaf through appendLeaves");
+            assertNotNull(((ArraySchema) qualifiers).getItems());
         }
 
         @Test

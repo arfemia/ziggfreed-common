@@ -1,7 +1,11 @@
 package com.ziggfreed.common.progress;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -89,6 +93,109 @@ class ObjectiveMatchTest {
                 assertFalse(ObjectiveMatch.qualifierMatches("", mode, "elite"), mode + ": empty refuses a qualified one");
                 assertFalse(ObjectiveMatch.qualifierMatches("Elite", mode, null), mode + ": a name needs a qualifier");
             }
+        }
+    }
+
+    /**
+     * {@code Qualifiers} beside {@code Qualifier}: the accepted qualifiers are the single one plus
+     * every list entry, and an event matches when its qualifier matches ANY of them under the one
+     * authored {@code QualifierMatchMode}. A union, because both leaves read "accept these".
+     */
+    @Nested
+    class SeveralQualifiers {
+
+        private static final List<String> REPEATABLE_OR_SEASONAL = List.of("REPEATABLE", "SEASONAL");
+
+        @Test
+        void aListAcceptsEachOfItsQualifiersAndRefusesAnother() {
+            assertTrue(ObjectiveMatch.qualifierMatches(null, REPEATABLE_OR_SEASONAL, MatchMode.EXACT, "REPEATABLE"));
+            assertTrue(ObjectiveMatch.qualifierMatches(null, REPEATABLE_OR_SEASONAL, MatchMode.EXACT, "seasonal"),
+                    "each entry compares case-insensitively, as the single qualifier does");
+            assertFalse(ObjectiveMatch.qualifierMatches(null, REPEATABLE_OR_SEASONAL, MatchMode.EXACT, "DAILY"));
+            assertFalse(ObjectiveMatch.qualifierMatches(null, REPEATABLE_OR_SEASONAL, MatchMode.EXACT, null),
+                    "a named qualifier still needs the event to carry one");
+        }
+
+        @Test
+        void aQualifierAloneMatchesExactlyAsBefore() {
+            String[] authored = {null, "", "Elite", "Elite_Pack"};
+            String[] events = {null, "", "elite", "Elite_Pack_Alpha", "normal"};
+            for (MatchMode mode : MatchMode.values()) {
+                for (String a : authored) {
+                    for (String e : events) {
+                        assertEquals(ObjectiveMatch.qualifierMatches(a, mode, e),
+                                ObjectiveMatch.qualifierMatches(a, List.of(), mode, e),
+                                mode + " '" + a + "' vs '" + e + "': no list means today's answer");
+                    }
+                }
+            }
+        }
+
+        @Test
+        void neitherLeafAuthoredFiltersNothing() {
+            assertTrue(ObjectiveMatch.qualifierMatches(null, List.of(), MatchMode.EXACT, "DAILY"));
+            assertTrue(ObjectiveMatch.qualifierMatches(null, List.of(), MatchMode.EXACT, null));
+        }
+
+        @Test
+        void qualifierPlusQualifiersAcceptsTheUnion() {
+            List<String> seasonal = List.of("SEASONAL");
+            assertTrue(ObjectiveMatch.qualifierMatches("NORMAL", seasonal, MatchMode.EXACT, "NORMAL"));
+            assertTrue(ObjectiveMatch.qualifierMatches("NORMAL", seasonal, MatchMode.EXACT, "SEASONAL"));
+            assertFalse(ObjectiveMatch.qualifierMatches("NORMAL", seasonal, MatchMode.EXACT, "DAILY"));
+
+            assertTrue(ObjectiveMatch.qualifierMatches("", seasonal, MatchMode.EXACT, null),
+                    "an empty Qualifier keeps its meaning (the unqualified kind) inside the union");
+            assertTrue(ObjectiveMatch.qualifierMatches("", seasonal, MatchMode.EXACT, "Seasonal"));
+            assertFalse(ObjectiveMatch.qualifierMatches("", seasonal, MatchMode.EXACT, "DAILY"));
+        }
+
+        @Test
+        void aNonExactModeAppliesToEachEntry() {
+            List<String> families = List.of("Elite_Pack", "Boss");
+            assertTrue(ObjectiveMatch.qualifierMatches(null, families, MatchMode.PREFIX, "Elite_Pack_Alpha"));
+            assertTrue(ObjectiveMatch.qualifierMatches(null, families, MatchMode.PREFIX, "boss_final"));
+            assertFalse(ObjectiveMatch.qualifierMatches(null, families, MatchMode.PREFIX, "Final_Boss"),
+                    "PREFIX reads each entry as a start, never anywhere inside");
+            assertTrue(ObjectiveMatch.qualifierMatches(null, families, MatchMode.CONTAINS, "Final_Boss"));
+            assertTrue(ObjectiveMatch.qualifierMatches("Normal", List.of("Elite"), MatchMode.PREFIX, "Elite_Alpha"),
+                    "the single qualifier and the list share the one comparison");
+            assertFalse(ObjectiveMatch.qualifierMatches(null, families, MatchMode.EXACT, "Elite_Pack_Alpha"));
+        }
+
+        @Test
+        void blankEntriesAreIgnored() {
+            List<String> blanks = new ArrayList<>(List.of(" ", ""));
+            blanks.add(null);
+            assertTrue(ObjectiveMatch.qualifierMatches(null, blanks, MatchMode.EXACT, "DAILY"),
+                    "a list of nothing but blanks names no qualifier, so it filters nothing");
+            assertTrue(ObjectiveMatch.qualifierMatches(null, blanks, MatchMode.EXACT, null));
+
+            List<String> oneReal = List.of(" ", "SEASONAL");
+            assertTrue(ObjectiveMatch.qualifierMatches(null, oneReal, MatchMode.EXACT, "SEASONAL"));
+            assertFalse(ObjectiveMatch.qualifierMatches(null, oneReal, MatchMode.EXACT, "DAILY"));
+            assertFalse(ObjectiveMatch.qualifierMatches(null, oneReal, MatchMode.EXACT, null),
+                    "a blank entry is never read as the empty 'unqualified' value");
+        }
+
+        @Test
+        void theWholePredicateAndTheDefCarryTheList() {
+            assertTrue(ObjectiveMatch.matches("", MatchMode.CONTAINS, null, REPEATABLE_OR_SEASONAL,
+                    MatchMode.EXACT, "Harvest_Feast_Pies", "SEASONAL"));
+            assertFalse(ObjectiveMatch.matches("Wolf", MatchMode.EXACT, null, REPEATABLE_OR_SEASONAL,
+                    MatchMode.EXACT, "Bear", "SEASONAL"), "the target still has to match");
+
+            ObjectiveDef def = ObjectiveDef.builder("tiers", "COMPLETE_QUEST")
+                    .qualifiers(REPEATABLE_OR_SEASONAL).build();
+            assertEquals(REPEATABLE_OR_SEASONAL, def.qualifiers());
+            assertTrue(def.matches("Any_Quest", "REPEATABLE"));
+            assertTrue(def.matches("Any_Quest", "SEASONAL"));
+            assertFalse(def.matches("Any_Quest", "DAILY"));
+
+            ObjectiveDef blanksDropped = ObjectiveDef.builder("x", "K").qualifiers(List.of(" ", "A", "")).build();
+            assertEquals(List.of("A"), blanksDropped.qualifiers(), "the resolved list never carries a blank");
+            assertTrue(ObjectiveDef.builder("x", "K").build().qualifiers().isEmpty(),
+                    "unauthored is an empty list, never null");
         }
     }
 

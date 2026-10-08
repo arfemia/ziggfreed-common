@@ -15,9 +15,11 @@ import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.schema.SchemaContext;
+import com.hypixel.hytale.codec.schema.config.ArraySchema;
 import com.hypixel.hytale.codec.schema.config.BooleanSchema;
 import com.hypixel.hytale.codec.schema.config.IntegerSchema;
 import com.hypixel.hytale.codec.schema.config.ObjectSchema;
+import com.hypixel.hytale.codec.schema.config.Schema;
 import com.hypixel.hytale.codec.schema.config.StringSchema;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.achievement.Achievement;
@@ -183,6 +185,43 @@ class AchievementAssetCodecTest {
     }
 
     @Test
+    void aCriterionNamesSeveralQualifiersAndAChildInheritsOrReplacesThem() throws Exception {
+        AchievementAsset parent = decodeRoot("""
+                { "Criteria": { "tiers": { "Kind": "COMPLETE_QUEST", "Qualifiers": ["REPEATABLE", "SEASONAL"],
+                                           "Amount": 10 } } }
+                """, "quest_repeatable_t1");
+        assertArrayEquals(new String[] {"REPEATABLE", "SEASONAL"},
+                parent.criteriaOrEmpty().get("tiers").getQualifiers());
+        ObjectiveDef criterion = parent.toDefinition().achievement().criteria().get(0);
+        assertEquals(List.of("REPEATABLE", "SEASONAL"), criterion.qualifiers());
+        assertNull(criterion.qualifier(), "the list is its own leaf; Qualifier stays unauthored");
+        assertTrue(criterion.matches("Any_Quest", "SEASONAL"));
+        assertTrue(criterion.matches("Any_Quest", "REPEATABLE"));
+        assertFalse(criterion.matches("Any_Quest", "DAILY"));
+
+        AchievementAsset kept = decode("""
+                { "Criteria": { "tiers": { "Amount": 25 } } }
+                """, "quest_repeatable_t2", "quest_repeatable_t1", parent);
+        ObjectiveDef inherited = kept.toDefinition().achievement().criteria().get(0);
+        assertEquals(List.of("REPEATABLE", "SEASONAL"), inherited.qualifiers(),
+                "the list carries down a Parent chain like every other shared leaf");
+        assertEquals(25L, inherited.amount());
+
+        AchievementAsset replaced = decode("""
+                { "Criteria": { "tiers": { "Qualifiers": ["DAILY"] } } }
+                """, "dailies", "quest_repeatable_t1", parent);
+        ObjectiveDef own = replaced.toDefinition().achievement().criteria().get(0);
+        assertEquals(List.of("DAILY"), own.qualifiers(), "authoring the list replaces an inherited one whole");
+        assertFalse(own.matches("Any_Quest", "SEASONAL"));
+        assertEquals(10L, own.amount());
+
+        ObjectiveDef plain = decodeRoot("""
+                { "Criteria": { "unmake": { "Kind": "KILL_ENTITY", "Qualifier": "Elite_Pack" } } }
+                """, "plain").toDefinition().achievement().criteria().get(0);
+        assertTrue(plain.qualifiers().isEmpty(), "a criterion with no list resolves an empty one");
+    }
+
+    @Test
     void anAchievementWithNoClaimRewardsHasNothingToComeBackFor() throws Exception {
         AchievementAsset asset = decodeRoot("""
                 { "Criteria": { "step": { "Kind": "BREAK_BLOCK", "Amount": 1 } },
@@ -279,5 +318,14 @@ class AchievementAssetCodecTest {
                         + "may offer a dropdown");
         assertEquals("CONTAINS", matchMode.getDefault());
         assertNotNull(matchMode.getMarkdownEnumDescriptions());
+    }
+
+    @Test
+    void objectiveSchemaDeclaresTheQualifiersArrayAndWhatItHolds() {
+        Schema qualifiers = ObjectiveLeafAsset.CODEC.toSchema(new SchemaContext()).getProperties().get("Qualifiers");
+        assertNotNull(qualifiers, "every objective and criterion codec declares the Qualifiers leaf");
+        assertNotNull(qualifiers.getMarkdownDescription(), "and says what it does");
+        assertTrue(qualifiers instanceof ArraySchema, "Qualifiers is an array");
+        assertNotNull(((ArraySchema) qualifiers).getItems(), "an array declares what it holds");
     }
 }

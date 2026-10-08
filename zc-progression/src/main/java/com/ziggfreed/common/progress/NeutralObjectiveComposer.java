@@ -1,5 +1,6 @@
 package com.ziggfreed.common.progress;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -40,7 +41,8 @@ import com.ziggfreed.common.util.NumberFormatter;
  * </ol>
  *
  * <p>A qualifier prefixes the sentence and a zone suffixes it, each through its own shipped
- * wrapper line, so "defeat ten of them, in that one place" reads as one translated sentence.
+ * wrapper line, so "defeat ten of them, in that one place" reads as one translated sentence. A
+ * step that accepts several qualifiers names the first of them ({@code namedQualifier}).
  *
  * <p><b>No target vocabulary of its own.</b> The target's name comes from the engine's shipped
  * name catalogues ({@link NativeNames#targetNameMsg}); a value-threshold step's target is a stat
@@ -113,8 +115,8 @@ final class NeutralObjectiveComposer implements ObjectiveComposer {
             return null;
         }
 
-        String qualifier = objective.qualifier();
-        if (qualifier != null && !qualifier.isBlank() && exists("objective.qualifier")) {
+        String qualifier = namedQualifier(objective);
+        if (qualifier != null && exists("objective.qualifier")) {
             sentence = text("objective.qualifier", Msg.raw(NativeNames.prettify(qualifier)), sentence);
         }
         String zone = objective.zone();
@@ -122,6 +124,24 @@ final class NeutralObjectiveComposer implements ObjectiveComposer {
             sentence = text("objective.zone", sentence, NativeNames.zoneNameMsg(zone));
         }
         return sentence;
+    }
+
+    /**
+     * The one qualifier a step's line names: {@code Qualifier} when it is authored, else the first
+     * {@code Qualifiers} entry, else none. Naming the FIRST accepted qualifier rather than none keeps
+     * the line from promising credit the engine refuses (a bare "complete ten quests" would invite a
+     * daily that never counts), keeps a {@code Qualifier}'s text unmoved when a list joins it, and
+     * lets the author choose the word by the order. Every entry is non-blank already
+     * ({@link ObjectiveDef#qualifiers()}).
+     */
+    @Nullable
+    private static String namedQualifier(@Nonnull ObjectiveDef objective) {
+        String qualifier = objective.qualifier();
+        if (qualifier != null && !qualifier.isBlank()) {
+            return qualifier;
+        }
+        List<String> more = objective.qualifiers();
+        return more.isEmpty() ? null : more.get(0);
     }
 
     /**
