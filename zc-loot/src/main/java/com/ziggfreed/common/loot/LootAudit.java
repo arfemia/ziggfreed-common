@@ -27,10 +27,12 @@ import com.ziggfreed.common.validation.ValidationReport;
  * left out, so a stock server, whose library and consumers ship such files, can still answer that
  * there is nothing to report. Every other reward-kind finding is kept, errors and warnings included.
  *
- * <p>It runs when an owner asks ({@code /zigloot validate}), never at boot: a consumer that audits
- * the tables in its own boot pass already reports those lines, and a second pass would print each
- * of them twice. On a server with no such consumer, this is how an author finds out what a table, a
- * reward-kind file or a bonus row does wrong.
+ * <p>It runs when an owner asks ({@code /zigloot validate}), and at boot only where the process carries
+ * zc-core's dev switch ({@code BootAudit}, {@code ZIGGFREEDCOMMON_AUDIT_ON_BOOT}), which a headless
+ * harness sets and a consumer's server never does: a consumer that audits the tables in its own boot
+ * pass already reports those lines, and a second pass would print each of them twice. On a server with
+ * no such consumer, this is how an author finds out what a table, a reward-kind file or a bonus row
+ * does wrong.
  */
 public final class LootAudit {
 

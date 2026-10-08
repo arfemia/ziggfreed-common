@@ -31,6 +31,8 @@ import com.ziggfreed.common.validation.TextKeyAudit;
  * <p>Split the way every validator in this family is: {@link #audit()} is the engine walk (it never throws;
  * it reads the achievement and quest catalogues only once the progression runtime is built, since before
  * that nothing has published any) and the second {@code audit} is the pure core a test drives.
+ * {@link #auditForcingBuild()} is the same walk for a caller past every plugin's {@code start()}: it builds
+ * the runtime first, so the catalogues' {@code Title} rewards are checked however early it runs.
  *
  * <p>The codes, each a stable machine token a consumer may filter on:
  * <ul>
@@ -56,14 +58,33 @@ public final class TitleValidator {
     private TitleValidator() {
     }
 
-    /** The engine walk over every folded title and the live achievement and quest catalogues. */
+    /**
+     * The engine walk over every folded title and the live achievement and quest catalogues. It never builds
+     * the progression runtime: before the build it asks no catalogue, so a caller that may run during another
+     * mod's setup never seals the runtime early.
+     */
     @Nonnull
     public static List<Finding> audit() {
+        return walk(ProgressionRuntime.isBuilt());
+    }
+
+    /**
+     * As {@link #audit()}, but the achievement and quest catalogues are always read, which builds the
+     * runtime on that first read (its boot publish rides the build), so every {@code Title} reward is
+     * checked however early this runs. For a caller past every plugin's {@code start()}, where a build
+     * seals nothing early: zc's boot audit, at the boot event, which no player has reached yet.
+     */
+    @Nonnull
+    public static List<Finding> auditForcingBuild() {
+        return walk(true);
+    }
+
+    @Nonnull
+    private static List<Finding> walk(boolean readCatalogues) {
         try {
-            boolean built = ProgressionRuntime.isBuilt();
             return audit(TitleConfig.getInstance().all().values(),
-                    built ? ProgressionRuntime.achievements().achievements() : List.of(),
-                    built ? ProgressionRuntime.quests().quests() : List.of(),
+                    readCatalogues ? ProgressionRuntime.achievements().achievements() : List.of(),
+                    readCatalogues ? ProgressionRuntime.quests().quests() : List.of(),
                     TextKeyAudit.liveCatalogue());
         } catch (Throwable t) {
             SafeLog.warn("[title] the title audit failed: " + t.getMessage(), t);
