@@ -1,0 +1,11 @@
+{
+  "Input": [
+    { "ItemId": "Ingredient_Leather_Light", "Quantity": 1 },
+    { "ItemId": "Ingredient_Fibre", "Quantity": 2 }
+  ],
+  "PrimaryOutput": { "ItemId": "Ziggfreed_Objective_Book", "Quantity": 1 },
+  "BenchRequirement": [
+    { "Type": "Crafting", "Id": "Fieldcraft", "Categories": ["Tools"] }
+  ],
+  "KnowledgeRequired": false
+}
