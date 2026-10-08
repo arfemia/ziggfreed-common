@@ -262,6 +262,29 @@ class CalendarOwnerLayersTest {
         }
     }
 
+    // A monthly run's number is its month (the maintainer's ruling): an owner adding months to a monthly rule
+    // renumbers none of the runs it had, so a player's record of "run 12" still names December's run.
+    @Test
+    void anOwnerAddingMonthsToAMonthlyRuleRenumbersNoneOfItsRuns() throws IOException {
+        CalendarFixtures.loadEvents(Map.of("market_day", CalendarFixtures.event("Market_Day", """
+                { "Window": { "Rule": { "Type": "Monthly", "Day": 15, "Days": 2, "Months": [3, 12] } }, "FirstYear": 2026 }
+                """)));
+        CalendarOwnerLayers.reload();
+        RunDays march = new RunDays(LocalDate.of(2026, 3, 15), LocalDate.of(2026, 3, 16));
+        RunDays december = new RunDays(LocalDate.of(2026, 12, 15), LocalDate.of(2026, 12, 16));
+        assertEquals(List.of(new AnnualWindow.DatedRun(2026, 3, march), new AnnualWindow.DatedRun(2026, 12, december)),
+                resolved("market_day").annualWindow().datedRuns(2026), "the pack's March is run 3, its December run 12");
+        write("{ \"Market_Day\": { \"Window\": { \"Rule\": { \"Months\": [3, 6, 9, 12] } } } }");
+        CalendarOwnerLayers.reload();
+        AnnualWindow owned = resolved("market_day").annualWindow();
+        assertEquals(List.of(3, 6, 9, 12), owned.datedRuns(2026).stream().map(AnnualWindow.DatedRun::number).toList(),
+                "each run numbered by its month");
+        assertEquals(new AnnualWindow.DatedRun(2026, 12, december),
+                owned.runContaining(CalendarFixtures.at("2026-12-15T12:00:00Z"), ZoneOffset.UTC),
+                "with June and September added, December's run is still run 12");
+        assertEquals(march, owned.run(2026, 3), "and March's still run 3");
+    }
+
     @Test
     void anOwnersYearsEntryMergesWithThePacksByYear() throws IOException {
         CalendarFixtures.loadEvents(Map.of("egg_hunt", CalendarFixtures.event("Egg_Hunt", """

@@ -52,8 +52,10 @@ import com.ziggfreed.common.season.SeasonGate;
  * ({@code {"Type": "Weekly", "Weekday": "Sunday", "At": "14:00", "Length": "PT2H"}}), and {@code Years} sets the
  * days of particular years ({@code {"2031": {"Start": "04-01", "End": "04-20"}}}). Years win over a Rule,
  * a Rule over Start and End, and every run must start in its own year and stay clear of the next. A year may
- * hold several runs, each numbered by its place in the order the rule gives them (a monthly rule's by month), so
- * a re-date never renumbers one.
+ * hold several runs: a monthly rule numbers each by its month (December's is run 12) and a weekly rule by its
+ * calendar week (Monday to Sunday, week 1 the one holding January 1st), so adding or dropping months or weeks
+ * never renumbers the others. Another day of the month keeps a monthly run's number; another weekday can move a
+ * weekly run into a neighbouring week, and so change its number.
  *
  * <p><b>{@code Enabled: false} makes the event ABSENT, not locked</b>: content gated on it vanishes,
  * as it does when the server owner switches every event off ({@code mods/ziggfreedcommon/calendar.json},
