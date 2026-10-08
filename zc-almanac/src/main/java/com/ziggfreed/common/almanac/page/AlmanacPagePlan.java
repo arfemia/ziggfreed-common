@@ -254,9 +254,11 @@ record AlmanacPagePlan(@Nonnull LedgerModel seasons, @Nullable String selected, 
             }
         }
         Message flavor = season.flavorKey() == null ? null : AlmanacText.authored(season.flavorKey(), season.eventId());
+        // The first-time hint promises tallies, so a page that counts nothing never shows it.
+        boolean hint = yearsTakenPart == 0L && !page.tallies().isEmpty();
         return new SeasonBody(season.eventId(), hero(page), flavor, years(page.years(), scope),
                 AlmanacLines.scopeHeader(scope), AlmanacLines.scopeMeta(scope, page.tookPartInScope(), yearsTakenPart),
-                tiles(page.tallies()), yearsTakenPart == 0L, keepsakes(page.keepsakes(), liveYear),
+                tiles(page.tallies()), hint, keepsakes(page.keepsakes(), liveYear),
                 achievements(page.achievements()), links(page.links()));
     }
 
