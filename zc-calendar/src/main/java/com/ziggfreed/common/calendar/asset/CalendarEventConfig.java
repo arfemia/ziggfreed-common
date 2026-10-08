@@ -61,10 +61,14 @@ public final class CalendarEventConfig extends AbstractKeyedAssetConfig<Calendar
             case CalendarEventAsset.PROBLEM_WINDOW_MISSING -> "has no Window, so it never runs";
             case CalendarEventAsset.PROBLEM_WINDOW_UNREADABLE ->
                     "has a Window whose days cannot be read (a Start or End that is not an MM-DD day, or a Rule "
-                            + "missing its Month, Weekday or Nth), so it never runs";
+                            + "missing a leaf it needs, or naming a weekday, a month, an At time, a Length or an "
+                            + "Anchor it cannot read, or an Every past 1 with no Anchor), so it never runs";
             case CalendarEventAsset.PROBLEM_WINDOW_RUN_INVALID ->
-                    "has a Window Rule whose runs could start in the year before or last more than 366 days (or "
-                            + "a negative Before or After, or an Nth other than 1 to 5 or -1), so it never runs";
+                    "has a Window whose runs could start in the year before or run into the next one (a negative "
+                            + "Before or After, a span too long to stay clear of next year's run, an Nth other than 1 "
+                            + "to 5 or -1, a Day other than 1 to 31, Days or a Length past 28 days a month or 7 a week "
+                            + "for each Every, no Months, UntilNext with Months or too large an Every, or February "
+                            + "29th through February 28th), so it never runs";
             case CalendarEventAsset.PROBLEM_YEARS_ENTRY_IGNORED ->
                     "has a Window Years entry that is not a four-digit year from its FirstYear on with MM-DD "
                             + "Start and End days, so that entry is not used";

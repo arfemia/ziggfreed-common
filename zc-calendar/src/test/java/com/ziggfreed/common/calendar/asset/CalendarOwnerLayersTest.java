@@ -10,6 +10,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.Month;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 
@@ -235,6 +237,29 @@ class CalendarOwnerLayersTest {
                 "the owner learns to write a Fixed rule instead");
         assertEquals(new RunDays(LocalDate.of(2027, 11, 19), LocalDate.of(2027, 11, 30)), owned.annualWindow().days(2027),
                 "the pack's rule still dates the run");
+    }
+
+    // A re-date never renumbers (the maintainer's ruling): an owner moving a monthly rule to another day of each
+    // month leaves every run its number, so a player's record of "run 10" still names October's run.
+    @Test
+    void anOwnerReDatingAMonthlyRuleKeepsEveryRunsNumber() throws IOException {
+        CalendarFixtures.loadEvents(Map.of("traveling_fair", CalendarFixtures.event("Traveling_Fair", """
+                { "Window": { "Rule": { "Type": "Monthly", "Weekday": "Sunday", "Nth": 1, "Days": 7 } }, "FirstYear": 2026 }
+                """)));
+        CalendarOwnerLayers.reload();
+        assertEquals(new AnnualWindow.DatedRun(2026, 10, new RunDays(LocalDate.of(2026, 10, 4), LocalDate.of(2026, 10, 10))),
+                resolved("traveling_fair").annualWindow().runContaining(CalendarFixtures.at("2026-10-05T12:00:00Z"),
+                        ZoneOffset.UTC), "the pack's October run");
+        write("{ \"Traveling_Fair\": { \"Window\": { \"Rule\": { \"Weekday\": \"Saturday\", \"Nth\": 2, \"Days\": 3 } } } }");
+        CalendarOwnerLayers.reload();
+        AnnualWindow owned = resolved("traveling_fair").annualWindow();
+        assertEquals(new AnnualWindow.DatedRun(2026, 10, new RunDays(LocalDate.of(2026, 10, 10), LocalDate.of(2026, 10, 12))),
+                owned.runContaining(CalendarFixtures.at("2026-10-11T12:00:00Z"), ZoneOffset.UTC),
+                "re-dated to the second Saturday, October's run is still run 10");
+        for (int number = 1; number <= 12; number++) {
+            assertEquals(Month.of(number), owned.run(2026, number).first().getMonth(),
+                    "run " + number + " is still its month's");
+        }
     }
 
     @Test
