@@ -27,15 +27,18 @@ import com.ziggfreed.common.subject.Subject;
  * live, and registers its own condition for it.
  *
  * <p>Every method is total and side-effect free. An unknown quest id is not an error: a status read
- * reports {@link QuestStatus#NOT_STARTED} (a malformed condition should hide nothing), while a
- * readiness read fails CLOSED (a positive gate must never open on a typo).
+ * reports what the player's own stored record holds for it, and {@link QuestStatus#NOT_STARTED}
+ * when there is none (a definition missing right now does not erase what the player did, and a
+ * typo still hides nothing), while a readiness read fails CLOSED (a positive gate must never open on
+ * a typo).
  */
 public interface QuestStateReader {
 
     /**
      * What this quest EFFECTIVELY is for this player right now - a finished repeatable reads as
-     * on-cooldown or offerable-again as its clock decides, never as a permanent completion. Unknown
-     * ids read {@link QuestStatus#NOT_STARTED}.
+     * on-cooldown or offerable-again as its clock decides, never as a permanent completion. An id the
+     * catalogue does not carry reads the player's stored record as it is, and
+     * {@link QuestStatus#NOT_STARTED} when they have none.
      */
     @Nonnull
     QuestStatus status(@Nonnull Subject subject, @Nonnull String questId);

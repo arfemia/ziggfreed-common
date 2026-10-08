@@ -21,7 +21,8 @@ import com.ziggfreed.common.subject.Subject;
 
 /**
  * The quest-aware conditions every dialogue vocabulary ships with: is this quest at that point yet,
- * is it ready to hand in HERE, and is anything at all ready to hand in here.
+ * is it ready to hand in HERE, is anything at all ready to hand in here, and has this character
+ * anything to offer.
  *
  * <p>They are part of the generic vocabulary rather than a mod's own because a conversation about a
  * quest is what quests are FOR - a giver with nothing to say about the state of what it gave out is
@@ -29,8 +30,9 @@ import com.ziggfreed.common.subject.Subject;
  * {@link QuestStateReader} questions, through the {@link DialogueQuests} seam the consumer wired: no
  * catalogue, no gates, no mutation, and a refusal when nothing is wired.
  *
- * <p>"Does this character have anything to OFFER" is the fourth, and it is here as a CLASS but not in
- * {@link #types}. See {@link #offerableType} for what to do with it and why it is not seeded.
+ * <p>"Does this character have anything to OFFER" is the fourth ({@link #offerableType}), seeded with
+ * the rest: it answers through the offer table and the same seam, so a giver asking it works on a
+ * server running the library alone.
  */
 public final class QuestDialogueConditions {
 
@@ -59,21 +61,22 @@ public final class QuestDialogueConditions {
                         (ReadyToTurnIn c, DialogueContext ctx) -> c.passes(quests.get(), ctx)),
                 DialogueConditionType.of(HAS_READY_TO_TURN_IN, HasReadyToTurnIn.class,
                         HasReadyToTurnIn.CODEC,
-                        (HasReadyToTurnIn c, DialogueContext ctx) -> anywhereHere(quests.get(), ctx)));
+                        (HasReadyToTurnIn c, DialogueContext ctx) -> anywhereHere(quests.get(), ctx)),
+                offerableType(quests));
     }
 
     /**
-     * The "have you anything for me" condition, ready to register but NOT seeded with the rest.
+     * The "have you anything for me" condition, seeded with the rest through {@link #types}.
      *
-     * <p>It is generic now because the missing half finally exists: {@link NpcOfferProviders} is where
-     * a mod's catalogue and its gates answer, so the condition asks rather than guesses, and a
-     * conversation written against it works in ANY mod that registered a provider.
+     * <p>It is generic because {@link NpcOfferProviders} is where a mod's catalogue and its gates
+     * answer, so the condition asks rather than guesses, and a conversation written against it works
+     * for every mod that registered a provider, the library's own over the shared catalogue included.
      *
-     * <p>It is not seeded because a dialogue {@code Type} id resolves to ONE class in a process-wide
-     * table. A consumer that already ships its own {@code HasOfferableQuests} would find every
-     * installed mod's files decoding into whichever class registered last, so the switch has to be a
-     * deliberate act by that consumer: register THIS type, in place of your own, and drop yours in the
-     * same change. A consumer with no condition of its own can register it straight away.
+     * <p>A dialogue {@code Type} id resolves to ONE class in a process-wide table and the library
+     * claims this one when its engine is assembled, so a consumer registers nothing for it: what a
+     * character offers is answered through the offer table, and whose quest state it reads through the
+     * quest slot. Registering this type again is refused as a second contributor for a class the
+     * library already holds.
      */
     @Nonnull
     public static DialogueConditionType<?> offerableType(@Nonnull Supplier<DialogueQuests> quests) {

@@ -234,6 +234,12 @@ public final class ObjectiveBookDeps {
      * action is one toast however the consumer words it; unfilled, the book's toasts are the
      * announcement.
      *
+     * <p>An accept made through the library's own conversation binding
+     * ({@code objectives/dialogue/RuntimeDialogueQuests}) is announced through this seam too, with
+     * the same five arguments, so a consumer words its accepts once and a quest taken in
+     * conversation sounds like one taken from the book. A conversation has no toast of its own to
+     * stand down; unfilled, the line the conversation goes on to is the announcement.
+     *
      * <p>The book asks the five-argument {@link #accepted(Quest, Store, Ref, Player,
      * RewardGrants.GrantOutcome)}, carrying what the settle right behind the accept paid when the
      * quest finished the instant it was taken; its default hands off to the four-argument form, so

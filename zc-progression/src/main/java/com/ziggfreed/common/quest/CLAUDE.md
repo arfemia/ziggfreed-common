@@ -2,6 +2,7 @@
 
 - The engine ships no content and no consumer vocabulary: `QuestModuleAgnosticismTest` fails the build on a consumer word anywhere in this module's `src/main/java` (routers excluded), so examples use `yourmod:`.
 - Every engine path that mutates the store calls `store.markDirty(subject)` inside the method itself. `store.flush` happens only on `claim` (always) and on an auto-claim or `forceComplete` payout that delivered something; never add a flush per engine-decided moment.
+- The id-keyed `status(subject, questId)` (the `QuestStateReader` face) reads the player's stored record for an id the catalogue does not carry, and `NOT_STARTED` only when there is none: a definition missing right now never erases what the player did. Readiness reads still fail closed on an unknown id.
 - The store is the only state and owns id hygiene (`usesReservedDelimiter`). A store whose `recordsCompletions()` answers false leaves `Reset` and `MaxCompletions` inert.
 - A giver listing asks `isOfferable`, never `isVisible`; `isVisible` is the one question for a browsable listing, and a hidden quest is where the two part.
 - Ask what a place offers of `NpcOfferProviders`; never widen `QuestStateReader` for it.

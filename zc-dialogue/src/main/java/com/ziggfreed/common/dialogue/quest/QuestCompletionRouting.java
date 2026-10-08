@@ -28,8 +28,9 @@ import com.ziggfreed.common.util.SafeLog;
  *       A completion conversation is a conversation WITH somebody: a quest log, an objective book, an
  *       admin command or a claim out in the field has nobody to speak the lines, and picking one
  *       would put words in the mouth of an NPC the player is not standing at.</li>
- *   <li>no registered host knows the conversation -> {@link QuestHandOff.Outcome#NO_HOST}. Covers a
- *       typo and a conversation owned by a mod this server does not run. Skipping is the only safe
+ *   <li>no host knows the conversation, the library's own conversation page included ->
+ *       {@link QuestHandOff.Outcome#NO_HOST}. Covers a typo and a conversation owned by a mod this
+ *       server does not run. Skipping is the only safe
  *       answer: the alternative is a caller that has already returned and a screen that never
  *       repaints.</li>
  *   <li>otherwise {@link QuestHandOff.Outcome#PLAY}, carrying the conversation and the character.</li>

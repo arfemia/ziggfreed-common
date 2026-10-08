@@ -67,9 +67,9 @@ import com.ziggfreed.common.subject.Subject;
  * {@code 0}, the same reasoning {@code hytale:mod_installed} follows for an absent mod: both halves
  * ("only where that quest exists" with {@code Min: 1}, "only where it does not" with {@code Max: 0})
  * have to be writable, and a {@code null} would shut the second one on every server. It exists
- * because a dialogue {@code QuestState} condition on an unknown quest reads {@code NOT_STARTED} by
- * design, so a conversation in one mod could not otherwise tell whether a quest another pack ships
- * is on this server at all.
+ * because a dialogue {@code QuestState} condition on a quest this server does not carry reads the
+ * player's stored record, and {@code NOT_STARTED} when there is none, so a conversation in one mod
+ * could not otherwise tell whether a quest another pack ships is on this server at all.
  *
  * <p><b>A factor read never BUILDS the runtime.</b> Reading either engine off
  * {@link ProgressionRuntime} would seal it, and a gate evaluated early - a placement sweep, a

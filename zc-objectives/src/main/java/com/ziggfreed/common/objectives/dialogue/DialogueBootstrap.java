@@ -19,7 +19,8 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * Fills the dialogue engine's declared seams at plugin {@code setup()}: the factor vocabulary its
  * {@code Factor} conditions resolve against, the {@code Grant} action that pays a line's rewards, the
- * persistent memory store, and the active-objective header note. Three ordered phases, each called once from
+ * library's own quest binding beneath the consumer's quest slot, the persistent memory store, and
+ * the active-objective header note. Three ordered phases, each called once from
  * {@code ZiggfreedCommonPlugin.setup()}, which stays the one authority on call ORDER.
  *
  * <p>The dialogue module declares each of these seams and structurally cannot fill them itself:
@@ -61,12 +62,24 @@ public final class DialogueBootstrap {
      * <p>The action half: {@code Grant} ({@link GrantDialogueAction}) pays a line's rewards in the
      * entry shape a quest pays in, through the one payout core outside a quest. The dialogue module
      * cannot see that core or the reward vocabulary, and this module sees both.
+     *
+     * <p>The quest half: {@link RuntimeDialogueQuests}, the quest lines read and acted through the
+     * shared quest engine, installed into the dialogue engine's DEFAULT quest slot. That slot sits
+     * beneath the one a consumer installs into, so a server running no quest mod of its own still
+     * has givers that offer, read and take hand-ins, and a consumer's own runtime outranks it
+     * whichever setup ran first. The dialogue module reads quests only through the narrow reader and
+     * has no way to accept or hand one in, and this module sees the engine and the verbs that do.
      */
     public static void registerDialogueVocabulary() {
         try {
             DialogueEngine.installFactors(LibraryOwner.NAME, dialogueFactorVocabulary());
         } catch (Throwable t) {
             SafeLog.warn("[dialogue] could not install the dialogue factor vocabulary", t);
+        }
+        try {
+            DialogueEngine.installDefaultQuests(LibraryOwner.NAME, RuntimeDialogueQuests.INSTANCE);
+        } catch (Throwable t) {
+            SafeLog.warn("[dialogue] could not install the library's dialogue quest binding", t);
         }
         try {
             DialogueEngine.registerShared(LibraryOwner.NAME, GrantDialogueAction.type());

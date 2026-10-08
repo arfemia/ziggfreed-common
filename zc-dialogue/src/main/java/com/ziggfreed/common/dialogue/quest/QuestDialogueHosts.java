@@ -25,11 +25,16 @@ import com.ziggfreed.common.util.SafeLog;
  * host is individually guarded, so one mod's broken page costs its own conversations and nobody
  * else's.
  *
- * <p><b>Nothing is pre-seeded</b>, deliberately: an empty table opens nothing, which is the correct
- * answer on a server with no conversation UI at all, and a caller then simply keeps its own refresh.
+ * <p><b>The library's own conversation page answers last.</b> After every registered host has been
+ * asked, the library's page is: it knows every conversation the shared store holds, so a quest's
+ * closing conversation plays on a server running no conversation UI of its own. It is never in the
+ * table, so a consumer's registration never competes with it and is never refused for it; a
+ * conversation nobody can open (a typo, a mod this server does not run) still opens nothing, and a
+ * caller then simply keeps its own refresh.
  *
- * <p><b>First host that knows it wins.</b> {@link RegistryLedger#ids()} is sorted, so which host that
- * is stays the same across restarts rather than depending on which mod happened to register first.
+ * <p><b>First registered host that knows it wins.</b> {@link RegistryLedger#ids()} is sorted, so which
+ * host that is stays the same across restarts rather than depending on which mod happened to
+ * register first.
  *
  * <p>World thread.
  */
@@ -49,7 +54,10 @@ public final class QuestDialogueHosts {
         LEDGER.put(id, owner, host);
     }
 
-    /** Is anything registered at all? The pre-check before a surface bothers to route. */
+    /**
+     * Has any mod registered a host of its own? The library's page answers whether or not one has, so
+     * this is a diagnostic read, never a reason to skip routing.
+     */
     public static boolean hasAny() {
         return !LEDGER.ids().isEmpty();
     }
@@ -61,8 +69,8 @@ public final class QuestDialogueHosts {
     }
 
     /**
-     * Can ANYBODY open this conversation? Stops at the first yes, because this runs inside the
-     * routing decision on every hand-in.
+     * Can ANYBODY open this conversation? Every registered host first, then the library's own page.
+     * Stops at the first yes, because this runs inside the routing decision on every hand-in.
      */
     public static boolean knows(@Nullable String dialogueId) {
         if (dialogueId == null || dialogueId.isBlank()) {
@@ -82,12 +90,18 @@ public final class QuestDialogueHosts {
                 SafeLog.warn("[quest-dialogue] host '" + id + "' failed: " + t.getMessage());
             }
         }
-        return false;
+        try {
+            return LibraryDialogueHost.INSTANCE.knows(dialogueId);
+        } catch (Throwable t) {
+            SafeLog.warn("[quest-dialogue] the library's conversation page failed: " + t.getMessage());
+            return false;
+        }
     }
 
     /**
-     * Hand the conversation to the first host that knows it AND takes the screen. False when none
-     * did, in which case the caller still owes the player a response.
+     * Hand the conversation to the first host that knows it AND takes the screen, every registered
+     * host first and the library's own page last. False when none did, in which case the caller
+     * still owes the player a response.
      *
      * <p>A host that knows the conversation but declines to open it does not stop the walk: another
      * mod may know the same id and be able to.
@@ -112,12 +126,19 @@ public final class QuestDialogueHosts {
                 SafeLog.warn("[quest-dialogue] host '" + id + "' failed: " + t.getMessage());
             }
         }
-        return false;
+        try {
+            return LibraryDialogueHost.INSTANCE.knows(dialogueId)
+                    && LibraryDialogueHost.INSTANCE.open(handOff, store, ref, player);
+        } catch (Throwable t) {
+            SafeLog.warn("[quest-dialogue] the library's conversation page failed: " + t.getMessage());
+            return false;
+        }
     }
 
     /**
-     * Drop every registration, leaving a table that opens nothing. For a full content reload, and for
-     * a test resetting between cases; the offer table exposes the same.
+     * Drop every registration, leaving only the library's own page, which opens what the shared store
+     * holds. For a full content reload, and for a test resetting between cases; the offer table
+     * exposes the same.
      */
     public static void clear() {
         LEDGER.clear();

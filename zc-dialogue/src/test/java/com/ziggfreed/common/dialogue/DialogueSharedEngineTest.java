@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.ziggfreed.common.dialogue.quest.DialogueQuests;
+import com.ziggfreed.common.dialogue.quest.QuestDialogueConditions;
 import com.ziggfreed.common.dialogue.schema.DialogueOption;
 import com.ziggfreed.common.dialogue.schema.NpcDialogue;
 import com.ziggfreed.common.dialogue.type.DialogueAction;
@@ -241,6 +242,95 @@ class DialogueSharedEngineTest {
     void withNoQuestRuntimeInstalledTheQuestVocabularyRefusesRatherThanThrowing() {
         assertSame(DialogueQuests.NONE, DialogueEngine.shared().quests(),
                 "a server with no quest system reads NOT_STARTED and refuses every hand-in");
+    }
+
+    // ==================== the offer condition ====================
+
+    @Test
+    void theOfferConditionIsSeededSoAServerWithNoQuestModReadsIt() {
+        assertTrue(DialogueEngine.shared().evaluates(QuestDialogueConditions.HasOfferableQuests.class),
+                "a giver asking whether it has anything to offer works with the library alone");
+        assertNotNull(DialogueEngine.shared().decode("giver", "{\"Nodes\":{\"n\":{\"Options\":[{\"LabelKey\":\"a\","
+                        + "\"Conditions\":[{\"Type\":\"HasOfferableQuests\"}]}]}}}"),
+                "and a file naming it reads, where an unclaimed Type would fail the whole file");
+        assertTrue(DialogueEngine.builder().warn(m -> { }).build()
+                        .evaluates(QuestDialogueConditions.HasOfferableQuests.class),
+                "a sandbox engine starts from the same quest vocabulary");
+    }
+
+    @Test
+    void aConsumerRegisteringTheSeededOfferConditionAgainIsRefused() {
+        List<String> reported = new ArrayList<>();
+        DialogueEngine.resetSharedForTests(reported::add);
+
+        assertFalse(DialogueEngine.registerShared("ModA",
+                        QuestDialogueConditions.offerableType(() -> DialogueEngine.shared().quests())),
+                "the library holds the condition, so a consumer registers nothing for it");
+        assertEquals(1, reported.size(), "and a second copy is reported, naming both: " + reported);
+    }
+
+    // ==================== the library default beneath the quest slot ====================
+
+    @Test
+    void theLibraryDefaultAnswersWhereNoConsumerInstalledARuntime() {
+        DialogueQuests library = new StubQuests();
+
+        assertTrue(DialogueEngine.installDefaultQuests("Library", library), "the first default claims its slot");
+
+        assertSame(library, DialogueEngine.shared().quests(),
+                "a server running no quest mod of its own still reads the library's runtime");
+    }
+
+    @Test
+    void aConsumerInstallOutranksTheLibraryDefaultWhicheverCameFirst() {
+        DialogueQuests library = new StubQuests();
+        DialogueQuests consumer = new StubQuests();
+
+        assertTrue(DialogueEngine.installDefaultQuests("Library", library));
+        assertTrue(DialogueEngine.installQuests("ModA", consumer),
+                "the default sits beneath the consumer slot, so a consumer installing after it still claims it");
+        assertSame(consumer, DialogueEngine.shared().quests());
+
+        DialogueTestSupport.reset();
+        assertTrue(DialogueEngine.installQuests("ModA", consumer));
+        assertTrue(DialogueEngine.installDefaultQuests("Library", library),
+                "the default has a slot of its own, so it is not refused by a consumer that came first");
+        assertSame(consumer, DialogueEngine.shared().quests(),
+                "and a default arriving after a consumer never displaces it");
+    }
+
+    @Test
+    void theDefaultSlotIsFirstInstallWinsToo() {
+        DialogueQuests first = new StubQuests();
+
+        assertTrue(DialogueEngine.installDefaultQuests("Library", first));
+        assertFalse(DialogueEngine.installDefaultQuests("Other", new StubQuests()),
+                "two defaults would be two answers about one player, like two consumers");
+
+        assertSame(first, DialogueEngine.shared().quests());
+    }
+
+    @Test
+    void withNothingInstalledAtAllTheEngineSaysSoOnce() {
+        List<String> reported = new ArrayList<>();
+        DialogueEngine.resetSharedForTests(reported::add);
+
+        assertSame(DialogueQuests.NONE, DialogueEngine.shared().quests());
+        assertSame(DialogueQuests.NONE, DialogueEngine.shared().quests());
+
+        assertEquals(1, reported.size(), "one line however often a conversation asks: " + reported);
+        assertTrue(reported.get(0).contains("installQuests"), reported.get(0));
+    }
+
+    @Test
+    void withARuntimeInstalledNothingIsReported() {
+        List<String> reported = new ArrayList<>();
+        DialogueEngine.resetSharedForTests(reported::add);
+        DialogueEngine.installDefaultQuests("Library", new StubQuests());
+
+        DialogueEngine.shared().quests();
+
+        assertTrue(reported.isEmpty(), "a server with a quest runtime has nothing to be told: " + reported);
     }
 
     // ==================== the isolated builder is untouched ====================

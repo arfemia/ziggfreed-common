@@ -170,8 +170,8 @@ public final class NpcQuestPageDeps {
      * The giver's closing conversation, decided by the ONE shared policy: authored, somebody in
      * front of the player, and something installed that can open it. The quest catalogue is read
      * through the engine's installed quest runtime at CLICK time, so whichever mod installed it -
-     * or nobody, in which case nothing is authored and the page keeps the screen - this default
-     * answers the same as that mod's own surfaces. A quest log or a book settles the same quest
+     * or the library's own binding over the shared engine when none did - this default answers the
+     * same as that runtime's own surfaces. A quest log or a book settles the same quest
      * and skips the beat by that same rule rather than improvising one.
      */
     public static final CompletionHandOff ENGINE_HAND_OFF = (questId, npcId, store, ref, player) ->

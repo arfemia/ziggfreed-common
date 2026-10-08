@@ -1,7 +1,6 @@
 package com.ziggfreed.common.objectives.book;
 
 import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -15,6 +14,7 @@ import com.ziggfreed.common.i18n.NativeNames;
 import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.npc.NpcNames;
+import com.ziggfreed.common.objectives.journal.QuestVerbs;
 import com.ziggfreed.common.objectives.render.ClaimToasts;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
@@ -84,24 +84,15 @@ public final class BookVerbs {
         if (!engine.canAccept(subject, quest).allowed()) {
             return false;
         }
-        // What the settle right behind the accept paid, when a standing value already met every step: the
-        // feedback seam lists that receipt rather than the authored promise.
-        AtomicReference<RewardGrants.GrantOutcome> settled = new AtomicReference<>();
-        boolean ok = Boolean.TRUE.equals(ProgressionRuntime.questScope().around(subject, s -> {
-            // The giver is the accept site, as the engine's own auto-accept pass records it; a quest with no
-            // giver records none, which is what the book has always passed.
-            boolean accepted = engine.canAccept(s, quest).allowed() && engine.accept(s, quest, quest.npcViewId());
-            if (accepted) {
-                // Retroactive completions (a standing value already met) finish it at once.
-                settled.set(engine.trySettle(s, quest));
-            }
-            return Boolean.valueOf(accepted);
-        }));
-        if (!ok) {
+        // The giver is the accept site, as the engine's own auto-accept pass records it; a quest with no giver
+        // records none. What the settle right behind the accept paid, when a standing value already met every
+        // step, rides the result: the feedback seam lists that receipt rather than the promise.
+        QuestVerbs.Accepted accepted = QuestVerbs.acceptAt(subject, quest, quest.npcViewId());
+        if (!accepted.accepted()) {
             return false;
         }
         try {
-            ctx.deps().actionFeedback().accepted(quest, ctx.store(), ctx.ref(), ctx.player(), settled.get());
+            ctx.deps().actionFeedback().accepted(quest, ctx.store(), ctx.ref(), ctx.player(), accepted.settled());
         } catch (Throwable ignored) {
             // A consumer's feedback failing costs its own moment, never the page.
         }
