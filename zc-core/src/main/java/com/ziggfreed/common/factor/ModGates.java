@@ -30,11 +30,16 @@ import com.ziggfreed.common.util.SafeLog;
  * stays where it was written. A condition nested in {@code AnyOf} or {@code Not} is never handed here:
  * a store passes its TOP-LEVEL {@code Factors} only.
  *
+ * <p><b>A reward row gates the same way.</b> One row of a {@code Rewards} list may carry its own block of
+ * this plain form, read through {@link #missingMod} exactly as a file's is: where its mod reads a definite
+ * 0 the row is simply absent (it pays nothing, shows nowhere and no validator reads it) while the rest of
+ * its file loads.
+ *
  * <p><b>A drop is logged, never an id.</b> Each store's fold reports what it dropped through
- * {@link #reportPackFiles} and {@link #reportOwnerOverrides}: one INFO line per store per missing mod,
- * only when something was dropped, counting the files and naming the mod. The wording is a contract (a
- * season boot check parses it), and a line naming a dropped file would put the missing mod's content
- * ids into the log of the very server that lacks it.
+ * {@link #reportPackFiles}, {@link #reportOwnerOverrides} and {@link #reportRewardRows}: one INFO line per
+ * store per missing mod, only when something was dropped, counting the files (or the rows) and naming the
+ * mod. The wording is a contract (a season boot check parses it), and a line naming a dropped file would
+ * put the missing mod's content ids into the log of the very server that lacks it.
  */
 public final class ModGates {
 
@@ -111,6 +116,20 @@ public final class ModGates {
      */
     public static void reportOwnerOverrides(@Nonnull String store, @Nonnull Collection<String> missingMods) {
         report(store, "owner override(s)", missingMods);
+    }
+
+    /**
+     * Log what a store's fold left out of the reward rows its files carry (a row whose own {@code Requires}
+     * gates on a missing mod): one line per missing mod, counting the rows, never naming one or its file.
+     * Nothing at all when {@code missingMods} is empty. Each fold logs its own total, so a re-fold or a hot
+     * re-import repeats the line and the last one wins. A row read outside any store's fold (a dialogue
+     * action's or an interaction's inline {@code Rewards}) is absent the same way, and never counted.
+     *
+     * @param store       the store's contract label (its {@code MOD_GATE_STORE})
+     * @param missingMods one entry per row left out: the mod it waited for
+     */
+    public static void reportRewardRows(@Nonnull String store, @Nonnull Collection<String> missingMods) {
+        report(store, "reward row(s)", missingMods);
     }
 
     /** Send the drop lines to {@code sink} instead of the log; null puts the log back. */

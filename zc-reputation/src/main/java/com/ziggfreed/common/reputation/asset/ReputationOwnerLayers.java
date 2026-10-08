@@ -2,6 +2,8 @@ package com.ziggfreed.common.reputation.asset;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -9,6 +11,7 @@ import javax.annotation.Nullable;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.ziggfreed.common.asset.OwnerLayerReader;
+import com.ziggfreed.common.factor.ModGates;
 import com.ziggfreed.common.util.OwnerFiles;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -62,11 +65,20 @@ public final class ReputationOwnerLayers {
         ReputationConfig.getInstance().setGlobalEnabled(switchIn(OwnerLayerReader.readObject(LOG_TAG, file), file));
     }
 
-    /** Re-read the whole file: the switch, then each entry over the packs' own answer for its id. */
+    /**
+     * Re-read the whole file: the switch, then each entry over the packs' own answer for its id. The last
+     * step of the store's fold, so it then counts the Beyond reward rows the mod gate leaves out of every
+     * folded reputation, in the store's one row line per missing mod.
+     */
     public static void reload() {
         readSwitch();
         OwnerLayerReader.apply(LOG_TAG, directory.resolve(FILE), ReputationAsset.class, ReputationAsset.CODEC,
                 ReputationConfig.getInstance(), NOUN);
+        List<String> gatedRows = new ArrayList<>();
+        for (ReputationAsset reputation : ReputationConfig.getInstance().all().values()) {
+            reputation.collectGatedRows(gatedRows);
+        }
+        ModGates.reportRewardRows(ReputationConfig.MOD_GATE_STORE, gatedRows);
     }
 
     /** What {@code root} says about the switch: on unless it says false in so many words. */

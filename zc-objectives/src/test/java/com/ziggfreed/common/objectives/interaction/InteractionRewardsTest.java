@@ -19,6 +19,9 @@ import javax.annotation.Nonnull;
 
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.asset.PresenceRequiresCodec;
+import com.ziggfreed.common.factor.FactorCondition;
+import com.ziggfreed.common.factor.ModGates;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.loot.reward.RewardChip;
 import com.ziggfreed.common.loot.reward.RewardChips;
@@ -125,6 +128,28 @@ class InteractionRewardsTest {
 
         assertEquals(List.of("Test_Coin", "Item"), specs.stream().map(RewardSpec::kind).toList());
         assertEquals("5", specs.get(0).param("amount"), "a parameter reads however its file spelled the key");
+    }
+
+    /** An inline row gated on a missing mod is absent here too; no store folds this list, so nothing counts it. */
+    @Test
+    void aRowGatedOnAMissingModPaysNothingWhileItsSiblingsPay() {
+        String mmo = "Ziggfreed:MMOSkillTree";
+        List<String> lines = new ArrayList<>();
+        ModGates.useProbeForTests(param -> param != null && mmo.equals(param.trim()) ? 0.0 : 1.0);
+        ModGates.reportIntoForTests(lines::add);
+        try {
+            RewardEntryAsset[] entries = {
+                    RewardEntryAsset.of("Item", Map.of("Item", "Harvest_Feast_Pie", "Count", "1")),
+                    RewardEntryAsset.of("Mmo_Xp", Map.of("Skill", "Cooking"), PresenceRequiresCodec.Block.of(
+                            FactorCondition.of("hytale:mod_installed", mmo, 1.0, null)))
+            };
+
+            assertEquals(List.of("Item"), InteractionRewards.specs(entries).stream().map(RewardSpec::kind).toList());
+            assertTrue(lines.isEmpty(), "an inline list is read, never folded, so nothing is counted: " + lines);
+        } finally {
+            ModGates.useProbeForTests(null);
+            ModGates.reportIntoForTests(null);
+        }
     }
 
     @Test

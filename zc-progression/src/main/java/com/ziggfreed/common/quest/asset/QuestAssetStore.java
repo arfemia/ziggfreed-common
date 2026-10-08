@@ -16,6 +16,7 @@ import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.asset.ModGateFold;
 import com.ziggfreed.common.factor.ModGates;
+import com.ziggfreed.common.progress.asset.ContentRewardsAsset;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.asset.QuestGeneratorExpander.Expansion;
 import com.ziggfreed.common.season.SeasonGate;
@@ -295,6 +296,10 @@ public final class QuestAssetStore {
      * needs to be special is made special by writing the file - and the collision is reported, since
      * the other possibility is that a generator's {@code IdPattern} is too coarse.
      *
+     * <p>A reward row whose own {@code Requires} names a missing mod is absent from the quest it would
+     * pay ({@code RewardEntryAsset.toSpec}); this fold counts those rows, across every quest it folds (a
+     * skeleton's only through the quests that inherit them), in the store's one row line per missing mod.
+     *
      * @param enumerators the registered value sources a generator axis may name
      */
     @Nonnull
@@ -303,6 +308,7 @@ public final class QuestAssetStore {
         Map<String, String> ownerGatedOut = new LinkedHashMap<>();
         Map<String, QuestAsset> authored = compose(issues, ownerGatedOut);
         Map<String, QuestDefinition> out = new LinkedHashMap<>();
+        List<String> gatedRows = new ArrayList<>();
 
         List<String> authoredIds = new ArrayList<>(authored.keySet());
         Collections.sort(authoredIds);
@@ -318,6 +324,7 @@ public final class QuestAssetStore {
                 continue;
             }
             out.put(id, asset.toDefinition(null));
+            ContentRewardsAsset.collectMissingMods(asset.getRewards(), gatedRows);
             // Reported at the fold because only the ASSET still carries what the author typed;
             // the folded rule has already fallen back to a default for anything unparseable.
             issues.addAll(QuestPoolValidator.repeatFindings(asset.getRepeat(), id));
@@ -364,9 +371,11 @@ public final class QuestAssetStore {
                     continue; // a generated child obeys the file rule: gated on an absent mod, it is not here
                 }
                 out.put(body.id(), decoded.toDefinition(generatorId));
+                ContentRewardsAsset.collectMissingMods(decoded.getRewards(), gatedRows);
                 issues.addAll(QuestPoolValidator.repeatFindings(decoded.getRepeat(), body.id()));
             }
         }
+        ModGates.reportRewardRows(MOD_GATE_STORE, gatedRows);
         return new Resolution(new QuestPool(out), issues);
     }
 

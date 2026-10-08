@@ -140,4 +140,18 @@ class ModGatesTest {
                 "[zc] mod gate: GearSets dropped 1 owner override(s) gated on a missing mod (Ziggfreed:MMOSkillTree)"),
                 lines, "nothing dropped says nothing");
     }
+
+    /** The third kind of drop line: a store's fold counts the reward rows it left out, never naming one. */
+    @Test
+    void aRewardRowDropIsTheThirdLineCountingTheRowsPerMissingMod() {
+        List<String> lines = new ArrayList<>();
+        ModGates.reportIntoForTests(lines::add);
+
+        ModGates.reportRewardRows("Quests", List.of(MMO, MMO));
+        ModGates.reportRewardRows("Bounties", List.of());
+
+        assertEquals(List.of(
+                "[zc] mod gate: Quests dropped 2 reward row(s) gated on a missing mod (Ziggfreed:MMOSkillTree)"),
+                lines, "nothing dropped says nothing");
+    }
 }

@@ -13,10 +13,14 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
 import com.ziggfreed.common.achievement.asset.AchievementAssetStore;
+import com.ziggfreed.common.achievement.asset.AchievementMilestoneConfig;
 import com.ziggfreed.common.board.asset.BoardAssetStore;
 import com.ziggfreed.common.board.asset.BoardConfig;
 import com.ziggfreed.common.currency.asset.CurrencyConfig;
@@ -24,6 +28,7 @@ import com.ziggfreed.common.loot.LootableConfig;
 import com.ziggfreed.common.loot.trigger.BonusRowConfig;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementConfig;
 import com.ziggfreed.common.quest.asset.QuestAssetStore;
+import com.ziggfreed.common.reputation.asset.ReputationConfig;
 import com.ziggfreed.common.shop.asset.ShopAssetStore;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.stats.gearset.GearSetConfig;
@@ -49,6 +54,12 @@ import com.ziggfreed.common.stats.gearset.GearSetConfig;
  * EncounterParticipation, CalendarEvents, CalendarSpawns, Titles and Reputations. A store that gains a
  * top-level {@code Requires} moves from this paragraph into {@code GATED}, and into {@code OWNER_READERS}
  * or {@code NO_OWNER_FILE}.
+ *
+ * <p>The third kind of drop line counts reward ROWS: a row's own {@code Requires} keeps it out where its
+ * mod is missing, and every store whose files carry rows counts what its fold left out under its contract
+ * label ({@code REWARD_ROW_STORES}), AchievementMilestones and Reputations among them although no file of
+ * theirs can be gated. A class whose rows are read inline, outside any store's fold, is listed in
+ * {@code INLINE_ROWS}: its gated rows are absent too, and never counted.
  */
 class FrameworkModGateWiringTest {
 
@@ -114,6 +125,46 @@ class FrameworkModGateWiringTest {
             Set.of("LootableAsset", "AchievementAsset", "ShopEntryAsset", "BountyAsset");
 
     private static final Path QUEST_STORE = module("zc-progression", "quest", "asset", "QuestAssetStore.java");
+
+    /**
+     * A store whose files carry reward rows: the asset class holding them, its contract label, the class
+     * declaring {@code MOD_GATE_STORE} and that constant, and the method in which its fold counts the rows
+     * a row's own gate left out.
+     */
+    private record RewardRows(String asset, String label, String declaredBy, String declared, Path source,
+            String method) {
+    }
+
+    private static final List<RewardRows> REWARD_ROW_STORES = List.of(
+            new RewardRows("QuestAsset", "Quests", "QuestAssetStore", QuestAssetStore.MOD_GATE_STORE,
+                    QUEST_STORE, "public Resolution resolve("),
+            new RewardRows("AchievementAsset", "Achievements", "AchievementAssetStore",
+                    AchievementAssetStore.MOD_GATE_STORE,
+                    module("zc-progression", "achievement", "asset", "AchievementAssetStore.java"),
+                    "public Resolution resolve()"),
+            new RewardRows("AchievementMilestoneAsset", "AchievementMilestones", "AchievementMilestoneConfig",
+                    AchievementMilestoneConfig.MOD_GATE_STORE,
+                    module("zc-progression", "achievement", "asset", "AchievementMilestoneConfig.java"),
+                    "public synchronized void mergePackLayer("),
+            new RewardRows("BountyAsset", "Bounties", "BoardAssetStore", BoardAssetStore.MOD_GATE_STORE,
+                    module("zc-commerce", "board", "asset", "BoardAssetStore.java"), "public Resolution resolve()"),
+            new RewardRows("ShopEntryAsset", "ShopEntries", "ShopAssetStore", ShopAssetStore.MOD_GATE_STORE,
+                    module("zc-commerce", "shop", "asset", "ShopAssetStore.java"), "public Resolution resolve("),
+            new RewardRows("ReputationAsset", "Reputations", "ReputationConfig", ReputationConfig.MOD_GATE_STORE,
+                    module("zc-reputation", "reputation", "asset", "ReputationOwnerLayers.java"),
+                    "public static void reload()"));
+
+    /**
+     * The classes whose reward rows are read inline (a dialogue action's, an interaction's) or that are the
+     * shared group itself: a gated row there is absent, and no store fold counts it.
+     */
+    private static final Set<String> INLINE_ROWS =
+            Set.of("ContentRewardsAsset", "GrantDialogueAction", "ZigGrantRewardInteraction");
+
+    /** A field holding reward rows, as a codec-backed class declares one. */
+    private static final Pattern ROW_FIELD = Pattern.compile(
+            "^\\s*(@Nullable\\s+)?((protected|private|public)\\s+)?(RewardEntryAsset\\[\\]|ContentRewardsAsset)\\s+\\w+;",
+            Pattern.MULTILINE);
 
     private static Path module(String module, String... packageAndFile) {
         Path path = Path.of(module, "src", "main", "java", "com", "ziggfreed", "common");
@@ -183,6 +234,55 @@ class FrameworkModGateWiringTest {
         }
         assertEquals(GATED.keySet(), covered,
                 "every gated store has an owner reader listed here, or is listed as keeping no owner file");
+    }
+
+    @Test
+    void everyStoreCarryingRewardRowsCountsWhatTheRowGateLeftOutUnderItsStoreLabel() throws IOException {
+        for (RewardRows store : REWARD_ROW_STORES) {
+            assertEquals(store.label(), store.declared(),
+                    store.declaredBy() + ".MOD_GATE_STORE must be the contract label the season boot pair parses");
+            boolean declaredHere = store.source().getFileName().toString().equals(store.declaredBy() + ".java");
+            String call = "ModGates.reportRewardRows(" + (declaredHere ? "" : store.declaredBy() + ".")
+                    + "MOD_GATE_STORE,";
+            String body = methodBody(read(store.source()), store.method(), store.source());
+            assertTrue(body.replaceAll("\\s+", "").contains(call),
+                    () -> store.source().getFileName() + " " + store.method() + " must count its rows through "
+                            + call + " ...), or a row gated on an absent mod drops uncounted, or under the wrong "
+                            + "store. It reads: " + body);
+        }
+        assertEquals("AchievementMilestones", AchievementMilestoneConfig.getInstance().modGateStore());
+        assertEquals("Reputations", ReputationConfig.getInstance().modGateStore());
+    }
+
+    /**
+     * Every class holding reward rows is a store listed in {@code REWARD_ROW_STORES} or a reader listed in
+     * {@code INLINE_ROWS}, so a new store carrying rows cannot drop them without its line.
+     */
+    @Test
+    void everyClassHoldingRewardRowsIsAListedStoreOrAnInlineReader() throws IOException {
+        Set<String> holders = new TreeSet<>();
+        try (Stream<Path> modules = Files.list(Path.of("."))) {
+            for (Path module : modules.filter(p -> p.getFileName().toString().startsWith("zc-")).toList()) {
+                Path sources = module.resolve(Path.of("src", "main", "java"));
+                if (!Files.isDirectory(sources)) {
+                    continue;
+                }
+                try (Stream<Path> files = Files.walk(sources)) {
+                    for (Path file : files.filter(p -> p.toString().endsWith(".java")).toList()) {
+                        if (ROW_FIELD.matcher(Files.readString(file, StandardCharsets.UTF_8)).find()) {
+                            String name = file.getFileName().toString();
+                            holders.add(name.substring(0, name.length() - ".java".length()));
+                        }
+                    }
+                }
+            }
+        }
+        Set<String> listed = new TreeSet<>(INLINE_ROWS);
+        for (RewardRows store : REWARD_ROW_STORES) {
+            listed.add(store.asset());
+        }
+        assertEquals(listed, holders, "a class holding reward rows joins REWARD_ROW_STORES (its fold counts the "
+                + "rows its gate left out) or INLINE_ROWS");
     }
 
     /** The text from the class's LoadedAssetsEvent registration to the next store's registration. */

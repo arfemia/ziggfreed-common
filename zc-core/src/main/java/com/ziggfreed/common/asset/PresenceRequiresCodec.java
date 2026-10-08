@@ -17,6 +17,10 @@ import com.ziggfreed.common.factor.ModGates;
  * <p>Such a store reads it for one thing only, whether the file loads on this server: a plain top-level
  * {@code hytale:mod_installed} condition with {@code Min: 1} keeps the file out where that mod is
  * missing ({@link ModGates}). Nothing else in the block is evaluated by these stores.
+ *
+ * <p>A reward row (zc-progression's {@code RewardEntryAsset}) carries the same block for the same one
+ * question about itself: where its mod is missing the row is absent while the rest of its file loads, and
+ * the editor shows {@link #ROW_DOCUMENTATION} beside it.
  */
 public final class PresenceRequiresCodec {
 
@@ -25,6 +29,13 @@ public final class PresenceRequiresCodec {
             + "{ \"Factor\": \"hytale:mod_installed\", \"Param\": \"Group:Name\", \"Min\": 1 } keeps the file "
             + "out entirely where that mod is not installed, so nothing reads it or reports it. Write Min 1: "
             + "a condition with no bound is satisfied by a missing mod too. Other conditions here are not read.";
+
+    /** The sentence the Asset Editor shows beside a reward row's {@code Requires} leaf of this shape. */
+    public static final String ROW_DOCUMENTATION = "Whether this reward row exists on this server at all. A "
+            + "condition { \"Factor\": \"hytale:mod_installed\", \"Param\": \"Group:Name\", \"Min\": 1 } leaves "
+            + "the row out where that mod is not installed: it pays nothing, shows nowhere and is not reported, "
+            + "while the rest of the list pays as written. Write Min 1: a condition with no bound is satisfied "
+            + "by a missing mod too. Other conditions here are not read.";
 
     /** The authored block: one inherited {@code Factors} leaf. */
     public static final class Block {
@@ -55,7 +66,8 @@ public final class PresenceRequiresCodec {
                             false),
                     (o, v) -> o.factors = v, o -> o.factors, (o, p) -> o.factors = p.factors)
             .documentation("The conditions. A plain hytale:mod_installed condition with Min 1 decides whether "
-                    + "the file loads; authoring this list replaces an inherited one whole.").add()
+                    + "the file or reward row carrying this block loads; authoring this list replaces an "
+                    + "inherited one whole.").add()
             .build();
 
     private PresenceRequiresCodec() {
