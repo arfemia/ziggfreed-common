@@ -1,6 +1,7 @@
 package com.ziggfreed.common.progress.asset;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import javax.annotation.Nonnull;
@@ -88,14 +89,15 @@ public final class ContentRewardsAsset {
 
     /**
      * The {@code Auto} bucket's entries exactly as authored, blanks included - for a validator that
-     * must see an entry {@link #auto()} would drop for naming no Kind.
+     * must see an entry {@link #auto()} would drop for naming no Kind. A row gated on a missing mod is
+     * here too; a validator audits {@link RewardEntryAsset#present} of it, so an absent row says nothing.
      */
     @Nonnull
     public RewardEntryAsset[] autoEntries() {
         return auto == null ? new RewardEntryAsset[0] : auto.clone();
     }
 
-    /** The {@code Claim} bucket's entries exactly as authored, blanks included. */
+    /** The {@code Claim} bucket's entries exactly as authored, blanks and gated rows included. */
     @Nonnull
     public RewardEntryAsset[] claimEntries() {
         return claim == null ? new RewardEntryAsset[0] : claim.clone();
@@ -104,6 +106,19 @@ public final class ContentRewardsAsset {
     /** True when neither bucket authors an entry - content that pays nothing at all. */
     public boolean isEmpty() {
         return (auto == null || auto.length == 0) && (claim == null || claim.length == 0);
+    }
+
+    /**
+     * Add to {@code into} the missing mod of every row in either bucket of {@code rewards} that its own
+     * gate leaves out ({@link RewardEntryAsset#collectMissingMods}): what a store's fold counts in its
+     * drop line. Nothing for null.
+     */
+    public static void collectMissingMods(@Nullable ContentRewardsAsset rewards, @Nonnull Collection<String> into) {
+        if (rewards == null) {
+            return;
+        }
+        RewardEntryAsset.collectMissingMods(rewards.auto, into);
+        RewardEntryAsset.collectMissingMods(rewards.claim, into);
     }
 
     @Nonnull

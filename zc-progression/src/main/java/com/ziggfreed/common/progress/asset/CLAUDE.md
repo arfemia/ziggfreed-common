@@ -9,4 +9,5 @@
 - `ObjectiveLeafAsset.toDefBuilder` is the one place a kind alias is applied.
 - An editor dropdown is authoring convenience, never validation: a hand-written file never passes through the editor.
 - A consumer's own knob goes in `Meta` (`ContentMeta`), inherited per namespace with the block replaced whole; never argue it into a shared leaf.
+- A reward row's own `Requires` (zc-core `PresenceRequiresCodec`, read through `ModGates`) gates that row alone: `toSpec` answers null where its mod is missing, so every payer drops it; a validator reading authored entries audits `RewardEntryAsset.present`, and a store's fold counts the rest (`collectMissingMods` into `ModGates.reportRewardRows`).
 - `GeneratorCore` is the one expander for every content type that writes a family from one file. It merges nothing (each generated body is an ordinary child carrying `Parent`); a value that is exactly one token keeps that token's type; an unbound token is an error that skips the entry.

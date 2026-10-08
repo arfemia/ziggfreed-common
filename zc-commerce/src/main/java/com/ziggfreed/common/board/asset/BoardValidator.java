@@ -329,15 +329,16 @@ public final class BoardValidator {
             }
         }
 
+        // A row gated on a mod this server lacks is absent: never paid, so never audited here.
         ContentRewardsAsset rewards = bounty.getRewards();
-        if (rewards == null || rewards.isEmpty()) {
+        RewardEntryAsset[] auto = RewardEntryAsset.present(rewards == null ? null : rewards.autoEntries());
+        RewardEntryAsset[] claim = RewardEntryAsset.present(rewards == null ? null : rewards.claimEntries());
+        if (auto.length == 0 && claim.length == 0) {
             out.add(Finding.warning(DOMAIN, "EMPTY_REWARDS",
                     "the contract pays nothing, so a player does the work for no return", id));
         }
-        if (rewards != null) {
-            validateRewardEntries(rewards.autoEntries(), "Rewards.Auto", rewardKinds, id, out);
-            validateRewardEntries(rewards.claimEntries(), "Rewards.Claim", rewardKinds, id, out);
-        }
+        validateRewardEntries(auto, "Rewards.Auto", rewardKinds, id, out);
+        validateRewardEntries(claim, "Rewards.Claim", rewardKinds, id, out);
 
         out.addAll(GateValidator.validate(bounty.getRequires(), DOMAIN, id, NOUN,
                 gateKinds, knownFactors, null));

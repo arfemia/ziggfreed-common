@@ -1,6 +1,7 @@
 package com.ziggfreed.common.reputation.asset;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -279,6 +280,14 @@ public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAs
             }
         }
         return List.copyOf(out);
+    }
+
+    /**
+     * Add to {@code into} the missing mod of each Beyond reward row whose own {@code Requires} keeps it off
+     * this server ({@code RewardEntryAsset.collectMissingMods}): what the store's fold counts in its line.
+     */
+    public void collectGatedRows(@Nonnull Collection<String> into) {
+        RewardEntryAsset.collectMissingMods(beyond == null ? null : beyond.rewards, into);
     }
 
     @Nullable

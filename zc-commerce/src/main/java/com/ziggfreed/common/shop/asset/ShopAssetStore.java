@@ -15,8 +15,10 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.asset.ModGateFold;
+import com.ziggfreed.common.factor.ModGates;
 import com.ziggfreed.common.progress.asset.GeneratedBody;
 import com.ziggfreed.common.progress.asset.GeneratorCore;
+import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
@@ -157,6 +159,10 @@ public final class ShopAssetStore {
      * needs to be special is made special by writing the file - and the collision is reported, since
      * the other possibility is that a generator's {@code IdPattern} is too coarse.
      *
+     * <p>A reward row whose own {@code Requires} names a missing mod is absent from what its offer hands
+     * over ({@code RewardEntryAsset.toSpec}); this fold counts those rows across every offer it keeps, in
+     * the store's one row line per missing mod.
+     *
      * @param values where an axis naming a {@code Source} gets its rows; null means none are
      *               registered, which the findings say rather than silently writing nothing
      */
@@ -216,6 +222,11 @@ public final class ShopAssetStore {
                 out.put(body.id(), decoded);
             }
         }
+        List<String> gatedRows = new ArrayList<>();
+        for (ShopEntryAsset offer : out.values()) {
+            RewardEntryAsset.collectMissingMods(offer.rewardsOrEmpty(), gatedRows);
+        }
+        ModGates.reportRewardRows(MOD_GATE_STORE, gatedRows);
         return new Resolution(out, issues);
     }
 

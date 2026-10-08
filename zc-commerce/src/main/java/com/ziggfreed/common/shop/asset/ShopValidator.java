@@ -277,7 +277,8 @@ public final class ShopValidator {
 
         validateCost(offer.costOrFree(), id, "Cost", currencies, out);
 
-        RewardEntryAsset[] rewards = offer.rewardsOrEmpty();
+        // A row gated on a mod this server lacks is absent: never paid, so never audited here.
+        RewardEntryAsset[] rewards = RewardEntryAsset.present(offer.rewardsOrEmpty());
         if (rewards.length == 0) {
             out.add(Finding.error(DOMAIN, "EMPTY_REWARDS",
                     "the offer hands over nothing, so a player pays and receives no reward at all", id));
