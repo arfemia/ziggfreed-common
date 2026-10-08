@@ -157,6 +157,13 @@ public final class WaypointSnapshots {
         return snapshots.size();
     }
 
+    /** {@link #markerSpecsFor(String, UUID, WaypointPositionResolver, WaypointViewer)} with no viewer position. */
+    @Nonnull
+    public List<MarkerSpec> markerSpecsFor(@Nonnull String worldName, @Nonnull UUID viewerId,
+                                           @Nonnull WaypointPositionResolver resolver) {
+        return markerSpecsFor(worldName, viewerId, resolver, null);
+    }
+
     /**
      * The markers this viewer should see IN THIS WORLD: every snapshot target, resolved through
      * {@code resolver}, with one marker per position it resolves to here.
@@ -166,11 +173,13 @@ public final class WaypointSnapshots {
      * {@code providerKey:targetId:anchorKey}, so two live copies of the same place stay two markers
      * and a repeat of the same one is dropped.
      *
-     * <p>A resolver that throws is reported once per call and that target is skipped.
+     * <p>A resolver that throws is reported once per call and that target is skipped. The viewer,
+     * when known, reaches the resolver.
      */
     @Nonnull
     public List<MarkerSpec> markerSpecsFor(@Nonnull String worldName, @Nonnull UUID viewerId,
-                                           @Nonnull WaypointPositionResolver resolver) {
+                                           @Nonnull WaypointPositionResolver resolver,
+                                           @Nullable WaypointViewer viewer) {
         List<WaypointTarget> targets = targets(viewerId);
         if (targets.isEmpty()) {
             return List.of();
@@ -180,7 +189,7 @@ public final class WaypointSnapshots {
         for (WaypointTarget target : targets) {
             List<WaypointPosition> positions;
             try {
-                positions = resolver.resolve(worldName, target.positionKey());
+                positions = resolver.resolve(worldName, target.positionKey(), viewer);
             } catch (Throwable t) {
                 warn.accept("a waypoint position resolver failed for '" + target.positionKey()
                         + "': " + t.getMessage());

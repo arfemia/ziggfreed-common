@@ -7,11 +7,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import org.joml.Vector3d;
+
 import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MapMarkerBuilder;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MarkersCollector;
@@ -89,6 +93,23 @@ public final class WorldMapMarkers {
             b.withName(name);
         }
         return b.build();
+    }
+
+    /**
+     * Where {@code player} stands, as the engine's own map tracker last read it, or null when it cannot
+     * tell. Safe on the map tracker thread: it is the transform {@code WorldMapTracker} caches and reads
+     * there before it asks any provider, never an entity-store lookup.
+     */
+    @Nullable
+    public static WaypointViewer viewerOf(@Nullable Player player) {
+        try {
+            WorldMapTracker tracker = player == null ? null : player.getWorldMapTracker();
+            TransformComponent transform = tracker == null ? null : tracker.getTransformComponent();
+            Vector3d position = transform == null ? null : transform.getPosition();
+            return position == null ? null : new WaypointViewer(position.x, position.z);
+        } catch (Throwable t) {
+            return null;
+        }
     }
 
     // ---- global POI markers (world-wide, all players) ----

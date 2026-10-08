@@ -7,6 +7,7 @@ import com.hypixel.hytale.assetstore.event.RemovedAssetsEvent;
 import com.hypixel.hytale.assetstore.map.DefaultAssetMap;
 import com.hypixel.hytale.server.core.asset.type.item.config.CraftingRecipe;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
+import com.hypixel.hytale.server.core.event.events.BootEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.ZiggfreedCommonPlugin;
@@ -124,6 +125,9 @@ import com.ziggfreed.common.ui.hud.card.HudCardConfig;
 import com.ziggfreed.common.ui.hud.card.HudCardOwnerLayers;
 import com.ziggfreed.common.world.WeightedPrefabPlacementAsset;
 import com.ziggfreed.common.world.WeightedPrefabPlacementConfig;
+import com.ziggfreed.common.worldmap.GatewayAsset;
+import com.ziggfreed.common.worldmap.GatewayConfig;
+import com.ziggfreed.common.worldmap.PortalGateways;
 
 /**
  * The ONE registrar for ziggfreed-common's framework asset stores, called once from
@@ -338,6 +342,18 @@ public final class FrameworkAssetRegistrar {
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, WeightedPrefabPlacementAsset.class,
                 (LoadedAssetsEvent<String, WeightedPrefabPlacementAsset, DefaultAssetMap<String, WeightedPrefabPlacementAsset>> ev) ->
                         WeightedPrefabPlacementConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
+
+        // --- Gateways: where the way into another world stands, so a tracked quest whose character
+        //     stands elsewhere points at the nearest way there (worldmap/Gateways). The base game's
+        //     portals are read at boot into the defaults layer; files layer over them. No top-level
+        //     Requires. ---
+        AssetStoreRegistrar.registerStore(GatewayAsset.class,
+                new DefaultAssetMap<String, GatewayAsset>(), GatewayAsset.TYPE_ROOT,
+                GatewayAsset::getId, GatewayAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, GatewayAsset.class,
+                (LoadedAssetsEvent<String, GatewayAsset, DefaultAssetMap<String, GatewayAsset>> ev) ->
+                        GatewayConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
+        plugin.getEventRegistry().register(BootEvent.class, event -> PortalGateways.ensureDerived());
 
         // --- Leaderboard layout (Pattern A). ---
         AssetStoreRegistrar.registerStore(LeaderboardLayoutAsset.class,
@@ -845,7 +861,7 @@ public final class FrameworkAssetRegistrar {
             CommonLog.LOGGER.atInfo().log(
                     "ZiggfreedCommon framework stores registered (DialogueFragments, DialogueExtensions, Dialogues, Instances, "
                             + "Lootables, RollPools, BonusRows (owner file mods/ziggfreedcommon/bonus-rows.json), "
-                            + "StatDisplays, RewardKinds, BandedEffects, PrefabPlacements, Leaderboard, "
+                            + "StatDisplays, RewardKinds, BandedEffects, PrefabPlacements, Gateways, Leaderboard, "
                             + "Arenas, Party, NpcPlacements, NpcIdentities, Factors, FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, "
                             + "PlayerSettings (owner file mods/ziggfreedcommon/player-settings.json), "
                             + "Quests (owner folder mods/ziggfreedcommon/quests/), QuestGenerators, QuestCategories, "

@@ -2,6 +2,7 @@ package com.ziggfreed.common.worldmap;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -175,5 +176,29 @@ class WaypointSnapshotsTest {
 
         assertEquals(1, snapshots.markerSpecsFor("overworld", VIEWER, resolver).size());
         assertEquals(1, warnings.size());
+    }
+
+    @Test
+    void aResolverIsToldWhereTheViewerStands() {
+        WaypointSnapshots snapshots = snapshots();
+        snapshots.set(VIEWER, List.of(WaypointTarget.of("gate", null)));
+        List<WaypointViewer> seen = new ArrayList<>();
+        WaypointPositionResolver resolver = new WaypointPositionResolver() {
+            @Override
+            public List<WaypointPosition> resolve(String worldName, String positionKey) {
+                return List.of();
+            }
+
+            @Override
+            public List<WaypointPosition> resolve(String worldName, String positionKey, WaypointViewer viewer) {
+                seen.add(viewer);
+                return List.of(new WaypointPosition("a", 1, 2, 3));
+            }
+        };
+
+        assertEquals(1, snapshots.markerSpecsFor("overworld", VIEWER, resolver, new WaypointViewer(5, 6)).size());
+        assertEquals(1, snapshots.markerSpecsFor("overworld", VIEWER, resolver).size());
+        assertEquals(new WaypointViewer(5, 6), seen.get(0));
+        assertNull(seen.get(1), "the three-argument form passes no viewer");
     }
 }

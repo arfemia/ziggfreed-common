@@ -51,7 +51,7 @@ import com.ziggfreed.common.stats.gearset.GearSetConfig;
  * PrefabPlacements, Leaderboard, Arenas, Party, DialogueOptionTheme, NpcIdentities, Factors,
  * FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, PlayerSettings, AchievementCategories,
  * QuestCategories, AchievementMilestones, Almanac, ShopPools, EncounterBindings,
- * EncounterParticipation, CalendarEvents, CalendarSpawns, Titles and Reputations. A store that gains a
+ * EncounterParticipation, CalendarEvents, CalendarSpawns, Titles, Reputations and Gateways. A store that gains a
  * top-level {@code Requires} moves from this paragraph into {@code GATED}, and into {@code OWNER_READERS}
  * or {@code NO_OWNER_FILE}.
  *
