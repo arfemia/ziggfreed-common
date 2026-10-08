@@ -18,6 +18,7 @@ import com.ziggfreed.common.calendar.asset.CalendarEventAsset;
 import com.ziggfreed.common.calendar.asset.CalendarEventConfig;
 import com.ziggfreed.common.occurrence.Occurrence;
 import com.ziggfreed.common.occurrence.OccurrenceSource;
+import com.ziggfreed.common.occurrence.Recurrence;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -288,6 +289,16 @@ public final class CalendarService implements OccurrenceSource {
         CalendarEventAsset event = event(eventId);
         AnnualWindow window = event == null ? null : event.annualWindow();
         return window != null && (window.moves() || window.several());
+    }
+
+    /**
+     * How the loaded event comes round when it runs monthly or weekly, by the rule dating the year it is in at
+     * {@code nowMs}, whatever its switches say ({@link RecurrenceOf#event}); null for any other event.
+     */
+    @Override
+    @Nullable
+    public Recurrence recurrence(@Nonnull String eventId, long nowMs) {
+        return RecurrenceOf.event(event(eventId), nowMs);
     }
 
     /**

@@ -8,6 +8,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.ziggfreed.common.occurrence.Occurrence;
+import com.ziggfreed.common.occurrence.Recurrence;
 
 /**
  * Where one season stands, as the Almanac needs to know it: on or not, and the year the season on
@@ -34,11 +35,13 @@ public interface AlmanacCalendar {
     /**
      * What the calendar knows of a season's runs at one moment: the run going on (forces counted), the
      * next run to start, every run begun so far oldest first (the one going on included), the first year,
-     * the clock its days are counted in, and whether its days move from year to year. A run's {@code endMs}
-     * is the midnight after its last day.
+     * the clock its days are counted in, whether its days move from year to year, and, for a season that comes
+     * round monthly or weekly, how it recurs ({@code recurrence}, null otherwise). A run's {@code endMs} is the
+     * midnight after its last day, or the first instant after it for a run with a time of day.
      */
     record Dates(@Nullable Occurrence live, @Nullable Occurrence next, @Nonnull List<Occurrence> history,
-                 @Nullable Integer firstYear, @Nonnull ZoneId zone, boolean datesMove) {
+                 @Nullable Integer firstYear, @Nonnull ZoneId zone, boolean datesMove,
+                 @Nullable Recurrence recurrence) {
 
         /** Nothing known: no runs, no years, counted in UTC. What an absent season or a dateless calendar says. */
         public static final Dates UNKNOWN = new Dates(null, null, List.of(), null, ZoneOffset.UTC);
@@ -51,7 +54,13 @@ public interface AlmanacCalendar {
         /** Days that are the same every year. */
         public Dates(@Nullable Occurrence live, @Nullable Occurrence next, @Nonnull List<Occurrence> history,
                 @Nullable Integer firstYear, @Nonnull ZoneId zone) {
-            this(live, next, history, firstYear, zone, false);
+            this(live, next, history, firstYear, zone, false, null);
+        }
+
+        /** A season that does not come round monthly or weekly, its days moving from year to year or not. */
+        public Dates(@Nullable Occurrence live, @Nullable Occurrence next, @Nonnull List<Occurrence> history,
+                @Nullable Integer firstYear, @Nonnull ZoneId zone, boolean datesMove) {
+            this(live, next, history, firstYear, zone, datesMove, null);
         }
     }
 

@@ -267,6 +267,15 @@ public final class AnnualWindow {
     }
 
     /**
+     * The rule that dates {@code year}: its own listed days when it has them, else the every-year rule; null before
+     * the floor, after {@link #LAST_YEAR}, and for a year a window of listed years alone does not list.
+     */
+    @Nullable
+    public YearRule rule(int year) {
+        return layer(year);
+    }
+
+    /**
      * Do the days differ from one year to the next: a moving rule (Easter, a weekday), any per-year runs, or a year
      * that skips some?
      */

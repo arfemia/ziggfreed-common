@@ -58,7 +58,7 @@ public final class OccurrenceAlmanacCalendar implements AlmanacCalendar {
             }
             return new Dates(occurrences.live(eventId, nowMs), occurrences.next(eventId, nowMs),
                     occurrences.history(eventId, nowMs), occurrences.firstYear(eventId), occurrences.zone(eventId),
-                    occurrences.datesMove(eventId));
+                    occurrences.datesMove(eventId), occurrences.recurrence(eventId, nowMs));
         } catch (Throwable t) {
             return Dates.UNKNOWN;
         }
