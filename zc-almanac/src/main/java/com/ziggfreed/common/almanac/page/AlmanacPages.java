@@ -71,12 +71,22 @@ public final class AlmanacPages {
 
     @Nullable
     static Message headline(@Nonnull AlmanacCalendar calendar) {
+        AlmanacView.Season season = seasonOnNow(calendar);
+        return season == null ? null : AlmanacLines.headline(season);
+    }
+
+    /**
+     * The season on now that a consumer's tile and the menu tab's second line name: the first one on, in the
+     * order the Almanac lists them (the one it opens on). Null while none runs, and while the Almanac is off.
+     */
+    @Nullable
+    static AlmanacView.Season seasonOnNow(@Nonnull AlmanacCalendar calendar) {
         if (!AlmanacSwitch.isOn()) {
             return null;
         }
         for (AlmanacView.Season season : AlmanacView.seasons(AlmanacEntryConfig.getInstance().all(), calendar)) {
             if (season.live()) {
-                return AlmanacLines.headline(season);
+                return season;
             }
         }
         return null;

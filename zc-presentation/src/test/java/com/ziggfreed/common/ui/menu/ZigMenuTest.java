@@ -2,8 +2,10 @@ package com.ziggfreed.common.ui.menu;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -16,15 +18,17 @@ import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.server.core.Message;
+import com.ziggfreed.common.icon.IconSpec;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.ui.route.DestinationContext;
 import com.ziggfreed.common.ui.route.DestinationType;
 import com.ziggfreed.common.ui.route.Destinations;
 
 /**
- * What the rail lists and where {@code /ziggui} lands: the consumer's section above the four slots in
- * their fixed order, an unfilled slot or a hidden entry drawing nothing, a rule that throws hiding only
- * its own entry, and the landing falling from the consumer's to the first visible slot to nothing.
+ * What the rail lists and where {@code /ziggui} lands: the consumer's section above the library's slots in
+ * their fixed order (the Almanac first), an unfilled slot or a hidden entry drawing nothing, a rule that
+ * throws hiding only its own entry, a tab's second line asked for the viewer on every paint, and the landing
+ * falling from the consumer's to the first visible slot to nothing.
  */
 class ZigMenuTest {
 
@@ -105,6 +109,75 @@ class ZigMenuTest {
 
         assertEquals(List.of("header", "a", "b", "spacer", "quests", "records"),
                 ids(ZigMenu.rows(deps, ZigMenu.slots(), VIEWER)));
+    }
+
+    /** M484: the Almanac tab sits above Quests and Achievements; Records and the rest keep their order below. */
+    @Test
+    void theAlmanacSitsAboveQuestsAndAchievements() {
+        for (MenuSlot slot : MenuSlot.values()) {
+            ZigMenu.fill(slot, slot(slot, true));
+        }
+
+        assertEquals(List.of("almanac", "quests", "achievements", "records", "reputation", "settings"),
+                ids(ZigMenu.rows(MenuDeps.EMPTY, ZigMenu.slots(), VIEWER)));
+    }
+
+    /** M485: a tab's second line is asked for the player looking, on every paint; a tab without one has none. */
+    @Test
+    void aTabsSecondLineIsAskedForTheViewerOnEveryPaint() {
+        MenuSubline season = new MenuSubline(Message.raw("Hallow's Eve"), IconSpec.ofItem("Test_Icon"));
+        AtomicInteger asked = new AtomicInteger();
+        ZigMenu.fill(MenuSlot.ALMANAC, slot(MenuSlot.ALMANAC, true).withSubline(viewer -> {
+            asked.incrementAndGet();
+            return season;
+        }));
+        ZigMenu.fill(MenuSlot.QUESTS, slot(MenuSlot.QUESTS, true));
+        ZigMenu.fill(MenuSlot.ACHIEVEMENTS, slot(MenuSlot.ACHIEVEMENTS, true).withSubline(viewer -> null));
+
+        List<MenuRow> rows = ZigMenu.rows(MenuDeps.EMPTY, ZigMenu.slots(), VIEWER);
+        assertEquals(List.of("almanac", "quests", "achievements"), ids(rows));
+        assertSame(season, rows.get(0).subline(), "the tab carries the line it was given for this paint");
+        assertNull(rows.get(1).subline(), "a tab that never asks for a line has none");
+        assertNull(rows.get(2).subline(), "a line that says nothing right now draws no second line");
+        ZigMenu.rows(MenuDeps.EMPTY, ZigMenu.slots(), VIEWER);
+        assertEquals(2, asked.get(), "asked again on the next paint, so a season that starts or ends shows at once");
+    }
+
+    @Test
+    void aSecondLineThatThrowsCostsOnlyTheLine() {
+        ZigMenu.fill(MenuSlot.ALMANAC, slot(MenuSlot.ALMANAC, true).withSubline(viewer -> {
+            throw new IllegalStateException("boom");
+        }));
+
+        List<MenuRow> rows = ZigMenu.rows(MenuDeps.EMPTY, ZigMenu.slots(), VIEWER);
+        assertEquals(List.of("almanac"), ids(rows), "the tab itself still shows");
+        assertNull(rows.get(0).subline());
+    }
+
+    @Test
+    void aHiddenTabsLineIsNeverAsked() {
+        AtomicInteger asked = new AtomicInteger();
+        ZigMenu.fill(MenuSlot.ALMANAC, slot(MenuSlot.ALMANAC, false).withSubline(viewer -> {
+            asked.incrementAndGet();
+            return new MenuSubline(Message.raw("x"), null);
+        }));
+
+        assertTrue(ZigMenu.rows(MenuDeps.EMPTY, ZigMenu.slots(), VIEWER).isEmpty());
+        assertEquals(0, asked.get());
+    }
+
+    @Test
+    void aSecondLineNeedsWordsAndAnEntryKeepsItsLineThroughItsOtherFields() {
+        MenuEntry plain = slot(MenuSlot.ALMANAC, true);
+        assertNull(plain.subline(), "the five-field entry asks for no second line");
+        MenuEntry lined = plain.withSubline(viewer -> null);
+        assertNotNull(lined.subline());
+        assertEquals(plain.id(), lined.id());
+        assertSame(plain.label(), lined.label());
+        assertSame(plain.opens(), lined.opens());
+        assertSame(plain.visible(), lined.visible());
+        assertThrows(NullPointerException.class, () -> new MenuSubline(null, null),
+                "a second line with no words is refused");
     }
 
     @Test

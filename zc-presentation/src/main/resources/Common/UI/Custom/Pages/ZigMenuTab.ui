@@ -17,6 +17,13 @@ $ZT = "../Common/ZigType.ui";
 //                 whose mask no Java push can set, so it is authored here.
 //   #Header       a section heading: vanilla's section label (13, bold, uppercase).
 //   #Rule         the gap between the consumer's section and the library's tabs: vanilla's 1px separator.
+// A tab's label sits in a Top column (#TabText, #SelText) over its second line, #SubLine (ui/menu/MenuSubline):
+// a 16px picture slot (#SubIconSlot) before a caption-step label (#SubLabel) eliding on one line, vanilla's
+// 20-high value line (Pages/WorldEvent/WorldEventCoordinateRow.ui). It ships hidden, so it takes no room and a
+// row stays 32; ZigMenu shows it only for a tab that gives a line, and then pushes the row, the tab's host and
+// the selected bar to 52 as whole Anchors, so the fills and the click cover both lines. Vanilla grows a list row
+// the same way: Pages/TriggerVolume/TriggerVolumeBrowseVolumeRow.ui (a Button row, a FlexWeight Top text column
+// over a hidden second line) and TriggerVolumeInspectorPage, which pushes the row's whole Anchor taller.
 // Every colour here is a ui/menu/MenuPalette default (an alpha one spelled #rrggbb(a)), and ZigMenu repaints
 // each from the palette in force on every build (ZigMenuDocumentsTest). A picture slot (#TabIconSlot,
 // #SelIconSlot) takes an optional 28px picture, centred in the row, through ui/icon/IconRenderer.applyPlainIcon;
@@ -27,6 +34,7 @@ $ZT = "../Common/ZigType.ui";
 @TabLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontBody, TextColor: #96a9be, RenderUppercase: true, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: $ZT.@ZigFontCaption);
 @SelectedLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontBody, TextColor: #ffffff, RenderBold: true, RenderUppercase: true, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: $ZT.@ZigFontCaption);
 @SectionLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontSection, TextColor: #96a9be, RenderBold: true, RenderUppercase: true, VerticalAlignment: End);
+@SubLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontCaption, TextColor: #96a9be, VerticalAlignment: Center, Wrap: true, WrapMaxLines: 1);
 
 Group #ZigMenuTab {
   LayoutMode: Top;
@@ -54,11 +62,38 @@ Group #ZigMenuTab {
       }
     }
 
-    Label #Label {
+    Group #TabText {
       FlexWeight: 1;
-      Text: "";
-      Anchor: (Height: 32);
-      Style: @TabLabelStyle;
+      LayoutMode: Top;
+
+      Label #Label {
+        Text: "";
+        Anchor: (Height: 32);
+        Style: @TabLabelStyle;
+      }
+
+      Group #SubLine {
+        Anchor: (Height: 20);
+        LayoutMode: Left;
+        Visible: false;
+
+        Group #SubIconSlot {
+          Anchor: (Width: 16, Height: 16, Top: 2, Right: 6);
+          Visible: false;
+
+          AssetImage #IcoTex {
+            Anchor: (Width: 16, Height: 16);
+            Visible: false;
+            FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png";
+          }
+        }
+
+        Label #SubLabel {
+          FlexWeight: 1;
+          Text: "";
+          Style: @SubLabelStyle;
+        }
+      }
     }
   }
 
@@ -90,12 +125,39 @@ Group #ZigMenuTab {
       }
     }
 
-    Label #SelectedLabel {
+    Group #SelText {
       FlexWeight: 1;
-      Text: "";
-      Anchor: (Height: 32);
-      Style: @SelectedLabelStyle;
-      MaskTexturePath: $C.@TextHighlightGradientMask;
+      LayoutMode: Top;
+
+      Label #SelectedLabel {
+        Text: "";
+        Anchor: (Height: 32);
+        Style: @SelectedLabelStyle;
+        MaskTexturePath: $C.@TextHighlightGradientMask;
+      }
+
+      Group #SubLine {
+        Anchor: (Height: 20);
+        LayoutMode: Left;
+        Visible: false;
+
+        Group #SubIconSlot {
+          Anchor: (Width: 16, Height: 16, Top: 2, Right: 6);
+          Visible: false;
+
+          AssetImage #IcoTex {
+            Anchor: (Width: 16, Height: 16);
+            Visible: false;
+            FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png";
+          }
+        }
+
+        Label #SubLabel {
+          FlexWeight: 1;
+          Text: "";
+          Style: @SubLabelStyle;
+        }
+      }
     }
   }
 

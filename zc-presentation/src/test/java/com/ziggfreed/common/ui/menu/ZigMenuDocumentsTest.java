@@ -1,5 +1,6 @@
 package com.ziggfreed.common.ui.menu;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -20,11 +21,11 @@ import org.junit.jupiter.api.Test;
  * The frame and the rail row against what the Java addresses, what vanilla's own rail is and what the
  * readability standards ask: one size, the frame contract a theme retints, the pane and the separator, every
  * element {@link ZigMenu} sets, vanilla's row (32 high, 4 below, a body-size uppercase label shrinking to the
- * floor, the selected label under the gold mask, a picture before the label), every size a step of the family's
- * type scale ({@code Common/ZigType.ui}, never a number, so none is under its floor), four label styles on it,
- * and no colour that is not one of the default palette's ({@link MenuPalette}, an alpha one spelled
- * {@code #rrggbb(a)}). A command against an element the document lacks disconnects the player, which no
- * server-side check sees.
+ * floor, the selected label under the gold mask, a picture before the label), a tab's hidden second line under
+ * its label in both states, every size a step of the family's type scale ({@code Common/ZigType.ui}, never a
+ * number, so none is under its floor), four label styles on it, and no colour that is not one of the default
+ * palette's ({@link MenuPalette}, an alpha one spelled {@code #rrggbb(a)}). A command against an element the
+ * document lacks disconnects the player, which no server-side check sees.
  */
 class ZigMenuDocumentsTest {
 
@@ -104,7 +105,7 @@ class ZigMenuDocumentsTest {
         String row = document(ZigMenu.TAB_TEMPLATE);
         for (String id : List.of("#ZigMenuTab", ZigMenu.BUTTON, ZigMenu.ICON_SLOT, "#Label", ZigMenu.SELECTED,
                 ZigMenu.MARKER, ZigMenu.SELECTED_ICON_SLOT, ZigMenu.SELECTED_LABEL, ZigMenu.HEADER, ZigMenu.RULE,
-                "#IcoTex")) {
+                "#IcoTex", ZigMenu.SUBLINE, ZigMenu.SUBLINE_ICON_SLOT, ZigMenu.SUBLINE_LABEL)) {
             assertTrue(Pattern.compile("\\w+\\s+" + Pattern.quote(id) + "\\s*\\{").matcher(row).find(),
                     ZigMenu.TAB_TEMPLATE + " declares " + id);
         }
@@ -182,6 +183,53 @@ class ZigMenuDocumentsTest {
             String widgets = block(row, slot);
             assertTrue(own(block(widgets, "#IcoTex")).contains(size), slot + "'s picture fills the slot");
         }
+    }
+
+    /**
+     * M485: each state of a tab (the button and the selected group) carries its own second line, in one Top column
+     * under its label, shipped hidden so a tab without one keeps vanilla's 32-high row: the line's plain picture
+     * slot before its caption-step label, at {@link MenuFrame}'s sizes, the label eliding on one line (vanilla's
+     * {@code Pages/WorldEvent/WorldEventCoordinateRow.ui} value line).
+     */
+    @Test
+    void aTabsSecondLineShipsHiddenUnderItsLabelInBothStates() throws IOException {
+        String row = document(ZigMenu.TAB_TEMPLATE);
+        List<List<String>> hosts = List.of(List.of(ZigMenu.BUTTON, "#TabText", "#Label"),
+                List.of(ZigMenu.SELECTED, "#SelText", ZigMenu.SELECTED_LABEL));
+        for (List<String> host : hosts) {
+            String column = block(block(row, host.get(0)), host.get(1));
+            assertTrue(own(column).contains("LayoutMode: Top"), host + ": the label and its line stack in one column");
+            assertTrue(own(column).contains("FlexWeight: 1"), host + ": the column takes the label's width");
+            int label = column.indexOf(host.get(2) + " {");
+            int line = column.indexOf(ZigMenu.SUBLINE + " {");
+            assertTrue(label >= 0 && label < line, host + ": the line sits under the label");
+
+            String sub = block(column, ZigMenu.SUBLINE);
+            assertTrue(own(sub).contains("Visible: false"), host + ": ships hidden, out of the layout");
+            assertTrue(own(sub).contains("Height: " + MenuFrame.SUBLINE_HEIGHT), host + ": MenuFrame's line height");
+            assertTrue(own(sub).contains("LayoutMode: Left"), host + ": its picture beside its words");
+            String slot = block(sub, ZigMenu.SUBLINE_ICON_SLOT);
+            assertTrue(own(slot).contains("Visible: false"), host + ": the picture slot ships hidden");
+            assertTrue(own(slot).contains("Width: " + MenuFrame.SUBLINE_ICON_SIZE + ", Height: "
+                    + MenuFrame.SUBLINE_ICON_SIZE), host + ": MenuFrame's line picture size");
+            assertTrue(own(slot).contains("Top: " + MenuFrame.SUBLINE_ICON_INSET), host + ": centred in the line");
+            assertTrue(own(slot).contains("Right: " + MenuFrame.SUBLINE_ICON_GAP), host + ": its gap before the words");
+            assertTrue(slot.contains("AssetImage #IcoTex {") && !slot.contains("#IcoItem"),
+                    host + ": the one plain picture IconRenderer.applyPlainIcon paints");
+            assertTrue(own(block(slot, "#IcoTex")).contains("Anchor: (Width: " + MenuFrame.SUBLINE_ICON_SIZE
+                    + ", Height: " + MenuFrame.SUBLINE_ICON_SIZE + ");"), host + ": the picture fills its slot");
+            assertTrue(sub.indexOf(ZigMenu.SUBLINE_ICON_SLOT + " {") < sub.indexOf(ZigMenu.SUBLINE_LABEL + " {"),
+                    host + ": the picture before the words");
+            assertTrue(own(block(sub, ZigMenu.SUBLINE_LABEL)).contains("Style: @SubLabelStyle"), host.toString());
+        }
+        String style = styleLine(row, "@SubLabelStyle");
+        assertTrue(style.contains("FontSize: $ZT.@ZigFontCaption,"), "a row's second line is the caption step: " + style);
+        assertTrue(style.contains("Wrap: true") && style.contains("WrapMaxLines: 1"), "one line, ended with ...: " + style);
+        assertFalse(style.contains("RenderUppercase"), "the line reads in its own case under the capitals: " + style);
+        assertEquals(MenuFrame.ROW_HEIGHT + MenuFrame.SUBLINE_HEIGHT, MenuFrame.TALL_ROW_HEIGHT,
+                "a row with a second line grows by exactly that line");
+        assertEquals(MenuFrame.SUBLINE_HEIGHT, MenuFrame.SUBLINE_ICON_SIZE + 2 * MenuFrame.SUBLINE_ICON_INSET,
+                "the line's picture sits centred in it");
     }
 
     @Test

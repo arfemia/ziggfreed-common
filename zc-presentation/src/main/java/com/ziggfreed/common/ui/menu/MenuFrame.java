@@ -57,6 +57,18 @@ public final class MenuFrame {
     public static final int MARKER_WIDTH = 3;
 
     /**
+     * A tab's second line ({@link MenuSubline}), under its label: vanilla's 20-high one-line value row
+     * ({@code Pages/WorldEvent/WorldEventCoordinateRow.ui}), its picture centred in it ({@link #SUBLINE_ICON_INSET}
+     * above and below) and the space after the picture. A row showing one grows by exactly that line, to
+     * {@link #TALL_ROW_HEIGHT}; a row without one keeps {@link #ROW_HEIGHT}.
+     */
+    public static final int SUBLINE_HEIGHT = 20;
+    public static final int SUBLINE_ICON_SIZE = 16;
+    public static final int SUBLINE_ICON_INSET = (SUBLINE_HEIGHT - SUBLINE_ICON_SIZE) / 2;
+    public static final int SUBLINE_ICON_GAP = 6;
+    public static final int TALL_ROW_HEIGHT = ROW_HEIGHT + SUBLINE_HEIGHT;
+
+    /**
      * A tab label: the body step, uppercase, shrinking to fit but never under the floor. A section heading:
      * vanilla's section step, bold, uppercase. The sizes are {@link ZigType}'s ({@code Common/ZigType.ui}).
      */

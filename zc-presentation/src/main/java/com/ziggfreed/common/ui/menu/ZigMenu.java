@@ -15,6 +15,8 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.ui.Anchor;
+import com.hypixel.hytale.server.core.ui.Value;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
@@ -29,11 +31,12 @@ import com.ziggfreed.common.ui.route.Destinations;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * The shared left-tab menu: the library's four slots ({@link MenuSlot}), filled by the modules that own
- * their screens, under one consumer section ({@link #consumer}). A page on {@code @ZigMenuFrame} paints
- * the rail with {@link #paint}, keeps the {@link MenuRail} it returns, and answers a click through
+ * The shared left-tab menu: the library's slots ({@link MenuSlot}, the Almanac first), filled by the modules
+ * that own their screens, under one consumer section ({@link #consumer}). A page on {@code @ZigMenuFrame}
+ * paints the rail with {@link #paint}, keeps the {@link MenuRail} it returns, and answers a click through
  * {@link MenuRail#handle}; each row is {@code Pages/ZigMenuTab.ui} appended by index into
- * {@link MenuFrame#LIST}, so no entry id ever becomes an element id.
+ * {@link MenuFrame#LIST}, so no entry id ever becomes an element id. A tab that gives a second line
+ * ({@link MenuSubline}) for this paint shows it under its label, and its row grows by that line.
  *
  * <p>World thread for every paint and open. The slots and the consumer are written at setup and read
  * on every paint.
@@ -56,6 +59,13 @@ public final class ZigMenu {
     static final String HEADER = "#Header";
     /** The rule between the consumer's section and the library's tabs. */
     static final String RULE = "#Rule";
+    /**
+     * A tab's second line, under its label in both {@code #TabBtn} and {@code #TabSelected} (addressed through
+     * one of them, never alone): the line, its picture slot and its label.
+     */
+    static final String SUBLINE = "#SubLine";
+    static final String SUBLINE_ICON_SLOT = "#SubIconSlot";
+    static final String SUBLINE_LABEL = "#SubLabel";
 
     private static final Map<MenuSlot, MenuEntry> SLOTS = new ConcurrentHashMap<>();
     private static final AtomicReference<Supplier<MenuDeps>> CONSUMER = new AtomicReference<>();
@@ -82,7 +92,7 @@ public final class ZigMenu {
 
     /**
      * Say what a consumer adds to the menu ({@link MenuDeps}). Call once from a consumer's setup;
-     * last write wins, and null goes back to the library's four slots alone. Resolved on every paint.
+     * last write wins, and null goes back to the library's slots alone. Resolved on every paint.
      */
     public static void consumer(@Nullable Supplier<MenuDeps> supplier) {
         CONSUMER.set(supplier);
@@ -193,13 +203,13 @@ public final class ZigMenu {
                 cmd.set(sel + " " + RULE + ".Visible", true);
                 UiRetint.fill(cmd, sel + " " + RULE, colours.divider());
             }
-            case ENTRY -> paintEntry(cmd, events, sel, index, row.entry(), selectedId, colours);
+            case ENTRY -> paintEntry(cmd, events, sel, index, row.entry(), row.subline(), selectedId, colours);
         }
     }
 
     private static void paintEntry(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
-            @Nonnull String sel, int index, @Nonnull MenuEntry entry, @Nullable String selectedId,
-            @Nonnull MenuPalette.Resolved colours) {
+            @Nonnull String sel, int index, @Nonnull MenuEntry entry, @Nullable MenuSubline subline,
+            @Nullable String selectedId, @Nonnull MenuPalette.Resolved colours) {
         if (entry.id().equals(selectedId)) {
             // The selected tab: vanilla's bold label under the gold mask on the selected fill, a bar beside it (a
             // shape, not only a colour), and no binding, so pressing the page you are on does nothing.
@@ -211,6 +221,11 @@ public final class ZigMenu {
             cmd.set(selected + " " + SELECTED_LABEL + ".TextSpans", entry.label());
             cmd.set(selected + " " + SELECTED_LABEL + ".Style.TextColor", colours.textPrimary());
             paintIcon(cmd, selected + " " + SELECTED_ICON_SLOT, entry.icon());
+            if (paintSubline(cmd, sel, selected, subline, colours)) {
+                // The bar runs the height of both lines, so it marks the whole tab.
+                cmd.setObject(selected + " " + MARKER + ".Anchor",
+                        anchor(MenuFrame.MARKER_WIDTH, MenuFrame.TALL_ROW_HEIGHT, null));
+            }
             return;
         }
         String button = sel + " " + BUTTON;
@@ -220,8 +235,45 @@ public final class ZigMenu {
         UiRetint.fill(cmd, button + ".Style.Hovered", colours.header());
         UiRetint.fill(cmd, button + ".Style.Pressed", colours.header());
         paintIcon(cmd, button + " " + ICON_SLOT, entry.icon());
+        paintSubline(cmd, sel, button, subline, colours);
         events.addEventBinding(CustomUIEventBindingType.Activating, button,
                 EventData.of(EVENT_KEY, Integer.toString(index)), false);
+    }
+
+    /**
+     * Shows a tab's second line under its label in {@code host} (the tab's button, or its selected group), its
+     * picture before its words when it has one, and grows the row ({@code sel}) and the host by exactly that line,
+     * so the hover fill, the selected fill and the click cover both lines. With no line nothing is addressed: the
+     * authored line stays hidden and out of the layout, and the row keeps its authored height. A layout input
+     * goes out only as a whole typed {@link Anchor}. Returns whether a line was shown.
+     */
+    private static boolean paintSubline(@Nonnull UICommandBuilder cmd, @Nonnull String sel, @Nonnull String host,
+            @Nullable MenuSubline subline, @Nonnull MenuPalette.Resolved colours) {
+        if (subline == null) {
+            return false;
+        }
+        String line = host + " " + SUBLINE;
+        cmd.set(line + ".Visible", true);
+        cmd.set(line + " " + SUBLINE_LABEL + ".TextSpans", subline.label());
+        cmd.set(line + " " + SUBLINE_LABEL + ".Style.TextColor", colours.textMuted());
+        paintIcon(cmd, line + " " + SUBLINE_ICON_SLOT, subline.icon());
+        cmd.setObject(sel + ".Anchor", anchor(null, MenuFrame.TALL_ROW_HEIGHT, MenuFrame.ROW_GAP));
+        cmd.setObject(host + ".Anchor", anchor(null, MenuFrame.TALL_ROW_HEIGHT, null));
+        return true;
+    }
+
+    /** A whole {@link Anchor} with the given sides, the rest unset (as the template authors them). */
+    @Nonnull
+    private static Anchor anchor(@Nullable Integer width, int height, @Nullable Integer bottom) {
+        Anchor anchor = new Anchor();
+        if (width != null) {
+            anchor.setWidth(Value.of(width));
+        }
+        anchor.setHeight(Value.of(height));
+        if (bottom != null) {
+            anchor.setBottom(Value.of(bottom));
+        }
+        return anchor;
     }
 
     /**
@@ -248,7 +300,7 @@ public final class ZigMenu {
                 out.add(MenuRow.header(section.header()));
             }
             for (MenuEntry entry : shown) {
-                out.add(MenuRow.entry(entry));
+                out.add(MenuRow.entry(entry, sublineGuarded(entry, viewer)));
             }
         }
         List<MenuEntry> library = visible(ordered(slots), viewer);
@@ -256,7 +308,7 @@ public final class ZigMenu {
             out.add(MenuRow.SPACER);
         }
         for (MenuEntry entry : library) {
-            out.add(MenuRow.entry(entry));
+            out.add(MenuRow.entry(entry, sublineGuarded(entry, viewer)));
         }
         return List.copyOf(out);
     }
@@ -290,6 +342,24 @@ public final class ZigMenu {
             }
         }
         return out;
+    }
+
+    /**
+     * {@code entry}'s second line for {@code viewer} this paint, or null when it gives none. A line that throws
+     * costs only the line, once per throw, with a log line; the tab still shows.
+     */
+    @Nullable
+    static MenuSubline sublineGuarded(@Nonnull MenuEntry entry, @Nonnull DestinationContext viewer) {
+        if (entry.subline() == null) {
+            return null;
+        }
+        try {
+            return entry.subline().apply(viewer);
+        } catch (Throwable t) {
+            SafeLog.warn("[menu] the '" + entry.id() + "' tab's second line failed, so it shows none: "
+                    + t.getMessage());
+            return null;
+        }
     }
 
     /** Does {@code entry} show for {@code viewer}? A rule that throws hides it, once per throw, with a line. */

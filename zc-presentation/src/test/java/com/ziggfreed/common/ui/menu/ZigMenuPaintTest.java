@@ -7,10 +7,12 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -38,12 +40,16 @@ import com.ziggfreed.common.ui.theme.Palette;
  * codec, which needs the engine's log manager.
  *
  * <p>The rail painted: 0 the "Skills" heading, 1 tab a (no picture), 2 tab b (a picture), 3 the rule,
- * 4 Quests (a picture), 5 Achievements (no picture).
+ * 4 Quests (a picture), 5 Achievements (no picture). The second-line rail ({@link #paintAlmanac}): 0 the
+ * Almanac, with or without its line, 1 Quests.
  */
 @Tag("engine-items")
 class ZigMenuPaintTest {
 
     private static final String TEXTURE = "UI/Custom/Pages/Memories/MissingIcon.png";
+    private static final String SEASON_TEXTURE = "Icons/ItemsGenerated/Test_Season.png";
+    private static final MenuSubline SEASON = new MenuSubline(Message.raw("Hallow's Eve"),
+            IconSpec.ofTexture(SEASON_TEXTURE));
 
     @BeforeEach
     void seed() {
@@ -155,6 +161,85 @@ class ZigMenuPaintTest {
         assertTrue(p.set("#MenuList[3] " + ZigMenu.RULE + ".Background").contains("#6b2f17"));
     }
 
+    /**
+     * M485: a tab's second line shows under its label with its picture, and the row, with the tab's button,
+     * grows by exactly that line, so the hover fill and the click cover both lines.
+     */
+    @Test
+    void aTabsSecondLineShowsUnderItsLabelAndGrowsItsRow() {
+        Painted p = paintAlmanac(MenuSlot.QUESTS.id(), SEASON, null);
+        String button = "#MenuList[0] " + ZigMenu.BUTTON;
+        String line = button + " " + ZigMenu.SUBLINE;
+        assertTrue(p.shown(line + ".Visible"), "the line shows");
+        assertTrue(p.sets().containsKey(line + " " + ZigMenu.SUBLINE_LABEL + ".TextSpans"), "its words go on .TextSpans");
+        assertTrue(p.set(line + " " + ZigMenu.SUBLINE_LABEL + ".Style.TextColor").contains(MenuPalette.TEXT_MUTED),
+                "a caption's colour");
+        assertTrue(p.shown(line + " " + ZigMenu.SUBLINE_ICON_SLOT + ".Visible"), "with its picture");
+        assertTrue(p.set(line + " " + ZigMenu.SUBLINE_ICON_SLOT + " #IcoTex.AssetPath").contains(SEASON_TEXTURE));
+        String row = p.set("#MenuList[0].Anchor");
+        assertAnchor(row, "Height", MenuFrame.TALL_ROW_HEIGHT);
+        assertAnchor(row, "Bottom", MenuFrame.ROW_GAP);
+        assertAnchor(p.set(button + ".Anchor"), "Height", MenuFrame.TALL_ROW_HEIGHT);
+        assertTrue(p.sets().containsKey(button + " #Label.TextSpans"), "the tab keeps its own label");
+        assertNotNull(p.bindings().get(button), "the tab, line and all, is still the one click");
+        assertFalse(p.sets().containsKey("#MenuList[0] " + ZigMenu.SELECTED + " " + ZigMenu.SUBLINE + ".Visible"),
+                "the hidden selected group's line is never addressed");
+    }
+
+    @Test
+    void theSelectedTabsSecondLineSitsInItsSelectedGroupBesideTheBar() {
+        Painted p = paintAlmanac(MenuSlot.ALMANAC.id(), SEASON, null);
+        String selected = "#MenuList[0] " + ZigMenu.SELECTED;
+        String line = selected + " " + ZigMenu.SUBLINE;
+        assertTrue(p.shown(selected + ".Visible"));
+        assertTrue(p.shown(line + ".Visible"), "the line shows on the selected tab too");
+        assertTrue(p.sets().containsKey(line + " " + ZigMenu.SUBLINE_LABEL + ".TextSpans"));
+        assertTrue(p.set(line + " " + ZigMenu.SUBLINE_LABEL + ".Style.TextColor").contains(MenuPalette.TEXT_MUTED));
+        assertTrue(p.set(line + " " + ZigMenu.SUBLINE_ICON_SLOT + " #IcoTex.AssetPath").contains(SEASON_TEXTURE));
+        assertAnchor(p.set("#MenuList[0].Anchor"), "Height", MenuFrame.TALL_ROW_HEIGHT);
+        assertAnchor(p.set(selected + ".Anchor"), "Height", MenuFrame.TALL_ROW_HEIGHT);
+        String bar = p.set(selected + " " + ZigMenu.MARKER + ".Anchor");
+        assertAnchor(bar, "Width", MenuFrame.MARKER_WIDTH);
+        assertAnchor(bar, "Height", MenuFrame.TALL_ROW_HEIGHT);
+        assertFalse(p.sets().containsKey("#MenuList[0] " + ZigMenu.BUTTON + " " + ZigMenu.SUBLINE + ".Visible"),
+                "the hidden button's line is never addressed");
+        assertFalse(p.sets().containsKey("#MenuList[0] " + ZigMenu.BUTTON + ".Anchor"));
+        assertNull(p.bindings().get("#MenuList[0] " + ZigMenu.BUTTON), "the page you are on still does nothing");
+    }
+
+    @Test
+    void aTabWithNoSecondLineAddressesNoneAndKeepsItsAuthoredHeight() {
+        for (String selectedId : Arrays.asList(MenuSlot.ALMANAC.id(), MenuSlot.QUESTS.id(), null)) {
+            Painted p = paintAlmanac(selectedId, null, null);
+            for (String selector : p.sets().keySet()) {
+                assertFalse(selector.contains(ZigMenu.SUBLINE), "no line, nothing of it addressed: " + selector);
+                assertFalse(selector.endsWith(".Anchor"), "no line, the row keeps its authored height: " + selector);
+            }
+        }
+    }
+
+    @Test
+    void aSecondLineWithNoPictureShowsItsWordsAlone() {
+        Painted p = paintAlmanac(MenuSlot.QUESTS.id(), new MenuSubline(Message.raw("Hallow's Eve"), null), null);
+        String line = "#MenuList[0] " + ZigMenu.BUTTON + " " + ZigMenu.SUBLINE;
+        assertTrue(p.shown(line + ".Visible"));
+        assertTrue(p.sets().containsKey(line + " " + ZigMenu.SUBLINE_LABEL + ".TextSpans"));
+        assertFalse(p.sets().containsKey(line + " " + ZigMenu.SUBLINE_ICON_SLOT + ".Visible"),
+                "no picture: the authored hidden slot stays hidden, so no empty frame shows");
+    }
+
+    @Test
+    void aThemesPaletteReachesTheSecondLine() {
+        Palette molten = new Palette("#2a1410", "#ff5a2a", "#160a08");
+        molten.textMuted = "#b89a88";
+        String resting = "#MenuList[0] " + ZigMenu.BUTTON + " " + ZigMenu.SUBLINE + " " + ZigMenu.SUBLINE_LABEL;
+        assertTrue(paintAlmanac(MenuSlot.QUESTS.id(), SEASON, molten).set(resting + ".Style.TextColor")
+                .contains("#b89a88"));
+        String selected = "#MenuList[0] " + ZigMenu.SELECTED + " " + ZigMenu.SUBLINE + " " + ZigMenu.SUBLINE_LABEL;
+        assertTrue(paintAlmanac(MenuSlot.ALMANAC.id(), SEASON, molten).set(selected + ".Style.TextColor")
+                .contains("#b89a88"));
+    }
+
     @Test
     void aFramePaintBeforeTheRailDoesNotLeaveThePanelPatchUnderIt() {
         UICommandBuilder cmd = new UICommandBuilder();
@@ -182,6 +267,26 @@ class ZigMenuPaintTest {
         UIEventBuilder events = new UIEventBuilder();
         ZigMenu.paint(cmd, events, ZigMenuTest.VIEWER, selectedId, false);
         return Painted.of(cmd, events);
+    }
+
+    /** The second-line rail: 0 the Almanac (with {@code line}, or none), 1 Quests; no consumer section. */
+    @Nonnull
+    private static Painted paintAlmanac(@Nullable String selectedId, @Nullable MenuSubline line,
+            @Nullable Palette palette) {
+        ZigMenu.fill(MenuSlot.ALMANAC, MenuSlot.ALMANAC.entry(Message.raw("almanac"), IconSpec.ofTexture(TEXTURE),
+                new ZigMenuTest.Probe(), viewer -> true).withSubline(viewer -> line));
+        ZigMenu.fill(MenuSlot.QUESTS, ZigMenuTest.slot(MenuSlot.QUESTS, true));
+        ZigMenu.consumer(() -> MenuDeps.builder().palette(palette).build());
+        UICommandBuilder cmd = new UICommandBuilder();
+        UIEventBuilder events = new UIEventBuilder();
+        ZigMenu.paint(cmd, events, ZigMenuTest.VIEWER, selectedId, false);
+        return Painted.of(cmd, events);
+    }
+
+    /** A pushed whole {@code Anchor} carries {@code field} at {@code value}. */
+    private static void assertAnchor(@Nonnull String anchor, @Nonnull String field, int value) {
+        assertTrue(Pattern.compile("\"" + field + "\"\\s*:\\s*" + value + "(?!\\d)").matcher(anchor).find(),
+                field + " " + value + " in " + anchor);
     }
 
     /** The commands and bindings one paint produced, the last write per selector winning, as on the client. */

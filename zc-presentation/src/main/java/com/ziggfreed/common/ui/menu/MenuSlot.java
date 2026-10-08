@@ -11,15 +11,16 @@ import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.ui.route.DestinationContext;
 
 /**
- * The library's tabs, in the order the rail lists them under a consumer's section. Each is filled
- * at setup by the module that owns its screen, through {@link ZigMenu#fill}, so this module never sees
- * theirs; an unfilled slot draws nothing.
+ * The library's tabs, in the order the rail lists them under a consumer's section: the Almanac first, above
+ * Quests and Achievements (the maintainer's ruling M484, 2026-10-08). Each is filled at setup by the module
+ * that owns its screen, through {@link ZigMenu#fill}, so this module never sees theirs; an unfilled slot
+ * draws nothing.
  */
 public enum MenuSlot {
 
+    ALMANAC("almanac"),
     QUESTS("quests"),
     ACHIEVEMENTS("achievements"),
-    ALMANAC("almanac"),
     RECORDS("records"),
     REPUTATION("reputation"),
     SETTINGS("settings");
