@@ -2,160 +2,174 @@ package com.ziggfreed.common.objectives.producer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import com.hypixel.hytale.component.Ref;
-import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.achievement.InMemoryAchievementProgressStore;
+import com.hypixel.hytale.assetstore.AssetExtraInfo;
+import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.npc.TalkCredit;
-import com.ziggfreed.common.npc.TalkCredits;
-import com.ziggfreed.common.progress.MatchMode;
-import com.ziggfreed.common.progress.ObjectiveDef;
-import com.ziggfreed.common.progress.ObjectiveProgressState;
-import com.ziggfreed.common.progress.runtime.Moment;
-import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
-import com.ziggfreed.common.progress.runtime.ProgressionSubjectSource;
-import com.ziggfreed.common.quest.InMemoryQuestProgressStore;
-import com.ziggfreed.common.quest.Quest;
-import com.ziggfreed.common.quest.QuestEngine;
-import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.progress.DispatchOptions;
+import com.ziggfreed.common.progress.asset.ObjectiveKindAsset;
 
 /**
- * A credited conversation, as quest and achievement progress on a server running the library alone:
- * {@code TALK_TO_NPC} once for the character the player is talking to, which every reaction hears,
- * then once more for each further id the character answers to, which only content naming that id
- * counts.
- *
- * <p>Driven through the shared runtime over an in-memory store, with a subject source standing in
- * for the player and a recording reaction, so the dispatch under test is the real one. The talk-credit
- * engine's own window decides whether a conversation happened at all; what is pinned here is what one
- * that did is worth.
+ * The whole decision this producer makes about one credited conversation, with no server anywhere
+ * near it: the primary takes the FULL dispatch, every reaction included, with the conversation as
+ * its payload; each further id the character answers to takes the targeted-only engine route, and
+ * only once that id's own re-trigger window is claimed; the qualifier rides on every fire. The
+ * engine half (the live store, the engines) is {@link ProgressDispatch}'s and is tested there.
  */
 class ZigTalkProducerTest {
 
-    private static final String OWNER = "talk-producer-test";
-    private static final String JACK = "old_jack";
-    private static final String WREN = "wren";
+    private static final UUID PLAYER = UUID.randomUUID();
 
-    private final Subject player = Subject.of(UUID.randomUUID(), "tester");
-    private final List<Moment> heard = new ArrayList<>();
+    /** One recorded fire: which route it took, the values an author addresses, and what rode along. */
+    private record Fired(@Nonnull String route, @Nonnull String kind, @Nonnull String target,
+            @Nullable String qualifier, long amount, @Nullable TalkPayload payload,
+            @Nullable DispatchOptions options) {
+    }
 
-    @BeforeEach
-    void setUp() {
-        ProgressionRuntime.resetForTests();
-        ProgressionRuntime.registrar(OWNER)
-                .questStore(new InMemoryQuestProgressStore())
-                .achievementStore(new InMemoryAchievementProgressStore())
-                .subjects(new ProgressionSubjectSource() {
-                    @Override
-                    @Nullable
-                    public Subject questSubject(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
-                        return player;
-                    }
+    /** A credit with no live engine handles: the fan-out never touches them. */
+    private static TalkCredit credit(@Nullable String qualifier, @Nonnull String primary, String... aliases) {
+        List<String> answers = new ArrayList<>();
+        answers.add(primary);
+        answers.addAll(List.of(aliases));
+        return new TalkCredit(null, null, null, primary, answers, qualifier);
+    }
 
-                    @Override
-                    @Nullable
-                    public Subject achievementSubject(@Nonnull Store<EntityStore> store,
-                            @Nonnull Ref<EntityStore> ref) {
-                        return player;
-                    }
-                })
-                .momentListener(heard::add)
-                .warn(message -> { });
-        ProgressionRuntime.publishQuests(OWNER, List.of(talk("q_anyone", ""), talk("q_jack", JACK),
-                talk("q_wren", WREN)));
-        QuestEngine engine = ProgressionRuntime.quests();
-        for (Quest quest : engine.quests()) {
-            assertTrue(engine.accept(player, quest));
+    /** Record every fire, in order, and every claim asked, answering each claim from {@code open}. */
+    private static final class Recorder implements ZigTalkProducer.Sink {
+
+        final List<Fired> fired = new ArrayList<>();
+        final List<String> log = new ArrayList<>();
+
+        @Override
+        public void primary(@Nonnull TalkCredit credit, @Nonnull String kindId, @Nonnull String target,
+                @Nullable String qualifier, long amount, @Nonnull TalkPayload payload) {
+            fired.add(new Fired("primary", kindId, target, qualifier, amount, payload, null));
+            log.add("fire:" + target);
+        }
+
+        @Override
+        public void alias(@Nonnull TalkCredit credit, @Nonnull String kindId, @Nonnull String target,
+                @Nullable String qualifier, long amount, @Nonnull DispatchOptions options) {
+            fired.add(new Fired("alias", kindId, target, qualifier, amount, null, options));
+            log.add("fire:" + target);
+        }
+
+        int fanOut(@Nonnull TalkCredit credit, @Nullable UUID playerId, @Nonnull Set<String> windowStillOpen) {
+            return ZigTalkProducer.fanOut(credit, playerId, (player, id) -> {
+                log.add("claim:" + id);
+                return !windowStillOpen.contains(id);
+            }, this);
         }
     }
 
-    @AfterEach
-    void tearDown() {
-        ProgressionRuntime.resetForTests();
+    @Test
+    void thePrimaryTakesTheFullDispatchCarryingTheConversation() {
+        TalkCredit credit = credit(null, "Guide_Wilds");
+        Recorder recorder = new Recorder();
+
+        assertEquals(1, recorder.fanOut(credit, PLAYER, Set.of()));
+
+        assertEquals(1, recorder.fired.size());
+        Fired primary = recorder.fired.get(0);
+        assertEquals("primary", primary.route(), "the primary goes through the producer form, so reactions see it");
+        assertEquals(ZigTalkProducer.KIND, primary.kind());
+        assertEquals("Guide_Wilds", primary.target());
+        assertEquals(1L, primary.amount());
+        assertNotNull(primary.payload(), "a reaction tells this producer's moment from a hand-fired one by its payload");
+        assertSame(credit, primary.payload().credit());
+        assertEquals(List.of("fire:Guide_Wilds"), recorder.log, "the primary's window was already taken by TalkCredits");
     }
 
     @Test
-    void aConversationCountsOnceForAnyoneAndOnceForEachIdTheCharacterAnswersTo() {
-        ZigTalkProducer.credit(credit(JACK, WREN), UUID.randomUUID());
+    void eachAliasIsTargetedOnlyAndFiresOnlyAfterItsOwnWindowIsClaimed() {
+        Recorder recorder = new Recorder();
 
-        assertEquals(1, progress("q_anyone"), "talking to anybody counts the conversation once, not once per id");
-        assertEquals(1, progress("q_jack"), "the character's own id counts");
-        assertEquals(1, progress("q_wren"), "and so does the id it shares, for content that names it");
+        int fired = recorder.fanOut(credit(null, "Guide_Wilds", "Adventurers_Guide", "Town_Guide"), PLAYER, Set.of());
+
+        assertEquals(3, fired);
+        List<Fired> aliases = recorder.fired.stream().filter(f -> f.route().equals("alias")).toList();
+        assertEquals(List.of("Adventurers_Guide", "Town_Guide"), aliases.stream().map(Fired::target).toList());
+        for (Fired alias : aliases) {
+            assertEquals(ZigTalkProducer.KIND, alias.kind());
+            assertEquals(DispatchOptions.TARGETED_ONLY, alias.options(),
+                    "a match-all step already counted the primary, so an alias may move only a step that names it");
+            assertNull(alias.payload(), "the alias route reaches the engines only, never a reaction");
+        }
+        assertEquals(List.of("fire:Guide_Wilds", "claim:Adventurers_Guide", "fire:Adventurers_Guide",
+                "claim:Town_Guide", "fire:Town_Guide"), recorder.log,
+                "every alias claims its own window before it fires");
     }
 
     @Test
-    void everyReactionHearsTheConversationOnceWithTheLibrarysOwnRecord() {
-        ZigTalkProducer.credit(credit(JACK, WREN), UUID.randomUUID());
+    void anAliasWhoseWindowIsStillOpenIsSkippedAndTheRestStillFire() {
+        Recorder recorder = new Recorder();
 
-        assertEquals(1, heard.size(), () -> "an alias reaches the engines only, so a lifetime counter counts one: "
-                + heard.stream().map(Moment::target).toList());
-        Moment moment = heard.get(0);
-        assertEquals(ZigTalkProducer.KIND, moment.kindId());
-        assertEquals(JACK, moment.target(), "the primary, the id a nameplate reads");
-        TalkPayload payload = moment.payload(TalkPayload.class);
-        assertNotNull(payload, "the record that proves the moment is the library's own");
-        assertEquals(JACK, payload.credit().npcId());
+        int fired = recorder.fanOut(credit(null, "Guide_Wilds", "Adventurers_Guide", "Town_Guide"), PLAYER,
+                Set.of("Adventurers_Guide"));
+
+        assertEquals(2, fired);
+        assertEquals(List.of("Guide_Wilds", "Town_Guide"), recorder.fired.stream().map(Fired::target).toList(),
+                "an alias swallowed by its own window costs only itself");
     }
 
     @Test
-    void anAliasWhoseWindowIsStillOpenIsNotCountedAgain() {
-        UUID playerId = UUID.randomUUID();
-        assertTrue(TalkCredits.claim(playerId, WREN), "a conversation with the shared id a moment ago");
+    void theQualifierRidesOnEveryFire() {
+        Recorder recorder = new Recorder();
 
-        ZigTalkProducer.credit(credit(JACK, WREN), playerId);
+        recorder.fanOut(credit("Feast_Invite", "Guide_Wilds", "Adventurers_Guide"), PLAYER, Set.of());
 
-        assertEquals(1, progress("q_jack"));
-        assertEquals(0, progress("q_wren"), "the alias takes the re-trigger window on its own terms");
+        assertEquals(2, recorder.fired.size());
+        for (Fired fire : recorder.fired) {
+            assertEquals("Feast_Invite", fire.qualifier(), fire.route() + " must carry the beat's qualifier");
+        }
     }
 
     @Test
-    void withNoPlayerToNameOnlyThePrimaryCounts() {
-        ZigTalkProducer.credit(credit(JACK, WREN), null);
+    void thePrimaryIsNeverFiredAgainInTheAliasPassHoweverItIsSpelled() {
+        Recorder recorder = new Recorder();
 
-        assertEquals(1, progress("q_jack"));
-        assertEquals(1, progress("q_anyone"));
-        assertEquals(0, progress("q_wren"), "an alias window is claimed per player, so none is claimed for nobody");
+        recorder.fanOut(credit(null, "Guide_Wilds", "guide_wilds", "Adventurers_Guide"), PLAYER, Set.of());
+
+        assertEquals(List.of("Guide_Wilds", "Adventurers_Guide"), recorder.fired.stream().map(Fired::target).toList(),
+                "one conversation counts once for its primary");
     }
 
     @Test
-    void theLibraryRegistersItsSinkWithTheTalkCreditEngine() {
-        ZigTalkProducer.install();
+    void withNoPlayerToClaimForOnlyThePrimaryGoes() {
+        Recorder recorder = new Recorder();
 
-        assertTrue(TalkCredits.hasAny(), "a conversation's MarkTalked beat credits on a server running only the library");
-        assertTrue(TalkCredits.info().containsKey(ZigTalkProducer.SINK_ID));
+        int fired = recorder.fanOut(credit(null, "Guide_Wilds", "Adventurers_Guide"), null, Set.of());
+
+        assertEquals(1, fired);
+        assertEquals(List.of("fire:Guide_Wilds"), recorder.log,
+                "an alias cannot take a window for nobody, so it never fires unclaimed");
     }
 
-    // ==================== helpers ====================
-
-    @Nonnull
-    private static Quest talk(@Nonnull String id, @Nonnull String target) {
-        return Quest.builder(id)
-                .objective(ObjectiveDef.builder("speak", ZigTalkProducer.KIND).target(target)
-                        .matchMode(MatchMode.EXACT).amount(5).build())
-                .build();
-    }
-
-    @Nonnull
-    private static TalkCredit credit(@Nonnull String npcId, @Nonnull String alias) {
-        return new TalkCredit((Store<EntityStore>) null, new Ref<>((Store<EntityStore>) null, 0), null, npcId,
-                List.of(npcId, alias), null);
-    }
-
-    private int progress(@Nonnull String questId) {
-        ObjectiveProgressState state = ProgressionRuntime.quests().progressOf(player, questId, "speak");
-        return state == null ? 0 : state.current();
+    @Test
+    void theKindIsTheShippedTalkKind() throws Exception {
+        String path = "/Server/ZiggfreedCommon/ObjectiveKinds/Talk_To_Npc.json";
+        String json;
+        try (InputStream in = ZigTalkProducerTest.class.getResourceAsStream(path)) {
+            assertNotNull(in, "zc-progression ships " + path);
+            json = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        ObjectiveKindAsset kind = ObjectiveKindAsset.CODEC.decodeJsonAsset(RawJsonReader.fromJsonString(json),
+                new AssetExtraInfo<>(new AssetExtraInfo.Data(ObjectiveKindAsset.class, "Talk_To_Npc", null)));
+        assertTrue(ZigTalkProducer.KIND.equalsIgnoreCase(kind.getId()), "the file name is the kind id");
     }
 }

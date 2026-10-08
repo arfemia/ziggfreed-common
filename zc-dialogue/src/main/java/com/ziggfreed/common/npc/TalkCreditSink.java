@@ -10,7 +10,8 @@ import javax.annotation.Nonnull;
  * event bus: writes want attribution (whose sink failed), isolation (one bad mod must not cost
  * another its quest step) and a single decision about whether this moment counts at all. Anything
  * that merely wants to WATCH conversations should listen for {@link NpcTalkedEvent} instead and
- * register nothing.
+ * register nothing: registering a sink stands the library's own {@code TALK_TO_NPC} sink down
+ * ({@link TalkCredits#LIBRARY_SINK_ID}), so a registered sink owns that credit for every conversation.
  *
  * <p>Called on the world thread, inside the caller's own interaction or page click. Throwing is
  * safe - the failure is recorded against your registration and every other sink still runs - but a
