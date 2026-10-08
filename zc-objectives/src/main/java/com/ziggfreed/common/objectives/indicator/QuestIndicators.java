@@ -40,6 +40,9 @@ import com.ziggfreed.common.subject.Subject;
  * situations a STEP raises, that step's block. Which step: the hand-in step the character would
  * credit for a turn-in, and the step the player is on for in-progress.
  *
+ * <p>The library's own marks read {@link #overheadFor} and {@link #mapMarks}; the two older names are
+ * legacy reads that tell the library a consumer draws its own ({@link QuestMarkYield}).
+ *
  * <p>Reads only; world thread, since every engine read is.
  */
 public final class QuestIndicators {
@@ -94,7 +97,7 @@ public final class QuestIndicators {
      * precedence order, whose knob shows overhead. Null for nothing.
      */
     @Nullable
-    public static Reading overheadAt(@Nonnull QuestEngine engine, @Nonnull Subject subject,
+    public static Reading overheadFor(@Nonnull QuestEngine engine, @Nonnull Subject subject,
             @Nonnull Set<String> answersTo) {
         for (Reading reading : situationsAt(engine, subject, answersTo)) {
             if (reading.knob().showsOverhead()) {
@@ -104,10 +107,61 @@ public final class QuestIndicators {
         return null;
     }
 
-    /** {@link #overheadAt(QuestEngine, Subject, Set)} over the shared runtime's engine. */
+    /**
+     * The overhead reading, for a consumer that draws its own marks.
+     *
+     * @deprecated the library draws every quest mark itself; read {@link #overheadFor}. A consumer still
+     * calling this is taken to draw its own marks, and the library's stand down for the rest of the boot
+     * ({@link QuestMarkYield}).
+     */
+    @Deprecated
+    @Nullable
+    public static Reading overheadAt(@Nonnull QuestEngine engine, @Nonnull Subject subject,
+            @Nonnull Set<String> answersTo) {
+        QuestMarkYield.noteConsumerDraws("QuestIndicators.overheadAt");
+        return overheadFor(engine, subject, answersTo);
+    }
+
+    /**
+     * The overhead reading over the shared runtime's engine, for a consumer that draws its own marks.
+     *
+     * @deprecated the library draws every quest mark itself; read {@link #overheadFor}. A consumer still
+     * calling this is taken to draw its own marks, and the library's stand down for the rest of the boot
+     * ({@link QuestMarkYield}).
+     */
+    @Deprecated
     @Nullable
     public static Reading overheadAt(@Nonnull Subject subject, @Nonnull Set<String> answersTo) {
-        return overheadAt(ProgressionRuntime.quests(), subject, answersTo);
+        QuestMarkYield.noteConsumerDraws("QuestIndicators.overheadAt");
+        return overheadFor(ProgressionRuntime.quests(), subject, answersTo);
+    }
+
+    /**
+     * The map marks, for a consumer that draws its own.
+     *
+     * @deprecated the library draws every quest mark itself; read {@link #mapMarks}. A consumer still
+     * calling this is taken to draw its own marks, and the library's stand down for the rest of the boot
+     * ({@link QuestMarkYield}).
+     */
+    @Deprecated
+    @Nonnull
+    public static List<MapMark> mapMarksFor(@Nonnull QuestEngine engine, @Nonnull Subject subject) {
+        QuestMarkYield.noteConsumerDraws("QuestIndicators.mapMarksFor");
+        return mapMarks(engine, subject);
+    }
+
+    /**
+     * The map marks over the shared runtime's engine, for a consumer that draws its own.
+     *
+     * @deprecated the library draws every quest mark itself; read {@link #mapMarks}. A consumer still
+     * calling this is taken to draw its own marks, and the library's stand down for the rest of the boot
+     * ({@link QuestMarkYield}).
+     */
+    @Deprecated
+    @Nonnull
+    public static List<MapMark> mapMarksFor(@Nonnull Subject subject) {
+        QuestMarkYield.noteConsumerDraws("QuestIndicators.mapMarksFor");
+        return mapMarks(ProgressionRuntime.quests(), subject);
     }
 
     /**
@@ -117,7 +171,7 @@ public final class QuestIndicators {
      * by its primary id.
      */
     @Nonnull
-    public static List<MapMark> mapMarksFor(@Nonnull QuestEngine engine, @Nonnull Subject subject) {
+    public static List<MapMark> mapMarks(@Nonnull QuestEngine engine, @Nonnull Subject subject) {
         Map<String, MapMark> out = new LinkedHashMap<>();
         for (String npcId : candidateCharacters(engine, subject)) {
             String key = npcId.toLowerCase(Locale.ROOT);
@@ -134,16 +188,11 @@ public final class QuestIndicators {
         return new ArrayList<>(out.values());
     }
 
-    /** {@link #mapMarksFor(QuestEngine, Subject)} over the shared runtime's engine. */
-    @Nonnull
-    public static List<MapMark> mapMarksFor(@Nonnull Subject subject) {
-        return mapMarksFor(ProgressionRuntime.quests(), subject);
-    }
-
     /**
      * The knob for {@code situation} on {@code quest}: the global word, the quest's block over it,
      * and {@code stepId}'s block over that, each leaf by leaf, with the library's defaults filled in
-     * last. A null {@code stepId} reads the quest scope alone.
+     * last. A null {@code stepId} reads the quest scope alone. A repeating quest reads its
+     * situation's {@code Repeatable} state.
      */
     @Nonnull
     public static QuestIndicatorSpec.Resolved knobFor(@Nonnull QuestSituation situation, @Nonnull Quest quest,
@@ -151,7 +200,7 @@ public final class QuestIndicators {
         QuestIndicatorSpec merged = QuestIndicatorSpec.merge(QuestIndicatorConfig.getInstance().global(),
                 quest.indicator());
         merged = QuestIndicatorSpec.merge(merged, quest.stepIndicator(stepId));
-        return merged.resolve(situation);
+        return merged.resolve(situation, quest.repeatable());
     }
 
     /** The situation a page section announces, or null for a section no marker speaks for. */

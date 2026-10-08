@@ -64,6 +64,7 @@ class QuestIndicatorsTest {
     void clear() {
         NpcOfferProviders.clear();
         QuestIndicatorConfig.getInstance().mergePackLayer(Map.of());
+        QuestMarkYield.resetForTests();
     }
 
     private static boolean containsIgnoreCase(Collection<String> ids, String wanted) {
@@ -124,7 +125,7 @@ class QuestIndicatorsTest {
                 readings.stream().map(QuestIndicators.Reading::situation).toList());
         assertEquals("q_finished", readings.get(0).quest().id());
 
-        QuestIndicators.Reading overhead = QuestIndicators.overheadAt(engine, player, AT_GUIDE);
+        QuestIndicators.Reading overhead = QuestIndicators.overheadFor(engine, player, AT_GUIDE);
         assertNotNull(overhead);
         assertEquals(QuestSituation.COLLECT, overhead.situation());
         assertEquals(QuestSituation.COLLECT.defaultState(), overhead.knob().state());
@@ -142,7 +143,7 @@ class QuestIndicatorsTest {
         assertTrue(engine.accept(player, finished, GUIDE));
         engine.markUnclaimed(player, finished);
 
-        QuestIndicators.Reading overhead = QuestIndicators.overheadAt(engine, player, AT_GUIDE);
+        QuestIndicators.Reading overhead = QuestIndicators.overheadFor(engine, player, AT_GUIDE);
         assertNotNull(overhead);
         assertEquals(QuestSituation.AVAILABLE, overhead.situation(), "collect is switched off for that quest");
         assertEquals("q_offered", overhead.quest().id());
@@ -152,7 +153,7 @@ class QuestIndicatorsTest {
     void nobodyInFrontOfThePlayerIsNoSituationAtAll() {
         engine.setQuests(List.of(gather("q").build()));
         assertTrue(QuestIndicators.situationsAt(engine, player, Set.of()).isEmpty());
-        assertNull(QuestIndicators.overheadAt(engine, player, Set.of()));
+        assertNull(QuestIndicators.overheadFor(engine, player, Set.of()));
     }
 
     // ==================== the three scopes ====================
@@ -197,7 +198,7 @@ class QuestIndicatorsTest {
         engine.setQuests(List.of(errand));
         assertTrue(engine.accept(player, errand, GUIDE));
 
-        QuestIndicators.Reading overhead = QuestIndicators.overheadAt(engine, player, AT_GUIDE);
+        QuestIndicators.Reading overhead = QuestIndicators.overheadFor(engine, player, AT_GUIDE);
         assertNotNull(overhead);
         assertEquals(QuestSituation.TURN_IN, overhead.situation());
         assertEquals("Step_Says_So", overhead.knob().state());
@@ -212,7 +213,7 @@ class QuestIndicatorsTest {
         engine.setQuests(List.of(carried));
         assertTrue(engine.accept(player, carried, GUIDE));
 
-        QuestIndicators.Reading overhead = QuestIndicators.overheadAt(engine, player, AT_GUIDE);
+        QuestIndicators.Reading overhead = QuestIndicators.overheadFor(engine, player, AT_GUIDE);
         assertNotNull(overhead);
         assertEquals(QuestSituation.IN_PROGRESS, overhead.situation());
         assertEquals("Digging", overhead.knob().state());
@@ -233,7 +234,7 @@ class QuestIndicatorsTest {
         engine.setQuests(List.of(offeredHere, offeredHereToo, offeredThere, carried));
         assertTrue(engine.accept(player, carried, GUIDE));
 
-        List<QuestIndicators.MapMark> marks = QuestIndicators.mapMarksFor(engine, player);
+        List<QuestIndicators.MapMark> marks = QuestIndicators.mapMarks(engine, player);
         assertEquals(2, marks.size(), "one mark per character, whatever they offer");
         assertEquals(Set.of(GUIDE, "Smith"), Set.copyOf(marks.stream().map(QuestIndicators.MapMark::npcId).toList()),
                 "one mark per character, in no particular order");
@@ -246,7 +247,38 @@ class QuestIndicatorsTest {
     @Test
     void withNoMapLeafOnNothingIsMarked() {
         engine.setQuests(List.of(gather("q_a").build()));
-        assertTrue(QuestIndicators.mapMarksFor(engine, player).isEmpty(),
+        assertTrue(QuestIndicators.mapMarks(engine, player).isEmpty(),
                 "the library's own default marks nothing; the shipped Default.json is what turns Available on");
+    }
+
+    // ==================== a repeating quest, and the legacy reads ====================
+
+    @Test
+    void aRepeatingQuestOnOfferReadsTheRepeatableState() {
+        global(QuestIndicatorSpec.of(null, null, null,
+                QuestIndicatorSpec.Situation.of(null, null, null, null,
+                        QuestIndicatorSpec.Repeatable.of("Quest_Available_Repeatable")), null));
+        Quest daily = gather("q_daily").repeat(Quest.Repeat.every(24L * 60L * 60L * 1000L)).build();
+        Quest once = Quest.builder("q_once").npcViewId("other")
+                .objective(ObjectiveDef.builder("mine", "BREAK_BLOCK").target("Copper_Ore").amount(3).build())
+                .build();
+        engine.setQuests(List.of(daily, once));
+
+        assertEquals("Quest_Available_Repeatable",
+                QuestIndicators.overheadFor(engine, player, AT_GUIDE).knob().state());
+        assertEquals(QuestSituation.AVAILABLE.defaultState(),
+                QuestIndicators.overheadFor(engine, player, Set.of("other")).knob().state());
+    }
+
+    @Test
+    void theLegacyReadsTellTheLibraryAConsumerDrawsItsOwnMarks() {
+        engine.setQuests(List.of(gather("q_a").build()));
+        assertFalse(QuestMarkYield.consumerDraws());
+
+        // DEPRECATION-KEPT: pins the stand-down an older consumer's call to the legacy read triggers
+        QuestIndicators.mapMarksFor(engine, player);
+
+        assertTrue(QuestMarkYield.consumerDraws());
+        assertEquals("QuestIndicators.mapMarksFor", QuestMarkYield.via());
     }
 }

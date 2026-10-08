@@ -70,15 +70,26 @@ public final class QuestIndicatorValidator {
         }
         for (QuestSituation situation : QuestSituation.values()) {
             QuestIndicatorSpec.Situation authored = spec.situation(situation);
-            String state = authored == null ? null : authored.getState();
-            if (state == null || state.isBlank() || lookExists.test(state.trim())) {
+            if (authored == null) {
                 continue;
             }
-            out.add(Finding.warning(QuestPoolValidator.DOMAIN, UNKNOWN_STATE,
-                    where + " points its " + situation.key() + " indicator at the overhead state '" + state
-                            + "', which no look file describes; add Server/ZiggfreedCommon/OverheadIndicators/"
-                            + state.trim() + ".json or that situation shows nothing over the character",
-                    sourceId));
+            checkState(out, authored.getState(), sourceId,
+                    where + " points its " + situation.key() + " indicator", lookExists);
+            checkState(out, authored.getRepeatable() == null ? null : authored.getRepeatable().getState(), sourceId,
+                    where + " points its " + situation.key() + " indicator's Repeatable state", lookExists);
         }
+    }
+
+    /** One authored state with no look behind it, as a WARNING naming {@code subject}'s words. */
+    private static void checkState(@Nonnull List<Finding> out, @Nullable String state, @Nonnull String sourceId,
+            @Nonnull String subject, @Nonnull Predicate<String> lookExists) {
+        if (state == null || state.isBlank() || lookExists.test(state.trim())) {
+            return;
+        }
+        out.add(Finding.warning(QuestPoolValidator.DOMAIN, UNKNOWN_STATE,
+                subject + " at the overhead state '" + state
+                        + "', which no look file describes; add Server/ZiggfreedCommon/OverheadIndicators/"
+                        + state.trim() + ".json or that situation shows nothing over the character",
+                sourceId));
     }
 }

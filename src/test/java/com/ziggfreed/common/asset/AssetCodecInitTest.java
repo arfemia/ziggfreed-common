@@ -182,6 +182,8 @@ class AssetCodecInitTest {
         assertNotNull(QuestIndicatorSpec.Situation.CODEC, "the per-situation group codec must static-init");
         assertNotNull(QuestIndicatorSpec.Overhead.CODEC, "the Overhead group codec must static-init");
         assertNotNull(QuestIndicatorSpec.MapMark.CODEC, "the Map group codec must static-init");
+        assertNotNull(QuestIndicatorSpec.Repeatable.CODEC, "the Repeatable group codec must static-init");
+        assertNotNull(QuestIndicatorAsset.Pointer.CODEC, "the Pointer group codec must static-init");
     }
 
     @Test

@@ -91,4 +91,17 @@ class QuestIndicatorValidatorTest {
         assertTrue(unknownStates(QuestIndicatorValidator.validate(pool, QuestIndicatorSpec.EMPTY, LOOKS::contains))
                 .isEmpty());
     }
+
+    @Test
+    void aRepeatableStateWithNoLookIsReported() {
+        QuestIndicatorSpec global = QuestIndicatorSpec.of(null, null, null,
+                QuestIndicatorSpec.Situation.of(null, null, null, null, QuestIndicatorSpec.Repeatable.of("Nope")),
+                null);
+
+        List<Finding> findings = QuestIndicatorValidator.validate(poolOf(), global, state -> !"Nope".equals(state));
+
+        assertEquals(1, findings.size());
+        assertEquals(QuestIndicatorValidator.UNKNOWN_STATE, findings.get(0).code());
+        assertTrue(findings.get(0).message().contains("'Nope'"));
+    }
 }

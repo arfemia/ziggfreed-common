@@ -25,7 +25,8 @@ import com.ziggfreed.common.asset.EditorSchema;
  * "Indicator": {
  *   "Enabled": true,
  *   "Available": { "State": "Quest_Available", "Overhead": { "Enabled": true },
- *                  "Map": { "Enabled": true, "Icon": "Coordinate.png" } },
+ *                  "Map": { "Enabled": true, "Icon": "Coordinate.png" },
+ *                  "Repeatable": { "State": "Quest_Available_Repeatable" } },
  *   "InProgress": { "Overhead": { "Enabled": false } }
  * }
  * }</pre>
@@ -34,7 +35,8 @@ import com.ziggfreed.common.asset.EditorSchema;
  * rest to the layer below it; {@link #merge} is the per-leaf overlay and {@link #resolve} the
  * reading with the library's own defaults applied last. Orthogonal knobs throughout: a situation's
  * own switch, which overhead state it shows, whether the overhead shows at all, whether the map
- * marks it and with what icon, and one switch over the whole block.
+ * marks it and with what icon, which state a repeating quest shows instead, and one switch over the
+ * whole block.
  */
 public class QuestIndicatorSpec {
 
@@ -118,13 +120,55 @@ public class QuestIndicatorSpec {
         }
     }
 
-    /** One situation's knobs: its own switch, the state it shows, and its two halves. */
+    /**
+     * How one situation reads instead when its quest repeats (any repeat rule: repeatable, daily,
+     * weekly or once a calendar event's run). A leaf written here replaces the situation's own; a leaf
+     * left out keeps it. Only the look changes: a repeating quest shows in the same situations.
+     */
+    public static final class Repeatable {
+
+        @Nullable protected String state;
+
+        public static final BuilderCodec<Repeatable> CODEC = BuilderCodec.builder(Repeatable.class, Repeatable::new)
+                .appendInherited(new KeyedCodec<>("State", Codec.STRING, false),
+                        (r, v) -> r.state = v, r -> r.state, (r, p) -> r.state = p.state)
+                .documentation("The overhead state shown instead when the quest repeats, matching a look file at "
+                        + "Server/ZiggfreedCommon/OverheadIndicators/<State>.json. Unauthored keeps the "
+                        + "situation's own state.").add()
+                .build();
+
+        public Repeatable() {
+        }
+
+        @Nonnull
+        public static Repeatable of(@Nullable String state) {
+            Repeatable r = new Repeatable();
+            r.state = state;
+            return r;
+        }
+
+        @Nullable
+        public String getState() {
+            return state;
+        }
+
+        @Nullable
+        static Repeatable merge(@Nullable Repeatable base, @Nullable Repeatable over) {
+            if (base == null && over == null) {
+                return null;
+            }
+            return of(pick(base == null ? null : base.state, over == null ? null : over.state));
+        }
+    }
+
+    /** One situation's knobs: its own switch, the state it shows, its two halves, and its repeating look. */
     public static final class Situation {
 
         @Nullable protected Boolean enabled;
         @Nullable protected String state;
         @Nullable protected Overhead overhead;
         @Nullable protected MapMark map;
+        @Nullable protected Repeatable repeatable;
 
         public static final BuilderCodec<Situation> CODEC = BuilderCodec.builder(Situation.class, Situation::new)
                 .appendInherited(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false),
@@ -144,6 +188,10 @@ public class QuestIndicatorSpec {
                 .appendInherited(new KeyedCodec<>("Map", MapMark.CODEC, false),
                         (s, v) -> s.map = v, s -> s.map, (s, p) -> s.map = p.map)
                 .documentation("The marker on the world map and compass.").add()
+                .appendInherited(new KeyedCodec<>("Repeatable", Repeatable.CODEC, false),
+                        (s, v) -> s.repeatable = v, s -> s.repeatable, (s, p) -> s.repeatable = p.repeatable)
+                .documentation("How this situation reads instead when the quest repeats. Unauthored reads "
+                        + "the same as a one-off quest.").add()
                 .build();
 
         public Situation() {
@@ -157,6 +205,14 @@ public class QuestIndicatorSpec {
             s.state = state;
             s.overhead = overhead;
             s.map = map;
+            return s;
+        }
+
+        @Nonnull
+        public static Situation of(@Nullable Boolean enabled, @Nullable String state, @Nullable Overhead overhead,
+                @Nullable MapMark map, @Nullable Repeatable repeatable) {
+            Situation s = of(enabled, state, overhead, map);
+            s.repeatable = repeatable;
             return s;
         }
 
@@ -180,6 +236,11 @@ public class QuestIndicatorSpec {
             return map;
         }
 
+        @Nullable
+        public Repeatable getRepeatable() {
+            return repeatable;
+        }
+
         @Nonnull
         static Situation merge(@Nullable Situation base, @Nullable Situation over) {
             if (base == null && over == null) {
@@ -188,7 +249,8 @@ public class QuestIndicatorSpec {
             return of(pick(base == null ? null : base.enabled, over == null ? null : over.enabled),
                     pick(base == null ? null : base.state, over == null ? null : over.state),
                     Overhead.merge(base == null ? null : base.overhead, over == null ? null : over.overhead),
-                    MapMark.merge(base == null ? null : base.map, over == null ? null : over.map));
+                    MapMark.merge(base == null ? null : base.map, over == null ? null : over.map),
+                    Repeatable.merge(base == null ? null : base.repeatable, over == null ? null : over.repeatable));
         }
     }
 
@@ -314,12 +376,27 @@ public class QuestIndicatorSpec {
                 mergeSituation(base.inProgress, over.inProgress));
     }
 
-    /** {@code situation} read off this block with the library's own defaults filled in last. */
+    /** {@code situation} read off this block for a one-off quest; {@link #resolve(QuestSituation, boolean)}. */
     @Nonnull
     public Resolved resolve(@Nonnull QuestSituation situation) {
+        return resolve(situation, false);
+    }
+
+    /**
+     * {@code situation} read off this block with the library's own defaults filled in last. When
+     * {@code repeats} (the quest has a repeat rule), the situation's {@code Repeatable} state, if
+     * written, replaces its own.
+     */
+    @Nonnull
+    public Resolved resolve(@Nonnull QuestSituation situation, boolean repeats) {
         Situation s = situation(situation);
         boolean on = (enabled == null || enabled) && (s == null || s.enabled == null || s.enabled);
-        String state = s == null || s.state == null || s.state.isBlank() ? situation.defaultState() : s.state.trim();
+        String authored = s == null ? null : s.state;
+        if (repeats && s != null && s.repeatable != null && s.repeatable.state != null
+                && !s.repeatable.state.isBlank()) {
+            authored = s.repeatable.state;
+        }
+        String state = authored == null || authored.isBlank() ? situation.defaultState() : authored.trim();
         boolean overhead = s == null || s.overhead == null || s.overhead.enabled == null || s.overhead.enabled;
         boolean map = s != null && s.map != null && s.map.enabled != null && s.map.enabled;
         String icon = s == null || s.map == null || s.map.icon == null || s.map.icon.isBlank() ? null : s.map.icon.trim();

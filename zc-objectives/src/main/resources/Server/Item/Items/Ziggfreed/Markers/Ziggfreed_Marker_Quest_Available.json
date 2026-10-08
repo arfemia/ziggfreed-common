@@ -1,0 +1,8 @@
+{
+  "$Comment": "The scroll that floats over a character with a quest on offer, as the Quest_Available look draws it. A child of Deco_Scroll that changes nothing about the picture: it exists so the marker carries its own dropped-item halo, the ParticleSystemId under ItemEntity, which the client reads off the item and never off the entity (Drop_Rare here; Drop_Legendary, Drop_Epic, Drop_Rare, Drop_Uncommon and Drop_Common are the vanilla halos, or name a particle system of your own). Categories is empty so the marker never appears in the creative library, and nothing ever hands it to a player. To change the glow, override this file by id from a pack; to change the picture, point the look file's Icon.ItemId at another item.",
+  "Parent": "Deco_Scroll",
+  "Categories": [],
+  "ItemEntity": {
+    "ParticleSystemId": "Drop_Rare"
+  }
+}

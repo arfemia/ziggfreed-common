@@ -1,0 +1,11 @@
+{
+  "$Comment": "The scroll that floats over a character who has a quest this player could take right now and that comes round again (daily, weekly, once a season or sooner), with a glow of its own so it reads apart from a one-off quest. Icon is the one picture every surface reads (an item id floats as that item, a Common-rooted TexturePath is drawn on a flat card); the item named here is a marker item under Server/Item/Items/Ziggfreed/Markers/, a child of the vanilla item that draws the same picture and carries the coloured halo (its ItemEntity.ParticleSystemId, the glow vanilla draws around a dropped item of that rarity), because the halo is read off the item and never off the entity. Scale is the size relative to a full item, Offset lifts it above the top of the character's head in blocks (1.1 clears a tall headdress), and Spin lets the client's own dropped-item motion play at no server cost. Override this file by id from a pack to change the look; override the marker item by id to change only the glow. Which situation shows which look is set in Server/ZiggfreedCommon/QuestIndicators/Default.json and in any quest's own Indicator block.",
+  "Icon": {
+    "ItemId": "Ziggfreed_Marker_Quest_Available_Repeatable"
+  },
+  "Scale": 0.75,
+  "Offset": {
+    "Y": 1.1
+  },
+  "Spin": true
+}

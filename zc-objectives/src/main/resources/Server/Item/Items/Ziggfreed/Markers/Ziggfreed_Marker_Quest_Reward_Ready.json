@@ -1,0 +1,8 @@
+{
+  "$Comment": "The pile of coins that floats over a character holding a reward, as the Quest_Reward_Ready look draws it. A child of Deco_Treasure_Pile_Small that changes nothing about the picture: it exists so the marker carries its own dropped-item halo, the ParticleSystemId under ItemEntity, which the client reads off the item and never off the entity (Drop_Epic here; Drop_Legendary, Drop_Epic, Drop_Rare, Drop_Uncommon and Drop_Common are the vanilla halos, or name a particle system of your own). Categories is empty so the marker never appears in the creative library, and nothing ever hands it to a player. To change the glow, override this file by id from a pack; to change the picture, point the look file's Icon.ItemId at another item.",
+  "Parent": "Deco_Treasure_Pile_Small",
+  "Categories": [],
+  "ItemEntity": {
+    "ParticleSystemId": "Drop_Epic"
+  }
+}
