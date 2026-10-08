@@ -17,6 +17,7 @@ import com.ziggfreed.common.commerce.asset.RotationAsset;
 import com.ziggfreed.common.commerce.asset.SelectionAsset;
 import com.ziggfreed.common.loot.reward.CollectingRewardKind;
 import com.ziggfreed.common.loot.reward.RewardKinds;
+import com.ziggfreed.common.progress.ConventionKeys;
 import com.ziggfreed.common.progress.asset.ContentRewardsAsset;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.progress.gate.GateKindRegistry;
@@ -252,6 +253,11 @@ public final class BoardValidator {
 
         if (bounty.isAbstract()) {
             return;
+        }
+        // Named as a quest is: its TitleKey, else quest.<id>.title, read off the one fold.
+        Finding unnamed = ConventionKeys.unresolvedTitle(DOMAIN, id, bounty.toDefinition(null).quest().text());
+        if (unnamed != null) {
+            out.add(unnamed);
         }
 
         List<BountyAsset.BoardMembership> memberships = bounty.boardMemberships();

@@ -1,8 +1,10 @@
 package com.ziggfreed.common.achievement.asset;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -14,6 +16,7 @@ import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.loot.reward.CollectingRewardKind;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardSpec;
+import com.ziggfreed.common.progress.ConventionKeys;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveKindRegistry;
 import com.ziggfreed.common.progress.asset.ContentListingAsset;
@@ -65,6 +68,7 @@ public final class AchievementPoolValidator {
             @Nullable AchievementProgressStore store, @Nullable GateKindRegistry gateKinds) {
 
         List<Finding> out = new ArrayList<>();
+        Set<String> named = new HashSet<>();
         for (Map.Entry<String, AchievementDefinition> entry : pool.definitions().entrySet()) {
             AchievementDefinition definition = entry.getValue();
             String id = entry.getKey();
@@ -77,6 +81,7 @@ public final class AchievementPoolValidator {
             }
 
             validateShape(definition, pool, out);
+            validateName(definition, named, out);
             out.addAll(ContentListingAsset.chainFindings(definition.chains(), DOMAIN, id));
 
             validateCriteria(definition, objectiveKinds, store, out);
@@ -111,6 +116,19 @@ public final class AchievementPoolValidator {
                         "MetaChildren names '" + child + "', which is not an achievement in this pool; "
                                 + "nobody can ever earn it, so this one stays out of reach", id));
             }
+        }
+    }
+
+    /** A name that resolves in no loaded catalogue, once per base: every year's copy shares its base's key. */
+    private static void validateName(@Nonnull AchievementDefinition definition, @Nonnull Set<String> named,
+            @Nonnull List<Finding> out) {
+        String base = AchievementDefinition.conventionId(definition.achievement());
+        if (!named.add(base)) {
+            return;
+        }
+        Finding unnamed = ConventionKeys.unresolvedTitle(DOMAIN, base, definition.achievement().text());
+        if (unnamed != null) {
+            out.add(unnamed);
         }
     }
 

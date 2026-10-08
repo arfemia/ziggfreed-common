@@ -3,13 +3,18 @@ package com.ziggfreed.common.commerce.page;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import com.hypixel.hytale.server.core.Message;
+import com.ziggfreed.common.i18n.LangCatalog;
+import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.text.ContentTextAsset;
 import com.ziggfreed.common.util.PeriodMath;
 
@@ -80,6 +85,29 @@ class CommerceTextTest {
     void noArgumentsIsFine() {
         assertEquals(0, CommerceText.args(null, CommerceText.RAW_ARGS).length);
         assertEquals(0, CommerceText.args(List.of(), CommerceText.RAW_ARGS).length);
+    }
+
+    @Test
+    @DisplayName("a contract that writes no key is named by its convention key, and a typo yields to it")
+    void theConventionKeyNamesAContract() {
+        try {
+            LangCatalog.overrideForTests(Map.of(
+                    "somepack.quest.board_bombs.title", "Bombs",
+                    "somepack.quest.board_bombs.flavor", "Throw them."));
+            Message title = CommerceText.title(ContentTextAsset.of(null, null, null), "quest.board_bombs.title",
+                    null, Msg.raw("untitled"));
+            assertEquals("somepack.quest.board_bombs.title", title.getFormattedMessage().messageId);
+            Message flavor = CommerceText.flavor(null, "quest.board_bombs.flavor", null);
+            assertEquals("somepack.quest.board_bombs.flavor", flavor.getFormattedMessage().messageId);
+            assertNull(CommerceText.flavor(null, "quest.nobody.flavor", null),
+                    "a convention nothing ships is no line at all");
+            Message typo = CommerceText.title(ContentTextAsset.of("quest.typo.title", null, null),
+                    "quest.board_bombs.title", null, Msg.raw("untitled"));
+            assertEquals("somepack.quest.board_bombs.title", typo.getFormattedMessage().messageId,
+                    "a written key nothing ships yields to the convention");
+        } finally {
+            LangCatalog.overrideForTests(null);
+        }
     }
 
     // ==================== the clock ====================

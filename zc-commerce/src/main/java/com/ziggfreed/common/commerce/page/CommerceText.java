@@ -74,14 +74,28 @@ public final class CommerceText {
     @Nonnull
     public static Message title(@Nullable ContentTextAsset text, @Nullable ArgResolver resolver,
             @Nonnull Message fallback) {
-        if (text == null) {
-            return fallback;
+        return title(text, null, resolver, fallback);
+    }
+
+    /**
+     * What this content is CALLED, with a naming convention behind the authored key: the authored title
+     * key when a loaded catalogue ships it, else {@code conventionKey} when one does, else the authored
+     * key as written (a raw key a screenshot can be traced from), else the plain display name, else
+     * {@code fallback}. Either key binds the authored arguments.
+     */
+    @Nonnull
+    public static Message title(@Nullable ContentTextAsset text, @Nullable String conventionKey,
+            @Nullable ArgResolver resolver, @Nonnull Message fallback) {
+        String key = text == null ? null : trimToNull(text.getTitleKey());
+        Object[] args = args(text == null ? null : text.titleArgs(), resolver);
+        String shipped = ContentKeys.pick(key, trimToNull(conventionKey));
+        if (shipped != null) {
+            return ContentKeys.tr(shipped, args);
         }
-        String key = trimToNull(text.getTitleKey());
         if (key != null) {
-            return ContentKeys.tr(key, args(text.titleArgs(), resolver));
+            return ContentKeys.tr(key, args);
         }
-        String display = trimToNull(text.getDisplayName());
+        String display = text == null ? null : trimToNull(text.getDisplayName());
         return display != null ? Msg.raw(display) : fallback;
     }
 
@@ -91,11 +105,24 @@ public final class CommerceText {
      */
     @Nullable
     public static Message flavor(@Nullable ContentTextAsset text, @Nullable ArgResolver resolver) {
-        if (text == null) {
-            return null;
+        return flavor(text, null, resolver);
+    }
+
+    /**
+     * {@link #flavor(ContentTextAsset, ArgResolver)} with a naming convention behind the authored key:
+     * the authored key when shipped, else {@code conventionKey} when shipped, else the authored key as
+     * written, else null. A convention nothing ships is no line, never a raw key.
+     */
+    @Nullable
+    public static Message flavor(@Nullable ContentTextAsset text, @Nullable String conventionKey,
+            @Nullable ArgResolver resolver) {
+        String key = text == null ? null : trimToNull(text.getFlavorKey());
+        Object[] args = args(text == null ? null : text.flavorArgs(), resolver);
+        String shipped = ContentKeys.pick(key, trimToNull(conventionKey));
+        if (shipped != null) {
+            return ContentKeys.tr(shipped, args);
         }
-        String key = trimToNull(text.getFlavorKey());
-        return key == null ? null : ContentKeys.tr(key, args(text.flavorArgs(), resolver));
+        return key == null ? null : ContentKeys.tr(key, args);
     }
 
     /**

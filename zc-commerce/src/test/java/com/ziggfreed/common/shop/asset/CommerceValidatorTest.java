@@ -2,6 +2,8 @@ package com.ziggfreed.common.shop.asset;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -22,8 +24,10 @@ import com.ziggfreed.common.board.asset.BountyAsset;
 import com.ziggfreed.common.board.asset.BoardValidator;
 import com.ziggfreed.common.currency.asset.CurrencyAsset;
 import com.ziggfreed.common.currency.asset.CurrencyValidator;
+import com.ziggfreed.common.i18n.LangCatalog;
 import com.ziggfreed.common.loot.reward.CollectingRewardKind;
 import com.ziggfreed.common.loot.reward.RewardKinds;
+import com.ziggfreed.common.progress.ConventionKeys;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.validation.Severity;
 
@@ -545,6 +549,31 @@ class CommerceValidatorTest {
                     WALLETS, null, null, null, null);
 
             assertEquals(Severity.WARNING, find(findings, "UNKNOWN_BOARD").severity());
+        }
+
+        @Test
+        void aContractWhoseNameResolvesNowhereIsAWarningOnceACatalogueIsLoaded() throws Exception {
+            Map<String, BoardAsset> boards = one("daily", board("""
+                    { "Slots": [ { "Difficulty": "Training" } ] }
+                    """, "Daily"));
+            Map<String, BountyAsset> bounties = one("bounty_easy", bounty("""
+                    { "Text": { "TitleKey": "quest.typo.title" },
+                      "Boards": [ { "Board": "Daily", "Difficulty": "Training" } ],
+                      "Objectives": { "main": { "Kind": "KILL_ENTITY", "Amount": 1 } },
+                      "Rewards": { "Claim": [ { "Kind": "Currency", "Params": { "Currency": "bounty_token" } } ] } }
+                    """, "Bounty_Easy"));
+            try {
+                LangCatalog.overrideForTests(Map.of("somepack.unrelated", "x"));
+                Finding unnamed = find(BoardValidator.validate(boards, bounties, WALLETS, null, null, null, null),
+                        ConventionKeys.UNRESOLVED_TITLE);
+                assertNotNull(unnamed);
+                assertEquals(Severity.WARNING, unnamed.severity());
+                LangCatalog.overrideForTests(Map.of("somepack.quest.bounty_easy.title", "Easy"));
+                assertNull(find(BoardValidator.validate(boards, bounties, WALLETS, null, null, null, null),
+                        ConventionKeys.UNRESOLVED_TITLE), "quest.<id>.title names a contract as it names a quest");
+            } finally {
+                LangCatalog.overrideForTests(null);
+            }
         }
     }
 
