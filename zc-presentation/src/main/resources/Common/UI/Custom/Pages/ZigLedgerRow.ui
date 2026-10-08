@@ -6,7 +6,7 @@ $ZW = "../Common/ZigKit.ui";
 // One row of a kit list (a quest, an achievement, a season, a skill's tier), appended by
 // com.ziggfreed.common.ui.kit.LedgerPainter into a section's #Rows and addressed by index as
 // "#Rows[i] #Select", so a page never spells these ids. It fills its parent's width and grows to fit its title:
-// 56 high with a one-line title, taller when the title runs onto a second line (M515).
+// 56 high with a one-line title, taller when the title runs onto a second line.
 //
 // Vanilla's World Event list row (Pages/WorldEvent/WorldEventListRow.ui): one Button, #Select, holds the whole
 // row, so a click anywhere on it selects it, and it swaps between ZigRowStyle and ZigRowSelectedStyle by
@@ -25,7 +25,7 @@ $ZW = "../Common/ZigKit.ui";
 // Height over a fixed 48px icon and a FlexWeight text column holding a wrapped Label with no Height); a Button
 // sizes the same way (the client's Interface/InGame/Pages/MapPagePlayerListEntry.ui, vanilla's
 // Pages/SubcommandCard.ui). #RowStrut is the fixed part here, a zero-wide Group as the client's
-// Interface/MainMenu/TopBar/TopBar.ui spells one, so a one-line title draws exactly as the old fixed 56 row did.
+// Interface/MainMenu/TopBar/TopBar.ui spells one, so a one-line title draws 56 high.
 // #TitleLine grows the same way over its own 22px strut, #TitleStrut: #Title is a FlexWeight Label with no Height
 // that wraps, as the client's report hint is (Interface/InGame/Overlays/OnlinePlaySettings.ui, #ReportHint), so
 // a second line pushes #Meta down and the row with it. #Pic, #Mark and #Trail keep their places: each is anchored

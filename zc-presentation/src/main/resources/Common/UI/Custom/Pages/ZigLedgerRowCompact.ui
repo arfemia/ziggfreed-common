@@ -8,7 +8,7 @@ $ZW = "../Common/ZigKit.ui";
 // com.ziggfreed.common.ui.kit.LedgerPainter and addressed by index as "#Rows[i] #Select", like the standard row;
 // a painter treats the two alike, so every id it addresses here matches that row's.
 //
-// Like the standard row it fixes no height (M515): the root and #Select size to their tallest part over #RowStrut,
+// Like the standard row it fixes no height: the root and #Select size to their tallest part over #RowStrut,
 // a zero-wide Group 44 high, and #Title is a FlexWeight Label with no Height that wraps to two lines, the second
 // ended with "...". A one-line title sits centred in the 44 row as it always did; a second line grows the row only
 // if the client draws the two lines taller than 44. #Pic, #Mark and #BarTrack keep their

@@ -31,7 +31,7 @@ $ZX = "ZigText.ui";
 );
 
 // The words on a selected row turn white: the muted and tone inks do not read on the steel blue. The title keeps
-// the list title's two lines (M515), so selecting a row never cuts its name back to one.
+// the list title's two lines, so selecting a row never cuts its name back to one.
 @ZigRowTitleOnSelectedStyle = LabelStyle(...$ZX.@ZigLedgerTitleStyle, TextColor: $ZK.@ZigInkBright);
 @ZigRowMetaOnSelectedStyle = LabelStyle(...$ZX.@ZigCaptionStyle, TextColor: $ZK.@ZigInkBright, Wrap: true, WrapMaxLines: 1);
 @ZigRowValueOnSelectedStyle = LabelStyle(...$ZX.@ZigCountStyle, TextColor: $ZK.@ZigInkBright);

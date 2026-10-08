@@ -17,7 +17,7 @@ $ZW = "../Common/ZigKit.ui";
 //   #BarTrack a 4px progress bar under the meta, hidden without progress
 //   #Trail    92 wide at the end: #Value over #State
 // No other button and no tooltip in a row: a label with a tooltip would swallow the row's click.
-// Like the standard row it fixes no height and grows to fit a title on two lines (M515), over #RowStrut and the
+// Like the standard row it fixes no height and grows to fit a title on two lines, over #RowStrut and the
 // title line's #TitleStrut; Pages/ZigLedgerRow.ui says how, and which client and vanilla documents each shape
 // comes from.
 
