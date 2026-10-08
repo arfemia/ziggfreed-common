@@ -6,17 +6,21 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.time.LocalDate;
 import java.time.MonthDay;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.protocol.FormattedMessage;
 import com.hypixel.hytale.protocol.LongParamValue;
 import com.hypixel.hytale.server.core.Message;
+import com.ziggfreed.common.almanac.AlmanacCalendar.Dates;
 import com.ziggfreed.common.almanac.AlmanacText;
+import com.ziggfreed.common.almanac.FixedCalendar;
 import com.ziggfreed.common.almanac.view.AlmanacView.Scope;
 import com.ziggfreed.common.almanac.view.AlmanacView.Season;
 import com.ziggfreed.common.almanac.view.AlmanacView.Tally;
 import com.ziggfreed.common.almanac.view.AlmanacView.Timing;
+import com.ziggfreed.common.occurrence.Occurrence;
 
 /**
  * What the Almanac says about a season's dates and numbers: which line a countdown reads ("On now - 27
@@ -27,6 +31,7 @@ class AlmanacLinesTest {
 
     private static final MonthDay OCT_1 = MonthDay.of(10, 1);
     private static final MonthDay NOV_3 = MonthDay.of(11, 3);
+    private static final MonthDay JAN_13 = MonthDay.of(1, 13);
 
     private static Timing live(Integer daysLeft, boolean lastDay) {
         return new Timing(true, daysLeft, lastDay, null, false, OCT_1, NOV_3, LocalDate.of(2027, 10, 1), false);
@@ -111,6 +116,57 @@ class AlmanacLinesTest {
         assertEquals(18L, ((LongParamValue) formatted.params.get("2")).value);
         assertEquals(AlmanacText.PREFIX + "month.4", formatted.messageParams.get("3").messageId);
         assertEquals(4L, ((LongParamValue) formatted.params.get("4")).value);
+    }
+
+    @Test
+    void aOneDayWindowNamesItsDayOnce() {
+        Timing oneDay = new Timing(false, null, false, 98, false, JAN_13, JAN_13, LocalDate.of(2028, 1, 13), false);
+        Message window = AlmanacLines.window(oneDay);
+        assertNotNull(window);
+        assertKey("window.day", window, "never 'Every year, January 13 to January 13'");
+        FormattedMessage formatted = window.getFormattedMessage();
+        assertEquals(AlmanacText.PREFIX + "month.1", formatted.messageParams.get("0").messageId);
+        assertEquals(13L, ((LongParamValue) formatted.params.get("1")).value, "the day binds as a typed number");
+        assertNull(formatted.messageParams.get("2"), "one day, so no second month");
+        assertNull(formatted.params.get("3"), "and no second day");
+    }
+
+    @Test
+    void aOneDayWindowWhoseDateMovesNamesItsRunsYearAndItsDayOnce() {
+        Timing movingDay = new Timing(false, null, false, 98, false, JAN_13, JAN_13, LocalDate.of(2028, 1, 13),
+                false, 2027);
+        Message window = AlmanacLines.window(movingDay);
+        assertNotNull(window);
+        assertKey("window.year.day", window);
+        FormattedMessage formatted = window.getFormattedMessage();
+        assertEquals("2027", formatted.messageParams.get("0").rawText, "a year is text, so no locale groups it");
+        assertEquals(AlmanacText.PREFIX + "month.1", formatted.messageParams.get("1").messageId);
+        assertEquals(13L, ((LongParamValue) formatted.params.get("2")).value);
+        assertNull(formatted.messageParams.get("3"), "one day, so no second month");
+        assertNull(formatted.params.get("4"), "and no second day");
+    }
+
+    @Test
+    void aOneDayEventOnItsDayIsTodayOnlyRatherThanItsLastDay() {
+        Timing itsDay = new Timing(true, 1, true, null, false, JAN_13, JAN_13, LocalDate.of(2028, 1, 13), false);
+        assertKey("chip.today_only", AlmanacLines.chip(itsDay), "its only day is never called its last");
+        assertKey("chip.last_day", AlmanacLines.chip(live(1, true)), "a longer run's last day still says so");
+        Timing forced = new Timing(true, null, false, null, false, JAN_13, JAN_13, null, false);
+        assertKey("status.live", AlmanacLines.chip(forced), "forced on outside its day: on now, no count");
+    }
+
+    @Test
+    void aOneDayRunReadsAsOneDayFromTheCalendarsOwnDates() {
+        Occurrence day = FixedCalendar.run("anniversary", 2027, "2027-01-13", "2027-01-13", FixedCalendar.UTC);
+        Occurrence next = FixedCalendar.run("anniversary", 2028, "2028-01-13", "2028-01-13", FixedCalendar.UTC);
+        Season anniversary = new Season("anniversary", null, null, null, true, 2027);
+        Timing timing = AlmanacView.timing(anniversary, new Dates(day, next, List.of(day), 2027, FixedCalendar.UTC),
+                FixedCalendar.noon("2027-01-13"));
+
+        assertKey("chip.today_only", AlmanacLines.chip(timing));
+        Message window = AlmanacLines.window(timing);
+        assertNotNull(window);
+        assertKey("window.day", window);
     }
 
     @Test

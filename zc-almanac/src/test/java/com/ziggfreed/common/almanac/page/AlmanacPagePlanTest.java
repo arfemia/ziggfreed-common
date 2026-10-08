@@ -159,6 +159,22 @@ class AlmanacPagePlanTest {
     }
 
     @Test
+    void aPageWithNoTallyLinesNeverPromisesTallies() {
+        Season ahead = season(EVENT, false);
+        Timing startsLater = new Timing(false, null, false, 23, false, OCT_1, NOV_3, LocalDate.of(2026, 10, 1), true);
+        SeasonBody before = plan(List.of(ahead), page(ahead, startsLater, List.of(), Scope.EVERY, false,
+                List.of())).body();
+        assertTrue(before.tiles().isEmpty());
+        assertFalse(before.hint(), "a page that counts nothing has no tallies to start");
+
+        Season live = season(EVENT, true);
+        List<YearChip> notYet = List.of(new YearChip(2026, true, false, false));
+        SeasonBody onNow = plan(List.of(live), page(live, liveTiming(1), notYet, new Scope(2026), false,
+                List.of())).body();
+        assertFalse(onNow.hint(), "nor while it runs and the player has not taken part yet");
+    }
+
+    @Test
     void aPastYearIsTheChosenChipAndItsKeepsakeShelfLightsTheLiveYear() {
         Season live = season(EVENT, true);
         List<YearChip> years = List.of(new YearChip(2025, false, true, true), new YearChip(2026, true, false, false));

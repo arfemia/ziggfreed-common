@@ -35,13 +35,13 @@ public final class AlmanacText {
             // tiles, the keepsake shelf, the record card, the empty state, the year at a glance, a
             // consumer's headline and the book's Seasons statistics.
             "lead", "chip.live", "chip.last_day", "chip.returns_in", "chip.returns_on", "chip.starts_in",
-            "chip.between",
+            "chip.between", "chip.today_only",
             "month.1", "month.2", "month.3", "month.4", "month.5", "month.6",
             "month.7", "month.8", "month.9", "month.10", "month.11", "month.12",
             "month.short.1", "month.short.2", "month.short.3", "month.short.4", "month.short.5", "month.short.6",
             "month.short.7", "month.short.8", "month.short.9", "month.short.10", "month.short.11", "month.short.12",
-            "window", "window.year", "scope.year", "scope.every", "scope.took_part", "scope.not_yet",
-            "scope.taken_part_count",
+            "window", "window.year", "window.day", "window.year.day", "scope.year", "scope.every",
+            "scope.took_part", "scope.not_yet", "scope.taken_part_count",
             "tile.in_all", "tile.server", "keepsakes.title", "keepsakes.meta", "keepsake.to_earn",
             "keepsake.missed", "achievements.title", "record.title", "record.seasons", "record.keepsakes",
             "empty.none.title", "empty.none.line", "hint.first_time", "glance.title", "headline.live",
