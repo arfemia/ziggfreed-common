@@ -215,6 +215,24 @@ public final class ContentText {
         return titleKey;
     }
 
+    /** The key this content's own naming rule would title it by, or null when its fold named none. */
+    @Nullable
+    public String titleConventionKey() {
+        return titleConventionKey;
+    }
+
+    /** The key this content's own naming rule would give the line under its title, or null. */
+    @Nullable
+    public String flavorConventionKey() {
+        return flavorConventionKey;
+    }
+
+    /** Does the loaded catalogue ship the explicit title key or the convention one? */
+    public boolean titleKeyShipped() {
+        return (titleKey != null && ContentKeys.known(titleKey))
+                || (titleConventionKey != null && ContentKeys.known(titleConventionKey));
+    }
+
     /**
      * The key a surface should ask a client to resolve for this content's NAME, or null when there
      * is none: the explicit key when it resolves, else the convention key when it does. Handing a

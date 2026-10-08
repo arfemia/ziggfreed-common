@@ -7,6 +7,7 @@ import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.progress.ConventionKeys;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveKindRegistry;
 import com.ziggfreed.common.progress.asset.ContentListingAsset;
@@ -121,6 +122,10 @@ public final class QuestPoolValidator {
             validateRequires(definition, pool, gateKinds, out);
             validateShowWhen(definition, pool, gateKinds, out);
             validateTurnInAt(definition, npcIds, out);
+            Finding unnamed = ConventionKeys.unresolvedTitle(DOMAIN, id, definition.quest().text());
+            if (unnamed != null) {
+                out.add(unnamed);
+            }
 
             out.addAll(ContentListingAsset.chainFindings(definition.chains(), DOMAIN, id));
 

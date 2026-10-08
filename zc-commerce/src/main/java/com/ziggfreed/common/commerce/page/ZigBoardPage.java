@@ -44,6 +44,7 @@ import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.icon.IconSpec;
+import com.ziggfreed.common.progress.ConventionKeys;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
 import com.ziggfreed.common.progress.asset.ObjectiveLeafAsset;
@@ -537,7 +538,8 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
             cmd.set("#DetailGrade.TextSpans", grade);
             cmd.set("#DetailGrade.Visible", true);
         }
-        Message flavor = CommerceText.flavor(textOf(ref), deps.titleArgs());
+        Message flavor = CommerceText.flavor(textOf(ref), ConventionKeys.questFlavor(ref.bountyId()),
+                deps.titleArgs());
         if (flavor != null) {
             cmd.set("#Flavor.TextSpans", flavor);
             cmd.set("#Flavor.Visible", true);
@@ -1000,7 +1002,8 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
     /** What a contract is CALLED, with a generated row's arguments resolved through the deps seam. */
     @Nonnull
     private Message bountyName(@Nonnull BountyRef ref) {
-        return CommerceText.title(textOf(ref), deps.titleArgs(), text("board.bounty.untitled"));
+        return CommerceText.title(textOf(ref), ConventionKeys.questTitle(ref.bountyId()), deps.titleArgs(),
+                text("board.bounty.untitled"));
     }
 
     @Nullable
