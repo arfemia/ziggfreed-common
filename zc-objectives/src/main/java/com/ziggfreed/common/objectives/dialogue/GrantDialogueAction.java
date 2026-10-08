@@ -3,6 +3,7 @@ package com.ziggfreed.common.objectives.dialogue;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
 
@@ -20,6 +21,7 @@ import com.ziggfreed.common.dialogue.schema.DialogueSugar;
 import com.ziggfreed.common.dialogue.type.DialogueAction;
 import com.ziggfreed.common.dialogue.type.DialogueActionExecutor;
 import com.ziggfreed.common.dialogue.type.DialogueActionType;
+import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardKinds;
@@ -28,6 +30,7 @@ import com.ziggfreed.common.objectives.interaction.InteractionRewards;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.ui.toast.ToastSpec;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -46,6 +49,8 @@ import com.ziggfreed.common.util.SafeLog;
  * <p>The entries pay through {@link InteractionRewards}, the one payout core outside a quest (the
  * {@code ZigGrantReward} interaction pays through it too): the registered reward kinds, the runtime's
  * own subject and its retry queue, so a kind any mod registers pays here the day it is installed.
+ * The player who chose the line is then shown what it handed over, the gold toast a quest's Collect
+ * raises, with a rolled table listed as what it actually paid.
  *
  * <p><b>It pays every time its line runs.</b> The line's own {@code Once} (one time, or with a
  * {@code Period}, once a day or a week) is the guard, so this action keeps no once-key of its own: a key
@@ -148,6 +153,20 @@ public final class GrantDialogueAction {
     static RewardGrants.GrantOutcome pay(@Nonnull Grant grant, @Nonnull Supplier<Subject> subject,
             @Nonnull String sourceId, @Nonnull RewardKindRegistry kinds,
             @Nullable BiConsumer<Subject, String> retryQueue, @Nonnull DoubleSupplier random) {
+        return pay(grant, subject, sourceId, kinds, retryQueue, random, null, null);
+    }
+
+    /**
+     * {@link #pay(Grant, Supplier, String, RewardKindRegistry, BiConsumer, DoubleSupplier)}, handing
+     * {@code show} the toast that tells the player what the payout handed over
+     * ({@link InteractionRewards#payAndShow}: a rolled table as what it actually paid, read through
+     * {@code chips}); a line that paid nothing shows nothing.
+     */
+    @Nonnull
+    static RewardGrants.GrantOutcome pay(@Nonnull Grant grant, @Nonnull Supplier<Subject> subject,
+            @Nonnull String sourceId, @Nonnull RewardKindRegistry kinds,
+            @Nullable BiConsumer<Subject, String> retryQueue, @Nonnull DoubleSupplier random,
+            @Nullable RewardChips.Source chips, @Nullable Consumer<ToastSpec> show) {
         List<RewardSpec> specs = InteractionRewards.specs(grant.rewards);
         if (specs.isEmpty() || !InteractionRewards.rolls(grant.chance, random)) {
             return RewardGrants.GrantOutcome.EMPTY;
@@ -156,13 +175,19 @@ public final class GrantDialogueAction {
         if (who == null) {
             return RewardGrants.GrantOutcome.EMPTY;
         }
-        return InteractionRewards.pay(specs, who, sourceId, kinds, retryQueue);
+        return InteractionRewards.payAndShow(specs, who, sourceId, kinds, retryQueue, chips, show);
     }
 
-    /** The line ran: pay through the shared vocabulary, to the player who chose it. World thread. */
+    /**
+     * The line ran: pay through the shared vocabulary, to the player who chose it, and show them what it
+     * paid once the line has settled (drawn into the conversation when it stays open, the corner feed
+     * when the line closes it). World thread.
+     */
     private static void handle(@Nonnull Grant grant, @Nonnull DialogueExecContext ctx) {
+        PlayerRef playerRef = ctx.playerRef();
         pay(grant, () -> subjectOf(ctx), sourceId(ctx.dialogue().getId()), RewardKinds.shared(),
-                ProgressionRuntime.rewardRetryQueue(), ThreadLocalRandom.current()::nextDouble);
+                ProgressionRuntime.rewardRetryQueue(), ThreadLocalRandom.current()::nextDouble,
+                InteractionRewards.chips(), playerRef == null ? null : InteractionRewards.toPlayer(playerRef));
     }
 
     /** The runtime's subject for the player who chose the line, or null when no player is there. */

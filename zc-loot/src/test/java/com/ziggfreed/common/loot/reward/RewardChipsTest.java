@@ -1,6 +1,7 @@
 package com.ziggfreed.common.loot.reward;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -230,6 +231,43 @@ class RewardChipsTest {
         assertNotNull(bare);
         assertEquals("Contrib_Item", bare.iconItemId(),
                 "with nothing authored, the contribution's own picture stands");
+    }
+
+    // ==================== a picture that stands for a reward is not that item ====================
+
+    @Test
+    void aChipsPictureIsTheItemItHandsOverUnlessItOnlyStandsForTheReward() {
+        RewardChip item = RewardChip.of("Rock_Stone", Msg.raw("x2 Stone"));
+        assertTrue(item.showsItem(), "an item reward's picture IS that item, so its own tooltip is the point");
+        assertNull(item.tooltip());
+
+        RewardChip wallet = RewardChip.picture("Test_Basket", Msg.raw("+12 Test Sweets"), Msg.raw("Test Sweets"));
+        assertEquals("Test_Basket", wallet.iconItemId());
+        assertFalse(wallet.showsItem(), "a wallet's picture only stands for it: hovering must never name the item");
+        assertEquals("Test Sweets", wallet.tooltip().getFormattedMessage().rawText,
+                "hovering it names the reward itself");
+
+        assertFalse(RewardChip.text(Msg.raw("+5 XP")).showsItem(), "a line alone shows no item");
+        assertFalse(RewardChip.picture(null, Msg.raw("+5 Favor"), Msg.raw("Favor")).hasIcon(),
+                "a reward with no picture reads as its line alone");
+    }
+
+    @Test
+    void aRewardsOwnIconKeepsAContributedPicturesTooltip() {
+        RewardChips.Source reading = spec -> "Test_Wallet_Pic_Kind".equalsIgnoreCase(spec.kind())
+                ? RewardChip.picture("Contrib_Item", Msg.raw("+3 Test Wallet"), Msg.raw("Test Wallet"))
+                : null;
+        RewardChips.contribute(reading);
+        try {
+            RewardChip authored = RewardChips.chipFor(RewardSpec.of("Test_Wallet_Pic_Kind",
+                    Map.of("Icon", "Deco_Rope", "Amount", "3")));
+            assertNotNull(authored);
+            assertEquals("Deco_Rope", authored.iconItemId(), "the reward's own Icon still wins");
+            assertFalse(authored.showsItem(), "re-pointing the picture does not make it the item handed over");
+            assertEquals("Test Wallet", authored.tooltip().getFormattedMessage().rawText);
+        } finally {
+            RewardChips.forget(reading);
+        }
     }
 
     // ==================== a suspect Args entry drops rather than painting a token ====================

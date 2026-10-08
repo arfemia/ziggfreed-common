@@ -658,8 +658,8 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
         int shown = Math.min(chips.size(), MAX_LINES);
         for (int i = 0; i < shown; i++) {
             RewardChip chip = chips.get(i);
-            CommerceChips.setLine(cmd, CommerceChips.appendLine(cmd, "#RewardsList", i), chip.label(),
-                    CommerceChips.COLOR_LINE, chip.icon());
+            CommerceChips.setRewardLine(cmd, CommerceChips.appendLine(cmd, "#RewardsList", i), chip,
+                    CommerceChips.COLOR_LINE);
         }
     }
 

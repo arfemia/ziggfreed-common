@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
@@ -40,12 +41,18 @@ import com.ziggfreed.common.dialogue.state.InMemoryDialogueFlagStore;
 import com.ziggfreed.common.dialogue.type.DialogueAction;
 import com.ziggfreed.common.dialogue.type.DialogueActionExecutor;
 import com.ziggfreed.common.dialogue.type.DialogueActionType;
+import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.loot.reward.RewardChip;
+import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardGrants;
+import com.ziggfreed.common.loot.reward.RewardHandler;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.objectives.dialogue.GrantDialogueAction.Grant;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.ui.toast.ToastKind;
+import com.ziggfreed.common.ui.toast.ToastSpec;
 
 /**
  * A conversation line that pays: how {@code Grant} reads in both its forms, what it pays and to whom,
@@ -210,6 +217,39 @@ class GrantDialogueActionTest {
         assertEquals(1, outcome.failed());
         assertEquals(1, outcome.granted());
         assertEquals(List.of("Test_Coin"), paid.stream().map(RewardSpec::kind).toList());
+    }
+
+    @Test
+    void aGrantShowsWhatItsPayoutHandedOverAndALostRollShowsNothing() {
+        RewardKindRegistry kinds = new RewardKindRegistry("test");
+        // A rolled table: it reports what landed, never its own name.
+        kinds.register("Test_Bundle", "test", new RewardHandler() {
+            @Override
+            public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject) {
+            }
+
+            @Override
+            public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject, @Nonnull String sourceId,
+                    @Nonnull Consumer<RewardSpec> receipt) {
+                receipt.accept(RewardSpec.of("Test_Sweets", "amount", "12"));
+            }
+        });
+        RewardEntryAsset[] bundle = {RewardEntryAsset.of("Test_Bundle", Map.of())};
+        RewardChips.Source naming = spec -> RewardChip.text(Msg.raw(spec.kind() + " " + spec.paramOr("amount", "?")));
+        List<ToastSpec> shown = new ArrayList<>();
+
+        GrantDialogueAction.pay(Grant.of(bundle, null), () -> PLAYER, "dialogue:t", kinds, null, () -> 0.0,
+                naming, shown::add);
+
+        assertEquals(1, shown.size(), "the player who chose the line is shown what it paid");
+        assertEquals(ToastKind.REWARD, shown.get(0).kind());
+        assertEquals(List.of("Test_Sweets 12"),
+                shown.get(0).lines().stream().map(l -> l.text().getFormattedMessage().rawText).toList());
+
+        List<ToastSpec> lost = new ArrayList<>();
+        GrantDialogueAction.pay(Grant.of(bundle, 0.25f), () -> PLAYER, "dialogue:t", kinds, null, () -> 0.5,
+                naming, lost::add);
+        assertTrue(lost.isEmpty(), "a lost roll paid nothing, so it says nothing");
     }
 
     @Test

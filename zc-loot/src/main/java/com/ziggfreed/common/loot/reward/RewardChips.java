@@ -190,13 +190,15 @@ public final class RewardChips {
         // contributed-named reward) that authored an Icon is drawn with it, not with the
         // contribution's computed one. Only the reward's own parameter re-points the picture -
         // the kind FILE's icon does not, because a contribution may know a better per-value
-        // answer than the file's default (a custom skill's own registry icon, say).
+        // answer than the file's default (a custom skill's own registry icon, say). A picture the
+        // contribution said only stands for the reward keeps saying so: re-pointed, it is still not
+        // the item handed over, so its tooltip rides along.
         String ownIcon = spec.param(DeferredRewards.PARAM_ICON);
         for (Source contributed : CONTRIBUTED) {
             try {
                 RewardChip chip = contributed.chipFor(spec);
                 if (chip != null) {
-                    return isWritten(ownIcon) ? RewardChip.of(ownIcon, chip.label()) : chip;
+                    return isWritten(ownIcon) ? new RewardChip(ownIcon, chip.label(), chip.tooltip()) : chip;
                 }
             } catch (Throwable ignored) {
                 // A contributed reading failing costs its own answer, never the panel.

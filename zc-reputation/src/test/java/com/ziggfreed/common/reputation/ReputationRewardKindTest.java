@@ -116,7 +116,9 @@ class ReputationRewardKindTest {
                 ReputationFixtures.OLD_JACK, "{ \"Text\": { \"TitleKey\": \"test.jack.name\" }, \"Icon\": \"Test_Icon\" }")));
         RewardChip gain = ReputationRewardKind.chipFor(service, spec("test_old_jack", 250));
         assertEquals("ziggfreedcommon.reputation.reward.gain", gain.label().getMessageId());
-        assertFalse(gain.hasIcon(), "a chip's picture reads as a promise of that item, so standing shows as its line alone");
+        assertEquals("Test_Icon", gain.iconItemId(), "a standing row shows its reputation's own picture, as an item row does");
+        assertFalse(gain.showsItem(), "the picture stands for the reputation and is not an item handed over");
+        assertNotNull(gain.tooltip(), "hovering the picture names the reputation, never the item behind its picture");
         assertEquals("ziggfreedcommon.reputation.reward.loss",
                 ReputationRewardKind.chipFor(service, spec("Test_Old_Jack", -50)).label().getMessageId());
         assertNull(ReputationRewardKind.chipFor(service, spec("Nobody", 5)), "an unknown reputation names nothing");
@@ -133,6 +135,7 @@ class ReputationRewardKindTest {
             List<RewardChip> chips = RewardChips.chipsFor(List.of(spec("Test_Old_Jack", 250)), null);
             assertEquals(1, chips.size(), "the generic reading cannot name the reward, so the contributed one does");
             assertEquals("ziggfreedcommon.reputation.reward.gain", chips.get(0).label().getMessageId());
+            assertFalse(chips.get(0).hasIcon(), "a companion with no Icon reads as its line alone");
         } finally {
             RewardChips.forget(reading);
         }

@@ -394,7 +394,7 @@ public final class AchievementReader {
         boolean claimed = engine.status(subject, a.id()) == AchievementStatus.CLAIMED;
         List<DetailLine> lines = new ArrayList<>();
         for (RewardChip chip : chips(a.autoRewards())) {
-            lines.add(rewardLine(chip, unlocked
+            lines.add(DetailLine.reward(chip, unlocked
                     ? Pill.of(text("book.achievements.reward.auto"), Tone.DONE)
                     : Pill.of(text("book.achievements.reward.locked"), Tone.BLOCKED)));
         }
@@ -407,15 +407,9 @@ public final class AchievementReader {
             } else {
                 tag = Pill.of(text("book.achievements.reward.locked"), Tone.BLOCKED);
             }
-            lines.add(rewardLine(chip, tag));
+            lines.add(DetailLine.reward(chip, tag));
         }
         return lines.isEmpty() ? null : new DetailBlock("rewards", text("book.achievements.block.rewards"), null, lines);
-    }
-
-    @Nonnull
-    private static DetailLine rewardLine(@Nonnull RewardChip chip, @Nonnull Pill tag) {
-        Picture picture = chip.hasIcon() ? Picture.tooltipItem(chip.iconItemId()) : Picture.NONE;
-        return new DetailLine(picture, chip.label(), null, tag, Tick.NONE, null, false);
     }
 
     /** More in: up to {@link #MORE_IN} listed siblings in its subcategory (its category when it has none). */

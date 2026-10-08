@@ -65,6 +65,28 @@ class CommercePageDepsTest {
     }
 
     /**
+     * A server running nothing above the library (no consumer chip reading) still lists what a rolled
+     * bundle paid: the default reading falls to the generic one and the readings a kind's owner
+     * contributed (a wallet, a reputation), so the rows are the receipt, never the bundle's name.
+     */
+    @Test
+    void withTheLibrarysOwnReadingAReceiptStillListsWhatTheBundlePaid() {
+        RewardChips.Source wallet = spec -> "Test_Receipt_Wallet".equalsIgnoreCase(spec.kind())
+                ? RewardChip.text(Msg.raw("+" + spec.paramOr("Amount", "?") + " Test Sweets"))
+                : null;
+        RewardChips.contribute(wallet);
+        try {
+            ToastSpec spec = CommercePageDeps.DEFAULTS.resolveCompletionToast("bounty",
+                    List.of(RewardSpec.of("Test_Receipt_Wallet", Map.of("Amount", "12"))),
+                    Msg.raw("Contract complete"), null);
+            assertEquals(1, spec.lines().size(), "the receipt's row, read with no consumer reading installed");
+            assertEquals("+12 Test Sweets", spec.lines().get(0).text().getRawText());
+        } finally {
+            RewardChips.forget(wallet);
+        }
+    }
+
+    /**
      * The rule the board's Hand in floats its toast by: a contract that PAID OUT here is the gold
      * line listing the payout's receipt, and one that PARKED to be collected is the plain "handed
      * in" line with no row at all. Gold is the payout colour and nothing has been paid yet; the

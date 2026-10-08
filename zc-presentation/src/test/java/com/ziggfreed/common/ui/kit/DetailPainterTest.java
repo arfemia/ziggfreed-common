@@ -16,6 +16,7 @@ import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
+import com.ziggfreed.common.loot.reward.RewardChip;
 
 /**
  * What a detail paint sends into an {@code @ZigDetailPage}: every header leaf both ways (the page is live and
@@ -199,6 +200,22 @@ class DetailPainterTest {
         Painted p = Painted.of(cmd, events);
         assertFalse(p.has("#L[0] #LineIconSlot.TooltipText"), "a tooltip on the picture would swallow the line's click");
         assertFalse(p.has("#L[1] #LineIconSlot.TooltipText"), "the item grid's own tooltip is the point");
+    }
+
+    @Test
+    void aRewardLineShowsTheItemItHandsOverButOnlyDrawsAPictureThatStandsForTheReward() {
+        DetailLine item = DetailLine.reward(RewardChip.of("Rock_Stone", Message.raw("x2 Stone")), null);
+        assertTrue(item.picture().tooltip(), "an item reward keeps the item's own tooltip");
+        assertNull(item.tooltip());
+
+        DetailLine wallet = DetailLine.reward(RewardChip.picture("No_Such_Item", Message.raw("+12 Hallow Sweets"),
+                Message.raw("Hallow Sweets")), null);
+        assertFalse(wallet.picture().tooltip(), "a wallet's picture draws plain: its item's tooltip names the wrong thing");
+        assertEquals("No_Such_Item", wallet.picture().itemId());
+        assertEquals("Hallow Sweets", wallet.tooltip().getFormattedMessage().rawText, "hovering it names the wallet");
+
+        DetailLine bare = DetailLine.reward(RewardChip.text(Message.raw("+5 XP")), null);
+        assertTrue(bare.picture().isEmpty(), "a reward with no picture reads as its line alone");
     }
 
     @Test

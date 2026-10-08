@@ -7,6 +7,8 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.Message;
 
+import com.ziggfreed.common.loot.reward.RewardChip;
+
 /**
  * One line of a detail block: a picture, the text, an optional count at the end ("3 / 5"), an optional pill
  * ("Waiting"), the tick glyph at the start, {@code selectId} when the line opens something (the page's binding
@@ -35,6 +37,20 @@ public record DetailLine(@Nonnull Picture picture, @Nonnull Message text, @Nulla
     @Nonnull
     public static DetailLine of(@Nonnull Picture picture, @Nonnull Message text) {
         return new DetailLine(picture, text, null, null, Tick.NONE, null, false);
+    }
+
+    /**
+     * One reward's line, {@code tag} at its end: the item it hands over keeps that item's own tooltip
+     * ({@link Picture#tooltipItem}); a picture that only stands for the reward (a wallet's icon, a reputation's)
+     * draws plain and says the chip's own tooltip on hover, never the name of the item it borrows; no picture
+     * reads as the line alone.
+     */
+    @Nonnull
+    public static DetailLine reward(@Nonnull RewardChip chip, @Nullable Pill tag) {
+        Picture picture = !chip.hasIcon() ? Picture.NONE
+                : chip.showsItem() ? Picture.tooltipItem(chip.iconItemId()) : Picture.item(chip.iconItemId());
+        return new DetailLine(picture, chip.label(), null, tag, Tick.NONE, null, false,
+                chip.showsItem() ? null : chip.tooltip());
     }
 
     /** This line with {@code tooltip} on its picture. */

@@ -39,6 +39,8 @@ import com.ziggfreed.common.util.SafeLog;
  * <p>The {@code Rewards} entries are the very shape a quest pays in, handed to the same registered
  * kinds through the same grant pass, retry queue and subject a quest payout uses
  * ({@link InteractionRewards}), so a kind another mod registers pays here the day it is installed.
+ * The player is then shown what the use handed over ({@link InteractionRewards#payAndShow}): a rolled
+ * table as what it actually paid, in the page they have open or else the corner feed.
  *
  * <p><b>Always resolves Finished.</b> Nothing authored, a lost roll and a chain no player owns are
  * skips: a crack still uses up what it cracked.
@@ -102,9 +104,10 @@ public final class ZigGrantRewardInteraction extends SimpleInstantInteraction {
                 SafeLog.fine("[interaction] " + TYPE_NAME + ": no player owns this chain, so nothing is paid");
                 return true;
             }
-            InteractionRewards.pay(specs, InteractionRewards.subjectFor(owner.getStore(), owner, playerRef),
+            InteractionRewards.payAndShow(specs, InteractionRewards.subjectFor(owner.getStore(), owner, playerRef),
                     InteractionRewards.sourceId(UsedItems.id(ctx), TYPE_NAME), RewardKinds.shared(),
-                    ProgressionRuntime.rewardRetryQueue());
+                    ProgressionRuntime.rewardRetryQueue(), InteractionRewards.chips(),
+                    InteractionRewards.toPlayer(playerRef));
             return true;
         });
     }

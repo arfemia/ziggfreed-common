@@ -1,3 +1,4 @@
+$C = "../Common.ui";
 $Z = "../Common/ZigButtons.ui";
 $ZT = "../Common/ZigType.ui";
 
@@ -10,12 +11,20 @@ $ZT = "../Common/ZigType.ui";
 //
 // The picture slot hides itself when a wallet has no icon, and the number lands on
 // #ChipText.TextSpans like every other piece of text in this library.
+//
+// Two sibling pictures, exactly one ever visible. #ChipIcon is an item slot, for an item price: its
+// own tooltip names the item, which is the point. #IcoTex draws a wallet's picture plain (the item's
+// own icon texture, through IconRenderer.applyPlainIcon), because a wallet's Icon is an item borrowed
+// for its picture and an item slot would name that item on hover; the chip itself then carries the
+// wallet's name as its TooltipText, which is why it carries the tooltip style (a TooltipText with no
+// TextTooltipStyle draws nothing).
 
 Group #ZigCommerceChip {
   LayoutMode: Left;
   Anchor: (Width: 92, Height: 26, Right: 6);
   Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
   Padding: (Left: 6, Right: 6);
+  TextTooltipStyle: $C.@DefaultTextTooltipStyle;
 
   Group #ChipIconSlot {
     Anchor: (Width: 18, Height: 18, Top: 4, Right: 6);
@@ -25,6 +34,11 @@ Group #ZigCommerceChip {
       AreItemsDraggable: false;
       DisplayItemQuantity: false;
       Style: $Z.@ZigIconGrid18;
+    }
+
+    AssetImage #IcoTex {
+      Anchor: (Width: 18, Height: 18);
+      Visible: false;
     }
   }
 

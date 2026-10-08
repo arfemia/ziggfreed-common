@@ -2,25 +2,112 @@ package com.ziggfreed.common.objectives.interaction;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
+
+import javax.annotation.Nonnull;
 
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.loot.reward.RewardChip;
+import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardGrants;
+import com.ziggfreed.common.loot.reward.RewardHandler;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.ui.toast.ToastKind;
+import com.ziggfreed.common.ui.toast.ToastSpec;
 
-/** How a ZigGrantReward node pays: which rewards, whether at all, labelled how, and to whom. */
+/**
+ * How a ZigGrantReward node pays: which rewards, whether at all, labelled how, and to whom; and that a
+ * payout here tells the player what it actually handed over, as a quest's Collect does.
+ */
 class InteractionRewardsTest {
 
     private static final Subject PLAYER = Subject.of(UUID.randomUUID(), "tester");
+
+    // ==================== what the player is shown ====================
+
+    @Test
+    void aPayoutShowsWhatItActuallyHandedOverNeverTheBundlesName() {
+        RewardKindRegistry kinds = new RewardKindRegistry("test");
+        kinds.register("Test_Bundle", "test", rolled(RewardSpec.of("Test_Sweets", "amount", "12"),
+                RewardSpec.of("Test_Favor", "amount", "5")));
+        List<ToastSpec> shown = new ArrayList<>();
+
+        RewardGrants.GrantOutcome outcome = InteractionRewards.payAndShow(List.of(RewardSpec.of("Test_Bundle")),
+                PLAYER, "interaction:Test_Geode", kinds, null, naming(), shown::add);
+
+        assertEquals(1, outcome.granted());
+        assertEquals(1, shown.size(), "one toast for the payout");
+        ToastSpec toast = shown.get(0);
+        assertEquals(ToastKind.REWARD, toast.kind(), "the gold claim toast a quest's Collect raises");
+        assertEquals("ziggfreedcommon.progression.reward.received", toast.message().getFormattedMessage().messageId);
+        assertEquals(List.of("Test_Sweets 12", "Test_Favor 5"),
+                toast.lines().stream().map(l -> l.text().getFormattedMessage().rawText).toList(),
+                "one row per thing the roll paid, read through the chip source");
+    }
+
+    @Test
+    void aPayoutThatHandedNothingOverShowsNothing() {
+        RewardKindRegistry kinds = new RewardKindRegistry("test");
+        kinds.register("Test_Empty_Roll", "test", rolled());
+        List<ToastSpec> shown = new ArrayList<>();
+
+        InteractionRewards.payAndShow(List.of(RewardSpec.of("Test_Empty_Roll"), RewardSpec.of("No_Such_Kind")),
+                PLAYER, "interaction:Test_Geode", kinds, null, naming(), shown::add);
+
+        assertTrue(shown.isEmpty(), "an empty roll and a lost reward hand nothing over, so nothing is said");
+        assertNull(InteractionRewards.receiptToast(RewardGrants.GrantOutcome.EMPTY, naming()));
+    }
+
+    @Test
+    void theHeadlineIsAuthoredInEnglish() throws IOException {
+        Path lang = Path.of("src", "main", "resources", "Server", "Languages", "en-US",
+                "ziggfreedcommon.progression.lang");
+        assertTrue(Files.readAllLines(lang, StandardCharsets.UTF_8).stream()
+                .anyMatch(line -> line.startsWith(InteractionRewards.RECEIVED_KEY + " = ")),
+                "the receipt toast's headline resolves for the client");
+    }
+
+    /** A kind that rolls: it reports what landed, never itself. */
+    @Nonnull
+    private static RewardHandler rolled(@Nonnull RewardSpec... landed) {
+        return new RewardHandler() {
+            @Override
+            public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject) {
+            }
+
+            @Override
+            public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject, @Nonnull String sourceId,
+                    @Nonnull Consumer<RewardSpec> receipt) {
+                for (RewardSpec each : landed) {
+                    receipt.accept(each);
+                }
+            }
+        };
+    }
+
+    /** The consumer chip source, naming every reward by its kind and amount. */
+    @Nonnull
+    private static RewardChips.Source naming() {
+        return spec -> RewardChip.text(Msg.raw(spec.kind() + " " + spec.paramOr("amount", "?")));
+    }
+
+    // ==================== what is paid ====================
 
     @Test
     void aRewardsListPaysItsEntriesInOrderAndDropsOneNamingNoKind() {

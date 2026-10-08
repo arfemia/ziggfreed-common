@@ -55,6 +55,10 @@ book.toast.turn_in_failed = That cannot be handed in here.
 book.quests.giver_hint = Accept this quest from {0}.
 book.quests.giver_hint_plain = Accept this quest from its quest giver.
 
+# The headline over what a conversation's Grant or a used item's ZigGrantReward just paid, one row
+# per thing it handed over (a loot table as what it rolled), the overflow line the book's own.
+reward.received = Rewards received.
+
 # The NPC quest page. It reuses the book's own progress and action lines above (the lock lines are the shared ziggfreedcommon.progress ones) rather than
 # minting a second wording for the same sentence, and adds only what a screen with a character in
 # front of the player needs.

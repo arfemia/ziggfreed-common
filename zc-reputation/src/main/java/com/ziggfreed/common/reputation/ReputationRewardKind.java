@@ -7,6 +7,7 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.loot.reward.RewardChip;
@@ -59,9 +60,10 @@ public final class ReputationRewardKind implements RewardHandler {
     }
 
     /**
-     * "+250 Old Jack's Favor", the amount a typed number and the name the companion's own; null for another
-     * kind or one nothing names. A line with no picture: an item's picture on a reward chip reads as a
-     * promise of that item.
+     * "+250 Old Jack's Favor", the amount a typed number and the name the companion's own, beside the
+     * companion's own {@code Icon}; null for another kind or one nothing names. The icon is a picture that
+     * stands for the reputation, never an item handed over ({@link RewardChip#picture}), so hovering it
+     * names the reputation rather than the item it borrows; a companion with no Icon reads as the line alone.
      */
     @Nullable
     public static RewardChip chipFor(@Nonnull ReputationService service, @Nonnull RewardSpec spec) {
@@ -73,8 +75,9 @@ public final class ReputationRewardKind implements RewardHandler {
         if (def == null || amount == 0) {
             return null;
         }
-        return RewardChip.text(ReputationText.line(amount > 0 ? "reward.gain" : "reward.loss", amount,
-                ReputationText.name(def)));
+        Message name = ReputationText.name(def);
+        return RewardChip.picture(def.icon(), ReputationText.line(amount > 0 ? "reward.gain" : "reward.loss",
+                amount, name), name);
     }
 
     /** Which reputation {@code spec} moves, trimmed; empty when it names none. */

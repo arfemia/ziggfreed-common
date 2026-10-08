@@ -503,9 +503,7 @@ public final class QuestReader {
             return;
         }
         for (RewardChip chip : read) {
-            Picture picture = chip.iconItemId() != null ? Picture.tooltipItem(chip.iconItemId())
-                    : picture(chip.icon());
-            lines.add(new DetailLine(picture, chip.label(), null, tag, Tick.NONE, null, false));
+            lines.add(DetailLine.reward(chip, tag));
         }
     }
 

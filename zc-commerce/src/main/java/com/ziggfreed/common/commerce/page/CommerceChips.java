@@ -20,6 +20,8 @@ import com.ziggfreed.common.currency.CurrencyDef;
 import com.ziggfreed.common.currency.CurrencyEngine;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.icon.IconSpec;
+import com.ziggfreed.common.loot.reward.RewardChip;
+import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.icon.IconRenderer;
 import com.ziggfreed.common.subject.Subject;
 
@@ -62,8 +64,20 @@ public final class CommerceChips {
     /** A step or a component that is already satisfied. */
     public static final String COLOR_DONE = "#7affa0";
 
-    /** One chip: an optional picture, a composed line, and the colour that line reads in. */
-    public record Chip(@Nullable String iconItemId, @Nonnull Message label, @Nonnull String color) {
+    /**
+     * One chip: an optional picture, a composed line, the colour that line reads in, and what hovering
+     * it says when the picture only stands for something else. A wallet's {@code Icon} is an item id
+     * borrowed for its picture, so a wallet chip carries the wallet's name here and draws its picture
+     * plain: an item slot would name the borrowed ITEM on hover. Null for an item price, whose item
+     * slot and its own tooltip are the point.
+     */
+    public record Chip(@Nullable String iconItemId, @Nonnull Message label, @Nonnull String color,
+            @Nullable Message tooltip) {
+
+        /** A chip whose picture, when it has one, is the item itself. */
+        public Chip(@Nullable String iconItemId, @Nonnull Message label, @Nonnull String color) {
+            this(iconItemId, label, color, null);
+        }
     }
 
     private CommerceChips() {
@@ -86,7 +100,15 @@ public final class CommerceChips {
             String sel = container + "[" + i + "]";
             cmd.set(sel + " #ChipText.TextSpans", chip.label());
             cmd.set(sel + " #ChipText.Style.TextColor", chip.color());
-            applyIcon(cmd, sel + " #ChipIconSlot", sel + " #ChipIcon", chip.iconItemId());
+            if (chip.tooltip() == null) {
+                applyIcon(cmd, sel + " #ChipIconSlot", sel + " #ChipIcon", chip.iconItemId());
+                continue;
+            }
+            // A wallet: its picture drawn plain, and the whole chip names the wallet on hover.
+            cmd.set(sel + " #ChipIcon.Visible", false);
+            cmd.set(sel + " #ChipIconSlot.Visible",
+                    IconRenderer.applyPlainIcon(cmd, sel + " #ChipIconSlot", chip.iconItemId(), null));
+            UiText.setText(cmd, sel + ".TooltipText", chip.tooltip());
         }
     }
 
@@ -110,7 +132,8 @@ public final class CommerceChips {
             }
             long balance = currencies.balance(subject, def);
             // A typed numeric param, so the player's own client decides the digit grouping.
-            out.add(new Chip(CurrencyText.iconOf(def), Msg.num(balance), COLOR_BALANCE));
+            out.add(new Chip(CurrencyText.iconOf(def), Msg.num(balance), COLOR_BALANCE,
+                    CurrencyText.nameOf(def, names)));
         }
         return out;
     }
@@ -132,7 +155,8 @@ public final class CommerceChips {
             CurrencyDef def = catalog.get(id);
             String icon = def == null ? null : CurrencyText.iconOf(def);
             boolean afford = currencies.canAfford(subject, id, amount);
-            out.add(new Chip(icon, Msg.num(amount), afford ? COLOR_AFFORDABLE : COLOR_SHORT));
+            out.add(new Chip(icon, Msg.num(amount), afford ? COLOR_AFFORDABLE : COLOR_SHORT,
+                    def == null ? null : CurrencyText.nameOf(def, names)));
         }
         for (ItemCost item : cost.items()) {
             if (item == null || item.isBlank()) {
@@ -242,6 +266,25 @@ public final class CommerceChips {
         cmd.set(sel + " #LineText.TextSpans", text);
         cmd.set(sel + " #LineText.Style.TextColor", color);
         cmd.set(sel + " #LineIconSlot.Visible", IconRenderer.applyIcon(cmd, sel, icon));
+    }
+
+    /**
+     * Fill an appended line with one reward as {@code chip} reads it. The item it hands over draws in
+     * the line's item slot with that item's own tooltip; a picture that only stands for the reward (a
+     * wallet's icon, a reputation's) draws plain and names the reward on hover, never the item it
+     * borrows.
+     */
+    public static void setRewardLine(@Nonnull UICommandBuilder cmd, @Nonnull String sel,
+            @Nonnull RewardChip chip, @Nonnull String color) {
+        if (chip.showsItem() || !chip.hasIcon()) {
+            setLine(cmd, sel, chip.label(), color, chip.icon());
+            return;
+        }
+        cmd.set(sel + " #LineText.TextSpans", chip.label());
+        cmd.set(sel + " #LineText.Style.TextColor", color);
+        cmd.set(sel + " " + IconRenderer.ITEM_ICON_ID + ".Visible", false);
+        cmd.set(sel + " #LineIconSlot.Visible", IconRenderer.applyPlainIcon(cmd, sel, chip.iconItemId(), null));
+        UiText.setText(cmd, sel + " #LineIconSlot.TooltipText", chip.tooltip());
     }
 
     /**
