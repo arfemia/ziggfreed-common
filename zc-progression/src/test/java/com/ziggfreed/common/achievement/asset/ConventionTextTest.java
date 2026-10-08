@@ -82,4 +82,32 @@ class ConventionTextTest {
         assertEquals(1, unnamed.size(), "three copies, one base, one line to write");
         assertEquals("lantern_keepsake", unnamed.get(0).sourceId());
     }
+
+    /**
+     * A year's own line names that year alone, so the first copy shipping one never vouches for the
+     * rest: a later copy no line names still reports its base, once.
+     */
+    @Test
+    void anEarlierYearsOwnLineDoesNotHideALaterCopyThatNothingNames() throws Exception {
+        LangCatalog.overrideForTests(Map.of(
+                "testpack.progression.achievement.lantern_keepsake_2025.title", "The First Lantern"));
+
+        List<Finding> unnamed = AchievementPoolValidator.validate(mint(2025, 2026), null, null, null, null)
+                .stream().filter(f -> ConventionKeys.UNRESOLVED_TITLE.equals(f.code())).toList();
+
+        assertEquals(1, unnamed.size(), "2026 and 2027 have no name, and their base is reported once");
+        assertEquals("lantern_keepsake", unnamed.get(0).sourceId());
+    }
+
+    @Test
+    void aBaseWhoseEveryCopyShipsItsOwnLineReportsNothing() throws Exception {
+        LangCatalog.overrideForTests(Map.of(
+                "testpack.progression.achievement.lantern_keepsake_2025.title", "The First Lantern",
+                "testpack.progression.achievement.lantern_keepsake_2026.title", "The Second Lantern",
+                "testpack.progression.achievement.lantern_keepsake_2027.title", "The Third Lantern"));
+
+        assertEquals(List.of(), AchievementPoolValidator.validate(mint(2025, 2026), null, null, null, null)
+                        .stream().filter(f -> ConventionKeys.UNRESOLVED_TITLE.equals(f.code())).toList(),
+                "every copy is named by its own year's line, so no shared line is owed");
+    }
 }

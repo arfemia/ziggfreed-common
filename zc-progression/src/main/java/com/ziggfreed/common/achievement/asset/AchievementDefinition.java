@@ -82,6 +82,9 @@ public record AchievementDefinition(@Nonnull String id, @Nonnull Achievement ach
         String conventionId = conventionId(achievement);
         ContentText.Builder text = ContentText.builder()
                 .titleKey(titleKey)
+                // A yearly copy may be named for its own year, by its own id's line, once a pack ships it.
+                .titleOwnKey(achievement.occurrence() == null ? null
+                        : ConventionKeys.achievementTitle(achievement.id()))
                 .titleConventionKey(ConventionKeys.achievementTitle(conventionId))
                 .displayName(displayName)
                 .titleArgs(ContentText.amountArgs(titleArgs, amount))

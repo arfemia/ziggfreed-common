@@ -38,6 +38,8 @@ import com.ziggfreed.common.util.NumberFormatter;
  * alone with no per-file edit. The explicit key wins when it resolves, the convention key next, the
  * plain fallback after that - and a NAME has one rung more, the first step's own line, so content
  * that wrote no name at all is still called something a player can act on; see {@link #title()}.
+ * A row's OWN title line comes first of all when it ships: a key naming this one row apart from the
+ * rest of its kind (a yearly copy's own year), passed over in silence when no catalogue carries it.
  *
  * <p>Arguments are bound ONCE, where the content is folded, because everything they can say is fixed
  * per row: the amount a step asks for, the thing it names. A caller that wants a localized argument
@@ -59,6 +61,7 @@ public final class ContentText {
     public static final ContentText EMPTY = builder().build();
 
     @Nullable private final String titleKey;
+    @Nullable private final String titleOwnKey;
     @Nullable private final String titleConventionKey;
     @Nullable private final String displayName;
     private final Object[] titleArgs;
@@ -73,6 +76,7 @@ public final class ContentText {
 
     private ContentText(@Nonnull Builder b) {
         this.titleKey = blankToNull(b.titleKey);
+        this.titleOwnKey = blankToNull(b.titleOwnKey);
         this.titleConventionKey = blankToNull(b.titleConventionKey);
         this.displayName = blankToNull(b.displayName);
         this.titleArgs = b.titleArgs;
@@ -95,32 +99,37 @@ public final class ContentText {
     }
 
     /**
-     * True when this carries nothing at all, a convention key included, so a source can skip the
-     * row without resolving it. A fold stamps convention keys from every id, so content folded with
-     * an id is never empty here even when nothing ships its keys; what it can actually show is
-     * {@link #title()}'s and {@link #flavor()}'s answer, and an unshipped convention key alone
-     * answers null there.
+     * True when this carries nothing at all, a convention key or a row's own key included, so a
+     * source can skip the row without resolving it. A fold stamps convention keys from every id, so
+     * content folded with an id is never empty here even when nothing ships its keys; what it can
+     * actually show is {@link #title()}'s and {@link #flavor()}'s answer, and an unshipped convention
+     * or own key alone answers null there.
      */
     public boolean isEmpty() {
-        return titleKey == null && titleConventionKey == null && displayName == null
-                && flavorKey == null && flavorConventionKey == null && description == null
+        return titleKey == null && titleOwnKey == null && titleConventionKey == null
+                && displayName == null && flavorKey == null && flavorConventionKey == null && description == null
                 && objectiveKeys.isEmpty() && objectiveLines.isEmpty() && lore.isEmpty();
     }
 
     /**
      * What this content is called, or null when it carries no name at all.
      *
-     * <p>The ladder: an explicit key that resolves, a convention key that resolves, the plain
-     * name, then <b>the first step's own line</b> - what content whose author wrote neither key
-     * nor name (a generated entry, a file with no {@code Text} block) reads as ("Mine 10 Iron
-     * Ore"), the same words its step list opens with - and last the explicit key exactly as
-     * written. The step rung sits BEFORE the written
+     * <p>The ladder: the row's own key that resolves (a line naming this one row apart from the rest
+     * of its kind, such as a yearly copy's own year, so it outranks even the explicit key the copies
+     * share; unshipped, it is passed over and never painted), an explicit key that resolves, a
+     * convention key that resolves, the plain name, then <b>the first step's own line</b> - what
+     * content whose author wrote neither key nor name (a generated entry, a file with no
+     * {@code Text} block) reads as ("Mine 10 Iron Ore"), the same words its step list opens with -
+     * and last the explicit key exactly as written. The step rung sits BEFORE the written
      * key because a player reads the first and only a translator the second: a sentence about the
      * work is a name they can act on, a key is not. The written key survives as the last resort
      * for content with no steps, where it is still the one thing a screenshot can be traced from.
      */
     @Nullable
     public Message title() {
+        if (titleOwnKey != null && ContentKeys.known(titleOwnKey)) {
+            return ContentKeys.tr(titleOwnKey, titleArgs);
+        }
         Message name = resolved(titleKey, titleConventionKey, displayName, titleArgs);
         if (name != null) {
             return name;
@@ -221,6 +230,15 @@ public final class ContentText {
         return titleKey;
     }
 
+    /**
+     * The key naming this one row apart from the rest of its kind (a yearly copy's own year), or null
+     * when its fold named none. It titles the row only once a catalogue ships it.
+     */
+    @Nullable
+    public String titleOwnKey() {
+        return titleOwnKey;
+    }
+
     /** The key this content's own naming rule would title it by, or null when its fold named none. */
     @Nullable
     public String titleConventionKey() {
@@ -233,23 +251,28 @@ public final class ContentText {
         return flavorConventionKey;
     }
 
-    /** Does the loaded catalogue ship the explicit title key or the convention one? */
+    /** Does the loaded catalogue ship the row's own title key, the explicit one or the convention one? */
     public boolean titleKeyShipped() {
-        return (titleKey != null && ContentKeys.known(titleKey))
+        return (titleOwnKey != null && ContentKeys.known(titleOwnKey))
+                || (titleKey != null && ContentKeys.known(titleKey))
                 || (titleConventionKey != null && ContentKeys.known(titleConventionKey));
     }
 
     /**
      * The key a surface should ask a client to resolve for this content's NAME, or null when there
-     * is none: the explicit key when it resolves, else the convention key when it does, else the
-     * explicit key as written. A convention key that ships nowhere is never handed over: a fold
-     * derives one from every id, so content named only by a DisplayName would reach a reader of
-     * null (which falls back to the name it knows) as a raw, untranslatable key. Handing a key
+     * is none: the row's own key when it resolves, else the explicit key when it does, else the
+     * convention key when it does, else the explicit key as written. An own or convention key that
+     * ships nowhere is never handed over: a fold derives a convention key from every id (and a
+     * yearly copy's own key from its id), so content named only by a DisplayName would reach a
+     * reader of null (which falls back to the name it knows) as a raw, untranslatable key. Handing a key
      * rather than a {@link Message} is what an offer listing wants, since it carries keys across
      * to whatever paints it.
      */
     @Nullable
     public String resolvableTitleKey() {
+        if (titleOwnKey != null && ContentKeys.known(titleOwnKey)) {
+            return titleOwnKey;
+        }
         if (titleKey != null && ContentKeys.known(titleKey)) {
             return titleKey;
         }
@@ -323,6 +346,7 @@ public final class ContentText {
     public static final class Builder {
 
         @Nullable private String titleKey;
+        @Nullable private String titleOwnKey;
         @Nullable private String titleConventionKey;
         @Nullable private String displayName;
         private Object[] titleArgs = NO_ARGS;
@@ -341,6 +365,16 @@ public final class ContentText {
         @Nonnull
         public Builder titleKey(@Nullable String titleKey) {
             this.titleKey = titleKey;
+            return this;
+        }
+
+        /**
+         * The key naming this one row apart from the rest of its kind (a yearly copy's own year): it
+         * outranks even the explicit key once a catalogue ships it, and is passed over until then.
+         */
+        @Nonnull
+        public Builder titleOwnKey(@Nullable String ownKey) {
+            this.titleOwnKey = ownKey;
             return this;
         }
 
