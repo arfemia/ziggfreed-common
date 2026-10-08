@@ -2,6 +2,7 @@ package com.ziggfreed.common.commerce.page;
 
 import java.util.List;
 import java.util.function.IntFunction;
+import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -18,6 +19,7 @@ import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.ui.toast.RewardToastLines;
 import com.ziggfreed.common.ui.toast.ToastKind;
+import com.ziggfreed.common.ui.toast.ToastSounds;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 
 /**
@@ -191,19 +193,38 @@ public final class CommercePageDeps {
     }
 
     /**
+     * The toast for a purchase of {@code offerId}, guarded: the consumer's own when it answers one, else
+     * {@code libraryLine}'s. Either way it plays {@link ToastSounds#PURCHASE} unless it names a sound of its
+     * own or was silenced on purpose: no moment fires for a purchase, so the toast owns the sound on every
+     * server. A consumer toast that throws costs its own line, never the purchase that earned it.
+     */
+    @Nonnull
+    public ToastSpec resolvePurchaseToast(@Nonnull String offerId, @Nonnull Supplier<ToastSpec> libraryLine) {
+        ToastSpec spec = null;
+        try {
+            spec = purchaseToast.forPurchase(offerId);
+        } catch (Throwable ignored) {
+            // A consumer's toast failing costs its own line, never the purchase that earned it.
+        }
+        return ToastSounds.orDefault(spec != null ? spec : libraryLine.get(), ToastSounds.PURCHASE);
+    }
+
+    /**
      * The toast for a hand-in that finished a contract at a board, split by what {@code paid} says
      * happened. PAID here ({@code paid} non-null): the gold line under {@code paidHeadline} with
      * the payout's receipt as its rows, through {@link #resolveCompletionToast(String, List,
      * Message, IntFunction)}. PARKED ({@code paid} null, the contract waiting to be collected):
      * the plain success line {@code parkedHeadline} and no rows at all, because gold is the payout
-     * colour and nothing has been paid yet.
+     * colour and nothing has been paid yet. That line is silent: the engine's {@code Quest_Parked}
+     * moment for the same press plays the sound, as {@code Quest_Completed} does for a payout here.
      */
     @Nonnull
     public ToastSpec handInToast(@Nonnull String bountyId, @Nullable RewardGrants.GrantOutcome paid,
             @Nonnull Message paidHeadline, @Nonnull Message parkedHeadline,
             @Nullable IntFunction<Message> overflow) {
         if (paid == null) {
-            return ToastSpec.of(ToastKind.SUCCESS, parkedHeadline);
+            // Silent: the engine's Quest_Parked moment for the same press owns the sound.
+            return ToastSpec.of(ToastKind.SUCCESS, parkedHeadline).silent();
         }
         return resolveCompletionToast(bountyId, paid.receipt(), paidHeadline, overflow);
     }

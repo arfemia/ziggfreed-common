@@ -20,6 +20,7 @@ import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.ui.toast.RewardToastLines;
 import com.ziggfreed.common.ui.toast.ToastKind;
+import com.ziggfreed.common.ui.toast.ToastSounds;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 
 /**
@@ -110,6 +111,54 @@ class CommercePageDepsTest {
         assertEquals(ToastKind.REWARD, settled.kind());
         assertEquals("Contract complete", settled.message().getRawText());
         assertEquals(2, settled.lines().size(), "the receipt, never the contract's own list");
+    }
+
+    /**
+     * A Collect or a hand-in at the board fires the engine's moment for the same press (Quest_Claimed,
+     * Quest_Completed or Quest_Parked), and the moment plays the sound; so every toast the board floats for it
+     * is silent, and the press is one sound.
+     */
+    @Test
+    void theBoardsPayoutToastsLeaveTheSoundToTheMoment() {
+        CommercePageDeps deps = CommercePageDeps.builder().rewardChips(naming()).build();
+        RewardGrants.GrantOutcome paid = new RewardGrants.GrantOutcome(1, 0, 0, ROLLED);
+
+        assertNull(deps.handInToast("bounty", null, Msg.raw("Contract complete"), Msg.raw("Handed in."), null)
+                .effectiveSoundId(), "a parked hand-in: Quest_Parked plays the sound");
+        assertNull(deps.handInToast("bounty", paid, Msg.raw("Contract complete"), Msg.raw("Handed in."), null)
+                .effectiveSoundId(), "a hand-in that paid here: Quest_Completed plays the sound");
+        assertNull(deps.resolveCompletionToast("bounty", ROLLED, Msg.raw("Contract complete"), null)
+                .effectiveSoundId(), "a Collect: Quest_Claimed plays the sound");
+    }
+
+    /**
+     * No moment fires for a purchase, so its toast plays the purchase sound itself: the library's line and a
+     * consumer's own alike, unless the consumer's names a sound of its own or silenced it on purpose.
+     */
+    @Test
+    void aPurchaseToastPlaysThePurchaseSound() {
+        ToastSpec library = ToastSpec.of(ToastKind.REWARD, Msg.raw("Bought it."));
+        assertEquals(ToastSounds.PURCHASE, CommercePageDeps.DEFAULTS.resolvePurchaseToast("offer", () -> library)
+                .effectiveSoundId(), "the library's line");
+
+        CommercePageDeps mine = CommercePageDeps.builder()
+                .purchaseToast(offerId -> ToastSpec.of(ToastKind.REWARD, Msg.raw("Bought, my way")))
+                .build();
+        ToastSpec consumer = mine.resolvePurchaseToast("offer", () -> library);
+        assertEquals("Bought, my way", consumer.message().getRawText(), "the consumer's line wins");
+        assertEquals(ToastSounds.PURCHASE, consumer.effectiveSoundId(), "and still plays the purchase sound");
+
+        CommercePageDeps quiet = CommercePageDeps.builder()
+                .purchaseToast(offerId -> ToastSpec.of(ToastKind.REWARD, Msg.raw("Shh")).silent())
+                .build();
+        assertNull(quiet.resolvePurchaseToast("offer", () -> library).effectiveSoundId(),
+                "a consumer that silenced its line keeps it silent");
+
+        CommercePageDeps broken = CommercePageDeps.builder()
+                .purchaseToast(offerId -> { throw new IllegalStateException("boom"); })
+                .build();
+        assertSame(library.message(), broken.resolvePurchaseToast("offer", () -> library).message(),
+                "a consumer toast that throws costs its own line only");
     }
 
     /** A fill written for the one-argument form ignores the rows and still owns the toast. */

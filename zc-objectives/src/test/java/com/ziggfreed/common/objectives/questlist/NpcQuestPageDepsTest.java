@@ -182,6 +182,23 @@ class NpcQuestPageDepsTest {
         assertEquals(2, settled.lines().size(), "the receipt, never the quest's own list");
     }
 
+    /**
+     * A hand-in or a Collect at a character fires the engine's moment for the same press (Quest_Parked,
+     * Quest_Completed or Quest_Claimed), and the moment plays the sound; so the page's toast for it is silent,
+     * and the press is one sound.
+     */
+    @Test
+    void theHandInToastsLeaveTheSoundToTheMoment() {
+        NpcQuestPageDeps deps = NpcQuestPageDeps.builder().rewardChips(naming()).build();
+        Quest quest = Quest.builder("q_sound").build();
+        RewardGrants.GrantOutcome paid = new RewardGrants.GrantOutcome(1, 0, 0, ROLLED);
+
+        assertNull(deps.handInToast(quest, null, Msg.raw("Quest complete"), Msg.raw("Handed in."), null)
+                .effectiveSoundId(), "a parked hand-in: Quest_Parked plays the sound");
+        assertNull(deps.handInToast(quest, paid, Msg.raw("Quest complete"), Msg.raw("Handed in."), null)
+                .effectiveSoundId(), "a hand-in that paid here: Quest_Completed plays the sound");
+    }
+
     /** A consumer's own completion toast is asked only for a quest that paid out here. */
     @Test
     void aConsumerToastIsNotAskedForAParkedHandIn() {

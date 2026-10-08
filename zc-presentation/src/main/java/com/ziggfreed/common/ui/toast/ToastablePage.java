@@ -20,8 +20,6 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
-import com.ziggfreed.common.sound.Sound3D;
-
 /**
  * Mod-agnostic page base adding an in-page toast overlay for in-menu action feedback. The
  * toast renders as the last top-level sibling of the page content ({@code #ZigToast} /
@@ -206,23 +204,12 @@ public abstract class ToastablePage<T> extends InteractiveCustomUIPage<T> {
 
     /**
      * Play the toast's 3D SFX at the player (world-thread; {@code showToast} runs in a page event
-     * handler). Cosmetic and fully guarded: a missing asset / invalid ref degrades to silence,
-     * never a throw. A {@link ToastSpec#silent()} toast or a kind/override with no id is a no-op.
+     * handler), through the one helper the corner feed's toasts play through too
+     * ({@link ToastSounds#play}). A {@link ToastSpec#silent()} toast or a kind/override with no id
+     * is a no-op.
      */
     private void playToastSound(@Nonnull ToastSpec spec) {
-        String soundId = spec.effectiveSoundId();
-        if (soundId == null || soundId.isEmpty()) {
-            return;
-        }
-        try {
-            Ref<EntityStore> ref = playerRef.getReference();
-            if (ref == null) {
-                return;
-            }
-            Sound3D.playAt(soundId, Sound3D.DEFAULT_CATEGORY, ref, ref.getStore(), "TOAST", false);
-        } catch (Throwable ignored) {
-            // Cosmetic only - never let an audio failure break the toast / page flow.
-        }
+        ToastSounds.play(playerRef, spec);
     }
 
     /**

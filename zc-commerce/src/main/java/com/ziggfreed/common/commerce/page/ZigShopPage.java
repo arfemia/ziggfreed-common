@@ -839,25 +839,20 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
      * <p>Under the headline, one row per thing the purchase actually handed over: the grant pass's
      * receipt, read through the same chip source the offer card previewed the payout with, so a
      * rolled table lists the items it produced and a reward still waiting for the next connect adds
-     * no row. A bare headline left the player to guess what "Bought X" put in their bag.
+     * no row. A bare headline left the player to guess what "Bought X" put in their bag. Whichever line
+     * it is, it plays the purchase sound ({@link CommercePageDeps#resolvePurchaseToast}).
      */
     @Nonnull
     private ToastSpec purchaseToast(@Nonnull ShopOffer offer,
             @Nonnull ShopEngine.PurchaseOutcome outcome) {
-        try {
-            ToastSpec spec = deps.purchaseToast().forPurchase(offer.offerId());
-            if (spec != null) {
-                return spec;
-            }
-        } catch (Throwable ignored) {
-            // A consumer's toast failing costs its own line, never the purchase that earned it.
-        }
-        List<RewardSpec> receipt = outcome.grants() == null ? List.of() : outcome.grants().receipt();
-        return ToastSpec.of(ToastKind.REWARD, outcome.anyQueued()
-                ? text("shop.toast.bought_queued", offerName(offer))
-                : text("shop.toast.bought", offerName(offer)))
-                .withLines(RewardToastLines.lines(receipt, deps.rewardChips(),
-                        dropped -> text("shop.toast.more", dropped)));
+        return deps.resolvePurchaseToast(offer.offerId(), () -> {
+            List<RewardSpec> receipt = outcome.grants() == null ? List.of() : outcome.grants().receipt();
+            return ToastSpec.of(ToastKind.REWARD, outcome.anyQueued()
+                    ? text("shop.toast.bought_queued", offerName(offer))
+                    : text("shop.toast.bought", offerName(offer)))
+                    .withLines(RewardToastLines.lines(receipt, deps.rewardChips(),
+                            dropped -> text("shop.toast.more", dropped)));
+        });
     }
 
     /**

@@ -32,32 +32,53 @@ class ToastDeliveryTest {
         ToastSpec spec = receipt(2);
         List<ToastSpec> page = new ArrayList<>();
         List<ToastLine> corner = new ArrayList<>();
+        List<String> sounds = new ArrayList<>();
 
-        ToastDelivery.route(true, spec, null, page::add, corner::add);
+        ToastDelivery.route(true, spec, null, page::add, corner::add, sounds::add);
 
         assertEquals(1, page.size());
         assertSame(spec, page.get(0), "the page draws the headline and every row");
         assertTrue(corner.isEmpty(), "a page covers the corner feed, so nothing goes there");
+        assertTrue(sounds.isEmpty(), "the page plays the toast's sound as it draws it, so the route plays none");
     }
 
     @Test
     void withNoPageOpenEachRowBecomesItsOwnCornerNotice() {
         List<ToastSpec> page = new ArrayList<>();
         List<ToastLine> corner = new ArrayList<>();
+        List<String> sounds = new ArrayList<>();
 
-        ToastDelivery.route(false, receipt(2), null, page::add, corner::add);
+        ToastDelivery.route(false, receipt(2), null, page::add, corner::add, sounds::add);
 
         assertTrue(page.isEmpty());
         assertEquals(2, corner.size(), "the feed has no rows, so each row is a notice of its own");
         assertEquals("Test_Sweets", corner.get(0).iconItemId(), "a row keeps its picture");
         assertEquals("row 1", corner.get(1).text().getFormattedMessage().rawText);
+        assertTrue(sounds.isEmpty(), "a gold toast with no sound of its own stays silent in the corner too");
+    }
+
+    /** A toast that carries a sound plays it once in the corner, however many notices its rows become. */
+    @Test
+    void aToastWithASoundPlaysItOnceInTheCorner() {
+        List<ToastLine> corner = new ArrayList<>();
+        List<String> sounds = new ArrayList<>();
+
+        ToastDelivery.route(false, receipt(3).withSound("Test_Sound"), null, spec -> { }, corner::add, sounds::add);
+
+        assertEquals(3, corner.size());
+        assertEquals(List.of("Test_Sound"), sounds, "one sound for the whole toast, not one per notice");
+
+        List<String> silenced = new ArrayList<>();
+        ToastDelivery.route(false, receipt(1).withSound("Test_Sound").silent(), null, spec -> { }, row -> { },
+                silenced::add);
+        assertTrue(silenced.isEmpty(), "a silenced toast plays nothing");
     }
 
     @Test
     void aToastWithNoRowsReachesTheCornerAsItsHeadline() {
         List<ToastLine> corner = new ArrayList<>();
         ToastDelivery.route(false, ToastSpec.of(ToastKind.INFO, Msg.raw("Done.")).withIcon("Test_Icon"), null,
-                spec -> { }, corner::add);
+                spec -> { }, corner::add, sound -> { });
 
         assertEquals(1, corner.size());
         assertEquals("Done.", corner.get(0).text().getFormattedMessage().rawText);
@@ -69,7 +90,7 @@ class ToastDeliveryTest {
         int total = ToastDelivery.FEED_ROWS + 4;
         List<ToastLine> corner = new ArrayList<>();
         ToastDelivery.route(false, receipt(total), dropped -> Msg.raw("+" + dropped + " more"), spec -> { },
-                corner::add);
+                corner::add, sound -> { });
 
         assertTrue(ToastDelivery.FEED_ROWS < 7, "the feed shows seven lines");
         assertEquals(ToastDelivery.FEED_ROWS, corner.size());
@@ -78,7 +99,7 @@ class ToastDeliveryTest {
                 "the last notice says what did not fit rather than dropping it unsaid");
 
         List<ToastLine> bare = new ArrayList<>();
-        ToastDelivery.route(false, receipt(total), null, spec -> { }, bare::add);
+        ToastDelivery.route(false, receipt(total), null, spec -> { }, bare::add, sound -> { });
         assertEquals(ToastDelivery.FEED_ROWS, bare.size(), "with no overflow line the rest is cut");
     }
 }

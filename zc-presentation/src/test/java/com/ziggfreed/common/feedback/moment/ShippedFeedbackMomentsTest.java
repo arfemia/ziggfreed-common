@@ -3,6 +3,7 @@ package com.ziggfreed.common.feedback.moment;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -24,6 +25,7 @@ import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.hypixel.hytale.server.core.Message;
 
 /**
  * The library's OWN default moment files: every one decodes through the real codec, every line
@@ -107,6 +109,32 @@ class ShippedFeedbackMomentsTest {
 
         assertFalse(full.toast().getTitle().getKey().equals(collect.toast().getTitle().getKey()),
                 "a full bag reads a different line from a quest waiting to be collected");
+    }
+
+    /**
+     * Collecting a quest's or an achievement's reward plays the legendary chest on every server, from the
+     * library's own files; a payout that settled on the spot plays nothing here, since its completion moment
+     * already had its jingle. The in-page copy of the toast is built silent ({@link
+     * FeedbackEngine#inPageToast}), so a Collect pressed on a page is one sound.
+     */
+    @Test
+    void collectingPlaysTheChestAndASettledPayoutPlaysNothingHere() throws IOException {
+        for (String id : List.of("Quest_Claimed", "Achievement_Claimed")) {
+            FeedbackMomentAsset moment = shipped().get(id);
+            assertNotNull(moment, id);
+
+            FeedbackMomentAsset.Resolved collected = moment.resolve(Map.of("title", "x", "collected", true));
+            FeedbackMomentAsset.Resolved settled = moment.resolve(Map.of("title", "x", "collected", false));
+
+            assertNotNull(collected.sound(), id + " plays a sound on a Collect");
+            assertEquals("SFX_Chest_Legendary_Open", collected.sound().getId(), id);
+            assertNotNull(collected.toast(), id + " still says what was collected");
+            assertTrue(settled.sound() == null || settled.sound().getId() == null,
+                    id + " is quiet for a payout that settled on the spot");
+            assertNull(FeedbackEngine.inPageToast(collected.toast(), Map.of(),
+                    Message.raw("x"), null).effectiveSoundId(),
+                    id + "'s copy drawn into an open page adds no second sound");
+        }
     }
 
     /**

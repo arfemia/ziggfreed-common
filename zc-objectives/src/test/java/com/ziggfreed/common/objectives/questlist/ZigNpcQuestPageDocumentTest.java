@@ -84,12 +84,19 @@ class ZigNpcQuestPageDocumentTest {
         }
     }
 
+    /**
+     * The list column is 450, wide enough that a row's title reads on one line beside its pin and its meta line
+     * reads whole beside the trail; the frame grew by the same 110, so the reading page on the right keeps the
+     * 710 it is laid out for.
+     */
     @Test
     void theFrameAndTheListKeepTheirSizes() throws IOException {
         String ui = code(DOCUMENT);
-        assertTrue(own(block(ui, "$F.@ZigDecoratedFrame")).contains("Anchor: (Width: 1050, Height: 850);"),
-                "the frame stays 1050 x 850");
-        assertTrue(own(block(ui, "Group #LeftPanel")).contains("Anchor: (Width: 340);"), "the list column is 340");
+        assertTrue(own(block(ui, "$F.@ZigDecoratedFrame")).contains("Anchor: (Width: 1160, Height: 850);"),
+                "the frame is 1160 x 850");
+        assertTrue(own(block(ui, "Group #LeftPanel")).contains("Anchor: (Width: 450);"), "the list column is 450");
+        assertTrue(own(block(ui, "Group #RightPanel")).contains("FlexWeight: 1;"),
+                "the reading page takes what the list leaves: 1160 - 450 = 710, the width it is laid out for");
         assertTrue(own(block(ui, "Group #LeftPanel"))
                         .contains("Background: (TexturePath: \"../Common/ContainerPanelPatch.png\", Border: 4);"),
                 "a consumer's theme retints #LeftPanel's patch, so the panel keeps one");

@@ -9,11 +9,13 @@ section.not_yet = Not yet available
 section.waiting = Waiting
 section.completed = Completed
 
-# A row's state word. In back_in, {0} is how long until the quest comes back.
+# A row's state word. A waiting row shows how long until the quest comes back above its word.
+# back_in is the page's hint for a quest that waits: {0} is how long until it comes back.
 state.collect = Collect
 state.progress = In progress
 state.available = Available
 state.locked = Locked
+state.waiting = Waiting
 state.back_in = Back in {0}
 state.done = Done
 

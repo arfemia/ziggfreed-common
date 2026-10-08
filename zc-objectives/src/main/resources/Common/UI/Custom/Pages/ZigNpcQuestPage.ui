@@ -8,10 +8,11 @@ $ZW = "../Common/ZigKit.ui";
 // as a list on the left and the quest being read on the right, built from the same kit pieces as the Objective
 // Book's Quests tab, so a quest reads the same at its giver and in the book.
 //
-// LEFT, #LeftPanel (340 wide; a consumer's theme retints its patch): the character's name, the count, the Here /
+// LEFT, #LeftPanel (450 wide; a consumer's theme retints its patch): the character's name, the count, the Here /
 // Mine segments (#TabHere, #TabMine), and #QuestList, where com.ziggfreed.common.ui.kit.LedgerPainter appends one
 // Pages/ZigLedgerSection.ui per section and a Pages/ZigLedgerRow.ui per quest. The segments stay on screen when a
-// list is empty, so there is always a way to the other list.
+// list is empty, so there is always a way to the other list. At 450 a row's title reads on one line with its pin,
+// and its meta line ("Hallow's Eve - Daily - Old Jack") reads whole beside the trail's 92.
 //
 // RIGHT, #RightPanel (710 wide, padded to a 640 page): #Page, the kit's reading page (@ZigDetailPage: the header
 // with the Track toggle, progress, the quest's text, its blocks, and the action bar), painted by
@@ -23,7 +24,7 @@ $C.@PageOverlay {}
 $F.@ZigDecoratedFrame {
   @CloseButton = true;
   @Ornaments = true;
-  Anchor: (Width: 1050, Height: 850);
+  Anchor: (Width: 1160, Height: 850);
 
   #Content {
     Anchor: (Top: 0);
@@ -31,7 +32,7 @@ $F.@ZigDecoratedFrame {
     Padding: (Full: 0);
 
     Group #LeftPanel {
-      Anchor: (Width: 340);
+      Anchor: (Width: 450);
       Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
       LayoutMode: Top;
       Padding: (Full: $ZK.@ZigSpace4);

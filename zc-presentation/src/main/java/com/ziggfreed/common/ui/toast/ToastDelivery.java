@@ -25,6 +25,10 @@ import com.ziggfreed.common.util.SafeLog;
  * row, since a feed notice is a title with no rows. It is the rule a feedback moment's toast follows, as one
  * helper for a producer that composes its own {@link ToastSpec}.
  *
+ * <p>The toast's sound ({@link ToastSpec#effectiveSoundId}) plays once wherever it is shown: the page plays it
+ * as it draws the toast, and the corner plays it once for the whole toast, however many notices its rows
+ * become ({@link ToastSounds#play}).
+ *
  * <p>{@link #deliverWhenSettled} waits for what raised the toast to settle first: a conversation line that closes
  * its page must not draw into a page that is about to go, and one that reopens the page or opens another draws
  * into that one.
@@ -50,7 +54,8 @@ public final class ToastDelivery {
             UUID viewer = playerRef.getUuid();
             route(viewer != null && ToastablePage.isShowing(viewer), spec, overflow,
                     page -> ToastablePage.showOnActive(viewer, page),
-                    row -> Notify.withIcon(playerRef, row.text(), null, row.iconItemId(), spec.kind().feedStyle()));
+                    row -> Notify.withIcon(playerRef, row.text(), null, row.iconItemId(), spec.kind().feedStyle()),
+                    soundId -> ToastSounds.play(playerRef, soundId));
         } catch (Throwable t) {
             SafeLog.fine("[toast] a toast could not be delivered: " + t.getMessage());
         }
@@ -75,17 +80,22 @@ public final class ToastDelivery {
     }
 
     /**
-     * The decision, with no server behind it: the whole toast to {@code page} while one is showing, else each
-     * of {@link #feedRows} to {@code corner}.
+     * The decision, with no server behind it: the whole toast to {@code page} while one is showing (the page
+     * plays its sound as it draws it), else each of {@link #feedRows} to {@code corner} and the toast's sound,
+     * when it has one, to {@code sound} once.
      */
     static void route(boolean pageShowing, @Nonnull ToastSpec spec, @Nullable IntFunction<Message> overflow,
-            @Nonnull Consumer<ToastSpec> page, @Nonnull Consumer<ToastLine> corner) {
+            @Nonnull Consumer<ToastSpec> page, @Nonnull Consumer<ToastLine> corner, @Nonnull Consumer<String> sound) {
         if (pageShowing) {
             page.accept(spec);
             return;
         }
         for (ToastLine row : feedRows(spec, overflow)) {
             corner.accept(row);
+        }
+        String soundId = spec.effectiveSoundId();
+        if (soundId != null && !soundId.isEmpty()) {
+            sound.accept(soundId);
         }
     }
 

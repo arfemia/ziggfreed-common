@@ -25,8 +25,9 @@ import com.hypixel.hytale.protocol.packets.interface_.NotificationStyle;
  * {@link ToastSpec#silent()} suppresses it. Two kinds default to NO sound on purpose: {@code INFO}
  * (a passive informational toast should not chime) and {@code REWARD} (a reward toast is the VISUAL
  * companion to a grant whose authority - a quest / achievement / skill-tree claim or completion -
- * already plays the reward jingle; the toast adding a second chime would double it). A one-off
- * REWARD with no authority sound can opt in via {@link ToastSpec#withSound}.
+ * already plays the reward jingle; the toast adding a second chime would double it). A REWARD with
+ * no authority sound opts in via {@link ToastSpec#withSound}, as a receipt and a purchase do
+ * ({@link ToastSounds}, which says who owns each payout's sound).
  */
 public enum ToastKind {
     ERROR  ("#ff7a7a", NotificationStyle.Danger,  "SFX_Creative_Play_Error"),
