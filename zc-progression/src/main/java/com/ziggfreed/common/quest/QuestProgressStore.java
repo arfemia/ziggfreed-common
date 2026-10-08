@@ -72,7 +72,7 @@ public interface QuestProgressStore {
      * <p><b>A once-a-run quest also keeps its run</b>: {@code runYear} is the year of the run of its
      * event its last finish counted for, and {@code runCount} how many finishes that run holds. Both are
      * null and 0 for any other quest and for a record saved before the tally existed, which belongs to
-     * the run whose days hold its last finish ({@link PerRuns}).
+     * the run nearest its last finish ({@link PerRuns}).
      */
     record CompletionRecord(long lastCompletionMs, int periodCount, int totalCount, int claimedCount,
                             @Nullable Integer runYear, int runCount) {
