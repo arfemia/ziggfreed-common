@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.BooleanSupplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -28,6 +29,7 @@ import com.ziggfreed.common.progress.asset.ContentListingAsset;
 import com.ziggfreed.common.progress.asset.ContentMeta;
 import com.ziggfreed.common.progress.asset.ContentRewardsAsset;
 import com.ziggfreed.common.progress.asset.ObjectiveLeafAsset;
+import com.ziggfreed.common.progress.gate.FeatureLift;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.text.ContentTextAsset;
 
@@ -135,7 +137,10 @@ public final class AchievementAsset
             .appendInherited(new KeyedCodec<>("Requires", GateSpec.CODEC, false),
                     (a, v) -> a.requires = v, a -> a.requires, (a, p) -> a.requires = p.requires)
             .documentation("What a player must already have or have done before this can progress at all. An "
-                    + "unauthored block asks for nothing.")
+                    + "unauthored block asks for nothing. A plain top-level condition on hytale:mod_installed is "
+                    + "read as whether the achievement EXISTS on this server rather than as a lock: where that mod "
+                    + "is missing it is out of circulation instead of showing locked. A feature switch "
+                    + "(<namespace>:feature) stays a lock.")
             .add()
             .appendInherited(new KeyedCodec<>("Occurrence", Occurrence.CODEC, false),
                     (a, v) -> a.occurrence = v, a -> a.occurrence, (a, p) -> a.occurrence = p.occurrence)
@@ -327,10 +332,24 @@ public final class AchievementAsset
                 .countsTowardTotal(scoring == null || scoring.isCountsTowardTotal())
                 .tags(listing == null ? List.of() : listing.tagList())
                 .legacySince(listing == null ? null : listing.getLegacySince());
+        // A companion mod's presence decides whether the achievement exists here, as it does a quest's;
+        // a feature condition stays in the gate (a refusal the self-heal re-reads).
+        FeatureLift.Result lift = FeatureLift.liftModPresence(requires);
+        List<FeatureLift.Lifted> lifted = lift.lifted();
+        GateSpec remaining = lifted.isEmpty() ? requires : lift.requires();
+        boolean enabled = isEnabled();
         if (mint == null) {
-            achievement.available(isEnabled()).featOfStrength(feat);
+            if (lifted.isEmpty()) {
+                achievement.available(enabled);
+            } else {
+                BooleanSupplier live = () -> enabled && FeatureLift.allOn(lifted);
+                achievement.available(live);
+            }
+            achievement.featOfStrength(feat);
         } else {
-            achievement.available(mint.availability(isEnabled()))
+            BooleanSupplier year = mint.availability(enabled);
+            BooleanSupplier live = lifted.isEmpty() ? year : () -> year.getAsBoolean() && FeatureLift.allOn(lifted);
+            achievement.available(live)
                     .featOfStrength(mint.featOfStrength(feat))
                     .occurrence(mint.occurrence());
         }
@@ -380,7 +399,7 @@ public final class AchievementAsset
                 listing == null ? 0 : listing.sortOrderOrZero(),
                 listing == null ? List.of() : listing.chainList(),
                 listing == null ? null : listing.getIcon(),
-                requires == null ? GateSpec.OPEN : requires,
+                remaining == null ? GateSpec.OPEN : remaining,
                 criterionText, metaOrEmpty());
     }
 

@@ -26,8 +26,10 @@ import com.ziggfreed.common.season.SeasonGate;
  * or whose companion mod is not installed, should vanish from every listing rather than sit there
  * locked, and the feature list is what does that.
  *
- * <p>ONE lift for every content kind a fold produces, so a quest and an achievement asking for
- * the same feature or mod can never be treated two different ways.
+ * <p>ONE lift underneath every content kind a fold produces, so two kinds asking for the same
+ * feature or mod read it the same way. An achievement takes mod presence alone
+ * ({@link #liftModPresence}): its feature conditions stay in the gate, refusals its self-heal
+ * re-reads.
  *
  * <h2>Two shapes of lifted id, one hide axis</h2>
  *
@@ -38,13 +40,14 @@ import com.ziggfreed.common.season.SeasonGate;
  * for the availability read to answer. Every other factor id is left exactly where it was
  * authored; this is a fixed, explicit pair, never a mode a condition selects between.
  *
- * <p>Which feature factors count is the caller's choice between two entry points. A consumer with
- * a hide axis of its own names ITS OWN factor ({@link #lift(GateSpec, String, String, Consumer)});
- * the shared folds lift for EVERY namespace that has declared features
+ * <p>Which feature factors count is the caller's choice of entry point. A consumer with a hide
+ * axis of its own names ITS OWN factor ({@link #lift(GateSpec, String, String, Consumer)}); the
+ * shared folds lift for EVERY namespace that has declared features
  * ({@link #liftKnown(GateSpec)}), so a file written for any mod on the server hides where that
- * mod's feature is off. A feature factor whose namespace nothing has declared is left in the
- * gate, where the standing fail-closed rule keeps the content locked rather than hiding it - the
- * honest answer for a namespace that may simply not be installed yet.
+ * mod's feature is off; the achievement fold lifts none ({@link #liftModPresence(GateSpec)}). A
+ * feature factor whose namespace nothing has declared is left in the gate, where the standing
+ * fail-closed rule keeps the content locked rather than hiding it - the honest answer for a
+ * namespace that may simply not be installed yet.
  *
  * <h2>Only the top level, and only the plain form</h2>
  *
@@ -194,6 +197,21 @@ public final class FeatureLift {
             return Result.OPEN;
         }
         return lift(requires, FeatureFlags::isFeatureFactor);
+    }
+
+    /**
+     * Lift one {@code Requires} block for mod presence ALONE: a top-level plain
+     * {@link ModFactors#MOD_INSTALLED} condition moves onto the hide axis, and every feature condition
+     * stays in the gate. The achievement fold's entry point: a companion mod's absence takes an
+     * achievement out of circulation, as it does a quest, while a feature gate on an achievement stays a
+     * refusal its self-heal re-reads.
+     */
+    @Nonnull
+    public static Result liftModPresence(@Nullable GateSpec requires) {
+        if (requires == null || requires.isEmpty()) {
+            return Result.OPEN;
+        }
+        return lift(requires, factorId -> false);
     }
 
     /** Does every lifted condition hold right now? An empty list holds trivially. */

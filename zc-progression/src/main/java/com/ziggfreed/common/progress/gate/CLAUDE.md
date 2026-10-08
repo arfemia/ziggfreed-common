@@ -11,3 +11,4 @@
 - `FeatureLift` moves only a top-level plain feature or `hytale:mod_installed` condition (bounds-less or `Min: 1`) onto the hide axis. A nested or upper-bounded one stays a lock, and a nested presence check needs an explicit `Min: 1`: both ids read a definite 0, which a bounds-less condition passes.
 - The completion probe is set after `build()`, because the engine that answers it is built after its gates.
 - `FeatureLift.present(enabled, season, lifted)` is the one presence read: `Enabled`, the `Season` leaf (zc-core `SeasonGate.live`) and every lifted condition, all live. The quest and contract folds hand it to their engine when `isLive` says something can move, and the commerce hide axis answers through it. A season never enters `Requires`, so it never locks.
+- `liftKnown` (quests, contracts, commerce) lifts features and mod presence; `liftModPresence` (achievements) lifts mod presence alone. Never lift a third way.
