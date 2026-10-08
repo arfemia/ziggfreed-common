@@ -104,4 +104,17 @@ class CalendarStatusLinesTest {
         assertEquals(new Line("row.done", List.of("fair")),
                 CalendarStatusLines.row(service, "fair", at("2027-01-01T00:00:00Z")));
     }
+
+    @Test
+    void aWindowOfPerYearDaysThatRanOutFramesItsLastRun() {
+        CalendarFixtures.loadEvents(Map.of("fair", CalendarFixtures.event("Fair",
+                "{ \"Window\": { \"Years\": { \"2026\": { \"Start\": \"06-01\", \"End\": \"06-07\" } } },"
+                        + " \"FirstYear\": 2026 }")));
+        List<Line> lines = CalendarStatusLines.detail(service, "fair", at("2027-01-01T00:00:00Z"));
+        assertEquals(List.of("row.done", "status.window.moving", "status.run", "status.first", "status.history"),
+                lines.stream().map(Line::key).toList());
+        assertEquals(List.of("Years 2026", "UTC"), lines.get(1).args());
+        assertEquals(List.of("2026", "2026-06-01", "2026-06-07"), lines.get(2).args(),
+                "with no run on and none ahead, the last run frames the dates");
+    }
 }
