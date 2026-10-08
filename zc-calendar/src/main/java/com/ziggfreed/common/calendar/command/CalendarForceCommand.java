@@ -52,16 +52,16 @@ final class CalendarForceCommand extends AbstractAsyncCommand {
             CalendarAdminMessages.refused(ctx, "force.absent", id);
             return CompletableFuture.completedFuture(null);
         }
+        if (move == Move.ON && !service.canForceOn(id, CalendarRuntime.now())) {
+            // A window of per-year days may date no run this year: there is nothing to force on. Decided before
+            // anything is written, so the force standing (a force off included) stays exactly as it was.
+            CalendarAdminMessages.refused(ctx, "force.on.nodates", id);
+            return CompletableFuture.completedFuture(null);
+        }
         switch (move) {
             case ON -> CalendarForces.getInstance().force(id, true);
             case OFF -> CalendarForces.getInstance().force(id, false);
             case CLEAR -> CalendarForces.getInstance().clear(id);
-        }
-        if (move == Move.ON && service.live(id, CalendarRuntime.now()) == null) {
-            // A window of per-year days may date no run this year: there is nothing to force on.
-            CalendarForces.getInstance().clear(id);
-            CalendarAdminMessages.refused(ctx, "force.on.nodates", id);
-            return CompletableFuture.completedFuture(null);
         }
         CalendarRuntime.ticker().requestEvaluation();
         CalendarAdminMessages.done(ctx, "force." + move.verb() + ".done", id);

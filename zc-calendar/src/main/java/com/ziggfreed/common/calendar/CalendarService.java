@@ -207,6 +207,17 @@ public final class CalendarService implements OccurrenceSource {
         return out;
     }
 
+    /**
+     * Would forcing {@code eventId} on at {@code nowMs} run it? True when it is switched on and a run is going on
+     * by its dates or its window dates one in the force's year; false when the window dates no run that year
+     * (nothing to force on) or the event is absent. A read: it writes no force, so a command that asks it first
+     * and refuses changes nothing, and nothing is ever live for a force it then takes back.
+     */
+    public boolean canForceOn(@Nonnull String eventId, long nowMs) {
+        CalendarEventAsset event = runnable(eventId);
+        return event != null && liveOf(event, nowMs, Boolean.TRUE) != null;
+    }
+
     /** When {@code eventId} next starts by its dates (a force aside), or null when it is absent or no run is left. */
     @Nullable
     public Long nextStartMs(@Nonnull String eventId, long nowMs) {
@@ -224,10 +235,15 @@ public final class CalendarService implements OccurrenceSource {
         return event != null && config.isGlobalEnabled() && event.isEnabled() && event.canRun() ? event : null;
     }
 
-    /** The run of a runnable {@code event} going on at {@code nowMs}: a force first, then its dates. */
+    /** The run of a runnable {@code event} going on at {@code nowMs}: its standing force first, then its dates. */
     @Nullable
     private Occurrence liveOf(@Nonnull CalendarEventAsset event, long nowMs) {
-        Boolean forced = forces.forced(event.getId());
+        return liveOf(event, nowMs, forces.forced(event.getId()));
+    }
+
+    /** The run of a runnable {@code event} going on at {@code nowMs} under {@code forced} (null: none). */
+    @Nullable
+    private static Occurrence liveOf(@Nonnull CalendarEventAsset event, long nowMs, @Nullable Boolean forced) {
         if (Boolean.FALSE.equals(forced)) {
             return null;
         }

@@ -223,6 +223,46 @@ class CalendarWindowRuleServiceTest {
         assertEquals(List.of(2026), record.yearsAttended("Harvest_Feast"));
     }
 
+    /** Days for 2026 and 2028 only: 2027 dates no run. */
+    private static final String GAPPED_FAIR = """
+            { "Window": { "Years": { "2026": { "Start": "06-01", "End": "06-07" },
+                                     "2028": { "Start": "06-01", "End": "06-07" } } }, "FirstYear": 2026 }
+            """;
+
+    // The force command asks canForceOn BEFORE it writes anything, and a refusal writes nothing.
+    @Test
+    void aRefusedForceOnLeavesAnEarlierForceOffInPlace() {
+        load("Fair", GAPPED_FAIR);
+        long undated = at("2027-07-01T00:00:00Z");
+        CalendarForces forces = CalendarForces.getInstance();
+        forces.force("Fair", false);
+
+        assertFalse(service.canForceOn("fair", undated), "2027 dates no run, so there is nothing to force on");
+        assertEquals(Boolean.FALSE, forces.forced("fair"), "deciding wrote nothing: the earlier force off stands");
+        assertNull(service.live("fair", at("2028-06-03T12:00:00Z")),
+                "so the 2028 run stays stopped, as the administrator left it");
+    }
+
+    @Test
+    void aRefusedForceOnNeverMakesTheEventLive() {
+        load("Fair", GAPPED_FAIR);
+        long undated = at("2027-07-01T00:00:00Z");
+        CalendarForces forces = CalendarForces.getInstance();
+
+        assertFalse(service.canForceOn("fair", undated));
+        assertNull(forces.forced("fair"), "the decision is a read: no force is written, not even for a moment");
+        assertNull(service.live("fair", undated));
+
+        long dated = at("2028-01-10T00:00:00Z");
+        assertTrue(service.canForceOn("fair", dated), "a year the table dates can be forced on");
+        assertNull(forces.forced("fair"), "and allowing it writes nothing either: only the command writes the force");
+        assertNull(service.live("fair", dated), "so until then the event waits for its dates");
+        assertTrue(service.canForceOn("fair", at("2028-06-03T12:00:00Z")), "a run going on can be forced on");
+
+        CalendarEventConfig.getInstance().setGlobalEnabled(false);
+        assertFalse(service.canForceOn("fair", dated), "a switched-off event has nothing to force on");
+    }
+
     @Test
     void anEventSaysWhetherItsDaysMove() {
         CalendarFixtures.loadEvents(Map.of(
