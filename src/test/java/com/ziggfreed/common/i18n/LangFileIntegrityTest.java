@@ -31,6 +31,9 @@ import org.junit.jupiter.api.Test;
  *   <li><b>No em-dashes</b>: banned repo-wide, including every {@code .lang} value.</li>
  *   <li><b>No duplicate keys</b>: a duplicate silently shadows the earlier value, so the line
  *       somebody edited is not the line that renders.</li>
+ *   <li><b>Readable plurals</b>: the engine's formatter finds a plural option only as
+ *       {@code keyword + " {"}, so {@code one{day}} renders as nothing and the player reads
+ *       "Ends in 28" for "Ends in 28 days".</li>
  * </ul>
  *
  * <p>Key COVERAGE (every en-US key present in every language) is deliberately NOT asserted: missing
@@ -73,6 +76,17 @@ class LangFileIntegrityTest {
 
     /** The banned character, spelled by code point so this file never carries one itself. */
     private static final char EM_DASH = (char) 0x2014;
+
+    /** The opening of a plural selector, {@code {name, plural,}, whatever its argument is named. */
+    private static final Pattern PLURAL_HEAD = Pattern.compile("\\{\\s*\\w+\\s*,\\s*plural\\s*,");
+
+    /**
+     * The text before one plural option's brace, as the engine's formatter can read it: a CLDR keyword and exactly one
+     * space (server {@code MessageUtil.parsePluralOptions} searches for {@code keyword + " {"}; the client's formatter
+     * is its twin). Anything else (no space, two, a tab, {@code =1}, an unknown word) never matches, and a plural
+     * with no match renders as nothing.
+     */
+    private static final Pattern PLURAL_SELECTOR = Pattern.compile("\\s*(zero|one|two|few|many|other) ");
 
     @Test
     void translationsKeepPlaceholdersBanEmDashesAndHaveNoDuplicateKeys() throws IOException {
@@ -127,6 +141,10 @@ class LangFileIntegrityTest {
             if (e.getValue().indexOf(EM_DASH) >= 0) {
                 problems.add(where + ": em-dash in '" + e.getKey() + "'");
             }
+            for (String fault : pluralFaults(e.getValue())) {
+                problems.add(where + ": unreadable plural in '" + e.getKey() + "' (" + fault
+                        + "); the engine reads an option only as \"keyword {\"");
+            }
             if (EN_US.equals(locale)) {
                 continue;
             }
@@ -147,11 +165,22 @@ class LangFileIntegrityTest {
     @Test
     void placeholderSetIgnoresRepeatCountButCatchesRealMismatch() {
         assertEquals(
-                placeholders("Summons {0} {0, plural, one{ally} other{allies}} for {1}s."),
+                placeholders("Summons {0} {0, plural, one {ally} other {allies}} for {1}s."),
                 placeholders("Beschwoert fuer {1}s {0} Verbuendete."));
         assertNotEquals(
                 placeholders("Deals {0} damage every {1}s."),
                 placeholders("Verursacht {0} Schaden."));
+    }
+
+    /** Fixture proving the plural check reads options the way the engine does, nested options included. */
+    @Test
+    void aPluralOptionReadsOnlyAsKeywordSpaceBrace() {
+        assertEquals(List.of(), pluralFaults("Ends in {0, number} {0, plural, one {day} other {days}}"));
+        assertEquals(List.of(), pluralFaults("{n, plural, one {1 block} other {{n, number} blocks}}"));
+        assertEquals(2, pluralFaults("Ends in {0, number} {0, plural, one{day} other{days}}").size(),
+                "no space before the brace: neither option is ever found");
+        assertEquals(1, pluralFaults("{0, plural, one  {day} other {days}}").size(), "two spaces");
+        assertEquals(1, pluralFaults("{0, plural, =1 {day} other {days}}").size(), "not a CLDR keyword");
     }
 
     private static List<Path> langFiles(Stream<Path> files) {
@@ -190,5 +219,47 @@ class LangFileIntegrityTest {
             indices.add(Integer.parseInt(m.group(1)));
         }
         return indices;
+    }
+
+    /** Each plural option in {@code value} the engine cannot read, as the text that stands before its brace. */
+    private static List<String> pluralFaults(String value) {
+        List<String> faults = new ArrayList<>();
+        Matcher head = PLURAL_HEAD.matcher(value);
+        while (head.find()) {
+            int close = matchingBrace(value, head.start());
+            if (close < 0) {
+                faults.add("an unclosed plural");
+                break;
+            }
+            String options = value.substring(head.end(), close);
+            int at = 0;
+            int open;
+            while ((open = options.indexOf('{', at)) >= 0) {
+                String selector = options.substring(at, open);
+                if (!PLURAL_SELECTOR.matcher(selector).matches()) {
+                    faults.add("'" + selector.strip() + "' then '{'");
+                }
+                int end = matchingBrace(options, open);
+                if (end < 0) {
+                    faults.add("an unclosed option");
+                    break;
+                }
+                at = end + 1;
+            }
+        }
+        return faults;
+    }
+
+    /** The index of the brace closing the one at {@code open}, or -1. */
+    private static int matchingBrace(String text, int open) {
+        int depth = 0;
+        for (int i = open; i < text.length(); i++) {
+            if (text.charAt(i) == '{') {
+                depth++;
+            } else if (text.charAt(i) == '}' && --depth == 0) {
+                return i;
+            }
+        }
+        return -1;
     }
 }

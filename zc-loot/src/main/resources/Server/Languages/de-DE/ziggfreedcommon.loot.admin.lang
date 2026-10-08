@@ -4,5 +4,5 @@ desc.validate = Jede geladene Beutetabelle und jede geladene Belohnungsart-Datei
 more = ... und {0} weitere, im Serverprotokoll.
 
 validate.clean = Beutetabellen und Belohnungsarten: nichts zu melden.
-validate.counts = Beutetabellen und Belohnungsarten: {0} {0, plural, one{Fehler} other{Fehler}}, {1} {1, plural, one{Warnung} other{Warnungen}}, {2} {2, plural, one{Hinweis} other{Hinweise}}.
+validate.counts = Beutetabellen und Belohnungsarten: {0} {0, plural, one {Fehler} other {Fehler}}, {1} {1, plural, one {Warnung} other {Warnungen}}, {2} {2, plural, one {Hinweis} other {Hinweise}}.
 finding = {0} {1} [{2}] {3}

@@ -35,11 +35,11 @@ achievement.category.seasons = Saisons
 # les tuiles, l'étagère des souvenirs, la carte du bilan, la page vide, l'année en un coup d'œil, la ligne
 # qu'affiche la tuile d'un consommateur pendant une saison, et la section Saisons des Statistiques du livre des succès.
 lead = Chaque saison de ce serveur, et ce que vous avez fait dans chacune.
-chip.live = En cours - {0, number} {0, plural, one{jour restant} other{jours restants}}
+chip.live = En cours - {0, number} {0, plural, one {jour restant} other {jours restants}}
 chip.last_day = Dernier jour
-chip.returns_in = Revient dans {0, number} {0, plural, one{jour} other{jours}}
+chip.returns_in = Revient dans {0, number} {0, plural, one {jour} other {jours}}
 chip.returns_on = Revient le {1, number} {0}
-chip.starts_in = Commence dans {0, number} {0, plural, one{jour} other{jours}}
+chip.starts_in = Commence dans {0, number} {0, plural, one {jour} other {jours}}
 chip.between = Entre deux saisons
 month.1 = janvier
 month.2 = février
@@ -70,7 +70,7 @@ scope.year = Votre saison {0}
 scope.every = Toutes les saisons
 scope.took_part = Vous avez participé
 scope.not_yet = Vous n'avez pas encore participé
-scope.taken_part_count = {0, number} {0, plural, one{saison jouée} other{saisons jouées}}
+scope.taken_part_count = {0, number} {0, plural, one {saison jouée} other {saisons jouées}}
 tile.in_all = {0, number} au total
 tile.server = {0, number} sur ce serveur
 keepsakes.title = Souvenirs
@@ -79,15 +79,15 @@ keepsake.to_earn = Encore à obtenir
 keepsake.missed = Manqué
 achievements.title = Succès
 record.title = Votre bilan
-record.seasons = {0, plural, one{saison jouée} other{saisons jouées}}
-record.keepsakes = {0, plural, one{souvenir} other{souvenirs}}
+record.seasons = {0, plural, one {saison jouée} other {saisons jouées}}
+record.keepsakes = {0, plural, one {souvenir} other {souvenirs}}
 empty.none.title = Aucune saison pour le moment
 empty.none.line = Les événements saisonniers s'affichent ici dès que ce serveur en organise un.
 hint.first_time = Vos compteurs démarrent la première fois que vous jouez pendant la saison.
 glance.title = L'année en un coup d'œil
 headline.live = En cours : {0}
 stats.section = Saisons
-stats.row.meta = {0, number} {0, plural, one{saison jouée} other{saisons jouées}}
+stats.row.meta = {0, number} {0, plural, one {saison jouée} other {saisons jouées}}
 stats.open = Ouvrir dans l'Almanach
 
 # Le deuxième en-tête de la liste des saisons (après En cours), et une année comme étiquette (une puce d'année,

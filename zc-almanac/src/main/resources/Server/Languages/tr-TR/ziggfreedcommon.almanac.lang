@@ -32,11 +32,11 @@ achievement.category.seasons = Sezonlar
 # hatıra rafı, kayıt kartı, boş sayfa, yıla bir bakış, bir sezon sürerken tüketicinin kutucuğunda
 # görünen satır ve başarım kitabının İstatistikler bölümündeki Sezonlar kısmı.
 lead = Bu sunucuda düzenlenen her sezon ve her birinde yaptıkların.
-chip.live = Şimdi açık - {0, number} {0, plural, one{gün kaldı} other{gün kaldı}}
+chip.live = Şimdi açık - {0, number} {0, plural, one {gün kaldı} other {gün kaldı}}
 chip.last_day = Son gün
-chip.returns_in = {0, number} {0, plural, one{gün} other{gün}} sonra geri gelir
+chip.returns_in = {0, number} {0, plural, one {gün} other {gün}} sonra geri gelir
 chip.returns_on = {1, number} {0} tarihinde geri gelir
-chip.starts_in = {0, number} {0, plural, one{gün} other{gün}} sonra başlar
+chip.starts_in = {0, number} {0, plural, one {gün} other {gün}} sonra başlar
 chip.between = Sezonlar arası
 month.1 = Ocak
 month.2 = Şubat
@@ -67,7 +67,7 @@ scope.year = {0} sezonun
 scope.every = Tüm sezonlar
 scope.took_part = Katıldın
 scope.not_yet = Henüz katılmadın
-scope.taken_part_count = Katılınan {0, number} {0, plural, one{sezon} other{sezon}}
+scope.taken_part_count = Katılınan {0, number} {0, plural, one {sezon} other {sezon}}
 tile.in_all = Toplam {0, number}
 tile.server = Bu sunucuda {0, number}
 keepsakes.title = Hatıralar
@@ -76,15 +76,15 @@ keepsake.to_earn = Kazanılacak
 keepsake.missed = Kaçırıldı
 achievements.title = Başarımlar
 record.title = Kaydın
-record.seasons = {0, plural, one{katılınan sezon} other{katılınan sezon}}
-record.keepsakes = {0, plural, one{hatıra} other{hatıra}}
+record.seasons = {0, plural, one {katılınan sezon} other {katılınan sezon}}
+record.keepsakes = {0, plural, one {hatıra} other {hatıra}}
 empty.none.title = Henüz sezon yok
 empty.none.line = Bu sunucu bir sezonluk etkinlik düzenlediğinde etkinlikler burada görünür.
 hint.first_time = Sayaçların, sezon boyunca ilk kez oynadığında başlar.
 glance.title = Yıla bir bakış
 headline.live = {0} şimdi açık
 stats.section = Sezonlar
-stats.row.meta = Katılınan {0, number} {0, plural, one{sezon} other{sezon}}
+stats.row.meta = Katılınan {0, number} {0, plural, one {sezon} other {sezon}}
 stats.open = Almanak'ta aç
 
 # Sezon listesinin ikinci başlığı (Şimdi açık'tan sonra) ve etiket olarak bir yıl (yıl çipi, hatıra

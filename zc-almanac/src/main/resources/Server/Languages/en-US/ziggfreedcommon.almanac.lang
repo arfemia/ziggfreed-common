@@ -35,11 +35,11 @@ achievement.category.seasons = Seasons
 # the keepsake shelf, the record card, the empty page, the year at a glance, the line a consumer's
 # tile shows while a season runs, and the Seasons section of the achievement book's Statistics.
 lead = Every season this server runs, and what you did in each.
-chip.live = On now - {0, number} {0, plural, one{day left} other{days left}}
+chip.live = On now - {0, number} {0, plural, one {day left} other {days left}}
 chip.last_day = Last day
-chip.returns_in = Returns in {0, number} {0, plural, one{day} other{days}}
+chip.returns_in = Returns in {0, number} {0, plural, one {day} other {days}}
 chip.returns_on = Returns {0} {1, number}
-chip.starts_in = Starts in {0, number} {0, plural, one{day} other{days}}
+chip.starts_in = Starts in {0, number} {0, plural, one {day} other {days}}
 chip.between = Between seasons
 month.1 = January
 month.2 = February
@@ -70,24 +70,24 @@ scope.year = Your {0} season
 scope.every = Every season
 scope.took_part = You took part
 scope.not_yet = You have not taken part yet
-scope.taken_part_count = {0, number} {0, plural, one{season taken part in} other{seasons taken part in}}
+scope.taken_part_count = {0, number} {0, plural, one {season taken part in} other {seasons taken part in}}
 tile.in_all = {0, number} in all
 tile.server = {0, number} on this server
 keepsakes.title = Keepsakes
-keepsakes.meta = {0, number} of {1, number} years
+keepsakes.meta = {0, number} of {1, number} {1, plural, one {year} other {years}}
 keepsake.to_earn = Still to earn
 keepsake.missed = Missed
 achievements.title = Achievements
 record.title = Your record
-record.seasons = {0, plural, one{season taken part in} other{seasons taken part in}}
-record.keepsakes = {0, plural, one{keepsake} other{keepsakes}}
+record.seasons = {0, plural, one {season taken part in} other {seasons taken part in}}
+record.keepsakes = {0, plural, one {keepsake} other {keepsakes}}
 empty.none.title = No seasons yet
 empty.none.line = Seasonal events show up here once this server runs one.
 hint.first_time = Your tallies start the first time you play during the season.
 glance.title = The year at a glance
 headline.live = {0} is on now
 stats.section = Seasons
-stats.row.meta = {0, number} {0, plural, one{season taken part in} other{seasons taken part in}}
+stats.row.meta = {0, number} {0, plural, one {season taken part in} other {seasons taken part in}}
 stats.open = Open in the Almanac
 
 # The season list's second head (after On now), and a year as a label (a year chip, a keepsake tile): text, so

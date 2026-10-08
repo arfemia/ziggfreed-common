@@ -36,11 +36,11 @@ achievement.category.seasons = Сезоны
 # пока идёт сезон, и раздел «Сезоны» в статистике книги достижений.
 # Названия месяцев month.* стоят в родительном падеже: шаблоны window и chip.returns_on ставят их после числа.
 lead = Все сезоны этого сервера и что вы сделали в каждом.
-chip.live = Идёт сейчас - ещё {0, number} {0, plural, one{день} few{дня} many{дней} other{дня}}
+chip.live = Идёт сейчас - ещё {0, number} {0, plural, one {день} few {дня} many {дней} other {дня}}
 chip.last_day = Последний день
-chip.returns_in = Вернётся через {0, number} {0, plural, one{день} few{дня} many{дней} other{дня}}
+chip.returns_in = Вернётся через {0, number} {0, plural, one {день} few {дня} many {дней} other {дня}}
 chip.returns_on = Вернётся {1, number} {0}
-chip.starts_in = Начнётся через {0, number} {0, plural, one{день} few{дня} many{дней} other{дня}}
+chip.starts_in = Начнётся через {0, number} {0, plural, one {день} few {дня} many {дней} other {дня}}
 chip.between = Между сезонами
 month.1 = января
 month.2 = февраля
@@ -71,24 +71,24 @@ scope.year = Ваш сезон {0} года
 scope.every = Все сезоны
 scope.took_part = Вы участвовали
 scope.not_yet = Вы пока не участвовали
-scope.taken_part_count = {0, number} {0, plural, one{сезон с вашим участием} few{сезона с вашим участием} many{сезонов с вашим участием} other{сезона с вашим участием}}
+scope.taken_part_count = {0, number} {0, plural, one {сезон с вашим участием} few {сезона с вашим участием} many {сезонов с вашим участием} other {сезона с вашим участием}}
 tile.in_all = Всего {0, number}
 tile.server = {0, number} на этом сервере
 keepsakes.title = Памятные вещи
-keepsakes.meta = {0, number} из {1, number} {1, plural, one{года} few{лет} many{лет} other{года}}
+keepsakes.meta = {0, number} из {1, number} {1, plural, one {года} few {лет} many {лет} other {года}}
 keepsake.to_earn = Ещё можно получить
 keepsake.missed = Упущено
 achievements.title = Достижения
 record.title = Ваши итоги
-record.seasons = {0, plural, one{сезон с вашим участием} few{сезона с вашим участием} many{сезонов с вашим участием} other{сезона с вашим участием}}
-record.keepsakes = {0, plural, one{памятная вещь} few{памятные вещи} many{памятных вещей} other{памятной вещи}}
+record.seasons = {0, plural, one {сезон с вашим участием} few {сезона с вашим участием} many {сезонов с вашим участием} other {сезона с вашим участием}}
+record.keepsakes = {0, plural, one {памятная вещь} few {памятные вещи} many {памятных вещей} other {памятной вещи}}
 empty.none.title = Сезонов пока нет
 empty.none.line = Сезонные события появятся здесь, как только на этом сервере пройдёт первое.
 hint.first_time = Ваши счётчики начнут считать, когда вы впервые сыграете во время сезона.
 glance.title = Год целиком
 headline.live = Сейчас идёт {0}
 stats.section = Сезоны
-stats.row.meta = {0, number} {0, plural, one{сезон с вашим участием} few{сезона с вашим участием} many{сезонов с вашим участием} other{сезона с вашим участием}}
+stats.row.meta = {0, number} {0, plural, one {сезон с вашим участием} few {сезона с вашим участием} many {сезонов с вашим участием} other {сезона с вашим участием}}
 stats.open = Открыть в Альманахе
 
 # Второй заголовок списка сезонов (после «Идёт сейчас») и год как метка (плашка года, плитка памятной вещи):

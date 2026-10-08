@@ -35,11 +35,11 @@ achievement.category.seasons = Temporadas
 # el estante de recuerdos, la tarjeta del historial, la página vacía, el año de un vistazo, la línea que muestra la ficha
 # de un consumidor mientras dura una temporada, y la sección Temporadas de las Estadísticas del libro de logros.
 lead = Todas las temporadas de este servidor, y lo que hiciste en cada una.
-chip.live = En curso - {0, number} {0, plural, one{día restante} other{días restantes}}
+chip.live = En curso - {0, number} {0, plural, one {día restante} other {días restantes}}
 chip.last_day = Último día
-chip.returns_in = Vuelve en {0, number} {0, plural, one{día} other{días}}
+chip.returns_in = Vuelve en {0, number} {0, plural, one {día} other {días}}
 chip.returns_on = Vuelve el {1, number} de {0}
-chip.starts_in = Empieza en {0, number} {0, plural, one{día} other{días}}
+chip.starts_in = Empieza en {0, number} {0, plural, one {día} other {días}}
 chip.between = Entre temporadas
 month.1 = enero
 month.2 = febrero
@@ -70,7 +70,7 @@ scope.year = Tu temporada de {0}
 scope.every = Todas las temporadas
 scope.took_part = Participaste
 scope.not_yet = Aún no has participado
-scope.taken_part_count = {0, number} {0, plural, one{temporada en la que participaste} other{temporadas en las que participaste}}
+scope.taken_part_count = {0, number} {0, plural, one {temporada en la que participaste} other {temporadas en las que participaste}}
 tile.in_all = {0, number} en total
 tile.server = {0, number} en este servidor
 keepsakes.title = Recuerdos
@@ -79,15 +79,15 @@ keepsake.to_earn = Por conseguir
 keepsake.missed = Perdido
 achievements.title = Logros
 record.title = Tu historial
-record.seasons = {0, plural, one{temporada en la que participaste} other{temporadas en las que participaste}}
-record.keepsakes = {0, plural, one{recuerdo} other{recuerdos}}
+record.seasons = {0, plural, one {temporada en la que participaste} other {temporadas en las que participaste}}
+record.keepsakes = {0, plural, one {recuerdo} other {recuerdos}}
 empty.none.title = Aún no hay temporadas
 empty.none.line = Los eventos de temporada aparecen aquí cuando este servidor celebra uno.
 hint.first_time = Tus recuentos empiezan la primera vez que juegas durante la temporada.
 glance.title = El año de un vistazo
 headline.live = {0} está en curso
 stats.section = Temporadas
-stats.row.meta = {0, number} {0, plural, one{temporada en la que participaste} other{temporadas en las que participaste}}
+stats.row.meta = {0, number} {0, plural, one {temporada en la que participaste} other {temporadas en las que participaste}}
 stats.open = Abrir en el Almanaque
 
 # La segunda cabecera de la lista de temporadas (tras En curso), y un año como etiqueta (una ficha de año, una ficha

@@ -8,5 +8,5 @@ desc.validate = Audit every loaded loot table and reward kind file against what 
 more = ... and {0} more, in the server log.
 
 validate.clean = Loot tables and reward kinds: nothing to report.
-validate.counts = Loot tables and reward kinds: {0} {0, plural, one{error} other{errors}}, {1} {1, plural, one{warning} other{warnings}}, {2} {2, plural, one{note} other{notes}}.
+validate.counts = Loot tables and reward kinds: {0} {0, plural, one {error} other {errors}}, {1} {1, plural, one {warning} other {warnings}}, {2} {2, plural, one {note} other {notes}}.
 finding = {0} {1} [{2}] {3}

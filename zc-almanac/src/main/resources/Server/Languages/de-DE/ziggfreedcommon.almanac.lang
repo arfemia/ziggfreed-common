@@ -32,11 +32,11 @@ achievement.category.seasons = Saisons
 # das Andenkenregal, die Bilanzkarte, die leere Seite, das Jahr im Überblick, die Zeile, die die Kachel eines
 # Verbrauchers zeigt, solange eine Saison läuft, und der Saisons-Abschnitt der Statistik im Erfolgsbuch.
 lead = Jede Saison auf diesem Server und was du in jeder getan hast.
-chip.live = Läuft jetzt - noch {0, number} {0, plural, one{Tag} other{Tage}}
+chip.live = Läuft jetzt - noch {0, number} {0, plural, one {Tag} other {Tage}}
 chip.last_day = Letzter Tag
-chip.returns_in = Kommt in {0, number} {0, plural, one{Tag} other{Tagen}} wieder
+chip.returns_in = Kommt in {0, number} {0, plural, one {Tag} other {Tagen}} wieder
 chip.returns_on = Kommt am {1, number}. {0} wieder
-chip.starts_in = Beginnt in {0, number} {0, plural, one{Tag} other{Tagen}}
+chip.starts_in = Beginnt in {0, number} {0, plural, one {Tag} other {Tagen}}
 chip.between = Zwischen den Saisons
 month.1 = Januar
 month.2 = Februar
@@ -67,24 +67,24 @@ scope.year = Deine Saison {0}
 scope.every = Alle Saisons
 scope.took_part = Du hast teilgenommen
 scope.not_yet = Du hast noch nicht teilgenommen
-scope.taken_part_count = An {0, number} {0, plural, one{Saison} other{Saisons}} teilgenommen
+scope.taken_part_count = An {0, number} {0, plural, one {Saison} other {Saisons}} teilgenommen
 tile.in_all = {0, number} insgesamt
 tile.server = {0, number} auf diesem Server
 keepsakes.title = Andenken
-keepsakes.meta = {0, number} von {1, number} {1, plural, one{Jahr} other{Jahren}}
+keepsakes.meta = {0, number} von {1, number} {1, plural, one {Jahr} other {Jahren}}
 keepsake.to_earn = Noch zu verdienen
 keepsake.missed = Verpasst
 achievements.title = Erfolge
 record.title = Deine Bilanz
-record.seasons = {0, plural, one{Saison teilgenommen} other{Saisons teilgenommen}}
-record.keepsakes = {0, plural, one{Andenken} other{Andenken}}
+record.seasons = {0, plural, one {Saison teilgenommen} other {Saisons teilgenommen}}
+record.keepsakes = {0, plural, one {Andenken} other {Andenken}}
 empty.none.title = Noch keine Saisons
 empty.none.line = Saisonereignisse erscheinen hier, sobald auf diesem Server eines läuft.
 hint.first_time = Deine Strichlisten beginnen, wenn du zum ersten Mal während der Saison spielst.
 glance.title = Das Jahr im Überblick
 headline.live = {0} läuft jetzt
 stats.section = Saisons
-stats.row.meta = An {0, number} {0, plural, one{Saison} other{Saisons}} teilgenommen
+stats.row.meta = An {0, number} {0, plural, one {Saison} other {Saisons}} teilgenommen
 stats.open = Im Almanach öffnen
 
 # Der zweite Kopf der Saisonliste (nach Läuft jetzt) und ein Jahr als Beschriftung (ein Jahres-Chip, eine

@@ -4,5 +4,5 @@ desc.validate = Audite cada tabela de espólio e cada arquivo de tipo de recompe
 more = ... e mais {0}, no registro do servidor.
 
 validate.clean = Tabelas de espólio e tipos de recompensa: nada a relatar.
-validate.counts = Tabelas de espólio e tipos de recompensa: {0} {0, plural, one{erro} other{erros}}, {1} {1, plural, one{aviso} other{avisos}}, {2} {2, plural, one{nota} other{notas}}.
+validate.counts = Tabelas de espólio e tipos de recompensa: {0} {0, plural, one {erro} other {erros}}, {1} {1, plural, one {aviso} other {avisos}}, {2} {2, plural, one {nota} other {notas}}.
 finding = {0} {1} [{2}] {3}

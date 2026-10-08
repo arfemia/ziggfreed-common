@@ -34,11 +34,11 @@ achievement.category.seasons = Szezonok
 # az emléktárgy-polc, az eredménykártya, az üres oldal, az év egy pillantásra, a sor, amelyet egy fogyasztó
 # csempéje mutat, amíg egy szezon tart, és a teljesítménykönyv Statisztikák nézetének Szezonok szakasza.
 lead = A szerver minden szezonja, és hogy mit tettél mindegyikben.
-chip.live = Most tart - még {0, number} {0, plural, one{nap} other{nap}}
+chip.live = Most tart - még {0, number} {0, plural, one {nap} other {nap}}
 chip.last_day = Utolsó nap
-chip.returns_in = {0, number} {0, plural, one{nap} other{nap}} múlva visszatér
+chip.returns_in = {0, number} {0, plural, one {nap} other {nap}} múlva visszatér
 chip.returns_on = Visszatér: {0} {1, number}.
-chip.starts_in = {0, number} {0, plural, one{nap} other{nap}} múlva kezdődik
+chip.starts_in = {0, number} {0, plural, one {nap} other {nap}} múlva kezdődik
 chip.between = Szezonok között
 month.1 = január
 month.2 = február
@@ -69,7 +69,7 @@ scope.year = {0}. évi szezonod
 scope.every = Minden szezon
 scope.took_part = Részt vettél
 scope.not_yet = Még nem vettél részt
-scope.taken_part_count = {0, number} {0, plural, one{szezonban vettél részt} other{szezonban vettél részt}}
+scope.taken_part_count = {0, number} {0, plural, one {szezonban vettél részt} other {szezonban vettél részt}}
 tile.in_all = Összesen {0, number}
 tile.server = {0, number} ezen a szerveren
 keepsakes.title = Emléktárgyak
@@ -78,15 +78,15 @@ keepsake.to_earn = Még megszerezhető
 keepsake.missed = Kimaradt
 achievements.title = Teljesítmények
 record.title = Az eredményeid
-record.seasons = {0, plural, one{szezonban vettél részt} other{szezonban vettél részt}}
-record.keepsakes = {0, plural, one{emléktárgy} other{emléktárgy}}
+record.seasons = {0, plural, one {szezonban vettél részt} other {szezonban vettél részt}}
+record.keepsakes = {0, plural, one {emléktárgy} other {emléktárgy}}
 empty.none.title = Még nincs szezon
 empty.none.line = A szezonális események itt jelennek meg, amint a szerver elindít egyet.
 hint.first_time = Az összesítéseid akkor indulnak, amikor először játszol a szezon alatt.
 glance.title = Az év egy pillantásra
 headline.live = Most tart: {0}
 stats.section = Szezonok
-stats.row.meta = {0, number} {0, plural, one{szezonban vettél részt} other{szezonban vettél részt}}
+stats.row.meta = {0, number} {0, plural, one {szezonban vettél részt} other {szezonban vettél részt}}
 stats.open = Megnyitás az Almanachban
 
 # A szezonlista második fejléce (a Most tart után), és egy év címkeként (egy év-chip, egy emléktárgy-csempe):

@@ -4,5 +4,5 @@ desc.validate = Controlla ogni tabella del bottino caricata e ogni file di tipo 
 more = ... e altri {0}, nel registro del server.
 
 validate.clean = Tabelle del bottino e tipi di ricompensa: nulla da segnalare.
-validate.counts = Tabelle del bottino e tipi di ricompensa: {0} {0, plural, one{errore} other{errori}}, {1} {1, plural, one{avviso} other{avvisi}}, {2} {2, plural, one{nota} other{note}}.
+validate.counts = Tabelle del bottino e tipi di ricompensa: {0} {0, plural, one {errore} other {errori}}, {1} {1, plural, one {avviso} other {avvisi}}, {2} {2, plural, one {nota} other {note}}.
 finding = {0} {1} [{2}] {3}

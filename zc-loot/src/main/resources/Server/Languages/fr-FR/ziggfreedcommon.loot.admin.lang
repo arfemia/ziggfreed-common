@@ -4,5 +4,5 @@ desc.validate = Vérifier chaque table de butin et chaque fichier de type de ré
 more = ... et {0} de plus, dans le journal du serveur.
 
 validate.clean = Tables de butin et types de récompense : rien à signaler.
-validate.counts = Tables de butin et types de récompense : {0} {0, plural, one{erreur} other{erreurs}}, {1} {1, plural, one{avertissement} other{avertissements}}, {2} {2, plural, one{note} other{notes}}.
+validate.counts = Tables de butin et types de récompense : {0} {0, plural, one {erreur} other {erreurs}}, {1} {1, plural, one {avertissement} other {avertissements}}, {2} {2, plural, one {note} other {notes}}.
 finding = {0} {1} [{2}] {3}
