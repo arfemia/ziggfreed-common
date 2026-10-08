@@ -1,0 +1,64 @@
+$C = "../Common.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZW = "../Common/ZigKit.ui";
+
+// One item of a collection grid (a season's items in the Almanac), 88 x 88, appended by
+// com.ziggfreed.common.ui.kit.TilePainter into a wrapping grid and addressed by index as "#Grid[i] #Slot".
+//
+// Vanilla's Memories tiles (Pages/Memories/Memory.ui), showing the item's state by showing one background:
+// #SlotOwned (TileComplete) once the player has had it, #SlotSeen (TileDefault) while it is shown but not yet had,
+// #SlotHidden (TileEmpty) while it hides until found; exactly one visible. Over it the 64px picture (#Pic, painted
+// through IconRenderer.applyPlainIcon), the #Scrim that dims an item not yet had, the '?' a hidden one shows in
+// place of its picture (#Mystery), and the Memories #Check once had. The item's words show as #Slot's tooltip.
+
+Group #ZigItemSlotTile {
+  Anchor: (Width: 88, Height: 88, Right: $ZK.@ZigSpace2, Bottom: $ZK.@ZigSpace2);
+
+  Group #Slot {
+    Anchor: (Full: 0);
+    LayoutMode: Full;
+    TextTooltipStyle: $C.@DefaultTextTooltipStyle;
+
+    Group #SlotOwned {
+      Anchor: (Full: 0);
+      Background: (TexturePath: "../Pages/Memories/Tiles/TileComplete.png", Border: 8);
+      Visible: false;
+    }
+
+    Group #SlotSeen {
+      Anchor: (Full: 0);
+      Background: (TexturePath: "../Pages/Memories/Tiles/TileDefault.png", Border: 8);
+    }
+
+    Group #SlotHidden {
+      Anchor: (Full: 0);
+      Background: (TexturePath: "../Pages/Memories/Tiles/TileEmpty.png", Border: 8);
+      Visible: false;
+    }
+
+    $ZW.@ZigPicture #Pic {
+      @Size = $ZK.@ZigPicLarge;
+      @Anchor = (Left: 12, Top: 12);
+    }
+
+    Group #Scrim {
+      Anchor: (Left: 12, Top: 12, Width: 64, Height: 64);
+      Background: (Color: $ZK.@ZigSurfaceScrim);
+      Visible: false;
+    }
+
+    Label #Mystery {
+      Anchor: (Full: 0);
+      Text: "";
+      Visible: false;
+      Style: (...$ZX.@ZigFigureStyle, HorizontalAlignment: Center, VerticalAlignment: Center, TextColor: $ZK.@ZigInkFaint);
+    }
+
+    Group #Check {
+      Anchor: (Top: 6, Right: 6, Width: 16, Height: 16);
+      Background: "../Pages/Memories/Checkmark.png";
+      Visible: false;
+    }
+  }
+}

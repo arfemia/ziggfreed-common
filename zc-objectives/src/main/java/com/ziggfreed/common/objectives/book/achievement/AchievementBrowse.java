@@ -1,11 +1,14 @@
 package com.ziggfreed.common.objectives.book.achievement;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -17,6 +20,7 @@ import com.ziggfreed.common.achievement.asset.AchievementCategoryAsset;
 import com.ziggfreed.common.progress.runtime.ProgressionTexts;
 import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.kit.LedgerModel;
+import com.ziggfreed.common.ui.kit.LedgerPainter;
 import com.ziggfreed.common.ui.kit.LedgerRow;
 import com.ziggfreed.common.ui.kit.LedgerSection;
 
@@ -29,8 +33,10 @@ import com.ziggfreed.common.ui.kit.LedgerSection;
  * then the rest by id), then Feats of Strength (earned feats, closed unless the Feats status or a search asks).
  * A row appears once: a pinned row is listed under Pinned only. Each section caps at
  * {@link LedgerSection#DEFAULT_CAP} rows before the painter's "Show N more".
+ *
+ * <p>Public only for {@link #focus}, the open marks a focused open from outside the book hands the list.
  */
-final class AchievementBrowse {
+public final class AchievementBrowse {
 
     /** The section ids (a section's open or closed state rides the book's state under these). */
     static final String PINNED = "pinned";
@@ -101,6 +107,33 @@ final class AchievementBrowse {
             sections = opened;
         }
         return LedgerModel.of(sections);
+    }
+
+    /**
+     * The open marks that land the Browse list, filtered to {@code category}, on one {@code subcategory}: its
+     * section opened, every other section of that category closed (its rows with no subcategory included), in this
+     * list's own section ids and the kit's mark ({@link LedgerPainter#CLOSED}). Pinned and Feats keep their defaults;
+     * another category's achievements are not asked. The one place outside the list that spells its section ids.
+     */
+    @Nonnull
+    public static Set<String> focus(@Nonnull Collection<Achievement> catalogue, @Nonnull String category,
+            @Nonnull String subcategory) {
+        String bucket = category.trim().toLowerCase(Locale.ROOT);
+        String wanted = subcategory.trim().toLowerCase(Locale.ROOT);
+        Set<String> out = new TreeSet<>();
+        out.add(SUBCATEGORY_PREFIX + bucket + "." + wanted);
+        for (Achievement a : catalogue) {
+            if (a == null || !bucket.equals(AchievementGrouping.bucketOf(a))) {
+                continue;
+            }
+            String sub = AchievementReader.blankToNull(a.subcategory());
+            if (sub == null) {
+                out.add(LedgerPainter.CLOSED + CATEGORY_PREFIX + bucket);
+            } else if (!sub.equals(wanted)) {
+                out.add(LedgerPainter.CLOSED + SUBCATEGORY_PREFIX + bucket + "." + sub);
+            }
+        }
+        return Set.copyOf(out);
     }
 
     /** One section per category, in taxonomy order, content with no category last as "Other". */

@@ -76,14 +76,23 @@ public final class ObjectiveBookPages {
      */
     public static boolean open(@Nullable String tab, @Nullable String selectedId, @Nonnull Store<EntityStore> store,
             @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
+        return openAt(BookState.opening(tab, selectedId), store, ref, player);
+    }
+
+    /**
+     * Open the book for {@code player} on {@code state} (a focused open: {@link BookState#browsing}). A name of its
+     * own, not an {@code open} overload, so a caller passing a bare null tab never turns ambiguous. True when the
+     * screen was taken.
+     */
+    public static boolean openAt(@Nonnull BookState state, @Nonnull Store<EntityStore> store,
+            @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
         PlayerRef playerRef = PlayerAccess.playerRef(player);
         if (playerRef == null) {
             SafeLog.fine("[progression] the objective book was asked for by an entity that is not a player");
             return false;
         }
         try {
-            player.getPageManager().openCustomPage(ref, store,
-                    new ObjectiveBookPage(playerRef, BookState.opening(tab, selectedId)));
+            player.getPageManager().openCustomPage(ref, store, new ObjectiveBookPage(playerRef, state));
             return true;
         } catch (Throwable t) {
             SafeLog.warn("[progression] the objective book failed to open", t);

@@ -410,6 +410,30 @@ class ZigKitDocumentsTest {
     }
 
     @Test
+    void theItemSlotTileSwapsItsLayersAndCentresItsMystery() throws IOException {
+        String ui = document("Pages/ZigItemSlotTile.ui");
+        String anchor = property(block(ui, "#ZigItemSlotTile"), "Anchor");
+        assertEquals(88, size(leaf(anchor, "Width")));
+        assertEquals(88, size(leaf(anchor, "Height")));
+        String slot = block(ui, "#Slot");
+        assertEquals("Group", type(ui, "#Slot"));
+        assertEquals("$C.@DefaultTextTooltipStyle", property(slot, "TextTooltipStyle"),
+                "the tooltip Java sets on #Slot draws in the game's tooltip");
+        Map<String, String> layers = Map.of("#SlotOwned", "TileComplete.png", "#SlotSeen", "TileDefault.png",
+                "#SlotHidden", "TileEmpty.png");
+        for (Map.Entry<String, String> layer : layers.entrySet()) {
+            assertTrue(property(block(slot, layer.getKey()), "Background").contains(layer.getValue()),
+                    layer.getKey() + " is the Memories " + layer.getValue());
+        }
+        assertPicture(slot, "#Pic", 64);
+        assertHidden(slot, "#Scrim");
+        assertHidden(slot, "#Mystery");
+        assertHidden(slot, "#Check");
+        assertEquals("Label", type(slot, "#Mystery"));
+        assertTrue(property(block(slot, "#Check"), "Background").contains("Pages/Memories/Checkmark.png"));
+    }
+
+    @Test
     void theStatTileHoldsAFigureANameAndTwoLines() throws IOException {
         String ui = document("Pages/ZigStatTile.ui");
         String anchor = property(block(ui, "#ZigStatTile"), "Anchor");

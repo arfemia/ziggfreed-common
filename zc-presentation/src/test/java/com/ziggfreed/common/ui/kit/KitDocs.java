@@ -28,7 +28,7 @@ final class KitDocs {
             "Pages/ZigLedgerSection.ui",
             "Pages/ZigShowMoreRow.ui", "Pages/ZigDetailBlock.ui", "Pages/ZigDetailLine.ui", "Pages/ZigCollectionTile.ui",
             "Pages/ZigKeepsakeTile.ui", "Pages/ZigStatTile.ui", "Pages/ZigSegment.ui", "Pages/ZigViewTab.ui",
-            "Pages/ZigPill.ui");
+            "Pages/ZigPill.ui", "Pages/ZigItemSlotTile.ui");
 
     /** The appended templates (a page appends each by path), each rooted at a Group named after its file. */
     static final List<String> APPENDED = DOCUMENTS.subList(4, DOCUMENTS.size());

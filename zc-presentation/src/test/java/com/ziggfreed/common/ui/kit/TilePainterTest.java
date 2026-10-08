@@ -133,6 +133,41 @@ class TilePainterTest {
     }
 
     @Test
+    void anItemSlotShowsOwnedSeenOrMysteryAndOnlyAMysteryHidesItsPicture() {
+        ItemSlotTile owned = new ItemSlotTile("a", Picture.texture(TEXTURE), true, true, Message.raw("?"),
+                Message.raw("Jack Lantern"));
+        ItemSlotTile seen = new ItemSlotTile("b", Picture.texture(TEXTURE), false, false, Message.raw("?"), null);
+        ItemSlotTile mystery = new ItemSlotTile("c", Picture.texture(TEXTURE), false, true, Message.raw("?"),
+                Message.raw("Not found yet"));
+        UICommandBuilder cmd = new UICommandBuilder();
+        TilePainter.itemSlots(cmd, "#Grid", List.of(owned, seen, mystery));
+        Painted p = Painted.of(cmd);
+
+        assertEquals(List.of("#Grid"), p.clears());
+        String s0 = "#Grid[0] #Slot";
+        String s1 = "#Grid[1] #Slot";
+        String s2 = "#Grid[2] #Slot";
+        assertTrue(p.shown(s0 + " #SlotOwned.Visible"), "owned beats hidden: shown for good");
+        assertFalse(p.shown(s0 + " #SlotHidden.Visible"));
+        assertTrue(p.shown(s0 + " #Check.Visible"));
+        assertFalse(p.shown(s0 + " #Scrim.Visible"));
+        assertFalse(p.shown(s0 + " #Mystery.Visible"));
+        assertTrue(p.set(s0 + ".TooltipText").contains("Jack Lantern"), "the tooltip sits on #Slot");
+
+        assertTrue(p.shown(s1 + " #SlotSeen.Visible"));
+        assertTrue(p.shown(s1 + " #Scrim.Visible"), "shown but not yet had: dimmed");
+        assertFalse(p.shown(s1 + " #Check.Visible"));
+        assertTrue(p.shown(s1 + " #Pic #IcoTex.Visible"));
+
+        assertTrue(p.shown(s2 + " #SlotHidden.Visible"));
+        assertTrue(p.shown(s2 + " #Mystery.Visible"));
+        assertTrue(p.set(s2 + " #Mystery.TextSpans").contains("?"));
+        assertFalse(p.shown(s2 + " #Pic #IcoTex.Visible"), "a mystery never shows its picture");
+        assertFalse(p.shown(s2 + " #Scrim.Visible"));
+        assertFalse(p.shown(s2 + " #Check.Visible"));
+    }
+
+    @Test
     void aStatTileReadsFaintAtZeroAndShowsOnlyItsLines() {
         StatTile bombs = new StatTile("bombs", Picture.texture(TEXTURE), Message.raw("12"), Message.raw("Bombs thrown"),
                 Message.raw("40 in all"), Message.raw("900 on this server"), false);
