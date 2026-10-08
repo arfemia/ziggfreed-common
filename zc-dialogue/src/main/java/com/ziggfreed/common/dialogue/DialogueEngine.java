@@ -982,7 +982,9 @@ public final class DialogueEngine {
      * scope names a world family this world is not part of, so the guard does not apply here). A line
      * an extension added is one line wherever it lands, so its Once is keyed by the extension:
      * spent with one character, it is spent with every character it reaches, unless the Once is kept
-     * {@code PerCharacter} ({@link DialogueOnce#slotFor} files it under each character then).
+     * {@code PerCharacter} ({@link DialogueOnce#slotFor} files it under each character then). A
+     * {@code PerConversation} Once adds the host conversation to that key, so it is spent in each
+     * conversation on its own.
      */
     @Nullable
     private DialogueOnce.Slot optionOnceSlot(@Nonnull NpcDialogue dialogue, @Nonnull String nodeId,
@@ -1001,9 +1003,14 @@ public final class DialogueEngine {
                     + " identify it - author an OnceId; the option stays repeatable until then");
             return null;
         }
-        String rawKey = extension != null
-                ? DialogueStateKeys.extensionOnce(extension, discriminator)
-                : DialogueStateKeys.optionOnce(dialogue.getId(), nodeId, discriminator);
+        String rawKey;
+        if (extension == null) {
+            rawKey = DialogueStateKeys.optionOnce(dialogue.getId(), nodeId, discriminator);
+        } else if (once.isPerConversation()) {
+            rawKey = DialogueStateKeys.extensionOnce(extension, dialogue.getId(), discriminator);
+        } else {
+            rawKey = DialogueStateKeys.extensionOnce(extension, discriminator);
+        }
         return once.slotFor(rawKey, ctx, clock.getAsLong());
     }
 
