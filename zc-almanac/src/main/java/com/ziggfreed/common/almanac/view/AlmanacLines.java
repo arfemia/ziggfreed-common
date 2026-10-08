@@ -17,10 +17,11 @@ import com.ziggfreed.common.almanac.view.AlmanacView.Timing;
 /**
  * What the Almanac SAYS about a season's dates, scope and numbers, as client-resolved lines, so every
  * surface that shows a season (its row, its hero chip, a consumer's tile) reads it the same way. Which
- * line a countdown takes is decided here: "On now - N days left" while it runs, "Last day" on its last,
- * "Returns in N days" up to {@value #RETURNS_COUNTDOWN_DAYS} days out, "Returns October 1" further off,
- * "Starts in N days" before its first run, "Between seasons" with no next run. The dates line reads
- * "Every year, ..." for days that are the same every year, naming the run's year when its days move.
+ * line a countdown takes is decided here: "On now - N days left" while it runs, "Last day" on its last
+ * ("Today only" for a one-day event), "Returns in N days" up to {@value #RETURNS_COUNTDOWN_DAYS} days out,
+ * "Returns October 1" further off, "Starts in N days" before its first run, "Between seasons" with no next
+ * run. The dates line reads "Every year, ..." for days that are the same every year, naming the run's year
+ * when its days move, and names a one-day event's day once.
  * Numbers bind typed, a month nests as its own key, and a year is text so no locale groups it.
  */
 public final class AlmanacLines {
@@ -36,7 +37,8 @@ public final class AlmanacLines {
     public static Message chip(@Nonnull Timing timing) {
         if (timing.live()) {
             if (timing.lastDay()) {
-                return AlmanacText.line("chip.last_day");
+                // A one-day event's only day is never called its last.
+                return AlmanacText.line(oneDay(timing) ? "chip.today_only" : "chip.last_day");
             }
             return timing.daysLeft() == null
                     ? AlmanacText.line("status.live") : AlmanacText.line("chip.live", (long) timing.daysLeft());
@@ -57,7 +59,8 @@ public final class AlmanacLines {
 
     /**
      * "Every year, October 1 to November 3" for days that are the same every year; "In 2027, March 18 to
-     * April 4" for days that move, naming the run the line frames; null when the calendar gave no dates.
+     * April 4" for days that move, naming the run the line frames; a one-day event names its day once
+     * ("Every year, January 13", "In 2027, January 13"); null when the calendar gave no dates.
      */
     @Nullable
     public static Message window(@Nonnull Timing timing) {
@@ -67,12 +70,24 @@ public final class AlmanacLines {
             return null;
         }
         Integer year = timing.windowYear();
+        if (start.equals(end)) {
+            return year != null
+                    ? AlmanacText.line("window.year.day", String.valueOf(year), month(start.getMonthValue()),
+                            (long) start.getDayOfMonth())
+                    : AlmanacText.line("window.day", month(start.getMonthValue()), (long) start.getDayOfMonth());
+        }
         if (year != null) {
             return AlmanacText.line("window.year", String.valueOf(year), month(start.getMonthValue()),
                     (long) start.getDayOfMonth(), month(end.getMonthValue()), (long) end.getDayOfMonth());
         }
         return AlmanacText.line("window", month(start.getMonthValue()), (long) start.getDayOfMonth(),
                 month(end.getMonthValue()), (long) end.getDayOfMonth());
+    }
+
+    /** A run of one day: its window starts and ends on the same month-day. */
+    private static boolean oneDay(@Nonnull Timing timing) {
+        MonthDay start = timing.windowStart();
+        return start != null && start.equals(timing.windowEnd());
     }
 
     /** A month's name, 1 to 12. */
