@@ -8,6 +8,7 @@ import java.util.TreeSet;
 import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.logger.HytaleLogger;
+import com.hypixel.hytale.server.core.event.events.BootEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
@@ -15,6 +16,7 @@ import com.ziggfreed.common.almanac.AlmanacBootstrap;
 import com.ziggfreed.common.asset.AssetStoreWriter;
 import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.asset.FrameworkAssetRegistrar;
+import com.ziggfreed.common.asset.PackRangeAudit;
 import com.ziggfreed.common.board.asset.BoardConfig;
 import com.ziggfreed.common.calendar.CalendarBootstrap;
 import com.ziggfreed.common.commerce.CommerceComponent;
@@ -251,6 +253,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // installed), and the once-at-boot log of broken reputation files. Its companion store is registered
         // with the other framework stores.
         ReputationBootstrap.install(this);
+        // The once-at-boot checks, on BootEvent: every store has folded and every mod has registered
+        // its vocabulary by then.
+        registerBootChecks();
 
         LOGGER.atInfo().log("ZiggfreedCommon setup complete (framework stores + shared primitives available).");
     }
@@ -532,6 +537,18 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
             getEventRegistry().registerGlobal(ZigGearSetTierChangedEvent.class, GearSetNoticeBridge::onTierChanged);
         } catch (Throwable t) {
             SafeLog.warn("[gearset] seam wiring failed", t);
+        }
+    }
+
+    /**
+     * What runs once the server has booted: the once-per-boot warning for a loaded pack whose
+     * ziggfreed-common range this version fails ({@code PackRangeAudit}).
+     */
+    private void registerBootChecks() {
+        try {
+            getEventRegistry().register(BootEvent.class, event -> PackRangeAudit.warnOnce(getManifest()));
+        } catch (Throwable t) {
+            SafeLog.warn("[boot] the boot checks could not be registered", t);
         }
     }
 
