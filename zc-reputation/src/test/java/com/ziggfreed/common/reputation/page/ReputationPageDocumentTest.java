@@ -42,6 +42,16 @@ class ReputationPageDocumentTest {
         }
     }
 
+    /** The list and the reading page are the kit's, so the painters find every id they address inside them. */
+    @Test
+    void theReadingPageAndItsEmptyStateAreTheKitsOwnTemplates() throws IOException {
+        String ui = document(ReputationPage.PAGE_TEMPLATE);
+        assertTrue(ui.contains("$ZW = \"../Common/ZigKit.ui\""), "the page imports the kit");
+        assertTrue(ui.contains("$ZW.@ZigDetailPage " + ReputationPage.DETAIL + " {"), "the reading page is the kit's");
+        assertTrue(ui.contains("$ZW.@ZigEmptyState " + ReputationPage.EMPTY + " {"), "so is its empty state");
+        assertTrue(ui.contains("Group " + ReputationPage.LIST + " {"), "the list is a plain group the painter fills");
+    }
+
     @Test
     void everyElementIdIsALetterThenLettersOrDigits() throws IOException {
         Matcher element = ELEMENT.matcher(document(ReputationPage.PAGE_TEMPLATE));

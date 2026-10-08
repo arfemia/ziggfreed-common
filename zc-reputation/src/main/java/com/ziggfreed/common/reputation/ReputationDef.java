@@ -62,4 +62,10 @@ public record ReputationDef(@Nonnull String id, int initial, @Nullable Reputatio
     public List<RewardSpec> beyondRewards() {
         return companion == null ? List.of() : companion.beyondRewards();
     }
+
+    /** The authored How to earn lines' keys, in order; empty when none. */
+    @Nonnull
+    public List<String> earnKeys() {
+        return companion == null ? List.of() : companion.earnKeys();
+    }
 }

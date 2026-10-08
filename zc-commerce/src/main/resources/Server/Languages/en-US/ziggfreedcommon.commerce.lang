@@ -122,6 +122,10 @@ refuse.reroll_cap = You have used every reroll for this rotation.
 refuse.reroll_no_alternative = There is nothing different to swap in.
 refuse.reroll_cannot_pay = You cannot afford a reroll.
 
+# A board slot behind a requirement, where a page lists what the requirement opens (a reputation's
+# ranks): {0} the band the slot posts.
+board.slot.extra = An extra {0} contract
+
 # ==================== the words a band and a shelf read as ====================
 #
 # Defaults for the bands and shelves content commonly invents, so a bare server reads in words
