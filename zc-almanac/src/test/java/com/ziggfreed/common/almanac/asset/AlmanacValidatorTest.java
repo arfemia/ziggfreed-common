@@ -21,10 +21,12 @@ import com.ziggfreed.common.achievement.asset.AchievementAsset;
 import com.ziggfreed.common.achievement.asset.AchievementAssetStore;
 import com.ziggfreed.common.almanac.AlmanacFixtures;
 import com.ziggfreed.common.almanac.AlmanacSwitch;
+import com.ziggfreed.common.almanac.page.AlmanacDestinations;
 import com.ziggfreed.common.occurrence.Occurrence;
 import com.ziggfreed.common.occurrence.OccurrenceSource;
 import com.ziggfreed.common.occurrence.Occurrences;
 import com.ziggfreed.common.progress.ObjectiveKindRegistry;
+import com.ziggfreed.common.ui.route.Destinations;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.validation.Severity;
 import com.ziggfreed.common.validation.TextKeyAudit;
@@ -48,6 +50,7 @@ class AlmanacValidatorTest {
         AlmanacEntryConfig.getInstance().mergeOwnerLayer(Map.of());
         AlmanacEntryConfig.getInstance().mergePackLayer(Map.of());
         AchievementAssetStore.getInstance().merge(Map.of());
+        Destinations.clearForTests();
     }
 
     @Nonnull
@@ -203,6 +206,52 @@ class AlmanacValidatorTest {
             assertEquals(AlmanacValidator.DOMAIN, finding.domain());
             assertEquals("test_season", finding.sourceId());
         }
+    }
+
+    @Test
+    void aCollectionOrBannerItemNoServerHasIsReported() throws IOException {
+        AlmanacEntryAsset page = AlmanacFixtures.page("""
+                { "Sections": [ { "Collection": { "Items": [ { "Item": "Ghost_Item" }, { "Item": "Test_Lantern" } ] } },
+                                { "Banner": { "Composition": { "Items": [ { "Item": "Ghost_Item" } ] } } } ] }
+                """, "Test_Season");
+        List<Finding> findings = audit(List.of(page), ALL_EVENTS, id -> !id.equals("Ghost_Item"),
+                new ObjectiveKindRegistry(), ALL_KEYS);
+
+        assertTrue(only(findings, AlmanacValidator.UNKNOWN_COLLECTION_ITEM).message().contains("Ghost_Item"));
+        assertEquals(Severity.WARNING, only(findings, AlmanacValidator.UNKNOWN_BANNER_ITEM).severity());
+    }
+
+    @Test
+    void everyKeyASectionShowsIsChecked() throws IOException {
+        AlmanacDestinations.register();
+        AlmanacEntryAsset page = AlmanacFixtures.page("""
+                { "Sections": [
+                  { "Banner": { "Text": { "TitleKey": "k.banner.title", "FlavorKey": "k.banner.line" },
+                                "Button": { "TextKey": "k.banner.button", "Destination": "Almanac" } } },
+                  { "Collection": { "Text": { "TitleKey": "k.items.title" },
+                                    "Items": [ { "Item": "Test_Lantern", "SourceKey": "k.items.source" } ],
+                                    "Button": { "TextKey": "k.items.button", "Destination": "Almanac" } } },
+                  { "Achievements": { "Button": { "TextKey": "k.ach.button" } } } ] }
+                """, "Test_Season");
+        List<Finding> findings = audit(List.of(page), ALL_EVENTS, ALL_ITEMS, new ObjectiveKindRegistry(),
+                key -> !key.startsWith("k."));
+
+        assertEquals(7, findings.stream().filter(f -> f.code().equals(TextKeyAudit.UNKNOWN_TEXT_KEY)).count(),
+                findings.toString());
+    }
+
+    @Test
+    void aButtonsDestinationIsAskedOfItsOwnType() throws IOException {
+        AlmanacDestinations.register();
+        AlmanacEntryAsset page = AlmanacFixtures.page("""
+                { "Sections": [ { "Banner": { "Text": { "TitleKey": "k.t" },
+                                              "Button": { "TextKey": "k.b", "Destination": { "Type": "Almanac", "Event": "Gone" } } } } ] }
+                """, "Test_Season");
+        List<Finding> findings = AlmanacValidator.audit(List.of(page), ALL_EVENTS, ALL_ITEMS, new ObjectiveKindRegistry(),
+                ALL_KEYS, (destination, source) -> List.of(Finding.warning("almanac", "UNKNOWN_SEASON", "gone", source)));
+
+        assertEquals("test_season", only(findings, "UNKNOWN_SEASON").sourceId());
+        assertTrue(audit(page).isEmpty(), "the five-argument core asks no destination");
     }
 
     @Test

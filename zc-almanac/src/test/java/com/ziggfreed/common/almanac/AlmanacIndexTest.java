@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
@@ -43,6 +44,18 @@ class AlmanacIndexTest {
         AlmanacIndex index = AlmanacIndex.of(Map.of("test_season", page));
 
         assertEquals(List.of("good"), index.forKind("KILL_ENTITY").stream().map(AlmanacIndex.Line::statId).toList());
+    }
+
+    @Test
+    void theIndexTracksEveryItemACollectionListsAcrossPages() throws Exception {
+        AlmanacIndex index = AlmanacIndex.of(Map.of(
+                "season_a", AlmanacFixtures.page("{ \"Sections\": [ { \"Collection\": { \"Items\": [ { \"Item\": \"Test_Lantern\" } ] } } ] }", "Season_A"),
+                "season_b", AlmanacFixtures.page("{ \"Sections\": [ { \"Collection\": { \"Items\": [ { \"Item\": \"Test_Bomb\", \"Hidden\": true } ] } } ] }", "Season_B")));
+        assertTrue(index.tracks("test_lantern"));
+        assertTrue(index.tracks("TEST_BOMB"), "hidden or not, every listed item is tracked");
+        assertFalse(index.tracks("Rock_Stone"));
+        assertEquals(Set.of("test_lantern", "test_bomb"), index.trackedItems());
+        assertTrue(AlmanacIndex.EMPTY.trackedItems().isEmpty());
     }
 
     @Test

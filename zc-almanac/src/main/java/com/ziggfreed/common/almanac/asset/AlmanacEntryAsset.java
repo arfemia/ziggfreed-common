@@ -1,9 +1,11 @@
 package com.ziggfreed.common.almanac.asset;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -31,6 +33,9 @@ import com.ziggfreed.common.validation.Finding;
  *   "Icon": "Spring_Fair_Ribbon", "Order": 10, "Keepsake": "Spring_Fair_Keepsake", "Accent": "#e8752a",
  *   "Hero": { "Art": "UI/Custom/Almanac/Spring_Fair.png" },
  *   "Links": [ { "TextKey": "almanac.spring_fair.link.book", "Destination": "Achievements" } ],
+ *   "Sections": [ { "Banner": { "Text": { "TitleKey": "almanac.spring_fair.banner" } } },
+ *                 { "Collection": { "Items": [ { "Item": "Spring_Fair_Ribbon", "Hidden": true } ] } },
+ *                 { "Tallies": {} }, { "Achievements": {} } ],
  *   "Stats": { "Kites_Flown": { "Kind": "USE_ITEM", "Target": "Kite_", "MatchMode": "PREFIX" } } }
  * }</pre>
  *
@@ -40,7 +45,9 @@ import com.ziggfreed.common.validation.Finding;
  * year mints its own copy, {@code <id>_<year>}, and the Almanac lists every year's copy a player
  * earned. Every leaf is {@code appendInherited} and {@code Stats} merges per line, so a page with a
  * {@code Parent} can retune one line and keep the rest; {@code Hero} merges leaf by leaf except its
- * {@code Composition}, which is one piece ({@link AlmanacHeroAsset}), and {@code Links} replaces whole.
+ * {@code Composition}, which is one piece ({@link AlmanacHeroAsset}), {@code Links} replaces whole,
+ * and {@code Sections} replaces whole ({@link AlmanacSectionAsset}: one part of the body per entry, in
+ * the order written; unauthored reads the page's own order).
  *
  * <p>A server owner overrides any of it per season in {@code mods/ziggfreedcommon/almanac.json}
  * ({@link AlmanacOwnerLayers}), decoded against the pack's page by the same rules.
@@ -62,6 +69,36 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
     /** How many items a composed hero draws. */
     public static final int HERO_MAX_ITEMS = 12;
 
+    /** A finding's code: a {@code Sections} entry that names no part, so it is skipped. */
+    public static final String FINDING_SECTION_EMPTY = "SECTION_EMPTY";
+
+    /** A finding's code: a {@code Sections} entry naming two or more parts; only the first draws. */
+    public static final String FINDING_SECTION_HAS_TWO = "SECTION_HAS_TWO";
+
+    /** A finding's code: a built-in part placed again; it draws at its first place only. */
+    public static final String FINDING_SECTION_REPEATED = "SECTION_REPEATED";
+
+    /** A finding's code: more {@code Sections} entries than the page draws. */
+    public static final String FINDING_SECTIONS_OVER_CAP = "SECTIONS_OVER_CAP";
+
+    /** A finding's code: a banner that names nothing to show, so it is skipped. */
+    public static final String FINDING_BANNER_EMPTY = "BANNER_EMPTY";
+
+    /** A finding's code: more banner items written than a banner draws. */
+    public static final String FINDING_BANNER_ITEMS = "BANNER_ITEMS_OVER_CAP";
+
+    /** A finding's code: more items written in a collection than its grid draws. */
+    public static final String FINDING_COLLECTION_ITEMS_OVER_CAP = "COLLECTION_ITEMS_OVER_CAP";
+
+    /** A finding's code: an item written twice in one collection; it keeps its first place. */
+    public static final String FINDING_COLLECTION_ITEM_REPEATED = "COLLECTION_ITEM_REPEATED";
+
+    /** How many {@code Sections} entries a page draws. */
+    public static final int SECTIONS_MAX = 16;
+
+    /** How many items a collection's grid draws: five rows of nine. */
+    public static final int COLLECTION_MAX_ITEMS = 45;
+
     private static final String DOMAIN = AlmanacValidator.DOMAIN;
 
     private String id;
@@ -75,6 +112,7 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
     @Nullable private String accent;
     @Nullable private AlmanacHeroAsset hero;
     @Nullable private AlmanacLinkAsset[] links;
+    @Nullable private AlmanacSectionAsset[] sections;
 
     public static final AssetBuilderCodec<String, AlmanacEntryAsset> CODEC = AssetBuilderCodec.builder(
                     AlmanacEntryAsset.class,
@@ -129,6 +167,14 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
             .documentation("Lines at the foot of the season's page that open another screen, each a TextKey and "
                     + "a Destination. A link to a screen no installed mod opens is left out. A list written by a "
                     + "child or the owner replaces the inherited one whole.")
+            .add()
+            .appendInherited(new KeyedCodec<>("Sections",
+                            new ArrayCodec<>(AlmanacSectionAsset.CODEC, AlmanacSectionAsset[]::new), false),
+                    (a, v) -> a.sections = v, a -> a.sections, (a, p) -> a.sections = p.sections)
+            .documentation("The season's page below its top, in the order written, one part per entry: Banner, "
+                    + "Collection, Achievements, Tallies, Keepsakes or Links. Leave it out for the page's own order "
+                    + "(Tallies, Keepsakes, Achievements, Links). A list written by a child or the owner replaces "
+                    + "the inherited one whole.")
             .add()
             .build();
 
@@ -204,8 +250,30 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
     }
 
     /**
+     * The body's parts as authored, in the order written: null when no {@code Sections} is written (the
+     * view then reads the page's own order), else every entry the list holds, an empty list staying empty.
+     * The entries are read as written; the view caps and checks them.
+     */
+    @Nullable
+    public List<AlmanacSectionAsset> sections() {
+        if (sections == null) {
+            return null;
+        }
+        List<AlmanacSectionAsset> out = new ArrayList<>();
+        for (AlmanacSectionAsset section : sections) {
+            if (section != null) {
+                out.add(section);
+            }
+        }
+        return List.copyOf(out);
+    }
+
+    /**
      * What is wrong with this page that does not stop it loading, each a warning: a colour that is not
-     * {@code #rrggbb} (read as unauthored), a link left out, more hero items than the hero draws.
+     * {@code #rrggbb} (read as unauthored), a link left out, more hero items than the hero draws; and in
+     * the {@code Sections} the page draws, an entry naming no part or two, a built-in part placed again,
+     * too many entries, a banner with nothing to show or too many items, a collection repeating an item or
+     * listing too many, and a banner's or a collection's button left out.
      */
     @Nonnull
     public List<Finding> findings() {
@@ -217,18 +285,7 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
         }
         AlmanacHeroAsset.Composition composition = hero == null ? null : hero.composition();
         if (composition != null) {
-            if (composition.backgroundMalformed()) {
-                out.add(Finding.warning(DOMAIN, FINDING_COLOUR, "Hero.Composition.Background is not a #rrggbb "
-                        + "colour, so the composed top takes the season's accent", source));
-            }
-            if (composition.gradientMalformed()) {
-                out.add(Finding.warning(DOMAIN, FINDING_COLOUR, "Hero.Composition.Gradient needs a #rrggbb Top "
-                        + "and Bottom, so it is not drawn", source));
-            }
-            if (composition.glowMalformed()) {
-                out.add(Finding.warning(DOMAIN, FINDING_COLOUR, "Hero.Composition.Glow needs a #rrggbb Color, so "
-                        + "it is not drawn", source));
-            }
+            colourFindings(composition, "Hero.Composition", "the composed top", source, out);
             if (composition.items().size() > HERO_MAX_ITEMS) {
                 out.add(Finding.warning(DOMAIN, FINDING_HERO_ITEMS, "Hero.Composition.Items names "
                         + composition.items().size() + " items and the hero draws the first " + HERO_MAX_ITEMS,
@@ -244,7 +301,115 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
                 }
             }
         }
+        sectionFindings(source, out);
         return List.copyOf(out);
+    }
+
+    /** The three colour checks a composition gets, the hero's and every banner's alike. */
+    private static void colourFindings(@Nonnull AlmanacHeroAsset.Composition composition, @Nonnull String where,
+            @Nonnull String what, @Nonnull String source, @Nonnull List<Finding> out) {
+        if (composition.backgroundMalformed()) {
+            out.add(Finding.warning(DOMAIN, FINDING_COLOUR, where + ".Background is not a #rrggbb colour, so "
+                    + what + " takes the season's accent", source));
+        }
+        if (composition.gradientMalformed()) {
+            out.add(Finding.warning(DOMAIN, FINDING_COLOUR, where + ".Gradient needs a #rrggbb Top and Bottom, so "
+                    + "it is not drawn", source));
+        }
+        if (composition.glowMalformed()) {
+            out.add(Finding.warning(DOMAIN, FINDING_COLOUR, where + ".Glow needs a #rrggbb Color, so it is not "
+                    + "drawn", source));
+        }
+    }
+
+    /** The {@code Sections} findings, entry by entry over the entries the page draws, then the cap. */
+    private void sectionFindings(@Nonnull String source, @Nonnull List<Finding> out) {
+        List<AlmanacSectionAsset> entries = sections();
+        if (entries == null) {
+            return;
+        }
+        Set<String> placed = new HashSet<>();
+        for (int i = 0; i < entries.size() && i < SECTIONS_MAX; i++) {
+            AlmanacSectionAsset entry = entries.get(i);
+            String where = "Sections[" + i + "]";
+            List<String> written = entry.partsWritten();
+            String part = entry.part();
+            if (part == null) {
+                out.add(Finding.warning(DOMAIN, FINDING_SECTION_EMPTY, where + " names no part, so it is skipped",
+                        source));
+                continue;
+            }
+            if (written.size() > 1) {
+                out.add(Finding.warning(DOMAIN, FINDING_SECTION_HAS_TWO, where + " names " + spoken(written)
+                        + "; one entry draws one part, so only " + part + " is drawn", source));
+            }
+            if (AlmanacSectionAsset.BUILT_IN.contains(part) && !placed.add(part)) {
+                out.add(Finding.warning(DOMAIN, FINDING_SECTION_REPEATED, where + " places " + part + " again, "
+                        + "which is drawn at its first place only", source));
+            }
+            AlmanacBannerAsset banner = entry.banner();
+            if (banner != null) {
+                bannerFindings(banner, where + ".Banner", source, out);
+            }
+            AlmanacCollectionAsset collection = entry.collection();
+            if (collection != null) {
+                collectionFindings(collection, where + ".Collection", source, out);
+            }
+        }
+        if (entries.size() > SECTIONS_MAX) {
+            out.add(Finding.warning(DOMAIN, FINDING_SECTIONS_OVER_CAP, "Sections names " + entries.size()
+                    + " entries and the page draws the first " + SECTIONS_MAX, source));
+        }
+    }
+
+    private static void bannerFindings(@Nonnull AlmanacBannerAsset banner, @Nonnull String where,
+            @Nonnull String source, @Nonnull List<Finding> out) {
+        if (banner.nothingWritten()) {
+            out.add(Finding.warning(DOMAIN, FINDING_BANNER_EMPTY, where + " names no Art, Composition, Text or "
+                    + "Button, so it shows nothing and is skipped", source));
+        }
+        AlmanacHeroAsset.Composition composition = banner.composition();
+        if (composition != null) {
+            colourFindings(composition, where + ".Composition", "the banner", source, out);
+            if (composition.items().size() > HERO_MAX_ITEMS) {
+                out.add(Finding.warning(DOMAIN, FINDING_BANNER_ITEMS, where + ".Composition.Items names "
+                        + composition.items().size() + " items and a banner draws the first " + HERO_MAX_ITEMS,
+                        source));
+            }
+        }
+        if (banner.buttonLeftOut()) {
+            out.add(Finding.warning(DOMAIN, FINDING_LINK, where + ".Button has no words or opens nothing this "
+                    + "server has, so it is left out", source));
+        }
+    }
+
+    private static void collectionFindings(@Nonnull AlmanacCollectionAsset collection, @Nonnull String where,
+            @Nonnull String source, @Nonnull List<Finding> out) {
+        List<AlmanacCollectionAsset.Slot> slots = collection.slots();
+        Set<String> seen = new HashSet<>();
+        for (AlmanacCollectionAsset.Slot slot : slots) {
+            if (!seen.add(slot.item().toLowerCase(Locale.ROOT))) {
+                out.add(Finding.warning(DOMAIN, FINDING_COLLECTION_ITEM_REPEATED, where + ".Items lists '"
+                        + slot.item() + "' again; an item keeps its first place", source));
+            }
+        }
+        if (slots.size() > COLLECTION_MAX_ITEMS) {
+            out.add(Finding.warning(DOMAIN, FINDING_COLLECTION_ITEMS_OVER_CAP, where + ".Items names "
+                    + slots.size() + " items and the grid draws the first " + COLLECTION_MAX_ITEMS, source));
+        }
+        if (collection.buttonLeftOut()) {
+            out.add(Finding.warning(DOMAIN, FINDING_LINK, where + ".Button has no words or opens nothing this "
+                    + "server has, so it is left out", source));
+        }
+    }
+
+    /** {@code Banner}, {@code Banner and Tallies}, {@code Banner, Collection and Tallies}. */
+    @Nonnull
+    private static String spoken(@Nonnull List<String> parts) {
+        if (parts.size() < 2) {
+            return String.join("", parts);
+        }
+        return String.join(", ", parts.subList(0, parts.size() - 1)) + " and " + parts.get(parts.size() - 1);
     }
 
     @Nullable

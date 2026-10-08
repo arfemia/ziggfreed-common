@@ -18,7 +18,7 @@ import com.ziggfreed.common.counter.Counters;
  *
  * <p>A season or stat name may not carry {@code /} (the category separator), {@code @} (the year
  * mark), {@code |} or {@code :} (the save format's joins), nor start with {@code $} (reserved for the
- * Almanac's own tallies, {@link #ATTENDED} and {@link #RUNS}). {@link #usableId} is the one check.
+ * Almanac's own tallies, {@link #ATTENDED}, {@link #RUNS} and {@link #OWNED}). {@link #usableId} is the one check.
  */
 public final class AlmanacKeys {
 
@@ -27,6 +27,9 @@ public final class AlmanacKeys {
 
     /** The tally of how many runs of a season-year were attended (an event may come round several times a year). */
     public static final String RUNS = "$runs";
+
+    /** The category a player's "owned once" marks file under, one key per item a page's collection lists. */
+    public static final String OWNED = "$owned";
 
     /** Joins a season's year to its event id in a one-season category. */
     public static final String YEAR_MARK = "@";
@@ -54,6 +57,12 @@ public final class AlmanacKeys {
     @Nonnull
     public static String lifetime(@Nonnull String eventId, @Nonnull String statId) {
         return Counters.key(normalize(eventId), normalize(statId));
+    }
+
+    /** The mark that {@code itemId} was obtained once: {@code $owned/<item>}, lower-cased. */
+    @Nonnull
+    public static String owned(@Nonnull String itemId) {
+        return Counters.key(OWNED, normalize(itemId));
     }
 
     /** The one-season tally of {@code statId} for the season of {@code eventId} that opened in {@code year}. */

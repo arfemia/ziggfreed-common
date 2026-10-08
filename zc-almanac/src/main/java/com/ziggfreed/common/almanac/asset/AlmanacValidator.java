@@ -3,9 +3,12 @@ package com.ziggfreed.common.almanac.asset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.BiFunction;
 import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
@@ -19,6 +22,8 @@ import com.ziggfreed.common.inventory.ItemIds;
 import com.ziggfreed.common.occurrence.Occurrences;
 import com.ziggfreed.common.progress.ObjectiveKindRegistry;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
+import com.ziggfreed.common.ui.route.Destination;
+import com.ziggfreed.common.ui.route.Destinations;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.validation.TextKeyAudit;
@@ -34,8 +39,11 @@ import com.ziggfreed.common.validation.TextKeyAudit;
  * the lang catalogue.
  *
  * <p>A page's own findings ({@link AlmanacEntryAsset#findings()}: {@code COLOUR_NOT_HEX},
- * {@code LINK_LEFT_OUT}, {@code HERO_ITEMS_OVER_CAP}, each a warning) are folded in as they are. The
- * codes this audit adds, each a stable machine token a consumer may filter on:
+ * {@code LINK_LEFT_OUT}, {@code HERO_ITEMS_OVER_CAP}, and over its {@code Sections} {@code SECTION_EMPTY},
+ * {@code SECTION_HAS_TWO}, {@code SECTION_REPEATED}, {@code SECTIONS_OVER_CAP}, {@code BANNER_EMPTY},
+ * {@code BANNER_ITEMS_OVER_CAP}, {@code COLLECTION_ITEMS_OVER_CAP} and {@code COLLECTION_ITEM_REPEATED},
+ * each a warning) are folded in as they are. The codes this audit adds, each a stable machine token a
+ * consumer may filter on:
  * <ul>
  *   <li>ERROR {@link #PAGE_ID_UNUSABLE} (the page is skipped whole, so nothing more is asked of it),
  *       {@link #STAT_ID_UNUSABLE}, {@link #MISSING_KIND} and {@link #UNPRODUCIBLE_KIND} (the tally line can
@@ -43,7 +51,12 @@ import com.ziggfreed.common.validation.TextKeyAudit;
  *   <li>WARNING {@link #UNKNOWN_EVENT} (the page is never listed), {@link #UNKNOWN_KEEPSAKE} (the page's
  *       {@code Keepsake} names no achievement file this server loads, or only an {@code Abstract} one, so the
  *       page shows no keepsake shelf), {@link #UNKNOWN_ICON}, {@link #UNKNOWN_HERO_ITEM}, {@link #UNKNOWN_KIND},
- *       and {@link TextKeyAudit#UNKNOWN_TEXT_KEY} for a key the page shows that no loaded lang file ships.</li>
+ *       {@link #UNKNOWN_COLLECTION_ITEM} (that slot is left out), {@link #UNKNOWN_BANNER_ITEM} (that picture
+ *       is left off the banner), and {@link TextKeyAudit#UNKNOWN_TEXT_KEY} for a key the page shows that no
+ *       loaded lang file ships, its sections' keys included;</li>
+ *   <li>and each section Button's destination, asked of its own type (the engine walk asks
+ *       {@code Destinations.validate}, so a storefront button that names no storefront reports what the
+ *       storefront's own check says).</li>
  * </ul>
  *
  * <p>A page's {@code Keepsake} is also asked against the cross-season ladders: the engine walk carries
@@ -66,6 +79,12 @@ public final class AlmanacValidator {
     public static final String MISSING_KIND = "MISSING_KIND";
     public static final String UNKNOWN_KIND = "UNKNOWN_KIND";
     public static final String UNPRODUCIBLE_KIND = "UNPRODUCIBLE_KIND";
+    public static final String UNKNOWN_COLLECTION_ITEM = "UNKNOWN_COLLECTION_ITEM";
+    public static final String UNKNOWN_BANNER_ITEM = "UNKNOWN_BANNER_ITEM";
+
+    /** The pure core's destination check when none is asked: nothing to say. */
+    private static final BiFunction<Destination, String, List<Finding>> NO_DESTINATION_CHECK =
+            (destination, source) -> List.of();
 
     private AlmanacValidator() {
     }
@@ -85,7 +104,8 @@ public final class AlmanacValidator {
             List<Finding> out = new ArrayList<>(audit(AlmanacEntryConfig.getInstance().all().values(),
                     AlmanacValidator::eventLoaded, ItemIds::exists, ProgressionRuntime.objectiveKinds(),
                     TextKeyAudit.liveCatalogue(),
-                    keepsake -> AlmanacKeepsakeCheck.loaded(keepsake, AchievementAssetStore.getInstance().assets())));
+                    keepsake -> AlmanacKeepsakeCheck.loaded(keepsake, AchievementAssetStore.getInstance().assets()),
+                    Destinations::validate));
             out.addAll(AlmanacKeepsakeCheck.findings());
             return out;
         } catch (Throwable t) {
@@ -107,7 +127,7 @@ public final class AlmanacValidator {
     public static List<Finding> audit(@Nonnull Collection<AlmanacEntryAsset> pages,
             @Nonnull Predicate<String> eventLoaded, @Nonnull Predicate<String> itemKnown,
             @Nullable ObjectiveKindRegistry kinds, @Nonnull Predicate<String> keyShipped) {
-        return audit(pages, eventLoaded, itemKnown, kinds, keyShipped, null);
+        return audit(pages, eventLoaded, itemKnown, kinds, keyShipped, null, NO_DESTINATION_CHECK);
     }
 
     /**
@@ -122,6 +142,39 @@ public final class AlmanacValidator {
             @Nonnull Predicate<String> eventLoaded, @Nonnull Predicate<String> itemKnown,
             @Nullable ObjectiveKindRegistry kinds, @Nonnull Predicate<String> keyShipped,
             @Nullable Predicate<String> keepsakeKnown) {
+        return audit(pages, eventLoaded, itemKnown, kinds, keyShipped, keepsakeKnown, NO_DESTINATION_CHECK);
+    }
+
+    /**
+     * {@link #audit(Collection, Predicate, Predicate, ObjectiveKindRegistry, Predicate)} that also asks each
+     * section Button's destination of its own type.
+     *
+     * @param destinationCheck what a destination's type says about its fields, given the destination and the
+     *                         page's id (so its findings carry the page as their source)
+     */
+    @Nonnull
+    public static List<Finding> audit(@Nonnull Collection<AlmanacEntryAsset> pages,
+            @Nonnull Predicate<String> eventLoaded, @Nonnull Predicate<String> itemKnown,
+            @Nullable ObjectiveKindRegistry kinds, @Nonnull Predicate<String> keyShipped,
+            @Nonnull BiFunction<Destination, String, List<Finding>> destinationCheck) {
+        return audit(pages, eventLoaded, itemKnown, kinds, keyShipped, null, destinationCheck);
+    }
+
+    /**
+     * The pure core: every page check, each page's {@code Keepsake} asked of the achievements when
+     * {@code keepsakeKnown} is given, and each section Button's destination asked of its own type.
+     *
+     * @param keepsakeKnown    whether a keepsake id (normalized) names an achievement this server loads; null
+     *                         asks nothing
+     * @param destinationCheck what a destination's type says about its fields, given the destination and the
+     *                         page's id (so its findings carry the page as their source)
+     */
+    @Nonnull
+    public static List<Finding> audit(@Nonnull Collection<AlmanacEntryAsset> pages,
+            @Nonnull Predicate<String> eventLoaded, @Nonnull Predicate<String> itemKnown,
+            @Nullable ObjectiveKindRegistry kinds, @Nonnull Predicate<String> keyShipped,
+            @Nullable Predicate<String> keepsakeKnown,
+            @Nonnull BiFunction<Destination, String, List<Finding>> destinationCheck) {
         List<AlmanacEntryAsset> ordered = new ArrayList<>();
         for (AlmanacEntryAsset page : pages) {
             if (page != null && page.getId() != null) {
@@ -131,7 +184,7 @@ public final class AlmanacValidator {
         ordered.sort(Comparator.comparing(AlmanacEntryAsset::getId));
         List<Finding> out = new ArrayList<>();
         for (AlmanacEntryAsset page : ordered) {
-            auditPage(page, eventLoaded, itemKnown, kinds, keyShipped, keepsakeKnown, out);
+            auditPage(page, eventLoaded, itemKnown, kinds, keyShipped, keepsakeKnown, destinationCheck, out);
         }
         return out;
     }
@@ -139,7 +192,7 @@ public final class AlmanacValidator {
     private static void auditPage(@Nonnull AlmanacEntryAsset page, @Nonnull Predicate<String> eventLoaded,
             @Nonnull Predicate<String> itemKnown, @Nullable ObjectiveKindRegistry kinds,
             @Nonnull Predicate<String> keyShipped, @Nullable Predicate<String> keepsakeKnown,
-            @Nonnull List<Finding> out) {
+            @Nonnull BiFunction<Destination, String, List<Finding>> destinationCheck, @Nonnull List<Finding> out) {
         String id = page.getId();
         String where = "the season page '" + id + "'";
         if (!AlmanacKeys.usableId(id)) {
@@ -180,6 +233,79 @@ public final class AlmanacValidator {
             TextKeyAudit.check(out, DOMAIN, id, where + " link", link.textKey(), keyShipped,
                     "the link shows the raw key");
         }
+        List<AlmanacSectionAsset> sections = page.sections();
+        if (sections == null) {
+            return;
+        }
+        Set<String> placed = new HashSet<>();
+        for (int i = 0; i < sections.size() && i < AlmanacEntryAsset.SECTIONS_MAX; i++) {
+            AlmanacSectionAsset section = sections.get(i);
+            String part = section.part();
+            if (part == null || (AlmanacSectionAsset.BUILT_IN.contains(part) && !placed.add(part))) {
+                continue;
+            }
+            auditSection(where + " Sections[" + i + "]", section, itemKnown, keyShipped, destinationCheck, id, out);
+        }
+    }
+
+    /** One drawn section: its pictures' items, every key it shows, and its button's destination. */
+    private static void auditSection(@Nonnull String where, @Nonnull AlmanacSectionAsset section,
+            @Nonnull Predicate<String> itemKnown, @Nonnull Predicate<String> keyShipped,
+            @Nonnull BiFunction<Destination, String, List<Finding>> destinationCheck, @Nonnull String id,
+            @Nonnull List<Finding> out) {
+        AlmanacBannerAsset banner = section.banner();
+        if (banner != null) {
+            String at = where + ".Banner";
+            AlmanacHeroAsset.Composition composition = banner.composition();
+            if (composition != null) {
+                for (AlmanacHeroAsset.Placement placement : composition.items()) {
+                    checkItem(at + ".Composition.Items", placement.item(), UNKNOWN_BANNER_ITEM,
+                            "that picture is left off the banner", itemKnown, id, out);
+                }
+            }
+            TextKeyAudit.check(out, DOMAIN, id, at + ".Text.TitleKey", banner.titleKey(), keyShipped,
+                    "the banner's title shows the raw key");
+            TextKeyAudit.check(out, DOMAIN, id, at + ".Text.FlavorKey", banner.flavorKey(), keyShipped,
+                    "the banner's line shows the raw key");
+            auditButton(at + ".Button", banner.button(), keyShipped, destinationCheck, id, out);
+        }
+        AlmanacCollectionAsset collection = section.collection();
+        if (collection != null) {
+            String at = where + ".Collection";
+            TextKeyAudit.check(out, DOMAIN, id, at + ".Text.TitleKey", collection.titleKey(), keyShipped,
+                    "the grid's heading shows the raw key");
+            TextKeyAudit.check(out, DOMAIN, id, at + ".Text.FlavorKey", collection.flavorKey(), keyShipped,
+                    "the line under the grid's heading shows the raw key");
+            for (AlmanacCollectionAsset.Slot slot : collection.slots()) {
+                checkItem(at + ".Items", slot.item(), UNKNOWN_COLLECTION_ITEM, "that slot is left out", itemKnown,
+                        id, out);
+                TextKeyAudit.check(out, DOMAIN, id, at + ".Items '" + slot.item() + "' SourceKey", slot.sourceKey(),
+                        keyShipped, "its tooltip shows the raw key");
+            }
+            auditButton(at + ".Button", collection.button(), keyShipped, destinationCheck, id, out);
+        }
+        AlmanacAchievementsAsset achievements = section.achievements();
+        if (achievements != null && achievements.showButton()) {
+            String at = where + ".Achievements.Button";
+            TextKeyAudit.check(out, DOMAIN, id, at + ".TextKey", achievements.buttonTextKey(), keyShipped,
+                    "the button into the book shows the raw key");
+            if (achievements.buttonDestination() != null) {
+                out.addAll(destinationCheck.apply(achievements.buttonDestination(), id));
+            }
+        }
+    }
+
+    /** A usable button's words, and its destination asked of its own type. */
+    private static void auditButton(@Nonnull String where, @Nullable AlmanacLinkAsset button,
+            @Nonnull Predicate<String> keyShipped,
+            @Nonnull BiFunction<Destination, String, List<Finding>> destinationCheck, @Nonnull String id,
+            @Nonnull List<Finding> out) {
+        if (button == null) {
+            return;
+        }
+        TextKeyAudit.check(out, DOMAIN, id, where + ".TextKey", button.textKey(), keyShipped,
+                "the button shows the raw key");
+        out.addAll(destinationCheck.apply(button.destination(), id));
     }
 
     private static void auditStat(@Nonnull String where, @Nonnull String name, @Nonnull AlmanacStatAsset stat,

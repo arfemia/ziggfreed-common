@@ -2,9 +2,11 @@ package com.ziggfreed.common.almanac;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
 import javax.annotation.Nonnull;
@@ -17,9 +19,10 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Every stat line of every season page, filed by the objective kind it counts, so a moment no page
- * names costs the counter one lookup and nothing else. Rebuilt whole whenever a page layer changes
- * ({@code AlmanacEntryConfig}); a line or page whose name the record format reserves, or a line with
- * no {@code Kind}, is skipped with one warning and never costs its neighbours.
+ * names costs the counter one lookup and nothing else, and every item a page's collection lists, for the
+ * owned marks ({@link AlmanacCollection}), so an item no page lists costs one lookup too. Rebuilt whole
+ * whenever a page layer changes ({@code AlmanacEntryConfig}); a line or page whose name the record format
+ * reserves, or a line with no {@code Kind}, is skipped with one warning and never costs its neighbours.
  */
 public final class AlmanacIndex {
 
@@ -28,25 +31,33 @@ public final class AlmanacIndex {
                        boolean liveOnly) {
     }
 
-    /** No pages: nothing is counted but attendance. */
-    public static final AlmanacIndex EMPTY = new AlmanacIndex(Map.of());
+    /** No pages: nothing is counted but attendance, and no item is tracked. */
+    public static final AlmanacIndex EMPTY = new AlmanacIndex(Map.of(), Set.of());
 
     private final Map<String, List<Line>> byKind;
 
-    private AlmanacIndex(@Nonnull Map<String, List<Line>> byKind) {
+    /** Every item id a usable page's collections list, hidden or not, lower-cased. */
+    private final Set<String> tracked;
+
+    private AlmanacIndex(@Nonnull Map<String, List<Line>> byKind, @Nonnull Set<String> tracked) {
         this.byKind = byKind;
+        this.tracked = tracked;
     }
 
     /** The index over {@code pages}, keyed by event id as the config holds them. */
     @Nonnull
     public static AlmanacIndex of(@Nonnull Map<String, AlmanacEntryAsset> pages) {
         Map<String, List<Line>> byKind = new HashMap<>();
+        Set<String> tracked = new HashSet<>();
         for (Map.Entry<String, AlmanacEntryAsset> page : new TreeMap<>(pages).entrySet()) {
             String eventId = AlmanacKeys.normalize(page.getKey());
             if (!AlmanacKeys.usableId(eventId)) {
                 SafeLog.warn("[almanac] the page '" + page.getKey() + "' is skipped: its name uses a character "
                         + "the tally format reserves (/ @ | : or a leading $)");
                 continue;
+            }
+            for (String itemId : AlmanacCollection.itemsOf(page.getValue())) {
+                tracked.add(AlmanacKeys.normalize(itemId));
             }
             for (Map.Entry<String, AlmanacStatAsset> stat : new TreeMap<>(page.getValue().getStats()).entrySet()) {
                 String statId = AlmanacKeys.normalize(stat.getKey());
@@ -69,7 +80,7 @@ public final class AlmanacIndex {
         for (Map.Entry<String, List<Line>> entry : byKind.entrySet()) {
             frozen.put(entry.getKey(), List.copyOf(entry.getValue()));
         }
-        return new AlmanacIndex(Map.copyOf(frozen));
+        return new AlmanacIndex(Map.copyOf(frozen), Set.copyOf(tracked));
     }
 
     /** The lines counting {@code kindId}, matched without regard to case; empty for none. */
@@ -85,5 +96,16 @@ public final class AlmanacIndex {
     /** True when no page names any line. */
     public boolean isEmpty() {
         return byKind.isEmpty();
+    }
+
+    /** Does some page's collection list {@code itemId}? Matched without regard to case; false for no id. */
+    public boolean tracks(@Nullable String itemId) {
+        return itemId != null && !itemId.isBlank() && tracked.contains(AlmanacKeys.normalize(itemId));
+    }
+
+    /** Every item id the collections list, lower-cased; unmodifiable, empty when none does. */
+    @Nonnull
+    public Set<String> trackedItems() {
+        return tracked;
     }
 }

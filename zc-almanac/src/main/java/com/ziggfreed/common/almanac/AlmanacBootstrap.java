@@ -16,9 +16,9 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Registers the Almanac at library setup, called once from the wiring root's {@code setup()}: the
- * per-player record and its connect hook (before any world loads), the server's own totals and their
- * file, the owner's switch, the feature, the destination, the moment counter, the book's Seasons
- * statistics and the {@code /zigalmanac} family. The page store itself is registered with the other framework stores. Registration only
+ * per-player record and its connect hook (before any world loads), the owned-items system, the server's
+ * own totals and their file, the owner's switch, the feature, the destination, the moment counter, the
+ * book's Seasons statistics and the {@code /zigalmanac} family. The page store itself is registered with the other framework stores. Registration only
  * ({@code RootRegistrationOnlyTest}). Its {@link #shutdown} is called from the wiring root's
  * {@code shutdown()} and writes the server's totals one last time.
  */
@@ -34,6 +34,11 @@ public final class AlmanacBootstrap {
     public static void install(@Nonnull PluginBase plugin) {
         AlmanacComponent.register(plugin.getEntityStoreRegistry());
         AlmanacComponent.install(plugin);
+        try {
+            plugin.getEntityStoreRegistry().registerSystem(new AlmanacInventorySystem());
+        } catch (Throwable t) {
+            SafeLog.warn("[almanac] the owned-items system could not be registered", t);
+        }
         // Beside the owner files; the 2.2.0 builds before its release kept the totals in the library's
         // data folder, and the first load that finds them only there moves them across.
         ServerTallies.shared().init(AlmanacOwnerLayers.directory(), plugin.getDataDirectory());
