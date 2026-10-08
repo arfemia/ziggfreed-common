@@ -14,19 +14,21 @@ import com.ziggfreed.common.ui.UiRetint;
 
 /**
  * Paints tile grids: category tiles ({@code Pages/ZigCollectionTile.ui}), keepsake shelves
- * ({@code Pages/ZigKeepsakeTile.ui}) and statistic tiles ({@code Pages/ZigStatTile.ui}). Each call clears its grid
- * and appends one template per tile, so a grid is repainted whole (in a build, or a partial update that binds only
- * the tiles it appended).
+ * ({@code Pages/ZigKeepsakeTile.ui}), statistic tiles ({@code Pages/ZigStatTile.ui}) and item slots
+ * ({@code Pages/ZigItemSlotTile.ui}). Each call clears its grid and appends one template per tile, so a grid is
+ * repainted whole (in a build, or a partial update that binds only the tiles it appended).
  *
  * <p>Selectors: a category tile's button {@code grid[i] #Tile}, a keepsake {@code shelf[i] #Keep} (its three
  * background layers {@code #KeepEarned}, {@code #KeepToEarn}, {@code #KeepMissed}, exactly one shown), a statistic
- * {@code grid[i] #StatTile}.
+ * {@code grid[i] #StatTile}, an item slot {@code grid[i] #Slot} (its three background layers {@code #SlotOwned},
+ * {@code #SlotSeen}, {@code #SlotHidden}, exactly one shown).
  */
 public final class TilePainter {
 
     public static final String COLLECTION_TEMPLATE = "Pages/ZigCollectionTile.ui";
     public static final String KEEPSAKE_TEMPLATE = "Pages/ZigKeepsakeTile.ui";
     public static final String STAT_TEMPLATE = "Pages/ZigStatTile.ui";
+    public static final String ITEM_SLOT_TEMPLATE = "Pages/ZigItemSlotTile.ui";
 
     /**
      * Whether a category tile underway wears its completion ring ({@code #Ring}, vanilla's
@@ -132,6 +134,34 @@ public final class TilePainter {
             KitPaint.text(cmd, s + " #Name", tile.name());
             KitPaint.optional(cmd, s + " #Caption", tile.caption());
             KitPaint.optional(cmd, s + " #Server", tile.serverLine());
+        }
+    }
+
+    /**
+     * Item slots into {@code grid}, each showing exactly one of its three layers: owned (the complete tile, its check),
+     * shown but not yet had (the default tile, the picture under the scrim), or a mystery (the empty tile, its glyph,
+     * no picture). The tooltip sits on {@code #Slot}.
+     */
+    public static void itemSlots(@Nonnull UICommandBuilder cmd, @Nonnull String grid, @Nonnull List<ItemSlotTile> tiles) {
+        cmd.clear(grid);
+        for (int i = 0; i < tiles.size(); i++) {
+            ItemSlotTile tile = tiles.get(i);
+            cmd.append(grid, ITEM_SLOT_TEMPLATE);
+            String s = KitPaint.child(grid, i) + " #Slot";
+            boolean seen = !tile.owned() && !tile.mystery();
+            cmd.set(s + " #SlotOwned.Visible", tile.owned());
+            cmd.set(s + " #SlotSeen.Visible", seen);
+            cmd.set(s + " #SlotHidden.Visible", tile.mystery());
+            KitPaint.picture(cmd, s + " #Pic", tile.mystery() ? Picture.NONE : tile.picture());
+            cmd.set(s + " #Scrim.Visible", seen);
+            cmd.set(s + " #Check.Visible", tile.owned());
+            cmd.set(s + " #Mystery.Visible", tile.mystery() && tile.glyph() != null);
+            if (tile.mystery() && tile.glyph() != null) {
+                KitPaint.text(cmd, s + " #Mystery", tile.glyph());
+            }
+            if (tile.tooltip() != null) {
+                KitPaint.tooltip(cmd, s, tile.tooltip());
+            }
         }
     }
 }

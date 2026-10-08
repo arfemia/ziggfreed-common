@@ -85,6 +85,24 @@ class AchievementBrowseTest {
     }
 
     @Test
+    void focusOpensOneSubcategoryAndClosesTheCategorysOthers() {
+        Achievement ghoul = f.add(ach("ghoul", "seasons", "hallows_eve", 1), "Ghoul");
+        Achievement snow = f.add(ach("snow", "seasons", "winter", 1), "Snow");
+        Achievement plain = f.add(ach("plain", "seasons", null, 1), "Plain");
+        Achievement slash = f.add(ach("slash", "combat", null, 1), "Slash");
+
+        Set<String> marks = AchievementBrowse.focus(List.of(ghoul, snow, plain, slash), " Seasons ", "Hallows_Eve");
+
+        assertEquals(Set.of("s.seasons.hallows_eve", "!s.seasons.winter", "!c.seasons"), marks,
+                "the season open; its siblings and the category's own rows closed; another category untouched");
+        LedgerModel model = f.reader().browse(new BrowseFilter("seasons", null, null, null));
+        for (String id : sectionIds(model)) {
+            assertTrue(id.equals("s.seasons.hallows_eve") || marks.contains("!" + id) || id.equals("pinned")
+                    || id.equals("feats"), "every section the Browse list draws is one the marks speak for: " + id);
+        }
+    }
+
+    @Test
     void aSubcategoryHeadReadsItsConventionKeyWhenOneShips() {
         f.add(ach("ghoul", "seasons", "hallows_eve", 1), "Ghoul");
         Map<String, String> loaded = new LinkedHashMap<>();

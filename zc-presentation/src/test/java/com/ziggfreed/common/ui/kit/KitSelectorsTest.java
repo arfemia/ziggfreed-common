@@ -113,6 +113,9 @@ class KitSelectorsTest {
                 new StatTile("s", Picture.texture(TEXTURE), Message.raw("3"), Message.raw("Bombs"),
                         Message.raw("9 in all"), Message.raw("40 here"), false),
                 new StatTile("z", Picture.NONE, Message.raw("0"), Message.raw("None"), null, null, true)));
+        TilePainter.itemSlots(r.cmd(), "#Items", List.of(
+                new ItemSlotTile("a", Picture.texture(TEXTURE), true, false, Message.raw("?"), Message.raw("Tip")),
+                new ItemSlotTile("b", Picture.NONE, false, true, Message.raw("?"), null)));
         r.record();
         r.assertDeclared("TilePainter");
     }

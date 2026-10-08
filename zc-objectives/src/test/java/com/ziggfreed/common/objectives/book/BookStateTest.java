@@ -180,4 +180,17 @@ class BookStateTest {
         assertEquals(BookState.of(ObjectiveBookPage.TAB_ACHIEVEMENTS),
                 BookState.opening(ObjectiveBookPage.TAB_ACHIEVEMENTS, null), "no selection keeps the overview");
     }
+
+    @Test
+    void aFocusedOpenBrowsesItsCategoryWithTheSectionsItIsHanded() {
+        BookState state = BookState.browsing(ObjectiveBookPage.TAB_ACHIEVEMENTS, "seasons",
+                Set.of("s.seasons.hallows_eve", "!s.seasons.winter"), null);
+
+        assertEquals(ObjectiveBookPage.TAB_ACHIEVEMENTS, state.tab());
+        assertEquals(BookState.VIEW_BROWSE, state.view(), "a category reads as a list, never the overview");
+        assertEquals("seasons", state.category());
+        assertTrue(state.isOpen(section("s.seasons.hallows_eve", false)), "opened by the open itself");
+        assertFalse(state.isOpen(section("s.seasons.winter", true)), "closed by the open itself");
+        assertTrue(state.isOpen(section("pinned", true)), "a section it names nothing about keeps its default");
+    }
 }

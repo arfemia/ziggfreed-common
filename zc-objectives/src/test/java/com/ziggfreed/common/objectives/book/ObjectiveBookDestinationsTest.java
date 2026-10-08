@@ -71,6 +71,25 @@ class ObjectiveBookDestinationsTest {
     }
 
     @Test
+    void achievementsMayNameACategoryAndASubcategoryToOpenOn() throws IOException {
+        ObjectiveBookDestinations.Achievements focused = assertInstanceOf(ObjectiveBookDestinations.Achievements.class,
+                decode("{ \"Type\": \"Achievements\", \"Category\": \" Seasons \", \"Subcategory\": \"Hallows_Eve\" }"));
+        assertEquals("seasons", focused.getCategory(), "trimmed and lower-cased, as the book files a category");
+        assertEquals("hallows_eve", focused.getSubcategory());
+        assertNull(focused.getSelect());
+
+        ObjectiveBookDestinations.Achievements bare = (ObjectiveBookDestinations.Achievements) decode("\"Achievements\"");
+        assertNull(bare.getCategory(), "the bare word opens the book as it always has");
+        assertNull(bare.getSubcategory());
+        assertNull(((ObjectiveBookDestinations.Achievements) decode(
+                "{ \"Type\": \"Achievements\", \"Category\": \" \" }")).getCategory(), "a blank category is none");
+
+        ObjectiveBookDestinations.Achievements java = ObjectiveBookDestinations.Achievements.focused("Seasons", "Winter");
+        assertEquals("seasons", java.getCategory());
+        assertEquals("winter", java.getSubcategory());
+    }
+
+    @Test
     void javaBuildsTheSameValues() {
         assertEquals("the_lantern", ObjectiveBookDestinations.QuestLog.of("the_lantern").getSelect());
         assertEquals("a1", ObjectiveBookDestinations.Achievements.of("a1").getSelect());

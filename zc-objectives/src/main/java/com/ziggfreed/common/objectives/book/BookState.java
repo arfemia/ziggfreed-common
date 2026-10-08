@@ -111,6 +111,17 @@ public record BookState(@Nonnull String tab, @Nonnull String view, @Nonnull Stri
     }
 
     /**
+     * Where a focused open from outside the book starts: {@code tab} on Browse, filtered to {@code category}, with
+     * {@code openSections} in the kit's own form (an id opened, {@code "!" + id} closed) and {@code selectedId} chosen
+     * (null: none). Every other filter off.
+     */
+    @Nonnull
+    public static BookState browsing(@Nullable String tab, @Nonnull String category, @Nonnull Set<String> openSections,
+            @Nullable String selectedId) {
+        return new BookState(tab, VIEW_BROWSE, category, null, null, null, null, selectedId, openSections);
+    }
+
+    /**
      * The state a binding carried, as the codec decoded it. The live search field ({@code @SearchInput}) wins over
      * the carried search, as it always has: it holds what the player typed, submitted or not. A key the event
      * lacks reads as its default, so an event from the pre-redesign bindings decodes too.
