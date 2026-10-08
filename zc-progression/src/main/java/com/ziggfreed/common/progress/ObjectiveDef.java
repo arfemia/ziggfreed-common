@@ -1,5 +1,9 @@
 package com.ziggfreed.common.progress;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -35,6 +39,7 @@ public final class ObjectiveDef {
     private final String authoredTarget;
     private final MatchMode matchMode;
     @Nullable private final String qualifier;
+    private final List<String> qualifiers;
     private final MatchMode qualifierMatchMode;
     private final long amount;
     @Nullable private final String zone;
@@ -49,6 +54,7 @@ public final class ObjectiveDef {
         this.authoredTarget = b.authoredTarget != null ? b.authoredTarget : this.target;
         this.matchMode = b.matchMode;
         this.qualifier = b.qualifier;
+        this.qualifiers = b.qualifiers;
         this.qualifierMatchMode = b.qualifierMatchMode;
         this.amount = b.amount;
         this.zone = (b.zone == null || b.zone.isBlank()) ? null : b.zone;
@@ -97,16 +103,32 @@ public final class ObjectiveDef {
         return matchMode;
     }
 
-    /** The secondary filter, or null for "any". An EMPTY string is a real value - see {@link ObjectiveMatch}. */
+    /**
+     * The secondary filter, or null for "any" (when {@link #qualifiers()} names none either). An
+     * EMPTY string is a real value - see {@link ObjectiveMatch}.
+     */
     @Nullable
     public String qualifier() {
         return qualifier;
     }
 
     /**
-     * How {@link #qualifier()} is compared against the qualifier an event carries: the same three
-     * shapes as {@link #matchMode()}, defaulting to {@link MatchMode#EXACT} (compared whole), so an
-     * objective authored before the qualifier had a comparison of its own keeps its meaning.
+     * More accepted qualifiers beside {@link #qualifier()} (the {@code Qualifiers} leaf): an event
+     * counts when its qualifier matches the single one or any of these, each under
+     * {@link #qualifierMatchMode()}. Immutable, in authored order, with every blank entry already
+     * dropped; never null, empty when none were authored (and then {@link #qualifier()} alone
+     * decides, exactly as before the list existed).
+     */
+    @Nonnull
+    public List<String> qualifiers() {
+        return qualifiers;
+    }
+
+    /**
+     * How {@link #qualifier()} and each of {@link #qualifiers()} are compared against the qualifier
+     * an event carries: the same three shapes as {@link #matchMode()}, defaulting to
+     * {@link MatchMode#EXACT} (compared whole), so an objective authored before the qualifier had a
+     * comparison of its own keeps its meaning.
      */
     @Nonnull
     public MatchMode qualifierMatchMode() {
@@ -144,10 +166,14 @@ public final class ObjectiveDef {
         return turnInLockId;
     }
 
-    /** Does the identifier + qualifier an event carries satisfy this objective? */
+    /**
+     * Does the identifier + qualifier an event carries satisfy this objective? The qualifier is
+     * accepted when it matches {@link #qualifier()} or any of {@link #qualifiers()}.
+     */
     public boolean matches(@Nonnull String eventTarget,
                            @Nullable String eventQualifier) {
-        return ObjectiveMatch.matches(target, matchMode, qualifier, qualifierMatchMode, eventTarget, eventQualifier);
+        return ObjectiveMatch.matches(target, matchMode, qualifier, qualifiers, qualifierMatchMode,
+                eventTarget, eventQualifier);
     }
 
     /** Does this objective's zone scope admit an event that happened at {@code eventZone}? */
@@ -175,6 +201,7 @@ public final class ObjectiveDef {
         @Nullable private String authoredTarget;
         private MatchMode matchMode = MatchMode.CONTAINS;
         @Nullable private String qualifier;
+        private List<String> qualifiers = List.of();
         private MatchMode qualifierMatchMode = MatchMode.EXACT;
         private long amount = 1L;
         @Nullable private String zone;
@@ -212,6 +239,26 @@ public final class ObjectiveDef {
         @Nonnull
         public Builder qualifier(@Nullable String qualifier) {
             this.qualifier = qualifier;
+            return this;
+        }
+
+        /**
+         * More accepted qualifiers beside {@link #qualifier}, in order; a null, empty or blank entry
+         * is dropped, and null or an empty collection authors none. Replaces any list set before.
+         */
+        @Nonnull
+        public Builder qualifiers(@Nullable Collection<String> qualifiers) {
+            if (qualifiers == null || qualifiers.isEmpty()) {
+                this.qualifiers = List.of();
+                return this;
+            }
+            List<String> named = new ArrayList<>(qualifiers.size());
+            for (String entry : qualifiers) {
+                if (entry != null && !entry.isBlank()) {
+                    named.add(entry);
+                }
+            }
+            this.qualifiers = List.copyOf(named);
             return this;
         }
 

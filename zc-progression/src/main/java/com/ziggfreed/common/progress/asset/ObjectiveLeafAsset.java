@@ -1,5 +1,7 @@
 package com.ziggfreed.common.progress.asset;
 
+import java.util.Arrays;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -15,12 +17,17 @@ import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 
 /**
  * The leaves EVERY authored objective carries, whatever kind of content owns it: what counts, which
- * one specifically, how it is compared, a secondary filter and how that is compared, how many,
- * where, and what the player reads.
+ * one specifically, how it is compared, a secondary filter (one value, several, or both) and how
+ * that is compared, how many, where, and what the player reads.
  *
  * <pre>{@code
  * { "Kind": "PICKUP_ITEM", "Target": "Copper_Ore", "MatchMode": "EXACT", "Amount": 10 }
+ * { "Kind": "COMPLETE_QUEST", "Qualifiers": ["REPEATABLE", "SEASONAL"], "Amount": 10 }
  * }</pre>
+ *
+ * <p>The accepted qualifiers are {@code Qualifier} plus every {@code Qualifiers} entry, a union
+ * compared under the one {@code QualifierMatchMode}: the second example counts a repeatable quest
+ * and a seasonal one alike, and a daily not at all.
  *
  * <p><b>Why a shared base rather than two similar codecs.</b> Two lifecycle engines author
  * objectives, and the moment their field names drift an author has to remember which spelling
@@ -38,6 +45,7 @@ public class ObjectiveLeafAsset {
     @Nullable protected String target;
     @Nullable protected String matchMode;
     @Nullable protected String qualifier;
+    @Nullable protected String[] qualifiers;
     @Nullable protected String qualifierMatchMode;
     @Nullable protected Long amount;
     @Nullable protected String zone;
@@ -47,7 +55,7 @@ public class ObjectiveLeafAsset {
             appendLeaves(BuilderCodec.builder(ObjectiveLeafAsset.class, ObjectiveLeafAsset::new)).build();
 
     /**
-     * Register the eight shared leaves on {@code builder}. Every engine's own objective codec starts
+     * Register the nine shared leaves on {@code builder}. Every engine's own objective codec starts
      * from this call, which is what keeps the field names from drifting apart.
      */
     @Nonnull
@@ -76,6 +84,14 @@ public class ObjectiveLeafAsset {
                         (o, v) -> o.qualifier = v, o -> o.qualifier, (o, p) -> o.qualifier = p.qualifier)
                 .documentation("Optional secondary filter whose meaning belongs to the kind's producer (a tool, "
                         + "a difficulty, a variant). Unauthored means any.").add()
+                .appendInherited(new KeyedCodec<>("Qualifiers", Codec.STRING_ARRAY, false),
+                        (o, v) -> o.qualifiers = v, o -> o.qualifiers, (o, p) -> o.qualifiers = p.qualifiers)
+                .documentation("More qualifiers that also count, beside Qualifier: a moment counts when its "
+                        + "qualifier matches Qualifier or any entry here, each compared by QualifierMatchMode. Use "
+                        + "it when several kinds of one moment should count toward the same step, such as a "
+                        + "repeatable quest and a seasonal one. A blank entry is ignored, and with neither this "
+                        + "nor Qualifier authored any qualifier counts. This is ONE leaf: authoring it replaces "
+                        + "an inherited list whole.").add()
                 .appendInherited(new KeyedCodec<>("QualifierMatchMode", Codec.STRING, false),
                         (o, v) -> o.qualifierMatchMode = v, o -> o.qualifierMatchMode,
                         (o, p) -> o.qualifierMatchMode = p.qualifierMatchMode)
@@ -84,10 +100,10 @@ public class ObjectiveLeafAsset {
                         "CONTAINS", "The qualifier must contain the authored one anywhere inside it",
                         "PREFIX", "The qualifier must start with the authored one"))
                 .metadata(EditorSchema.defaultValue("EXACT"))
-                .documentation("How Qualifier is compared: EXACT, CONTAINS, or PREFIX, the same words MatchMode "
-                        + "offers the Target. Unauthored means EXACT, so a qualifier counts only the one value it "
-                        + "names; author PREFIX to count a family of values by their shared start, such as one "
-                        + "station and its greater tier.").add()
+                .documentation("How Qualifier and each Qualifiers entry are compared: EXACT, CONTAINS, or PREFIX, "
+                        + "the same words MatchMode offers the Target. Unauthored means EXACT, so a qualifier "
+                        + "counts only the one value it names; author PREFIX to count a family of values by their "
+                        + "shared start, such as one station and its greater tier.").add()
                 .appendInherited(new KeyedCodec<>("Amount", Codec.LONG, false),
                         (o, v) -> o.amount = v, o -> o.amount, (o, p) -> o.amount = p.amount)
                 .metadata(EditorSchema.defaultValue(1))
@@ -123,6 +139,12 @@ public class ObjectiveLeafAsset {
     @Nullable
     public String getQualifier() {
         return qualifier;
+    }
+
+    /** The authored {@code Qualifiers} list as written (blanks included), or null when unauthored. */
+    @Nullable
+    public String[] getQualifiers() {
+        return qualifiers == null ? null : qualifiers.clone();
     }
 
     /** The authored qualifier comparison name, unparsed; {@link #effectiveQualifierMatchMode()} is the read. */
@@ -199,6 +221,7 @@ public class ObjectiveLeafAsset {
                 .target(runTarget)
                 .matchMode(effectiveMatchMode())
                 .qualifier(qualifier)
+                .qualifiers(qualifiers == null ? null : Arrays.asList(qualifiers))
                 .qualifierMatchMode(effectiveQualifierMatchMode())
                 .amount(amount == null ? 1L : amount)
                 .zone(zone);

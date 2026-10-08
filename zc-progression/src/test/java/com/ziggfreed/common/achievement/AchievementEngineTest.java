@@ -17,6 +17,9 @@ import javax.annotation.Nonnull;
 
 import org.junit.jupiter.api.Test;
 
+import com.hypixel.hytale.assetstore.AssetExtraInfo;
+import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.ziggfreed.common.achievement.asset.AchievementAsset;
 import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardHandler;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
@@ -87,6 +90,35 @@ class AchievementEngineTest {
         engine.dispatch(ALICE, "BREAK_BLOCK", "Iron_Ore", null, 1L);
         assertEquals(1, engine.progressOf(ALICE, achievement, 0).current(),
                 "a different target never counts");
+    }
+
+    /**
+     * A criterion authored with {@code Qualifiers} counts every listed kind of moment through the
+     * dispatch itself, decoded from the file a content author writes, not only through
+     * {@link ObjectiveDef#matches}: the case of a "repeatable quests" tier that also counts the
+     * once-a-run quests whose qualifier reads SEASONAL.
+     */
+    @Test
+    void aCriterionWithSeveralQualifiersCountsEachOfThemThroughTheDispatch() throws Exception {
+        AssetExtraInfo.Data data = new AssetExtraInfo.Data(AchievementAsset.class, "quest_repeatable_t1", null);
+        AchievementAsset asset = AchievementAsset.CODEC.decodeAndInheritJsonAsset(RawJsonReader.fromJsonString("""
+                { "Criteria": { "tiers": { "Kind": "COMPLETE_QUEST", "Qualifiers": ["REPEATABLE", "SEASONAL"],
+                                           "Amount": 10 } } }
+                """), null, new AssetExtraInfo<>(data));
+        Achievement achievement = asset.toDefinition().achievement();
+        AchievementEngine engine = engine().build();
+        engine.setAchievements(List.of(achievement));
+
+        engine.dispatch(ALICE, "COMPLETE_QUEST", "Harvest_Feast_Pies", "SEASONAL", 1L);
+        engine.dispatch(ALICE, "COMPLETE_QUEST", "Gather_Copper", "REPEATABLE", 1L);
+        assertEquals(2, engine.progressOf(ALICE, achievement, 0).current(),
+                "a seasonal completion and a repeatable one both count");
+
+        engine.dispatch(ALICE, "COMPLETE_QUEST", "Herb_Run", "DAILY", 1L);
+        engine.dispatch(ALICE, "COMPLETE_QUEST", "First_Steps", "NORMAL", 1L);
+        engine.dispatch(ALICE, "COMPLETE_QUEST", "Untold", null, 1L);
+        assertEquals(2, engine.progressOf(ALICE, achievement, 0).current(),
+                "a kind the criterion does not list never counts");
     }
 
     @Test
