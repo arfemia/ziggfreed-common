@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -208,5 +209,106 @@ class CalendarEventAssetTest {
         assertThrows(RuntimeException.class, () -> CalendarFixtures.event("No_Type",
                         "{ \"Window\": { \"Rule\": { \"Before\": 10 } }, \"FirstYear\": 2027 }"),
                 "a Rule with no Type and nothing to inherit one from cannot be read");
+    }
+
+    // M308-M310 worked example: Orbis's anniversary, a one-day event every January 13th. No new schema.
+    @Test
+    void theAnniversaryIsAOneDayEventEveryJanuary13th() {
+        CalendarEventAsset anniversary = CalendarFixtures.event("Orbis_Anniversary", """
+                {
+                  "Window": { "Start": "01-13", "End": "01-13" },
+                  "FirstYear": 2027,
+                  "Presentation": { "TitleKey": "calendar.Orbis_Anniversary.name",
+                                    "FlavorKey": "calendar.Orbis_Anniversary.flavor" },
+                  "Herald": { "Start": { "TitleKey": "calendar.Orbis_Anniversary.herald.start", "Major": true } }
+                }
+                """);
+        assertTrue(anniversary.problems().isEmpty(), anniversary.problems().toString());
+        assertTrue(anniversary.canRun());
+        assertEquals(List.of(new RunDays(LocalDate.of(2027, 1, 13), LocalDate.of(2027, 1, 13))),
+                anniversary.annualWindow().runs(2027), "one run a year, one day long");
+        assertEquals(1L, anniversary.annualWindow().runs(2028).get(0).length());
+        assertFalse(anniversary.annualWindow().several());
+        assertFalse(anniversary.annualWindow().moves(), "the same day every year");
+        assertTrue(anniversary.annualWindow().runs(2026).isEmpty(), "nothing before its first year");
+    }
+
+    // M308-M310 worked example: the traveling fair, the first Sunday of every month for seven days.
+    @Test
+    void theTravelingFairRunsTheFirstSundayOfEveryMonthForSevenDays() {
+        CalendarEventAsset fair = CalendarFixtures.event("Traveling_Fair", """
+                {
+                  "Window": { "Rule": { "Type": "Monthly", "Weekday": "Sunday", "Nth": 1, "Days": 7 } },
+                  "FirstYear": 2026,
+                  "Presentation": { "TitleKey": "calendar.Traveling_Fair.name" },
+                  "Herald": { "Start": { "TitleKey": "calendar.Traveling_Fair.herald.start" },
+                              "End": { "TitleKey": "calendar.Traveling_Fair.herald.end" } }
+                }
+                """);
+        assertTrue(fair.problems().isEmpty(), fair.problems().toString());
+        List<RunDays> runs = fair.annualWindow().runs(2026);
+        assertEquals(12, runs.size(), "one run a month");
+        assertEquals(new RunDays(LocalDate.of(2026, 1, 4), LocalDate.of(2026, 1, 10)), runs.get(0));
+        assertEquals(new RunDays(LocalDate.of(2026, 10, 4), LocalDate.of(2026, 10, 10)), runs.get(9));
+        assertEquals(new RunDays(LocalDate.of(2027, 10, 3), LocalDate.of(2027, 10, 9)),
+                fair.annualWindow().runs(2027).get(9), "the first Sunday moves with the year");
+        assertTrue(fair.annualWindow().several());
+        assertEquals("Monthly SUNDAY #1 x7", String.valueOf(fair.annualWindow()));
+    }
+
+    // The fishing contest: every Sunday from 14:00 for two hours, on the event's clock.
+    @Test
+    void theFishingContestRunsEverySundayFromTwoForTwoHours() {
+        CalendarEventAsset contest = CalendarFixtures.event("Fishing_Contest", """
+                { "Window": { "Rule": { "Type": "Weekly", "Weekday": "Sunday", "At": "14:00", "Length": "PT2H" } },
+                  "FirstYear": 2026, "Clock": "UTC" }
+                """);
+        assertTrue(contest.problems().isEmpty(), contest.problems().toString());
+        assertEquals(52, contest.annualWindow().runs(2026).size());
+        assertEquals(new RunDays(LocalDateTime.of(2026, 10, 11, 14, 0), LocalDateTime.of(2026, 10, 11, 16, 0)),
+                contest.annualWindow().runs(2026).get(40));
+    }
+
+    @Test
+    void aRepeatingRuleTheCalendarCannotUseSaysWhy() {
+        assertEquals(List.of(CalendarEventAsset.PROBLEM_WINDOW_UNREADABLE),
+                rule("{ \"Type\": \"Monthly\", \"Days\": 3 }").problems(), "neither a Day nor a Weekday");
+        assertEquals(List.of(CalendarEventAsset.PROBLEM_WINDOW_UNREADABLE),
+                rule("{ \"Type\": \"Monthly\", \"Weekday\": \"Sundy\", \"Nth\": 1 }").problems());
+        assertEquals(List.of(CalendarEventAsset.PROBLEM_WINDOW_UNREADABLE),
+                rule("{ \"Type\": \"Monthly\", \"Day\": 1, \"Months\": [13] }").problems());
+        assertEquals(List.of(CalendarEventAsset.PROBLEM_WINDOW_UNREADABLE),
+                rule("{ \"Type\": \"Weekly\" }").problems(), "a week needs its weekday");
+        assertEquals(List.of(CalendarEventAsset.PROBLEM_WINDOW_UNREADABLE),
+                rule("{ \"Type\": \"Weekly\", \"Weekday\": \"Sunday\", \"At\": \"2pm\" }").problems());
+        assertEquals(List.of(CalendarEventAsset.PROBLEM_WINDOW_UNREADABLE),
+                rule("{ \"Type\": \"Weekly\", \"Weekday\": \"Sunday\", \"Length\": \"2 hours\" }").problems(),
+                "a typo costs the event a sentence in the log, never the whole file");
+        assertEquals(List.of(CalendarEventAsset.PROBLEM_WINDOW_UNREADABLE),
+                rule("{ \"Type\": \"Weekly\", \"Weekday\": \"Monday\", \"Every\": 2 }").problems(),
+                "skipping weeks needs an Anchor to count from");
+        assertEquals(List.of(CalendarEventAsset.PROBLEM_WINDOW_RUN_INVALID),
+                rule("{ \"Type\": \"Monthly\", \"Day\": 1, \"Days\": 29 }").problems(), "29 days meet the next run");
+        assertEquals(List.of(CalendarEventAsset.PROBLEM_WINDOW_RUN_INVALID),
+                rule("{ \"Type\": \"Weekly\", \"Weekday\": \"Friday\", \"Days\": 8 }").problems());
+        assertEquals(List.of(CalendarEventAsset.PROBLEM_WINDOW_RUN_INVALID),
+                rule("{ \"Type\": \"Monthly\", \"Day\": 1, \"Months\": [] }").problems(), "no month to run in");
+        assertEquals(List.of(CalendarEventAsset.PROBLEM_WINDOW_RUN_INVALID),
+                rule("{ \"Type\": \"Easter\", \"After\": 350 }").problems(), "351 days could meet next Easter's run");
+        assertEquals(List.of(CalendarEventAsset.PROBLEM_WINDOW_RUN_INVALID), CalendarFixtures.event("Leap",
+                "{ \"Window\": { \"Start\": \"02-29\", \"End\": \"02-28\" }, \"FirstYear\": 2026 }").problems());
+        assertTrue(rule("{ \"Type\": \"Weekly\", \"Weekday\": \"Monday\", \"Every\": 2, \"Anchor\": \"2026-01-05\","
+                + " \"Days\": 14 }").problems().isEmpty(), "every other week may last two");
+    }
+
+    @Test
+    void aChildChangesOneLeafOfItsParentsMonthlyRule() {
+        CalendarEventAsset parent = CalendarFixtures.event("Traveling_Fair", """
+                { "Window": { "Rule": { "Type": "Monthly", "Weekday": "Sunday", "Nth": 1, "Days": 7 } }, "FirstYear": 2027 }
+                """);
+        CalendarEventAsset child = CalendarFixtures.event("Traveling_Fair",
+                "{ \"Window\": { \"Rule\": { \"Days\": 3 } } }", parent);
+        assertEquals(new RunDays(LocalDate.of(2027, 1, 3), LocalDate.of(2027, 1, 5)),
+                child.annualWindow().runs(2027).get(0), "the child keeps the parent's Type, Weekday and Nth");
     }
 }

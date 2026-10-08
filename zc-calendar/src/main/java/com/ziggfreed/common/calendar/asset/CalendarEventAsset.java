@@ -45,11 +45,15 @@ import com.ziggfreed.common.season.SeasonGate;
  * October 1st to the last instant of November 3rd, counted in the {@code Clock} zone. An {@code End}
  * before its {@code Start} crosses the new year, and a run belongs to the year it starts in.
  *
- * <p><b>Days that move</b>: a {@code Rule} works each year's days out, around Easter Sunday
- * ({@code {"Type": "Easter", "Before": 10, "After": 7}}) or the Nth weekday of a month
- * ({@code {"Type": "Weekday", "Month": 11, "Weekday": "Thursday", "Nth": 4}}), and {@code Years} sets the
+ * <p><b>Days that move</b>: a {@code Rule} works each year's runs out, around Easter Sunday
+ * ({@code {"Type": "Easter", "Before": 10, "After": 7}}), the Nth weekday of a month
+ * ({@code {"Type": "Weekday", "Month": 11, "Weekday": "Thursday", "Nth": 4}}), each month
+ * ({@code {"Type": "Monthly", "Weekday": "Sunday", "Nth": 1, "Days": 7}}) or each week
+ * ({@code {"Type": "Weekly", "Weekday": "Sunday", "At": "14:00", "Length": "PT2H"}}), and {@code Years} sets the
  * days of particular years ({@code {"2031": {"Start": "04-01", "End": "04-20"}}}). Years win over a Rule,
- * a Rule over Start and End, and every run must start in its own year.
+ * a Rule over Start and End, and every run must start in its own year and stay clear of the next. A year may
+ * hold several runs, each numbered by its place in the order the rule gives them (a monthly rule's by month), so
+ * a re-date never renumbers one.
  *
  * <p><b>{@code Enabled: false} makes the event ABSENT, not locked</b>: content gated on it vanishes,
  * as it does when the server owner switches every event off ({@code mods/ziggfreedcommon/calendar.json},
@@ -81,9 +85,12 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
     public static final String PROBLEM_FIRST_YEAR_OUT_OF_RANGE = "FIRST_YEAR_OUT_OF_RANGE";
     /** A Clock java.time does not know; the event runs on UTC. */
     public static final String PROBLEM_CLOCK_UNKNOWN = "CLOCK_UNKNOWN";
-    /** A Window Rule whose runs could start in the year before or last more than 366 days; the event never runs. */
+    /** A Window whose runs could start in the year before or meet the rule's next run; the event never runs. */
     public static final String PROBLEM_WINDOW_RUN_INVALID = "WINDOW_RUN_INVALID";
-    /** A Years entry that is not a four-digit year from FirstYear on, or whose days are not MM-DD; that entry is not used. */
+    /**
+     * A Years entry that is not a four-digit year from FirstYear on, or whose days are not MM-DD (or run February
+     * 29th through February 28th); that entry is not used.
+     */
     public static final String PROBLEM_YEARS_ENTRY_IGNORED = "YEARS_ENTRY_IGNORED";
     /** Start and End beside a Rule, which wins over them: a note, never a problem. */
     public static final String NOTE_START_END_IGNORED = "START_END_IGNORED";
@@ -140,10 +147,10 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
             .appendInherited(new KeyedCodec<>("Window", Window.CODEC, false),
                     (a, v) -> a.window = v, a -> a.window, (a, p) -> a.window = p.window)
             .documentation("The days the event runs each year. Start and End are MM-DD month-days with both days "
-                    + "included, the same every year; a Rule (Easter, Weekday or Fixed) works each year's days out "
-                    + "instead and wins over them; Years sets the days of particular years and wins over both. An "
-                    + "End before its Start crosses the new year, and that run belongs to the year it starts in. A "
-                    + "Window naming only some leaves under Parent or in an owner entry keeps the rest.")
+                    + "included, the same every year; a Rule (Fixed, Easter, Weekday, Monthly or Weekly) works each "
+                    + "year's runs out instead and wins over them; Years sets the days of particular years and wins "
+                    + "over both. An End before its Start crosses the new year, and that run belongs to the year it "
+                    + "starts in. A Window naming only some leaves under Parent or in an owner entry keeps the rest.")
             .add()
             .appendInherited(new KeyedCodec<>("FirstYear", Codec.INTEGER, false),
                     (a, v) -> a.firstYear = v, a -> a.firstYear, (a, p) -> a.firstYear = p.firstYear)
@@ -220,8 +227,9 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
     }
 
     /**
-     * Years win over a Rule, a Rule over Start and End. A Rule that cannot be read or could not keep each run
-     * in its own year stops the event; a bad Years entry costs that entry alone.
+     * Years win over a Rule, a Rule over Start and End. A Rule, or Start and End, that cannot be read, or whose
+     * runs could start in the year before or meet the next run, stops the event; a bad Years entry costs that
+     * entry alone. Nothing is dated before a FirstYear from 1970 to 9999.
      */
     @Nonnull
     private static ParsedWindow readWindow(@Nullable Window authored, @Nullable Integer firstYear) {
@@ -238,28 +246,30 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
             if (every == null) {
                 return new ParsedWindow(null, List.of(PROBLEM_WINDOW_UNREADABLE), List.copyOf(notes));
             }
-            if (!every.valid()) {
-                return new ParsedWindow(null, List.of(PROBLEM_WINDOW_RUN_INVALID), List.copyOf(notes));
-            }
         } else if (authored.start != null || authored.end != null) {
             every = AnnualWindow.fixed(authored.start, authored.end);
             if (every == null) {
                 return new ParsedWindow(null, List.of(PROBLEM_WINDOW_UNREADABLE), List.of());
             }
         }
+        if (every != null && !every.valid()) {
+            // Start and End as well as a Rule: February 29th through February 28th meets its own next run.
+            return new ParsedWindow(null, List.of(PROBLEM_WINDOW_RUN_INVALID), List.copyOf(notes));
+        }
         Map<Integer, YearRule.Fixed> years = new TreeMap<>();
         boolean ignored = false;
         for (Map.Entry<String, WindowRules.Fixed> entry : authored.yearsOrEmpty().entrySet()) {
             Integer year = yearKey(entry.getKey());
             YearRule.Fixed days = entry.getValue() == null ? null : entry.getValue().toFixed();
-            if (year == null || days == null || (firstYear != null && year < firstYear)) {
+            if (year == null || days == null || !days.valid() || (firstYear != null && year < firstYear)) {
                 ignored = true;
             } else {
                 years.put(year, days);
             }
         }
         List<String> problems = new ArrayList<>();
-        AnnualWindow parsed = AnnualWindow.of(every, years);
+        AnnualWindow parsed = AnnualWindow.of(every, years,
+                firstYear != null && isFirstYearInRange(firstYear) ? firstYear : AnnualWindow.NO_FLOOR);
         if (parsed == null) {
             problems.add(PROBLEM_WINDOW_UNREADABLE);
         }
@@ -400,10 +410,11 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
                         + "End before its Start runs into the next year. Not used when a Rule is authored.").add()
                 .appendInherited(new KeyedCodec<>("Rule", WindowRules.CODEC, false),
                         (o, v) -> o.rule = v, o -> o.rule, (o, p) -> o.rule = p.rule)
-                .documentation("How each year's days are worked out when they move: Easter (days around Easter "
-                        + "Sunday) or Weekday (days around the Nth weekday of a month). Fixed gives the same "
-                        + "month-days every year, which is how a server owner pins an event whose days move. A "
-                        + "Rule wins over Start and End.").add()
+                .documentation("How each year's runs are worked out: Fixed (the same month-days every year), "
+                        + "Easter (days around Easter Sunday), Weekday (days around the Nth weekday of a month), "
+                        + "Monthly (a run each month) or Weekly (a run each week), the last two with a time of day, "
+                        + "a length in hours, every Nth week or month and the months they run in. Fixed is how a "
+                        + "server owner pins an event whose days move. A Rule wins over Start and End.").add()
                 .appendInherited(new KeyedCodec<>("Years", YEARS_CODEC, false),
                         (o, v) -> o.years = v, o -> o.years, (o, p) -> o.years = p.years)
                 .documentation("Days for particular years, keyed by the four-digit year: {\"2031\": {\"Start\": "
