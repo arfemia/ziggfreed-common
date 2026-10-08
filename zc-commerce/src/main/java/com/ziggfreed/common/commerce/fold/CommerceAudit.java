@@ -46,8 +46,14 @@ import com.ziggfreed.common.validation.ValidationReport;
  */
 public final class CommerceAudit {
 
-    /** Whether the boot-time pass has run; {@link #runLateAudit} claims it exactly once per boot. */
+    /**
+     * Whether the boot-time pass has run; {@link #runLateAudit} or {@link #claimLateFindings} claims it
+     * exactly once per boot.
+     */
     private static final AtomicBoolean LATE_AUDIT_RAN = new AtomicBoolean();
+
+    /** The label every commerce audit line carries. */
+    public static final String LOG_LABEL = "[commerce] content";
 
     private CommerceAudit() {
     }
@@ -68,7 +74,7 @@ public final class CommerceAudit {
 
     /** Push findings already in hand at the server log, split by how much each one matters. */
     public static void log(@Nonnull List<Finding> findings) {
-        ValidationReport.logAll("[commerce] content", findings, SafeLog::warn, SafeLog::info);
+        ValidationReport.logAll(LOG_LABEL, findings, SafeLog::warn, SafeLog::info);
     }
 
     /** Audit and log in one call, for a caller with nothing else to do with the findings. */
@@ -88,6 +94,16 @@ public final class CommerceAudit {
         if (LATE_AUDIT_RAN.compareAndSet(false, true)) {
             runAndLog();
         }
+    }
+
+    /**
+     * The boot-time pass's findings, claimed exactly as {@link #runLateAudit} claims it, for a caller
+     * that logs them itself (zc-core's {@code BootAudit}): empty when the pass already ran this boot,
+     * so the first player's join does not print the same lines again.
+     */
+    @Nonnull
+    public static List<Finding> claimLateFindings() {
+        return LATE_AUDIT_RAN.compareAndSet(false, true) ? auditAll() : List.of();
     }
 
     // ==================== the three domains ====================

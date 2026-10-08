@@ -42,6 +42,9 @@ import com.ziggfreed.common.validation.ValidationReport;
 public final class DerivedFactorConfig extends AbstractKeyedAssetConfig<DerivedFactorAsset>
         implements DerivedFactorSource {
 
+    /** The label this audit's lines carry, at every fold and in zc's boot audit. */
+    public static final String LOG_LABEL = "[factor] DerivedFactor";
+
     private static final DerivedFactorConfig INSTANCE = new DerivedFactorConfig();
 
     private DerivedFactorConfig() {
@@ -115,6 +118,6 @@ public final class DerivedFactorConfig extends AbstractKeyedAssetConfig<DerivedF
 
     /** Log this config's findings once per fold: an error as a warning line, anything else at info. */
     public void logFindings() {
-        ValidationReport.logAll("[factor] DerivedFactor", audit(), SafeLog::warn, SafeLog::info);
+        ValidationReport.logAll(LOG_LABEL, audit(), SafeLog::warn, SafeLog::info);
     }
 }

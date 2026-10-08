@@ -42,6 +42,9 @@ public final class CalendarEventValidator {
 
     public static final String DOMAIN = "calendar";
 
+    /** The label the calendar audit's lines carry when it is logged whole (zc's boot audit). */
+    public static final String LOG_LABEL = "[calendar] audit";
+
     public static final String UNKNOWN_ICON = "UNKNOWN_ICON";
     public static final String HERALD_WITHOUT_TITLE = "HERALD_WITHOUT_TITLE";
     public static final String SPAWN_NO_EVENT = "SPAWN_NO_EVENT";

@@ -48,6 +48,9 @@ public final class GearSetValidator {
 
     public static final String DOMAIN = "gear_set";
 
+    /** The label the gear-set audit's lines carry when it is logged whole (zc's boot audit). */
+    public static final String LOG_LABEL = "[gearset] audit";
+
     public static final String EMPTY_MEMBERS = "EMPTY_MEMBERS";
     public static final String NO_BONUSES = "NO_BONUSES";
     public static final String TIER_WITHOUT_CONDITION = "TIER_WITHOUT_CONDITION";

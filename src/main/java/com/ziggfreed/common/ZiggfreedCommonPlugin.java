@@ -1,6 +1,7 @@
 package com.ziggfreed.common;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -13,12 +14,14 @@ import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.ziggfreed.common.almanac.AlmanacBootstrap;
+import com.ziggfreed.common.almanac.asset.AlmanacValidator;
 import com.ziggfreed.common.asset.AssetStoreWriter;
 import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.asset.FrameworkAssetRegistrar;
 import com.ziggfreed.common.asset.PackRangeAudit;
 import com.ziggfreed.common.board.asset.BoardConfig;
 import com.ziggfreed.common.calendar.CalendarBootstrap;
+import com.ziggfreed.common.calendar.asset.CalendarEventValidator;
 import com.ziggfreed.common.commerce.CommerceComponent;
 import com.ziggfreed.common.commerce.asset.CommerceEditorDataSets;
 import com.ziggfreed.common.commerce.command.ZigCommerceCommand;
@@ -45,6 +48,7 @@ import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.factor.HytaleFactors;
 import com.ziggfreed.common.feedback.moment.FeedbackEngine;
 import com.ziggfreed.common.gearset.GearSetNoticeBridge;
+import com.ziggfreed.common.loot.LootAudit;
 import com.ziggfreed.common.loot.LootCues;
 import com.ziggfreed.common.loot.LootEditorDataSets;
 import com.ziggfreed.common.loot.LootFactors;
@@ -60,6 +64,7 @@ import com.ziggfreed.common.loot.stamp.StampFactors;
 import com.ziggfreed.common.loot.stamp.StamperRegistry;
 import com.ziggfreed.common.npc.NpcBootstrap;
 import com.ziggfreed.common.npc.NpcDestinations;
+import com.ziggfreed.common.npc.NpcIdentityConfig;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementConfig;
 import com.ziggfreed.common.npc.placement.registry.PlacementFactorRegistry;
 import com.ziggfreed.common.objectives.bonus.BonusRowBootstrap;
@@ -72,6 +77,7 @@ import com.ziggfreed.common.objectives.runtime.ProgressionBootstrap;
 import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
 import com.ziggfreed.common.objectives.settings.ObjectivesSettingsBootstrap;
 import com.ziggfreed.common.objectives.title.TitleBootstrap;
+import com.ziggfreed.common.objectives.title.TitleValidator;
 import com.ziggfreed.common.progress.asset.ProgressEditorDataSets;
 import com.ziggfreed.common.reputation.ReputationBootstrap;
 import com.ziggfreed.common.reward.CostumeRewardKind;
@@ -81,6 +87,7 @@ import com.ziggfreed.common.settings.PlayerSettings;
 import com.ziggfreed.common.settings.page.SettingsBootstrap;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.shop.asset.ShopPoolConfig;
+import com.ziggfreed.common.stats.gearset.GearSetValidator;
 import com.ziggfreed.common.stats.gearset.GearSets;
 import com.ziggfreed.common.stats.gearset.ZigGearSetTierChangedEvent;
 import com.ziggfreed.common.ui.hud.panel.HudPanels;
@@ -89,6 +96,7 @@ import com.ziggfreed.common.ui.hud.panel.HudSpotConfig;
 import com.ziggfreed.common.ui.hud.command.ZigHudCommand;
 import com.ziggfreed.common.ui.menu.command.ZigMenuCommand;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.validation.BootAudit;
 import com.ziggfreed.common.world.placed.PlacedBlockBootstrap;
 import com.ziggfreed.common.world.stash.BlockStashBootstrap;
 
@@ -253,8 +261,8 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // installed), and the once-at-boot log of broken reputation files. Its companion store is registered
         // with the other framework stores.
         ReputationBootstrap.install(this);
-        // The once-at-boot checks, on BootEvent: every store has folded and every mod has registered
-        // its vocabulary by then.
+        // The once-at-boot checks (the boot audit a headless dev boot asks for), on BootEvent: every
+        // store has folded and every mod has registered its vocabulary by then.
         registerBootChecks();
 
         LOGGER.atInfo().log("ZiggfreedCommon setup complete (framework stores + shared primitives available).");
@@ -427,7 +435,8 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
      *
      * <p>The content audit runs once per boot at first player ready, like the placement audit and
      * for the same reason: its checks ask other stores and open registries whether an id exists, and
-     * only by then have every store folded and every mod's {@code setup()} run.
+     * only by then have every store folded and every mod's {@code setup()} run. A headless dev boot's
+     * {@code BootAudit} switch claims that same once-per-boot pass at {@code BootEvent} instead.
      *
      * <p>Installing the defaults here is safe rather than a clobber because every consumer declares
      * this library as a dependency, so the server loads it first and a consumer that keeps this state
@@ -463,8 +472,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
 
     /**
      * The {@code /zigloot} family, whose {@code validate} verb audits every loaded loot table against
-     * the reward kinds this server pays. On demand only, never a boot pass: a consumer that audits
-     * the tables at its own boot already prints every line, and a second pass would double them.
+     * the reward kinds this server pays. On demand only, never a boot pass outside a headless dev boot's
+     * {@code BootAudit} switch ({@link #registerBootChecks()}): a consumer that audits the tables at its
+     * own boot already prints every line, and a second pass would double them.
      */
     private void registerLootCommand() {
         try {
@@ -541,12 +551,26 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
     }
 
     /**
-     * What runs once the server has booted: the once-per-boot warning for a loaded pack whose
-     * ziggfreed-common range this version fails ({@code PackRangeAudit}).
+     * What runs once the server has booted. Here, the content audits a headless boot asks for through
+     * {@code BootAudit.ENV}: commerce (claiming the same once-per-boot flag as the first player's pass),
+     * loot, gear sets, calendar events and their spawns, titles, Almanac pages, derived factors and NPC
+     * identities; and, always, the once-per-boot warning for a loaded pack whose ziggfreed-common range
+     * this version fails ({@code PackRangeAudit}). Whether to run the audits is {@code BootAudit}'s to
+     * decide; this only wires the event. Pinned here because no module sees commerce, loot, the gear-set
+     * validator and the other audits together.
      */
     private void registerBootChecks() {
         try {
             getEventRegistry().register(BootEvent.class, event -> PackRangeAudit.warnOnce(getManifest()));
+            getEventRegistry().register(BootEvent.class, event -> BootAudit.runIfAsked(List.of(
+                    new BootAudit.Pass(CommerceAudit.LOG_LABEL, CommerceAudit::claimLateFindings),
+                    new BootAudit.Pass(LootAudit.LOG_LABEL, LootAudit::auditAll),
+                    new BootAudit.Pass(GearSetValidator.LOG_LABEL, GearSetValidator::audit),
+                    new BootAudit.Pass(CalendarEventValidator.LOG_LABEL, CalendarEventValidator::audit),
+                    new BootAudit.Pass(TitleValidator.LOG_LABEL, TitleValidator::audit),
+                    new BootAudit.Pass(AlmanacValidator.LOG_LABEL, AlmanacValidator::audit),
+                    new BootAudit.Pass(DerivedFactorConfig.LOG_LABEL, () -> DerivedFactorConfig.getInstance().audit()),
+                    new BootAudit.Pass(NpcIdentityConfig.LOG_LABEL, () -> NpcIdentityConfig.getInstance().audit()))));
         } catch (Throwable t) {
             SafeLog.warn("[boot] the boot checks could not be registered", t);
         }
