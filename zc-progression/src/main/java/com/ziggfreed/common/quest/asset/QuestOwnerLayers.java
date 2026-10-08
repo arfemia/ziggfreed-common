@@ -22,6 +22,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.util.OwnerFiles;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
@@ -53,6 +54,11 @@ import com.ziggfreed.common.validation.Finding;
  * rest of the folder is carried. A {@code $}-prefixed name is documentation and a non-{@code .json}
  * entry is somebody else's, so both are ignored; there are no marked sub-folders here, the folder
  * is flat.
+ *
+ * <p><b>The folder follows the mod gate.</b> A file whose own {@code Requires} gates on a missing mod,
+ * a file over a pack quest the gate refused (whatever it writes), and a file whose {@code Parent} is
+ * one of those or a refused pack quest (it follows its base out, as a generated family does) are
+ * dropped with no finding; the store counts them in its one owner drop line per missing mod.
  *
  * <p>Read AFRESH at every fold ({@link QuestAssetStore#resolve}), which is what makes the boot
  * publish, {@code /zigprogress reload} and a hot re-import all pick a change up: an owner entry
@@ -100,25 +106,48 @@ public final class QuestOwnerLayers {
      * Read the folder and decode every file against {@code below} - the composed view of every
      * layer under this one - into a fresh map keyed by id. Every problem goes onto {@code issues}
      * under the store's own domain; a missing folder is the common case and says nothing.
+     *
+     * @param gatedOut the pack quest ids the mod gate refused, each to its missing mod (or null): a file
+     *                 over one, or inheriting from one, goes with it
+     * @param dropped  receives the missing mod of every file the mod gate dropped, one entry per file,
+     *                 for the store's drop line; nothing else names them
      */
     @Nonnull
-    static Map<String, QuestAsset> read(@Nonnull Map<String, QuestAsset> below, @Nonnull List<Finding> issues) {
+    static Map<String, QuestAsset> read(@Nonnull Map<String, QuestAsset> below, @Nonnull Map<String, String> gatedOut,
+            @Nonnull List<String> dropped, @Nonnull List<Finding> issues) {
         Path folder = folder();
         if (!Files.isDirectory(folder)) {
             return Map.of();
         }
         Map<String, Source> sources = list(folder, issues);
         Map<String, QuestAsset> out = new LinkedHashMap<>();
+        Map<String, String> droppedFor = new LinkedHashMap<>();
+        Gate gate = new Gate(gatedOut, droppedFor);
         for (Source source : sources.values()) {
-            QuestAsset decoded = decode(source, sources, below, out, new HashSet<>(), issues);
+            QuestAsset decoded = decode(source, sources, below, gate, out, new HashSet<>(), issues);
             if (decoded != null) {
                 out.put(source.id(), decoded);
             }
         }
+        dropped.addAll(droppedFor.values());
         if (!out.isEmpty()) {
             SafeLog.info("[" + LOG_TAG + "] " + out.size() + " owner quest(s) read from " + folder);
         }
         return out;
+    }
+
+    /**
+     * The mod gate over one read: the pack ids it refused, and every owner file this read has dropped
+     * for a missing mod (id to that mod, which may be null when the pack fold named none).
+     */
+    private record Gate(@Nonnull Map<String, String> refused, @Nonnull Map<String, String> droppedFor) {
+
+        /** Drop {@code id}'s file for {@code mod}; always null, the decode's answer for a dropped file. */
+        @Nullable
+        QuestAsset drop(@Nonnull String id, @Nullable String mod) {
+            droppedFor.put(id, mod);
+            return null;
+        }
     }
 
     /** One file in the folder: its id, where it is, and its body once parsed. */
@@ -205,16 +234,23 @@ public final class QuestOwnerLayers {
      * work in any name order) and then among the layers below; or, when it names none, the quest
      * the layers below hold under its own id; or nothing, for a new id standing on its own.
      *
+     * <p>A file the mod gate drops (over a refused pack quest, inheriting from a dropped base, or gated
+     * on a missing mod itself) answers null with no finding, its mod recorded on {@code gate}.
+     *
      * @param decoded  what this read has decoded so far, so a shared owner base is decoded once
      * @param visiting the files on the current inheritance path, so a cycle is reported, not looped
      */
     @Nullable
     private static QuestAsset decode(@Nonnull Source source, @Nonnull Map<String, Source> sources,
-            @Nonnull Map<String, QuestAsset> below, @Nonnull Map<String, QuestAsset> decoded,
+            @Nonnull Map<String, QuestAsset> below, @Nonnull Gate gate, @Nonnull Map<String, QuestAsset> decoded,
             @Nonnull Set<String> visiting, @Nonnull List<Finding> issues) {
         QuestAsset already = decoded.get(source.id());
-        if (already != null) {
+        if (already != null || gate.droppedFor().containsKey(source.id())) {
             return already;
+        }
+        if (gate.refused().containsKey(source.id())) {
+            // An override of a pack quest the mod gate refused goes with it, whatever it writes.
+            return gate.drop(source.id(), gate.refused().get(source.id()));
         }
         String parentId = source.parentId();
         QuestAsset base;
@@ -222,7 +258,7 @@ public final class QuestOwnerLayers {
             base = below.get(source.id());
             parentId = base == null ? null : source.id();
         } else {
-            base = resolveParent(source, parentId, sources, below, decoded, visiting, issues);
+            base = resolveParent(source, parentId, sources, below, gate, decoded, visiting, issues);
             if (base == null) {
                 return null;
             }
@@ -237,6 +273,11 @@ public final class QuestOwnerLayers {
                                 + "quest schema", source.id()));
                 return null;
             }
+            String missingMod = GateSpec.missingMod(asset.getRequires());
+            if (missingMod != null) {
+                // Gated on a mod this server lacks, exactly as a pack file would be.
+                return gate.drop(source.id(), missingMod);
+            }
             asset.readFrom(source.path());
             decoded.put(source.id(), asset);
             return asset;
@@ -248,10 +289,14 @@ public final class QuestOwnerLayers {
         }
     }
 
-    /** The quest an explicit {@code Parent} names, or null with a finding when nothing has it. */
+    /**
+     * The quest an explicit {@code Parent} names, or null with a finding when nothing has it. A
+     * {@code Parent} the mod gate dropped or refused answers null with no finding: the file follows
+     * its base out, recorded on {@code gate} under the base's mod.
+     */
     @Nullable
     private static QuestAsset resolveParent(@Nonnull Source source, @Nonnull String parentId,
-            @Nonnull Map<String, Source> sources, @Nonnull Map<String, QuestAsset> below,
+            @Nonnull Map<String, Source> sources, @Nonnull Map<String, QuestAsset> below, @Nonnull Gate gate,
             @Nonnull Map<String, QuestAsset> decoded, @Nonnull Set<String> visiting,
             @Nonnull List<Finding> issues) {
         Source ownerParent = sources.get(parentId);
@@ -263,7 +308,10 @@ public final class QuestOwnerLayers {
                 return null;
             }
             try {
-                QuestAsset base = decode(ownerParent, sources, below, decoded, visiting, issues);
+                QuestAsset base = decode(ownerParent, sources, below, gate, decoded, visiting, issues);
+                if (base == null && gate.droppedFor().containsKey(parentId)) {
+                    return gate.drop(source.id(), gate.droppedFor().get(parentId));
+                }
                 if (base == null) {
                     issues.add(Finding.error(QuestPoolValidator.DOMAIN, "UNKNOWN_PARENT",
                             "the owner file " + source.path() + " names Parent '" + parentId + "', an owner file "
@@ -275,6 +323,10 @@ public final class QuestOwnerLayers {
             }
         }
         QuestAsset base = below.get(parentId);
+        if (base == null && gate.refused().containsKey(parentId)) {
+            // Its base belongs to a mod this server lacks, so it is absent on purpose.
+            return gate.drop(source.id(), gate.refused().get(parentId));
+        }
         if (base == null) {
             issues.add(Finding.error(QuestPoolValidator.DOMAIN, "UNKNOWN_PARENT",
                     "the owner file " + source.path() + " names Parent '" + parentId + "', which is not a quest "

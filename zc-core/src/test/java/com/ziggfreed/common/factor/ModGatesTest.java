@@ -1,8 +1,11 @@
 package com.ziggfreed.common.factor;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.AfterEach;
@@ -27,6 +30,7 @@ class ModGatesTest {
     @AfterEach
     void restoreTheEngineProbe() {
         ModGates.useProbeForTests(null);
+        ModGates.reportIntoForTests(null);
     }
 
     private static FactorCondition mod(Double min, Double max) {
@@ -93,5 +97,47 @@ class ModGatesTest {
 
         assertTrue(ModGates.keep(new FactorCondition[] {mod(1.0, null)}),
                 "no plugin table here reads null, never a definite 0");
+    }
+
+    // ==================== which mod, and the drop line ====================
+
+    @Test
+    void missingModNamesTheModThatDropsTheFileAsAuthored() {
+        assertEquals(MMO, ModGates.missingMod(new FactorCondition[] {mod(1.0, null)}));
+        assertEquals(MMO, ModGates.missingMod(List.of(FactorCondition.of("HYTALE:MOD_INSTALLED", " " + MMO + " ", 2.0, null))),
+                "the Group:Name the condition wrote, trimmed");
+        assertEquals(MMO, ModGates.missingMod(new FactorCondition[] {
+                FactorCondition.of("yourmod:rank", null, 5.0, null), mod(1.0, null)}), "found among other conditions");
+    }
+
+    @Test
+    void missingModIsNullExactlyWhereTheFileIsKept() {
+        assertNull(ModGates.missingMod(new FactorCondition[] {mod(null, null)}), "a bounds-less condition is not a gate");
+        assertNull(ModGates.missingMod(new FactorCondition[] {mod(null, 0.0)}), "a requirement, not a gate");
+        assertNull(ModGates.missingMod(new FactorCondition[] {mod(0.5, null)}));
+        assertNull(ModGates.missingMod((List<FactorCondition>) null));
+        assertNull(ModGates.missingMod((FactorCondition[]) null));
+        assertNull(ModGates.missingMod(new FactorCondition[] {null}));
+        ModGates.useProbeForTests(param -> null);
+        assertNull(ModGates.missingMod(new FactorCondition[] {mod(1.0, null)}), "cannot tell keeps the file");
+        ModGates.useProbeForTests(param -> 1.0);
+        assertNull(ModGates.missingMod(new FactorCondition[] {mod(1.0, null)}), "installed here");
+    }
+
+    @Test
+    void aDropLogsOneLinePerStorePerMissingModAndNeverNamesAFile() {
+        List<String> lines = new ArrayList<>();
+        ModGates.reportIntoForTests(lines::add);
+
+        ModGates.reportPackFiles("Quests", List.of(MMO, "Other:Mod", MMO));
+        ModGates.reportOwnerOverrides("GearSets", List.of(MMO));
+        ModGates.reportPackFiles("Boards", List.of());
+        ModGates.reportOwnerOverrides("Currencies", List.of());
+
+        assertEquals(List.of(
+                "[zc] mod gate: Quests dropped 1 pack file(s) gated on a missing mod (Other:Mod)",
+                "[zc] mod gate: Quests dropped 2 pack file(s) gated on a missing mod (Ziggfreed:MMOSkillTree)",
+                "[zc] mod gate: GearSets dropped 1 owner override(s) gated on a missing mod (Ziggfreed:MMOSkillTree)"),
+                lines, "nothing dropped says nothing");
     }
 }
