@@ -254,8 +254,10 @@ public final class BoardValidator {
         if (bounty.isAbstract()) {
             return;
         }
-        // Named as a quest is: its TitleKey, else quest.<id>.title, read off the one fold.
-        Finding unnamed = ConventionKeys.unresolvedTitle(DOMAIN, id, bounty.toDefinition(null).quest().text());
+        // Named as a quest is: its TitleKey, else quest.<id>.title, read off the one fold. Folded
+        // through the guarded overload, so a contract whose fold throws loses only this finding.
+        Finding unnamed = ConventionKeys.unresolvedTitle(DOMAIN, id,
+                () -> bounty.toDefinition(null).quest().text());
         if (unnamed != null) {
             out.add(unnamed);
         }

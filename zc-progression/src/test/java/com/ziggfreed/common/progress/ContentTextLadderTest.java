@@ -135,6 +135,33 @@ class ContentTextLadderTest {
         assertEquals("ladder", text.titleOr("ladder").getRawText());
     }
 
+    /**
+     * The key an offer listing carries across is the convention key only when it SHIPS. Every
+     * folded quest now carries {@code quest.<id>.title}, so handing it over unshipped would give a
+     * DisplayName-only quest a raw key where a reader of null falls back to the name it knows.
+     */
+    @Test
+    void anOfferIsHandedTheConventionKeyOnlyWhenItShips() {
+        QuestDefinition folded = new QuestDefinition("errand", Quest.builder("errand").build(), null, null,
+                "An Errand", List.of(), List.of(), Map.of(), null, 0, List.of(), null, null, null, null,
+                GateSpec.OPEN, List.of(), Map.of(), List.of(), null, Map.of());
+        ContentText text = folded.quest().text();
+        assertEquals("quest.errand.title", text.titleConventionKey(), "the fold names it by convention");
+
+        LangCatalog.overrideForTests(Map.of("fixturemod.quest.unrelated", "x"));
+        assertNull(text.resolvableTitleKey(),
+                "a DisplayName-only quest whose convention key ships nowhere hands no key, as before");
+
+        LangCatalog.overrideForTests(Map.of("fixturemod.quest.errand.title", "Errand"));
+        assertEquals("quest.errand.title", text.resolvableTitleKey(), "once a pack ships it, the offer carries it");
+
+        LangCatalog.overrideForTests(Map.of());
+        assertEquals("fixture.explicit.title", ContentText.builder()
+                        .titleKey("fixture.explicit.title").titleConventionKey("quest.errand.title").build()
+                        .resolvableTitleKey(),
+                "an explicit key that ships nowhere is still handed over as written, exactly as before");
+    }
+
     /** The flavor ladder: the description, then the explicit key as written, and never a step. */
     @Test
     void flavorEndsAtTheDescriptionThenTheExplicitKeyAsWritten() {

@@ -25,6 +25,8 @@ import com.ziggfreed.common.commerce.asset.SelectionAsset;
 import com.ziggfreed.common.cost.Cost;
 import com.ziggfreed.common.currency.CurrencyDef;
 import com.ziggfreed.common.currency.asset.CurrencyAsset;
+import com.ziggfreed.common.progress.ConventionKeys;
+import com.ziggfreed.common.quest.asset.QuestDefinition;
 import com.ziggfreed.common.rotation.PoolSlot;
 import com.ziggfreed.common.rotation.RerollSpec;
 import com.ziggfreed.common.rotation.RotationSpec;
@@ -441,6 +443,26 @@ class CommerceFoldTest {
             assertNull(ref.difficultyOn("weekly"));
             assertEquals(1.0, ref.weightOn("weekly"),
                     "a board it does not hang on biases nothing rather than reading as zero");
+        }
+
+        @Test
+        @DisplayName("a contract's engine id is its folded quest id, so the board page and the fold name it by one key")
+        void aContractViewCarriesTheIdItsConventionKeysAreFoldedFrom() throws Exception {
+            String path = "Bounties/MMOSkillTree/Bounty_Hunt_Trork.json";
+            BountyAsset base = CommerceFoldFixtures.bounty("Bounties/MMOSkillTree/Bounty_Kill.json",
+                    null, null);
+            BountyAsset trork = CommerceFoldFixtures.bounty(path, base, base.getId());
+
+            BountyRef ref = BountyAssetRef.of(trork);
+            QuestDefinition folded = trork.toDefinition(null);
+
+            String fileName = CommerceFoldFixtures.idOf(path);
+            assertFalse(fileName.equals(fileName.toLowerCase(Locale.ROOT)), "the fixture's file name is mixed case");
+            assertEquals(fileName.toLowerCase(Locale.ROOT), ref.bountyId(), "the codec lower-cases the id");
+            assertEquals(folded.id(), ref.bountyId());
+            assertEquals(folded.quest().text().titleConventionKey(), ConventionKeys.questTitle(ref.bountyId()),
+                    "the page's name key is the one the fold and the validator read");
+            assertEquals(folded.quest().text().flavorConventionKey(), ConventionKeys.questFlavor(ref.bountyId()));
         }
     }
 }
