@@ -1,6 +1,7 @@
 package com.ziggfreed.common.npc.placement.asset;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -8,10 +9,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.util.List;
 
+import org.bson.BsonDocument;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
+import com.hypixel.hytale.codec.ExtraInfo;
+import com.hypixel.hytale.codec.schema.SchemaContext;
+import com.hypixel.hytale.codec.schema.config.ArraySchema;
+import com.hypixel.hytale.codec.schema.config.ObjectSchema;
+import com.hypixel.hytale.codec.schema.config.Schema;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.npc.NpcDestinations;
@@ -277,6 +284,104 @@ class NpcPlacementAssetCodecTest {
 
         assertEquals("yourmod:station_block", asset.getAnchor().getCustom().getProvider());
         assertEquals("sawmill", asset.getAnchor().getCustom().getParams().get("Station"));
+    }
+
+    // ==================== Props: decorations drawn at the placement's spot ====================
+
+    private static final String FEAST_PROPS = """
+            { "Props": [
+                { "Item": "Furniture_Tavern_Table", "Offset": { "X": 1.5, "Y": 0, "Z": 0 }, "Yaw": 90 },
+                { "Item": "Furniture_Tavern_Bench", "Offset": { "X": 1.5, "Z": 1.2 }, "Yaw": 90, "Scale": 0.8 } ] }
+            """;
+
+    @Test
+    void propsDecodeEachEntrysItemOffsetYawAndScale() throws Exception {
+        NpcPlacementAsset asset = decodeRoot(FEAST_PROPS, "feast_table");
+
+        List<NpcPlacementAsset.Prop> props = asset.getProps();
+        assertTrue(asset.hasProps());
+        assertEquals(2, props.size());
+        assertEquals("Furniture_Tavern_Table", props.get(0).getItem());
+        assertEquals(1.5, props.get(0).getOffset().effectiveX());
+        assertEquals(90.0, props.get(0).effectiveYaw());
+        assertEquals(1.0, props.get(0).effectiveScale(), "an unauthored Scale draws the item at its own size");
+        assertEquals("Furniture_Tavern_Bench", props.get(1).getItem());
+        assertEquals(1.2, props.get(1).getOffset().effectiveZ());
+        assertEquals(0.8, props.get(1).effectiveScale(), 1e-9);
+    }
+
+    @Test
+    void anEntryWithOnlyAnItemSitsOnTheSpotUnturnedAtItsOwnSize() throws Exception {
+        NpcPlacementAsset asset = decodeRoot("""
+                { "Props": [ { "Item": "Furniture_Tavern_Table" }, { "Item": "Furniture_Tavern_Bench", "Scale": 0 } ] }
+                """, "bare_props");
+
+        NpcPlacementAsset.Prop table = asset.getProps().get(0);
+        assertNull(table.getOffset(), "no Offset authored: the prop stands on the placement's own spot");
+        assertEquals(0.0, table.effectiveYaw());
+        assertEquals(1.0, table.effectiveScale());
+        assertEquals(1.0, asset.getProps().get(1).effectiveScale(),
+                "a Scale at or below 0 would draw nothing, so it reads as the item's own size");
+    }
+
+    @Test
+    void aPlacementAuthoringNoPropsDrawsNone() throws Exception {
+        NpcPlacementAsset asset = decodeRoot("{ \"Identity\": { \"Role\": \"Zc_Guide\" } }", "no_props");
+
+        assertFalse(asset.hasProps());
+        assertTrue(asset.getProps().isEmpty(), "never null, so a reader walks it without a check");
+    }
+
+    @Test
+    void aChildInheritsItsParentsPropsWhole() throws Exception {
+        NpcPlacementAsset parent = decodeRoot(FEAST_PROPS, "feast_base");
+
+        NpcPlacementAsset child = decode("""
+                { "Where": { "GameplayConfig": ["ForgottenTemple"] } }
+                """, "feast_temple", "feast_base", parent);
+
+        assertEquals(2, child.getProps().size(), "a child that retargets the world keeps the whole table");
+        assertEquals("Furniture_Tavern_Bench", child.getProps().get(1).getItem());
+    }
+
+    @Test
+    void aChildAuthoringPropsReplacesTheWholeList() throws Exception {
+        NpcPlacementAsset parent = decodeRoot(FEAST_PROPS, "feast_base");
+
+        NpcPlacementAsset child = decode("""
+                { "Props": [ { "Item": "Furniture_Crude_Chair" } ] }
+                """, "feast_small", "feast_base", parent);
+
+        assertEquals(1, child.getProps().size(),
+                "the list moves as one leaf: a child's entries replace the parent's rather than merging by position");
+        assertEquals("Furniture_Crude_Chair", child.getProps().get(0).getItem());
+
+        NpcPlacementAsset cleared = decode("{ \"Props\": [] }", "feast_none", "feast_base", parent);
+        assertFalse(cleared.hasProps(), "an empty list authored in a child clears the parent's");
+    }
+
+    @Test
+    void theEditorSchemaDeclaresThePropEntryWithAnItemPickerAndItsDefaults() {
+        SchemaContext context = new SchemaContext();
+        ObjectSchema placement = (ObjectSchema) NpcPlacementAsset.CODEC.toSchema(context);
+        Schema propsLeaf = placement.getProperties().get("Props");
+        assertNotNull(propsLeaf, "the placement names its Props leaf: " + placement.getProperties().keySet());
+        Schema propsArray = propsLeaf.getAnyOf() == null ? propsLeaf : propsLeaf.getAnyOf()[0];
+        assertTrue(propsArray instanceof ArraySchema, "Props is an array: " + propsArray.getClass().getSimpleName());
+        assertNotNull(((ArraySchema) propsArray).getItems(), "the array says what each entry is");
+        assertNotNull(propsLeaf.getMarkdownDescription(), "and the leaf says what it draws");
+
+        BsonDocument entry = Schema.CODEC.encode(NpcPlacementAsset.Prop.CODEC.toSchema(new SchemaContext()),
+                new ExtraInfo()).asDocument().getDocument("properties");
+        assertEquals("Item", entry.getDocument("Item").getString("hytaleAssetRef").getValue(),
+                "the item leaf offers the engine's own item picker");
+        assertEquals(0.0, entry.getDocument("Yaw").get("default").asNumber().doubleValue(),
+                "an unauthored Yaw is no turn, and the editor shows it");
+        assertEquals(1.0, entry.getDocument("Scale").get("default").asNumber().doubleValue(),
+                "an unauthored Scale is the item's own size, and the editor shows it");
+        for (String leaf : new String[] {"Item", "Offset", "Yaw", "Scale"}) {
+            assertTrue(entry.containsKey(leaf), "a prop entry names its " + leaf + " leaf: " + entry.keySet());
+        }
     }
 
     @Test

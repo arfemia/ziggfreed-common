@@ -5,10 +5,12 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.function.Function;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.dialogue.asset.DialogueAssetStore;
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorFormula;
@@ -55,7 +57,25 @@ public final class NpcPlacementValidator {
     /** The content family these findings belong to. */
     public static final String DOMAIN = "placement";
 
+    /** A prop entry naming an item this server does not have: a WARNING, and that entry is skipped. */
+    public static final String UNKNOWN_PROP_ITEM = "UNKNOWN_PROP_ITEM";
+
+    /** A prop entry naming no item at all, which draws nothing whatever loads: an ERROR. */
+    public static final String PROP_NO_ITEM = "PROP_NO_ITEM";
+
+    /**
+     * How the prop-item check reads this server's items: true for an id it has, false for one it does
+     * not, null when it cannot tell (no items loaded yet, or a JVM with no asset store).
+     */
+    @Nonnull
+    private static volatile Function<String, Boolean> itemCatalog = NpcPlacementValidator::loadedItem;
+
     private NpcPlacementValidator() {
+    }
+
+    /** Answer the prop-item check from {@code catalog} (tests); null restores this server's loaded items. */
+    static void useItemCatalogForTests(@Nullable Function<String, Boolean> catalog) {
+        itemCatalog = catalog == null ? NpcPlacementValidator::loadedItem : catalog;
     }
 
     // ==================== the full audit ====================
@@ -125,6 +145,7 @@ public final class NpcPlacementValidator {
         checkRequiresShape(placement, id, out);
         checkLimits(placement, id, out);
         checkInteractForms(placement, id, out);
+        checkPropsShape(placement, id, out);
     }
 
     private static void validateCrossAsset(@Nonnull NpcPlacementAsset placement, @Nonnull String id,
@@ -137,22 +158,88 @@ public final class NpcPlacementValidator {
         checkDestinationParams(placement, id, out);
         checkDialogueExists(placement, id, out);
         checkDisplayName(placement, id, out);
+        checkPropItems(placement, id, out);
     }
 
     // ==================== identity ====================
 
+    /**
+     * Something to place: a role, or props. A placement with props and no role draws only its props, so
+     * neither finding applies to it; one with neither has nothing to put anywhere, which stays the error it
+     * always was.
+     */
     private static void checkIdentityShape(@Nonnull NpcPlacementAsset placement, @Nonnull String id,
             @Nonnull List<Finding> out) {
+        if (placement.hasProps()) {
+            return;
+        }
         NpcPlacementAsset.Identity identity = placement.getIdentity();
         if (identity == null) {
             out.add(Finding.error(DOMAIN, "NO_IDENTITY",
-                    "no Identity is authored, so there is no NPC to place", id));
+                    "no Identity is authored and no Props, so there is nothing to place", id));
             return;
         }
         if (!identity.namesRole()) {
             out.add(Finding.error(DOMAIN, "NO_ROLE",
-                    "Identity authors no Role, so there is no NPC role to spawn. Name the role that describes "
-                            + "this character, which any pack on the server may ship", id));
+                    "Identity authors no Role and the placement draws no Props, so there is nothing to spawn. "
+                            + "Name the role that describes this character, which any pack on the server may "
+                            + "ship, or author Props for a placement that only decorates", id));
+        }
+    }
+
+    // ==================== props ====================
+
+    /** An entry naming no item draws nothing, whatever loads. */
+    private static void checkPropsShape(@Nonnull NpcPlacementAsset placement, @Nonnull String id,
+            @Nonnull List<Finding> out) {
+        List<NpcPlacementAsset.Prop> props = placement.getProps();
+        for (int i = 0; i < props.size(); i++) {
+            NpcPlacementAsset.Prop prop = props.get(i);
+            if (prop == null || prop.itemId() == null) {
+                out.add(Finding.error(DOMAIN, PROP_NO_ITEM,
+                        "Props entry " + (i + 1) + " names no Item, so it draws nothing", id));
+            }
+        }
+    }
+
+    /**
+     * Whether this server has each item a prop names. Only ever a WARNING: the runtime skips that entry and
+     * draws the rest, and the file loads either way, so one missing id never takes the placement or its mod
+     * down. Silent when the items cannot be read (an audit run before the packs load, or a unit JVM).
+     */
+    private static void checkPropItems(@Nonnull NpcPlacementAsset placement, @Nonnull String id,
+            @Nonnull List<Finding> out) {
+        List<NpcPlacementAsset.Prop> props = placement.getProps();
+        for (int i = 0; i < props.size(); i++) {
+            NpcPlacementAsset.Prop prop = props.get(i);
+            String item = prop == null ? null : prop.itemId();
+            if (item == null) {
+                continue; // PROP_NO_ITEM, from the file-local half.
+            }
+            Boolean known = itemCatalog.apply(item);
+            if (known == null) {
+                return; // Cannot tell, for this entry or any other.
+            }
+            if (!known) {
+                out.add(Finding.warning(DOMAIN, UNKNOWN_PROP_ITEM,
+                        "Props entry " + (i + 1) + " names the item '" + item + "', which this server does not "
+                                + "have (ids match case for case), so that prop is skipped and the rest are drawn",
+                        id));
+            }
+        }
+    }
+
+    /** Whether this server has {@code itemId}, or null when no items are loaded to ask. */
+    @Nullable
+    private static Boolean loadedItem(@Nonnull String itemId) {
+        try {
+            var items = Item.getAssetMap();
+            if (items == null || items.getAssetMap().isEmpty()) {
+                return null;
+            }
+            return items.getAsset(itemId) != null;
+        } catch (Throwable t) {
+            return null;
         }
     }
 

@@ -1,6 +1,7 @@
 package com.ziggfreed.common.npc.placement.runtime;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -337,13 +338,15 @@ public final class NpcPlacementReconciler {
     }
 
     /**
-     * The name-keyed half of {@link #onWorldRemoved}: the world's in-flight claims and section requests
-     * on any removal, its ledger rows and cached positions only when it is {@code deleted}. A cached
-     * position follows its row: one whose row stayed is still true. Package-private for the test.
+     * The name-keyed half of {@link #onWorldRemoved}: the world's in-flight claims, section requests and
+     * drawn props on any removal (a prop is never saved, so it went with the world's entities), its ledger
+     * rows and cached positions only when it is {@code deleted}. A cached position follows its row: one
+     * whose row stayed is still true. Package-private for the test.
      */
     static void forgetWorld(@Nonnull String worldName, boolean deleted) {
         IN_FLIGHT.removeIf(k -> k.startsWith(worldName + '|'));
         SECTION_REQUESTS.removeIf(k -> k.startsWith(worldName + '|'));
+        PlacementProps.forgetWorld(worldName);
         if (deleted) {
             NpcPlacementLedger.getInstance().dropWorld(worldName);
             NpcPlacementPositionCache.forgetWorld(worldName);
@@ -792,6 +795,10 @@ public final class NpcPlacementReconciler {
      * Pass 3, ledger-authoritative: place what is missing, and only what is provably missing. A placement
      * goes in only where no copy of its instance stands live ({@code standing}, the despawn pass's) or is
      * held in the anchor's chunk section ({@link #spawnsThisRound}).
+     *
+     * <p>Then the round's props ({@link PlacementProps}): every placement that stands here and draws props
+     * says what it wants, after its NPCs are placed (a role's props stand with its placed NPC), and the
+     * props of every placement that does not stand go. A placement with props and no role stands no NPC.
      */
     @Nonnull
     private static PlacePass runPlacePass(@Nonnull World world, @Nonnull Store<EntityStore> store,
@@ -799,22 +806,29 @@ public final class NpcPlacementReconciler {
         int placed = 0;
         int unresolvedAnchors = 0;
         AnchorSections sections = new AnchorSections();
+        Map<String, PlacementProps.Want> wantedProps = new LinkedHashMap<>();
+        // Placements this round could not decide (no position yet, a failure): their standing props stay.
+        Set<String> undecidedProps = new HashSet<>();
         for (NpcPlacementAsset placement : NpcPlacementConfig.getInstance().all().values()) {
             if (placement == null || placement.getId() == null || placement.getId().isBlank()) {
                 continue;
             }
             String placementId = placement.getId();
+            boolean propOnly = placement.hasProps() && NpcPlacementService.roleFor(placement) == null;
             try {
                 GateVerdict verdict = PlacementGates.decide(placement, world, store);
                 boolean gateAllowed = !verdict.isDenied();
                 boolean whereMatches = matchesWorld(placement, world);
                 if (!gateAllowed || !whereMatches) {
-                    continue; // Pass 1 already removed anything standing for it.
+                    continue; // Pass 1 already removed anything standing for it, and the props go below.
                 }
 
                 int already = ledger.countInWorld(worldName, placementId);
                 List<AnchorPosition> positions = PlacementAnchors.resolve(world, store, placement);
                 if (positions.isEmpty()) {
+                    if (placement.hasProps()) {
+                        undecidedProps.add(placementId); // No position proves nothing about its props.
+                    }
                     if (already == 0) {
                         // This placement is enabled and wants to stand here, but every anchor
                         // group it authored resolved to nothing - e.g. Anchor.WorldSpawn asking
@@ -841,7 +855,8 @@ public final class NpcPlacementReconciler {
                 boolean respawn = placement.getLifecycle() != null
                         && placement.getLifecycle().effectiveRespawn();
 
-                for (AnchorPosition position : positions) {
+                // A placement drawing only props has no NPC to place: none of the NPC steps below apply to it.
+                for (AnchorPosition position : propOnly ? List.<AnchorPosition>of() : positions) {
                     String anchorKey = position.anchorKey();
                     String flightKey = worldName + '|' + placementId + '|' + anchorKey;
                     boolean ledgerHit = ledger.hasRow(worldName, placementId, anchorKey);
@@ -927,10 +942,20 @@ public final class NpcPlacementReconciler {
                         IN_FLIGHT.remove(flightKey);
                     }
                 }
+
+                if (placement.hasProps()) {
+                    PlacementProps.want(wantedProps, placement, propOnly, positions,
+                            anchorKey -> ledger.hasRow(worldName, placementId, anchorKey),
+                            PlacementProps.loadedItems(world, worldName, placementId));
+                }
             } catch (Throwable t) {
+                if (placement.hasProps()) {
+                    undecidedProps.add(placementId);
+                }
                 SafeLog.warn("[placement] place pass failed for '" + placementId + "': " + t.getMessage());
             }
         }
+        PlacementProps.reconcile(world, store, worldName, wantedProps, undecidedProps);
         return new PlacePass(placed, unresolvedAnchors, sections.wokeAny());
     }
 
