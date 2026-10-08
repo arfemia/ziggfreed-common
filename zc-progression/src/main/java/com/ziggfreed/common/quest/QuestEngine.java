@@ -2049,14 +2049,17 @@ public final class QuestEngine implements QuestStateReader {
      * {@inheritDoc}
      *
      * <p>The id-keyed form of {@link #status(Subject, Quest)}. An id this engine does not carry reads
-     * as {@link QuestStatus#NOT_STARTED} rather than throwing, so a condition written against a quest
-     * that has since been removed hides nothing.
+     * what the player's own STORED record holds for it, never an exception: a quest whose definition
+     * is not loaded right now (a feature switched off, a pack mid-reload, content retired after the
+     * player finished it) still reads as what the player did with it, and only an id with no record
+     * at all reads {@link QuestStatus#NOT_STARTED}. The stored word is read as it is, since the
+     * repeat rules that would turn a finished repeatable back into an offer are the definition's.
      */
     @Override
     @Nonnull
     public QuestStatus status(@Nonnull Subject subject, @Nonnull String questId) {
         Quest quest = quest(questId);
-        return quest == null ? QuestStatus.NOT_STARTED : status(subject, quest);
+        return quest == null ? store.status(subject, questId) : status(subject, quest);
     }
 
     /** {@inheritDoc} The id-keyed name for {@link #progressOf(Subject, String, String)}. */

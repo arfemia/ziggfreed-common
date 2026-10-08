@@ -29,10 +29,10 @@ import com.ziggfreed.common.npc.NpcNames;
 import com.ziggfreed.common.objectives.book.ObjectiveBookMenu;
 import com.ziggfreed.common.objectives.journal.QuestActions;
 import com.ziggfreed.common.objectives.journal.QuestReader;
+import com.ziggfreed.common.objectives.journal.QuestVerbs;
 import com.ziggfreed.common.objectives.questlist.NpcQuestSections.Section;
 import com.ziggfreed.common.objectives.render.ClaimToasts;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
-import com.ziggfreed.common.progress.runtime.ProgressionCallScope;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.progress.runtime.ProgressionTexts;
 import com.ziggfreed.common.quest.NpcOfferProviders;
@@ -530,7 +530,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
             case QuestActions.HAND_IN -> turnIn(ref, store, player, subject, engine, listing, quest);
             case QuestActions.COLLECT -> claim(ref, store, player, subject, engine, listing, quest);
             case QuestActions.ACCEPT -> {
-                accept(subject, engine, quest);
+                accept(subject, quest);
                 refresh(ref, store, player);
             }
             case QuestActions.ABANDON -> {
@@ -651,12 +651,12 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
      *
      * <p>The site is what makes a quest that must be settled where it was taken work at all, and what puts it on
      * this character's list while it is being carried. Passing it always is deliberate: the content decides whether
-     * it matters, and a surface that decided for it would have to know.
+     * it matters, and a surface that decided for it would have to know. The accept is the shared verb
+     * ({@link QuestVerbs#acceptAt}), so a quest whose steps a standing value already met settles here at once, as it
+     * does from the book or a conversation.
      */
-    private void accept(@Nonnull Subject subject, @Nonnull QuestEngine engine, @Nonnull Quest quest) {
-        ProgressionCallScope scope = ProgressionRuntime.questScope();
-        boolean ok = Boolean.TRUE.equals(scope.around(subject, s ->
-                Boolean.valueOf(engine.canAccept(s, quest).allowed() && engine.accept(s, quest, npcId))));
+    private void accept(@Nonnull Subject subject, @Nonnull Quest quest) {
+        boolean ok = QuestVerbs.acceptAt(subject, quest, npcId).accepted();
         showToast(ok ? ToastKind.SUCCESS : ToastKind.WARNING,
                 text(ok ? "book.toast.accepted" : "book.toast.accept_failed"));
     }
@@ -745,9 +745,8 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
         // Handed in AT the id this character answered under: the hand-in that finishes a quest at its own collection
         // site pays out there and then, while the same hand-in from nowhere parks it. EVERY outstanding step this
         // character is owed, not just the first: three deliveries to one person is one errand to the player.
-        QuestEngine.TurnInOutcome handed = ProgressionRuntime.questScope().around(subject,
-                s -> engine.tryAllTurnIns(s, quest, turnIn.atId()));
-        if (handed == null || !handed.creditedAny()) {
+        QuestEngine.TurnInOutcome handed = QuestVerbs.handInAt(subject, quest, turnIn.atId());
+        if (!handed.creditedAny()) {
             ObjectiveProgressState state = engine.progressOf(subject, quest.id(), turnIn.step().id());
             showToast(ToastKind.WARNING, state == null
                     ? text("book.toast.turn_in_failed")

@@ -79,6 +79,25 @@ class QuestStateReaderTest {
     }
 
     @Test
+    void aQuestTheCatalogueNoLongerCarriesReadsWhatThePlayersOwnRecordHolds() {
+        engine.store().setStatus(player, "q_retired", QuestStatus.COMPLETED);
+
+        assertEquals(QuestStatus.COMPLETED, reader.status(player, "q_retired"),
+                "a definition that is not loaded right now does not erase what the player did");
+    }
+
+    @Test
+    void aQuestDroppedFromTheCatalogueWhileCarriedStillReadsAsCarried() {
+        engine.accept(player, engine.quest("q_gather"));
+        engine.setQuests(List.of(handIn()));
+
+        assertEquals(QuestStatus.ACTIVE, reader.status(player, "q_gather"),
+                "a pack mid-reload must not tell a conversation the player never took the quest");
+        assertEquals(QuestStatus.NOT_STARTED, reader.status(player, "q_never_taken"),
+                "with no record at all, an id the catalogue lacks still reads not started");
+    }
+
+    @Test
     void statusByIdAgreesWithTheEngineThroughTheWholeLifecycle() {
         Quest quest = engine.quest("q_gather");
         assertEquals(QuestStatus.NOT_STARTED, reader.status(player, "q_gather"));

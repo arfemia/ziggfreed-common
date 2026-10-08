@@ -2,9 +2,11 @@ package com.ziggfreed.common.dialogue.quest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -16,10 +18,16 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.hypixel.hytale.assetstore.AssetExtraInfo;
+import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.dialogue.DialogueEngine;
+import com.ziggfreed.common.dialogue.DialogueTestSupport;
+import com.ziggfreed.common.dialogue.asset.DialogueAssetStore;
+import com.ziggfreed.common.dialogue.asset.ZcDialogueAsset;
 import com.ziggfreed.common.quest.QuestStateReader;
 
 /**
@@ -86,6 +94,52 @@ class QuestCompletionRoutingTest {
     @AfterEach
     void reset() {
         QuestDialogueHosts.clear();
+        DialogueAssetStore.getInstance().merge(Map.of());
+    }
+
+    /** Put one conversation into the shared store the way a load event would, its id set by the codec. */
+    private static void storeConversation(@Nonnull String id) throws IOException {
+        DialogueTestSupport.reset();
+        DialogueEngine.shared();
+        AssetExtraInfo.Data data = new AssetExtraInfo.Data(ZcDialogueAsset.class, id, null);
+        ZcDialogueAsset asset = ZcDialogueAsset.CODEC.decodeJsonAsset(RawJsonReader.fromJsonString(
+                "{ \"Nodes\": { \"thanks\": { \"TextKey\": \"t.thanks\" } } }"), new AssetExtraInfo<>(data));
+        assertNotNull(asset, "'" + id + "' must decode");
+        DialogueAssetStore.getInstance().merge(Map.of(id, asset));
+    }
+
+    // ==================== the library's own conversation page ====================
+
+    @Test
+    void withNoHostRegisteredAConversationTheLibraryHoldsStillPlays() throws IOException {
+        storeConversation("guide_thanks");
+
+        QuestHandOff handOff = QuestCompletionRouting.decide("a_quest", "guide", "guide_thanks");
+
+        assertTrue(handOff.plays(),
+                "the library's own page opens any conversation in the shared store, so a quest's closing"
+                        + " lines play on a server running no conversation UI of its own");
+        assertTrue(QuestDialogueHosts.knows("guide_thanks"));
+    }
+
+    @Test
+    void theLibrarysPageKnowsOnlyWhatTheStoreHolds() {
+        assertFalse(QuestDialogueHosts.knows("guide_thanks"), "nothing stored, nothing to open");
+        assertEquals(QuestHandOff.Outcome.NO_HOST,
+                QuestCompletionRouting.decide("a_quest", "guide", "guide_thanks").outcome());
+    }
+
+    @Test
+    void everyRegisteredHostIsAskedBeforeTheLibrarysPage() throws IOException {
+        storeConversation("guide_thanks");
+        ScriptedHost consumer = new ScriptedHost(List.of("guide_thanks"), true);
+        QuestDialogueHosts.register("zzz_mod", "A", consumer);
+
+        assertTrue(QuestCompletionRouting.handOff("a_quest", "guide", new CatalogueQuests(
+                Map.of("a_quest", "guide_thanks")), NO_STORE, NO_REF, NO_PLAYER));
+
+        assertEquals(List.of("guide_thanks"), consumer.opened,
+                "a consumer's own screen wins over the library's whatever its id sorts as");
     }
 
     @Test

@@ -84,6 +84,12 @@ import com.ziggfreed.common.ui.route.Destination;
  * composition, so the first install holds the slot and a second one naming a different instance is
  * logged and ignored.
  *
+ * <p>The quest slot has a library default BENEATH it ({@link #installDefaultQuests}): the library's
+ * own wiring fills that with a binding over its shared quest engine, and it answers only while no
+ * consumer has installed a runtime, so a server running the library and no quest mod of its own
+ * still has quest-aware conversations, and a consumer's install outranks it whichever setup ran
+ * first.
+ *
  * <p><b>{@link #builder()} still builds a PRIVATE engine</b> with its own vocabulary, which is what a
  * test wanting a sandbox needs. Nothing in a running server should build one: a private engine can
  * only execute its own half of the vocabulary the shared schema already reads, so an action some
@@ -145,13 +151,21 @@ public final class DialogueEngine {
     }
 
     /**
-     * The quest runtime the quest-aware lines read and act through. Never null: with nobody wired it
-     * stays {@link DialogueQuests#NONE}, which answers nothing and refuses everything.
+     * The quest runtime the quest-aware lines read and act through: the one a consumer installed,
+     * else the library's default. Never null: with neither wired it is {@link DialogueQuests#NONE},
+     * which answers nothing and refuses everything, and the shared engine says so once, since on a
+     * running server that means the library's own wiring never filled its default.
      */
     @Nonnull
     public DialogueQuests quests() {
         DialogueQuests wired = quests.get();
-        return wired == null ? DialogueQuests.NONE : wired;
+        if (wired != null) {
+            return wired;
+        }
+        warnOnce("quests-none", "No quest runtime is installed (DialogueEngine.installQuests, or the"
+                + " library default beneath it) - every quest-aware line reads not started and every"
+                + " Accept and TurnIn refuses");
+        return DialogueQuests.NONE;
     }
 
     /**
@@ -171,10 +185,14 @@ public final class DialogueEngine {
     /** The one-slot id the singular quest-runtime seam is held under. */
     private static final String QUESTS_SLOT = "quests";
 
+    /** The one-slot id the library's default quest runtime is held under, beneath the consumer's. */
+    private static final String DEFAULT_QUESTS_SLOT = "default-quests";
+
     /** The one-slot id the singular factor-vocabulary seam is held under. */
     private static final String FACTORS_SLOT = "factors";
 
     private static final RegistryLedger<DialogueQuests> SHARED_QUESTS = new RegistryLedger<>("dialogue");
+    private static final RegistryLedger<DialogueQuests> SHARED_DEFAULT_QUESTS = new RegistryLedger<>("dialogue");
     private static final RegistryLedger<FactorRegistry> SHARED_FACTORS = new RegistryLedger<>("dialogue");
 
     /** How the library attributes the generic vocabulary it seeds into the shared engine itself. */
@@ -225,7 +243,7 @@ public final class DialogueEngine {
         DialogueEngine engine = new DialogueEngine(evaluators, styles,
                 new DialogueActionExecutor(handlers, warn), warn,
                 () -> SHARED_FACTORS.get(FACTORS_SLOT),
-                () -> SHARED_QUESTS.get(QUESTS_SLOT),
+                DialogueEngine::sharedQuests,
                 DEFAULT_RANDOM, DEFAULT_CLOCK);
         // The seeded handlers and evaluators reach the engine through this holder, and none of them
         // is INVOKED during seeding, so the instance is only published (below, by the caller) once
@@ -284,6 +302,29 @@ public final class DialogueEngine {
     }
 
     /**
+     * Install the quest runtime the quest-aware lines fall back to while no consumer has called
+     * {@link #installQuests}. The library's own wiring fills this at its setup with a binding over
+     * its shared quest engine, so a consumer never needs to: it installs its own runtime into the
+     * slot above, which this one never displaces and never refuses, whichever setup ran first.
+     *
+     * <p>Singular and first-install-wins like the slot above it, for the same reason: two defaults
+     * would be two answers about one player. A consumer that only wants to ADD to the library's
+     * answers extends the library's binding and installs the result through {@link #installQuests}.
+     *
+     * @return true when this call claimed the default slot
+     */
+    public static boolean installDefaultQuests(@Nullable String owner, @Nonnull DialogueQuests quests) {
+        return SHARED_DEFAULT_QUESTS.putIfAbsent(DEFAULT_QUESTS_SLOT, owner, quests);
+    }
+
+    /** The shared engine's quest runtime: the consumer's, else the library default, else null. */
+    @Nullable
+    private static DialogueQuests sharedQuests() {
+        DialogueQuests installed = SHARED_QUESTS.get(QUESTS_SLOT);
+        return installed != null ? installed : SHARED_DEFAULT_QUESTS.get(DEFAULT_QUESTS_SLOT);
+    }
+
+    /**
      * Install the factor vocabulary the generic {@code Factor} condition resolves against. SINGULAR
      * for the same reason as {@link #installQuests}.
      *
@@ -301,9 +342,9 @@ public final class DialogueEngine {
     }
 
     /**
-     * Drop the shared engine and both singular seams. For tests, which need a clean vocabulary per
-     * case; nothing in a running server should ever call it. Pair it with
-     * {@link DialogueTypeTable#resetForTests()}, which owns the schema half.
+     * Drop the shared engine, both singular seams and the library's quest default. For tests, which
+     * need a clean vocabulary per case; nothing in a running server should ever call it. Pair it
+     * with {@link DialogueTypeTable#resetForTests()}, which owns the schema half.
      */
     public static void resetSharedForTests() {
         resetSharedForTests(null);
@@ -318,6 +359,7 @@ public final class DialogueEngine {
     public static void resetSharedForTests(@Nullable Consumer<String> warn) {
         synchronized (SHARED_LOCK) {
             SHARED_QUESTS.clear();
+            SHARED_DEFAULT_QUESTS.clear();
             SHARED_FACTORS.clear();
             SHARED_SELF[0] = null;
             sharedEngine = null;

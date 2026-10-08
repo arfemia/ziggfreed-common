@@ -40,9 +40,13 @@ import com.ziggfreed.common.subject.Subject;
  * <p>Install one with {@code DialogueEngine.installQuests(owner, quests)}, from your plugin's
  * {@code setup()} (a test sandbox built with {@code DialogueEngine.builder()} takes its own). The
  * slot is singular and first-install-wins, because two runtimes would be two answers to one question
- * about one player. Leaving it unset leaves {@link #NONE} in place: every quest-aware line then
- * reads NOT_STARTED and every gate refuses, so a dialogue written against a quest system this server
- * does not run hides those beats instead of promising them.
+ * about one player. Leaving it unset leaves the library's own binding over its shared quest engine
+ * in place, which the library installs beneath this slot at its setup
+ * ({@code DialogueEngine.installDefaultQuests}): a consumer whose quests live in that engine
+ * installs nothing, and one with a rule of its own extends that binding rather than copying it.
+ * {@link #NONE} answers only where nothing at all is installed (a sandbox engine, a test): every
+ * quest-aware line then reads NOT_STARTED and every gate refuses, so a dialogue written against a
+ * quest system that is not there hides those beats instead of promising them.
  */
 public interface DialogueQuests {
 
