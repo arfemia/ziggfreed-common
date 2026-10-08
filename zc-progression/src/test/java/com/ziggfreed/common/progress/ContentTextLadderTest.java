@@ -60,6 +60,25 @@ class ContentTextLadderTest {
     }
 
     @Test
+    void aRowsOwnKeyThatResolvesBeatsEvenTheExplicitKey() {
+        LangCatalog.overrideForTests(Map.of(
+                "fixturemod.fixture.explicit.title", "Explicit",
+                "fixturemod.fixture.own.title", "Own"));
+
+        assertEquals("fixturemod.fixture.own.title",
+                everyRung().titleOwnKey("fixture.own.title").build().title().getMessageId());
+    }
+
+    @Test
+    void aRowsOwnKeyThatShipsNowhereIsPassedOver() {
+        LangCatalog.overrideForTests(Map.of("fixturemod.fixture.explicit.title", "Explicit"));
+
+        assertEquals("fixturemod.fixture.explicit.title",
+                everyRung().titleOwnKey("fixture.own.title").build().title().getMessageId(),
+                "an own line no catalogue ships never paints its key: the ladder carries on as before");
+    }
+
+    @Test
     void aConventionKeyThatResolvesBeatsTheAuthoredName() {
         LangCatalog.overrideForTests(Map.of("fixturemod.quest.ladder.title", "Convention"));
 
