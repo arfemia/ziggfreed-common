@@ -193,6 +193,52 @@ class DialogueExtensionSpliceTest {
     }
 
     @Test
+    void aPerConversationDailyLineIsSpentAtEachCharacterOnItsOwnUntilMidnightUtc() {
+        DialogueEngine engine = engine();
+        String invite = "harvest_feast_invite";
+        DialogueTestSupport.shareExtensions(DialogueExtension.of(invite, DialogueTestSupport.optionRows("""
+                [ { "LabelKey": "harvest_feast.invite", "OnceId": "invite",
+                    "Once": { "Period": "Daily", "PerConversation": true } } ]
+                """), null, null, true));
+        NpcDialogue guide = engine.decode("guide", GUIDE);
+        NpcDialogue smith = engine.decode("smith", SMITH);
+        assertNotNull(guide);
+        assertNotNull(smith);
+        TestDialogueContext atGuide = new TestDialogueContext(guide);
+        TestDialogueContext atSmith = new TestDialogueContext(smith, atGuide.state());
+        long day = LocalDate.of(2026, 10, 31).toEpochDay();
+
+        engine.consumeOnce(null, guide, "menu", injected(guide, "menu", invite), atGuide);
+        assertEquals(Set.of("once:x:harvest_feast_invite:guide:invite:PD" + day), atGuide.state().keys,
+                "keyed by the extension and the conversation it was taken in");
+        assertFalse(engine.optionAvailable(guide, "intro", injected(guide, "intro", invite), atGuide),
+                "spent with the guide, on every screen of the guide's conversation");
+        assertTrue(engine.optionAvailable(smith, "shop", injected(smith, "shop", invite), atSmith),
+                "still offered at another character the same day");
+
+        engine.consumeOnce(null, smith, "shop", injected(smith, "shop", invite), atSmith);
+        assertEquals(Set.of("once:x:harvest_feast_invite:guide:invite:PD" + day,
+                "once:x:harvest_feast_invite:smith:invite:PD" + day), atGuide.state().keys,
+                "spending it at the smith clears no window of the guide's");
+        assertFalse(engine.optionAvailable(smith, "shop", injected(smith, "shop", invite), atSmith),
+                "spent at the smith too");
+        assertFalse(engine.optionAvailable(guide, "menu", injected(guide, "menu", invite), atGuide),
+                "and still spent at the guide");
+
+        now[0] = Instant.parse("2026-10-31T23:59:59Z").toEpochMilli();
+        assertFalse(engine.optionAvailable(guide, "menu", injected(guide, "menu", invite), atGuide),
+                "gone at the guide until midnight UTC");
+        assertFalse(engine.optionAvailable(smith, "shop", injected(smith, "shop", invite), atSmith),
+                "gone at the smith until midnight UTC");
+
+        now[0] = Instant.parse("2026-11-01T00:00:00Z").toEpochMilli();
+        assertTrue(engine.optionAvailable(guide, "menu", injected(guide, "menu", invite), atGuide),
+                "a new day offers it at the guide again");
+        assertTrue(engine.optionAvailable(smith, "shop", injected(smith, "shop", invite), atSmith),
+                "and at the smith");
+    }
+
+    @Test
     void twoExtensionsSharingALabelKeepTheirOwnOnce() {
         DialogueEngine engine = engine();
         DialogueTestSupport.shareExtensions(trick("b_trick", null, null), trick("a_trick", null, null));

@@ -43,7 +43,9 @@ import com.ziggfreed.common.season.SeasonGate;
  * <p>A line here is an ordinary option row, read by the same codec, so every shorthand and condition
  * works as on a screen. Its {@code Once} is the line's own: spent with one character, it is spent
  * with every character the line reaches, unless the {@code Once} says {@code "PerCharacter": true},
- * which keeps one claim per character. Give every line a {@code LabelKey}; a {@code Goto} or a
+ * which keeps one claim per character, or sets {@code PerConversation}, which adds the host
+ * conversation to its key so each conversation spends it on its own (one line, taken once from
+ * each of several characters). Give every line a {@code LabelKey}; a {@code Goto} or a
  * memory has no meaning in a conversation the line does not know, and the audit says so.
  *
  * <p>{@code Season} names the calendar event the lines belong to: they stay spliced all year, and are
@@ -108,7 +110,8 @@ public final class DialogueExtensionAsset
             .documentation("The lines added, in the order shown, after the screen's own lines and before "
                     + "the shared groups it pulls in. Give each a LabelKey and gate it with Conditions like "
                     + "any line. A Once on one of these lines is the line's own: spent with one character, "
-                    + "it is spent with every character the line reaches.")
+                    + "it is spent with every character the line reaches, unless the Once sets "
+                    + "PerConversation, which spends it in each conversation on its own.")
             .add(),
                     (a, v) -> a.season = v, a -> a.season)
             .build();
