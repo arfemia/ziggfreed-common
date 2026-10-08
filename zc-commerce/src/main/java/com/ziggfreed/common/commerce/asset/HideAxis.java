@@ -12,10 +12,12 @@ import com.ziggfreed.common.progress.gate.GateSpec;
  *
  * <p>A plain top-level feature condition ({@code <namespace>:feature} of a namespace that has
  * declared features, bounds-less or {@code Min: 1}) or mod-presence condition
- * ({@code hytale:mod_installed}) answers that question, through the ONE lift the quest and
- * achievement folds use ({@link FeatureLift#liftKnown}), so a seasonal file hides the same way
- * whatever kind of content it is. Everything else in the block is the LOCK: what a player must
- * meet, still shown to them with its reason.
+ * ({@code hytale:mod_installed}) answers that question, through the ONE lift the quest and contract
+ * folds use ({@link FeatureLift#liftKnown}), so a seasonal file hides the same way whatever kind of
+ * content it is; a {@code Season} leaf answers it beside them ({@link FeatureLift#present}). An
+ * achievement lifts mod presence alone ({@link FeatureLift#liftModPresence}): its feature gates stay
+ * refusals its self-heal re-reads. Everything else in the block is the LOCK: what a player must meet,
+ * still shown to them with its reason.
  *
  * <p>Both reads are live. The lift is taken at the moment of the call, so a feature toggled while
  * the server is up, or a namespace declared after the content loaded, moves the content on the next
