@@ -49,6 +49,9 @@ public final class AlmanacValidator {
 
     public static final String DOMAIN = "almanac";
 
+    /** The label the Almanac audit's lines carry when it is logged whole (zc's boot audit). */
+    public static final String LOG_LABEL = "[almanac] audit";
+
     public static final String PAGE_ID_UNUSABLE = "PAGE_ID_UNUSABLE";
     public static final String UNKNOWN_EVENT = "UNKNOWN_EVENT";
     public static final String UNKNOWN_ICON = "UNKNOWN_ICON";
