@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 import org.junit.jupiter.api.AfterEach;
@@ -152,6 +153,64 @@ class TalkCreditsTest {
             assertEquals(List.of(List.of("adventurers_guide")), seen,
                     "the primary must not appear in the alias pass, however it is spelled, or one "
                             + "conversation counts twice");
+        }
+    }
+
+    /**
+     * The library's own sink is the floor: it credits a conversation on a server where nothing else
+     * does, and stands aside the moment anything else counts conversations, so an older consumer
+     * that still credits talk itself is never counted twice.
+     */
+    @Nested
+    class TheLibrarySink {
+
+        @Test
+        void itRunsAloneWhenNoOtherSinkIsRegisteredAndYieldsToAConsumerSinkOtherwise() {
+            List<String> told = new ArrayList<>();
+            TalkCredits.registerLibrarySink(c -> told.add("library:" + c.npcId()));
+
+            TalkCredits.dispatch(UUID.randomUUID(), credit("guide"));
+            assertEquals(List.of("library:guide"), told,
+                    "with no consumer sink the library's own sink is the one that credits the conversation");
+
+            told.clear();
+            TalkCredits.register("mymod", "MyMod", c -> told.add("mymod:" + c.npcId()));
+            TalkCredits.dispatch(UUID.randomUUID(), credit("guide"));
+            assertEquals(List.of("mymod:guide"), told,
+                    "a consumer that still counts conversations itself must not be counted twice beside the library");
+        }
+
+        @Test
+        void itYieldsWhicheverRegisteredFirst() {
+            List<String> told = new ArrayList<>();
+            TalkCredits.register("mymod", "MyMod", c -> told.add("mymod"));
+            TalkCredits.registerLibrarySink(c -> told.add("library"));
+
+            TalkCredits.dispatch(UUID.randomUUID(), credit("guide"));
+
+            assertEquals(List.of("mymod"), told,
+                    "the yield is decided when a conversation is credited, never by setup order");
+        }
+
+        @Test
+        void aConsumerCannotTakeTheReservedId() {
+            List<String> told = new ArrayList<>();
+            TalkCredits.registerLibrarySink(c -> told.add("library"));
+            TalkCredits.register(TalkCredits.LIBRARY_SINK_ID.toUpperCase(Locale.ROOT), "MyMod",
+                    c -> told.add("impostor"));
+
+            TalkCredits.dispatch(UUID.randomUUID(), credit("guide"));
+
+            assertEquals(List.of("library"), told,
+                    "the reserved id is the library's: a consumer registering under it is refused, not swapped in");
+        }
+
+        @Test
+        void itCountsAsSomethingListening() {
+            assertFalse(TalkCredits.hasAny());
+            TalkCredits.registerLibrarySink(c -> { });
+            assertTrue(TalkCredits.hasAny(),
+                    "a caller deciding whether to assemble a credit must not skip it on a server with only the library");
         }
     }
 }

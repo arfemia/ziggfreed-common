@@ -12,6 +12,7 @@ The placement engine (put an NPC somewhere and keep exactly one standing) is `pl
 
 - Credit is an authored beat: a conversation's `MarkTalked`, or the `ZigTalkCredit` role action, whose `Npc` is required (a blank one credits nothing). Never credit on a press-F or a page open.
 - The re-trigger window lives in `TalkCredits`, in front of every sink, so two sinks can never disagree about whether a conversation happened.
+- The library's own sink (`LIBRARY_SINK_ID`, filled by zc-objectives' `ZigTalkProducer`) runs only while no other sink is registered, so a consumer still crediting talk itself is never counted twice; `register` refuses the reserved id, and a mod that only watches listens for `NpcTalkedEvent` instead.
 
 ## Seams and wiring
 

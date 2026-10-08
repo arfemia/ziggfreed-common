@@ -49,6 +49,7 @@ import com.ziggfreed.common.objectives.producer.ZigPickupProducer;
 import com.ziggfreed.common.objectives.producer.ZigPlaceBlockProducer;
 import com.ziggfreed.common.objectives.producer.ZigQuestCompletionProducer;
 import com.ziggfreed.common.objectives.producer.ZigReputationProducer;
+import com.ziggfreed.common.objectives.producer.ZigTalkProducer;
 import com.ziggfreed.common.objectives.store.ProgressHandle;
 import com.ziggfreed.common.objectives.store.ProgressSubjects;
 import com.ziggfreed.common.objectives.store.ZigAchievementStore;
@@ -191,9 +192,11 @@ public final class ProgressionDefaults {
      * listeners, the five producer systems plus the six producers that are event-bus listeners
      * (a finished instance round, a boss fight's beat, a calendar attendance, the items a reward
      * payout handed over, a collected quest and the ranks a reputation check credited are announced
-     * about players rather than happening to an entity, so each arrives on the shared bus), and the
-     * tracked-quest HUD with its six event subscriptions. All of it is unconditional, and so is every
-     * dispatch those producers make.
+     * about players rather than happening to an entity, so each arrives on the shared bus), the
+     * library's talk-credit sink (a conversation is credited by an authored beat through
+     * zc-dialogue's {@code TalkCredits}, and this sink stands aside while a consumer registers one of
+     * its own), and the tracked-quest HUD with its six event subscriptions. All of it is
+     * unconditional, and so is every dispatch those producers make.
      *
      * <p>The HUD installs itself LAST and guards itself, so a failure there costs the tracker and
      * nothing registered before it. Its attach rides the ready event at a LATER priority than the
@@ -214,6 +217,7 @@ public final class ProgressionDefaults {
         ZigLootReceivedProducer.install(plugin);
         ZigQuestCompletionProducer.install(plugin);
         ZigReputationProducer.install(plugin);
+        ZigTalkProducer.install(plugin);
         SafeLog.info("[progression] producers always-on: " + producedKinds()
                 + " (a mod firing a new moment calls ProgressDispatch.fire directly, no registration"
                 + " needed)");
@@ -234,7 +238,7 @@ public final class ProgressionDefaults {
                 ZigInstanceRoundProducer.KIND_ENDED, ZigInstanceRoundProducer.KIND_WON,
                 ZigEncounterProducer.KIND_ATTEMPT, ZigEncounterProducer.KIND_DEFEATED,
                 ZigEncounterProducer.KIND_PHASE, ZigCalendarProducer.KIND, ZigLootReceivedProducer.KIND,
-                ZigQuestCompletionProducer.KIND, ZigReputationProducer.KIND);
+                ZigQuestCompletionProducer.KIND, ZigReputationProducer.KIND, ZigTalkProducer.KIND);
     }
 
     // ==================== persistence notifications ====================
