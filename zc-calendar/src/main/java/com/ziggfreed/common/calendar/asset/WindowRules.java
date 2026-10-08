@@ -327,8 +327,9 @@ public final class WindowRules {
     }
 
     /**
-     * A run each month, from a day of the month or from the Nth weekday of it. Each year's runs are numbered in
-     * the order of their months, so another day or weekday of the month never renumbers one.
+     * A run each month, from a day of the month or from the Nth weekday of it. Each run is numbered by its month
+     * (December's is 12), so adding or dropping Months, or another day or weekday of the month, never renumbers
+     * one.
      */
     public static final class Monthly extends Repeating {
 
@@ -373,7 +374,11 @@ public final class WindowRules {
         }
     }
 
-    /** A run each week, on one weekday. Each year's runs are numbered in the order of their weeks. */
+    /**
+     * A run each week, on one weekday. Each run is numbered by its calendar week (Monday to Sunday, week 1 the one
+     * holding January 1st), so the weeks Every or Months skip leave gaps and adding or dropping weeks never
+     * renumbers the others; another Weekday can move a run into a neighbouring week, and so change its number.
+     */
     public static final class Weekly extends Repeating {
 
         @Nullable private String weekday;

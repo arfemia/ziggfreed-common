@@ -1,8 +1,10 @@
 package com.ziggfreed.common.calendar;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 
 import javax.annotation.Nonnull;
@@ -11,7 +13,7 @@ import javax.annotation.Nonnull;
  * When one run is: from {@code start} up to, not including, {@code end}, both on the event's own clock (a wall
  * clock, read in the event's zone). A run of whole days starts at a midnight and ends at the midnight after its
  * last day; a run with a time of day starts then and lasts its length. The run belongs to the year its start
- * falls in; its end may fall in the next.
+ * falls in; its end may fall in the next. In a zone, its end is always after its start ({@link #endMs}).
  */
 public record RunDays(@Nonnull LocalDateTime start, @Nonnull LocalDateTime end) {
 
@@ -56,8 +58,18 @@ public record RunDays(@Nonnull LocalDateTime start, @Nonnull LocalDateTime end) 
         return start.atZone(zone).toInstant().toEpochMilli();
     }
 
-    /** The first instant after the run, in {@code zone}. */
+    /**
+     * The first instant after the run, in {@code zone}: always after {@link #startMs}. A wall-clock time inside a
+     * spring-forward gap stands for the instant the gap's length later, so a run starting in a gap could reach
+     * its end no later than its start (02:00 to 03:00 on the night 02:00 becomes 03:00); such a run lasts its
+     * wall-clock length from its start instead.
+     */
     public long endMs(@Nonnull ZoneId zone) {
-        return end.atZone(zone).toInstant().toEpochMilli();
+        ZonedDateTime from = start.atZone(zone);
+        ZonedDateTime to = end.atZone(zone);
+        if (!to.isAfter(from)) {
+            to = from.plus(Duration.between(start, end));
+        }
+        return to.toInstant().toEpochMilli();
     }
 }

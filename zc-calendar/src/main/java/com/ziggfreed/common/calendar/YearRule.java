@@ -10,6 +10,7 @@ import java.time.MonthDay;
 import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
+import java.time.temporal.WeekFields;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -30,9 +31,17 @@ import javax.annotation.Nullable;
  * </ul>
  * Pure: no clock, no zone, no store.
  *
- * <p>{@link #runs} gives a year's runs in the rule's own order, and that order is each run's NUMBER (from 1):
- * a list of spans in the order written, a repeating rule in the order of the months or weeks it runs in. The
- * window never re-sorts them, so a re-date never renumbers a run.
+ * <p>{@link #runs} gives a year's runs in number order, and {@link #number} gives each run's NUMBER, which the
+ * window never re-sorts or reassigns:
+ * <ul>
+ *   <li>a list of spans numbers a run by its place in the order written (the first is run 1), so a span keeps
+ *       its number wherever its days move;</li>
+ *   <li>a monthly rule numbers a run by the month it starts in (December's is 12) and a weekly rule by its
+ *       calendar week ({@link Weekly#weekOfYear}), so adding or dropping months or weeks never renumbers the
+ *       others, and the numbers may skip. Another day of the month keeps a monthly run's number; another
+ *       weekday can carry a weekly run into a neighbouring week, and so to another number;</li>
+ *   <li>a rule with one run a year numbers it 1.</li>
+ * </ul>
  *
  * <p>A rule is {@linkplain #valid valid} only when EVERY year's runs start in that year and no run of the rule
  * ever meets its next one, in the same year or the year after. That lets a run's first instant name its year,
@@ -47,12 +56,17 @@ import javax.annotation.Nullable;
 public sealed interface YearRule permits YearRule.Fixed, YearRule.FixedRuns, YearRule.Easter, YearRule.Weekday,
         YearRule.Monthly, YearRule.Weekly {
 
-    /** The most days one run may last, both ends in. */
+    /**
+     * The most days a span of month-days ({@link Fixed}, alone or in {@link FixedRuns}) lasts, both ends in: a
+     * leap year's 366, from January 1st through December 31st of one, or from March 1st through the next
+     * February 29th. A span's last day falls within a year of its first, so none lasts longer.
+     */
     int MAX_RUN_DAYS = 366;
 
     /**
-     * The most days a run of a repeating rule may last: a year, one day short of {@link #MAX_RUN_DAYS}, so that a
-     * run starting late on December 31st still ends inside the next year, where the window looks for it.
+     * The most days a repeating rule's run may be written to last, in Days or a Length: a year, one day short of
+     * {@link #MAX_RUN_DAYS}, so that a run starting late on December 31st still ends inside the next year, where
+     * the window looks for it. A run lasting until the next ends where that one starts, a year on at most.
      */
     int REPEATING_MAX_RUN_DAYS = 365;
 
@@ -81,11 +95,32 @@ public sealed interface YearRule permits YearRule.Fixed, YearRule.FixedRuns, Yea
     Set<Month> EVERY_MONTH = Collections.unmodifiableSet(EnumSet.allOf(Month.class));
 
     /**
-     * The runs that start in {@code year}, in the rule's own order: run 1 first. The window keeps that order and
-     * those numbers, and sets aside any run that meets one before it.
+     * The runs that start in {@code year}, in number order ({@link #number}), the lowest first. The window keeps
+     * that order and those numbers, and sets aside any run that meets one before it.
      */
     @Nonnull
     List<RunDays> runs(int year);
+
+    /**
+     * The number of {@code run}, which {@link #runs} gives {@code place}th (from 1) for its year: by default its
+     * place, so a list of spans numbers each in the order written and a rule with one run a year numbers it 1.
+     * A repeating rule numbers a run by when it starts instead, so runs added or dropped around a run never
+     * renumber it.
+     */
+    default int number(@Nonnull RunDays run, int place) {
+        return place;
+    }
+
+    /**
+     * Where run {@code number} of {@code year} would start, for a year without it: the first instant, on the
+     * event's clock, of the stretch of the year the number names (a monthly rule's month, a weekly rule's
+     * calendar week), from which the window seeks the run after it. Null when the year has no such stretch, and
+     * by default: a place in a list names no date.
+     */
+    @Nullable
+    default LocalDateTime numberStart(int year, int number) {
+        return null;
+    }
 
     /** Do the days differ from one year to the next? */
     boolean moves();
@@ -440,8 +475,9 @@ public sealed interface YearRule permits YearRule.Fixed, YearRule.FixedRuns, Yea
      * A run in each month its {@link Cadence} names: from the {@code day} of the month (a day the month lacks
      * falls back to its last), or from the Nth {@code weekday} of it when one is named (a fifth it lacks falls back
      * to the fourth), lasting its {@link RunLength}. {@code day} is unused when {@code weekday} is named. A run's
-     * number is its place among the year's months the rule runs in, so a re-date (another day, weekday or length)
-     * never renumbers one.
+     * number is the month it starts in (December's is 12), whatever other months the rule runs in, so adding or
+     * dropping months never renumbers the others, and a re-date (another day, weekday or length) never renumbers
+     * one.
      */
     record Monthly(int day, @Nullable DayOfWeek weekday, int nth, @Nonnull Cadence cadence, @Nonnull RunLength length)
             implements YearRule {
@@ -479,6 +515,19 @@ public sealed interface YearRule permits YearRule.Fixed, YearRule.FixedRuns, Yea
                 }
             }
             return List.copyOf(out);
+        }
+
+        /** The month the run starts in, 1 to 12, on the event's clock. */
+        @Override
+        public int number(@Nonnull RunDays run, int place) {
+            return run.first().getMonthValue();
+        }
+
+        /** The first instant of month {@code number} of {@code year}; null for a number that is not a month. */
+        @Override
+        @Nullable
+        public LocalDateTime numberStart(int year, int number) {
+            return number >= 1 && number <= 12 ? LocalDate.of(year, number, 1).atStartOfDay() : null;
         }
 
         /** The start of the first run after the one in {@code month}: a valid rule has one within a year. */
@@ -542,9 +591,15 @@ public sealed interface YearRule permits YearRule.Fixed, YearRule.FixedRuns, Yea
 
     /**
      * A run on {@code weekday} in each week its {@link Cadence} names, lasting its {@link RunLength}. A run's
-     * number is its place among the year's weeks the rule runs in.
+     * number is the calendar week of the year it starts in ({@link #weekOfYear}: weeks from Monday, week 1 the
+     * one holding January 1st), so the weeks it skips leave gaps and adding or dropping weeks never renumbers the
+     * others. Another time of day or length keeps a run's number; another weekday can carry a run into a
+     * neighbouring week, and so to another number.
      */
     record Weekly(@Nonnull DayOfWeek weekday, @Nonnull Cadence cadence, @Nonnull RunLength length) implements YearRule {
+
+        /** Weeks from Monday, week 1 the one holding January 1st: never a locale's. */
+        private static final WeekFields CALENDAR_WEEKS = WeekFields.of(DayOfWeek.MONDAY, 1);
 
         /**
          * Does a run start on {@code day}, one of this rule's weekdays: in a month the cadence names, a whole number
@@ -575,6 +630,39 @@ public sealed interface YearRule permits YearRule.Fixed, YearRule.FixedRuns, Yea
                 }
             }
             return List.copyOf(out);
+        }
+
+        /** The calendar week of the year the run starts in, 1 to 54 ({@link #weekOfYear}), on the event's clock. */
+        @Override
+        public int number(@Nonnull RunDays run, int place) {
+            return weekOfYear(run.first());
+        }
+
+        /**
+         * The calendar week of the year {@code day} falls in, 1 to 54. Weeks run Monday to Sunday and week 1 is
+         * the one holding January 1st, however few of its days fall in the year: January 1st is always week 1 (a
+         * Sunday January 1st is week 1 alone, the Monday after it week 2), and a leap year starting on a Sunday
+         * ends in week 54. Counted within the day's own calendar year, never a week-based year (an ISO-8601 week 1
+         * can start in late December), and the same in every locale. A weekday falls in each such week once at
+         * most, so a weekly rule's runs never share a number.
+         */
+        public static int weekOfYear(@Nonnull LocalDate day) {
+            return day.get(CALENDAR_WEEKS.weekOfYear());
+        }
+
+        /**
+         * The first instant of calendar week {@code number} of {@code year} ({@link #weekOfYear}): midnight on its
+         * Monday, or on January 1st for week 1; null when the year has no such week.
+         */
+        @Override
+        @Nullable
+        public LocalDateTime numberStart(int year, int number) {
+            LocalDate newYear = LocalDate.of(year, 1, 1);
+            if (!CALENDAR_WEEKS.weekOfYear().rangeRefinedBy(newYear).isValidIntValue(number)) {
+                return null;
+            }
+            LocalDate monday = newYear.with(CALENDAR_WEEKS.weekOfYear(), number).with(CALENDAR_WEEKS.dayOfWeek(), 1);
+            return (monday.isBefore(newYear) ? newYear : monday).atStartOfDay();
         }
 
         /** The start of the first run after the one on {@code day}: a valid rule has one within a year. */

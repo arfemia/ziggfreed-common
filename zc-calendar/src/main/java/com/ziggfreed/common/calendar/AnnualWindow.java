@@ -30,13 +30,22 @@ import javax.annotation.Nullable;
  * STARTS in, and every run starts in its own year, so the year of a run's first instant, in the event's zone,
  * is the run's year. February 29th falls back to the 28th in a year without one ({@link MonthDay#atYear}).
  *
- * <p><b>A run's NUMBER is its authored position</b>: its place in the order the year's rule gives its runs
- * ({@link YearRule#runs}), from 1. In a list of spans that is the span's place in the list, whatever its
- * dates; a monthly or weekly rule gives its runs in the order of the months or weeks it runs in. The window
- * never re-sorts them, so a re-date never renumbers a run. Every question asked in time ({@link #runContaining},
- * {@link #nextRun}, {@link #after}, {@link #forcedRun}) is answered by the dates, and the run it finds keeps
- * its number. Within a year, number order is date order for every rule but a list of spans written out of
- * date order.
+ * <p><b>A run's NUMBER is the year's rule's to give</b> ({@link YearRule#number}), never the other runs', and
+ * the window never re-sorts or reassigns it:
+ * <ul>
+ *   <li>in a list of spans it is the span's authored position (its place in the list, from 1), so a span keeps
+ *       its number wherever its days move;</li>
+ *   <li>a monthly rule numbers a run by the month it starts in (December's is 12) and a weekly rule by its
+ *       calendar week ({@link YearRule.Weekly#weekOfYear}: weeks from Monday, week 1 the one holding January
+ *       1st), so adding or dropping months or weeks never renumbers the others, and a year's numbers may skip.
+ *       Another day of the month keeps a monthly run's number; another weekday can carry a weekly run into a
+ *       neighbouring week, and so to another number;</li>
+ *   <li>a rule with one run a year numbers it 1.</li>
+ * </ul>
+ * A run crossing the new year is numbered by its start, in the year it starts in. Every question asked in time
+ * ({@link #runContaining}, {@link #nextRun}, {@link #after}, {@link #forcedRun}) is answered by the dates, and the
+ * run it finds keeps its number. Within a year, number order is date order for every rule but a list of spans
+ * written out of date order.
  *
  * <p><b>Runs of one event never overlap.</b> A run that meets a run kept before it in that order is SET ASIDE
  * ({@link #setAside}): the run written first is kept, and the number of the run set aside is never handed to
@@ -65,7 +74,10 @@ public final class AnnualWindow {
     /** Runs in time: by start. Kept runs never overlap, so this is also their order by end. */
     private static final Comparator<DatedRun> BY_START = Comparator.comparing(run -> run.days().start());
 
-    /** One run as the window dates it: its year, its number (its authored position, from 1), and its days. */
+    /**
+     * One run as the window dates it: its year, its number (from 1, as its year's rule gives it: a span's place,
+     * a month, a calendar week), and its days.
+     */
     public record DatedRun(int year, int number, @Nonnull RunDays days) {
     }
 
@@ -329,25 +341,43 @@ public final class AnnualWindow {
 
     /**
      * The run after run {@code number} of {@code year} by the dates: the same year's run starting soonest after
-     * it, else the earliest run of the next year that has one; null when none is left. For a run the year does
-     * not have (or set aside), the earliest run of the next year that has one.
+     * it, else the earliest run of the next year that has one; null when none is left. A run the year set aside
+     * is followed from its own days. A number the year does not have is followed from where the year's rule puts
+     * it ({@link YearRule#numberStart}: the start of that month, or of that calendar week), so a run whose month
+     * an owner dropped is followed by the year's next run; a list of spans names no date for a place it lacks,
+     * so that is followed by the next year's earliest run.
      */
     @Nullable
     public DatedRun after(int year, int number) {
-        DatedRun from = dated(year, number);
+        LocalDateTime from = startOf(year, number);
         if (from != null) {
-            DatedRun soonest = null;
-            for (DatedRun run : datedRuns(year)) {
-                if (BY_START.compare(run, from) > 0 && (soonest == null || BY_START.compare(run, soonest) < 0)) {
-                    soonest = run;
+            for (DatedRun run : inTime(year)) {
+                if (run.days().start().isAfter(from)) {
+                    return run;
                 }
-            }
-            if (soonest != null) {
-                return soonest;
             }
         }
         Integer next = year >= LAST_YEAR ? null : nextRunYear(year + 1);
         return next == null ? null : inTime(next).get(0);
+    }
+
+    /**
+     * Where run {@code number} of {@code year} starts, to seek the run after it: its own start, kept or set
+     * aside, else where the year's rule puts that number; null when nothing dates it.
+     */
+    @Nullable
+    private LocalDateTime startOf(int year, int number) {
+        DatedRun kept = dated(year, number);
+        if (kept != null) {
+            return kept.days().start();
+        }
+        for (SetAside aside : setAside(year)) {
+            if (aside.number() == number) {
+                return aside.run().start();
+            }
+        }
+        YearRule rule = layer(year);
+        return rule == null ? null : rule.numberStart(year, number);
     }
 
     /**
@@ -419,8 +449,8 @@ public final class AnnualWindow {
     }
 
     /**
-     * {@code year}'s runs as its own layer dates them, numbered by the order the rule gives them, a run meeting
-     * one kept before it in that order set aside.
+     * {@code year}'s runs as its own layer dates them, each numbered by that layer's rule ({@link YearRule#number}),
+     * a run meeting one kept before it in the order the rule gives them set aside.
      */
     @Nonnull
     private YearRuns datedIn(int year) {
@@ -436,11 +466,12 @@ public final class AnnualWindow {
             List<SetAside> aside = new ArrayList<>();
             for (int i = 0; i < authored.size(); i++) {
                 RunDays run = authored.get(i);
+                int number = rule.number(run, i + 1);
                 DatedRun met = firstMet(runs, run);
                 if (met != null) {
-                    aside.add(new SetAside(year, i + 1, run, met.days()));
+                    aside.add(new SetAside(year, number, run, met.days()));
                 } else {
-                    runs.add(new DatedRun(year, i + 1, run));
+                    runs.add(new DatedRun(year, number, run));
                 }
             }
             made = new YearRuns(List.copyOf(runs), List.copyOf(aside));
