@@ -193,9 +193,10 @@ public final class ProgressionDefaults {
      * (a finished instance round, a boss fight's beat, a calendar attendance, the items a reward
      * payout handed over, a collected quest and the ranks a reputation check credited are announced
      * about players rather than happening to an entity, so each arrives on the shared bus), the
-     * talk-credit sink that turns a credited conversation into {@code TALK_TO_NPC}, and the
-     * tracked-quest HUD with its six event subscriptions. All of it is unconditional, and so is every
-     * dispatch those producers make.
+     * library's talk-credit sink (a conversation is credited by an authored beat through
+     * zc-dialogue's {@code TalkCredits}, and this sink stands aside while a consumer registers one of
+     * its own), and the tracked-quest HUD with its six event subscriptions. All of it is
+     * unconditional, and so is every dispatch those producers make.
      *
      * <p>The HUD installs itself LAST and guards itself, so a failure there costs the tracker and
      * nothing registered before it. Its attach rides the ready event at a LATER priority than the
@@ -216,7 +217,7 @@ public final class ProgressionDefaults {
         ZigLootReceivedProducer.install(plugin);
         ZigQuestCompletionProducer.install(plugin);
         ZigReputationProducer.install(plugin);
-        ZigTalkProducer.install();
+        ZigTalkProducer.install(plugin);
         SafeLog.info("[progression] producers always-on: " + producedKinds()
                 + " (a mod firing a new moment calls ProgressDispatch.fire directly, no registration"
                 + " needed)");
