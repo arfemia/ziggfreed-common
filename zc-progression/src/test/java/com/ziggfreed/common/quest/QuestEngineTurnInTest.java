@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 import javax.annotation.Nonnull;
@@ -144,6 +145,27 @@ class QuestEngineTurnInTest {
 
         bag.put("Iron_Ore", 3);
         assertEquals(3, engine.attemptTurnIn(player, q, "give"));
+        assertEquals(QuestStatus.COMPLETED, engine.status(player, q));
+    }
+
+    @Test
+    void aHandInIsNeitherOfferedNorCreditedWhileItsQuestIsNotOnOffer() {
+        AtomicBoolean offered = new AtomicBoolean(true);
+        Quest q = Quest.builder("q_deliver").objective(handIn("give", "Iron_Ore", 5))
+                .available(offered::get).build();
+        QuestEngine engine = engineWith(q);
+        engine.accept(player, q);
+        bag.put("Iron_Ore", 10);
+
+        offered.set(false);
+        assertFalse(engine.canDeliverTurnInAt(player, q, "Smith"), "a hidden quest offers no hand-in");
+        assertEquals(0, engine.attemptTurnIn(player, q, "give"), "and credits none");
+        assertEquals(10, bag.count("Iron_Ore"), "taking nothing from the player");
+        assertEquals(0, engine.progressOf(player, "q_deliver", "give").current());
+
+        offered.set(true);
+        assertTrue(engine.canDeliverTurnInAt(player, q, "Smith"));
+        assertEquals(5, engine.attemptTurnIn(player, q, "give"), "back on offer, the hand-in works again");
         assertEquals(QuestStatus.COMPLETED, engine.status(player, q));
     }
 
