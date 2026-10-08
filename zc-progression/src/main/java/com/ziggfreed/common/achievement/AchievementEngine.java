@@ -308,8 +308,20 @@ public final class AchievementEngine {
         return true;
     }
 
-    /** Are every one of a meta achievement's children earned? */
+    /**
+     * Is a meta achievement's set met? A plain capstone needs every child. A grouped one needs
+     * {@link Achievement#metaNeeds()} of its counted groups (every counted group when null), never
+     * fewer than {@link Achievement#metaAtLeast()}, each holding one earned child; with no group in
+     * the count there is nothing to stand on.
+     *
+     * <p>Asked only to EARN (a cascade, self-heal), never of an achievement already earned, so a
+     * count that grows later never takes an earned capstone back.
+     */
     private boolean metaChildrenComplete(@Nonnull Subject subject, @Nonnull Achievement achievement) {
+        if (!achievement.metaGroups().isEmpty()) {
+            MetaCount count = metaCount(subject, achievement);
+            return count.needed() > 0 && count.earned() >= count.needed();
+        }
         for (String child : achievement.metaChildren()) {
             if (!store.status(subject, child).isUnlocked()) {
                 return false;
@@ -318,10 +330,47 @@ public final class AchievementEngine {
         return !achievement.metaChildren().isEmpty();
     }
 
-    /** How many criteria are met. Total is at least 1, so a bar can divide by it. */
+    /** A grouped capstone's reading: counted groups holding an earned child, and how many must. */
+    private record MetaCount(int earned, int needed) {
+    }
+
+    @Nonnull
+    private MetaCount metaCount(@Nonnull Subject subject, @Nonnull Achievement achievement) {
+        int counted = 0;
+        int earned = 0;
+        for (Achievement.MetaGroup group : achievement.metaGroups()) {
+            if (!group.isCounted()) {
+                continue;
+            }
+            counted++;
+            for (String child : group.children()) {
+                if (store.status(subject, child).isUnlocked()) {
+                    earned++;
+                    break;
+                }
+            }
+        }
+        Integer needs = achievement.metaNeeds();
+        int needed = needs == null ? counted : needs;
+        Integer atLeast = achievement.metaAtLeast();
+        if (atLeast != null) {
+            needed = Math.max(needed, atLeast);
+        }
+        return new MetaCount(earned, needed);
+    }
+
+    /**
+     * How many criteria are met. Total is at least 1, so a bar can divide by it. A grouped capstone
+     * counts GROUPS, never the children standing for them, and never reads past full.
+     */
     @Nonnull
     public CriterionTally tally(@Nonnull Subject subject, @Nonnull Achievement achievement) {
         if (achievement.isMeta()) {
+            if (!achievement.metaGroups().isEmpty()) {
+                MetaCount count = metaCount(subject, achievement);
+                int total = Math.max(1, count.needed());
+                return new CriterionTally(Math.min(count.earned(), total), total);
+            }
             int done = 0;
             for (String child : achievement.metaChildren()) {
                 if (store.status(subject, child).isUnlocked()) {
@@ -525,7 +574,7 @@ public final class AchievementEngine {
 
     /**
      * Take an achievement back off a subject: its state, progress, unlock instant, and pin all go,
-     * and any meta achievement that only stood on it is taken back too.
+     * and any meta achievement that no longer stands without it is taken back too.
      *
      * @return true when there was something to take back
      */
@@ -536,7 +585,11 @@ public final class AchievementEngine {
         }
         store.clearAchievement(subject, achievementId);
         for (String parentId : metaParents.getOrDefault(achievementId, List.of())) {
-            if (store.status(subject, parentId).isUnlocked()) {
+            Achievement parent = achievements.get(parentId);
+            // A parent still standing (a grouped one whose group another year's copy holds) keeps its
+            // earn; a plain parent always falls, since it needed the child just taken.
+            if (store.status(subject, parentId).isUnlocked()
+                    && (parent == null || !metaChildrenComplete(subject, parent))) {
                 store.clearAchievement(subject, parentId);
             }
         }
