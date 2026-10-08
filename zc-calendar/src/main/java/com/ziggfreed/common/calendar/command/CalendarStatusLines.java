@@ -6,6 +6,10 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.SortedSet;
+import java.util.TreeMap;
+import java.util.TreeSet;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -54,8 +58,8 @@ public final class CalendarStatusLines {
         Occurrence run = service.live(id, nowMs);
         Boolean forced = service.forced(id);
         if (run != null) {
-            return Line.of(Boolean.TRUE.equals(forced) ? "row.live.forced" : "row.live", id,
-                    Integer.toString(run.year()), day(run.endMs() - 1, event.zone()));
+            return Line.of(Boolean.TRUE.equals(forced) ? "row.live.forced" : "row.live", id, run.label(),
+                    day(run.endMs() - 1, event.zone()));
         }
         if (Boolean.FALSE.equals(forced)) {
             return Line.of("row.stopped", id);
@@ -77,11 +81,12 @@ public final class CalendarStatusLines {
         AnnualWindow window = event.annualWindow();
         ZoneId zone = event.zone();
         String clock = ZoneOffset.UTC.equals(zone) ? "UTC" : zone.getId();
-        if (window != null && window.moves()) {
-            out.add(Line.of("status.window.moving", window.toString(), clock));
+        if (window != null && (window.moves() || window.several())) {
+            out.add(Line.of(window.several() ? "status.window.several" : "status.window.moving", window.toString(),
+                    clock));
             Occurrence framing = framing(service, event.getId(), nowMs);
             if (framing != null) {
-                out.add(Line.of("status.run", Integer.toString(framing.year()), day(framing.startMs(), zone),
+                out.add(Line.of("status.run", framing.label(), day(framing.startMs(), zone),
                         day(framing.endMs() - 1, zone)));
             }
         } else {
@@ -89,9 +94,8 @@ public final class CalendarStatusLines {
         }
         Integer firstYear = event.firstYear();
         out.add(firstYear == null ? Line.of("status.first.none") : Line.of("status.first", firstYear.toString()));
-        List<String> years = service.history(event.getId(), nowMs).stream()
-                .map(run -> Integer.toString(run.year())).toList();
-        out.add(years.isEmpty() ? Line.of("status.history.none") : Line.of("status.history", String.join(", ", years)));
+        String runs = runsSoFar(service.history(event.getId(), nowMs));
+        out.add(runs.isEmpty() ? Line.of("status.history.none") : Line.of("status.history", runs));
         for (String problem : event.problems()) {
             out.add(Line.of("status.problem", problem));
         }
@@ -114,6 +118,50 @@ public final class CalendarStatusLines {
         }
         List<Occurrence> history = service.history(eventId, nowMs);
         return history.isEmpty() ? null : history.get(history.size() - 1);
+    }
+
+    /**
+     * The runs so far as data, year by year: a year whose one run is its run 1 reads {@code 2026} (every
+     * once-a-year event's), any other names its runs by number, {@code 2026#4,9} or {@code 2026#1..12}, numbers
+     * one after another as a stretch. A number names a run and may skip, so the list never counts runs. The same
+     * in every language.
+     */
+    @Nonnull
+    static String runsSoFar(@Nonnull List<Occurrence> history) {
+        Map<Integer, SortedSet<Integer>> byYear = new TreeMap<>();
+        for (Occurrence run : history) {
+            byYear.computeIfAbsent(run.year(), year -> new TreeSet<>()).add(run.number());
+        }
+        List<String> out = new ArrayList<>();
+        for (Map.Entry<Integer, SortedSet<Integer>> year : byYear.entrySet()) {
+            SortedSet<Integer> numbers = year.getValue();
+            out.add(numbers.size() == 1 && numbers.first() == 1 ? Integer.toString(year.getKey())
+                    : year.getKey() + "#" + stretches(numbers));
+        }
+        return String.join(", ", out);
+    }
+
+    /** {@code 1..3,7}: each stretch of numbers one after another as its first and last, the rest alone. */
+    @Nonnull
+    private static String stretches(@Nonnull SortedSet<Integer> numbers) {
+        List<String> parts = new ArrayList<>();
+        Integer first = null;
+        int last = 0;
+        for (int number : numbers) {
+            if (first != null && number == last + 1) {
+                last = number;
+                continue;
+            }
+            if (first != null) {
+                parts.add(first == last ? Integer.toString(first) : first + ".." + last);
+            }
+            first = number;
+            last = number;
+        }
+        if (first != null) {
+            parts.add(first == last ? Integer.toString(first) : first + ".." + last);
+        }
+        return String.join(",", parts);
     }
 
     /** {@code ms} as its {@code yyyy-MM-dd} day in {@code zone}. */

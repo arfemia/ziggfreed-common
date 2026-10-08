@@ -6,7 +6,7 @@ desc.family = See and test this server's calendar events.
 desc.list = List every calendar event and whether it is running.
 desc.status = Show one calendar event: its dates, its first year and its runs so far.
 desc.force = Run or stop a calendar event now, whatever its dates say.
-desc.force.on = Run a calendar event now. It stays forced until you clear it or the server restarts.
+desc.force.on = Run a calendar event now. It stays forced until the run is over, you clear it, or the server restarts.
 desc.force.off = Stop a calendar event now. It stays stopped until you clear it or the server restarts.
 desc.force.clear = Let a calendar event follow its dates again.
 desc.reload = Read the calendar owner file again.
@@ -26,6 +26,7 @@ row.done = {0}: no runs left, since its last dated year has passed.
 
 status.window = Runs {0} every year, counted in {1}.
 status.window.moving = Runs {0}, counted in {1}; its days move from year to year.
+status.window.several = Runs {0}, counted in {1}; it comes round several times a year.
 status.run = The {0} run: {1} to {2}.
 status.first = First year: {0}.
 status.first.none = No first year, so it never runs.
@@ -37,7 +38,7 @@ status.note = Note: {0}.
 force.unknown = There is no calendar event named {0}.
 force.absent = {0} is switched off or cannot run, so forcing it changes nothing.
 force.on.nodates = {0} has no dates this year, so it cannot be forced on.
-force.on.done = {0} is running now. It stays forced until you clear it or the server restarts.
+force.on.done = {0} is running now. It stays forced until this run is over, you clear it, or the server restarts.
 force.off.done = {0} is stopped now. It stays stopped until you clear it or the server restarts.
 force.clear.done = {0} follows its dates again.
 
