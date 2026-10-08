@@ -65,8 +65,10 @@ public final class BootAudit {
     }
 
     /**
-     * Run every pass, log each one's findings under its label, then the marker line; a pass that throws
-     * is reported on the error sink and costs only itself. Answers every finding, in pass order.
+     * Run every pass, log each one's findings under its label, then the marker line. A pass that throws,
+     * while it audits or while its answer is read and logged, is reported on the error sink and costs
+     * only itself: its answer is copied before any of its lines print, so a broken one prints none of
+     * them and counts nothing. The marker line always follows. Answers every finding, in pass order.
      */
     @Nonnull
     static List<Finding> run(@Nonnull List<Pass> passes, @Nonnull Consumer<String> errorSink,
@@ -74,21 +76,28 @@ public final class BootAudit {
         List<Finding> all = new ArrayList<>();
         int ran = 0;
         for (Pass pass : passes) {
-            List<Finding> found;
             try {
-                found = pass.audit().get();
+                List<Finding> found = pass.audit().get();
+                List<Finding> safe = found == null ? List.of() : new ArrayList<>(found);
+                ValidationReport.logAll(pass.label(), safe, errorSink, noteSink);
+                all.addAll(safe);
+                ran++;
             } catch (Throwable t) {
-                errorSink.accept(MARKER + "the pass '" + pass.label() + "' could not run: " + t.getMessage());
-                continue;
+                say(errorSink, MARKER + "the pass '" + pass.label() + "' could not run: " + t.getMessage());
             }
-            ran++;
-            List<Finding> safe = found == null ? List.of() : found;
-            ValidationReport.logAll(pass.label(), safe, errorSink, noteSink);
-            all.addAll(safe);
         }
-        noteSink.accept(MARKER + all.size() + " finding(s) (" + ValidationReport.errorCount(all) + " error(s), "
+        say(noteSink, MARKER + all.size() + " finding(s) (" + ValidationReport.errorCount(all) + " error(s), "
                 + ValidationReport.warningCount(all) + " warning(s)) from " + ran + " of " + passes.size()
                 + " pass(es)");
         return all;
+    }
+
+    /** One line at a sink; a sink that throws costs that line, never the passes after it or the marker. */
+    private static void say(@Nonnull Consumer<String> sink, @Nonnull String line) {
+        try {
+            sink.accept(line);
+        } catch (Throwable ignored) {
+            // A log-manager-less unit JVM: a flogger-backed sink can throw. The audit goes on.
+        }
     }
 }

@@ -91,4 +91,41 @@ class NpcPlacementConfigAuditTest {
         assertTrue(lines.stream().anyMatch(line -> line.contains("YourMod")),
                 "standing down silently would read as an audit that never ran");
     }
+
+    /**
+     * zc's boot audit takes the late audit's one run as its findings, so the first join prints nothing
+     * more; and a late audit that already ran leaves the boot audit nothing to report again.
+     */
+    @Test
+    void theBootAuditClaimsTheSameOneRunSoNothingPrintsTwice() {
+        NpcPlacementConfig config = NpcPlacementConfig.getInstance();
+        config.mergePackLayer(Map.of("test_placement", placementNamingEverythingUnknown()));
+
+        assertTrue(codes(config.claimLateFindings()).contains("UNREGISTERED_FACTOR"),
+                "the boot audit gets the full, cross-asset findings");
+        List<String> lines = new ArrayList<>();
+        config.runLateAudit(lines::add, lines::add);
+        assertEquals(List.of(), lines, "the first join finds the one run already spent");
+        assertEquals(List.of(), config.claimLateFindings(), "and a second claim is nothing");
+
+        config.clearLateAuditForTests();
+        config.runLateAudit(lines::add, lines::add);
+        assertEquals(List.of(), config.claimLateFindings(), "a late audit that ran first leaves the boot audit nothing");
+    }
+
+    /**
+     * A consumer that claimed the cross-asset audit reports these findings itself, so the boot audit adds
+     * none and leaves the one run to the first join, which still names who reports them.
+     */
+    @Test
+    void aClaimedLateAuditGivesTheBootAuditNothingAndLeavesTheFirstJoinItsNote() {
+        NpcPlacementConfig config = NpcPlacementConfig.getInstance();
+        config.mergePackLayer(Map.of("test_placement", placementNamingEverythingUnknown()));
+        config.claimLateAudit("YourMod");
+
+        assertEquals(List.of(), config.claimLateFindings());
+        List<String> lines = new ArrayList<>();
+        config.runLateAudit(lines::add, lines::add);
+        assertTrue(lines.stream().anyMatch(line -> line.contains("YourMod")), lines.toString());
+    }
 }

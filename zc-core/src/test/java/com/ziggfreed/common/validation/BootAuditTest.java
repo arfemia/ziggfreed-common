@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -63,6 +64,46 @@ class BootAuditTest {
         assertTrue(errors.get(0).startsWith(BootAudit.MARKER + "the pass '[gearset] audit' could not run"), errors.toString());
         assertEquals("[zc] boot audit: 0 finding(s) (0 error(s), 0 warning(s)) from 1 of 2 pass(es)",
                 notes.get(notes.size() - 1));
+    }
+
+    /**
+     * A pass whose answer breaks while it is read and logged (here a list that throws when walked) costs
+     * only itself: none of its lines print, the next pass still counts, and the marker line prints. So
+     * does it when the error sink itself throws on the failing pass's line.
+     */
+    @Test
+    void aPassThatBreaksWhileItsFindingsAreLoggedCostsOnlyItselfAndTheMarkerStillPrints() {
+        List<Finding> torn = new AbstractList<>() {
+            @Override
+            public Finding get(int index) {
+                throw new IllegalStateException("torn list");
+            }
+
+            @Override
+            public int size() {
+                return 1;
+            }
+        };
+        List<BootAudit.Pass> passes = List.of(
+                new BootAudit.Pass("[torn] audit", () -> torn),
+                new BootAudit.Pass("[loot] audit",
+                        () -> List.of(Finding.warning("bonus_rows", "UNKNOWN_SEASON", "names a typo", "row"))));
+        String marker = "[zc] boot audit: 1 finding(s) (0 error(s), 1 warning(s)) from 1 of 2 pass(es)";
+
+        List<String> errors = new ArrayList<>();
+        List<String> notes = new ArrayList<>();
+        List<Finding> found = BootAudit.run(passes, errors::add, notes::add);
+
+        assertEquals(1, found.size());
+        assertEquals(1, errors.size(), errors.toString());
+        assertTrue(errors.get(0).startsWith(BootAudit.MARKER + "the pass '[torn] audit' could not run"), errors.toString());
+        assertEquals(List.of("[loot] audit 'row' [UNKNOWN_SEASON]: names a typo", marker), notes);
+
+        List<String> notesWithABrokenErrorSink = new ArrayList<>();
+        BootAudit.run(passes, line -> {
+            throw new IllegalStateException("no log manager");
+        }, notesWithABrokenErrorSink::add);
+        assertEquals(marker, notesWithABrokenErrorSink.get(notesWithABrokenErrorSink.size() - 1));
     }
 
     /**
