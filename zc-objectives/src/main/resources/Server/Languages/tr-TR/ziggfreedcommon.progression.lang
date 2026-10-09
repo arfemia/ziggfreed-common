@@ -85,7 +85,6 @@ npcquests.toast.turn_in_short = Henüz yeterli değil: {0}/{1}.
 book.quests.count = {0} Görev
 book.quests.active_count = {0} Aktif
 book.quests.active_header = Aktif Görevler ({0})
-book.quests.tracked_header = TAKİP EDİLEN GÖREVLER
 book.quests.status.available = Mevcut
 book.quests.status.locked = Kilitli
 book.quests.status.active = Devam ediyor

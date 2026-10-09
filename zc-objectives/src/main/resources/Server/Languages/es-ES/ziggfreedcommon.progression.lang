@@ -85,7 +85,6 @@ npcquests.toast.turn_in_short = Todavía no es suficiente: {0}/{1}.
 book.quests.count = {0} Misiones
 book.quests.active_count = {0} Activas
 book.quests.active_header = Misiones activas ({0})
-book.quests.tracked_header = MISIONES SEGUIDAS
 book.quests.status.available = Disponible
 book.quests.status.locked = Bloqueada
 book.quests.status.active = En progreso

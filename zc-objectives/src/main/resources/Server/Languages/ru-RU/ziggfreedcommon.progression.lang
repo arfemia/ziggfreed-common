@@ -85,7 +85,6 @@ npcquests.toast.turn_in_short = Пока недостаточно: {0}/{1}.
 book.quests.count = {0} Квестов
 book.quests.active_count = {0} Активных
 book.quests.active_header = Активные задания ({0})
-book.quests.tracked_header = ОТСЛЕЖИВАЕМЫЕ КВЕСТЫ
 book.quests.status.available = Доступно
 book.quests.status.locked = Заблокировано
 book.quests.status.active = В процессе

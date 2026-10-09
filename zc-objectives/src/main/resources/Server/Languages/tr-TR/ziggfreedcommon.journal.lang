@@ -58,3 +58,4 @@ search.placeholder = Görev ara...
 # A finished quest collected somewhere other than where the player stands: its state word, and its hint, where {0} is the character who collects it.
 state.elsewhere = Başka yerde
 hint.collect_from = Teslim yeri: {0}
+hint.collect_at = Şuradan al: {0}

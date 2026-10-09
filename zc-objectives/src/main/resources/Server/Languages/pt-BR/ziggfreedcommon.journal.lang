@@ -59,3 +59,4 @@ search.placeholder = Buscar missões...
 # A finished quest collected somewhere other than where the player stands: its state word, and its hint, where {0} is the character who collects it.
 state.elsewhere = Outro local
 hint.collect_from = Receba com {0}
+hint.collect_at = Receba em: {0}

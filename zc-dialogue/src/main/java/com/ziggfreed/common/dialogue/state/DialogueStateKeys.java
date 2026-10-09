@@ -35,6 +35,10 @@ import javax.annotation.Nullable;
  *       escape either clear.</li>
  * </ul>
  *
+ * <p>A {@code Once} kept {@code PerCharacter} appends {@code c:<character>} after the world scope
+ * ({@link #withCharacter}), so each character the line reaches keeps its own claim; it comes before
+ * any window, so a window's family stays one character's.
+ *
  * <p>A {@code Once} with a {@code Period} appends one more segment AFTER everything else, the
  * window it was spent in: {@code <key>:PD<epoch day>} or {@code <key>:PW<Monday week>}
  * ({@link #withPeriod}). It is the only upper-case segment any key carries, which is what lets a
@@ -99,6 +103,9 @@ public final class DialogueStateKeys {
      * scope's normalize, both lower-casing, so nothing but a window ever follows {@code <key>:P}.
      */
     public static final String PERIOD_SEGMENT_PREFIX = "P";
+
+    /** The segment a {@code PerCharacter} claim's character follows: {@code <key>:c:<character>}. */
+    public static final String CHARACTER_SEGMENT_PREFIX = "c";
 
     private DialogueStateKeys() {
     }
@@ -177,6 +184,16 @@ public final class DialogueStateKeys {
     /** True when {@code key} belongs to the session backend rather than the persistent one. */
     public static boolean isSession(@Nonnull String key) {
         return key.startsWith(SESSION_PREFIX + SEP);
+    }
+
+    /**
+     * {@code key} filed under one character: {@code <key>:c:<character>}, the character's id trimmed and
+     * lower-cased like every other segment, so a {@code PerCharacter} claim spent with one character
+     * leaves every other character's untouched.
+     */
+    @Nonnull
+    public static String withCharacter(@Nonnull String key, @Nonnull String characterId) {
+        return key + SEP + CHARACTER_SEGMENT_PREFIX + SEP + segment(characterId);
     }
 
     /** {@code key} filed under one window: {@code <key>:P<code><index>}, after every other segment. */

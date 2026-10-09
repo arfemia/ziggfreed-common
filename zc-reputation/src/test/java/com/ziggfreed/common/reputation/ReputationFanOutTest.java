@@ -112,7 +112,8 @@ class ReputationFanOutTest {
         assertEquals(500.0, reading.current(), "1,500 is 500 into Friendly");
         assertEquals(2_000.0, reading.maximum(), "which spans 2,000 to Honored");
         HudRowDisplay display = EngineReputationFanOut.display(up);
-        assertEquals("ziggfreedcommon.reputation.hud.caption", display.label().getMessageId());
+        assertEquals("test.jack.name", display.label().getMessageId(),
+                "the reputation's name alone, so it reads whole in a World bars column (M571)");
         assertEquals(Integer.valueOf(2), display.order());
         assertNotNull(display.icon());
     }

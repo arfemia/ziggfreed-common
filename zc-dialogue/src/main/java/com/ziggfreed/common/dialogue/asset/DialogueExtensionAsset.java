@@ -40,7 +40,8 @@ import com.ziggfreed.common.dialogue.schema.NodeSelector;
  *
  * <p>A line here is an ordinary option row, read by the same codec, so every shorthand and condition
  * works as on a screen. Its {@code Once} is the line's own: spent with one character, it is spent
- * with every character the line reaches. Give every line a {@code LabelKey}; a {@code Goto} or a
+ * with every character the line reaches, unless the {@code Once} says {@code "PerCharacter": true},
+ * which keeps one claim per character. Give every line a {@code LabelKey}; a {@code Goto} or a
  * memory has no meaning in a conversation the line does not know, and the audit says so.
  *
  * <p>To take a shipped extension out, override the file by id with {@code "Enabled": false}.

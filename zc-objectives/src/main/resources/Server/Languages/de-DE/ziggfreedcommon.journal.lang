@@ -59,3 +59,4 @@ search.placeholder = Quests suchen...
 # A finished quest collected somewhere other than where the player stands: its state word, and its hint, where {0} is the character who collects it.
 state.elsewhere = Anderswo
 hint.collect_from = Hol sie bei {0} ab
+hint.collect_at = Hol sie dort ab: {0}

@@ -17,8 +17,6 @@ factor.reputation_rank = un rang de réputation
 reward.gain = +{0, number} {1}
 reward.loss = {0, number} {1}
 
-hud.caption = {0} : {1}
-
 feedback.rank.title = Vous êtes maintenant {0}
 feedback.rank.with = Réputation : {0}
 
@@ -56,6 +54,8 @@ standing.earned = Gagné
 standing.gear = Via l'équipement porté
 standing.gear.count = +{0, number}
 standing.cap = Le maximum que vous pouvez gagner
+block.gear_sets = Panoplies portées
+gear_set.line = {0} : {1}
 
 
 menu.tab = Réputation

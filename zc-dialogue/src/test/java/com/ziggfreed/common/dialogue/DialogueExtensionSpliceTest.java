@@ -155,6 +155,43 @@ class DialogueExtensionSpliceTest {
                 "a new day offers it everywhere again");
     }
 
+    /** {@code PerCharacter}: the claim is filed under the character too, so each keeps its own day (M569). */
+    @Test
+    void aPerCharacterDailyOnceIsSpentOnlyWithTheCharacterItWasTakenAt() {
+        DialogueEngine engine = engine();
+        DialogueTestSupport.shareExtensions(DialogueExtension.of("hallows_eve_trick", DialogueTestSupport.optionRows("""
+                [ { "LabelKey": "hallows_eve.trick", "OnceId": "treat",
+                    "Once": { "Period": "Daily", "PerCharacter": true } } ]
+                """), null, null, true));
+        NpcDialogue guide = engine.decode("guide", GUIDE);
+        NpcDialogue smith = engine.decode("smith", SMITH);
+        assertNotNull(guide);
+        assertNotNull(smith);
+        TestDialogueContext atJack = new TestDialogueContext(guide).talkingTo("Old_Jack");
+        TestDialogueContext atHub = new TestDialogueContext(guide, atJack.state()).talkingTo("Mmo_Hub");
+        TestDialogueContext atSmith = new TestDialogueContext(smith, atJack.state()).talkingTo("Smith");
+        long day = LocalDate.of(2026, 10, 31).toEpochDay();
+
+        engine.consumeOnce(null, guide, "menu", injected(guide, "menu", "hallows_eve_trick"), atJack);
+        assertEquals(Set.of("once:x:hallows_eve_trick:treat:c:old_jack:PD" + day), atJack.state().keys,
+                "keyed by the extension and the character it was taken at");
+        assertFalse(engine.optionAvailable(guide, "intro", injected(guide, "intro", "hallows_eve_trick"), atJack),
+                "spent with Old Jack, on every screen of his");
+        assertTrue(engine.optionAvailable(guide, "menu", injected(guide, "menu", "hallows_eve_trick"), atHub),
+                "another character sharing the conversation still offers it");
+        assertTrue(engine.optionAvailable(smith, "shop", injected(smith, "shop", "hallows_eve_trick"), atSmith),
+                "and so does every other character");
+
+        engine.consumeOnce(null, smith, "shop", injected(smith, "shop", "hallows_eve_trick"), atSmith);
+        now[0] = Instant.parse("2026-11-01T00:00:00Z").toEpochMilli();
+        assertTrue(engine.optionAvailable(guide, "menu", injected(guide, "menu", "hallows_eve_trick"), atJack),
+                "a new day offers it at Old Jack again");
+        engine.consumeOnce(null, guide, "menu", injected(guide, "menu", "hallows_eve_trick"), atJack);
+        assertEquals(Set.of("once:x:hallows_eve_trick:treat:c:smith:PD" + day,
+                "once:x:hallows_eve_trick:treat:c:old_jack:PD" + (day + 1)), atJack.state().keys,
+                "a spend clears only that character's earlier day");
+    }
+
     @Test
     void twoExtensionsSharingALabelKeepTheirOwnOnce() {
         DialogueEngine engine = engine();

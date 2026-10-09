@@ -17,8 +17,6 @@ factor.reputation_rank = bir itibarda bir rütbe
 reward.gain = +{0, number} {1}
 reward.loss = {0, number} {1}
 
-hud.caption = {0}: {1}
-
 feedback.rank.title = Artık {0} rütbesindesin
 feedback.rank.with = {0} ile
 
@@ -56,6 +54,8 @@ standing.earned = Kazanılan
 standing.gear = Giydiğin teçhizattan
 standing.gear.count = +{0, number}
 standing.cap = Kazanabileceğin en fazla puan
+block.gear_sets = Giydiğin setler
+gear_set.line = {0}: {1}
 
 
 menu.tab = İtibar

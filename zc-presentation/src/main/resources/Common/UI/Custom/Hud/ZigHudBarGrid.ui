@@ -30,7 +30,8 @@
 $Z = "../Common/ZigButtons.ui";
 $ZT = "../Common/ZigType.ui";
 
-@BarLabelStyle = (FontSize: $ZT.@ZigFontBody, TextColor: #e6e9ee, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center);
+// A row's name shrinks a step to fit its box before it is cut, never under the floor.
+@BarLabelStyle = (FontSize: $ZT.@ZigFontBody, TextColor: #e6e9ee, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: $ZT.@ZigFontCaption);
 
 @BarGainStyle = (FontSize: $ZT.@ZigFontCaption, TextColor: #ffd24a, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: End, VerticalAlignment: Center);
 

@@ -976,7 +976,8 @@ public final class DialogueEngine {
      * Where an option's {@code Once} is filed right now, or null when the option has none (or its
      * scope names a world family this world is not part of, so the guard does not apply here). A line
      * an extension added is one line wherever it lands, so its Once is keyed by the extension:
-     * spent with one character, it is spent with every character it reaches.
+     * spent with one character, it is spent with every character it reaches, unless the Once is kept
+     * {@code PerCharacter} ({@link DialogueOnce#slotFor} files it under each character then).
      */
     @Nullable
     private DialogueOnce.Slot optionOnceSlot(@Nonnull NpcDialogue dialogue, @Nonnull String nodeId,

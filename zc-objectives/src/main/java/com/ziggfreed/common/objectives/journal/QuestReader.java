@@ -210,7 +210,7 @@ public final class QuestReader {
         return read(q, here, false);
     }
 
-    /** {@code q}'s compact row (an overview strip, the Skills page panel), as the book reads it: no meta line. */
+    /** {@code q}'s compact row (an overview strip), as the book reads it: no meta line. */
     @Nonnull
     public LedgerRow compactRow(@Nonnull Quest q) {
         return read(q, null, true);

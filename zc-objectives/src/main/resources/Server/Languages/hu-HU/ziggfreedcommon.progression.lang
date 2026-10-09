@@ -85,7 +85,6 @@ npcquests.toast.turn_in_short = Még nem elég: {0}/{1}.
 book.quests.count = {0} Küldetés
 book.quests.active_count = {0} Aktív
 book.quests.active_header = Aktív küldetések ({0})
-book.quests.tracked_header = KÖVETETT KÜLDETÉSEK
 book.quests.status.available = Elérhető
 book.quests.status.locked = Zárolt
 book.quests.status.active = Folyamatban

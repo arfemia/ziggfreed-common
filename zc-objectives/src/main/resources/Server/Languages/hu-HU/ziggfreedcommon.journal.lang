@@ -58,3 +58,4 @@ search.placeholder = Küldetések keresése...
 # A finished quest collected somewhere other than where the player stands: its state word, and its hint, where {0} is the character who collects it.
 state.elsewhere = Máshol
 hint.collect_from = Átvétel helye: {0}
+hint.collect_at = Átvétel helye: {0}

@@ -30,6 +30,7 @@ import com.ziggfreed.common.world.WorldSelector;
  * "Once": { "Where": { "Match": ["forgotten_temple"] } }           once per world
  * "Once": { "Where": { "GameplayConfig": ["ForgottenTemple"] } }   once per instance world
  * "Once": { "Period": "Daily" }                                   once per character per day
+ * "Once": { "Period": "Daily", "PerCharacter": true }             once a day at each NPC it reaches
  * }</pre>
  *
  * <p>Both forms are the same group - {@code true} is shorthand for the empty group {@code {}} and
@@ -69,6 +70,14 @@ import com.ziggfreed.common.world.WorldSelector;
  * ({@link Slot}). A word that is neither {@code Daily} nor {@code Weekly} reads as {@code Daily},
  * the way a quest's {@code Reset} reads one, and the content audit names it.
  *
+ * <h2>{@code PerCharacter}</h2>
+ *
+ * <p>Unauthored, one spend counts with every NPC the line reaches (a line a dialogue extension adds
+ * to every conversation) or that shares the conversation. With {@code true}, the claim is filed
+ * under the NPC the conversation is with as well ({@link DialogueContext#contextId()}), so each one
+ * keeps its own: spent with one, the line is still offered at the next, each on its own window. A
+ * conversation opened with no NPC keeps the one shared claim.
+ *
  * <h2>{@code Where}</h2>
  *
  * <p>The shared world selector - the same {@code {Match, GameplayConfig, ExcludeMatch}} group an NPC
@@ -97,7 +106,13 @@ public final class DialogueOnce {
                     + "at midnight UTC, Weekly at midnight UTC going into Monday. Leave it out and the Once "
                     + "is spent for good. It works beside Where, which keeps one per world as well.";
 
-    /** The group form, {@code {"Where": {...}, "Period": "..."}}. */
+    /** What the {@code PerCharacter} leaf is for, in the editor and in this class's own words. */
+    public static final String PER_CHARACTER_DOC =
+            "True keeps one claim per NPC: spent with one, the line is still offered at every other, each "
+                    + "on its own Period. Leave it out and one spend counts with every NPC the line reaches "
+                    + "or that shares this conversation. A conversation opened with no NPC keeps one claim.";
+
+    /** The group form, {@code {"Where": {...}, "Period": "...", "PerCharacter": true}}. */
     private static final BuilderCodec<DialogueOnce> GROUP =
             BuilderCodec.builder(DialogueOnce.class, DialogueOnce::new)
                     .append(new KeyedCodec<>("Where", WorldSelector.CODEC, false),
@@ -109,6 +124,9 @@ public final class DialogueOnce {
                             "Daily", "Offered again from midnight UTC every day",
                             "Weekly", "Offered again from midnight UTC every Monday"))
                     .documentation(PERIOD_DOC).add()
+                    .append(new KeyedCodec<>("PerCharacter", Codec.BOOLEAN, false),
+                            (o, v) -> o.perCharacter = v, o -> o.perCharacter)
+                    .documentation(PER_CHARACTER_DOC).add()
                     .append(new KeyedCodec<>("World", DialogueFlagScope.RETIRED_WORLD_LEAF, false),
                             (o, v) -> { /* never decoded: the leaf refuses and says what to write */ },
                             o -> null)
@@ -162,6 +180,9 @@ public final class DialogueOnce {
     /** The authored window word, exactly as written; parsed on read so a serializer writes the author's words. */
     @Nullable protected String period;
 
+    /** True files the claim per NPC; null or false keeps one claim across every NPC (today's default). */
+    @Nullable protected Boolean perCharacter;
+
     /** The internal scope carrier; built lazily, dropped by the setter so it cannot go stale. */
     @Nullable private volatile DialogueFlagScope scope;
 
@@ -210,6 +231,23 @@ public final class DialogueOnce {
         return parsed == null ? Period.DAILY : parsed;
     }
 
+    /** True when the claim is kept per NPC ({@code "PerCharacter": true}); unauthored is false. */
+    public boolean isPerCharacter() {
+        return Boolean.TRUE.equals(perCharacter);
+    }
+
+    /**
+     * The PURE character half of {@link #slotFor}: {@code scopedKey} filed under {@code characterId} when
+     * this Once is kept per NPC and one is named, else {@code scopedKey} unchanged.
+     */
+    @Nonnull
+    public String characterKey(@Nonnull String scopedKey, @Nullable String characterId) {
+        if (!isPerCharacter() || characterId == null || characterId.isBlank()) {
+            return scopedKey;
+        }
+        return DialogueStateKeys.withCharacter(scopedKey, characterId);
+    }
+
     /** True when a window word was written that is neither {@code Daily} nor {@code Weekly}. */
     public boolean hasUnknownPeriod() {
         return period != null && !period.isBlank() && Period.parse(period) == null;
@@ -227,14 +265,15 @@ public final class DialogueOnce {
     }
 
     /**
-     * Where this Once is filed for the player right now: {@link #keyFor} plus the window the instant
-     * {@code nowMs} falls in, or null when the scope does not match this world. Public for
+     * Where this Once is filed for the player right now: {@link #keyFor}, then the NPC the conversation
+     * is with when it is kept {@code PerCharacter} ({@link #characterKey}), then the window the instant
+     * {@code nowMs} falls in; or null when the scope does not match this world. Public for
      * {@link DialogueEngine}, which resolves every entry and option Once through it.
      */
     @Nullable
     public Slot slotFor(@Nonnull String rawKey, @Nonnull DialogueContext ctx, long nowMs) {
         String scoped = keyFor(rawKey, ctx);
-        return scoped == null ? null : slotOf(scoped, nowMs);
+        return scoped == null ? null : slotOf(characterKey(scoped, ctx.contextId()), nowMs);
     }
 
     /** The PURE half of {@link #slotFor}: the slot for a key already scoped to a world (or unscoped). */

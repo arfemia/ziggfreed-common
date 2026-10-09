@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
  * so the deleted ids may not survive in the page or its document; comments are read too, so the rewritten
  * javadoc names none of them. The redesign retired the rest of the old seams once nothing called them: the
  * side column painter and its chrome, the pre-redesign whole-state constructor, and the tracked-quests side
- * panel's renderer and row (the kit's compact rows, through {@code panel/ObjectivePanels}, replace it).
+ * panel's renderer and row (tracked quests show on the book's own Quests tab and the tracker HUD).
  */
 class BookChromeRetiredTest {
 
@@ -54,9 +54,8 @@ class BookChromeRetiredTest {
     void theTrackedQuestsSidePanelIsGone() {
         Path objectives = Path.of("src", "main", "java", "com", "ziggfreed", "common", "objectives");
         assertFalse(Files.exists(objectives.resolve("hud").resolve("TrackedQuestPanelRenderer.java")),
-                "a page shows tracked quests through panel/ObjectivePanels");
-        assertFalse(Files.exists(UI.resolveSibling("ZigTrackedQuestRow.ui")),
-                "its row is the kit's Pages/ZigLedgerRowCompact.ui");
+                "tracked quests show in the book and on the tracker HUD, never a side panel");
+        assertFalse(Files.exists(UI.resolveSibling("ZigTrackedQuestRow.ui")), "its row went with it");
     }
 
     @Test

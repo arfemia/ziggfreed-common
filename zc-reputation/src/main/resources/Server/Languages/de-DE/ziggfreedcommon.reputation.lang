@@ -18,7 +18,6 @@ factor.reputation_rank = einen Rang bei einer Fraktion
 
 reward.gain = +{0, number} {1}
 reward.loss = {0, number} {1}
-hud.caption = {0}: {1}
 feedback.rank.title = Du bist jetzt {0}
 feedback.rank.with = Ruf: {0}
 objective.reputation_rank = Erreiche {1}
@@ -56,4 +55,6 @@ standing.earned = Verdient
 standing.gear = Durch getragene Ausrüstung
 standing.gear.count = +{0, number}
 standing.cap = Maximal zu verdienen
+block.gear_sets = Getragene Sets
+gear_set.line = {0}: {1}
 menu.tab = Ruf

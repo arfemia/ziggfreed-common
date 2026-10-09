@@ -29,7 +29,6 @@ public final class ReputationText {
             "rank.hated", "rank.unfriendly", "rank.neutral", "rank.friendly", "rank.honored", "rank.revered",
             "rank.exalted", "rank.none",
             "reward.gain", "reward.loss",
-            "hud.caption",
             "page.title", "page.lead", "page.empty.title", "page.empty", "page.section",
             "row.next", "row.reward", "row.top", "row.gear", "row.gear.loss",
             "detail.rank", "detail.standing", "detail.standing.reward", "detail.standing.top", "hint.gear",

@@ -136,12 +136,17 @@ public final class EngineReputationFanOut implements ReputationFanOut {
         return reading(change);
     }
 
+    /**
+     * The row's look: the reputation's name alone, its icon and its order. The rank stays off the bar: a
+     * column of the World bars leaves the name about 120 px, which "name: rank" overran in every language,
+     * and a bar's end captions hold a number or a word of three or four letters; a new rank has its own
+     * notice, and the Reputation tab shows the rank held.
+     */
     @Nonnull
     static HudRowDisplay display(@Nonnull ReputationChange change) {
         ReputationDef def = change.reputation();
         IconSpec icon = def.icon() == null ? null : IconSpec.ofItem(def.icon());
-        return HudRowDisplay.of(ReputationText.line("hud.caption", ReputationText.name(def),
-                ReputationText.rankName(def, change.rankAfter())), icon, null, def.order());
+        return HudRowDisplay.of(ReputationText.name(def), icon, null, def.order());
     }
 
     @Nonnull
