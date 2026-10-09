@@ -1,23 +1,32 @@
 package com.ziggfreed.common.almanac.page;
 
+import static com.ziggfreed.common.almanac.AlmanacEnglish.english;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.DayOfWeek;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.MonthDay;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.protocol.FormattedMessage;
 import com.hypixel.hytale.protocol.LongParamValue;
 import com.hypixel.hytale.server.core.Message;
+import com.ziggfreed.common.almanac.AlmanacCalendar.Dates;
 import com.ziggfreed.common.almanac.AlmanacText;
+import com.ziggfreed.common.almanac.FixedCalendar;
 import com.ziggfreed.common.almanac.page.AlmanacPagePlan.AchievementShelf;
 import com.ziggfreed.common.almanac.page.AlmanacPagePlan.GlanceMonth;
 import com.ziggfreed.common.almanac.page.AlmanacPagePlan.HeroBox;
@@ -26,6 +35,7 @@ import com.ziggfreed.common.almanac.page.AlmanacPagePlan.HeroPlan;
 import com.ziggfreed.common.almanac.page.AlmanacPagePlan.KeepsakeShelf;
 import com.ziggfreed.common.almanac.page.AlmanacPagePlan.SeasonBody;
 import com.ziggfreed.common.almanac.page.AlmanacPagePlan.YearChoice;
+import com.ziggfreed.common.almanac.view.AlmanacView;
 import com.ziggfreed.common.almanac.view.AlmanacView.Banner;
 import com.ziggfreed.common.almanac.view.AlmanacView.Feat;
 import com.ziggfreed.common.almanac.view.AlmanacView.Hero;
@@ -44,6 +54,8 @@ import com.ziggfreed.common.almanac.view.AlmanacView.Tally;
 import com.ziggfreed.common.almanac.view.AlmanacView.Timing;
 import com.ziggfreed.common.almanac.view.AlmanacView.YearChip;
 import com.ziggfreed.common.almanac.view.AlmanacView.YearKeepsake;
+import com.ziggfreed.common.occurrence.Occurrence;
+import com.ziggfreed.common.occurrence.Recurrence;
 import com.ziggfreed.common.ui.kit.KeepsakeState;
 import com.ziggfreed.common.ui.kit.KeepsakeTile;
 import com.ziggfreed.common.ui.kit.LedgerRow;
@@ -55,14 +67,22 @@ import com.ziggfreed.common.ui.kit.ZigTokens;
 /**
  * What the Almanac page shows for each state a season can be in (on now, between runs and soon, between runs
  * and far off, a first run still ahead, a past year, every season), with no keepsake, nothing filed, no
- * seasons at all, and each of its hero's three forms. The page paints this plan through the kit and decides
- * nothing; these are the decisions it would otherwise hide.
+ * seasons at all, and each of its hero's three forms; and, for a season that comes round monthly or weekly, its
+ * hero's two dates lines (the rule, then the next run), a forced run's included. The page paints this plan through
+ * the kit and decides nothing; these are the decisions it would otherwise hide.
  */
 class AlmanacPagePlanTest {
 
     private static final MonthDay OCT_1 = MonthDay.of(10, 1);
     private static final MonthDay NOV_3 = MonthDay.of(11, 3);
     private static final String EVENT = "hallows_eve";
+
+    /** Two seasons that come round more than once a year: the first Sunday of every month, and every Sunday. */
+    private static final String FAIR = "traveling_fair";
+    private static final String CONTEST = "fishing_contest";
+    private static final Recurrence TRAVELING_FAIR = Recurrence.Monthly.onWeekday(1, DayOfWeek.SUNDAY, 1, Set.of(),
+            Recurrence.Length.days(7));
+    private static final ZoneId UTC = FixedCalendar.UTC;
 
     // ---- what each state shows ----
 
@@ -418,7 +438,85 @@ class AlmanacPagePlanTest {
                 "a glow whose centre is off the plate draws nothing");
     }
 
+    // ---- a season that comes round monthly or weekly (M331) ----
+
+    @Test
+    void aMonthlySeasonsHeroSaysHowItComesRoundAndItsNextRunOnALineOfItsOwn() {
+        HeroPlan hero = heroAt(new Season(FAIR, null, null, null, false, 0),
+                new Dates(null, fairRun(10, "2026-10-04"), List.of(fairRun(9, "2026-09-06")), 2026, UTC, true,
+                        TRAVELING_FAIR), "2026-09-30");
+
+        assertEquals("The first Sunday of every month, for 7 days", english(hero.dates()),
+                "the hero's dates line says the rule alone");
+        assertEquals("Next: Oct 4 to Oct 10", english(hero.next()),
+                "the next run's days have a line of their own, so a long rule never cuts them off");
+        assertKey("chip.returns_in", hero.chip().label());
+
+        HeroPlan yearly = heroOf(season(EVENT, true), new Hero(null, null, null), null);
+        assertNotNull(yearly.dates());
+        assertKey("window", yearly.dates());
+        assertNull(yearly.next(), "a once-a-year season's hero has its one dates line");
+    }
+
+    // Review Focus 2 on the Almanac: what the calendar answers once an admin forces the traveling fair on at
+    // September 30th (zc-calendar's RecurrenceOfTest holds those answers): October's run brought forward with its
+    // own days still ahead, and November's run next.
+    @Test
+    void aMonthlySeasonForcedOnKeepsItsRuleAndNamesTheRunAfterTheForcedOne() {
+        Occurrence october = fairRun(10, "2026-10-04");
+        HeroPlan hero = heroAt(new Season(FAIR, null, null, null, true, 2026),
+                new Dates(october, fairRun(11, "2026-11-01"), List.of(fairRun(9, "2026-09-06"), october), 2026, UTC,
+                        true, TRAVELING_FAIR), "2026-09-30");
+
+        // On now, its own days not begun: no countdown to show.
+        assertKey("status.live", hero.chip().label());
+        assertEquals("The first Sunday of every month, for 7 days", english(hero.dates()),
+                "a force changes no rule");
+        assertEquals("Next: Nov 1 to Nov 7", english(hero.next()),
+                "while the forced run is on, the next is the one after it, never the forced run itself");
+    }
+
+    // The fishing contest forced on New Year's Eve, after the year's last Sunday: that run again (a replay, its days
+    // over), and the new year's first Sunday next.
+    @Test
+    void aWeeklySeasonForcedAgainAfterItsYearsLastRunNamesTheNewYearsFirstRunNext() {
+        Recurrence contest = new Recurrence.Weekly(DayOfWeek.SUNDAY, 1, Set.of(),
+                Recurrence.Length.timed(LocalTime.of(14, 0), Duration.ofHours(2)));
+        Occurrence lastSunday = timed(CONTEST, 2026, 52, "2026-12-27T14:00:00Z", "2026-12-27T16:00:00Z");
+        Occurrence firstSunday = timed(CONTEST, 2027, 1, "2027-01-03T14:00:00Z", "2027-01-03T16:00:00Z");
+        HeroPlan hero = heroAt(new Season(CONTEST, null, null, null, true, 2026),
+                new Dates(lastSunday, firstSunday, List.of(lastSunday), 2026, UTC, true, contest), "2026-12-31");
+
+        assertKey("status.live", hero.chip().label());
+        assertEquals("Every Sunday, 14:00 to 16:00", english(hero.dates()));
+        assertEquals("Next: Sunday Jan 3, 14:00 to 16:00", english(hero.next()));
+    }
+
     // ---- fixtures ----
+
+    /**
+     * The hero the whole plan paints for {@code season} on {@code today}, its timing read by the view from what the
+     * calendar answers ({@code dates}).
+     */
+    private static HeroPlan heroAt(Season season, Dates dates, String today) {
+        Timing timing = AlmanacView.timing(season, new FixedCalendar().season(season.eventId(), dates),
+                FixedCalendar.noon(today));
+        SeasonBody body = plan(List.of(season), page(season, timing, List.of(), Scope.EVERY, false, List.of())).body();
+        assertNotNull(body);
+        return body.hero();
+    }
+
+    /** The traveling fair's run of {@code month} 2026: seven days from {@code firstDay}. */
+    private static Occurrence fairRun(int month, String firstDay) {
+        Occurrence days = FixedCalendar.run(FAIR, 2026, firstDay, LocalDate.parse(firstDay).plusDays(6).toString(),
+                UTC);
+        return new Occurrence(FAIR, 2026, month, days.startMs(), days.endMs());
+    }
+
+    private static Occurrence timed(String eventId, int year, int number, String start, String end) {
+        return new Occurrence(eventId, year, number, Instant.parse(start).toEpochMilli(),
+                Instant.parse(end).toEpochMilli());
+    }
 
     private static AlmanacPagePlan plan(List<Season> seasons, SeasonPage page) {
         return AlmanacPagePlan.of(seasons, Map.of(page.season().eventId(), page.timing()), page, new Record(0L, 0L),

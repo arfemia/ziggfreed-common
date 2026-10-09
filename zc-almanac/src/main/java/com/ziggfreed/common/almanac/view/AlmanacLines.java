@@ -31,7 +31,8 @@ import com.ziggfreed.common.occurrence.Recurrence;
  * "Returns October 1" further off, "Starts in N days" before its first run, "Between seasons" with no next
  * run. The dates line reads "Every year, ..." for days that are the same every year, naming the run's year
  * when its days move, and names a one-day event's day once. A season that comes round monthly or weekly says
- * how instead ("The first Sunday of every month, for 7 days"), then its next run ("Next: Oct 4 to Oct 10").
+ * how instead ("The first Sunday of every month, for 7 days"), and its next run ("Next: Oct 4 to Oct 10") is a
+ * line of its own under it ({@link #next}).
  * Numbers bind typed, a month, a weekday and an ordinal nest as their own keys, and a year and a time of day
  * are text so no locale groups them.
  */
@@ -72,16 +73,14 @@ public final class AlmanacLines {
      * "Every year, October 1 to November 3" for days that are the same every year; "In 2027, March 18 to
      * April 4" for days that move, naming the run the line frames; a one-day event names its day once
      * ("Every year, January 13", "In 2027, January 13"); null when the calendar gave no dates. A season that
-     * comes round monthly or weekly says how in their place, then its next run, on one line ("The first Sunday
-     * of every month, for 7 days. Next: Oct 4 to Oct 10"), or the recurrence alone when no run is due.
+     * comes round monthly or weekly says how in their place ("The first Sunday of every month, for 7 days"); its
+     * next run is a line of its own ({@link #next}), so a long rule never cuts the next run's days off.
      */
     @Nullable
     public static Message window(@Nonnull Timing timing) {
         Recurring recurring = timing.recurring();
         if (recurring != null) {
-            Message rule = recurrence(recurring.rule());
-            Message next = nextRun(recurring);
-            return next == null ? rule : AlmanacText.line("recur.with_next", rule, next);
+            return recurrence(recurring.rule());
         }
         MonthDay start = timing.windowStart();
         MonthDay end = timing.windowEnd();
@@ -101,6 +100,16 @@ public final class AlmanacLines {
         }
         return AlmanacText.line("window", month(start.getMonthValue()), (long) start.getDayOfMonth(),
                 month(end.getMonthValue()), (long) end.getDayOfMonth());
+    }
+
+    /**
+     * The line under the dates line of a season that comes round monthly or weekly: its next run's days ("Next: Oct
+     * 4 to Oct 10", {@link #nextRun}); null for any other season and while no run is due.
+     */
+    @Nullable
+    public static Message next(@Nonnull Timing timing) {
+        Recurring recurring = timing.recurring();
+        return recurring == null ? null : nextRun(recurring);
     }
 
     /**
