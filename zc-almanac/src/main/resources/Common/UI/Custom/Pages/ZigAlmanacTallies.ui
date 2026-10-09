@@ -1,0 +1,37 @@
+$C = "../Common.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZW = "../Common/ZigKit.ui";
+
+// The years and tallies of a season on the Almanac page (Pages/ZigAlmanacPage.ui), appended by
+// com.ziggfreed.common.almanac.page.AlmanacPage into #Sections and addressed by index as "#Sections[i] #Id":
+// #YearChips (Pages/ZigSegment.ui, a year each and Every season), the scope header, #StatGrid
+// (Pages/ZigStatTile.ui) and the first-time #Hint.
+
+Group #ZigAlmanacTallies {
+  LayoutMode: Top;
+
+  Group #YearChips {
+    LayoutMode: LeftWrap;
+    Anchor: (Bottom: $ZK.@ZigSpace2);
+  }
+
+  $C.@PanelSeparatorFancy #ScopeRule {
+    @Anchor = (Top: $ZK.@ZigSpace1, Bottom: $ZK.@ZigSpace3);
+  }
+
+  $ZW.@ZigSectionHeader #ScopeHeader {
+    @Anchor = (Bottom: $ZK.@ZigSpace3);
+  }
+
+  Group #StatGrid {
+    LayoutMode: LeftWrap;
+  }
+
+  Label #Hint {
+    Anchor: (Height: 20, Top: $ZK.@ZigSpace1);
+    Text: "";
+    Visible: false;
+    Style: (...$ZX.@ZigCaptionStyle, Wrap: true, WrapMaxLines: 1);
+  }
+}

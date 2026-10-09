@@ -465,6 +465,25 @@ class AlmanacEntryAssetTest {
         assertTrue(codes.contains(AlmanacEntryAsset.FINDING_COLLECTION_ITEMS_OVER_CAP), codes.toString());
     }
 
+    /** The cap finding counts the slots written, as the grid reads them: a repeat still takes its slot. */
+    @Test
+    void aCollectionsCapCountsTheSlotsWrittenAsItsGridReadsThem() throws Exception {
+        assertFalse(overCap(AlmanacEntryAsset.COLLECTION_MAX_ITEMS), "every slot written is read");
+        assertTrue(overCap(AlmanacEntryAsset.COLLECTION_MAX_ITEMS + 1),
+                "a slot past the cap is never read, though a slot before it repeats an item");
+    }
+
+    /** Is a collection of {@code slots} slots (its second repeating its first) reported over its cap? */
+    private static boolean overCap(int slots) throws Exception {
+        StringBuilder items = new StringBuilder("{ \"Item\": \"Test_Lantern\" }, { \"Item\": \"test_lantern\" }");
+        for (int i = 2; i < slots; i++) {
+            items.append(", { \"Item\": \"Test_Item_").append(i).append("\" }");
+        }
+        AlmanacEntryAsset page = AlmanacFixtures.page("{ \"Sections\": [ { \"Collection\": { \"Items\": [ "
+                + items + " ] } } ] }", "Test_Season");
+        return page.findings().stream().anyMatch(f -> f.code().equals(AlmanacEntryAsset.FINDING_COLLECTION_ITEMS_OVER_CAP));
+    }
+
     @Test
     void aBannerWithNothingToShowABadColourOrTooManyItemsIsReported() throws Exception {
         StringBuilder items = new StringBuilder("{ \"Item\": \"Test_Lantern\" }");

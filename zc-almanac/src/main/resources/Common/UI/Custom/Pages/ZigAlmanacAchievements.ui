@@ -1,0 +1,40 @@
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
+$ZW = "../Common/ZigKit.ui";
+
+// The achievements of a season on the Almanac page (Pages/ZigAlmanacPage.ui), appended by
+// com.ziggfreed.common.almanac.page.AlmanacPage into #Sections and addressed by index as "#Sections[i] #Id": the
+// header with its count, #AchBar, #FeatList (Pages/ZigPill.ui, a pill per earned feat), then #AchCta, the button
+// into the achievement book (a rich button: its words on #Label), shown when the page resolves where it goes.
+
+Group #ZigAlmanacAchievements {
+  LayoutMode: Top;
+
+  $ZW.@ZigSectionHeader #AchHeader {
+    @Anchor = (Top: $ZK.@ZigSpace4, Bottom: $ZK.@ZigSpace3);
+  }
+
+  $ZW.@ZigProgressBar #AchBar {
+    @Height = 6;
+    @Anchor = (Bottom: $ZK.@ZigSpace3);
+    Visible: false;
+  }
+
+  Group #FeatList {
+    LayoutMode: LeftWrap;
+    Visible: false;
+  }
+
+  Button #AchCta {
+    Anchor: (Width: 240, Height: $ZK.@ZigControlHeight, Top: $ZK.@ZigSpace3);
+    Style: $ZS.@ZigButtonSecondaryStyle;
+    Visible: false;
+
+    Label #Label {
+      FlexWeight: 1;
+      Text: "";
+      Style: $ZX.@ZigButtonLabelStyle;
+    }
+  }
+}

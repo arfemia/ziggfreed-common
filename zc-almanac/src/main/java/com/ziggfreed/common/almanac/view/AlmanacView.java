@@ -848,9 +848,10 @@ public final class AlmanacView {
     }
 
     /**
-     * A collection's grid for one player: its items in the order written, each once (matched without case),
-     * each the server has a picture for (else skipped), at most {@link #COLLECTION_MAX_ITEMS} drawn, each
-     * owned when the player has had it once. Null when no item draws.
+     * A collection's grid for one player: the first {@link #COLLECTION_MAX_ITEMS} slots written, in order (the
+     * rule {@code COLLECTION_ITEMS_OVER_CAP} counts by), each item once (matched without case), each the server has
+     * a picture for, each owned when the player has had it once. A repeat or an item the server lacks among those
+     * slots draws nothing and gives its place to no later slot. Null when no item draws.
      */
     @Nullable
     static CollectionSection collection(@Nullable AlmanacCollectionAsset authored, @Nonnull CounterMap tallies,
@@ -860,10 +861,9 @@ public final class AlmanacView {
         }
         Set<String> seen = new HashSet<>();
         List<CollectionItem> items = new ArrayList<>();
-        for (AlmanacCollectionAsset.Slot slot : authored.slots()) {
-            if (items.size() >= COLLECTION_MAX_ITEMS) {
-                break;
-            }
+        List<AlmanacCollectionAsset.Slot> slots = authored.slots();
+        for (int i = 0; i < slots.size() && i < COLLECTION_MAX_ITEMS; i++) {
+            AlmanacCollectionAsset.Slot slot = slots.get(i);
             String itemId = slot.item();
             if (!seen.add(AlmanacKeys.normalize(itemId))) {
                 continue;

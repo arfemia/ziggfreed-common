@@ -927,6 +927,29 @@ class AlmanacViewPageTest {
         assertEquals("almanac.test.items", collection.titleKey());
     }
 
+    /**
+     * The grid reads the first {@link AlmanacView#COLLECTION_MAX_ITEMS} slots written, the rule its over-cap finding
+     * counts by: a repeat or an item the server lacks among them draws nothing, and gives its place to no later slot.
+     */
+    @Test
+    void aCollectionDrawsFromItsFirstFortyFiveSlotsAndARepeatOrAnUnknownGivesItsPlaceToNone() throws Exception {
+        StringBuilder items = new StringBuilder(
+                "{ \"Item\": \"Test_Lantern\" }, { \"Item\": \"test_lantern\" }, { \"Item\": \"Unknown_Item\" }");
+        for (int i = 0; i < AlmanacView.COLLECTION_MAX_ITEMS; i++) {
+            items.append(", { \"Item\": \"Test_Item_").append(i).append("\" }");
+        }
+        AlmanacEntryAsset page = AlmanacFixtures.page("{ \"Sections\": [ { \"Collection\": { \"Items\": [ " + items
+                + " ] } } ] }", "Test_Season");
+        CollectionSection grid = AlmanacView.collection(page.sections().get(0).collection(), new CounterMap(),
+                id -> id.startsWith("Test_") ? "Icons/ItemsGenerated/" + id + ".png" : null);
+
+        assertNotNull(grid);
+        int cap = AlmanacView.COLLECTION_MAX_ITEMS;
+        assertEquals(cap - 2, grid.items().size(), "the repeat and the unknown among the first slots draw nothing");
+        assertEquals("Test_Item_" + (cap - 4), grid.items().get(grid.items().size() - 1).itemId(),
+                "the last slot read is the last drawn: no later slot takes a place left empty");
+    }
+
     @Test
     void aBannerComposesOnItsOwnPlateAndAPlainOneTakesTheAccent() throws Exception {
         AlmanacEntryAsset page = AlmanacFixtures.page("""

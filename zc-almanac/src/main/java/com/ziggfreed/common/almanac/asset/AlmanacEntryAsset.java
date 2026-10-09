@@ -87,7 +87,10 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
     /** A finding's code: more banner items written than a banner draws. */
     public static final String FINDING_BANNER_ITEMS = "BANNER_ITEMS_OVER_CAP";
 
-    /** A finding's code: more items written in a collection than its grid draws. */
+    /**
+     * A finding's code: more slots written in a collection than its grid reads; it counts every slot written, a
+     * repeat included, as the grid does.
+     */
     public static final String FINDING_COLLECTION_ITEMS_OVER_CAP = "COLLECTION_ITEMS_OVER_CAP";
 
     /** A finding's code: an item written twice in one collection; it keeps its first place. */
@@ -96,7 +99,10 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
     /** How many {@code Sections} entries a page draws. */
     public static final int SECTIONS_MAX = 16;
 
-    /** How many items a collection's grid draws: five rows of nine. */
+    /**
+     * How many of a collection's slots its grid reads, in the order written: five rows of nine. A repeat or an item
+     * the server lacks among them draws nothing and gives its place to no later slot.
+     */
     public static final int COLLECTION_MAX_ITEMS = 45;
 
     private static final String DOMAIN = AlmanacValidator.DOMAIN;
@@ -395,7 +401,7 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
         }
         if (slots.size() > COLLECTION_MAX_ITEMS) {
             out.add(Finding.warning(DOMAIN, FINDING_COLLECTION_ITEMS_OVER_CAP, where + ".Items names "
-                    + slots.size() + " items and the grid draws the first " + COLLECTION_MAX_ITEMS, source));
+                    + slots.size() + " items and the grid reads only the first " + COLLECTION_MAX_ITEMS, source));
         }
         if (collection.buttonLeftOut()) {
             out.add(Finding.warning(DOMAIN, FINDING_LINK, where + ".Button has no words or opens nothing this "

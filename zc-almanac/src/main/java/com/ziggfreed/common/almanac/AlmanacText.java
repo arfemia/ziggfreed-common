@@ -61,7 +61,10 @@ public final class AlmanacText {
             "keepsake.missed", "achievements.title", "record.title", "record.seasons", "record.keepsakes",
             "empty.none.title", "empty.none.line", "hint.first_time", "glance.title", "headline.live",
             "headline.live.two", "headline.live.more", "stats.section", "stats.row.meta", "stats.open",
-            "seasons.all", "year", "year.runs");
+            "seasons.all", "year", "year.runs",
+            // A season page's parts (YZ14): the button into the book, the items grid.
+            "achievements.cta", "collection.title", "collection.meta", "collection.mystery", "collection.hidden",
+            "collection.source");
 
     private static final Color BAD = new Color(0xFF5555);
 

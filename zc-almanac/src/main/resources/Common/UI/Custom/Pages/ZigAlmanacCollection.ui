@@ -1,0 +1,46 @@
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
+$ZW = "../Common/ZigKit.ui";
+
+// The items grid of a season on the Almanac page (Pages/ZigAlmanacPage.ui), appended by
+// com.ziggfreed.common.almanac.page.AlmanacPage into #Sections and addressed by index as "#Sections[i] #Id": the
+// header with its count ("3 of 12 found"), #ColBar, the line under it (#ColLine), #ColGrid (the kit's
+// Pages/ZigItemSlotTile.ui, nine a row: an item once found, the item dimmed until then, or a '?' for a hidden one),
+// and #ColButton (a rich button: its words on #Label), shown when the grid has somewhere to send the player.
+
+Group #ZigAlmanacCollection {
+  LayoutMode: Top;
+
+  $ZW.@ZigSectionHeader #ColHeader {
+    @Anchor = (Top: $ZK.@ZigSpace4, Bottom: $ZK.@ZigSpace3);
+  }
+
+  $ZW.@ZigProgressBar #ColBar {
+    @Height = 6;
+    @Anchor = (Bottom: $ZK.@ZigSpace3);
+  }
+
+  Label #ColLine {
+    Anchor: (Bottom: $ZK.@ZigSpace3);
+    Text: "";
+    Visible: false;
+    Style: (...$ZX.@ZigBodyStyle, Wrap: true, WrapMaxLines: 2);
+  }
+
+  Group #ColGrid {
+    LayoutMode: LeftWrap;
+  }
+
+  Button #ColButton {
+    Anchor: (Width: 240, Height: $ZK.@ZigControlHeight, Top: $ZK.@ZigSpace3);
+    Style: $ZS.@ZigButtonSecondaryStyle;
+    Visible: false;
+
+    Label #Label {
+      FlexWeight: 1;
+      Text: "";
+      Style: $ZX.@ZigButtonLabelStyle;
+    }
+  }
+}

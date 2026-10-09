@@ -1,0 +1,89 @@
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
+
+// An inline banner of a season on the Almanac page (Pages/ZigAlmanacPage.ui), appended by
+// com.ziggfreed.common.almanac.page.AlmanacPage into #Sections and addressed by index as "#Sections[i] #Id".
+//
+// #Plate is the body's width (906) and the banner's own height, its whole Anchor set by the page (64 to 240; 120 as
+// written here). Its layers stack like the hero plate's, bottom up: the plate itself; #PlateArt, the banner's art
+// (an AssetImage, shown only when there is art); #PlateSky and #PlateGlow, two white layers the page tints to
+// compose a banner with no art; #PlateItems, its item pictures, each placed by its own anchor; #PlateFade, the dark
+// ramp its words sit on; #PlateText, its title and line; #PlateAction, its button (a rich button: its words on
+// #Label). Nothing clips a child to the plate, so every layer stays inside it at the least height, 64.
+
+Group #ZigAlmanacBanner {
+  LayoutMode: Top;
+  Anchor: (Top: $ZK.@ZigSpace4);
+
+  Group #Plate {
+    LayoutMode: Full;
+    Anchor: (Width: 906, Height: 120);
+    Background: "../Common/ZigHeroPlate.png";
+
+    AssetImage #PlateArt {
+      Anchor: (Full: 0);
+      FallbackTexturePath: "UI/Custom/Common/ZigHeroPlate.png";
+      Visible: false;
+    }
+
+    Group #PlateSky {
+      Anchor: (Full: 0);
+      Background: (TexturePath: "../Common/Kit/HeroGradient.png", Color: $ZK.@ZigInkBright);
+      Visible: false;
+    }
+
+    Group #PlateGlow {
+      Anchor: (Right: 40, Top: 0, Width: 64, Height: 64);
+      Background: (TexturePath: "../Common/Kit/HeroGlow.png", Color: $ZK.@ZigInkBright);
+      Visible: false;
+    }
+
+    Group #PlateItems {
+      Anchor: (Full: 0);
+      LayoutMode: Full;
+    }
+
+    Group #PlateFade {
+      Anchor: (Full: 0);
+      Background: "../Common/ZigHeroFade.png";
+      Visible: false;
+    }
+
+    Group #PlateText {
+      LayoutMode: Middle;
+      Anchor: (Left: 24, Top: 8, Bottom: 8, Width: 560);
+
+      Label #PlateTitle {
+        Anchor: (Height: 26);
+        Text: "";
+        Visible: false;
+        Style: (...$ZX.@ZigSubtitleStyle, Wrap: true, WrapMaxLines: 1);
+      }
+
+      Label #PlateLine {
+        Anchor: (Height: 22);
+        Text: "";
+        Visible: false;
+        Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigInkStrong, Wrap: true, WrapMaxLines: 1);
+      }
+    }
+
+    Group #PlateAction {
+      LayoutMode: Middle;
+      Anchor: (Right: 24, Top: 8, Bottom: 8, Width: 220);
+
+      Button #PlateButton {
+        Anchor: (Height: $ZK.@ZigControlHeight);
+        Style: $ZS.@ZigButtonPrimaryStyle;
+        Visible: false;
+
+        Label #Label {
+          FlexWeight: 1;
+          Text: "";
+          Style: $ZX.@ZigButtonLabelStyle;
+        }
+      }
+    }
+  }
+}

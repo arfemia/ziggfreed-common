@@ -10,7 +10,8 @@ import com.ziggfreed.common.ui.menu.ZigMenu;
  * {@code season}, read in {@code year}: a year, {@link #EVERY} for every season, absent for the season's
  * default), {@code month} (open the page on the first season the year at a glance marked in {@code month},
  * 1 to 12), {@code link} (open the season's {@code link}-th link, counted in the order the last build
- * painted them), or {@code close}; a rail click carries {@code menu} instead.
+ * painted them), {@code section} (open the button the last build painted on the {@code section}-th part),
+ * or {@code close}; a rail click carries {@code menu} instead.
  */
 public class AlmanacEventData {
 
@@ -25,6 +26,8 @@ public class AlmanacEventData {
     public String month;
     /** Which of the season's links, from 0; null for every other event. */
     public String link;
+    /** Which of the season's parts a button was pressed on, from 0; null for every other event. */
+    public String section;
     /** The rail row a click came from ({@code ZigMenu.EVENT_KEY}); null for every event of the page's own. */
     public String menu;
 
@@ -49,6 +52,10 @@ public class AlmanacEventData {
                     .append(new KeyedCodec<>("Link", Codec.STRING),
                             (data, value, info) -> data.link = value,
                             (data, info) -> data.link)
+                    .add()
+                    .append(new KeyedCodec<>("Section", Codec.STRING),
+                            (data, value, info) -> data.section = value,
+                            (data, info) -> data.section)
                     .add()
                     .append(new KeyedCodec<>(ZigMenu.EVENT_KEY, Codec.STRING),
                             (data, value, info) -> data.menu = value,

@@ -1,8 +1,10 @@
 package com.ziggfreed.common.almanac.page;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -11,12 +13,18 @@ import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.almanac.AlmanacText;
 import com.ziggfreed.common.almanac.view.AlmanacLines;
 import com.ziggfreed.common.almanac.view.AlmanacView;
+import com.ziggfreed.common.almanac.view.AlmanacView.AchievementsSection;
 import com.ziggfreed.common.almanac.view.AlmanacView.Banner;
+import com.ziggfreed.common.almanac.view.AlmanacView.BannerSection;
+import com.ziggfreed.common.almanac.view.AlmanacView.CollectionItem;
+import com.ziggfreed.common.almanac.view.AlmanacView.CollectionSection;
 import com.ziggfreed.common.almanac.view.AlmanacView.Feat;
 import com.ziggfreed.common.almanac.view.AlmanacView.Hero;
 import com.ziggfreed.common.almanac.view.AlmanacView.HeroComposition;
 import com.ziggfreed.common.almanac.view.AlmanacView.HeroGlow;
 import com.ziggfreed.common.almanac.view.AlmanacView.HeroItem;
+import com.ziggfreed.common.almanac.view.AlmanacView.KeepsakesSection;
+import com.ziggfreed.common.almanac.view.AlmanacView.LinksSection;
 import com.ziggfreed.common.almanac.view.AlmanacView.MonthMarks;
 import com.ziggfreed.common.almanac.view.AlmanacView.Record;
 import com.ziggfreed.common.almanac.view.AlmanacView.Scope;
@@ -24,14 +32,18 @@ import com.ziggfreed.common.almanac.view.AlmanacView.Season;
 import com.ziggfreed.common.almanac.view.AlmanacView.SeasonAchievements;
 import com.ziggfreed.common.almanac.view.AlmanacView.SeasonLink;
 import com.ziggfreed.common.almanac.view.AlmanacView.SeasonPage;
+import com.ziggfreed.common.almanac.view.AlmanacView.Section;
+import com.ziggfreed.common.almanac.view.AlmanacView.TalliesSection;
 import com.ziggfreed.common.almanac.view.AlmanacView.Tally;
 import com.ziggfreed.common.almanac.view.AlmanacView.Timing;
 import com.ziggfreed.common.almanac.view.AlmanacView.YearChip;
 import com.ziggfreed.common.almanac.view.AlmanacView.YearKeepsake;
 import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.i18n.NativeNames;
 import com.ziggfreed.common.progress.runtime.ProgressionTexts;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.kit.EmptyState;
+import com.ziggfreed.common.ui.kit.ItemSlotTile;
 import com.ziggfreed.common.ui.kit.KeepsakeState;
 import com.ziggfreed.common.ui.kit.KeepsakeTile;
 import com.ziggfreed.common.ui.kit.LedgerModel;
@@ -48,10 +60,11 @@ import com.ziggfreed.common.ui.route.Destination;
 /**
  * What the Almanac page shows, as the kit's records and a few flags: the season list as a ledger (On now, then
  * All seasons), the banner card, the year at a glance, the record card, and the season being read (its hero,
- * year chips, scope, tiles, keepsake shelf, achievements and links), or the empty state when no season is
- * listed. Pure: {@link AlmanacView} decides what a season says (which years, which scope, what is earned) and
- * {@link AlmanacLines} how it reads; this maps both onto what the kit paints, so a test can read every choice
- * the page would otherwise hide. {@link AlmanacPage} paints it and decides nothing.
+ * year chips, scope, tiles, keepsake shelf, achievements and links, and the season's parts in the order its page
+ * writes them), or the empty state when no season is listed. Pure: {@link AlmanacView} decides what a season
+ * says (which years, which scope, what is earned) and {@link AlmanacLines} how it reads; this maps both onto what
+ * the kit paints, so a test can read every choice the page would otherwise hide. {@link AlmanacPage} paints it and
+ * decides nothing.
  */
 record AlmanacPagePlan(@Nonnull LedgerModel seasons, @Nullable String selected, @Nullable BannerCard banner,
         @Nonnull RecordCard record, @Nonnull List<GlanceMonth> months, @Nullable SeasonBody body,
@@ -112,11 +125,73 @@ record AlmanacPagePlan(@Nonnull LedgerModel seasons, @Nullable String selected, 
     record LinkButton(@Nonnull Message label, @Nonnull Destination destination) {
     }
 
-    /** The season being read: everything the right column shows. */
+    /** One part of the season's body, in the order the page draws it. */
+    sealed interface SectionPlan permits TalliesPlan, KeepsakesPlan, LinksPlan, AchievementsPlan, BannerPlan,
+            CollectionPlan {
+    }
+
+    /** The year chips and tiles: the body's {@code years}, scope, {@code tiles} and {@code hint}. */
+    record TalliesPlan() implements SectionPlan {
+    }
+
+    /** The keepsake shelf: the body's {@code keepsakes}. */
+    record KeepsakesPlan() implements SectionPlan {
+    }
+
+    /** The links: the body's {@code links}. */
+    record LinksPlan() implements SectionPlan {
+    }
+
+    /** The achievements (the body's {@code achievements}) and the button into the book (null: none). */
+    record AchievementsPlan(@Nullable LinkButton cta) implements SectionPlan {
+    }
+
+    /**
+     * An inline banner on its own 906 x {@code height} plate: the texture its art layer draws (the art, or a
+     * composition's background texture), the flat fill, the sky's tint, the glow fitted onto the plate, the item
+     * pictures, its title and line, and its button.
+     */
+    record BannerPlan(@Nullable String artTexture, @Nullable String fillHex, @Nullable String skyHex,
+            @Nullable HeroLight glow, @Nonnull List<HeroPicture> pictures, int height, @Nullable Message title,
+            @Nullable Message line, @Nullable LinkButton button) implements SectionPlan {
+    }
+
+    /** The items grid: its heading, "1 of 3 found" and its bar, the line under it, the slots, and its button. */
+    record CollectionPlan(@Nonnull Message title, @Nonnull Message meta, float fraction, @Nullable Message line,
+            @Nonnull List<ItemSlotTile> slots, @Nullable LinkButton button) implements SectionPlan {
+    }
+
+    /** The season being read: everything the right column shows, and its parts in the order drawn. */
     record SeasonBody(@Nonnull String eventId, @Nonnull HeroPlan hero, @Nullable Message flavor,
             @Nonnull List<YearChoice> years, @Nonnull Message scopeHeader, @Nonnull Message scopeMeta,
             @Nonnull List<StatTile> tiles, boolean hint, @Nullable KeepsakeShelf keepsakes,
-            @Nullable AchievementShelf achievements, @Nonnull List<LinkButton> links) {
+            @Nullable AchievementShelf achievements, @Nonnull List<LinkButton> links,
+            @Nonnull List<SectionPlan> sections) {
+
+        /** The button the part at {@code index} (as a click carries it) shows, or null. */
+        @Nullable
+        LinkButton sectionButton(@Nullable String index) {
+            if (index == null) {
+                return null;
+            }
+            int i;
+            try {
+                i = Integer.parseInt(index.trim());
+            } catch (NumberFormatException e) {
+                return null;
+            }
+            if (i < 0 || i >= sections.size()) {
+                return null;
+            }
+            return switch (sections.get(i)) {
+                case BannerPlan b -> b.button();
+                case CollectionPlan c -> c.button();
+                case AchievementsPlan a -> a.cta();
+                case TalliesPlan t -> null;
+                case KeepsakesPlan k -> null;
+                case LinksPlan l -> null;
+            };
+        }
     }
 
     /** The cross-season banner card: its picture, its name, its count and bar (absent when it has none). */
@@ -257,10 +332,120 @@ record AlmanacPagePlan(@Nonnull LedgerModel seasons, @Nullable String selected, 
         Message flavor = season.flavorKey() == null ? null : AlmanacText.authored(season.flavorKey(), season.eventId());
         // The first-time hint promises tallies, so a page that counts nothing never shows it.
         boolean hint = yearsTakenPart == 0L && !page.tallies().isEmpty();
+        KeepsakeShelf keepsakes = keepsakes(page.keepsakes(), liveYear);
+        AchievementShelf achievements = achievements(page.achievements());
+        List<LinkButton> links = links(page.links());
         return new SeasonBody(season.eventId(), hero(page), flavor, years(page.years(), scope),
                 AlmanacLines.scopeHeader(scope), AlmanacLines.scopeMeta(scope, page.tookPartInScope(), yearsTakenPart),
-                tiles(page.tallies()), hint, keepsakes(page.keepsakes(), liveYear),
-                achievements(page.achievements()), links(page.links()));
+                tiles(page.tallies()), hint, keepsakes, achievements, links,
+                sections(page.sections(), keepsakes != null, achievements != null, !links.isEmpty()));
+    }
+
+    // ---- the body's parts ----
+
+    /**
+     * The season's parts in the order its page writes them. The tallies always draw; the keepsakes, the
+     * achievements and the links only with something to show (as without {@code Sections}); a built-in part
+     * already placed is skipped (the view drops repeats too); banners and grids draw where written.
+     */
+    @Nonnull
+    private static List<SectionPlan> sections(@Nonnull List<Section> sections, boolean keepsakes,
+            boolean achievements, boolean links) {
+        Set<Class<?>> placed = new HashSet<>();
+        List<SectionPlan> out = new ArrayList<>();
+        for (Section section : sections) {
+            SectionPlan part = switch (section) {
+                case TalliesSection t -> new TalliesPlan();
+                case KeepsakesSection k -> keepsakes ? new KeepsakesPlan() : null;
+                case AchievementsSection a -> achievements ? new AchievementsPlan(callToAction(a)) : null;
+                case LinksSection l -> links ? new LinksPlan() : null;
+                case BannerSection b -> banner(b);
+                case CollectionSection c -> collection(c);
+            };
+            if (part == null) {
+                continue;
+            }
+            boolean repeats = part instanceof BannerPlan || part instanceof CollectionPlan;
+            if (repeats || placed.add(part.getClass())) {
+                out.add(part);
+            }
+        }
+        return List.copyOf(out);
+    }
+
+    /** The button into the book: none without a destination; the library's words unless the page writes its own. */
+    @Nullable
+    private static LinkButton callToAction(@Nonnull AchievementsSection section) {
+        if (section.destination() == null) {
+            return null;
+        }
+        Message label = section.textKey() == null ? AlmanacText.line("achievements.cta")
+                : AlmanacText.authored(section.textKey(), section.textKey());
+        return new LinkButton(label, section.destination());
+    }
+
+    /**
+     * An inline banner on its own plate: its art; else its composition (the gradient's bottom, else the background,
+     * as the fill; the gradient's top as the sky; the glow fitted onto the banner's plate; the pictures where the
+     * view placed them; the background texture on the art layer); its title, line and button.
+     */
+    @Nonnull
+    private static BannerPlan banner(@Nonnull BannerSection banner) {
+        int height = banner.height();
+        Message title = banner.titleKey() == null ? null : AlmanacText.authored(banner.titleKey(), banner.titleKey());
+        Message line = banner.flavorKey() == null ? null : AlmanacText.authored(banner.flavorKey(), banner.flavorKey());
+        LinkButton button = linkButton(banner.button());
+        HeroComposition composition = banner.composition();
+        if (banner.art() != null || composition == null) {
+            return new BannerPlan(banner.art(), null, null, null, List.of(), height, title, line, button);
+        }
+        String fill = composition.gradient() != null ? composition.gradient().bottomHex()
+                : composition.backgroundHex();
+        String sky = composition.gradient() == null ? null : composition.gradient().topHex();
+        return new BannerPlan(composition.backgroundTexture(), hex(fill), hex(sky),
+                light(composition.glow(), AlmanacLayout.PLATE_WIDTH, height), pictures(composition), height, title,
+                line, button);
+    }
+
+    /**
+     * The items grid: its heading (the library's "Event items" unless the page writes its own), "1 of 3 found" over
+     * every item (a hidden one is counted: it can be found), its bar, its line, a slot per item, and its button. A
+     * slot shows its item once owned; a hidden item not yet owned is the mystery, its words "Not found yet"; any
+     * other shows the item's name, with where it comes from when the page writes that.
+     */
+    @Nonnull
+    private static CollectionPlan collection(@Nonnull CollectionSection collection) {
+        List<CollectionItem> items = collection.items();
+        int total = items.size();
+        int owned = Math.min(collection.owned(), total);
+        Message title = collection.titleKey() == null ? AlmanacText.line("collection.title")
+                : AlmanacText.authored(collection.titleKey(), collection.titleKey());
+        Message line = collection.flavorKey() == null ? null
+                : AlmanacText.authored(collection.flavorKey(), collection.flavorKey());
+        List<ItemSlotTile> slots = new ArrayList<>();
+        for (CollectionItem item : items) {
+            boolean mystery = item.hidden() && !item.owned();
+            Message tooltip;
+            if (mystery) {
+                tooltip = AlmanacText.line("collection.hidden");
+            } else if (item.sourceKey() == null) {
+                tooltip = NativeNames.itemNameMsg(item.itemId());
+            } else {
+                tooltip = AlmanacText.line("collection.source", NativeNames.itemNameMsg(item.itemId()),
+                        AlmanacText.authored(item.sourceKey(), item.sourceKey()));
+            }
+            slots.add(new ItemSlotTile(item.itemId(), Picture.item(item.itemId()), item.owned(), mystery,
+                    AlmanacText.line("collection.mystery"), tooltip));
+        }
+        return new CollectionPlan(title, AlmanacText.line("collection.meta", (long) owned, (long) total),
+                total == 0 ? 0f : (float) owned / total, line, List.copyOf(slots), linkButton(collection.button()));
+    }
+
+    /** An authored button as the plan's link, or null. */
+    @Nullable
+    private static LinkButton linkButton(@Nullable SeasonLink link) {
+        return link == null ? null : new LinkButton(AlmanacText.authored(link.textKey(), link.textKey()),
+                link.destination());
     }
 
     @Nonnull
@@ -371,24 +556,32 @@ record AlmanacPagePlan(@Nonnull LedgerModel seasons, @Nullable String selected, 
             String fill = composition.gradient() != null ? composition.gradient().bottomHex()
                     : composition.backgroundHex();
             String sky = composition.gradient() == null ? null : composition.gradient().topHex();
-            List<HeroPicture> pictures = new ArrayList<>();
-            for (HeroItem item : composition.items()) {
-                pictures.add(new HeroPicture(item.itemId(), item.iconPath(),
-                        new HeroBox(item.x(), item.y(), item.size(), item.size())));
-            }
             return new HeroPlan(HeroKind.COMPOSED, composition.backgroundTexture(), hex(fill), hex(sky),
-                    light(composition.glow()), List.copyOf(pictures), null, chip, title, dates, next, accent);
+                    light(composition.glow(), AlmanacLayout.HERO_WIDTH, AlmanacLayout.HERO_HEIGHT),
+                    pictures(composition), null, chip, title, dates, next, accent);
         }
         return new HeroPlan(HeroKind.PICTURE, null, null, null, null, List.of(), hero.iconPath(), chip, title, dates,
                 next, accent);
     }
 
+    /** A composition's item pictures, each placed and sized where the view put it on its plate. */
+    @Nonnull
+    private static List<HeroPicture> pictures(@Nonnull HeroComposition composition) {
+        List<HeroPicture> pictures = new ArrayList<>();
+        for (HeroItem item : composition.items()) {
+            pictures.add(new HeroPicture(item.itemId(), item.iconPath(),
+                    new HeroBox(item.x(), item.y(), item.size(), item.size())));
+        }
+        return List.copyOf(pictures);
+    }
+
+    /** A composition's glow fitted onto a {@code plateWidth} x {@code plateHeight} plate, or null for none. */
     @Nullable
-    private static HeroLight light(@Nullable HeroGlow glow) {
+    private static HeroLight light(@Nullable HeroGlow glow, int plateWidth, int plateHeight) {
         if (glow == null || hex(glow.colorHex()) == null) {
             return null;
         }
-        HeroBox box = fitGlow(glow);
+        HeroBox box = fitGlow(glow, plateWidth, plateHeight);
         return box == null ? null : new HeroLight(glow.colorHex(), box);
     }
 
@@ -402,11 +595,17 @@ record AlmanacPagePlan(@Nonnull LedgerModel seasons, @Nullable String selected, 
      */
     @Nullable
     static HeroBox fitGlow(@Nonnull HeroGlow glow) {
+        return fitGlow(glow, AlmanacLayout.HERO_WIDTH, AlmanacLayout.HERO_HEIGHT);
+    }
+
+    /** {@link #fitGlow(HeroGlow)}'s rule on any plate: an inline banner's is {@link AlmanacLayout#PLATE_WIDTH} wide. */
+    @Nullable
+    static HeroBox fitGlow(@Nonnull HeroGlow glow, int plateWidth, int plateHeight) {
         double half = glow.size() / 2.0;
         double cx = glow.x() + half;
         double cy = glow.y() + half;
-        double halfWidth = Math.min(half, Math.min(cx, AlmanacLayout.HERO_WIDTH - cx));
-        double halfHeight = Math.min(half, Math.min(cy, AlmanacLayout.HERO_HEIGHT - cy));
+        double halfWidth = Math.min(half, Math.min(cx, plateWidth - cx));
+        double halfHeight = Math.min(half, Math.min(cy, plateHeight - cy));
         int width = (int) Math.floor(halfWidth * 2.0);
         int height = (int) Math.floor(halfHeight * 2.0);
         if (width < AlmanacLayout.GLOW_MIN_FITTED || height < AlmanacLayout.GLOW_MIN_FITTED) {

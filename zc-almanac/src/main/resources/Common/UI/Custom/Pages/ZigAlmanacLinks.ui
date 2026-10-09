@@ -1,0 +1,34 @@
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
+
+// The links of a season on the Almanac page (Pages/ZigAlmanacPage.ui), appended by
+// com.ziggfreed.common.almanac.page.AlmanacPage into #Sections and addressed by index as "#Sections[i] #Id":
+// #Links, one line of up to four rich buttons (#Link1 to #Link4, their words on #Label), filled in order.
+
+// One of the season's links, filled in order; hidden until painted.
+@AlmanacLink = Button {
+  Anchor: (Width: 200, Height: $ZK.@ZigControlHeight, Right: $ZK.@ZigSpace2);
+  Style: $ZS.@ZigButtonSecondaryStyle;
+  Visible: false;
+
+  Label #Label {
+    FlexWeight: 1;
+    Text: "";
+    Style: $ZX.@ZigButtonLabelStyle;
+  }
+};
+
+Group #ZigAlmanacLinks {
+  LayoutMode: Top;
+
+  Group #Links {
+    LayoutMode: Left;
+    Anchor: (Height: $ZK.@ZigControlHeight, Top: $ZK.@ZigSpace4);
+
+    @AlmanacLink #Link1 {}
+    @AlmanacLink #Link2 {}
+    @AlmanacLink #Link3 {}
+    @AlmanacLink #Link4 {}
+  }
+}
