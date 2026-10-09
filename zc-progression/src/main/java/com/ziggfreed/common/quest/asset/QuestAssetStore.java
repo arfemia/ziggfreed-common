@@ -318,8 +318,9 @@ public final class QuestAssetStore {
                 continue;
             }
             // Once per authored file, a skeleton included: a generated child inherits its base's season
-            // and is never reported again, so one typo is one line.
+            // and once-a-run event and is never reported again, so one typo is one line.
             SeasonGate.checkKnown(issues, QuestPoolValidator.DOMAIN, asset.getSeason(), id);
+            QuestPoolValidator.checkPerRunEvent(issues, asset.getRepeat(), id);
             if (asset.isAbstract()) {
                 continue;
             }

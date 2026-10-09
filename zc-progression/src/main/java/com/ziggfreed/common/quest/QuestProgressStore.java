@@ -69,13 +69,15 @@ public interface QuestProgressStore {
      * {@link CompletionRecord#withoutCollectedTally}) cannot be talked into counting one collection
      * twice.
      *
-     * <p><b>A once-a-run quest also keeps its run</b>: {@code runYear} is the year of the run of its
-     * event its last finish counted for, and {@code runCount} how many finishes that run holds. Both are
-     * null and 0 for any other quest and for a record saved before the tally existed, which belongs to
-     * the run nearest its last finish ({@link PerRuns}).
+     * <p><b>A once-a-run quest also keeps its run</b>: {@code runYear} and {@code runNumber} name the run
+     * of its event its last finish counted for (the year it starts in, and the number its event's dates
+     * name it by within that year, from 1: an identity, never a place in time), and {@code runCount} how
+     * many finishes that run holds. They are null, 0 and 0 for any other quest and for a record saved
+     * before the tally existed, which belongs to run 1 of the year of the run nearest its last finish
+     * ({@link PerRuns}).
      */
     record CompletionRecord(long lastCompletionMs, int periodCount, int totalCount, int claimedCount,
-                            @Nullable Integer runYear, int runCount) {
+                            @Nullable Integer runYear, int runCount, int runNumber) {
 
         /** Nothing recorded: never finished, nothing spent, nothing counted, nothing collected. */
         public static final CompletionRecord NONE = new CompletionRecord(0L, 0, 0, 0);
@@ -86,6 +88,13 @@ public interface QuestProgressStore {
             totalCount = Math.max(0, totalCount);
             claimedCount = Math.min(Math.max(0, claimedCount), totalCount);
             runCount = runYear == null ? 0 : Math.max(0, runCount);
+            runNumber = runYear == null ? 0 : Math.max(1, runNumber);
+        }
+
+        /** A record of a year's first run (or one that keeps no run tally, with a null {@code runYear}). */
+        public CompletionRecord(long lastCompletionMs, int periodCount, int totalCount, int claimedCount,
+                @Nullable Integer runYear, int runCount) {
+            this(lastCompletionMs, periodCount, totalCount, claimedCount, runYear, runCount, 1);
         }
 
         /** A record that keeps no run tally: a quest with no once-a-run rule, or a value saved before the tally existed. */

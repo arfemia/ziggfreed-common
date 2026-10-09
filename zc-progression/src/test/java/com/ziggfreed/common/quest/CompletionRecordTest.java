@@ -69,4 +69,15 @@ class CompletionRecordTest {
         assertEquals(Integer.valueOf(2026), new QuestProgressStore.CompletionRecord(5L, 1, 2, 2, 2026, 1).runYear());
         assertEquals(1, new QuestProgressStore.CompletionRecord(5L, 1, 2, 2, 2026, 1).runCount());
     }
+
+    @Test
+    void aRunNumberBelongsToARunYearAndTheSixNumberFormIsRunOne() {
+        assertEquals(1, new QuestProgressStore.CompletionRecord(5L, 1, 2, 2, 2026, 1).runNumber(),
+                "a record that names no run number is its year's first run");
+        assertEquals(2, new QuestProgressStore.CompletionRecord(5L, 1, 2, 2, 2026, 1, 2).runNumber());
+        assertEquals(0, new QuestProgressStore.CompletionRecord(5L, 1, 2, 2, null, 0, 3).runNumber(),
+                "a number with no run year is nothing");
+        assertEquals(1, new QuestProgressStore.CompletionRecord(5L, 1, 2, 2, 2026, 1, 0).runNumber(), "runs count from 1");
+        assertEquals(0, new QuestProgressStore.CompletionRecord(5L, 1, 2, 2).runNumber());
+    }
 }
