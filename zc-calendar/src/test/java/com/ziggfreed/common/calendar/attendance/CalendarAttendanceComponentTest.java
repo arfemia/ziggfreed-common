@@ -92,11 +92,12 @@ class CalendarAttendanceComponentTest {
     void aLaterRunOfAYearIsItsOwnEntryAndASaveFromBeforeIsRunOne() {
         CalendarAttendanceComponent record = new CalendarAttendanceComponent();
         record.load("spring_fair@2026");
-        assertTrue(record.hasAttended("Spring_Fair", 2026, 1), "an entry with no number is the year's first run");
+        assertTrue(record.hasAttended("Spring_Fair", 2026, 1), "an entry with no number is run 1");
         assertFalse(record.markAttended("Spring_Fair", 2026, 1), "so it is not credited twice");
         assertTrue(record.markAttended("Spring_Fair", 2026, 2));
         assertFalse(record.markAttended("spring_fair", 2026, 2));
-        assertEquals("spring_fair@2026|spring_fair@2026#2", record.save(), "run 1 saves as before; a later run adds #n");
+        assertEquals("spring_fair@2026|spring_fair@2026#2", record.save(),
+                "run 1 saves as before; any other run adds #n");
         assertEquals(2, record.runsAttended("Spring_Fair", 2026));
         assertEquals(List.of(2026), record.yearsAttended("Spring_Fair"), "one year, however many of its runs");
         assertTrue(record.hasAttended("Spring_Fair", 2026));
@@ -105,5 +106,21 @@ class CalendarAttendanceComponentTest {
         CalendarAttendanceComponent reloaded = new CalendarAttendanceComponent();
         reloaded.load(record.save());
         assertEquals(2, reloaded.runsAttended("Spring_Fair", 2026), "a restart reads both runs back");
+    }
+
+    @Test
+    void aRunWrittenTwiceByHandIsOneRun() {
+        CalendarAttendanceComponent record = new CalendarAttendanceComponent();
+        record.load("spring_fair@2026|spring_fair@2026#1|spring_fair@2026#02|spring_fair@2026#2");
+        assertEquals(2, record.runsAttended("Spring_Fair", 2026), "#1 is run 1 and #02 is run 2: two runs, not four");
+        assertTrue(record.hasAttended("Spring_Fair", 2026, 2));
+        assertFalse(record.markAttended("Spring_Fair", 2026, 2),
+                "a run already written, however it was written, is not credited again");
+        assertFalse(record.markAttended("Spring_Fair", 2026, 1));
+        CalendarAttendanceComponent handWritten = new CalendarAttendanceComponent();
+        handWritten.load("spring_fair@2026#09");
+        assertTrue(handWritten.hasAttended("Spring_Fair", 2026, 9), "run 9 written as #09");
+        assertFalse(handWritten.markAttended("Spring_Fair", 2026, 9));
+        assertEquals(1, handWritten.runsAttended("Spring_Fair", 2026));
     }
 }

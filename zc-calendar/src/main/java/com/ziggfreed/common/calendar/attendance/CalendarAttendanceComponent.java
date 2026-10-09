@@ -1,6 +1,7 @@
 package com.ziggfreed.common.calendar.attendance;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -28,8 +29,10 @@ import com.ziggfreed.common.util.SafeLog;
  * per-player history an almanac or a cross-event achievement reads ({@link #yearsAttended} and
  * {@link #runsAttended}).
  *
- * <p>Saved as one {@code |}-joined string of entries, sorted so a save is stable: {@code <eventid>@<year>} for a
- * year's first run (the form every older save holds) and {@code <eventid>@<year>#<n>} for its later runs.
+ * <p>Saved as one {@code |}-joined string of entries, sorted so a save is stable: {@code <eventid>@<year>} for
+ * run 1 (the form every older save holds) and {@code <eventid>@<year>#<n>} for any other run. A run number is a
+ * name, never a place in the year, and a run reads as itself however its entry is written (run 1 hand-written as
+ * {@code #1}, {@code #02} beside {@code #2}).
  * An event id carrying {@code |} or {@code @} is refused, since the format reserves both. Registered at
  * library setup, BEFORE any world loads, and attached to every player on connect; a consumer PEEKS it
  * ({@link #TYPE} may be null when registration failed) and reads a missing component as no attendance.
@@ -44,7 +47,7 @@ public class CalendarAttendanceComponent implements Component<EntityStore> {
 
     public static final BuilderCodec<CalendarAttendanceComponent> CODEC;
 
-    /** Joins a later run's number to its year in a saved entry. */
+    /** Joins the number of any run but run 1 to its year in a saved entry. */
     private static final String RUN_MARK = "#";
 
     /** {@code <eventid>@<year>} or {@code <eventid>@<year>#<n>} for every run attended. */
@@ -75,35 +78,43 @@ public class CalendarAttendanceComponent implements Component<EntityStore> {
         return runsAttended(eventId, year) > 0;
     }
 
-    /** Did the player attend run {@code number} of {@code eventId}'s {@code year}? */
+    /** Did the player attend run {@code number} of {@code eventId}'s {@code year}, however its entry is written? */
     public boolean hasAttended(@Nullable String eventId, int year, int number) {
-        return !usesReservedCharacter(eventId) && number >= 1 && attended.contains(entry(eventId, year, number));
+        for (int[] run : runs(eventId)) {
+            if (run[0] == year && run[1] == number) {
+                return true;
+            }
+        }
+        return false;
     }
 
-    /** Record the year's first run: what an event that comes round once a year has. */
+    /** Record run 1: the one run an event that comes round once a year has. */
     public boolean markAttended(@Nullable String eventId, int year) {
         return markAttended(eventId, year, 1);
     }
 
-    /** Record run {@code number} of the year; true when it is new. An id the save format cannot hold is refused with one warning. */
+    /**
+     * Record run {@code number} of the year; true when it is new (an entry already naming that run, however it is
+     * written, makes it old). An id the save format cannot hold is refused with one warning.
+     */
     public boolean markAttended(@Nullable String eventId, int year, int number) {
         if (usesReservedCharacter(eventId)) {
             SafeLog.warn("[calendar] attendance at '" + eventId + "' is not recorded: an event id may not carry"
                     + " '|' or '@', which the per-player save format reserves");
             return false;
         }
-        return number >= 1 && attended.add(entry(eventId, year, number));
+        return number >= 1 && !hasAttended(eventId, year, number) && attended.add(entry(eventId, year, number));
     }
 
-    /** How many runs of {@code eventId} that began in {@code year} the player attended. */
+    /** How many different runs of {@code eventId} that began in {@code year} the player attended. */
     public int runsAttended(@Nullable String eventId, int year) {
-        int count = 0;
+        Set<Integer> numbers = new HashSet<>();
         for (int[] run : runs(eventId)) {
             if (run[0] == year) {
-                count++;
+                numbers.add(run[1]);
             }
         }
-        return count;
+        return numbers.size();
     }
 
     /** The years of {@code eventId}'s runs attended, oldest first, each once however many of its runs were. */
@@ -174,7 +185,7 @@ public class CalendarAttendanceComponent implements Component<EntityStore> {
         }
     }
 
-    /** A run's saved entry: {@code <id>@<year>} for run 1, {@code <id>@<year>#<n>} after. */
+    /** A run's saved entry: {@code <id>@<year>} for run 1, {@code <id>@<year>#<n>} for any other run. */
     @Nonnull
     private static String entry(@Nonnull String eventId, int year, int number) {
         String run = number == 1 ? Integer.toString(year) : year + RUN_MARK + number;
