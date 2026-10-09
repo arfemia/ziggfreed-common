@@ -104,12 +104,12 @@ public final class CalendarTicker {
         }
         for (CalendarTick.Ended ended : tick.ended()) {
             CalendarEvents.fireEnded(ended.occurrence(), ended.switchedOff(), now);
-            SafeLog.info("[calendar] " + ended.occurrence().eventId() + " " + ended.occurrence().year()
+            SafeLog.info("[calendar] " + ended.occurrence().eventId() + " " + ended.occurrence().label()
                     + (ended.switchedOff() ? " was switched off" : " ended"));
         }
         for (CalendarTick.Started start : tick.started()) {
             CalendarEvents.fireStarted(start.occurrence(), start.resumed(), now);
-            SafeLog.info("[calendar] " + start.occurrence().eventId() + " " + start.occurrence().year()
+            SafeLog.info("[calendar] " + start.occurrence().eventId() + " " + start.occurrence().label()
                     + (start.resumed() ? " is running (resumed at boot)" : " started"));
         }
         for (Consumer<CalendarTick> listener : listeners) {

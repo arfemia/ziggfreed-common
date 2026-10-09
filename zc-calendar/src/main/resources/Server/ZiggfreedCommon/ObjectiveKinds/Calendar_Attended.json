@@ -1,5 +1,5 @@
 {
-  "$Comment": "Being on the server while a calendar event runs, counted once per player per run. Target is the calendar event id (its file name under Server/ZiggfreedCommon/CalendarEvents); Qualifier is the year the run began in, as four digits, so a step naming a Qualifier counts only that year's run and a step without one counts any run. Amount counts runs, so Amount 3 means three different years. A step reads {\"Kind\": \"CALENDAR_ATTENDED\", \"Target\": \"Spring_Fair\", \"Amount\": 1}.",
+  "$Comment": "Being on the server while a calendar event runs, counted once per player per run. Target is the calendar event id (its file name under Server/ZiggfreedCommon/CalendarEvents); Qualifier is the year the run began in, as four digits, so a step naming a Qualifier counts every run that began that year and a step without one counts any run. Amount counts runs, so Amount 3 means three different runs (three different years for an event that comes round once a year). A step reads {\"Kind\": \"CALENDAR_ATTENDED\", \"Target\": \"Spring_Fair\", \"Amount\": 1}.",
   "ValueBased": false,
   "Producible": true,
   "Presentation": {

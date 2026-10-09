@@ -41,6 +41,22 @@ class CalendarAttendanceTest {
         assertEquals(List.of(next), CalendarAttendance.credit(record, List.of(next)), "next year's run is a new run");
     }
 
+    // Review Focus 5 (attendance), several runs a year: the second run, crossing the new year, is credited once
+    // under the year it began in, and is a run of its own beside that year's first.
+    @Test
+    void eachRunOfAYearIsCreditedOnceAndARunCrossingTheNewYearIsItsStartingYears() {
+        CalendarAttendanceComponent record = new CalendarAttendanceComponent();
+        Occurrence june = new Occurrence("two_fairs", 2026, 1, 1_000L, 2_000L);
+        Occurrence december = new Occurrence("two_fairs", 2026, 2, 5_000L, 9_000L);
+        assertEquals(List.of(june), CalendarAttendance.credit(record, List.of(june)));
+        assertEquals(List.of(december), CalendarAttendance.credit(record, List.of(december)),
+                "the year's second run is a run of its own");
+        assertTrue(CalendarAttendance.credit(record, List.of(december)).isEmpty(),
+                "seen again in January, it is still the run that began in December");
+        assertEquals(List.of(2026), record.yearsAttended("Two_Fairs"));
+        assertEquals(2, record.runsAttended("Two_Fairs", 2026));
+    }
+
     @Test
     void theCreditSurvivesASaveSoARestartNeverRepeatsTheBanner() {
         CalendarAttendanceComponent record = new CalendarAttendanceComponent();

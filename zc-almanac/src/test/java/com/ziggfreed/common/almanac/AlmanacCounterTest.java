@@ -105,6 +105,24 @@ class AlmanacCounterTest {
     }
 
     @Test
+    void eachRunOfAYearIsOneMoreRunAndTheYearIsOneSeason() throws Exception {
+        CounterMap tallies = new CounterMap();
+        // The calendar fires one attendance per player per run: two moments in one year are its two runs.
+        AlmanacCounter.count(tallies, index(), LIVE_2026, "CALENDAR_ATTENDED", "Test_Season", null, 1L, null);
+        AlmanacCounter.count(tallies, index(), LIVE_2026, "CALENDAR_ATTENDED", "Test_Season", null, 1L, null);
+        assertEquals(2L, tallies.get(AlmanacKeys.season("test_season", 2026, AlmanacKeys.RUNS)));
+        assertEquals(1L, tallies.get(AlmanacKeys.season("test_season", 2026, AlmanacKeys.ATTENDED)), "one season-year");
+        assertEquals(1L, tallies.get(AlmanacKeys.lifetime("test_season", AlmanacKeys.ATTENDED)), "seasons count years");
+        assertEquals(2L, AlmanacKeys.runsAttended(tallies, "Test_Season", 2026));
+
+        CounterMap before = new CounterMap();
+        before.add(AlmanacKeys.season("test_season", 2025, AlmanacKeys.ATTENDED), 1L);
+        assertEquals(1L, AlmanacKeys.runsAttended(before, "test_season", 2025),
+                "a year attended before runs were counted had one run");
+        assertEquals(0L, AlmanacKeys.runsAttended(before, "test_season", 2024));
+    }
+
+    @Test
     void attendanceBetweenSeasonsMarksNothing() throws Exception {
         CounterMap tallies = new CounterMap();
 

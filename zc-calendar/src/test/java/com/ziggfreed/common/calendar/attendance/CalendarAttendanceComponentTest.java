@@ -87,4 +87,23 @@ class CalendarAttendanceComponentTest {
         copy.markAttended("Harvest_Moon", 2026);
         assertFalse(record.hasAttended("harvest_moon", 2026));
     }
+
+    @Test
+    void aLaterRunOfAYearIsItsOwnEntryAndASaveFromBeforeIsRunOne() {
+        CalendarAttendanceComponent record = new CalendarAttendanceComponent();
+        record.load("spring_fair@2026");
+        assertTrue(record.hasAttended("Spring_Fair", 2026, 1), "an entry with no number is the year's first run");
+        assertFalse(record.markAttended("Spring_Fair", 2026, 1), "so it is not credited twice");
+        assertTrue(record.markAttended("Spring_Fair", 2026, 2));
+        assertFalse(record.markAttended("spring_fair", 2026, 2));
+        assertEquals("spring_fair@2026|spring_fair@2026#2", record.save(), "run 1 saves as before; a later run adds #n");
+        assertEquals(2, record.runsAttended("Spring_Fair", 2026));
+        assertEquals(List.of(2026), record.yearsAttended("Spring_Fair"), "one year, however many of its runs");
+        assertTrue(record.hasAttended("Spring_Fair", 2026));
+        assertFalse(record.hasAttended("Spring_Fair", 2026, 3));
+        assertEquals(List.of("spring_fair"), record.eventsAttended());
+        CalendarAttendanceComponent reloaded = new CalendarAttendanceComponent();
+        reloaded.load(record.save());
+        assertEquals(2, reloaded.runsAttended("Spring_Fair", 2026), "a restart reads both runs back");
+    }
 }

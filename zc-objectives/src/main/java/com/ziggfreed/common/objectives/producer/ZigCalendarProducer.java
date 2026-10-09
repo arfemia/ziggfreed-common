@@ -16,7 +16,8 @@ import com.ziggfreed.common.util.SafeLog;
  * <p>An EVENT-BUS listener like {@link ZigEncounterProducer}: the calendar names the player by uuid, so the
  * moment is fed on that player's own world thread through {@link PlayerMomentDispatch}. The contract content
  * sees: {@code Target} is the calendar event id, {@code Qualifier} is the run's year as text (a step without
- * one counts any year), {@code Amount} is 1 per run.
+ * one counts any run; one naming a year counts every run that began in it, for an event that comes round
+ * several times a year), {@code Amount} is 1 per run.
  */
 public final class ZigCalendarProducer {
 

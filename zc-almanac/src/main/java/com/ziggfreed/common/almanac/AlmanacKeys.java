@@ -18,12 +18,15 @@ import com.ziggfreed.common.counter.Counters;
  *
  * <p>A season or stat name may not carry {@code /} (the category separator), {@code @} (the year
  * mark), {@code |} or {@code :} (the save format's joins), nor start with {@code $} (reserved for the
- * Almanac's own tallies, {@link #ATTENDED}). {@link #usableId} is the one check.
+ * Almanac's own tallies, {@link #ATTENDED} and {@link #RUNS}). {@link #usableId} is the one check.
  */
 public final class AlmanacKeys {
 
     /** The tally a season's attendance is kept under. Never an authored stat name. */
     public static final String ATTENDED = "$attended";
+
+    /** The tally of how many runs of a season-year were attended (an event may come round several times a year). */
+    public static final String RUNS = "$runs";
 
     /** Joins a season's year to its event id in a one-season category. */
     public static final String YEAR_MARK = "@";
@@ -80,5 +83,17 @@ public final class AlmanacKeys {
             }
         }
         return years;
+    }
+
+    /**
+     * How many runs of {@code eventId} that began in {@code year} this record attended: its run tally, or 1 for a
+     * year attended before runs were counted (every such year had one run).
+     */
+    public static long runsAttended(@Nonnull CounterMap tallies, @Nonnull String eventId, int year) {
+        long runs = tallies.get(season(eventId, year, RUNS));
+        if (runs > 0L) {
+            return runs;
+        }
+        return tallies.get(season(eventId, year, ATTENDED)) > 0L ? 1L : 0L;
     }
 }
