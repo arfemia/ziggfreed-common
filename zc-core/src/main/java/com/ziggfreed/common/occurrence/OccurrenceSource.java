@@ -20,7 +20,7 @@ import javax.annotation.Nullable;
  * <p>The two YEAR questions and the clock are the exceptions: {@link #firstYear}, {@link #currentYear}
  * and {@link #zone} answer for any event LOADED on this server whatever its switches say, so a reader
  * that keeps what a player earned in a past run (a yearly trophy) still knows its years after the owner
- * switches the event off.
+ * switches the event off. So does {@link #dated}, so a reader holding a run knows when its own days end.
  */
 public interface OccurrenceSource {
 
@@ -112,6 +112,18 @@ public interface OccurrenceSource {
      */
     @Nullable
     default Occurrence after(@Nonnull String eventId, int year, int number) {
+        return null;
+    }
+
+    /**
+     * Run {@code number} of {@code year} of {@code eventId} on its days as the event's dates read now, wherever an
+     * owner moved them, for any event LOADED on this server whatever its switches and forces say: a run switched
+     * off or forced off keeps its days. A reader holding a run by identity asks this when that run's own days end.
+     * Null when no event of that id is loaded or it cannot run, the year has no such run (set aside, skipped,
+     * before the first year or never dated), and from a source that knows no dates (the default).
+     */
+    @Nullable
+    default Occurrence dated(@Nonnull String eventId, int year, int number) {
         return null;
     }
 

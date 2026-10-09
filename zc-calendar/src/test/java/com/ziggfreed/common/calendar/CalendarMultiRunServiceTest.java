@@ -182,6 +182,34 @@ class CalendarMultiRunServiceTest {
         assertTrue(forced.sameRun(service.live("two_fairs", today)), "the owner's dates alone now hold the same run");
     }
 
+    // M284 (the maintainer's "Keep it until its days end"): a run is dated by its year and number whatever a force
+    // or the owner's switches say, so a reader holding a run forced or switched off still knows when its days end.
+    @Test
+    void aRunForcedOrSwitchedOffIsStillDatedByItsYearAndNumber() {
+        load("Two_Fairs", TWO_FAIRS);
+        long during = at("2026-09-11T12:00:00Z");
+        CalendarForces.getInstance().forceOff("Two_Fairs");
+        assertNull(service.live("two_fairs", during), "forced off, nothing runs");
+        Occurrence autumn = service.dated("two_fairs", 2026, 9);
+        assertNotNull(autumn, "but the autumn run keeps its days");
+        assertEquals("2026#9", autumn.label());
+        assertEquals(at("2026-09-10T00:00:00Z"), autumn.startMs());
+        assertEquals(at("2026-09-17T00:00:00Z"), autumn.endMs());
+        assertNull(service.dated("two_fairs", 2026, 6), "a month the year has no run in dates none");
+        assertNull(service.dated("two_fairs", 2025, 9), "nor a year before FirstYear");
+        assertNull(service.dated("no_such_event", 2026, 9), "nor an event that is not loaded");
+
+        CalendarEventConfig config = CalendarEventConfig.getInstance();
+        config.mergeOwnerLayer(Map.of("two_fairs", CalendarFixtures.event("Two_Fairs", "{ \"Enabled\": false }",
+                config.resolve("two_fairs"))));
+        assertFalse(service.isEnabled("two_fairs"), "switched off by the owner, the event is absent");
+        assertEquals(autumn, service.dated("two_fairs", 2026, 9), "and its run is still dated, on the same days");
+        config.mergeOwnerLayer(Map.of());
+        config.setGlobalEnabled(false);
+        assertFalse(service.isEnabled("two_fairs"), "the calendar's own switch off");
+        assertEquals(autumn, service.dated("two_fairs", 2026, 9), "dates it all the same");
+    }
+
     // Review Focus 2: a run brought forward that the owner moves to days still ahead runs on those days.
     @Test
     void aForcedRunTheOwnerMovesToDaysStillAheadRunsAndEndsOnThem() {
