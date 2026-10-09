@@ -1,7 +1,9 @@
 package com.ziggfreed.common.calendar;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -19,6 +21,7 @@ import com.ziggfreed.common.calendar.tick.CalendarTick;
 import com.ziggfreed.common.feedback.EventTitles;
 import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.occurrence.Occurrence;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -27,7 +30,10 @@ import com.ziggfreed.common.util.SafeLog;
  * one joining days later see it alike, and nobody twice); when one credit names several runs, their start
  * banners queue a gap apart so none overwrites the one before. Its END line goes to everyone online when a run
  * ends by its dates or a command, never when the owner switches the event off (off means absent); when one tick
- * ends several runs, their end banners queue the same gap apart.
+ * ends several runs, their end banners queue the same gap apart. A tick is one queue: its end banners first, then
+ * the start banners its fresh runs owe; a run followed at once by its event's next run shows no end banner; and an
+ * event may show its banners on every run, only on its first run of each year, or never
+ * ({@code Herald.FirstRunOfYear}, {@code Herald.Enabled}).
  */
 public final class CalendarHerald {
 
@@ -56,18 +62,31 @@ public final class CalendarHerald {
     /**
      * The end banners {@code tick} owes, queued as a credit's start banners are: the first at once, each later
      * one {@link #START_GAP_MS} after the one before. A switch-off (off means absent) and an event authoring
-     * no End line take no slot.
+     * no End line take no slot. A run whose event's next run starts on the same tick, or whose event shows no
+     * banner for it, takes no slot either.
      */
     @Nonnull
     public static List<QueuedBanner> endQueue(@Nonnull CalendarTick tick,
             @Nonnull Function<String, CalendarEventAsset> events) {
+        Set<String> startingAgain = new HashSet<>();
+        for (CalendarTick.Started start : tick.started()) {
+            startingAgain.add(start.occurrence().eventId());
+        }
         List<String> ended = new ArrayList<>();
         for (CalendarTick.Ended end : tick.ended()) {
-            if (!end.switchedOff()) {
-                ended.add(end.occurrence().eventId());
+            Occurrence run = end.occurrence();
+            // A run followed at once by its event's next run shows no end banner: the next run's start banner speaks.
+            if (!end.switchedOff() && !startingAgain.contains(run.eventId())
+                    && shows(events.apply(run.eventId()), run)) {
+                ended.add(run.eventId());
             }
         }
-        return queue(ended, id -> endLine(events.apply(id)));
+        return queue(ended, id -> endLine(events.apply(id)), 0L);
+    }
+
+    /** Does {@code event} show its banners for {@code run}: its Herald on, and every run or this the year's first? */
+    public static boolean shows(@Nullable CalendarEventAsset event, @Nonnull Occurrence run) {
+        return event != null && event.heraldShows(run.year(), run.number());
     }
 
     /** The start banner of {@code event}, or null when it authors none with a title. */
@@ -91,18 +110,39 @@ public final class CalendarHerald {
     @Nonnull
     public static List<QueuedBanner> startQueue(@Nonnull List<String> eventIds,
             @Nonnull Function<String, CalendarEventAsset> events) {
-        return queue(eventIds, id -> startLine(events.apply(id)));
+        return queue(eventIds, id -> startLine(events.apply(id)), 0L);
     }
 
-    /** One banner per event that has a line, a gap apart, the first at once. */
+    /**
+     * The start banners one credit owes for {@code runs}, queued from {@code afterMs}: a run whose event shows a
+     * start banner for it takes a slot, each a gap after the one before.
+     */
+    @Nonnull
+    public static List<QueuedBanner> startQueue(@Nonnull List<Occurrence> runs,
+            @Nonnull Function<String, CalendarEventAsset> events, long afterMs) {
+        List<String> shown = new ArrayList<>();
+        for (Occurrence run : runs) {
+            if (shows(events.apply(run.eventId()), run)) {
+                shown.add(run.eventId());
+            }
+        }
+        return queue(shown, id -> startLine(events.apply(id)), afterMs);
+    }
+
+    /** When a tick's start banners begin: after its end banners, so one tick is one queue. */
+    public static long startsAfterMs(@Nonnull CalendarTick tick, @Nonnull Function<String, CalendarEventAsset> events) {
+        return endQueue(tick, events).size() * START_GAP_MS;
+    }
+
+    /** One banner per event that has a line, a gap apart, the first at {@code afterMs}. */
     @Nonnull
     private static List<QueuedBanner> queue(@Nonnull List<String> eventIds,
-            @Nonnull Function<String, CalendarEventAsset.HeraldLine> lineOf) {
+            @Nonnull Function<String, CalendarEventAsset.HeraldLine> lineOf, long afterMs) {
         List<QueuedBanner> out = new ArrayList<>();
         for (String eventId : eventIds) {
             CalendarEventAsset.HeraldLine line = lineOf.apply(eventId);
             if (line != null) {
-                out.add(new QueuedBanner(eventId, line, out.size() * START_GAP_MS));
+                out.add(new QueuedBanner(eventId, line, afterMs + out.size() * START_GAP_MS));
             }
         }
         return out;
@@ -126,11 +166,11 @@ public final class CalendarHerald {
     }
 
     /**
-     * One player's start banners for the runs one credit named, called on their world thread: the first shows at
-     * once, each later one waits its turn in {@link #startQueue}.
+     * One player's start banners for the runs one credit named, called on their world thread, queued from
+     * {@code afterMs} (after the tick's end banners for a credit at a run's start, 0 for one on entering a world).
      */
-    public static void showStarts(@Nonnull PlayerRef player, @Nonnull List<String> eventIds) {
-        showQueued(player, startQueue(eventIds, CalendarRuntime.service()::event));
+    public static void showStarts(@Nonnull PlayerRef player, @Nonnull List<Occurrence> runs, long afterMs) {
+        showQueued(player, startQueue(runs, CalendarRuntime.service()::event, afterMs));
     }
 
     /** Show a queue to one player: a banner due now at once, each later one when its turn comes. */

@@ -193,7 +193,8 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
             .appendInherited(new KeyedCodec<>("Herald", Herald.CODEC, false),
                     (a, v) -> a.herald = v, a -> a.herald, (a, p) -> a.herald = p.herald)
             .documentation("The banner a player sees when a run begins for them and when it ends. Unauthored means "
-                    + "the event comes and goes without one.")
+                    + "the event comes and goes without one. Enabled false keeps every run quiet; FirstRunOfYear true "
+                    + "shows them only for the year's first run.")
             .add()
             .build();
 
@@ -449,6 +450,36 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
         return herald == null ? null : herald.end;
     }
 
+    /**
+     * Does the event show its banners for run {@code number} of {@code year}: its Herald switched on (unsaid is on),
+     * and every run, or only the year's first when it says FirstRunOfYear? The first run is the year's first by its
+     * dates, never run 1: a number is the year's rule's name for a run (a month, a calendar week), so a weekly year
+     * can begin at week 2.
+     */
+    public boolean heraldShows(int year, int number) {
+        if (herald == null) {
+            return true;
+        }
+        if (Boolean.FALSE.equals(herald.enabled)) {
+            return false;
+        }
+        return !Boolean.TRUE.equals(herald.firstRunOfYear) || isFirstRunOfYear(year, number);
+    }
+
+    /** Is run {@code number} the first of {@code year} by start? A year the window dates no run for reads run 1 so. */
+    private boolean isFirstRunOfYear(int year, int number) {
+        AnnualWindow window = annualWindow();
+        AnnualWindow.DatedRun first = null;
+        if (window != null) {
+            for (AnnualWindow.DatedRun run : window.datedRuns(year)) {
+                if (first == null || run.days().start().isBefore(first.days().start())) {
+                    first = run;
+                }
+            }
+        }
+        return first == null ? number == 1 : first.number() == number;
+    }
+
     /** Can the event run at all: an id of its own, a readable Window and a FirstYear from 1970 to 9999? */
     public boolean canRun() {
         return !isReservedId(id) && annualWindow() != null && firstYear != null && isFirstYearInRange(firstYear);
@@ -613,11 +644,16 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
         }
     }
 
-    /** The Herald group: the banner at a run's start and at its end. */
+    /**
+     * The Herald group: the banner at a run's start and at its end, and which runs show them (every run, only the
+     * year's first, or none).
+     */
     public static final class Herald {
 
         @Nullable private HeraldLine start;
         @Nullable private HeraldLine end;
+        @Nullable private Boolean enabled;
+        @Nullable private Boolean firstRunOfYear;
 
         public static final BuilderCodec<Herald> CODEC = BuilderCodec.builder(Herald.class, Herald::new)
                 .appendInherited(new KeyedCodec<>("Start", HeraldLine.CODEC, false),
@@ -627,7 +663,19 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
                 .appendInherited(new KeyedCodec<>("End", HeraldLine.CODEC, false),
                         (o, v) -> o.end = v, o -> o.end, (o, p) -> o.end = p.end)
                 .documentation("Shown to everyone online when a run ends by its dates or by a command; never when "
-                        + "the owner switches the event off.").add()
+                        + "the owner switches the event off, nor when the event's next run begins at once (its start "
+                        + "banner speaks instead).").add()
+                .appendInherited(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false),
+                        (o, v) -> o.enabled = v, o -> o.enabled, (o, p) -> o.enabled = p.enabled)
+                .metadata(EditorSchema.defaultValue(true))
+                .documentation("Whether the event shows its banners at all; unauthored means true. False keeps every "
+                        + "run quiet, which is how a server owner quiets a pack's event.").add()
+                .appendInherited(new KeyedCodec<>("FirstRunOfYear", Codec.BOOLEAN, false),
+                        (o, v) -> o.firstRunOfYear = v, o -> o.firstRunOfYear,
+                        (o, p) -> o.firstRunOfYear = p.firstRunOfYear)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("Show the banners only for the year's first run; unauthored means false, so every run "
+                        + "shows them. For an event that comes round each week or month.").add()
                 .build();
 
         public Herald() {
