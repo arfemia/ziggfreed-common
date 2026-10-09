@@ -68,7 +68,9 @@ import com.ziggfreed.common.world.WorldSelector;
  * shelf of offers written once can stand at several stalls. An included storefront supplies them even while
  * it is switched off itself, which keeps a shared stall out of every list. Here, each of its offers stands in
  * THIS storefront (its presence and lock are this one's) and keeps its own price, {@code Requires},
- * {@code Season} and limits; a purchase counts against the same limit wherever it is made. Includes reach
+ * {@code Season} and limits; a purchase counts against the same limit wherever it is made. The included
+ * storefront's own {@code Season} and {@code Requires} are never read here (the audit warns on its
+ * {@code Season} or a hiding {@code Requires}, {@code INCLUDED_PRESENCE_IGNORED}). Includes reach
  * through, each storefront once; the included storefronts' categories follow this one's
  * {@code CategoryOrder}, and their wallets join the header.
  *
@@ -183,7 +185,9 @@ public final class StorefrontAsset implements JsonAssetWithMap<String, DefaultAs
                     + "id. A shelf of offers written once can stand at several stalls this way, and the included "
                     + "storefront may stay switched off itself so it never shows on its own. Here each offer "
                     + "stands in this storefront and keeps its own price, Requires, Season and limits, and a "
-                    + "purchase counts against the same limit wherever it is made. Includes reach through, each "
+                    + "purchase counts against the same limit wherever it is made. The included storefront's own "
+                    + "Season and Requires decide nothing here, so a seasonal stall puts its Season on each "
+                    + "offer. Includes reach through, each "
                     + "storefront once. Their categories follow this storefront's CategoryOrder, and their "
                     + "wallets join the header. This is ONE leaf: authoring it replaces an inherited list whole.")
             .add()

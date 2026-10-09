@@ -2,6 +2,7 @@ package com.ziggfreed.common.commerce.fold;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 
@@ -54,6 +55,24 @@ public final class CommerceAudit {
 
     /** The label every commerce audit line carries. */
     public static final String LOG_LABEL = "[commerce] content";
+
+    /**
+     * The wallet vocabulary the shop and board audits ask: a wallet some layer defines, and one the mod gate
+     * kept off this server on purpose (its file, or the owner's entry for it, gates on a missing mod), which
+     * no line may name.
+     */
+    private static final ShopValidator.CurrencyProbe WALLETS = new ShopValidator.CurrencyProbe() {
+        @Override
+        public boolean defines(@Nonnull String currencyId) {
+            return definesCurrency(currencyId);
+        }
+
+        @Override
+        public boolean refused(@Nonnull String currencyId) {
+            return CurrencyConfig.getInstance().modGateRefused()
+                    .containsKey(currencyId.trim().toLowerCase(Locale.ROOT));
+        }
+    };
 
     private CommerceAudit() {
     }
@@ -123,7 +142,7 @@ public final class CommerceAudit {
                 ShopAssetStore.getInstance().resolve(CommerceCatalogs.axisValues());
         List<Finding> out = new ArrayList<>(resolved.issues());
         out.addAll(ShopValidator.validate(resolved.entries(), ShopConfig.getInstance().all(),
-                ShopPoolConfig.getInstance().all(), CommerceAudit::definesCurrency, rewardKinds(),
+                ShopPoolConfig.getInstance().all(), WALLETS, rewardKinds(),
                 gateKinds(), null));
         return out;
     }
@@ -138,7 +157,7 @@ public final class CommerceAudit {
         BoardAssetStore.Resolution resolved = BoardAssetStore.getInstance().resolve();
         List<Finding> out = new ArrayList<>(resolved.issues());
         out.addAll(BoardValidator.validate(BoardConfig.getInstance().all(),
-                BoardAssetStore.getInstance().assets(), CommerceAudit::definesCurrency, rewardKinds(),
+                BoardAssetStore.getInstance().assets(), WALLETS, rewardKinds(),
                 objectiveKinds(), gateKinds(), null));
         return out;
     }
