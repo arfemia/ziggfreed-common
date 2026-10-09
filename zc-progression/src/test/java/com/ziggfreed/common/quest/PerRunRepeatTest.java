@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import com.ziggfreed.common.factor.FeatureFlags;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
+import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.occurrence.Occurrences;
 import com.ziggfreed.common.progress.MatchMode;
 import com.ziggfreed.common.progress.ObjectiveDef;
@@ -505,6 +507,120 @@ class PerRunRepeatTest {
         assertEquals(QuestStatus.NOT_STARTED, store.status(player, quest.id()),
                 "another run is going on, so its progress is dropped rather than counted there");
         assertTrue(engine.canAccept(player, quest).allowed(), "and this run's is on offer afresh");
+    }
+
+    // The drop takes back only progress: a quest finished in its run with its reward still to collect is owed that
+    // reward whatever run is on when the player comes for it.
+    @Test
+    void aQuestThatDoesNotCarryFinishedButNotCollectedKeepsItsRewardOwedPastItsRunsEnd() {
+        runs.run(2026, 1, "2026-10-03", "2026-10-03").run(2026, 2, "2026-10-10", "2026-10-10");
+        Quest quest = Quest.builder("q_weekly_owed")
+                .objective(ObjectiveDef.builder("logs", "BREAK_BLOCK")
+                        .target("Oak_Log").matchMode(MatchMode.EXACT).amount(1).build())
+                .reward(RewardSpec.of("NOTE", "text", "owed"))
+                .repeat(new Quest.Repeat(0L, Quest.Repeat.CooldownFrom.CLAIM, null, 0,
+                        new Quest.Repeat.PerRun(EVENT, 1, false)))
+                .build();
+        QuestEngine engine = engine(quest);
+        clock.set(FakeRuns.at("2026-10-03T12:00:00Z"));
+        assertTrue(engine.accept(player, quest));
+        engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 1);
+        assertEquals(QuestStatus.COMPLETED_UNCLAIMED, store.status(player, quest.id()), "finished, the reward waiting");
+
+        clock.set(FakeRuns.at("2026-10-05T12:00:00Z"));
+        engine.selfHeal(player);
+        assertFalse(engine.dropIfRunEnded(player, quest), "its run is over, but a finished quest is no run's progress");
+        clock.set(FakeRuns.at("2026-10-10T12:00:00Z"));
+        engine.selfHeal(player);
+        engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 1);
+        assertEquals(QuestStatus.COMPLETED_UNCLAIMED, store.status(player, quest.id()),
+                "another run is going on, and the reward is still owed");
+        assertTrue(engine.claim(player, quest), "so the player collects it");
+        assertEquals(QuestStatus.COMPLETED, store.status(player, quest.id()));
+        assertEquals(1, store.completions(player, quest.id()).totalCount(), "one finish, counted once");
+    }
+
+    // Review Focus 2: a run forced on before its own days is the run the quest was taken in, so the quest is kept
+    // while that run is the live one, and between runs while its own days are still ahead.
+    @Test
+    void aQuestThatDoesNotCarryTakenInARunForcedBeforeItsDaysIsKeptWhileThatRunIsLive() {
+        runs.run(2026, 1, "2026-10-03", "2026-10-03").run(2026, 2, "2026-10-10", "2026-10-10");
+        Quest quest = weekly(3);
+        QuestEngine engine = engine(quest);
+        runs.force(true);
+        clock.set(FakeRuns.at("2026-10-05T12:00:00Z"));
+        assertTrue(engine.accept(player, quest));
+        engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 1);
+        assertEquals(new PerRuns.RunKey(2026, 2), QuestProgressPayload.takenIn(store.progressPayload(player, quest.id())),
+                "forced on, it is the year's next run, its days still ahead");
+
+        clock.set(FakeRuns.at("2026-10-07T12:00:00Z"));
+        engine.selfHeal(player);
+        assertEquals(QuestStatus.ACTIVE, store.status(player, quest.id()), "kept while the forced run is live");
+        assertEquals(1, engine.logSlotsUsed(player), "and still in the log");
+
+        runs.force(null);
+        clock.set(FakeRuns.at("2026-10-08T12:00:00Z"));
+        engine.selfHeal(player);
+        assertEquals(QuestStatus.ACTIVE, store.status(player, quest.id()), "between runs, its own days still ahead");
+
+        clock.set(FakeRuns.at("2026-10-10T12:00:00Z"));
+        engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 1);
+        assertEquals(2, engine.progressOf(player, quest.id(), "logs").current(),
+                "and when those days come it is the same run, still counting");
+
+        clock.set(FakeRuns.at("2026-10-12T12:00:00Z"));
+        engine.selfHeal(player);
+        assertEquals(QuestStatus.NOT_STARTED, store.status(player, quest.id()), "once that run is over, it is dropped");
+    }
+
+    // M284: the moment its run is over, a quest that does not carry over leaves the tracker, the log's slot count
+    // and the pin cap, as a frozen quest does, though no drop point has run; only the drop clears its progress and pin.
+    @Test
+    void aQuestThatDoesNotCarryLeavesTheTrackerAndTheLogTheMomentItsRunIsOver() {
+        runs.run(2026, 1, "2026-10-03", "2026-10-03").run(2026, 2, "2026-10-10", "2026-10-10");
+        Quest weekly = weekly(3);
+        Quest carried = onceARun(1, 3, 0);
+        Quest errand = Quest.builder("q_errand")
+                .objective(ObjectiveDef.builder("stone", "BREAK_BLOCK")
+                        .target("Stone").matchMode(MatchMode.EXACT).amount(1).build())
+                .build();
+        QuestEngine engine = QuestEngine.builder()
+                .store(store)
+                .rewardKinds(new RewardKindRegistry())
+                .clock(clock::get)
+                .nativeEvents(false)
+                .warn(message -> { })
+                .maxTracked(2)
+                .build();
+        engine.setQuests(List.of(weekly, carried, errand));
+        clock.set(FakeRuns.at("2026-10-03T12:00:00Z"));
+        assertTrue(engine.accept(player, weekly));
+        assertTrue(engine.accept(player, carried));
+        engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 1);
+        assertTrue(engine.track(player, weekly.id()));
+        assertTrue(engine.track(player, carried.id()));
+        assertEquals(2, engine.logSlotsUsed(player));
+
+        // The next run is going on, and nothing has read the weekly quest since its own run ended.
+        clock.set(FakeRuns.at("2026-10-10T12:00:00Z"));
+        assertEquals(List.of(carried.id()), engine.trackedActive(player).stream().map(Quest::id).toList(),
+                "last run's quest is off the tracker; the carried one is on it");
+        assertEquals(1, engine.logSlotsUsed(player), "it takes no log slot; the carried one still does");
+        assertTrue(engine.accept(player, errand));
+        assertTrue(engine.track(player, errand.id()), "nor a pin slot: a second pin fits under a cap of two");
+        assertEquals(Set.of(carried.id(), errand.id()),
+                Set.copyOf(engine.trackedActive(player).stream().map(Quest::id).toList()));
+
+        assertEquals(QuestStatus.ACTIVE, store.status(player, weekly.id()), "a read writes nothing: still carried");
+        assertEquals(1, QuestProgressPayload.deserialize(store.progressPayload(player, weekly.id())).get("logs").current(),
+                "with its progress");
+        assertTrue(engine.tracked(player).contains(weekly.id()), "and its pin");
+
+        engine.selfHeal(player);
+        assertEquals(QuestStatus.NOT_STARTED, store.status(player, weekly.id()), "a drop point clears it");
+        assertFalse(engine.tracked(player).contains(weekly.id()));
+        assertEquals(QuestStatus.ACTIVE, store.status(player, carried.id()), "and leaves the carried one alone");
     }
 
     // M287: several runs a year. A run is (event, year, number), and each run is its own once.
