@@ -343,7 +343,16 @@ public final class AchievementReader {
         if (lines.isEmpty()) {
             return null;
         }
-        return new DetailBlock("needs", text("book.achievements.block.needs"), KitText.count(met, lines.size()), lines);
+        // A grouped capstone counts groups (seasons), never the copies listed under it.
+        Message count = a.metaGroups().isEmpty() ? KitText.count(met, lines.size()) : groupCount(a);
+        return new DetailBlock("needs", text("book.achievements.block.needs"), count, lines);
+    }
+
+    /** A grouped capstone's count: groups earned of groups needed, the engine's own tally, full once earned. */
+    @Nonnull
+    private Message groupCount(@Nonnull Achievement a) {
+        AchievementEngine.CriterionTally tally = engine.tally(subject, a);
+        return KitText.count(unlocked(a) ? tally.total() : tally.completed(), tally.total());
     }
 
     /** Part of: the capstones this one feeds. */
@@ -805,7 +814,12 @@ public final class AchievementReader {
         return out;
     }
 
-    /** A capstone's children the player may see ({@link AchievementShelves#listsAsCapstoneChild}). */
+    /**
+     * A capstone's children the player may see ({@link AchievementShelves#listsAsCapstoneChild}): the Needs
+     * block's lines, and a plain capstone's count. A grouped capstone's count is never read from this list,
+     * which holds every copy standing for a group (two years of one season are two children): {@link #aggregate}
+     * and the Needs block read it from {@code AchievementEngine.tally}, which counts groups.
+     */
     @Nonnull
     List<Achievement> listedChildren(@Nonnull Achievement capstone) {
         List<Achievement> out = new ArrayList<>();
@@ -847,6 +861,12 @@ public final class AchievementReader {
     Aggregate aggregate(@Nonnull Achievement a) {
         boolean unlocked = unlocked(a);
         if (a.isMeta()) {
+            if (!a.metaGroups().isEmpty()) {
+                // Groups, not copies: the engine's tally is what earns it, so it is what the row reads.
+                AchievementEngine.CriterionTally tally = engine.tally(subject, a);
+                long total = tally.total();
+                return new Aggregate(unlocked ? total : Math.min(tally.completed(), total), total, true);
+            }
             List<Achievement> children = listedChildren(a);
             long met = 0;
             for (Achievement child : children) {
