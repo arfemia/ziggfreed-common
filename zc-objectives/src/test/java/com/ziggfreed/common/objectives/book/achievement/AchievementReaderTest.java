@@ -16,6 +16,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -269,15 +270,16 @@ class AchievementReaderTest {
         DetailBlock needs = block(reader.page(ladder), "needs");
         assertNotNull(needs);
         assertEquals("1 / 2", read(needs.meta()), "the Needs count reads seasons too, whatever it lists");
-        assertEquals(List.of("hallowed_2025", "hallowed_2026", "feast_2026"), selectIds(needs),
-                "the lines still list each copy the player may see: only the count reads seasons");
-        assertEquals(List.of(Tick.DONE, Tick.DONE, Tick.AHEAD), ticks(needs));
 
         Achievement plain = f.add(Achievement.builder("every_copy").category("seasons")
                 .metaChildren(List.of("hallowed_2025", "hallowed_2026", "feast_2026")), "Every Copy");
         AchievementReader again = f.reader();
         assertEquals("2 / 3 steps", read(again.row(plain).meta()), "a plain capstone counts the children it lists");
-        assertEquals("2 / 3", read(block(again.page(plain), "needs").meta()));
+        DetailBlock plainNeeds = block(again.page(plain), "needs");
+        assertNotNull(plainNeeds);
+        assertEquals("2 / 3", read(plainNeeds.meta()));
+        assertEquals(List.of("hallowed_2025", "hallowed_2026", "feast_2026"), selectIds(plainNeeds),
+                "a plain capstone lists every child the player may see, as before");
         DetailBlock partOf = block(again.page(h2025), "part_of");
         assertNotNull(partOf);
         assertEquals(List.of("every_copy", "two_seasons"), selectIds(partOf));
@@ -286,6 +288,55 @@ class AchievementReaderTest {
 
         f.earn(ladder, NOW);
         assertEquals("2 / 2", read(block(f.reader().page(ladder), "needs").meta()), "earned, it reads full");
+    }
+
+    @Test
+    void aGroupedCapstoneListsEachSeasonOnceByItsNewestKeepsakeTickedForAnyYear() {
+        Achievement h2025 = f.add(copy("hallowed", "hallows_eve", 2025), "Hallowed 2025");
+        f.add(copy("hallowed", "hallows_eve", 2026), "Hallowed 2026");
+        f.add(copy("feast", "harvest_feast", 2025).available(false), "Feast 2025");
+        f.add(copy("feast", "harvest_feast", 2026).available(false), "Feast 2026");
+        f.add(copy("feast", "harvest_feast", 2027).available(false), "Feast 2027");
+        Achievement ladder = f.add(Achievement.builder("two_seasons").category("seasons")
+                .metaGroups(List.of(
+                        new Achievement.MetaGroup("hallows_eve", List.of("hallowed_2025", "hallowed_2026"), () -> true),
+                        new Achievement.MetaGroup("harvest_feast", List.of("feast_2025", "feast_2026", "feast_2027"),
+                                () -> true))), "Two Seasons");
+        f.earn(h2025, NOW - 300 * DAY);
+        f.calendar = yearIn("harvest_feast", 2026);
+
+        DetailBlock needs = block(f.reader().page(ladder), "needs");
+        assertNotNull(needs);
+        assertEquals(List.of("hallowed_2026", "feast_2026"), selectIds(needs),
+                "each season once, by its newest keepsake; between runs, the newest whose year has come");
+        assertEquals(List.of(Tick.DONE, Tick.AHEAD), ticks(needs), "last year's keepsake ticks its season");
+        assertEquals("1 / 2", read(needs.meta()), "a line per season in the count, so the lines match it");
+    }
+
+    @Test
+    void aSeasonSwitchedOffHasNoNeedsLineAsItHasNoPlaceInTheCount() {
+        f.add(copy("hallowed", "hallows_eve", 2026), "Hallowed 2026");
+        Achievement feast = f.add(copy("feast", "harvest_feast", 2026), "Feast 2026");
+        AtomicBoolean feastOn = new AtomicBoolean(true);
+        Achievement every = f.add(Achievement.builder("every_season").category("seasons")
+                .metaGroups(List.of(
+                        new Achievement.MetaGroup("hallows_eve", List.of("hallowed_2026"), () -> true),
+                        new Achievement.MetaGroup("harvest_feast", List.of("feast_2026"), feastOn::get))),
+                "Every Season");
+        f.earn(feast, NOW - DAY);
+
+        DetailBlock on = block(f.reader().page(every), "needs");
+        assertNotNull(on);
+        assertEquals(List.of("hallowed_2026", "feast_2026"), selectIds(on));
+        assertEquals("1 / 2", read(on.meta()));
+
+        feastOn.set(false);
+        AchievementReader reader = f.reader();
+        DetailBlock off = block(reader.page(every), "needs");
+        assertNotNull(off);
+        assertEquals(List.of("hallowed_2026"), selectIds(off), "switched off, it leaves the list as the count");
+        assertEquals("0 / 1", read(off.meta()));
+        assertEquals("Done", read(reader.row(feast).state()), "nothing is lost: the keepsake itself stays earned");
     }
 
     @Test
@@ -475,5 +526,40 @@ class AchievementReaderTest {
                 return id.equals(eventId) ? List.of(run) : List.of();
             }
         };
+    }
+
+    /** A calendar on which {@code eventId} is in {@code year} between runs; any other event is unknown. */
+    @Nonnull
+    private static OccurrenceSource yearIn(@Nonnull String eventId, int year) {
+        return new OccurrenceSource() {
+            @Override
+            public boolean isEnabled(@Nonnull String id) {
+                return id.equals(eventId);
+            }
+
+            @Nullable
+            @Override
+            public Occurrence live(@Nonnull String id, long nowMs) {
+                return null;
+            }
+
+            @Nonnull
+            @Override
+            public List<Occurrence> history(@Nonnull String id, long nowMs) {
+                return List.of();
+            }
+
+            @Nullable
+            @Override
+            public Integer currentYear(@Nonnull String id, long nowMs) {
+                return id.equals(eventId) ? Integer.valueOf(year) : null;
+            }
+        };
+    }
+
+    /** The {@code year} copy of {@code base}, minted for {@code event} and filed under that season. */
+    @Nonnull
+    private static Achievement.Builder copy(@Nonnull String base, @Nonnull String event, int year) {
+        return ach(base + "_" + year, "seasons", event, 1).occurrence(new Achievement.Occurrence(event, year, base));
     }
 }

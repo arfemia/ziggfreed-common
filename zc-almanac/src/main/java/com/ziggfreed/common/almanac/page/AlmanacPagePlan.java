@@ -271,8 +271,12 @@ record AlmanacPagePlan(@Nonnull LedgerModel seasons, @Nullable String selected, 
         List<YearChoice> out = new ArrayList<>();
         for (YearChip chip : chips) {
             String year = String.valueOf(chip.year());
-            // A year is a label, never a quantity: passed as text so no locale groups it.
-            out.add(new YearChoice(AlmanacText.line("year", year), year,
+            // A year is a label, never a quantity: passed as text so no locale groups it. Two or more runs attended in
+            // one year (an event that comes round several times a year) are counted on the chip.
+            Message label = chip.runsAttended() >= 2
+                    ? AlmanacText.line("year.runs", year, (long) chip.runsAttended())
+                    : AlmanacText.line("year", year);
+            out.add(new YearChoice(label, year,
                     !scope.every() && scope.year() == chip.year(), chip.tookPart(), chip.live()));
         }
         out.add(new YearChoice(AlmanacText.line("scope.every"), AlmanacEventData.EVERY, scope.every(), false, false));
