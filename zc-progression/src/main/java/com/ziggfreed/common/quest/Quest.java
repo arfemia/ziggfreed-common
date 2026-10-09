@@ -140,10 +140,15 @@ public final class Quest {
          * several times a year is that many runs, and a run forced on, a run whose days an owner moved and a
          * run crossing the new year each count as the one run they are ({@link PerRuns}).
          *
+         * <p>{@code carry}: an unfinished quest keeps its progress to the next run (the default), or, false,
+         * starts afresh each run: it is dropped on the first read after the run it was taken in is over
+         * ({@code QuestEngine.dropIfRunEnded}).
+         *
          * @param event the calendar event's id, as its file names it
          * @param times how many finishes one run allows; at least 1
+         * @param carry whether an unfinished quest carries its progress to the event's next run
          */
-        public record PerRun(@Nonnull String event, int times) {
+        public record PerRun(@Nonnull String event, int times, boolean carry) {
 
             public PerRun {
                 if (event == null || event.isBlank()) {
@@ -151,6 +156,11 @@ public final class Quest {
                 }
                 event = event.trim();
                 times = Math.max(1, times);
+            }
+
+            /** A rule that carries an unfinished quest's progress to the next run. */
+            public PerRun(@Nonnull String event, int times) {
+                this(event, times, true);
             }
         }
 

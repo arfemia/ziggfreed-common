@@ -16,7 +16,9 @@ import com.ziggfreed.common.progress.ObjectiveProgressState;
  *
  * <p>The format is {@code base64("objId:current/required,objId:current/required,...")}, optionally
  * followed by {@code "|@site=<siteId>"} - the place the quest was taken from, for a quest that must
- * be brought back to it. Three characters are therefore RESERVED inside an objective id -
+ * be brought back to it - and {@code "|@run=<year>#<number>"}, the run a once-a-run quest that does
+ * not carry over was taken in; each header segment is read by its name. Three characters are
+ * therefore RESERVED inside an objective id -
  * {@code ,} {@code :} and (by the store's own convention) the record separators it may add - which is
  * exactly what {@link QuestProgressStore#usesReservedDelimiter} exists to reject at content-load
  * time. Authoring an id containing one silently truncates that objective's progress on the next
@@ -40,6 +42,9 @@ public final class QuestProgressPayload {
     /** Names the header segment carrying the accepted-at site. */
     private static final String SITE_PREFIX = "@site=";
 
+    /** Names the header segment carrying the run a non-carrying once-a-run quest was taken in. */
+    private static final String RUN_PREFIX = "@run=";
+
     private QuestProgressPayload() {
     }
 
@@ -52,11 +57,22 @@ public final class QuestProgressPayload {
     /**
      * Pack the map together with the site the quest was accepted at. A null, blank, or unrecordable
      * site is simply left out, so the result is byte-identical to {@link #serialize(Map)} whenever
-     * there is no site to carry.
+     * there is no site to carry. {@link #serialize(Map, String, PerRuns.RunKey)} with no run.
      */
     @Nonnull
     public static String serialize(@Nullable Map<String, ObjectiveProgressState> progress,
                                    @Nullable String acceptSite) {
+        return serialize(progress, acceptSite, null);
+    }
+
+    /**
+     * Pack the map with the site the quest was accepted at and the run it was taken in (a once-a-run quest whose
+     * progress does not carry over). Each is left out when absent, so a payload with neither is byte-identical to
+     * {@link #serialize(Map)}.
+     */
+    @Nonnull
+    public static String serialize(@Nullable Map<String, ObjectiveProgressState> progress,
+                                   @Nullable String acceptSite, @Nullable PerRuns.RunKey takenIn) {
         StringBuilder sb = new StringBuilder();
         if (progress != null) {
             for (Map.Entry<String, ObjectiveProgressState> entry : progress.entrySet()) {
@@ -68,6 +84,9 @@ public final class QuestProgressPayload {
         }
         if (isRecordableSite(acceptSite)) {
             sb.append(HEADER_SEPARATOR).append(SITE_PREFIX).append(acceptSite.trim());
+        }
+        if (takenIn != null) {
+            sb.append(HEADER_SEPARATOR).append(RUN_PREFIX).append(takenIn.year()).append('#').append(takenIn.number());
         }
         if (sb.length() == 0) {
             return "";
@@ -121,20 +140,42 @@ public final class QuestProgressPayload {
      */
     @Nullable
     public static String acceptSite(@Nullable String payload) {
-        String decoded = decode(payload);
-        if (decoded == null) {
+        String site = header(payload, SITE_PREFIX);
+        return site == null || site.isEmpty() ? null : site;
+    }
+
+    /**
+     * The run a non-carrying once-a-run quest was taken in, or null when the payload names none: every payload of
+     * a quest that carries over, and every one written before the stamp existed.
+     */
+    @Nullable
+    public static PerRuns.RunKey takenIn(@Nullable String payload) {
+        String run = header(payload, RUN_PREFIX);
+        int mark = run == null ? -1 : run.indexOf('#');
+        if (mark <= 0) {
             return null;
         }
-        int separator = decoded.indexOf(HEADER_SEPARATOR);
+        try {
+            return new PerRuns.RunKey(Integer.parseInt(run.substring(0, mark)), Integer.parseInt(run.substring(mark + 1)));
+        } catch (NumberFormatException unreadable) {
+            return null;
+        }
+    }
+
+    /** The trimmed value of the header segment named {@code prefix}, or null when the payload carries none. */
+    @Nullable
+    private static String header(@Nullable String payload, @Nonnull String prefix) {
+        String decoded = decode(payload);
+        int separator = decoded == null ? -1 : decoded.indexOf(HEADER_SEPARATOR);
         if (separator < 0) {
             return null;
         }
-        String header = decoded.substring(separator + 1);
-        if (!header.startsWith(SITE_PREFIX)) {
-            return null;
+        for (String segment : decoded.substring(separator + 1).split("\\" + HEADER_SEPARATOR)) {
+            if (segment.startsWith(prefix)) {
+                return segment.substring(prefix.length()).trim();
+            }
         }
-        String site = header.substring(SITE_PREFIX.length()).trim();
-        return site.isEmpty() ? null : site;
+        return null;
     }
 
     /** The decoded text, or null when there is nothing readable to work with. */
