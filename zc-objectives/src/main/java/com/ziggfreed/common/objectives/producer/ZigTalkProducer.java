@@ -82,10 +82,13 @@ public final class ZigTalkProducer {
 
     /**
      * The sink {@link TalkCredits} calls. It runs inside that engine's per-sink guard, which records a
-     * throw against this registration and keeps the conversation's event firing.
+     * throw against this registration and keeps the conversation's event firing. Each alias claims its
+     * window under the beat's qualifier, as the primary did, so an unqualified credit never swallows a
+     * qualified line's alias inside the window.
      */
     static void credit(@Nonnull TalkCredit credit) {
-        fanOut(credit, playerIdOf(credit), TalkCredits::claim, DISPATCH);
+        fanOut(credit, playerIdOf(credit), (player, alias) -> TalkCredits.claim(player, alias, credit.qualifier()),
+                DISPATCH);
     }
 
     /**
