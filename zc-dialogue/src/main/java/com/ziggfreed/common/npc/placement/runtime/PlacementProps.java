@@ -18,12 +18,12 @@ import org.joml.Vector3d;
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.codec.Vec3;
 import com.ziggfreed.common.entity.ItemPropEntityService;
 import com.ziggfreed.common.inventory.ItemIds;
+import com.ziggfreed.common.npc.NpcSpawnService;
 import com.ziggfreed.common.npc.placement.anchor.AnchorPosition;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementAsset;
 import com.ziggfreed.common.util.SafeLog;
@@ -170,14 +170,6 @@ final class PlacementProps {
         }
     }
 
-    /**
-     * An authored yaw in degrees as the engine turns an entity: in radians, the way its own spawn effects
-     * convert ({@code Math.toRadians}), so 90 is a quarter turn. PURE.
-     */
-    static float yawRadians(float degrees) {
-        return (float) Math.toRadians(degrees);
-    }
-
     // ==================== the book: what one world has drawn ====================
 
     /**
@@ -288,6 +280,22 @@ final class PlacementProps {
             return false;
         }
 
+        /** How many of {@code placementId}'s entries stand now, across its instances. */
+        synchronized int standing(@Nonnull String placementId, @Nonnull Predicate<H> standing) {
+            int count = 0;
+            for (Instance<H> instance : instances.values()) {
+                if (!instance.placementId().equalsIgnoreCase(placementId)) {
+                    continue;
+                }
+                for (Drawn<H> d : instance.drawn().values()) {
+                    if (d.handle() != null && standingSafely(standing, d.handle())) {
+                        count++;
+                    }
+                }
+            }
+            return count;
+        }
+
         /** Whether this book holds nothing at all. */
         synchronized boolean isEmpty() {
             return instances.isEmpty();
@@ -396,6 +404,12 @@ final class PlacementProps {
         return book != null && book.wantsSection(section, Ref::isValid);
     }
 
+    /** How many of {@code placementId}'s props stand in {@code worldName} now. Never throws. */
+    static int standingCount(@Nonnull String worldName, @Nonnull String placementId) {
+        Book<Ref<EntityStore>> book = BOOKS.get(worldName);
+        return book == null ? 0 : book.standing(placementId, Ref::isValid);
+    }
+
     /** Forget a removed world's props: they went with its entities. */
     static void forgetWorld(@Nonnull String worldName) {
         BOOKS.remove(worldName);
@@ -432,9 +446,11 @@ final class PlacementProps {
         @Nullable
         @Override
         public Ref<EntityStore> draw(@Nonnull Spot spot) {
+            // The spot's Yaw is authored degrees; the NPC spawn path's one conversion turns it into the
+            // engine's radians here, where the entity is built.
             Holder<EntityStore> holder = ItemPropEntityService.buildHolder(store, spot.item(),
                     new Vector3d(spot.x(), spot.y(), spot.z()),
-                    new Rotation3f(0.0f, yawRadians(spot.yaw()), 0.0f), spot.scale(),
+                    NpcSpawnService.spawnRotation(spot.yaw()), spot.scale(),
                     ItemPropEntityService.Options.DEFAULT.withIntangible());
             return holder == null ? null : ItemPropEntityService.spawn(store, holder);
         }

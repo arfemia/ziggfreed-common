@@ -51,7 +51,8 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p><b>The rows answer the question the command answers</b>, off the same reads: every placement
  * whose {@code Where} matches this world, its gate verdict, and how many of it the ledger says are
- * standing. A row that is denied says so with the gate's own reason rather than painting as merely
+ * standing (for a placement drawing only props, which writes no row, how many of its props stand).
+ * A row that is denied says so with the gate's own reason rather than painting as merely
  * off, because "an admin switched this off" and "its requirements are not met" are different facts
  * and only one of them is the admin's to change here.
  *
@@ -185,9 +186,13 @@ public final class NpcPlacementAdminPage extends ToastablePage<NpcPlacementAdmin
         cmd.set(rowSel + " #Title.TextSpans", msg("page.row.title", id, roleOf(placement)));
 
         PlacementGate.GateVerdict verdict = verdictFor(placement, world, store);
-        long standing = ledger.rowsInWorld(worldName).stream()
-                .filter(row -> row.placementId().equalsIgnoreCase(id))
-                .count();
+        // A placement drawing only props writes no ledger row, so its standing props are its count.
+        boolean propOnly = placement.hasProps() && NpcPlacementService.roleFor(placement) == null;
+        long standing = propOnly
+                ? NpcPlacementService.standingProps(worldName, id)
+                : ledger.rowsInWorld(worldName).stream()
+                        .filter(row -> row.placementId().equalsIgnoreCase(id))
+                        .count();
 
         cmd.set(rowSel + " #Hint.TextSpans", hintFor(verdict, standing));
         cmd.set(rowSel + " #Hint.Visible", true);
@@ -387,7 +392,7 @@ public final class NpcPlacementAdminPage extends ToastablePage<NpcPlacementAdmin
                 NpcPlacementAuthoring.round(position.x(), 2),
                 NpcPlacementAuthoring.round(position.y(), 2),
                 NpcPlacementAuthoring.round(position.z(), 2),
-                NpcPlacementAuthoring.round(NpcPlacementAuthoring.yawDegrees(transform.getRotation().yaw()), 1));
+                NpcPlacementAuthoring.capturedYaw(transform.getRotation()));
 
         switch (result.outcome()) {
             case PLACED -> showToast(ToastKind.SUCCESS,

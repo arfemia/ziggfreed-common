@@ -64,6 +64,12 @@ public final class NpcPlacementValidator {
     public static final String PROP_NO_ITEM = "PROP_NO_ITEM";
 
     /**
+     * A placement naming no role (it draws only its props) that authors fields only an NPC reads:
+     * a WARNING naming them, since they do nothing there.
+     */
+    public static final String PROPS_ONLY_NPC_FIELDS = "PROPS_ONLY_NPC_FIELDS";
+
+    /**
      * How the prop-item check reads this server's items: true for an id it has, false for one it does
      * not, null when it cannot tell (no items loaded yet, or a JVM with no asset store).
      */
@@ -146,6 +152,7 @@ public final class NpcPlacementValidator {
         checkLimits(placement, id, out);
         checkInteractForms(placement, id, out);
         checkPropsShape(placement, id, out);
+        checkPropsOnlyNpcFields(placement, id, out);
     }
 
     private static void validateCrossAsset(@Nonnull NpcPlacementAsset placement, @Nonnull String id,
@@ -200,6 +207,42 @@ public final class NpcPlacementValidator {
                         "Props entry " + (i + 1) + " names no Item, so it draws nothing", id));
             }
         }
+    }
+
+    /**
+     * A placement naming no role stands no NPC and draws only its props, so whatever it authors for an NPC
+     * ({@code Lifecycle}, {@code Interact}, {@code Identity.NpcId}, {@code Identity.Aliases}) is silently
+     * ignored. A WARNING naming each one authored: the props still draw and the file loads.
+     */
+    private static void checkPropsOnlyNpcFields(@Nonnull NpcPlacementAsset placement, @Nonnull String id,
+            @Nonnull List<Finding> out) {
+        if (!placement.hasProps()) {
+            return; // No props and no role is NO_IDENTITY or NO_ROLE, from checkIdentityShape.
+        }
+        NpcPlacementAsset.Identity identity = placement.getIdentity();
+        if (identity != null && identity.namesRole()) {
+            return; // With a role these fields are its NPC's own.
+        }
+        List<String> idle = new ArrayList<>();
+        if (placement.getLifecycle() != null) {
+            idle.add("Lifecycle");
+        }
+        if (placement.getInteract() != null) {
+            idle.add("Interact");
+        }
+        if (identity != null && trimToNull(identity.getNpcId()) != null) {
+            idle.add("Identity.NpcId");
+        }
+        if (identity != null && !NpcPlacementAsset.isAllBlank(identity.getAliases())) {
+            idle.add("Identity.Aliases");
+        }
+        if (idle.isEmpty()) {
+            return;
+        }
+        out.add(Finding.warning(DOMAIN, PROPS_ONLY_NPC_FIELDS,
+                "names no Identity.Role, so it stands no NPC and draws only its Props, and these fields only an "
+                        + "NPC reads do nothing: " + String.join(", ", idle) + ". Name the Role they are for, or "
+                        + "remove them", id));
     }
 
     /**
