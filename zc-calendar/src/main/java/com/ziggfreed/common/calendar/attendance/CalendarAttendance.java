@@ -24,8 +24,8 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * A player is present for a run when they enter a world while it runs ({@code PlayerReadyEvent}) or are
- * online when it really begins (a tick's non-resumed start). Each is credited once per run on the player's
- * own world thread: the record is written, {@code CalendarAttendedEvent} fires for each run at once, and the
+ * online when it really begins (a tick's non-resumed start). Each is credited once per run (each run of a
+ * year, by its number) on the player's own world thread: the record is written, {@code CalendarAttendedEvent} fires for each run at once, and the
  * runs' start banners show, queued a gap apart ({@link CalendarHerald#showStarts}). A boot catch-up credits
  * nobody, since nobody was here.
  */
@@ -51,7 +51,7 @@ public final class CalendarAttendance {
     static List<Occurrence> credit(@Nonnull CalendarAttendanceComponent record, @Nonnull Collection<Occurrence> runs) {
         List<Occurrence> fresh = new ArrayList<>();
         for (Occurrence run : runs) {
-            if (record.markAttended(run.eventId(), run.year())) {
+            if (record.markAttended(run.eventId(), run.year(), run.number())) {
                 fresh.add(run);
             }
         }

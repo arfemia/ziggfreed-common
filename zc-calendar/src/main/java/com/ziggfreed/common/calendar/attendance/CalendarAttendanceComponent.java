@@ -25,9 +25,11 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * Which runs of which calendar events a player has been on the server for, persisted on the player: the
  * record that makes attendance count once per run and the start banner show once per run, and the
- * per-player history an almanac or a cross-event achievement reads ({@link #yearsAttended}).
+ * per-player history an almanac or a cross-event achievement reads ({@link #yearsAttended} and
+ * {@link #runsAttended}).
  *
- * <p>Saved as one {@code |}-joined string of {@code <eventid>@<year>} entries, sorted so a save is stable.
+ * <p>Saved as one {@code |}-joined string of entries, sorted so a save is stable: {@code <eventid>@<year>} for a
+ * year's first run (the form every older save holds) and {@code <eventid>@<year>#<n>} for its later runs.
  * An event id carrying {@code |} or {@code @} is refused, since the format reserves both. Registered at
  * library setup, BEFORE any world loads, and attached to every player on connect; a consumer PEEKS it
  * ({@link #TYPE} may be null when registration failed) and reads a missing component as no attendance.
@@ -42,7 +44,10 @@ public class CalendarAttendanceComponent implements Component<EntityStore> {
 
     public static final BuilderCodec<CalendarAttendanceComponent> CODEC;
 
-    /** {@code <eventid>@<year>} for every run attended. */
+    /** Joins a later run's number to its year in a saved entry. */
+    private static final String RUN_MARK = "#";
+
+    /** {@code <eventid>@<year>} or {@code <eventid>@<year>#<n>} for every run attended. */
     private final Set<String> attended = ConcurrentHashMap.newKeySet();
 
     static {
@@ -65,40 +70,77 @@ public class CalendarAttendanceComponent implements Component<EntityStore> {
         return eventId == null || eventId.isBlank() || CalendarEventAsset.carriesAttendanceSeparator(eventId);
     }
 
+    /** Did the player attend any run of {@code eventId} that began in {@code year}? */
     public boolean hasAttended(@Nullable String eventId, int year) {
-        return !usesReservedCharacter(eventId) && attended.contains(entry(eventId, year));
+        return runsAttended(eventId, year) > 0;
     }
 
-    /** Record the run; true when it is new. An id the save format cannot hold is refused with one warning. */
+    /** Did the player attend run {@code number} of {@code eventId}'s {@code year}? */
+    public boolean hasAttended(@Nullable String eventId, int year, int number) {
+        return !usesReservedCharacter(eventId) && number >= 1 && attended.contains(entry(eventId, year, number));
+    }
+
+    /** Record the year's first run: what an event that comes round once a year has. */
     public boolean markAttended(@Nullable String eventId, int year) {
+        return markAttended(eventId, year, 1);
+    }
+
+    /** Record run {@code number} of the year; true when it is new. An id the save format cannot hold is refused with one warning. */
+    public boolean markAttended(@Nullable String eventId, int year, int number) {
         if (usesReservedCharacter(eventId)) {
             SafeLog.warn("[calendar] attendance at '" + eventId + "' is not recorded: an event id may not carry"
                     + " '|' or '@', which the per-player save format reserves");
             return false;
         }
-        return attended.add(entry(eventId, year));
+        return number >= 1 && attended.add(entry(eventId, year, number));
     }
 
-    /** The years of {@code eventId}'s runs attended, oldest first. */
+    /** How many runs of {@code eventId} that began in {@code year} the player attended. */
+    public int runsAttended(@Nullable String eventId, int year) {
+        int count = 0;
+        for (int[] run : runs(eventId)) {
+            if (run[0] == year) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /** The years of {@code eventId}'s runs attended, oldest first, each once however many of its runs were. */
     @Nonnull
     public List<Integer> yearsAttended(@Nullable String eventId) {
+        Set<Integer> years = new TreeSet<>();
+        for (int[] run : runs(eventId)) {
+            years.add(run[0]);
+        }
+        return List.copyOf(years);
+    }
+
+    /** Every run of {@code eventId} attended, as {year, number}; a hand-edited entry that is no run is skipped. */
+    @Nonnull
+    private List<int[]> runs(@Nullable String eventId) {
         if (usesReservedCharacter(eventId)) {
             return List.of();
         }
         String prefix = eventId.trim().toLowerCase(Locale.ROOT) + "@";
-        List<Integer> years = new ArrayList<>();
+        List<int[]> out = new ArrayList<>();
         for (String entry : attended) {
             if (!entry.startsWith(prefix)) {
                 continue;
             }
+            String run = entry.substring(prefix.length());
+            int mark = run.indexOf(RUN_MARK);
             try {
-                years.add(Integer.parseInt(entry.substring(prefix.length())));
+                int year = Integer.parseInt(mark < 0 ? run : run.substring(0, mark));
+                int number = mark < 0 ? 1 : Integer.parseInt(run.substring(mark + 1));
+                if (number >= 1) {
+                    out.add(new int[] {year, number});
+                }
             } catch (NumberFormatException ignored) {
-                // A hand-edited save entry that is not a year is skipped rather than guessed at.
+                // A hand-edited save entry that is not a run is skipped rather than guessed at.
             }
         }
-        years.sort(null);
-        return List.copyOf(years);
+        return out;
     }
 
     /** Every event attended at least once, lower-cased and sorted. */
@@ -132,9 +174,11 @@ public class CalendarAttendanceComponent implements Component<EntityStore> {
         }
     }
 
+    /** A run's saved entry: {@code <id>@<year>} for run 1, {@code <id>@<year>#<n>} after. */
     @Nonnull
-    private static String entry(@Nonnull String eventId, int year) {
-        return eventId.trim().toLowerCase(Locale.ROOT) + "@" + year;
+    private static String entry(@Nonnull String eventId, int year, int number) {
+        String run = number == 1 ? Integer.toString(year) : year + RUN_MARK + number;
+        return eventId.trim().toLowerCase(Locale.ROOT) + "@" + run;
     }
 
     /** Register the type with the entity-store registry. Once, at library setup; never throws. */

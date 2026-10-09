@@ -58,4 +58,17 @@ class CalendarTransitionsTest {
         assertEquals(List.of(new CalendarTick.Ended(EVE_2026, false)), tick.ended());
         assertEquals(List.of(new CalendarTick.Started(EVE_2027, false)), tick.started());
     }
+
+    @Test
+    void aYearsNextRunEndsTheOneBeforeAndStartsItselfButMovedDaysAreNoTransition() {
+        Occurrence spring = new Occurrence("two_fairs", 2026, 1, 1_000L, 2_000L);
+        Occurrence autumn = new Occurrence("two_fairs", 2026, 2, 2_000L, 3_000L);
+        CalendarTick tick = CalendarTransitions.diff(Map.of("two_fairs", spring), Map.of("two_fairs", autumn),
+                id -> true, 2_000L, false);
+        assertEquals(List.of(new CalendarTick.Ended(spring, false)), tick.ended(), "back to back, one tick");
+        assertEquals(List.of(new CalendarTick.Started(autumn, false)), tick.started());
+        CalendarTick moved = CalendarTransitions.diff(Map.of("two_fairs", autumn),
+                Map.of("two_fairs", new Occurrence("two_fairs", 2026, 2, 1_500L, 3_500L)), id -> true, 2_100L, false);
+        assertFalse(moved.changed(), "a run whose days moved is the same run: no end, no start");
+    }
 }

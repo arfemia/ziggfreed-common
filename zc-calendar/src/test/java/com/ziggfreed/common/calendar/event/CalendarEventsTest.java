@@ -79,4 +79,19 @@ class CalendarEventsTest {
         assertEquals(2026, attended.year(), "the year the run began in");
         assertEquals(1_200L, attended.firedAtMs());
     }
+
+    @Test
+    void aLaterRunOfAYearCarriesItsNumberOnEveryEvent() {
+        Occurrence autumn = new Occurrence("Two_Fairs", 2026, 2, 3_000L, 4_000L);
+        UUID player = UUID.randomUUID();
+        CalendarEvents.fireStarted(autumn, false, 3_000L);
+        CalendarEvents.fireEnded(autumn, false, 4_000L);
+        CalendarEvents.fireAttended(player, autumn, 3_100L);
+        assertEquals(2, assertInstanceOf(CalendarEventStartedEvent.class, fired.get(0)).number());
+        assertEquals(2, assertInstanceOf(CalendarEventEndedEvent.class, fired.get(1)).number());
+        CalendarAttendedEvent attended = assertInstanceOf(CalendarAttendedEvent.class, fired.get(2));
+        assertEquals(2026, attended.year(), "still the year the run began in");
+        assertEquals(2, attended.number());
+        assertEquals(1, new CalendarAttendedEvent(player, "hallows_eve", 2026, 1L).number(), "the old form is run 1");
+    }
 }
