@@ -89,7 +89,7 @@ public final class NpcAutoSpawn {
      * @param offsetX   X offset added to the resolved world spawn point
      * @param offsetY   Y offset added to the resolved world spawn point
      * @param offsetZ   Z offset added to the resolved world spawn point
-     * @param yaw       the facing yaw for the placed NPC
+     * @param yaw       the facing yaw for the placed NPC, in degrees
      */
     public record AutoSpawnSpec(
             @Nonnull String roleKey,

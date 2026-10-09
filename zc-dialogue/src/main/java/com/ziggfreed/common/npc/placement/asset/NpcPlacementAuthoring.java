@@ -199,6 +199,14 @@ public final class NpcPlacementAuthoring {
         }
     }
 
+    /**
+     * A live entity's yaw (radians, as the engine stores it) as the DEGREES a placement's authored
+     * {@code Yaw} is written in, so a placed-here NPC faces the way it was captured.
+     */
+    public static double yawDegrees(float radians) {
+        return Math.toDegrees(radians);
+    }
+
     /** {@code value} to {@code places} decimals, so the written file reads like something authored. */
     public static double round(double value, int places) {
         double factor = Math.pow(10, places);

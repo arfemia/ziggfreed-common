@@ -62,7 +62,7 @@ public final class NpcSpawnService {
     }
 
     /**
-     * Places {@code role} at {@code position} facing {@code yaw}, invoking
+     * Places {@code role} at {@code position} facing {@code yaw} (DEGREES, as authored), invoking
      * {@code postSpawn} on the world thread with the spawned entity (e.g. to read its
      * {@link UUIDComponent} and record the placement). Returns false (logged) when the
      * role is not registered or the spawn fails.
@@ -77,7 +77,7 @@ public final class NpcSpawnService {
     }
 
     /**
-     * Places {@code role} at {@code position} facing {@code yaw}, with BOTH engine spawn hooks
+     * Places {@code role} at {@code position} facing {@code yaw} (DEGREES, as authored), with BOTH engine spawn hooks
      * exposed: {@code preAdd} runs against the pre-commit {@link Holder} (before the entity enters
      * the store, so an identity component can be attached with no live-ref race) and
      * {@code postSpawn} runs against the committed ref (so the entity's own uuid can be read).
@@ -115,7 +115,7 @@ public final class NpcSpawnService {
             return false;
         }
 
-        Rotation3f rotation = new Rotation3f(0.0f, yaw, 0.0f);
+        Rotation3f rotation = spawnRotation(yaw);
         try {
             var result = npc.spawnEntity(store, idx, position, rotation, null, preAdd, postSpawn);
             if (result == null) {
@@ -127,6 +127,20 @@ public final class NpcSpawnService {
             warn("[NpcSpawn] failed to spawn role '" + role + "': " + e.getMessage());
             return false;
         }
+    }
+
+    /**
+     * Pure: an authored facing in DEGREES (a placement's or anchor's {@code Yaw}) as the radians the
+     * engine reads a {@link Rotation3f} in. The engine's own {@code SpawnNpcEffect} converts the same way.
+     */
+    public static float yawRadians(float degrees) {
+        return (float) Math.toRadians(degrees);
+    }
+
+    /** Pure: the spawn rotation for an authored yaw in degrees (pitch and roll 0). */
+    @Nonnull
+    public static Rotation3f spawnRotation(float yawDegrees) {
+        return new Rotation3f(0.0f, yawRadians(yawDegrees), 0.0f);
     }
 
     /**
