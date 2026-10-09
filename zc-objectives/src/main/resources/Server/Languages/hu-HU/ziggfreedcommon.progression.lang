@@ -193,3 +193,6 @@ book.achievements.state.progress = Folyamatban
 book.achievements.state.collect = Átvehető
 book.achievements.state.feat = Erőpróba
 book.tooltip.unpin = Teljesítmény kitűzésének megszüntetése
+
+# The hover line on the map marker at a character with a quest the player could take; {0} is the quest's title.
+quest.marker.available = Elérhető küldetés: {0}

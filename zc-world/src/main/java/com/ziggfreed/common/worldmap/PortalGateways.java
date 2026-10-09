@@ -58,7 +58,11 @@ public final class PortalGateways {
     private PortalGateways() {
     }
 
-    /** Read the base game's portals into {@link GatewayConfig} once; later calls return at once. Any thread. */
+    /**
+     * Read the base game's portals into {@link GatewayConfig} once; later calls return at once. Any
+     * thread. A caller arriving while the first read runs waits for it, since the flag is set only once
+     * the layer has landed (or the read has failed).
+     */
     public static void ensureDerived() {
         if (derived) {
             return;
@@ -67,7 +71,6 @@ public final class PortalGateways {
             if (derived) {
                 return;
             }
-            derived = true;
             try {
                 Map<String, GatewayAsset> found = derive(scanBlocks(), PortalGateways::readInstance);
                 GatewayConfig.getInstance().loadDefaults(found);
@@ -82,6 +85,8 @@ public final class PortalGateways {
             } catch (Throwable t) {
                 SafeLog.warn("[gateway] the base game's portals could not be read; only gateway files count: "
                         + t.getMessage());
+            } finally {
+                derived = true;
             }
         }
     }

@@ -34,7 +34,6 @@ import com.ziggfreed.common.npc.placement.registry.PlacementGates;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.world.TickingSections;
 import com.ziggfreed.common.world.TickingSections.SectionPos;
-import com.ziggfreed.common.world.WorldSelector;
 
 /**
  * Brings a world into agreement with what the placement content says should be standing in it.
@@ -963,15 +962,11 @@ public final class NpcPlacementReconciler {
 
     /**
      * Does {@code placement}'s {@code Where} match {@code world}? A null or empty {@code Where}
-     * defaults to {@link #DEFAULT_WHERE} at THIS read site (the group itself carries no default,
-     * because a rules table and a placement want different ones).
+     * defaults to {@code Match ["default"]} through {@link PlacementWorlds#effectiveWhere} (the group
+     * itself carries no default, because a rules table and a placement want different ones).
      */
     public static boolean matchesWorld(@Nonnull NpcPlacementAsset placement, @Nullable World world) {
-        var where = placement.getWhere();
-        if (where == null || where.isBlank()) {
-            return DEFAULT_WHERE.match(world) != null;
-        }
-        return where.match(world) != null;
+        return PlacementWorlds.effectiveWhere(placement).match(world) != null;
     }
 
     /**
@@ -981,10 +976,6 @@ public final class NpcPlacementReconciler {
      * layer, the same way any other leaf is overridden.
      */
     public static final String DEFAULT_WORLD_NAME = "default";
-
-    /** The {@code Where} an unauthored one stands in for: an exact match on {@code default}. */
-    private static final WorldSelector DEFAULT_WHERE =
-            WorldSelector.of(new String[]{DEFAULT_WORLD_NAME}, null, null);
 
     private static boolean isResident(@Nonnull Store<EntityStore> store, @Nullable UUID uuid) {
         if (uuid == null) {

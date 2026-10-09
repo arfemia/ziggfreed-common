@@ -193,3 +193,6 @@ book.achievements.state.progress = In corso
 book.achievements.state.collect = Riscuoti
 book.achievements.state.feat = Impresa
 book.tooltip.unpin = Non fissare più questo obiettivo
+
+# The hover line on the map marker at a character with a quest the player could take; {0} is the quest's title.
+quest.marker.available = Missione disponibile: {0}

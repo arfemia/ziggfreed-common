@@ -7,7 +7,9 @@ apply from: "$rootDir/gradle/zc-module.gradle"
 // One PUBLIC signature here re-exports a zc-world type: DialogueCondition.World#getSelector
 // returns a world.WorldSelector. The edge stays `implementation` because nothing depends on this
 // module yet; a future module that depends on zc-dialogue AND calls getSelector must declare its
-// own zc-world edge, or this one becomes `api`.
+// own zc-world edge, or this one becomes `api`. So do `npc/placement/runtime/PlacementWorlds.wheresOf`
+// (a `world.WorldSelector` list) and `positionsOf` (`worldmap.WaypointPosition`); zc-objectives,
+// their one caller, declares its own zc-world edge.
 
 // The quest-aware conversation vocabulary (QuestState / ReadyToTurnIn / Accept / TurnIn) reads
 // through zc-progression's NARROW QuestStateReader seam and nothing else - never QuestEngine, which

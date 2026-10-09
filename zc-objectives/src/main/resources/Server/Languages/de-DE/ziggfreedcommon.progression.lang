@@ -193,3 +193,6 @@ book.achievements.state.progress = In Bearbeitung
 book.achievements.state.collect = Abholen
 book.achievements.state.feat = Heldentat
 book.tooltip.unpin = Diesen Erfolg lösen
+
+# The hover line on the map marker at a character with a quest the player could take; {0} is the quest's title.
+quest.marker.available = Quest verfügbar: {0}

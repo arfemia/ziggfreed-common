@@ -194,3 +194,6 @@ book.achievements.state.progress = В процессе
 book.achievements.state.collect = Получить
 book.achievements.state.feat = Подвиг
 book.tooltip.unpin = Открепить это достижение
+
+# The hover line on the map marker at a character with a quest the player could take; {0} is the quest's title.
+quest.marker.available = Предложен квест: {0}
