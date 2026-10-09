@@ -24,6 +24,7 @@ import com.hypixel.hytale.codec.lookup.CodecMapCodec;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.calendar.AnnualWindow;
 import com.ziggfreed.common.calendar.YearRule;
+import com.ziggfreed.common.occurrence.Occurrence;
 
 /**
  * A Window's {@code Rule}: how each year's runs are worked out, chosen by {@code Type}.
@@ -161,9 +162,16 @@ public final class WindowRules {
             return AnnualWindow.fixed(start, end);
         }
 
-        /** Each span's days, in the order written; null when one is not a pair of real MM-DD days. */
+        /**
+         * Each span's days, in the order written; null when one is not a pair of real MM-DD days, or the list holds
+         * more spans than a run's number can name ({@link Occurrence#MAX_NUMBER}), since each span's run is numbered
+         * by its place.
+         */
         @Nullable
         static List<YearRule.Fixed> days(@Nonnull Span[] runs) {
+            if (runs.length > Occurrence.MAX_NUMBER) {
+                return null;
+            }
             List<YearRule.Fixed> out = new ArrayList<>();
             for (Span span : runs) {
                 YearRule.Fixed days = span == null ? null : span.toFixed();
@@ -201,7 +209,8 @@ public final class WindowRules {
                         + "{\"Start\": \"09-20\", \"End\": \"09-26\"}]. Wins over Start and End. Each run is numbered "
                         + "by its place in the list (the first is run 1) wherever its days move, so add a new run at "
                         + "the end to keep the others' numbers. Runs of one event never overlap: of two that meet, the "
-                        + "one written first is kept and the other is set aside, its number given to no other run.")
+                        + "one written first is kept and the other is set aside, its number given to no other run. At "
+                        + "most " + Occurrence.MAX_NUMBER + " spans; a longer list cannot be read.")
                 .add()
                 .build();
 
@@ -502,7 +511,8 @@ public final class WindowRules {
                         (o, v) -> o.runs = v, o -> o.runs, (o, p) -> o.runs = p.runs)
                 .documentation("That year's runs when it has several, one span each, numbered by their place in "
                         + "the list (the first is run 1); wins over Start and End. An empty list means the event does "
-                        + "not run that year.").add()
+                        + "not run that year. At most " + Occurrence.MAX_NUMBER + " spans; a longer list cannot be "
+                        + "read.").add()
                 .appendInherited(new KeyedCodec<>("Skip", Codec.INT_ARRAY, false),
                         (o, v) -> o.skip = v, o -> o.skip, (o, p) -> o.skip = p.skip)
                 .documentation("Run numbers to leave out that year, such as [3, 7]. Written alone, it keeps the runs "

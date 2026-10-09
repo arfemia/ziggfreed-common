@@ -32,6 +32,13 @@ public record Occurrence(@Nonnull String eventId, int year, int number, long sta
     public static final Comparator<Occurrence> IN_ORDER = Comparator.comparingInt(Occurrence::year)
             .thenComparingLong(Occurrence::startMs).thenComparingInt(Occurrence::number);
 
+    /**
+     * The highest number a run takes: a monthly run's month is 1 to 12, a weekly run's calendar week 1 to 54, and
+     * a list of spans holds at most this many (the calendar reads a longer list as no days at all). So a reader
+     * may keep a year's runs as a set of numbers 1 to 54, as a once-a-run quest's record keeps the runs it spent.
+     */
+    public static final int MAX_NUMBER = 54;
+
     public Occurrence {
         if (eventId == null || eventId.isBlank()) {
             throw new IllegalArgumentException("an occurrence names its event");

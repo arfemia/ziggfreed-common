@@ -106,7 +106,8 @@ public interface OccurrenceSource {
      * The run of {@code eventId} that comes after run {@code number} of {@code year} by its dates: that year's
      * next run, else the first run of the next year that has one; forces aside. A number the year does not
      * have is followed from where it would fall. A reader whose player has spent the run {@link #next}
-     * answers (an owner may move a spent run later than now) asks this for the run after the one it counts.
+     * answers (an owner may move a spent run later than now) asks this for the run after it, and so on past
+     * every run the player has spent, to name when they are next offered something.
      * Null when the event is absent or no run is left, and from a source that knows no dates (the default).
      */
     @Nullable

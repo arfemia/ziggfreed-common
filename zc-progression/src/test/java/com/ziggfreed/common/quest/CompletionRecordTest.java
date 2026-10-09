@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.occurrence.Occurrence;
 import com.ziggfreed.common.quest.QuestProgressStore.CompletionRecord;
 
 /**
@@ -79,5 +80,24 @@ class CompletionRecordTest {
                 "a number with no run year is nothing");
         assertEquals(1, new QuestProgressStore.CompletionRecord(5L, 1, 2, 2, 2026, 1, 0).runNumber(), "runs count from 1");
         assertEquals(0, new QuestProgressStore.CompletionRecord(5L, 1, 2, 2).runNumber());
+    }
+
+    @Test
+    void theSpentRunsBelongToTheRunYearAndNeverHoldTheRunCountedNow() {
+        CompletionRecord autumn = new CompletionRecord(5L, 0, 2, 2, 2026, 1, 2, 0b101L);
+        assertTrue(autumn.spentRun(1));
+        assertTrue(autumn.spentRun(3));
+        assertFalse(autumn.spentRun(2), "the run counted now is spent by its own tally, never by the set");
+        assertEquals(0b001L, new CompletionRecord(5L, 0, 2, 2, 2026, 1, 2, 0b011L).spentRuns(),
+                "so a set naming it drops it");
+        assertEquals(0L, new CompletionRecord(5L, 0, 2, 2, null, 0, 2, 0b1L).spentRuns(), "a set with no run year is nothing");
+        assertEquals(0L, new CompletionRecord(5L, 0, 2, 2, 2026, 1, 2).spentRuns(), "the seven-number form spends none");
+        assertEquals(0L, new CompletionRecord(5L, 0, 2, 2, 2026, 1).spentRuns(), "nor does the six-number form");
+
+        CompletionRecord every = new CompletionRecord(5L, 0, 2, 2, 2026, 1, 1, -1L);
+        assertTrue(every.spentRun(Occurrence.MAX_NUMBER));
+        assertFalse(every.spentRun(Occurrence.MAX_NUMBER + 1), "no run takes a number past the highest");
+        assertEquals(Occurrence.MAX_NUMBER - 1, Long.bitCount(every.spentRuns()),
+                "a set holds the year's numbers alone, less the run counted now");
     }
 }
