@@ -16,8 +16,9 @@ import com.ziggfreed.common.progress.ObjectiveProgressState;
  *
  * <p>The format is {@code base64("objId:current/required,objId:current/required,...")}, optionally
  * followed by {@code "|@site=<siteId>"} - the place the quest was taken from, for a quest that must
- * be brought back to it - and {@code "|@run=<year>#<number>"}, the run a once-a-run quest that does
- * not carry over was taken in; each header segment is read by its name. Three characters are
+ * be brought back to it. A once-a-run quest that does not carry over adds one last item to the list,
+ * {@code "@run=<year>#<number>"}, the run it was taken in: {@code "logs:1/3,@run=2026#2|@site=North_Post"}.
+ * That item has no {@code :}, so it is never read as an objective. Three characters are
  * therefore RESERVED inside an objective id -
  * {@code ,} {@code :} and (by the store's own convention) the record separators it may add - which is
  * exactly what {@link QuestProgressStore#usesReservedDelimiter} exists to reject at content-load
@@ -30,9 +31,13 @@ import com.ziggfreed.common.progress.ObjectiveProgressState;
  * site, which is what makes an already-stored blob decode unchanged.
  *
  * <p>Both directions are total: an unreadable payload decodes to an EMPTY map rather than throwing,
- * so a corrupted entry costs one quest's progress and not the player's session. A trailing segment
- * this version does not recognise is skipped rather than treated as progress, which leaves room for
- * a later one to add another.
+ * so a corrupted entry costs one quest's progress and not the player's session.
+ *
+ * <p><b>Anything added later rides in the list as an item with no {@code :}, never as a second
+ * header segment.</b> Every build drops a list item it cannot read as {@code id:progress}, but a build
+ * from before the run stamp reads EVERYTHING after the first {@code |} as the site, so a second segment
+ * would, on a rollback, read as part of the site and strand an at-the-place quest away from its own
+ * place. A payload with no stamp is byte for byte what that build wrote.
  */
 public final class QuestProgressPayload {
 
@@ -42,7 +47,7 @@ public final class QuestProgressPayload {
     /** Names the header segment carrying the accepted-at site. */
     private static final String SITE_PREFIX = "@site=";
 
-    /** Names the header segment carrying the run a non-carrying once-a-run quest was taken in. */
+    /** Names the list item (no {@code :}) carrying the run a non-carrying once-a-run quest was taken in. */
     private static final String RUN_PREFIX = "@run=";
 
     private QuestProgressPayload() {
@@ -68,7 +73,8 @@ public final class QuestProgressPayload {
     /**
      * Pack the map with the site the quest was accepted at and the run it was taken in (a once-a-run quest whose
      * progress does not carry over). Each is left out when absent, so a payload with neither is byte-identical to
-     * {@link #serialize(Map)}.
+     * {@link #serialize(Map)}. The run is the list's last item, before the site's header segment, where a build
+     * from before the stamp drops it and still reads the site clean.
      */
     @Nonnull
     public static String serialize(@Nullable Map<String, ObjectiveProgressState> progress,
@@ -82,11 +88,14 @@ public final class QuestProgressPayload {
                 sb.append(entry.getKey()).append(':').append(entry.getValue().serialize());
             }
         }
+        if (takenIn != null) {
+            if (sb.length() > 0) {
+                sb.append(',');
+            }
+            sb.append(RUN_PREFIX).append(takenIn.year()).append('#').append(takenIn.number());
+        }
         if (isRecordableSite(acceptSite)) {
             sb.append(HEADER_SEPARATOR).append(SITE_PREFIX).append(acceptSite.trim());
-        }
-        if (takenIn != null) {
-            sb.append(HEADER_SEPARATOR).append(RUN_PREFIX).append(takenIn.year()).append('#').append(takenIn.number());
         }
         if (sb.length() == 0) {
             return "";
@@ -115,7 +124,8 @@ public final class QuestProgressPayload {
     /**
      * Unpack a {@link #serialize} payload, preserving authored order. Never throws: bad base64, a
      * pair with no separator, or a garbled count each drop that one entry (or the whole payload for
-     * bad base64) and leave the rest readable.
+     * bad base64) and leave the rest readable. The run stamp is an item with no separator, so it is
+     * never returned as an objective.
      */
     @Nonnull
     public static Map<String, ObjectiveProgressState> deserialize(@Nullable String payload) {
@@ -150,19 +160,33 @@ public final class QuestProgressPayload {
      */
     @Nullable
     public static PerRuns.RunKey takenIn(@Nullable String payload) {
-        String run = header(payload, RUN_PREFIX);
-        int mark = run == null ? -1 : run.indexOf('#');
-        if (mark <= 0) {
+        String decoded = decode(payload);
+        if (decoded == null) {
             return null;
         }
-        try {
-            return new PerRuns.RunKey(Integer.parseInt(run.substring(0, mark)), Integer.parseInt(run.substring(mark + 1)));
-        } catch (NumberFormatException unreadable) {
-            return null;
+        for (String item : entriesOf(decoded).split(",")) {
+            if (!item.startsWith(RUN_PREFIX) || item.indexOf(':') >= 0) {
+                continue;
+            }
+            String run = item.substring(RUN_PREFIX.length()).trim();
+            int mark = run.indexOf('#');
+            if (mark <= 0) {
+                return null;
+            }
+            try {
+                return new PerRuns.RunKey(Integer.parseInt(run.substring(0, mark)),
+                        Integer.parseInt(run.substring(mark + 1)));
+            } catch (NumberFormatException unreadable) {
+                return null;
+            }
         }
+        return null;
     }
 
-    /** The trimmed value of the header segment named {@code prefix}, or null when the payload carries none. */
+    /**
+     * The trimmed value of the header segment named {@code prefix}, or null when the payload carries none. The site
+     * is the only segment ever written; see the class note for why a later field never becomes a second one.
+     */
     @Nullable
     private static String header(@Nullable String payload, @Nonnull String prefix) {
         String decoded = decode(payload);
@@ -191,7 +215,7 @@ public final class QuestProgressPayload {
         }
     }
 
-    /** Everything before the header segment: the objective entries, whatever follows them. */
+    /** Everything before the header segment: the objective entries and the run stamp, whatever follows them. */
     @Nonnull
     private static String entriesOf(@Nonnull String decoded) {
         int separator = decoded.indexOf(HEADER_SEPARATOR);
