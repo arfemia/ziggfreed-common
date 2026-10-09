@@ -25,8 +25,9 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * A player is present for a run when they enter a world while it runs ({@code PlayerReadyEvent}) or are
  * online when it really begins (a tick's non-resumed start). Each is credited once per run (each run of a
- * year, by its number) on the player's own world thread: the record is written, {@code CalendarAttendedEvent} fires for each run at once, and the
- * runs' start banners show, queued a gap apart ({@link CalendarHerald#showStarts}). A boot catch-up credits
+ * year, by its number) on the player's own world thread: the record is written, {@code CalendarAttendedEvent}
+ * fires for each run at once, and the runs' start banners show, queued a gap apart, after the tick's end banners
+ * when a run's start credits everyone online ({@link CalendarHerald#showStarts}). A boot catch-up credits
  * nobody, since nobody was here.
  */
 public final class CalendarAttendance {
@@ -79,7 +80,7 @@ public final class CalendarAttendance {
             if (live.isEmpty()) {
                 return;
             }
-            hop(event.getPlayerRef(), live, now);
+            hop(event.getPlayerRef(), live, now, 0L);
         } catch (Throwable t) {
             SafeLog.warn("[calendar] attendance on player ready failed", t);
         }
@@ -92,10 +93,12 @@ public final class CalendarAttendance {
             return;
         }
         try {
+            // One tick is one queue: the start banners these credits owe wait for the tick's end banners.
+            long afterMs = CalendarHerald.startsAfterMs(tick, CalendarRuntime.service()::event);
             for (PlayerRef player : Universe.get().getPlayers()) {
                 Ref<EntityStore> ref = player == null ? null : player.getReference();
                 if (ref != null) {
-                    hop(ref, fresh, tick.nowMs());
+                    hop(ref, fresh, tick.nowMs(), afterMs);
                 }
             }
         } catch (Throwable t) {
@@ -103,11 +106,12 @@ public final class CalendarAttendance {
         }
     }
 
-    private static void hop(@Nonnull Ref<EntityStore> ref, @Nonnull List<Occurrence> runs, long nowMs) {
-        PlayerWorldThread.queue(ref, () -> creditOnWorldThread(ref, runs, nowMs));
+    private static void hop(@Nonnull Ref<EntityStore> ref, @Nonnull List<Occurrence> runs, long nowMs, long afterMs) {
+        PlayerWorldThread.queue(ref, () -> creditOnWorldThread(ref, runs, nowMs, afterMs));
     }
 
-    private static void creditOnWorldThread(@Nonnull Ref<EntityStore> ref, @Nonnull List<Occurrence> runs, long nowMs) {
+    private static void creditOnWorldThread(@Nonnull Ref<EntityStore> ref, @Nonnull List<Occurrence> runs, long nowMs,
+            long afterMs) {
         try {
             ComponentType<EntityStore, CalendarAttendanceComponent> type = CalendarAttendanceComponent.TYPE;
             if (type == null || !ref.isValid()) {
@@ -119,12 +123,11 @@ public final class CalendarAttendance {
             if (record == null || player == null) {
                 return;
             }
-            List<String> started = new ArrayList<>();
-            for (Occurrence run : credit(record, runs)) {
+            List<Occurrence> started = credit(record, runs);
+            for (Occurrence run : started) {
                 CalendarEvents.fireAttended(player.getUuid(), run, nowMs);
-                started.add(run.eventId());
             }
-            CalendarHerald.showStarts(player, started);
+            CalendarHerald.showStarts(player, started, afterMs);
         } catch (Throwable t) {
             SafeLog.warn("[calendar] could not credit attendance", t);
         }
