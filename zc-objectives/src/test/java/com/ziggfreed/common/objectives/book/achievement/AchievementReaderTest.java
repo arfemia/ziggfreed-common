@@ -340,6 +340,59 @@ class AchievementReaderTest {
     }
 
     @Test
+    void aNeedsCapstoneOverOneYearsCopiesListsOnlyWhatThePlayerMaySee() {
+        Achievement lantern = f.add(copy("lantern", "hallows_eve", 2026), "Lantern 2026");
+        f.add(copy("geode", "hallows_eve", 2026), "Geode 2026");
+        f.add(copy("candle", "hallows_eve", 2026), "Candle 2026");
+        f.add(copy("ghoul", "hallows_eve", 2026).available(false), "Ghoul 2026");
+        // No AnyYear: each pick is a group of its own, keyed by its own id, as MetaSelection builds it.
+        Achievement master = f.add(Achievement.builder("hallow_master_2026").category("seasons")
+                .occurrence(new Achievement.Occurrence("hallows_eve", 2026, "hallow_master"))
+                .metaGroups(List.of(
+                        new Achievement.MetaGroup("candle_2026", List.of("candle_2026"), () -> true),
+                        new Achievement.MetaGroup("geode_2026", List.of("geode_2026"), () -> true),
+                        new Achievement.MetaGroup("ghoul_2026", List.of("ghoul_2026"), () -> true),
+                        new Achievement.MetaGroup("lantern_2026", List.of("lantern_2026"), () -> true)))
+                .metaNeeds(2), "Hallow Master 2026");
+        f.earn(lantern, NOW - DAY);
+        f.calendar = yearIn("hallows_eve", 2026);
+
+        AchievementReader reader = f.reader();
+        DetailBlock needs = block(reader.page(master), "needs");
+        assertNotNull(needs);
+        assertEquals(reader.listedChildren(master).stream().map(Achievement::id).toList(), selectIds(needs),
+                "a capstone over no season reads its lines as a plain one does");
+        assertEquals(List.of("candle_2026", "geode_2026", "lantern_2026"), selectIds(needs),
+                "a copy the player may not see adds no line between runs, though its year has come");
+        assertEquals(List.of(Tick.AHEAD, Tick.AHEAD, Tick.DONE), ticks(needs));
+        assertEquals("1 / 2", read(needs.meta()), "the count is the engine's tally (Needs 2), not the lines listed");
+    }
+
+    @Test
+    void aSeasonBetweenRunsShowsNoCopyWhileTheCalendarsYearIsUnknown() {
+        f.add(copy("hallowed", "hallows_eve", 2026), "Hallowed 2026");
+        f.add(copy("feast", "harvest_feast", 2025).available(false), "Feast 2025");
+        f.add(copy("feast", "harvest_feast", 2026).available(false), "Feast 2026");
+        Achievement every = f.add(Achievement.builder("every_season").category("seasons")
+                .metaGroups(List.of(
+                        new Achievement.MetaGroup("hallows_eve", List.of("hallowed_2026"), () -> true),
+                        new Achievement.MetaGroup("harvest_feast", List.of("feast_2025", "feast_2026"), () -> true))),
+                "Every Season");
+
+        f.calendar = yearUnreadable();
+        DetailBlock unreadable = block(f.reader().page(every), "needs");
+        assertNotNull(unreadable);
+        assertEquals(List.of("hallowed_2026"), selectIds(unreadable),
+                "a calendar that cannot say its year shows no copy: the newest may be next year's, minted ahead");
+        assertEquals("0 / 2", read(unreadable.meta()), "the season keeps its place in the count");
+
+        f.calendar = OccurrenceSource.NONE;
+        DetailBlock unknown = block(f.reader().page(every), "needs");
+        assertNotNull(unknown);
+        assertEquals(List.of("hallowed_2026"), selectIds(unknown), "no year known, no copy shown");
+    }
+
+    @Test
     void aServerFirstReadsByWhoClaimedIt() {
         Achievement first = f.add(ach("first", "combat", null, 1).serverFirst(true), "First");
 
@@ -553,6 +606,35 @@ class AchievementReaderTest {
             @Override
             public Integer currentYear(@Nonnull String id, long nowMs) {
                 return id.equals(eventId) ? Integer.valueOf(year) : null;
+            }
+        };
+    }
+
+    /** A calendar whose year questions throw; nothing is on. */
+    @Nonnull
+    private static OccurrenceSource yearUnreadable() {
+        return new OccurrenceSource() {
+            @Override
+            public boolean isEnabled(@Nonnull String id) {
+                return true;
+            }
+
+            @Nullable
+            @Override
+            public Occurrence live(@Nonnull String id, long nowMs) {
+                return null;
+            }
+
+            @Nonnull
+            @Override
+            public List<Occurrence> history(@Nonnull String id, long nowMs) {
+                return List.of();
+            }
+
+            @Nullable
+            @Override
+            public Integer currentYear(@Nonnull String id, long nowMs) {
+                throw new IllegalStateException("the calendar's year cannot be read");
             }
         };
     }
