@@ -47,10 +47,10 @@ import com.ziggfreed.common.ui.route.Destination;
  * reach it; the page only paints.
  *
  * <p><b>Achievements are found by where content files them.</b> A season's own are filed under
- * {@value #SEASONS_CATEGORY} with the event id as subcategory; a cross-season one (Seasons of Orbis)
- * under {@value #SEASONS_CATEGORY} with no subcategory; a keepsake is the catalogue's yearly copy of the
- * page's {@code Keepsake}, found by the occurrence it was minted for ({@link Achievement#occurrence()}),
- * or by its {@code <Keepsake>_<yyyy>} id when it carries none.
+ * {@value #SEASONS_CATEGORY} with the event id as subcategory; a cross-season one under
+ * {@value #SEASONS_CATEGORY} with no subcategory (the banner shows the ladder's next rung); a keepsake is
+ * the catalogue's yearly copy of the page's {@code Keepsake}, found by the occurrence it was minted for
+ * ({@link Achievement#occurrence()}), or by its {@code <Keepsake>_<yyyy>} id when it carries none.
  *
  * <p><b>Dates are counted in the event's own clock</b>, the last day included: on a run's last day the
  * page says "Last day", and a run from October 1 to November 3 has 28 days left on October 7.
@@ -104,7 +104,10 @@ public final class AlmanacView {
     public record Feat(@Nonnull String achievementId, @Nullable String icon) {
     }
 
-    /** The cross-season achievement shown above the list, with its meta-children progress. */
+    /**
+     * The cross-season achievement shown above the list (the ladder's next rung, see {@link #banner}), with
+     * its count: the engine's tally, full once earned.
+     */
     public record Banner(@Nonnull String achievementId, boolean earned, int childrenEarned, int childrenTotal) {
     }
 
@@ -351,26 +354,43 @@ public final class AlmanacView {
                 achievements == null ? List.of() : achievements.feats());
     }
 
-    /** The first cross-season achievement in circulation or earned, or null: absent while it is off. */
+    /**
+     * The cross-season banner: of the cross-season achievements in circulation or earned (filed under
+     * {@value #SEASONS_CATEGORY} with no subcategory), the lowest not yet earned by its order (then id),
+     * else, once every one is earned, the highest. A ladder of rungs therefore climbs one rung at a time.
+     * Its count is the engine's tally (a grouped capstone counts seasons, never copies), full once
+     * earned; a cross-season achievement that is no capstone carries no count. Null while none is in
+     * circulation or earned.
+     */
     @Nullable
     public static Banner banner(@Nonnull AchievementEngine engine, @Nonnull Subject subject) {
+        List<Achievement> rungs = new ArrayList<>();
         for (Achievement achievement : byId(engine)) {
             if (!SEASONS_CATEGORY.equals(achievement.category()) || achievement.subcategory() != null) {
                 continue;
             }
-            boolean earned = engine.isUnlocked(subject, achievement.id());
-            if (!earned && !achievement.available()) {
+            if (!engine.isUnlocked(subject, achievement.id()) && !achievement.available()) {
                 continue;
             }
-            int childrenEarned = 0;
-            for (String child : achievement.metaChildren()) {
-                if (engine.isUnlocked(subject, child)) {
-                    childrenEarned++;
-                }
-            }
-            return new Banner(achievement.id(), earned, childrenEarned, achievement.metaChildren().size());
+            rungs.add(achievement);
         }
-        return null;
+        if (rungs.isEmpty()) {
+            return null;
+        }
+        rungs.sort(Comparator.comparingInt(Achievement::sortOrder).thenComparing(Achievement::id));
+        Achievement shown = rungs.get(rungs.size() - 1);
+        for (Achievement rung : rungs) {
+            if (!engine.isUnlocked(subject, rung.id())) {
+                shown = rung;
+                break;
+            }
+        }
+        boolean earned = engine.isUnlocked(subject, shown.id());
+        if (!shown.isMeta()) {
+            return new Banner(shown.id(), earned, 0, 0);
+        }
+        AchievementEngine.CriterionTally tally = engine.tally(subject, shown);
+        return new Banner(shown.id(), earned, earned ? tally.total() : tally.completed(), tally.total());
     }
 
     // ==================== the redesigned season page ====================
