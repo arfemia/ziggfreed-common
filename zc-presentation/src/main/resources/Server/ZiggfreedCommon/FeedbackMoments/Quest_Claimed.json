@@ -5,7 +5,7 @@
     "It fires both for a quest that pays out the instant it finishes and for one the player came",
     "back to collect. 'collected' tells them apart (true for the collect), which is what the",
     "Variants entry below reads: a quest that settled on the spot already had its quest.completed",
-    "notice, so only a collect is announced here, and it is announced quietly.",
+    "notice, so only a collect is announced here, with the chest sound below.",
     "",
     "This is the library's own neutral default. A mod that ships a file with this same name in its",
     "own pack replaces it, and a server owner can do the same from the owner layer.",

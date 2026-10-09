@@ -16,6 +16,7 @@ import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.ui.route.DestinationContext;
+import com.ziggfreed.common.ui.route.DestinationKind;
 import com.ziggfreed.common.ui.route.Destinations;
 
 /** The {@code Reputation} destination: every field optional, so the bare word opens it; nobody behind it declines. */
@@ -39,6 +40,12 @@ class ReputationDestinationsTest {
     @Test
     void theTypeIsClaimedUnprefixedBecauseTheLibraryOwnsIt() {
         assertTrue(Destinations.isRegistered(ReputationDestinations.TYPE));
+    }
+
+    /** A conversation answer that opens the page shows the standing glyph before the player presses it. */
+    @Test
+    void itDeclaresTheStandingKind() {
+        assertEquals(DestinationKind.STANDING, Destinations.kindOf(ReputationDestinations.REPUTATION));
     }
 
     @Test

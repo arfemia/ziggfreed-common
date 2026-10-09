@@ -348,8 +348,8 @@ public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAs
                 .appendInherited(new KeyedCodec<>("Lines", Codec.STRING_ARRAY, false),
                         (o, v) -> o.lines = v, o -> o.lines, (o, p) -> o.lines = p.lines)
                 .documentation("Localization keys in your own lang file, one line each, in the order the page "
-                        + "lists them: what earns this reputation (\"Finish Old Jack's quests\", \"Take his "
-                        + "board contracts\"). Under Parent this list replaces the parent's whole.").add()
+                        + "lists them: what earns this reputation (\"Finish the guild's quests\", \"Take the "
+                        + "guild's board contracts\"). Under Parent this list replaces the parent's whole.").add()
                 .build();
 
         public Earn() {

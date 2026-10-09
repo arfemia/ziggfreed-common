@@ -8,6 +8,7 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.ui.route.DestinationContext;
+import com.ziggfreed.common.ui.route.DestinationKind;
 import com.ziggfreed.common.ui.route.DestinationType;
 import com.ziggfreed.common.ui.route.Destinations;
 
@@ -39,7 +40,7 @@ public final class ReputationDestinations {
     /** Seed the type into the shared vocabulary, at setup, before any asset decodes. */
     public static void register() {
         Destinations.register(OWNER, DestinationType.of(TYPE, Reputation.class, Reputation.CODEC,
-                ReputationDestinations::open));
+                ReputationDestinations::open).withKind(DestinationKind.STANDING));
     }
 
     private static boolean open(@Nonnull Reputation destination, @Nonnull DestinationContext ctx) {
