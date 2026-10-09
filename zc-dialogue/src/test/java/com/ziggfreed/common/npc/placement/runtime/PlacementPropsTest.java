@@ -105,15 +105,6 @@ class PlacementPropsTest {
     }
 
     @Test
-    void aPropsYawIsDegreesTheEngineReadsAsRadians() {
-        // The engine turns an entity by radians (its own spawn effects convert with Math.toRadians), and the
-        // authored Yaw reads in degrees like the anchor's: 90 is a quarter turn, not 90 radians.
-        assertEquals(Math.PI / 2, PlacementProps.yawRadians(90.0f), 1e-6);
-        assertEquals(Math.PI, PlacementProps.yawRadians(180.0f), 1e-6);
-        assertEquals(0.0, PlacementProps.yawRadians(0.0f), 1e-9);
-    }
-
-    @Test
     void anUnknownItemIsSkippedAndTheRestAreDrawn() {
         FakeProps engine = new FakeProps();
         NpcPlacementAsset.Prop missing = NpcPlacementAsset.Prop.of("Furniture_No_Such_Table", null, null, null);

@@ -35,13 +35,14 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <h2>The re-trigger window lives HERE</h2>
  *
- * <p>A short per-player, per-id window absorbs a double-click and a page re-render. It sits in front
- * of the sinks rather than inside any one of them because it is a property of the MOMENT: if two
- * sinks disagreed about whether this conversation happened, a quest would tick while the statistic
- * counting the same conversations did not. It is in memory, cleared on disconnect, and never
- * persisted - "talk to anyone" must count again tomorrow.
+ * <p>A short per-player, per-id, per-qualifier window absorbs a double-click and a page re-render. It
+ * sits in front of the sinks rather than inside any one of them because it is a property of the
+ * MOMENT: if two sinks disagreed about whether this conversation happened, a quest would tick while
+ * the statistic counting the same conversations did not. It is in memory, cleared on disconnect, and
+ * never persisted - "talk to anyone" must count again tomorrow.
  *
- * <p>The window is claimed PER ID, so an alias fired beside its primary is de-duped on its own terms.
+ * <p>The window is claimed PER ID AND QUALIFIER, so an alias fired beside its primary is de-duped on its
+ * own terms, and an unqualified credit never swallows a qualified line for the same character.
  *
  * <h2>Sinks, then the event</h2>
  *
@@ -73,8 +74,12 @@ public final class TalkCredits {
 
     private static final RegistryLedger<TalkCreditSink> LEDGER = new RegistryLedger<>("talk");
 
-    /** {@code playerUuid + "|" + lowercased id} to the moment it was last credited. */
-    private static final Map<String, Long> LAST_CREDITED = new ConcurrentHashMap<>();
+    /** One player's window on one id and qualifier, both lower-cased; an unqualified credit's is "". */
+    private record Window(@Nonnull UUID player, @Nonnull String id, @Nonnull String qualifier) {
+    }
+
+    /** Each claimed window to the moment it was last credited. */
+    private static final Map<Window, Long> LAST_CREDITED = new ConcurrentHashMap<>();
 
     private TalkCredits() {
     }
@@ -143,16 +148,16 @@ public final class TalkCredits {
      * Credit an already-assembled conversation. Returns false when the re-trigger window swallowed
      * it, in which case no sink ran and no event fired.
      *
-     * <p>The window is claimed on the PRIMARY id. A caller crediting each alias separately claims each
-     * of those in turn through {@link #claim}, which is what keeps an alias from being swallowed by
-     * its own primary's window.
+     * <p>The window is claimed on the PRIMARY id and the credit's qualifier. A caller crediting each
+     * alias separately claims each of those in turn through {@link #claim}, which is what keeps an alias
+     * from being swallowed by its own primary's window.
      */
     public static boolean fire(@Nonnull TalkCredit credit) {
         UUID playerId = playerIdOf(credit);
         if (playerId == null || credit.npcId().isBlank()) {
             return false;
         }
-        if (!claim(playerId, credit.npcId())) {
+        if (!claim(playerId, credit.npcId(), credit.qualifier())) {
             return false;
         }
         dispatch(playerId, credit);
@@ -188,16 +193,26 @@ public final class TalkCredits {
         fireEvent(playerId, credit);
     }
 
-    /**
-     * Take this player's re-trigger window for one id, or report that it is still open. Public because
-     * a sink crediting an alias set has to claim each id on its own terms, and the window is the same
-     * window for all of them.
-     */
+    /** As {@link #claim(UUID, String, String)} for an unqualified credit. */
     public static boolean claim(@Nonnull UUID playerId, @Nonnull String id) {
+        return claim(playerId, id, null);
+    }
+
+    /**
+     * Take this player's re-trigger window for one id and qualifier, or report that it is still open.
+     * Public because a sink crediting an alias set has to claim each id on its own terms, and the window
+     * is the same window for all of them.
+     *
+     * <p>The qualifier is part of the window: an unqualified credit and a qualified line for the same
+     * character inside one window (a greeting's {@code MarkTalked}, then a tour line) are two beats, and
+     * both count. A blank qualifier is the unqualified window, and ids and qualifiers fold case.
+     */
+    public static boolean claim(@Nonnull UUID playerId, @Nonnull String id, @Nullable String qualifier) {
         if (id.isBlank()) {
             return false;
         }
-        String key = playerId + "|" + id.trim().toLowerCase(Locale.ROOT);
+        Window key = new Window(playerId, id.trim().toLowerCase(Locale.ROOT),
+                qualifier == null ? "" : qualifier.trim().toLowerCase(Locale.ROOT));
         long now = System.currentTimeMillis();
         Long last = LAST_CREDITED.get(key);
         if (last != null && now - last < RETRIGGER_WINDOW_MS) {
@@ -207,10 +222,9 @@ public final class TalkCredits {
         return true;
     }
 
-    /** Disconnect cleanup: drop this player's window entries. */
+    /** Disconnect cleanup: drop this player's window entries, qualified or not. */
     public static void clearPlayer(@Nonnull UUID playerId) {
-        String prefix = playerId + "|";
-        LAST_CREDITED.keySet().removeIf(key -> key.startsWith(prefix));
+        LAST_CREDITED.keySet().removeIf(key -> key.player().equals(playerId));
     }
 
     /** Drop every registration and every open window. Tests only. */

@@ -102,7 +102,7 @@ final class NpcPlaceCommand extends AbstractAsyncCommand {
                 NpcPlacementAuthoring.round(position.x(), 2),
                 NpcPlacementAuthoring.round(position.y(), 2),
                 NpcPlacementAuthoring.round(position.z(), 2),
-                NpcPlacementAuthoring.round(NpcPlacementAuthoring.yawDegrees(transform.getRotation().yaw()), 1));
+                NpcPlacementAuthoring.capturedYaw(transform.getRotation()));
 
         report(ctx, result);
     }

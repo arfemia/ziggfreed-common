@@ -36,4 +36,19 @@ class NpcSpawnYawTest {
         assertEquals(180.0, NpcPlacementAuthoring.yawDegrees((float) Math.PI), 1e-4);
         assertEquals(90.0, NpcPlacementAuthoring.yawDegrees(NpcSpawnService.yawRadians(90f)), 1e-4);
     }
+
+    /**
+     * The one helper every capture site writes a live facing through (/zignpc place, the admin page, a
+     * consumer's alias): the rotation's yaw, radians as the engine keeps it, as the degrees a placement's
+     * {@code Yaw} reads, to one decimal so the written file reads like something authored.
+     */
+    @Test
+    void aLiveRotationIsCapturedAsDegreesToOneDecimal() {
+        assertEquals(90.0, NpcPlacementAuthoring.capturedYaw(NpcSpawnService.spawnRotation(90f)), 1e-9,
+                "a facing spawned at 90 degrees is captured as 90, not as its float radians' long tail");
+        assertEquals(57.3, NpcPlacementAuthoring.capturedYaw(new Rotation3f(0f, 1f, 0f)), 1e-9,
+                "one radian is 57.3 degrees, never 1");
+        assertEquals(-135.0, NpcPlacementAuthoring.capturedYaw(new Rotation3f(0f, (float) (-3 * Math.PI / 4), 0f)),
+                1e-9);
+    }
 }

@@ -150,6 +150,14 @@ public final class NpcPlacementService {
         return identity.getRole().trim();
     }
 
+    /**
+     * How many of {@code placementId}'s props stand in {@code worldName} now: the standing count of a
+     * placement drawing only props, which writes no ledger row. World thread.
+     */
+    public static int standingProps(@Nonnull String worldName, @Nonnull String placementId) {
+        return PlacementProps.standingCount(worldName, placementId);
+    }
+
     // ==================== despawn ====================
 
     /**
