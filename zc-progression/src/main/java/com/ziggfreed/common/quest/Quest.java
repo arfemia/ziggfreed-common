@@ -135,9 +135,10 @@ public final class Quest {
 
         /**
          * Once a run of a calendar event. The quest is offered only while a run of {@code event} is going
-         * on, and at most {@code times} finishes count in one run. Runs are keyed (event, year), the year a
-         * run STARTS in, so a run forced on, a run whose days an owner moved and a run crossing the new year
-         * each count as the one run they are ({@link PerRuns}).
+         * on, and at most {@code times} finishes count in one run. Runs are keyed (event, year, number), the
+         * year a run STARTS in and the number its event's dates name it by, so an event that comes round
+         * several times a year is that many runs, and a run forced on, a run whose days an owner moved and a
+         * run crossing the new year each count as the one run they are ({@link PerRuns}).
          *
          * @param event the calendar event's id, as its file names it
          * @param times how many finishes one run allows; at least 1
@@ -174,7 +175,8 @@ public final class Quest {
 
         /**
          * How often this quest comes round, in the ONE vocabulary every surface classifies with
-         * ({@link QuestCadence#of}): the longer of the rolling wait and the calendar window decides.
+         * ({@link QuestCadence#of}): a once-a-run allowance reads {@link QuestCadence#SEASONAL} whatever
+         * else is authored, and otherwise the longer of the rolling wait and the calendar window decides.
          */
         @Nonnull
         public QuestCadence cadence() {

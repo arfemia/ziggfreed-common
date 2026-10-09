@@ -2,6 +2,7 @@ package com.ziggfreed.common.quest.asset;
 
 import static com.ziggfreed.common.quest.asset.QuestAssetCodecTest.decode;
 import static com.ziggfreed.common.quest.asset.QuestAssetCodecTest.decodeRoot;
+import static com.ziggfreed.common.quest.asset.QuestGeneratorTest.generator;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -24,7 +25,8 @@ import com.ziggfreed.common.validation.Severity;
 /**
  * A quest's {@code Season}: hidden out of season and never locked by it; inherited from a season base
  * whatever the child writes in {@code Requires} (Review Focus 3, with the old base-Requires gate shown
- * losing itself beside it); and an id no event declares reported once at the fold, the quest hidden.
+ * losing itself beside it); and an id no event declares reported once at the fold, the quest hidden, as is a
+ * once-a-run quest's event.
  */
 class QuestSeasonFoldTest {
 
@@ -126,5 +128,34 @@ class QuestSeasonFoldTest {
         assertNotNull(typo);
         assertFalse(typo.quest().available(), "an id no event answers reads 0, so it stays hidden");
         assertTrue(resolution.pool().definition("harvest_feast_pies").quest().available());
+    }
+
+    // M286 beside the Season check: a once-a-run event no calendar declares is reported once per authored file,
+    // a skeleton included, never again for each quest a generator writes over it.
+    @Test
+    void aPerRunEventNoEventDeclaresIsOneWarningForItsBaseNeverOnePerGeneratedChild() throws Exception {
+        Map<String, QuestAsset> layer = new LinkedHashMap<>();
+        layer.put("fair_base", decodeRoot("{ \"Abstract\": true,"
+                + " \"Repeat\": { \"PerRun\": { \"Event\": \"Harvest_Faest\" } }, " + STEP + " }", "fair_base"));
+        layer.put("fair_pies", decodeRoot("{ \"Repeat\": { \"PerRun\": { \"Event\": \"Harvest_Feast\" } }, "
+                + STEP + " }", "fair_pies"));
+        QuestAssetStore.getInstance().mergeQuests(layer);
+        QuestAssetStore.getInstance().mergeGenerators(Map.of("fair_ladder", generator("""
+                { "Base": "fair_base", "IdPattern": "fair_{kind}",
+                  "ForEach": [ { "Token": "kind", "Values": ["lanterns", "ribbons", "apples"] } ],
+                  "Child": { "Objectives": { "collect": { "Target": "{kind}" } } } }
+                """, "fair_ladder")));
+
+        QuestAssetStore.Resolution resolution = QuestAssetStore.getInstance().resolve(null);
+
+        for (String child : List.of("fair_lanterns", "fair_ribbons", "fair_apples")) {
+            assertNotNull(resolution.pool().definition(child), child + " is generated over the base");
+        }
+        List<Finding> unknown = resolution.issues().stream()
+                .filter(f -> QuestPoolValidator.REPEAT_PER_RUN_UNKNOWN_EVENT.equals(f.code())).toList();
+        assertEquals(1, unknown.size(), resolution.issues().toString());
+        assertEquals(Severity.WARNING, unknown.get(0).severity());
+        assertEquals(QuestPoolValidator.DOMAIN, unknown.get(0).domain());
+        assertEquals("fair_base", unknown.get(0).sourceId(), "the file the author typed it in");
     }
 }

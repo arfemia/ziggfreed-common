@@ -25,7 +25,6 @@ import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardSpec;
-import com.ziggfreed.common.occurrence.OccurrenceSource;
 import com.ziggfreed.common.occurrence.Occurrences;
 import com.ziggfreed.common.progress.DispatchOptions;
 import com.ziggfreed.common.progress.ObjectiveArithmetic;
@@ -1569,18 +1568,20 @@ public final class QuestEngine implements QuestStateReader {
         int claimed = claimedNow ? raised(prior.claimedCount()) : prior.claimedCount();
         Integer runYear = null;
         int runCount = 0;
+        int runNumber = 0;
         Quest.Repeat.PerRun perRun = repeat.perRun();
         if (perRun != null) {
-            // Keyed (event, year): the run going on, else the next one, never earlier than the run the
-            // record already counts for (runs only move forward).
-            OccurrenceSource occurrences = Occurrences.source();
-            runYear = PerRuns.yearToRecord(prior, perRun, nowMs, occurrences);
-            if (runYear != null) {
-                runCount = raised(PerRuns.spentIn(prior, runYear, perRun, nowMs, occurrences));
+            // Keyed (event, year, number): the run going on, else the next one, never earlier in time than
+            // the run the record already counts for (runs only move forward).
+            PerRuns.RunTally run = PerRuns.runToRecord(prior, perRun, nowMs, Occurrences.source());
+            if (run != null) {
+                runYear = run.run().year();
+                runNumber = run.run().number();
+                runCount = raised(run.before());
             }
         }
         store.setCompletions(subject, quest.id(), new QuestProgressStore.CompletionRecord(
-                nowMs, periodCount, total, claimed, runYear, runCount));
+                nowMs, periodCount, total, claimed, runYear, runCount, runNumber));
     }
 
     /**
@@ -1607,7 +1608,7 @@ public final class QuestEngine implements QuestStateReader {
         QuestProgressStore.CompletionRecord prior = store.completions(subject, quest.id());
         store.setCompletions(subject, quest.id(), new QuestProgressStore.CompletionRecord(
                 prior.lastCompletionMs(), prior.periodCount(), prior.totalCount(),
-                raised(prior.claimedCount()), prior.runYear(), prior.runCount()));
+                raised(prior.claimedCount()), prior.runYear(), prior.runCount(), prior.runNumber()));
     }
 
     /** One more, unless the tally has already run out of room. */

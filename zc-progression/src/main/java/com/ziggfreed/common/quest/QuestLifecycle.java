@@ -86,7 +86,8 @@ public final class QuestLifecycle {
      *   <li>the LIFETIME cap, first because "back in three hours" is a worse message than the truth
      *   for a quest somebody can never take again;
      *   <li>the RUN allowance ({@link Repeat.PerRun}), read for the run of its event going on, keyed
-     *   (event, year); with no run going on it comes back when the next one starts ({@link PerRuns});
+     *   (event, year, number); with no run going on, or that run spent, it comes back when the first run the
+     *   player has not spent starts ({@link PerRuns});
      *   <li>the CALENDAR allowance, read against the window the last completion fell in, so a tally
      *   left over from an earlier window costs nothing and nothing has to sweep it;
      *   <li>the ROLLING cooldown. Which instant its stamp holds was already decided by

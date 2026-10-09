@@ -301,6 +301,24 @@ class ZigProgressComponentTest {
         assertNull(back.get("q_daily").runYear());
     }
 
+    @Test
+    void aLaterRunOfAYearAddsItsNumberAndRunOneKeepsSixNumbers() {
+        Map<String, CompletionRecord> records = Map.of(
+                "q_autumn", new CompletionRecord(1_700_000_000_000L, 0, 2, 2, 2026, 1, 2),
+                "q_spring", new CompletionRecord(1_600_000_000_000L, 0, 1, 1, 2026, 1, 1),
+                "q_daily", new CompletionRecord(5L, 1, 1, 1));
+        Map<String, String> packed = ZigProgressComponent.encodeCompletions(records);
+        assertEquals("1700000000000,0,2,2,2026,1,2", packed.get("q_autumn"));
+        assertEquals("1600000000000,0,1,1,2026,1", packed.get("q_spring"), "run 1 saves exactly as before");
+        assertEquals("5,1,1,1", packed.get("q_daily"));
+        Map<String, CompletionRecord> back = ZigProgressComponent.decodeCompletions("q_autumn=" + packed.get("q_autumn")
+                + "|q_spring=" + packed.get("q_spring") + "|q_daily=" + packed.get("q_daily"));
+        assertEquals(records.get("q_autumn"), back.get("q_autumn"));
+        assertEquals(2, back.get("q_autumn").runNumber());
+        assertEquals(records.get("q_spring"), back.get("q_spring"));
+        assertEquals(records.get("q_daily"), back.get("q_daily"));
+    }
+
     /**
      * A run forced on outside its dates is still the run of its year, yet a finish in it can sit nearer
      * another year's run than its own: forced on in April, the 2027 run's days are October's, and the
@@ -314,7 +332,7 @@ class ZigProgressComponentTest {
         Quest.Repeat repeat = new Quest.Repeat(0L, Quest.Repeat.CooldownFrom.CLAIM, null, 0,
                 new Quest.Repeat.PerRun(ForcedFair.EVENT, 1));
         long forcedFinish = at("2027-04-10T12:00:00Z");
-        Integer counted = PerRuns.yearFor(repeat.perRun(), forcedFinish, fair);
+        Integer counted = PerRuns.runFor(repeat.perRun(), forcedFinish, fair).year();
         assertEquals(Integer.valueOf(2027), counted, "forced on in April it is the 2027 run");
         CompletionRecord finished = new CompletionRecord(forcedFinish, 0, 1, 1, counted, 1);
 
@@ -431,7 +449,7 @@ class ZigProgressComponentTest {
         assertNull(back.get("q_bad"));
         assertNull(back.get("q_short"));
         assertNull(back.get("q_long"),
-                "three, four and six fields are the widths there are; five is unreadable");
+                "three, four, six and seven fields are the widths there are; five is unreadable");
         assertEquals(CompletionRecord.withoutCollectedTally(5L, 1, 3), back.get("q_good"));
     }
 

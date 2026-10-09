@@ -660,8 +660,9 @@ public final class ZigProgressComponent implements Component<EntityStore> {
      * reads back with claimed equal to total, because under the rule those saves were written under
      * a finish was the payout.
      *
-     * <p>A once-a-run quest's record adds {@code ,runYear,runCount}, so it travels as six numbers;
-     * every other record keeps its four.
+     * <p>A once-a-run quest's record adds {@code ,runYear,runCount}, and a later run of its year
+     * {@code ,runNumber} after them, so it travels as six or seven numbers; every other record keeps its
+     * four. Six numbers read as run 1 of the year, so a once-a-year event's record never grows.
      */
     private static final char FIELD_SEPARATOR = ',';
 
@@ -689,6 +690,9 @@ public final class ZigProgressComponent implements Component<EntityStore> {
                     + FIELD_SEPARATOR + record.claimedCount();
             if (record.runYear() != null) {
                 value = value + FIELD_SEPARATOR + record.runYear() + FIELD_SEPARATOR + record.runCount();
+                if (record.runNumber() > 1) {
+                    value = value + FIELD_SEPARATOR + record.runNumber();
+                }
             }
             out.put(entry.getKey(), value);
         }
@@ -702,7 +706,7 @@ public final class ZigProgressComponent implements Component<EntityStore> {
             return null;
         }
         String[] fields = value.split(String.valueOf(FIELD_SEPARATOR), -1);
-        if (fields.length != 3 && fields.length != 4 && fields.length != 6) {
+        if (fields.length != 3 && fields.length != 4 && fields.length != 6 && fields.length != 7) {
             return null;
         }
         try {
@@ -717,7 +721,7 @@ public final class ZigProgressComponent implements Component<EntityStore> {
                 return new CompletionRecord(last, period, total, claimed);
             }
             return new CompletionRecord(last, period, total, claimed, Integer.parseInt(fields[4].trim()),
-                    Integer.parseInt(fields[5].trim()));
+                    Integer.parseInt(fields[5].trim()), fields.length == 7 ? Integer.parseInt(fields[6].trim()) : 1);
         } catch (NumberFormatException malformed) {
             return null;
         }
