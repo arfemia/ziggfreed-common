@@ -1,17 +1,12 @@
 package com.ziggfreed.common.almanac.view;
 
+import static com.ziggfreed.common.almanac.AlmanacEnglish.english;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.Instant;
@@ -19,7 +14,6 @@ import java.time.LocalTime;
 import java.time.Month;
 import java.time.ZoneId;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,11 +26,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.protocol.FormattedMessage;
-import com.hypixel.hytale.protocol.IntParamValue;
-import com.hypixel.hytale.protocol.LongParamValue;
-import com.hypixel.hytale.protocol.ParamValue;
 import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.almanac.AlmanacCalendar.Dates;
+import com.ziggfreed.common.almanac.AlmanacEnglish;
 import com.ziggfreed.common.almanac.AlmanacText;
 import com.ziggfreed.common.almanac.FixedCalendar;
 import com.ziggfreed.common.almanac.OccurrenceAlmanacCalendar;
@@ -49,10 +41,11 @@ import com.ziggfreed.common.occurrence.Recurrence;
 
 /**
  * The dates line of an event that comes round monthly or weekly: it says how it recurs (the day or the Nth weekday,
- * every N, the months, how long a run lasts) in place of one run's year and days, then gives the next run's days
- * ("Next: Oct 4 to Oct 10", or its hours). An event that comes round once a year reads exactly as it did. Each line
- * is read back in English from the shipped en-US file, so a test shows the sentence a player sees, and every key it
- * reads is one the module speaks.
+ * every N, the months, how long a run lasts) in place of one run's year and days, and the next run's days ("Next: Oct
+ * 4 to Oct 10", or its hours) are a line of their own under it, so neither is cut short. An event that comes round
+ * once a year reads exactly as it did, with no second line. Each line is read back in English from the shipped en-US
+ * file ({@link AlmanacEnglish}), so a test shows the sentence a player sees, and every key it reads is one the module
+ * speaks.
  */
 class AlmanacRecurrenceLinesTest {
 
@@ -74,15 +67,20 @@ class AlmanacRecurrenceLinesTest {
 
         Timing between = timing("traveling_fair", new Dates(null, october, List.of(september), 2026, UTC, true, fair),
                 "2026-09-30");
-        Message line = AlmanacLines.window(between);
-        assertNotNull(line);
-        assertKey("recur.with_next", line);
-        assertEquals("The first Sunday of every month, for 7 days. Next: Oct 4 to Oct 10", english(line));
+        Message rule = AlmanacLines.window(between);
+        assertNotNull(rule);
+        assertKey("recur", rule);
+        assertEquals("The first Sunday of every month, for 7 days", english(rule),
+                "the dates line says the rule alone");
+        Message next = AlmanacLines.next(between);
+        assertNotNull(next);
+        assertKey("next", next);
+        assertEquals("Next: Oct 4 to Oct 10", english(next), "the next run's days are a line of their own");
 
         Timing live = timing("traveling_fair", new Dates(october, november, List.of(september, october), 2026, UTC,
                 true, fair), "2026-10-06");
-        assertEquals("The first Sunday of every month, for 7 days. Next: Nov 1 to Nov 7",
-                english(AlmanacLines.window(live)), "while a run is on, the next is the one after it");
+        assertEquals(List.of("The first Sunday of every month, for 7 days", "Next: Nov 1 to Nov 7"), lines(live),
+                "while a run is on, the next is the one after it");
     }
 
     @Test
@@ -90,8 +88,8 @@ class AlmanacRecurrenceLinesTest {
         Recurrence market = Recurrence.Monthly.onDay(15, 1,
                 Set.of(Month.MARCH, Month.JUNE, Month.SEPTEMBER, Month.DECEMBER), Recurrence.Length.days(2));
         Occurrence december = days("market", 2026, 12, "2026-12-15", "2026-12-16");
-        assertEquals("On the 15th of March, June, September and December, for 2 days. Next: Dec 15 to Dec 16",
-                english(AlmanacLines.window(timing("market", between(december, market), "2026-10-07"))));
+        assertEquals(List.of("On the 15th of March, June, September and December, for 2 days",
+                "Next: Dec 15 to Dec 16"), lines(timing("market", between(december, market), "2026-10-07")));
         assertEquals("On the 1st of June and July, for 2 days", english(AlmanacLines.recurrence(
                 Recurrence.Monthly.onDay(1, 1, Set.of(Month.JULY, Month.JUNE), Recurrence.Length.days(2)))));
     }
@@ -99,9 +97,9 @@ class AlmanacRecurrenceLinesTest {
     @Test
     void aMonthlyRuleEveryOtherMonthOrEveryFewMonthsSaysHowOften() {
         Occurrence november = days("market", 2026, 11, "2026-11-01", "2026-11-07");
-        assertEquals("On the 1st of every other month, for 7 days. Next: Nov 1 to Nov 7",
-                english(AlmanacLines.window(timing("market", between(november,
-                        Recurrence.Monthly.onDay(1, 2, Set.of(), Recurrence.Length.days(7))), "2026-10-07"))));
+        assertEquals(List.of("On the 1st of every other month, for 7 days", "Next: Nov 1 to Nov 7"),
+                lines(timing("market", between(november,
+                        Recurrence.Monthly.onDay(1, 2, Set.of(), Recurrence.Length.days(7))), "2026-10-07")));
         assertEquals("On the 1st of every 3 months, for 7 days", english(AlmanacLines.recurrence(
                 Recurrence.Monthly.onDay(1, 3, Set.of(), Recurrence.Length.days(7)))));
         assertEquals("On the 1st of every other month in March, May and July, for 7 days",
@@ -114,25 +112,27 @@ class AlmanacRecurrenceLinesTest {
         Recurrence contest = new Recurrence.Weekly(DayOfWeek.SUNDAY, 1, Set.of(),
                 Recurrence.Length.timed(LocalTime.of(14, 0), Duration.ofHours(2)));
         Occurrence sunday = timed("fishing_contest", 2026, 41, "2026-10-11T14:00:00Z", "2026-10-11T16:00:00Z");
-        Message line = AlmanacLines.window(timing("fishing_contest", between(sunday, contest), "2026-10-07"));
-        assertEquals("Every Sunday, 14:00 to 16:00. Next: Sunday Oct 11, 14:00 to 16:00", english(line));
-        FormattedMessage next = line.getFormattedMessage().messageParams.get("1");
+        Timing timing = timing("fishing_contest", between(sunday, contest), "2026-10-07");
+        assertEquals(List.of("Every Sunday, 14:00 to 16:00", "Next: Sunday Oct 11, 14:00 to 16:00"), lines(timing));
+        Message next = AlmanacLines.next(timing);
+        assertNotNull(next);
         assertKey("next.hours", next);
-        assertEquals("14:00", next.messageParams.get("3").rawText, "a clock time is text, the same in every locale");
+        assertEquals("14:00", next.getFormattedMessage().messageParams.get("3").rawText,
+                "a clock time is text, the same in every locale");
     }
 
     @Test
     void aWeeklyRuleADayLongOrEveryOtherWeek() {
         Occurrence saturday = days("market_day", 2026, 41, "2026-10-10", "2026-10-10");
-        assertEquals("Every Saturday, all day. Next: Oct 10", english(AlmanacLines.window(timing("market_day",
+        assertEquals(List.of("Every Saturday, all day", "Next: Oct 10"), lines(timing("market_day",
                 between(saturday, new Recurrence.Weekly(DayOfWeek.SATURDAY, 1, Set.of(), Recurrence.Length.days(1))),
-                "2026-10-07"))), "a one-day run names its day once");
+                "2026-10-07")), "a one-day run names its day once");
 
         Occurrence monday = days("tournament", 2026, 42, "2026-10-12", "2026-10-18");
-        assertEquals("Every other Monday, for 7 days. Next: Oct 12 to Oct 18", english(AlmanacLines.window(
+        assertEquals(List.of("Every other Monday, for 7 days", "Next: Oct 12 to Oct 18"), lines(
                 timing("tournament", between(monday,
                         new Recurrence.Weekly(DayOfWeek.MONDAY, 2, Set.of(), Recurrence.Length.days(7))),
-                        "2026-10-07"))));
+                        "2026-10-07")));
         assertEquals("Every 3 weeks on Monday in June and July, for 7 days", english(AlmanacLines.recurrence(
                 new Recurrence.Weekly(DayOfWeek.MONDAY, 3, Set.of(Month.JUNE, Month.JULY),
                         Recurrence.Length.days(7)))));
@@ -143,9 +143,9 @@ class AlmanacRecurrenceLinesTest {
     @Test
     void aRunUntilTheNextSaysSoAndItsNextRunNamesItsDays() {
         Occurrence november = days("guild_month", 2026, 11, "2026-11-01", "2026-11-30");
-        assertEquals("On the 1st of every month, until the next. Next: Nov 1 to Nov 30",
-                english(AlmanacLines.window(timing("guild_month", between(november,
-                        Recurrence.Monthly.onDay(1, 1, Set.of(), Recurrence.Length.untilNext(null))), "2026-10-07"))));
+        assertEquals(List.of("On the 1st of every month, until the next", "Next: Nov 1 to Nov 30"),
+                lines(timing("guild_month", between(november,
+                        Recurrence.Monthly.onDay(1, 1, Set.of(), Recurrence.Length.untilNext(null))), "2026-10-07")));
     }
 
     // ---- every other shape a rule can take ----
@@ -187,14 +187,14 @@ class AlmanacRecurrenceLinesTest {
         Occurrence weekend = timed("weekend", 2026, 41, "2026-10-09T18:00:00Z", "2026-10-11T18:00:00Z");
         Recurrence weekends = new Recurrence.Weekly(DayOfWeek.FRIDAY, 1, Set.of(),
                 Recurrence.Length.days(2, LocalTime.of(18, 0)));
-        assertEquals("Every Friday, from 18:00, for 2 days. Next: Oct 9, 18:00 to Oct 11, 18:00",
-                english(AlmanacLines.window(timing("weekend", between(weekend, weekends), "2026-10-07"))));
+        assertEquals(List.of("Every Friday, from 18:00, for 2 days", "Next: Oct 9, 18:00 to Oct 11, 18:00"),
+                lines(timing("weekend", between(weekend, weekends), "2026-10-07")));
 
         Occurrence night = timed("night_market", 2026, 41, "2026-10-10T22:00:00Z", "2026-10-11T02:00:00Z");
         Recurrence nights = new Recurrence.Weekly(DayOfWeek.SATURDAY, 1, Set.of(),
                 Recurrence.Length.timed(LocalTime.of(22, 0), Duration.ofHours(4)));
-        assertEquals("Every Saturday, 22:00 to 02:00. Next: Saturday Oct 10, 22:00 to 02:00",
-                english(AlmanacLines.window(timing("night_market", between(night, nights), "2026-10-07"))));
+        assertEquals(List.of("Every Saturday, 22:00 to 02:00", "Next: Saturday Oct 10, 22:00 to 02:00"),
+                lines(timing("night_market", between(night, nights), "2026-10-07")));
     }
 
     @Test
@@ -204,19 +204,21 @@ class AlmanacRecurrenceLinesTest {
                 Recurrence.Length.timed(LocalTime.of(14, 0), Duration.ofHours(2)));
         Occurrence sunday = timed("fishing_contest", 2026, 41, "2026-10-11T05:00:00Z", "2026-10-11T07:00:00Z");
         Dates dates = new Dates(null, sunday, List.of(), 2026, tokyo, true, contest);
-        assertEquals("Every Sunday, 14:00 to 16:00. Next: Sunday Oct 11, 14:00 to 16:00",
-                english(AlmanacLines.window(timing("fishing_contest", dates, "2026-10-07"))));
+        assertEquals(List.of("Every Sunday, 14:00 to 16:00", "Next: Sunday Oct 11, 14:00 to 16:00"),
+                lines(timing("fishing_contest", dates, "2026-10-07")));
     }
 
     @Test
-    void withNoNextRunTheLineSaysTheRecurrenceAlone() {
+    void withNoNextRunTheRecurrenceStandsAloneAndNoNextLineShows() {
         Recurrence fair = Recurrence.Monthly.onWeekday(1, DayOfWeek.SUNDAY, 1, Set.of(), Recurrence.Length.days(7));
         Occurrence september = days("traveling_fair", 2026, 9, "2026-09-06", "2026-09-12");
         Timing timing = timing("traveling_fair", new Dates(null, null, List.of(september), 2026, UTC, true, fair),
                 "2026-09-30");
         Message line = AlmanacLines.window(timing);
+        assertNotNull(line);
         assertKey("recur", line);
         assertEquals("The first Sunday of every month, for 7 days", english(line));
+        assertNull(AlmanacLines.next(timing), "no run due: no next line");
     }
 
     // ---- once a year, unchanged ----
@@ -233,12 +235,15 @@ class AlmanacRecurrenceLinesTest {
                 "no recurrence, the same timing as before");
         assertNull(every.recurring());
         Message window = AlmanacLines.window(every);
+        assertNotNull(window);
         assertKey("window", window);
         assertEquals("Every year, October 1 to November 3", english(window));
+        assertNull(AlmanacLines.next(every), "a once-a-year season has its one dates line and no next line");
 
         Timing moving = AlmanacView.timing(season, new Dates(run, next, List.of(run), 2026, UTC, true, null), now);
         assertEquals(AlmanacView.timing(season, new Dates(run, next, List.of(run), 2026, UTC, true), now), moving);
         assertEquals("In 2026, October 1 to November 3", english(AlmanacLines.window(moving)));
+        assertNull(AlmanacLines.next(moving));
 
         Occurrence day = FixedCalendar.run("anniversary", 2027, "2027-01-13", "2027-01-13", UTC);
         Timing oneDay = AlmanacView.timing(new Season("anniversary", null, null, null, true, 2027),
@@ -314,7 +319,7 @@ class AlmanacRecurrenceLinesTest {
         }
         assertTrue(read.containsAll(List.of("ordinal.day.31", "ordinal.nth.5", "ordinal.nth.last", "weekday.7")));
         for (String key : AlmanacText.SPOKEN) {
-            String value = english().get(key);
+            String value = AlmanacEnglish.file().get(key);
             if (isRecurrenceKey(key)) {
                 assertNotNull(value, "en-US ships " + key);
                 assertFalse(value.matches(".*\\b(zero|one|two|few|many|other)\\{.*"),
@@ -329,6 +334,14 @@ class AlmanacRecurrenceLinesTest {
     private static boolean isRecurrenceKey(@Nonnull String key) {
         return key.startsWith("recur") || key.startsWith("next") || key.startsWith("list.")
                 || key.startsWith("weekday.") || key.startsWith("ordinal.");
+    }
+
+    /** The hero's lines as a player reads them: the dates line, then the next run's when one is due. */
+    @Nonnull
+    private static List<String> lines(@Nonnull Timing timing) {
+        String rule = english(AlmanacLines.window(timing));
+        Message next = AlmanacLines.next(timing);
+        return next == null ? List.of(rule) : List.of(rule, english(next));
     }
 
     @Nonnull
@@ -376,131 +389,5 @@ class AlmanacRecurrenceLinesTest {
                 collect(nested, keys);
             }
         }
-    }
-
-    // ---- the English a player reads ----
-
-    private static Map<String, String> english;
-
-    /** The shipped en-US almanac file, key to value. */
-    @Nonnull
-    private static Map<String, String> english() {
-        if (english == null) {
-            Path file = Path.of("src", "main", "resources", "Server", "Languages", "en-US",
-                    "ziggfreedcommon.almanac.lang");
-            Map<String, String> values = new LinkedHashMap<>();
-            try {
-                for (String line : Files.readAllLines(file, StandardCharsets.UTF_8)) {
-                    String trimmed = line.trim();
-                    int eq = trimmed.indexOf('=');
-                    if (!trimmed.isEmpty() && !trimmed.startsWith("#") && eq > 0) {
-                        values.put(trimmed.substring(0, eq).trim(), trimmed.substring(eq + 1).trim());
-                    }
-                }
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
-            english = values;
-        }
-        return english;
-    }
-
-    /** {@code message} as the en-US file reads it: each nested key in place, numbers bare, plurals chosen. */
-    @Nonnull
-    private static String english(@Nullable Message message) {
-        assertNotNull(message, "a line to read");
-        return render(message.getFormattedMessage());
-    }
-
-    @Nonnull
-    private static String render(@Nonnull FormattedMessage message) {
-        if (message.messageId == null) {
-            return message.rawText == null ? "" : message.rawText;
-        }
-        assertTrue(message.messageId.startsWith(AlmanacText.PREFIX), message.messageId);
-        String key = message.messageId.substring(AlmanacText.PREFIX.length());
-        String value = english().get(key);
-        assertNotNull(value, "en-US ziggfreedcommon.almanac.lang ships no " + key);
-        return fill(value, message);
-    }
-
-    @Nonnull
-    private static String fill(@Nonnull String text, @Nonnull FormattedMessage message) {
-        StringBuilder out = new StringBuilder();
-        int i = 0;
-        while (i < text.length()) {
-            char c = text.charAt(i);
-            if (c != '{') {
-                out.append(c);
-                i++;
-                continue;
-            }
-            int close = closing(text, i);
-            out.append(argument(text.substring(i + 1, close), message));
-            i = close + 1;
-        }
-        return out.toString();
-    }
-
-    @Nonnull
-    private static String argument(@Nonnull String body, @Nonnull FormattedMessage message) {
-        String[] parts = body.split(",", 3);
-        String name = parts[0].trim();
-        if (parts.length == 1) {
-            FormattedMessage nested = message.messageParams == null ? null : message.messageParams.get(name);
-            return nested != null ? render(nested) : Long.toString(number(message, name));
-        }
-        String type = parts[1].trim();
-        if (type.equals("number")) {
-            return Long.toString(number(message, name));
-        }
-        if (type.equals("plural") && parts.length == 3) {
-            return plural(parts[2].trim(), number(message, name), message);
-        }
-        return fail("an argument the client would not read: {" + body + "}");
-    }
-
-    /** {@code one {...} other {...}}: keyword, ONE space, brace, as the client reads a plural option. */
-    @Nonnull
-    private static String plural(@Nonnull String options, long count, @Nonnull FormattedMessage message) {
-        Map<String, String> bodies = new HashMap<>();
-        int i = 0;
-        while (i < options.length()) {
-            int space = options.indexOf(' ', i);
-            assertTrue(space > i, "a plural option is keyword, one space, brace: " + options);
-            assertEquals('{', options.charAt(space + 1), "a plural option is keyword, one space, brace: " + options);
-            int close = closing(options, space + 1);
-            bodies.put(options.substring(i, space), options.substring(space + 2, close));
-            i = close + 1;
-            while (i < options.length() && options.charAt(i) == ' ') {
-                i++;
-            }
-        }
-        String chosen = count == 1 && bodies.containsKey("one") ? bodies.get("one") : bodies.get("other");
-        assertNotNull(chosen, "a plural names its other: " + options);
-        return fill(chosen, message);
-    }
-
-    private static int closing(@Nonnull String text, int open) {
-        int depth = 0;
-        for (int i = open; i < text.length(); i++) {
-            if (text.charAt(i) == '{') {
-                depth++;
-            } else if (text.charAt(i) == '}' && --depth == 0) {
-                return i;
-            }
-        }
-        return fail("an unclosed brace in " + text);
-    }
-
-    private static long number(@Nonnull FormattedMessage message, @Nonnull String name) {
-        ParamValue value = message.params == null ? null : message.params.get(name);
-        if (value instanceof LongParamValue typed) {
-            return typed.value;
-        }
-        if (value instanceof IntParamValue typed) {
-            return typed.value;
-        }
-        return fail("no number bound to {" + name + "} of " + message.messageId);
     }
 }

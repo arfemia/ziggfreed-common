@@ -42,7 +42,7 @@ public final class AlmanacText {
             "month.short.7", "month.short.8", "month.short.9", "month.short.10", "month.short.11", "month.short.12",
             // A season that comes round monthly or weekly: how it recurs and its next run, with the pieces those
             // lines nest (a list of months, a weekday, the Nth weekday, a day of the month).
-            "recur", "recur.with_next", "recur.monthly.day", "recur.monthly.weekday", "recur.months.every",
+            "recur", "recur.monthly.day", "recur.monthly.weekday", "recur.months.every",
             "recur.months.other", "recur.months.every_n", "recur.weekly", "recur.weekly.other",
             "recur.weekly.every_n", "recur.in_months", "recur.for_days", "recur.all_day", "recur.hours",
             "recur.until_next", "recur.from.for_days", "recur.from.until_next",

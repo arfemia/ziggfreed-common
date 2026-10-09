@@ -17,7 +17,8 @@ $ZW = "../Common/ZigKit.ui";
 // taken part in and keepsakes earned, under the list.
 //
 // RIGHT (#RightColumn, 962): the kit's hero plate #Hero (art, or a hero composed from item pictures appended onto
-// its #HeroItems, or the season's own picture; then the chip, the name, the dates and the accent strip), over
+// its #HeroItems, or the season's own picture; then the chip, the name, the dates, a monthly or weekly season's next
+// run on #HeroNext, and the accent strip), over
 // #SeasonBody, which scrolls: the flavor, #YearChips (Pages/ZigSegment.ui, a year each and Every season), the
 // scope header, #StatGrid (Pages/ZigStatTile.ui), the first-time #Hint, the keepsake header and #KeepsakeShelf
 // (Pages/ZigKeepsakeTile.ui), the achievements header, bar and #FeatList (Pages/ZigPill.ui), and #Links.

@@ -151,7 +151,7 @@ public final class AlmanacView {
     /**
      * How a season that comes round monthly or weekly recurs, as the calendar's rule says it, and its next run's
      * first instant and the first instant after it, on the season's own clock (both null when none is due): what
-     * its dates line says in place of one run's days.
+     * its two dates lines say in place of one run's days, the rule and then the next run.
      */
     public record Recurring(@Nonnull Recurrence rule, @Nullable LocalDateTime nextStart,
                             @Nullable LocalDateTime nextEnd) {

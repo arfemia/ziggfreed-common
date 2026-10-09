@@ -365,7 +365,8 @@ $ZS = "ZigStyles.ui";
 // season's art (an AssetImage, shown only when there is art); #HeroGradient and #HeroGlow, two white layers a page
 // tints to compose a hero with no art (a colour falling from the top, a glow behind the pictures); #HeroItems, the
 // composed hero's item pictures, each placed by its own anchor under the fade; #HeroFade, the dark ramp the words
-// sit on; #HeroPic, the season's picture when nothing else is set; #HeroText, the chip, the name and the dates;
+// sit on; #HeroPic, the season's picture when nothing else is set; #HeroText, the chip, the name, the dates and a
+// second dates line (#HeroNext, hidden until a page fills it), kept to the bottom edge by a flexing first child;
 // #HeroAccent, the season's colour along the bottom edge. Nothing clips a child to the plate, so every layer a page
 // places stays inside 962 x 240.
 @ZigHeroPlate = Group {
@@ -410,7 +411,12 @@ $ZS = "ZigStyles.ui";
 
   Group #HeroText {
     LayoutMode: Top;
-    Anchor: (Left: 28, Bottom: 24, Width: 680, Height: 92);
+    Anchor: (Left: 28, Bottom: 24, Width: 680, Height: 116);
+
+    // Takes the room a hidden line leaves, so the words keep to the bottom edge whichever lines show.
+    Group #HeroTextSpace {
+      FlexWeight: 1;
+    }
 
     Group #HeroChipRow {
       LayoutMode: Left;
@@ -428,6 +434,13 @@ $ZS = "ZigStyles.ui";
     Label #HeroDates {
       Anchor: (Height: 24);
       Text: "";
+      Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigInkStrong, Wrap: true, WrapMaxLines: 1);
+    }
+
+    Label #HeroNext {
+      Anchor: (Height: 24);
+      Text: "";
+      Visible: false;
       Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigInkStrong, Wrap: true, WrapMaxLines: 1);
     }
   }

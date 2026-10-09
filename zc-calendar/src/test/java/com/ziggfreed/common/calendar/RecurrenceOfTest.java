@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import com.ziggfreed.common.calendar.YearRule.Cadence;
 import com.ziggfreed.common.calendar.YearRule.RunLength;
 import com.ziggfreed.common.calendar.asset.CalendarEventConfig;
+import com.ziggfreed.common.occurrence.Occurrence;
 import com.ziggfreed.common.occurrence.Recurrence;
 
 /**
@@ -175,5 +176,65 @@ class RecurrenceOfTest {
         assertNull(service.recurrence("market", at("2031-06-01T12:00:00Z")), "2031 is set out by its own days");
         assertNotNull(service.recurrence("market", at("2024-06-01T12:00:00Z")),
                 "before its first year it says the rule that will date its first run");
+    }
+
+    // ---- what the Almanac reads beside the rule: the run on now and the next ----
+
+    // Review Focus 2 on the Almanac's dates lines: an admin's force on runs a run with its own days, and through it
+    // the rule stays the same and the next run is the one after the forced run (zc-almanac's AlmanacPagePlanTest
+    // paints the hero from these very answers).
+    @Test
+    void aForcedRunKeepsItsRuleAndTheRunAfterItIsNext() {
+        load("Traveling_Fair", """
+                { "Window": { "Rule": { "Type": "Monthly", "Weekday": "Sunday", "Nth": 1, "Days": 7 } },
+                  "FirstYear": 2026 }
+                """);
+        Recurrence fair = Recurrence.Monthly.onWeekday(1, DayOfWeek.SUNDAY, 1, Set.of(), Recurrence.Length.days(7));
+        long between = at("2026-09-30T12:00:00Z");
+        Occurrence forced = service.forceOn("Traveling_Fair", between);
+        assertNotNull(forced);
+        assertEquals("2026#10", forced.label(), "October's run brought forward");
+        assertEquals(at("2026-10-04T00:00:00Z"), forced.startMs(), "with its own days, still ahead");
+        assertEquals(forced, service.live("traveling_fair", between));
+        Occurrence next = service.next("traveling_fair", between);
+        assertNotNull(next);
+        assertEquals("2026#11", next.label(), "while the forced run is on, the next is the one after it");
+        assertEquals(at("2026-11-01T00:00:00Z"), next.startMs());
+        assertEquals(at("2026-11-08T00:00:00Z"), next.endMs());
+        assertEquals(fair, service.recurrence("traveling_fair", between), "a force changes no rule");
+
+        load("Fishing_Contest", """
+                { "Window": { "Rule": { "Type": "Weekly", "Weekday": "Sunday", "At": "14:00", "Length": "PT2H" } },
+                  "FirstYear": 2026 }
+                """);
+        long newYearsEve = at("2026-12-31T12:00:00Z");
+        Occurrence replay = service.forceOn("Fishing_Contest", newYearsEve);
+        assertNotNull(replay);
+        assertEquals(at("2026-12-27T14:00:00Z"), replay.startMs(), "after the year's last Sunday, that run again");
+        assertEquals(replay, service.live("fishing_contest", newYearsEve));
+        Occurrence january = service.next("fishing_contest", newYearsEve);
+        assertNotNull(january);
+        assertEquals(at("2027-01-03T14:00:00Z"), january.startMs(), "and the new year's first Sunday next");
+        assertEquals(at("2027-01-03T16:00:00Z"), january.endMs());
+        assertEquals(new Recurrence.Weekly(DayOfWeek.SUNDAY, 1, Set.of(),
+                Recurrence.Length.timed(LocalTime.of(14, 0), Duration.ofHours(2))),
+                service.recurrence("fishing_contest", newYearsEve));
+    }
+
+    // A Years entry's Skip leaves a run out of one year and the rule as it is: the Almanac still says the rule, and
+    // the run it names next is always one the year keeps.
+    @Test
+    void aYearThatSkipsARunSaysTheSameRuleAndItsNextRunIsOneTheYearKeeps() {
+        load("Traveling_Fair", """
+                { "Window": { "Rule": { "Type": "Monthly", "Weekday": "Sunday", "Nth": 1, "Days": 7 },
+                              "Years": { "2026": { "Skip": [11] } } }, "FirstYear": 2026 }
+                """);
+        long october = at("2026-10-20T12:00:00Z");
+        assertEquals(Recurrence.Monthly.onWeekday(1, DayOfWeek.SUNDAY, 1, Set.of(), Recurrence.Length.days(7)),
+                service.recurrence("traveling_fair", october), "the rule still dates the year");
+        Occurrence next = service.next("traveling_fair", october);
+        assertNotNull(next);
+        assertEquals("2026#12", next.label(), "November's run is skipped, so December's is next");
+        assertEquals(at("2026-12-06T00:00:00Z"), next.startMs());
     }
 }

@@ -10,7 +10,9 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.MonthDay;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -35,6 +37,7 @@ import com.hypixel.hytale.protocol.packets.interface_.CustomUICommand;
 import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBinding;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
+import com.ziggfreed.common.almanac.AlmanacText;
 import com.ziggfreed.common.almanac.page.AlmanacDestinations.Almanac;
 import com.ziggfreed.common.almanac.view.AlmanacView.Banner;
 import com.ziggfreed.common.almanac.view.AlmanacView.Feat;
@@ -45,6 +48,7 @@ import com.ziggfreed.common.almanac.view.AlmanacView.HeroGradient;
 import com.ziggfreed.common.almanac.view.AlmanacView.HeroItem;
 import com.ziggfreed.common.almanac.view.AlmanacView.MonthMarks;
 import com.ziggfreed.common.almanac.view.AlmanacView.Record;
+import com.ziggfreed.common.almanac.view.AlmanacView.Recurring;
 import com.ziggfreed.common.almanac.view.AlmanacView.Scope;
 import com.ziggfreed.common.almanac.view.AlmanacView.Season;
 import com.ziggfreed.common.almanac.view.AlmanacView.SeasonAchievements;
@@ -54,6 +58,7 @@ import com.ziggfreed.common.almanac.view.AlmanacView.Tally;
 import com.ziggfreed.common.almanac.view.AlmanacView.Timing;
 import com.ziggfreed.common.almanac.view.AlmanacView.YearChip;
 import com.ziggfreed.common.almanac.view.AlmanacView.YearKeepsake;
+import com.ziggfreed.common.occurrence.Recurrence;
 import com.ziggfreed.common.ui.icon.IconRenderer;
 import com.ziggfreed.common.ui.kit.KeepsakeState;
 import com.ziggfreed.common.ui.kit.RowSize;
@@ -97,7 +102,7 @@ class AlmanacPageDocumentTest {
         List<String> missing = new ArrayList<>();
         int checked = 0;
         for (AlmanacPagePlan plan : List.of(fullPlan(composedHero()), fullPlan(artHero()), fullPlan(pictureHero()),
-                emptyPlan())) {
+                fullPlan(pictureHero(), monthly()), emptyPlan())) {
             UICommandBuilder cmd = new UICommandBuilder();
             UIEventBuilder events = new UIEventBuilder();
             AlmanacPage.paint(cmd, events, plan, null);
@@ -161,6 +166,34 @@ class AlmanacPageDocumentTest {
         assertTrue(AlmanacPage.HERO_PICTURE.contains("AssetImage " + IconRenderer.TEXTURE_ICON_ID),
                 "a composed hero's picture is the one plain picture slot: no tooltip, no rarity square");
         assertFalse(AlmanacPage.HERO_PICTURE.contains("ItemGrid") || AlmanacPage.HERO_PICTURE.contains("ItemIcon"));
+    }
+
+    // ---- the hero's dates lines ----
+
+    /**
+     * A season that comes round monthly or weekly says its rule on the hero's dates line and its next run on the line
+     * under it, each a label of its own, so the next run's days are never what a one-line label cuts off; a season
+     * with no next run sets that line hidden, so nothing the kit ships shows by accident.
+     *
+     * <p>Tagged {@code engine-items}: a {@link UICommandBuilder}'s static init reaches the engine's item codec.
+     */
+    @Test
+    @Tag("engine-items")
+    void aMonthlySeasonsNextRunIsPaintedOnTheHerosSecondLine() {
+        Map<String, String> monthly = sent(fullPlan(pictureHero(), monthly()));
+        String dates = monthly.get("#Hero #HeroDates.TextSpans");
+        assertNotNull(dates, "the dates line is painted");
+        assertTrue(dates.contains(AlmanacText.PREFIX + "recur"), "it says the rule: " + dates);
+        assertFalse(dates.contains(AlmanacText.PREFIX + "next"), "and nothing of the next run: " + dates);
+        String next = monthly.get("#Hero #HeroNext.TextSpans");
+        assertNotNull(next, "the next run is painted on a line of its own");
+        assertTrue(next.contains(AlmanacText.PREFIX + "next"), next);
+        assertTrue(monthly.get("#Hero #HeroNext.Visible").contains("true"), "and shown");
+
+        Map<String, String> yearly = sent(fullPlan(pictureHero()));
+        assertNotNull(yearly.get("#Hero #HeroNext.Visible"), "a once-a-year season sets the line too");
+        assertTrue(yearly.get("#Hero #HeroNext.Visible").contains("false"), "hidden");
+        assertFalse(yearly.containsKey("#Hero #HeroNext.TextSpans"), "with nothing in it");
     }
 
     // ---- pictures ----
@@ -328,11 +361,16 @@ class AlmanacPageDocumentTest {
     // ---- fixtures ----
 
     private static AlmanacPagePlan fullPlan(Hero hero) {
+        return fullPlan(hero, new Timing(true, 27, false, null, false, MonthDay.of(10, 1), MonthDay.of(11, 3),
+                LocalDate.of(2027, 10, 1), false));
+    }
+
+    /** Every section of the page filled, the season read showing {@code hero} and {@code timing}. */
+    private static AlmanacPagePlan fullPlan(Hero hero, Timing timing) {
         MonthDay oct1 = MonthDay.of(10, 1);
         MonthDay nov3 = MonthDay.of(11, 3);
         Season live = new Season("hallows_eve", "almanac.test.title", "almanac.test.flavor", "Test_Icon", true, 2026);
         Season later = new Season("harvest_moon", null, null, null, false, 0);
-        Timing timing = new Timing(true, 27, false, null, false, oct1, nov3, LocalDate.of(2027, 10, 1), false);
         Timing between = new Timing(false, null, false, 23, false, oct1, nov3, LocalDate.of(2026, 10, 29), false);
         List<YearChip> years = List.of(new YearChip(2025, false, true, true), new YearChip(2026, true, true, false));
         SeasonPage page = new SeasonPage(live, timing, years, new Scope(2026), true,
@@ -356,6 +394,30 @@ class AlmanacPageDocumentTest {
             months.add(new MonthMarks(m, List.of()));
         }
         return AlmanacPagePlan.of(List.of(), Map.of(), null, new Record(0L, 0L), months, Map.of(), 10, null, null);
+    }
+
+    /**
+     * A season between runs that comes round on the first Sunday of every month for seven days, its next run
+     * October 4th to 10th.
+     */
+    private static Timing monthly() {
+        Recurrence fair = Recurrence.Monthly.onWeekday(1, DayOfWeek.SUNDAY, 1, Set.of(), Recurrence.Length.days(7));
+        return new Timing(false, null, false, 4, true, MonthDay.of(10, 4), MonthDay.of(10, 10),
+                LocalDate.of(2026, 10, 4), false, 2026, new Recurring(fair, LocalDateTime.of(2026, 10, 4, 0, 0),
+                        LocalDateTime.of(2026, 10, 11, 0, 0)));
+    }
+
+    /** What painting {@code plan} sends, selector to its value as the client receives it (the last write wins). */
+    private static Map<String, String> sent(AlmanacPagePlan plan) {
+        UICommandBuilder cmd = new UICommandBuilder();
+        AlmanacPage.paint(cmd, new UIEventBuilder(), plan, null);
+        Map<String, String> out = new HashMap<>();
+        for (CustomUICommand command : cmd.getCommands()) {
+            if (command.selector != null) {
+                out.put(command.selector, String.valueOf(command.data));
+            }
+        }
+        return out;
     }
 
     private static Hero composedHero() {
