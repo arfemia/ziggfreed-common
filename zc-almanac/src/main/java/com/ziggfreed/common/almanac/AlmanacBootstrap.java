@@ -62,8 +62,9 @@ public final class AlmanacBootstrap {
 
     /**
      * The plugin-free half: the feature (before the first progression publish), the destination and
-     * the menu tab (before any asset decodes), the counter, at the library-default rank, and the book's
-     * Seasons statistics (read on every look, so it needs nothing loaded yet).
+     * the menu tab (before any asset decodes), the counter, at the library-default rank, the book's
+     * Seasons statistics (read on every look, so it needs nothing loaded yet), and the keepsake check, run
+     * once when the shared progression runtime is built (both stores have loaded by then).
      */
     public static void registerVocabulary() {
         AlmanacSwitch.registerFeature();
@@ -72,5 +73,6 @@ public final class AlmanacBootstrap {
         ProgressionRuntime.defaults(OWNER).momentListener(new AlmanacMomentListener(
                 OccurrenceAlmanacCalendar.INSTANCE, ServerTallies.shared()));
         LedgerContributions.contribute(LedgerContributions.STATISTICS, AlmanacStatistics.production());
+        ProgressionRuntime.onBuilt(AlmanacKeepsakeCheck::logFindings);
     }
 }
