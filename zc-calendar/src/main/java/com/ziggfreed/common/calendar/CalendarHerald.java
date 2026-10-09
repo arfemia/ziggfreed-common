@@ -109,11 +109,13 @@ public final class CalendarHerald {
     }
 
     /**
-     * The start banners one credit owes, in credit order: the first at once, each later one {@link #START_GAP_MS}
-     * after the one before. A run whose event authors no start line (or is no longer loaded) takes no slot.
+     * The start banners for {@code eventIds}, in order: the first at once, each later one {@link #START_GAP_MS}
+     * after the one before. An event that authors no start line (or is no longer loaded) takes no slot. It asks no
+     * run whether its Herald shows the banner ({@link #showsStart}: {@code Enabled} false, {@code FirstRunOfYear}),
+     * so it is the queue's own spacing for a test, never a caller's: a credit queues through the runs overload.
      */
     @Nonnull
-    public static List<QueuedBanner> startQueue(@Nonnull List<String> eventIds,
+    static List<QueuedBanner> startQueue(@Nonnull List<String> eventIds,
             @Nonnull Function<String, CalendarEventAsset> events) {
         return queue(eventIds, id -> startLine(events.apply(id)), 0L);
     }

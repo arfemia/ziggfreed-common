@@ -178,6 +178,25 @@ class RecurrenceOfTest {
                 "before its first year it says the rule that will date its first run");
     }
 
+    // The rule a reader is told is the one dating the year the event is IN (OccurrenceSource.recurrence): a December
+    // run still going on in January is its starting year's, so it answers that year's rule, never the new year's.
+    @Test
+    void aDecemberRunLiveInJanuaryAnswersItsOwnYearsRule() {
+        load("Market", """
+                { "Window": { "Rule": { "Type": "Monthly", "Day": 28, "Days": 7 },
+                              "Years": { "2027": { "Start": "04-01", "End": "04-20" } } }, "FirstYear": 2026 }
+                """);
+        long january2 = at("2027-01-02T12:00:00Z");
+        Occurrence december = service.live("market", january2);
+        assertNotNull(december, "December 28th's run lasts to January 3rd");
+        assertEquals(2026, december.year());
+
+        assertEquals(Recurrence.Monthly.onDay(28, 1, Set.of(), Recurrence.Length.days(7)),
+                service.recurrence("market", january2), "the run going on is 2026's, so 2026's rule says how it comes");
+        assertNull(service.recurrence("market", at("2027-01-10T12:00:00Z")),
+                "once that run is over, 2027 is the year it is in, and its days are its own");
+    }
+
     // ---- what the Almanac reads beside the rule: the run on now and the next ----
 
     // Review Focus 2 on the Almanac's dates lines: an admin's force on runs a run with its own days, and through it

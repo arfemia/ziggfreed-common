@@ -21,17 +21,18 @@ public final class RecurrenceOf {
     }
 
     /**
-     * How {@code event} comes round by the rule dating the year it is in at {@code nowMs} on its own clock (its
-     * FirstYear's rule before then, since that one dates its first run), whatever its switches say; null for no
-     * event, one that cannot run, and a year whose rule is no recurrence ({@link #rule}).
+     * How {@code event} comes round by the rule dating {@code year}, the year the event is in (its FirstYear's rule
+     * before then, since that one dates its first run), whatever its switches say; null for no event, one that cannot
+     * run, and a year whose rule is no recurrence ({@link #rule}). The calendar names the year
+     * ({@link CalendarService#recurrence}): the year the run going on started in, so a December run still on in
+     * January answers its own year's rule, never the new year's.
      */
     @Nullable
-    public static Recurrence event(@Nullable CalendarEventAsset event, long nowMs) {
+    public static Recurrence event(@Nullable CalendarEventAsset event, int year) {
         if (event == null || !event.canRun()) {
             return null;
         }
-        int year = Math.max(event.firstYear(), AnnualWindow.yearOf(nowMs, event.zone()));
-        return rule(event.annualWindow().rule(year));
+        return rule(event.annualWindow().rule(Math.max(event.firstYear(), year)));
     }
 
     /** {@code rule} as a recurrence when it is monthly or weekly and dates several runs a year, else null. */
