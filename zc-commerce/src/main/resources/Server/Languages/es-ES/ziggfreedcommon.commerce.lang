@@ -99,6 +99,7 @@ refuse.no_reroll = Ese no se puede cambiar.
 refuse.reroll_cap = Has gastado todos los cambios de esta rotación.
 refuse.reroll_no_alternative = No hay nada distinto que poner en su lugar.
 refuse.reroll_cannot_pay = No puedes permitirte un cambio.
+board.slot.extra = Un contrato extra: {0}
 
 board.grade.training = Entrenamiento
 board.grade.easy = Fácil

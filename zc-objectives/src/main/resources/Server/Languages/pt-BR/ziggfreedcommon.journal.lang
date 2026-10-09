@@ -14,6 +14,7 @@ state.collect = Receber
 state.progress = Em andamento
 state.available = Disponível
 state.locked = Bloqueada
+state.waiting = Aguardando
 state.back_in = Volta em {0}
 state.done = Concluída
 

@@ -99,6 +99,7 @@ refuse.no_reroll = Quello non si può rigenerare.
 refuse.reroll_cap = Hai usato tutte le rigenerazioni di questo turno.
 refuse.reroll_no_alternative = Non c'è nulla di diverso da mettere al suo posto.
 refuse.reroll_cannot_pay = Non puoi permetterti una rigenerazione.
+board.slot.extra = Un contratto in più: {0}
 
 board.grade.training = Allenamento
 board.grade.easy = Facile

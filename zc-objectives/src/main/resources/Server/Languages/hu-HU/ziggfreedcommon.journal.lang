@@ -14,6 +14,7 @@ state.collect = Átvehető
 state.progress = Folyamatban
 state.available = Elérhető
 state.locked = Zárolt
+state.waiting = Várakozik
 state.back_in = {0} múlva visszatér
 state.done = Kész
 

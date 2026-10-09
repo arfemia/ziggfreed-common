@@ -4,4 +4,5 @@
 
 farewell = Leb wohl.
 missing = Im Moment gibt es nichts zu besprechen.
-active_objective = Aktuell: {0}
+active_step = {0}: {1}
+active_step_count = {0}: {1} ({2, number}/{3, number})

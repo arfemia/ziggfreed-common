@@ -4,4 +4,5 @@
 
 farewell = Elveda.
 missing = Şu anda konuşacak bir şey yok.
-active_objective = Mevcut: {0}
+active_step = {0}: {1}
+active_step_count = {0}: {1} ({2, number}/{3, number})

@@ -4,4 +4,5 @@
 
 farewell = Ég veled.
 missing = Most nincs miről beszélni.
-active_objective = Jelenleg: {0}
+active_step = {0}: {1}
+active_step_count = {0}: {1} ({2, number}/{3, number})

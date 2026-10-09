@@ -99,6 +99,7 @@ refuse.no_reroll = Bu değiştirilemez.
 refuse.reroll_cap = Bu turdaki bütün değişim hakkını kullandın.
 refuse.reroll_no_alternative = Yerine koyacak farklı bir şey yok.
 refuse.reroll_cannot_pay = Bir değişime gücün yetmiyor.
+board.slot.extra = Fazladan bir {0} sözleşmesi
 
 board.grade.training = Eğitim
 board.grade.easy = Kolay

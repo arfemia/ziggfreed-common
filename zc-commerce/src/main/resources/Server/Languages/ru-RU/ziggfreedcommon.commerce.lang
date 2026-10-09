@@ -99,6 +99,7 @@ refuse.no_reroll = Его нельзя заменить.
 refuse.reroll_cap = Все замены на этот раз израсходованы.
 refuse.reroll_no_alternative = Заменить не на что.
 refuse.reroll_cannot_pay = Замена вам не по карману.
+board.slot.extra = Дополнительный контракт: {0}
 
 board.grade.training = Тренировка
 board.grade.easy = Лёгкий

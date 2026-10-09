@@ -14,6 +14,7 @@ state.collect = À récupérer
 state.progress = En cours
 state.available = Disponible
 state.locked = Verrouillée
+state.waiting = En attente
 state.back_in = Revient dans {0}
 state.done = Terminée
 
