@@ -136,6 +136,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 |---|---|---|---|
 | `Event` | `string` | `null` | The calendar event whose runs the quest counts by, by its file name (a CalendarEvents id). Required: a PerRun naming none is ignored. |
 | `Times` | `integer` | `null` | How many FINISHES fit inside one run of the event. Unauthored means 1. A run whose reward is still waiting to be collected has already spent its slot. |
+| `Carry` | `boolean` | `null` | Whether an unfinished quest carries its progress to the event's next run; unauthored means true, so it comes back where the player left it. False starts it afresh each run, for a quest of a weekly or monthly event. |
 
 <a id="field-questasset-indicator-collect"></a>
 #### QuestAsset.Indicator.Collect
