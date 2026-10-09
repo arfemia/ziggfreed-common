@@ -99,6 +99,53 @@ class OccurrenceReaderTest {
         assertEquals(List.of(1_234L, 1_234L), askedAt, "the reader's clock, never one of the source's own");
     }
 
+    // Stay per year: every run of a year keeps that year's ONE copy live; a later run never mints a second.
+    @Test
+    void everyRunOfAYearKeepsThatYearsOneCopyLive() {
+        long[] now = {0L};
+        OccurrenceSource fairs = new OccurrenceSource() {
+            private final Occurrence spring = new Occurrence(EVENT, 2026, 1, 100L, 200L);
+            private final Occurrence autumn = new Occurrence(EVENT, 2026, 2, 300L, 400L);
+
+            @Override
+            public boolean isEnabled(@Nonnull String eventId) {
+                return EVENT.equals(eventId);
+            }
+
+            @Override
+            @Nullable
+            public Occurrence live(@Nonnull String eventId, long nowMs) {
+                return spring.contains(nowMs) ? spring : autumn.contains(nowMs) ? autumn : null;
+            }
+
+            @Override
+            @Nonnull
+            public List<Occurrence> history(@Nonnull String eventId, long nowMs) {
+                return List.of();
+            }
+
+            @Override
+            @Nullable
+            public Integer firstYear(@Nonnull String eventId) {
+                return 2026;
+            }
+
+            @Override
+            @Nullable
+            public Integer currentYear(@Nonnull String eventId, long nowMs) {
+                return 2026;
+            }
+        };
+        OccurrenceReader reader = new OccurrenceReader(() -> fairs, () -> now[0]);
+        now[0] = 150L;
+        assertTrue(reader.isLive(EVENT, 2026), "the spring run is 2026's");
+        now[0] = 250L;
+        assertFalse(reader.isLive(EVENT, 2026), "between the runs no copy is live");
+        now[0] = 350L;
+        assertTrue(reader.isLive(EVENT, 2026), "the autumn run is 2026's too: the same copy");
+        assertEquals(Integer.valueOf(2026), reader.currentYear(EVENT), "and the year minted for is still 2026");
+    }
+
     @Test
     void theProductionReaderFindsTheSlotAsItIsFilledWhenAsked() {
         OccurrenceReader reader = OccurrenceReader.LIVE;

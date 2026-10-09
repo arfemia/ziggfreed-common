@@ -157,9 +157,9 @@ public final class QuestPoolValidator {
      * clock starts, or which window is counted. A number outside its legal range is a WARNING,
      * because the clamp lands where anybody would guess.
      *
-     * <p>A {@code PerRun} event no loaded calendar declares is a WARNING
-     * ({@link #REPEAT_PER_RUN_UNKNOWN_EVENT}), read as the {@code Season} leaf's check reads it, so ask
-     * this after the calendar has folded its events: before that, every event reads unknown.
+     * <p>Whether a {@code PerRun} event is one a loaded calendar declares is not asked here: that is
+     * {@link #checkPerRunEvent}, which the fold asks once per authored file, as it asks the {@code Season}
+     * leaf's check, so a generator's children never repeat their base's finding.
      *
      * @return the findings for this block, empty when there is nothing wrong or nothing authored
      */
@@ -194,13 +194,6 @@ public final class QuestPoolValidator {
                 out.add(Finding.error(DOMAIN, "REPEAT_PER_RUN_NO_EVENT",
                         "Repeat.PerRun names no Event, so it is ignored and the quest comes round by its other "
                                 + "Repeat leaves alone; name the calendar event whose runs it counts by", questId));
-            } else if (!SeasonGate.known(perRun.getEvent())) {
-                // The Season leaf's UNKNOWN_SEASON, for the event a once-a-run quest counts by: the same
-                // running switch hides it, so an id no calendar declares hides it for good.
-                out.add(Finding.warning(DOMAIN, REPEAT_PER_RUN_UNKNOWN_EVENT,
-                        "Repeat.PerRun.Event names '" + perRun.getEvent().trim() + "', which no calendar event "
-                                + "on this server defines, so this quest is never offered. Add that event's "
-                                + "calendar file, or correct the id.", questId));
             }
             Integer times = perRun.getTimes();
             if (times != null && times.intValue() < 1) {
@@ -214,6 +207,27 @@ public final class QuestPoolValidator {
             validateReset(reset, questId, out);
         }
         return out;
+    }
+
+    /**
+     * Add the {@link #REPEAT_PER_RUN_UNKNOWN_EVENT} WARNING to {@code out} when {@code repeat}'s
+     * {@code PerRun} names an event no loaded calendar file declares, read as the {@code Season} leaf's
+     * check reads it: the same running switch hides the quest, so an id no calendar declares hides it for
+     * good. Ask it once per authored file, a skeleton included, beside that check and after the calendar has
+     * folded its events (before that, every event reads unknown); a generated child inherits its base's
+     * event and is never asked again, so one typo is one line.
+     */
+    public static void checkPerRunEvent(@Nonnull List<Finding> out, @Nullable QuestAsset.Repeat repeat,
+            @Nonnull String questId) {
+        QuestAsset.Repeat.PerRun perRun = repeat == null ? null : repeat.getPerRun();
+        String event = perRun == null ? null : perRun.getEvent();
+        if (event == null || event.isBlank() || SeasonGate.known(event)) {
+            return;
+        }
+        out.add(Finding.warning(DOMAIN, REPEAT_PER_RUN_UNKNOWN_EVENT,
+                "Repeat.PerRun.Event names '" + event.trim() + "', which no calendar event on this server "
+                        + "defines, so this quest is never offered. Add that event's calendar file, or correct "
+                        + "the id.", questId));
     }
 
     private static void validateReset(@Nonnull QuestAsset.Repeat.Reset reset, @Nonnull String questId,

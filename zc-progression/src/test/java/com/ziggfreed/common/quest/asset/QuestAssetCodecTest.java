@@ -320,10 +320,16 @@ class QuestAssetCodecTest {
                 QuestAsset typo = decodeRoot("{ \"Repeat\": { \"PerRun\": { \"Event\": \"Spring_Fiar\" } } }", "fiar");
 
                 assertTrue(codes(known).isEmpty(), "an event the calendar declares says nothing");
-                List<Finding> findings = QuestPoolValidator.repeatFindings(typo.getRepeat(), "fiar");
+                List<Finding> knownFindings = new ArrayList<>();
+                QuestPoolValidator.checkPerRunEvent(knownFindings, known.getRepeat(), "fair");
+                assertTrue(knownFindings.isEmpty(), "an event the calendar declares says nothing at the fold either");
+                List<Finding> findings = new ArrayList<>();
+                QuestPoolValidator.checkPerRunEvent(findings, typo.getRepeat(), "fiar");
                 assertEquals(List.of("REPEAT_PER_RUN_UNKNOWN_EVENT"), findings.stream().map(Finding::code).toList());
                 assertEquals(Severity.WARNING, findings.get(0).severity(),
                         "an unknown id is a warning: the quest stays hidden, nothing breaks");
+                assertTrue(codes(typo).isEmpty(),
+                        "the block's own audit leaves the event to the fold, which asks once per authored file");
             } finally {
                 FeatureFlags.reset();
             }
