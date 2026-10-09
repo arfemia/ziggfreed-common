@@ -166,6 +166,7 @@ stats.row.meta = {0, number} {0, plural, one {season taken part in} other {seaso
 stats.open = Open in the Almanac
 
 # The season list's second head (after On now), and a year as a label (a year chip, a keepsake tile): text, so
-# no locale groups its digits.
+# no locale groups its digits. A year chip counts the runs attended in it once there are two or more.
 seasons.all = All seasons
 year = {0}
+year.runs = {0} ({1, number} {1, plural, one {run} other {runs}})

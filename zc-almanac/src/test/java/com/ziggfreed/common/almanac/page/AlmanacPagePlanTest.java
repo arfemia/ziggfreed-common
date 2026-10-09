@@ -246,6 +246,22 @@ class AlmanacPagePlanTest {
     }
 
     @Test
+    void aYearOfSeveralRunsAttendedCountsThemOnItsChip() {
+        Season live = season(EVENT, true);
+        List<YearChip> years = List.of(new YearChip(2025, false, true, false, 1),
+                new YearChip(2026, true, true, false, 3));
+        SeasonPage page = new SeasonPage(live, liveTiming(27), years, new Scope(2026), true, List.of(), List.of(),
+                null, new Hero(null, null, null), null, List.of());
+        SeasonBody body = plan(List.of(live), page).body();
+        assertKey("year", body.years().get(0).label());
+        assertKey("year.runs", body.years().get(1).label());
+        assertEquals("2026", body.years().get(1).label().getFormattedMessage().messageParams.get("0").rawText,
+                "a year is a label, never a quantity");
+        assertEquals(3L, number(body.years().get(1).label(), "1"), "the count is a typed number");
+        assertEquals("2026", body.years().get(1).value());
+    }
+
+    @Test
     void noKeepsakeAndNothingFiledLeaveTheirSectionsOut() {
         Season live = season(EVENT, true);
         SeasonPage none = page(live, liveTiming(27), List.of(new YearChip(2026, true, true, false)), new Scope(2026),

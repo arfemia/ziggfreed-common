@@ -231,6 +231,24 @@ class AlmanacViewPageTest {
         assertEquals(new Scope(2026), AlmanacView.scope(null, winter, timing, years), "and the page opens on 2026");
     }
 
+    // M287: a year of several runs counts the runs attended on its chip; a year from before runs were counted reads one.
+    @Test
+    void aYearsChipCountsTheRunsAttendedInIt() {
+        Occurrence spring = FixedCalendar.run("fair", 2026, "2026-04-10", "2026-04-16", UTC);
+        Dates dates = new Dates(null, null, List.of(spring), 2026, UTC);
+        Season fair = new Season("fair", null, null, null, false, 0);
+        Timing timing = AlmanacView.timing(fair, dates, noon("2026-06-01"));
+        CounterMap tallies = new CounterMap();
+        tallies.add(AlmanacKeys.season("fair", 2025, AlmanacKeys.ATTENDED), 1L);
+        tallies.add(AlmanacKeys.season("fair", 2026, AlmanacKeys.ATTENDED), 1L);
+        tallies.add(AlmanacKeys.season("fair", 2026, AlmanacKeys.RUNS), 2L);
+
+        List<YearChip> years = AlmanacView.years(fair, timing, dates, tallies, Set.of());
+        assertEquals(List.of(2025, 2026), years.stream().map(YearChip::year).toList());
+        assertEquals(1, years.get(0).runsAttended(), "a year attended before runs were counted had one run");
+        assertEquals(2, years.get(1).runsAttended());
+    }
+
     // ---- years and scope ----
 
     @Test
