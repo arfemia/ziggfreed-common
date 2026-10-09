@@ -31,7 +31,7 @@ import com.ziggfreed.common.CommonLog;
  * generated-from-a-roster label set, a per-item description twin) that cannot be hand-authored
  * into the jar's static {@code .lang} ahead of time.
  *
- * <p><b>The catalog-sync chain</b> (source-proven in hytale-shared-source:
+ * <p><b>The catalog-sync chain</b> (source-proven in shared-source/release:
  * {@code I18nModule.loadMessagesFromPack} and {@code sendTranslations}): {@code AssetModule.registerPack(id, path, manifest,
  * PackSource.RUNTIME)} -> the {@code AssetPackRegisterEvent} listener {@code
  * I18nModule.loadMessagesFromPack} walks the pack's {@code Server/Languages/<locale>/*.lang} into
