@@ -245,6 +245,42 @@ class AlmanacViewTest {
     }
 
     @Test
+    void theBannerClimbsTheLadderRungByRungThenRestsOnTheTop() {
+        Achievement keepA = Achievement.builder("keep_a").category("Seasons").subcategory("Season_A").build();
+        Achievement keepB = Achievement.builder("keep_b").category("Seasons").subcategory("Season_B").build();
+        Achievement keepC = Achievement.builder("keep_c").category("Seasons").subcategory("Season_C").build();
+        List<Achievement.MetaGroup> seasons = List.of(
+                new Achievement.MetaGroup("season_a", List.of("keep_a"), () -> true),
+                new Achievement.MetaGroup("season_b", List.of("keep_b"), () -> true),
+                new Achievement.MetaGroup("season_c", List.of("keep_c"), () -> true));
+        Achievement two = Achievement.builder("ladder_two").category("Seasons").sortOrder(10)
+                .metaGroups(seasons).metaNeeds(2).build();
+        Achievement every = Achievement.builder("ladder_every").category("Seasons").sortOrder(20)
+                .metaGroups(seasons).build();
+        AchievementEngine engine = engine(keepA, keepB, keepC, two, every);
+
+        Banner first = AlmanacView.banner(engine, ALICE);
+        assertNotNull(first);
+        assertEquals("ladder_two", first.achievementId(),
+                "the lowest rung not yet earned, by its order (the id alone would put ladder_every first)");
+        assertEquals(0, first.childrenEarned());
+        assertEquals(2, first.childrenTotal());
+
+        engine.unlock(ALICE, keepA);
+        engine.unlock(ALICE, keepB);
+        Banner second = AlmanacView.banner(engine, ALICE);
+        assertEquals("ladder_every", second.achievementId(), "an earned rung hands the banner to the next");
+        assertEquals(2, second.childrenEarned());
+        assertEquals(3, second.childrenTotal(), "seasons, never copies");
+
+        engine.unlock(ALICE, keepC);
+        Banner last = AlmanacView.banner(engine, ALICE);
+        assertEquals("ladder_every", last.achievementId(), "every rung earned: the banner rests on the highest");
+        assertTrue(last.earned());
+        assertEquals(3, last.childrenEarned(), "an earned rung reads full");
+    }
+
+    @Test
     void theShippedSeasonsCategoryIsTheOneTheViewReads() throws Exception {
         try (InputStream in = AlmanacView.class.getResourceAsStream(
                 "/Server/ZiggfreedCommon/AchievementCategories/Seasons.json")) {

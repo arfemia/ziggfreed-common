@@ -216,6 +216,21 @@ class AlmanacViewPageTest {
         assertNull(fixed.windowYear(), "days that are the same every year name no year");
     }
 
+    // Review Focus 5 (the Almanac's year chips): a run crossing the new year reads as the year it started.
+    @Test
+    void aRunCrossingTheNewYearShowsItsStartingYearsChipLiveInJanuary() {
+        Occurrence run = FixedCalendar.run("winter", 2026, "2026-12-15", "2027-01-06", UTC);
+        Dates dates = new Dates(run, null, List.of(run), 2026, UTC);
+        Season winter = new Season("winter", null, null, null, true, 2026);
+        Timing timing = AlmanacView.timing(winter, dates, noon("2027-01-03"));
+
+        List<YearChip> years = AlmanacView.years(winter, timing, dates, new CounterMap(), Set.of());
+
+        assertEquals(List.of(2026), years.stream().map(YearChip::year).toList(), "no 2027 chip in January");
+        assertTrue(years.get(0).live(), "on January 3rd the 2026 chip is the live one");
+        assertEquals(new Scope(2026), AlmanacView.scope(null, winter, timing, years), "and the page opens on 2026");
+    }
+
     // ---- years and scope ----
 
     @Test

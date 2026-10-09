@@ -252,6 +252,43 @@ class AchievementReaderTest {
     }
 
     @Test
+    void aGroupedCapstoneCountsSeasonsNotTheCopiesListedUnderIt() {
+        Achievement h2025 = f.add(ach("hallowed_2025", "seasons", "hallows_eve", 1), "Hallowed 2025");
+        Achievement h2026 = f.add(ach("hallowed_2026", "seasons", "hallows_eve", 1), "Hallowed 2026");
+        f.add(ach("feast_2026", "seasons", "harvest_feast", 1), "Feast 2026");
+        Achievement ladder = f.add(Achievement.builder("two_seasons").category("seasons")
+                .metaGroups(List.of(
+                        new Achievement.MetaGroup("hallows_eve", List.of("hallowed_2025", "hallowed_2026"), () -> true),
+                        new Achievement.MetaGroup("harvest_feast", List.of("feast_2026"), () -> true)))
+                .metaNeeds(2), "Two Seasons");
+        f.earn(h2025, NOW - DAY);
+        f.earn(h2026, NOW - DAY);
+
+        AchievementReader reader = f.reader();
+        assertEquals("1 / 2 steps", read(reader.row(ladder).meta()), "two years of one season are one step");
+        DetailBlock needs = block(reader.page(ladder), "needs");
+        assertNotNull(needs);
+        assertEquals("1 / 2", read(needs.meta()), "the Needs count reads seasons too, whatever it lists");
+        assertEquals(List.of("hallowed_2025", "hallowed_2026", "feast_2026"), selectIds(needs),
+                "the lines still list each copy the player may see: only the count reads seasons");
+        assertEquals(List.of(Tick.DONE, Tick.DONE, Tick.AHEAD), ticks(needs));
+
+        Achievement plain = f.add(Achievement.builder("every_copy").category("seasons")
+                .metaChildren(List.of("hallowed_2025", "hallowed_2026", "feast_2026")), "Every Copy");
+        AchievementReader again = f.reader();
+        assertEquals("2 / 3 steps", read(again.row(plain).meta()), "a plain capstone counts the children it lists");
+        assertEquals("2 / 3", read(block(again.page(plain), "needs").meta()));
+        DetailBlock partOf = block(again.page(h2025), "part_of");
+        assertNotNull(partOf);
+        assertEquals(List.of("every_copy", "two_seasons"), selectIds(partOf));
+        assertEquals(List.of("2 / 3", "1 / 2"), partOf.lines().stream().map(line -> read(line.count())).toList(),
+                "a copy's Part of block reads each capstone its own way");
+
+        f.earn(ladder, NOW);
+        assertEquals("2 / 2", read(block(f.reader().page(ladder), "needs").meta()), "earned, it reads full");
+    }
+
+    @Test
     void aServerFirstReadsByWhoClaimedIt() {
         Achievement first = f.add(ach("first", "combat", null, 1).serverFirst(true), "First");
 
