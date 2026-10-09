@@ -879,10 +879,13 @@ public final class AlmanacView {
         return Instant.ofEpochMilli(ms).atZone(zone).toLocalDateTime();
     }
 
-    /** A run's last day: its end is the midnight after it. */
+    /**
+     * A run's last day: the day holding its last instant. For a run ending at midnight that is the day before its
+     * end; a run ending at a time of day (a two-hour contest, a Friday 18:00 to Sunday 18:00 weekend) ends that day.
+     */
     @Nonnull
     private static LocalDate lastDay(@Nonnull Occurrence run, @Nonnull ZoneId zone) {
-        return day(run.endMs(), zone).minusDays(1);
+        return day(Math.max(run.startMs(), run.endMs() - 1L), zone);
     }
 
     @Nullable

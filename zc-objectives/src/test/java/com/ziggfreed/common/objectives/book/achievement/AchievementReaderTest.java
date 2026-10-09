@@ -17,6 +17,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BooleanSupplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -259,8 +260,8 @@ class AchievementReaderTest {
         f.add(ach("feast_2026", "seasons", "harvest_feast", 1), "Feast 2026");
         Achievement ladder = f.add(Achievement.builder("two_seasons").category("seasons")
                 .metaGroups(List.of(
-                        new Achievement.MetaGroup("hallows_eve", List.of("hallowed_2025", "hallowed_2026"), () -> true),
-                        new Achievement.MetaGroup("harvest_feast", List.of("feast_2026"), () -> true)))
+                        season("hallows_eve", List.of("hallowed_2025", "hallowed_2026"), () -> true),
+                        season("harvest_feast", List.of("feast_2026"), () -> true)))
                 .metaNeeds(2), "Two Seasons");
         f.earn(h2025, NOW - DAY);
         f.earn(h2026, NOW - DAY);
@@ -299,8 +300,8 @@ class AchievementReaderTest {
         f.add(copy("feast", "harvest_feast", 2027).available(false), "Feast 2027");
         Achievement ladder = f.add(Achievement.builder("two_seasons").category("seasons")
                 .metaGroups(List.of(
-                        new Achievement.MetaGroup("hallows_eve", List.of("hallowed_2025", "hallowed_2026"), () -> true),
-                        new Achievement.MetaGroup("harvest_feast", List.of("feast_2025", "feast_2026", "feast_2027"),
+                        season("hallows_eve", List.of("hallowed_2025", "hallowed_2026"), () -> true),
+                        season("harvest_feast", List.of("feast_2025", "feast_2026", "feast_2027"),
                                 () -> true))), "Two Seasons");
         f.earn(h2025, NOW - 300 * DAY);
         f.calendar = yearIn("harvest_feast", 2026);
@@ -320,8 +321,8 @@ class AchievementReaderTest {
         AtomicBoolean feastOn = new AtomicBoolean(true);
         Achievement every = f.add(Achievement.builder("every_season").category("seasons")
                 .metaGroups(List.of(
-                        new Achievement.MetaGroup("hallows_eve", List.of("hallowed_2026"), () -> true),
-                        new Achievement.MetaGroup("harvest_feast", List.of("feast_2026"), feastOn::get))),
+                        season("hallows_eve", List.of("hallowed_2026"), () -> true),
+                        season("harvest_feast", List.of("feast_2026"), feastOn::get))),
                 "Every Season");
         f.earn(feast, NOW - DAY);
 
@@ -375,8 +376,8 @@ class AchievementReaderTest {
         f.add(copy("feast", "harvest_feast", 2026).available(false), "Feast 2026");
         Achievement every = f.add(Achievement.builder("every_season").category("seasons")
                 .metaGroups(List.of(
-                        new Achievement.MetaGroup("hallows_eve", List.of("hallowed_2026"), () -> true),
-                        new Achievement.MetaGroup("harvest_feast", List.of("feast_2025", "feast_2026"), () -> true))),
+                        season("hallows_eve", List.of("hallowed_2026"), () -> true),
+                        season("harvest_feast", List.of("feast_2025", "feast_2026"), () -> true))),
                 "Every Season");
 
         f.calendar = yearUnreadable();
@@ -643,5 +644,11 @@ class AchievementReaderTest {
     @Nonnull
     private static Achievement.Builder copy(@Nonnull String base, @Nonnull String event, int year) {
         return ach(base + "_" + year, "seasons", event, 1).occurrence(new Achievement.Occurrence(event, year, base));
+    }
+
+    /** A season's group, keyed as an AnyYear selector keys it ({@code MetaSelection}). */
+    private static Achievement.MetaGroup season(@Nonnull String event, @Nonnull List<String> copies,
+            @Nonnull BooleanSupplier counted) {
+        return new Achievement.MetaGroup(Achievement.MetaGroup.seasonKey(event), copies, counted);
     }
 }

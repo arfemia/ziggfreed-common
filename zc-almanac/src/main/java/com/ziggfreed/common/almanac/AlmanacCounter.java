@@ -17,8 +17,8 @@ import com.ziggfreed.common.progress.ZoneRef;
  *   <li>A season the calendar does not answer for counts nothing (off means absent).</li>
  *   <li>{@value #ATTENDED_KIND} marks the live season attended once (a high-water 1), adds one to the
  *       runs it attended that season-year (the calendar fires once per player per run, and an event may
- *       come round several times a year), and, the first time each season, adds one to the seasons
- *       attended.</li>
+ *       come round several times a year; a year marked attended before runs were counted starts from
+ *       its one run), and, the first time each season, adds one to the seasons attended.</li>
  *   <li>An amount of zero or less never counts: a tally never goes down.</li>
  * </ul>
  */
@@ -69,8 +69,15 @@ public final class AlmanacCounter {
         }
         // The calendar fires one attendance per player per run, so each is one more run of the season-year; the
         // season-year itself is marked once, and the seasons attended count years.
-        tallies.add(AlmanacKeys.season(eventId, state.year(), AlmanacKeys.RUNS), 1L);
-        if (tallies.highWater(AlmanacKeys.season(eventId, state.year(), AlmanacKeys.ATTENDED), 1L)) {
+        String runs = AlmanacKeys.season(eventId, state.year(), AlmanacKeys.RUNS);
+        String attended = AlmanacKeys.season(eventId, state.year(), AlmanacKeys.ATTENDED);
+        if (tallies.get(runs) == 0L && tallies.get(attended) > 0L) {
+            // A year marked attended by a build that counted no runs reads as one run (AlmanacKeys.runsAttended):
+            // that run is counted first, so this one is the second.
+            tallies.add(runs, 1L);
+        }
+        tallies.add(runs, 1L);
+        if (tallies.highWater(attended, 1L)) {
             tallies.add(AlmanacKeys.lifetime(eventId, AlmanacKeys.ATTENDED), 1L);
         }
     }

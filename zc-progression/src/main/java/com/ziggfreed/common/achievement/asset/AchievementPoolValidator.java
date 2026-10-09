@@ -22,6 +22,7 @@ import com.ziggfreed.common.progress.ObjectiveKindRegistry;
 import com.ziggfreed.common.progress.asset.ContentListingAsset;
 import com.ziggfreed.common.progress.gate.GateClause;
 import com.ziggfreed.common.progress.gate.GateKindRegistry;
+import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.validation.Finding;
 
 /**
@@ -61,12 +62,18 @@ public final class AchievementPoolValidator {
      * Audit {@code pool} against vocabularies supplied piecemeal, for a caller with no engine yet.
      * A null vocabulary means "nothing is known", and the checks that depend on it are skipped
      * rather than reporting everything as unknown.
+     *
+     * <p>A {@code Requires} block is read as its file wrote it, from the store's loaded files (the pool
+     * every caller audits is the store's fold): the fold lifts a mod presence condition out of the
+     * folded block, and a blank entry beside it goes too. An achievement whose file the store does not
+     * hold is read by its folded block.
      */
     @Nonnull
     public static List<Finding> validate(@Nonnull AchievementPool pool,
             @Nullable ObjectiveKindRegistry objectiveKinds, @Nullable RewardKindRegistry rewardKinds,
             @Nullable AchievementProgressStore store, @Nullable GateKindRegistry gateKinds) {
 
+        Map<String, AchievementAsset> files = AchievementAssetStore.getInstance().assets();
         List<Finding> out = new ArrayList<>();
         Set<String> unnamedBases = new HashSet<>();
         for (Map.Entry<String, AchievementDefinition> entry : pool.definitions().entrySet()) {
@@ -86,9 +93,22 @@ public final class AchievementPoolValidator {
 
             validateCriteria(definition, objectiveKinds, store, out);
             validateRewards(definition, rewardKinds, out);
-            validateRequires(definition, gateKinds, out);
+            validateRequires(definition, authoredRequires(definition, files), gateKinds, out);
         }
         return out;
+    }
+
+    /**
+     * The {@code Requires} block {@code definition}'s file wrote (a yearly copy's is its base file's), or
+     * the folded block when {@code files} holds no such file or it writes none.
+     */
+    @Nonnull
+    private static GateSpec authoredRequires(@Nonnull AchievementDefinition definition,
+            @Nonnull Map<String, AchievementAsset> files) {
+        Achievement.Occurrence occurrence = definition.achievement().occurrence();
+        AchievementAsset file = files.get(occurrence != null ? occurrence.baseId() : definition.id());
+        GateSpec authored = file == null ? null : file.getRequires();
+        return authored != null ? authored : definition.requires();
     }
 
     /** The whole-achievement checks: is there anything to earn, and does a capstone stand on anything? */
@@ -213,16 +233,16 @@ public final class AchievementPoolValidator {
         }
     }
 
-    private static void validateRequires(@Nonnull AchievementDefinition definition,
+    private static void validateRequires(@Nonnull AchievementDefinition definition, @Nonnull GateSpec requires,
             @Nullable GateKindRegistry gateKinds, @Nonnull List<Finding> out) {
 
         String id = definition.id();
         List<GateClause> clauses = new ArrayList<>();
-        clauses.add(definition.requires());
-        for (GateClause clause : definition.requires().allOfOrEmpty()) {
+        clauses.add(requires);
+        for (GateClause clause : requires.allOfOrEmpty()) {
             clauses.add(clause);
         }
-        for (GateClause clause : definition.requires().anyOfOrEmpty()) {
+        for (GateClause clause : requires.anyOfOrEmpty()) {
             clauses.add(clause);
         }
 

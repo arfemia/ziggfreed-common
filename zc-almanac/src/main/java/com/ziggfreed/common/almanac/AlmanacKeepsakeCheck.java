@@ -29,9 +29,12 @@ import com.ziggfreed.common.validation.ValidationReport;
  *
  * <p>It reads the loaded files, never the folded pool or the calendar, so a season its owner switched
  * off is checked like any other and nothing depends on when the catalogue publishes. An unknown
- * keepsake id is not this check's to report. A ladder picks what the fold would pick: what
- * {@link AchievementAsset#matchedBy} matches, never a capstone (one listing {@code MetaChildren} or
- * writing a {@code MetaSelector}), so a keepsake that is a capstone never counts.
+ * keepsake (no file, or only an {@code Abstract} one, which never folds) is not this check's to report:
+ * {@code AlmanacValidator}'s {@code UNKNOWN_KEEPSAKE} says it ({@link #loaded}). A ladder picks what the
+ * fold would pick: what {@link AchievementAsset#matchedBy} matches, never a capstone (one listing
+ * {@code MetaChildren} or writing a {@code MetaSelector}) and never an {@code Abstract} file, so a keepsake
+ * that is a capstone never counts. A picked achievement no page names is reported whether it is yearly or
+ * ordinary: the fold counts an ordinary one as a season of its own, on no keepsake shelf.
  *
  * <p>A boot prints its findings once: the {@link #logFindings() build hook} prints them, unless the
  * process asked for zc's boot audit ({@code BootAudit.ENV}), whose Almanac pass
@@ -49,7 +52,7 @@ public final class AlmanacKeepsakeCheck {
     /** A season's keepsake the ladder does not pick. */
     public static final String KEEPSAKE_NOT_PICKED = "KEEPSAKE_NOT_PICKED";
 
-    /** A yearly achievement the ladder picks that no season names as its keepsake. */
+    /** An achievement the ladder picks, yearly or ordinary, that no season names as its keepsake. */
     public static final String PICKED_NOT_A_KEEPSAKE = "PICKED_NOT_A_KEEPSAKE";
 
     private AlmanacKeepsakeCheck() {
@@ -120,7 +123,8 @@ public final class AlmanacKeepsakeCheck {
             String keepsake = AlmanacKeys.normalize(named);
             keepsakes.add(keepsake);
             AchievementAsset asset = files.get(keepsake);
-            if (asset == null) {
+            if (asset == null || asset.isAbstract()) {
+                // An unknown keepsake, an Abstract base included: the Almanac audit's UNKNOWN_KEEPSAKE says it.
                 continue;
             }
             for (Map.Entry<String, AchievementAsset.MetaSelector> ladder : ladders.entrySet()) {
@@ -134,26 +138,85 @@ public final class AlmanacKeepsakeCheck {
 
         for (Map.Entry<String, AchievementAsset> file : files.entrySet()) {
             AchievementAsset asset = file.getValue();
-            if (asset == null || asset.isAbstract() || asset.getOccurrence() == null
-                    || keepsakes.contains(file.getKey())) {
+            if (asset == null || asset.isAbstract() || named(file.getKey(), keepsakes)) {
                 continue;
             }
             for (Map.Entry<String, AchievementAsset.MetaSelector> ladder : ladders.entrySet()) {
                 if (picks(ladder.getValue(), asset)) {
-                    out.add(Finding.warning(DOMAIN, PICKED_NOT_A_KEEPSAKE,
-                            "this yearly achievement is filed so the cross-season achievement '" + ladder.getKey()
-                                    + "' counts it, but no Almanac page names it as its season's Keepsake, so it "
-                                    + "counts toward the ladder without showing on any keepsake shelf; name it in "
-                                    + "its season's page, or take the tag off", file.getKey()));
+                    String message = asset.getOccurrence() != null
+                            ? pickedYearly(ladder.getKey()) : pickedOrdinary(ladder.getKey());
+                    out.add(Finding.warning(DOMAIN, PICKED_NOT_A_KEEPSAKE, message, file.getKey()));
                 }
             }
         }
         return out;
     }
 
-    /** Would the fold let {@code ladder} pick {@code asset}: filed to match, and no capstone itself? */
+    /** A {@link #PICKED_NOT_A_KEEPSAKE} message for a yearly achievement. */
+    @Nonnull
+    private static String pickedYearly(@Nonnull String ladder) {
+        return "this yearly achievement is filed so the cross-season achievement '" + ladder + "' counts it, but no "
+                + "Almanac page names it as its season's Keepsake, so it counts toward the ladder without showing on "
+                + "any keepsake shelf; name it in its season's page, or take the tag off";
+    }
+
+    /** A {@link #PICKED_NOT_A_KEEPSAKE} message for an ordinary achievement, which comes back with no event. */
+    @Nonnull
+    private static String pickedOrdinary(@Nonnull String ladder) {
+        return "this achievement is filed so the cross-season achievement '" + ladder + "' counts it, but it comes "
+                + "back with no calendar event, so it counts as a season of its own, always in the count and on no "
+                + "keepsake shelf; take the tag off, or give it its season's Occurrence and name it in that season's "
+                + "page";
+    }
+
+    /**
+     * Does {@code keepsake} (normalized) name an achievement among {@code files} (keyed by folded id), as the
+     * Almanac finds one: a file that folds (not {@code Abstract}) whose id is the keepsake's, or one year's copy of
+     * it ({@code <keepsake>_<yyyy>}, the id the Almanac falls back to for a copy carrying no occurrence)?
+     */
+    public static boolean loaded(@Nonnull String keepsake, @Nonnull Map<String, AchievementAsset> files) {
+        for (Map.Entry<String, AchievementAsset> file : files.entrySet()) {
+            AchievementAsset asset = file.getValue();
+            if (asset != null && !asset.isAbstract() && standsFor(AlmanacKeys.normalize(file.getKey()), keepsake)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Is {@code fileId} named by one of {@code keepsakes}: its own id, or one year's copy of it? */
+    private static boolean named(@Nonnull String fileId, @Nonnull Set<String> keepsakes) {
+        for (String keepsake : keepsakes) {
+            if (standsFor(fileId, keepsake)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Is {@code fileId} {@code keepsake} itself, or {@code <keepsake>_<yyyy>} (a year from 1)? */
+    private static boolean standsFor(@Nonnull String fileId, @Nonnull String keepsake) {
+        if (fileId.equals(keepsake)) {
+            return true;
+        }
+        String prefix = keepsake + "_";
+        if (!fileId.startsWith(prefix) || fileId.length() != prefix.length() + 4) {
+            return false;
+        }
+        int year = 0;
+        for (int i = prefix.length(); i < fileId.length(); i++) {
+            char c = fileId.charAt(i);
+            if (c < '0' || c > '9') {
+                return false;
+            }
+            year = year * 10 + (c - '0');
+        }
+        return year > 0;
+    }
+
+    /** Would the fold let {@code ladder} pick {@code asset}: a file that folds, filed to match, and no capstone? */
     private static boolean picks(@Nonnull AchievementAsset.MetaSelector ladder, @Nonnull AchievementAsset asset) {
-        return !isCapstone(asset) && asset.matchedBy(ladder);
+        return !asset.isAbstract() && !isCapstone(asset) && asset.matchedBy(ladder);
     }
 
     /** The rest of a {@link #KEEPSAKE_NOT_PICKED} message: why, and what to do about it. */

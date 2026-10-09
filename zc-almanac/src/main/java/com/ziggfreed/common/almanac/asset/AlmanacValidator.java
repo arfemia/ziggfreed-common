@@ -11,6 +11,7 @@ import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.achievement.asset.AchievementAssetStore;
 import com.ziggfreed.common.almanac.AlmanacKeepsakeCheck;
 import com.ziggfreed.common.almanac.AlmanacKeys;
 import com.ziggfreed.common.almanac.AlmanacSwitch;
@@ -39,15 +40,15 @@ import com.ziggfreed.common.validation.TextKeyAudit;
  *   <li>ERROR {@link #PAGE_ID_UNUSABLE} (the page is skipped whole, so nothing more is asked of it),
  *       {@link #STAT_ID_UNUSABLE}, {@link #MISSING_KIND} and {@link #UNPRODUCIBLE_KIND} (the tally line can
  *       never count; the last two are the tokens the quest and achievement pools use);</li>
- *   <li>WARNING {@link #UNKNOWN_EVENT} (the page is never listed), {@link #UNKNOWN_ICON},
- *       {@link #UNKNOWN_HERO_ITEM}, {@link #UNKNOWN_KIND}, and {@link TextKeyAudit#UNKNOWN_TEXT_KEY} for a
- *       key the page shows that no loaded lang file ships.</li>
+ *   <li>WARNING {@link #UNKNOWN_EVENT} (the page is never listed), {@link #UNKNOWN_KEEPSAKE} (the page's
+ *       {@code Keepsake} names no achievement file this server loads, or only an {@code Abstract} one, so the
+ *       page shows no keepsake shelf), {@link #UNKNOWN_ICON}, {@link #UNKNOWN_HERO_ITEM}, {@link #UNKNOWN_KIND},
+ *       and {@link TextKeyAudit#UNKNOWN_TEXT_KEY} for a key the page shows that no loaded lang file ships.</li>
  * </ul>
  *
- * <p>A page's {@code Keepsake} is asked here only against the cross-season ladders: the engine walk carries
+ * <p>A page's {@code Keepsake} is also asked against the cross-season ladders: the engine walk carries
  * {@code AlmanacKeepsakeCheck}'s findings ({@code KEEPSAKE_NOT_PICKED}, {@code PICKED_NOT_A_KEEPSAKE}), so
- * zc's boot audit counts them in this pass. Whether the Keepsake names a loaded achievement, and the page's
- * {@code Hero.Art} picture, are not asked.
+ * zc's boot audit counts them in this pass. The page's {@code Hero.Art} picture is not asked.
  */
 public final class AlmanacValidator {
 
@@ -58,6 +59,7 @@ public final class AlmanacValidator {
 
     public static final String PAGE_ID_UNUSABLE = "PAGE_ID_UNUSABLE";
     public static final String UNKNOWN_EVENT = "UNKNOWN_EVENT";
+    public static final String UNKNOWN_KEEPSAKE = "UNKNOWN_KEEPSAKE";
     public static final String UNKNOWN_ICON = "UNKNOWN_ICON";
     public static final String UNKNOWN_HERO_ITEM = "UNKNOWN_HERO_ITEM";
     public static final String STAT_ID_UNUSABLE = "STAT_ID_UNUSABLE";
@@ -70,9 +72,9 @@ public final class AlmanacValidator {
 
     /**
      * The engine walk over every folded page, against the calendar (through the occurrence slot), the live
-     * item store, the shared objective vocabulary and the lang catalogue; then the keepsake check over the
-     * loaded pages and achievement files ({@code AlmanacKeepsakeCheck}, which prints nothing itself on a boot
-     * that runs this walk as zc's boot audit).
+     * item store, the shared objective vocabulary, the lang catalogue and the loaded achievement files; then the
+     * keepsake check over the loaded pages and achievement files ({@code AlmanacKeepsakeCheck}, which prints
+     * nothing itself on a boot that runs this walk as zc's boot audit).
      */
     @Nonnull
     public static List<Finding> audit() {
@@ -82,7 +84,8 @@ public final class AlmanacValidator {
             }
             List<Finding> out = new ArrayList<>(audit(AlmanacEntryConfig.getInstance().all().values(),
                     AlmanacValidator::eventLoaded, ItemIds::exists, ProgressionRuntime.objectiveKinds(),
-                    TextKeyAudit.liveCatalogue()));
+                    TextKeyAudit.liveCatalogue(),
+                    keepsake -> AlmanacKeepsakeCheck.loaded(keepsake, AchievementAssetStore.getInstance().assets())));
             out.addAll(AlmanacKeepsakeCheck.findings());
             return out;
         } catch (Throwable t) {
@@ -104,6 +107,21 @@ public final class AlmanacValidator {
     public static List<Finding> audit(@Nonnull Collection<AlmanacEntryAsset> pages,
             @Nonnull Predicate<String> eventLoaded, @Nonnull Predicate<String> itemKnown,
             @Nullable ObjectiveKindRegistry kinds, @Nonnull Predicate<String> keyShipped) {
+        return audit(pages, eventLoaded, itemKnown, kinds, keyShipped, null);
+    }
+
+    /**
+     * {@link #audit(Collection, Predicate, Predicate, ObjectiveKindRegistry, Predicate)} that also asks each page's
+     * {@code Keepsake} of the achievements.
+     *
+     * @param keepsakeKnown whether a keepsake id (normalized) names an achievement this server loads; null asks
+     *                      nothing
+     */
+    @Nonnull
+    public static List<Finding> audit(@Nonnull Collection<AlmanacEntryAsset> pages,
+            @Nonnull Predicate<String> eventLoaded, @Nonnull Predicate<String> itemKnown,
+            @Nullable ObjectiveKindRegistry kinds, @Nonnull Predicate<String> keyShipped,
+            @Nullable Predicate<String> keepsakeKnown) {
         List<AlmanacEntryAsset> ordered = new ArrayList<>();
         for (AlmanacEntryAsset page : pages) {
             if (page != null && page.getId() != null) {
@@ -113,14 +131,15 @@ public final class AlmanacValidator {
         ordered.sort(Comparator.comparing(AlmanacEntryAsset::getId));
         List<Finding> out = new ArrayList<>();
         for (AlmanacEntryAsset page : ordered) {
-            auditPage(page, eventLoaded, itemKnown, kinds, keyShipped, out);
+            auditPage(page, eventLoaded, itemKnown, kinds, keyShipped, keepsakeKnown, out);
         }
         return out;
     }
 
     private static void auditPage(@Nonnull AlmanacEntryAsset page, @Nonnull Predicate<String> eventLoaded,
             @Nonnull Predicate<String> itemKnown, @Nullable ObjectiveKindRegistry kinds,
-            @Nonnull Predicate<String> keyShipped, @Nonnull List<Finding> out) {
+            @Nonnull Predicate<String> keyShipped, @Nullable Predicate<String> keepsakeKnown,
+            @Nonnull List<Finding> out) {
         String id = page.getId();
         String where = "the season page '" + id + "'";
         if (!AlmanacKeys.usableId(id)) {
@@ -132,6 +151,13 @@ public final class AlmanacValidator {
         if (!eventLoaded.test(id)) {
             out.add(Finding.warning(DOMAIN, UNKNOWN_EVENT, where + " is named for no calendar event this server "
                     + "loads, so the Almanac never lists it; a page's file name is its event's id", id));
+        }
+        String keepsake = page.getKeepsake();
+        if (keepsakeKnown != null && keepsake != null && !keepsake.isBlank()
+                && !keepsakeKnown.test(AlmanacKeys.normalize(keepsake))) {
+            out.add(Finding.warning(DOMAIN, UNKNOWN_KEEPSAKE, where + " names '" + keepsake.trim() + "' as its "
+                    + "Keepsake, which is no achievement this server loads (or only an Abstract base other files "
+                    + "inherit from), so the page shows no keepsake shelf; name the season's yearly keepsake", id));
         }
         checkItem(where + " Icon", page.getIcon(), UNKNOWN_ICON, "it shows no picture", itemKnown, id, out);
         TextKeyAudit.check(out, DOMAIN, id, where + " Text.TitleKey", page.titleKey(), keyShipped,

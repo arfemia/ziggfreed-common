@@ -5,7 +5,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -29,8 +28,10 @@ import com.ziggfreed.common.validation.Finding;
  * event and an ordinary capstone on ordinary achievements, never on a set that grows every year.
  *
  * <p>{@code AnyYear} (an ordinary capstone only) lets every year's copy stand for its base and counts
- * the picks in GROUPS keyed by the calendar event a copy comes back with: two years of one season are
- * one group, and a group whose event this server switched off is out of the count, asked live.
+ * the picks in GROUPS keyed by the calendar event a copy comes back with
+ * ({@link Achievement.MetaGroup#seasonKey}, a key space no pick's own id meets): two years of one season
+ * are one group, an explicit child that is one year's copy stands in its season's group too, and a group
+ * whose event this server switched off is out of the count, asked live.
  * {@code Needs} says how many groups must be earned (every counted one when unauthored), and
  * {@code AtLeast} is a floor under that number. A selector writing any of the three is grouped; one
  * writing none stands on a plain list, exactly as before.
@@ -69,8 +70,8 @@ final class MetaSelection {
             Integer needs = needs(capstone, selector, reported, issues);
             Map<String, List<String>> picks = select(capstone, selector, anyYear, folded.values(), selectors);
             if (anyYear || selector.getNeeds() != null || selector.getAtLeast() != null) {
-                out.put(capstone.id(), capstone.withMetaGroups(groups(capstone, picks, folded, calendar), needs,
-                        selector.getAtLeast()));
+                out.put(capstone.id(), capstone.withMetaGroups(groups(capstone, picks, folded, anyYear, calendar),
+                        needs, selector.getAtLeast()));
             } else {
                 out.put(capstone.id(), capstone.withMetaChildren(plainChildren(capstone, picks)));
             }
@@ -78,9 +79,10 @@ final class MetaSelection {
     }
 
     /**
-     * What {@code selector} on {@code capstone} picks from {@code candidates}, in groups: keyed by the
-     * calendar event a yearly copy comes back with when {@code anyYear} holds, else by the pick's own
-     * id, so each pick is its own group. Keys and each group's ids are sorted, so a fold is stable.
+     * What {@code selector} on {@code capstone} picks from {@code candidates}, in groups ({@link #groupKey}):
+     * keyed by the season of the calendar event a yearly copy comes back with when {@code anyYear} holds,
+     * else by the pick's own id, so each pick is its own group. Keys and each group's ids are sorted, so a
+     * fold is stable.
      */
     @Nonnull
     static Map<String, List<String>> select(@Nonnull AchievementDefinition capstone,
@@ -92,9 +94,8 @@ final class MetaSelection {
             if (!picks(capstone, selector, anyYear, candidate, selectors)) {
                 continue;
             }
-            Achievement.Occurrence occurrence = candidate.achievement().occurrence();
-            String key = anyYear && occurrence != null ? occurrence.eventId() : candidate.id();
-            groups.computeIfAbsent(key, ignored -> new ArrayList<>()).add(candidate.id());
+            groups.computeIfAbsent(groupKey(candidate, candidate.id(), anyYear), ignored -> new ArrayList<>())
+                    .add(candidate.id());
         }
         for (List<String> ids : groups.values()) {
             Collections.sort(ids);
@@ -145,31 +146,48 @@ final class MetaSelection {
         return children;
     }
 
-    /** A grouped capstone's groups: each explicit child its own group, then the picks, none twice. */
+    /**
+     * A grouped capstone's groups: the explicit children first, then the picks, none twice. An explicit
+     * child is keyed as a pick would be ({@link #groupKey}), so under AnyYear one year's copy named outright
+     * stands in its season's one group, and the season never counts twice; any other child is its own group.
+     */
     @Nonnull
     private static List<Achievement.MetaGroup> groups(@Nonnull AchievementDefinition capstone,
             @Nonnull Map<String, List<String>> picks, @Nonnull Map<String, AchievementDefinition> folded,
-            @Nonnull OccurrenceReader calendar) {
-        List<Achievement.MetaGroup> out = new ArrayList<>();
-        Set<String> listed = new LinkedHashSet<>();
+            boolean anyYear, @Nonnull OccurrenceReader calendar) {
+        Map<String, List<String>> keyed = new LinkedHashMap<>();
+        Set<String> listed = new HashSet<>();
         for (String child : capstone.achievement().metaChildren()) {
             if (listed.add(child)) {
-                out.add(new Achievement.MetaGroup(child, List.of(child), ALWAYS));
+                keyed.computeIfAbsent(groupKey(folded.get(child), child, anyYear), ignored -> new ArrayList<>())
+                        .add(child);
             }
         }
         for (Map.Entry<String, List<String>> pick : picks.entrySet()) {
-            List<String> ids = new ArrayList<>();
             for (String id : pick.getValue()) {
                 if (listed.add(id)) {
-                    ids.add(id);
+                    keyed.computeIfAbsent(pick.getKey(), ignored -> new ArrayList<>()).add(id);
                 }
             }
-            if (!ids.isEmpty()) {
-                out.add(new Achievement.MetaGroup(pick.getKey(), ids,
-                        countedFor(pick.getKey(), folded.get(ids.get(0)), calendar)));
-            }
+        }
+        List<Achievement.MetaGroup> out = new ArrayList<>();
+        for (Map.Entry<String, List<String>> group : keyed.entrySet()) {
+            List<String> ids = group.getValue();
+            out.add(new Achievement.MetaGroup(group.getKey(), ids,
+                    countedFor(group.getKey(), folded.get(ids.get(0)), calendar)));
         }
         return out;
+    }
+
+    /**
+     * The group {@code id} counts in: under AnyYear a yearly copy's season
+     * ({@link Achievement.MetaGroup#seasonKey}), every other pick or child its own id, a key space no season's
+     * key meets.
+     */
+    @Nonnull
+    private static String groupKey(@Nullable AchievementDefinition definition, @Nonnull String id, boolean anyYear) {
+        Achievement.Occurrence occurrence = definition == null ? null : definition.achievement().occurrence();
+        return anyYear && occurrence != null ? Achievement.MetaGroup.seasonKey(occurrence.eventId()) : id;
     }
 
     /** A season's group is counted while its event is switched on, asked live; any other group always. */
@@ -177,7 +195,7 @@ final class MetaSelection {
     private static BooleanSupplier countedFor(@Nonnull String key, @Nullable AchievementDefinition first,
             @Nonnull OccurrenceReader calendar) {
         Achievement.Occurrence occurrence = first == null ? null : first.achievement().occurrence();
-        if (occurrence == null || !occurrence.eventId().equals(key)) {
+        if (occurrence == null || !Achievement.MetaGroup.seasonKey(occurrence.eventId()).equals(key)) {
             return ALWAYS;
         }
         String eventId = occurrence.eventId();

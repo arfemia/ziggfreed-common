@@ -122,6 +122,24 @@ class AlmanacCounterTest {
         assertEquals(0L, AlmanacKeys.runsAttended(before, "test_season", 2024));
     }
 
+    // A season-year attended under a build that kept no run count holds its $attended mark alone, which reads as one
+    // run: attended again, that run is the second, never the first.
+    @Test
+    void aYearAttendedBeforeRunsWereCountedReadsTwoRunsOnceAttendedAgain() throws Exception {
+        CounterMap tallies = new CounterMap();
+        tallies.add(AlmanacKeys.season("test_season", 2026, AlmanacKeys.ATTENDED), 1L);
+        tallies.add(AlmanacKeys.lifetime("test_season", AlmanacKeys.ATTENDED), 1L);
+
+        AlmanacCounter.count(tallies, index(), LIVE_2026, "CALENDAR_ATTENDED", "Test_Season", null, 1L, null);
+
+        assertEquals(2L, AlmanacKeys.runsAttended(tallies, "test_season", 2026), "the run before and this one");
+        assertEquals(2L, tallies.get(AlmanacKeys.season("test_season", 2026, AlmanacKeys.RUNS)));
+        assertEquals(1L, tallies.get(AlmanacKeys.lifetime("test_season", AlmanacKeys.ATTENDED)), "still one season");
+
+        AlmanacCounter.count(tallies, index(), LIVE_2026, "CALENDAR_ATTENDED", "Test_Season", null, 1L, null);
+        assertEquals(3L, AlmanacKeys.runsAttended(tallies, "test_season", 2026), "seeded once, then one a run");
+    }
+
     @Test
     void attendanceBetweenSeasonsMarksNothing() throws Exception {
         CounterMap tallies = new CounterMap();

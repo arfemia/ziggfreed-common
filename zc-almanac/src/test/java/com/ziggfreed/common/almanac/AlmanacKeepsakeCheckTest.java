@@ -121,6 +121,67 @@ class AlmanacKeepsakeCheckTest {
                 "it counts toward the ladder without showing on any season's keepsake shelf");
     }
 
+    // An ordinary achievement the ladder picks comes back with no calendar event, so the fold counts it as a season of
+    // its own, always in the count and on no keepsake shelf.
+    @Test
+    void aPickedOrdinaryAchievementNoPageNamesIsReported() throws Exception {
+        Map<String, AchievementAsset> achievements = Map.of(
+                "two_seasons", achievement(LADDER, "two_seasons"),
+                "hallowed", yearly("hallowed", "hallows_eve", true),
+                "feast_keepsake", yearly("feast_keepsake", "harvest_feast", true),
+                "first_frost", achievement("""
+                        { "Listing": { "Category": "Seasons", "Tags": [ "season_keepsake" ] },
+                          "Criteria": { "one": { "Kind": "BREAK_BLOCK", "Amount": 1 } } }
+                        """, "first_frost"));
+
+        List<Finding> findings = AlmanacKeepsakeCheck.findings(twoSeasons(), achievements);
+
+        assertEquals(1, findings.size(), findings.toString());
+        assertEquals(AlmanacKeepsakeCheck.PICKED_NOT_A_KEEPSAKE, findings.get(0).code());
+        assertEquals("first_frost", findings.get(0).sourceId());
+        assertEquals(Severity.WARNING, findings.get(0).severity());
+    }
+
+    // A file named as one year's copy of a page's keepsake (<Keepsake>_<yyyy>, the id the Almanac falls back to) is
+    // that season's, so a picked ordinary file named that way is on its shelf and no orphan.
+    @Test
+    void anOrdinaryFileNamedAsAYearsCopyOfAPagesKeepsakeIsNotReported() throws Exception {
+        String tagged = """
+                { "Listing": { "Category": "Seasons", "Tags": [ "season_keepsake" ] },
+                  "Criteria": { "one": { "Kind": "BREAK_BLOCK", "Amount": 1 } } }
+                """;
+        Map<String, AchievementAsset> achievements = Map.of(
+                "two_seasons", achievement(LADDER, "two_seasons"),
+                "hallowed", yearly("hallowed", "hallows_eve", true),
+                "feast_keepsake_2025", achievement(tagged, "feast_keepsake_2025"),
+                "feast_keepsake_2026", achievement(tagged, "feast_keepsake_2026"));
+
+        assertEquals(List.of(), AlmanacKeepsakeCheck.findings(twoSeasons(), achievements));
+        assertTrue(AlmanacKeepsakeCheck.loaded("feast_keepsake", achievements), "the page finds its copies");
+    }
+
+    // An Abstract file never folds, so a page naming one has no keepsake at all: the Almanac audit says so once, as an
+    // unknown keepsake, and this check, which never reports an unknown keepsake, adds nothing beside it.
+    @Test
+    void anAbstractKeepsakeIsSaidOnceAsUnknownAndNeverAsPicked() throws Exception {
+        Map<String, AchievementAsset> achievements = Map.of(
+                "two_seasons", achievement(LADDER, "two_seasons"),
+                "hallowed", yearly("hallowed", "hallows_eve", true),
+                "feast_keepsake", achievement("""
+                        { "Abstract": true, "Occurrence": { "Event": "harvest_feast" },
+                          "Listing": { "Category": "Seasons", "Subcategory": "harvest_feast",
+                                       "Tags": [ "season_keepsake" ] } }
+                        """, "feast_keepsake"));
+        AlmanacEntryConfig.getInstance().mergePackLayer(twoSeasons());
+        AchievementAssetStore.getInstance().merge(achievements);
+
+        assertEquals(List.of(), AlmanacKeepsakeCheck.findings(twoSeasons(), achievements));
+        List<Finding> audit = AlmanacValidator.audit();
+        assertEquals(List.of(AlmanacValidator.UNKNOWN_KEEPSAKE), audit.stream().map(Finding::code).toList(),
+                audit.toString());
+        assertEquals("harvest_feast", audit.get(0).sourceId());
+    }
+
     @Test
     void withoutACrossSeasonLadderThereIsNothingToAgreeWith() throws Exception {
         Map<String, AchievementAsset> achievements = Map.of(
