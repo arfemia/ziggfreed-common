@@ -720,7 +720,8 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                 .documentation("Once a run of a calendar event: the quest is offered only while a run of Event "
                         + "is going on, and at most Times finishes count in one run. A run forced on, or one whose "
                         + "days the server owner moved, is still the run it was. A quest left unfinished when its "
-                        + "run ends keeps its progress for the next run. Unauthored means no run allowance.").add()
+                        + "run ends keeps its progress for the next run unless Carry is false. Unauthored means no "
+                        + "run allowance.").add()
                 .appendInherited(new KeyedCodec<>("ResetsOnComplete", Codec.STRING_ARRAY, false),
                         (o, v) -> o.resetsOnComplete = v, o -> o.resetsOnComplete,
                         (o, p) -> o.resetsOnComplete = p.resetsOnComplete)

@@ -2146,9 +2146,12 @@ public final class QuestEngine implements QuestStateReader {
      *
      * <p>While a run goes on, the quest is kept only when that run is the one it was taken in, wherever an owner
      * moved its days: progress taken in one run never counts toward another, even one dated before its own. With
-     * none going on, its run is over once the next run comes after it in time ({@link PerRuns#comesAfter}, never by
-     * number), or none is left; a run whose own days are still ahead (moved later, or forced on before them) is not
-     * over. The test is {@link #runIsOver}. True when it was dropped.
+     * none going on, a force off (or an owner's switch-off) pauses a run, it never ends it: a non-carrying quest is
+     * kept until its run's own days are past, as the calendar dates that run now whatever its switches say
+     * ({@link OccurrenceSource#dated}). Once they are, or the calendar no longer dates that run, its run is over
+     * once the next run comes after it in time ({@link PerRuns#comesAfter}, never by number), or none is left; a
+     * run whose own days are still ahead (moved later, or forced on before them) is not over. The test is
+     * {@link #runIsOver}. True when it was dropped.
      */
     boolean dropIfRunEnded(@Nonnull Subject subject, @Nonnull Quest quest) {
         if (!runIsOver(subject, quest)) {
@@ -2163,7 +2166,9 @@ public final class QuestEngine implements QuestStateReader {
      * {@link #dropIfRunEnded}, as a pure read: it writes nothing (no clear, no dirty mark, no event), so the
      * tracker, the log's slot count and the pin cap ask it to hide such a quest the moment its run ends, as they hide
      * a frozen one, while its progress and pin stay saved until a drop point clears them. False for any other quest,
-     * and for one that finished in its run (a reward still owed is never taken back).
+     * and for one that finished in its run (a reward still owed is never taken back). A force off (or an owner's
+     * switch-off) pauses a run, it never ends it: a non-carrying quest is kept until its run's own days are past,
+     * hidden meanwhile as a frozen quest is ({@link Quest#available()} false).
      */
     private boolean runIsOver(@Nonnull Subject subject, @Nonnull Quest quest) {
         Quest.Repeat.PerRun perRun = quest.repeat() == null ? null : quest.repeat().perRun();
@@ -2175,11 +2180,17 @@ public final class QuestEngine implements QuestStateReader {
             return false;
         }
         OccurrenceSource occurrences = Occurrences.source();
-        Occurrence live = occurrences.live(perRun.event(), now());
+        long nowMs = now();
+        Occurrence live = occurrences.live(perRun.event(), nowMs);
         if (live != null) {
             return !taken.is(live);
         }
-        Occurrence next = occurrences.next(perRun.event(), now());
+        // Nothing going on (a force off, a switch-off, or between runs): its run is not over while its own days last.
+        Occurrence own = occurrences.dated(perRun.event(), taken.year(), taken.number());
+        if (own != null && nowMs < own.endMs()) {
+            return false;
+        }
+        Occurrence next = occurrences.next(perRun.event(), nowMs);
         return next == null || PerRuns.comesAfter(next, taken, perRun, occurrences);
     }
 

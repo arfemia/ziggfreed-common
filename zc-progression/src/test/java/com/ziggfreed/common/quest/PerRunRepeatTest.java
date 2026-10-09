@@ -623,6 +623,131 @@ class PerRunRepeatTest {
         assertEquals(QuestStatus.ACTIVE, store.status(player, carried.id()), "and leaves the carried one alone");
     }
 
+    // M284 (the maintainer's "Keep it until its days end"): a force off pauses a run, it never ends it. The quest
+    // hides as a frozen one does while its run's own days last, and a force lifted within them finds it where it was.
+    @Test
+    void aQuestThatDoesNotCarryIsKeptThroughAForceOffWhileItsRunsDaysLast() {
+        runs.run(2026, 1, "2026-10-03", "2026-10-03").run(2026, 2, "2026-10-10", "2026-10-12")
+                .run(2026, 3, "2026-10-17", "2026-10-19");
+        Quest quest = weekly(3);
+        QuestEngine engine = engine(quest);
+        clock.set(FakeRuns.at("2026-10-10T12:00:00Z"));
+        assertTrue(engine.accept(player, quest));
+        engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 1);
+        assertTrue(engine.track(player, quest.id()));
+        assertEquals(new PerRuns.RunKey(2026, 2), QuestProgressPayload.takenIn(store.progressPayload(player, quest.id())));
+
+        runs.force(false); // the owner forces the event off mid-run
+        clock.set(FakeRuns.at("2026-10-11T12:00:00Z"));
+        engine.selfHeal(player);
+        engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 1);
+        assertEquals(QuestStatus.ACTIVE, store.status(player, quest.id()),
+                "a force off pauses its run: kept while the run's days last");
+        assertEquals(1, engine.progressOf(player, quest.id(), "logs").current(),
+                "with its progress, which counts nothing while hidden");
+        assertTrue(engine.trackedActive(player).isEmpty(), "hidden: off the tracker");
+        assertEquals(0, engine.logSlotsUsed(player), "taking no log slot");
+        assertTrue(engine.tracked(player).contains(quest.id()), "its pin kept");
+
+        runs.force(null); // lifted within the run's days
+        clock.set(FakeRuns.at("2026-10-12T12:00:00Z"));
+        engine.selfHeal(player);
+        assertEquals(List.of(quest.id()), engine.trackedActive(player).stream().map(Quest::id).toList(),
+                "back on the tracker");
+        assertEquals(1, engine.logSlotsUsed(player), "and in the log");
+        engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 1);
+        assertEquals(2, engine.progressOf(player, quest.id(), "logs").current(), "where it was left, counting on");
+    }
+
+    // M284: the pause lasts only the run's own days. A force off that outlasts them ends the run as its days would,
+    // and the first drop point after them drops the quest.
+    @Test
+    void aQuestThatDoesNotCarryIsDroppedOnceAForceOffOutlastsItsRunsDays() {
+        runs.run(2026, 1, "2026-10-03", "2026-10-03").run(2026, 2, "2026-10-10", "2026-10-12")
+                .run(2026, 3, "2026-10-17", "2026-10-19");
+        Quest quest = weekly(3);
+        QuestEngine engine = engine(quest);
+        clock.set(FakeRuns.at("2026-10-10T12:00:00Z"));
+        assertTrue(engine.accept(player, quest));
+        engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 1);
+        assertTrue(engine.track(player, quest.id()));
+
+        runs.force(false);
+        clock.set(FakeRuns.at("2026-10-12T12:00:00Z"));
+        engine.selfHeal(player);
+        assertEquals(QuestStatus.ACTIVE, store.status(player, quest.id()), "kept on its run's last day");
+
+        clock.set(FakeRuns.at("2026-10-13T12:00:00Z"));
+        engine.selfHeal(player);
+        assertEquals(QuestStatus.NOT_STARTED, store.status(player, quest.id()),
+                "its run's days are over: dropped at the first drop point after them, the force still standing");
+        assertTrue(QuestProgressPayload.deserialize(store.progressPayload(player, quest.id())).isEmpty(),
+                "with its progress");
+        assertFalse(engine.tracked(player).contains(quest.id()), "and its pin");
+
+        runs.force(null);
+        assertTrue(offeredAt(engine, quest, "2026-10-17T12:00:00Z"), "the next run offers it afresh");
+    }
+
+    // M284: an owner's switch-off (Enabled false in the event's file or calendar.json) pauses a run as a force off
+    // does, though the event reads as absent meanwhile: the run it was taken in is dated past the switches.
+    @Test
+    void aQuestThatDoesNotCarryIsKeptThroughAnOwnersSwitchOffWhileItsRunsDaysLast() {
+        runs.run(2026, 1, "2026-10-03", "2026-10-03").run(2026, 2, "2026-10-10", "2026-10-12")
+                .run(2026, 3, "2026-10-17", "2026-10-19");
+        Quest quest = weekly(3);
+        QuestEngine engine = engine(quest);
+        clock.set(FakeRuns.at("2026-10-10T12:00:00Z"));
+        assertTrue(engine.accept(player, quest));
+        engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 1);
+        assertTrue(engine.track(player, quest.id()));
+
+        runs.switchedOn(false); // the owner switches the event off mid-run
+        clock.set(FakeRuns.at("2026-10-11T12:00:00Z"));
+        engine.selfHeal(player);
+        engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 1);
+        assertEquals(QuestStatus.ACTIVE, store.status(player, quest.id()),
+                "a switch-off pauses its run: kept while the run's days last");
+        assertEquals(1, engine.progressOf(player, quest.id(), "logs").current(),
+                "with its progress, which counts nothing while hidden");
+        assertTrue(engine.trackedActive(player).isEmpty(), "hidden: off the tracker");
+        assertEquals(0, engine.logSlotsUsed(player), "taking no log slot");
+
+        runs.switchedOn(true); // back on within the run's days
+        clock.set(FakeRuns.at("2026-10-12T12:00:00Z"));
+        engine.selfHeal(player);
+        assertEquals(List.of(quest.id()), engine.trackedActive(player).stream().map(Quest::id).toList(),
+                "back on the tracker");
+        engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 1);
+        assertEquals(2, engine.progressOf(player, quest.id(), "logs").current(), "where it was left, counting on");
+    }
+
+    @Test
+    void aQuestThatDoesNotCarryIsDroppedOnceASwitchOffOutlastsItsRunsDays() {
+        runs.run(2026, 1, "2026-10-03", "2026-10-03").run(2026, 2, "2026-10-10", "2026-10-12")
+                .run(2026, 3, "2026-10-17", "2026-10-19");
+        Quest quest = weekly(3);
+        QuestEngine engine = engine(quest);
+        clock.set(FakeRuns.at("2026-10-10T12:00:00Z"));
+        assertTrue(engine.accept(player, quest));
+        engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 1);
+
+        runs.switchedOn(false);
+        clock.set(FakeRuns.at("2026-10-12T12:00:00Z"));
+        engine.selfHeal(player);
+        assertEquals(QuestStatus.ACTIVE, store.status(player, quest.id()), "kept on its run's last day");
+
+        clock.set(FakeRuns.at("2026-10-13T12:00:00Z"));
+        engine.selfHeal(player);
+        assertEquals(QuestStatus.NOT_STARTED, store.status(player, quest.id()),
+                "its run's days are over: dropped at the first drop point after them, the event still off");
+        assertTrue(QuestProgressPayload.deserialize(store.progressPayload(player, quest.id())).isEmpty(),
+                "with its progress");
+
+        runs.switchedOn(true);
+        assertTrue(offeredAt(engine, quest, "2026-10-17T12:00:00Z"), "switched back on, the next run offers it afresh");
+    }
+
     // M287: several runs a year. A run is (event, year, number), and each run is its own once.
     @Test
     void aQuestFinishedInTheSpringRunComesBackForTheAutumnRun() {

@@ -22,8 +22,9 @@ import com.ziggfreed.common.occurrence.OccurrenceSource;
  * need not follow its days, so every question of time order reads the runs by start ({@link Occurrence#IN_ORDER}).
  * A force on runs the current year's first run not yet over, else its last, with its own days. A force off stops
  * it. The next run is the first one after the run going on. A run the year set aside (it met another) keeps its
- * days for {@link #after} alone, which follows it from its own start as the calendar does; it never runs. UTC
- * throughout; both days of a run are in it.
+ * days for {@link #after} alone, which follows it from its own start as the calendar does; it never runs. An
+ * owner's switch-off makes the event absent (not enabled, never live, no history, no next run), though its runs
+ * are still dated by identity ({@link #dated}), as the calendar's are. UTC throughout; both days of a run are in it.
  */
 final class FakeRuns implements OccurrenceSource {
 
@@ -36,6 +37,7 @@ final class FakeRuns implements OccurrenceSource {
     /** Each set-aside run's [start, end) by year, then number: no run, only a place to follow from. */
     private final TreeMap<Integer, TreeMap<Integer, long[]>> setAside = new TreeMap<>();
     @Nullable private Boolean forced;
+    private boolean switchedOn = true;
 
     FakeRuns(@Nonnull String eventId) {
         this.eventId = eventId.trim().toLowerCase(Locale.ROOT);
@@ -73,6 +75,13 @@ final class FakeRuns implements OccurrenceSource {
         return this;
     }
 
+    /** The owner's switch: off, the event is absent, as {@code Enabled} false in its file or calendar.json makes it. */
+    @Nonnull
+    FakeRuns switchedOn(boolean on) {
+        switchedOn = on;
+        return this;
+    }
+
     /** An ISO instant in epoch milliseconds. */
     static long at(@Nonnull String isoInstant) {
         return Instant.parse(isoInstant).toEpochMilli();
@@ -87,7 +96,13 @@ final class FakeRuns implements OccurrenceSource {
         return table.computeIfAbsent(year, y -> new TreeMap<>());
     }
 
+    /** Is {@code asked} this event, switched on? What every answer but {@link #dated} and the clock asks. */
     private boolean mine(@Nonnull String asked) {
+        return switchedOn && loaded(asked);
+    }
+
+    /** Is {@code asked} this event, whatever its switch says? */
+    private boolean loaded(@Nonnull String asked) {
         return eventId.equals(asked.trim().toLowerCase(Locale.ROOT));
     }
 
@@ -193,6 +208,18 @@ final class FakeRuns implements OccurrenceSource {
             }
         }
         return null;
+    }
+
+    /**
+     * Run {@code number} of {@code year} on its days as they read now, whatever the switch and the force say; null
+     * for a run set aside or one the event lacks.
+     */
+    @Override
+    @Nullable
+    public Occurrence dated(@Nonnull String asked, int year, int number) {
+        TreeMap<Integer, long[]> ofYear = loaded(asked) ? runs.get(year) : null;
+        long[] own = ofYear == null ? null : ofYear.get(number);
+        return own == null ? null : new Occurrence(eventId, year, number, own[0], own[1]);
     }
 
     @Override
