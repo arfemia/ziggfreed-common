@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -168,24 +170,93 @@ class CalendarHeraldQueueTest {
         assertEquals(List.of(0L, GAP), delays(CalendarHerald.endQueue(tick, events::get)));
     }
 
+    // A Saturday contest's 2026 runs from January 3rd (week 1) to December 26th (week 52), a day each.
     @Test
-    void anEventThatSaysFirstRunOfYearShowsItsBannersOnlyForThatRun() {
+    void anEventThatSaysFirstRunOfYearShowsItsStartBannerForItsFirstRunAndItsEndBannerWhenItsLastEnds() {
         CalendarEventAsset contest = withBoth("Contest", ", \"FirstRunOfYear\": true");
-        assertTrue(CalendarHerald.shows(contest, run("contest", 1)));
-        assertFalse(CalendarHerald.shows(contest, run("contest", 2)), "the year's later runs come and go quietly");
+        assertTrue(CalendarHerald.showsStart(contest, run("contest", 1)));
+        assertFalse(CalendarHerald.showsStart(contest, run("contest", 2)), "the year's later runs come and go quietly");
         Map<String, CalendarEventAsset> events = Map.of("contest", contest);
         assertTrue(CalendarHerald.startQueue(List.of(run("contest", 2)), events::get, 0L).isEmpty());
         assertEquals(1, CalendarHerald.startQueue(List.of(run("contest", 1)), events::get, 0L).size());
         CalendarTick secondEnds = new CalendarTick(2L, false, Set.of(), List.of(),
                 List.of(new CalendarTick.Ended(run("contest", 2), false)));
         assertTrue(CalendarHerald.endQueue(secondEnds, events::get).isEmpty());
-        assertTrue(CalendarHerald.shows(withBoth("Contest", ""), run("contest", 7)), "unsaid, every run shows them");
+        List<AnnualWindow.DatedRun> year = contest.annualWindow().datedRuns(2026);
+        assertEquals(52, year.get(year.size() - 1).number(), "December 26th's run is the year's last");
+        CalendarTick firstEnds = new CalendarTick(2L, false, Set.of(), List.of(),
+                List.of(new CalendarTick.Ended(run("contest", 1), false)));
+        assertTrue(CalendarHerald.endQueue(firstEnds, events::get).isEmpty(), "the first run ends quietly");
+        CalendarTick lastEnds = new CalendarTick(2L, false, Set.of(), List.of(),
+                List.of(new CalendarTick.Ended(run("contest", 52), false)));
+        assertEquals(List.of("Contest.end"), titles(CalendarHerald.endQueue(lastEnds, events::get)),
+                "the year's last run ends with the banner");
+        assertFalse(CalendarHerald.showsStart(contest, run("contest", 52)), "and opens without one");
+        assertTrue(CalendarHerald.showsStart(withBoth("Contest", ""), run("contest", 7)),
+                "unsaid, every run shows them");
+        assertTrue(CalendarHerald.showsEnd(withBoth("Contest", ""), run("contest", 7)), "both of them");
+    }
+
+    // A list of spans numbers each run by its place, wherever its days fall: written October, February, June, runs 1,
+    // 2 and 3 come round in the order 2, 3, 1. The year's first by its dates is run 2 and its last run 1.
+    @Test
+    void theYearsFirstAndLastRunsAreFoundByTheirDatesNeverByTheirNumbers() {
+        CalendarEventAsset fair = CalendarFixtures.event("Fair", "{ \"Window\": { \"Rule\": { \"Type\": \"Fixed\","
+                + " \"Runs\": [ { \"Start\": \"10-01\", \"End\": \"10-07\" },"
+                + " { \"Start\": \"02-01\", \"End\": \"02-07\" },"
+                + " { \"Start\": \"06-01\", \"End\": \"06-07\" } ] } }, \"FirstYear\": 2026, \"Herald\": {"
+                + " \"Start\": { \"TitleKey\": \"fair.start\" }, \"End\": { \"TitleKey\": \"fair.end\" },"
+                + " \"FirstRunOfYear\": true } }");
+        Map<String, CalendarEventAsset> events = Map.of("fair", fair);
+        List<Integer> opened = new ArrayList<>();
+        List<Integer> closed = new ArrayList<>();
+        for (AnnualWindow.DatedRun dated : fair.annualWindow().datedRuns(2026)) {
+            Occurrence run = dated.occurrence("fair", ZoneOffset.UTC);
+            if (!CalendarHerald.startQueue(List.of(run), events::get, 0L).isEmpty()) {
+                opened.add(run.number());
+            }
+            CalendarTick ends = new CalendarTick(run.endMs(), false, Set.of(), List.of(),
+                    List.of(new CalendarTick.Ended(run, false)));
+            if (!CalendarHerald.endQueue(ends, events::get).isEmpty()) {
+                closed.add(run.number());
+            }
+        }
+        assertEquals(List.of(2), opened, "the start banner opens February's run, the year's first");
+        assertEquals(List.of(1), closed, "the end banner closes October's run, the year's last");
+        assertFalse(CalendarHerald.showsStart(fair, new Occurrence("fair", 2026, 3, 0L, 1L)), "June's run");
+        assertFalse(CalendarHerald.showsEnd(fair, new Occurrence("fair", 2026, 3, 0L, 1L)), "comes and goes quietly");
+    }
+
+    // A Saturday contest whose runs follow back to back: 2026's last (December 26th, week 52) lasts until 2027's first
+    // (January 2nd, week 1) begins, so one tick ends the one and starts the other.
+    @Test
+    void aYearsLastRunFollowedAtOnceByTheNextYearsFirstShowsOnlyTheNextYearsStartBanner() {
+        CalendarEventAsset contest = CalendarFixtures.event("Contest", "{ \"Window\": { \"Rule\": { \"Type\":"
+                + " \"Weekly\", \"Weekday\": \"Saturday\", \"UntilNext\": true } }, \"FirstYear\": 2026, \"Herald\": {"
+                + " \"Start\": { \"TitleKey\": \"contest.start\" }, \"End\": { \"TitleKey\": \"contest.end\" },"
+                + " \"FirstRunOfYear\": true } }");
+        List<AnnualWindow.DatedRun> year = contest.annualWindow().datedRuns(2026);
+        AnnualWindow.DatedRun last = year.get(year.size() - 1);
+        AnnualWindow.DatedRun next = contest.annualWindow().datedRuns(2027).get(0);
+        assertEquals(List.of(52, 1), List.of(last.number(), next.number()));
+        assertEquals(last.days().end(), next.days().start(), "back to back across the new year");
+        Occurrence ending = last.occurrence("contest", ZoneOffset.UTC);
+        Occurrence starting = next.occurrence("contest", ZoneOffset.UTC);
+        assertTrue(CalendarHerald.showsEnd(contest, ending), "alone, the year's last run would end with the banner");
+        Map<String, CalendarEventAsset> events = Map.of("contest", contest);
+        CalendarTick tick = new CalendarTick(ending.endMs(), false, Set.of("contest"),
+                List.of(new CalendarTick.Started(starting, false)), List.of(new CalendarTick.Ended(ending, false)));
+        assertTrue(CalendarHerald.endQueue(tick, events::get).isEmpty(), "the next run's start banner speaks for it");
+        List<CalendarHerald.QueuedBanner> starts = CalendarHerald.startQueue(List.of(starting), events::get,
+                CalendarHerald.startsAfterMs(tick, events::get));
+        assertEquals(List.of("contest.start"), titles(starts), "2027's first run opens with its banner");
+        assertEquals(List.of(0L), delays(starts), "at once, with no end banner before it");
     }
 
     @Test
     void anEventWithItsHeraldSwitchedOffShowsNoBanner() {
         CalendarEventAsset quiet = withBoth("Contest", ", \"Enabled\": false");
-        assertFalse(CalendarHerald.shows(quiet, run("contest", 1)));
+        assertFalse(CalendarHerald.showsStart(quiet, run("contest", 1)));
         assertTrue(CalendarHerald.endQueue(new CalendarTick(2L, false, Set.of(), List.of(),
                 List.of(new CalendarTick.Ended(run("contest", 1), false))), Map.of("contest", quiet)::get).isEmpty());
         assertTrue(CalendarHerald.startQueue(List.of(run("contest", 1)), Map.of("contest", quiet)::get, 0L).isEmpty());
@@ -211,8 +282,8 @@ class CalendarHeraldQueueTest {
                 + " \"Weekly\", \"Weekday\": \"Monday\" } }, \"FirstYear\": 2026, \"Herald\": { \"Start\": {"
                 + " \"TitleKey\": \"contest.start\" }, \"FirstRunOfYear\": true } }");
         assertEquals(2, mondays.annualWindow().datedRuns(2026).get(0).number(), "no Monday of 2026 falls in week 1");
-        assertTrue(CalendarHerald.shows(mondays, run("contest", 2)), "January 5th's run is the year's first");
-        assertFalse(CalendarHerald.shows(mondays, run("contest", 3)));
+        assertTrue(CalendarHerald.showsStart(mondays, run("contest", 2)), "January 5th's run is the year's first");
+        assertFalse(CalendarHerald.showsStart(mondays, run("contest", 3)));
     }
 
     @Test
@@ -220,7 +291,7 @@ class CalendarHeraldQueueTest {
         CalendarEventAsset quieted = CalendarFixtures.event("Contest", "{ \"Herald\": { \"Enabled\": false } }",
                 withBoth("Contest", ""));
         assertEquals("Contest.start", quieted.heraldStart().titleKey(), "the pack's lines are inherited");
-        assertFalse(CalendarHerald.shows(quieted, run("contest", 1)), "and none of them shows");
+        assertFalse(CalendarHerald.showsStart(quieted, run("contest", 1)), "and none of them shows");
     }
 
     @Test

@@ -32,8 +32,8 @@ import com.ziggfreed.common.util.SafeLog;
  * ends by its dates or a command, never when the owner switches the event off (off means absent); when one tick
  * ends several runs, their end banners queue the same gap apart. A tick is one queue: its end banners first, then
  * the start banners its fresh runs owe; a run followed at once by its event's next run shows no end banner; and an
- * event may show its banners on every run, only on its first run of each year, or never
- * ({@code Herald.FirstRunOfYear}, {@code Herald.Enabled}).
+ * event may show its banners on every run, only the start banner on the year's first run and the end banner when
+ * its last run ends, both by their dates ({@code Herald.FirstRunOfYear}), or never ({@code Herald.Enabled}).
  */
 public final class CalendarHerald {
 
@@ -62,7 +62,7 @@ public final class CalendarHerald {
     /**
      * The end banners {@code tick} owes, queued as a credit's start banners are: the first at once, each later
      * one {@link #START_GAP_MS} after the one before. A switch-off (off means absent) and an event authoring
-     * no End line take no slot. A run whose event's next run starts on the same tick, or whose event shows no
+     * no End line take no slot. A run whose event's next run starts on the same tick, or whose event shows no end
      * banner for it, takes no slot either.
      */
     @Nonnull
@@ -77,16 +77,21 @@ public final class CalendarHerald {
             Occurrence run = end.occurrence();
             // A run followed at once by its event's next run shows no end banner: the next run's start banner speaks.
             if (!end.switchedOff() && !startingAgain.contains(run.eventId())
-                    && shows(events.apply(run.eventId()), run)) {
+                    && showsEnd(events.apply(run.eventId()), run)) {
                 ended.add(run.eventId());
             }
         }
         return queue(ended, id -> endLine(events.apply(id)), 0L);
     }
 
-    /** Does {@code event} show its banners for {@code run}: its Herald on, and every run or this the year's first? */
-    public static boolean shows(@Nullable CalendarEventAsset event, @Nonnull Occurrence run) {
-        return event != null && event.heraldShows(run.year(), run.number());
+    /** Does {@code event} show its start banner for {@code run}: its Herald on, and every run or the year's first? */
+    public static boolean showsStart(@Nullable CalendarEventAsset event, @Nonnull Occurrence run) {
+        return event != null && event.heraldShowsStart(run.year(), run.number());
+    }
+
+    /** Does {@code event} show its end banner as {@code run} ends: its Herald on, and every run or the year's last? */
+    public static boolean showsEnd(@Nullable CalendarEventAsset event, @Nonnull Occurrence run) {
+        return event != null && event.heraldShowsEnd(run.year(), run.number());
     }
 
     /** The start banner of {@code event}, or null when it authors none with a title. */
@@ -122,7 +127,7 @@ public final class CalendarHerald {
             @Nonnull Function<String, CalendarEventAsset> events, long afterMs) {
         List<String> shown = new ArrayList<>();
         for (Occurrence run : runs) {
-            if (shows(events.apply(run.eventId()), run)) {
+            if (showsStart(events.apply(run.eventId()), run)) {
                 shown.add(run.eventId());
             }
         }

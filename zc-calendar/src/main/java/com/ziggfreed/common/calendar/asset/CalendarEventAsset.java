@@ -1,5 +1,6 @@
 package com.ziggfreed.common.calendar.asset;
 
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -194,7 +195,8 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
                     (a, v) -> a.herald = v, a -> a.herald, (a, p) -> a.herald = p.herald)
             .documentation("The banner a player sees when a run begins for them and when it ends. Unauthored means "
                     + "the event comes and goes without one. Enabled false keeps every run quiet; FirstRunOfYear true "
-                    + "shows them only for the year's first run.")
+                    + "shows the start banner on the year's first run and the end banner when its last run ends, both "
+                    + "by their dates.")
             .add()
             .build();
 
@@ -451,33 +453,54 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
     }
 
     /**
-     * Does the event show its banners for run {@code number} of {@code year}: its Herald switched on (unsaid is on),
-     * and every run, or only the year's first when it says FirstRunOfYear? The first run is the year's first by its
-     * dates, never run 1: a number is the year's rule's name for a run (a month, a calendar week), so a weekly year
-     * can begin at week 2.
+     * Does the event show its start banner for run {@code number} of {@code year}: its Herald switched on (unsaid is
+     * on), and every run, or only the year's first by its dates when it says FirstRunOfYear?
      */
-    public boolean heraldShows(int year, int number) {
+    public boolean heraldShowsStart(int year, int number) {
+        return heraldShows(year, number, true);
+    }
+
+    /**
+     * Does the event show its end banner when run {@code number} of {@code year} ends: its Herald switched on (unsaid
+     * is on), and every run, or only the year's last by its dates when it says FirstRunOfYear?
+     */
+    public boolean heraldShowsEnd(int year, int number) {
+        return heraldShows(year, number, false);
+    }
+
+    /**
+     * The two answers' one rule: the start banner reads the year's first run, the end banner its last. Both are the
+     * year's by their dates, never by number: a number is the year's rule's name for a run (a month, a calendar week,
+     * a span's place), so a weekly year can begin at week 2 and a list of spans can be written out of date order.
+     */
+    private boolean heraldShows(int year, int number, boolean start) {
         if (herald == null) {
             return true;
         }
         if (Boolean.FALSE.equals(herald.enabled)) {
             return false;
         }
-        return !Boolean.TRUE.equals(herald.firstRunOfYear) || isFirstRunOfYear(year, number);
+        return !Boolean.TRUE.equals(herald.firstRunOfYear) || edgeRunOfYear(year, start) == number;
     }
 
-    /** Is run {@code number} the first of {@code year} by start? A year the window dates no run for reads run 1 so. */
-    private boolean isFirstRunOfYear(int year, int number) {
+    /**
+     * The number of {@code year}'s first run by start ({@code first}), else of its last: kept runs never overlap, so
+     * the last to start is the last to end. A year the window dates no run for reads run 1 as both, as a year of one
+     * run would.
+     */
+    private int edgeRunOfYear(int year, boolean first) {
         AnnualWindow window = annualWindow();
-        AnnualWindow.DatedRun first = null;
+        AnnualWindow.DatedRun edge = null;
         if (window != null) {
             for (AnnualWindow.DatedRun run : window.datedRuns(year)) {
-                if (first == null || run.days().start().isBefore(first.days().start())) {
-                    first = run;
+                LocalDateTime start = run.days().start();
+                LocalDateTime best = edge == null ? null : edge.days().start();
+                if (best == null || (first ? start.isBefore(best) : start.isAfter(best))) {
+                    edge = run;
                 }
             }
         }
-        return first == null ? number == 1 : first.number() == number;
+        return edge == null ? 1 : edge.number();
     }
 
     /** Can the event run at all: an id of its own, a readable Window and a FirstYear from 1970 to 9999? */
@@ -645,8 +668,8 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
     }
 
     /**
-     * The Herald group: the banner at a run's start and at its end, and which runs show them (every run, only the
-     * year's first, or none).
+     * The Herald group: the banner at a run's start and at its end, and which runs show them: every run; the start
+     * banner on the year's first run and the end banner when its last run ends, both by their dates; or none.
      */
     public static final class Herald {
 
@@ -674,8 +697,9 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
                         (o, v) -> o.firstRunOfYear = v, o -> o.firstRunOfYear,
                         (o, p) -> o.firstRunOfYear = p.firstRunOfYear)
                 .metadata(EditorSchema.defaultValue(false))
-                .documentation("Show the banners only for the year's first run; unauthored means false, so every run "
-                        + "shows them. For an event that comes round each week or month.").add()
+                .documentation("Show the start banner only on the year's first run and the end banner only when its "
+                        + "last run ends, both by their dates; unauthored means false, so every run shows them. For an "
+                        + "event that comes round each week or month.").add()
                 .build();
 
         public Herald() {
