@@ -387,7 +387,7 @@ public final class NpcPlacementAdminPage extends ToastablePage<NpcPlacementAdmin
                 NpcPlacementAuthoring.round(position.x(), 2),
                 NpcPlacementAuthoring.round(position.y(), 2),
                 NpcPlacementAuthoring.round(position.z(), 2),
-                NpcPlacementAuthoring.round(transform.getRotation().yaw(), 1));
+                NpcPlacementAuthoring.round(NpcPlacementAuthoring.yawDegrees(transform.getRotation().yaw()), 1));
 
         switch (result.outcome()) {
             case PLACED -> showToast(ToastKind.SUCCESS,
