@@ -43,8 +43,8 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p><b>The years and the clock outlive the switches.</b> {@link #firstYear}, {@link #currentYear} and
  * {@link #zone} answer for any loaded event, switched on or not, so what a player earned in a past run
- * keeps its years after the owner switches the event off. A FirstYear outside 1970 to 9999 is no first
- * year at all.
+ * keeps its years after the owner switches the event off; so does {@link #dated}, a run's own days by its
+ * year and number. A FirstYear outside 1970 to 9999 is no first year at all.
  */
 public final class CalendarService implements OccurrenceSource {
 
@@ -267,6 +267,22 @@ public final class CalendarService implements OccurrenceSource {
         }
         AnnualWindow.DatedRun next = event.annualWindow().after(year, number);
         return next == null ? null : next.occurrence(event.getId(), event.zone());
+    }
+
+    /**
+     * Run {@code number} of {@code year} on its days as the loaded event's dates read now, whatever its switches
+     * and forces say, so a run switched or forced off keeps its days. Null when no such event is loaded, it cannot
+     * run, or the year has no such run (set aside, skipped, before FirstYear or never dated).
+     */
+    @Override
+    @Nullable
+    public Occurrence dated(@Nonnull String eventId, int year, int number) {
+        CalendarEventAsset event = event(eventId);
+        RunDays days = event == null || !event.canRun() ? null : event.annualWindow().run(year, number);
+        if (days == null) {
+            return null;
+        }
+        return new AnnualWindow.DatedRun(year, number, days).occurrence(event.getId(), event.zone());
     }
 
     /**
