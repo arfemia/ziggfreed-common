@@ -304,6 +304,19 @@ class QuestAssetCodecTest {
         }
 
         @Test
+        void perRunCarriesProgressOverUnlessItSaysNot() throws Exception {
+            Quest.Repeat.PerRun carried = decodeRoot("{ \"Repeat\": { \"PerRun\": { \"Event\": \"Spring_Fair\" } } }",
+                    "fair").toDefinition(null).quest().repeat().perRun();
+            assertTrue(carried.carry(), "unauthored: an unfinished quest comes back where the player left it");
+            QuestAsset weekly = decodeRoot(
+                    "{ \"Repeat\": { \"PerRun\": { \"Event\": \"Fishing_Contest\", \"Carry\": false } } }", "weekly");
+            assertFalse(weekly.toDefinition(null).quest().repeat().perRun().carry());
+            QuestAsset child = decode("{ \"Repeat\": { \"PerRun\": { \"Times\": 2 } } }", "weekly_child", "weekly",
+                    weekly);
+            assertFalse(child.toDefinition(null).quest().repeat().perRun().carry(), "a child keeps its parent's Carry");
+        }
+
+        @Test
         void aPerRunWithNoEventIsIgnoredAndTheAuditSaysSo() throws Exception {
             QuestAsset asset = decodeRoot("{ \"Repeat\": { \"PerRun\": { \"Times\": 0 } } }", "no_event");
 

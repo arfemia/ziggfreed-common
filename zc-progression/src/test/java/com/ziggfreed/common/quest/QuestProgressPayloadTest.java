@@ -92,4 +92,20 @@ class QuestProgressPayloadTest {
         assertNull(QuestProgressPayload.acceptSite(
                 QuestProgressPayload.serialize(Map.of(), "north|post")));
     }
+
+    @Test
+    void theRunAQuestWasTakenInRidesBesideItsPlaceAndAnOlderPayloadNamesNone() {
+        Map<String, ObjectiveProgressState> progress = new LinkedHashMap<>();
+        progress.put("logs", new ObjectiveProgressState(1, 3));
+        String both = QuestProgressPayload.serialize(progress, "North_Post", new PerRuns.RunKey(2026, 2));
+        assertEquals("North_Post", QuestProgressPayload.acceptSite(both), "two headers, each read by its name");
+        assertEquals(new PerRuns.RunKey(2026, 2), QuestProgressPayload.takenIn(both));
+        assertEquals(1, QuestProgressPayload.deserialize(both).get("logs").current());
+        String runOnly = QuestProgressPayload.serialize(progress, null, new PerRuns.RunKey(2027, 1));
+        assertNull(QuestProgressPayload.acceptSite(runOnly));
+        assertEquals(new PerRuns.RunKey(2027, 1), QuestProgressPayload.takenIn(runOnly));
+        assertEquals(QuestProgressPayload.serialize(progress, "North_Post"),
+                QuestProgressPayload.serialize(progress, "North_Post", null), "no run: byte for byte as before");
+        assertNull(QuestProgressPayload.takenIn(QuestProgressPayload.serialize(progress, "North_Post")));
+    }
 }

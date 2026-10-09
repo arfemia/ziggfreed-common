@@ -1030,13 +1030,15 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
         // ==================== PerRun ====================
 
         /**
-         * Once a run of a calendar event: the event whose runs the quest counts by, and how many finishes one
-         * run allows. The engine's form is {@link Quest.Repeat.PerRun}.
+         * Once a run of a calendar event: the event whose runs the quest counts by, how many finishes one run
+         * allows, and whether an unfinished quest carries its progress to the next run. The engine's form is
+         * {@link Quest.Repeat.PerRun}.
          */
         public static final class PerRun {
 
             @Nullable protected String event;
             @Nullable protected Integer times;
+            @Nullable protected Boolean carry;
 
             public static final BuilderCodec<PerRun> CODEC = BuilderCodec.builder(PerRun.class, PerRun::new)
                     .appendInherited(new KeyedCodec<>("Event", Codec.STRING, false),
@@ -1048,6 +1050,12 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                     .metadata(EditorSchema.defaultValue(1))
                     .documentation("How many FINISHES fit inside one run of the event. Unauthored means 1. A run "
                             + "whose reward is still waiting to be collected has already spent its slot.").add()
+                    .appendInherited(new KeyedCodec<>("Carry", Codec.BOOLEAN, false),
+                            (o, v) -> o.carry = v, o -> o.carry, (o, p) -> o.carry = p.carry)
+                    .metadata(EditorSchema.defaultValue(true))
+                    .documentation("Whether an unfinished quest carries its progress to the event's next run; "
+                            + "unauthored means true, so it comes back where the player left it. False starts it "
+                            + "afresh each run, for a quest of a weekly or monthly event.").add()
                     .build();
 
             public PerRun() {
@@ -1065,11 +1073,12 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                 return times;
             }
 
-            /** The engine's rule, or null when no event is named; Times below 1 reads as 1. */
+            /** The engine's rule, or null when no event is named; Times below 1 reads as 1, unauthored Carry as true. */
             @Nullable
             public Quest.Repeat.PerRun toPerRun() {
                 return event == null || event.isBlank() ? null
-                        : new Quest.Repeat.PerRun(event, times == null ? 1 : times.intValue());
+                        : new Quest.Repeat.PerRun(event, times == null ? 1 : times.intValue(),
+                                carry == null || carry);
             }
         }
     }

@@ -28,7 +28,8 @@ import com.ziggfreed.common.subject.Subject;
  * Once a run of a calendar event: a quest finished in a run is not offered again in that run, whatever
  * moves the run (a force, an owner moving its days, the new year inside it); an old record with no run
  * year counts for the run nearest its last finish; and an unfinished quest keeps its progress into the
- * next run, where finishing it counts. Runs are keyed (event, year, number), never by whether now is in them,
+ * next run, where finishing it counts, unless it does not carry over: then it is dropped on the first read
+ * after the run it was taken in is over. Runs are keyed (event, year, number), never by whether now is in them,
  * and come in time order by (year, start), never by number: a number names a run, it does not place it.
  */
 class PerRunRepeatTest {
@@ -79,6 +80,17 @@ class PerRunRepeatTest {
                         .target("Oak_Log").matchMode(MatchMode.EXACT).amount(logs).build())
                 .repeat(new Quest.Repeat(0L, Quest.Repeat.CooldownFrom.CLAIM, null, max,
                         new Quest.Repeat.PerRun(EVENT, times)))
+                .build();
+    }
+
+    /** One step of {@code logs} logs, once a run, whose progress does NOT carry to the next run. */
+    @Nonnull
+    private static Quest weekly(int logs) {
+        return Quest.builder("q_weekly")
+                .objective(ObjectiveDef.builder("logs", "BREAK_BLOCK")
+                        .target("Oak_Log").matchMode(MatchMode.EXACT).amount(logs).build())
+                .repeat(new Quest.Repeat(0L, Quest.Repeat.CooldownFrom.CLAIM, null, 0,
+                        new Quest.Repeat.PerRun(EVENT, 1, false)))
                 .build();
     }
 
@@ -407,6 +419,67 @@ class PerRunRepeatTest {
         clock.set(FakeRuns.at("2027-10-02T12:00:00Z"));
         engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 1);
         assertEquals(2, engine.progressOf(player, quest.id(), "logs").current(), "once the run starts it counts");
+    }
+
+    // Carry off: a weekly or monthly quest starts afresh each run. The drop is lazy: the first read after the run
+    // it was taken in is over.
+    @Test
+    void aQuestThatDoesNotCarryIsDroppedOnTheFirstReadAfterItsRunEnds() {
+        runs.run(2026, 1, "2026-10-03", "2026-10-03").run(2026, 2, "2026-10-10", "2026-10-10");
+        Quest quest = weekly(3);
+        QuestEngine engine = engine(quest);
+        clock.set(FakeRuns.at("2026-10-03T12:00:00Z"));
+        assertTrue(engine.accept(player, quest));
+        engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 1);
+        assertTrue(engine.track(player, quest.id()));
+
+        clock.set(FakeRuns.at("2026-10-03T20:00:00Z"));
+        engine.selfHeal(player);
+        assertEquals(QuestStatus.ACTIVE, store.status(player, quest.id()), "kept while its run is on");
+
+        clock.set(FakeRuns.at("2026-10-05T12:00:00Z"));
+        engine.selfHeal(player);
+        assertEquals(QuestStatus.NOT_STARTED, store.status(player, quest.id()), "its run is over: dropped between runs");
+        assertTrue(QuestProgressPayload.deserialize(store.progressPayload(player, quest.id())).isEmpty(),
+                "with its progress");
+        assertTrue(engine.tracked(player).isEmpty(), "and its pin");
+        assertTrue(store.completions(player, quest.id()).isEmpty(), "nothing was finished, so nothing is recorded");
+        assertTrue(offeredAt(engine, quest, "2026-10-10T12:00:00Z"), "the next run offers it afresh");
+    }
+
+    @Test
+    void aPlayerAwayAcrossTheRunsEndFindsLastRunsQuestDroppedBeforeAnythingCounts() {
+        runs.run(2026, 1, "2026-10-03", "2026-10-03").run(2026, 2, "2026-10-10", "2026-10-10");
+        Quest quest = weekly(3);
+        QuestEngine engine = engine(quest);
+        clock.set(FakeRuns.at("2026-10-03T12:00:00Z"));
+        assertTrue(engine.accept(player, quest));
+        engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 2);
+
+        // No read between the runs: the first is a dispatch in the next run.
+        clock.set(FakeRuns.at("2026-10-10T12:00:00Z"));
+        engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 1);
+        assertEquals(QuestStatus.NOT_STARTED, store.status(player, quest.id()),
+                "the dispatch drops last run's quest before it could count toward it");
+        assertTrue(engine.canAccept(player, quest).allowed(), "and this run's is on offer");
+        assertTrue(engine.accept(player, quest));
+        engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 1);
+        assertEquals(1, engine.progressOf(player, quest.id(), "logs").current(), "counting from nothing");
+    }
+
+    @Test
+    void aQuestThatDoesNotCarryIsKeptWhileItsRunGoesOnWhereverItsDaysMove() {
+        runs.run(2026, 1, "2026-10-03", "2026-10-04").run(2026, 2, "2026-10-10", "2026-10-11");
+        Quest quest = weekly(3);
+        QuestEngine engine = engine(quest);
+        clock.set(FakeRuns.at("2026-10-03T12:00:00Z"));
+        assertTrue(engine.accept(player, quest));
+        engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 1);
+        runs.run(2026, 1, "2026-10-02", "2026-10-06"); // the owner widens this run
+        clock.set(FakeRuns.at("2026-10-05T12:00:00Z"));
+        engine.selfHeal(player);
+        assertEquals(QuestStatus.ACTIVE, store.status(player, quest.id()), "the same run, still going on");
+        assertEquals(1, engine.progressOf(player, quest.id(), "logs").current());
     }
 
     // M287: several runs a year. A run is (event, year, number), and each run is its own once.

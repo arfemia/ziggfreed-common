@@ -25,6 +25,8 @@ import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardSpec;
+import com.ziggfreed.common.occurrence.Occurrence;
+import com.ziggfreed.common.occurrence.OccurrenceSource;
 import com.ziggfreed.common.occurrence.Occurrences;
 import com.ziggfreed.common.progress.DispatchOptions;
 import com.ziggfreed.common.progress.ObjectiveArithmetic;
@@ -428,6 +430,7 @@ public final class QuestEngine implements QuestStateReader {
         if (!quest.available()) {
             reasons.add(QuestGates.REASON_UNAVAILABLE);
         }
+        dropIfRunEnded(subject, quest);
         QuestStatus status = status(subject, quest);
         long waitMs = 0L;
         if (status == QuestStatus.ON_COOLDOWN
@@ -480,6 +483,7 @@ public final class QuestEngine implements QuestStateReader {
      * @return false only when a repeatable quest's own repeat rules refuse it
      */
     public boolean accept(@Nonnull Subject subject, @Nonnull Quest quest, @Nullable String siteId) {
+        dropIfRunEnded(subject, quest);
         if (quest.repeatable()
                 && !QuestLifecycle.repeatCheck(quest, subject, store, now()).available()) {
             return false;
@@ -496,7 +500,7 @@ public final class QuestEngine implements QuestStateReader {
             }
             progress.put(objective.id(), state);
         }
-        saveProgress(subject, quest.id(), progress, recordableSite(quest, siteId));
+        saveProgress(subject, quest.id(), progress, recordableSite(quest, siteId), runToStamp(quest));
 
         if (quest.autoTrack()) {
             track(subject, quest.id());
@@ -659,6 +663,8 @@ public final class QuestEngine implements QuestStateReader {
                 // exactly where the player left it, and so can only ever finish while it is offered.
                 continue;
             }
+            // Last run's quest that does not carry over goes first, so it counts nothing toward this run's.
+            dropIfRunEnded(subject, quest);
             if (!isActive(subject, quest.id()) && !tryAutoAcceptOnEvent(subject, quest)) {
                 continue;
             }
@@ -1074,6 +1080,7 @@ public final class QuestEngine implements QuestStateReader {
     @Nonnull
     public TurnInOutcome tryTurnIn(@Nonnull Subject subject, @Nonnull Quest quest,
                                    @Nonnull String objectiveId, @Nullable String atId) {
+        dropIfRunEnded(subject, quest);
         // A quest not on offer is frozen: nothing is taken and nothing is credited.
         if (!isActive(subject, quest.id()) || !quest.available()) {
             return TurnInOutcome.NOTHING;
@@ -1701,6 +1708,9 @@ public final class QuestEngine implements QuestStateReader {
      * {@link #refreshStatThresholds}), so a value that moved while the player was away is caught the
      * moment they come back rather than waiting for their next unrelated action.
      *
+     * <p>It also drops a once-a-run quest that does not carry over once its run is over
+     * ({@link #dropIfRunEnded}).
+     *
      * <p><b>Deliberately non-destructive otherwise.</b> A quest whose definition has gone is LEFT
      * alone (it may come back), as is anything parked for collection (a reward may still be owed).
      * A re-arm keeps the player's {@link QuestProgressStore.CompletionRecord}, so a lifetime cap and
@@ -1710,6 +1720,12 @@ public final class QuestEngine implements QuestStateReader {
      */
     public int selfHeal(@Nonnull Subject subject) {
         int changed = 0;
+        for (String questId : List.copyOf(store.knownQuestIds(subject))) {
+            Quest quest = quests.get(questId);
+            if (quest != null && dropIfRunEnded(subject, quest)) {
+                changed++;
+            }
+        }
         for (String questId : List.copyOf(store.knownQuestIds(subject))) {
             Quest quest = quests.get(questId);
             if (quest == null || !quest.repeatable()) {
@@ -2072,21 +2088,65 @@ public final class QuestEngine implements QuestStateReader {
     }
 
     /**
-     * Write this player's progress back, KEEPING whatever place the quest was taken at. The site is
-     * re-read here rather than threaded through every caller, because a save that forgot it would
-     * quietly un-bind the quest from its place on the next step the player took, and nothing would
-     * report it. {@link #accept} is the one caller that supplies a site of its own.
+     * Write this player's progress back, KEEPING whatever place the quest was taken at and the run it
+     * was taken in. Both are re-read here rather than threaded through every caller, because a save
+     * that forgot the site would quietly un-bind the quest from its place on the next step the player
+     * took, and one that forgot the run would keep a quest that does not carry over past its run, and
+     * nothing would report either. {@link #accept} is the one caller that supplies its own.
      */
     private void saveProgress(@Nonnull Subject subject, @Nonnull String questId,
                               @Nonnull Map<String, ObjectiveProgressState> progress) {
-        saveProgress(subject, questId, progress, acceptSiteOf(subject, questId));
+        saveProgress(subject, questId, progress, acceptSiteOf(subject, questId), takenInOf(subject, questId));
     }
 
     private void saveProgress(@Nonnull Subject subject, @Nonnull String questId,
                               @Nonnull Map<String, ObjectiveProgressState> progress,
-                              @Nullable String acceptSite) {
+                              @Nullable String acceptSite, @Nullable PerRuns.RunKey takenIn) {
         store.putProgressPayload(subject, questId,
-                QuestProgressPayload.serialize(progress, acceptSite));
+                QuestProgressPayload.serialize(progress, acceptSite, takenIn));
+    }
+
+    /** The run a once-a-run quest that does not carry over is taken in, stamped on its progress; null for any other. */
+    @Nullable
+    private PerRuns.RunKey runToStamp(@Nonnull Quest quest) {
+        Quest.Repeat.PerRun perRun = quest.repeat() == null ? null : quest.repeat().perRun();
+        if (perRun == null || perRun.carry()) {
+            return null;
+        }
+        Occurrence live = Occurrences.source().live(perRun.event(), now());
+        return live == null ? null : PerRuns.RunKey.of(live);
+    }
+
+    /** The run stamped on this player's progress of the quest at accept, or null when none is. */
+    @Nullable
+    private PerRuns.RunKey takenInOf(@Nonnull Subject subject, @Nonnull String questId) {
+        return QuestProgressPayload.takenIn(store.progressPayload(subject, questId));
+    }
+
+    /**
+     * Drop a once-a-run quest that does not carry over ({@code Carry} false) once the run it was taken in is over:
+     * its progress and pin go, its completion record stays, and the next run offers it afresh. Lazily, on the
+     * first read after the run ends (a login's or a surface's selfHeal, an accept check or accept, a dispatch or a
+     * hand-in that would touch it), since an offline player's record cannot be written when the run ends. The run
+     * is over once the run going on, else the next, comes after it in time ({@link PerRuns#comesAfter}, never by
+     * number), or none is left; a forced run whose own days are still ahead is not over. True when it was dropped.
+     */
+    boolean dropIfRunEnded(@Nonnull Subject subject, @Nonnull Quest quest) {
+        Quest.Repeat.PerRun perRun = quest.repeat() == null ? null : quest.repeat().perRun();
+        if (perRun == null || perRun.carry() || store.status(subject, quest.id()) != QuestStatus.ACTIVE) {
+            return false;
+        }
+        PerRuns.RunKey taken = takenInOf(subject, quest.id());
+        if (taken == null) {
+            return false;
+        }
+        OccurrenceSource occurrences = Occurrences.source();
+        Occurrence current = PerRuns.runFor(perRun, now(), occurrences);
+        if (current != null && !PerRuns.comesAfter(current, taken, perRun, occurrences)) {
+            return false;
+        }
+        clearQuest(subject, quest.id());
+        return true;
     }
 
     // ==================== The narrow read seam ====================
