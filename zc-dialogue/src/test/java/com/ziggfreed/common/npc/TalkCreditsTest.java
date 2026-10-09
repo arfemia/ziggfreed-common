@@ -95,6 +95,25 @@ class TalkCreditsTest {
         void thereIsNothingToClaimForABlankId() {
             assertFalse(TalkCredits.claim(UUID.randomUUID(), "  "));
         }
+
+        @Test
+        void itIsClaimedPerQualifierSoAQualifiedLineIsNotSwallowedByAnUnqualifiedOne() {
+            UUID player = UUID.randomUUID();
+            assertTrue(TalkCredits.claim(player, "guide", null));
+            assertTrue(TalkCredits.claim(player, "guide", "tour"),
+                    "an unqualified credit then a qualified tour line inside the window must both count");
+            assertFalse(TalkCredits.claim(player, "guide", "Tour"),
+                    "the qualified line's own re-trigger is still swallowed, whatever its case");
+            assertFalse(TalkCredits.claim(player, "guide"), "and so is the unqualified one's");
+        }
+
+        @Test
+        void aBlankQualifierIsTheUnqualifiedWindow() {
+            UUID player = UUID.randomUUID();
+            assertTrue(TalkCredits.claim(player, "guide", "  "));
+            assertFalse(TalkCredits.claim(player, "guide", null));
+            assertFalse(TalkCredits.claim(player, "guide"));
+        }
     }
 
     @Nested

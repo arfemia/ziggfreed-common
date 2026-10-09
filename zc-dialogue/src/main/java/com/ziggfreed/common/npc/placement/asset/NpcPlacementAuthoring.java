@@ -10,6 +10,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.server.core.asset.type.model.config.ModelAsset;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -54,7 +55,7 @@ public final class NpcPlacementAuthoring {
         WRITE_FAILED
     }
 
-    /** What happened, and the values that were written, for a caller to report back. */
+    /** What happened, and the values that were written (the yaw in degrees), for a caller to report back. */
     public record Result(@Nonnull Outcome outcome, @Nonnull String id, @Nonnull String role,
                          @Nonnull String worldName, double x, double y, double z, double yaw) {
 
@@ -75,6 +76,8 @@ public final class NpcPlacementAuthoring {
      *
      * @param id       the placement id, lower-cased here so the caller need not
      * @param dialogue the conversation press-F opens, or null for that character's quest list
+     * @param yaw      the facing in DEGREES, as a placement's authored {@code Yaw} reads; a live
+     *                 entity's facing goes through {@link #capturedYaw} first, never as its radians
      */
     @Nonnull
     public static Result place(@Nonnull World world, @Nonnull Store<EntityStore> store,
@@ -205,6 +208,16 @@ public final class NpcPlacementAuthoring {
      */
     public static double yawDegrees(float radians) {
         return Math.toDegrees(radians);
+    }
+
+    /**
+     * A live entity's facing as the {@code yaw} {@link #place} writes: its rotation's yaw (radians, as
+     * the engine keeps it) in DEGREES, to one decimal so the file reads like something authored. The one
+     * way a capture site passes a live facing ({@code /zignpc place}, the admin page, a consumer's alias),
+     * so none of them hands {@code place} the raw radians.
+     */
+    public static double capturedYaw(@Nonnull Rotation3f rotation) {
+        return round(yawDegrees(rotation.yaw()), 1);
     }
 
     /** {@code value} to {@code places} decimals, so the written file reads like something authored. */

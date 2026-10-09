@@ -19,7 +19,8 @@ import com.ziggfreed.common.validation.Severity;
  * <p>In {@code Interact}: describing one press-F twice, which leaves half the file saying something
  * that never runs. In {@code Identity}: naming no {@code Role} and drawing no {@code Props}, which
  * leaves nothing to place. In {@code Props}: an entry naming no item, and one naming an item the
- * server lacks (skipped at runtime, a warning that never refuses the file). All of them are
+ * server lacks (skipped at runtime, a warning that never refuses the file), and, on a placement naming
+ * no role, the NPC-only fields it authors, which do nothing there (a warning). All of them are
  * invisible at runtime - an NPC that never appears reads exactly like one nobody has walked to
  * yet - so they are pinned here as findings.
  */
@@ -154,6 +155,56 @@ class NpcPlacementValidatorTest {
         assertFalse(has(NpcPlacementValidator.audit(
                         propsOnly(NpcPlacementAsset.Prop.of("Furniture_Tavern_Table", null, null, null))),
                 NpcPlacementValidator.UNKNOWN_PROP_ITEM));
+    }
+
+    private static final NpcPlacementAsset.Prop TABLE =
+            NpcPlacementAsset.Prop.of("Furniture_Tavern_Table", null, null, null);
+
+    /** Every NPC-only field a role-less placement could author, beside the props it draws. */
+    @Test
+    void aRoleLessPlacementAuthoringNpcOnlyFieldsIsAWarningNamingThem() {
+        NpcPlacementAsset table = NpcPlacementAsset.of("feast_table", true,
+                NpcPlacementAsset.Identity.of(null, "martha", new String[] {"feast_cook"}), null, AT_SPAWN, null, null,
+                NpcPlacementAsset.Lifecycle.of(true, null, null, null), NpcPlacementAsset.Interact.of("feast_intro"),
+                TABLE);
+
+        List<Finding> found = NpcPlacementValidator.auditFileLocal(table).stream()
+                .filter(i -> NpcPlacementValidator.PROPS_ONLY_NPC_FIELDS.equals(i.code())).toList();
+
+        assertEquals(1, found.size(), "one finding naming every NPC-only field: " + found);
+        assertEquals(Severity.WARNING, found.get(0).severity(),
+                "the props still draw; the fields only do nothing, so the file loads");
+        for (String field : List.of("Lifecycle", "Interact", "Identity.NpcId", "Identity.Aliases")) {
+            assertTrue(found.get(0).message().contains(field), field + " named in: " + found.get(0).message());
+        }
+    }
+
+    @Test
+    void theWarningNamesOnlyTheFieldsAuthored() {
+        NpcPlacementAsset table = NpcPlacementAsset.of("feast_table", true, null, null, AT_SPAWN, null, null,
+                NpcPlacementAsset.Lifecycle.of(true, null, null, null), null, TABLE);
+
+        List<Finding> found = NpcPlacementValidator.auditFileLocal(table).stream()
+                .filter(i -> NpcPlacementValidator.PROPS_ONLY_NPC_FIELDS.equals(i.code())).toList();
+
+        assertEquals(1, found.size(), "Lifecycle alone: " + found);
+        String message = found.get(0).message();
+        assertTrue(message.contains("Lifecycle"), message);
+        assertFalse(message.contains("Interact") || message.contains("NpcId") || message.contains("Aliases"),
+                "a field the file never wrote is not reported: " + message);
+    }
+
+    @Test
+    void propsAloneOrTheSameFieldsBesideARoleAreClean() {
+        assertFalse(has(NpcPlacementValidator.auditFileLocal(propsOnly(TABLE)),
+                NpcPlacementValidator.PROPS_ONLY_NPC_FIELDS), "a placement that only decorates authors nothing idle");
+
+        NpcPlacementAsset cook = NpcPlacementAsset.of("feast_cook", true,
+                NpcPlacementAsset.Identity.of("Harvest_Feast_Cook", "martha", new String[] {"feast_cook"}), null,
+                AT_SPAWN, null, null, NpcPlacementAsset.Lifecycle.of(true, null, null, null),
+                NpcPlacementAsset.Interact.of("feast_intro"), TABLE);
+        assertFalse(has(NpcPlacementValidator.auditFileLocal(cook), NpcPlacementValidator.PROPS_ONLY_NPC_FIELDS),
+                "with a Role the same fields are its NPC's own");
     }
 
     @Test
