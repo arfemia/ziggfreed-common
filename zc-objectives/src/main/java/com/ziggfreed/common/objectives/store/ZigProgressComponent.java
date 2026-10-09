@@ -660,11 +660,17 @@ public final class ZigProgressComponent implements Component<EntityStore> {
      * reads back with claimed equal to total, because under the rule those saves were written under
      * a finish was the payout.
      *
-     * <p>A once-a-run quest's record adds {@code ,runYear,runCount}, and a later run of its year
-     * {@code ,runNumber} after them, so it travels as six or seven numbers; every other record keeps its
-     * four. Six numbers read as run 1 of the year, so a once-a-year event's record never grows.
+     * <p>A once-a-run quest's record adds {@code ,runYear,runCount}, and a seventh field after them
+     * when the run it counts is not its year's run 1 or it has spent another run of its year:
+     * {@code runNumber}, or {@code runNumber/spent} once it has, where {@code spent} is the year's spent
+     * runs as a bitmask (bit {@code n - 1} for run {@code n}) in lower-case hexadecimal. So it travels as
+     * six or seven fields; every other record keeps its four. Six numbers read as run 1 of the year with
+     * no other run spent, so a once-a-year event's record never grows.
      */
     private static final char FIELD_SEPARATOR = ',';
+
+    /** Splits a seventh field into the run number and the year's spent runs; collides with no reserved character. */
+    private static final char SPENT_SEPARATOR = '/';
 
     /** Package-visible so the packing can be exercised without an asset registry anywhere near it. */
     @Nonnull
@@ -690,8 +696,11 @@ public final class ZigProgressComponent implements Component<EntityStore> {
                     + FIELD_SEPARATOR + record.claimedCount();
             if (record.runYear() != null) {
                 value = value + FIELD_SEPARATOR + record.runYear() + FIELD_SEPARATOR + record.runCount();
-                if (record.runNumber() > 1) {
+                if (record.runNumber() > 1 || record.spentRuns() != 0L) {
                     value = value + FIELD_SEPARATOR + record.runNumber();
+                }
+                if (record.spentRuns() != 0L) {
+                    value = value + SPENT_SEPARATOR + Long.toHexString(record.spentRuns());
                 }
             }
             out.put(entry.getKey(), value);
@@ -720,8 +729,16 @@ public final class ZigProgressComponent implements Component<EntityStore> {
             if (fields.length == 4) {
                 return new CompletionRecord(last, period, total, claimed);
             }
-            return new CompletionRecord(last, period, total, claimed, Integer.parseInt(fields[4].trim()),
-                    Integer.parseInt(fields[5].trim()), fields.length == 7 ? Integer.parseInt(fields[6].trim()) : 1);
+            int runYear = Integer.parseInt(fields[4].trim());
+            int runCount = Integer.parseInt(fields[5].trim());
+            if (fields.length == 6) {
+                return new CompletionRecord(last, period, total, claimed, runYear, runCount);
+            }
+            String seventh = fields[6].trim();
+            int split = seventh.indexOf(SPENT_SEPARATOR);
+            int runNumber = Integer.parseInt(split < 0 ? seventh : seventh.substring(0, split).trim());
+            long spent = split < 0 ? 0L : Long.parseUnsignedLong(seventh.substring(split + 1).trim(), 16);
+            return new CompletionRecord(last, period, total, claimed, runYear, runCount, runNumber, spent);
         } catch (NumberFormatException malformed) {
             return null;
         }

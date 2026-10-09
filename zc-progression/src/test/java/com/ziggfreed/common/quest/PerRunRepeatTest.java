@@ -29,8 +29,10 @@ import com.ziggfreed.common.subject.Subject;
  * moves the run (a force, an owner moving its days, the new year inside it); an old record with no run
  * year counts for the run nearest its last finish; and an unfinished quest keeps its progress into the
  * next run, where finishing it counts, unless it does not carry over: then it is dropped on the first read
- * after the run it was taken in is over. Runs are keyed (event, year, number), never by whether now is in them,
- * and come in time order by (year, start), never by number: a number names a run, it does not place it.
+ * after the run it was taken in is over. Runs are keyed (event, year, number), never by whether now is in them.
+ * Within the record's year a run is judged by what it is, wherever its days move: spent when the record spent it,
+ * else not. Across years by year: every run of a year before the record's is spent. Only the wait walks runs in
+ * time order, (year, start), never by number: a number names a run, it does not place it.
  */
 class PerRunRepeatTest {
 
@@ -482,6 +484,29 @@ class PerRunRepeatTest {
         assertEquals(1, engine.progressOf(player, quest.id(), "logs").current());
     }
 
+    // While a run goes on, the quest is kept only if it is the run it was taken in: its progress never counts toward
+    // another run, even one the owner dated before its own. Between runs it waits while its own run is still to come.
+    @Test
+    void aQuestThatDoesNotCarryCountsNothingTowardAnotherRunWhileItsOwnIsMovedLater() {
+        runs.run(2026, 1, "2026-10-03", "2026-10-03").run(2026, 2, "2026-10-10", "2026-10-10");
+        Quest quest = weekly(3);
+        QuestEngine engine = engine(quest);
+        clock.set(FakeRuns.at("2026-10-03T12:00:00Z"));
+        assertTrue(engine.accept(player, quest));
+        engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 1);
+        runs.run(2026, 1, "2026-10-17", "2026-10-17"); // the owner moves its run past the next one
+
+        clock.set(FakeRuns.at("2026-10-05T12:00:00Z"));
+        engine.selfHeal(player);
+        assertEquals(QuestStatus.ACTIVE, store.status(player, quest.id()), "its run is still to come");
+
+        clock.set(FakeRuns.at("2026-10-10T12:00:00Z"));
+        engine.selfHeal(player);
+        assertEquals(QuestStatus.NOT_STARTED, store.status(player, quest.id()),
+                "another run is going on, so its progress is dropped rather than counted there");
+        assertTrue(engine.canAccept(player, quest).allowed(), "and this run's is on offer afresh");
+    }
+
     // M287: several runs a year. A run is (event, year, number), and each run is its own once.
     @Test
     void aQuestFinishedInTheSpringRunComesBackForTheAutumnRun() {
@@ -575,7 +600,7 @@ class PerRunRepeatTest {
         assertFalse(offeredAt(engine, quest, "2027-01-04T12:00:00Z"));
         assertTrue(offeredAt(engine, quest, "2027-06-02T12:00:00Z"), "2027's first run is a new run");
 
-        // A record saved before the run tally existed belongs to the run its last finish fell in, by number too.
+        // A record saved before the run tally existed belongs to run 1 of the year of the run its last finish fell in.
         store.setStatus(player, quest.id(), QuestStatus.COMPLETED);
         store.setCompletions(player, quest.id(),
                 new QuestProgressStore.CompletionRecord(FakeRuns.at("2027-06-03T12:00:00Z"), 0, 1, 1));
@@ -606,35 +631,10 @@ class PerRunRepeatTest {
     }
 
     /**
-     * Runs only move forward in time, not in number: a record counted for September's run 1 (a close-out
-     * between runs counts for the next run) reads as spent for the year's run 2 once an owner moves it to May,
-     * since May comes before September, though 2 is the higher number.
-     */
-    @Test
-    void aRecordCountedForARunDatedLaterIsSpentForAnEarlierRunWhateverItsNumber() {
-        runs.run(2026, 1, "2026-09-20", "2026-09-26").run(2026, 2, "2026-04-10", "2026-04-16")
-                .run(2027, 1, "2027-09-20", "2027-09-26").run(2027, 2, "2027-04-10", "2027-04-16");
-        Quest quest = onceARun(1, 1, 0);
-        QuestEngine engine = engine(quest);
-        store.setStatus(player, quest.id(), QuestStatus.COMPLETED);
-        store.setCompletions(player, quest.id(),
-                new QuestProgressStore.CompletionRecord(FakeRuns.at("2026-04-20T12:00:00Z"), 0, 1, 1, 2026, 1, 1));
-
-        runs.run(2026, 2, "2026-05-01", "2026-05-07");
-        assertFalse(offeredAt(engine, quest, "2026-05-03T12:00:00Z"),
-                "May's run 2 comes before the September run the record counts for, so it cannot pay again");
-        QuestEngine.AcceptCheck check = engine.canAccept(player, quest);
-        assertEquals(List.of(QuestGates.REASON_RUN_SPENT), check.reasons());
-        assertEquals(FakeRuns.at("2027-04-10T00:00:00Z") - clock.get(), check.waitMs(),
-                "September's run is the one counted, so the wait names the first run after it, 2027's April run");
-        assertTrue(offeredAt(engine, quest, "2027-04-12T12:00:00Z"));
-    }
-
-    /**
      * YZ1c's concern H: the calendar follows a run it set aside (moved onto another, it met a run written before
-     * it) from that run's own start, which can come before the run it met, so the wait can name that run. Time
-     * order agrees: the run met starts after the spent run did, so it is a new run, and the wait never names a run
-     * the quest is still spent for.
+     * it) from that run's own start, which can come before the run it met, so the wait can name that run. The run
+     * met is one the player never played, so it is not spent wherever its days moved, and the wait never names a
+     * run the quest is still spent for.
      */
     @Test
     void theWaitAfterASpentRunSetAsideCanNameTheRunItMetAndThatRunIsOffered() {
@@ -651,28 +651,107 @@ class PerRunRepeatTest {
                 "the calendar follows the set-aside run from its own start, to the run it met");
         assertFalse(offeredAt(engine, quest, "2026-09-04T12:00:00Z"), "nothing runs on the 4th");
         assertEquals(FakeRuns.at("2026-09-05T00:00:00Z") - clock.get(), engine.canAccept(player, quest).waitMs(),
-                "the moved spring run starts after the spent run did, so the wait names it");
+                "the moved spring run, never played, is the next run, so the wait names it");
         assertTrue(offeredAt(engine, quest, "2026-09-06T12:00:00Z"), "and when it comes it is offered, as the wait said");
     }
 
-    /** Concern H the other way: a run that starts before the spent run it met is an earlier run, so it is spent. */
+    // Review Focus 2 within a year (YZ4c fix round 1): a run is judged by what it is, never by where its days now
+    // fall. A run the player finished stays spent wherever the owner moves it, past another run of its year included.
     @Test
-    void aRunStartingBeforeTheSpentRunItMetIsSpentAndTheWaitNamesTheRunAfterBoth() {
+    void aRunFinishedBeforeTheOwnerMovesItPastAnotherRunOfItsYearPaysNoSecondTime() {
         runs.run(2026, 1, "2026-04-10", "2026-04-16").run(2026, 2, "2026-09-20", "2026-09-26")
                 .run(2027, 1, "2027-04-10", "2027-04-16");
         Quest quest = onceARun(1, 1, 0);
         QuestEngine engine = engine(quest);
+        finishAt(engine, quest, "2026-04-12T12:00:00Z");
         finishAt(engine, quest, "2026-09-21T12:00:00Z");
 
-        // The owner moves the spring run over the autumn one, which meets it and is set aside.
-        runs.run(2026, 1, "2026-09-15", "2026-09-30").setAside(2026, 2, "2026-09-20", "2026-09-26");
-        assertFalse(offeredAt(engine, quest, "2026-09-22T12:00:00Z"),
-                "the spring run, moved over the autumn one, began before the run the record counts for");
+        runs.run(2026, 1, "2026-11-01", "2026-11-07"); // the owner moves the spring run to November
+        assertFalse(offeredAt(engine, quest, "2026-11-03T12:00:00Z"),
+                "run 1, finished in April, is the same run in November, and spent");
         QuestEngine.AcceptCheck check = engine.canAccept(player, quest);
         assertEquals(List.of(QuestGates.REASON_RUN_SPENT), check.reasons());
-        assertEquals(FakeRuns.at("2027-04-10T00:00:00Z") - clock.get(), check.waitMs(), "so the wait names 2027's");
-        assertTrue(offeredAt(engine, quest, "2027-04-11T12:00:00Z"));
-        assertEquals(1, store.completions(player, quest.id()).totalCount(), "nothing was paid twice");
+        assertEquals(FakeRuns.at("2027-04-10T00:00:00Z") - clock.get(), check.waitMs(), "it comes back with 2027's");
+        assertEquals(2, store.completions(player, quest.id()).totalCount(), "two runs, two finishes");
+    }
+
+    // The other half of the same rule: a run the player never played is not spent wherever its days now fall, so
+    // the owner moving a spent run past it never takes it away.
+    @Test
+    void aRunNeverPlayedIsOfferedWhenTheOwnerMovesTheSpentRunPastIt() {
+        runs.run(2026, 1, "2026-04-10", "2026-04-16").run(2026, 2, "2026-09-20", "2026-09-26")
+                .run(2027, 1, "2027-04-10", "2027-04-16");
+        Quest quest = onceARun(1, 1, 0);
+        QuestEngine engine = engine(quest);
+        finishAt(engine, quest, "2026-04-12T12:00:00Z");
+
+        runs.run(2026, 1, "2026-11-01", "2026-11-07");
+        assertFalse(offeredAt(engine, quest, "2026-05-01T12:00:00Z"), "nothing runs in May");
+        assertEquals(FakeRuns.at("2026-09-20T00:00:00Z") - clock.get(), engine.canAccept(player, quest).waitMs(),
+                "the autumn run, never played, is the run the wait names");
+        finishAt(engine, quest, "2026-09-21T12:00:00Z");
+        assertFalse(offeredAt(engine, quest, "2026-11-03T12:00:00Z"), "and the spring run in November is still spent");
+        assertEquals(2, store.completions(player, quest.id()).totalCount());
+    }
+
+    // Concern H with the spring run played first: moved over the autumn run (which is set aside), it is still the
+    // run the player finished in April, so it is not paid again.
+    @Test
+    void aRunFinishedBeforeTheOwnerMovesItOverAnotherIsNotPaidAgain() {
+        runs.run(2026, 1, "2026-04-10", "2026-04-16").run(2026, 2, "2026-09-01", "2026-09-07")
+                .run(2027, 1, "2027-04-10", "2027-04-16");
+        Quest quest = onceARun(1, 1, 0);
+        QuestEngine engine = engine(quest);
+        finishAt(engine, quest, "2026-04-12T12:00:00Z");
+        finishAt(engine, quest, "2026-09-03T12:00:00Z");
+
+        runs.run(2026, 1, "2026-09-05", "2026-09-26").setAside(2026, 2, "2026-09-01", "2026-09-07");
+        assertFalse(offeredAt(engine, quest, "2026-09-06T12:00:00Z"), "run 1 moved over run 2 is still run 1, spent");
+        QuestEngine.AcceptCheck check = engine.canAccept(player, quest);
+        assertEquals(List.of(QuestGates.REASON_RUN_SPENT), check.reasons());
+        assertEquals(FakeRuns.at("2027-04-10T00:00:00Z") - clock.get(), check.waitMs());
+        assertEquals(2, store.completions(player, quest.id()).totalCount(), "nothing was paid twice");
+    }
+
+    // Times above 1: the run the record counts now keeps its own tally, and a run the record moves on from is spent
+    // whatever its tally was, so a run left with a finish to spare pays nothing more when the owner moves it later.
+    @Test
+    void theRunCountedKeepsItsTallyAndARunLeftBehindPaysNoMore() {
+        runs.run(2026, 1, "2026-04-10", "2026-04-16").run(2026, 2, "2026-09-20", "2026-09-26")
+                .run(2027, 1, "2027-04-10", "2027-04-16");
+        Quest quest = onceARun(2, 1, 0);
+        QuestEngine engine = engine(quest);
+        finishAt(engine, quest, "2026-04-12T12:00:00Z");
+        assertTrue(offeredAt(engine, quest, "2026-04-13T12:00:00Z"), "one of two finishes leaves the run on offer");
+
+        finishAt(engine, quest, "2026-09-21T12:00:00Z");
+        finishAt(engine, quest, "2026-09-22T12:00:00Z");
+        assertEquals(2, store.completions(player, quest.id()).runCount(), "the autumn run's own tally");
+        assertFalse(offeredAt(engine, quest, "2026-09-23T12:00:00Z"), "two finishes spend the autumn run");
+
+        runs.run(2026, 1, "2026-11-01", "2026-11-07");
+        assertFalse(offeredAt(engine, quest, "2026-11-03T12:00:00Z"),
+                "the spring run, left with a finish to spare, pays nothing more once the record moved on");
+        assertEquals(3, store.completions(player, quest.id()).totalCount());
+    }
+
+    // A six-number record (saved before the run number) is its year's run 1 with its tally: run 1 is spent once
+    // that tally reaches Times, and every other run of the year is not.
+    @Test
+    void aSixNumberRecordIsItsYearsFirstRunSpentByItsTally() {
+        runs.run(2026, 1, "2026-04-10", "2026-04-16").run(2026, 2, "2026-09-20", "2026-09-26");
+        Quest quest = onceARun(2, 1, 0);
+        QuestEngine engine = engine(quest);
+        store.setStatus(player, quest.id(), QuestStatus.COMPLETED);
+        store.setCompletions(player, quest.id(),
+                new QuestProgressStore.CompletionRecord(FakeRuns.at("2026-04-12T12:00:00Z"), 0, 1, 1, 2026, 1));
+        assertTrue(offeredAt(engine, quest, "2026-04-13T12:00:00Z"), "one finish of two: run 1 is still on offer");
+
+        store.setStatus(player, quest.id(), QuestStatus.COMPLETED);
+        store.setCompletions(player, quest.id(),
+                new QuestProgressStore.CompletionRecord(FakeRuns.at("2026-04-13T12:00:00Z"), 0, 2, 2, 2026, 2));
+        assertFalse(offeredAt(engine, quest, "2026-04-14T12:00:00Z"), "two of two spend run 1");
+        assertTrue(offeredAt(engine, quest, "2026-09-21T12:00:00Z"), "and run 2 is a run of its own");
     }
 
     @Test

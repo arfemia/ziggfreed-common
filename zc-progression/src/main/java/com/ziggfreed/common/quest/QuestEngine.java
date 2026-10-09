@@ -1576,19 +1576,21 @@ public final class QuestEngine implements QuestStateReader {
         Integer runYear = null;
         int runCount = 0;
         int runNumber = 0;
+        long spentRuns = 0L;
         Quest.Repeat.PerRun perRun = repeat.perRun();
         if (perRun != null) {
-            // Keyed (event, year, number): the run going on, else the next one, never earlier in time than
-            // the run the record already counts for (runs only move forward).
+            // Keyed (event, year, number): the run going on, else the next one, never a year earlier than the
+            // record's nor a run of its year it already spent; a run the record moves on from is spent.
             PerRuns.RunTally run = PerRuns.runToRecord(prior, perRun, nowMs, Occurrences.source());
             if (run != null) {
                 runYear = run.run().year();
                 runNumber = run.run().number();
                 runCount = raised(run.before());
+                spentRuns = run.spent();
             }
         }
         store.setCompletions(subject, quest.id(), new QuestProgressStore.CompletionRecord(
-                nowMs, periodCount, total, claimed, runYear, runCount, runNumber));
+                nowMs, periodCount, total, claimed, runYear, runCount, runNumber, spentRuns));
     }
 
     /**
@@ -1615,7 +1617,8 @@ public final class QuestEngine implements QuestStateReader {
         QuestProgressStore.CompletionRecord prior = store.completions(subject, quest.id());
         store.setCompletions(subject, quest.id(), new QuestProgressStore.CompletionRecord(
                 prior.lastCompletionMs(), prior.periodCount(), prior.totalCount(),
-                raised(prior.claimedCount()), prior.runYear(), prior.runCount(), prior.runNumber()));
+                raised(prior.claimedCount()), prior.runYear(), prior.runCount(), prior.runNumber(),
+                prior.spentRuns()));
     }
 
     /** One more, unless the tally has already run out of room. */
@@ -2127,9 +2130,13 @@ public final class QuestEngine implements QuestStateReader {
      * Drop a once-a-run quest that does not carry over ({@code Carry} false) once the run it was taken in is over:
      * its progress and pin go, its completion record stays, and the next run offers it afresh. Lazily, on the
      * first read after the run ends (a login's or a surface's selfHeal, an accept check or accept, a dispatch or a
-     * hand-in that would touch it), since an offline player's record cannot be written when the run ends. The run
-     * is over once the run going on, else the next, comes after it in time ({@link PerRuns#comesAfter}, never by
-     * number), or none is left; a forced run whose own days are still ahead is not over. True when it was dropped.
+     * hand-in that would touch it), since an offline player's record cannot be written when the run ends.
+     *
+     * <p>While a run goes on, the quest is kept only when that run is the one it was taken in, wherever an owner
+     * moved its days: progress taken in one run never counts toward another, even one dated before its own. With
+     * none going on, its run is over once the next run comes after it in time ({@link PerRuns#comesAfter}, never by
+     * number), or none is left; a run whose own days are still ahead (moved later, or forced on before them) is not
+     * over. True when it was dropped.
      */
     boolean dropIfRunEnded(@Nonnull Subject subject, @Nonnull Quest quest) {
         Quest.Repeat.PerRun perRun = quest.repeat() == null ? null : quest.repeat().perRun();
@@ -2141,9 +2148,16 @@ public final class QuestEngine implements QuestStateReader {
             return false;
         }
         OccurrenceSource occurrences = Occurrences.source();
-        Occurrence current = PerRuns.runFor(perRun, now(), occurrences);
-        if (current != null && !PerRuns.comesAfter(current, taken, perRun, occurrences)) {
-            return false;
+        Occurrence live = occurrences.live(perRun.event(), now());
+        if (live != null) {
+            if (taken.is(live)) {
+                return false;
+            }
+        } else {
+            Occurrence next = occurrences.next(perRun.event(), now());
+            if (next != null && !PerRuns.comesAfter(next, taken, perRun, occurrences)) {
+                return false;
+            }
         }
         clearQuest(subject, quest.id());
         return true;

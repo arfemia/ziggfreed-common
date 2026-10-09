@@ -6,6 +6,7 @@ import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.occurrence.Occurrence;
 import com.ziggfreed.common.subject.Subject;
 
 /**
@@ -72,12 +73,18 @@ public interface QuestProgressStore {
      * <p><b>A once-a-run quest also keeps its run</b>: {@code runYear} and {@code runNumber} name the run
      * of its event its last finish counted for (the year it starts in, and the number its event's dates
      * name it by within that year, from 1: an identity, never a place in time), and {@code runCount} how
-     * many finishes that run holds. They are null, 0 and 0 for any other quest and for a record saved
-     * before the tally existed, which belongs to run 1 of the year of the run nearest its last finish
-     * ({@link PerRuns}).
+     * many finishes that run holds. {@code spentRuns} is the set of the year's OTHER runs the record has
+     * spent, by number: bit {@code n - 1} for run {@code n}, from 1 to {@link Occurrence#MAX_NUMBER}. A run
+     * joins it when the record moves on to another run of the same year, whatever its tally was, and the
+     * run counted now is never in it (its own tally says whether it is spent). They are null, 0, 0 and none
+     * for any other quest and for a record saved before the tally existed, which belongs to run 1 of the
+     * year of the run nearest its last finish ({@link PerRuns}).
      */
     record CompletionRecord(long lastCompletionMs, int periodCount, int totalCount, int claimedCount,
-                            @Nullable Integer runYear, int runCount, int runNumber) {
+                            @Nullable Integer runYear, int runCount, int runNumber, long spentRuns) {
+
+        /** Every run number a year can have, as a set: bits 0 to {@link Occurrence#MAX_NUMBER} - 1. */
+        private static final long EVERY_RUN = (1L << Occurrence.MAX_NUMBER) - 1L;
 
         /** Nothing recorded: never finished, nothing spent, nothing counted, nothing collected. */
         public static final CompletionRecord NONE = new CompletionRecord(0L, 0, 0, 0);
@@ -89,12 +96,35 @@ public interface QuestProgressStore {
             claimedCount = Math.min(Math.max(0, claimedCount), totalCount);
             runCount = runYear == null ? 0 : Math.max(0, runCount);
             runNumber = runYear == null ? 0 : Math.max(1, runNumber);
+            spentRuns = runYear == null ? 0L : spentRuns & EVERY_RUN & ~runBit(runNumber);
         }
 
-        /** A record of a year's first run (or one that keeps no run tally, with a null {@code runYear}). */
+        /**
+         * A record of run {@code runNumber} that has spent no other run of its year. Copying a record must use
+         * the full form, never this one: it would forget the runs the record spent.
+         */
+        public CompletionRecord(long lastCompletionMs, int periodCount, int totalCount, int claimedCount,
+                @Nullable Integer runYear, int runCount, int runNumber) {
+            this(lastCompletionMs, periodCount, totalCount, claimedCount, runYear, runCount, runNumber, 0L);
+        }
+
+        /**
+         * A record of a year's first run (or one that keeps no run tally, with a null {@code runYear}). Copying a
+         * record must use the full form, never this one: it would forget the run number and the runs spent.
+         */
         public CompletionRecord(long lastCompletionMs, int periodCount, int totalCount, int claimedCount,
                 @Nullable Integer runYear, int runCount) {
             this(lastCompletionMs, periodCount, totalCount, claimedCount, runYear, runCount, 1);
+        }
+
+        /** Run {@code number} as a member of {@link #spentRuns()}; nothing for a number no run takes. */
+        static long runBit(int number) {
+            return number >= 1 && number <= Occurrence.MAX_NUMBER ? 1L << (number - 1) : 0L;
+        }
+
+        /** Has the record spent run {@code number} of its year, other than the run it counts now? */
+        public boolean spentRun(int number) {
+            return (spentRuns & runBit(number)) != 0L;
         }
 
         /** A record that keeps no run tally: a quest with no once-a-run rule, or a value saved before the tally existed. */

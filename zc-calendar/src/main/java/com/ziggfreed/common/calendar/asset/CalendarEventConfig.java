@@ -5,6 +5,7 @@ import java.util.Map;
 import javax.annotation.Nonnull;
 
 import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
+import com.ziggfreed.common.occurrence.Occurrence;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -61,7 +62,8 @@ public final class CalendarEventConfig extends AbstractKeyedAssetConfig<Calendar
             case CalendarEventAsset.PROBLEM_WINDOW_MISSING -> "has no Window, so it never runs";
             case CalendarEventAsset.PROBLEM_WINDOW_UNREADABLE ->
                     "has a Window whose days cannot be read (a Start or End that is not an MM-DD day, a Fixed Rule "
-                            + "whose Runs is empty or holds such a span, or a Rule missing a leaf it needs, or naming "
+                            + "whose Runs is empty, holds such a span or holds more than " + Occurrence.MAX_NUMBER
+                            + " spans, or a Rule missing a leaf it needs, or naming "
                             + "a weekday, a month, an At time, a Length or an Anchor it cannot read, or an Every past "
                             + "1 with no Anchor), so it never runs";
             case CalendarEventAsset.PROBLEM_WINDOW_RUN_INVALID ->
@@ -72,8 +74,9 @@ public final class CalendarEventConfig extends AbstractKeyedAssetConfig<Calendar
                             + "29th through February 28th), so it never runs";
             case CalendarEventAsset.PROBLEM_YEARS_ENTRY_IGNORED ->
                     "has a Window Years entry that is not a four-digit year from its FirstYear on with MM-DD "
-                            + "days (Start and End, or each of its Runs; February 29th through February 28th is "
-                            + "refused, since it meets its own next run), so that entry is not used";
+                            + "days (Start and End, or each of its Runs, at most " + Occurrence.MAX_NUMBER
+                            + " of them; February 29th through February 28th is refused, since it meets its own next "
+                            + "run), so that entry is not used";
             case CalendarEventAsset.PROBLEM_RUN_SET_ASIDE ->
                     "has a run that meets a run before it (in its list, or the year before's), so that run is set "
                             + "aside: runs of one event never overlap, the one written first is kept, and the "
