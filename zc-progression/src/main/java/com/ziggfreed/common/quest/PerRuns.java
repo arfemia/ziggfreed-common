@@ -13,30 +13,33 @@ import com.ziggfreed.common.quest.QuestProgressStore.CompletionRecord;
 
 /**
  * The once-a-run arithmetic behind {@link Quest.Repeat.PerRun}: which run of its calendar event a finish
- * counts for, how many finishes a completion record holds for one run, and when a spent quest comes back.
- * It reads the calendar through zc-core's occurrence seam, so this module never sees the calendar.
+ * counts for, which runs a completion record has spent, and when a spent quest comes back. It reads the calendar
+ * through zc-core's occurrence seam, so this module never sees the calendar.
  *
  * <p><b>Runs are keyed (event, year, number)</b> ({@link RunKey}): the year a run starts in and the number
  * its event's dates name it by, never whether its days contain now. An event may come round several times
  * a year, and each run is its own once. A run forced on keeps its number, a run whose days an owner moved
  * mid-run stays the run it was, and every day of a run crossing the new year counts for the year it began in.
  *
- * <p><b>Runs come in time order, never number order.</b> A number names a run within its year and need not
- * follow its days (a monthly run is its month, a weekly run its calendar week, a list's span its place in
- * the list wherever its days move), so the identity is (year, number) and the order is (year, start). A
- * record keeps only its run's key, so a run is weighed against it through the calendar's own answer to
- * "the run after that one" ({@link OccurrenceSource#after}, {@link #comesAfter}): the same answer the wait
- * below names, so a run the wait names is never one the record still reads as spent.
+ * <p><b>Within the record's year a run is judged by what it is, never by where its days now fall.</b> A record
+ * keeps the run it counts now with its tally ({@code runYear}, {@code runNumber}, {@code runCount}) and the other
+ * runs of that year it has spent ({@code spentRuns}, a set of numbers from 1 to {@link Occurrence#MAX_NUMBER}).
+ * An owner may move any run anywhere in its year: a run the player spent stays spent, and a run they never played
+ * stays on offer, whichever of the two now comes first.
  *
- * <p><b>Runs only move forward.</b> A finish counts for the run going on, else the next one, and never for a
- * run earlier than the one its record already counts for; a record counted for a later run reads as spent
- * for every earlier one, so a run forced on after it cannot pay the quest again. A quest counts no progress
- * while it is not on offer, so a player only ever finishes it inside a run; only a close-out from outside
- * play lands between runs.
+ * <p><b>Across years, by year.</b> A finish counts for the run going on, else the next one, and never for a year
+ * earlier than the record's: a record counted for a later year reads every run of an earlier year as spent, so a
+ * run forced on after it cannot pay the quest again. A finish in a run of the record's year the record already
+ * spent (a close-out from outside play), or with no run going on or due, joins the run the record counts.
  *
- * <p><b>The wait skips a spent run.</b> When the next run is one the record already spends (an owner moved a
- * spent run to start later than now) or counts past, the quest comes back with the run after the one the
- * record counts for, in one step.
+ * <p>So a run is spent when its year is earlier than the record's, or it is one of the record's year's spent
+ * runs, or it is the run the record counts and that run holds {@code Times} finishes ({@link #spentIn}). A record
+ * that moves on to another run of its year spends the run it leaves, whatever its tally: a run left with a finish
+ * to spare pays nothing more when an owner moves it later.
+ *
+ * <p><b>The wait names the first run after now that is not spent</b>, walking the calendar's runs in time order
+ * ({@link OccurrenceSource#after}) past the spent ones. Time order matters only there, and in whether the run a
+ * quest that does not carry over was taken in is over ({@link #comesAfter}).
  *
  * <p><b>An old record</b>, saved before the run tally existed, carries no run year: it belongs to run 1 of
  * the year of the run nearest its last finish by the event's dates as they stand now ({@code nearestRunYear},
@@ -47,6 +50,15 @@ public final class PerRuns {
 
     /** The calendar dates no first year after it: a stored finish later than this is a corrupt value. */
     private static final int LAST_FINISH_YEAR = 9999;
+
+    /**
+     * The most runs the wait walks past. Every run of a year before the record's is spent, and so are at most all of
+     * the record's own year's runs, a year having at most {@link Occurrence#MAX_NUMBER}. A finish counts for the run
+     * going on or the next, so the runs still to come before the record's year are the rest of one year unless an
+     * owner dates runs into a year between them; three years of runs is past every such walk. Were it ever to run
+     * out, the quest would wait ("never") rather than be offered in a spent run.
+     */
+    private static final int WAIT_WALK = 3 * Occurrence.MAX_NUMBER;
 
     private PerRuns() {
     }
@@ -71,12 +83,14 @@ public final class PerRuns {
     }
 
     /**
-     * Where a finish is recorded: the run it counts for, and how many finishes that run held before it.
+     * Where a finish is recorded: the run it counts for, how many finishes that run held before it, and the other
+     * runs of that run's year the record has spent once it is recorded.
      *
      * @param run    the run the finish counts for
      * @param before the finishes the record already held for that run; the finish being recorded is not in it
+     * @param spent  the record's spent runs of {@code run}'s year, as {@link CompletionRecord#spentRuns()} keeps them
      */
-    public record RunTally(@Nonnull RunKey run, int before) {
+    public record RunTally(@Nonnull RunKey run, int before, long spent) {
     }
 
     /** The run a finish at {@code nowMs} counts for: the one going on, else the next, else none. */
@@ -105,9 +119,12 @@ public final class PerRuns {
      * Does {@code run} come after the run {@code key} names, in time? A later year always does. Within the
      * key's year, {@code run} comes after it when it starts no earlier than the run the calendar answers as
      * the one after it ({@link OccurrenceSource#after}): that answer follows the key's run from its own start,
-     * kept or set aside, or from where its number would fall when the year lacks it. So the run the wait names
-     * always comes after the run it was asked from. False for the key's own run, and for every run of its year
-     * when the calendar answers no run after it that year (none is left, or a source that knows no dates).
+     * kept or set aside, or from where its number would fall when the year lacks it. False for the key's own
+     * run, and for every run of its year when the calendar answers no run after it that year (none is left, or
+     * a source that knows no dates).
+     *
+     * <p>Asked only where time genuinely matters: whether the run a quest that does not carry over was taken in is
+     * over ({@code QuestEngine.dropIfRunEnded}). Whether a run is spent is never asked this way ({@link #spentIn}).
      */
     public static boolean comesAfter(@Nonnull Occurrence run, @Nonnull RunKey key,
             @Nonnull Quest.Repeat.PerRun perRun, @Nonnull OccurrenceSource occurrences) {
@@ -167,37 +184,53 @@ public final class PerRuns {
     }
 
     /**
-     * Where a finish at {@code nowMs} is recorded: {@link #runFor}, but never a run earlier than the one
-     * {@code prior} already counts for (runs only move forward), and that run when none is going on or due;
-     * with the finishes that run held before this one (the record's own tally when it is the record's run,
-     * else none). Null when no run is going on, due or counted.
+     * Where a finish at {@code nowMs} is recorded: {@link #runFor}, with the finishes that run held before this
+     * one and the runs the record has spent in its year after it. A run of a later year than the record's starts
+     * afresh, with nothing spent; another run of the record's year the record has not spent becomes the run it
+     * counts, and the run it leaves joins the spent ones. The record's own run, a run of its year it already spent,
+     * a run of an earlier year, or no run going on or due: the record's run stands, and the finish joins it. Null
+     * when no run is going on, due or counted.
      */
     @Nullable
     public static RunTally runToRecord(@Nonnull CompletionRecord prior, @Nonnull Quest.Repeat.PerRun perRun,
             long nowMs, @Nonnull OccurrenceSource occurrences) {
         Occurrence run = runFor(perRun, nowMs, occurrences);
         RunKey counted = runOf(prior, perRun, occurrences);
-        if (run != null && (counted == null || comesAfter(run, counted, perRun, occurrences))) {
-            return new RunTally(RunKey.of(run), 0);
+        if (counted == null) {
+            return run == null ? null : new RunTally(RunKey.of(run), 0, 0L);
         }
-        // The run going on or due is the record's own, or an earlier one; or none is: the record's run stands.
-        return counted == null ? null : new RunTally(counted, heldIn(prior));
+        if (run != null && run.year() > counted.year()) {
+            return new RunTally(RunKey.of(run), 0, 0L);
+        }
+        if (run != null && run.year() == counted.year() && !counted.is(run) && !prior.spentRun(run.number())) {
+            return new RunTally(RunKey.of(run), 0, prior.spentRuns() | CompletionRecord.runBit(counted.number()));
+        }
+        return new RunTally(counted, heldIn(prior), prior.spentRuns());
     }
 
     /**
-     * How many finishes {@code record} holds for {@code run}. A record counted for a LATER run reads as every
-     * finish {@code run} allows: runs only move forward, so an earlier run can never pay the quest again.
+     * How many finishes {@code record} holds for {@code run}: every finish {@code run} allows when it is spent (a
+     * run of an earlier year than the record's, or one of the record's year's spent runs), the record's own tally
+     * when it is the run the record counts, and none for any other run.
      */
     public static int spentIn(@Nonnull CompletionRecord record, @Nonnull Occurrence run,
             @Nonnull Quest.Repeat.PerRun perRun, @Nonnull OccurrenceSource occurrences) {
-        RunKey counted = runOf(record, perRun, occurrences);
-        if (counted == null) {
+        return spentIn(record, runOf(record, perRun, occurrences), run, perRun);
+    }
+
+    /** {@link #spentIn(CompletionRecord, Occurrence, Quest.Repeat.PerRun, OccurrenceSource)} with the record's run read once. */
+    private static int spentIn(@Nonnull CompletionRecord record, @Nullable RunKey counted, @Nonnull Occurrence run,
+            @Nonnull Quest.Repeat.PerRun perRun) {
+        if (counted == null || run.year() > counted.year()) {
             return 0;
+        }
+        if (run.year() < counted.year()) {
+            return perRun.times();
         }
         if (counted.is(run)) {
             return heldIn(record);
         }
-        return comesAfter(run, counted, perRun, occurrences) ? 0 : perRun.times();
+        return record.spentRun(run.number()) ? perRun.times() : 0;
     }
 
     /** The finishes {@code record} holds for the run it counts for: its tally, or the one finish of an old record. */
@@ -206,24 +239,22 @@ public final class PerRuns {
     }
 
     /**
-     * The once-a-run half of the repeat rule: null while a run is going on and its tally is under
-     * {@code Times}; otherwise the refusal, offerable again when the first run the player has not spent
-     * starts (never, when none is left).
+     * The once-a-run half of the repeat rule: null while a run is going on and the player has not spent it;
+     * otherwise the refusal, offerable again when the first run after now the player has not spent starts, found
+     * by walking the runs in time order past the spent ones (never, when none is left).
      */
     @Nullable
     static QuestLifecycle.RepeatCheck refusal(@Nonnull Quest.Repeat.PerRun perRun,
             @Nonnull CompletionRecord completions, long nowMs, @Nonnull OccurrenceSource occurrences) {
+        RunKey counted = runOf(completions, perRun, occurrences);
         Occurrence live = occurrences.live(perRun.event(), nowMs);
-        if (live != null && spentIn(completions, live, perRun, occurrences) < perRun.times()) {
+        if (live != null && spentIn(completions, counted, live, perRun) < perRun.times()) {
             return null;
         }
         Occurrence back = occurrences.next(perRun.event(), nowMs);
-        if (back != null && spentIn(completions, back, perRun, occurrences) >= perRun.times()) {
-            // The next run is spent: it is the record's own run (an owner moved it to start later than now), or
-            // the record counts past it. Either way the record's run is the later of the two, and the quest comes
-            // back with the run after it: one step, since that run comes after the record's by the same answer.
-            RunKey counted = runOf(completions, perRun, occurrences);
-            back = counted == null ? null : occurrences.after(perRun.event(), counted.year(), counted.number());
+        int walked = 0;
+        while (back != null && spentIn(completions, counted, back, perRun) >= perRun.times()) {
+            back = ++walked > WAIT_WALK ? null : occurrences.after(perRun.event(), back.year(), back.number());
         }
         return new QuestLifecycle.RepeatCheck(false, QuestGates.REASON_RUN_SPENT,
                 back == null ? Long.MAX_VALUE : back.startMs());

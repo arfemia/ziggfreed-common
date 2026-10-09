@@ -88,8 +88,9 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
     /** The file states no Window at all. */
     public static final String PROBLEM_WINDOW_MISSING = "WINDOW_MISSING";
     /**
-     * A Start or End that is not a real MM-DD day, a Fixed Rule whose Runs is empty or holds such a span, or a Rule
-     * missing a leaf it needs; the event never runs.
+     * A Start or End that is not a real MM-DD day, a Fixed Rule whose Runs is empty, holds such a span or holds more
+     * spans than a run's number can name (54, zc-core's {@code Occurrence.MAX_NUMBER}), or a Rule missing a leaf it
+     * needs; the event never runs.
      */
     public static final String PROBLEM_WINDOW_UNREADABLE = "WINDOW_UNREADABLE";
     /** The file states no FirstYear. */
@@ -102,7 +103,8 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
     public static final String PROBLEM_WINDOW_RUN_INVALID = "WINDOW_RUN_INVALID";
     /**
      * A Years entry that is not a four-digit year from FirstYear on, or whose days (Start and End, or a span of its
-     * Runs) are not MM-DD or run February 29th through February 28th; that entry is not used.
+     * Runs) are not MM-DD or run February 29th through February 28th, or whose Runs holds more than 54 spans; that
+     * entry is not used.
      */
     public static final String PROBLEM_YEARS_ENTRY_IGNORED = "YEARS_ENTRY_IGNORED";
     /** Start and End beside a Rule, which wins over them: a note, never a problem. */

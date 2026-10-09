@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import com.ziggfreed.common.calendar.AnnualWindow;
 import com.ziggfreed.common.calendar.CalendarFixtures;
 import com.ziggfreed.common.calendar.RunDays;
+import com.ziggfreed.common.occurrence.Occurrence;
 
 /** The calendar file: every leaf, its defaults, what stops it running, and leaf-by-leaf inheritance. */
 class CalendarEventAssetTest {
@@ -345,6 +347,39 @@ class CalendarEventAssetTest {
         assertEquals(List.of(CalendarEventAsset.PROBLEM_WINDOW_RUN_INVALID),
                 rule("{ \"Type\": \"Fixed\", \"Runs\": [ { \"Start\": \"02-29\", \"End\": \"02-28\" } ] }").problems(),
                 "a span that meets its own next run");
+    }
+
+    /** {@code count} one-day spans as a {@code Runs} list, three days apart from January 1st, so none meets another. */
+    private static String spans(int count) {
+        StringBuilder out = new StringBuilder("[");
+        for (int i = 0; i < count; i++) {
+            LocalDate day = LocalDate.of(2026, 1, 1).plusDays(3L * i);
+            String monthDay = String.format(Locale.ROOT, "%02d-%02d", day.getMonthValue(), day.getDayOfMonth());
+            out.append(i == 0 ? "" : ", ").append("{ \"Start\": \"").append(monthDay)
+                    .append("\", \"End\": \"").append(monthDay).append("\" }");
+        }
+        return out.append(']').toString();
+    }
+
+    // A run's number is at most Occurrence.MAX_NUMBER, so a reader can keep a year's runs as a set of numbers: a list
+    // of spans, which numbers each run by its place, holds no more.
+    @Test
+    void aListOfRunsHoldsAtMostTheHighestRunNumber() {
+        CalendarEventAsset full = rule("{ \"Type\": \"Fixed\", \"Runs\": " + spans(Occurrence.MAX_NUMBER) + " }");
+        assertTrue(full.problems().isEmpty(), full.problems().toString());
+        assertEquals(Occurrence.MAX_NUMBER, numbers(full.annualWindow(), 2026).get(Occurrence.MAX_NUMBER - 1),
+                "the last span is the highest number a run takes");
+        assertEquals(List.of(CalendarEventAsset.PROBLEM_WINDOW_UNREADABLE),
+                rule("{ \"Type\": \"Fixed\", \"Runs\": " + spans(Occurrence.MAX_NUMBER + 1) + " }").problems(),
+                "one span more cannot be read");
+        CalendarEventAsset entry = CalendarFixtures.event("Fair", "{ \"Window\": { \"Start\": \"12-10\", \"End\": "
+                + "\"12-12\", \"Years\": { \"2027\": { \"Runs\": " + spans(Occurrence.MAX_NUMBER + 1) + " } } }, "
+                + "\"FirstYear\": 2026 }");
+        assertEquals(List.of(CalendarEventAsset.PROBLEM_YEARS_ENTRY_IGNORED), entry.problems(),
+                "nor can a Years entry's, which costs that entry alone");
+        assertEquals(days("2027-12-10", "2027-12-12"), entry.annualWindow().days(2027));
+        assertTrue(CalendarEventConfig.sentence(CalendarEventAsset.PROBLEM_WINDOW_UNREADABLE)
+                .contains(Integer.toString(Occurrence.MAX_NUMBER)), "the log says how many spans a list may hold");
     }
 
     @Test

@@ -319,6 +319,31 @@ class ZigProgressComponentTest {
         assertEquals(records.get("q_daily"), back.get("q_daily"));
     }
 
+    // The runs a record spent in its year ride its seventh field, after the run number: "<number>/<set in hex>".
+    @Test
+    void theRunsSpentInTheYearRideTheSeventhFieldAfterTheRunNumber() {
+        Map<String, CompletionRecord> records = Map.of(
+                "q_autumn", new CompletionRecord(1_700_000_000_000L, 0, 2, 2, 2026, 1, 2, 0b1L),
+                "q_spring", new CompletionRecord(1_600_000_000_000L, 0, 2, 2, 2026, 1, 1, 0b10L),
+                "q_weekly", new CompletionRecord(1_650_000_000_000L, 0, 9, 9, 2026, 1, 40, (1L << 52) | 0b1L));
+        Map<String, String> packed = ZigProgressComponent.encodeCompletions(records);
+        assertEquals("1700000000000,0,2,2,2026,1,2/1", packed.get("q_autumn"), "run 2, with run 1 spent");
+        assertEquals("1600000000000,0,2,2,2026,1,1/2", packed.get("q_spring"),
+                "run 1 with run 2 spent writes its number too");
+        assertEquals("1650000000000,0,9,9,2026,1,40/10000000000001", packed.get("q_weekly"));
+        Map<String, CompletionRecord> back = ZigProgressComponent.decodeCompletions("q_autumn=" + packed.get("q_autumn")
+                + "|q_spring=" + packed.get("q_spring") + "|q_weekly=" + packed.get("q_weekly"));
+        assertEquals(records, back, "every record survives the trip");
+        assertTrue(back.get("q_weekly").spentRun(53));
+
+        Map<String, CompletionRecord> bad = ZigProgressComponent.decodeCompletions(
+                "q_empty=1,0,1,1,2026,1,2/|q_word=1,0,1,1,2026,1,2/xz|q_minus=1,0,1,1,2026,1,2/-1|q_good=1,0,1,1,2026,1,2/1");
+        assertNull(bad.get("q_empty"), "a set that is not hexadecimal costs that entry alone");
+        assertNull(bad.get("q_word"));
+        assertNull(bad.get("q_minus"));
+        assertEquals(new CompletionRecord(1L, 0, 1, 1, 2026, 1, 2, 0b1L), bad.get("q_good"));
+    }
+
     /**
      * A run forced on outside its dates is still the run of its year, yet a finish in it can sit nearer
      * another year's run than its own: forced on in April, the 2027 run's days are October's, and the
