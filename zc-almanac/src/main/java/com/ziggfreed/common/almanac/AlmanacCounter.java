@@ -15,8 +15,10 @@ import com.ziggfreed.common.progress.ZoneRef;
  *       the every-season tally.</li>
  *   <li>Between seasons only a {@code LiveOnly: false} line counts, and only toward every season.</li>
  *   <li>A season the calendar does not answer for counts nothing (off means absent).</li>
- *   <li>{@value #ATTENDED_KIND} marks the live season attended once (a high-water 1) and, the first
- *       time each season, adds one to the seasons attended.</li>
+ *   <li>{@value #ATTENDED_KIND} marks the live season attended once (a high-water 1), adds one to the
+ *       runs it attended that season-year (the calendar fires once per player per run, and an event may
+ *       come round several times a year), and, the first time each season, adds one to the seasons
+ *       attended.</li>
  *   <li>An amount of zero or less never counts: a tally never goes down.</li>
  * </ul>
  */
@@ -65,6 +67,9 @@ public final class AlmanacCounter {
         if (state == null || !state.live()) {
             return;
         }
+        // The calendar fires one attendance per player per run, so each is one more run of the season-year; the
+        // season-year itself is marked once, and the seasons attended count years.
+        tallies.add(AlmanacKeys.season(eventId, state.year(), AlmanacKeys.RUNS), 1L);
         if (tallies.highWater(AlmanacKeys.season(eventId, state.year(), AlmanacKeys.ATTENDED), 1L)) {
             tallies.add(AlmanacKeys.lifetime(eventId, AlmanacKeys.ATTENDED), 1L);
         }

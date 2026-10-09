@@ -33,6 +33,16 @@ class ZigCalendarProducerTest {
     }
 
     @Test
+    void aLaterRunOfAYearIsOneMoreMomentQualifiedByTheSameYear() {
+        UUID player = UUID.randomUUID();
+        List<String> seen = new ArrayList<>();
+        ZigCalendarProducer.fanOut(new CalendarAttendedEvent(player, "two_fairs", 2026, 2, 123L),
+                (playerId, kind, target, qualifier, amount) -> seen.add(target + "|" + qualifier + "|" + amount));
+        assertEquals(List.of("two_fairs|2026|1"), seen,
+                "a step naming 2026 counts every run of that year, and Amount counts runs");
+    }
+
+    @Test
     void theKindShipsAsAProducibleCountingFileWithItsOwnSentence() throws Exception {
         String path = "/Server/ZiggfreedCommon/ObjectiveKinds/Calendar_Attended.json";
         String json;
