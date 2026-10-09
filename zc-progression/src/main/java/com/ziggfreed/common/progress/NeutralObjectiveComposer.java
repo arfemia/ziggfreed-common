@@ -94,6 +94,9 @@ final class NeutralObjectiveComposer implements ObjectiveComposer {
         if (authoredKey != null && !authoredKey.isBlank() && ContentKeys.known(authoredKey.trim())) {
             sentence = ContentKeys.tr(authoredKey.trim(), amount, target);
         }
+        // A step that wrote its own sentence already words its qualifier ("Throw {0} Lantern Bombs" for a
+        // Throw step), so only a generated sentence takes the qualifier wrap; the place wrap applies to both.
+        boolean ownSentence = sentence != null;
         if (sentence == null) {
             sentence = fromKindTextKey(objective, emptyTarget, amount, target);
         }
@@ -114,7 +117,7 @@ final class NeutralObjectiveComposer implements ObjectiveComposer {
         }
 
         String qualifier = objective.qualifier();
-        if (qualifier != null && !qualifier.isBlank() && exists("objective.qualifier")) {
+        if (!ownSentence && qualifier != null && !qualifier.isBlank() && exists("objective.qualifier")) {
             sentence = text("objective.qualifier", Msg.raw(NativeNames.prettify(qualifier)), sentence);
         }
         String zone = objective.zone();

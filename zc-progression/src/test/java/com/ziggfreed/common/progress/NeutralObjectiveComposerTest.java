@@ -93,6 +93,22 @@ class NeutralObjectiveComposerTest {
                 "the qualifier wraps the sentence before the place does");
     }
 
+    /** M555: an authored sentence already words its qualifier, so it is never prefixed again ("Throw Throw ..."). */
+    @Test
+    void anAuthoredSentenceIsNeverWrappedInItsQualifierAgain() {
+        LangCatalog.overrideForTests(Map.of("fixture.yourmod.step.throw", "Throw {0} Lantern Bombs"));
+        try {
+            NeutralObjectiveComposer composer = over(Set.of(NS + "objective.use_item", NS + "objective.qualifier"));
+            ObjectiveDef step = ObjectiveDef.builder("step", "USE_ITEM").target("Lantern_Bomb_").amount(10)
+                    .qualifier("Throw").build();
+            assertEquals("fixture.yourmod.step.throw", composer.compose(step, "yourmod.step.throw").getMessageId());
+            assertEquals(NS + "objective.qualifier", composer.compose(step, null).getMessageId(),
+                    "a generated sentence still takes the qualifier");
+        } finally {
+            LangCatalog.overrideForTests(null);
+        }
+    }
+
     @Test
     void theAuthoredKeyOutranksTheGeneratedSentenceAndResolvesWithItsArguments() {
         LangCatalog.overrideForTests(Map.of("fixture.yourmod.step.collect", "Collect {0} of {1}"));

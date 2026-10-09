@@ -3,7 +3,9 @@ package com.ziggfreed.common.reputation.page;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -52,6 +54,14 @@ public final class ReputationView {
     static final String BLOCK_RANKS = "ranks";
     static final String BLOCK_BEYOND = "beyond";
     static final String BLOCK_STANDING = "standing";
+    static final String BLOCK_GEAR_SETS = "gear_sets";
+
+    /**
+     * A gear set tier the player is wearing: its set's name, the tier's own line (null when it has none) and the
+     * stats it moves, so a reputation's page lists the sets that add to its gear stat.
+     */
+    public record WornSet(@Nonnull Message name, @Nullable Message line, @Nonnull Set<String> stats) {
+    }
 
     /**
      * One met reputation: its standing, the rank above (null at the top) and the next Beyond reward (null
@@ -195,6 +205,16 @@ public final class ReputationView {
     @Nonnull
     public static DetailView detail(@Nonnull Row row, @Nonnull ReputationLadder ladder,
             @Nonnull List<GatedContent.Entry> gated) {
+        return detail(row, ladder, gated, List.of());
+    }
+
+    /**
+     * The reading page of {@code row}, with the gear sets the player wears that add to this reputation's gear
+     * stat named under their standing (M557), so the bonus a worn set gives is something the player can see.
+     */
+    @Nonnull
+    public static DetailView detail(@Nonnull Row row, @Nonnull ReputationLadder ladder,
+            @Nonnull List<GatedContent.Entry> gated, @Nonnull List<WornSet> worn) {
         ReputationDef def = row.reputation();
         ReputationService.Standing standing = row.standing();
         Tone tone = tone(ladder, def, standing.rank());
@@ -212,9 +232,32 @@ public final class ReputationView {
         }
         blocks.add(new DetailBlock(BLOCK_STANDING, ReputationText.line("block.standing"), null,
                 standingLines(standing)));
+        List<DetailLine> sets = gearSetLines(def, worn);
+        if (!sets.isEmpty()) {
+            blocks.add(new DetailBlock(BLOCK_GEAR_SETS, ReputationText.line("block.gear_sets"), null, sets));
+        }
         Message hint = def.gearStat() == null ? null : ReputationText.line("hint.gear");
         return new DetailView(picture(def), ReputationText.name(def), null, null, List.of(rank), null, bar(row),
                 progressLabel(row), ReputationText.description(def), blocks, List.of(), hint);
+    }
+
+    /** Each worn set tier that moves this reputation's gear stat: "Hallowed Set: what the full set does". */
+    @Nonnull
+    static List<DetailLine> gearSetLines(@Nonnull ReputationDef def, @Nonnull List<WornSet> worn) {
+        String stat = def.gearStat();
+        if (stat == null || worn.isEmpty()) {
+            return List.of();
+        }
+        String wanted = stat.trim().toLowerCase(Locale.ROOT);
+        List<DetailLine> out = new ArrayList<>();
+        for (WornSet set : worn) {
+            boolean moves = set.stats().stream().anyMatch(s -> s != null && s.trim().toLowerCase(Locale.ROOT).equals(wanted));
+            if (moves) {
+                out.add(DetailLine.of(Picture.NONE, set.line() == null ? set.name()
+                        : ReputationText.line("gear_set.line", set.name(), set.line())));
+            }
+        }
+        return out;
     }
 
     /** The words over the detail's bar: "585 / 1,000 toward Regular", toward the next reward, or the top. */

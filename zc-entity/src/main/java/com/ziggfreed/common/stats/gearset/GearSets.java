@@ -404,6 +404,17 @@ public final class GearSets {
     }
 
     /**
+     * The set tiers holding on {@code playerId} right now, as the last recompute decided them, in the order it
+     * found them; empty for a player with no recompute yet in their current store. A page showing what a player's
+     * worn gear adds reads this (M557: a server running only this library shows the active set and its bonus).
+     */
+    @Nonnull
+    public static List<TierRef> activeTiers(@Nullable UUID playerId) {
+        GearSetApplied.Applied applied = playerId == null ? null : GearSetApplied.get(playerId);
+        return applied == null ? List.of() : List.copyOf(applied.activeTiers());
+    }
+
+    /**
      * Which tiers changed between two recomputes: every tier in {@code before} and not in
      * {@code now} went off, every tier in {@code now} and not in {@code before} came on;
      * deactivations first, each group in the order given. Pure.

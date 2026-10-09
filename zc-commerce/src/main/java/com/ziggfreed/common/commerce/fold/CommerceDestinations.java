@@ -9,10 +9,15 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
+import com.hypixel.hytale.server.core.Message;
+import com.ziggfreed.common.board.asset.BoardAsset;
 import com.ziggfreed.common.board.asset.BoardConfig;
 import com.ziggfreed.common.board.asset.BoardValidator;
 import com.ziggfreed.common.commerce.asset.CommerceEditorDataSets;
 import com.ziggfreed.common.commerce.page.CommercePages;
+import com.ziggfreed.common.commerce.page.CommerceText;
+import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.quest.QuestSiteNames;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.shop.asset.ShopValidator;
 import com.ziggfreed.common.ui.route.Destination;
@@ -83,6 +88,20 @@ public final class CommerceDestinations {
                         BOARD_TYPE, Board.class, Board.CODEC, CommerceDestinations::openBoard)
                 .withCheck(CommerceDestinations::checkBoard)
                 .withKind(DestinationKind.BOARD));
+        // A contract is collected at the board it was taken from: the book names that board by its own title.
+        QuestSiteNames.register(OWNER, OWNER, CommerceDestinations::boardName);
+    }
+
+    /** What the board {@code siteId} is called, by its authored title; null when no board answers or it has none. */
+    @Nullable
+    static Message boardName(@Nonnull String siteId) {
+        BoardAsset board = BoardConfig.getInstance().resolve(siteId);
+        if (board == null || board.getText() == null) {
+            return null;
+        }
+        Message untitled = Msg.raw("");
+        Message name = CommerceText.title(board.getText(), CommerceText.RAW_ARGS, untitled);
+        return name == untitled ? null : name;
     }
 
     // ==================== Shop ====================

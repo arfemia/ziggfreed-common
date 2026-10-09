@@ -37,7 +37,7 @@ import com.ziggfreed.common.ui.kit.RowSize;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * A player's pinned achievements and tracked quests as compact rows, for a page outside the book (the MMO's Skills
+ * A player's pinned achievements and tracked quests as compact rows, for a page outside the book (a consumer's own
  * page): the same rows the book's own strips show ({@code AchievementReader.compactRow}, {@code QuestReader.compactRow}),
  * painted through the kit's ledger into {@code Pages/ZigLedgerRowCompact.ui}. A row's click is the caller's: it is
  * handed the row's kind ({@link #KIND_ACHIEVEMENT} or {@link #KIND_QUEST}) and id, and usually opens the book on it
@@ -46,6 +46,11 @@ import com.ziggfreed.common.util.SafeLog;
  * <p>What lists: the pins the book's Overview lists under Pinned, oldest pin first, then the tracked quests still
  * being carried ({@code QuestEngine.trackedActive}); each side capped at {@code maxRows}, an empty side left out.
  * Each side is a section of the host with its own head (label and count, no fold).
+ *
+ * <p><b>Give the host room.</b> A compact row's fixed parts (accent, picture, mark, bar and trail) take 282 px, and
+ * its title is a two-line wrapping label: squeezed under one ellipsis wide, the client's label layout throws and the
+ * client crashes (M560, which took this panel off the MMO's 320 px Skills side panel). Paint it only into a host at
+ * least about 340 px wide; the book's own 408 px strips are the reference.
  *
  * <p>Guarded: it never throws. When the progression runtime cannot be read for this player (no engines, no
  * subject, a seam that throws) it sends nothing at all; when it reads but nothing is pinned or tracked it clears the

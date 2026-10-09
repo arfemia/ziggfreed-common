@@ -85,6 +85,10 @@ standing.gear = From gear you wear
 # What gear adds: {0} the amount.
 standing.gear.count = +{0, number}
 standing.cap = The most you can earn
+# The gear sets worn that add to this standing: the block, and one line per set, {0} the set and {1} what its
+# worn tier does.
+block.gear_sets = Sets you wear
+gear_set.line = {0}: {1}
 
 # The shared menu's tab.
 menu.tab = Reputation
