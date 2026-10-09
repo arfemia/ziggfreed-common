@@ -586,15 +586,43 @@ public final class AchievementEngine {
         store.clearAchievement(subject, achievementId);
         for (String parentId : metaParents.getOrDefault(achievementId, List.of())) {
             Achievement parent = achievements.get(parentId);
-            // A parent still standing (a grouped one whose group another year's copy holds) keeps its
-            // earn; a plain parent always falls, since it needed the child just taken.
-            if (store.status(subject, parentId).isUnlocked()
-                    && (parent == null || !metaChildrenComplete(subject, parent))) {
+            // A grouped parent whose every group holding the child still holds an earned one (another year's
+            // copy) lost nothing it stands on, so it keeps its earn without asking today's count, which a
+            // season added since may have raised: earned stays earned. Any other parent still standing keeps
+            // its earn; a plain parent always falls, since it needed the child just taken.
+            if (store.status(subject, parentId).isUnlocked() && (parent == null
+                    || !(groupsStillHeld(subject, parent, achievementId) || metaChildrenComplete(subject, parent)))) {
                 store.clearAchievement(subject, parentId);
             }
         }
         store.markDirty(subject);
         return true;
+    }
+
+    /**
+     * Does every group of {@code parent} holding {@code revokedId} still hold another earned child? False
+     * for a plain capstone, and for a child in none of its groups.
+     */
+    private boolean groupsStillHeld(@Nonnull Subject subject, @Nonnull Achievement parent,
+            @Nonnull String revokedId) {
+        boolean inAny = false;
+        for (Achievement.MetaGroup group : parent.metaGroups()) {
+            if (!group.children().contains(revokedId)) {
+                continue;
+            }
+            inAny = true;
+            boolean held = false;
+            for (String child : group.children()) {
+                if (!child.equals(revokedId) && store.status(subject, child).isUnlocked()) {
+                    held = true;
+                    break;
+                }
+            }
+            if (!held) {
+                return false;
+            }
+        }
+        return inAny;
     }
 
     /** Any recorded progress on any criterion of this achievement (or its bare legacy key)? */

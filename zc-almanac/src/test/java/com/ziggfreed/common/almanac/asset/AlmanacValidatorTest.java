@@ -15,6 +15,10 @@ import javax.annotation.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import com.hypixel.hytale.assetstore.AssetExtraInfo;
+import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.ziggfreed.common.achievement.asset.AchievementAsset;
+import com.ziggfreed.common.achievement.asset.AchievementAssetStore;
 import com.ziggfreed.common.almanac.AlmanacFixtures;
 import com.ziggfreed.common.almanac.AlmanacSwitch;
 import com.ziggfreed.common.occurrence.Occurrence;
@@ -43,6 +47,14 @@ class AlmanacValidatorTest {
         Occurrences.resetForTests();
         AlmanacEntryConfig.getInstance().mergeOwnerLayer(Map.of());
         AlmanacEntryConfig.getInstance().mergePackLayer(Map.of());
+        AchievementAssetStore.getInstance().merge(Map.of());
+    }
+
+    @Nonnull
+    private static AchievementAsset achievement(@Nonnull String json, @Nonnull String id) throws IOException {
+        AssetExtraInfo.Data data = new AssetExtraInfo.Data(AchievementAsset.class, id, null);
+        return AchievementAsset.CODEC.decodeAndInheritJsonAsset(
+                RawJsonReader.fromJsonString(json), null, new AssetExtraInfo<>(data));
     }
 
     @Nonnull
@@ -206,6 +218,45 @@ class AlmanacValidatorTest {
 
         AlmanacSwitch.set(false);
         assertTrue(AlmanacValidator.audit().isEmpty(), "off means absent: there is nothing to report");
+    }
+
+    // A page's Keepsake is asked of the loaded achievement files: one naming no achievement, or only an Abstract base
+    // that never folds, leaves the page with no keepsake shelf. A file named as one year's copy of it
+    // (<Keepsake>_<yyyy>) is one the page finds, as the Almanac's own reading does.
+    @Test
+    void aKeepsakeNamingNoLoadedAchievementIsAWarning() throws IOException {
+        AlmanacEntryConfig.getInstance().mergePackLayer(Map.of(
+                "hallows_eve", AlmanacFixtures.page("{ \"Keepsake\": \"Lantern\" }", "Hallows_Eve"),
+                "harvest_feast", AlmanacFixtures.page("{ \"Keepsake\": \"Feast_Keepsake\" }", "Harvest_Feast"),
+                "spring_fair", AlmanacFixtures.page("{ \"Keepsake\": \"Blossom\" }", "Spring_Fair"),
+                "winter_fair", AlmanacFixtures.page("{ \"Keepsake\": \"Snowflake\" }", "Winter_Fair")));
+        AchievementAssetStore.getInstance().merge(Map.of(
+                "lantern", achievement("{ \"Occurrence\": { \"Event\": \"hallows_eve\" } }", "lantern"),
+                "blossom_2026", achievement("{ }", "blossom_2026"),
+                "snowflake", achievement("{ \"Abstract\": true }", "snowflake")));
+
+        List<Finding> findings = AlmanacValidator.audit();
+
+        assertEquals(List.of(AlmanacValidator.UNKNOWN_KEEPSAKE, AlmanacValidator.UNKNOWN_KEEPSAKE), codes(findings),
+                findings.toString());
+        assertEquals(List.of("harvest_feast", "winter_fair"), findings.stream().map(Finding::sourceId).toList(),
+                "a keepsake no file names, and one only an Abstract base names");
+        assertEquals(Severity.WARNING, findings.get(0).severity(), "another pack may ship it");
+    }
+
+    @Test
+    void thePureCoreAsksTheKeepsakeOnlyWithTheAchievementsInHand() throws IOException {
+        AlmanacEntryAsset page = AlmanacFixtures.page("{ \"Keepsake\": \"Lantern\" }", "Hallows_Eve");
+
+        Finding finding = only(AlmanacValidator.audit(List.of(page), ALL_EVENTS, ALL_ITEMS, null, ALL_KEYS,
+                "candle"::equals), AlmanacValidator.UNKNOWN_KEEPSAKE);
+        assertEquals(Severity.WARNING, finding.severity());
+        assertEquals("hallows_eve", finding.sourceId());
+        assertTrue(finding.message().contains("Lantern"), finding.message());
+
+        assertTrue(AlmanacValidator.audit(List.of(page), ALL_EVENTS, ALL_ITEMS, null, ALL_KEYS, "lantern"::equals)
+                .isEmpty(), "the keepsake is asked as every key spells it, trimmed and lower-cased");
+        assertTrue(audit(page).isEmpty(), "with no achievements in hand, the keepsake is not asked");
     }
 
     @Test

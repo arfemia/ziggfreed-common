@@ -33,6 +33,7 @@ import com.ziggfreed.common.almanac.AlmanacCalendar.Dates;
 import com.ziggfreed.common.almanac.AlmanacCalendar.SeasonState;
 import com.ziggfreed.common.almanac.AlmanacFixtures;
 import com.ziggfreed.common.almanac.AlmanacKeys;
+import com.ziggfreed.common.almanac.AlmanacText;
 import com.ziggfreed.common.almanac.FixedCalendar;
 import com.ziggfreed.common.almanac.ServerTallies;
 import com.ziggfreed.common.almanac.asset.AlmanacEntryAsset;
@@ -200,6 +201,50 @@ class AlmanacViewPageTest {
         assertEquals(3, timing.daysLeft());
         assertEquals(MonthDay.of(12, 20), timing.windowStart());
         assertEquals(MonthDay.of(1, 5), timing.windowEnd());
+    }
+
+    // A run with a time of day ends mid-day: its last day is the day holding its last instant, never the day before
+    // its end (identical for a run ending at midnight).
+    @Test
+    void aTimedRunOfTwoHoursOnASundayIsTodayOnlyAndMarksItsMonth() {
+        // Sunday November 1st, 14:00 to 16:00: on the 1st, so a last day read as the day before would fall in October.
+        Occurrence contest = new Occurrence("contest", 2026, Instant.parse("2026-11-01T14:00:00Z").toEpochMilli(),
+                Instant.parse("2026-11-01T16:00:00Z").toEpochMilli());
+        Dates dates = new Dates(contest, null, List.of(contest), 2026, UTC);
+        Season season = new Season("contest", null, null, null, true, 2026);
+        long during = Instant.parse("2026-11-01T15:00:00Z").toEpochMilli();
+
+        Timing timing = AlmanacView.timing(season, dates, during);
+        assertEquals(MonthDay.of(11, 1), timing.windowStart());
+        assertEquals(MonthDay.of(11, 1), timing.windowEnd(), "its last day is the Sunday it runs on");
+        assertTrue(timing.lastDay());
+        assertEquals(1, timing.daysLeft());
+        assertEquals(AlmanacText.PREFIX + "chip.today_only", AlmanacLines.chip(timing).getFormattedMessage().messageId,
+                "a run of two hours on one day is today only, never its last day");
+
+        List<MonthMarks> glance = AlmanacView.yearAtAGlance(List.of(season),
+                new FixedCalendar().season("contest", dates), during);
+        assertEquals(List.of("contest"), glance.get(10).eventIds(), "November is marked");
+        assertTrue(glance.get(9).eventIds().isEmpty(), "and October is not");
+    }
+
+    @Test
+    void aRunFromFridayEveningToSundayEveningIsNotOnItsLastDayOnSaturday() {
+        Occurrence weekend = new Occurrence("weekend", 2026, Instant.parse("2026-10-09T18:00:00Z").toEpochMilli(),
+                Instant.parse("2026-10-11T18:00:00Z").toEpochMilli());
+        Dates dates = new Dates(weekend, null, List.of(weekend), 2026, UTC);
+        Season season = new Season("weekend", null, null, null, true, 2026);
+
+        Timing saturday = AlmanacView.timing(season, dates, noon("2026-10-10"));
+        assertEquals(MonthDay.of(10, 11), saturday.windowEnd(), "it runs into Sunday");
+        assertFalse(saturday.lastDay(), "Saturday is not its last day");
+        assertEquals(2, saturday.daysLeft(), "Saturday and Sunday");
+        assertEquals(AlmanacText.PREFIX + "chip.live", AlmanacLines.chip(saturday).getFormattedMessage().messageId);
+
+        Timing sunday = AlmanacView.timing(season, dates, noon("2026-10-11"));
+        assertTrue(sunday.lastDay());
+        assertEquals(1, sunday.daysLeft());
+        assertEquals(AlmanacText.PREFIX + "chip.last_day", AlmanacLines.chip(sunday).getFormattedMessage().messageId);
     }
 
     @Test

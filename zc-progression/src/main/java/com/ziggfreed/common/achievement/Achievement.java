@@ -435,8 +435,9 @@ public final class Achievement {
     /**
      * One group a grouped capstone counts: the children that stand for it (any one of them earned
      * earns the group) and whether the group is in the count at all, read LIVE on every look. A
-     * capstone over seasons keys a group by its calendar event, so two years of one season are one
-     * group, and a season the owner switched off is out of the count until it is switched back on.
+     * capstone over seasons keys a group by its calendar event ({@link #seasonKey}), so two years of
+     * one season are one group, and a season the owner switched off is out of the count until it is
+     * switched back on. Any other group is one pick or child, keyed by its own id.
      *
      * <p>A reading that throws keeps the group in the count: a broken read must never shrink "every
      * group" and earn a capstone that is never taken back.
@@ -444,9 +445,25 @@ public final class Achievement {
     public record MetaGroup(@Nonnull String key, @Nonnull List<String> children,
                             @Nonnull BooleanSupplier counted) {
 
+        /**
+         * What a season's key starts with. No achievement id may hold a colon (the progress format
+         * reserves it), so a season's key never meets the key of a group of one pick.
+         */
+        private static final String SEASON_PREFIX = "event:";
+
         public MetaGroup {
             key = key.trim().toLowerCase(Locale.ROOT);
             children = List.copyOf(children);
+        }
+
+        /**
+         * The key of {@code eventId}'s season group, in a key space of its own: a pick whose id is
+         * that event's id is a group of its own, never merged into the season. A reader asking whether
+         * a group is a season compares its key with this, never with the bare event id.
+         */
+        @Nonnull
+        public static String seasonKey(@Nonnull String eventId) {
+            return SEASON_PREFIX + eventId.trim().toLowerCase(Locale.ROOT);
         }
 
         /** Is this group in the count right now? */

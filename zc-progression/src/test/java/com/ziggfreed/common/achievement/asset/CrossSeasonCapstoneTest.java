@@ -85,10 +85,11 @@ class CrossSeasonCapstoneTest {
         engine.unlock(who, achievement);
     }
 
+    /** The children of {@code eventId}'s season group on {@code capstone}, none when it has no such group. */
     @Nonnull
-    private static List<String> group(@Nonnull Achievement capstone, @Nonnull String key) {
+    private static List<String> season(@Nonnull Achievement capstone, @Nonnull String eventId) {
         for (Achievement.MetaGroup group : capstone.metaGroups()) {
-            if (group.key().equals(key)) {
+            if (group.key().equals(Achievement.MetaGroup.seasonKey(eventId))) {
                 return group.children();
             }
         }
@@ -136,7 +137,7 @@ class CrossSeasonCapstoneTest {
                 keepsake("feast_keepsake", "harvest_feast"), rung("two_seasons", 2)).pool());
         Achievement rung = engine.achievement("two_seasons");
 
-        assertEquals(List.of("hallowed_2025", "hallowed_2026", "hallowed_2027"), group(rung, "hallows_eve"),
+        assertEquals(List.of("hallowed_2025", "hallowed_2026", "hallowed_2027"), season(rung, "hallows_eve"),
                 "AnyYear lets every year's copy stand for its base, grouped under its event");
         earn(engine, ALICE, "hallowed_2025");
         earn(engine, ALICE, "hallowed_2026");
@@ -265,6 +266,94 @@ class CrossSeasonCapstoneTest {
         assertTrue(engine.isUnlocked(ALICE, "two_seasons"), "the season is still held through its 2026 copy");
         engine.revoke(ALICE, "hallowed_2026");
         assertFalse(engine.isUnlocked(ALICE, "two_seasons"), "with the season gone the rung no longer stands");
+    }
+
+    // M240, earned stays earned: revoking a copy whose season another year's copy still holds takes nothing the rung
+    // stands on, so it never re-asks today's count, which a season added since may have raised.
+    @Test
+    void revokingARedundantCopyKeepsARungEarnedBeforeTheCountGrew() throws Exception {
+        FakeCalendar calendar = new FakeCalendar().event("hallows_eve", 2025, 2026)
+                .event("harvest_feast", 2026, 2026);
+        AchievementAsset hallowed = keepsake("hallowed", "hallows_eve");
+        AchievementAsset feast = keepsake("feast_keepsake", "harvest_feast");
+        AchievementAsset every = rung("every_season", null);
+        AchievementEngine engine = engineOver(resolve(calendar.reader(), hallowed, feast, every).pool());
+        earn(engine, ALICE, "hallowed_2025");
+        earn(engine, ALICE, "hallowed_2026");
+        earn(engine, ALICE, "feast_keepsake_2026");
+        assertTrue(engine.isUnlocked(ALICE, "every_season"));
+
+        calendar.event("winter_festival", 2026, 2026);
+        engine.setAchievements(resolve(calendar.reader(), hallowed, feast,
+                keepsake("winter_keepsake", "winter_festival"), every).pool().achievements());
+
+        engine.revoke(ALICE, "hallowed_2025");
+        assertTrue(engine.isUnlocked(ALICE, "every_season"),
+                "Hallow's Eve is still held through its 2026 copy, so the rung keeps what it earned on two seasons");
+        engine.revoke(ALICE, "hallowed_2026");
+        assertFalse(engine.isUnlocked(ALICE, "every_season"),
+                "the season's last copy gone, the rung is asked again and no longer stands");
+    }
+
+    /** An ordinary achievement filed with the keepsakes and carrying the ladder's tag, with no calendar event. */
+    private static AchievementAsset ordinaryTagged(@Nonnull String id) throws IOException {
+        return AchievementAssetCodecTest.decodeRoot("""
+                { "Listing": { "Category": "Seasons", "Tags": [ "season_keepsake" ] },
+                  "Criteria": { "one": { "Kind": "BREAK_BLOCK", "Amount": 1 } } }
+                """, id);
+    }
+
+    // A season's group and a group of one pick are keyed in spaces of their own: an ordinary pick whose id is an
+    // event's id never merges into that season's group.
+    @Test
+    void anOrdinaryPickNamedLikeASeasonIsAGroupOfItsOwnAndTheSeasonStillLeavesTheCount() throws Exception {
+        FakeCalendar calendar = new FakeCalendar().event("hallows_eve", 2025, 2026)
+                .event("harvest_feast", 2026, 2026);
+        AchievementEngine engine = engineOver(resolve(calendar.reader(), keepsake("lantern", "hallows_eve"),
+                keepsake("feast_keepsake", "harvest_feast"), ordinaryTagged("hallows_eve"),
+                rung("every_season", null)).pool());
+        Achievement top = engine.achievement("every_season");
+
+        assertEquals(3, top.metaGroups().size(),
+                "Hallow's Eve, Harvest Feast, and the ordinary pick that shares Hallow's Eve's id");
+        assertEquals(List.of("lantern_2025", "lantern_2026", "lantern_2027"), season(top, "hallows_eve"),
+                "the season's group holds its copies alone");
+        earn(engine, ALICE, "hallows_eve");
+        earn(engine, ALICE, "feast_keepsake_2026");
+        assertFalse(engine.isUnlocked(ALICE, "every_season"), "the ordinary pick never stands for the season");
+        assertEquals(new AchievementEngine.CriterionTally(2, 3), engine.tally(ALICE, top));
+
+        calendar.switchedOff("hallows_eve");
+        assertEquals(new AchievementEngine.CriterionTally(2, 2), engine.tally(ALICE, top),
+                "switched off, the season leaves the count, and the ordinary pick stays in it");
+    }
+
+    // Under AnyYear an explicit MetaChildren entry naming one year's copy stands for its season, so a season never
+    // counts twice: once through the explicit copy and once through the copies the selector picks.
+    @Test
+    void anExplicitYearlyCopyCountsInItsSeasonsGroupSoNoSeasonCountsTwice() throws Exception {
+        FakeCalendar calendar = new FakeCalendar().event("hallows_eve", 2025, 2026)
+                .event("harvest_feast", 2026, 2026);
+        AchievementAsset every = AchievementAssetCodecTest.decodeRoot("""
+                { "Listing": { "Category": "Seasons" }, "MetaChildren": [ "hallowed_2025" ],
+                  "MetaSelector": { "Category": "Seasons", "Tags": [ "season_keepsake" ], "AnyYear": true } }
+                """, "every_season");
+        AchievementEngine engine = engineOver(resolve(calendar.reader(), keepsake("hallowed", "hallows_eve"),
+                keepsake("feast_keepsake", "harvest_feast"), every).pool());
+        Achievement top = engine.achievement("every_season");
+
+        assertEquals(2, top.metaGroups().size(), "two seasons, two groups");
+        assertEquals(List.of("hallowed_2025", "hallowed_2026", "hallowed_2027"), season(top, "hallows_eve"),
+                "the explicit copy first, then the picks, in the season's one group");
+        earn(engine, ALICE, "hallowed_2025");
+        assertEquals(new AchievementEngine.CriterionTally(1, 2), engine.tally(ALICE, top),
+                "the explicit copy is Hallow's Eve: one season of two");
+        earn(engine, ALICE, "feast_keepsake_2026");
+        assertTrue(engine.isUnlocked(ALICE, "every_season"));
+
+        calendar.switchedOff("hallows_eve");
+        assertEquals(new AchievementEngine.CriterionTally(1, 1), engine.tally(ALICE, top),
+                "the explicit copy leaves the count with its season");
     }
 
     @Test

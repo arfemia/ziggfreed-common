@@ -355,16 +355,18 @@ public final class AchievementReader {
     }
 
     /**
-     * Does {@code a} stand on seasons: is any of its groups keyed by a calendar event and held by that event's
-     * yearly copies (what an {@code AnyYear} selector builds, and the group the engine counts by its event's switch)?
-     * A group of one pick, keyed by the pick's own id, is no season.
+     * Does {@code a} stand on seasons: is any of its groups keyed by a calendar event's season
+     * ({@link Achievement.MetaGroup#seasonKey}) and held by that event's yearly copies (what an {@code AnyYear}
+     * selector builds, and the group the engine counts by its event's switch)? A group of one pick, keyed by the
+     * pick's own id, is no season, even when that id is an event's.
      */
     private boolean overSeasons(@Nonnull Achievement a) {
         for (Achievement.MetaGroup group : a.metaGroups()) {
             for (String id : group.children()) {
                 Achievement child = engine.achievement(id);
                 Achievement.Occurrence occurrence = child == null ? null : child.occurrence();
-                if (occurrence != null && occurrence.eventId().equals(group.key())) {
+                if (occurrence != null
+                        && Achievement.MetaGroup.seasonKey(occurrence.eventId()).equals(group.key())) {
                     return true;
                 }
             }

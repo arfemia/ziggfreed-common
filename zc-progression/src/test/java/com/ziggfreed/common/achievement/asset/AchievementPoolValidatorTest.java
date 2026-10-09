@@ -191,6 +191,26 @@ class AchievementPoolValidatorTest {
         assertEquals(Severity.WARNING, only(findings, "BLANK_REQUIREMENT").severity());
     }
 
+    // The fold lifts a mod presence condition out of the folded block, and a blank entry beside it goes with it: the
+    // audit reads the block as the file wrote it, so the blank entry is still said.
+    @Test
+    void aBlankFactorEntryBesideALiftedModConditionIsStillReported() throws Exception {
+        AchievementAssetStore store = AchievementAssetStore.getInstance();
+        store.merge(Map.of("lifted", decodeRoot("""
+                { "Criteria": { "step": { "Kind": "BREAK_BLOCK", "Amount": 1 } },
+                  "Requires": { "Factors": [
+                      { "Factor": "hytale:mod_installed", "Param": "Ziggfreed:KweebecNightmare", "Min": 1 },
+                      { } ] } }
+                """, "lifted")));
+        try {
+            AchievementPool pool = store.resolve().pool();
+            assertTrue(pool.definition("lifted").requires().isEmpty(), "the fold lifted the mod condition out");
+            assertEquals(Severity.WARNING, only(validate(pool), "BLANK_REQUIREMENT").severity());
+        } finally {
+            store.merge(Map.of());
+        }
+    }
+
     @Test
     void aThresholdCriterionWithNoChannelHasNothingToMeasure() throws Exception {
         List<Finding> findings = validate(pool(Map.of(

@@ -220,9 +220,11 @@ public final class CalendarService implements OccurrenceSource {
     @Nullable
     public Integer currentYear(@Nonnull String eventId, long nowMs) {
         CalendarEventAsset event = event(eventId);
-        if (event == null) {
-            return null;
-        }
+        return event == null ? null : yearOf(event, nowMs);
+    }
+
+    /** {@link #currentYear} of a loaded {@code event}, resolved once by the caller. */
+    private int yearOf(@Nonnull CalendarEventAsset event, long nowMs) {
         Occurrence run = event.canRun() ? liveOf(event, nowMs) : null;
         return run != null ? run.year() : AnnualWindow.yearOf(nowMs, event.zone());
     }
@@ -309,12 +311,14 @@ public final class CalendarService implements OccurrenceSource {
 
     /**
      * How the loaded event comes round when it runs monthly or weekly, by the rule dating the year it is in at
-     * {@code nowMs}, whatever its switches say ({@link RecurrenceOf#event}); null for any other event.
+     * {@code nowMs} ({@link #currentYear}: a run going on answers the year it started in), whatever its switches say
+     * ({@link RecurrenceOf#event}); null for any other event.
      */
     @Override
     @Nullable
     public Recurrence recurrence(@Nonnull String eventId, long nowMs) {
-        return RecurrenceOf.event(event(eventId), nowMs);
+        CalendarEventAsset event = event(eventId);
+        return event == null ? null : RecurrenceOf.event(event, yearOf(event, nowMs));
     }
 
     /**
