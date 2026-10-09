@@ -324,11 +324,17 @@ public final class AchievementReader {
         return new DetailBlock("criteria", text("book.achievements.block.criteria"), null, lines);
     }
 
-    /** Needs: what a capstone stands on, each child a line that opens it. */
+    /**
+     * Needs: what a capstone stands on, each line opening a child. A plain capstone lists the children the player
+     * may see; a grouped one lists each group in its count once ({@link #groupedNeeds}).
+     */
     @Nullable
     private DetailBlock needsBlock(@Nonnull Achievement a) {
         if (!a.isMeta()) {
             return null;
+        }
+        if (!a.metaGroups().isEmpty()) {
+            return groupedNeeds(a);
         }
         List<DetailLine> lines = new ArrayList<>();
         int met = 0;
@@ -343,9 +349,33 @@ public final class AchievementReader {
         if (lines.isEmpty()) {
             return null;
         }
-        // A grouped capstone counts groups (seasons), never the copies listed under it.
-        Message count = a.metaGroups().isEmpty() ? KitText.count(met, lines.size()) : groupCount(a);
-        return new DetailBlock("needs", text("book.achievements.block.needs"), count, lines);
+        return new DetailBlock("needs", text("book.achievements.block.needs"), KitText.count(met, lines.size()), lines);
+    }
+
+    /**
+     * A grouped capstone's Needs, its lines matching its count: one line per group the engine counts (a season
+     * switched off has none, as it has no place in the count; its keepsakes stay earned in the book), showing the
+     * group's {@link #groupFace}, ticked when any of its children is earned, and counted by the engine's tally.
+     */
+    @Nullable
+    private DetailBlock groupedNeeds(@Nonnull Achievement a) {
+        List<DetailLine> lines = new ArrayList<>();
+        for (Achievement.MetaGroup group : a.metaGroups()) {
+            if (!group.isCounted()) {
+                continue;
+            }
+            Achievement face = groupFace(group);
+            if (face == null) {
+                continue;
+            }
+            boolean earned = anyEarned(group);
+            lines.add(new DetailLine(picture(face), name(face), earned ? null : aggregate(face).count(),
+                    null, earned ? Tick.DONE : Tick.AHEAD, face.id(), false));
+        }
+        if (lines.isEmpty()) {
+            return null;
+        }
+        return new DetailBlock("needs", text("book.achievements.block.needs"), groupCount(a), lines);
     }
 
     /** A grouped capstone's count: groups earned of groups needed, the engine's own tally, full once earned. */
@@ -353,6 +383,62 @@ public final class AchievementReader {
     private Message groupCount(@Nonnull Achievement a) {
         AchievementEngine.CriterionTally tally = engine.tally(subject, a);
         return KitText.count(unlocked(a) ? tally.total() : tally.completed(), tally.total());
+    }
+
+    /**
+     * The child a group's Needs line shows: its newest the player may see
+     * ({@link AchievementShelves#listsAsCapstoneChild}; newest by the year a copy was minted for, the first by id
+     * among equals); else, for a season between runs with nothing of it earned, its newest yearly copy that is not
+     * hidden and whose year has come, so the season keeps its line. Null when nothing may show (hidden or retired
+     * children nobody earned).
+     */
+    @Nullable
+    private Achievement groupFace(@Nonnull Achievement.MetaGroup group) {
+        Achievement seen = null;
+        Achievement coming = null;
+        for (String id : group.children()) {
+            Achievement child = engine.achievement(id);
+            if (child == null) {
+                continue;
+            }
+            if (AchievementShelves.listsAsCapstoneChild(child.available(), child.hidden(), unlocked(child))) {
+                if (seen == null || yearOf(child) > yearOf(seen)) {
+                    seen = child;
+                }
+            } else if (yearHasCome(child) && (coming == null || yearOf(child) > yearOf(coming))) {
+                coming = child;
+            }
+        }
+        return seen != null ? seen : coming;
+    }
+
+    /** Has any child of {@code group} been earned? Any year's copy earns its season. */
+    private boolean anyEarned(@Nonnull Achievement.MetaGroup group) {
+        for (String id : group.children()) {
+            if (engine.status(subject, id).isUnlocked()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Is {@code a} a yearly copy, not hidden, whose year its event has reached ({@code OccurrenceSource.currentYear},
+     * the year a copy is minted for; the next year's copy is minted ahead)? A calendar that cannot say reads yes.
+     */
+    private boolean yearHasCome(@Nonnull Achievement a) {
+        Achievement.Occurrence occurrence = a.occurrence();
+        if (occurrence == null || a.hidden()) {
+            return false;
+        }
+        Integer current = currentYear(occurrence.eventId());
+        return current == null || occurrence.year() <= current;
+    }
+
+    /** The year a copy was minted for, 0 for an ordinary achievement. */
+    private static int yearOf(@Nonnull Achievement a) {
+        Achievement.Occurrence occurrence = a.occurrence();
+        return occurrence == null ? 0 : occurrence.year();
     }
 
     /** Part of: the capstones this one feeds. */
@@ -655,6 +741,17 @@ public final class AchievementReader {
         }
     }
 
+    /** The year {@code eventId} is in now ({@code OccurrenceSource.currentYear}); null when unknown or unreadable. */
+    @Nullable
+    private Integer currentYear(@Nonnull String eventId) {
+        try {
+            return calendar.currentYear(eventId, nowMs);
+        } catch (Throwable t) {
+            SafeLog.fine("[progression] the calendar's year for '" + eventId + "' could not be read", t);
+            return null;
+        }
+    }
+
     /** The run of {@code eventId} on now, or null; a calendar that throws reads as nothing on. */
     @Nullable
     Occurrence live(@Nullable String eventId) {
@@ -821,10 +918,10 @@ public final class AchievementReader {
     }
 
     /**
-     * A capstone's children the player may see ({@link AchievementShelves#listsAsCapstoneChild}): the Needs
-     * block's lines, and a plain capstone's count. A grouped capstone's count is never read from this list,
-     * which holds every copy standing for a group (two years of one season are two children): {@link #aggregate}
-     * and the Needs block read it from {@code AchievementEngine.tally}, which counts groups.
+     * A plain capstone's children the player may see ({@link AchievementShelves#listsAsCapstoneChild}): its Needs
+     * lines and its count. A grouped capstone reads neither from here, since this holds every copy standing for a
+     * group (two years of one season are two children): its count is {@code AchievementEngine.tally}, which counts
+     * groups, and its Needs lists each counted group once ({@link #groupedNeeds}).
      */
     @Nonnull
     List<Achievement> listedChildren(@Nonnull Achievement capstone) {

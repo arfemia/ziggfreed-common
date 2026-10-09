@@ -160,8 +160,16 @@ public final class AlmanacView {
                             @Nullable LocalDateTime nextEnd) {
     }
 
-    /** One year a player can read: whether it is the run on now, whether they took part, and its keepsake. */
-    public record YearChip(int year, boolean live, boolean tookPart, boolean keepsakeEarned) {
+    /**
+     * One year a player can read: whether it is the run on now, whether they took part, its keepsake, and how many
+     * of that year's runs they attended (an event may come round several times a year).
+     */
+    public record YearChip(int year, boolean live, boolean tookPart, boolean keepsakeEarned, int runsAttended) {
+
+        /** A year whose runs attended are not counted. */
+        public YearChip(int year, boolean live, boolean tookPart, boolean keepsakeEarned) {
+            this(year, live, tookPart, keepsakeEarned, 0);
+        }
     }
 
     /** Which figures a page reads: one season's year, or every season ({@link #EVERY}, a null year). */
@@ -468,7 +476,8 @@ public final class AlmanacView {
 
     /**
      * Every year a player can read, oldest first: each run the calendar has had, every year the player
-     * holds a tally for, and the run on now. None while the first run is still ahead.
+     * holds a tally for, and the run on now, each with the runs attended in it. None while the first run is
+     * still ahead.
      */
     @Nonnull
     static List<YearChip> years(@Nonnull Season season, @Nonnull Timing timing, @Nonnull Dates dates,
@@ -488,8 +497,9 @@ public final class AlmanacView {
         }
         List<YearChip> out = new ArrayList<>();
         for (int year : years) {
+            int runs = (int) Math.min(Integer.MAX_VALUE, AlmanacKeys.runsAttended(tallies, season.eventId(), year));
             out.add(new YearChip(year, liveYear != null && year == liveYear, tookPart.contains(year),
-                    keepsakeYearsEarned.contains(year)));
+                    keepsakeYearsEarned.contains(year), runs));
         }
         return List.copyOf(out);
     }
