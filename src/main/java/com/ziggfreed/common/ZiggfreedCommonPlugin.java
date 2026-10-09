@@ -86,6 +86,7 @@ import com.ziggfreed.common.ui.hud.panel.HudSpotAsset;
 import com.ziggfreed.common.ui.hud.panel.HudSpotConfig;
 import com.ziggfreed.common.ui.hud.command.ZigHudCommand;
 import com.ziggfreed.common.ui.menu.command.ZigMenuCommand;
+import com.ziggfreed.common.ui.spike.SpikeCommand;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.world.placed.PlacedBlockBootstrap;
 import com.ziggfreed.common.world.stash.BlockStashBootstrap;
@@ -451,6 +452,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
     private void registerMenu() {
         try {
             getCommandRegistry().registerCommand(new ZigMenuCommand());
+            getCommandRegistry().registerCommand(new SpikeCommand());
         } catch (Throwable t) {
             SafeLog.warn("[menu] /ziggui could not be registered", t);
         }

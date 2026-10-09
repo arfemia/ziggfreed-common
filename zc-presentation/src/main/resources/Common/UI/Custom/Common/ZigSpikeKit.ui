@@ -1,0 +1,29 @@
+$C = "../Common.ui";
+$ZT = "ZigType.ui";
+
+// The /zigspike bench's shared document (com.ziggfreed.common.ui.spike.SpikePage), on the spike branch only.
+// Pages/ZigSpikeRow.ui imports it, so a style referenced here by Value.ref lives in a document the appended row
+// imports rather than in the row itself. The glyph textures below are written relative to THIS document
+// ("Glyphs/Spike.png" is Common/Glyphs/Spike.png) and drawn from a Pages/ document, the way vanilla's Common.ui
+// @Panel writes "Common/ContainerFullPatch.png" and every page draws it.
+
+@SpikeRowLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontBody, TextColor: #d6e4ee, RenderBold: true, VerticalAlignment: Center);
+
+@SpikeSharedSelectedStyle = (
+  Default: (Background: (Color: #4274a5)),
+  Hovered: (Background: (Color: #4274a5)),
+  Pressed: (Background: (Color: #4274a5)),
+  Sounds: $C.@ButtonSounds
+);
+
+@SpikeGlyphWhite = PatchStyle(TexturePath: "Glyphs/Spike.png");
+@SpikeGlyphGold = PatchStyle(TexturePath: "Glyphs/Spike.png", Color: #e8a93b);
+@SpikeGlyphGreen = PatchStyle(TexturePath: "Glyphs/Spike.png", Color: #7fc893);
+@SpikeGlyphSteel = PatchStyle(TexturePath: "Glyphs/Spike.png", Color: #7a9cc6);
+
+@SpikeGlyph = Group {
+  @Size = 20;
+  @Glyph = @SpikeGlyphWhite;
+  Anchor: (Width: @Size, Height: @Size, Right: 12);
+  Background: @Glyph;
+};

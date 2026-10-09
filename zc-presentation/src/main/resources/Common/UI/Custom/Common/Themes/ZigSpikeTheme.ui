@@ -1,0 +1,12 @@
+$C = "../../Common.ui";
+
+// A theme document no page imports or appends, on the spike branch only: the /zigspike bench
+// (com.ziggfreed.common.ui.spike.SpikePage) swaps a row onto this style by Value.ref to learn whether the client
+// resolves a reference into a document nothing on screen loaded. Red, so the swap cannot be mistaken.
+
+@SpikeThemeRowStyle = (
+  Default: (Background: (Color: #b04a4a)),
+  Hovered: (Background: (Color: #b04a4a)),
+  Pressed: (Background: (Color: #b04a4a)),
+  Sounds: $C.@ButtonSounds
+);

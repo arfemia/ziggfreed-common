@@ -1,0 +1,45 @@
+$C = "../Common.ui";
+$SK = "../Common/ZigSpikeKit.ui";
+
+// One row of the /zigspike bench (com.ziggfreed.common.ui.spike.SpikePage), on the spike branch only. The page
+// appends it per row and swaps #Select's style by Value.ref onto the two styles below (the row's own document),
+// onto ZigSpikeKit.ui's (a document this row imports) and onto Themes/ZigSpikeTheme.ui's (a document nothing
+// imports). #Rows takes rows appended into it in a later partial update, the way a list section opens.
+// The two styles are vanilla's World Event list row (Pages/WorldEvent/WorldEventListRow.ui), Sounds included.
+
+@SpikeRowStyle = (
+  Default: (Background: (Color: #101925(0.55))),
+  Hovered: (Background: (Color: #132033(0.8))),
+  Pressed: (Background: (Color: #182a40(0.9))),
+  Sounds: $C.@ButtonSounds
+);
+
+@SpikeRowSelectedStyle = (
+  Default: (Background: (Color: #4274a5)),
+  Hovered: (Background: (Color: #4274a5)),
+  Pressed: (Background: (Color: #4274a5)),
+  Sounds: $C.@ButtonSounds
+);
+
+Group #SpikeRow {
+  LayoutMode: Top;
+  Anchor: (Bottom: 4);
+
+  Button #Select {
+    Anchor: (Height: 36);
+    LayoutMode: Left;
+    Padding: (Horizontal: 10);
+    Style: @SpikeRowStyle;
+
+    Label #Label {
+      FlexWeight: 1;
+      Text: "";
+      Style: $SK.@SpikeRowLabelStyle;
+    }
+  }
+
+  Group #Rows {
+    LayoutMode: Top;
+    Padding: (Left: 24);
+  }
+}

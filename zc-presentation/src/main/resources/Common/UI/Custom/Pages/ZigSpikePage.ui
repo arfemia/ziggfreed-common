@@ -1,0 +1,490 @@
+$C = "../Common.ui";
+$F = "../Common/ZigFrames.ui";
+$Z = "../Common/ZigButtons.ui";
+$ZT = "../Common/ZigType.ui";
+$SK = "../Common/ZigSpikeKit.ui";
+
+// The /zigspike bench (com.ziggfreed.common.ui.spike.SpikePage), on the spike branch only: one panel per
+// mechanism the redesign's kit relies on, each captioned with what a pass looks like. The build paints only
+// proven pushes; every unproven push sits behind its own button, and #Status echoes each press in the same
+// update, so an echo with no visible change is a fail. Every element type and property here appears in a
+// vanilla document (the Java names each source).
+
+@SpikeHeadStyle = LabelStyle(FontSize: $ZT.@ZigFontHeading, TextColor: #d6e4ee, RenderBold: true, VerticalAlignment: Center);
+@SpikePassStyle = LabelStyle(FontSize: $ZT.@ZigFontCaption, TextColor: #96a9be, Wrap: true);
+@SpikeBodyStyle = LabelStyle(FontSize: $ZT.@ZigFontBody, TextColor: #b6c9de, VerticalAlignment: Center);
+@SpikeBtnLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontBody, TextColor: #ffffff, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+
+// A label's two state-word styles; the second is applied by Value.ref onto #ToneWord.Style.
+@SpikeWordStyle = (FontSize: $ZT.@ZigFontCaption, TextColor: #7a9cc6, RenderBold: true, RenderUppercase: true, VerticalAlignment: Center);
+@SpikeWordDoneStyle = (FontSize: $ZT.@ZigFontCaption, TextColor: #7fc893, RenderBold: true, RenderUppercase: true, VerticalAlignment: Center);
+
+// The hero title: the headline face, uppercase, at the hero size the type scale is about to gain (28).
+@SpikeHeroTitleStyle = (FontSize: 28, FontName: "Secondary", RenderUppercase: true, RenderBold: true, TextColor: #ffffff, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: $ZT.@ZigFontTitle);
+
+// The Memories tile textures, reached from this document's folder (Pages/Memories/Tiles/).
+@SpikeTileStyle = (
+  Default: (Background: (TexturePath: "Memories/Tiles/TileDefault.png", Border: 8)),
+  Hovered: (Background: (TexturePath: "Memories/Tiles/TileHovered.png", Border: 8)),
+  Pressed: (Background: (TexturePath: "Memories/Tiles/TileHovered.png", Border: 8)),
+  Sounds: $C.@ButtonSounds
+);
+
+@SpikeTileCompleteStyle = (
+  Default: (Background: (TexturePath: "Memories/Tiles/TileComplete.png", Border: 8)),
+  Hovered: (Background: (TexturePath: "Memories/Tiles/TileComplete.png", Border: 8, Color: #ffffff(0.8))),
+  Pressed: (Background: (TexturePath: "Memories/Tiles/TileComplete.png", Border: 8, Color: #ffffff(0.8))),
+  Sounds: $C.@ButtonSounds
+);
+
+@SpikeSegStyle = (
+  Default: (Background: (Color: #101925(0.55))),
+  Hovered: (Background: (Color: #132033(0.8))),
+  Pressed: (Background: (Color: #182a40(0.9))),
+  Sounds: $C.@ButtonSounds
+);
+
+// An action button with a Disabled state, toggled from Java by .Disabled.
+@SpikeActionStyle = (
+  Default: (Background: (Color: #4f9e63)),
+  Hovered: (Background: (Color: #5fae73)),
+  Pressed: (Background: (Color: #3f8e53)),
+  Disabled: (Background: (Color: #3a4553)),
+  Sounds: $C.@ButtonSounds
+);
+
+@SpikeLineStyle = LabelStyle(FontSize: $ZT.@ZigFontEmphasis, TextColor: #d6e4ee, RenderBold: true, VerticalAlignment: Center, Wrap: true, WrapMaxLines: 1);
+@SpikeSegLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontBody, TextColor: #d6e4ee, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: $ZT.@ZigFontCaption);
+
+@SpikePanel = Group {
+  LayoutMode: Top;
+  Anchor: (Bottom: 10);
+  Padding: (Full: 10);
+  Background: (Color: #000000(0.2));
+};
+
+@SpikeBtn = Button {
+  @Text = "";
+  @Width = 220;
+  Anchor: (Width: @Width, Height: 32, Right: 8);
+  LayoutMode: Left;
+  Padding: (Horizontal: 8);
+  Style: $Z.@ZigRichPrimaryBtnStyle;
+
+  Label #Label {
+    FlexWeight: 1;
+    Text: @Text;
+    Style: @SpikeBtnLabelStyle;
+  }
+};
+
+@SpikePic = Group {
+  @Size = 32;
+  Anchor: (Width: @Size, Height: @Size, Right: 16);
+
+  AssetImage #IcoTex {
+    Anchor: (Width: @Size, Height: @Size);
+    Visible: false;
+    FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png";
+  }
+};
+
+@SpikePill = Group {
+  @Text = "";
+  LayoutMode: Left;
+  Anchor: (Height: 24, Right: 12);
+  Padding: (Horizontal: 10);
+  Background: (Color: #0a1119(0.8));
+
+  Label #Label {
+    Text: @Text;
+    Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #7fc893, RenderBold: true, RenderUppercase: true, VerticalAlignment: Center);
+  }
+};
+
+@SpikeTile = Group {
+  @Text = "";
+  Anchor: (Width: 216, Height: 44, Right: 8, Bottom: 8);
+  Background: (Color: #101925(0.8));
+
+  Label {
+    Padding: (Left: 10);
+    Text: @Text;
+    Style: @SpikeBodyStyle;
+  }
+};
+
+$C.@PageOverlay {}
+$F.@ZigDecoratedFrame {
+  @CloseButton = true;
+  Anchor: (Width: 1080, Height: 920);
+
+  #Content {
+    Label {
+      Anchor: (Height: 30, Bottom: 2);
+      Text: "Redesign spike bench";
+      Style: (FontSize: $ZT.@ZigFontTitle, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center);
+    }
+
+    Label #Status {
+      Anchor: (Height: 22, Bottom: 8);
+      Text: "Work down the panels in order. This line echoes every press.";
+      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e8a93b, RenderBold: true, VerticalAlignment: Center);
+    }
+
+    Group #Bench {
+      FlexWeight: 1;
+      LayoutMode: TopScrolling;
+      ScrollbarStyle: $C.@DefaultScrollbarStyle;
+      Padding: (Right: 10);
+
+      @SpikePanel {
+        Label { Anchor: (Height: 24); Text: "SP1a, SP1b, SP1c - a row style swapped by reference"; Style: @SpikeHeadStyle; }
+        Label { Anchor: (Bottom: 4); Text: "SP1a: press Select row 1, then Select row 2. Pass: row 1 turns steel blue; then row 2 turns steel blue and row 1 goes back to dark."; Style: @SpikePassStyle; }
+        Label { Anchor: (Bottom: 4); Text: "SP1b: press Row 3 shared. Pass: row 3 turns the same steel blue, from a style in a document the row imports."; Style: @SpikePassStyle; }
+        Label { Anchor: (Bottom: 8); Text: "SP1c: press Row 4 theme. Pass: row 4 turns red, from a theme document nothing on screen loaded."; Style: @SpikePassStyle; }
+        Group #SelRows { LayoutMode: Top; Anchor: (Width: 420, Bottom: 8); }
+        Group {
+          LayoutMode: Left;
+          Anchor: (Height: 32);
+          @SpikeBtn #BtnRowOne { @Text = "SP1a Select row 1"; }
+          @SpikeBtn #BtnRowTwo { @Text = "SP1a Select row 2"; }
+          @SpikeBtn #BtnRowThree { @Text = "SP1b Row 3 shared"; }
+          @SpikeBtn #BtnRowFour { @Text = "SP1c Row 4 theme"; }
+        }
+      }
+
+      @SpikePanel {
+        Label { Anchor: (Height: 24); Text: "SP1d - a label style swapped by reference"; Style: @SpikeHeadStyle; }
+        Label { Anchor: (Bottom: 8); Text: "Press Tone the word. Pass: IN PROGRESS turns green."; Style: @SpikePassStyle; }
+        Group {
+          LayoutMode: Left;
+          Anchor: (Height: 32);
+          Label #ToneWord { Anchor: (Width: 160); Text: "In progress"; Style: @SpikeWordStyle; }
+          @SpikeBtn #BtnTone { @Text = "SP1d Tone the word"; }
+        }
+      }
+
+      @SpikePanel {
+        Label { Anchor: (Height: 24); Text: "SP2 - an item picture as its own icon texture"; Style: @SpikeHeadStyle; }
+        Label { Anchor: (Bottom: 8); Text: "No button. The Mithril axe at 20, 28, 32, 40, 48, 64 and 96. Pass: every size draws, hovering shows no tooltip, no rarity square behind it. Say whether 96 looks acceptable."; Style: @SpikePassStyle; }
+        Group {
+          LayoutMode: Left;
+          Anchor: (Height: 96);
+          @SpikePic #PicA { @Size = 20; }
+          @SpikePic #PicB { @Size = 28; }
+          @SpikePic #PicC { @Size = 32; }
+          @SpikePic #PicD { @Size = 40; }
+          @SpikePic #PicE { @Size = 48; }
+          @SpikePic #PicF { @Size = 64; }
+          @SpikePic #PicG { @Size = 96; }
+        }
+      }
+
+      @SpikePanel {
+        Label { Anchor: (Height: 24); Text: "SP2b - a reward grid without its rarity square"; Style: @SpikeHeadStyle; }
+        Label { Anchor: (Bottom: 8); Text: "No button. Pass: the left grid shows the purple rarity square, the right one does not, and hovering either shows the item tooltip."; Style: @SpikePassStyle; }
+        Group {
+          LayoutMode: Left;
+          Anchor: (Height: 28);
+          ItemGrid #GridPlain {
+            Anchor: (Width: 28, Height: 28, Right: 8);
+            SlotsPerRow: 1;
+            AreItemsDraggable: false;
+            DisplayItemQuantity: false;
+            Style: $Z.@ZigIconGrid28;
+          }
+          Label { Anchor: (Width: 200, Right: 24); Text: "As today"; Style: @SpikeBodyStyle; }
+          ItemGrid #GridSkip {
+            Anchor: (Width: 28, Height: 28, Right: 8);
+            SlotsPerRow: 1;
+            AreItemsDraggable: false;
+            DisplayItemQuantity: false;
+            Style: $Z.@ZigIconGrid28;
+          }
+          Label { Anchor: (Width: 300); Text: "Rarity square skipped"; Style: @SpikeBodyStyle; }
+        }
+      }
+
+      @SpikePanel {
+        Label { Anchor: (Height: 24); Text: "SP3 - a pill that sizes to its text"; Style: @SpikeHeadStyle; }
+        Label { Anchor: (Bottom: 8); Text: "No button. Pass: each dark pill hugs its own words with a little padding, neither stretched across the row nor cut off."; Style: @SpikePassStyle; }
+        Group {
+          LayoutMode: Left;
+          Anchor: (Height: 24);
+          @SpikePill { @Text = "Done"; }
+          @SpikePill { @Text = "On now - 27 days left"; }
+        }
+      }
+
+      @SpikePanel {
+        Label { Anchor: (Height: 24); Text: "SP4 - tiles that wrap onto rows"; Style: @SpikeHeadStyle; }
+        Label { Anchor: (Bottom: 8); Text: "No button. Nine tiles in a 906-wide box. Pass: four per row, left aligned: 4, 4, then 1."; Style: @SpikePassStyle; }
+        Group {
+          LayoutMode: LeftWrap;
+          Anchor: (Width: 906, Height: 160);
+          Background: (Color: #000000(0.25));
+          @SpikeTile { @Text = "Tile 1"; }
+          @SpikeTile { @Text = "Tile 2"; }
+          @SpikeTile { @Text = "Tile 3"; }
+          @SpikeTile { @Text = "Tile 4"; }
+          @SpikeTile { @Text = "Tile 5"; }
+          @SpikeTile { @Text = "Tile 6"; }
+          @SpikeTile { @Text = "Tile 7"; }
+          @SpikeTile { @Text = "Tile 8"; }
+          @SpikeTile { @Text = "Tile 9"; }
+        }
+      }
+
+      @SpikePanel {
+        Label { Anchor: (Height: 24); Text: "SP5 - a marker placed by a whole Anchor"; Style: @SpikeHeadStyle; }
+        Label { Anchor: (Bottom: 8); Text: "Press Move marker a few times. Pass: the gold marker jumps right along the bar each press and wraps back to the start."; Style: @SpikePassStyle; }
+        Group #MarkerTrack {
+          Anchor: (Width: 600, Height: 20, Bottom: 8);
+          Background: (Color: #101925(0.8));
+        }
+        Group {
+          LayoutMode: Left;
+          Anchor: (Height: 32);
+          @SpikeBtn #BtnMarker { @Text = "SP5 Move marker"; }
+        }
+      }
+
+      @SpikePanel {
+        Label { Anchor: (Height: 24); Text: "SP6 - a command on an id the page lacks"; Style: @SpikeHeadStyle; }
+        Label { Anchor: (Bottom: 4); Text: "No button: settled from the client itself. Such a command fails the whole update and drops the player, so every id the kit sets must exist in its template."; Style: @SpikePassStyle; }
+      }
+
+      @SpikePanel {
+        Label { Anchor: (Height: 24); Text: "SP7 - rows added to an open section and clickable"; Style: @SpikeHeadStyle; }
+        Label { Anchor: (Bottom: 8); Text: "Press Open section, then click each new row. Pass: three rows appear under Section B, and each click names its row on the orange line at the top."; Style: @SpikePassStyle; }
+        Group #SecList { LayoutMode: Top; Anchor: (Width: 420, Bottom: 8); }
+        Group {
+          LayoutMode: Left;
+          Anchor: (Height: 32);
+          @SpikeBtn #BtnOpen { @Text = "SP7 Open section"; }
+        }
+      }
+
+      @SpikePanel {
+        Label { Anchor: (Height: 24); Text: "SP8 - zc glyphs tinted, and a picture with a bad path"; Style: @SpikeHeadStyle; }
+        Label { Anchor: (Bottom: 4); Text: "No button for the glyphs: pins at 16 then 20 in gold, green and steel, then a white 20. Pass: crisp edges and the right tints, no red X."; Style: @SpikePassStyle; }
+        Label { Anchor: (Bottom: 8); Text: "Then press Break the picture path. Pass: the axe on the left turns into a white pin, its fallback, not a red X and not empty."; Style: @SpikePassStyle; }
+        Group {
+          LayoutMode: Left;
+          Anchor: (Height: 20, Bottom: 8);
+          $SK.@SpikeGlyph { @Size = 16; @Glyph = $SK.@SpikeGlyphGold; }
+          $SK.@SpikeGlyph { @Size = 16; @Glyph = $SK.@SpikeGlyphGreen; }
+          $SK.@SpikeGlyph { @Size = 16; @Glyph = $SK.@SpikeGlyphSteel; }
+          $SK.@SpikeGlyph { @Size = 20; @Glyph = $SK.@SpikeGlyphGold; }
+          $SK.@SpikeGlyph { @Size = 20; @Glyph = $SK.@SpikeGlyphGreen; }
+          $SK.@SpikeGlyph { @Size = 20; @Glyph = $SK.@SpikeGlyphSteel; }
+          $SK.@SpikeGlyph { @Size = 20; }
+        }
+        Group {
+          LayoutMode: Left;
+          Anchor: (Height: 40);
+          Group #BadPic {
+            Anchor: (Width: 40, Height: 40, Right: 16);
+
+            AssetImage #IcoTex {
+              Anchor: (Width: 40, Height: 40);
+              Visible: false;
+              FallbackTexturePath: "UI/Custom/Common/Glyphs/Spike.png";
+            }
+          }
+          @SpikeBtn #BtnBadPic { @Text = "SP8 Break the picture path"; @Width = 280; }
+        }
+      }
+
+      @SpikePanel {
+        Label { Anchor: (Height: 24); Text: "SP9 - the Memories tile textures"; Style: @SpikeHeadStyle; }
+        Label { Anchor: (Bottom: 8); Text: "No button: hover each tile. Pass: both tiles are textured like the Memories page; the left one lightens on hover; the right one shows the completed look."; Style: @SpikePassStyle; }
+        Group {
+          LayoutMode: Left;
+          Anchor: (Height: 128);
+          Button #TileOpen {
+            Anchor: (Width: 196, Height: 128, Right: 16);
+            Style: @SpikeTileStyle;
+            Label { Text: "In progress"; Style: (...@SpikeBodyStyle, HorizontalAlignment: Center); }
+          }
+          Button #TileDone {
+            Anchor: (Width: 196, Height: 128);
+            Style: @SpikeTileCompleteStyle;
+            Label { Text: "Complete"; Style: (...@SpikeBodyStyle, HorizontalAlignment: Center); }
+          }
+        }
+      }
+
+      @SpikePanel {
+        Label { Anchor: (Height: 24); Text: "SP10 - long German and Russian text"; Style: @SpikeHeadStyle; }
+        Label { Anchor: (Bottom: 8); Text: "No button. Pass: the two 332-wide titles stay on one line and end in three dots; the two 132-wide buttons shrink their words to fit, never smaller than the captions on this page."; Style: @SpikePassStyle; }
+        Group {
+          Anchor: (Width: 332, Height: 24, Bottom: 4);
+          Background: (Color: #101925(0.8));
+          Label #TitleDe { Text: ""; Style: @SpikeLineStyle; }
+        }
+        Group {
+          Anchor: (Width: 332, Height: 24, Bottom: 8);
+          Background: (Color: #101925(0.8));
+          Label #TitleRu { Text: ""; Style: @SpikeLineStyle; }
+        }
+        Group {
+          LayoutMode: Left;
+          Anchor: (Height: 32);
+          Button #SegDe {
+            Anchor: (Width: 132, Height: 32, Right: 8);
+            Style: @SpikeSegStyle;
+            Label #Label { Text: ""; Style: @SpikeSegLabelStyle; }
+          }
+          Button #SegRu {
+            Anchor: (Width: 132, Height: 32);
+            Style: @SpikeSegStyle;
+            Label #Label { Text: ""; Style: @SpikeSegLabelStyle; }
+          }
+        }
+      }
+
+      @SpikePanel {
+        Label { Anchor: (Height: 24); Text: "SP11 - the headline face"; Style: @SpikeHeadStyle; }
+        Label { Anchor: (Bottom: 8); Text: "No button. Pass: the first two lines are in the game's headline font, uppercase, at 28 and 15; the third is the ordinary bold font for comparison."; Style: @SpikePassStyle; }
+        Label { Anchor: (Height: 40); Text: "Hallow's Eve"; Style: @SpikeHeroTitleStyle; }
+        Label { Anchor: (Height: 24); Text: "Seasons and feats"; Style: (FontSize: $ZT.@ZigFontEmphasis, FontName: "Secondary", RenderUppercase: true, RenderBold: true, TextColor: #d6e4ee, VerticalAlignment: Center); }
+        Label { Anchor: (Height: 24); Text: "Hallow's Eve"; Style: (FontSize: $ZT.@ZigFontEmphasis, RenderBold: true, TextColor: #d6e4ee, VerticalAlignment: Center); }
+      }
+
+      @SpikePanel {
+        Label { Anchor: (Height: 24); Text: "SP12 - a completion ring filled from the server"; Style: @SpikeHeadStyle; }
+        Label { Anchor: (Bottom: 8); Text: "Press Fill the ring. Pass: the empty ring fills gold to about six tenths."; Style: @SpikePassStyle; }
+        Group {
+          LayoutMode: Left;
+          Anchor: (Height: 64);
+          $C.@CircularProgressBar #Ring {
+            @Size = 64;
+            @Anchor = (Right: 16);
+            Value: 0.0;
+            Color: #e8a93b;
+          }
+          @SpikeBtn #BtnRing { @Text = "SP12 Fill the ring"; }
+        }
+      }
+
+      @SpikePanel {
+        Label { Anchor: (Height: 24); Text: "SP13 - a tooltip set from the server"; Style: @SpikeHeadStyle; }
+        Label { Anchor: (Bottom: 8); Text: "Press Set the tooltips, then hover the grey button and the blue box. Pass: the button shows +1,234 and the box shows Open your menu of quests, achievements and more. A placeholder in braces or no tooltip is a fail."; Style: @SpikePassStyle; }
+        Group {
+          LayoutMode: Left;
+          Anchor: (Height: 40);
+          Button #TipBtn {
+            Anchor: (Width: 220, Height: 40, Right: 16);
+            LayoutMode: Left;
+            Padding: (Horizontal: 8);
+            Style: $Z.@ZigRichRowBtnStyle;
+            TextTooltipStyle: $C.@DefaultTextTooltipStyle;
+            Label #Label { FlexWeight: 1; Text: "Hover this button"; Style: @SpikeBtnLabelStyle; }
+          }
+          Group #TipBox {
+            Anchor: (Width: 160, Height: 40, Right: 16);
+            Background: (Color: #4274a5);
+            TextTooltipStyle: $C.@DefaultTextTooltipStyle;
+          }
+          @SpikeBtn #BtnTips { @Text = "SP13 Set the tooltips"; }
+        }
+      }
+
+      @SpikePanel {
+        Label { Anchor: (Height: 24); Text: "SP14 - the hero: art, fade, picture and text stacked"; Style: @SpikeHeadStyle; }
+        Label { Anchor: (Bottom: 8); Text: "No button. Pass: a dark plate with softly darker edges fills the box; the bottom darkens under a fade; the title, pill and dates sit over it at the bottom left; the axe sits top right; a gold strip runs along the bottom."; Style: @SpikePassStyle; }
+        Group #Hero {
+          Anchor: (Width: 962, Height: 240);
+
+          AssetImage #HeroArt {
+            Anchor: (Left: 0, Top: 0, Width: 962, Height: 240);
+            FallbackTexturePath: "UI/Custom/Common/ZigHeroPlate.png";
+          }
+
+          Group #HeroFade {
+            Anchor: (Left: 0, Bottom: 0, Width: 962, Height: 140);
+            Background: "../Common/ZigHeroFade.png";
+          }
+
+          Group #HeroPic {
+            Anchor: (Right: 48, Top: 40, Width: 64, Height: 64);
+
+            AssetImage #IcoTex {
+              Anchor: (Width: 64, Height: 64);
+              Visible: false;
+              FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png";
+            }
+          }
+
+          Group #HeroText {
+            LayoutMode: Top;
+            Anchor: (Left: 28, Bottom: 24, Width: 700, Height: 96);
+
+            Group {
+              LayoutMode: Left;
+              Anchor: (Height: 24, Bottom: 6);
+              @SpikePill { @Text = "On now - 27 days left"; }
+            }
+            Label { Anchor: (Height: 40); Text: "Hallow's Eve"; Style: @SpikeHeroTitleStyle; }
+            Label { Anchor: (Height: 22); Text: "Every year, October 1 to November 3"; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #d6e4ee, VerticalAlignment: Center); }
+          }
+
+          Group #HeroAccent {
+            Anchor: (Left: 0, Bottom: 0, Width: 962, Height: 4);
+            Background: (Color: #e8a93b);
+          }
+        }
+      }
+
+      @SpikePanel {
+        Label { Anchor: (Height: 24); Text: "SP16 - a generated hero: a tinted sky, a glow and item pictures on a plate"; Style: @SpikeHeadStyle; }
+        Label { Anchor: (Bottom: 4); Text: "Press Compose the plate. Pass: six item pictures appear, each at its own position and size, two at 128, two at 96, one at 64 and one at 48; crisp enough at 96 and 128; none cut off at the plate's edges; hovering shows no tooltip."; Style: @SpikePassStyle; }
+        Label { Anchor: (Bottom: 8); Text: "Also: the sky fades from deep navy at the top to plum at the bottom, a warm orange halo sits behind the two lanterns on the right, and NOTHING of the halo shows outside the plate, neither over this text nor over the button below. If it spills, the client does not clip children."; Style: @SpikePassStyle; }
+        Group #GenPlate {
+          Anchor: (Width: 962, Height: 240, Bottom: 8);
+          Background: (Color: #24364d);
+
+          Group #GenSky {
+            Anchor: (Left: 0, Top: 0, Width: 962, Height: 240);
+            Background: (TexturePath: "../Common/Kit/HeroGradient.png", Color: #ffffff);
+            Visible: false;
+          }
+
+          Group #GenGlow {
+            Anchor: (Left: 0, Top: 0, Width: 400, Height: 400);
+            Background: (TexturePath: "../Common/Kit/HeroGlow.png", Color: #ffffff);
+            Visible: false;
+          }
+
+          Group #GenIcons {
+            Anchor: (Left: 0, Top: 0, Width: 962, Height: 240);
+          }
+        }
+        Group {
+          LayoutMode: Left;
+          Anchor: (Height: 32);
+          @SpikeBtn #BtnCompose { @Text = "SP16 Compose the plate"; @Width = 260; }
+        }
+      }
+
+      @SpikePanel {
+        Label { Anchor: (Height: 24); Text: "SP15 - an action button disabled from the server"; Style: @SpikeHeadStyle; }
+        Label { Anchor: (Bottom: 8); Text: "Click Collect once (the orange line answers), press Disable or enable, then click Collect again. Pass: Collect greys out and its click no longer answers; a second press enables it again."; Style: @SpikePassStyle; }
+        Group {
+          LayoutMode: Left;
+          Anchor: (Height: 40);
+          Button #CollectBtn {
+            Anchor: (Width: 160, Height: 40, Right: 16);
+            LayoutMode: Left;
+            Padding: (Horizontal: 8);
+            Style: @SpikeActionStyle;
+            Label #Label { FlexWeight: 1; Text: "Collect"; Style: @SpikeBtnLabelStyle; }
+          }
+          @SpikeBtn #BtnDisable { @Text = "SP15 Disable or enable"; @Width = 260; }
+        }
+      }
+    }
+  }
+}
