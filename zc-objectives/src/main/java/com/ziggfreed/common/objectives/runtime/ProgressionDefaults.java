@@ -56,6 +56,7 @@ import com.ziggfreed.common.objectives.store.ProgressSubjects;
 import com.ziggfreed.common.objectives.store.ZigAchievementStore;
 import com.ziggfreed.common.objectives.store.ZigProgressComponent;
 import com.ziggfreed.common.objectives.store.ZigQuestStore;
+import com.ziggfreed.common.objectives.waypoint.QuestWaypoints;
 import com.ziggfreed.common.progress.ContentText;
 import com.ziggfreed.common.progress.gate.GateEvaluator;
 import com.ziggfreed.common.progress.runtime.ProgressionGates;
@@ -225,6 +226,7 @@ public final class ProgressionDefaults {
                 + " needed)");
         TrackedQuestHuds.install(plugin);
         QuestMarkers.install(plugin);
+        QuestWaypoints.install(plugin);
     }
 
     /**

@@ -193,3 +193,6 @@ book.achievements.state.progress = En curso
 book.achievements.state.collect = Recoger
 book.achievements.state.feat = Gesta
 book.tooltip.unpin = Desfija este logro
+
+# The hover line on the map marker at a character with a quest the player could take; {0} is the quest's title.
+quest.marker.available = Misión disponible: {0}

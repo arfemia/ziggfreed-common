@@ -193,3 +193,6 @@ book.achievements.state.progress = Em andamento
 book.achievements.state.collect = Receber
 book.achievements.state.feat = Façanha
 book.tooltip.unpin = Desafixe esta conquista
+
+# The hover line on the map marker at a character with a quest the player could take; {0} is the quest's title.
+quest.marker.available = Missão disponível: {0}

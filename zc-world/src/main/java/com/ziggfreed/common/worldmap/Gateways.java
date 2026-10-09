@@ -21,6 +21,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.meta.state.BlockMapMarker;
 import com.hypixel.hytale.server.core.universe.world.meta.state.BlockMapMarkersResource;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
+import com.ziggfreed.common.cast.WorldEvictors;
 import com.ziggfreed.common.codec.Vec3;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.world.WorldSelector;
@@ -44,6 +45,12 @@ public final class Gateways {
 
     /** Block ids already reported as drawing no map marker, so the log says so once per id. */
     private static final Set<String> MARKERLESS_REPORTED = ConcurrentHashMap.newKeySet();
+
+    static {
+        // A removed world takes what was indexed of it along, so the index never outlives its worlds;
+        // a world that comes back under the same name is indexed afresh on its next use.
+        WorldEvictors.registerEvictor(world -> forget(world.getName()));
+    }
 
     private Gateways() {
     }
@@ -196,7 +203,7 @@ public final class Gateways {
         return here == null ? List.of() : here.getOrDefault(gatewayId.toLowerCase(Locale.ROOT), List.of());
     }
 
-    /** Forget a world (it was removed). */
+    /** Forget a world (it was removed: wired to {@link WorldEvictors}, so no caller need do it). */
     public static void forget(@Nonnull String worldName) {
         INDEX.remove(worldName.toLowerCase(Locale.ROOT));
     }

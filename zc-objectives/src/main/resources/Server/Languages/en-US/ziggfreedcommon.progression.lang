@@ -207,3 +207,6 @@ book.achievements.state.progress = In progress
 book.achievements.state.collect = Collect
 book.achievements.state.feat = Feat
 book.tooltip.unpin = Unpin this achievement
+
+# The hover line on the map marker at a character with a quest the player could take; {0} is the quest's title.
+quest.marker.available = Quest on offer: {0}

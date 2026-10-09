@@ -193,3 +193,6 @@ book.achievements.state.progress = Devam ediyor
 book.achievements.state.collect = Al
 book.achievements.state.feat = Güç Gösterisi
 book.tooltip.unpin = Bu başarımın sabitlemesini kaldır
+
+# The hover line on the map marker at a character with a quest the player could take; {0} is the quest's title.
+quest.marker.available = Sunulan görev: {0}
