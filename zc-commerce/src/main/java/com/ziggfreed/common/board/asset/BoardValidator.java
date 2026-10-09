@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -43,6 +44,9 @@ import com.ziggfreed.common.world.WhereValidator;
  * is impossible whatever anybody installs - a board with no contracts, a required slot no band can fill -
  * is an error. An {@code Optional} slot no contract fills is a note (INFO): a mod this server does not
  * run may be the one that fills it, which is what {@code Optional} is for.
+ *
+ * <p>An id the mod gate refused is named by no line, as {@link ShopValidator} says: a board's refusals are
+ * read off {@link BoardConfig}, a wallet's through {@link ShopValidator.CurrencyProbe#refused}.
  */
 public final class BoardValidator {
 
@@ -226,7 +230,7 @@ public final class BoardValidator {
 
         if (currencies != null) {
             for (String currencyId : board.currencyIds()) {
-                if (!currencies.defines(currencyId)) {
+                if (!currencies.defines(currencyId) && !currencies.refused(currencyId)) {
                     out.add(Finding.warning(DOMAIN, "UNKNOWN_CURRENCY",
                             "the header lists the wallet '" + currencyId + "', which nothing defines; it shows "
                                     + "as nothing until whichever pack owns it is installed", id));
@@ -281,10 +285,12 @@ public final class BoardValidator {
             }
             BoardAsset board = boards.get(boardId);
             if (board == null) {
-                out.add(Finding.warning(DOMAIN, "UNKNOWN_BOARD",
-                        "Boards names '" + boardId + "', which nothing defines, so this contract is never "
-                                + "posted; it comes back on its own if the pack owning that board is installed",
-                        id));
+                if (!refusedBoard(boardId)) {
+                    out.add(Finding.warning(DOMAIN, "UNKNOWN_BOARD",
+                            "Boards names '" + boardId + "', which nothing defines, so this contract is never "
+                                    + "posted; it comes back on its own if the pack owning that board is installed",
+                            id));
+                }
                 continue;
             }
             String band = membership.getDifficulty();
@@ -408,7 +414,7 @@ public final class BoardValidator {
         CostAsset cost = reroll.getCost();
         if (cost != null && currencies != null) {
             for (String currencyId : cost.currencyAmounts().keySet()) {
-                if (!currencies.defines(currencyId)) {
+                if (!currencies.defines(currencyId) && !currencies.refused(currencyId)) {
                     out.add(Finding.warning(DOMAIN, "MISSING_REROLL_CURRENCY",
                             "the reroll is priced in the wallet '" + currencyId + "', which nothing defines; "
                                     + "nobody can hold it, so no player can ever reroll here", id));
@@ -447,6 +453,15 @@ public final class BoardValidator {
     private static boolean isKnownSelection(@Nonnull String type) {
         return SelectionAsset.TYPE_WEIGHTED_RANDOM.equalsIgnoreCase(type)
                 || SelectionAsset.TYPE_ALL.equalsIgnoreCase(type);
+    }
+
+    /**
+     * Did the mod gate keep the board {@code boardId} off this server on purpose (its pack file, or the
+     * owner's entry for it, gates on a mod this server does not run)? Then it is absent by design and no
+     * line may name it.
+     */
+    private static boolean refusedBoard(@Nonnull String boardId) {
+        return BoardConfig.getInstance().modGateRefused().containsKey(boardId.trim().toLowerCase(Locale.ROOT));
     }
 
     /** Re-file another validator's findings under this domain and this content id. */

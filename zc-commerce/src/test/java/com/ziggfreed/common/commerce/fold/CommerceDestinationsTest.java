@@ -17,8 +17,10 @@ import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.ziggfreed.common.asset.ModGateFold;
 import com.ziggfreed.common.board.asset.BoardConfig;
 import com.ziggfreed.common.shop.asset.ShopConfig;
+import com.ziggfreed.common.shop.asset.StorefrontAsset;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.ui.route.DestinationContext;
 import com.ziggfreed.common.ui.route.Destinations;
@@ -52,7 +54,9 @@ class CommerceDestinationsTest {
     void clear() {
         Destinations.clearForTests();
         ShopConfig.getInstance().mergePackLayer(Map.of());
+        ShopConfig.getInstance().mergeOwnerLayer(Map.of());
         BoardConfig.getInstance().mergePackLayer(Map.of());
+        BoardConfig.getInstance().mergeOwnerLayer(Map.of());
     }
 
     private static Destination decode(String json) throws IOException {
@@ -117,6 +121,22 @@ class CommerceDestinationsTest {
         assertEquals(CommerceDestinations.UNKNOWN_SHOP, shop.get(0).code());
         assertEquals(1, board.size());
         assertEquals(CommerceDestinations.UNKNOWN_BOARD, board.get(0).code());
+    }
+
+    @Test
+    @DisplayName("a storefront or a board the mod gate refused is silent, as no line may name it")
+    void aRefusedIdSaysNothing() {
+        ShopConfig.getInstance().mergePackLayer(new ModGateFold<StorefrontAsset>(ShopConfig.MOD_GATE_STORE,
+                Map.of(), Map.of("test_gated_stall", "Ziggfreed:MMOSkillTree")));
+        BoardConfig.getInstance().mergeOwnerLayer(Map.of(), Map.of("test_gated_board", "Ziggfreed:MMOSkillTree"));
+
+        assertTrue(Destinations.validate(CommerceDestinations.Shop.of("Test_Gated_Stall"), "src").isEmpty(),
+                "a pack file gated on a missing mod is absent on purpose");
+        assertTrue(Destinations.validate(CommerceDestinations.Board.of("Test_Gated_Board"), "src").isEmpty(),
+                "so is an id the owner's own gate took out");
+        assertEquals(CommerceDestinations.UNKNOWN_SHOP,
+                Destinations.validate(CommerceDestinations.Shop.of("Test_Gated_Stal"), "src").get(0).code(),
+                "a misspelt id is still a finding");
     }
 
     @Test

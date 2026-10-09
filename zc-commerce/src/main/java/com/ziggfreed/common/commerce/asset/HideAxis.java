@@ -1,5 +1,8 @@
 package com.ziggfreed.common.commerce.asset;
 
+import java.util.List;
+
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.ziggfreed.common.progress.gate.FeatureLift;
@@ -55,5 +58,15 @@ public final class HideAxis {
     @Nullable
     public static GateSpec lock(@Nullable GateSpec requires) {
         return FeatureLift.liftKnown(requires).requires();
+    }
+
+    /**
+     * The conditions in {@code requires} that HIDE rather than lock, in authored order (feature switches and
+     * mod presence mixed): the same lift {@link #present} reads, for an audit that has to name them. Empty
+     * when nothing is lifted.
+     */
+    @Nonnull
+    public static List<FeatureLift.Lifted> hides(@Nullable GateSpec requires) {
+        return FeatureLift.liftKnown(requires).lifted();
     }
 }
