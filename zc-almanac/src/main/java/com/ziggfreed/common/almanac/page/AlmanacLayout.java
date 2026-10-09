@@ -6,9 +6,9 @@ import com.ziggfreed.common.ui.kit.ZigTokens;
 import com.ziggfreed.common.ui.menu.MenuFrame;
 
 /**
- * The Almanac page's numbers, in one place: {@code Pages/ZigAlmanacPage.ui} spells the same values (a
- * document cannot read a Java constant) and {@code AlmanacPageDocumentTest} holds the two together. The
- * page owns the frame's body beside the rail ({@link MenuFrame#BODY_WIDTH} by the frame's inner height):
+ * The Almanac page's numbers, in one place: {@code Pages/ZigAlmanacPage.ui} and its parts' templates spell the
+ * same values (a document cannot read a Java constant) and {@code AlmanacPageDocumentTest} holds them together.
+ * The page owns the frame's body beside the rail ({@link MenuFrame#BODY_WIDTH} by the frame's inner height):
  * a 300 column on the left (the season list, the year at a glance, the record card), a 12 gap, and a 962
  * column on the right (the 962 x 240 hero over a scrolling body whose content is 906 wide).
  */
@@ -87,6 +87,16 @@ public final class AlmanacLayout {
     public static final int LINK_SLOTS = 4;
     public static final int LINK_WIDTH = 200;
     public static final int LINK_STEP = LINK_WIDTH + 8;
+
+    /**
+     * An inline banner's plate ({@code Pages/ZigAlmanacBanner.ui}'s {@code #Plate}): the body's content width, at its
+     * own height. ({@link #BANNER_HEIGHT} and {@link #BANNER_GAP} are the left column's cross-season card.)
+     */
+    public static final int PLATE_WIDTH = AlmanacView.BANNER_WIDTH;
+
+    /** An item slot (the kit's {@code Pages/ZigItemSlotTile.ui}) with its margin, and how many a row holds. */
+    public static final int ITEM_SLOT_STEP = 88 + 8;
+    public static final int ITEM_SLOTS_PER_ROW = 9;
 
     /**
      * The least width or height a hero glow keeps once it is fitted onto the plate (the client does not clip a

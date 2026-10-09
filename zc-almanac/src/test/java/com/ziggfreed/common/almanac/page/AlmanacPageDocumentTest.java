@@ -33,6 +33,8 @@ import javax.annotation.Nullable;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.hypixel.hytale.protocol.packets.interface_.CustomUICommand;
 import com.hypixel.hytale.protocol.packets.interface_.CustomUICommandType;
 import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBinding;
@@ -40,13 +42,20 @@ import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.ziggfreed.common.almanac.AlmanacText;
 import com.ziggfreed.common.almanac.page.AlmanacDestinations.Almanac;
+import com.ziggfreed.common.almanac.view.AlmanacView;
+import com.ziggfreed.common.almanac.view.AlmanacView.AchievementsSection;
 import com.ziggfreed.common.almanac.view.AlmanacView.Banner;
+import com.ziggfreed.common.almanac.view.AlmanacView.BannerSection;
+import com.ziggfreed.common.almanac.view.AlmanacView.CollectionItem;
+import com.ziggfreed.common.almanac.view.AlmanacView.CollectionSection;
 import com.ziggfreed.common.almanac.view.AlmanacView.Feat;
 import com.ziggfreed.common.almanac.view.AlmanacView.Hero;
 import com.ziggfreed.common.almanac.view.AlmanacView.HeroComposition;
 import com.ziggfreed.common.almanac.view.AlmanacView.HeroGlow;
 import com.ziggfreed.common.almanac.view.AlmanacView.HeroGradient;
 import com.ziggfreed.common.almanac.view.AlmanacView.HeroItem;
+import com.ziggfreed.common.almanac.view.AlmanacView.KeepsakesSection;
+import com.ziggfreed.common.almanac.view.AlmanacView.LinksSection;
 import com.ziggfreed.common.almanac.view.AlmanacView.MonthMarks;
 import com.ziggfreed.common.almanac.view.AlmanacView.Record;
 import com.ziggfreed.common.almanac.view.AlmanacView.Recurring;
@@ -55,6 +64,8 @@ import com.ziggfreed.common.almanac.view.AlmanacView.Season;
 import com.ziggfreed.common.almanac.view.AlmanacView.SeasonAchievements;
 import com.ziggfreed.common.almanac.view.AlmanacView.SeasonLink;
 import com.ziggfreed.common.almanac.view.AlmanacView.SeasonPage;
+import com.ziggfreed.common.almanac.view.AlmanacView.Section;
+import com.ziggfreed.common.almanac.view.AlmanacView.TalliesSection;
 import com.ziggfreed.common.almanac.view.AlmanacView.Tally;
 import com.ziggfreed.common.almanac.view.AlmanacView.Timing;
 import com.ziggfreed.common.almanac.view.AlmanacView.YearChip;
@@ -63,6 +74,7 @@ import com.ziggfreed.common.occurrence.Recurrence;
 import com.ziggfreed.common.ui.icon.IconRenderer;
 import com.ziggfreed.common.ui.kit.KeepsakeState;
 import com.ziggfreed.common.ui.kit.RowSize;
+import com.ziggfreed.common.ui.kit.TilePainter;
 import com.ziggfreed.common.ui.kit.ZigTokens;
 import com.ziggfreed.common.ui.menu.MenuFrame;
 
@@ -71,14 +83,18 @@ import com.ziggfreed.common.ui.menu.MenuFrame;
  * player's store), but what it paints can: {@link AlmanacPage#paint} is driven here with full plans (under the
  * engine's log manager, in {@code engineItemTest}) and every selector it sends is held to the documents it lands
  * in, id by id through the templates it enters, since a command against an id a document lacks disconnects the
- * player. Beside the ids: every picture slot is an {@code AssetImage} (the season list's row
- * included), every text size is a {@code Common/ZigType.ui} step at the floor or above, every colour is a token,
- * and {@link AlmanacLayout} is the document's geometry.
+ * player. The season's body is one host, {@code #Sections}, where the page appends one template per part: a selector
+ * {@code #Sections[i] #Id} resolves inside the template appended at {@code i}. Beside the ids: every picture slot is
+ * an {@code AssetImage} (the season list's row included), every text size is a {@code Common/ZigType.ui} step at the
+ * floor or above, every colour is a token, and {@link AlmanacLayout} is the documents' geometry.
  */
 class AlmanacPageDocumentTest {
 
     private static final String KIT = "Common/ZigKit.ui";
     private static final String FRAMES = "Common/ZigFrames.ui";
+
+    /** A selector into one of the body's parts: the host, then the part's index. */
+    private static final Pattern PART = Pattern.compile(Pattern.quote(AlmanacPage.SECTIONS) + "\\[(\\d+)]");
 
     private static final Pattern FONT_SIZE = Pattern.compile("(?:MinShrinkTextToFitFontSize|FontSize)\\s*:\\s*([^,;)]+)");
     private static final Set<String> STEPS = Set.of("Caption", "Section", "Body", "Emphasis", "Heading", "Subtitle",
@@ -92,8 +108,10 @@ class AlmanacPageDocumentTest {
     /**
      * Every selector the page sends resolves id by id where it lands: its first id is declared in the page document
      * or in the frame it sits in, and each id after it is declared inside the element the path has reached so far,
-     * that element's template included ({@code #Hero #HeroItems} inside {@code @ZigHeroPlate}). An id that exists
-     * only somewhere else in the kit does not count.
+     * that element's template included ({@code #Hero #HeroItems} inside {@code @ZigHeroPlate}). A selector into one
+     * of the body's parts, {@code #Sections[i] ...}, resolves its ids (up to the next index) inside the template
+     * the paint appended to {@code #Sections} at {@code i}, that template's own templates and the kit's entered. An
+     * id that exists only somewhere else in the kit does not count.
      *
      * <p>Tagged {@code engine-items}: a {@link UICommandBuilder}'s static init reaches the engine's item codec.
      */
@@ -103,11 +121,13 @@ class AlmanacPageDocumentTest {
         UiTree tree = new UiTree();
         List<String> missing = new ArrayList<>();
         int checked = 0;
+        int intoParts = 0;
         for (AlmanacPagePlan plan : List.of(fullPlan(composedHero()), fullPlan(artHero()), fullPlan(pictureHero()),
-                fullPlan(pictureHero(), monthly()), emptyPlan())) {
+                fullPlan(pictureHero(), monthly()), composedPlan(), emptyPlan())) {
             UICommandBuilder cmd = new UICommandBuilder();
             UIEventBuilder events = new UIEventBuilder();
             AlmanacPage.paint(cmd, events, plan, null);
+            List<String> parts = appendedTo(cmd, AlmanacPage.SECTIONS);
             List<String> selectors = new ArrayList<>();
             for (CustomUICommand command : cmd.getCommands()) {
                 if (command.selector != null) {
@@ -120,14 +140,18 @@ class AlmanacPageDocumentTest {
                 }
             }
             for (String selector : selectors) {
-                String wrong = tree.unresolved(AlmanacPage.PAGE_TEMPLATE, FRAMES, path(selector));
+                String wrong = unresolved(tree, selector, parts);
                 if (wrong != null) {
                     missing.add(selector + " (" + wrong + ")");
+                }
+                if (PART.matcher(selector).lookingAt()) {
+                    intoParts++;
                 }
                 checked++;
             }
         }
         assertTrue(checked > 0, "the plans paint something to check");
+        assertTrue(intoParts > 0, "the plans paint into the body's parts");
         assertTrue(missing.isEmpty(), "the page sends commands to ids not declared where they land: " + missing);
     }
 
@@ -154,6 +178,87 @@ class AlmanacPageDocumentTest {
                 path("#HeroTitle.TextSpans")), "a template's child is reached through its instance");
         assertEquals("#Marks is not declared in the page or its frame", tree.unresolved(page, FRAMES,
                 path("#Marks")), "twelve months declare one: a first id is the page's own");
+
+        assertEquals(null, tree.unresolvedIn(AlmanacPage.BANNER_TEMPLATE, path("#PlateTitle")),
+                "a part's id, inside the template appended for it");
+        assertEquals(null, tree.unresolvedIn(AlmanacPage.COLLECTION_TEMPLATE, path("#ColHeader #HeadLabel")),
+                "a kit template entered inside a part");
+        assertEquals("#PlateTitle is not declared in " + AlmanacPage.TALLIES_TEMPLATE,
+                tree.unresolvedIn(AlmanacPage.TALLIES_TEMPLATE, path("#PlateTitle")),
+                "a banner's id is not the tallies'");
+        assertEquals("#Sections[2] was never appended", unresolved(tree, "#Sections[2] #PlateTitle.Visible",
+                List.of(AlmanacPage.BANNER_TEMPLATE)), "an index the paint never appended");
+    }
+
+    // ---- the body's parts ----
+
+    /**
+     * The body is one host the page appends a template into per part, in the plan's order; the page document keeps
+     * only the flavor before it, and each part's template is rooted at its own named group.
+     *
+     * <p>Tagged {@code engine-items}: a {@link UICommandBuilder}'s static init reaches the engine's item codec.
+     */
+    @Test
+    @Tag("engine-items")
+    void eachPartIsATemplateTheBodyAppendsInPlanOrder() throws IOException {
+        String ui = document(AlmanacPage.PAGE_TEMPLATE);
+        String body = block(ui, "#SeasonBody");
+        int flavor = body.indexOf("#Flavor");
+        int sections = body.indexOf(AlmanacPage.SECTIONS);
+        assertTrue(flavor > 0 && sections > flavor, "#SeasonBody holds #Sections after #Flavor");
+        assertEquals("Top", property(block(ui, AlmanacPage.SECTIONS), "LayoutMode"));
+        for (String gone : List.of("#YearChips", "#StatGrid", "#KeepsakeShelf", "#AchHeader", "#FeatList", "#Links")) {
+            assertFalse(Pattern.compile(Pattern.quote(gone) + "\\b").matcher(ui).find(),
+                    "the page document no longer declares " + gone + ": it is a part's template's");
+        }
+        assertFalse(ui.contains("@AlmanacLink"), "the link button moved with the links");
+
+        UiTree tree = new UiTree();
+        assertEquals(6, AlmanacPage.SECTION_TEMPLATES.size(), "one template per part");
+        assertEquals(PART_TEMPLATES, AlmanacPage.SECTION_TEMPLATES, "the documents the untagged checks read");
+        for (String template : AlmanacPage.SECTION_TEMPLATES) {
+            String name = template.substring(template.lastIndexOf('/') + 1, template.length() - ".ui".length());
+            assertTrue(template.startsWith("Pages/ZigAlmanac"), template);
+            assertEquals(List.of("Group #" + name), tree.roots(template),
+                    template + " is rooted at one group named after its file");
+        }
+
+        UICommandBuilder cmd = new UICommandBuilder();
+        AlmanacPage.paint(cmd, new UIEventBuilder(), composedPlan(), null);
+        assertEquals(List.of(AlmanacPage.BANNER_TEMPLATE, AlmanacPage.BANNER_TEMPLATE, AlmanacPage.COLLECTION_TEMPLATE,
+                AlmanacPage.ACHIEVEMENTS_TEMPLATE, AlmanacPage.TALLIES_TEMPLATE, AlmanacPage.KEEPSAKES_TEMPLATE,
+                AlmanacPage.LINKS_TEMPLATE), appendedTo(cmd, AlmanacPage.SECTIONS),
+                "the parts in the order the season's page writes them");
+    }
+
+    /**
+     * A part's button binds the section action with its own index, so a click is answered from the plan the last
+     * build painted; a banner with no button binds nothing.
+     *
+     * <p>Tagged {@code engine-items}: a {@link UICommandBuilder}'s static init reaches the engine's item codec.
+     */
+    @Test
+    @Tag("engine-items")
+    void everySectionButtonCarriesItsIndex() {
+        UIEventBuilder events = new UIEventBuilder();
+        AlmanacPage.paint(new UICommandBuilder(), events, composedPlan(), null);
+        Map<String, String> bound = new HashMap<>();
+        for (CustomUIEventBinding binding : events.getEvents()) {
+            if (binding.selector != null) {
+                bound.put(binding.selector, binding.data);
+            }
+        }
+        Map<String, String> buttons = Map.of("#Sections[1] #PlateButton", "1", "#Sections[2] #ColButton", "2",
+                "#Sections[3] #AchCta", "3");
+        for (Map.Entry<String, String> button : buttons.entrySet()) {
+            String data = bound.get(button.getKey());
+            assertNotNull(data, button.getKey() + " is bound: " + bound.keySet());
+            JsonObject json = JsonParser.parseString(data).getAsJsonObject();
+            assertEquals("section", json.get("Action").getAsString(), button.getKey());
+            assertEquals(button.getValue(), json.get("Section").getAsString(), button.getKey() + " carries its index");
+        }
+        assertTrue(bound.keySet().stream().noneMatch(s -> s.startsWith("#Sections[0]")),
+                "the art banner has no button, so nothing is bound on it: " + bound.keySet());
     }
 
     @Test
@@ -241,7 +346,7 @@ class AlmanacPageDocumentTest {
 
     @Test
     void everyPictureSlotIsAnAssetImage() throws IOException {
-        for (String doc : List.of(AlmanacPage.PAGE_TEMPLATE, AlmanacPage.MARK_TEMPLATE)) {
+        for (String doc : pageDocuments()) {
             String ui = document(doc);
             assertFalse(ui.contains("ItemGrid"), doc + " draws no item grid: a picture here only displays");
             assertFalse(ui.contains("ItemIcon"), doc + " declares no ItemIcon (it drew blank in game)");
@@ -251,13 +356,15 @@ class AlmanacPageDocumentTest {
             assertTrue(Pattern.compile("\\$ZW\\.@ZigPicture\\s+" + slot + "\\s*\\{").matcher(page).find(),
                     slot + " is the kit's picture slot");
         }
+        assertTrue(Pattern.compile("AssetImage\\s+#PlateArt\\s*\\{").matcher(document(AlmanacPage.BANNER_TEMPLATE))
+                .find(), "a banner's art is an AssetImage, as the hero's is");
     }
 
     // ---- type and colour ----
 
     @Test
     void everyTextSizeIsATypeStepAtTheFloorOrAbove() throws IOException {
-        for (String doc : List.of(AlmanacPage.PAGE_TEMPLATE, AlmanacPage.MARK_TEMPLATE)) {
+        for (String doc : pageDocuments()) {
             Matcher m = FONT_SIZE.matcher(document(doc));
             while (m.find()) {
                 String value = m.group(1).trim();
@@ -269,7 +376,7 @@ class AlmanacPageDocumentTest {
 
     @Test
     void everyColourIsAToken() throws IOException {
-        for (String doc : List.of(AlmanacPage.PAGE_TEMPLATE, AlmanacPage.MARK_TEMPLATE)) {
+        for (String doc : pageDocuments()) {
             Matcher m = COLOUR_LITERAL.matcher(document(doc));
             String found = m.find() ? m.group() : null;
             assertEquals(null, found, doc + " spells a colour instead of naming a Common/ZigTokens.ui token");
@@ -330,11 +437,33 @@ class AlmanacPageDocumentTest {
         assertEquals(AlmanacLayout.BODY_PAD_TOP, leaf(body, "Top"));
         String month = template(ui, "@AlmanacMonth");
         assertEquals(AlmanacLayout.MONTH_HEIGHT, leaf(property(month, "Anchor"), "Height"));
-        String link = template(ui, "@AlmanacLink");
+        String link = template(document(AlmanacPage.LINKS_TEMPLATE), "@AlmanacLink");
         assertEquals(AlmanacLayout.LINK_WIDTH, leaf(property(link, "Anchor"), "Width"));
         String mark = block(document(AlmanacPage.MARK_TEMPLATE), "#ZigAlmanacMonthMark");
         assertEquals(AlmanacLayout.MONTH_MARK, leaf(property(mark, "Anchor"), "Width"));
         assertEquals(AlmanacLayout.MONTH_MARK, leaf(property(mark, "Anchor"), "Height"));
+
+        assertEquals(AlmanacLayout.CONTENT_WIDTH, AlmanacLayout.PLATE_WIDTH,
+                "an inline banner spans the body's content");
+        assertEquals(AlmanacView.BANNER_WIDTH, AlmanacLayout.PLATE_WIDTH, "the view composes on the plate drawn");
+        String banner = document(AlmanacPage.BANNER_TEMPLATE);
+        assertEquals(AlmanacLayout.PLATE_WIDTH, anchor(banner, "#Plate", "Width"));
+        assertTrue(AlmanacLayout.ITEM_SLOTS_PER_ROW * AlmanacLayout.ITEM_SLOT_STEP <= AlmanacLayout.CONTENT_WIDTH,
+                "nine items a row");
+        assertEquals(AlmanacLayout.ITEM_SLOT_STEP - 8,
+                anchor(document(TilePainter.ITEM_SLOT_TEMPLATE), "#ZigItemSlotTile", "Width"), "the kit's slot");
+
+        // Nothing clips a child to a plate: on the least plate a banner draws, its words and its button stay inside.
+        int words = anchor(banner, "#PlateText", "Top") + anchor(banner, "#PlateTitle", "Height")
+                + anchor(banner, "#PlateLine", "Height") + anchor(banner, "#PlateText", "Bottom");
+        assertTrue(words <= AlmanacView.BANNER_MIN, "a banner's title and line fit its least height: " + words);
+        Matcher control = Pattern.compile("@ZigControlHeight\\s*=\\s*(\\d+)\\s*;").matcher(document("Common/ZigTokens.ui"));
+        assertTrue(control.find(), "the kit spells a control's height");
+        assertTrue(anchor(banner, "#PlateAction", "Top") + anchor(banner, "#PlateAction", "Bottom")
+                + Integer.parseInt(control.group(1)) <= AlmanacView.BANNER_MIN, "its button fits its least height");
+        assertTrue(anchor(banner, "#PlateText", "Left") + anchor(banner, "#PlateText", "Width")
+                <= AlmanacLayout.PLATE_WIDTH - anchor(banner, "#PlateAction", "Right")
+                        - anchor(banner, "#PlateAction", "Width"), "the words end before the button begins");
     }
 
     @Test
@@ -348,17 +477,25 @@ class AlmanacPageDocumentTest {
             assertTrue(Pattern.compile("@AlmanacMonth\\s+#Month" + m + "\\s*\\{").matcher(ui).find(), "#Month" + m);
         }
         assertFalse(ui.contains("#Month13"));
+        String links = document(AlmanacPage.LINKS_TEMPLATE);
         for (int i = 1; i <= AlmanacLayout.LINK_SLOTS; i++) {
-            assertTrue(Pattern.compile("@AlmanacLink\\s+#Link" + i + "\\s*\\{").matcher(ui).find(), "#Link" + i);
+            assertTrue(Pattern.compile("@AlmanacLink\\s+#Link" + i + "\\s*\\{").matcher(links).find(), "#Link" + i);
         }
     }
 
     @Test
     void everyWrappingGridIsAVanillaWrap() throws IOException {
-        String ui = document(AlmanacPage.PAGE_TEMPLATE);
-        for (String grid : List.of("#YearChips", "#StatGrid", "#KeepsakeShelf", "#FeatList")) {
-            assertEquals("LeftWrap", property(block(ui, grid), "LayoutMode"),
-                    grid + " wraps left to right (vanilla TriggerVolumeBrowseVolumeRow.ui)");
+        Map<String, List<String>> grids = Map.of(
+                AlmanacPage.TALLIES_TEMPLATE, List.of("#YearChips", "#StatGrid"),
+                AlmanacPage.KEEPSAKES_TEMPLATE, List.of("#KeepsakeShelf"),
+                AlmanacPage.ACHIEVEMENTS_TEMPLATE, List.of("#FeatList"),
+                AlmanacPage.COLLECTION_TEMPLATE, List.of("#ColGrid"));
+        for (Map.Entry<String, List<String>> doc : grids.entrySet()) {
+            String ui = document(doc.getKey());
+            for (String grid : doc.getValue()) {
+                assertEquals("LeftWrap", property(block(ui, grid), "LayoutMode"),
+                        doc.getKey() + " " + grid + " wraps left to right (vanilla TriggerVolumeBrowseVolumeRow.ui)");
+            }
         }
     }
 
@@ -379,6 +516,28 @@ class AlmanacPageDocumentTest {
                 "a rail click carries no Action, so the rail hears every event first");
     }
 
+    /**
+     * When the page reads a season, it first looks at the player's bag for the items that season's collections list,
+     * so an item held before the owned marks existed shows on the first look.
+     */
+    @Test
+    void theSeasonsBagIsLookedAtBeforeItsPageIsRead() throws IOException {
+        String page = source().replace("\r\n", "\n");
+        int plan = page.indexOf("private AlmanacPagePlan plan(");
+        assertTrue(plan > 0, "the page reads its plan in one method");
+        String reading = page.substring(plan, page.indexOf("\n    }\n", plan));
+        int held = reading.indexOf("markHeld(");
+        int read = reading.indexOf("AlmanacView.page(");
+        assertTrue(held > 0 && read > held, "inside plan(, the bag is looked at before the season's page is read");
+        int helper = page.indexOf("private static void markHeld(");
+        assertTrue(helper > 0, "the look at the bag is one method");
+        String look = page.substring(helper, page.indexOf("\n    }\n", helper));
+        assertTrue(look.contains("AlmanacCollection.markHeld(") && look.contains("AlmanacCollection.itemsOf("),
+                "it marks what the season's collections list: " + look);
+        assertTrue(look.contains("InventoryUtil.has("), "by what the player holds now");
+        assertTrue(look.contains("catch (Throwable"), "and never costs the page");
+    }
+
     @Test
     void everyExitOfTheHandlerAnswersTheNullPlayerIncluded() throws IOException {
         String page = source();
@@ -392,13 +551,55 @@ class AlmanacPageDocumentTest {
 
     // ---- fixtures ----
 
+    /** A season in today's order: its tallies, keepsakes, achievements and links. */
     private static AlmanacPagePlan fullPlan(Hero hero) {
-        return fullPlan(hero, new Timing(true, 27, false, null, false, MonthDay.of(10, 1), MonthDay.of(11, 3),
-                LocalDate.of(2027, 10, 1), false));
+        return fullPlan(hero, onNow(), AlmanacView.TODAYS_ORDER);
     }
 
-    /** Every section of the page filled, the season read showing {@code hero} and {@code timing}. */
+    /** Every section of the page filled, in today's order, the season read showing {@code hero} and {@code timing}. */
     private static AlmanacPagePlan fullPlan(Hero hero, Timing timing) {
+        return fullPlan(hero, timing, AlmanacView.TODAYS_ORDER);
+    }
+
+    /**
+     * A season whose page writes every part: a banner of art (a title, no button), a banner composed on its own 120
+     * plate (a title, a line, a button), the items grid (one owned, one hidden and not found, one shown and not
+     * found, and a button), the button into the book, then the built-in parts, with what {@link #fullPlan} carries.
+     */
+    private static AlmanacPagePlan composedPlan() {
+        HeroComposition hero = composedHero().composition();
+        HeroComposition band = new HeroComposition(hero.backgroundHex(), hero.backgroundTexture(), hero.gradient(),
+                new HeroGlow("#a0501a", 600, -140, 400),
+                List.of(new HeroItem("Lantern", "Icons/ItemsGenerated/Lantern.png", 760, 12, 96),
+                        new HeroItem("Bomb", "Icons/ItemsGenerated/Bomb.png", 680, 28, 64)));
+        SeasonLink stall = new SeasonLink("almanac.test.stall", Almanac.of("harvest_moon"));
+        return fullPlan(composedHero(), List.of(
+                new BannerSection("UI/Custom/Almanac/Band.png", null, 96, "almanac.test.band", null, null),
+                new BannerSection(null, band, 120, "almanac.test.band", "almanac.test.line", stall),
+                new CollectionSection(null, null, List.of(
+                        new CollectionItem("Lantern", "Icons/ItemsGenerated/Lantern.png", true, true, null),
+                        new CollectionItem("Pumpkin", "Icons/ItemsGenerated/Pumpkin.png", false, true, null),
+                        new CollectionItem("Bomb", "Icons/ItemsGenerated/Bomb.png", false, false,
+                                "almanac.test.source")), stall),
+                new AchievementsSection(Almanac.of("harvest_moon"), null),
+                new TalliesSection(), new KeepsakesSection(), new LinksSection()));
+    }
+
+    private static AlmanacPagePlan fullPlan(Hero hero, List<Section> sections) {
+        return fullPlan(hero, onNow(), sections);
+    }
+
+    /** A season on now, 27 days left, its window October 1st to November 3rd. */
+    private static Timing onNow() {
+        return new Timing(true, 27, false, null, false, MonthDay.of(10, 1), MonthDay.of(11, 3),
+                LocalDate.of(2027, 10, 1), false);
+    }
+
+    /**
+     * Every section of the page filled, the season read showing {@code hero} and {@code timing}, its parts in the
+     * order {@code sections} writes them.
+     */
+    private static AlmanacPagePlan fullPlan(Hero hero, Timing timing, List<Section> sections) {
         MonthDay oct1 = MonthDay.of(10, 1);
         MonthDay nov3 = MonthDay.of(11, 3);
         Season live = new Season("hallows_eve", "almanac.test.title", "almanac.test.flavor", "Test_Icon", true, 2026);
@@ -410,7 +611,7 @@ class AlmanacPageDocumentTest {
                 List.of(new YearKeepsake(2025, KeepsakeState.EARNED, "Keepsake_2025", "Test_Keepsake"),
                         new YearKeepsake(2026, KeepsakeState.TO_EARN, "Keepsake_2026", "Test_Keepsake")),
                 new SeasonAchievements(4, 9, List.of(new Feat("Feat_One", "Test_Icon"))), hero, "#E8752A",
-                List.of(new SeasonLink("almanac.test.link", Almanac.of("harvest_moon"))));
+                List.of(new SeasonLink("almanac.test.link", Almanac.of("harvest_moon"))), sections);
         List<MonthMarks> months = new ArrayList<>();
         for (int m = 1; m <= 12; m++) {
             months.add(new MonthMarks(m, m == 10 || m == 11 ? List.of("hallows_eve", "harvest_moon") : List.of()));
@@ -465,6 +666,52 @@ class AlmanacPageDocumentTest {
 
     private static Hero pictureHero() {
         return new Hero(null, null, "Icons/ItemsGenerated/X.png");
+    }
+
+    /**
+     * Every part's template, spelt from the page's string constants: reading the list
+     * {@link AlmanacPage#SECTION_TEMPLATES} initialises the page class, which reaches the engine's log manager, so an
+     * untagged test reads these instead and {@link #eachPartIsATemplateTheBodyAppendsInPlanOrder} holds the two equal.
+     */
+    private static final List<String> PART_TEMPLATES = List.of(AlmanacPage.TALLIES_TEMPLATE,
+            AlmanacPage.KEEPSAKES_TEMPLATE, AlmanacPage.ACHIEVEMENTS_TEMPLATE, AlmanacPage.LINKS_TEMPLATE,
+            AlmanacPage.BANNER_TEMPLATE, AlmanacPage.COLLECTION_TEMPLATE);
+
+    /** The page document, its month mark, and every part's template: the documents the page appends. */
+    private static List<String> pageDocuments() {
+        List<String> docs = new ArrayList<>(List.of(AlmanacPage.PAGE_TEMPLATE, AlmanacPage.MARK_TEMPLATE));
+        docs.addAll(PART_TEMPLATES);
+        return docs;
+    }
+
+    /** The documents appended to {@code host}, in order. */
+    @Nonnull
+    private static List<String> appendedTo(@Nonnull UICommandBuilder cmd, @Nonnull String host) {
+        List<String> out = new ArrayList<>();
+        for (CustomUICommand command : cmd.getCommands()) {
+            if (command.type == CustomUICommandType.Append && host.equals(command.selector)) {
+                out.add(command.text);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Why {@code selector} does not resolve where it lands, or null: one into a part ({@code #Sections[i] ...})
+     * inside the template appended at {@code i} of {@code parts}, every other on the page.
+     */
+    @Nullable
+    private static String unresolved(@Nonnull UiTree tree, @Nonnull String selector, @Nonnull List<String> parts)
+            throws IOException {
+        Matcher part = PART.matcher(selector);
+        if (!part.lookingAt()) {
+            return tree.unresolved(AlmanacPage.PAGE_TEMPLATE, FRAMES, path(selector));
+        }
+        int index = Integer.parseInt(part.group(1));
+        if (index >= parts.size()) {
+            return AlmanacPage.SECTIONS + "[" + index + "] was never appended";
+        }
+        return tree.unresolvedIn(parts.get(index), path(selector.substring(part.end())));
     }
 
     /**
@@ -526,6 +773,43 @@ class AlmanacPageDocumentTest {
             if (reached.isEmpty()) {
                 return "#" + ids.get(0) + " is not declared in the page or its frame";
             }
+            return follow(reached, ids);
+        }
+
+        /**
+         * Why {@code ids} does not resolve inside the appended {@code document}, or null when it does: the first id
+         * among that document's elements, its own templates and the kit's entered, each next id inside the elements
+         * the path has reached.
+         */
+        @Nullable
+        String unresolvedIn(@Nonnull String document, @Nonnull List<String> ids) throws IOException {
+            if (ids.isEmpty()) {
+                return null;
+            }
+            Doc doc = doc(document);
+            assertNotNull(doc, "the classpath ships " + document);
+            List<Node> reached = under(List.of(new Node(document, null, null, doc.roots())), ids.get(0), null);
+            if (reached.isEmpty()) {
+                return "#" + ids.get(0) + " is not declared in " + document;
+            }
+            return follow(reached, ids);
+        }
+
+        /** The elements {@code document} is rooted at, each as {@code Type #Id}. */
+        @Nonnull
+        List<String> roots(@Nonnull String document) throws IOException {
+            Doc doc = doc(document);
+            assertNotNull(doc, "the classpath ships " + document);
+            List<String> out = new ArrayList<>();
+            for (Node root : doc.roots()) {
+                out.add(root.type() + " #" + root.id());
+            }
+            return out;
+        }
+
+        /** Each id after the first, inside the elements the path has reached. */
+        @Nullable
+        private String follow(@Nonnull List<Node> reached, @Nonnull List<String> ids) throws IOException {
             for (int i = 1; i < ids.size(); i++) {
                 List<Node> next = under(reached, ids.get(i), null);
                 if (next.isEmpty()) {

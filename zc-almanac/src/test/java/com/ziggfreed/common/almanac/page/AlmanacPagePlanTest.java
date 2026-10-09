@@ -3,6 +3,7 @@ package com.ziggfreed.common.almanac.page;
 import static com.ziggfreed.common.almanac.AlmanacEnglish.english;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -27,16 +28,25 @@ import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.almanac.AlmanacCalendar.Dates;
 import com.ziggfreed.common.almanac.AlmanacText;
 import com.ziggfreed.common.almanac.FixedCalendar;
+import com.ziggfreed.common.almanac.page.AlmanacDestinations.Almanac;
 import com.ziggfreed.common.almanac.page.AlmanacPagePlan.AchievementShelf;
+import com.ziggfreed.common.almanac.page.AlmanacPagePlan.AchievementsPlan;
+import com.ziggfreed.common.almanac.page.AlmanacPagePlan.BannerPlan;
+import com.ziggfreed.common.almanac.page.AlmanacPagePlan.CollectionPlan;
 import com.ziggfreed.common.almanac.page.AlmanacPagePlan.GlanceMonth;
 import com.ziggfreed.common.almanac.page.AlmanacPagePlan.HeroBox;
 import com.ziggfreed.common.almanac.page.AlmanacPagePlan.HeroKind;
 import com.ziggfreed.common.almanac.page.AlmanacPagePlan.HeroPlan;
 import com.ziggfreed.common.almanac.page.AlmanacPagePlan.KeepsakeShelf;
 import com.ziggfreed.common.almanac.page.AlmanacPagePlan.SeasonBody;
+import com.ziggfreed.common.almanac.page.AlmanacPagePlan.TalliesPlan;
 import com.ziggfreed.common.almanac.page.AlmanacPagePlan.YearChoice;
 import com.ziggfreed.common.almanac.view.AlmanacView;
+import com.ziggfreed.common.almanac.view.AlmanacView.AchievementsSection;
 import com.ziggfreed.common.almanac.view.AlmanacView.Banner;
+import com.ziggfreed.common.almanac.view.AlmanacView.BannerSection;
+import com.ziggfreed.common.almanac.view.AlmanacView.CollectionItem;
+import com.ziggfreed.common.almanac.view.AlmanacView.CollectionSection;
 import com.ziggfreed.common.almanac.view.AlmanacView.Feat;
 import com.ziggfreed.common.almanac.view.AlmanacView.Hero;
 import com.ziggfreed.common.almanac.view.AlmanacView.HeroComposition;
@@ -50,12 +60,15 @@ import com.ziggfreed.common.almanac.view.AlmanacView.Season;
 import com.ziggfreed.common.almanac.view.AlmanacView.SeasonAchievements;
 import com.ziggfreed.common.almanac.view.AlmanacView.SeasonLink;
 import com.ziggfreed.common.almanac.view.AlmanacView.SeasonPage;
+import com.ziggfreed.common.almanac.view.AlmanacView.Section;
+import com.ziggfreed.common.almanac.view.AlmanacView.TalliesSection;
 import com.ziggfreed.common.almanac.view.AlmanacView.Tally;
 import com.ziggfreed.common.almanac.view.AlmanacView.Timing;
 import com.ziggfreed.common.almanac.view.AlmanacView.YearChip;
 import com.ziggfreed.common.almanac.view.AlmanacView.YearKeepsake;
 import com.ziggfreed.common.occurrence.Occurrence;
 import com.ziggfreed.common.occurrence.Recurrence;
+import com.ziggfreed.common.ui.kit.ItemSlotTile;
 import com.ziggfreed.common.ui.kit.KeepsakeState;
 import com.ziggfreed.common.ui.kit.KeepsakeTile;
 import com.ziggfreed.common.ui.kit.LedgerRow;
@@ -506,6 +519,110 @@ class AlmanacPagePlanTest {
         assertKey("status.live", hero.chip().label());
         assertEquals("Every Sunday, 14:00 to 16:00", english(hero.dates()));
         assertEquals("Next: Sunday Jan 3, 14:00 to 16:00", english(hero.next()));
+    }
+
+    // ---- the body's parts ----
+
+    private static SeasonPage sectioned(List<Section> sections, SeasonAchievements achievements) {
+        return new SeasonPage(season(EVENT, true), liveTiming(27), List.of(), Scope.EVERY, false, List.of(), null,
+                achievements, new Hero(null, null, null), "#E8752A", List.of(), sections);
+    }
+
+    @Test
+    void withNoSectionsWrittenTheBodyKeepsTodaysOrderAndLeavesOutWhatIsEmpty() {
+        SeasonPage page = new SeasonPage(season(EVENT, true), liveTiming(27), List.of(), Scope.EVERY, false, List.of(),
+                null, new SeasonAchievements(1, 3, List.of()), new Hero(null, null, null), null, List.of());
+
+        SeasonBody body = plan(List.of(page.season()), page).body();
+        assertEquals(List.of(TalliesPlan.class, AchievementsPlan.class),
+                body.sections().stream().map(Object::getClass).toList(), "no keepsakes and no links: left out");
+        assertNull(((AchievementsPlan) body.sections().get(1)).cta(), "today's order resolves no button");
+    }
+
+    @Test
+    void theAchievementsButtonReadsTheLibrarysWordsUnlessAnAuthorsAndIsAbsentWithNowhereToGo() {
+        SeasonAchievements some = new SeasonAchievements(1, 3, List.of());
+        AchievementsPlan library = (AchievementsPlan) plan(List.of(season(EVENT, true)),
+                sectioned(List.of(new AchievementsSection(Almanac.of("other"), null)), some)).body().sections().get(0);
+        assertKey("achievements.cta", library.cta().label());
+
+        AchievementsPlan authored = (AchievementsPlan) plan(List.of(season(EVENT, true)),
+                sectioned(List.of(new AchievementsSection(Almanac.of("other"), "almanac.test.relabel")), some))
+                .body().sections().get(0);
+        assertNotEquals(AlmanacText.PREFIX + "achievements.cta", authored.cta().label().getFormattedMessage().messageId);
+
+        assertNull(((AchievementsPlan) plan(List.of(season(EVENT, true)),
+                sectioned(List.of(new AchievementsSection(null, null)), some)).body().sections().get(0)).cta());
+        assertTrue(plan(List.of(season(EVENT, true)), sectioned(List.of(new AchievementsSection(Almanac.of("x"), null)),
+                null)).body().sections().isEmpty(), "nothing filed for the season: no section, so no button");
+    }
+
+    @Test
+    void aCollectionCountsWhatWasFoundAndShowsAMysteryOnlyForTheHiddenNotYetFound() {
+        CollectionSection items = new CollectionSection(null, null, List.of(
+                new CollectionItem("Test_Lantern", "Icons/L.png", true, true, null),
+                new CollectionItem("Test_Pumpkin", "Icons/P.png", false, true, "almanac.test.source"),
+                new CollectionItem("Test_Bomb", "Icons/B.png", false, false, "almanac.test.source")), null);
+        CollectionPlan grid = (CollectionPlan) plan(List.of(season(EVENT, true)), sectioned(List.of(items), null))
+                .body().sections().get(0);
+
+        assertKey("collection.title", grid.title());
+        assertKey("collection.meta", grid.meta());
+        assertEquals(1L, number(grid.meta(), "0"));
+        assertEquals(3L, number(grid.meta(), "1"), "a hidden item is counted: it can be found");
+        assertEquals(1f / 3f, grid.fraction(), 1e-6);
+        ItemSlotTile owned = grid.slots().get(0);
+        assertTrue(owned.owned());
+        assertFalse(owned.mystery(), "owned once: shown for good");
+        ItemSlotTile hidden = grid.slots().get(1);
+        assertTrue(hidden.mystery());
+        assertKey("collection.hidden", hidden.tooltip());
+        assertKey("collection.mystery", hidden.glyph());
+        ItemSlotTile seen = grid.slots().get(2);
+        assertFalse(seen.owned() || seen.mystery());
+        assertKey("collection.source", seen.tooltip());
+        assertEquals("Test_Bomb", seen.picture().itemId());
+    }
+
+    @Test
+    void aBannerFitsItsGlowAndPicturesOnItsOwnPlateAndCarriesItsWordsAndButton() {
+        HeroComposition composed = new HeroComposition(null, null, new HeroGradient("#0a0f1e", "#2a1a2c"),
+                new HeroGlow("#a0501a", 300, -140, 400), List.of(new HeroItem("Test_Lantern", "Icons/L.png", 760, 8, 96)));
+        BannerSection band = new BannerSection(null, composed, 120, "almanac.test.t", "almanac.test.l",
+                new SeasonLink("almanac.test.b", Almanac.of("other")));
+        BannerPlan plate = (BannerPlan) plan(List.of(season(EVENT, true)), sectioned(List.of(band), null))
+                .body().sections().get(0);
+
+        assertEquals(120, plate.height());
+        assertEquals("#0a0f1e", plate.skyHex());
+        assertEquals("#2a1a2c", plate.fillHex());
+        HeroBox glow = plate.glow().box();
+        assertTrue(glow.x() >= 0 && glow.y() >= 0 && glow.x() + glow.width() <= AlmanacLayout.PLATE_WIDTH
+                && glow.y() + glow.height() <= 120, "fitted onto the banner's own plate: " + glow);
+        assertEquals(new HeroBox(760, 8, 96, 96), plate.pictures().get(0).box());
+        assertNotNull(plate.title());
+        assertNotNull(plate.line());
+        assertNotNull(plate.button());
+        assertNull(plate.artTexture());
+    }
+
+    @Test
+    void aSectionsButtonIsFoundByTheIndexItsClickCarries() {
+        SeasonLink stall = new SeasonLink("almanac.test.b", Almanac.of("other"));
+        SeasonPage page = sectioned(List.of(new TalliesSection(),
+                new BannerSection("UI/Custom/Almanac/Band.png", null, 96, null, null, stall),
+                new CollectionSection(null, null, List.of(new CollectionItem("Test_Bomb", "Icons/B.png", false, false,
+                        null)), null),
+                new AchievementsSection(Almanac.of("book"), null)), new SeasonAchievements(0, 2, List.of()));
+        SeasonBody body = plan(List.of(page.season()), page).body();
+
+        assertNotNull(body.sectionButton("1"), "the banner's button");
+        assertNull(body.sectionButton("2"), "a grid with no button");
+        assertNotNull(body.sectionButton("3"), "the button into the book");
+        assertNull(body.sectionButton("0"));
+        assertNull(body.sectionButton("9"));
+        assertNull(body.sectionButton("x"));
+        assertNull(body.sectionButton(null));
     }
 
     // ---- fixtures ----

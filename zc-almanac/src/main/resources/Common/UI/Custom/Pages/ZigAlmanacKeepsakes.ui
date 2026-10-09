@@ -1,0 +1,19 @@
+$ZK = "../Common/ZigTokens.ui";
+$ZW = "../Common/ZigKit.ui";
+
+// The keepsake shelf of a season on the Almanac page (Pages/ZigAlmanacPage.ui), appended by
+// com.ziggfreed.common.almanac.page.AlmanacPage into #Sections and addressed by index as "#Sections[i] #Id": the
+// keepsake header and #KeepsakeShelf (Pages/ZigKeepsakeTile.ui, a tile per year). The page appends this part only
+// for a season with a shelf, so both show.
+
+Group #ZigAlmanacKeepsakes {
+  LayoutMode: Top;
+
+  $ZW.@ZigSectionHeader #KeepsakeHeader {
+    @Anchor = (Top: $ZK.@ZigSpace4, Bottom: $ZK.@ZigSpace3);
+  }
+
+  Group #KeepsakeShelf {
+    LayoutMode: LeftWrap;
+  }
+}

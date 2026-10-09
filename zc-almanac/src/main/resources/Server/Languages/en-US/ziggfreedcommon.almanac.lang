@@ -170,3 +170,12 @@ stats.open = Open in the Almanac
 seasons.all = All seasons
 year = {0}
 year.runs = {0} ({1, number} {1, plural, one {run} other {runs}})
+
+# A season page's parts: the button into the achievement book, and the grid of items a player can find, where a
+# hidden one shows a mark until found once.
+achievements.cta = See them in Achievements
+collection.title = Event items
+collection.meta = {0, number} of {1, number} found
+collection.mystery = ?
+collection.hidden = Not found yet
+collection.source = {0} - {1}

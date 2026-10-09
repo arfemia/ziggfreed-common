@@ -20,9 +20,10 @@ $ZW = "../Common/ZigKit.ui";
 // RIGHT (#RightColumn, 962): the kit's hero plate #Hero (art, or a hero composed from item pictures appended onto
 // its #HeroItems, or the season's own picture; then the chip, the name, the dates, a monthly or weekly season's next
 // run on #HeroNext, and the accent strip), over
-// #SeasonBody, which scrolls: the flavor, #YearChips (Pages/ZigSegment.ui, a year each and Every season), the
-// scope header, #StatGrid (Pages/ZigStatTile.ui), the first-time #Hint, the keepsake header and #KeepsakeShelf
-// (Pages/ZigKeepsakeTile.ui), the achievements header, bar and #FeatList (Pages/ZigPill.ui), and #Links.
+// #SeasonBody, which scrolls: the flavor, then #Sections, where the page appends one template per part in the
+// order the season's page writes them (Pages/ZigAlmanacTallies.ui, Pages/ZigAlmanacKeepsakes.ui,
+// Pages/ZigAlmanacAchievements.ui, Pages/ZigAlmanacLinks.ui, Pages/ZigAlmanacBanner.ui,
+// Pages/ZigAlmanacCollection.ui), each addressed #Sections[i] #Id.
 //
 // #AlmanacEmpty takes the right column's place, and the list's, when no season is listed. Every pick (a season,
 // a year, a month) reopens the page, so every build is a full one.
@@ -45,19 +46,6 @@ $ZW = "../Common/ZigKit.ui";
     FlexWeight: 1;
     LayoutMode: Left;
     Anchor: (Height: 22);
-  }
-};
-
-// One of the season's links, filled in order; hidden until painted.
-@AlmanacLink = Button {
-  Anchor: (Width: 200, Height: $ZK.@ZigControlHeight, Right: $ZK.@ZigSpace2);
-  Style: $ZS.@ZigButtonSecondaryStyle;
-  Visible: false;
-
-  Label #Label {
-    FlexWeight: 1;
-    Text: "";
-    Style: $ZX.@ZigButtonLabelStyle;
   }
 };
 
@@ -221,65 +209,8 @@ $F.@ZigMenuFrame {
           Style: (...$ZX.@ZigLeadStyle, WrapMaxLines: 3);
         }
 
-        Group #YearChips {
-          LayoutMode: LeftWrap;
-          Anchor: (Bottom: $ZK.@ZigSpace2);
-        }
-
-        $C.@PanelSeparatorFancy #ScopeRule {
-          @Anchor = (Top: $ZK.@ZigSpace1, Bottom: $ZK.@ZigSpace3);
-        }
-
-        $ZW.@ZigSectionHeader #ScopeHeader {
-          @Anchor = (Bottom: $ZK.@ZigSpace3);
-        }
-
-        Group #StatGrid {
-          LayoutMode: LeftWrap;
-        }
-
-        Label #Hint {
-          Anchor: (Height: 20, Top: $ZK.@ZigSpace1);
-          Text: "";
-          Visible: false;
-          Style: (...$ZX.@ZigCaptionStyle, Wrap: true, WrapMaxLines: 1);
-        }
-
-        $ZW.@ZigSectionHeader #KeepsakeHeader {
-          @Anchor = (Top: $ZK.@ZigSpace4, Bottom: $ZK.@ZigSpace3);
-          Visible: false;
-        }
-
-        Group #KeepsakeShelf {
-          LayoutMode: LeftWrap;
-          Visible: false;
-        }
-
-        $ZW.@ZigSectionHeader #AchHeader {
-          @Anchor = (Top: $ZK.@ZigSpace4, Bottom: $ZK.@ZigSpace3);
-          Visible: false;
-        }
-
-        $ZW.@ZigProgressBar #AchBar {
-          @Height = 6;
-          @Anchor = (Bottom: $ZK.@ZigSpace3);
-          Visible: false;
-        }
-
-        Group #FeatList {
-          LayoutMode: LeftWrap;
-          Visible: false;
-        }
-
-        Group #Links {
-          LayoutMode: Left;
-          Anchor: (Height: $ZK.@ZigControlHeight, Top: $ZK.@ZigSpace4);
-          Visible: false;
-
-          @AlmanacLink #Link1 {}
-          @AlmanacLink #Link2 {}
-          @AlmanacLink #Link3 {}
-          @AlmanacLink #Link4 {}
+        Group #Sections {
+          LayoutMode: Top;
         }
       }
     }

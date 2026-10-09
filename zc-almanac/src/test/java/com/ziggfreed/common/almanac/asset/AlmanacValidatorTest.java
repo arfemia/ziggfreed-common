@@ -221,6 +221,42 @@ class AlmanacValidatorTest {
         assertEquals(Severity.WARNING, only(findings, AlmanacValidator.UNKNOWN_BANNER_ITEM).severity());
     }
 
+    /**
+     * A collection with no item this server has is left out whole: that is reported, and nothing it would have shown
+     * (its words, its button) is asked of anything, since the player never sees it.
+     */
+    @Test
+    void aCollectionWithNoItemThisServerHasIsReportedAndItsButtonIsNotAsked() throws IOException {
+        AlmanacDestinations.register();
+        AlmanacEntryAsset page = AlmanacFixtures.page("""
+                { "Sections": [
+                  { "Collection": { "Text": { "TitleKey": "k.ghosts.title" }, "Items": [ { "Item": "Ghost_Item" } ],
+                                    "Button": { "TextKey": "k.ghosts.button", "Destination": "Almanac" } } },
+                  { "Collection": { "Button": { "TextKey": "k.none.button", "Destination": "Almanac" } } },
+                  { "Collection": { "Items": [ { "Item": "Test_Lantern" } ],
+                                    "Button": { "TextKey": "k.drawn.button", "Destination": "Almanac" } } } ] }
+                """, "Test_Season");
+        List<String> asked = new ArrayList<>();
+        List<Finding> findings = AlmanacValidator.audit(List.of(page), ALL_EVENTS, id -> !id.equals("Ghost_Item"),
+                new ObjectiveKindRegistry(), key -> !key.startsWith("k."), (destination, source) -> {
+                    asked.add(source);
+                    return List.of();
+                });
+
+        List<Finding> empty = findings.stream().filter(f -> f.code().equals(AlmanacValidator.COLLECTION_EMPTY)).toList();
+        assertEquals(2, empty.size(), "only unknown items, and no items: " + findings);
+        assertTrue(empty.get(0).message().contains("Sections[0]"), empty.get(0).message());
+        assertTrue(empty.get(1).message().contains("Sections[1]"), empty.get(1).message());
+        assertEquals(Severity.WARNING, empty.get(0).severity());
+        assertTrue(only(findings, AlmanacValidator.UNKNOWN_COLLECTION_ITEM).message().contains("Ghost_Item"),
+                "why the first was left out");
+        assertEquals(List.of("test_season"), asked, "only the drawn collection's button is asked of its type");
+        List<String> keys = findings.stream().filter(f -> f.code().equals(TextKeyAudit.UNKNOWN_TEXT_KEY))
+                .map(Finding::message).toList();
+        assertEquals(1, keys.size(), "only the drawn collection's words are asked: " + keys);
+        assertTrue(keys.get(0).contains("Sections[2]"), keys.get(0));
+    }
+
     @Test
     void everyKeyASectionShowsIsChecked() throws IOException {
         AlmanacDestinations.register();

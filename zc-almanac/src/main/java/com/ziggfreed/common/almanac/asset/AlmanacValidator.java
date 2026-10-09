@@ -51,9 +51,11 @@ import com.ziggfreed.common.validation.TextKeyAudit;
  *   <li>WARNING {@link #UNKNOWN_EVENT} (the page is never listed), {@link #UNKNOWN_KEEPSAKE} (the page's
  *       {@code Keepsake} names no achievement file this server loads, or only an {@code Abstract} one, so the
  *       page shows no keepsake shelf), {@link #UNKNOWN_ICON}, {@link #UNKNOWN_HERO_ITEM}, {@link #UNKNOWN_KIND},
- *       {@link #UNKNOWN_COLLECTION_ITEM} (that slot is left out), {@link #UNKNOWN_BANNER_ITEM} (that picture
- *       is left off the banner), and {@link TextKeyAudit#UNKNOWN_TEXT_KEY} for a key the page shows that no
- *       loaded lang file ships, its sections' keys included;</li>
+ *       {@link #UNKNOWN_COLLECTION_ITEM} (that slot is left out), {@link #COLLECTION_EMPTY} (a collection none
+ *       of whose slots the grid reads names an item this server has, so it is left out whole, and nothing it
+ *       would show is asked further), {@link #UNKNOWN_BANNER_ITEM} (that picture is left off the banner), and
+ *       {@link TextKeyAudit#UNKNOWN_TEXT_KEY} for a key the page shows that no loaded lang file ships, its
+ *       sections' keys included;</li>
  *   <li>and each section Button's destination, asked of its own type (the engine walk asks
  *       {@code Destinations.validate}, so a storefront button that names no storefront reports what the
  *       storefront's own check says).</li>
@@ -80,6 +82,7 @@ public final class AlmanacValidator {
     public static final String UNKNOWN_KIND = "UNKNOWN_KIND";
     public static final String UNPRODUCIBLE_KIND = "UNPRODUCIBLE_KIND";
     public static final String UNKNOWN_COLLECTION_ITEM = "UNKNOWN_COLLECTION_ITEM";
+    public static final String COLLECTION_EMPTY = "COLLECTION_EMPTY";
     public static final String UNKNOWN_BANNER_ITEM = "UNKNOWN_BANNER_ITEM";
 
     /** The pure core's destination check when none is asked: nothing to say. */
@@ -248,7 +251,11 @@ public final class AlmanacValidator {
         }
     }
 
-    /** One drawn section: its pictures' items, every key it shows, and its button's destination. */
+    /**
+     * One drawn section: its pictures' items, every key it shows, and its button's destination. A collection with no
+     * item this server has is left out whole: its unknown items and {@link #COLLECTION_EMPTY} say why, and nothing
+     * it would show is asked.
+     */
     private static void auditSection(@Nonnull String where, @Nonnull AlmanacSectionAsset section,
             @Nonnull Predicate<String> itemKnown, @Nonnull Predicate<String> keyShipped,
             @Nonnull BiFunction<Destination, String, List<Finding>> destinationCheck, @Nonnull String id,
@@ -272,17 +279,29 @@ public final class AlmanacValidator {
         AlmanacCollectionAsset collection = section.collection();
         if (collection != null) {
             String at = where + ".Collection";
-            TextKeyAudit.check(out, DOMAIN, id, at + ".Text.TitleKey", collection.titleKey(), keyShipped,
-                    "the grid's heading shows the raw key");
-            TextKeyAudit.check(out, DOMAIN, id, at + ".Text.FlavorKey", collection.flavorKey(), keyShipped,
-                    "the line under the grid's heading shows the raw key");
-            for (AlmanacCollectionAsset.Slot slot : collection.slots()) {
+            List<AlmanacCollectionAsset.Slot> slots = collection.slots();
+            boolean draws = false;
+            for (int i = 0; i < slots.size(); i++) {
+                AlmanacCollectionAsset.Slot slot = slots.get(i);
                 checkItem(at + ".Items", slot.item(), UNKNOWN_COLLECTION_ITEM, "that slot is left out", itemKnown,
                         id, out);
-                TextKeyAudit.check(out, DOMAIN, id, at + ".Items '" + slot.item() + "' SourceKey", slot.sourceKey(),
-                        keyShipped, "its tooltip shows the raw key");
+                draws |= i < AlmanacEntryAsset.COLLECTION_MAX_ITEMS && slot.item() != null
+                        && itemKnown.test(slot.item());
             }
-            auditButton(at + ".Button", collection.button(), keyShipped, destinationCheck, id, out);
+            if (draws) {
+                TextKeyAudit.check(out, DOMAIN, id, at + ".Text.TitleKey", collection.titleKey(), keyShipped,
+                        "the grid's heading shows the raw key");
+                TextKeyAudit.check(out, DOMAIN, id, at + ".Text.FlavorKey", collection.flavorKey(), keyShipped,
+                        "the line under the grid's heading shows the raw key");
+                for (AlmanacCollectionAsset.Slot slot : slots) {
+                    TextKeyAudit.check(out, DOMAIN, id, at + ".Items '" + slot.item() + "' SourceKey",
+                            slot.sourceKey(), keyShipped, "its tooltip shows the raw key");
+                }
+                auditButton(at + ".Button", collection.button(), keyShipped, destinationCheck, id, out);
+            } else {
+                out.add(Finding.warning(DOMAIN, COLLECTION_EMPTY, at + " lists no item this server has among the "
+                        + "slots its grid reads, so the grid is left out, its words and its button with it", id));
+            }
         }
         AlmanacAchievementsAsset achievements = section.achievements();
         if (achievements != null && achievements.showButton()) {
