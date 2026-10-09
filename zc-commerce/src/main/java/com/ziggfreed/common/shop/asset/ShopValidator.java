@@ -11,12 +11,14 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.ziggfreed.common.commerce.asset.CostAsset;
+import com.ziggfreed.common.commerce.asset.HideAxis;
 import com.ziggfreed.common.commerce.asset.RerollAsset;
 import com.ziggfreed.common.commerce.asset.RotationAsset;
 import com.ziggfreed.common.commerce.asset.SelectionAsset;
 import com.ziggfreed.common.loot.reward.CollectingRewardKind;
 import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
+import com.ziggfreed.common.progress.gate.FeatureLift;
 import com.ziggfreed.common.progress.gate.GateKindRegistry;
 import com.ziggfreed.common.progress.gate.GateValidator;
 import com.ziggfreed.common.validation.Finding;
@@ -37,6 +39,12 @@ import com.ziggfreed.common.world.WhereValidator;
  * owns a wallet, a reward kind or a factor registers it at its own setup, which may be a mod the
  * author expects some servers not to install. A thing that is impossible whatever anybody installs -
  * a shelf whose slots no offer can fill - is an error.
+ *
+ * <p><b>An id the mod gate refused is named by no line.</b> A storefront or a wallet whose file (or whose
+ * owner entry) gates on a mod this server does not run is absent on purpose, and a line naming it would put
+ * that mod's content into the log of the very server that lacks it ({@code ModGates}). A storefront's
+ * refusals are read off {@link ShopConfig}, a wallet's through {@link CurrencyProbe#refused}; an id nothing
+ * defines and nothing refused still warns.
  */
 public final class ShopValidator {
 
@@ -56,6 +64,15 @@ public final class ShopValidator {
 
         /** True when some layer defines a wallet under {@code currencyId}. */
         boolean defines(@Nonnull String currencyId);
+
+        /**
+         * True when the mod gate keeps the wallet {@code currencyId} off this server on purpose (its file, or
+         * the owner's entry for it, gates on a mod this server does not run): a line naming it would name a
+         * dropped file, so the unknown-wallet checks stay silent about it. False unless the caller can say.
+         */
+        default boolean refused(@Nonnull String currencyId) {
+            return false;
+        }
     }
 
     private ShopValidator() {
@@ -86,9 +103,12 @@ public final class ShopValidator {
 
         List<Finding> out = new ArrayList<>();
 
+        Map<String, List<String>> hosts = hostsOf(shops);
         for (Map.Entry<String, StorefrontAsset> entry : shops.entrySet()) {
             if (entry.getValue() != null) {
-                validateShop(entry.getKey(), entry.getValue(), shops, currencies, gateKinds, knownFactors, out);
+                validateShop(entry.getKey(), entry.getValue(), shops,
+                        hosts.getOrDefault(normalize(entry.getKey()), List.of()), currencies, gateKinds,
+                        knownFactors, out);
             }
         }
         for (Map.Entry<String, ShopPoolAsset> entry : pools.entrySet()) {
@@ -107,8 +127,13 @@ public final class ShopValidator {
 
     // ==================== storefronts ====================
 
+    /**
+     * One storefront's own findings.
+     *
+     * @param hosts the storefronts whose {@code Includes} name this one, lower-cased; empty when none does
+     */
     private static void validateShop(@Nonnull String id, @Nonnull StorefrontAsset shop,
-            @Nonnull Map<String, StorefrontAsset> shops,
+            @Nonnull Map<String, StorefrontAsset> shops, @Nonnull List<String> hosts,
             @Nullable CurrencyProbe currencies, @Nullable GateKindRegistry gateKinds,
             @Nullable Predicate<String> knownFactors, @Nonnull List<Finding> out) {
 
@@ -119,7 +144,7 @@ public final class ShopValidator {
         }
         if (currencies != null) {
             for (String currencyId : shop.currencyIds()) {
-                if (!currencies.defines(currencyId)) {
+                if (!currencies.defines(currencyId) && !currencies.refused(currencyId)) {
                     out.add(Finding.warning(DOMAIN, "UNKNOWN_CURRENCY",
                             "the header lists the wallet '" + currencyId + "', which nothing defines; it shows "
                                     + "as nothing until whichever pack owns it is installed", id));
@@ -132,7 +157,7 @@ public final class ShopValidator {
         out.addAll(GateValidator.validate(shop.getRequires(), DOMAIN, id, "storefront",
                 gateKinds, knownFactors, null));
         for (String included : shop.includeIds()) {
-            if (!shops.containsKey(included)) {
+            if (!shops.containsKey(included) && !refusedStorefront(included)) {
                 out.add(Finding.warning(DOMAIN, "UNKNOWN_INCLUDE",
                         "Includes names '" + included + "', which nothing defines, so it adds nothing here; it "
                                 + "comes back on its own if the pack owning that storefront is installed", id));
@@ -144,6 +169,67 @@ public final class ShopValidator {
                     "Includes leads back to this storefront (" + String.join(" -> ", loop) + "); the page cuts "
                             + "the loop where it comes back round and lists each storefront once, but the loop "
                             + "is a mistake: drop one of those Includes", id));
+        }
+        if (!hosts.isEmpty()) {
+            checkIncludedPresence(id, shop, hosts, out);
+        }
+    }
+
+    /**
+     * Which storefronts' {@code Includes} name each storefront, keyed by the included id, every id
+     * lower-cased: the hosts its offers stand in. A storefront naming itself is left to the loop finding.
+     */
+    @Nonnull
+    private static Map<String, List<String>> hostsOf(@Nonnull Map<String, StorefrontAsset> shops) {
+        Map<String, List<String>> out = new LinkedHashMap<>();
+        for (Map.Entry<String, StorefrontAsset> entry : shops.entrySet()) {
+            if (entry.getValue() == null) {
+                continue;
+            }
+            String host = normalize(entry.getKey());
+            for (String included : entry.getValue().includeIds()) {
+                if (!included.equals(host)) {
+                    out.computeIfAbsent(included, key -> new ArrayList<>()).add(host);
+                }
+            }
+        }
+        return out;
+    }
+
+    /**
+     * A storefront other storefronts include: at a host each of its offers stands in the host, judged by the
+     * host's presence and lock and by the offer's own {@code Season} and {@code Requires}, never by this
+     * storefront's ({@code StorefrontView}). So its own {@code Season}, and each hiding condition of its own
+     * {@code Requires}, decides nothing there, and a festival stall carrying one keeps selling at a
+     * year-round host off-season: one warning per field. A mod-presence condition is left out: written as a
+     * gate is (Min 1) it is the file gate, which drops the whole storefront where its mod is missing, so no
+     * host reaches its offers either.
+     */
+    private static void checkIncludedPresence(@Nonnull String id, @Nonnull StorefrontAsset shop,
+            @Nonnull List<String> hosts, @Nonnull List<Finding> out) {
+        String includedBy = "'" + String.join("', '", hosts) + "'";
+        String season = shop.getSeason();
+        if (season != null) {
+            out.add(Finding.warning(DOMAIN, "INCLUDED_PRESENCE_IGNORED",
+                    "Season is '" + season + "', but this storefront is included by " + includedBy + ", where "
+                            + "its own Season decides nothing: there its offers stand in that storefront and "
+                            + "follow their own Season and Requires, so they keep selling while this Season is "
+                            + "off. Write the Season on each offer you mean to hide", id));
+        }
+        List<String> hides = new ArrayList<>();
+        for (FeatureLift.Lifted lifted : HideAxis.hides(shop.getRequires())) {
+            if (!lifted.isModPresence()) {
+                hides.add("'" + lifted.param() + "'");
+            }
+        }
+        if (!hides.isEmpty()) {
+            out.add(Finding.warning(DOMAIN, "INCLUDED_PRESENCE_IGNORED",
+                    "Requires hides this storefront on the feature" + (hides.size() == 1 ? " " : "s ")
+                            + String.join(", ", hides) + ", but it is "
+                            + "included by " + includedBy + ", where its own Requires decides nothing: there its "
+                            + "offers stand in that storefront and follow their own Season and Requires, so they "
+                            + "stay on sale while that feature reads off. Write the condition on each offer you "
+                            + "mean to hide", id));
         }
     }
 
@@ -157,7 +243,7 @@ public final class ShopValidator {
         if (shopId == null) {
             out.add(Finding.error(DOMAIN, "POOL_WITHOUT_SHOP",
                     "no Shop is named, so this shelf sits in no storefront and never appears anywhere", id));
-        } else if (!shops.containsKey(shopId)) {
+        } else if (!shops.containsKey(shopId) && !refusedStorefront(shopId)) {
             out.add(Finding.warning(DOMAIN, "UNKNOWN_SHOP",
                     "Shop names '" + shopId + "', which nothing defines, so this shelf never appears; it comes "
                             + "back on its own if the pack owning that storefront is installed", id));
@@ -249,7 +335,7 @@ public final class ShopValidator {
         if (shopId == null) {
             out.add(Finding.error(DOMAIN, "ENTRY_WITHOUT_SHOP",
                     "no Shop is named, so this offer is sold nowhere; name the storefront it belongs to", id));
-        } else if (!shops.containsKey(shopId)) {
+        } else if (!shops.containsKey(shopId) && !refusedStorefront(shopId)) {
             out.add(Finding.warning(DOMAIN, "UNKNOWN_SHOP",
                     "Shop names '" + shopId + "', which nothing defines, so this offer is never on sale; it "
                             + "comes back on its own if the pack owning that storefront is installed", id));
@@ -403,7 +489,8 @@ public final class ShopValidator {
                             field + " charges " + amount + " of '" + currencyId + "', which costs the player "
                                     + "nothing; drop the entry when you mean it to be free", id));
                 }
-                if (currencies != null && !currencies.defines(currencyId.trim().toLowerCase(Locale.ROOT))) {
+                String wallet = normalize(currencyId);
+                if (currencies != null && !currencies.defines(wallet) && !currencies.refused(wallet)) {
                     out.add(Finding.warning(DOMAIN, "UNKNOWN_CURRENCY",
                             field + " is priced in the wallet '" + currencyId + "', which nothing defines; "
                                     + "nobody can hold it, so the price can never be met until whichever pack "
@@ -430,6 +517,20 @@ public final class ShopValidator {
     private static boolean isKnownSelection(@Nonnull String type) {
         return SelectionAsset.TYPE_WEIGHTED_RANDOM.equalsIgnoreCase(type)
                 || SelectionAsset.TYPE_ALL.equalsIgnoreCase(type);
+    }
+
+    /**
+     * Did the mod gate keep the storefront {@code shopId} off this server on purpose (its pack file, or the
+     * owner's entry for it, gates on a mod this server does not run)? Then it is absent by design and no
+     * line may name it.
+     */
+    private static boolean refusedStorefront(@Nonnull String shopId) {
+        return ShopConfig.getInstance().modGateRefused().containsKey(normalize(shopId));
+    }
+
+    @Nonnull
+    private static String normalize(@Nonnull String id) {
+        return id.trim().toLowerCase(Locale.ROOT);
     }
 
     /** Re-file another validator's findings under this domain and this content id. */

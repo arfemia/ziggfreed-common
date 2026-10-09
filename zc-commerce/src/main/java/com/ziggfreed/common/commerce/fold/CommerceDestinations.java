@@ -1,6 +1,7 @@
 package com.ziggfreed.common.commerce.fold;
 
 import java.util.List;
+import java.util.Locale;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -9,6 +10,7 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
+import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
 import com.ziggfreed.common.board.asset.BoardConfig;
 import com.ziggfreed.common.board.asset.BoardValidator;
 import com.ziggfreed.common.commerce.asset.CommerceEditorDataSets;
@@ -47,7 +49,8 @@ import com.ziggfreed.common.validation.Finding;
  *
  * <p>Each type audits its OWN field, which is the half only this mod can answer: a storefront or a
  * board nothing defines is a WARNING rather than an error, because the pack that defines it may
- * simply not be installed on the server doing the checking.
+ * simply not be installed on the server doing the checking. One the mod gate refused is absent on
+ * purpose and says nothing, since no line may name a dropped file.
  */
 public final class CommerceDestinations {
 
@@ -123,7 +126,7 @@ public final class CommerceDestinations {
     @Nonnull
     private static List<Finding> checkShop(@Nonnull Shop destination, @Nonnull String sourceId) {
         String id = destination.getShop();
-        if (id == null || ShopConfig.getInstance().has(id)) {
+        if (id == null || ShopConfig.getInstance().has(id) || refused(ShopConfig.getInstance(), id)) {
             return List.of();
         }
         return List.of(Finding.warning(ShopValidator.DOMAIN, UNKNOWN_SHOP,
@@ -172,12 +175,20 @@ public final class CommerceDestinations {
     @Nonnull
     private static List<Finding> checkBoard(@Nonnull Board destination, @Nonnull String sourceId) {
         String id = destination.getBoard();
-        if (id == null || BoardConfig.getInstance().has(id)) {
+        if (id == null || BoardConfig.getInstance().has(id) || refused(BoardConfig.getInstance(), id)) {
             return List.of();
         }
         return List.of(Finding.warning(BoardValidator.DOMAIN, UNKNOWN_BOARD,
                 "opens the board '" + id + "', which no layer defines - the pack that ships it may "
                         + "simply not be installed here", sourceId));
+    }
+
+    /**
+     * Did the mod gate keep {@code id} out of {@code config} on purpose (its pack file, or the owner's entry
+     * for it, gates on a mod this server does not run)? Then it is absent by design and no line may name it.
+     */
+    private static boolean refused(@Nonnull AbstractKeyedAssetConfig<?> config, @Nonnull String id) {
+        return config.modGateRefused().containsKey(id.trim().toLowerCase(Locale.ROOT));
     }
 
     @Nullable

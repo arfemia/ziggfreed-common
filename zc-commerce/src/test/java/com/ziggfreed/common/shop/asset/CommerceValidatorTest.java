@@ -24,6 +24,7 @@ import com.ziggfreed.common.board.asset.BountyAsset;
 import com.ziggfreed.common.board.asset.BoardValidator;
 import com.ziggfreed.common.currency.asset.CurrencyAsset;
 import com.ziggfreed.common.currency.asset.CurrencyValidator;
+import com.ziggfreed.common.factor.FeatureFlags;
 import com.ziggfreed.common.i18n.LangCatalog;
 import com.ziggfreed.common.loot.reward.CollectingRewardKind;
 import com.ziggfreed.common.loot.reward.RewardKinds;
@@ -220,6 +221,76 @@ class CommerceValidatorTest {
             Finding unknown = find(findings, "UNKNOWN_INCLUDE");
             assertEquals(Severity.WARNING, unknown.severity(), "the pack that ships it may not be installed here");
             assertEquals("stall", unknown.sourceId(), "a switched-off storefront's own Includes are still checked");
+        }
+    }
+
+    // ==================== an included storefront's own presence ====================
+
+    /**
+     * At a storefront that includes another, each of the included one's offers stands in the host: judged by
+     * the host's presence and lock and by the offer's own Season and Requires. The included storefront's own
+     * Season and hiding Requires decide nothing there, so a festival stall carrying them keeps selling at a
+     * year-round host off-season; authoring one is a warning naming the field. A storefront nobody includes, a
+     * stall that ships switched off and a plain mod gate (which keeps the whole file, so its offers at every
+     * host, off a server without that mod) say nothing.
+     */
+    @Nested
+    class IncludedPresence {
+
+        private static final String CODE = "INCLUDED_PRESENCE_IGNORED";
+
+        @BeforeEach
+        void declareAFeature() {
+            FeatureFlags.register("testincludes", "Stall_Open", "test", () -> false);
+        }
+
+        @AfterEach
+        void forgetTheFeature() {
+            FeatureFlags.reset();
+        }
+
+        /** A host including the stall, and a storefront nobody includes carrying a Season of its own. */
+        private List<Finding> audit(String stallJson) throws IOException {
+            Map<String, StorefrontAsset> shops = new LinkedHashMap<>();
+            shops.put("host", shop("{ \"Currencies\": [\"bounty_token\"], \"Includes\": [\"Stall\"] }", "Host"));
+            shops.put("stall", shop(stallJson, "Stall"));
+            shops.put("loner", shop("{ \"Currencies\": [\"bounty_token\"], \"Season\": \"Harvest_Feast\" }",
+                    "Loner"));
+            return ShopValidator.validate(Map.of(), shops, Map.of(), WALLETS, null, null, null).stream()
+                    .filter(f -> CODE.equals(f.code())).toList();
+        }
+
+        @Test
+        void anIncludedStallsOwnSeasonIsAWarningNamingTheField() throws Exception {
+            List<Finding> found = audit("{ \"Enabled\": false, \"Currencies\": [\"bounty_token\"],"
+                    + " \"Season\": \"Harvest_Feast\" }");
+
+            assertEquals(1, found.size(), "the stall alone; a storefront nobody includes keeps its Season: " + found);
+            assertEquals(Severity.WARNING, found.get(0).severity());
+            assertEquals("stall", found.get(0).sourceId());
+            assertTrue(found.get(0).message().contains("Season"), found.get(0).message());
+            assertTrue(found.get(0).message().contains("'host'"), "it names the storefront that includes it");
+        }
+
+        @Test
+        void anIncludedStallsHidingRequiresIsAWarningNamingTheField() throws Exception {
+            List<Finding> found = audit("{ \"Currencies\": [\"bounty_token\"], \"Requires\": { \"Factors\": ["
+                    + " { \"Factor\": \"testincludes:feature\", \"Param\": \"Stall_Open\" } ] } }");
+
+            assertEquals(1, found.size(), found.toString());
+            assertEquals(Severity.WARNING, found.get(0).severity());
+            assertTrue(found.get(0).message().contains("Requires"), found.get(0).message());
+            assertTrue(found.get(0).message().contains("Stall_Open"), "it names the condition: " + found.get(0));
+        }
+
+        @Test
+        void aSwitchedOffStallOrAPlainModGateSaysNothing() throws Exception {
+            assertTrue(audit("{ \"Enabled\": false, \"Currencies\": [\"bounty_token\"] }").isEmpty(),
+                    "a shared stall that ships switched off is the shape Includes is for");
+            assertTrue(audit("{ \"Currencies\": [\"bounty_token\"], \"Requires\": { \"Factors\": ["
+                            + " { \"Factor\": \"hytale:mod_installed\", \"Param\": \"Ziggfreed:MMOSkillTree\","
+                            + " \"Min\": 1 } ] } }").isEmpty(),
+                    "the plain mod gate keeps the whole file, so its offers at every host, off a server without it");
         }
     }
 
