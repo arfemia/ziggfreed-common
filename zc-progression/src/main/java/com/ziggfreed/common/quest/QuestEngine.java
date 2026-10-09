@@ -375,14 +375,16 @@ public final class QuestEngine implements QuestStateReader {
      * the content says which it is.
      *
      * <p>A carried quest not on offer ({@link Quest#available()} false) holds no slot either: it is
-     * frozen and out of sight, and takes its slot back when it is offered again.
+     * frozen and out of sight, and takes its slot back when it is offered again. Nor does a quest that
+     * does not carry over once its run is over ({@link #runIsOver}): it is last run's, and the first
+     * drop point clears it.
      */
     public int logSlotsUsed(@Nonnull Subject subject) {
         int count = 0;
         for (String questId : store.knownQuestIds(subject)) {
             Quest quest = quests.get(questId);
             if (quest != null && quest.occupiesLog() && quest.available()
-                    && store.status(subject, questId) == QuestStatus.ACTIVE) {
+                    && store.status(subject, questId) == QuestStatus.ACTIVE && !runIsOver(subject, quest)) {
                 count++;
             }
         }
@@ -420,6 +422,10 @@ public final class QuestEngine implements QuestStateReader {
      * progress that would have followed it, rather than taking the quest and then advancing it
      * nowhere; and no other reason is gathered beside it, because a prerequisite the player could go
      * and meet is no route into a system that is off.
+     *
+     * <p><b>It may write.</b> A once-a-run quest that does not carry over whose run is over is dropped
+     * first ({@link #dropIfRunEnded}: its progress and pin cleared, the re-arm reported, the player
+     * marked dirty), so the answer is about this run's quest, never last run's.
      */
     @Nonnull
     public AcceptCheck canAccept(@Nonnull Subject subject, @Nonnull Quest quest) {
@@ -1899,7 +1905,8 @@ public final class QuestEngine implements QuestStateReader {
      * against live ones and a player looking at two pinned quests is never told they already have
      * the maximum. A pin whose quest is not on offer ({@link Quest#available()} false) is kept but
      * takes no slot; when that quest returns over the cap, {@link #trackedActive}'s oldest-first cap
-     * decides which pins show.
+     * decides which pins show. A pin of a quest that does not carry over whose run is over
+     * ({@link #runIsOver}) takes none either, until a drop point clears it.
      *
      * @return false when the id is unknown or the player is already at the cap
      */
@@ -1910,7 +1917,7 @@ public final class QuestEngine implements QuestStateReader {
         pruneStaleTracked(subject);
         Map<String, Long> pins = store.trackedPins(subject);
         boolean fresh = !pins.containsKey(questId);
-        if (fresh && pinsTakingASlot(pins) >= maxTracked) {
+        if (fresh && pinsTakingASlot(subject, pins) >= maxTracked) {
             return false;
         }
         store.setTrackedPin(subject, questId, now());
@@ -1923,12 +1930,15 @@ public final class QuestEngine implements QuestStateReader {
         return true;
     }
 
-    /** The pins the tracker cap counts: every pin but those of quests not on offer right now. */
-    private int pinsTakingASlot(@Nonnull Map<String, Long> pins) {
+    /**
+     * The pins the tracker cap counts: every pin but those of quests not on offer right now and of quests that do
+     * not carry over whose run is over.
+     */
+    private int pinsTakingASlot(@Nonnull Subject subject, @Nonnull Map<String, Long> pins) {
         int counted = 0;
         for (String pinned : pins.keySet()) {
             Quest quest = quests.get(pinned);
-            if (quest == null || quest.available()) {
+            if (quest == null || (quest.available() && !runIsOver(subject, quest))) {
                 counted++;
             }
         }
@@ -1967,7 +1977,8 @@ public final class QuestEngine implements QuestStateReader {
      * The pinned quests that are still being carried and that the catalogue offers right now
      * ({@link Quest#available()}), capped at {@link #maxTracked()}. A carried quest that is not offered
      * (a once-a-run quest between runs) is left off with its pin and progress kept, so it comes back by
-     * itself when it is offered again.
+     * itself when it is offered again. A quest that does not carry over leaves it the moment its run is
+     * over ({@link #runIsOver}), before any drop point clears its pin and progress.
      */
     @Nonnull
     public List<Quest> trackedActive(@Nonnull Subject subject) {
@@ -1977,9 +1988,10 @@ public final class QuestEngine implements QuestStateReader {
                 continue;
             }
             Quest quest = quests.get(questId);
-            if (quest == null || !quest.available()) {
-                // Off-season the quest leaves the tracker with its season. Never filter in isActive or
-                // pruneStaleTracked: a pin dropped there is gone for good, and this one must come back.
+            if (quest == null || !quest.available() || runIsOver(subject, quest)) {
+                // Off-season the quest leaves the tracker with its season, and last run's quest that does not
+                // carry over leaves with its run. Never filter in isActive or pruneStaleTracked: a pin dropped
+                // there is gone for good, and a frozen quest's must come back; the drop clears the other's.
                 continue;
             }
             out.add(quest);
@@ -2136,9 +2148,24 @@ public final class QuestEngine implements QuestStateReader {
      * moved its days: progress taken in one run never counts toward another, even one dated before its own. With
      * none going on, its run is over once the next run comes after it in time ({@link PerRuns#comesAfter}, never by
      * number), or none is left; a run whose own days are still ahead (moved later, or forced on before them) is not
-     * over. True when it was dropped.
+     * over. The test is {@link #runIsOver}. True when it was dropped.
      */
     boolean dropIfRunEnded(@Nonnull Subject subject, @Nonnull Quest quest) {
+        if (!runIsOver(subject, quest)) {
+            return false;
+        }
+        clearQuest(subject, quest.id());
+        return true;
+    }
+
+    /**
+     * Is this player carrying a once-a-run quest that does not carry over whose run is over? The one test behind
+     * {@link #dropIfRunEnded}, as a pure read: it writes nothing (no clear, no dirty mark, no event), so the
+     * tracker, the log's slot count and the pin cap ask it to hide such a quest the moment its run ends, as they hide
+     * a frozen one, while its progress and pin stay saved until a drop point clears them. False for any other quest,
+     * and for one that finished in its run (a reward still owed is never taken back).
+     */
+    private boolean runIsOver(@Nonnull Subject subject, @Nonnull Quest quest) {
         Quest.Repeat.PerRun perRun = quest.repeat() == null ? null : quest.repeat().perRun();
         if (perRun == null || perRun.carry() || store.status(subject, quest.id()) != QuestStatus.ACTIVE) {
             return false;
@@ -2150,17 +2177,10 @@ public final class QuestEngine implements QuestStateReader {
         OccurrenceSource occurrences = Occurrences.source();
         Occurrence live = occurrences.live(perRun.event(), now());
         if (live != null) {
-            if (taken.is(live)) {
-                return false;
-            }
-        } else {
-            Occurrence next = occurrences.next(perRun.event(), now());
-            if (next != null && !PerRuns.comesAfter(next, taken, perRun, occurrences)) {
-                return false;
-            }
+            return !taken.is(live);
         }
-        clearQuest(subject, quest.id());
-        return true;
+        Occurrence next = occurrences.next(perRun.event(), now());
+        return next == null || PerRuns.comesAfter(next, taken, perRun, occurrences);
     }
 
     // ==================== The narrow read seam ====================
