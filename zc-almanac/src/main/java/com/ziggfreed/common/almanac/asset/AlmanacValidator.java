@@ -11,6 +11,7 @@ import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.almanac.AlmanacKeepsakeCheck;
 import com.ziggfreed.common.almanac.AlmanacKeys;
 import com.ziggfreed.common.almanac.AlmanacSwitch;
 import com.ziggfreed.common.inventory.ItemIds;
@@ -43,7 +44,10 @@ import com.ziggfreed.common.validation.TextKeyAudit;
  *       key the page shows that no loaded lang file ships.</li>
  * </ul>
  *
- * <p>A page's {@code Keepsake} and its {@code Hero.Art} picture are not asked here.
+ * <p>A page's {@code Keepsake} is asked here only against the cross-season ladders: the engine walk carries
+ * {@code AlmanacKeepsakeCheck}'s findings ({@code KEEPSAKE_NOT_PICKED}, {@code PICKED_NOT_A_KEEPSAKE}), so
+ * zc's boot audit counts them in this pass. Whether the Keepsake names a loaded achievement, and the page's
+ * {@code Hero.Art} picture, are not asked.
  */
 public final class AlmanacValidator {
 
@@ -66,7 +70,9 @@ public final class AlmanacValidator {
 
     /**
      * The engine walk over every folded page, against the calendar (through the occurrence slot), the live
-     * item store, the shared objective vocabulary and the lang catalogue.
+     * item store, the shared objective vocabulary and the lang catalogue; then the keepsake check over the
+     * loaded pages and achievement files ({@code AlmanacKeepsakeCheck}, which prints nothing itself on a boot
+     * that runs this walk as zc's boot audit).
      */
     @Nonnull
     public static List<Finding> audit() {
@@ -74,8 +80,11 @@ public final class AlmanacValidator {
             if (!AlmanacSwitch.isOn()) {
                 return List.of();
             }
-            return audit(AlmanacEntryConfig.getInstance().all().values(), AlmanacValidator::eventLoaded,
-                    ItemIds::exists, ProgressionRuntime.objectiveKinds(), TextKeyAudit.liveCatalogue());
+            List<Finding> out = new ArrayList<>(audit(AlmanacEntryConfig.getInstance().all().values(),
+                    AlmanacValidator::eventLoaded, ItemIds::exists, ProgressionRuntime.objectiveKinds(),
+                    TextKeyAudit.liveCatalogue()));
+            out.addAll(AlmanacKeepsakeCheck.findings());
+            return out;
         } catch (Throwable t) {
             SafeLog.warn("[almanac] the Almanac audit failed: " + t.getMessage(), t);
             return List.of();
