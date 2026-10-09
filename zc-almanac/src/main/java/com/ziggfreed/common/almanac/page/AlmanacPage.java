@@ -115,6 +115,7 @@ public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData>
     private static final String HERO_CHIP = HERO + " #HeroChip";
     private static final String HERO_TITLE = HERO + " #HeroTitle";
     private static final String HERO_DATES = HERO + " #HeroDates";
+    private static final String HERO_NEXT = HERO + " #HeroNext";
     private static final String HERO_ACCENT = HERO + " #HeroAccent";
 
     // A standalone @ZigSectionHeader's label and meta (no kit painter for one outside a detail block).
@@ -424,7 +425,7 @@ public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData>
      * The hero's layers, each set both ways so nothing the template ships shows by accident: the art layer only for
      * art (or a composition's texture); the flat fill over the plate, the tinted sky, the glow fitted onto the plate
      * and the item pictures for a composition; the season's own picture otherwise; then the chip, the name, the
-     * dates and the accent strip.
+     * dates, the line under them (a monthly or weekly season's next run) and the accent strip.
      */
     private static void paintHero(@Nonnull UICommandBuilder cmd, @Nonnull HeroPlan hero) {
         String art = hero.artTexture();
@@ -462,6 +463,7 @@ public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData>
         PillPainter.paint(cmd, HERO_CHIP, hero.chip());
         cmd.set(HERO_TITLE + ".TextSpans", hero.title());
         optional(cmd, HERO_DATES, hero.dates());
+        optional(cmd, HERO_NEXT, hero.next());
         UiRetint.fill(cmd, HERO_ACCENT, hero.accentHex());
     }
 

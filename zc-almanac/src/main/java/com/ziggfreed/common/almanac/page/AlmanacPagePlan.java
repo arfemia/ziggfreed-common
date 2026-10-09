@@ -87,12 +87,13 @@ record AlmanacPagePlan(@Nonnull LedgerModel seasons, @Nullable String selected, 
      * background texture; null hides the layer, so the plate behind shows); the flat fill over the plate
      * ({@code fillHex}); the tint of the white sky ({@code skyHex}, null hides it); the glow; the composed
      * pictures; the season's own picture ({@code pictureTexture}, the {@code PICTURE} kind only); the chip, the
-     * name, the dates line; and the accent strip's colour, clamped.
+     * name, the dates line, and the line under it ({@code next}: a monthly or weekly season's next run, null for
+     * any other); and the accent strip's colour, clamped.
      */
     record HeroPlan(@Nonnull HeroKind kind, @Nullable String artTexture, @Nullable String fillHex,
             @Nullable String skyHex, @Nullable HeroLight glow, @Nonnull List<HeroPicture> pictures,
             @Nullable String pictureTexture, @Nonnull Pill chip, @Nonnull Message title, @Nullable Message dates,
-            @Nonnull String accentHex) {
+            @Nullable Message next, @Nonnull String accentHex) {
     }
 
     /** One year chip: its words, what its click carries ({@code Year}), and its check and dot. */
@@ -354,10 +355,12 @@ record AlmanacPagePlan(@Nonnull LedgerModel seasons, @Nullable String selected, 
         Pill chip = Pill.of(AlmanacLines.chip(timing), tone(timing));
         Message title = AlmanacText.authored(season.titleKey(), season.eventId());
         Message dates = AlmanacLines.window(timing);
+        Message next = AlmanacLines.next(timing);
         String accent = ZigTokens.clampAccent(page.accentHex());
         Hero hero = page.hero();
         if (hero.art() != null) {
-            return new HeroPlan(HeroKind.ART, hero.art(), null, null, null, List.of(), null, chip, title, dates, accent);
+            return new HeroPlan(HeroKind.ART, hero.art(), null, null, null, List.of(), null, chip, title, dates, next,
+                    accent);
         }
         HeroComposition composition = hero.composition();
         if (composition != null) {
@@ -370,10 +373,10 @@ record AlmanacPagePlan(@Nonnull LedgerModel seasons, @Nullable String selected, 
                         new HeroBox(item.x(), item.y(), item.size(), item.size())));
             }
             return new HeroPlan(HeroKind.COMPOSED, composition.backgroundTexture(), hex(fill), hex(sky),
-                    light(composition.glow()), List.copyOf(pictures), null, chip, title, dates, accent);
+                    light(composition.glow()), List.copyOf(pictures), null, chip, title, dates, next, accent);
         }
         return new HeroPlan(HeroKind.PICTURE, null, null, null, null, List.of(), hero.iconPath(), chip, title, dates,
-                accent);
+                next, accent);
     }
 
     @Nullable

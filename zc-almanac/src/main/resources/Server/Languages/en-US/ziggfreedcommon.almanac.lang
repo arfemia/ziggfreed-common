@@ -70,11 +70,10 @@ window = Every year, {0} {1, number} to {2} {3, number}
 window.year = In {0}, {1} {2, number} to {3} {4, number}
 window.day = Every year, {0} {1, number}
 window.year.day = In {0}, {1} {2, number}
-# A season that comes round monthly or weekly says how in place of one run's days: "{when}, {how long}", then
-# ". Next: ..." with its next run. The pieces nest as their own keys (a day like 15th, first to fifth or last,
-# a weekday, a list of months); a time of day is text (14:00).
+# A season that comes round monthly or weekly says how in place of one run's days: "{when}, {how long}"; its next
+# run ("Next: ...") is a line of its own under it. The pieces nest as their own keys (a day like 15th, first to
+# fifth or last, a weekday, a list of months); a time of day is text (14:00).
 recur = {0}, {1}
-recur.with_next = {0}. {1}
 recur.monthly.day = On the {0} of {1}
 recur.monthly.weekday = The {0} {1} of {2}
 recur.months.every = every month

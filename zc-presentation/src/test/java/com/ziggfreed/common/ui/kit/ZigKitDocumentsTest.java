@@ -655,6 +655,37 @@ class ZigKitDocumentsTest {
                 && hero.indexOf("#HeroItems") < hero.indexOf("#HeroFade"), "the items lie over the glow, under the fade");
     }
 
+    /**
+     * The hero's words: the chip, the name, the dates line and, under it, a second line a page shows for what the
+     * dates line cannot also hold (the Almanac's next run of a season that comes round monthly or weekly). Each line
+     * is one line, so the box holds them all exactly, a flexing first child takes the room a hidden line leaves (the
+     * words stay on the plate's bottom edge either way), and every line sits on the fade.
+     */
+    @Test
+    void theHeroWordsHoldASecondDatesLineAndStayOnTheFade() throws IOException {
+        String hero = template(document("Common/ZigKit.ui"), "@ZigHeroPlate");
+        String text = block(hero, "#HeroText");
+        assertEquals("Top", property(text, "LayoutMode"));
+        assertEquals("Label", type(text, "#HeroNext"));
+        assertHidden(text, "#HeroNext");
+        assertOneLine(property(block(text, "#HeroNext"), "Style"), "$ZX.@ZigBodyStyle");
+        assertTrue(text.indexOf("#HeroDates") < text.indexOf("#HeroNext"), "the second line reads under the dates");
+
+        assertEquals("Group", type(text, "#HeroTextSpace"));
+        assertEquals("1", property(block(text, "#HeroTextSpace"), "FlexWeight"));
+        assertTrue(text.indexOf("#HeroTextSpace") < text.indexOf("#HeroChipRow"), "it comes first, above the chip");
+
+        String chipRow = property(block(text, "#HeroChipRow"), "Anchor");
+        int lines = size(leaf(chipRow, "Height")) + size(leaf(chipRow, "Bottom"))
+                + size(leaf(property(block(text, "#HeroTitle"), "Anchor"), "Height"))
+                + size(leaf(property(block(text, "#HeroDates"), "Anchor"), "Height"))
+                + size(leaf(property(block(text, "#HeroNext"), "Anchor"), "Height"));
+        String box = property(text, "Anchor");
+        assertEquals(lines, size(leaf(box, "Height")), "the box holds the chip and three lines exactly");
+        int fade = size(leaf(property(block(hero, "#HeroFade"), "Anchor"), "Height"));
+        assertTrue(size(leaf(box, "Bottom")) + size(leaf(box, "Height")) <= fade, "every line sits on the fade");
+    }
+
     @Test
     void everyButtonAPainterGivesATooltipCarriesTheTooltipStyle() throws IOException {
         // A TooltipText with no TextTooltipStyle draws nothing, so the toggle and the action buttons carry vanilla's.
