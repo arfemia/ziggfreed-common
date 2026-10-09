@@ -325,15 +325,16 @@ public final class AchievementReader {
     }
 
     /**
-     * Needs: what a capstone stands on, each line opening a child. A plain capstone lists the children the player
-     * may see; a grouped one lists each group in its count once ({@link #groupedNeeds}).
+     * Needs: what a capstone stands on, each line opening a child. A capstone over seasons ({@link #overSeasons})
+     * lists each group in its count once ({@link #groupedNeeds}); every other capstone lists the children the
+     * player may see ({@link #listedChildren}), counted by the engine's tally when it is grouped.
      */
     @Nullable
     private DetailBlock needsBlock(@Nonnull Achievement a) {
         if (!a.isMeta()) {
             return null;
         }
-        if (!a.metaGroups().isEmpty()) {
+        if (overSeasons(a)) {
             return groupedNeeds(a);
         }
         List<DetailLine> lines = new ArrayList<>();
@@ -349,13 +350,33 @@ public final class AchievementReader {
         if (lines.isEmpty()) {
             return null;
         }
-        return new DetailBlock("needs", text("book.achievements.block.needs"), KitText.count(met, lines.size()), lines);
+        Message count = a.metaGroups().isEmpty() ? KitText.count(met, lines.size()) : groupCount(a);
+        return new DetailBlock("needs", text("book.achievements.block.needs"), count, lines);
     }
 
     /**
-     * A grouped capstone's Needs, its lines matching its count: one line per group the engine counts (a season
-     * switched off has none, as it has no place in the count; its keepsakes stay earned in the book), showing the
-     * group's {@link #groupFace}, ticked when any of its children is earned, and counted by the engine's tally.
+     * Does {@code a} stand on seasons: is any of its groups keyed by a calendar event and held by that event's
+     * yearly copies (what an {@code AnyYear} selector builds, and the group the engine counts by its event's switch)?
+     * A group of one pick, keyed by the pick's own id, is no season.
+     */
+    private boolean overSeasons(@Nonnull Achievement a) {
+        for (Achievement.MetaGroup group : a.metaGroups()) {
+            for (String id : group.children()) {
+                Achievement child = engine.achievement(id);
+                Achievement.Occurrence occurrence = child == null ? null : child.occurrence();
+                if (occurrence != null && occurrence.eventId().equals(group.key())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The Needs of a capstone over seasons only, its lines matching its count: one line per group the engine
+     * counts (a season switched off has none, as it has no place in the count; its keepsakes stay earned in the
+     * book), showing the group's {@link #groupFace}, ticked when any of its children is earned, and counted by the
+     * engine's tally.
      */
     @Nullable
     private DetailBlock groupedNeeds(@Nonnull Achievement a) {
@@ -389,8 +410,8 @@ public final class AchievementReader {
      * The child a group's Needs line shows: its newest the player may see
      * ({@link AchievementShelves#listsAsCapstoneChild}; newest by the year a copy was minted for, the first by id
      * among equals); else, for a season between runs with nothing of it earned, its newest yearly copy that is not
-     * hidden and whose year has come, so the season keeps its line. Null when nothing may show (hidden or retired
-     * children nobody earned).
+     * hidden and whose year has come ({@link #yearHasCome}), so the season keeps its line. Null when nothing may
+     * show (hidden or retired children nobody earned, or the calendar cannot say the season's year).
      */
     @Nullable
     private Achievement groupFace(@Nonnull Achievement.MetaGroup group) {
@@ -424,7 +445,8 @@ public final class AchievementReader {
 
     /**
      * Is {@code a} a yearly copy, not hidden, whose year its event has reached ({@code OccurrenceSource.currentYear},
-     * the year a copy is minted for; the next year's copy is minted ahead)? A calendar that cannot say reads yes.
+     * the year a copy is minted for; the next year's copy is minted ahead)? A calendar that cannot say (no year, or
+     * a read that throws) reads no, since the newest copy may be next year's.
      */
     private boolean yearHasCome(@Nonnull Achievement a) {
         Achievement.Occurrence occurrence = a.occurrence();
@@ -432,7 +454,7 @@ public final class AchievementReader {
             return false;
         }
         Integer current = currentYear(occurrence.eventId());
-        return current == null || occurrence.year() <= current;
+        return current != null && occurrence.year() <= current;
     }
 
     /** The year a copy was minted for, 0 for an ordinary achievement. */
@@ -912,10 +934,10 @@ public final class AchievementReader {
     }
 
     /**
-     * A plain capstone's children the player may see ({@link AchievementShelves#listsAsCapstoneChild}): its Needs
-     * lines and its count. A grouped capstone reads neither from here, since this holds every copy standing for a
-     * group (two years of one season are two children): its count is {@code AchievementEngine.tally}, which counts
-     * groups, and its Needs lists each counted group once ({@link #groupedNeeds}).
+     * A capstone's children the player may see ({@link AchievementShelves#listsAsCapstoneChild}): the Needs lines
+     * of every capstone not over seasons, and a plain capstone's count. A grouped capstone counts by
+     * {@code AchievementEngine.tally} (groups, never the copies standing for them), and one over seasons lists
+     * each counted group once instead ({@link #groupedNeeds}), since two years of one season are two children here.
      */
     @Nonnull
     List<Achievement> listedChildren(@Nonnull Achievement capstone) {
