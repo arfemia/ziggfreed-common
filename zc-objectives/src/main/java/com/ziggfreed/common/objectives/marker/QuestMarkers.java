@@ -76,11 +76,15 @@ public final class QuestMarkers {
     }
 
     /**
-     * Subscribe the refresh to the six quest events, player ready and disconnect, register the two
-     * delayed systems and the per-world eviction, and add the overhead surface. Call once from setup;
-     * guarded and loud, since a subscription that failed is a mark that lags the sweep.
+     * Add the overhead surface, subscribe the refresh to the six quest events, player ready and
+     * disconnect, and register the two delayed systems and the per-world eviction. Call once from
+     * setup; guarded and loud, since a subscription that failed is a mark that lags the sweep. The
+     * surface and the stand-down's refresh sit outside the subscriptions' guard, so a failed
+     * subscription never costs the overheads themselves.
      */
     public static void install(@Nonnull PluginBase plugin) {
+        addListener("overheads", QuestOverheads.INSTANCE);
+        QuestMarkYield.onConsumerDraws(QuestMarkers::refreshAll);
         try {
             var events = plugin.getEventRegistry();
             events.registerGlobal(QuestTrackedEvent.class, event -> refresh(event.playerId()));
@@ -91,8 +95,6 @@ public final class QuestMarkers {
             events.registerGlobal(QuestAbandonedEvent.class, event -> refresh(event.playerId()));
             events.registerGlobal(EventPriority.LATE, PlayerReadyEvent.class, QuestMarkers::onPlayerReady);
             events.register(PlayerDisconnectEvent.class, QuestMarkers::onPlayerDisconnect);
-            QuestMarkYield.onConsumerDraws(QuestMarkers::refreshAll);
-            addListener("overheads", QuestOverheads.INSTANCE);
         } catch (Throwable t) {
             SafeLog.warn("[progression] the quest marks could not subscribe to the quest events", t);
         }
@@ -117,7 +119,7 @@ public final class QuestMarkers {
     /**
      * Recompute {@code playerId}'s marks from any thread: resolves the player, hops to their world
      * thread and evaluates with the live store. A player offline or between worlds is left to the
-     * next sweep.
+     * next sweep, and one who changed worlds before the hop landed to their player ready there.
      */
     public static void refresh(@Nonnull UUID playerId) {
         try {
@@ -136,6 +138,9 @@ public final class QuestMarkers {
                     return;
                 }
                 Store<EntityStore> store = live.getStore();
+                if (WorldEvictors.worldOf(store) != world) {
+                    return;
+                }
                 evaluate(store, store, world, live, playerId);
             });
         } catch (Throwable t) {
@@ -227,6 +232,9 @@ public final class QuestMarkers {
                     return;
                 }
                 Store<EntityStore> store = ref.getStore();
+                if (WorldEvictors.worldOf(store) != world) {
+                    return; // moved on before this ran; the next world's player ready evaluates there
+                }
                 PlayerRef playerRef = store.getComponent(ref, PlayerRef.getComponentType());
                 if (playerRef != null && playerRef.getUuid() != null) {
                     evaluate(store, store, world, ref, playerRef.getUuid());

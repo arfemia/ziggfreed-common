@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -271,14 +272,38 @@ class QuestIndicatorsTest {
     }
 
     @Test
-    void theLegacyReadsTellTheLibraryAConsumerDrawsItsOwnMarks() {
-        engine.setQuests(List.of(gather("q_a").build()));
+    void theLegacyReadsAnswerAsTheyAlwaysDidAndTellTheLibraryAConsumerDrawsItsOwnMarks() {
+        global(QuestIndicatorSpec.of(null, null, null,
+                QuestIndicatorSpec.Situation.of(null, null, null, QuestIndicatorSpec.MapMark.of(true, "Coordinate.png"),
+                        QuestIndicatorSpec.Repeatable.of("Quest_Available_Repeatable")), null));
+        Quest daily = gather("q_daily").repeat(Quest.Repeat.every(24L * 60L * 60L * 1000L)).build();
+        Quest once = Quest.builder("q_once").npcViewId("other")
+                .objective(ObjectiveDef.builder("mine", "BREAK_BLOCK").target("Copper_Ore").amount(3).build())
+                .build();
+        engine.setQuests(List.of(daily, once));
+        Map<String, QuestIndicatorSpec.Resolved> library = knobsByCharacter(QuestIndicators.mapMarks(engine, player));
+        assertEquals(Set.of(GUIDE, "other"), library.keySet());
+        assertEquals("Quest_Available_Repeatable", library.get(GUIDE).state(),
+                "the library's own marks show a daily's look");
         assertFalse(QuestMarkYield.consumerDraws());
 
-        // DEPRECATION-KEPT: pins the stand-down an older consumer's call to the legacy read triggers
-        QuestIndicators.mapMarksFor(engine, player);
+        // DEPRECATION-KEPT: pins what an older consumer's legacy read answers, and the stand-down it triggers
+        List<QuestIndicators.MapMark> legacyMarks = QuestIndicators.mapMarksFor(engine, player);
+        Map<String, QuestIndicatorSpec.Resolved> legacy = knobsByCharacter(legacyMarks);
 
+        assertEquals(Set.of(GUIDE, "other"), legacy.keySet());
+        assertEquals(library.get("other"), legacy.get(GUIDE),
+                "the legacy read shows a daily on offer exactly as the library shows a one-off, as it always did");
+        assertEquals(library.get("other"), legacy.get("other"), "and a one-off exactly as the library does");
         assertTrue(QuestMarkYield.consumerDraws());
         assertEquals("QuestIndicators.mapMarksFor", QuestMarkYield.via());
+    }
+
+    private static Map<String, QuestIndicatorSpec.Resolved> knobsByCharacter(List<QuestIndicators.MapMark> marks) {
+        Map<String, QuestIndicatorSpec.Resolved> out = new HashMap<>();
+        for (QuestIndicators.MapMark mark : marks) {
+            out.put(mark.npcId(), mark.reading().knob());
+        }
+        return out;
     }
 }

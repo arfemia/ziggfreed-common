@@ -45,4 +45,19 @@ class QuestMarkYieldTest {
 
         assertEquals(1, told.get());
     }
+
+    @Test
+    void aListenerAddedAfterAConsumerWasSeenIsToldAtOnceAndOnlyOnce() {
+        QuestMarkYield.noteConsumerDraws("a");
+        AtomicInteger told = new AtomicInteger();
+
+        QuestMarkYield.onConsumerDraws(() -> {
+            throw new IllegalStateException("boom");
+        });
+        QuestMarkYield.onConsumerDraws(told::incrementAndGet);
+        assertEquals(1, told.get(), "the stand-down already happened, so it is told at once");
+
+        QuestMarkYield.noteConsumerDraws("b");
+        assertEquals(1, told.get(), "and never again");
+    }
 }

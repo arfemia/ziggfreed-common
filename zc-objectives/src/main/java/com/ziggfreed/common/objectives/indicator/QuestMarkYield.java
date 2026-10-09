@@ -1,6 +1,7 @@
 package com.ziggfreed.common.objectives.indicator;
 
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.annotation.Nonnull;
@@ -23,7 +24,7 @@ import com.ziggfreed.common.util.SafeLog;
 public final class QuestMarkYield {
 
     private static final AtomicReference<String> VIA = new AtomicReference<>();
-    private static final CopyOnWriteArrayList<Runnable> LISTENERS = new CopyOnWriteArrayList<>();
+    private static final CopyOnWriteArrayList<Once> LISTENERS = new CopyOnWriteArrayList<>();
 
     private QuestMarkYield() {
     }
@@ -39,9 +40,16 @@ public final class QuestMarkYield {
         return VIA.get();
     }
 
-    /** Be told once, the moment a consumer is first seen drawing its own marks. */
+    /**
+     * Be told once that a consumer draws its own marks: the moment one is first seen, or at once, on
+     * this thread, when one already was.
+     */
     public static void onConsumerDraws(@Nonnull Runnable listener) {
-        LISTENERS.add(listener);
+        Once once = new Once(listener);
+        LISTENERS.add(once);
+        if (consumerDraws()) {
+            once.run();
+        }
     }
 
     /** Record that a legacy read was called; the first call wins, logs once and tells every listener. */
@@ -52,12 +60,8 @@ public final class QuestMarkYield {
         SafeLog.info("[progression] a consumer draws its own quest marks (it called " + via + "), so the"
                 + " library's overheads and quest map marks stand down for this boot; a tracked quest's pointer"
                 + " through a gateway stays on");
-        for (Runnable listener : LISTENERS) {
-            try {
-                listener.run();
-            } catch (Throwable t) {
-                SafeLog.warn("[progression] a quest-mark stand-down listener failed: " + t.getMessage());
-            }
+        for (Once listener : LISTENERS) {
+            listener.run();
         }
     }
 
@@ -65,5 +69,30 @@ public final class QuestMarkYield {
     static void resetForTests() {
         VIA.set(null);
         LISTENERS.clear();
+    }
+
+    /**
+     * One listener, run at most once whichever gets there first: the first legacy read telling every
+     * listener, or the add that finds the boot already marked. One that throws costs only itself.
+     */
+    private static final class Once {
+
+        @Nonnull private final Runnable listener;
+        private final AtomicBoolean told = new AtomicBoolean();
+
+        Once(@Nonnull Runnable listener) {
+            this.listener = listener;
+        }
+
+        void run() {
+            if (!told.compareAndSet(false, true)) {
+                return;
+            }
+            try {
+                listener.run();
+            } catch (Throwable t) {
+                SafeLog.warn("[progression] a quest-mark stand-down listener failed: " + t.getMessage());
+            }
+        }
     }
 }
