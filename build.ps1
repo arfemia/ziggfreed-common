@@ -14,9 +14,16 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 
-Write-Host "`n=== Building ZiggfreedCommon (gradlew build) ===" -ForegroundColor Cyan
-& (Join-Path $root 'gradlew.bat') build
-if ($LASTEXITCODE -ne 0) { throw "gradlew build failed (exit $LASTEXITCODE)" }
+Write-Host "`n=== Building ZiggfreedCommon (gradle build) ===" -ForegroundColor Cyan
+# Gradle runs through hyMMO's lane when this repo sits in hyMMO's additional-mods/ (R139): the lane
+# waits for a free machine and keeps one build per tree. Cloned alone, it runs gradlew here.
+$lane = Join-Path $root '..\..\tools\lane\lane.ps1'
+if (Test-Path $lane) {
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $lane build -Dir $root -Tasks 'build'
+} else {
+    & (Join-Path $root 'gradlew.bat') build
+}
+if ($LASTEXITCODE -ne 0) { throw "gradle build failed (exit $LASTEXITCODE)" }
 
 # Pin the runtime jar by gradle.properties version. The -Filter glob MUST NOT be
 # 'ZiggfreedCommon-*.jar' - that also matches the -sources.jar / -javadoc.jar siblings.
