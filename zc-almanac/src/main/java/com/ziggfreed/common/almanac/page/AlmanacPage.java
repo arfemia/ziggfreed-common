@@ -30,6 +30,7 @@ import com.ziggfreed.common.achievement.AchievementEngine;
 import com.ziggfreed.common.almanac.AlmanacCalendar;
 import com.ziggfreed.common.almanac.AlmanacCollection;
 import com.ziggfreed.common.almanac.AlmanacComponent;
+import com.ziggfreed.common.almanac.AlmanacStatsImport;
 import com.ziggfreed.common.almanac.AlmanacText;
 import com.ziggfreed.common.almanac.OccurrenceAlmanacCalendar;
 import com.ziggfreed.common.almanac.ServerTallies;
@@ -365,7 +366,6 @@ public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData>
         List<Season> seasons = AlmanacView.seasons(pages, calendar);
         AchievementEngine engine = ProgressionRuntime.achievements();
         Subject subject = achievementSubject(store, ref);
-        CounterMap tallies = AlmanacComponent.talliesOf(store, ref);
 
         Map<String, Timing> timings = new HashMap<>();
         Map<String, String> accents = new HashMap<>();
@@ -378,7 +378,9 @@ public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData>
         }
         Season season = AlmanacView.pick(seasons, selected);
         AlmanacEntryAsset reading = season == null ? null : pages.get(season.eventId());
-        markHeld(store, ref, tallies, reading);
+        // The owned marks are written into the Almanac record itself, so the look comes before the read.
+        markHeld(store, ref, AlmanacComponent.talliesOf(store, ref), reading);
+        CounterMap tallies = AlmanacStatsImport.read(store, ref);
         SeasonPage page = season == null ? null : AlmanacView.page(season, reading, tallies, engine, subject,
                 requested, calendar, ServerTallies.shared(), now);
         Banner banner = subject == null ? null : AlmanacView.banner(engine, subject);

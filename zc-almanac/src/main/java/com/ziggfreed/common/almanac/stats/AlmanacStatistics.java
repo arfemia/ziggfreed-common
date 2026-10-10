@@ -10,8 +10,8 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.almanac.AlmanacCalendar;
-import com.ziggfreed.common.almanac.AlmanacComponent;
 import com.ziggfreed.common.almanac.AlmanacKeys;
+import com.ziggfreed.common.almanac.AlmanacStatsImport;
 import com.ziggfreed.common.almanac.AlmanacSwitch;
 import com.ziggfreed.common.almanac.AlmanacText;
 import com.ziggfreed.common.almanac.OccurrenceAlmanacCalendar;
@@ -98,13 +98,13 @@ public final class AlmanacStatistics implements LedgerSource {
     @Override
     @Nonnull
     public List<LedgerSection> sections(@Nonnull LedgerContext ctx) {
-        return sections(AlmanacComponent.talliesOf(ctx.store(), ctx.ref()));
+        return sections(AlmanacStatsImport.read(ctx.store(), ctx.ref()));
     }
 
     @Override
     @Nullable
     public DetailView page(@Nonnull String rowId, @Nonnull LedgerContext ctx) {
-        return page(rowId, AlmanacComponent.talliesOf(ctx.store(), ctx.ref()), ctx.nowMs());
+        return page(rowId, AlmanacStatsImport.read(ctx.store(), ctx.ref()), ctx.nowMs());
     }
 
     /** The Seasons section for a player holding {@code tallies}; empty while the Almanac is off or lists nothing. */

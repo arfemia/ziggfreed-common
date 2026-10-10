@@ -1,25 +1,21 @@
 package com.ziggfreed.common.almanac;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import com.ziggfreed.common.counter.CounterMap;
-import com.ziggfreed.common.progress.ZoneRef;
 
 /**
- * What one produced moment adds to one player's Almanac record. Pure: it takes the record's bag, the
- * stat index and the calendar, and touches nothing else.
+ * What one produced moment adds to one player's Almanac record: attendance, the Almanac's own record. Pure:
+ * it takes the record's bag and the calendar, and touches nothing else. A season page's stat lines count in
+ * the player stat store instead ({@link AlmanacStatLines}).
  *
  * <ul>
- *   <li>A matching line while its season is on ADDS the moment's amount to the season's tally and to
- *       the every-season tally.</li>
- *   <li>Between seasons only a {@code LiveOnly: false} line counts, and only toward every season.</li>
- *   <li>A season the calendar does not answer for counts nothing (off means absent).</li>
  *   <li>{@value #ATTENDED_KIND} marks the live season attended once (a high-water 1), adds one to the
  *       runs it attended that season-year (the calendar fires once per player per run, and an event may
  *       come round several times a year; a year marked attended before runs were counted starts from
  *       its one run), and, the first time each season, adds one to the seasons attended.</li>
- *   <li>An amount of zero or less never counts: a tally never goes down.</li>
+ *   <li>A season the calendar does not answer for, or one not on now, marks nothing (off means absent).</li>
+ *   <li>Any other moment adds nothing here.</li>
  * </ul>
  */
 public final class AlmanacCounter {
@@ -30,30 +26,10 @@ public final class AlmanacCounter {
     private AlmanacCounter() {
     }
 
-    public static void count(@Nonnull CounterMap tallies, @Nonnull AlmanacIndex index,
-            @Nonnull AlmanacCalendar calendar, @Nonnull String kindId, @Nonnull String target,
-            @Nullable String qualifier, long amount, @Nullable ZoneRef zone) {
+    public static void count(@Nonnull CounterMap tallies, @Nonnull AlmanacCalendar calendar, @Nonnull String kindId,
+            @Nonnull String target) {
         if (ATTENDED_KIND.equalsIgnoreCase(kindId)) {
             attend(tallies, calendar, target);
-            return;
-        }
-        if (amount <= 0L) {
-            return;
-        }
-        for (AlmanacIndex.Line line : index.forKind(kindId)) {
-            if (!line.def().matches(target, qualifier) || !line.def().matchesZone(zone)) {
-                continue;
-            }
-            AlmanacCalendar.SeasonState state = calendar.state(line.eventId());
-            if (state == null) {
-                continue;
-            }
-            if (state.live()) {
-                tallies.add(AlmanacKeys.lifetime(line.eventId(), line.statId()), amount);
-                tallies.add(AlmanacKeys.season(line.eventId(), state.year(), line.statId()), amount);
-            } else if (!line.liveOnly()) {
-                tallies.add(AlmanacKeys.lifetime(line.eventId(), line.statId()), amount);
-            }
         }
     }
 

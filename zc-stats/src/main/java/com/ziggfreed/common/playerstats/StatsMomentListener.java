@@ -10,21 +10,23 @@ import com.ziggfreed.common.progress.runtime.MomentListener;
 
 /**
  * The stat store's reaction to every produced moment: one cheap check (switched on, and a kind some
- * stat's {@code From} names), then each matching stat moved its own way through {@link PlayerStats}.
- * Registered once at the library-default rank; it never refuses a moment and never writes progression.
- * World thread, inside the producing dispatch.
+ * stat's {@code From} names), then each matching stat moved its own way through {@link PlayerStats};
+ * then every season page's lines ({@link SeasonLines}), each owner's while its own switch is on, whatever
+ * the store's says. Registered once at the library-default rank; it never refuses a moment and never
+ * writes progression. World thread, inside the producing dispatch.
  */
 public final class StatsMomentListener implements MomentListener {
 
     @Override
     public void react(@Nonnull Moment moment) {
-        if (!StatsSwitch.isOn()) {
-            return;
+        if (StatsSwitch.isOn()) {
+            List<StatCounter.Write> writes = StatCounter.writes(StatConfig.getInstance().index(), moment.kindId(),
+                    moment.target(), moment.qualifier(), moment.amount(), moment.zone());
+            for (StatCounter.Write write : writes) {
+                PlayerStats.count(moment.store(), moment.ref(), write);
+            }
         }
-        List<StatCounter.Write> writes = StatCounter.writes(StatConfig.getInstance().index(), moment.kindId(),
-                moment.target(), moment.qualifier(), moment.amount(), moment.zone());
-        for (StatCounter.Write write : writes) {
-            PlayerStats.count(moment.store(), moment.ref(), write);
-        }
+        SeasonLines.count(moment.store(), moment.ref(), moment.kindId(), moment.target(), moment.qualifier(),
+                moment.amount(), moment.zone());
     }
 }

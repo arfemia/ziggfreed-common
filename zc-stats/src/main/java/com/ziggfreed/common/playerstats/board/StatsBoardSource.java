@@ -23,6 +23,7 @@ import com.ziggfreed.common.instance.leaderboard.statboard.StatSectionConfig;
 import com.ziggfreed.common.instance.result.ColumnFormat;
 import com.ziggfreed.common.playerstats.NativeStats;
 import com.ziggfreed.common.playerstats.PlayerStats;
+import com.ziggfreed.common.playerstats.SeasonLines;
 import com.ziggfreed.common.playerstats.StatFormat;
 import com.ziggfreed.common.playerstats.StatKeys;
 import com.ziggfreed.common.playerstats.StatKind;
@@ -38,7 +39,10 @@ import com.ziggfreed.common.playerstats.asset.StatConfig;
  * consumer counts. A {@code Stat/Thing} line is headed by its stat's name, since a column header is a
  * bare translation and a thing has no name of its own to give it, unless the stat is native and its
  * reader names the thing (a reputation's own name). A {@code Stat/*} line stands for each thing a native
- * stat's reader names now, and as the board opens for a player their native readings are set first.
+ * stat's reader names now, and as the board opens for a player their native readings are set first. A
+ * season page's {@code <event>/*} line (its generated section, {@link PlayerStats#season}) stands for the
+ * page's lines, each named by its own key, while the page's owner is switched on; with the owner off they
+ * show no column, so the page's section shows no tab.
  */
 public final class StatsBoardSource implements StatBoardSource {
 
@@ -52,7 +56,7 @@ public final class StatsBoardSource implements StatBoardSource {
     public StatColumnDef column(@Nonnull String line) {
         StatAsset stat = StatConfig.getInstance().index().statOfKey(line);
         if (stat == null || stat.getId() == null) {
-            return null;
+            return seasonColumn(line);
         }
         StatKind kind = stat.kind();
         StatFormat format = stat.format();
@@ -67,14 +71,21 @@ public final class StatsBoardSource implements StatBoardSource {
         return new StatColumnDef(storedKey(stat.getId(), line), label, columnFormat(format), kind == StatKind.MIN);
     }
 
-    /** A native stat's lines: each thing its reader names now, as {@code Stat/Thing}; none for any other stat. */
+    /**
+     * A native stat's lines: each thing its reader names now, as {@code Stat/Thing}; for a season page's event,
+     * its lines in the page's order while their owner is on; none for anything else.
+     */
     @Override
     @Nonnull
     public List<String> everyLine(@Nonnull String statId) {
         StatAsset stat = StatConfig.getInstance().index().stat(statId);
         NativeReader reader = NativeStats.readerOf(stat);
         if (reader == null) {
-            return List.of();
+            List<String> lines = new ArrayList<>();
+            for (SeasonLines.Line line : SeasonLines.shownLinesOf(statId)) {
+                lines.add(line.key());
+            }
+            return lines;
         }
         List<String> out = new ArrayList<>();
         for (String thing : reader.things()) {
@@ -83,6 +94,21 @@ public final class StatsBoardSource implements StatBoardSource {
             }
         }
         return out;
+    }
+
+    /**
+     * A season page line's column, while its owner is on: named by the line's own key (resolved for the
+     * client), else its name in the record; a count, highest first. Null for anything that is no such line.
+     */
+    @Nullable
+    private static StatColumnDef seasonColumn(@Nonnull String line) {
+        SeasonLines.Line season = SeasonLines.shownLine(line);
+        if (season == null) {
+            return null;
+        }
+        Message label = season.textKey() == null ? Message.raw(season.lineId())
+                : Message.translation(ContentKeys.resolved(season.textKey()));
+        return new StatColumnDef(season.key(), label, ColumnFormat.GROUPED, false);
     }
 
     /** The opener's native readings, set on the board before it opens for them. */
@@ -129,11 +155,15 @@ public final class StatsBoardSource implements StatBoardSource {
         };
     }
 
-    /** Every section's lines as written ({@code Stat/*} ones included), by section id, for the stat audit's unknown-stat check. */
+    /**
+     * Every authored section's lines as written ({@code Stat/*} ones included), by section id, for the stat
+     * audit's unknown-stat check; a generated section (a season page's) names lines no stat file defines by
+     * design, so it is left out.
+     */
     @Nonnull
     public static Map<String, Collection<String>> sectionLines() {
         Map<String, Collection<String>> out = new LinkedHashMap<>();
-        List<StatSection> sections = StatSectionConfig.getInstance().sections();
+        List<StatSection> sections = StatSectionConfig.getInstance().authored();
         for (StatSection section : sections) {
             out.put(section.id(), section.lines());
         }

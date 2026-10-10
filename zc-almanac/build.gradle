@@ -2,8 +2,9 @@ apply from: "$rootDir/gradle/zc-module.gradle"
 
 // The Almanac: one page per seasonal event, with what a player did in each season. It reads the
 // calendar only through zc-core's Occurrences slot, so it carries no zc-calendar edge; it reads
-// achievements through the shared runtime and counts its own tallies off the shared moment stream.
-// Nothing in the library depends on this module: it reaches the book through the kit's contributions.
+// achievements through the shared runtime and counts attendance off the shared moment stream, and its
+// pages' stat lines count in the player stat store. Nothing in the library depends on this module: it
+// reaches the book through the kit's contributions.
 //
 // Ships .ui (the Almanac page), so it needs zc-presentation at runtime as well as at compile time.
 
@@ -18,4 +19,8 @@ dependencies {
     implementation project(':zc-presentation')
     // The achievement engine and its subjects, the moment listener seam, the objective leaf codec.
     implementation project(':zc-progression')
+    // The player stat store its pages' stat lines count in (PlayerStats.season, SeasonLines), the one-time
+    // move of its old line tallies there (PlayerStats.importOnce) and the page's read of them back
+    // (PlayerStats.view). One-way: zc-stats never sees this module.
+    implementation project(':zc-stats')
 }

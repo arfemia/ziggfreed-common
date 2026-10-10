@@ -15,17 +15,26 @@ import javax.annotation.Nullable;
  * ({@link StatBoardBossFights}).
  *
  * @param id      the section's file id, lower-cased
- * @param nameKey the tab's name, a translation key; null shows the id
+ * @param nameKey the tab's name, a translation key; null names it by {@code event}'s title, else shows the id
  * @param order   where the tab sits, lowest first
  * @param lines   the stat ids, {@code Stat/Thing} lines and {@code Stat/*} lines it names, as written
+ * @param event   the calendar event a generated section belongs to (a season page's), whose title names the tab
+ *                when {@code nameKey} is null; null for a section file
  */
-public record StatSection(@Nonnull String id, @Nullable String nameKey, int order, @Nonnull List<String> lines) {
+public record StatSection(@Nonnull String id, @Nullable String nameKey, int order, @Nonnull List<String> lines,
+                          @Nullable String event) {
 
     /** The thing a {@code Stat/*} line names: every line of the stat. */
     public static final String EVERY_THING = "*";
 
     public StatSection {
         lines = List.copyOf(lines);
+        event = event == null || event.isBlank() ? null : event.trim();
+    }
+
+    /** A section belonging to no calendar event: every section file. */
+    public StatSection(@Nonnull String id, @Nullable String nameKey, int order, @Nonnull List<String> lines) {
+        this(id, nameKey, order, lines, null);
     }
 
     /**

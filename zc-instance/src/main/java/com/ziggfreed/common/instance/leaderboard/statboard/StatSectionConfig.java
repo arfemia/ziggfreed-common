@@ -1,6 +1,7 @@
 package com.ziggfreed.common.instance.leaderboard.statboard;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -15,10 +16,11 @@ import javax.annotation.Nullable;
 import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
 
 /**
- * The stat board's sections, folded {@code defaults < pack < owner} like every keyed asset type, and
- * resolved once per fold: the sections in tab order, and the set of lines any of them names (with the
- * stats one names as {@code Stat/*}, every line of which counts as named), which is what decides whether a
- * stat is ranked at all.
+ * The stat board's sections, folded {@code defaults < pack < owner} like every keyed asset type, plus the
+ * sections a store generates for what it registers in code ({@link #generated}, an owner at a time; a file
+ * of the same id wins), and resolved once per change: the sections in tab order, and the set of lines any
+ * of them names (with the stats one names as {@code Stat/*}, every line of which counts as named), which
+ * is what decides whether a stat is ranked at all.
  */
 public final class StatSectionConfig extends AbstractKeyedAssetConfig<StatSectionAsset> {
 
@@ -27,7 +29,12 @@ public final class StatSectionConfig extends AbstractKeyedAssetConfig<StatSectio
     private static final Comparator<StatSection> TAB_ORDER =
             Comparator.comparingInt(StatSection::order).thenComparing(StatSection::id);
 
+    /** Each owner's generated sections, in the order owners first registered. Guarded by this. */
+    private final Map<String, List<StatSection>> generated = new LinkedHashMap<>();
+
     private volatile List<StatSection> sections = List.of();
+    /** The sections the files author, in tab order. */
+    private volatile List<StatSection> authored = List.of();
     /** Every line some section names, lower-cased. */
     private volatile Set<String> named = Set.of();
     /** Every stat some section names as {@code Stat/*}, lower-cased: each of its lines is ranked, never its total. */
@@ -53,10 +60,30 @@ public final class StatSectionConfig extends AbstractKeyedAssetConfig<StatSectio
         rebuild();
     }
 
-    /** Every section, in tab order. */
+    /**
+     * Put {@code owner}'s generated sections in place of what it generated before (none, or an empty list,
+     * takes them out): a store's own sections for what it registers in code rather than in files. A section
+     * file of the same id wins over a generated one, and the first owner to generate an id keeps it.
+     */
+    public synchronized void generated(@Nonnull String owner, @Nullable Collection<StatSection> owned) {
+        if (owned == null || owned.isEmpty()) {
+            generated.remove(owner);
+        } else {
+            generated.put(owner, List.copyOf(owned));
+        }
+        rebuild();
+    }
+
+    /** Every section, the generated ones included, in tab order. */
     @Nonnull
     public List<StatSection> sections() {
         return sections;
+    }
+
+    /** The sections the files author, without the generated ones, in tab order. */
+    @Nonnull
+    public List<StatSection> authored() {
+        return authored;
     }
 
     /**
@@ -91,12 +118,24 @@ public final class StatSectionConfig extends AbstractKeyedAssetConfig<StatSectio
     }
 
     private void rebuild() {
-        List<StatSection> out = new ArrayList<>();
-        Set<String> lines = new HashSet<>();
-        Set<String> stats = new HashSet<>();
+        List<StatSection> files = new ArrayList<>();
+        Set<String> ids = new HashSet<>();
         for (Map.Entry<String, StatSectionAsset> e : all().entrySet()) {
             StatSection section = e.getValue().toSection(e.getKey());
-            out.add(section);
+            files.add(section);
+            ids.add(section.id());
+        }
+        List<StatSection> out = new ArrayList<>(files);
+        for (List<StatSection> owned : generated.values()) {
+            for (StatSection section : owned) {
+                if (ids.add(section.id())) {
+                    out.add(section);
+                }
+            }
+        }
+        Set<String> lines = new HashSet<>();
+        Set<String> stats = new HashSet<>();
+        for (StatSection section : out) {
             for (String line : section.lines()) {
                 String stat = StatSection.everyLineOf(line);
                 if (stat != null) {
@@ -106,7 +145,9 @@ public final class StatSectionConfig extends AbstractKeyedAssetConfig<StatSectio
                 }
             }
         }
+        files.sort(TAB_ORDER);
         out.sort(TAB_ORDER);
+        authored = List.copyOf(files);
         sections = List.copyOf(out);
         named = Set.copyOf(lines);
         everyLine = Set.copyOf(stats);

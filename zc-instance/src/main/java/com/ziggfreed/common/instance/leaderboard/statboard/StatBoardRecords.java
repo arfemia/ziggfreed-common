@@ -71,10 +71,12 @@ public final class StatBoardRecords implements RecordsBoard {
         }
         List<LeaderboardBucketTab> sectionTabs = new ArrayList<>();
         Map<String, List<StatColumnDef>> columns = new LinkedHashMap<>();
+        OccurrenceSource events = Occurrences.source();
         for (StatSection section : StatSectionConfig.getInstance().sections()) {
             List<StatColumnDef> shown = columnsOf(section, source);
             if (!shown.isEmpty()) {
-                sectionTabs.add(new LeaderboardBucketTab(section.id(), name(section.nameKey(), section.id())));
+                sectionTabs.add(new LeaderboardBucketTab(section.id(),
+                        name(sectionNameKey(section, events), section.id())));
                 columns.put(section.id(), shown);
             }
         }
@@ -208,8 +210,31 @@ public final class StatBoardRecords implements RecordsBoard {
         return Msg.key(nameKey, event, Integer.toString(run.year()));
     }
 
+    /**
+     * The key a section's tab is named by: its own {@code NameKey}, else, for a section generated for a calendar
+     * event (a season page's), the event's title as the calendar has it. Read as each page builds, so a section
+     * generated before the calendar loaded its events still takes the event's title. Null when neither is known,
+     * and the tab shows the section's id; a calendar that throws counts as not knowing.
+     */
+    @Nullable
+    static String sectionNameKey(@Nonnull StatSection section, @Nonnull OccurrenceSource events) {
+        if (section.nameKey() != null || section.event() == null) {
+            return section.nameKey();
+        }
+        try {
+            String titleKey = events.titleKey(section.event());
+            return titleKey == null || titleKey.isBlank() ? null : titleKey.trim();
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    /**
+     * A tab's name: its key as the client resolves it ({@link ContentKeys#resolved}, so a pack's short key, such
+     * as a season page's title a generated section is named by, finds its namespace), or the id when it names none.
+     */
     @Nonnull
     private static Message name(@Nullable String nameKey, @Nonnull String id) {
-        return nameKey != null ? Message.translation(nameKey) : Message.raw(id);
+        return nameKey != null ? Message.translation(ContentKeys.resolved(nameKey)) : Message.raw(id);
     }
 }

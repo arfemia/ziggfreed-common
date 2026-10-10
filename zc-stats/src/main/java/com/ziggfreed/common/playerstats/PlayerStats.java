@@ -9,6 +9,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -17,6 +19,8 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.instance.leaderboard.statboard.StatSection;
+import com.ziggfreed.common.instance.leaderboard.statboard.StatSectionConfig;
 import com.ziggfreed.common.occurrence.Occurrence;
 import com.ziggfreed.common.occurrence.Occurrences;
 import com.ziggfreed.common.playerstats.asset.StatConfig;
@@ -38,12 +42,21 @@ import com.ziggfreed.common.util.SafeLog;
  * ({@link #readNative}) a number the engine already records: both are ranked, never stored in the player's
  * record.
  *
+ * <p>A consumer that pages its seasons keeps their per-season tallies here too ({@link #season}): each page
+ * line counts under the page's own keys, while the consumer's own switch is on.
+ *
  * <p>Writes are called on the world thread that owns {@code store}, the way every producer runs. A
  * player with no record (the component never registered, or an entity that is not a player) counts
  * nothing; a stat id the key format cannot hold ({@link StatKeys#usableStatId}) counts nothing and is
  * reported once. With the store switched off ({@link StatsSwitch}) nothing is counted or ranked.
  */
 public final class PlayerStats {
+
+    /** A season page's Records section id: this, then the page's event id. */
+    public static final String SEASON_SECTION_PREFIX = "season_";
+
+    /** Where a season page's Records section sits: this plus the page's order, after the authored sections. */
+    public static final int SEASON_SECTION_ORDER = 1000;
 
     private static final Set<String> WARNED_IDS = ConcurrentHashMap.newKeySet();
 
@@ -118,12 +131,65 @@ public final class PlayerStats {
      */
     public static boolean importOnce(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull String claimId, @Nullable Map<String, Long> lifetime) {
+        return importOnce(store, ref, claimId, lifetime, null);
+    }
+
+    /**
+     * {@link #importOnce(Store, Ref, String, Map)} with a per season-year bag too: {@code seasons}
+     * ({@code <event>@<year>/<key>}, {@link StatKeys#season}) is added to the record's {@code Seasons}, and
+     * both bags are swapped in and claimed in the one guarded step, so the record never holds one without
+     * the other. Called on the world thread that owns {@code store}.
+     *
+     * @return true when this call folded the import; false when it was already claimed, or the player
+     *         has no record to fold it into
+     * @throws IllegalArgumentException when {@code claimId} is blank or carries {@code ,} or {@code |}
+     */
+    public static boolean importOnce(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+            @Nonnull String claimId, @Nullable Map<String, Long> lifetime, @Nullable Map<String, Long> seasons) {
         PlayerStatsComponent record = PlayerStatsComponent.peek(store, ref);
-        if (record == null || !record.importOnce(claimId, lifetime)) {
+        if (record == null || !record.importOnce(claimId, lifetime, seasons)) {
             return false;
         }
         resync(store, ref);
         return true;
+    }
+
+    /**
+     * Has the import claimed as {@code claimId} been folded into the player's record? False for a player
+     * with no record. Read on the world thread that owns {@code store}.
+     */
+    public static boolean hasImported(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+            @Nonnull String claimId) {
+        PlayerStatsComponent record = PlayerStatsComponent.peek(store, ref);
+        return record != null && record.hasImported(claimId);
+    }
+
+    /**
+     * Keep {@code owner}'s season pages in the store, in place of what it registered before (none, or an
+     * empty list, takes them out): each page's lines count off the shared moment stream into every
+     * player's record under the page's own keys ({@link SeasonLines}), while {@code enabled} says the owner
+     * is on, whatever the store's own switch says; what a moment adds is handed to {@code grew} (each key
+     * written and the amount it rose) and ranked on the stat board while the store is on. Each page gets a
+     * Records section of its own, {@code season_<event>} (a section file of that id wins), named by the
+     * page's {@code nameKey}, else by the calendar's title for the event, after the authored sections in page
+     * order, ranking every line of the page
+     * ({@code <event>/*}) and showing its lines while the owner is on. Callable from any thread; a page
+     * load calls it again with the whole set.
+     */
+    public static void season(@Nonnull String owner, @Nullable Collection<SeasonLines.Page> pages,
+            @Nonnull BooleanSupplier enabled, @Nonnull Consumer<Map<String, Long>> grew) {
+        if (owner.isBlank()) {
+            throw new IllegalArgumentException("a season page owner must be named");
+        }
+        SeasonLines.Index index = SeasonLines.Index.of(pages);
+        SeasonLines.register(owner, index, enabled, grew);
+        List<StatSection> sections = new ArrayList<>();
+        for (SeasonLines.Page page : index.pages()) {
+            sections.add(new StatSection(SEASON_SECTION_PREFIX + page.eventId(), page.nameKey(),
+                    (int) Math.min(Integer.MAX_VALUE, SEASON_SECTION_ORDER + (long) page.order()),
+                    List.of(StatKeys.line(page.eventId(), StatSection.EVERY_THING)), page.eventId()));
+        }
+        StatSectionConfig.getInstance().generated(owner, sections);
     }
 
     /**
@@ -172,6 +238,42 @@ public final class PlayerStats {
     }
 
     /**
+     * One moment's writes for one owner's season page lines: added to the player's record, handed to the
+     * owner's growth sink, and the every-season keys ranked as a Sum while the store is on. A sink or a board
+     * that throws costs only itself, never the count.
+     *
+     * @return false when the player has no record, so nothing more need be counted for them
+     */
+    static boolean countSeasonLines(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+            @Nonnull List<SeasonLines.Write> writes, @Nonnull Consumer<Map<String, Long>> grew) {
+        PlayerStatsComponent record = PlayerStatsComponent.peek(store, ref);
+        if (record == null) {
+            return false;
+        }
+        SeasonLines.apply(record, writes);
+        Map<String, Long> grown = new LinkedHashMap<>();
+        Map<String, Long> lifetime = new LinkedHashMap<>();
+        for (SeasonLines.Write write : writes) {
+            grown.merge(write.key(), write.amount(), Long::sum);
+            if (!write.season()) {
+                lifetime.merge(write.key(), write.amount(), Long::sum);
+            }
+        }
+        try {
+            grew.accept(Map.copyOf(grown));
+        } catch (Throwable t) {
+            SafeLog.warn("[stats] a season page's growth sink failed: " + t.getMessage());
+        }
+        if (StatsSwitch.isOn() && feed != StatRankFeed.NONE && !lifetime.isEmpty()) {
+            PlayerRef player = playerRef(store, ref);
+            if (player != null) {
+                rank(StatKind.SUM, player.getUuid(), player.getUsername(), lifetime);
+            }
+        }
+        return true;
+    }
+
+    /**
      * Hand the stat board this player's whole record, so its all-time ranking matches what the player
      * holds (a record imported, or counted while the board was off). Called on the player's world thread.
      */
@@ -215,7 +317,10 @@ public final class PlayerStats {
         }
         for (Occurrence run : liveRuns()) {
             for (String key : keys.keySet()) {
-                record.moveSeason(kind, StatKeys.season(run.eventId(), run.year(), key), value);
+                // A season page's line of that event keeps its own season-year copy under the same key.
+                if (!SeasonLines.owns(run.eventId(), key)) {
+                    record.moveSeason(kind, StatKeys.season(run.eventId(), run.year(), key), value);
+                }
             }
         }
         if (feed == StatRankFeed.NONE) {

@@ -31,7 +31,8 @@ import com.ziggfreed.common.util.SafeLog;
  * <p><b>Three string fields, and the format only grows.</b> {@code Tallies} is the lifetime bag,
  * {@code key:value|...} keyed by {@link StatKeys}; {@code Seasons} is the per season-year bag,
  * {@code <event>@<year>/<stat key>:value|...}, which a stat moving while a season is live moves too
- * ({@link #moveSeason}); {@code Imports} is the comma-joined claim ids of the
+ * ({@link #moveSeason}), as does a season page's line ({@link SeasonLines}, {@code <event>@<year>/<line>});
+ * {@code Imports} is the comma-joined claim ids of the
  * one-time imports already folded in ({@link #importOnce}). A new stat is a new key, never a new
  * field: append a field, never rename one. A damaged pair costs only itself, and a key no stat
  * registers rides along untouched, so a save written by a newer build or for a mod this server no
@@ -209,13 +210,38 @@ public final class PlayerStatsComponent implements Component<EntityStore>, Count
      *                                  or {@code |}, which the save could not keep
      */
     public synchronized boolean importOnce(@Nonnull String claimId, @Nullable Map<String, Long> lifetime) {
+        return importOnce(claimId, lifetime, null);
+    }
+
+    /**
+     * {@link #importOnce(String, Map)} with a per season-year bag too: every tally in {@code seasonal} is ADDED
+     * to the {@code Seasons} bag. Both merged bags are built aside and swapped in with the claim in the one
+     * guarded step, so a throw part way changes neither, and a second call with the same claim changes nothing.
+     *
+     * @return true when this call folded the import, false when the claim was already held
+     * @throws IllegalArgumentException when {@code claimId} is blank or carries {@value #CLAIM_SEPARATOR}
+     *                                  or {@code |}, which the save could not keep
+     */
+    public synchronized boolean importOnce(@Nonnull String claimId, @Nullable Map<String, Long> lifetime,
+            @Nullable Map<String, Long> seasonal) {
         String claim = usableClaim(claimId);
         if (imports.contains(claim)) {
             return false;
         }
-        CounterMap merged = tallies.copy();
-        if (lifetime != null) {
-            for (Map.Entry<String, Long> entry : lifetime.entrySet()) {
+        CounterMap mergedTallies = merged(tallies, lifetime);
+        CounterMap mergedSeasons = merged(seasons, seasonal);
+        tallies = mergedTallies;
+        seasons = mergedSeasons;
+        imports.add(claim);
+        return true;
+    }
+
+    /** A copy of {@code bag} with every savable tally of {@code added} added to it. */
+    @Nonnull
+    private static CounterMap merged(@Nonnull CounterMap bag, @Nullable Map<String, Long> added) {
+        CounterMap merged = bag.copy();
+        if (added != null) {
+            for (Map.Entry<String, Long> entry : added.entrySet()) {
                 String key = entry.getKey();
                 Long value = entry.getValue();
                 if (PackedTallies.usableKey(key) && value != null && value > 0L) {
@@ -223,9 +249,7 @@ public final class PlayerStatsComponent implements Component<EntityStore>, Count
                 }
             }
         }
-        tallies = merged;
-        imports.add(claim);
-        return true;
+        return merged;
     }
 
     /**

@@ -5,15 +5,16 @@ import java.util.Map;
 import javax.annotation.Nonnull;
 
 import com.ziggfreed.common.almanac.AlmanacIndex;
+import com.ziggfreed.common.almanac.AlmanacStatLines;
 import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
 
 /**
- * Every season page, folded {@code defaults < pack < owner} with ids lower-cased, and the stat index
- * the counter reads, rebuilt on every layer change so a hot reload is in force on the next moment. Each
- * layer's pages say what is wrong with them as they arrive ({@link AlmanacEntryAsset#findings}), once
- * per load, in the log.
+ * Every season page, folded {@code defaults < pack < owner} with ids lower-cased, and the stat index,
+ * rebuilt on every layer change and handed to the player stat store that counts the lines
+ * ({@link AlmanacStatLines}), so a hot reload is in force on the next moment. Each layer's pages say what
+ * is wrong with them as they arrive ({@link AlmanacEntryAsset#findings}), once per load, in the log.
  */
 public final class AlmanacEntryConfig extends AbstractKeyedAssetConfig<AlmanacEntryAsset> {
 
@@ -34,6 +35,7 @@ public final class AlmanacEntryConfig extends AbstractKeyedAssetConfig<AlmanacEn
         super.mergePackLayer(layer);
         index = AlmanacIndex.of(all());
         report(layer);
+        AlmanacStatLines.publish(all(), index);
     }
 
     @Override
@@ -41,9 +43,10 @@ public final class AlmanacEntryConfig extends AbstractKeyedAssetConfig<AlmanacEn
         super.mergeOwnerLayer(layer);
         index = AlmanacIndex.of(all());
         report(layer);
+        AlmanacStatLines.publish(all(), index);
     }
 
-    /** The stat lines in force right now, filed by kind. */
+    /** The stat lines in force right now, filed by kind, and the items the collections list. */
     @Nonnull
     public AlmanacIndex index() {
         return index;

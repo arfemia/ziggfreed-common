@@ -5,7 +5,9 @@ apply from: "$rootDir/gradle/zc-module.gradle"
 // and the library's default ziggfreedcommon:counter source. The package is playerstats, never stats:
 // zc-core and zc-entity already split that one (zc-entity's stats/CLAUDE.md).
 //
-// Nothing in the library depends on this module: a consumer reaches it through PlayerStats.
+// One library module depends on this one: zc-almanac, whose season pages' stat lines count here
+// (PlayerStats.season, SeasonLines) and whose old line tallies import here once. No other may; a consumer
+// reaches it through PlayerStats.
 
 dependencies {
     // SafeLog, the counter bag and its packed save string, the counter factor seam and its source, the

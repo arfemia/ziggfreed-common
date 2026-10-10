@@ -18,29 +18,38 @@ import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * Every stat line of every season page, filed by the objective kind it counts, so a moment no page
- * names costs the counter one lookup and nothing else, and every item a page's collection lists, for the
- * owned marks ({@link AlmanacCollection}), so an item no page lists costs one lookup too. Rebuilt whole
+ * Every stat line of every season page, filed by the objective kind it counts and listed whole (what the
+ * player stat store counts, {@link AlmanacStatLines}), and every item a page's collection lists, for the
+ * owned marks ({@link AlmanacCollection}), so an item no page lists costs one lookup. Rebuilt whole
  * whenever a page layer changes ({@code AlmanacEntryConfig}); a line or page whose name the record format
  * reserves, or a line with no {@code Kind}, is skipped with one warning and never costs its neighbours.
  */
 public final class AlmanacIndex {
 
-    /** One line the counter checks a moment against. */
+    /**
+     * One line the store counts a moment against: its season and name (both lower-cased), what counts, whether
+     * only while the season is on, the key it is named by as authored (or null), and where it reads among its
+     * page's lines ({@link Integer#MAX_VALUE} when unauthored).
+     */
     public record Line(@Nonnull String eventId, @Nonnull String statId, @Nonnull ObjectiveDef def,
-                       boolean liveOnly) {
+                       boolean liveOnly, @Nullable String textKey, int order) {
     }
 
     /** No pages: nothing is counted but attendance, and no item is tracked. */
-    public static final AlmanacIndex EMPTY = new AlmanacIndex(Map.of(), Set.of());
+    public static final AlmanacIndex EMPTY = new AlmanacIndex(Map.of(), List.of(), Set.of());
 
     private final Map<String, List<Line>> byKind;
+
+    /** Every usable line, page by page (by event id), each page's by line name. */
+    private final List<Line> lines;
 
     /** Every item id a usable page's collections list, hidden or not, lower-cased. */
     private final Set<String> tracked;
 
-    private AlmanacIndex(@Nonnull Map<String, List<Line>> byKind, @Nonnull Set<String> tracked) {
+    private AlmanacIndex(@Nonnull Map<String, List<Line>> byKind, @Nonnull List<Line> lines,
+            @Nonnull Set<String> tracked) {
         this.byKind = byKind;
+        this.lines = lines;
         this.tracked = tracked;
     }
 
@@ -48,6 +57,7 @@ public final class AlmanacIndex {
     @Nonnull
     public static AlmanacIndex of(@Nonnull Map<String, AlmanacEntryAsset> pages) {
         Map<String, List<Line>> byKind = new HashMap<>();
+        List<Line> lines = new ArrayList<>();
         Set<String> tracked = new HashSet<>();
         for (Map.Entry<String, AlmanacEntryAsset> page : new TreeMap<>(pages).entrySet()) {
             String eventId = AlmanacKeys.normalize(page.getKey());
@@ -71,16 +81,18 @@ public final class AlmanacIndex {
                             + "so nothing could ever count it");
                     continue;
                 }
-                ObjectiveDef def = stat.getValue().toDefBuilder(statId).build();
-                byKind.computeIfAbsent(def.kind().toLowerCase(Locale.ROOT), k -> new ArrayList<>())
-                        .add(new Line(eventId, statId, def, stat.getValue().isLiveOnly()));
+                AlmanacStatAsset asset = stat.getValue();
+                ObjectiveDef def = asset.toDefBuilder(statId).build();
+                Line line = new Line(eventId, statId, def, asset.isLiveOnly(), asset.getTextKey(), asset.orderOrLast());
+                byKind.computeIfAbsent(def.kind().toLowerCase(Locale.ROOT), k -> new ArrayList<>()).add(line);
+                lines.add(line);
             }
         }
         Map<String, List<Line>> frozen = new HashMap<>();
         for (Map.Entry<String, List<Line>> entry : byKind.entrySet()) {
             frozen.put(entry.getKey(), List.copyOf(entry.getValue()));
         }
-        return new AlmanacIndex(Map.copyOf(frozen), Set.copyOf(tracked));
+        return new AlmanacIndex(Map.copyOf(frozen), List.copyOf(lines), Set.copyOf(tracked));
     }
 
     /** The lines counting {@code kindId}, matched without regard to case; empty for none. */
@@ -91,6 +103,12 @@ public final class AlmanacIndex {
         }
         List<Line> lines = byKind.get(kindId.toLowerCase(Locale.ROOT));
         return lines == null ? List.of() : lines;
+    }
+
+    /** Every usable line, page by page (by event id), each page's by line name; empty for none. */
+    @Nonnull
+    public List<Line> lines() {
+        return lines;
     }
 
     /** True when no page names any line. */
