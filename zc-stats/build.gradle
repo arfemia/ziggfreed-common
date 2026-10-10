@@ -15,4 +15,8 @@ dependencies {
     // The shared moment stream the store counts from (MomentListener, ProgressionRuntime), and the
     // objective leaf a stat's From entry is written in (ObjectiveLeafAsset, ObjectiveDef).
     implementation project(':zc-progression')
+    // The stat board the store ranks into (StatBoard, StatBoardSource, StatSectionConfig) and the column
+    // shape it asks for (StatColumnDef, ColumnFormat). One-way: zc-instance never sees this module, so the
+    // store fills the board's source seam at setup.
+    implementation project(':zc-instance')
 }

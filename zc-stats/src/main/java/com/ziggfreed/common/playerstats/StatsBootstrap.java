@@ -7,6 +7,10 @@ import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.ziggfreed.common.factor.CounterFactors;
+import com.ziggfreed.common.instance.leaderboard.statboard.StatBoard;
+import com.ziggfreed.common.playerstats.asset.StatValidator;
+import com.ziggfreed.common.playerstats.board.StatBoardRankFeed;
+import com.ziggfreed.common.playerstats.board.StatsBoardSource;
 import com.ziggfreed.common.playerstats.command.ZigStatsCommand;
 import com.ziggfreed.common.playerstats.system.PlayerDeathStatSystem;
 import com.ziggfreed.common.playerstats.system.PlaytimeStatSystem;
@@ -19,7 +23,7 @@ import com.ziggfreed.common.util.SafeLog;
  * type registered later cannot be read off entities saved carrying it); the owner's switch; the moment
  * counter at the library-default rank; the death and playtime systems and the playtime commit at
  * logout; the ready re-sync of the board; the library's default {@code ziggfreedcommon:counter}
- * source; and the {@code /zigstats} family. The stat file store itself is registered with the other
+ * source; the stat board's feed and source; and the {@code /zigstats} family. The stat file store itself is registered with the other
  * framework stores. Registration only ({@code RootRegistrationOnlyTest}).
  */
 public final class StatsBootstrap {
@@ -55,12 +59,17 @@ public final class StatsBootstrap {
     }
 
     /**
-     * The plugin-free half: the moment counter at the library-default rank, and the library's default
-     * counter source (R51). A consumer that keeps tallies of its own installs its source at its own setup,
+     * The plugin-free half: the moment counter at the library-default rank, the library's default
+     * counter source (R51), and the stat board: what is counted is ranked on it, the board asks this
+     * store whether it runs and what each section line's column is, and the stat audit checks the
+     * sections' lines. A consumer that keeps tallies of its own installs its source at its own setup,
      * after this one.
      */
     public static void registerVocabulary() {
         ProgressionRuntime.defaults(OWNER).momentListener(new StatsMomentListener());
         CounterFactors.source(new StatsCounterSource());
+        PlayerStats.rankInto(new StatBoardRankFeed());
+        StatBoard.setSource(new StatsBoardSource());
+        StatValidator.sections(StatsBoardSource::sectionLines);
     }
 }

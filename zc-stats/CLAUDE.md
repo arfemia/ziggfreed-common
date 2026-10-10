@@ -10,4 +10,4 @@ The player stat store: one saved record of every player's tallies, fed by the li
 - Count off the shared moment stream (`StatsMomentListener`); an ECS system only for what no producer fires (a player's death, playtime). A stat counts a moment once, at its first matching `From` entry.
 - `importOnce` builds the merge aside and swaps and claims in one synchronized step; it runs with the store switched off, since it moves data rather than counting.
 - Off means absent: `$Enabled` in `mods/ziggfreedcommon/stats.json` (`StatsSwitch`) stops all counting and ranking, and the `ziggfreedcommon:counter` source answers null. The file's other entries belong to the board.
-- The board is reached only through `StatRankFeed`, filled at setup: a feed that throws costs its ranking, never the count.
+- The store writes zc-instance's stat board only through `StatRankFeed` (`board/StatBoardRankFeed`, installed at setup): a feed that throws costs its ranking, never the count. It answers the board's `StatBoardSource` from the stat files (`board/StatsBoardSource`); the board owns sections, periods and windows.
