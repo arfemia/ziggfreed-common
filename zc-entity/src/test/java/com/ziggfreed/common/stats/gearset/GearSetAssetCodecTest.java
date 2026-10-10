@@ -19,13 +19,16 @@ import javax.annotation.Nullable;
 import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
+import com.hypixel.hytale.codec.ExtraInfo;
+import com.hypixel.hytale.codec.schema.SchemaContext;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.hypixel.hytale.server.core.modules.entitystats.modifier.Modifier;
 
 /**
  * The set file reads as the javadoc promises: the native item block decodes through the library's
  * own leaf with the engine's defaults, a {@code $Comment} inside the stat map is skipped, and under
- * {@code Parent} the ladder replaces wholesale while every other leaf merges. Untagged: nothing here
+ * {@code Parent} the ladder replaces wholesale while every other leaf merges, and a layer's {@code Joins}
+ * survives an encode and a decode. Untagged: nothing here
  * builds an engine item, and the whole point of the own modifier leaf is that this decode runs in a
  * plain unit JVM.
  */
@@ -143,6 +146,34 @@ class GearSetAssetCodecTest {
                   "StatModifiers": { "Health": [ { "Amount": 1, "Target": "Mid" } ] } } ] }
                 """;
         assertThrows(Exception.class, () -> decode("Bad", bad, null));
+    }
+
+    @Test
+    void aLayerReadsJoinsKeepsItThroughAnEncodeAndAChildInheritsIt() throws IOException {
+        String json = """
+                {
+                  "Joins": "Hallows_Eve_Hallowed",
+                  "Bonuses": [
+                    { "Armor": 1, "Utility": 1, "Text": { "TitleKey": "gearset.mmo_hallowed.tier_full" } }
+                  ]
+                }
+                """;
+        GearSetAsset layer = decode("Mmo_Hallowed", json, null);
+
+        assertEquals("Hallows_Eve_Hallowed", layer.joinsId());
+        assertTrue(layer.isLayer());
+        GearSetAsset again = decode("Mmo_Hallowed",
+                GearSetAsset.CODEC.encode(layer, new ExtraInfo()).toJson(), null);
+        assertEquals("Hallows_Eve_Hallowed", again.joinsId(), "Joins is written back and reads the same");
+        assertEquals(layer.tiers().get(0).condition(), again.tiers().get(0).condition());
+        assertEquals(List.of("gearset.mmo_hallowed.tier_full"), again.tiers().get(0).titleKeys());
+        assertEquals("Hallows_Eve_Hallowed", decode("Mmo_Hallowed_Child", "{}", layer).joinsId(),
+                "under Parent a child of a layer joins the same set");
+        GearSetAsset kit = decode("Ranger_Kit", RANGER_KIT, null);
+        assertNull(kit.joinsId(), "a set with no Joins stands on its own, as every set did before");
+        assertFalse(kit.isLayer());
+        assertNotNull(GearSetAsset.CODEC.toSchema(new SchemaContext()).getProperties().get("Joins")
+                .getMarkdownDescription(), "the editor lists the leaf with its sentence");
     }
 
     @Test

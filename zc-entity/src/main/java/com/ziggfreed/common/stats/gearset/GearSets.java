@@ -309,9 +309,10 @@ public final class GearSets {
                 looks.record(answered);
             }
 
+            // The joined set (its layers' tiers in), the one the tiers were decided over.
             List<TierFlip> flips = announcements(previous, active);
             for (TierFlip flip : flips) {
-                GearSetAsset set = GearSetConfig.getInstance().resolve(flip.tier().setId());
+                GearSetAsset set = index.set(flip.tier().setId());
                 if (set == null) {
                     continue;
                 }
@@ -320,7 +321,7 @@ public final class GearSets {
                         counts == null ? NONE_ON : counts);
             }
             for (String setId : pieceRises(previous, pieces, flips, fullBySet)) {
-                GearSetAsset set = GearSetConfig.getInstance().resolve(setId);
+                GearSetAsset set = index.set(setId);
                 SlotCounts counts = countsBySet.get(setId);
                 if (set == null || counts == null) {
                     continue;

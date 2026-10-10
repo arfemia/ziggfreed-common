@@ -1,5 +1,6 @@
 package com.ziggfreed.common.stats.gearset;
 
+import java.util.List;
 import java.util.UUID;
 
 import javax.annotation.Nonnull;
@@ -35,12 +36,12 @@ public final class ZigGearSetTierChangedEvent implements IEvent<Void> {
     private final int members;
     private final int fullSet;
     @Nullable private final String setTitleKey;
-    @Nullable private final String tierTitleKey;
-    @Nullable private final String nextTierTitleKey;
+    private final List<String> tierTitleKeys;
+    private final List<String> nextTierTitleKeys;
 
     public ZigGearSetTierChangedEvent(@Nonnull UUID playerId, @Nonnull PlayerRef playerRef, @Nonnull String setId,
             int tierIndex, boolean active, int pieces, int members, int fullSet, @Nullable String setTitleKey,
-            @Nullable String tierTitleKey, @Nullable String nextTierTitleKey) {
+            @Nonnull List<String> tierTitleKeys, @Nonnull List<String> nextTierTitleKeys) {
         this.playerId = playerId;
         this.playerRef = playerRef;
         this.setId = setId;
@@ -50,8 +51,8 @@ public final class ZigGearSetTierChangedEvent implements IEvent<Void> {
         this.members = members;
         this.fullSet = fullSet;
         this.setTitleKey = setTitleKey;
-        this.tierTitleKey = tierTitleKey;
-        this.nextTierTitleKey = nextTierTitleKey;
+        this.tierTitleKeys = List.copyOf(tierTitleKeys);
+        this.nextTierTitleKeys = List.copyOf(nextTierTitleKeys);
     }
 
     @Nonnull
@@ -111,19 +112,34 @@ public final class ZigGearSetTierChangedEvent implements IEvent<Void> {
         return setTitleKey;
     }
 
-    /** The tier's authored line key, or null when the tier carries none. */
+    /** The tier's first line key (its own, when it authors one), or null when the tier carries none. */
     @Nullable
     public String tierTitleKey() {
-        return tierTitleKey;
+        return tierTitleKeys.isEmpty() ? null : tierTitleKeys.get(0);
     }
 
     /**
-     * The line key of the tier still to earn ({@link GearSetDecision#nextTier} over what the player
-     * has on now), or null when every tier holds or that tier carries no line.
+     * Every line key the tier carries ({@link GearSetAsset.Tier#titleKeys()}): its own, then each
+     * joined layer's; empty when it carries none.
+     */
+    @Nonnull
+    public List<String> tierTitleKeys() {
+        return tierTitleKeys;
+    }
+
+    /**
+     * The first line key of the tier still to earn ({@link GearSetDecision#nextTier} over what the
+     * player has on now), or null when every tier holds or that tier carries no line.
      */
     @Nullable
     public String nextTierTitleKey() {
-        return nextTierTitleKey;
+        return nextTierTitleKeys.isEmpty() ? null : nextTierTitleKeys.get(0);
+    }
+
+    /** Every line key of the tier still to earn, as {@link #tierTitleKeys()}; empty when there is none. */
+    @Nonnull
+    public List<String> nextTierTitleKeys() {
+        return nextTierTitleKeys;
     }
 
     /** The set's name as the reader's client resolves it; the id as plain text when it has no key. */
@@ -132,20 +148,23 @@ public final class ZigGearSetTierChangedEvent implements IEvent<Void> {
         return GearSetEvents.setName(setTitleKey, setId);
     }
 
-    /** The tier's one line as the reader's client resolves it, or null when the tier carries no key. */
+    /**
+     * The tier's line as the reader's client resolves it ({@link GearSetEvents#lines}: a joined tier's
+     * lines one after another), or null when the tier carries no key.
+     */
     @Nullable
     public Message tierLine() {
-        return GearSetEvents.line(tierTitleKey);
+        return GearSetEvents.lines(tierTitleKeys);
     }
 
     /** The next tier's line as the reader's client resolves it, or null when there is none to name. */
     @Nullable
     public Message nextTierLine() {
-        return GearSetEvents.line(nextTierTitleKey);
+        return GearSetEvents.lines(nextTierTitleKeys);
     }
 
     /** Whether there is a next tier to name ({@link #nextTierLine()} is not null). */
     public boolean hasNextTier() {
-        return nextTierTitleKey != null;
+        return !nextTierTitleKeys.isEmpty();
     }
 }

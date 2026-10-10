@@ -1,5 +1,6 @@
 package com.ziggfreed.common.stats.gearset;
 
+import java.util.List;
 import java.util.UUID;
 
 import javax.annotation.Nonnull;
@@ -32,17 +33,17 @@ public final class ZigGearSetPiecesChangedEvent implements IEvent<Void> {
     private final int pieces;
     private final int fullSet;
     @Nullable private final String setTitleKey;
-    @Nullable private final String nextTierTitleKey;
+    private final List<String> nextTierTitleKeys;
 
     public ZigGearSetPiecesChangedEvent(@Nonnull UUID playerId, @Nonnull PlayerRef playerRef, @Nonnull String setId,
-            int pieces, int fullSet, @Nullable String setTitleKey, @Nullable String nextTierTitleKey) {
+            int pieces, int fullSet, @Nullable String setTitleKey, @Nonnull List<String> nextTierTitleKeys) {
         this.playerId = playerId;
         this.playerRef = playerRef;
         this.setId = setId;
         this.pieces = pieces;
         this.fullSet = fullSet;
         this.setTitleKey = setTitleKey;
-        this.nextTierTitleKey = nextTierTitleKey;
+        this.nextTierTitleKeys = List.copyOf(nextTierTitleKeys);
     }
 
     @Nonnull
@@ -82,12 +83,21 @@ public final class ZigGearSetPiecesChangedEvent implements IEvent<Void> {
     }
 
     /**
-     * The line key of the tier still to earn ({@link GearSetDecision#nextTier} over what the player
-     * has on now), or null when every tier holds or that tier carries no line.
+     * The first line key of the tier still to earn ({@link GearSetDecision#nextTier} over what the
+     * player has on now), or null when every tier holds or that tier carries no line.
      */
     @Nullable
     public String nextTierTitleKey() {
-        return nextTierTitleKey;
+        return nextTierTitleKeys.isEmpty() ? null : nextTierTitleKeys.get(0);
+    }
+
+    /**
+     * Every line key of the tier still to earn ({@link GearSetAsset.Tier#titleKeys()}): its own, then
+     * each joined layer's; empty when there is none.
+     */
+    @Nonnull
+    public List<String> nextTierTitleKeys() {
+        return nextTierTitleKeys;
     }
 
     /** The set's name as the reader's client resolves it; the id as plain text when it has no key. */
@@ -99,11 +109,11 @@ public final class ZigGearSetPiecesChangedEvent implements IEvent<Void> {
     /** The next tier's line as the reader's client resolves it, or null when there is none to name. */
     @Nullable
     public Message nextTierLine() {
-        return GearSetEvents.line(nextTierTitleKey);
+        return GearSetEvents.lines(nextTierTitleKeys);
     }
 
     /** Whether there is a next tier to name ({@link #nextTierLine()} is not null). */
     public boolean hasNextTier() {
-        return nextTierTitleKey != null;
+        return !nextTierTitleKeys.isEmpty();
     }
 }

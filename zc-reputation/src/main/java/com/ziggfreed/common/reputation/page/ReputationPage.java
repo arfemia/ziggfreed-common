@@ -31,6 +31,8 @@ import com.ziggfreed.common.reputation.ReputationService;
 import com.ziggfreed.common.reputation.ReputationText;
 import com.ziggfreed.common.stats.gearset.GearSetAsset;
 import com.ziggfreed.common.stats.gearset.GearSetConfig;
+import com.ziggfreed.common.stats.gearset.GearSetEvents;
+import com.ziggfreed.common.stats.gearset.GearSetIndex;
 import com.ziggfreed.common.stats.gearset.GearSetKeys.TierRef;
 import com.ziggfreed.common.stats.gearset.GearSets;
 import com.ziggfreed.common.ui.kit.DetailBindings;
@@ -189,19 +191,23 @@ public final class ReputationPage extends InteractiveCustomUIPage<ReputationEven
         }
     }
 
-    /** The gear set tiers the player wears right now, by name; a failure costs the block, never the page. */
+    /**
+     * The gear set tiers the player wears right now, by name, each read from its joined set (its layers'
+     * tiers and lines in, so a set another mod joins lists once); a failure costs the block, never the page.
+     */
     @Nonnull
     private List<ReputationView.WornSet> worn() {
         try {
             List<ReputationView.WornSet> out = new ArrayList<>();
+            GearSetIndex sets = GearSetConfig.getInstance().index();
             for (TierRef ref : GearSets.activeTiers(playerRef.getUuid())) {
-                GearSetAsset set = GearSetConfig.getInstance().resolve(ref.setId());
+                GearSetAsset set = sets.set(ref.setId());
                 if (set == null || ref.tierIndex() < 0 || ref.tierIndex() >= set.tiers().size()) {
                     continue;
                 }
                 GearSetAsset.Tier tier = set.tiers().get(ref.tierIndex());
                 Message name = set.titleKey() == null ? Msg.raw(set.getId()) : ContentKeys.tr(set.titleKey());
-                Message line = tier.titleKey() == null ? null : ContentKeys.tr(tier.titleKey());
+                Message line = GearSetEvents.lines(tier.titleKeys());
                 out.add(new ReputationView.WornSet(name, line, tier.statModifiers().keySet()));
             }
             return out;

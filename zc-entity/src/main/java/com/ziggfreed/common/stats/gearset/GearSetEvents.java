@@ -1,5 +1,7 @@
 package com.ziggfreed.common.stats.gearset;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import javax.annotation.Nonnull;
@@ -53,7 +55,7 @@ public final class GearSetEvents {
             return new ZigGearSetTierChangedEvent(playerId, liveRef(playerRef, set.getId()),
                     GearSetKeys.setId(set.getId()), tierIndex, active,
                     GearSetDecision.shownPieces(counts.pieces(), full), set.memberIds().size(), full,
-                    set.titleKey(), tier == null ? null : tier.titleKey(), nextTierTitleKey(set, counts));
+                    set.titleKey(), tier == null ? List.of() : tier.titleKeys(), nextTierTitleKeys(set, counts));
         });
     }
 
@@ -67,7 +69,7 @@ public final class GearSetEvents {
             int full = GearSetDecision.fullCount(set);
             return new ZigGearSetPiecesChangedEvent(playerId, liveRef(playerRef, set.getId()),
                     GearSetKeys.setId(set.getId()), GearSetDecision.shownPieces(counts.pieces(), full), full,
-                    set.titleKey(), nextTierTitleKey(set, counts));
+                    set.titleKey(), nextTierTitleKeys(set, counts));
         });
     }
 
@@ -77,16 +79,30 @@ public final class GearSetEvents {
         return setTitleKey == null ? Msg.raw(setId) : ContentKeys.tr(setTitleKey);
     }
 
-    /** One authored line key resolved for a notice, or null when there is none. */
+    /**
+     * A tier's line keys ({@link GearSetAsset.Tier#titleKeys()}) resolved as one line for a notice or
+     * a page: each in turn, a space between, so a tier a layer joined reads its own line then the
+     * layer's; one key reads as that key alone. Null when there is none.
+     */
     @Nullable
-    static Message line(@Nullable String key) {
-        return key == null ? null : ContentKeys.tr(key);
+    public static Message lines(@Nonnull List<String> keys) {
+        if (keys.isEmpty()) {
+            return null;
+        }
+        List<Message> parts = new ArrayList<>(keys.size() * 2);
+        for (String key : keys) {
+            if (!parts.isEmpty()) {
+                parts.add(Msg.raw(" "));
+            }
+            parts.add(ContentKeys.tr(key));
+        }
+        return Msg.cat(parts.toArray(Message[]::new));
     }
 
-    @Nullable
-    private static String nextTierTitleKey(@Nonnull GearSetAsset set, @Nonnull SlotCounts counts) {
+    @Nonnull
+    private static List<String> nextTierTitleKeys(@Nonnull GearSetAsset set, @Nonnull SlotCounts counts) {
         GearSetAsset.Tier next = GearSetDecision.nextTier(set, counts);
-        return next == null ? null : next.titleKey();
+        return next == null ? List.of() : next.titleKeys();
     }
 
     @Nonnull

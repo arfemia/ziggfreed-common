@@ -69,6 +69,14 @@ import com.ziggfreed.common.text.ContentTextAsset;
  * <p>An item names its set in its own {@code items.<Id>.description}; no per-instance display
  * metadata is ever written, since that would stop the item stacking and lie to its next holder. The
  * live count is the {@code Gear_Set_Tier} notice's job.
+ *
+ * <p><b>A file naming another set in {@code Joins} is a layer on it, not a set of its own</b>
+ * ({@link GearSetJoins}): its {@code Members} join the set's, a tier of it asking exactly what one of
+ * the set's tiers asks adds its stats and its line to that tier, and any other tier of it is added
+ * after the set's own. The player sees one set: one notice, one entry, one look. The set's name,
+ * switch and look stay the set's, so a layer's own {@code Text} is never read; a layer switched off
+ * adds nothing, and one whose set is not loaded, or which joins another layer, is dropped (the
+ * validator names it). Read the folded sets through {@link GearSetIndex#set}, never the raw store.
  */
 public final class GearSetAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, GearSetAsset>> {
 
@@ -83,6 +91,7 @@ public final class GearSetAsset implements JsonAssetWithMap<String, DefaultAsset
     @Nullable protected String[] members;
     @Nullable protected Tier[] bonuses;
     @Nullable protected PresenceRequiresCodec.Block requires;
+    @Nullable protected String joins;
 
     public static final AssetBuilderCodec<String, GearSetAsset> CODEC = AssetBuilderCodec.builder(
                     GearSetAsset.class,
@@ -113,6 +122,14 @@ public final class GearSetAsset implements JsonAssetWithMap<String, DefaultAsset
             .appendInherited(new KeyedCodec<>("Requires", PresenceRequiresCodec.CODEC, false),
                     (a, v) -> a.requires = v, a -> a.requires, (a, p) -> a.requires = p.requires)
             .documentation(PresenceRequiresCodec.DOCUMENTATION).add()
+            .appendInherited(new KeyedCodec<>("Joins", Codec.STRING, false),
+                    (a, v) -> a.joins = v, a -> a.joins, (a, p) -> a.joins = p.joins)
+            .documentation("Another set's id, matched without regard to case, to add this file to instead of "
+                    + "making a set of its own: the way to add to a set someone else ships. Its Members join "
+                    + "that set's; a tier asking exactly what one of that set's tiers asks adds its stats and "
+                    + "its line to that tier, so one notice carries both; any other tier is added after that "
+                    + "set's own. The set's name and look stay its own, so this file's Text is not read. If "
+                    + "that set is not loaded, or joins another set itself, this file adds nothing.").add()
             .build();
 
     public GearSetAsset() {
@@ -144,6 +161,17 @@ public final class GearSetAsset implements JsonAssetWithMap<String, DefaultAsset
     @Nullable
     public PresenceRequiresCodec.Block getRequires() {
         return requires;
+    }
+
+    /** The id of the set this file joins as a layer, as authored and trimmed; null when it stands on its own. */
+    @Nullable
+    public String joinsId() {
+        return blankToNull(joins);
+    }
+
+    /** True when this file is a layer on another set ({@link #joinsId()} names one). */
+    public boolean isLayer() {
+        return joinsId() != null;
     }
 
     /** The members exactly as authored, or null when none were written. */
@@ -194,6 +222,32 @@ public final class GearSetAsset implements JsonAssetWithMap<String, DefaultAsset
         return a;
     }
 
+    /** Java-side factory for a layer on {@code joins}, for a test or a consumer adding to a set without a file. */
+    @Nonnull
+    public static GearSetAsset layer(@Nonnull String id, @Nonnull String joins, @Nullable String[] members,
+            @Nullable Tier... bonuses) {
+        GearSetAsset a = of(id, null, null, members, bonuses);
+        a.joins = joins;
+        return a;
+    }
+
+    /**
+     * {@code root} with its layers folded in ({@link GearSetJoins}): the same id, name, switch and gate,
+     * with these members and tiers, and joining nothing.
+     */
+    @Nonnull
+    static GearSetAsset joined(@Nonnull GearSetAsset root, @Nonnull String[] members, @Nonnull Tier[] bonuses) {
+        GearSetAsset a = new GearSetAsset();
+        a.id = root.id;
+        a.data = root.data;
+        a.text = root.text;
+        a.enabled = root.enabled;
+        a.members = members.clone();
+        a.bonuses = bonuses.clone();
+        a.requires = root.requires;
+        return a;
+    }
+
     @Nullable
     private static String blankToNull(@Nullable String value) {
         return value == null || value.isBlank() ? null : value.trim();
@@ -215,6 +269,8 @@ public final class GearSetAsset implements JsonAssetWithMap<String, DefaultAsset
         @Nullable protected ContentTextAsset text;
         @Nullable protected String effect;
         @Nullable protected Map<String, StatModifierSpec[]> statModifiers;
+        /** The lines joined layers added to this tier ({@link GearSetJoins}); never authored, never encoded. */
+        @Nullable private String[] joinedLines;
 
         public static final BuilderCodec<Tier> CODEC = BuilderCodec.builder(Tier.class, Tier::new)
                 .append(new KeyedCodec<>("Pieces", Codec.INTEGER, false),
@@ -273,6 +329,18 @@ public final class GearSetAsset implements JsonAssetWithMap<String, DefaultAsset
             return t;
         }
 
+        /**
+         * {@code base}'s minimums and own Text with {@code effect}, {@code statModifiers} and the
+         * layers' {@code joinedLines} folded in ({@link GearSetJoins}).
+         */
+        @Nonnull
+        static Tier joined(@Nonnull Tier base, @Nullable String effect,
+                @Nonnull Map<String, StatModifierSpec[]> statModifiers, @Nonnull List<String> joinedLines) {
+            Tier t = of(base.pieces, base.armor, base.held, base.utility, base.text, effect, statModifiers);
+            t.joinedLines = joinedLines.toArray(String[]::new);
+            return t;
+        }
+
         @Nullable
         public Integer getPieces() {
             return pieces;
@@ -302,6 +370,29 @@ public final class GearSetAsset implements JsonAssetWithMap<String, DefaultAsset
         @Nullable
         public String titleKey() {
             return text == null ? null : blankToNull(text.getTitleKey());
+        }
+
+        /**
+         * Every line the tier reads as, in order: its own {@link #titleKey()}, then the line of each
+         * layer that joined it ({@link GearSetJoins}); empty when it carries none. A tier no layer
+         * joined reads as its own line alone.
+         */
+        @Nonnull
+        public List<String> titleKeys() {
+            List<String> out = new ArrayList<>();
+            String own = titleKey();
+            if (own != null) {
+                out.add(own);
+            }
+            if (joinedLines != null) {
+                for (String line : joinedLines) {
+                    String key = blankToNull(line);
+                    if (key != null) {
+                        out.add(key);
+                    }
+                }
+            }
+            return Collections.unmodifiableList(out);
         }
 
         /** The effect held while the tier is active, or null when it carries none. */
