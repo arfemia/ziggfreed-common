@@ -78,6 +78,7 @@ import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
 import com.ziggfreed.common.objectives.settings.ObjectivesSettingsBootstrap;
 import com.ziggfreed.common.objectives.title.TitleBootstrap;
 import com.ziggfreed.common.objectives.title.TitleValidator;
+import com.ziggfreed.common.playerstats.StatsBootstrap;
 import com.ziggfreed.common.progress.asset.ProgressEditorDataSets;
 import com.ziggfreed.common.reputation.ReputationBootstrap;
 import com.ziggfreed.common.reward.CostumeRewardKind;
@@ -118,7 +119,8 @@ import com.ziggfreed.common.world.stash.BlockStashBootstrap;
  * {@code PlacedBlockBootstrap} + {@code BlockStashBootstrap} (zc-world), {@code CalendarBootstrap}
  * (zc-calendar), {@code ProgressionBootstrap} + {@code DialogueBootstrap} + {@code BonusRowBootstrap}
  * + {@code CalendarSweepBootstrap} + {@code ObjectiveBookBootstrap} (zc-objectives), and
- * {@code AlmanacBootstrap} (zc-almanac) and {@code ReputationBootstrap} (zc-reputation). Each bootstrap lives in
+ * {@code AlmanacBootstrap} (zc-almanac), {@code ReputationBootstrap} (zc-reputation) and {@code StatsBootstrap}
+ * (zc-stats). Each bootstrap lives in
  * the module that already sees
  * everything its phase wires, so the phase can be read and reasoned about without standing up the
  * whole plugin. What remains a ROOT-OWNED body is only what no single module can host, each phase
@@ -261,6 +263,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // installed), and the once-at-boot log of broken reputation files. Its companion store is registered
         // with the other framework stores.
         ReputationBootstrap.install(this);
+        // The player stat store: the per-player record, registered before any world loads so it reads
+        // off entities saved carrying it, and its connect hook.
+        StatsBootstrap.install(this);
         // The once-at-boot checks (the boot audit a headless dev boot asks for), on BootEvent: every
         // store has folded and every mod has registered its vocabulary by then.
         registerBootChecks();

@@ -1,7 +1,6 @@
 package com.ziggfreed.common.almanac;
 
 import java.util.Map;
-import java.util.TreeMap;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -18,6 +17,7 @@ import com.hypixel.hytale.server.core.event.events.player.PlayerConnectEvent;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.counter.CounterMap;
+import com.ziggfreed.common.counter.PackedTallies;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -57,38 +57,16 @@ public class AlmanacComponent implements Component<EntityStore> {
         this.tallies = new CounterMap();
     }
 
-    /** {@code key:value|key:value}, keys sorted so a save is stable. */
+    /** {@code key:value|key:value}, keys sorted so a save is stable (zc-core's {@link PackedTallies}). */
     @Nonnull
     static String serialize(@Nonnull Map<String, Long> tallies) {
-        StringBuilder out = new StringBuilder();
-        for (Map.Entry<String, Long> entry : new TreeMap<>(tallies).entrySet()) {
-            if (out.length() > 0) {
-                out.append('|');
-            }
-            out.append(entry.getKey()).append(':').append(entry.getValue());
-        }
-        return out.toString();
+        return PackedTallies.serialize(tallies);
     }
 
     /** The bag a saved string holds; a damaged pair is dropped, never the rest. */
     @Nonnull
     static CounterMap deserialize(@Nullable String packed) {
-        CounterMap out = new CounterMap();
-        if (packed == null || packed.isEmpty()) {
-            return out;
-        }
-        for (String pair : packed.split("\\|")) {
-            int colon = pair.lastIndexOf(':');
-            if (colon <= 0 || colon == pair.length() - 1) {
-                continue;
-            }
-            try {
-                out.set(pair.substring(0, colon), Long.parseLong(pair.substring(colon + 1)));
-            } catch (NumberFormatException ignored) {
-                // Not key:number: this pair is lost, every other tally survives.
-            }
-        }
-        return out;
+        return PackedTallies.deserialize(packed);
     }
 
     /** Register the type with the entity-store registry, once, at library setup. Never throws. */

@@ -1,0 +1,11 @@
+apply from: "$rootDir/gradle/zc-module.gradle"
+
+// The player stat store: every player's lifetime tallies in one saved record (ZiggfreedCommon:Stats),
+// fed by the library's own producers on any server and by whatever a consumer adds through PlayerStats,
+// and the library's default ziggfreedcommon:counter source. The package is playerstats, never stats:
+// zc-core and zc-entity already split that one (zc-entity's stats/CLAUDE.md).
+
+dependencies {
+    // SafeLog, the counter bag and its packed save string, the counter factor seam and its source.
+    implementation project(':zc-core')
+}
