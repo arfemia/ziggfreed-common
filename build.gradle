@@ -119,6 +119,11 @@ apply from: "$rootDir/gradle/deprecation-gate.gradle"
 
 test {
     useJUnitPlatform()
+    // The release gate (R123): under -PlangGate the effect-name check (ShippedEffectNamesTest, R67)
+    // fails a locale gap in an effect's Name instead of printing it, as the MMO's lang parity does.
+    if (providers.gradleProperty('langGate').present) {
+        systemProperty 'langGate', 'true'
+    }
 }
 
 // Every test JVM: a 512 MB heap, the serial collector and C1-only compilation, which start fastest
