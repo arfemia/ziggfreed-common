@@ -43,16 +43,24 @@ final class GearSetApplied {
     /**
      * One player's last write. {@code pieces} is how many distinct members of each set (by folded
      * id) the player had on, a set with none left out, so the next recompute can tell a count that
-     * rose from one that stayed.
+     * rose from one that stayed. {@code badgeSeats} is the default tile each worn set naming no badge
+     * sat on, by folded id ({@link GearSetBadges#seat}), so the next recompute keeps it on that slot.
      */
     record Applied(@Nonnull Set<TierRef> writtenTiers, @Nonnull Set<String> effects, @Nonnull Set<TierRef> activeTiers,
-            @Nonnull Map<String, Integer> pieces) {
+            @Nonnull Map<String, Integer> pieces, @Nonnull Map<String, String> badgeSeats) {
 
         Applied {
             writtenTiers = Collections.unmodifiableSet(new LinkedHashSet<>(writtenTiers));
             effects = Collections.unmodifiableSet(new LinkedHashSet<>(effects));
             activeTiers = Collections.unmodifiableSet(new LinkedHashSet<>(activeTiers));
             pieces = Collections.unmodifiableMap(new LinkedHashMap<>(pieces));
+            badgeSeats = Collections.unmodifiableMap(new LinkedHashMap<>(badgeSeats));
+        }
+
+        /** A write in which no worn set sat on a default tile. */
+        Applied(@Nonnull Set<TierRef> writtenTiers, @Nonnull Set<String> effects, @Nonnull Set<TierRef> activeTiers,
+                @Nonnull Map<String, Integer> pieces) {
+            this(writtenTiers, effects, activeTiers, pieces, Map.of());
         }
     }
 

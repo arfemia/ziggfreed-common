@@ -76,6 +76,12 @@ import com.ziggfreed.common.util.SafeLog;
  * recompute after the respawn, which {@link #onRespawned} runs, with no notice, since no tier
  * flipped. While the player is dead no look is shown at all, the engine's own posture for a corpse.
  *
+ * <p><b>Each worn set shows one buff-bar tile</b> while any of its tiers is active
+ * ({@link GearSetBadges}): the {@code Badge} of its highest active tier naming one, else a slot of
+ * the default pool, which keeps the set on its slot from recompute to recompute. A tile is an effect
+ * the engine answers for exactly as it does a look: dedicated to the set, swept at a hydrate (the
+ * default pool's ids included), none while dead, back after a respawn, saved in the look record.
+ *
  * <p>World-thread throughout, try-guarded, isolated by the bridge's own listener dispatch. An
  * unregistered stat channel is named in the log once and skipped, the bridge's own discipline.
  */
@@ -250,12 +256,14 @@ public final class GearSets {
             Set<TierRef> active = new LinkedHashSet<>();
             Map<String, SlotCounts> countsBySet = new LinkedHashMap<>();
             Map<String, Integer> fullBySet = new LinkedHashMap<>();
+            List<String> pooled = new ArrayList<>();
             for (GearSetAsset set : index.candidates(snapshot)) {
                 SlotCounts counts = GearSetDecision.count(set, snapshot);
                 countsBySet.put(GearSetKeys.setId(set.getId()), counts);
                 fullBySet.put(GearSetKeys.setId(set.getId()), GearSetDecision.fullCount(set));
                 List<GearSetAsset.Tier> tiers = set.tiers();
-                for (int tierIndex : GearSetDecision.activeTiers(set, counts)) {
+                List<Integer> activeTiers = GearSetDecision.activeTiers(set, counts);
+                for (int tierIndex : activeTiers) {
                     GearSetAsset.Tier tier = tiers.get(tierIndex);
                     TierRef tierRef = new TierRef(set.getId(), tierIndex);
                     active.add(tierRef);
@@ -266,7 +274,18 @@ public final class GearSets {
                         desiredEffects.add(effect);
                     }
                 }
+                // The set's one tile: its own badge, or a default slot seated below.
+                if (!activeTiers.isEmpty()) {
+                    String badge = GearSetBadges.badgeOf(tiers, activeTiers);
+                    if (badge != null) {
+                        desiredEffects.add(badge);
+                    } else {
+                        pooled.add(GearSetKeys.setId(set.getId()));
+                    }
+                }
             }
+            Map<String, String> seats = GearSetBadges.seat(pooled, hydrate ? Map.of() : previous.badgeSeats());
+            desiredEffects.addAll(seats.values());
 
             // Stats: diff against the map, sweep what was written last time or stranded earlier.
             Collection<TierRef> lastWritten = hydrate ? List.of() : previous.writtenTiers();
@@ -281,11 +300,12 @@ public final class GearSets {
             }
 
             // Effects: see effectChanges. A hydrate cannot trust memory, so it answers for every
-            // effect id any folded set names plus every id the player's saved record holds, which
-            // is why a set's effect id must be dedicated to the set.
+            // effect id any folded set names (looks and badges), the default tiles, and every id the
+            // player's saved record holds, which is why a set's effect ids must be dedicated to the set.
             Set<String> shown = shownEffects(desiredEffects, dead);
             Set<String> previousEffects = hydrate
-                    ? hydrateAnswersFor(index.allEffectIds(), looks == null ? Set.of() : looks.effects())
+                    ? hydrateAnswersFor(GearSetBadges.withDefaultTiles(index.allEffectIds()),
+                            looks == null ? Set.of() : looks.effects())
                     : previous.effects();
             EffectChanges changes = effectChanges(previousEffects, shown,
                     effect -> GearSetEffects.has(store, ref, effect));
@@ -304,7 +324,7 @@ public final class GearSets {
             Set<String> answered = answeredAfter(shown, unremoved, GearSetValidator::effectKnown);
             Map<String, Integer> pieces = piecesOf(countsBySet);
             GearSetApplied.put(playerId, new GearSetApplied.Applied(GearSetPlan.tiersOf(desired),
-                    answered, active, pieces));
+                    answered, active, pieces, seats));
             if (looks != null) {
                 looks.record(answered);
             }

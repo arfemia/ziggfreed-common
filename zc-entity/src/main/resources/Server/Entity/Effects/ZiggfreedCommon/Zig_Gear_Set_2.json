@@ -1,0 +1,4 @@
+{
+  "$Comment": "Slot 2 of the default gear-set tile pool: everything comes from its Parent, so restyle Zig_Gear_Set instead.",
+  "Parent": "Zig_Gear_Set"
+}
