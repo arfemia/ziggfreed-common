@@ -80,6 +80,18 @@ class TitleAssetTest {
     }
 
     @Test
+    void hiddenIsOffUnlessAuthoredAndAnOwnerEntryCanSetIt() throws Exception {
+        TitleAsset shipped = title("{ \"Order\": 20 }", "Mmo_Fall_Damage");
+        assertFalse(shipped.hidden());
+        assertTrue(title("{ \"Hidden\": true }", "Secret").hidden());
+
+        TitleAsset owner = title("{ \"Hidden\": true }", "mmo_fall_damage", shipped);
+        assertTrue(owner.hidden());
+        assertEquals(20, owner.order(), "the owner's one leaf keeps the shipped rest");
+        assertTrue(title("{ \"Order\": 30 }", "mmo_fall_damage", owner).hidden(), "a child keeps Hidden");
+    }
+
+    @Test
     void onlyAnEnabledTitleIsShownAndTheListingSortsByOrderThenId() throws Exception {
         TitleConfig titles = TitleConfig.getInstance();
         titles.mergePackLayer(Map.of(

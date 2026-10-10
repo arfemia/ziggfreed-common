@@ -49,20 +49,24 @@ import com.ziggfreed.common.ui.kit.Tick;
 import com.ziggfreed.common.ui.kit.ZigStyles;
 import com.ziggfreed.common.ui.kit.ZigTokens;
 import com.ziggfreed.common.ui.name.PlayerDisplayNames;
+import com.ziggfreed.common.ui.route.Destination;
+import com.ziggfreed.common.ui.route.DestinationContext;
+import com.ziggfreed.common.ui.route.Destinations;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastablePage;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The title picker: the preview bar saying how the player appears, the titles they have earned as tiles with a Show
- * button each (at most one shown), and every other title on offer as a line naming the achievement that gives it and
- * how far along they are; a line opens the objective book on that achievement. What it shows is the pure plan
- * {@link TitlePickerRows}; what gives a title is {@link TitleSources}.
+ * button each (at most one shown) under an "n of N" head, and every other title on offer they may see as a line
+ * naming the achievement that gives it and how far along they are (or that it waits on their collecting it); a line
+ * opens the objective book on that achievement. What it shows is the pure plan {@link TitlePickerRows}; what gives a
+ * title is {@link TitleSources}.
  *
  * <p>Show shows that title, or takes it off when it is the one shown; Show none takes any off. Either writes through
  * {@code TitleUnlocks} and repaints only the tiles it moved and the preview, so the scroll position survives. Back
- * goes where the consumer's {@link TitlePickerDeps} says (the Settings tab by default). Every exit path sends an
- * update or hands the screen to another page.
+ * opens the destination this open was given, else goes where the consumer's {@link TitlePickerDeps} says (the
+ * Settings tab by default). Every exit path sends an update or hands the screen to another page.
  */
 public final class TitlePickerPage extends ToastablePage<TitlePickerEventData> {
 
@@ -85,8 +89,12 @@ public final class TitlePickerPage extends ToastablePage<TitlePickerEventData> {
     /** Title id to its tile's root. */
     private final Map<String, String> tileOf = new LinkedHashMap<>();
 
-    TitlePickerPage(@Nonnull PlayerRef playerRef) {
+    /** Where Back goes for this open, winning over the consumer's deps; null leaves Back to them. */
+    @Nullable private final Destination back;
+
+    TitlePickerPage(@Nonnull PlayerRef playerRef, @Nullable Destination back) {
         super(playerRef, CustomPageLifetime.CanDismissOrCloseThroughInteraction, TitlePickerEventData.CODEC);
+        this.back = back;
     }
 
     @Override
@@ -129,7 +137,7 @@ public final class TitlePickerPage extends ToastablePage<TitlePickerEventData> {
                     TitleConfig.getInstance(), sources(ownStore, own));
         } catch (Throwable t) {
             SafeLog.warn("[title] the picker could not read the player's titles: " + t.getMessage());
-            return new Plan(List.of(), List.of());
+            return new Plan(List.of(), List.of(), TitleConfig.Tally.NONE);
         }
     }
 
@@ -162,12 +170,13 @@ public final class TitlePickerPage extends ToastablePage<TitlePickerEventData> {
     }
 
     private void render(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events, @Nonnull Plan plan) {
-        if (plan.noneOnServer()) {
+        if (plan.noneOnServer() || plan.secretsOnly()) {
+            // Nothing to show or earn in sight: the server offers no title, or only secret ones (R166).
+            Message empty = plan.secretsOnly() ? TitleText.picker("secret_only") : TitleText.picker("none_on_server");
             cmd.set("#Body.Visible", false);
             cmd.set("#ShowNone.Visible", false);
             cmd.set("#Empty.Visible", true);
-            EmptyStatePainter.paint(cmd, events, "#Empty",
-                    new EmptyState(Picture.NONE, TitleText.picker("none_on_server"), null, null), null);
+            EmptyStatePainter.paint(cmd, events, "#Empty", new EmptyState(Picture.NONE, empty, null, null), null);
             return;
         }
 
@@ -180,7 +189,8 @@ public final class TitlePickerPage extends ToastablePage<TitlePickerEventData> {
         cmd.set(EARNED + ".Visible", anyEarned);
         cmd.set("#ShowNone.Visible", anyEarned);
         if (anyEarned) {
-            cmd.set("#EarnedHead.TextSpans", TitleText.picker("earned"));
+            cmd.set("#EarnedHead.TextSpans",
+                    TitleText.picker("earned_count", plan.tally().earnedCount(), plan.tally().total()));
             renderTiles(cmd, events, plan.earned());
         }
 
@@ -235,8 +245,8 @@ public final class TitlePickerPage extends ToastablePage<TitlePickerEventData> {
 
     /**
      * A title still to earn: its name in bold, then the {@code picker.from} line (the achievement that gives it and
-     * the player's count toward it) over that achievement's picture, opening it; with no source, its name and
-     * flavor, opening nothing.
+     * the player's count toward it), or {@code picker.collect} when the title waits only on their collecting that
+     * achievement, over that achievement's picture, opening it; with no source, its name and flavor, opening nothing.
      */
     @Nonnull
     private static DetailLine lineOf(@Nonnull Line line, @Nonnull AchievementEngine engine) {
@@ -247,9 +257,10 @@ public final class TitlePickerPage extends ToastablePage<TitlePickerEventData> {
             return DetailLine.of(Picture.NONE, flavor == null ? name
                     : Msg.join(name, Msg.raw(GAP), Msg.color(flavor, ZigTokens.INK_MUTED)));
         }
+        Message achievement = ProgressionTexts.titleOrUntitled(source.achievementId());
         Progress progress = source.progress();
-        Message from = TitleText.picker("from", ProgressionTexts.titleOrUntitled(source.achievementId()),
-                progress.current(), progress.total());
+        Message from = source.collect() ? TitleText.picker("collect", achievement)
+                : TitleText.picker("from", achievement, progress.current(), progress.total());
         return new DetailLine(pictureOf(engine.achievement(source.achievementId())),
                 Msg.join(name, Msg.raw(GAP), Msg.color(from, ZigTokens.INK_MUTED)),
                 null, null, Tick.NONE, source.achievementId(), false);
@@ -283,7 +294,7 @@ public final class TitlePickerPage extends ToastablePage<TitlePickerEventData> {
                 case "none" -> handleNone(store, ref);
                 case "open" -> openAchievement(store, ref, player, data.achievement);
                 case "back" -> {
-                    if (!TitlePickerPages.resolvedDeps().backGuarded(store, ref, player)) {
+                    if (!goBack(store, ref, player)) {
                         player.getPageManager().setPage(ref, store, Page.None);
                     }
                 }
@@ -294,6 +305,17 @@ public final class TitlePickerPage extends ToastablePage<TitlePickerEventData> {
             SafeLog.warn("[title] the picker could not answer '" + data.action + "': " + t.getMessage());
             answerNothing();
         }
+    }
+
+    /**
+     * Follow Back: this open's own destination when it was given one, else the consumer's deps. True only when
+     * something else took the screen.
+     */
+    private boolean goBack(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
+        if (back != null) {
+            return Destinations.open(back, DestinationContext.of(store, ref, player));
+        }
+        return TitlePickerPages.resolvedDeps().backGuarded(store, ref, player);
     }
 
     /** Show the pressed title, or take it off when it is the one shown. */

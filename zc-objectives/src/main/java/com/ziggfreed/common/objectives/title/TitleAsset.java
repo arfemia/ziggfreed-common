@@ -25,7 +25,8 @@ import com.ziggfreed.common.text.ContentTextAsset;
  *
  * <p>{@code Enabled: false} hides a title everywhere (the picker, menus and leaderboards) without
  * taking it from anybody: a player who earned it keeps it and sees it again once it is back on. The
- * owner layer is {@code mods/ziggfreedcommon/titles.json}. {@code Text} names and describes it; with
+ * owner layer is {@code mods/ziggfreedcommon/titles.json}. {@code Hidden: true} keeps a title a secret
+ * until a player earns it (R166). {@code Text} names and describes it; with
  * nothing authored, {@code title.<id>.name} and {@code title.<id>.flavor} from any loaded lang file
  * do, and {@code title.<id>.display} (its {@code {0}} is the player's name) places it around a name.
  */
@@ -40,6 +41,7 @@ public final class TitleAsset implements JsonAssetWithMap<String, DefaultAssetMa
     @Nullable private Boolean enabled;
     @Nullable private ContentTextAsset text;
     @Nullable private Integer order;
+    @Nullable private Boolean hidden;
 
     public static final AssetBuilderCodec<String, TitleAsset> CODEC = AssetBuilderCodec.builder(
                     TitleAsset.class,
@@ -69,6 +71,13 @@ public final class TitleAsset implements JsonAssetWithMap<String, DefaultAssetMa
             .documentation("Lower sorts first in the title picker; unauthored means 0, and titles that tie "
                     + "sort by id. Leave gaps (10, 20, 30) so a later title can slot between two.")
             .add()
+            .appendInherited(new KeyedCodec<>("Hidden", Codec.BOOLEAN, false),
+                    (a, v) -> a.hidden = v, a -> a.hidden, (a, p) -> a.hidden = p.hidden)
+            .metadata(EditorSchema.defaultValue(false))
+            .documentation("Whether the title stays a secret until a player earns it; unauthored means false. "
+                    + "True keeps it off the picker's \"Not earned yet\" list and out of the count of titles "
+                    + "to earn until it is theirs; once earned it shows like any other.")
+            .add()
             .build();
 
     public TitleAsset() {
@@ -87,6 +96,11 @@ public final class TitleAsset implements JsonAssetWithMap<String, DefaultAssetMa
     /** Its picker order; unauthored means 0. */
     public int order() {
         return order == null ? 0 : order;
+    }
+
+    /** Whether it stays a secret until earned; unauthored means false. */
+    public boolean hidden() {
+        return hidden != null && hidden;
     }
 
     /** The authored text group, or null when the file wrote none. */

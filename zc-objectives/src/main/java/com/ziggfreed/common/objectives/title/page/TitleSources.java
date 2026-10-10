@@ -26,19 +26,28 @@ import com.ziggfreed.common.ui.kit.Progress;
  * Which achievements give each title, read off the achievement catalogue: an achievement gives a title when one of
  * its rewards, paid on unlock or on collect, is of the {@code Title} kind naming it ({@link TitleRewardKind#titleOf},
  * either parameter spelling). The picker's not-earned line names the first of them the player can see, with how far
- * along they are, so "what gives this title" never needs authoring twice.
+ * along they are (or that the title waits on their collecting it), so "what gives this title" never needs authoring
+ * twice.
  *
  * <p>Pure over what it is handed: built from a catalogue, asked with an engine and a subject. An achievement the
  * player cannot see (hidden, out of circulation, gated) is never named.
  */
 public final class TitleSources {
 
-    /** The achievement a title comes from, and the viewer's progress on it. */
-    public record Source(@Nonnull String achievementId, @Nonnull Progress progress) {
+    /**
+     * The achievement a title comes from, the viewer's progress on it, and whether the title waits only on the
+     * viewer collecting it: the achievement pays it on collect alone, and they have earned it but not collected.
+     */
+    public record Source(@Nonnull String achievementId, @Nonnull Progress progress, boolean collect) {
 
         public Source {
             Objects.requireNonNull(achievementId, "achievementId");
             Objects.requireNonNull(progress, "progress");
+        }
+
+        /** A source the viewer is still working toward. */
+        public Source(@Nonnull String achievementId, @Nonnull Progress progress) {
+            this(achievementId, progress, false);
         }
     }
 
@@ -88,19 +97,54 @@ public final class TitleSources {
     @Nullable
     public Source source(@Nonnull String titleId, @Nonnull Predicate<Achievement> visible,
             @Nonnull Function<Achievement, Progress> progress) {
-        for (Achievement achievement : granters(titleId)) {
-            if (visible.test(achievement)) {
-                return new Source(achievement.id(), progress.apply(achievement));
-            }
-        }
-        return null;
+        return source(titleId, visible, progress, achievement -> false);
     }
 
-    /** The source as {@code subject} sees it: the first giver {@code engine} lists for them, with their progress. */
+    /**
+     * The source shown for {@code titleId}: the first achievement giving it that {@code visible} accepts and
+     * {@code collect} says waits only on a collect, marked so, since collecting it is the one step left; else the
+     * first {@code visible} accepts, as {@link #source(String, Predicate, Function)} reads it; null when none does.
+     */
+    @Nullable
+    public Source source(@Nonnull String titleId, @Nonnull Predicate<Achievement> visible,
+            @Nonnull Function<Achievement, Progress> progress, @Nonnull Predicate<Achievement> collect) {
+        Achievement first = null;
+        for (Achievement achievement : granters(titleId)) {
+            if (!visible.test(achievement)) {
+                continue;
+            }
+            if (collect.test(achievement)) {
+                return new Source(achievement.id(), progress.apply(achievement), true);
+            }
+            if (first == null) {
+                first = achievement;
+            }
+        }
+        return first == null ? null : new Source(first.id(), progress.apply(first), false);
+    }
+
+    /**
+     * The source as {@code subject} sees it: the first giver {@code engine} lists for them that waits only on their
+     * collecting it ({@link #awaitsCollect}), else the first it lists, with their progress.
+     */
     @Nullable
     public Source source(@Nonnull String titleId, @Nonnull AchievementEngine engine, @Nonnull Subject subject) {
         return source(titleId, achievement -> engine.isVisible(subject, achievement),
-                achievement -> progress(engine, subject, achievement));
+                achievement -> progress(engine, subject, achievement),
+                achievement -> awaitsCollect(engine, subject, achievement, titleId));
+    }
+
+    /**
+     * Whether {@code subject} gets {@code titleId} from {@code achievement} only by collecting it: the achievement
+     * pays the title on collect and not on unlock, and they have earned it but not collected it yet.
+     */
+    public static boolean awaitsCollect(@Nonnull AchievementEngine engine, @Nonnull Subject subject,
+            @Nonnull Achievement achievement, @Nonnull String titleId) {
+        String id = key(titleId);
+        return TitleRewardKind.titlesIn(achievement.claimRewards()).contains(id)
+                && !TitleRewardKind.titlesIn(achievement.autoRewards()).contains(id)
+                && engine.isUnlocked(subject, achievement.id())
+                && !engine.isClaimed(subject, achievement.id());
     }
 
     /**

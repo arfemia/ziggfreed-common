@@ -12,12 +12,15 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.inventory.PlayerAccess;
+import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The way in to the title picker, and the one place a consumer themes it and routes its Back button.
  * A setting about a shared surface is the library's page, so a consumer's own menu LAUNCHES it
- * ({@link #open}) and a server with no such menu has {@code /zigtitle open}. World thread.
+ * ({@link #open}, or the {@code Titles} destination, {@link TitleDestinations}), the Settings tab's
+ * Title tile opens it with Back to Settings, and a server with no such menu has {@code /zigtitle open}.
+ * World thread.
  */
 public final class TitlePickerPages {
 
@@ -46,16 +49,25 @@ public final class TitlePickerPages {
         }
     }
 
-    /** Open the picker for {@code player}. True when the screen was taken. */
+    /** Open the picker for {@code player}, its Back where the consumer's deps say. True when the screen was taken. */
     public static boolean open(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull Player player) {
+        return open(store, ref, player, null);
+    }
+
+    /**
+     * Open the picker for {@code player} with Back opening {@code back}, which wins over the consumer's deps for this
+     * open; null leaves Back to the deps. True when the screen was taken.
+     */
+    public static boolean open(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+            @Nonnull Player player, @Nullable Destination back) {
         PlayerRef playerRef = PlayerAccess.playerRef(player);
         if (playerRef == null) {
             SafeLog.fine("[title] the picker was asked for by an entity that is not a player");
             return false;
         }
         try {
-            player.getPageManager().openCustomPage(ref, store, new TitlePickerPage(playerRef));
+            player.getPageManager().openCustomPage(ref, store, new TitlePickerPage(playerRef, back));
             return true;
         } catch (Throwable t) {
             SafeLog.warn("[title] the picker failed to open", t);

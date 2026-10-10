@@ -10,6 +10,7 @@ import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.ziggfreed.common.entity.title.ActiveTitles;
 import com.ziggfreed.common.objectives.title.page.TitlePickerPages;
+import com.ziggfreed.common.settings.page.SettingsDestinations;
 import com.ziggfreed.common.settings.page.SettingsRow;
 import com.ziggfreed.common.settings.page.SettingsSection;
 import com.ziggfreed.common.settings.page.SettingsViewer;
@@ -17,8 +18,9 @@ import com.ziggfreed.common.ui.hud.command.HudMessages;
 import com.ziggfreed.common.ui.hud.settings.HudSettingsPages;
 
 /**
- * The Settings tab's Title card: a tile naming the title the player shows and opening the picker (whose
- * Back returns here), and, for the HUD page's own audience alone, a tile opening the server's HUD layout.
+ * The Settings tab's Title card: a tile naming the title the player shows and how many they have earned, opening the
+ * picker (whose Back returns here), shown while any title is on offer; and, for the HUD page's own audience alone, a
+ * tile opening the server's HUD layout.
  */
 public final class TitleSettings {
 
@@ -34,9 +36,15 @@ public final class TitleSettings {
     @Nonnull
     public static SettingsSection section() {
         return new SettingsSection(ID, TitleText.picker("settings_heading"), List.of(
-                SettingsRow.tile(PICKER, TitleText.picker("settings_tile"), PICKER_ICON, viewer -> true, PICKER_TILE),
+                SettingsRow.tile(PICKER, TitleText.picker("settings_tile"), PICKER_ICON, TitleSettings::offers,
+                        PICKER_TILE),
                 SettingsRow.tile(LAYOUT, HudMessages.line("settings.layout_tile"), LAYOUT_ICON,
                         TitleSettings::administers, LAYOUT_TILE)));
+    }
+
+    /** Whether the title tile shows: while any title is on offer, a Hidden one included. */
+    static boolean offers(@Nonnull SettingsViewer viewer) {
+        return TitleConfig.getInstance().anyOnOffer();
     }
 
     /** Whether the viewer may open the server's HUD layout: the HUD page's own audience, asked about this player. */
@@ -48,10 +56,33 @@ public final class TitleSettings {
     /** The title tile's line: the title this player shows, or that they show none (unknown or switched off reads as none). */
     @Nonnull
     static Message worn(@Nullable UUID playerId) {
-        String shown = playerId == null ? null : ActiveTitles.of(playerId);
-        TitleAsset title = shown == null ? null : TitleConfig.getInstance().shown(shown);
+        TitleAsset title = wornTitle(playerId);
         return title == null ? TitleText.picker("settings_none")
-                : TitleText.picker("settings_wearing", TitleText.nameOf(shown, title));
+                : TitleText.picker("settings_wearing", TitleText.nameOf(title.getId(), title));
+    }
+
+    /**
+     * The title tile's line with the count: the title this player shows, or none, and "n of N" off the record's
+     * earned set ({@link TitleConfig#tally}, the picker's own count); with nothing they may see to earn or hold, the
+     * plain {@link #worn} line.
+     */
+    @Nonnull
+    static Message line(@Nullable UUID playerId) {
+        TitleConfig.Tally tally = TitleConfig.getInstance().tally(ActiveTitles.earned(playerId));
+        if (tally.total() == 0) {
+            return worn(playerId);
+        }
+        TitleAsset title = wornTitle(playerId);
+        return title == null ? TitleText.picker("settings_none_count", tally.earnedCount(), tally.total())
+                : TitleText.picker("settings_wearing_count", TitleText.nameOf(title.getId(), title),
+                        tally.earnedCount(), tally.total());
+    }
+
+    /** The title this player shows, when it is on offer; null for none, unknown or switched off. */
+    @Nullable
+    private static TitleAsset wornTitle(@Nullable UUID playerId) {
+        String shown = playerId == null ? null : ActiveTitles.of(playerId);
+        return shown == null ? null : TitleConfig.getInstance().shown(shown);
     }
 
     private static final SettingsRow.Tile PICKER_TILE = new SettingsRow.Tile() {
@@ -59,13 +90,14 @@ public final class TitleSettings {
         @Override
         public Message line(@Nonnull SettingsViewer viewer) {
             PlayerRef playerRef = viewer.playerRef();
-            return worn(playerRef == null ? null : playerRef.getUuid());
+            return TitleSettings.line(playerRef == null ? null : playerRef.getUuid());
         }
 
         @Override
         public boolean open(@Nonnull SettingsViewer viewer) {
             return viewer.store() != null && viewer.ref() != null && viewer.player() != null
-                    && TitlePickerPages.open(viewer.store(), viewer.ref(), viewer.player());
+                    && TitlePickerPages.open(viewer.store(), viewer.ref(), viewer.player(),
+                            SettingsDestinations.SETTINGS);
         }
     };
 

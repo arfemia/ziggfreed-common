@@ -14,7 +14,7 @@ factor.title_earned = an earned title
 factor.title_shown = a title shown beside your name
 
 unlocked = Title unlocked: {0}
-unlocked_hint = Choose the title you show with /zigtitle open
+unlocked_hint = Choose the title you show in Settings, under Title.
 
 # The title picker (/zigtitle open). In preview, {0} is the player's name as menus show it, title
 # included; in shown, {0} is the title's name.
@@ -29,18 +29,28 @@ picker.cleared = No title is shown now.
 picker.not_kept = Your choice could not be kept. Rejoin and try again.
 
 # The Settings tab's title card: its heading and the tile opening the picker. In settings_wearing, {0} is
-# the title's name.
+# the title's name. The _count forms add how many titles the player has earned of the ones they can see:
+# in settings_wearing_count {0} is the title's name, {1} the count earned and {2} the count in all; in
+# settings_none_count {0} is the count earned and {1} the count in all.
 picker.settings_heading = Title
 picker.settings_tile = Your title
 picker.settings_wearing = Showing {0}
 picker.settings_none = No title shown
+picker.settings_wearing_count = Showing {0} ({1, number} of {2, number} earned)
+picker.settings_none_count = No title shown ({0, number} of {1, number} earned)
 
 # The picker's earned tiles and the titles still to earn; picker.on and picker.off above are a tile's Show
-# button. The two section heads draw in capitals. In from, {0} is the achievement that gives the title, {1}
-# the player's count toward it and {2} its target.
+# button. The two section heads draw in capitals. In earned_count, {0} is how many titles the player has
+# earned and {1} how many they can see in all (a secret title counts once earned). In from, {0} is the
+# achievement that gives the title, {1} the player's count toward it and {2} its target. In collect, {0} is
+# an achievement the player has earned but not yet collected, which gives the title when they do.
+# secret_only stands in for none_on_server when every title left is a secret one.
 picker.earned = Earned
+picker.earned_count = Earned ({0, number} of {1, number})
 picker.not_earned = Not earned yet
 picker.show_none = Show none
 picker.from = From "{0}", {1, number} / {2, number}
+picker.collect = Collect it from "{0}"
 picker.none_yet = No titles yet. These achievements give one:
 picker.none_on_server = This server has no titles to earn.
+picker.secret_only = Some titles stay secret until you earn them.
