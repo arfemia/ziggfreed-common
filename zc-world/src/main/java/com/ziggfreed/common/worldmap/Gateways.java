@@ -10,6 +10,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 import javax.annotation.Nonnull;
@@ -42,6 +43,9 @@ public final class Gateways {
 
     /** World name, lower case, to gateway id, lower case, to its positions there, as last indexed. */
     private static final Map<String, Map<String, List<WaypointPosition>>> INDEX = new ConcurrentHashMap<>();
+
+    /** World name, lower case, to when {@link #indexAtMostEvery} last indexed it ({@link System#nanoTime}). */
+    private static final Map<String, Long> INDEXED_AT = new ConcurrentHashMap<>();
 
     /** Block ids already reported as drawing no map marker, so the log says so once per id. */
     private static final Set<String> MARKERLESS_REPORTED = ConcurrentHashMap.newKeySet();
@@ -152,7 +156,7 @@ public final class Gateways {
      * World thread: record where every enabled gateway standing in {@code world} has a way in, from
      * the engine's block map markers and the gateways' fixed positions. One pass over the world's
      * markers (a read of the chunk store's resource, never a write); a world with no gateway standing
-     * in it is forgotten.
+     * in it keeps no index. A caller reaching it per viewer goes through {@link #indexAtMostEvery}.
      */
     public static void index(@Nonnull World world) {
         String worldName = world.getName();
@@ -167,7 +171,7 @@ public final class Gateways {
                 }
             }
             if (standingHere.isEmpty()) {
-                forget(worldName);
+                INDEX.remove(worldName.toLowerCase(Locale.ROOT));
                 return;
             }
             List<BlockMarker> markers = new ArrayList<>();
@@ -185,10 +189,36 @@ public final class Gateways {
         }
     }
 
+    /**
+     * World thread: {@link #index} {@code world} unless this call indexed it within the last
+     * {@code periodMillis}, so a caller reaching it once per viewer (a sweep over every player in the
+     * world) reads the world's markers once per period instead.
+     */
+    public static void indexAtMostEvery(@Nonnull World world, long periodMillis) {
+        if (claimIndex(world.getName(), System.nanoTime(), TimeUnit.MILLISECONDS.toNanos(periodMillis))) {
+            index(world);
+        }
+    }
+
+    /**
+     * Is {@code worldName} due an index at {@code nowNanos}, its last claim being at least
+     * {@code periodNanos} old (or none)? Stamps it when it is. Only {@link #forget} clears a stamp, so a
+     * world whose index came up empty still waits out its period.
+     */
+    static boolean claimIndex(@Nonnull String worldName, long nowNanos, long periodNanos) {
+        String key = worldName.toLowerCase(Locale.ROOT);
+        Long last = INDEXED_AT.get(key);
+        if (last != null && nowNanos - last < periodNanos) {
+            return false;
+        }
+        INDEXED_AT.put(key, nowNanos);
+        return true;
+    }
+
     /** Replace what is known of {@code worldName}'s gateways; {@link #index} writes through this. */
     public static void remember(@Nonnull String worldName, @Nonnull Map<String, List<WaypointPosition>> byGateway) {
         if (byGateway.isEmpty()) {
-            forget(worldName);
+            INDEX.remove(worldName.toLowerCase(Locale.ROOT));
             return;
         }
         Map<String, List<WaypointPosition>> copy = new LinkedHashMap<>();
@@ -203,9 +233,14 @@ public final class Gateways {
         return here == null ? List.of() : here.getOrDefault(gatewayId.toLowerCase(Locale.ROOT), List.of());
     }
 
-    /** Forget a world (it was removed: wired to {@link WorldEvictors}, so no caller need do it). */
+    /**
+     * Forget a world, its index and its {@link #indexAtMostEvery} stamp, so it comes back due (it was
+     * removed: wired to {@link WorldEvictors}, so no caller need do it).
+     */
     public static void forget(@Nonnull String worldName) {
-        INDEX.remove(worldName.toLowerCase(Locale.ROOT));
+        String key = worldName.toLowerCase(Locale.ROOT);
+        INDEX.remove(key);
+        INDEXED_AT.remove(key);
     }
 
     /** The name of the map marker {@code type} draws, or null when it draws none. Shared with {@link PortalGateways}. */

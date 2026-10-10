@@ -38,33 +38,36 @@ public final class QuestWaypointTargets {
     }
 
     /**
-     * The character a step routes the player to: its first hand-in locked to one place, else its
-     * first place-targeted objective naming one. Null when the step names no place.
+     * The character a step routes the player to: the first objective, in step order, the pointer can
+     * place. That is a hand-in whose lock, or a place-targeted objective whose target, names a placed
+     * character ({@code placed}, asked with the trimmed id). Anything naming somewhere the pointer
+     * cannot position (a location, a board, an id nothing places) is passed over, and so is a hand-in
+     * open to any surface. Null when no objective can be placed.
      */
     @Nullable
-    public static String destinationOf(@Nonnull List<ObjectiveDef> step, @Nonnull Predicate<String> placeTargeted) {
+    public static String destinationOf(@Nonnull List<ObjectiveDef> step, @Nonnull Predicate<String> placeTargeted,
+            @Nonnull Predicate<String> placed) {
         for (ObjectiveDef objective : step) {
+            String place = null;
             if (QuestObjectiveAsset.HAND_IN_KIND.equalsIgnoreCase(objective.kind().trim())) {
-                String lock = objective.turnInLockId();
-                if (lock != null && !lock.isBlank()) {
-                    return lock.trim();
-                }
+                place = objective.turnInLockId();
             } else if (placeTargeted.test(objective.kind())) {
-                String target = objective.target();
-                if (target != null && !target.isBlank()) {
-                    return target.trim();
-                }
+                place = objective.target();
+            }
+            if (place != null && !place.isBlank() && placed.test(place.trim())) {
+                return place.trim();
             }
         }
         return null;
     }
 
     /**
-     * One target per place the viewer's tracked quests send them, in tracking order, drawn with
-     * {@code icon} (null for the service default). A character standing under a {@code Where} this
-     * world matches, or one nothing places, is the target itself; one standing only in other worlds
-     * is reached through each gateway here leading into one of them ({@link #GATEWAY_PREFIX} plus its
-     * id, shared by every quest it serves); with none, nothing.
+     * One target per place the viewer's tracked quests send them ({@link #destinationOf}, a placed
+     * character being one {@code wheresOf} answers), in tracking order, drawn with {@code icon} (null
+     * for the service default). A character standing under a {@code Where} this world matches is the
+     * target itself; one standing only in other worlds is reached through each gateway here leading
+     * into one of them ({@link #GATEWAY_PREFIX} plus its id, shared by every quest it serves); with
+     * none, nothing.
      */
     @Nonnull
     public static List<WaypointTarget> plan(@Nonnull QuestEngine engine, @Nonnull Subject subject,
@@ -77,12 +80,13 @@ public final class QuestWaypointTargets {
         List<WaypointTarget> out = new ArrayList<>();
         Set<String> seen = new HashSet<>();
         for (Quest quest : engine.trackedActive(subject)) {
-            String npc = destinationOf(engine.activeStepObjectives(subject, quest), placeTargeted);
+            String npc = destinationOf(engine.activeStepObjectives(subject, quest), placeTargeted,
+                    target -> !wheresOf.apply(target).isEmpty());
             if (npc == null) {
                 continue;
             }
             List<WorldSelector> wheres = wheresOf.apply(npc);
-            if (wheres.isEmpty() || standsHere(wheres, worldName, worldGameplayConfig)) {
+            if (standsHere(wheres, worldName, worldGameplayConfig)) {
                 if (seen.add(npc.toLowerCase(Locale.ROOT))) {
                     out.add(new WaypointTarget(npc, npc, titleOf.apply(quest), icon));
                 }
