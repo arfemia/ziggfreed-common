@@ -31,7 +31,17 @@ repositories {
     mavenCentral()
 }
 
-// Compile against the SAME jar the server runs (path in gradle.properties).
+// Compile against the SAME jar the server runs, found as the root build.gradle finds it: the
+// workspace's family.properties keys when it is there, else this repo's gradle.properties.
+def familyBuildKeys = new Properties()
+def familyBuildKeysFile = new File(rootProject.file(workspaceRoot), 'family.properties')
+if (familyBuildKeysFile.isFile()) {
+    familyBuildKeysFile.withReader('UTF-8') { familyBuildKeys.load(it) }
+}
+def buildKey = { String key -> familyBuildKeys.getProperty(key)?.trim() ?: property(key).toString() }
+def hytaleHome = buildKey('hytaleHome')
+def patchline = buildKey('patchline')
+def game_build = buildKey('game_build')
 def hytaleServerJar = new File("${hytaleHome}/${patchline}/package/game/${game_build}/Server/HytaleServer.jar")
 
 dependencies {

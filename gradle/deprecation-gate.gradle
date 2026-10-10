@@ -16,10 +16,14 @@
 // Apply it once the java (or java-library) plugin is applied:
 //     apply from: "$rootDir/gradle/deprecation-gate.gradle"
 // Each source set gets its own task (deprecationGateMain, deprecationGateTest, ...), UP-TO-DATE
-// while that source set's sources, its compile classpath and this script stay unchanged. The
-// classpath is compared as javac sees it (CompileClasspathNormalizer: class signatures and their
-// annotations, @Deprecated included, never a method body), so an upstream implementation change
-// leaves the gate UP-TO-DATE and a new deprecation upstream reruns it.
+// while that source set's sources, its compile classpath, the javac options it passes and this
+// script stay unchanged. The classpath is compared as javac sees it (CompileClasspathNormalizer:
+// class signatures and their annotations, @Deprecated included, never a method body), so an
+// upstream implementation change leaves the gate UP-TO-DATE and a new deprecation upstream reruns
+// it. The task is cacheable: its one output is a report, build/deprecation-gate/<set>.txt (the kept
+// calls, by path relative to the project), so a clean build, or another tree with the same inputs,
+// takes it FROM-CACHE. The javac pass's own files (its classes, argfile and log) sit in the scratch
+// folder build/deprecation-gate/<set>/, which is never an output.
 // `gradlew deprecationGate` runs every one of them, and `check` (so `build`) depends on that.
 //
 // This file is kept byte-identical in every repository that applies it: edit the master copy and
@@ -40,6 +44,7 @@ pluginManager.withPlugin('java') {
     }
 
     def projectName = project.name
+    def projectDirectory = project.projectDir
 
     sourceSets.configureEach { sourceSet ->
         def setName = sourceSet.name
@@ -49,6 +54,7 @@ pluginManager.withPlugin('java') {
         def sources = sourceSet.java
         def classpath = sourceSet.compileClasspath
         def scratch = layout.buildDirectory.dir("deprecation-gate/${setName}")
+        def report = layout.buildDirectory.file("deprecation-gate/${setName}.txt")
         // The compile task's own arguments, minus whatever would turn a warning into an error or
         // narrow the lint: this pass sets its own.
         def passArgs = compileTask.map { jc ->
@@ -72,9 +78,12 @@ pluginManager.withPlugin('java') {
             t.inputs.property('encoding', encoding)
             t.inputs.property('release', release)
             t.inputs.property('javaVersion', compiler.map { it.metadata.languageVersion.toString() })
-            t.outputs.dir(scratch).withPropertyName('scratch')
+            t.outputs.file(report).withPropertyName('report')
+            t.outputs.cacheIf('the report depends on the declared inputs alone') { true }
 
             t.doLast {
+                File reportFile = report.get().asFile
+                reportFile.delete()
                 File outDir = scratch.get().asFile
                 File classesDir = new File(outDir, 'classes')
                 outDir.deleteDir()
@@ -123,6 +132,15 @@ pluginManager.withPlugin('java') {
                 def anyWarning = Pattern.compile('^(?:.+:\\d+: )?warning: ')
                 def warningTotal = Pattern.compile('^(\\d+) warnings?$')
                 def keptMarker = Pattern.compile('//\\s*DEPRECATION-KEPT:\\s*\\S')
+                // The report names a kept call by its path under the project, so a cached report reads
+                // the same in every tree that restores it.
+                def relative = { File f ->
+                    try {
+                        projectDirectory.toPath().relativize(f.toPath()).toString().replace('\\', '/')
+                    } catch (IllegalArgumentException ignored) {
+                        f.path
+                    }
+                }
                 Map<String, List<String>> fileLines = [:]
                 List<String> kept = []
                 List<String> unmarked = []
@@ -163,7 +181,7 @@ pluginManager.withPlugin('java') {
                             || (lineNo > 1 && keptMarker.matcher(lines[lineNo - 2]).find())
                     String where = "${source.path}:${lineNo}: ${hit.group(3)}"
                     if (marked) {
-                        kept << where
+                        kept << "${relative(source)}:${lineNo}: ${hit.group(3)}".toString()
                     } else {
                         unmarked << where
                     }
@@ -190,8 +208,10 @@ pluginManager.withPlugin('java') {
                             + problems.join('\n') + "\njavac's full output: ${log.absolutePath}")
                 }
 
-                new File(outDir, 'kept.txt').setText(kept.collect { it + '\n' }.join(''), 'UTF-8')
-                t.logger.lifecycle("Deprecation gate ${label}: ${kept.size()} kept, 0 unmarked")
+                String verdict = "Deprecation gate ${label}: ${kept.size()} kept, 0 unmarked"
+                reportFile.parentFile.mkdirs()
+                reportFile.setText(verdict + '\n' + kept.collect { it + '\n' }.join(''), 'UTF-8')
+                t.logger.lifecycle(verdict)
             }
         }
         gateAll.configure {
