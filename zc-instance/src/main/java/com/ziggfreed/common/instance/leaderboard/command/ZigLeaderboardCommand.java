@@ -8,12 +8,13 @@ import com.hypixel.hytale.server.core.permissions.provider.HytalePermissionsProv
  *
  * <pre>
  * /zigleaderboard encounter [--encounter=&lt;script id&gt;]   open a boss fight's records
+ * /zigleaderboard clock &lt;offset&gt;                        move the stat board's clock (an owner's verb)
  * </pre>
  *
  * <p>A PLAYER's family: it only opens a screen for the caller, so it sits in the engine's adventurer
  * group and every player holds it. It belongs to the library because the board it reads does: a
  * server running nothing but this library still keeps its boss fights' records, and still gets a way
- * to read them.
+ * to read them. {@code clock} is the one owner verb, in the world-editor group on its own.
  */
 public final class ZigLeaderboardCommand extends AbstractCommandCollection {
 
@@ -21,5 +22,6 @@ public final class ZigLeaderboardCommand extends AbstractCommandCollection {
         super(LeaderboardCommandLine.FAMILY, LeaderboardCommandMessages.desc("family"));
         setPermissionGroups(HytalePermissionsProvider.GROUP_ADVENTURER);
         addSubCommand(new EncounterLeaderboardCommand());
+        addSubCommand(new StatClockCommand());
     }
 }

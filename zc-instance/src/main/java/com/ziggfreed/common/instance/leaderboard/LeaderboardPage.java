@@ -110,16 +110,25 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
                            @Nullable SortMode sort, @Nullable String statSort, boolean statsView) {
         super(playerRef, CustomPageLifetime.CanDismissOrCloseThroughInteraction, LeaderboardEventData.CODEC);
         this.deps = deps;
-        this.activePrimary = resolveKey(deps.primaryTabs(), primary);
-        this.activeSecondary = resolveKey(deps.tabs(), secondary);
+        this.activePrimary = resolveKey(deps.primaryTabs(), primary, deps.allTabs());
+        this.activeSecondary = resolveKey(deps.tabs(), secondary, deps.allTabs());
         this.sort = sort != null ? sort : SortMode.BEST_SCORE;
-        this.statSort = resolveStatKey(deps, statSort);
-        this.statsView = statsView && !deps.statColumns().isEmpty();
+        this.statSort = resolveStatKey(deps.statColumns(activePrimary), statSort, deps.isStatsOnly());
+        // A stats-only board has no other view to fall back to, so it shows the Stats view even when the
+        // selected tab has no columns.
+        this.statsView = deps.isStatsOnly() || (statsView && !deps.statColumns(activePrimary).isEmpty());
+    }
+
+    /** The Stats columns under the selected primary tab. */
+    @Nonnull
+    private List<StatColumnDef> columns() {
+        return deps.statColumns(activePrimary);
     }
 
     @Nonnull
-    private static String resolveKey(@Nonnull List<LeaderboardBucketTab> tabs, @Nullable String key) {
-        if (ALL.equals(key) && hasAllTab(tabs)) {
+    private static String resolveKey(@Nonnull List<LeaderboardBucketTab> tabs, @Nullable String key,
+                                     boolean allTabs) {
+        if (ALL.equals(key) && hasAllTab(tabs, allTabs)) {
             return ALL;
         }
         if (key != null) {
@@ -132,29 +141,33 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         return tabs.isEmpty() ? "" : tabs.get(0).bucketKey();
     }
 
-    /** An axis synthesizes a trailing "All" tab only when it has two or more concrete tabs. */
-    private static boolean hasAllTab(@Nonnull List<LeaderboardBucketTab> tabs) {
-        return tabs.size() >= 2;
+    /**
+     * An axis synthesizes a trailing "All" tab only when it has two or more concrete tabs, and only on a
+     * board that keeps them ({@link LeaderboardPageDeps#allTabs()}).
+     */
+    private static boolean hasAllTab(@Nonnull List<LeaderboardBucketTab> tabs, boolean allTabs) {
+        return allTabs && tabs.size() >= 2;
     }
 
     /**
      * Resolve the active Stats-view sort key: a valid stat-column key, the reserved {@code "plays"}
-     * or {@code "total"}, else the first stat column (the default). An empty stat-column list yields
-     * {@code ""} (the Stats view is disabled in that case anyway).
+     * or {@code "total"} (never on a stats-only board, which shows neither), else the first stat column
+     * (the default). An empty stat-column list yields {@code ""}.
      */
     @Nonnull
-    private static String resolveStatKey(@Nonnull LeaderboardPageDeps deps, @Nullable String key) {
+    private static String resolveStatKey(@Nonnull List<StatColumnDef> columns, @Nullable String key,
+                                         boolean statsOnly) {
         if (key != null && !key.isBlank()) {
-            if ("plays".equals(key) || "total".equals(key)) {
+            if (!statsOnly && ("plays".equals(key) || "total".equals(key))) {
                 return key;
             }
-            for (StatColumnDef c : deps.statColumns()) {
+            for (StatColumnDef c : columns) {
                 if (c.statKey().equals(key)) {
                     return key;
                 }
             }
         }
-        return deps.statColumns().isEmpty() ? "" : deps.statColumns().get(0).statKey();
+        return columns.isEmpty() ? "" : columns.get(0).statKey();
     }
 
     @Nullable
@@ -240,7 +253,8 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton", EventData.of("Action", "close"));
 
         UiText.setText(cmd, "#Title.Text", t.title());
-        boolean hasStats = !deps.statColumns().isEmpty();
+        // A stats-only board shows its one view with no toggle to leave it.
+        boolean hasStats = !columns().isEmpty() && !deps.isStatsOnly();
 
         // Leading row labels (optional; clarify what each selector row drives).
         setLabel(cmd, "#GroupLabel", t.primaryAxisLabel());
@@ -340,7 +354,7 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
 
         // Stat column headers are clickable: a click re-sorts the list by that column's metric and
         // highlights the active header (the same active/inactive tint as the tabs).
-        List<StatColumnDef> cols = deps.statColumns();
+        List<StatColumnDef> cols = columns();
         int shown = Math.min(cols.size(), StatColumnDef.MAX_STAT_COLUMNS);
         for (int c = 0; c < StatColumnDef.MAX_STAT_COLUMNS; c++) {
             String hdr = "#SHdrCol" + c;
@@ -354,15 +368,23 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
                 cmd.set(hdr + ".Visible", false);
             }
         }
-        // The Plays column is sortable too (reserved "plays" key).
-        UiText.setText(cmd, "#SHdrPlays.Text", t.colPlays());
-        style(cmd, "#SHdrPlays", statSort.equals("plays"));
-        bindStatSort(events, "#SHdrPlays", "plays");
+        // The Plays column is sortable too (reserved "plays" key); a stats-only board records no play.
+        if (deps.isStatsOnly()) {
+            cmd.set("#SHdrPlays.Visible", false);
+        } else {
+            UiText.setText(cmd, "#SHdrPlays.Text", t.colPlays());
+            style(cmd, "#SHdrPlays", statSort.equals("plays"));
+            bindStatSort(events, "#SHdrPlays", "plays");
+        }
 
         // Aggregate across the SELECTED buckets (honoring the tabs): a concrete difficulty+size, an
         // "All" axis roll-up, or All+All for the full lifetime view. Sorted by the active stat metric.
         Map<UUID, LeaderboardEntry> all = deps.board().forBuckets(effectiveBuckets());
         List<Map.Entry<UUID, LeaderboardEntry>> sorted = new ArrayList<>(all.entrySet());
+        if (deps.isStatsOnly()) {
+            // A board of bare tallies holds a player for any stat; this tab lists only those with one of its own.
+            sorted.removeIf(en -> !holdsAny(en.getValue(), cols, shown));
+        }
         sorted.sort(SortMode.byStat(statSort, ascending(cols, statSort)));
 
         UUID self = playerRef.getUuid();
@@ -377,6 +399,16 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
             }
         }
         setYourRank(cmd, t, sorted, self);
+    }
+
+    /** Whether {@code e} holds a value in any of the first {@code shown} columns. */
+    private static boolean holdsAny(@Nonnull LeaderboardEntry e, @Nonnull List<StatColumnDef> cols, int shown) {
+        for (int c = 0; c < shown; c++) {
+            if (e.stat(cols.get(c).statKey()) != 0L) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Whether the column sorted on ranks lowest-first; Plays and an unknown key rank highest-first. */
@@ -396,12 +428,18 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         String sel = "#LeaderboardList[" + index + "]";
         UiText.setText(cmd, sel + " #Rank.Text", "#" + rank);
         cmd.set(sel + " #Player.TextSpans", PlayerDisplayNames.displayName(uuid, e.name));
-        UiText.setText(cmd, sel + " #Plays.Text", Integer.toString(e.plays));
+        if (deps.isStatsOnly()) {
+            cmd.set(sel + " #Plays.Visible", false);
+        } else {
+            UiText.setText(cmd, sel + " #Plays.Text", Integer.toString(e.plays));
+        }
         for (int c = 0; c < StatColumnDef.MAX_STAT_COLUMNS; c++) {
             String cell = sel + " #Col" + c;
             if (c < shown) {
                 StatColumnDef def = cols.get(c);
-                UiText.setText(cmd, cell + ".Text", def.format().render(e.stat(def.statKey())));
+                long value = e.stat(def.statKey());
+                // A low-wins best with no value is no record, shown as the Rankings view shows a missing time.
+                UiText.setText(cmd, cell + ".Text", def.ascending() && value <= 0 ? "-" : def.format().render(value));
                 cmd.set(cell + ".Visible", true);
             } else {
                 cmd.set(cell + ".Visible", false);
@@ -420,7 +458,7 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         // Append a synthesized trailing "All" tab to any axis with >= 2 concrete tabs (the default
         // selection stays the first concrete tab, so existing behavior + deep-links are unchanged).
         List<LeaderboardBucketTab> display = new ArrayList<>(tabs);
-        if (hasAllTab(tabs)) {
+        if (hasAllTab(tabs, deps.allTabs())) {
             display.add(new LeaderboardBucketTab(ALL, t.filterAll()));
         }
         for (int i = 0; i < display.size(); i++) {

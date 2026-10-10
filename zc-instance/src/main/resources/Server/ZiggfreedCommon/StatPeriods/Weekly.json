@@ -1,0 +1,9 @@
+{
+  "$Comment": "The Records tab for this week. A new week starts empty at midnight of StartsOn on Zone's clock; Keep is how many weeks the board holds, this one included. A server owner can move the day or the zone in mods/ziggfreedcommon/stats.json, as \"Weekly\": { \"Zone\": \"America/New_York\" }.",
+  "Kind": "Weekly",
+  "NameKey": "ziggfreedcommon.statboard.period.weekly",
+  "StartsOn": "Monday",
+  "Zone": "UTC",
+  "Keep": 2,
+  "Order": 10
+}

@@ -1,6 +1,8 @@
 package com.ziggfreed.common.instance.leaderboard;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -43,6 +45,10 @@ public final class LeaderboardPageDeps {
     private final LeaderboardScreenMessages text;
     private final BucketKeys bucketKeys;
     @Nullable private final String menuTab;
+    /** Primary tab key -> that tab's own Stats columns; a tab not in it uses {@link #statColumns}. */
+    private final Map<String, List<StatColumnDef>> columnsByPrimary;
+    private final boolean allTabs;
+    private final boolean statsOnly;
 
     /** Back-compat: a single-axis, score-only board (no difficulty axis, no stats view). */
     public LeaderboardPageDeps(@Nonnull Leaderboard board, @Nonnull List<LeaderboardBucketTab> tabs,
@@ -61,13 +67,14 @@ public final class LeaderboardPageDeps {
     public LeaderboardPageDeps(@Nonnull Leaderboard board, @Nonnull List<LeaderboardBucketTab> primaryTabs,
                                @Nonnull List<LeaderboardBucketTab> tabs, @Nonnull List<StatColumnDef> statColumns,
                                @Nonnull LeaderboardScreenMessages text, @Nonnull BucketKeys bucketKeys) {
-        this(board, primaryTabs, tabs, statColumns, text, bucketKeys, null);
+        this(board, primaryTabs, tabs, statColumns, text, bucketKeys, null, Map.of(), true, false);
     }
 
     private LeaderboardPageDeps(@Nonnull Leaderboard board, @Nonnull List<LeaderboardBucketTab> primaryTabs,
                                 @Nonnull List<LeaderboardBucketTab> tabs, @Nonnull List<StatColumnDef> statColumns,
                                 @Nonnull LeaderboardScreenMessages text, @Nonnull BucketKeys bucketKeys,
-                                @Nullable String menuTab) {
+                                @Nullable String menuTab, @Nonnull Map<String, List<StatColumnDef>> columnsByPrimary,
+                                boolean allTabs, boolean statsOnly) {
         this.board = board;
         this.primaryTabs = List.copyOf(primaryTabs);
         this.tabs = List.copyOf(tabs);
@@ -75,6 +82,13 @@ public final class LeaderboardPageDeps {
         this.text = text;
         this.bucketKeys = bucketKeys;
         this.menuTab = menuTab;
+        Map<String, List<StatColumnDef>> columns = new LinkedHashMap<>();
+        for (Map.Entry<String, List<StatColumnDef>> e : columnsByPrimary.entrySet()) {
+            columns.put(e.getKey(), List.copyOf(e.getValue()));
+        }
+        this.columnsByPrimary = Map.copyOf(columns);
+        this.allTabs = allTabs;
+        this.statsOnly = statsOnly;
     }
 
     /**
@@ -83,7 +97,56 @@ public final class LeaderboardPageDeps {
      */
     @Nonnull
     public LeaderboardPageDeps withMenuTab(@Nullable String tab) {
-        return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, tab);
+        return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, tab,
+                columnsByPrimary, allTabs, statsOnly);
+    }
+
+    /**
+     * A copy whose primary tabs each carry their own Stats columns ({@code primary tab key -> columns}), as
+     * a stat board's sections do; a tab the map leaves out keeps {@link #statColumns()}. Everything else is
+     * kept.
+     */
+    @Nonnull
+    public LeaderboardPageDeps withColumnsByPrimary(@Nonnull Map<String, List<StatColumnDef>> columns) {
+        return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, menuTab,
+                columns, allTabs, statsOnly);
+    }
+
+    /**
+     * A copy with no synthesized "All" tab on either axis, for axes whose buckets do not add up (a
+     * section's columns, a week beside a month). Everything else is kept.
+     */
+    @Nonnull
+    public LeaderboardPageDeps withoutAllTabs() {
+        return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, menuTab,
+                columnsByPrimary, false, statsOnly);
+    }
+
+    /**
+     * A copy that shows only the Stats view, with no Rankings view, sort row or Plays column: a board of
+     * bare tallies, which never records a play or a best. Everything else is kept.
+     */
+    @Nonnull
+    public LeaderboardPageDeps statsOnly() {
+        return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, menuTab,
+                columnsByPrimary, allTabs, true);
+    }
+
+    /** Whether an axis of two or more tabs gets the synthesized "All" tab (true unless {@link #withoutAllTabs}). */
+    public boolean allTabs() {
+        return allTabs;
+    }
+
+    /** Whether the page shows the Stats view alone ({@link #statsOnly()}). */
+    public boolean isStatsOnly() {
+        return statsOnly;
+    }
+
+    /** The Stats columns under primary tab {@code primary}: its own when it has some, else {@link #statColumns()}. */
+    @Nonnull
+    public List<StatColumnDef> statColumns(@Nonnull String primary) {
+        List<StatColumnDef> own = columnsByPrimary.get(primary);
+        return own != null ? own : statColumns;
     }
 
     /** The rail tab to select, or null for the page's own frame. */

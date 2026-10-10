@@ -1,0 +1,6 @@
+{
+  "$Comment": "A Records tab and its columns, at most four. Each entry in Stats is a stat id, or Stat/Thing for one line of a stat's breakdown. A stat nothing on this server counts shows no column.",
+  "NameKey": "ziggfreedcommon.statboard.section.adventure",
+  "Order": 30,
+  "Stats": ["Quests_Completed", "Npcs_Talked", "Rounds_Won", "Playtime_Seconds"]
+}

@@ -30,6 +30,11 @@ import com.ziggfreed.common.instance.effect.BandedEffectAsset;
 import com.ziggfreed.common.instance.effect.BandedEffectConfig;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardLayoutAsset;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardLayoutConfig;
+import com.ziggfreed.common.instance.leaderboard.statboard.StatPeriodAsset;
+import com.ziggfreed.common.instance.leaderboard.statboard.StatPeriodConfig;
+import com.ziggfreed.common.instance.leaderboard.statboard.StatPeriodOwnerLayers;
+import com.ziggfreed.common.instance.leaderboard.statboard.StatSectionAsset;
+import com.ziggfreed.common.instance.leaderboard.statboard.StatSectionConfig;
 import com.ziggfreed.common.instance.preset.InstancePresetAsset;
 import com.ziggfreed.common.instance.preset.InstancePresetConfig;
 import com.ziggfreed.common.loot.LootableAsset;
@@ -366,6 +371,26 @@ public final class FrameworkAssetRegistrar {
                 (LoadedAssetsEvent<String, LeaderboardLayoutAsset, DefaultAssetMap<String, LeaderboardLayoutAsset>> ev) ->
                         LeaderboardLayoutConfig.getInstance().mergePackLayer(
                                 AssetMergeAdapter.layer(ev.getAssetMap(), (id, a) -> a.toLayout(id))));
+
+        // --- Stat board periods and sections (Pattern A) - the windows Records ranks over and the tabs of
+        //     columns it shows. The library ships All_Time, Weekly and Monthly, and the Combat, Gathering
+        //     and Adventure sections (zc-instance's resources); a consumer's same-id file wins by pack
+        //     order. A server owner retunes a period or adds a range in mods/ziggfreedcommon/stats.json,
+        //     read here once the packs have landed. ---
+        AssetStoreRegistrar.registerStore(StatPeriodAsset.class,
+                new DefaultAssetMap<String, StatPeriodAsset>(), StatPeriodAsset.TYPE_ROOT,
+                StatPeriodAsset::getId, StatPeriodAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, StatPeriodAsset.class,
+                (LoadedAssetsEvent<String, StatPeriodAsset, DefaultAssetMap<String, StatPeriodAsset>> ev) -> {
+                    StatPeriodConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    StatPeriodOwnerLayers.reload();
+                });
+        AssetStoreRegistrar.registerStore(StatSectionAsset.class,
+                new DefaultAssetMap<String, StatSectionAsset>(), StatSectionAsset.TYPE_ROOT,
+                StatSectionAsset::getId, StatSectionAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, StatSectionAsset.class,
+                (LoadedAssetsEvent<String, StatSectionAsset, DefaultAssetMap<String, StatSectionAsset>> ev) ->
+                        StatSectionConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
 
         // --- Arena definitions (Pattern A) - spatial layout (team spawns / objectives / pickups). ---
         AssetStoreRegistrar.registerStore(ArenaDefinitionAsset.class,

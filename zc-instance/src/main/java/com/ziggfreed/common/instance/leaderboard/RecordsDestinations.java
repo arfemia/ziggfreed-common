@@ -20,11 +20,11 @@ import com.ziggfreed.common.ui.route.DestinationType;
 import com.ziggfreed.common.ui.route.Destinations;
 
 /**
- * Records: the library's tab and destination for the records a server keeps, today the encounter board's
- * boss fights. The name is generic on purpose, so a later board can join it. {@code "Open": "Records"}
- * opens the first fight on record (by its binding row's id) on the library's records page, on the rail with
- * this tab selected; the tab shows only while the board holds a fight with rows. Opened on the player's own
- * ref.
+ * Records: the library's tab and destination for the records a server keeps: the board filled through
+ * {@link #setBoard} (the stat board) while it shows, else the encounter board's boss fights.
+ * {@code "Open": "Records"} opens that board on the library's records page, on the rail with this tab
+ * selected; for the encounter board, the first fight on record (by its binding row's id). The tab shows
+ * while either has something to show. Opened on the player's own ref.
  */
 public final class RecordsDestinations {
 
@@ -35,7 +35,15 @@ public final class RecordsDestinations {
     /** The tab's picture: a pile of skulls, for the boss fights it records. */
     static final String ICON = "Deco_Bone_Skulls";
 
+    /** The board Records opens before the encounter board; null for the encounter board alone. */
+    @Nullable private static volatile RecordsBoard board;
+
     private RecordsDestinations() {
+    }
+
+    /** Fill the seam: Records opens {@code first} while it shows, else the encounter board. Null empties it. */
+    public static void setBoard(@Nullable RecordsBoard first) {
+        board = first;
     }
 
     /** Seed the type, at setup, before any asset decodes. */
@@ -49,7 +57,8 @@ public final class RecordsDestinations {
     public static MenuEntry entry() {
         return MenuSlot.RECORDS.entry(EncounterLeaderboardMessages.line("menu.records"), IconSpec.ofItem(ICON),
                 RECORDS,
-                viewer -> shows(EncounterLeaderboardListener.board(), EncounterBindingConfig.getInstance().all().values()));
+                viewer -> firstShows() || shows(EncounterLeaderboardListener.board(),
+                        EncounterBindingConfig.getInstance().all().values()));
     }
 
     /** Shown while the board exists and a fight on it has rows. */
@@ -57,20 +66,39 @@ public final class RecordsDestinations {
         return board != null && !EncounterBoards.ranked(board, rows).isEmpty();
     }
 
+    /** Whether the filled board shows; false with none filled. */
+    private static boolean firstShows() {
+        RecordsBoard first = board;
+        return first != null && first.shows();
+    }
+
     private static boolean open(@Nonnull Records destination, @Nonnull DestinationContext ctx) {
-        Leaderboard board = EncounterLeaderboardListener.board();
         PlayerRef viewer = ctx.playerRef();
-        if (board == null || viewer == null) {
+        if (viewer == null) {
             return false;
         }
-        List<EncounterBindingAsset> ranked = EncounterBoards.ranked(board,
-                EncounterBindingConfig.getInstance().all().values());
-        LeaderboardPageDeps deps = ranked.isEmpty() ? null : EncounterBoards.deps(board, ranked.get(0));
+        RecordsBoard first = board;
+        LeaderboardPageDeps deps = first != null && first.shows() ? first.deps() : null;
+        if (deps == null) {
+            deps = encounterDeps();
+        }
         if (deps == null) {
             return false;
         }
         ctx.player().getPageManager().openCustomPage(ctx.playerReference(), ctx.store(), new LeaderboardPage(viewer, deps));
         return true;
+    }
+
+    /** The first ranked fight's page, or null when the encounter board has none. */
+    @Nullable
+    private static LeaderboardPageDeps encounterDeps() {
+        Leaderboard encounters = EncounterLeaderboardListener.board();
+        if (encounters == null) {
+            return null;
+        }
+        List<EncounterBindingAsset> ranked = EncounterBoards.ranked(encounters,
+                EncounterBindingConfig.getInstance().all().values());
+        return ranked.isEmpty() ? null : EncounterBoards.deps(encounters, ranked.get(0));
     }
 
     /** The records page. */

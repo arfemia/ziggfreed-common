@@ -51,6 +51,8 @@ import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.feedback.moment.FeedbackMomentAsset;
 import com.ziggfreed.common.instance.effect.BandedEffectAsset;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardLayoutAsset;
+import com.ziggfreed.common.instance.leaderboard.statboard.StatPeriodAsset;
+import com.ziggfreed.common.instance.leaderboard.statboard.StatSectionAsset;
 import com.ziggfreed.common.instance.preset.InstancePresetAsset;
 import com.ziggfreed.common.loot.LootGrants;
 import com.ziggfreed.common.loot.LootRef;
@@ -269,6 +271,12 @@ class AssetCodecInitTest {
     @Test
     void leaderboardLayoutAssetCodecInitializes() {
         assertNotNull(LeaderboardLayoutAsset.CODEC, "LeaderboardLayoutAsset.CODEC must static-init (PascalCase keys)");
+    }
+
+    @Test
+    void statBoardCodecsInitialize() {
+        assertNotNull(StatPeriodAsset.CODEC, "StatPeriodAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(StatSectionAsset.CODEC, "StatSectionAsset.CODEC must static-init (PascalCase keys)");
     }
 
     @Test

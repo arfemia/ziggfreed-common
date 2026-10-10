@@ -1,0 +1,6 @@
+{
+  "$Comment": "A Records tab and its columns, at most four. Each entry in Stats is a stat id, or Stat/Thing for one line of a stat's breakdown (Mob_Kills/Trork_Warrior). A stat nothing on this server counts shows no column, and a section with none shows no tab.",
+  "NameKey": "ziggfreedcommon.statboard.section.combat",
+  "Order": 10,
+  "Stats": ["Mob_Kills", "Deaths", "Encounters_Defeated", "Encounter_Attempts"]
+}

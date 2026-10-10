@@ -1,0 +1,6 @@
+{
+  "$Comment": "The Records tab that never resets: every stat a player has ever ranked. Order places the tab among the periods, lowest first.",
+  "Kind": "AllTime",
+  "NameKey": "ziggfreedcommon.statboard.period.all_time",
+  "Order": 0
+}

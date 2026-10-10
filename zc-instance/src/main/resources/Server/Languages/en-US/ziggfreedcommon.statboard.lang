@@ -1,0 +1,20 @@
+# The stat board on Records: the page's own lines, its periods and its sections.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.statboard.<key>.
+# Every line but your_rank is painted where a parameter is never substituted, so only your_rank
+# takes one. The column words the page shares with the boss records come from
+# ziggfreedcommon.leaderboard.lang.
+
+title = Records
+empty = Nobody is on this board yet.
+your_rank = Your rank: #{0, number}
+your_rank.none = You are not on this board yet.
+
+# The period tabs (Server/ZiggfreedCommon/StatPeriods).
+period.all_time = All Time
+period.weekly = This Week
+period.monthly = This Month
+
+# The section tabs (Server/ZiggfreedCommon/StatSections).
+section.combat = Combat
+section.gathering = Gathering
+section.adventure = Adventure

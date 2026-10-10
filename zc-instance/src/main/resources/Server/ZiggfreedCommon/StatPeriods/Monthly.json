@@ -1,0 +1,8 @@
+{
+  "$Comment": "The Records tab for this month. A new month starts empty at midnight of its first day on Zone's clock; Keep is how many months the board holds, this one included.",
+  "Kind": "Monthly",
+  "NameKey": "ziggfreedcommon.statboard.period.monthly",
+  "Zone": "UTC",
+  "Keep": 2,
+  "Order": 20
+}
