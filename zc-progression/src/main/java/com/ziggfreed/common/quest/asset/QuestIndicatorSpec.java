@@ -123,7 +123,9 @@ public class QuestIndicatorSpec {
     /**
      * How one situation reads instead when its quest repeats (any repeat rule: repeatable, daily,
      * weekly or once a calendar event's run). A leaf written here replaces the situation's own; a leaf
-     * left out keeps it. Only the look changes: a repeating quest shows in the same situations.
+     * left out keeps it. Only the look changes: a repeating quest shows in the same situations. A
+     * broader scope's look stops at a narrower scope that writes the situation's own {@code State}
+     * and no {@code Repeatable} state, so a quest naming its own state keeps it when it repeats.
      */
     public static final class Repeatable {
 
@@ -152,12 +154,19 @@ public class QuestIndicatorSpec {
             return state;
         }
 
+        /**
+         * {@code over} laid over {@code base}, leaf by leaf, except that {@code base}'s state is
+         * dropped when {@code overStatesItsOwn}: a narrower scope that writes its situation's own
+         * {@code State} keeps it for a repeating quest too, unless it also writes a {@code Repeatable}
+         * state of its own.
+         */
         @Nullable
-        static Repeatable merge(@Nullable Repeatable base, @Nullable Repeatable over) {
+        static Repeatable merge(@Nullable Repeatable base, @Nullable Repeatable over, boolean overStatesItsOwn) {
             if (base == null && over == null) {
                 return null;
             }
-            return of(pick(base == null ? null : base.state, over == null ? null : over.state));
+            String broader = base == null || overStatesItsOwn ? null : base.state;
+            return of(pick(broader, over == null ? null : over.state));
         }
     }
 
@@ -250,7 +259,8 @@ public class QuestIndicatorSpec {
                     pick(base == null ? null : base.state, over == null ? null : over.state),
                     Overhead.merge(base == null ? null : base.overhead, over == null ? null : over.overhead),
                     MapMark.merge(base == null ? null : base.map, over == null ? null : over.map),
-                    Repeatable.merge(base == null ? null : base.repeatable, over == null ? null : over.repeatable));
+                    Repeatable.merge(base == null ? null : base.repeatable, over == null ? null : over.repeatable,
+                            over != null && over.state != null));
         }
     }
 
@@ -356,7 +366,10 @@ public class QuestIndicatorSpec {
 
     /**
      * {@code over} laid over {@code base}, leaf by leaf: every leaf {@code over} wrote wins, every
-     * leaf it left alone keeps {@code base}'s. Either may be null, which reads as nothing written.
+     * leaf it left alone keeps {@code base}'s, with one exception: where {@code over} writes a
+     * situation's own {@code State}, {@code base}'s {@code Repeatable} state for that situation is
+     * dropped, so the narrower state is not replaced by a broader repeating look. Either may be null,
+     * which reads as nothing written.
      */
     @Nonnull
     public static QuestIndicatorSpec merge(@Nullable QuestIndicatorSpec base, @Nullable QuestIndicatorSpec over) {
@@ -384,8 +397,10 @@ public class QuestIndicatorSpec {
 
     /**
      * {@code situation} read off this block with the library's own defaults filled in last. When
-     * {@code repeats} (the quest has a repeat rule), the situation's {@code Repeatable} state, if
-     * written, replaces its own.
+     * {@code repeats} (the quest has a repeat rule), the situation's {@code Repeatable} state, if one
+     * survived the merge, replaces its own. On a merged block that is the narrowest scope's word: a
+     * broader scope's {@code Repeatable} state never outlives a narrower scope's own {@code State}
+     * ({@link #merge}), so the global repeating look shows only where no quest or step names a state.
      */
     @Nonnull
     public Resolved resolve(@Nonnull QuestSituation situation, boolean repeats) {

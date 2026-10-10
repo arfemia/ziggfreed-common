@@ -1,6 +1,7 @@
 package com.ziggfreed.common.worldmap;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -98,6 +99,18 @@ class GatewaysTest {
     void withNoViewerPositionEveryWayInIsPointedAt() {
         List<WaypointPosition> ways = List.of(new WaypointPosition("a", 1, 64, 1), new WaypointPosition("b", 2, 64, 2));
         assertEquals(ways, Gateways.nearest(ways, null));
+    }
+
+    @Test
+    void aWorldIsIndexedAtMostOncePerPeriodAndComesBackDueOnceForgotten() {
+        long period = 5_000_000_000L;
+        assertTrue(Gateways.claimIndex("Default", 100L, period), "never indexed: due");
+        assertFalse(Gateways.claimIndex("default", 100L + period - 1, period), "the rest of the period reuses it");
+        assertTrue(Gateways.claimIndex("orbis_two", 101L, period), "another world keeps its own stamp");
+        assertTrue(Gateways.claimIndex("default", 100L + period, period), "a period on: due again");
+        assertFalse(Gateways.claimIndex("default", 100L + period, period));
+        Gateways.forget("Default");
+        assertTrue(Gateways.claimIndex("default", 100L + period + 1, period), "a removed world comes back due");
     }
 
     @Test

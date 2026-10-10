@@ -101,7 +101,9 @@ public final class QuestWaypoints implements QuestMarkerListener {
                     quest -> Msg.key(AVAILABLE_TITLE_KEY, ProgressionTexts.titleOrUntitled(quest.id())));
         }
         if (tracked.stream().anyMatch(t -> QuestWaypointTargets.isGatewayKey(t.positionKey()))) {
-            Gateways.index(world);
+            // At most once per world per sweep period, never once per viewer: the rest of the sweep's
+            // viewers, and any refresh before the period is out, read the same index.
+            Gateways.indexAtMostEvery(world, (long) (QuestMarkers.SWEEP_SECONDS * 1000));
         }
         put(TRACKED, scope.viewerId(), tracked);
         put(AVAILABLE, scope.viewerId(), available);

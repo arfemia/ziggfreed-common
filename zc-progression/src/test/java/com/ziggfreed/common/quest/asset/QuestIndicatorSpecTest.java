@@ -126,22 +126,41 @@ class QuestIndicatorSpecTest {
     }
 
     @Test
-    void theRepeatableStateMergesLeafByLeafAcrossScopes() throws Exception {
+    void aNarrowerScopesOwnStateBeatsABroaderRepeatableLook() throws Exception {
         QuestIndicatorSpec global = decode("""
-                { "Available": { "Repeatable": { "State": "Global_Daily" } } }
+                { "Available": { "Repeatable": { "State": "Global_Daily" } },
+                  "TurnIn": { "Repeatable": { "State": "Global_Hand_In_Daily" } } }
                 """);
-        QuestIndicatorSpec quest = decode("""
+        QuestIndicatorSpec questWithState = decode("""
                 { "Available": { "State": "Quest_Scroll" } }
                 """);
-        QuestIndicatorSpec questWithOwn = decode("""
-                { "Available": { "Repeatable": { "State": "Quest_Daily" } } }
+        QuestIndicatorSpec questSilent = decode("""
+                { "Available": { "Map": { "Enabled": true } } }
+                """);
+        QuestIndicatorSpec questWithBoth = decode("""
+                { "Available": { "State": "Quest_Scroll", "Repeatable": { "State": "Quest_Daily" } } }
+                """);
+        QuestIndicatorSpec stepWithState = decode("""
+                { "TurnIn": { "State": "Step_Hand_In" } }
                 """);
 
-        QuestIndicatorSpec merged = QuestIndicatorSpec.merge(global, quest);
-        assertEquals("Global_Daily", merged.resolve(QuestSituation.AVAILABLE, true).state());
-        assertEquals("Quest_Scroll", merged.resolve(QuestSituation.AVAILABLE, false).state());
-        assertEquals("Quest_Daily",
-                QuestIndicatorSpec.merge(global, questWithOwn).resolve(QuestSituation.AVAILABLE, true).state());
+        QuestIndicatorSpec withState = QuestIndicatorSpec.merge(global, questWithState);
+        assertEquals("Quest_Scroll", withState.resolve(QuestSituation.AVAILABLE, true).state(),
+                "the quest's own State wins over the global Repeatable look for a repeating quest");
+        assertEquals("Quest_Scroll", withState.resolve(QuestSituation.AVAILABLE, false).state());
+        assertEquals("Global_Daily",
+                QuestIndicatorSpec.merge(global, questSilent).resolve(QuestSituation.AVAILABLE, true).state(),
+                "a quest setting no State takes the global Repeatable look");
+        assertEquals("Global_Daily",
+                QuestIndicatorSpec.merge(global, decode("{ }")).resolve(QuestSituation.AVAILABLE, true).state(),
+                "an empty quest block takes it too");
+        QuestIndicatorSpec withBoth = QuestIndicatorSpec.merge(global, questWithBoth);
+        assertEquals("Quest_Daily", withBoth.resolve(QuestSituation.AVAILABLE, true).state(),
+                "a quest writing its own Repeatable reads it");
+        assertEquals("Quest_Scroll", withBoth.resolve(QuestSituation.AVAILABLE, false).state());
+        assertEquals("Global_Hand_In_Daily", withBoth.resolve(QuestSituation.TURN_IN, true).state());
+        assertEquals("Step_Hand_In", QuestIndicatorSpec.merge(withBoth, stepWithState)
+                .resolve(QuestSituation.TURN_IN, true).state(), "a step's own State wins over the global look too");
     }
 
     @Test

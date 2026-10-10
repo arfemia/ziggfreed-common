@@ -30,7 +30,10 @@ import com.ziggfreed.common.worldmap.WaypointTarget;
  */
 class QuestWaypointTargetsTest {
 
-    private static final Predicate<String> PLACE_TARGETED = kind -> "TALK_TO_NPC".equalsIgnoreCase(kind);
+    /** The built-in place-targeted kinds: a character's, and a location's the pointer cannot position. */
+    private static final Predicate<String> PLACE_TARGETED =
+            kind -> "TALK_TO_NPC".equalsIgnoreCase(kind) || "REACH_LOCATION".equalsIgnoreCase(kind);
+    private static final Predicate<String> EVERYONE_PLACED = target -> true;
     private static final WorldSelector TEMPLE = WorldSelector.of(null, new String[]{"ForgottenTemple"}, null);
     private static final WorldSelector OVERWORLD = WorldSelector.of(new String[]{"default"}, null, null);
     private static final String TEMPLE_WORLD = "instance-forgotten-temple-goblins";
@@ -78,20 +81,31 @@ class QuestWaypointTargetsTest {
     @Test
     void aHandInLockedToACharacterPointsAtThem() {
         assertEquals("Old_Jack", QuestWaypointTargets.destinationOf(List.of(ObjectiveDef.builder("meet", "TURN_IN")
-                .target("").amount(1).turnInLockId("Old_Jack").build()), PLACE_TARGETED));
+                .target("").amount(1).turnInLockId("Old_Jack").build()), PLACE_TARGETED, EVERYONE_PLACED));
     }
 
     @Test
     void aTalkStepPointsAtTheCharacterItNames() {
         assertEquals("Orrin", QuestWaypointTargets.destinationOf(List.of(ObjectiveDef.builder("talk", "TALK_TO_NPC")
-                .target("Orrin").amount(1).build()), PLACE_TARGETED));
+                .target("Orrin").amount(1).build()), PLACE_TARGETED, EVERYONE_PLACED));
     }
 
     @Test
     void aStepNamingNoPlacePointsNowhere() {
         assertNull(QuestWaypointTargets.destinationOf(List.of(
                 ObjectiveDef.builder("mine", "BREAK_BLOCK").target("Copper_Ore").amount(3).build(),
-                ObjectiveDef.builder("hand", "TURN_IN").target("Copper_Ore").amount(3).build()), PLACE_TARGETED));
+                ObjectiveDef.builder("hand", "TURN_IN").target("Copper_Ore").amount(3).build()), PLACE_TARGETED,
+                EVERYONE_PLACED));
+    }
+
+    @Test
+    void aStepPassesOverAPlaceThePointerCannotPlaceToTheCharacterAfterIt() {
+        Quest errand = Quest.builder("q_errand").npcViewId("Guide")
+                .objective(ObjectiveDef.builder("reach", "REACH_LOCATION").target("Old_Mill").amount(1).build())
+                .objective(ObjectiveDef.builder("talk", "TALK_TO_NPC").target("Orrin").amount(1).build())
+                .build();
+        carry(true, errand);
+        assertEquals(List.of("Orrin"), keys(TEMPLE_WORLD, "ForgottenTemple", Map.of("Orrin", List.of(TEMPLE))));
     }
 
     @Test
@@ -129,9 +143,14 @@ class QuestWaypointTargetsTest {
     }
 
     @Test
-    void aCharacterNothingPlacesIsStillNamedForTheResolver() {
-        carry(true, meet("meet_wanderer", "Wanderer"));
-        assertEquals(List.of("Wanderer"), keys("default", "Default", Map.of()));
+    void aStepPassesOverAHandInLockedToACharacterNothingPlacesToTheCharacterAfterIt() {
+        Quest errand = Quest.builder("q_report").npcViewId("Guide")
+                .objective(ObjectiveDef.builder("report", "TURN_IN").target("").amount(1).turnInLockId("Wanderer")
+                        .build())
+                .objective(ObjectiveDef.builder("talk", "TALK_TO_NPC").target("Orrin").amount(1).build())
+                .build();
+        carry(true, errand);
+        assertEquals(List.of("Orrin"), keys(TEMPLE_WORLD, "ForgottenTemple", Map.of("Orrin", List.of(TEMPLE))));
     }
 
     @Test
