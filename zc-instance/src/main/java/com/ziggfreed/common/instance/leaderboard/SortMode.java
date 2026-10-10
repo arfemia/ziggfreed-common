@@ -57,8 +57,27 @@ public enum SortMode {
      */
     @Nonnull
     public static Comparator<Map.Entry<UUID, LeaderboardEntry>> byStat(@Nonnull String key) {
+        return byStat(key, false);
+    }
+
+    /**
+     * As {@link #byStat(String)}, or lowest-first when {@code ascending}, for a best that shrinks (a
+     * fastest time, a Min stat): there an absent stat, which reads 0, is no record and sorts after every
+     * real one, as a missing winning time does under {@link #BEST_TIME}.
+     */
+    @Nonnull
+    public static Comparator<Map.Entry<UUID, LeaderboardEntry>> byStat(@Nonnull String key, boolean ascending) {
+        if (ascending) {
+            return Comparator.comparingLong(
+                    (Map.Entry<UUID, LeaderboardEntry> e) -> lowKey(statMetric(e.getValue(), key)));
+        }
         return Comparator.comparingLong(
                 (Map.Entry<UUID, LeaderboardEntry> e) -> statMetric(e.getValue(), key)).reversed();
+    }
+
+    /** A low-wins metric of 0 or less (no record) sorts after every real value. */
+    private static long lowKey(long value) {
+        return value > 0L ? value : Long.MAX_VALUE;
     }
 
     /**

@@ -363,7 +363,7 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         // "All" axis roll-up, or All+All for the full lifetime view. Sorted by the active stat metric.
         Map<UUID, LeaderboardEntry> all = deps.board().forBuckets(effectiveBuckets());
         List<Map.Entry<UUID, LeaderboardEntry>> sorted = new ArrayList<>(all.entrySet());
-        sorted.sort(SortMode.byStat(statSort));
+        sorted.sort(SortMode.byStat(statSort, ascending(cols, statSort)));
 
         UUID self = playerRef.getUuid();
         if (sorted.isEmpty()) {
@@ -377,6 +377,16 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
             }
         }
         setYourRank(cmd, t, sorted, self);
+    }
+
+    /** Whether the column sorted on ranks lowest-first; Plays and an unknown key rank highest-first. */
+    private static boolean ascending(@Nonnull List<StatColumnDef> cols, @Nonnull String key) {
+        for (StatColumnDef c : cols) {
+            if (c.statKey().equals(key)) {
+                return c.ascending();
+            }
+        }
+        return false;
     }
 
     private void appendStatsRow(@Nonnull UICommandBuilder cmd, int index, int rank, @Nonnull UUID uuid,

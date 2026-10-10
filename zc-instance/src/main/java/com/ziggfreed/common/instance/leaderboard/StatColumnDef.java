@@ -12,13 +12,22 @@ import com.ziggfreed.common.instance.result.ColumnFormat;
  * {@link ColumnFormat}). The consumer supplies the ordered list (Kweebec: Stunned / Moonbloom /
  * Shrines over the keys "stunned" / "moonbloom" / "shrines"); the page stays mod-agnostic.
  *
+ * <p>{@code ascending} ranks the column lowest-first, for a best that shrinks (a fastest time);
+ * an absent value then sorts last ({@link SortMode#byStat(String, boolean)}).
+ *
  * <p>The stats-row {@code .ui} ships a fixed number of generic cells, so only the first
  * {@link #MAX_STAT_COLUMNS} columns render (extra columns are dropped).
  */
-public record StatColumnDef(@Nonnull String statKey, @Nonnull Message label, @Nonnull ColumnFormat format) {
+public record StatColumnDef(@Nonnull String statKey, @Nonnull Message label, @Nonnull ColumnFormat format,
+                            boolean ascending) {
 
     /** The number of stat cells the stats-row {@code .ui} provides (#Col0..#Col3). */
     public static final int MAX_STAT_COLUMNS = 4;
+
+    /** A column ranked highest-first, as every column was before a column could rank the other way. */
+    public StatColumnDef(@Nonnull String statKey, @Nonnull Message label, @Nonnull ColumnFormat format) {
+        this(statKey, label, format, false);
+    }
 
     /** Convenience: a thousands-grouped stat column. */
     @Nonnull
