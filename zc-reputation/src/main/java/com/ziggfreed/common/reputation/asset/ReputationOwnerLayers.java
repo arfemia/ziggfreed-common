@@ -20,8 +20,8 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <pre>{@code
  * { "$Enabled": false,                                  // every reputation off: absent, not locked
- *   "Hallows_Eve_Old_Jack": { "Cap": 9000 },            // or retune one, leaf by leaf
- *   "Hallows_Eve_Hallowed": { "Enabled": false } }      // or switch one off
+ *   "Town_Guard": { "Cap": 9000 },                      // or retune one, leaf by leaf
+ *   "River_Traders": { "Enabled": false } }             // or switch one off
  * }</pre>
  *
  * <p>The switch is a {@code $}-key because every other top-level key is a reputation id. It is read on its

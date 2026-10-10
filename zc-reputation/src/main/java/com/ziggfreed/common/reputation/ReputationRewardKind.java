@@ -60,7 +60,7 @@ public final class ReputationRewardKind implements RewardHandler {
     }
 
     /**
-     * "+250 Old Jack's Favor", the amount a typed number and the name the companion's own, beside the
+     * "+250 Town Guard", the amount a typed number and the name the companion's own, beside the
      * companion's own {@code Icon}; null for another kind or one nothing names. The icon is a picture that
      * stands for the reputation, never an item handed over ({@link RewardChip#picture}), so hovering it
      * names the reputation rather than the item it borrows; a companion with no Icon reads as the line alone.
