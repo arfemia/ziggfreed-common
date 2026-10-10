@@ -3,7 +3,6 @@ package com.ziggfreed.common.npc;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -54,10 +53,10 @@ import com.ziggfreed.common.util.SafeLog;
  * <h2>The library's own sink</h2>
  *
  * <p>The library registers one sink of its own under the reserved {@link #LIBRARY_SINK_ID} (the
- * {@code TALK_TO_NPC} producer in zc-objectives), so a conversation moves a quest step on a server
- * that runs no consumer counting conversations itself. It runs only while NO other sink is
- * registered: a consumer that still credits {@code TALK_TO_NPC} through its own sink keeps doing so
- * alone, and one conversation is never counted twice.
+ * {@code TALK_TO_NPC} producer in zc-objectives), so a conversation moves a quest step on any server.
+ * It ALWAYS runs, beside every consumer sink: a consumer adds what it does to a conversation through
+ * its own sink (or reacts to the moment the library's sink produces) and never dispatches
+ * {@code TALK_TO_NPC} itself, or one conversation counts twice.
  *
  * <p>World thread (a credit carries the caller's live store and refs straight through).
  */
@@ -89,10 +88,10 @@ public final class TalkCredits {
      * {@code setup()}. Registering the same id twice replaces the sink, so a reload does not double
      * the credit.
      *
-     * <p>Registering any sink here stands the library's own sink down: from then on your sink is
-     * what makes a conversation count toward {@code TALK_TO_NPC} objectives. A mod that only wants to
-     * watch conversations listens for {@link NpcTalkedEvent} and registers nothing. The reserved
-     * {@link #LIBRARY_SINK_ID} is refused with a warning.
+     * <p>Your sink runs beside the library's own, which always runs and already makes every
+     * conversation count toward {@code TALK_TO_NPC} objectives, so your sink never dispatches that kind
+     * itself. A mod that only wants to watch conversations listens for {@link NpcTalkedEvent} and
+     * registers nothing. The reserved {@link #LIBRARY_SINK_ID} is refused with a warning.
      */
     public static void register(@Nullable String id, @Nullable String owner, @Nullable TalkCreditSink sink) {
         if (id == null || id.isBlank() || sink == null) {
@@ -108,9 +107,9 @@ public final class TalkCredits {
     }
 
     /**
-     * Register the library's own sink under {@link #LIBRARY_SINK_ID}: the floor that credits a
-     * conversation on a server where no consumer counts conversations itself. It runs only while no
-     * other sink is registered (see {@link #dispatch}). Called once, by zc-objectives' talk producer.
+     * Register the library's own sink under {@link #LIBRARY_SINK_ID}: what credits every conversation
+     * toward {@code TALK_TO_NPC}. It always runs, beside any consumer sink (see {@link #dispatch}).
+     * Called once, by zc-objectives' talk producer.
      */
     public static void registerLibrarySink(@Nullable TalkCreditSink sink) {
         if (sink == null) {
@@ -168,16 +167,10 @@ public final class TalkCredits {
      * Tell every sink, then everyone watching. The half AFTER the window has been taken, kept separate
      * so the decision to count a conversation and the act of counting it are not tangled together.
      *
-     * <p>The library's own sink is skipped whenever any other sink is registered. The yield is read
-     * here, per conversation, rather than at registration, so it holds whichever plugin set up first.
+     * <p>Every registered sink runs, the library's own always among them, beside any consumer sink.
      */
     static void dispatch(@Nonnull UUID playerId, @Nonnull TalkCredit credit) {
-        Set<String> ids = LEDGER.ids();
-        boolean libraryYields = ids.stream().anyMatch(id -> !isLibrarySink(id));
-        for (String id : ids) {
-            if (libraryYields && isLibrarySink(id)) {
-                continue;
-            }
+        for (String id : LEDGER.ids()) {
             TalkCreditSink sink = LEDGER.get(id);
             if (sink == null) {
                 continue;

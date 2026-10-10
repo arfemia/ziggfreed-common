@@ -20,9 +20,12 @@ import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.ziggfreed.common.LibraryOwner;
 import com.ziggfreed.common.npc.TalkCredit;
+import com.ziggfreed.common.npc.TalkCredits;
 import com.ziggfreed.common.progress.DispatchOptions;
 import com.ziggfreed.common.progress.asset.ObjectiveKindAsset;
+import com.ziggfreed.common.registry.RegistryLedger;
 
 /**
  * The whole decision this producer makes about one credited conversation, with no server anywhere
@@ -158,6 +161,16 @@ class ZigTalkProducerTest {
         assertEquals(1, fired);
         assertEquals(List.of("fire:Guide_Wilds"), recorder.log,
                 "an alias cannot take a window for nobody, so it never fires unclaimed");
+    }
+
+    @Test
+    void installRegistersTheLibrarysOwnSinkUnderTheReservedId() {
+        // install never touches its plugin (the sink registry is process-wide), so no live plugin is needed.
+        ZigTalkProducer.install(null);
+
+        RegistryLedger.RegistrationInfo sink = TalkCredits.info().get(TalkCredits.LIBRARY_SINK_ID);
+        assertNotNull(sink, "the producer is the library's own talk sink, under the id register refuses others");
+        assertEquals(LibraryOwner.NAME, sink.owner());
     }
 
     @Test

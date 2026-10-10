@@ -172,7 +172,7 @@ class ReputationViewTest {
     void theListIsOneSectionWithARowPerReputationCarryingItsRankWordAndItsBar() {
         engine.stored.put("Test_Old_Jack", 1_500);
         engine.stored.put("Test_Hallowed", 10);
-        LedgerModel model = ReputationView.ledger(rows(), ladder());
+        LedgerModel model = ReputationView.ledger(rows(), service::ladderFor);
         assertEquals(1, model.sections().size());
         List<LedgerRow> rows = model.sections().get(0).rows();
         assertEquals(List.of("Test_Old_Jack", "Test_Hallowed"), rows.stream().map(LedgerRow::id).toList());
@@ -210,6 +210,38 @@ class ReputationViewTest {
         assertEquals(PREFIX + "beyond.next", word(beyond.lines().get(beyond.lines().size() - 1)));
         assertEquals(PREFIX + "detail.standing.reward", page.progressLabel().getMessageId(),
                 "the bar counts toward the next payout");
+    }
+
+    @Test
+    void aTierHeldAboveTheSharedTopReadsOnItsReputationsOwnLadder() {
+        engine.group("Test_Festival", 0);
+        ReputationFixtures.loadCompanions(Map.of("test_festival", ReputationFixtures.companion("Test_Festival", """
+                { "Order": 3,
+                  "Ranks": { "Test_Wayfarer": { "Name": "test.festival.rank.wayfarer", "From": 60000 },
+                             "Test_Luminary": { "Name": "test.festival.rank.luminary", "From": 150000 } },
+                  "Beyond": { "Every": 30000, "Rewards": [ { "Kind": "Test_Kind", "Params": { "X": "Y" } } ] } }
+                """)));
+        engine.stored.put("Test_Festival", 200_000);
+        ReputationView.Row row = ReputationView.pick(rows(), "Test_Festival");
+        assertEquals("Test_Luminary", row.standing().rank().id());
+
+        DetailView page = ReputationView.detail(row, service.ladderFor(row.reputation()), List.of());
+
+        DetailBlock ranks = page.blocks().stream().filter(b -> b.id().equals(ReputationView.BLOCK_RANKS))
+                .findFirst().orElseThrow(() -> new AssertionError("a tier held above Exalted keeps its Ranks block"));
+        List<String> rankWords = words(ranks.lines());
+        assertEquals(List.of(PREFIX + "rank.exalted", "test.festival.rank.wayfarer", "test.festival.rank.luminary"),
+                rankWords.subList(rankWords.size() - 3, rankWords.size()), "its own tiers stand above Exalted");
+        assertEquals(Tick.CURRENT, ranks.lines().get(ranks.lines().size() - 1).tick(), "the held tier is marked");
+        assertEquals(Tone.ACTIVE, page.badges().get(0).tone(), "its own top reads as the top");
+        DetailBlock beyond = page.blocks().stream().filter(b -> b.id().equals(ReputationView.BLOCK_BEYOND))
+                .findFirst().orElseThrow(() -> new AssertionError("past its own top it pays Beyond"));
+        assertEquals("test.festival.rank.luminary",
+                beyond.label().getFormattedMessage().messageParams.get("0").messageId,
+                "Beyond is titled from its own top tier, never the shared top");
+        LedgerRow listed = ReputationView.ledger(rows(), service::ladderFor).sections().get(0).rows().stream()
+                .filter(r -> r.id().equals("Test_Festival")).findFirst().orElseThrow();
+        assertEquals(Tone.ACTIVE, listed.tone(), "the list colours the row on the same ladder");
     }
 
     @Test

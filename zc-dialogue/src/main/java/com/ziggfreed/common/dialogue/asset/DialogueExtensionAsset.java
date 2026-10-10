@@ -111,7 +111,8 @@ public final class DialogueExtensionAsset
                     + "the shared groups it pulls in. Give each a LabelKey and gate it with Conditions like "
                     + "any line. A Once on one of these lines is the line's own: spent with one character, "
                     + "it is spent with every character the line reaches, unless the Once sets "
-                    + "PerConversation, which spends it in each conversation on its own.")
+                    + "PerCharacter, which keeps one claim per character, or PerConversation, which "
+                    + "spends it in each conversation on its own.")
             .add(),
                     (a, v) -> a.season = v, a -> a.season)
             .build();

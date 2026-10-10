@@ -194,8 +194,8 @@ public final class ProgressionDefaults {
      * payout handed over, a collected quest and the ranks a reputation check credited are announced
      * about players rather than happening to an entity, so each arrives on the shared bus), the
      * library's talk-credit sink (a conversation is credited by an authored beat through
-     * zc-dialogue's {@code TalkCredits}, and this sink stands aside while a consumer registers one of
-     * its own), and the tracked-quest HUD with its six event subscriptions. All of it is
+     * zc-dialogue's {@code TalkCredits}, and this sink always runs, beside any sink a consumer
+     * registers), and the tracked-quest HUD with its six event subscriptions. All of it is
      * unconditional, and so is every dispatch those producers make.
      *
      * <p>The HUD installs itself LAST and guards itself, so a failure there costs the tracker and
