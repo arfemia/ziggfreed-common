@@ -36,13 +36,19 @@ import com.ziggfreed.common.validation.Finding;
  * <ul>
  *   <li>ERROR {@link #EMPTY_MEMBERS}, {@link #NO_BONUSES}, {@link #TIER_WITHOUT_CONDITION},
  *       {@link #BAD_PIECE_COUNT} (a minimum at or below zero, {@code Pieces} or {@code Armor} above
- *       the member count, {@code Held} or {@code Utility} above one);</li>
+ *       the member count, {@code Held} or {@code Utility} above one), {@link #JOINS_A_LAYER};</li>
  *   <li>WARN {@link #UNKNOWN_SET_MEMBER}, {@link #UNKNOWN_STAT_ID}, {@link #DUPLICATE_TIER},
  *       {@link #MULTIPLICATIVE_ON_BASE_ZERO} (the token a consumer's item audit already uses for the
  *       same arithmetic, so one filter covers both), {@link #UNKNOWN_SET_EFFECT},
- *       {@link #TOO_FEW_MEMBERS};</li>
+ *       {@link #TOO_FEW_MEMBERS}, {@link #UNKNOWN_JOIN_TARGET}, {@link #JOIN_EFFECT_CLASH};</li>
  *   <li>INFO {@link #UNNAMED_SET}.</li>
  * </ul>
+ *
+ * <p>Each file is audited as written, so a finding names the file that has to change, against the
+ * set as it applies ({@link GearSetJoins}): a minimum is weighed against the joined members. A layer
+ * (a file with {@code Joins}) takes its name, members and bonuses from its set, so the set-level codes
+ * ({@link #UNNAMED_SET}, {@link #EMPTY_MEMBERS}, {@link #TOO_FEW_MEMBERS}, {@link #NO_BONUSES}) are
+ * never its own; a layer the fold dropped is named once and checked no further.
  */
 public final class GearSetValidator {
 
@@ -62,6 +68,9 @@ public final class GearSetValidator {
     public static final String UNKNOWN_SET_EFFECT = "UNKNOWN_SET_EFFECT";
     public static final String TOO_FEW_MEMBERS = "TOO_FEW_MEMBERS";
     public static final String UNNAMED_SET = "UNNAMED_SET";
+    public static final String UNKNOWN_JOIN_TARGET = "UNKNOWN_JOIN_TARGET";
+    public static final String JOINS_A_LAYER = "JOINS_A_LAYER";
+    public static final String JOIN_EFFECT_CLASH = "JOIN_EFFECT_CLASH";
 
     /** A set of one member is a set of nothing: the bonus is the item's own stats with extra steps. */
     static final int FEWEST_SENSIBLE_MEMBERS = 2;
@@ -98,33 +107,69 @@ public final class GearSetValidator {
             @Nonnull Predicate<String> statKnown, @Nonnull Predicate<String> effectKnown,
             @Nonnull ToDoubleFunction<String> baseMax) {
         List<Finding> out = new ArrayList<>();
+        GearSetJoins.Folded folded = GearSetJoins.fold(sets);
+        Map<String, GearSetAsset> joined = new HashMap<>();
+        for (GearSetAsset set : folded.sets()) {
+            joined.put(GearSetKeys.setId(set.getId()), set);
+        }
+        Map<String, GearSetJoins.Dropped> dropped = new HashMap<>();
+        for (GearSetJoins.Dropped drop : folded.dropped()) {
+            dropped.put(GearSetKeys.setId(drop.layerId()), drop);
+        }
         for (GearSetAsset set : sets) {
-            if (set == null || !set.isEnabled()) {
+            if (set == null || set.getId() == null || !set.isEnabled()) {
                 continue;
             }
-            auditOne(set, itemKnown, statKnown, effectKnown, baseMax, out);
+            GearSetJoins.Dropped drop = dropped.get(GearSetKeys.setId(set.getId()));
+            if (drop != null) {
+                out.add(droppedLayer(drop));
+                continue;
+            }
+            String appliesAs = set.isLayer() ? String.valueOf(set.joinsId()) : set.getId();
+            auditOne(set, joined.getOrDefault(GearSetKeys.setId(appliesAs), set), itemKnown, statKnown,
+                    effectKnown, baseMax, out);
         }
         return out;
     }
 
-    private static void auditOne(@Nonnull GearSetAsset set, @Nonnull Predicate<String> itemKnown,
-            @Nonnull Predicate<String> statKnown, @Nonnull Predicate<String> effectKnown,
-            @Nonnull ToDoubleFunction<String> baseMax, @Nonnull List<Finding> out) {
+    /** The one finding for a layer the fold dropped: its set is not loaded (WARNING) or is a layer itself (ERROR). */
+    @Nonnull
+    private static Finding droppedLayer(@Nonnull GearSetJoins.Dropped drop) {
+        String where = "gear set '" + drop.layerId() + "' joins '" + drop.target() + "'";
+        if (drop.reason() == GearSetJoins.Reason.MISSING_TARGET) {
+            return Finding.warning(DOMAIN, UNKNOWN_JOIN_TARGET, where + ", which is no loaded gear set (its "
+                    + "mod or pack may not be installed here), so it adds nothing", drop.layerId());
+        }
+        return Finding.error(DOMAIN, JOINS_A_LAYER, where + ", which is a layer itself (it joins a set, or is "
+                + "this file); a layer joins a set that stands on its own, so this one adds nothing until it "
+                + "names that set", drop.layerId());
+    }
+
+    /**
+     * One file as written, against {@code whole}, the set as it applies (the file's own joined set,
+     * or for a layer the joined set it joins).
+     */
+    private static void auditOne(@Nonnull GearSetAsset set, @Nonnull GearSetAsset whole,
+            @Nonnull Predicate<String> itemKnown, @Nonnull Predicate<String> statKnown,
+            @Nonnull Predicate<String> effectKnown, @Nonnull ToDoubleFunction<String> baseMax,
+            @Nonnull List<Finding> out) {
         String id = set.getId() == null ? "" : set.getId();
-        Set<String> members = set.memberIds();
+        Set<String> members = whole.memberIds();
         List<GearSetAsset.Tier> tiers = set.tiers();
 
-        if (set.titleKey() == null) {
-            out.add(Finding.info(DOMAIN, UNNAMED_SET, "gear set '" + id + "' has no Text.TitleKey, so its "
-                    + "notice names it by its id rather than a translated name", id));
-        }
-        if (members.isEmpty()) {
-            out.add(Finding.error(DOMAIN, EMPTY_MEMBERS, "gear set '" + id + "' lists no Members, so no item "
-                    + "can ever count toward it and no tier can ever apply", id));
-        } else if (members.size() < FEWEST_SENSIBLE_MEMBERS) {
-            out.add(Finding.warning(DOMAIN, TOO_FEW_MEMBERS, "gear set '" + id + "' has " + members.size()
-                    + " distinct member; a set bonus for one item is that item's own stats with extra "
-                    + "steps, so author the stats on the item instead", id));
+        if (!set.isLayer()) {
+            if (set.titleKey() == null) {
+                out.add(Finding.info(DOMAIN, UNNAMED_SET, "gear set '" + id + "' has no Text.TitleKey, so its "
+                        + "notice names it by its id rather than a translated name", id));
+            }
+            if (members.isEmpty()) {
+                out.add(Finding.error(DOMAIN, EMPTY_MEMBERS, "gear set '" + id + "' lists no Members, so no "
+                        + "item can ever count toward it and no tier can ever apply", id));
+            } else if (members.size() < FEWEST_SENSIBLE_MEMBERS) {
+                out.add(Finding.warning(DOMAIN, TOO_FEW_MEMBERS, "gear set '" + id + "' has " + members.size()
+                        + " distinct member; a set bonus for one item is that item's own stats with extra "
+                        + "steps, so author the stats on the item instead", id));
+            }
         }
         for (String member : authored(set.getMembers())) {
             if (!itemKnown.test(member)) {
@@ -132,13 +177,33 @@ public final class GearSetValidator {
                         + member + "', which is no loaded item, so wearing it can never count", id));
             }
         }
-        if (tiers.isEmpty()) {
+        if (!set.isLayer() && whole.tiers().isEmpty()) {
             out.add(Finding.error(DOMAIN, NO_BONUSES, "gear set '" + id + "' authors no Bonuses, so completing "
                     + "it pays nothing", id));
         }
         Map<GearSetAsset.Condition, Integer> seen = new HashMap<>();
         for (int i = 0; i < tiers.size(); i++) {
             auditTier(id, i, tiers.get(i), members.size(), statKnown, effectKnown, baseMax, seen, out);
+            if (set.isLayer()) {
+                checkJoinedEffect(id, i, tiers.get(i), whole, out);
+            }
+        }
+    }
+
+    /**
+     * A layer's tier folded into a tier of its set that already holds another look: the set's look
+     * stays and this one never shows ({@link GearSetJoins}).
+     */
+    private static void checkJoinedEffect(@Nonnull String id, int index, @Nonnull GearSetAsset.Tier tier,
+            @Nonnull GearSetAsset whole, @Nonnull List<Finding> out) {
+        String effect = tier.effectId();
+        int at = effect == null ? -1 : GearSetJoins.matchOf(whole.tiers(), tier);
+        String held = at < 0 ? null : whole.tiers().get(at).effectId();
+        if (held != null && !held.equalsIgnoreCase(effect)) {
+            out.add(Finding.warning(DOMAIN, JOIN_EFFECT_CLASH, "gear set '" + id + "' tier " + index
+                    + " names the Effect '" + effect + "', but the tier of '" + whole.getId() + "' it joins "
+                    + "already holds '" + held + "', so this look never shows; drop it, or ask for a "
+                    + "different count so the tier stands on its own", id));
         }
     }
 

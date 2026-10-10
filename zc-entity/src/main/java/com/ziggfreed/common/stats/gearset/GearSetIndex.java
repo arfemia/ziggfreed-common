@@ -28,22 +28,34 @@ import com.ziggfreed.common.stats.EquippedSnapshot;
  * would otherwise keep its look on them for good. A set DELETED outright is gone from the fold and
  * names nothing here; its look is still swept at login, because the hydrate also answers for every
  * look the player's saved record ({@link GearSetLooksComponent}) says the engine asked for.
+ *
+ * <p>The sets here are the JOINED ones ({@link GearSetJoins}): a file naming another set in
+ * {@code Joins} is folded into that set and is no set of its own, so an item both list belongs to one
+ * set, and every reader of a set (the recompute, its notices, a page) asks {@link #set} for the set as
+ * it applies, never the raw store, whose answer for a joined set lacks its layers' tiers.
  */
 public final class GearSetIndex {
 
-    private static final Comparator<GearSetAsset> BY_ID =
+    /** Set files in id order without regard to case: the order every walk here and the fold use. */
+    static final Comparator<GearSetAsset> BY_ID =
             Comparator.comparing(GearSetAsset::getId, String.CASE_INSENSITIVE_ORDER);
 
     /** No sets at all. */
     public static final GearSetIndex EMPTY = new GearSetIndex(List.of(), Set.of());
 
     private final Map<String, List<GearSetAsset>> byItem;
+    private final Map<String, GearSetAsset> bySet;
     private final Set<String> effectIds;
 
-    private GearSetIndex(@Nonnull List<GearSetAsset> enabledSorted, @Nonnull Set<String> effectIds) {
+    private GearSetIndex(@Nonnull List<GearSetAsset> joinedSorted, @Nonnull Set<String> effectIds) {
         this.effectIds = Collections.unmodifiableSet(new LinkedHashSet<>(effectIds));
         Map<String, List<GearSetAsset>> index = new LinkedHashMap<>();
-        for (GearSetAsset set : enabledSorted) {
+        Map<String, GearSetAsset> sets = new LinkedHashMap<>();
+        for (GearSetAsset set : joinedSorted) {
+            sets.put(GearSetKeys.setId(set.getId()), set);
+            if (!set.isEnabled()) {
+                continue;
+            }
             for (String member : set.memberIds()) {
                 index.computeIfAbsent(member, k -> new ArrayList<>()).add(set);
             }
@@ -52,35 +64,46 @@ public final class GearSetIndex {
             e.setValue(Collections.unmodifiableList(e.getValue()));
         }
         this.byItem = Collections.unmodifiableMap(index);
+        this.bySet = Collections.unmodifiableMap(sets);
     }
 
     /**
-     * The index over every enabled set in {@code all}, ordered by id so a walk is the same twice,
-     * plus the effect ids of every set in {@code all}, enabled or not.
+     * The index over every enabled set in {@code all} with its layers folded in
+     * ({@link GearSetJoins#fold}), ordered by id so a walk is the same twice, plus the effect ids of
+     * every file in {@code all}, enabled or not, a layer's included.
      */
     @Nonnull
     public static GearSetIndex of(@Nonnull Collection<GearSetAsset> all) {
-        List<GearSetAsset> sorted = new ArrayList<>();
+        List<GearSetAsset> files = new ArrayList<>();
         for (GearSetAsset set : all) {
             if (set != null && set.getId() != null) {
-                sorted.add(set);
+                files.add(set);
             }
         }
-        sorted.sort(BY_ID);
-        List<GearSetAsset> enabled = new ArrayList<>();
+        files.sort(BY_ID);
         Set<String> effects = new LinkedHashSet<>();
-        for (GearSetAsset set : sorted) {
-            if (set.isEnabled()) {
-                enabled.add(set);
-            }
-            for (GearSetAsset.Tier tier : set.tiers()) {
+        for (GearSetAsset file : files) {
+            for (GearSetAsset.Tier tier : file.tiers()) {
                 String effect = tier.effectId();
                 if (effect != null) {
                     effects.add(effect);
                 }
             }
         }
-        return new GearSetIndex(enabled, effects);
+        List<GearSetAsset> joined = new ArrayList<>(GearSetJoins.fold(files).sets());
+        joined.sort(BY_ID);
+        return new GearSetIndex(joined, effects);
+    }
+
+    /**
+     * The set {@code id} names as it applies, its layers folded in, matched without regard to case
+     * and answered whether it is switched on or not; null for an id no set answers to, a layer's
+     * included (a layer is part of the set it joins, never a set of its own).
+     */
+    @Nullable
+    public GearSetAsset set(@Nullable String id) {
+        String key = EquippedSnapshot.lower(id);
+        return key == null ? null : bySet.get(key);
     }
 
     /** The sets {@code itemId} belongs to, matched without regard to case; empty for a loose item. */
