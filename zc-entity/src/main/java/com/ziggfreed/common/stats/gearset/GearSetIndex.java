@@ -69,8 +69,8 @@ public final class GearSetIndex {
 
     /**
      * The index over every enabled set in {@code all} with its layers folded in
-     * ({@link GearSetJoins#fold}), ordered by id so a walk is the same twice, plus the effect ids of
-     * every file in {@code all}, enabled or not, a layer's included.
+     * ({@link GearSetJoins#fold}), ordered by id so a walk is the same twice, plus the effect ids
+     * (looks and badges) of every file in {@code all}, enabled or not, a layer's included.
      */
     @Nonnull
     public static GearSetIndex of(@Nonnull Collection<GearSetAsset> all) {
@@ -87,6 +87,10 @@ public final class GearSetIndex {
                 String effect = tier.effectId();
                 if (effect != null) {
                     effects.add(effect);
+                }
+                String badge = tier.badgeId();
+                if (badge != null) {
+                    effects.add(badge);
                 }
             }
         }
@@ -133,10 +137,11 @@ public final class GearSetIndex {
     }
 
     /**
-     * Every effect id any tier of any folded set holds, a DISABLED set's included, distinct and in
-     * set-id order: half of what a hydrate answers for, since it cannot trust memory. A set deleted
-     * from the fold is not here; the player's saved record ({@link GearSetLooksComponent}) is the
-     * other half, which names its look.
+     * Every effect id any tier of any folded set holds, its {@code Effect} and its {@code Badge}, a
+     * DISABLED set's included, distinct and in set-id order: half of what a hydrate answers for, since
+     * it cannot trust memory. A set deleted from the fold is not here; the player's saved record
+     * ({@link GearSetLooksComponent}) is the other half, which names its look. The default tiles
+     * ({@link GearSetBadges#DEFAULT_TILES}) are no set's, so the hydrate adds them itself.
      */
     @Nonnull
     public Set<String> allEffectIds() {

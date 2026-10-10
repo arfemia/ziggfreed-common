@@ -9,6 +9,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.function.ToDoubleFunction;
@@ -40,7 +41,9 @@ import com.ziggfreed.common.validation.Finding;
  *   <li>WARN {@link #UNKNOWN_SET_MEMBER}, {@link #UNKNOWN_STAT_ID}, {@link #DUPLICATE_TIER},
  *       {@link #MULTIPLICATIVE_ON_BASE_ZERO} (the token a consumer's item audit already uses for the
  *       same arithmetic, so one filter covers both), {@link #UNKNOWN_SET_EFFECT},
- *       {@link #TOO_FEW_MEMBERS}, {@link #UNKNOWN_JOIN_TARGET}, {@link #JOIN_EFFECT_CLASH};</li>
+ *       {@link #TOO_FEW_MEMBERS}, {@link #UNKNOWN_JOIN_TARGET}, {@link #JOIN_EFFECT_CLASH},
+ *       {@link #UNKNOWN_SET_BADGE}, {@link #BADGE_WITHOUT_ICON}, {@link #BADGE_NOT_INFINITE},
+ *       {@link #BADGE_ID_CLASH}, {@link #JOIN_BADGE_CLASH};</li>
  *   <li>INFO {@link #UNNAMED_SET}.</li>
  * </ul>
  *
@@ -71,9 +74,21 @@ public final class GearSetValidator {
     public static final String UNKNOWN_JOIN_TARGET = "UNKNOWN_JOIN_TARGET";
     public static final String JOINS_A_LAYER = "JOINS_A_LAYER";
     public static final String JOIN_EFFECT_CLASH = "JOIN_EFFECT_CLASH";
+    public static final String UNKNOWN_SET_BADGE = "UNKNOWN_SET_BADGE";
+    public static final String BADGE_WITHOUT_ICON = "BADGE_WITHOUT_ICON";
+    public static final String BADGE_NOT_INFINITE = "BADGE_NOT_INFINITE";
+    public static final String BADGE_ID_CLASH = "BADGE_ID_CLASH";
+    public static final String JOIN_BADGE_CLASH = "JOIN_BADGE_CLASH";
 
     /** A set of one member is a set of nothing: the bonus is the item's own stats with extra steps. */
     static final int FEWEST_SENSIBLE_MEMBERS = 2;
+
+    /**
+     * What the audit reads off a loaded effect a {@code Badge} names: whether it carries a buff-bar
+     * icon (its own or its Parent's) and whether it is {@code Infinite}.
+     */
+    public record EffectFacts(boolean icon, boolean infinite) {
+    }
 
     private GearSetValidator() {
     }
@@ -86,11 +101,24 @@ public final class GearSetValidator {
                     loadedItemIds(),
                     id -> StatIndexCache.resolve(id) >= 0,
                     GearSetValidator::effectKnown,
+                    GearSetValidator::effectFactsOf,
                     GearSetValidator::baseMaxOf);
         } catch (Throwable t) {
             SafeLog.warn("[gearset] the gear-set audit failed: " + t.getMessage(), t);
             return List.of();
         }
+    }
+
+    /**
+     * The pure core, with no effect facts to read: a badge's icon and {@code Infinite} go unchecked.
+     *
+     * @see #audit(Collection, Predicate, Predicate, Predicate, Function, ToDoubleFunction)
+     */
+    @Nonnull
+    public static List<Finding> audit(@Nonnull Collection<GearSetAsset> sets, @Nonnull Predicate<String> itemKnown,
+            @Nonnull Predicate<String> statKnown, @Nonnull Predicate<String> effectKnown,
+            @Nonnull ToDoubleFunction<String> baseMax) {
+        return audit(sets, itemKnown, statKnown, effectKnown, id -> null, baseMax);
     }
 
     /**
@@ -100,12 +128,13 @@ public final class GearSetValidator {
      *                    way the engine matches a member at runtime
      * @param statKnown   whether a stat channel id is registered
      * @param effectKnown whether an effect id names a loaded {@code EntityEffect}
+     * @param effectFacts what a loaded effect carries ({@link EffectFacts}), null when it cannot tell
      * @param baseMax     a registered channel's base maximum, {@code NaN} when it cannot be read
      */
     @Nonnull
     public static List<Finding> audit(@Nonnull Collection<GearSetAsset> sets, @Nonnull Predicate<String> itemKnown,
             @Nonnull Predicate<String> statKnown, @Nonnull Predicate<String> effectKnown,
-            @Nonnull ToDoubleFunction<String> baseMax) {
+            @Nonnull Function<String, EffectFacts> effectFacts, @Nonnull ToDoubleFunction<String> baseMax) {
         List<Finding> out = new ArrayList<>();
         GearSetJoins.Folded folded = GearSetJoins.fold(sets);
         Map<String, GearSetAsset> joined = new HashMap<>();
@@ -116,6 +145,14 @@ public final class GearSetValidator {
         for (GearSetJoins.Dropped drop : folded.dropped()) {
             dropped.put(GearSetKeys.setId(drop.layerId()), drop);
         }
+        Badges badges = new Badges(effectKnown, effectFacts);
+        for (GearSetAsset set : sets) {
+            if (set == null || set.getId() == null || !set.isEnabled()
+                    || dropped.containsKey(GearSetKeys.setId(set.getId()))) {
+                continue;
+            }
+            badges.note(appliesAs(set), set.tiers());
+        }
         for (GearSetAsset set : sets) {
             if (set == null || set.getId() == null || !set.isEnabled()) {
                 continue;
@@ -125,11 +162,16 @@ public final class GearSetValidator {
                 out.add(droppedLayer(drop));
                 continue;
             }
-            String appliesAs = set.isLayer() ? String.valueOf(set.joinsId()) : set.getId();
-            auditOne(set, joined.getOrDefault(GearSetKeys.setId(appliesAs), set), itemKnown, statKnown,
-                    effectKnown, baseMax, out);
+            auditOne(set, joined.getOrDefault(GearSetKeys.setId(appliesAs(set)), set), itemKnown, statKnown,
+                    effectKnown, baseMax, badges, out);
         }
         return out;
+    }
+
+    /** The id of the set a file applies as: its own, or for a layer the set it joins. */
+    @Nonnull
+    private static String appliesAs(@Nonnull GearSetAsset set) {
+        return set.isLayer() ? String.valueOf(set.joinsId()) : set.getId();
     }
 
     /** The one finding for a layer the fold dropped: its set is not loaded (WARNING) or is a layer itself (ERROR). */
@@ -152,7 +194,7 @@ public final class GearSetValidator {
     private static void auditOne(@Nonnull GearSetAsset set, @Nonnull GearSetAsset whole,
             @Nonnull Predicate<String> itemKnown, @Nonnull Predicate<String> statKnown,
             @Nonnull Predicate<String> effectKnown, @Nonnull ToDoubleFunction<String> baseMax,
-            @Nonnull List<Finding> out) {
+            @Nonnull Badges badges, @Nonnull List<Finding> out) {
         String id = set.getId() == null ? "" : set.getId();
         Set<String> members = whole.memberIds();
         List<GearSetAsset.Tier> tiers = set.tiers();
@@ -184,8 +226,10 @@ public final class GearSetValidator {
         Map<GearSetAsset.Condition, Integer> seen = new HashMap<>();
         for (int i = 0; i < tiers.size(); i++) {
             auditTier(id, i, tiers.get(i), members.size(), statKnown, effectKnown, baseMax, seen, out);
+            badges.check(id, i, tiers.get(i), whole.getId(), out);
             if (set.isLayer()) {
                 checkJoinedEffect(id, i, tiers.get(i), whole, out);
+                checkJoinedBadge(id, i, tiers.get(i), whole, out);
             }
         }
     }
@@ -204,6 +248,110 @@ public final class GearSetValidator {
                     + " names the Effect '" + effect + "', but the tier of '" + whole.getId() + "' it joins "
                     + "already holds '" + held + "', so this look never shows; drop it, or ask for a "
                     + "different count so the tier stands on its own", id));
+        }
+    }
+
+    /**
+     * A layer's tier folded into a tier of its set that already names another badge: the set's badge
+     * stays and this one never shows ({@link GearSetJoins}).
+     */
+    private static void checkJoinedBadge(@Nonnull String id, int index, @Nonnull GearSetAsset.Tier tier,
+            @Nonnull GearSetAsset whole, @Nonnull List<Finding> out) {
+        String badge = tier.badgeId();
+        int at = badge == null ? -1 : GearSetJoins.matchOf(whole.tiers(), tier);
+        String held = at < 0 ? null : whole.tiers().get(at).badgeId();
+        if (held != null && !held.equalsIgnoreCase(badge)) {
+            out.add(Finding.warning(DOMAIN, JOIN_BADGE_CLASH, "gear set '" + id + "' tier " + index
+                    + " names the Badge '" + badge + "', but the tier of '" + whole.getId() + "' it joins "
+                    + "already names '" + held + "', so this tile never shows; drop it, or ask for a "
+                    + "different count so the tier stands on its own", id));
+        }
+    }
+
+    /**
+     * The badge checks: what every enabled file's tiers name (noted first, over the whole store, so a
+     * clash is found whichever file comes first), then each badge weighed against it and against the
+     * effect it names.
+     */
+    private static final class Badges {
+
+        private final Predicate<String> effectKnown;
+        private final Function<String, EffectFacts> effectFacts;
+        /** Each badge id, lower-cased, to the folded ids of the sets naming it. */
+        private final Map<String, Set<String>> owners = new HashMap<>();
+        /** Every tier's Effect id, lower-cased. */
+        private final Set<String> looks = new HashSet<>();
+
+        Badges(@Nonnull Predicate<String> effectKnown, @Nonnull Function<String, EffectFacts> effectFacts) {
+            this.effectKnown = effectKnown;
+            this.effectFacts = effectFacts;
+        }
+
+        void note(@Nonnull String setId, @Nonnull List<GearSetAsset.Tier> tiers) {
+            for (GearSetAsset.Tier tier : tiers) {
+                String badge = tier.badgeId();
+                if (badge != null) {
+                    owners.computeIfAbsent(badge.toLowerCase(Locale.ROOT), k -> new HashSet<>())
+                            .add(GearSetKeys.setId(setId));
+                }
+                String look = tier.effectId();
+                if (look != null) {
+                    looks.add(look.toLowerCase(Locale.ROOT));
+                }
+            }
+        }
+
+        /** One tier of file {@code id}, which applies as set {@code setId}. */
+        void check(@Nonnull String id, int index, @Nonnull GearSetAsset.Tier tier, @Nonnull String setId,
+                @Nonnull List<Finding> out) {
+            String badge = tier.badgeId();
+            if (badge == null) {
+                return;
+            }
+            String where = "gear set '" + id + "' tier " + index + " names the Badge '" + badge + "'";
+            String key = badge.toLowerCase(Locale.ROOT);
+            if (GearSetBadges.isDefaultTile(badge)) {
+                out.add(Finding.warning(DOMAIN, BADGE_ID_CLASH, where + ", one of the library's default set "
+                        + "tiles, which the engine seats for sets naming no badge, so two sets may end up on one "
+                        + "tile; give the set a badge effect of its own", id));
+            } else if (looks.contains(key)) {
+                out.add(Finding.warning(DOMAIN, BADGE_ID_CLASH, where + ", which a tier also names as its "
+                        + "Effect; a badge must be dedicated to its set's tile, so give it an effect of its own",
+                        id));
+            } else {
+                for (String other : owners.getOrDefault(key, Set.of())) {
+                    if (!other.equals(GearSetKeys.setId(setId))) {
+                        out.add(Finding.warning(DOMAIN, BADGE_ID_CLASH, where + ", which the gear set '" + other
+                                + "' names as its Badge too, so a player wearing both sees one tile for two "
+                                + "sets; give each set a badge of its own", id));
+                        break;
+                    }
+                }
+            }
+            if (!effectKnown.test(badge)) {
+                out.add(Finding.warning(DOMAIN, UNKNOWN_SET_BADGE, where + ", which is no loaded EntityEffect "
+                        + "(its mod or pack may not be installed here), so the set shows no tile while that "
+                        + "tier leads", id));
+                return;
+            }
+            EffectFacts facts;
+            try {
+                facts = effectFacts.apply(badge);
+            } catch (Throwable t) {
+                facts = null;
+            }
+            if (facts == null) {
+                return;
+            }
+            if (!facts.icon()) {
+                out.add(Finding.warning(DOMAIN, BADGE_WITHOUT_ICON, where + ", which carries no "
+                        + "StatusEffectIcon, so it shows no tile on the buff bar; give the effect an icon", id));
+            }
+            if (!facts.infinite()) {
+                out.add(Finding.warning(DOMAIN, BADGE_NOT_INFINITE, where + ", which is not Infinite, so the "
+                        + "tile runs out while the set is still worn and comes back only at the next change; "
+                        + "author it Infinite", id));
+            }
         }
     }
 
@@ -354,6 +502,25 @@ public final class GearSetValidator {
             return EntityEffect.getAssetMap().getIndex(effectId) != Integer.MIN_VALUE;
         } catch (Throwable t) {
             return true; // cannot tell is not "missing"
+        }
+    }
+
+    /**
+     * What the loaded {@code EntityEffect} {@code effectId} carries, its Parent's leaves resolved by
+     * the engine's own load; null when it is not loaded or cannot be read.
+     */
+    @Nullable
+    private static EffectFacts effectFactsOf(@Nonnull String effectId) {
+        try {
+            int index = EntityEffect.getAssetMap().getIndex(effectId);
+            EntityEffect effect = index == Integer.MIN_VALUE ? null : EntityEffect.getAssetMap().getAsset(index);
+            if (effect == null) {
+                return null;
+            }
+            String icon = effect.getStatusEffectIcon();
+            return new EffectFacts(icon != null && !icon.isBlank(), effect.isInfinite());
+        } catch (Throwable t) {
+            return null;
         }
     }
 

@@ -1,0 +1,8 @@
+{
+  "$Comment": "ziggfreed-common's default buff-bar tile for a worn gear set whose active tiers name no Badge of their own, the first slot of a pool of three: Zig_Gear_Set_2 and _3 name this as their Parent, so up to three such sets each show their own tile, and a fourth shares the third. The gear-set engine puts it on while one of the set's tiers is active and takes it off itself, so never apply these ids from anything else, and never name one as a set's Badge. Infinite, as a set's tile must be. A pack restyles the whole pool (icon, name) by shipping a file with this same id.",
+  "Name": "ziggfreedcommon.gearset.default.name",
+  "StatusEffectIcon": "Icons/ItemsGenerated/Armor_Iron_Chest.png",
+  "Infinite": true,
+  "OverlapBehavior": "Ignore",
+  "Debuff": false
+}

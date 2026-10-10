@@ -21,8 +21,8 @@ import javax.annotation.Nullable;
  *   <li>each of its tiers asking exactly what a tier of the set asks (the same four minimums, see
  *       {@link GearSetAsset.Condition}) is folded INTO the first such tier: its stats are added (a
  *       channel both author keeps both lists), its line follows the tier's own
- *       ({@link GearSetAsset.Tier#titleKeys()}), and its {@code Effect} is used only when that tier
- *       carries none, so the set's look stays the set's;</li>
+ *       ({@link GearSetAsset.Tier#titleKeys()}), and its {@code Effect} and its {@code Badge} are each
+ *       used only when that tier carries none, so the set's look and tile stay the set's;</li>
  *   <li>any other tier of it, a tier asking nothing included, is added after the set's own, so the
  *       set's own tier positions (and the modifier keys written under them) never move.</li>
  * </ul>
@@ -160,6 +160,7 @@ public final class GearSetJoins {
 
         private final GearSetAsset.Tier base;
         @Nullable private String effect;
+        @Nullable private String badge;
         private final Map<String, StatModifierSpec[]> stats;
         private final List<String> lines = new ArrayList<>();
         private boolean joined;
@@ -167,6 +168,7 @@ public final class GearSetJoins {
         Draft(@Nonnull GearSetAsset.Tier base) {
             this.base = base;
             this.effect = base.effectId();
+            this.badge = base.badgeId();
             this.stats = new LinkedHashMap<>(base.statModifiers());
         }
 
@@ -174,6 +176,9 @@ public final class GearSetJoins {
             joined = true;
             if (effect == null) {
                 effect = layerTier.effectId();
+            }
+            if (badge == null) {
+                badge = layerTier.badgeId();
             }
             for (Map.Entry<String, StatModifierSpec[]> entry : layerTier.statModifiers().entrySet()) {
                 if (entry.getKey() != null && entry.getValue() != null) {
@@ -185,7 +190,7 @@ public final class GearSetJoins {
 
         @Nonnull
         GearSetAsset.Tier build() {
-            return joined ? GearSetAsset.Tier.joined(base, effect, stats, lines) : base;
+            return joined ? GearSetAsset.Tier.joined(base, effect, badge, stats, lines) : base;
         }
 
         @Nonnull

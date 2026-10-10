@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.schema.SchemaContext;
+import com.hypixel.hytale.codec.schema.config.Schema;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.hypixel.hytale.server.core.modules.entitystats.modifier.Modifier;
 
@@ -28,7 +29,7 @@ import com.hypixel.hytale.server.core.modules.entitystats.modifier.Modifier;
  * The set file reads as the javadoc promises: the native item block decodes through the library's
  * own leaf with the engine's defaults, a {@code $Comment} inside the stat map is skipped, and under
  * {@code Parent} the ladder replaces wholesale while every other leaf merges, and a layer's {@code Joins}
- * survives an encode and a decode. Untagged: nothing here
+ * and a tier's {@code Badge} survive an encode and a decode. Untagged: nothing here
  * builds an engine item, and the whole point of the own modifier leaf is that this decode runs in a
  * plain unit JVM.
  */
@@ -174,6 +175,33 @@ class GearSetAssetCodecTest {
         assertFalse(kit.isLayer());
         assertNotNull(GearSetAsset.CODEC.toSchema(new SchemaContext()).getProperties().get("Joins")
                 .getMarkdownDescription(), "the editor lists the leaf with its sentence");
+    }
+
+    @Test
+    void aTiersBadgeReadsSurvivesAnEncodeAndOffersTheEffectPicker() throws IOException {
+        String json = """
+                {
+                  "Members": ["Ranger_Hood", "Ranger_Coat"],
+                  "Bonuses": [
+                    { "Pieces": 2 },
+                    { "Armor": 2, "Effect": "Ranger_Kit_Set", "Badge": " Ranger_Kit_Badge " }
+                  ]
+                }
+                """;
+        GearSetAsset set = decode("Ranger_Kit", json, null);
+
+        assertNull(set.tiers().get(0).badgeId(), "a tier naming no badge reads none");
+        assertEquals("Ranger_Kit_Badge", set.tiers().get(1).badgeId(), "the badge reads trimmed");
+        assertEquals("Ranger_Kit_Set", set.tiers().get(1).effectId(), "beside the tier's own look");
+        GearSetAsset again = decode("Ranger_Kit", GearSetAsset.CODEC.encode(set, new ExtraInfo()).toJson(), null);
+        assertEquals("Ranger_Kit_Badge", again.tiers().get(1).badgeId(), "Badge is written back and reads the same");
+        assertNull(again.tiers().get(0).badgeId());
+
+        Schema badge = GearSetAsset.Tier.CODEC.toSchema(new SchemaContext()).getProperties().get("Badge");
+        assertEquals("EntityEffect", badge.getHytaleAssetRef(), "the editor offers its own effect picker");
+        assertNotNull(badge.getMarkdownDescription(), "and lists the leaf with its sentence");
+        assertEquals("Look", GearSetAsset.Tier.of(1, null, null, null, null, null, "Look", null).badgeId(),
+                "the Java factory fills the same field");
     }
 
     @Test

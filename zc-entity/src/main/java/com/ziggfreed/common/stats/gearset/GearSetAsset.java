@@ -19,6 +19,7 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
+import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.asset.PresenceRequiresCodec;
 import com.ziggfreed.common.codec.InheritMapCodec;
@@ -60,6 +61,12 @@ import com.ziggfreed.common.text.ContentTextAsset;
  *
  * <p>A set with no weapon authors {@code {Pieces 2}}, {@code {Pieces 3}}, {@code {Armor 4, Effect}};
  * a set with one authors {@code {Pieces 2}}, {@code {Armor 4, Effect}}, {@code {Armor 4, Held 1}}.
+ *
+ * <p><b>Every worn set shows one tile on the buff bar</b> while any of its tiers is active: the
+ * {@code Badge} of the highest active tier (by position) that names one, an {@code EntityEffect}
+ * with an icon and a name, dedicated to the set like {@code Effect}; when none names one, a slot of
+ * the library's default pool ({@code Zig_Gear_Set}, {@code _2}, {@code _3}; a fourth such set shares
+ * the third), so a set shows even on a server whose content names no badge ({@link GearSetBadges}).
  *
  * <p>{@code StatModifiers} is the native item block, decoded through {@link StatModifierSpec}; the
  * map may carry a {@code $Comment}. Under {@code Parent}, {@code Bonuses} REPLACES wholesale (a
@@ -268,6 +275,7 @@ public final class GearSetAsset implements JsonAssetWithMap<String, DefaultAsset
         @Nullable protected Integer utility;
         @Nullable protected ContentTextAsset text;
         @Nullable protected String effect;
+        @Nullable protected String badge;
         @Nullable protected Map<String, StatModifierSpec[]> statModifiers;
         /** The lines joined layers added to this tier ({@link GearSetJoins}); never authored, never encoded. */
         @Nullable private String[] joinedLines;
@@ -301,6 +309,15 @@ public final class GearSetAsset implements JsonAssetWithMap<String, DefaultAsset
                         + "it Infinite with OverlapBehavior Ignore, since it goes on when the tier comes on "
                         + "and again at every login. The id must be dedicated to the set: when no active "
                         + "tier wants it, it comes off, even if something else put it on.").add()
+                .append(new KeyedCodec<>("Badge", Codec.STRING, false),
+                        (o, v) -> o.badge = v, o -> o.badge)
+                .metadata(EditorSchema.assetRef(EntityEffect.class))
+                .documentation("A native EntityEffect id the buff bar shows as the set's one tile while this is "
+                        + "the highest active tier naming a badge, so the tile's icon and name follow the tier. "
+                        + "Author it Infinite with a StatusEffectIcon and a Name (the full lang key). A set "
+                        + "whose active tiers name none shows the library's default tile instead "
+                        + "(Zig_Gear_Set). The id must be dedicated to the set, like Effect: when no active "
+                        + "tier wants it, it comes off.").add()
                 .append(new KeyedCodec<>("StatModifiers",
                                 new InheritMapCodec<>(new ArrayCodec<>(StatModifierSpec.CODEC, StatModifierSpec[]::new)),
                                 false),
@@ -313,11 +330,19 @@ public final class GearSetAsset implements JsonAssetWithMap<String, DefaultAsset
         public Tier() {
         }
 
-        /** Java-side factory; sets the same fields the codec fills. */
+        /** Java-side factory for a tier with no badge; sets the same fields the codec fills. */
         @Nonnull
         public static Tier of(@Nullable Integer pieces, @Nullable Integer armor, @Nullable Integer held,
                 @Nullable Integer utility, @Nullable ContentTextAsset text, @Nullable String effect,
                 @Nullable Map<String, StatModifierSpec[]> statModifiers) {
+            return of(pieces, armor, held, utility, text, effect, null, statModifiers);
+        }
+
+        /** Java-side factory; sets the same fields the codec fills. */
+        @Nonnull
+        public static Tier of(@Nullable Integer pieces, @Nullable Integer armor, @Nullable Integer held,
+                @Nullable Integer utility, @Nullable ContentTextAsset text, @Nullable String effect,
+                @Nullable String badge, @Nullable Map<String, StatModifierSpec[]> statModifiers) {
             Tier t = new Tier();
             t.pieces = pieces;
             t.armor = armor;
@@ -325,18 +350,19 @@ public final class GearSetAsset implements JsonAssetWithMap<String, DefaultAsset
             t.utility = utility;
             t.text = text;
             t.effect = effect;
+            t.badge = badge;
             t.statModifiers = statModifiers;
             return t;
         }
 
         /**
-         * {@code base}'s minimums and own Text with {@code effect}, {@code statModifiers} and the
-         * layers' {@code joinedLines} folded in ({@link GearSetJoins}).
+         * {@code base}'s minimums and own Text with {@code effect}, {@code badge}, {@code statModifiers}
+         * and the layers' {@code joinedLines} folded in ({@link GearSetJoins}).
          */
         @Nonnull
-        static Tier joined(@Nonnull Tier base, @Nullable String effect,
+        static Tier joined(@Nonnull Tier base, @Nullable String effect, @Nullable String badge,
                 @Nonnull Map<String, StatModifierSpec[]> statModifiers, @Nonnull List<String> joinedLines) {
-            Tier t = of(base.pieces, base.armor, base.held, base.utility, base.text, effect, statModifiers);
+            Tier t = of(base.pieces, base.armor, base.held, base.utility, base.text, effect, badge, statModifiers);
             t.joinedLines = joinedLines.toArray(String[]::new);
             return t;
         }
@@ -399,6 +425,12 @@ public final class GearSetAsset implements JsonAssetWithMap<String, DefaultAsset
         @Nullable
         public String effectId() {
             return blankToNull(effect);
+        }
+
+        /** The effect the buff bar shows as the set's tile while this tier leads, or null when it names none. */
+        @Nullable
+        public String badgeId() {
+            return blankToNull(badge);
         }
 
         /** The authored stat block, empty when none was written; never null. */
