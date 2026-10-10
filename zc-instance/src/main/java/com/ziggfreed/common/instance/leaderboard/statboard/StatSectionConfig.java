@@ -16,8 +16,9 @@ import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
 
 /**
  * The stat board's sections, folded {@code defaults < pack < owner} like every keyed asset type, and
- * resolved once per fold: the sections in tab order, and the set of lines any of them names, which is
- * what decides whether a stat is ranked at all.
+ * resolved once per fold: the sections in tab order, and the set of lines any of them names (with the
+ * stats one names as {@code Stat/*}, every line of which counts as named), which is what decides whether a
+ * stat is ranked at all.
  */
 public final class StatSectionConfig extends AbstractKeyedAssetConfig<StatSectionAsset> {
 
@@ -29,6 +30,8 @@ public final class StatSectionConfig extends AbstractKeyedAssetConfig<StatSectio
     private volatile List<StatSection> sections = List.of();
     /** Every line some section names, lower-cased. */
     private volatile Set<String> named = Set.of();
+    /** Every stat some section names as {@code Stat/*}, lower-cased: each of its lines is ranked. */
+    private volatile Set<String> everyLine = Set.of();
 
     @Nonnull
     public static StatSectionConfig getInstance() {
@@ -56,9 +59,20 @@ public final class StatSectionConfig extends AbstractKeyedAssetConfig<StatSectio
         return sections;
     }
 
-    /** Whether some section names {@code line} (a stat id or {@code Stat/Thing}), matched without regard to case. */
+    /**
+     * Whether some section names {@code line} (a stat id or {@code Stat/Thing}), matched without regard to
+     * case: written as it is, or as one line of a stat a section names as {@code Stat/*}.
+     */
     public boolean names(@Nullable String line) {
-        return line != null && named.contains(line.toLowerCase(Locale.ROOT));
+        if (line == null) {
+            return false;
+        }
+        String folded = line.toLowerCase(Locale.ROOT);
+        if (named.contains(folded)) {
+            return true;
+        }
+        int slash = folded.indexOf('/');
+        return slash > 0 && slash < folded.length() - 1 && everyLine.contains(folded.substring(0, slash));
     }
 
     /** The entries of {@code values} some section names, in their order; empty when none is. */
@@ -79,15 +93,22 @@ public final class StatSectionConfig extends AbstractKeyedAssetConfig<StatSectio
     private void rebuild() {
         List<StatSection> out = new ArrayList<>();
         Set<String> lines = new HashSet<>();
+        Set<String> stats = new HashSet<>();
         for (Map.Entry<String, StatSectionAsset> e : all().entrySet()) {
             StatSection section = e.getValue().toSection(e.getKey());
             out.add(section);
             for (String line : section.lines()) {
-                lines.add(line.toLowerCase(Locale.ROOT));
+                String stat = StatSection.everyLineOf(line);
+                if (stat != null) {
+                    stats.add(stat.toLowerCase(Locale.ROOT));
+                } else {
+                    lines.add(line.toLowerCase(Locale.ROOT));
+                }
             }
         }
         out.sort(TAB_ORDER);
         sections = List.copyOf(out);
         named = Set.copyOf(lines);
+        everyLine = Set.copyOf(stats);
     }
 }

@@ -1,13 +1,19 @@
 package com.ziggfreed.common.instance.leaderboard.statboard;
 
+import java.util.List;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.instance.leaderboard.StatColumnDef;
 
 /**
- * What the stat board asks of the store that keeps the stats it ranks: whether it is on, and what each
- * section line's column is. This module cannot see that store (it lives above, over the progression
+ * What the stat board asks of the store that keeps the stats it ranks: whether it is on, what each
+ * section line's column is (and which lines a {@code Stat/*} line stands for), and, as the board opens for
+ * a player, to set what it reads live. This module cannot see that store (it lives above, over the progression
  * moments), so the store fills this seam at setup through {@link StatBoard#setSource}.
  *
  * <p>The default, {@link #NONE}, knows no stat: every section is left without a column, so the board
@@ -34,7 +40,8 @@ public interface StatBoardSource {
     boolean enabled();
 
     /**
-     * The column for one section line (a stat id, or {@code Stat/Thing}), or null when nothing on this
+     * The column for one section line (a stat id, or {@code Stat/Thing}, one written or one a
+     * {@code Stat/*} line stands for), or null when nothing on this
      * server counts it, which leaves it out. Its {@link StatColumnDef#statKey()} is the line as the board
      * stores it; its label is a bare translation, since a column header is painted on a {@code .Text} sink
      * that never substitutes a parameter; {@link StatColumnDef#ascending()} ranks a best that shrinks
@@ -42,4 +49,22 @@ public interface StatBoardSource {
      */
     @Nullable
     StatColumnDef column(@Nonnull String line);
+
+    /**
+     * Every line a section's {@code Stat/*} line stands for, each written {@code Stat/Thing}, in the order
+     * their columns show: the things the stat's source can name now (the server's reputations, say). None,
+     * the default, leaves the line without a column.
+     */
+    @Nonnull
+    default List<String> everyLine(@Nonnull String statId) {
+        return List.of();
+    }
+
+    /**
+     * Before the board opens for the player at {@code ref}: set on the board what the store reads live
+     * rather than counts (its native readings), so the player sees their own numbers as they stand. Nothing,
+     * the default. World thread.
+     */
+    default void refresh(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
+    }
 }

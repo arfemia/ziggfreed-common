@@ -25,10 +25,12 @@ import com.ziggfreed.common.instance.leaderboard.StatColumnDef;
  * {"NameKey":"ziggfreedcommon.statboard.section.combat","Order":10,"Stats":["Mob_Kills","Deaths"]}
  * }</pre>
  *
- * <p>A line is a stat id, or {@code Stat/Thing} for one line of a stat's breakdown
- * ({@code Mob_Kills/Trork_Warrior}). A line no store on this server counts shows no column, and a
- * section left with none shows no tab, so a section can name a stat a mod adds and still read right
- * on a server without that mod. Only a line some section names is ranked at all.
+ * <p>A line is a stat id, {@code Stat/Thing} for one line of a stat's breakdown
+ * ({@code Mob_Kills/Trork_Warrior}), or {@code Stat/*} for every line the stat's source names now, one
+ * column each ({@code Reputation/*}, each reputation on the server). A line no store on this server
+ * counts shows no column, and a section left with none shows no tab, so a section can name a stat a mod
+ * adds and still read right on a server without that mod. Only a line some section names is ranked at
+ * all.
  */
 public final class StatSectionAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, StatSectionAsset>> {
 
@@ -61,8 +63,9 @@ public final class StatSectionAsset implements JsonAssetWithMap<String, DefaultA
             .appendInherited(new KeyedCodec<>("Stats", Codec.STRING_ARRAY, false),
                     (a, v) -> a.stats = v, a -> a.stats, (a, parent) -> a.stats = parent.stats)
             .documentation("The stats the section ranks, one column each, at most four: a stat id such as "
-                    + "Mob_Kills, or Stat/Thing for one line of its breakdown, such as Mob_Kills/Trork_Warrior. "
-                    + "A stat nothing on this server counts shows no column.").add()
+                    + "Mob_Kills, Stat/Thing for one line of its breakdown, such as Mob_Kills/Trork_Warrior, or "
+                    + "Stat/* for every line a read stat names, such as Reputation/* for each reputation on the "
+                    + "server. A stat nothing on this server counts shows no column.").add()
             .build();
 
     public StatSectionAsset() {

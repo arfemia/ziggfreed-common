@@ -14,6 +14,7 @@ quests_completed = Quests Completed
 rounds_won = Rounds Won
 deaths = Deaths
 playtime_seconds = Playtime
+objectives_completed = Objectives Completed
 
 command.desc.family = Look up the stats a player has gathered.
 command.desc.show = List every stat a player holds, by the key a condition would name.

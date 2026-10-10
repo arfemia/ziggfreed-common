@@ -1,0 +1,6 @@
+{
+  "$Comment": "A Records tab and its columns, at most four. These stats are read from what the game already records, never counted again: the game's own objectives a player finished, then a player's standing with each reputation on the server (Reputation/* stands for one column per reputation, as many as fit). A stat nothing on this server reads shows no column, and a section with none shows no tab.",
+  "NameKey": "ziggfreedcommon.statboard.section.renown",
+  "Order": 50,
+  "Stats": ["Objectives_Completed", "Reputation/*"]
+}

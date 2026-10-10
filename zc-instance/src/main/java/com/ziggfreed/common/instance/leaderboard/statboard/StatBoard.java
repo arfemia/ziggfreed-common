@@ -14,6 +14,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.instance.leaderboard.Leaderboard;
 import com.ziggfreed.common.occurrence.Occurrence;
 import com.ziggfreed.common.occurrence.Occurrences;
@@ -23,7 +26,8 @@ import com.ziggfreed.common.util.SafeLog;
  * The stat board: every player's ranked stats, one bucket per period window, in
  * {@code mods/ziggfreedcommon/stats-board.json}. It is a rank index, never the record: the store that
  * keeps a player's stats writes here as they move (through {@link #add}, {@link #raise}, {@link #lower}
- * and {@link #setAllTime}), and re-syncs {@code all_time} from its own record when the player is ready.
+ * and {@link #setAllTime}), re-syncs {@code all_time} from its own record when the player is ready, and sets
+ * what it reads live (native readings) then and as the board opens for that player ({@link #refresh}).
  *
  * <p><b>Buckets.</b> {@code all_time}, plus the running window of every period ({@link StatPeriod}):
  * {@code weekly@2026-W42}, {@code monthly@2026-10}, {@code range@<id>} while its range runs, and
@@ -116,6 +120,25 @@ public final class StatBoard {
         Map<String, Long> ranked = StatSectionConfig.getInstance().ranked(values);
         if (!ranked.isEmpty()) {
             target.setStats(StatPeriod.ALL_TIME, uuid, name, ranked);
+        }
+    }
+
+    /**
+     * The board is about to open for the player at {@code ref}: the source sets what it reads live (its
+     * native readings) through {@link #setAllTime}, so the player reads their own numbers as they stand.
+     * Nothing happens before {@link #install} or while the board is off; a source that throws costs the
+     * refresh, never the page. World thread.
+     */
+    public static void refresh(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
+        StatBoardSource current = source;
+        if (board == null || !current.enabled()) {
+            return;
+        }
+        try {
+            current.refresh(store, ref);
+        } catch (RuntimeException e) {
+            SafeLog.warn("[statboard] the stat source could not refresh a player's live readings before the board"
+                    + " opened", e);
         }
     }
 

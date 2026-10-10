@@ -19,6 +19,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.occurrence.Occurrence;
 import com.ziggfreed.common.occurrence.Occurrences;
+import com.ziggfreed.common.playerstats.asset.StatConfig;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -33,8 +34,9 @@ import com.ziggfreed.common.util.SafeLog;
  * ({@code <stat>/<thing>}), both keyed by {@link StatKeys}, moves the same keys' copy for every season
  * live on the calendar ({@code <event>@<year>/<key>}, one copy per season-year however many runs it has),
  * then hands the same keys to the stat board ({@link StatRankFeed}), which ranks each live run in its own
- * bucket. A {@link #gauge} is a number the consumer owns (a skill level): it is ranked,
- * never stored in the player's record.
+ * bucket. A {@link #gauge} is a number the consumer owns (a skill level), and a native stat
+ * ({@link #readNative}) a number the engine already records: both are ranked, never stored in the player's
+ * record.
  *
  * <p>Writes are called on the world thread that owns {@code store}, the way every producer runs. A
  * player with no record (the component never registered, or an entity that is not a player) counts
@@ -122,6 +124,28 @@ public final class PlayerStats {
         }
         resync(store, ref);
         return true;
+    }
+
+    /**
+     * Read every native stat for the player at {@code ref} now and rank it: a number the engine already
+     * records (objectives finished, standing with each reputation), asked of the reader some module
+     * registered for that stat's id (zc-core's {@code NativeReaders}) and set outright on the stat board's
+     * all-time ranking, never kept in the player's record. The library calls it when the player is ready and
+     * as Records opens for them; a mod that knows such a number just moved may call it too. Nothing happens
+     * with the store switched off. Called on the world thread that owns {@code store}.
+     */
+    public static void readNative(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
+        if (!StatsSwitch.isOn() || feed == StatRankFeed.NONE) {
+            return;
+        }
+        PlayerRef player = playerRef(store, ref);
+        if (player == null) {
+            return;
+        }
+        Map<String, Long> readings = NativeStats.read(store, ref, StatConfig.getInstance().index());
+        if (!readings.isEmpty()) {
+            rank(StatKind.NATIVE, player.getUuid(), player.getUsername(), readings);
+        }
     }
 
     /**

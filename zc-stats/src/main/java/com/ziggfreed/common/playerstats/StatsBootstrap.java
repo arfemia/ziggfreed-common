@@ -6,12 +6,14 @@ import com.hypixel.hytale.event.EventPriority;
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
+import com.ziggfreed.common.counter.NativeReaders;
 import com.ziggfreed.common.factor.CounterFactors;
 import com.ziggfreed.common.instance.leaderboard.statboard.StatBoard;
 import com.ziggfreed.common.playerstats.asset.StatValidator;
 import com.ziggfreed.common.playerstats.board.StatBoardRankFeed;
 import com.ziggfreed.common.playerstats.board.StatsBoardSource;
 import com.ziggfreed.common.playerstats.command.ZigStatsCommand;
+import com.ziggfreed.common.playerstats.reader.ObjectiveCompletionsReader;
 import com.ziggfreed.common.playerstats.system.PlayerDeathStatSystem;
 import com.ziggfreed.common.playerstats.system.PlaytimeStatSystem;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
@@ -62,8 +64,8 @@ public final class StatsBootstrap {
      * The plugin-free half: the moment counter at the library-default rank, the library's default
      * counter source (R51), and the stat board: what is counted is ranked on it, the board asks this
      * store whether it runs and what each section line's column is, and the stat audit checks the
-     * sections' lines. A consumer that keeps tallies of its own installs its source at its own setup,
-     * after this one.
+     * sections' lines; and the library's own native reader (objectives finished). A consumer that keeps
+     * tallies of its own installs its source at its own setup, after this one.
      */
     public static void registerVocabulary() {
         ProgressionRuntime.defaults(OWNER).momentListener(new StatsMomentListener());
@@ -71,5 +73,6 @@ public final class StatsBootstrap {
         PlayerStats.rankInto(new StatBoardRankFeed());
         StatBoard.setSource(new StatsBoardSource());
         StatValidator.sections(StatsBoardSource::sectionLines);
+        NativeReaders.register(OWNER, ObjectiveCompletionsReader.STAT_ID, new ObjectiveCompletionsReader());
     }
 }

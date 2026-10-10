@@ -6,6 +6,7 @@ import com.hypixel.hytale.server.core.event.events.BootEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
+import com.ziggfreed.common.counter.NativeReaders;
 import com.ziggfreed.common.entity.EntityBootstrap;
 import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardKinds;
@@ -20,7 +21,8 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * Registers the reputation module at library setup, called once from the wiring root's {@code setup()}
  * (after the equip bridge is installed): the owner's switch, the three readings, the Reputation reward kind
- * and how it reads, the kill table on the shared moment stream, the Reputation destination and its tab in
+ * and how it reads, the kill table on the shared moment stream, the standing reader the stat board ranks,
+ * the Reputation destination and its tab in
  * the shared menu, the effective-rank checks at login, on every equip and their memory dropped at
  * disconnect, and the once-at-boot log of broken reputation files.
  * The companion store is registered with the other framework stores. Registration only
@@ -47,7 +49,11 @@ public final class ReputationBootstrap {
         registerAudit(plugin);
     }
 
-    /** The plugin-free half: the readings, the reward kind and its chip, and the kill table. */
+    /**
+     * The plugin-free half: the readings, the reward kind and its chip, the kill table, and the standing
+     * reader whoever ranks native stats asks (zc-core's {@code NativeReaders}, so this module needs no edge to
+     * the stat store).
+     */
     public static void registerVocabulary() {
         try {
             ReputationService service = ReputationRuntime.service();
@@ -56,8 +62,10 @@ public final class ReputationBootstrap {
             RewardChips.contribute(ReputationRewardKind.chips(service));
             ProgressionRuntime.defaults(OWNER).momentListener(
                     new ReputationKillListener(service, ReputationKillListener.WORLD_THREAD));
+            NativeReaders.register(OWNER, ReputationStandingReader.STAT_ID, new ReputationStandingReader(service));
         } catch (Throwable t) {
-            SafeLog.warn("[reputation] could not declare the reputation readings, reward kind and kill table", t);
+            SafeLog.warn("[reputation] could not declare the reputation readings, reward kind, kill table and"
+                    + " standing reader", t);
         }
     }
 

@@ -91,3 +91,6 @@ gear_set.line = {0}: {1}
 
 # The shared menu's tab.
 menu.tab = Reputation
+
+# A Records column ranking standing, for a reputation that names itself nothing.
+stat.standing = Standing

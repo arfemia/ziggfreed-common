@@ -1,0 +1,7 @@
+{
+  "$Comment": "The game's own objectives a player has finished, read from the history the game keeps for them and never counted again, so it ranks a player's whole history at once. One line per objective, filed under the objective's id. The library's quests are Quests_Completed, not this.",
+  "NameKey": "ziggfreedcommon.stats.objectives_completed",
+  "Kind": "Native",
+  "Format": "Count",
+  "Breakdown": "Target"
+}

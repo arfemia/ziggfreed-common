@@ -11,7 +11,9 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The ready pass: once a player is in the world, the stat board's all-time ranking is set from their
- * whole record, so an import, or a count made while the board could not rank it, shows at once.
+ * whole record, so an import, or a count made while the board could not rank it, shows at once, and from
+ * every native stat's reading ({@link PlayerStats#readNative}), so what the engine records ranks as of
+ * this login.
  * Registered at NORMAL priority and run as a task on the player's world, so a consumer's FIRST-priority
  * ready task (a one-time import into this record) has already run when it reads.
  */
@@ -32,6 +34,7 @@ public final class StatsReadySync {
                 try {
                     if (ref.isValid()) {
                         PlayerStats.resync(ref.getStore(), ref);
+                        PlayerStats.readNative(ref.getStore(), ref);
                     }
                 } catch (Throwable t) {
                     SafeLog.warn("[stats] the ready re-sync of a player's stats failed", t);

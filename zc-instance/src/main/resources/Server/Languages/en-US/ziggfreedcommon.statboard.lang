@@ -25,3 +25,4 @@ period.season = {0} {1}
 section.combat = Combat
 section.gathering = Gathering
 section.adventure = Adventure
+section.renown = Renown

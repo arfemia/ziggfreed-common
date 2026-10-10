@@ -18,6 +18,7 @@ import com.ziggfreed.common.ui.route.DestinationContext;
 import com.ziggfreed.common.ui.route.DestinationKind;
 import com.ziggfreed.common.ui.route.DestinationType;
 import com.ziggfreed.common.ui.route.Destinations;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Records: the library's tab and destination for the records a server keeps: the board filled through
@@ -25,7 +26,8 @@ import com.ziggfreed.common.ui.route.Destinations;
  * {@code "Open": "Records"} opens that board on the library's records page, on the rail with this tab
  * selected; for the encounter board, the first fight on record (by its binding row's id). Over the filled
  * board, a Boss Fights tab ends its first row and opens that same fight page, so boss records are always
- * a click from Records. The tab shows while either has something to show. Opened on the player's own ref.
+ * a click from Records. The tab shows while either has something to show. Opened on the player's own ref,
+ * after the filled board has brought the opener's own numbers up to date ({@link RecordsBoard#opening}).
  */
 public final class RecordsDestinations {
 
@@ -82,6 +84,15 @@ public final class RecordsDestinations {
             return false;
         }
         RecordsBoard first = board;
+        if (first != null) {
+            // The opener's own numbers first (the stat board's native readings), so the page shows them as they
+            // stand; a board that cannot costs only that, never the page.
+            try {
+                first.opening(ctx.store(), ctx.playerReference());
+            } catch (RuntimeException e) {
+                SafeLog.warn("[records] the board could not bring a player's numbers up to date before it opened", e);
+            }
+        }
         LeaderboardPageDeps deps = first != null && first.shows() ? first.deps() : null;
         if (deps != null) {
             // The boss fights stay one tab away: the filled board's first row ends in a tab that opens the

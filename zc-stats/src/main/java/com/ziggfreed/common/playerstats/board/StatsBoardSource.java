@@ -1,5 +1,6 @@
 package com.ziggfreed.common.playerstats.board;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -8,14 +9,20 @@ import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.counter.Counters;
+import com.ziggfreed.common.counter.NativeReader;
 import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.instance.leaderboard.StatColumnDef;
 import com.ziggfreed.common.instance.leaderboard.statboard.StatBoardSource;
 import com.ziggfreed.common.instance.leaderboard.statboard.StatSection;
 import com.ziggfreed.common.instance.leaderboard.statboard.StatSectionConfig;
 import com.ziggfreed.common.instance.result.ColumnFormat;
+import com.ziggfreed.common.playerstats.NativeStats;
+import com.ziggfreed.common.playerstats.PlayerStats;
 import com.ziggfreed.common.playerstats.StatFormat;
 import com.ziggfreed.common.playerstats.StatKeys;
 import com.ziggfreed.common.playerstats.StatKind;
@@ -29,7 +36,9 @@ import com.ziggfreed.common.playerstats.asset.StatConfig;
  *
  * <p>A line no stat file defines gets no column, so a zc-only server shows no column for a stat only a
  * consumer counts. A {@code Stat/Thing} line is headed by its stat's name, since a column header is a
- * bare translation and a thing has no name of its own to give it.
+ * bare translation and a thing has no name of its own to give it, unless the stat is native and its
+ * reader names the thing (a reputation's own name). A {@code Stat/*} line stands for each thing a native
+ * stat's reader names now, and as the board opens for a player their native readings are set first.
  */
 public final class StatsBoardSource implements StatBoardSource {
 
@@ -50,9 +59,52 @@ public final class StatsBoardSource implements StatBoardSource {
         if (kind == null || format == null) {
             return null;
         }
-        String nameKey = stat.nameKey();
+        String nameKey = thingNameKey(stat, line);
+        if (nameKey == null) {
+            nameKey = stat.nameKey();
+        }
         Message label = nameKey == null ? Message.raw(stat.getId()) : Message.translation(ContentKeys.resolved(nameKey));
         return new StatColumnDef(storedKey(stat.getId(), line), label, columnFormat(format), kind == StatKind.MIN);
+    }
+
+    /** A native stat's lines: each thing its reader names now, as {@code Stat/Thing}; none for any other stat. */
+    @Override
+    @Nonnull
+    public List<String> everyLine(@Nonnull String statId) {
+        StatAsset stat = StatConfig.getInstance().index().stat(statId);
+        NativeReader reader = NativeStats.readerOf(stat);
+        if (reader == null) {
+            return List.of();
+        }
+        List<String> out = new ArrayList<>();
+        for (String thing : reader.things()) {
+            if (StatKeys.usableThing(thing)) {
+                out.add(StatKeys.line(stat.getId(), thing));
+            }
+        }
+        return out;
+    }
+
+    /** The opener's native readings, set on the board before it opens for them. */
+    @Override
+    public void refresh(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
+        PlayerStats.readNative(store, ref);
+    }
+
+    /**
+     * The name a native stat's reader gives the thing of a {@code Stat/Thing} line (a reputation's own
+     * name), so lines of one stat side by side are told apart; null for a total, any other stat, or a thing
+     * its reader names nothing for.
+     */
+    @Nullable
+    private static String thingNameKey(@Nonnull StatAsset stat, @Nonnull String line) {
+        int slash = line.indexOf(Counters.CATEGORY_SEPARATOR);
+        NativeReader reader = slash < 0 ? null : NativeStats.readerOf(stat);
+        if (reader == null) {
+            return null;
+        }
+        String key = reader.thingNameKey(line.substring(slash + 1).trim());
+        return key == null || key.isBlank() ? null : key.trim();
     }
 
     /**

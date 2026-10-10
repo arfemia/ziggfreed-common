@@ -10,7 +10,10 @@ import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.instance.leaderboard.Leaderboard;
@@ -25,14 +28,16 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The stat board on Records: its sections as the first row of tabs, each with its own columns, and its
- * periods under them. A section shows only the lines the {@link StatBoardSource} gives a column, at most
+ * periods under them. A section shows only the lines the {@link StatBoardSource} gives a column, a
+ * {@code Stat/*} line standing for every line the source names for that stat, at most
  * {@value StatColumnDef#MAX_STAT_COLUMNS}; a section left with none shows no tab; a range shows its tab from
  * the moment it starts; a season shows one tab per run, while it is live and after it ends for as long as
  * the board keeps it. The page shows the Stats view alone, with no "All" tab on either row, since
  * neither sections nor periods add up.
  *
  * <p>A tab reads the period's window at the board's own time ({@link StatClock}) each time the page
- * builds, so a page left open across a turnover reads the new window at its next click.
+ * builds, so a page left open across a turnover reads the new window at its next click. As Records opens,
+ * the opener's native readings are set first ({@link #opening}), so their own numbers stand as of now.
  */
 public final class StatBoardRecords implements RecordsBoard {
 
@@ -48,6 +53,12 @@ public final class StatBoardRecords implements RecordsBoard {
     @Override
     public boolean shows() {
         return deps() != null;
+    }
+
+    /** The opener's native readings go on the board first ({@link StatBoard#refresh}). */
+    @Override
+    public void opening(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
+        StatBoard.refresh(store, ref);
     }
 
     @Override
@@ -79,20 +90,41 @@ public final class StatBoardRecords implements RecordsBoard {
                 .withMenuTab(MenuSlot.RECORDS.id());
     }
 
-    /** The columns {@code section} shows: each line the source gives one, in the file's order, at most four. */
+    /**
+     * The columns {@code section} shows: each line the source gives one, in the file's order, a
+     * {@code Stat/*} line standing for every line the source names for that stat, at most four in all.
+     */
     @Nonnull
     private static List<StatColumnDef> columnsOf(@Nonnull StatSection section, @Nonnull StatBoardSource source) {
         List<StatColumnDef> out = new ArrayList<>();
-        for (String line : section.lines()) {
-            if (out.size() >= StatColumnDef.MAX_STAT_COLUMNS) {
-                break;
-            }
-            StatColumnDef column = columnOf(line, source);
-            if (column != null) {
-                out.add(column);
+        for (String written : section.lines()) {
+            for (String line : linesOf(written, source)) {
+                if (out.size() >= StatColumnDef.MAX_STAT_COLUMNS) {
+                    return out;
+                }
+                StatColumnDef column = columnOf(line, source);
+                if (column != null) {
+                    out.add(column);
+                }
             }
         }
         return out;
+    }
+
+    /** The lines {@code written} stands for: itself, or for {@code Stat/*} each line the source names now. */
+    @Nonnull
+    private static List<String> linesOf(@Nonnull String written, @Nonnull StatBoardSource source) {
+        String stat = StatSection.everyLineOf(written);
+        if (stat == null) {
+            return List.of(written);
+        }
+        try {
+            return source.everyLine(stat);
+        } catch (RuntimeException e) {
+            SafeLog.warn("[statboard] the stat source could not list the lines of '" + written + "', so it shows no"
+                    + " column", e);
+            return List.of();
+        }
     }
 
     /** The source's column for {@code line}; a source that throws gives it none, and says so. */
