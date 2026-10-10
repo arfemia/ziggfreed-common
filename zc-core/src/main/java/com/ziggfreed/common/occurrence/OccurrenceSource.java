@@ -22,7 +22,7 @@ import javax.annotation.Nullable;
  * and {@link #zone} answer for any event LOADED on this server whatever its switches say, so a reader
  * that keeps what a player earned in a past run (a yearly trophy) still knows its years after the owner
  * switches the event off. So does {@link #dated}, so a reader holding a run knows when its own days end, and
- * {@link #titleKey}, so it still knows what the event is called.
+ * {@link #titleKey} and {@link #icon}, so it still knows what the event is called and pictured by.
  */
 public interface OccurrenceSource {
 
@@ -45,14 +45,6 @@ public interface OccurrenceSource {
             return List.of();
         }
     };
-
-    /**
-     * One run going on, with what its event is called and pictured by, for a reader that names what is on
-     * without knowing any event: {@code titleKey} is a lang key and {@code icon} an item id, each as the event
-     * authored it and null when it names none.
-     */
-    record LiveRun(@Nonnull Occurrence run, @Nullable String titleKey, @Nullable String icon) {
-    }
 
     /** Is {@code eventId} on this server and switched on, whether or not it is running now? */
     boolean isEnabled(@Nonnull String eventId);
@@ -87,6 +79,17 @@ public interface OccurrenceSource {
      */
     @Nullable
     default String titleKey(@Nonnull String eventId) {
+        return null;
+    }
+
+    /**
+     * The item {@code eventId} is pictured by wherever events are listed (an item id), as its author wrote it, for
+     * any event LOADED on this server whatever its switches say, so a past run keeps its picture after the owner
+     * switches the event off. Null when no event of that id is loaded or it names none, and from a source that
+     * knows no pictures (the default).
+     */
+    @Nullable
+    default String icon(@Nonnull String eventId) {
         return null;
     }
 
@@ -191,16 +194,5 @@ public interface OccurrenceSource {
     @Nullable
     default Recurrence recurrence(@Nonnull String eventId, long nowMs) {
         return null;
-    }
-
-    /**
-     * Every run going on at {@code nowMs}, one per event, as {@link #live} answers each (forces counted), with
-     * its event's title key and icon ({@link LiveRun}), in the order they come round ({@link Occurrence#IN_ORDER}):
-     * the run that started last is the last entry. A run forced on keeps its own days, so it sorts by them. Empty
-     * when nothing is on, and from a source that names no events (the default).
-     */
-    @Nonnull
-    default List<LiveRun> liveRuns(long nowMs) {
-        return List.of();
     }
 }

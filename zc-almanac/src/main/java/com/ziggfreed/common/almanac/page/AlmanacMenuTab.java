@@ -1,7 +1,5 @@
 package com.ziggfreed.common.almanac.page;
 
-import java.util.List;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -12,7 +10,6 @@ import com.ziggfreed.common.almanac.OccurrenceAlmanacCalendar;
 import com.ziggfreed.common.almanac.view.AlmanacView;
 import com.ziggfreed.common.icon.IconSpec;
 import com.ziggfreed.common.occurrence.Occurrence;
-import com.ziggfreed.common.occurrence.OccurrenceSource;
 import com.ziggfreed.common.ui.menu.MenuEntry;
 import com.ziggfreed.common.ui.menu.MenuSlot;
 import com.ziggfreed.common.ui.menu.MenuSubline;
@@ -66,7 +63,7 @@ public final class AlmanacMenuTab {
 
     /**
      * The tab's second line (the maintainer's rulings M485 and M499): the event on now that started last among
-     * those whose calendar file names both a title and a picture ({@link AlmanacCalendar#liveRuns}), else the
+     * those whose calendar file names both a title and a picture ({@link #latestNamedRun}), else the
      * season on now by the name and picture its Almanac page gives it, asked on every paint so it comes and goes
      * with the event. Null while nothing named runs, while the Almanac is off, when the season's page names no
      * title or no picture (never its raw id), or when the read fails: the tab is then one line.
@@ -85,7 +82,7 @@ public final class AlmanacMenuTab {
         if (!AlmanacSwitch.isOn()) {
             return null;
         }
-        MenuSubline event = latestNamedRun(calendar.liveRuns());
+        MenuSubline event = latestNamedRun(calendar);
         if (event != null) {
             return event;
         }
@@ -98,25 +95,34 @@ public final class AlmanacMenuTab {
     }
 
     /**
-     * The run that came round last ({@link Occurrence#IN_ORDER}) among {@code runs} whose event names both a title
-     * and a picture, as a second line; null when none does.
+     * The run going on ({@link AlmanacCalendar#liveAll}) that came round last by its own days
+     * ({@link Occurrence#IN_ORDER}) among those whose event names both a title ({@link AlmanacCalendar#titleKey})
+     * and a picture ({@link AlmanacCalendar#icon}), as a second line; null when none does. Only an exact tie in
+     * {@code IN_ORDER} falls to the id order {@code liveAll} lists them in, the later id winning.
      */
     @Nullable
-    static MenuSubline latestNamedRun(@Nonnull List<OccurrenceSource.LiveRun> runs) {
-        OccurrenceSource.LiveRun latest = null;
-        for (OccurrenceSource.LiveRun run : runs) {
-            if (run == null || missing(run.titleKey()) || missing(run.icon())) {
+    static MenuSubline latestNamedRun(@Nonnull AlmanacCalendar calendar) {
+        Occurrence latest = null;
+        String latestTitle = null;
+        String latestIcon = null;
+        for (Occurrence run : calendar.liveAll().values()) {
+            if (run == null || (latest != null && Occurrence.IN_ORDER.compare(run, latest) < 0)) {
                 continue;
             }
-            if (latest == null || Occurrence.IN_ORDER.compare(run.run(), latest.run()) >= 0) {
-                latest = run;
+            String title = calendar.titleKey(run.eventId());
+            String icon = calendar.icon(run.eventId());
+            if (missing(title) || missing(icon)) {
+                continue;
             }
+            latest = run;
+            latestTitle = title;
+            latestIcon = icon;
         }
         if (latest == null) {
             return null;
         }
-        return new MenuSubline(AlmanacText.authored(latest.titleKey(), latest.run().eventId()),
-                IconSpec.ofItem(latest.icon().trim()));
+        return new MenuSubline(AlmanacText.authored(latestTitle, latest.eventId()),
+                IconSpec.ofItem(latestIcon.trim()));
     }
 
     private static boolean missing(@Nullable String authored) {

@@ -3,7 +3,6 @@ package com.ziggfreed.common.calendar;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -329,9 +328,26 @@ public final class CalendarService implements OccurrenceSource {
     @Override
     @Nullable
     public String titleKey(@Nonnull String eventId) {
-        CalendarEventAsset event = event(eventId);
-        CalendarEventAsset.Presentation presentation = event == null ? null : event.presentation();
+        CalendarEventAsset.Presentation presentation = presentation(eventId);
         return presentation == null ? null : presentation.titleKey();
+    }
+
+    /**
+     * The loaded event's {@code Presentation.Icon} (an item id) as authored, whatever its switches say; null for no
+     * such event or one that names no icon.
+     */
+    @Override
+    @Nullable
+    public String icon(@Nonnull String eventId) {
+        CalendarEventAsset.Presentation presentation = presentation(eventId);
+        return presentation == null ? null : presentation.icon();
+    }
+
+    /** The loaded event's Presentation group, whatever its switches say; null for no such event or none authored. */
+    @Nullable
+    private CalendarEventAsset.Presentation presentation(@Nonnull String eventId) {
+        CalendarEventAsset event = event(eventId);
+        return event == null ? null : event.presentation();
     }
 
     /**
@@ -343,24 +359,6 @@ public final class CalendarService implements OccurrenceSource {
     @Nonnull
     public Map<String, Occurrence> liveAll(long nowMs) {
         return eachEvent(config.ids(), id -> live(id, nowMs));
-    }
-
-    /**
-     * Every run going on at {@code nowMs} ({@link #liveAll}), each named by its event's {@code Presentation}
-     * title key and icon (null where the file writes none), oldest start first, so the run that started last
-     * is the last entry.
-     */
-    @Override
-    @Nonnull
-    public List<LiveRun> liveRuns(long nowMs) {
-        List<LiveRun> out = new ArrayList<>();
-        for (Occurrence run : liveAll(nowMs).values()) {
-            CalendarEventAsset event = event(run.eventId());
-            CalendarEventAsset.Presentation look = event == null ? null : event.presentation();
-            out.add(new LiveRun(run, look == null ? null : look.titleKey(), look == null ? null : look.icon()));
-        }
-        out.sort(Comparator.comparing(LiveRun::run, Occurrence.IN_ORDER));
-        return List.copyOf(out);
     }
 
     /** {@link #eachEvent(List, Function, BiConsumer)}, saying a failure through {@link SafeLog}. */

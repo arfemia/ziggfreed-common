@@ -1,6 +1,7 @@
 package com.ziggfreed.common.almanac;
 
-import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
@@ -67,11 +68,30 @@ public final class OccurrenceAlmanacCalendar implements AlmanacCalendar {
 
     @Override
     @Nonnull
-    public List<OccurrenceSource.LiveRun> liveRuns() {
+    public Map<String, Occurrence> liveAll() {
+        Map<String, Occurrence> live = asked(occurrences -> occurrences.liveAll(clock.getAsLong()));
+        return live == null ? Map.of() : live;
+    }
+
+    @Override
+    @Nullable
+    public String titleKey(@Nonnull String eventId) {
+        return asked(occurrences -> occurrences.titleKey(eventId));
+    }
+
+    @Override
+    @Nullable
+    public String icon(@Nonnull String eventId) {
+        return asked(occurrences -> occurrences.icon(eventId));
+    }
+
+    /** {@code question} put to the source in charge, or null when the slot or the source throws: silence is absence. */
+    @Nullable
+    private <T> T asked(@Nonnull Function<OccurrenceSource, T> question) {
         try {
-            return source.get().liveRuns(clock.getAsLong());
+            return question.apply(source.get());
         } catch (Throwable t) {
-            return List.of();
+            return null;
         }
     }
 }

@@ -3,6 +3,7 @@ package com.ziggfreed.common.almanac;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -82,12 +83,31 @@ public interface AlmanacCalendar {
     }
 
     /**
-     * Every event's run going on now, with the event's own title key and icon, in the order they came round
-     * ({@link OccurrenceSource#liveRuns}): any event on the server, listed in the Almanac or not. Empty from a
-     * calendar that names no events.
+     * Every event running now, by id, in id order, each with its run going on ({@link OccurrenceSource#liveAll}):
+     * any event on the server, listed in the Almanac or not. Empty from a calendar that knows no events.
      */
     @Nonnull
-    default List<OccurrenceSource.LiveRun> liveRuns() {
-        return List.of();
+    default Map<String, Occurrence> liveAll() {
+        return Map.of();
+    }
+
+    /**
+     * The translation key {@code eventId} is named by, as its calendar file authors it
+     * ({@link OccurrenceSource#titleKey}), for any loaded event whatever its switches say. Null when it names none,
+     * and from a calendar that knows no names.
+     */
+    @Nullable
+    default String titleKey(@Nonnull String eventId) {
+        return null;
+    }
+
+    /**
+     * The item {@code eventId} is pictured by, as its calendar file authors it ({@link OccurrenceSource#icon}), for
+     * any loaded event whatever its switches say. Null when it names none, and from a calendar that knows no
+     * pictures.
+     */
+    @Nullable
+    default String icon(@Nonnull String eventId) {
+        return null;
     }
 }
