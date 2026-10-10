@@ -1,0 +1,31 @@
+{
+  "$Comment": [
+    "What a player sees when they put on another piece of a gear set and no tier of it comes on or",
+    "goes off: one quiet line with the set's name and how far along it is, and no sound. A piece",
+    "that does change a tier is Gear_Set_Tier's notice instead, which carries the same count. It",
+    "fires only for a real change: logging in or changing worlds with pieces on says nothing, and",
+    "neither does taking a piece off.",
+    "",
+    "This is the library's own neutral default. A mod that ships a file with this same name in its",
+    "own pack replaces it, and a server owner can do the same from the owner layer.",
+    "",
+    "The moment carries 'set' (the set id, also under 'source', so each set keeps ONE line that",
+    "the next piece rewrites instead of adding another under it), 'name' (what the set is called,",
+    "in the reader's language), 'pieces' (how many distinct members the player has on, never more",
+    "than 'total'), 'total' (how many pieces the full set takes, read from its tiers; once the count",
+    "stands there, a spare piece says nothing more), 'next' (the line of the first tier",
+    "the player has still to earn, in the reader's language; absent when every tier holds or that",
+    "tier authors no Text) and 'hasnext' (true when 'next' is there). 'player' is always the name",
+    "of who wears it.",
+    "",
+    "To show what the next tier gives under the count, add a Secondary reading 'next'. Add a Sound",
+    "group to give each piece a click."
+  ],
+  "Toast": {
+    "Title": {
+      "Key": "ziggfreedcommon.feedback.gearset.piece",
+      "Args": ["name", "pieces", "total"]
+    },
+    "Tone": "Info"
+  }
+}

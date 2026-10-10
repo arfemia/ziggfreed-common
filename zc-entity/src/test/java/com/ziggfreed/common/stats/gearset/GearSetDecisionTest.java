@@ -135,6 +135,34 @@ class GearSetDecisionTest {
         assertTrue(GearSetDecision.holds(zero, nothing), "the arithmetic holds; the validator refuses the file");
     }
 
+    /**
+     * The notice counts against a FULL set, never the member list, which lists alternatives for one
+     * slot: the three shipped shapes. Hallowed lists two helms and two shields for one tier of
+     * {@code Armor 1, Utility 1}; the Woodcutter's Kit lists four armor pieces and three hatchets for
+     * a ladder topping out at {@code Armor 4, Held 1}; the Disenchanter's Kit is the same ladder over
+     * five members.
+     */
+    @Test
+    void theFullCountIsTheLargestTierNeverTheMemberList() {
+        GearSetAsset hallowed = GearSetAsset.of("Hallows_Eve_Hallowed", null, null,
+                new String[] {"Jack_Helm", "Jack_Shield", "Burning_Jack_Helm", "Flaming_Jack_Shield"},
+                GearSetAsset.Tier.of(null, 1, null, 1, null, null, null));
+        GearSetAsset woodcutters = GearSetAsset.of("Woodcutters_Kit", null, null,
+                new String[] {"Head", "Chest", "Hands", "Legs", "Hatchet_Sawmiller", "Hatchet_Millwright", "Hatchet_Marn"},
+                GearSetAsset.Tier.of(2, null, null, null, null, null, null),
+                GearSetAsset.Tier.of(null, 4, null, null, null, null, null),
+                GearSetAsset.Tier.of(null, 4, 1, null, null, null, null));
+        GearSetAsset disenchanters = GearSetAsset.of("Disenchanters_Kit", null, null,
+                new String[] {"Head", "Chest", "Hands", "Legs", "Grimoire"},
+                GearSetAsset.Tier.of(2, null, null, null, null, null, null),
+                GearSetAsset.Tier.of(null, 4, null, null, null, null, null),
+                GearSetAsset.Tier.of(null, 4, 1, null, null, null, null));
+
+        assertEquals(2, GearSetDecision.fullCount(hallowed), "a helm and a shield, out of four members");
+        assertEquals(5, GearSetDecision.fullCount(woodcutters), "four armor pieces and a hatchet, out of seven");
+        assertEquals(5, GearSetDecision.fullCount(disenchanters), "four armor pieces and the grimoire");
+    }
+
     @Test
     void anItemNotInTheSetNeverCounts() {
         GearSetAsset set = nightSet();

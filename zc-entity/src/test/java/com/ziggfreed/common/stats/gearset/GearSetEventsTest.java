@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.event.IEvent;
 import com.ziggfreed.common.event.NativeEventSeam;
+import com.ziggfreed.common.stats.gearset.GearSetDecision.SlotCounts;
 import com.ziggfreed.common.stats.gearset.GearSetKeys.TierRef;
 import com.ziggfreed.common.stats.gearset.GearSets.TierFlip;
 
@@ -72,8 +73,8 @@ class GearSetEventsTest {
         GearSetAsset set = GearSetAsset.of("Night_Set", null, null, new String[] {"A", "B"},
                 GearSetAsset.Tier.of(2, null, null, null, null, null, null));
 
-        GearSetEvents.fireTierChanged(UUID.randomUUID(), null, set, 0, true, 2);
-        GearSetEvents.fireTierChanged(UUID.randomUUID(), null, set, 0, false, 1);
+        GearSetEvents.fireTierChanged(UUID.randomUUID(), null, set, 0, true, new SlotCounts(2, 0, 0, 0));
+        GearSetEvents.fireTierChanged(UUID.randomUUID(), null, set, 0, false, new SlotCounts(1, 0, 0, 0));
 
         assertEquals(List.of(ZigGearSetTierChangedEvent.class, ZigGearSetTierChangedEvent.class), announced);
     }
@@ -83,7 +84,7 @@ class GearSetEventsTest {
         GearSetAsset set = GearSetAsset.of("Night_Set", null, null, new String[] {"A", "B"},
                 GearSetAsset.Tier.of(2, null, null, null, null, null, null));
 
-        GearSetEvents.fireTierChanged(UUID.randomUUID(), null, set, 0, true, 2);
+        GearSetEvents.fireTierChanged(UUID.randomUUID(), null, set, 0, true, new SlotCounts(2, 0, 0, 0));
 
         assertEquals(1, builders.size());
         assertThrows(IllegalStateException.class, () -> builders.get(0).get(),
@@ -95,7 +96,8 @@ class GearSetEventsTest {
         // The engine fires one event per flip and none otherwise: with no flips, no fire.
         for (TierFlip flip : GearSets.flips(List.of(new TierRef("night_set", 0)), List.of(new TierRef("night_set", 0)))) {
             GearSetEvents.fireTierChanged(UUID.randomUUID(), null,
-                    GearSetAsset.of("Night_Set", null, null, null), flip.tier().tierIndex(), flip.active(), 1);
+                    GearSetAsset.of("Night_Set", null, null, null), flip.tier().tierIndex(), flip.active(),
+                    new SlotCounts(1, 0, 0, 0));
         }
         assertTrue(announced.isEmpty());
     }

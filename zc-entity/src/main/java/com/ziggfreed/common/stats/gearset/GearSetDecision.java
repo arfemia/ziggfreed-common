@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Set;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.ziggfreed.common.stats.EquippedSnapshot;
 
@@ -89,7 +90,50 @@ public final class GearSetDecision {
         return out;
     }
 
+    /**
+     * How many pieces a FULL set takes, the number a notice counts against: the largest, over the
+     * tiers, of {@code max(Pieces, Armor + Held + Utility)}, an unauthored minimum reading 0. Never
+     * the member list, which may hold several alternatives for one slot (two helms and two shields
+     * make a two-piece set; three hatchets fill one hand). 0 for a set with no tier.
+     */
+    public static int fullCount(@Nonnull GearSetAsset set) {
+        int full = 0;
+        for (GearSetAsset.Tier tier : set.tiers()) {
+            int slots = orZero(tier.getArmor()) + orZero(tier.getHeld()) + orZero(tier.getUtility());
+            full = Math.max(full, Math.max(orZero(tier.getPieces()), slots));
+        }
+        return full;
+    }
+
+    /**
+     * The count a notice shows: {@code pieces}, at most {@code full}, so a spare member past the
+     * full set (a second shield in hand) never reads "3/2". A {@code full} of 0 (a set authoring no
+     * count) leaves {@code pieces} as it is.
+     */
+    public static int shownPieces(int pieces, int full) {
+        return full > 0 ? Math.min(pieces, full) : pieces;
+    }
+
+    /**
+     * The tier the player has still to earn: the first of {@code set}'s tiers, in {@code Bonuses}
+     * order, that authors a condition {@code counts} does not satisfy; null when every such tier
+     * holds. A tier authoring no condition never holds, so it is never anybody's next.
+     */
+    @Nullable
+    public static GearSetAsset.Tier nextTier(@Nonnull GearSetAsset set, @Nonnull SlotCounts counts) {
+        for (GearSetAsset.Tier tier : set.tiers()) {
+            if (tier.hasCondition() && !holds(tier, counts)) {
+                return tier;
+            }
+        }
+        return null;
+    }
+
     private static boolean met(Integer minimum, int count) {
         return minimum == null || count >= minimum;
+    }
+
+    private static int orZero(@Nullable Integer value) {
+        return value == null ? 0 : value;
     }
 }

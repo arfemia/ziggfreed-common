@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -41,7 +42,7 @@ class GearSetAppliedTest {
 
     @Nonnull
     private static GearSetApplied.Applied wrote(@Nonnull Set<TierRef> active) {
-        return new GearSetApplied.Applied(active, Set.of("Night_Set_Look"), active);
+        return new GearSetApplied.Applied(active, Set.of("Night_Set_Look"), active, Map.of());
     }
 
     private void changeWorld() {

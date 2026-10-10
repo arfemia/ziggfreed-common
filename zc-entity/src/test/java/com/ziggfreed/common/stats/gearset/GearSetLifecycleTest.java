@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -48,7 +49,7 @@ class GearSetLifecycleTest {
 
     @Nonnull
     private static GearSetApplied.Applied suitedUp() {
-        return new GearSetApplied.Applied(SUITED, Set.of(LOOK), SUITED);
+        return new GearSetApplied.Applied(SUITED, Set.of(LOOK), SUITED, Map.of());
     }
 
     @Test

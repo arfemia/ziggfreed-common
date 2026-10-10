@@ -2,6 +2,7 @@ package com.ziggfreed.common.stats.gearset;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -52,8 +53,8 @@ import com.ziggfreed.common.util.SafeLog;
  * removes through {@code putModifier} / {@code removeModifier} (never {@code setStatValue}), puts
  * on and takes off each tier's {@code Effect} through the {@link GearSetEffects} seam, remembers
  * what it wrote ({@link GearSetApplied}), saves the looks it answers for on the player
- * ({@link GearSetLooksComponent}) and announces a tier that really flipped
- * ({@link GearSetEvents}).
+ * ({@link GearSetLooksComponent}) and announces a tier that really flipped, or a set whose piece
+ * count rose with no flip ({@link GearSetEvents}).
  *
  * <p><b>The first recompute in a store is a hydrate, not a flip.</b> The row is forgotten whenever
  * the player's entity leaves its store ({@link #onEntityRemoved}), a disconnect and a world change
@@ -91,6 +92,9 @@ public final class GearSets {
     private static final EquipStatBridge.AppliedListener LISTENER = GearSets::recompute;
 
     private static final Set<String> WARNED_UNKNOWN_STATS = ConcurrentHashMap.newKeySet();
+
+    /** The counts of a set the player no longer has any piece of: it is no candidate, so it was never counted. */
+    private static final SlotCounts NONE_ON = new SlotCounts(0, 0, 0, 0);
 
     private static volatile EquipStatBridge bridge;
 
@@ -245,9 +249,11 @@ public final class GearSets {
             Set<String> desiredEffects = new LinkedHashSet<>();
             Set<TierRef> active = new LinkedHashSet<>();
             Map<String, SlotCounts> countsBySet = new LinkedHashMap<>();
+            Map<String, Integer> fullBySet = new LinkedHashMap<>();
             for (GearSetAsset set : index.candidates(snapshot)) {
                 SlotCounts counts = GearSetDecision.count(set, snapshot);
                 countsBySet.put(GearSetKeys.setId(set.getId()), counts);
+                fullBySet.put(GearSetKeys.setId(set.getId()), GearSetDecision.fullCount(set));
                 List<GearSetAsset.Tier> tiers = set.tiers();
                 for (int tierIndex : GearSetDecision.activeTiers(set, counts)) {
                     GearSetAsset.Tier tier = tiers.get(tierIndex);
@@ -296,20 +302,30 @@ public final class GearSets {
             // What the engine answers for from here on: what it asked for, plus every look whose
             // remove did not go through, so the next recompute (and the next login) tries again.
             Set<String> answered = answeredAfter(shown, unremoved, GearSetValidator::effectKnown);
+            Map<String, Integer> pieces = piecesOf(countsBySet);
             GearSetApplied.put(playerId, new GearSetApplied.Applied(GearSetPlan.tiersOf(desired),
-                    answered, active));
+                    answered, active, pieces));
             if (looks != null) {
                 looks.record(answered);
             }
 
-            for (TierFlip flip : announcements(previous, active)) {
+            List<TierFlip> flips = announcements(previous, active);
+            for (TierFlip flip : flips) {
                 GearSetAsset set = GearSetConfig.getInstance().resolve(flip.tier().setId());
                 if (set == null) {
                     continue;
                 }
                 SlotCounts counts = countsBySet.get(flip.tier().setId());
                 GearSetEvents.fireTierChanged(playerId, player, set, flip.tier().tierIndex(), flip.active(),
-                        counts == null ? 0 : counts.pieces());
+                        counts == null ? NONE_ON : counts);
+            }
+            for (String setId : pieceRises(previous, pieces, flips, fullBySet)) {
+                GearSetAsset set = GearSetConfig.getInstance().resolve(setId);
+                SlotCounts counts = countsBySet.get(setId);
+                if (set == null || counts == null) {
+                    continue;
+                }
+                GearSetEvents.firePiecesChanged(playerId, player, set, counts);
             }
         } catch (Throwable t) {
             SafeLog.warn("[gearset] recompute failed: " + t.getMessage());
@@ -401,6 +417,49 @@ public final class GearSets {
     @Nonnull
     static List<TierFlip> announcements(@Nullable GearSetApplied.Applied previous, @Nonnull Collection<TierRef> active) {
         return previous == null ? List.of() : flips(previous.activeTiers(), active);
+    }
+
+    /** How many distinct members of each set are on, by folded set id, a set with none left out. Pure. */
+    @Nonnull
+    static Map<String, Integer> piecesOf(@Nonnull Map<String, SlotCounts> countsBySet) {
+        Map<String, Integer> out = new LinkedHashMap<>();
+        for (Map.Entry<String, SlotCounts> entry : countsBySet.entrySet()) {
+            if (entry.getValue().pieces() > 0) {
+                out.put(entry.getKey(), entry.getValue().pieces());
+            }
+        }
+        return out;
+    }
+
+    /**
+     * The sets whose quiet piece line one recompute announces: every set in {@code now} whose count
+     * rose since the player's last write in this store from below its full count ({@code full}, by
+     * folded set id; a set missing there, or authoring no count, has nothing to count against) and
+     * none of whose tiers is in {@code flips} (a flip's own notice already carries the count), in
+     * the order {@code now} gives. Nothing on a hydrate (no row), so logging in or changing worlds
+     * with pieces on says nothing; nothing for a count that stayed or fell; nothing once the count
+     * already stood at the full set, since the notice shows it capped there and would only repeat
+     * itself. Pure.
+     */
+    @Nonnull
+    static List<String> pieceRises(@Nullable GearSetApplied.Applied previous, @Nonnull Map<String, Integer> now,
+            @Nonnull Collection<TierFlip> flips, @Nonnull Map<String, Integer> full) {
+        if (previous == null) {
+            return List.of();
+        }
+        Set<String> flipped = new HashSet<>();
+        for (TierFlip flip : flips) {
+            flipped.add(flip.tier().setId());
+        }
+        List<String> out = new ArrayList<>();
+        for (Map.Entry<String, Integer> entry : now.entrySet()) {
+            int before = previous.pieces().getOrDefault(entry.getKey(), 0);
+            int fullCount = full.getOrDefault(entry.getKey(), 0);
+            if (entry.getValue() > before && before < fullCount && !flipped.contains(entry.getKey())) {
+                out.add(entry.getKey());
+            }
+        }
+        return out;
     }
 
     /**

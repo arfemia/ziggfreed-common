@@ -1,6 +1,7 @@
 package com.ziggfreed.common.stats.gearset;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
@@ -15,11 +16,11 @@ import com.ziggfreed.common.stats.gearset.GearSetKeys.TierRef;
 /**
  * What the engine last wrote on each player while their entity sits in its current store: the
  * tiers whose modifiers went on, the effects it answers for (the ones it wanted on, plus any whose
- * remove did not go through), and the tiers that were active, so the next recompute sweeps
- * exactly what it wrote, takes off exactly the effects it answers for, and announces only a tier
- * that really flipped. The row never decides whether an effect goes ON: that is asked of the entity
- * itself at every recompute ({@code GearSets.effectChanges}), so an effect something else cleared
- * comes back.
+ * remove did not go through), the tiers that were active and how many pieces of each set were on,
+ * so the next recompute sweeps exactly what it wrote, takes off exactly the effects it answers for,
+ * and announces only a tier that really flipped or a piece that really went on. The row never
+ * decides whether an effect goes ON: that is asked of the entity itself at every recompute
+ * ({@code GearSets.effectChanges}), so an effect something else cleared comes back.
  *
  * <p>TRANSIENT and never persisted: a modifier the previous boot left on an entity is not in here,
  * which is why a player with no row is swept from what is actually present on the stat map rather
@@ -39,13 +40,19 @@ import com.ziggfreed.common.stats.gearset.GearSetKeys.TierRef;
  */
 final class GearSetApplied {
 
-    /** One player's last write. */
-    record Applied(@Nonnull Set<TierRef> writtenTiers, @Nonnull Set<String> effects, @Nonnull Set<TierRef> activeTiers) {
+    /**
+     * One player's last write. {@code pieces} is how many distinct members of each set (by folded
+     * id) the player had on, a set with none left out, so the next recompute can tell a count that
+     * rose from one that stayed.
+     */
+    record Applied(@Nonnull Set<TierRef> writtenTiers, @Nonnull Set<String> effects, @Nonnull Set<TierRef> activeTiers,
+            @Nonnull Map<String, Integer> pieces) {
 
         Applied {
             writtenTiers = Collections.unmodifiableSet(new LinkedHashSet<>(writtenTiers));
             effects = Collections.unmodifiableSet(new LinkedHashSet<>(effects));
             activeTiers = Collections.unmodifiableSet(new LinkedHashSet<>(activeTiers));
+            pieces = Collections.unmodifiableMap(new LinkedHashMap<>(pieces));
         }
     }
 

@@ -91,6 +91,7 @@ import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.shop.asset.ShopPoolConfig;
 import com.ziggfreed.common.stats.gearset.GearSetValidator;
 import com.ziggfreed.common.stats.gearset.GearSets;
+import com.ziggfreed.common.stats.gearset.ZigGearSetPiecesChangedEvent;
 import com.ziggfreed.common.stats.gearset.ZigGearSetTierChangedEvent;
 import com.ziggfreed.common.ui.hud.panel.HudPanels;
 import com.ziggfreed.common.ui.hud.panel.HudSpotAsset;
@@ -149,8 +150,9 @@ import com.ziggfreed.common.world.stash.BlockStashBootstrap;
  *   <li>{@link #registerGearSetSeams()} - pinned by {@code GearSets.effects(NativeEffectUtil::apply,
  *       NativeEffectUtil::remove, NativeEffectUtil::has)} and by {@code gearset/GearSetNoticeBridge}: the gear-set engine
  *       (zc-entity) may never see the native-effect primitive (zc-effects) nor the feedback engine
- *       (zc-presentation), so the root fills its effect seam and answers its native event with the
- *       {@code Gear_Set_Tier} moment; that bridge is a root file and decides nothing.</li>
+ *       (zc-presentation), so the root fills its effect seam and answers its native events with the
+ *       {@code Gear_Set_Tier} and {@code Gear_Set_Piece} moments; that bridge is a root file and
+ *       decides nothing.</li>
  * </ul>
  * Both of the last two stay WHOLE rather than being split so an orphan line could move: the one
  * pinned line documents the constraint better than a phase scattered across two files would.
@@ -546,15 +548,16 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
     /**
      * What the gear-set engine cannot do alone: put a tier's {@code Effect} on, take it off and look
      * for it on the entity (the native-effect primitive lives in zc-effects, which zc-entity may
-     * never import), and turn a tier flip into a notice (the feedback engine lives in
-     * zc-presentation, likewise out of reach).
+     * never import), and turn a tier flip or a piece going on into a notice (the feedback engine
+     * lives in zc-presentation, likewise out of reach).
      * The root fills the effect seam with the primitive's three method references and hangs the
-     * notice bridge on the engine's native event; both sides keep their module boundary.
+     * notice bridge on the engine's two native events; both sides keep their module boundary.
      */
     private void registerGearSetSeams() {
         try {
             GearSets.effects(NativeEffectUtil::apply, NativeEffectUtil::remove, NativeEffectUtil::has);
             getEventRegistry().registerGlobal(ZigGearSetTierChangedEvent.class, GearSetNoticeBridge::onTierChanged);
+            getEventRegistry().registerGlobal(ZigGearSetPiecesChangedEvent.class, GearSetNoticeBridge::onPiecesChanged);
         } catch (Throwable t) {
             SafeLog.warn("[gearset] seam wiring failed", t);
         }

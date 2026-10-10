@@ -2,7 +2,8 @@
   "$Comment": [
     "What a player sees and hears when one tier of a gear set comes on or goes off for them: the",
     "recompute after an equip change found the tier's minimums newly met, or newly unmet. It fires",
-    "only for a real change; logging in wearing a full set is a hydrate and says nothing.",
+    "only for a real change; logging in wearing a full set is a hydrate and says nothing. A piece",
+    "going on without a tier changing is Gear_Set_Piece's quiet line instead.",
     "",
     "This is the library's own neutral default, so a bare server gets a notice out of the box. A",
     "mod that ships a file with this same name in its own pack replaces it (a pack that lists this",
@@ -11,15 +12,21 @@
     "",
     "The moment carries 'set' (the set id, also under 'source' so a merging notice keeps one line",
     "per set), 'name' (what the set is called, already in the reader's language), 'pieces' (how",
-    "many distinct members the player has on), 'total' (how many the set has), 'desc' (the tier's",
-    "own line, in the reader's language; absent when the tier authors no Text) and 'active' (true",
-    "when the tier came on, false when it went off). 'player' is always the name of who wears it.",
+    "many distinct members the player has on, never more than 'total'), 'total' (how many pieces",
+    "the full set takes, read from its tiers: a set listing two helms and two shields for one helm",
+    "and one shield counts to 2), 'desc' (the tier's own line, in the reader's language; absent",
+    "when the tier authors no Text), 'next' (the line of the first tier the player has still to",
+    "earn, in the reader's language; absent when every tier holds or that tier authors no Text),",
+    "'hasnext' (true when 'next' is there) and 'active' (true when the tier came on, false when it",
+    "went off). 'player' is always the name of who wears it.",
     "",
     "Key is a line from a .lang file; Args names which of those values fill its blanks, in order.",
     "Sound is any SoundEvent id, played at the player's own position. Delete either group in your",
     "override to drop that half; add a Broadcast group to tell the whole server. Tone colours the",
     "whole notification: gold Reward for a bonus coming on, plain Info for one going off, which is",
-    "what the Variants entry below says for the 'active: false' case."
+    "what the first Variants entry says for the 'active: false' case. The second entry is a tier",
+    "coming on with another still ahead: its smaller line names this tier's bonus and the next one,",
+    "so a player learns what the set holds next without opening a page."
   ],
   "Toast": {
     "Title": {
@@ -50,6 +57,20 @@
         "Tone": "Info"
       },
       "Sound": {}
+    },
+    {
+      "When": { "active": true, "hasnext": true },
+      "Toast": {
+        "Title": {
+          "Key": "ziggfreedcommon.feedback.gearset.active",
+          "Args": ["name", "pieces", "total"]
+        },
+        "Secondary": {
+          "Key": "ziggfreedcommon.feedback.gearset.tier_next",
+          "Args": ["desc", "next"]
+        },
+        "Tone": "Reward"
+      }
     }
   ]
 }

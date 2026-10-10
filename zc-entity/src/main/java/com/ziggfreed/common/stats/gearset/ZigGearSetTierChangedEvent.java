@@ -8,8 +8,6 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.event.IEvent;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
-import com.ziggfreed.common.i18n.ContentKeys;
-import com.ziggfreed.common.i18n.Msg;
 
 /**
  * One tier of one gear set came on or went off for a player: the recompute after an equip change
@@ -22,8 +20,9 @@ import com.ziggfreed.common.i18n.Msg;
  *
  * <p>A listener drawing a notice reads {@link #setName()} and {@link #tierLine()} (the authored keys
  * resolved through the loaded lang catalogue, the id as plain text when the set names none) with
- * {@link #pieces()} of {@link #members()}; a listener keeping other state reads the ids. Both get
- * the live {@link PlayerRef}, so neither looks the player up again on a thread it may not be on.
+ * {@link #pieces()} of {@link #fullSet()}, and {@link #nextTierLine()} for the tier still to earn; a
+ * listener keeping other state reads the ids. Both get the live {@link PlayerRef}, so neither looks
+ * the player up again on a thread it may not be on.
  */
 public final class ZigGearSetTierChangedEvent implements IEvent<Void> {
 
@@ -34,12 +33,14 @@ public final class ZigGearSetTierChangedEvent implements IEvent<Void> {
     private final boolean active;
     private final int pieces;
     private final int members;
+    private final int fullSet;
     @Nullable private final String setTitleKey;
     @Nullable private final String tierTitleKey;
+    @Nullable private final String nextTierTitleKey;
 
     public ZigGearSetTierChangedEvent(@Nonnull UUID playerId, @Nonnull PlayerRef playerRef, @Nonnull String setId,
-            int tierIndex, boolean active, int pieces, int members, @Nullable String setTitleKey,
-            @Nullable String tierTitleKey) {
+            int tierIndex, boolean active, int pieces, int members, int fullSet, @Nullable String setTitleKey,
+            @Nullable String tierTitleKey, @Nullable String nextTierTitleKey) {
         this.playerId = playerId;
         this.playerRef = playerRef;
         this.setId = setId;
@@ -47,8 +48,10 @@ public final class ZigGearSetTierChangedEvent implements IEvent<Void> {
         this.active = active;
         this.pieces = pieces;
         this.members = members;
+        this.fullSet = fullSet;
         this.setTitleKey = setTitleKey;
         this.tierTitleKey = tierTitleKey;
+        this.nextTierTitleKey = nextTierTitleKey;
     }
 
     @Nonnull
@@ -78,14 +81,28 @@ public final class ZigGearSetTierChangedEvent implements IEvent<Void> {
         return active;
     }
 
-    /** How many distinct members the player has on now, anywhere. */
+    /**
+     * How many distinct members the player has on now, anywhere, at most {@link #fullSet()}
+     * ({@link GearSetDecision#shownPieces}), so a spare member never reads past the full set.
+     */
     public int pieces() {
         return pieces;
     }
 
-    /** How many members the set has in all. */
+    /**
+     * How many members the set lists in all, alternatives for one slot included. A notice counts
+     * against {@link #fullSet()} instead.
+     */
     public int members() {
         return members;
+    }
+
+    /**
+     * How many pieces the full set takes ({@link GearSetDecision#fullCount}): what a notice counts
+     * {@link #pieces()} against.
+     */
+    public int fullSet() {
+        return fullSet;
     }
 
     /** The set's authored title key, or null when the file names none. */
@@ -100,15 +117,35 @@ public final class ZigGearSetTierChangedEvent implements IEvent<Void> {
         return tierTitleKey;
     }
 
+    /**
+     * The line key of the tier still to earn ({@link GearSetDecision#nextTier} over what the player
+     * has on now), or null when every tier holds or that tier carries no line.
+     */
+    @Nullable
+    public String nextTierTitleKey() {
+        return nextTierTitleKey;
+    }
+
     /** The set's name as the reader's client resolves it; the id as plain text when it has no key. */
     @Nonnull
     public Message setName() {
-        return setTitleKey == null ? Msg.raw(setId) : ContentKeys.tr(setTitleKey);
+        return GearSetEvents.setName(setTitleKey, setId);
     }
 
     /** The tier's one line as the reader's client resolves it, or null when the tier carries no key. */
     @Nullable
     public Message tierLine() {
-        return tierTitleKey == null ? null : ContentKeys.tr(tierTitleKey);
+        return GearSetEvents.line(tierTitleKey);
+    }
+
+    /** The next tier's line as the reader's client resolves it, or null when there is none to name. */
+    @Nullable
+    public Message nextTierLine() {
+        return GearSetEvents.line(nextTierTitleKey);
+    }
+
+    /** Whether there is a next tier to name ({@link #nextTierLine()} is not null). */
+    public boolean hasNextTier() {
+        return nextTierTitleKey != null;
     }
 }
