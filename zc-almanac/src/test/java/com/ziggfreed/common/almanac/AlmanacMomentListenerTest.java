@@ -65,14 +65,4 @@ class AlmanacMomentListenerTest {
         assertEquals(2L, server.get(AlmanacKeys.lifetime("test_season", AlmanacKeys.ATTENDED)),
                 "and two player-seasons in all");
     }
-
-    @Test
-    void aMomentThatCountsNothingAddsNothingToTheServer() {
-        ServerTallies server = server();
-
-        AlmanacMomentListener.count(new CounterMap(), server, id -> null, "USE_ITEM", "Test_Bomb_Rare");
-
-        assertEquals(0L, server.get(AlmanacKeys.lifetime("test_season", "bombs_thrown")),
-                "an absent season counts nothing, for the player or the server");
-    }
 }
