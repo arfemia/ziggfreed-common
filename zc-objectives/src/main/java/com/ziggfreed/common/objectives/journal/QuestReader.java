@@ -67,8 +67,9 @@ import com.ziggfreed.common.util.SafeLog;
  * build reads one consistent log. Make a fresh reader after a verb changes anything.
  *
  * <p><b>What lists.</b> Every quest the catalogue offers ({@link Quest#available()}) that the player has started or
- * may see; a board-managed quest only while it is carried or waiting to be collected (offering it and showing it
- * finished are the board's job). <b>The page.</b> The quest's picture, title and meta; the board's pills or the
+ * may see, and a finished one the book may collect whether it is offered or not (a contract whose board has gone); a
+ * board-managed quest only while it is carried or waiting to be collected (offering it and showing it finished are
+ * the board's job). <b>The page.</b> The quest's picture, title and meta; the board's pills or the
  * quest's tags; the Track toggle on a carried quest; the step tally; the reading paragraph; Requirements before it is
  * taken, Objectives (a later order group under its own "Step N" heading, ticks done, current and locked, a hidden
  * locked step left out), Rewards (what waits to be collected wears a pill) and any consumer blocks; the action bar
@@ -181,7 +182,7 @@ public final class QuestReader {
         }
         List<Quest> out = new ArrayList<>();
         for (Quest quest : engine.quests()) {
-            if (quest == null || !quest.available()) {
+            if (quest == null || (!quest.available() && !collectableInBook(quest))) {
                 continue;
             }
             QuestStatus status = status(quest);
@@ -195,6 +196,16 @@ public final class QuestReader {
         }
         listed = List.copyOf(out);
         return listed;
+    }
+
+    /**
+     * Whether {@code q} is finished, its rewards wait, and the book may pay them: the engine lets them go from nowhere
+     * in particular ({@link QuestActions#collectableHere}: no site binds it, or its site is gone). Such a quest lists
+     * whether or not the catalogue still offers it, so a contract finished before its board left for the season still
+     * shows Collect. Anything else the catalogue stops offering leaves the book until it is offered again.
+     */
+    private boolean collectableInBook(@Nonnull Quest q) {
+        return status(q) == QuestStatus.COMPLETED_UNCLAIMED && QuestActions.collectableHere(q, this, null);
     }
 
     // ==================== rows ====================

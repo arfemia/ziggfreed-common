@@ -369,6 +369,42 @@ class QuestReaderTest {
         assertEquals(1, engine.progressOf(player, "q_seasonal", "mine").current(), "where the player left it");
     }
 
+    /**
+     * A finished quest the catalogue stops offering stays in the book while the book may collect it: a contract whose
+     * board left with its season reads Collect in gold and pays. One still bound to a place that stands (a seasonal
+     * character's hand-in) leaves the book with its season, as a carried one does.
+     */
+    @Test
+    void aFinishedQuestTheCatalogueStopsOfferingStaysWhileTheBookMayCollectIt() {
+        String board = "yourmod_board";
+        AtomicBoolean running = new AtomicBoolean(true);
+        engine = QuestEngine.builder().nativeEvents(false).warn(message -> { }).clock(() -> now)
+                .gates(new QuestGates() {
+                    @Override
+                    public boolean siteStillThere(@Nonnull Quest quest, @Nonnull String siteId) {
+                        return running.get() || !board.equals(siteId);
+                    }
+                }).build();
+        Quest contract = Quest.builder("q_contract").category("main").turnInAt(QuestTurnInSite.ACCEPT_SITE)
+                .available(running::get).objective(mine("mine", 0)).build();
+        Quest handIn = Quest.builder("q_hand_in").category("main").turnInAt(QuestTurnInSite.character(GUIDE))
+                .available(running::get).objective(mine("mine", 0)).build();
+        set(contract, handIn);
+        presentation.managed.add(contract.id());
+        assertTrue(engine.accept(player, contract, board));
+        assertTrue(engine.accept(player, handIn, GUIDE));
+        engine.markUnclaimed(player, contract);
+        engine.markUnclaimed(player, handIn);
+
+        running.set(false);
+        QuestReader r = reader();
+        assertEquals(List.of(contract), r.listed(), "the contract stays, the hand-in leaves with its season");
+        assertEquals(J + "state.collect", id(r.row(contract).state()), "its row reads Collect");
+        assertEquals(QuestActions.COLLECT, r.page(contract).action(ActionSlot.PRIMARY).actionId());
+        assertNotNull(engine.tryClaim(player, contract), "and Collect pays");
+        assertTrue(reader().listed().isEmpty(), "collected, it leaves the book with its season");
+    }
+
     // ==================== giver-bound (GiverBoundQuestTest, ported) ====================
 
     @Test
