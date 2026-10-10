@@ -30,7 +30,8 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p><b>Three string fields, and the format only grows.</b> {@code Tallies} is the lifetime bag,
  * {@code key:value|...} keyed by {@link StatKeys}; {@code Seasons} is the per season-year bag,
- * {@code <event>@<year>/<stat key>:value|...}; {@code Imports} is the comma-joined claim ids of the
+ * {@code <event>@<year>/<stat key>:value|...}, which a stat moving while a season is live moves too
+ * ({@link #moveSeason}); {@code Imports} is the comma-joined claim ids of the
  * one-time imports already folded in ({@link #importOnce}). A new stat is a new key, never a new
  * field: append a field, never rename one. A damaged pair costs only itself, and a key no stat
  * registers rides along untouched, so a save written by a newer build or for a mod this server no
@@ -165,14 +166,35 @@ public final class PlayerStatsComponent implements Component<EntityStore>, Count
      * since zero is what an absent key reads. True when it moved.
      */
     public synchronized boolean lower(@Nonnull String key, long value) {
+        return lower(tallies, key, value);
+    }
+
+    /**
+     * Move the per season-year tally under {@code key} ({@link StatKeys#season}) the way {@code kind} moves
+     * its lifetime one: a Max raises it, a Min lowers it, anything else adds. A key the save could not keep
+     * writes nothing.
+     */
+    public synchronized void moveSeason(@Nonnull StatKind kind, @Nonnull String key, long value) {
+        if (!PackedTallies.usableKey(key)) {
+            return;
+        }
+        switch (kind) {
+            case MAX -> seasons.highWater(key, value);
+            case MIN -> lower(seasons, key, value);
+            default -> seasons.add(key, value);
+        }
+    }
+
+    /** {@link #lower(String, long)} on {@code bag}: a best that shrinks, any value beating none. */
+    private static boolean lower(@Nonnull CounterMap bag, @Nonnull String key, long value) {
         if (value <= 0L) {
             return false;
         }
-        long current = tallies.get(key);
+        long current = bag.get(key);
         if (current > 0L && current <= value) {
             return false;
         }
-        tallies.set(key, value);
+        bag.set(key, value);
         return true;
     }
 

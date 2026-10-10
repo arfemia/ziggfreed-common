@@ -1,5 +1,7 @@
 package com.ziggfreed.common.playerstats;
 
+import java.util.Locale;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -20,6 +22,9 @@ import com.ziggfreed.common.counter.PackedTallies;
  * cannot be saved costs only its breakdown line, never the total.
  */
 public final class StatKeys {
+
+    /** Joins a season's year to its event in a {@code Seasons} key. */
+    public static final String YEAR_MARK = "@";
 
     private StatKeys() {
     }
@@ -49,5 +54,24 @@ public final class StatKeys {
     @Nonnull
     public static String line(@Nonnull String statId, @Nullable String thing) {
         return thing == null || thing.isBlank() ? total(statId) : Counters.key(total(statId), thing.trim());
+    }
+
+    /**
+     * Can {@code eventId} name a season in a {@code Seasons} key? Not blank, and free of {@code /} (the
+     * category join), {@code @} (the year mark), {@code |} and {@code :} (the save string's joins).
+     */
+    public static boolean usableEvent(@Nullable String eventId) {
+        return usableStatId(eventId);
+    }
+
+    /**
+     * The season-year copy of {@code key} (a total or a breakdown line, as {@link #total} or {@link #line}
+     * name it) for the season of {@code eventId} that opened in {@code year}: {@code hallows_eve@2026/Mob_Kills}.
+     * The event is lower-cased, as the Almanac spells its own season keys; every run of a year shares the one
+     * copy.
+     */
+    @Nonnull
+    public static String season(@Nonnull String eventId, int year, @Nonnull String key) {
+        return Counters.key(eventId.trim().toLowerCase(Locale.ROOT) + YEAR_MARK + year, key);
     }
 }

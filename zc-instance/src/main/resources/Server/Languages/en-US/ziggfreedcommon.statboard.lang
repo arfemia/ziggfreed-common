@@ -1,8 +1,8 @@
 # The stat board on Records: the page's own lines, its periods and its sections.
 # The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.statboard.<key>.
-# Every line but your_rank and the duration lines is painted where a parameter is never
-# substituted, so only those take one. The column words the page shares with the boss records come
-# from ziggfreedcommon.leaderboard.lang.
+# Every line but your_rank, the duration lines and period.season (a season tab is a rich button) is
+# painted where a parameter is never substituted, so only those take one. The column words the page
+# shares with the boss records come from ziggfreedcommon.leaderboard.lang.
 
 title = Records
 empty = Nobody is on this board yet.
@@ -17,6 +17,9 @@ duration.minutes = {0, number}m
 period.all_time = All Time
 period.weekly = This Week
 period.monthly = This Month
+# A season tab, one per run of a calendar event: {0} is the event's name, {1} the year the run
+# belongs to, a plain number that never takes digit grouping.
+period.season = {0} {1}
 
 # The section tabs (Server/ZiggfreedCommon/StatSections).
 section.combat = Combat

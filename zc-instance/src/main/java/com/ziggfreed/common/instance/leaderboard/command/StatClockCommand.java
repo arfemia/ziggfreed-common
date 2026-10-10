@@ -2,7 +2,9 @@ package com.ziggfreed.common.instance.leaderboard.command;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -15,9 +17,13 @@ import com.hypixel.hytale.server.core.command.system.arguments.system.RequiredAr
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncCommand;
 import com.hypixel.hytale.server.core.permissions.provider.HytalePermissionsProvider;
+import com.ziggfreed.common.instance.leaderboard.Leaderboard;
+import com.ziggfreed.common.instance.leaderboard.statboard.StatBoard;
 import com.ziggfreed.common.instance.leaderboard.statboard.StatClock;
 import com.ziggfreed.common.instance.leaderboard.statboard.StatPeriod;
 import com.ziggfreed.common.instance.leaderboard.statboard.StatPeriodConfig;
+import com.ziggfreed.common.occurrence.Occurrences;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Move the stat board's clock ({@link StatClock}) by an offset, to see a week or a month turn over
@@ -58,15 +64,31 @@ final class StatClockCommand extends AbstractAsyncCommand {
             LeaderboardCommandMessages.detail(ctx, "clock.shifted");
         }
         Instant now = StatClock.now();
+        Leaderboard board = StatBoard.board();
+        Set<String> held = board == null ? Set.of() : board.bucketKeys();
         for (StatPeriod period : StatPeriodConfig.getInstance().periods()) {
-            String bucket = period.readKey(now);
-            if (bucket == null) {
+            List<String> buckets = readKeys(period, now, held);
+            if (buckets.isEmpty()) {
                 LeaderboardCommandMessages.detail(ctx, "clock.window.none", period.id());
-            } else {
+            }
+            for (String bucket : buckets) {
                 LeaderboardCommandMessages.detail(ctx, "clock.window", period.id(), bucket);
             }
         }
         return CompletableFuture.completedFuture(null);
+    }
+
+    /** Every bucket {@code period}'s tabs read at {@code now}; none when the calendar a season asks throws. */
+    @Nonnull
+    private static List<String> readKeys(@Nonnull StatPeriod period, @Nonnull Instant now,
+                                         @Nonnull Set<String> held) {
+        try {
+            return period.readKeys(now, Occurrences.source(), held);
+        } catch (RuntimeException e) {
+            SafeLog.warn("[statboard] the calendar could not say which runs the season '" + period.id()
+                    + "' shows", e);
+            return List.of();
+        }
     }
 
     /** The offset {@code authored} names, or null when it names none. */

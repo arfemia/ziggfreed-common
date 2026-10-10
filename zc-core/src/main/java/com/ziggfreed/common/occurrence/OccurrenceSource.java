@@ -3,6 +3,7 @@ package com.ziggfreed.common.occurrence;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -20,7 +21,8 @@ import javax.annotation.Nullable;
  * <p>The two YEAR questions and the clock are the exceptions: {@link #firstYear}, {@link #currentYear}
  * and {@link #zone} answer for any event LOADED on this server whatever its switches say, so a reader
  * that keeps what a player earned in a past run (a yearly trophy) still knows its years after the owner
- * switches the event off. So does {@link #dated}, so a reader holding a run knows when its own days end.
+ * switches the event off. So does {@link #dated}, so a reader holding a run knows when its own days end, and
+ * {@link #titleKey}, so it still knows what the event is called.
  */
 public interface OccurrenceSource {
 
@@ -58,6 +60,27 @@ public interface OccurrenceSource {
      */
     @Nonnull
     List<Occurrence> history(@Nonnull String eventId, long nowMs);
+
+    /**
+     * Every event running at {@code nowMs}, by id, in id order, each with the run {@link #live} answers for it:
+     * for a reader that follows whatever is on (a season ranking) rather than one event it names. An absent
+     * event is never in it. The default answers none, as a source that knows no events does.
+     */
+    @Nonnull
+    default Map<String, Occurrence> liveAll(long nowMs) {
+        return Map.of();
+    }
+
+    /**
+     * The translation key {@code eventId} is named by wherever events are listed, as its author wrote it
+     * (resolve it through {@code ContentKeys}), for any event LOADED on this server whatever its switches say,
+     * so a past run keeps its name after the owner switches the event off. Null when no event of that id is
+     * loaded or it names none, and from a source that knows no names (the default).
+     */
+    @Nullable
+    default String titleKey(@Nonnull String eventId) {
+        return null;
+    }
 
     /**
      * The first year {@code eventId} runs (its file's {@code FirstYear}), for any event LOADED on this
