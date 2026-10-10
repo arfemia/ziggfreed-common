@@ -1,6 +1,6 @@
 # stats/ - item-carried stats as native modifiers
 
-`com.ziggfreed.common.stats` is a split package: `StackStats`, a pure item-metadata record, lives in zc-core so any module can stamp a stack; the ECS bridge (`EquipStatBridge`, `StatMirror`, `StatChannelAudit`, `StatIndexCache`) and `gearset/` live here.
+`com.ziggfreed.common.stats` is a split package: `StackStats`, a pure item-metadata record, lives in zc-core so any module can stamp a stack.
 
 - `stats/` and zc-core's `counter/` never merge: an item-carried stat lives here, a per-subject tally in `counter/`, and a tally that must reach a stat channel is mirrored onto it with `StatMirror`.
 - `StackStats.Entries` stores percent channels in whole percent points (`10.0` is +10%) and flat channels raw; which family a channel belongs to is its owner's business. `merge` is the one summing authority, and `stampReplacingWithCount` writes the count it is given (it never increments).

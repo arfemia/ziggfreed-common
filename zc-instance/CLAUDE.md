@@ -1,7 +1,5 @@
 # zc-instance
 
-The instance-experience layer a minigame builds on: arenas, match rules, presets, the play, results, leaderboard and party screens, the lobby and the party system.
-
 - Depends on `zc-core`, `zc-presentation`, `zc-loot` and `zc-encounter` (listen and read only: `EncounterLeaderboardListener` writes a defeat's rows, and `EncounterBoards` and `/zigleaderboard` read the binding rows that shape them). `zc-objectives` is its one library dependent.
 - Never add an edge to `zc-objectives`, `zc-dialogue` or `zc-progression`. A finished round leaves as `InstanceRoundCompletedEvent`, fired through `InstanceRounds.fireCompleted` on the instance world thread; its `winners` list is empty on a loss or an abort.
 - Every page takes an immutable `*PageDeps` plus a locale-free messages provider; the consumer supplies pre-built client-resolved `Message`s.

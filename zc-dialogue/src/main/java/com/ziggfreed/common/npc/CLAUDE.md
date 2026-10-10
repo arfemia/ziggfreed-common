@@ -1,7 +1,5 @@
 # npc/ - who an NPC is, what counts as talking to one, and the spawn and press-F primitives
 
-The placement engine (put an NPC somewhere and keep exactly one standing) is `placement/`. This package holds the identity, naming and talk-credit layer every surface asks through, plus the spawn and press-F primitives placement builds on.
-
 ## Identity and names
 
 - `NpcIdentities` answers who an NPC is: the placement's `Identity.NpcId` (or, with none authored, the role that placement names), then an identity overlay on its role (following native `Variant` chains), then an overlay on a group it belongs to, then its role id. The convention is the floor, never a rung above the overlays. An unauthored `NpcId` means the character IS its role, so two placements of one role are one character.

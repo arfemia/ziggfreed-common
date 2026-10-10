@@ -1,7 +1,5 @@
 # zc-calendar
 
-Events that come round every year: the asset and its owner switches, the occurrence answers, the minute tick, attendance, the herald and event spawns.
-
 - Depends on zc-core and zc-presentation only. zc-progression and zc-almanac read runs through zc-core's `occurrence/Occurrences` (filled by `CalendarBootstrap`; `CalendarService` answers `live`, `next`, `history` and each event's `zone`); zc-objectives turns `CalendarAttendedEvent` into `CALENDAR_ATTENDED` (`ZigCalendarProducer`). Never import any of them.
 - A calendar event is `CalendarEventAsset` at `Server/ZiggfreedCommon/CalendarEvents/<Owner>/<Id>.json`; the FILE NAME is the id and folders are inert, so ids collide across owners unless prefixed. An id `Calendar`, `Almanac` or ending in `_Live` (another switch's, `ID_RESERVED`) or carrying `|` or `@` (the attendance save format's separators, `ID_UNSAVABLE`) never runs and declares no feature (`CalendarEventAsset.isReservedId`).
 - Window Start and End are `MM-DD` and BOTH days are in; an End before its Start crosses the new year, and a run belongs to the year it starts in. `Clock` is a java.time zone id or offset, UTC by default. No readable Window or no FirstYear: the event never runs and the log says why.
