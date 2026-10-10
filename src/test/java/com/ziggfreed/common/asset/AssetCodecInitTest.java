@@ -42,6 +42,7 @@ import com.ziggfreed.common.dialogue.asset.DialogueOptionThemeAsset;
 import com.ziggfreed.common.dialogue.asset.ZcDialogueAsset;
 import com.ziggfreed.common.encounter.asset.EncounterBindingAsset;
 import com.ziggfreed.common.encounter.asset.EncounterParticipationAsset;
+import com.ziggfreed.common.encounter.asset.EncounterRuleAsset;
 import com.ziggfreed.common.entity.overhead.OverheadIndicatorAsset;
 import com.ziggfreed.common.objectives.indicator.QuestIndicatorAsset;
 import com.ziggfreed.common.quest.asset.QuestIndicatorSpec;
@@ -250,6 +251,12 @@ class AssetCodecInitTest {
     void encounterParticipationAssetCodecInitializes() {
         assertNotNull(EncounterParticipationAsset.CODEC,
                 "EncounterParticipationAsset.CODEC must static-init (PascalCase keys)");
+    }
+
+    @Test
+    void encounterRuleAssetCodecInitializes() {
+        assertNotNull(EncounterRuleAsset.CODEC, "EncounterRuleAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(EncounterRuleAsset.Match.CODEC, "the Match group codec must static-init");
     }
 
     @Test

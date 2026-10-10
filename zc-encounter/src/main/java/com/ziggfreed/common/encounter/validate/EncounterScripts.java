@@ -9,6 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -34,12 +35,17 @@ import com.ziggfreed.common.util.SafeLog;
  * encounter category, its file read back and scanned ({@link EncounterScriptScan}), with any
  * builder it references resolved by name through the same manager.
  *
- * <p>Whether a script authors a given beat is asked on the tick (does this script announce its own
- * engage?), so the answer is cached per script id and dropped on a builder reload.
+ * <p>What a script says is asked on hot paths (does it announce its own engage, on the tick; does
+ * it put up a boss bar, when its entity arrives in a chunk load), so ONE scan per script id is
+ * cached. {@link #rewarm} reads every loaded script into a fresh cache and swaps it in whole; it
+ * runs with the boot self-test, before the first world's chunks load, and again on every builder
+ * reload, so an arriving entity finds its answer cached and no file is read mid-chunk-load. A
+ * script the cache does not hold is read on first ask and kept.
  */
 public final class EncounterScripts {
 
-    private static final Map<String, Boolean> AUTHORS_ENGAGED = new ConcurrentHashMap<>();
+    /** One scan per script id (lower-cased); empty for a script that cannot be read. */
+    private static volatile Map<String, Optional<EncounterScriptScan>> scans = new ConcurrentHashMap<>();
 
     private EncounterScripts() {
     }
@@ -118,15 +124,49 @@ public final class EncounterScripts {
      * cannot see.
      */
     public static boolean authorsEngaged(@Nonnull String encounterId) {
-        return AUTHORS_ENGAGED.computeIfAbsent(encounterId.toLowerCase(Locale.ROOT), k -> {
-            EncounterScriptScan scan = scan(encounterId);
-            return scan == null || scan.authors(EncounterSignal.Moment.ENGAGED);
-        });
+        EncounterScriptScan scan = cached(encounterId);
+        return scan == null || scan.authors(EncounterSignal.Moment.ENGAGED);
     }
 
-    /** Drop every cached answer; called on a builder reload. */
+    /**
+     * Whether {@code encounterId}'s script puts up a boss bar ({@code SetEncounterBossBar}), its own
+     * word that it is a boss fight. Cached; fails closed: a script that cannot be read answers false.
+     */
+    public static boolean setsBossBar(@Nonnull String encounterId) {
+        EncounterScriptScan scan = cached(encounterId);
+        return scan != null && scan.setsBossBar();
+    }
+
+    /** The cached scan of {@code encounterId}, read and kept on first ask, or null when it cannot be read. */
+    @Nullable
+    private static EncounterScriptScan cached(@Nonnull String encounterId) {
+        return scans.computeIfAbsent(encounterId.toLowerCase(Locale.ROOT),
+                k -> Optional.ofNullable(scan(encounterId))).orElse(null);
+    }
+
+    /**
+     * Read every loaded script into a fresh cache and swap it in whole, so a reader never sees it
+     * half filled. A pass that fails leaves an empty cache, read again script by script on first ask.
+     *
+     * @return how many scripts were read
+     */
+    public static int rewarm() {
+        try {
+            Map<String, Optional<EncounterScriptScan>> fresh = new ConcurrentHashMap<>();
+            forEachLoaded((id, spawnable, root, referenced) -> fresh.put(id.toLowerCase(Locale.ROOT),
+                    Optional.of(EncounterScriptScan.scan(id, spawnable, root, referenced))));
+            scans = fresh;
+            return fresh.size();
+        } catch (Throwable t) {
+            SafeLog.warn(Encounters.LOG_PREFIX + " the encounter scripts could not be read ahead", t);
+            invalidate();
+            return 0;
+        }
+    }
+
+    /** Drop every cached answer; the next ask reads its script again. */
     public static void invalidate() {
-        AUTHORS_ENGAGED.clear();
+        scans = new ConcurrentHashMap<>();
     }
 
     /**

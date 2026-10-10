@@ -12,6 +12,10 @@ import com.ziggfreed.common.util.SafeLog;
  * The boot self-test: once the builders have loaded, the library's own shipped base script must
  * resolve by index and the encounter Types must be registered, or every pack script built on them
  * is silently dead. Says so at SEVERE, once; says the index at INFO when all is well.
+ *
+ * <p>It also reads every loaded script ahead ({@link EncounterScripts#rewarm}): it runs on the first
+ * world's add, before that world loads a chunk, so an encounter entity arriving in a chunk load
+ * finds whether its script puts up a boss bar already cached.
  */
 public final class EncounterSelfTest {
 
@@ -31,6 +35,9 @@ public final class EncounterSelfTest {
         if (!RAN.compareAndSet(false, true)) {
             return;
         }
+        // First and on its own: it never throws, and a check below that does must not cost it.
+        SafeLog.info(Encounters.LOG_PREFIX + " read " + EncounterScripts.rewarm()
+                + " encounter scripts ahead of the first chunk load");
         try {
             BuilderInfo base = EncounterSpawner.encounterInfo(BASE_SCRIPT);
             if (base == null) {

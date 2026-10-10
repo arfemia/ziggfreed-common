@@ -21,9 +21,10 @@ import com.ziggfreed.common.encounter.signal.EncounterSignal;
 /**
  * What one native encounter script SAYS, read off its authored JSON: which {@code zc:} signals it
  * fires, which target slots it names, whether its Player sensor carries the member collector,
- * whether every {@code zc:defeated} beat sits beside a {@code ClearEncounterBossBar}, and whether a
- * blocking action list sits under a sensor marked {@code Once} (which the engine spends after its
- * first tick, stranding every action after the first).
+ * whether it puts up a boss bar and over which slot, whether every {@code zc:defeated} beat sits
+ * beside a {@code ClearEncounterBossBar}, and whether a blocking action list sits under a sensor
+ * marked {@code Once} (which the engine spends after its first tick, stranding every action after
+ * the first).
  *
  * <p>Pure: it walks a JSON tree, follows a {@code Reference} (a Variant's base, a macro's Content)
  * through a resolver the caller supplies, substitutes {@code {"Compute": "<Name>"}} reads from the
@@ -31,10 +32,16 @@ import com.ziggfreed.common.encounter.signal.EncounterSignal;
  * the engine. A value it cannot resolve is simply not reported, so an unusual authoring shape can
  * hide a finding but never invent one.
  *
+ * <p>The engine's {@code SetEncounterBossBar} points the bar at whatever its instruction's own
+ * sensor matched, so the bar's slot is that sibling {@code Sensor}'s {@code TargetSlot} or
+ * {@code LockedTargetSlot}, read through an {@code And} or {@code Or} sensor's {@code Sensors} (a
+ * {@code Not} matches only when its target is absent, so it names none), and through an action
+ * macro the action list references.
+ *
  * @param id             the script id
  * @param spawnable      whether the script is a Generic or Variant (false for an Abstract base)
  * @param signals        every {@code SignalWorldEvent} id it fires, resolved where it could be
- * @param targetSlots    every {@code TargetSlot} name it mentions
+ * @param targetSlots    every {@code TargetSlot} and {@code LockedTargetSlot} name it mentions
  * @param memberCollector whether an {@code EncounterMembers} collector is authored
  * @param clearsBossBar  whether a {@code ClearEncounterBossBar} is authored anywhere
  * @param defeatBeatsWithoutBarClear how many {@code zc:defeated} beats sit in an action list with
@@ -42,10 +49,14 @@ import com.ziggfreed.common.encounter.signal.EncounterSignal;
  * @param onceHeadedBlockingLists how many blocking action lists of two or more actions sit under a
  *                       sensor marked {@code Once}, which is spent after its first tick and strands
  *                       the rest of the list
+ * @param setsBossBar    whether a {@code SetEncounterBossBar} is authored anywhere, the script's own
+ *                       word that it is a boss fight
+ * @param bossBarSlots   every slot a bar is put up over, where its sensor names one
  */
 public record EncounterScriptScan(@Nonnull String id, boolean spawnable, @Nonnull List<String> signals,
                                   @Nonnull Set<String> targetSlots, boolean memberCollector, boolean clearsBossBar,
-                                  int defeatBeatsWithoutBarClear, int onceHeadedBlockingLists) {
+                                  int defeatBeatsWithoutBarClear, int onceHeadedBlockingLists, boolean setsBossBar,
+                                  @Nonnull Set<String> bossBarSlots) {
 
     /** How deep a chain of references is followed before it is assumed to be a cycle. */
     static final int MAX_REFERENCE_DEPTH = 8;
@@ -54,8 +65,12 @@ public record EncounterScriptScan(@Nonnull String id, boolean spawnable, @Nonnul
     private static final String SIGNAL_TYPE = "SignalWorldEvent";
     private static final String SIGNAL_ID = "SignalId";
     private static final String CLEAR_BAR_TYPE = "ClearEncounterBossBar";
+    private static final String SET_BAR_TYPE = "SetEncounterBossBar";
     private static final String MEMBERS_TYPE = "EncounterMembers";
     private static final String TARGET_SLOT = "TargetSlot";
+    private static final String LOCKED_TARGET_SLOT = "LockedTargetSlot";
+    private static final String SENSORS = "Sensors";
+    private static final String NOT_TYPE = "Not";
     private static final String REFERENCE = "Reference";
     private static final String MODIFY = "Modify";
     private static final String COMPUTE = "Compute";
@@ -66,6 +81,17 @@ public record EncounterScriptScan(@Nonnull String id, boolean spawnable, @Nonnul
     private static final String ACTIONS_BLOCKING = "ActionsBlocking";
     private static final String SENSOR = "Sensor";
     private static final String ONCE = "Once";
+
+    /**
+     * The scan as read before it knew boss bars: no bar, no bar slot. Kept so a caller built against
+     * the eight-field record still links.
+     */
+    public EncounterScriptScan(@Nonnull String id, boolean spawnable, @Nonnull List<String> signals,
+            @Nonnull Set<String> targetSlots, boolean memberCollector, boolean clearsBossBar,
+            int defeatBeatsWithoutBarClear, int onceHeadedBlockingLists) {
+        this(id, spawnable, signals, targetSlots, memberCollector, clearsBossBar, defeatBeatsWithoutBarClear,
+                onceHeadedBlockingLists, false, Set.of());
+    }
 
     /** True when the script fires any {@code zc:} signal at all. */
     public boolean firesFrameworkSignals() {
@@ -100,7 +126,8 @@ public record EncounterScriptScan(@Nonnull String id, boolean spawnable, @Nonnul
         walker.walkRoot(root, Map.of(), 0);
         return new EncounterScriptScan(id, spawnable, Collections.unmodifiableList(walker.signals),
                 Collections.unmodifiableSet(walker.targetSlots), walker.memberCollector, walker.clearsBossBar,
-                walker.defeatWithoutClear, walker.onceHeadedBlocking);
+                walker.defeatWithoutClear, walker.onceHeadedBlocking, walker.setsBossBar,
+                Collections.unmodifiableSet(walker.bossBarSlots));
     }
 
     /** The recursive walk with its findings. */
@@ -109,8 +136,10 @@ public record EncounterScriptScan(@Nonnull String id, boolean spawnable, @Nonnul
         private final Function<String, JsonObject> referenced;
         final List<String> signals = new ArrayList<>();
         final Set<String> targetSlots = new LinkedHashSet<>();
+        final Set<String> bossBarSlots = new LinkedHashSet<>();
         boolean memberCollector;
         boolean clearsBossBar;
+        boolean setsBossBar;
         int defeatWithoutClear;
         int onceHeadedBlocking;
 
@@ -149,16 +178,19 @@ public record EncounterScriptScan(@Nonnull String id, boolean spawnable, @Nonnul
                 }
             } else if (CLEAR_BAR_TYPE.equals(type)) {
                 clearsBossBar = true;
+            } else if (SET_BAR_TYPE.equals(type)) {
+                setsBossBar = true;
             } else if (MEMBERS_TYPE.equals(type)) {
                 memberCollector = true;
             }
-            String slot = string(object.get(TARGET_SLOT), scope);
-            if (slot != null && !slot.isBlank()) {
-                targetSlots.add(slot);
-            }
+            addSlot(targetSlots, object.get(TARGET_SLOT), scope);
+            addSlot(targetSlots, object.get(LOCKED_TARGET_SLOT), scope);
             JsonElement actions = object.get(ACTIONS);
             if (actions != null && actions.isJsonArray()) {
                 checkDefeatBeat(actions.getAsJsonArray(), scope);
+                if (setsBar(actions.getAsJsonArray(), scope)) {
+                    sensorSlots(object.get(SENSOR), scope);
+                }
                 if (actions.getAsJsonArray().size() > 1 && isTrue(object.get(ACTIONS_BLOCKING), scope)
                         && sensorIsOnce(object.get(SENSOR), scope)) {
                     onceHeadedBlocking++;
@@ -199,6 +231,58 @@ public record EncounterScriptScan(@Nonnull String id, boolean spawnable, @Nonnul
             }
             if (defeated && !cleared) {
                 defeatWithoutClear++;
+            }
+        }
+
+        /** Whether an action list puts up a boss bar: the action itself, or an action macro carrying it. */
+        private boolean setsBar(@Nonnull JsonArray actions, @Nonnull Map<String, JsonElement> scope) {
+            for (JsonElement action : actions) {
+                if (!action.isJsonObject()) {
+                    continue;
+                }
+                JsonObject object = action.getAsJsonObject();
+                if (SET_BAR_TYPE.equals(string(object.get(TYPE), scope))) {
+                    return true;
+                }
+                if (object.has(REFERENCE)) {
+                    JsonObject target = resolve(object.get(REFERENCE), scope);
+                    if (target != null && mentions(target, SET_BAR_TYPE)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /**
+         * The slots a bar's sibling sensor matches its target in: its own {@code TargetSlot} or
+         * {@code LockedTargetSlot}, and each of an {@code And} or {@code Or} sensor's {@code Sensors}.
+         * A {@code Not} matches only while its target is absent, so the bar has nothing of it to track.
+         */
+        private void sensorSlots(@Nullable JsonElement sensor, @Nonnull Map<String, JsonElement> scope) {
+            if (sensor == null || !sensor.isJsonObject()) {
+                return;
+            }
+            JsonObject object = sensor.getAsJsonObject();
+            if (NOT_TYPE.equals(string(object.get(TYPE), scope))) {
+                return;
+            }
+            addSlot(bossBarSlots, object.get(TARGET_SLOT), scope);
+            addSlot(bossBarSlots, object.get(LOCKED_TARGET_SLOT), scope);
+            JsonElement children = object.get(SENSORS);
+            if (children != null && children.isJsonArray()) {
+                for (JsonElement child : children.getAsJsonArray()) {
+                    sensorSlots(child, scope);
+                }
+            }
+        }
+
+        /** Add the slot name {@code value} reads as, through a Compute read, when it reads as one. */
+        private static void addSlot(@Nonnull Set<String> into, @Nullable JsonElement value,
+                @Nonnull Map<String, JsonElement> scope) {
+            String slot = string(value, scope);
+            if (slot != null && !slot.isBlank()) {
+                into.add(slot);
             }
         }
 

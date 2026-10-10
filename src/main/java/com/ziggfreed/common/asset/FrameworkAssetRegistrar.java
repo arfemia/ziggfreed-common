@@ -22,6 +22,8 @@ import com.ziggfreed.common.encounter.asset.EncounterBindingConfig;
 import com.ziggfreed.common.encounter.asset.EncounterOwnerLayers;
 import com.ziggfreed.common.encounter.asset.EncounterParticipationAsset;
 import com.ziggfreed.common.encounter.asset.EncounterParticipationConfig;
+import com.ziggfreed.common.encounter.asset.EncounterRuleAsset;
+import com.ziggfreed.common.encounter.asset.EncounterRuleConfig;
 import com.ziggfreed.common.factor.DerivedFactorAsset;
 import com.ziggfreed.common.factor.DerivedFactorConfig;
 import com.ziggfreed.common.instance.arena.ArenaDefinitionAsset;
@@ -794,6 +796,18 @@ public final class FrameworkAssetRegistrar {
                 (LoadedAssetsEvent<String, EncounterParticipationAsset, DefaultAssetMap<String, EncounterParticipationAsset>> ev) -> {
                     EncounterParticipationConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
                     EncounterOwnerLayers.reloadParticipation();
+                });
+
+        // --- Encounter rules (Pattern A) - a creature whose kill counts as a boss fight, matched by
+        //     its exact NPC role id; the library ships the rows for the engine's own bar-less fights.
+        //     Owner layer mods/ziggfreedcommon/encounter-rules.json. ---
+        AssetStoreRegistrar.registerStore(EncounterRuleAsset.class,
+                new DefaultAssetMap<String, EncounterRuleAsset>(), EncounterRuleAsset.TYPE_ROOT,
+                EncounterRuleAsset::getId, EncounterRuleAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, EncounterRuleAsset.class,
+                (LoadedAssetsEvent<String, EncounterRuleAsset, DefaultAssetMap<String, EncounterRuleAsset>> ev) -> {
+                    EncounterRuleConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    EncounterOwnerLayers.reloadRules();
                 });
 
         // --- Gear sets (Pattern A) - one SET per file: its members, and the tiers of stat

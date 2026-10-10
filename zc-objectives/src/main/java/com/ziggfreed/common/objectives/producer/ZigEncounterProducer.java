@@ -30,7 +30,9 @@ import com.ziggfreed.common.util.SafeLog;
  * for the three kinds): {@code Target} is the encounter SCRIPT id, never the boss creature's id,
  * so a step naming the boss holds through an in-place role swap; {@code Qualifier} is the run's
  * difficulty label for the two settlement kinds and the phase's own state name for the phase kind;
- * {@code Amount} is 1 per fire.
+ * {@code Amount} is 1 per fire. A fight with no run counts through {@link EncounterRuleCredit}
+ * instead, whose two settlement moments target the killed creature's ROLE id: a script id for a
+ * run, a role id for a rule credit.
  *
  * <p><b>Who is credited.</b> DEFEATED goes to the participants the ledger credited (a share at or
  * over the fight's {@code MinShare}); ATTEMPT goes to every participant the ledger saw, credited or
@@ -47,10 +49,16 @@ import com.ziggfreed.common.util.SafeLog;
  */
 public final class ZigEncounterProducer {
 
-    /** Fired once per CREDITED participant when the boss falls. */
+    /**
+     * Fired once per CREDITED participant when the boss falls, targeted at the script id; and by
+     * {@link EncounterRuleCredit} for the killer of a creature a rule names, targeted at its role id.
+     */
     public static final String KIND_DEFEATED = "ENCOUNTER_DEFEATED";
 
-    /** Fired once per PARTICIPANT when a fight settles, won or wiped. */
+    /**
+     * Fired once per PARTICIPANT when a fight settles, won or wiped, targeted at the script id; and
+     * by {@link EncounterRuleCredit} for the killer of a creature a rule names, targeted at its role id.
+     */
     public static final String KIND_ATTEMPT = "ENCOUNTER_ATTEMPT";
 
     /** Fired once per live MEMBER on every phase beat, the phase's state name as the qualifier. */

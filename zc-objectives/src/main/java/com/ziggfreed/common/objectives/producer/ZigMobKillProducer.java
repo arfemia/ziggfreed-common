@@ -46,6 +46,10 @@ import com.ziggfreed.common.util.SafeLog;
  * kill (an empty AUTHORED qualifier reads as "any"). No answer means the kill fires unqualified,
  * byte-identical to a server with nothing registered; there is deliberately no second qualified
  * re-fire, which would count one kill twice for every unqualified criterion.
+ *
+ * <p><b>A kill an encounter rule names is also a boss fight.</b> Once the kill has fired, the same
+ * player, victim and role id go to {@link EncounterRuleCredit}, which fires the two fight moments
+ * when a rule counts that role.
  */
 public final class ZigMobKillProducer extends DeathSystems.OnDeathSystem {
 
@@ -93,6 +97,8 @@ public final class ZigMobKillProducer extends DeathSystems.OnDeathSystem {
             String qualifier = ProgressionRuntime.killQualifier().qualifierFor(store, victimRef);
             ProgressDispatch.fire(store, credited, commandBuffer, KIND, victimId, qualifier, 1L,
                     new MobKillPayload(victimRef, death));
+            // A creature an encounter rule names counts as a boss fight too, for the same player.
+            EncounterRuleCredit.credit(store, credited, commandBuffer, victimRef, victimId);
         } catch (Throwable t) {
             SafeLog.warn("[progression] kill dispatch failed", t);
         }

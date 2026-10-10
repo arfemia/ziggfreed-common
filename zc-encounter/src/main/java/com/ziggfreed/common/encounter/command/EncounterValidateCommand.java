@@ -11,7 +11,8 @@ import com.ziggfreed.common.encounter.validate.EncounterAudit;
 import com.ziggfreed.common.validation.Finding;
 
 /**
- * Audit every loaded encounter script, binding row and participation rule and say what is wrong.
+ * Audit every loaded encounter script, binding row, participation rule and encounter rule and say
+ * what is wrong.
  * The findings go to whoever asked AND to the server log; chat stops after the first twenty.
  */
 final class EncounterValidateCommand extends AbstractAsyncCommand {

@@ -8,10 +8,11 @@ import javax.annotation.Nonnull;
 import com.ziggfreed.common.asset.OwnerLayerReader;
 
 /**
- * The SERVER OWNER's last word on encounters, at {@code mods/ziggfreedcommon/encounters.json} and
- * {@code mods/ziggfreedcommon/encounter-participation.json}: a bare map from an id to the leaves
- * that id should read differently, decoded against the packs' own answer through the same codecs
- * the files use, exactly like the economy's owner files.
+ * The SERVER OWNER's last word on encounters, at {@code mods/ziggfreedcommon/encounters.json},
+ * {@code mods/ziggfreedcommon/encounter-participation.json} and
+ * {@code mods/ziggfreedcommon/encounter-rules.json}: a bare map from an id to the leaves that id
+ * should read differently, decoded against the packs' own answer through the same codecs the files
+ * use, exactly like the economy's owner files.
  *
  * <pre>{@code
  * // mods/ziggfreedcommon/encounters.json
@@ -37,6 +38,9 @@ public final class EncounterOwnerLayers {
 
     /** The owner file over the participation rules. */
     public static final String PARTICIPATION_FILE = "encounter-participation.json";
+
+    /** The owner file over the encounter rules. */
+    public static final String RULES_FILE = "encounter-rules.json";
 
     @Nonnull
     private static volatile Path directory = DEFAULT_DIRECTORY;
@@ -68,9 +72,16 @@ public final class EncounterOwnerLayers {
                 EncounterParticipationConfig.getInstance(), "participation rule");
     }
 
-    /** Both files, for the reload verb. */
+    /** (Re)read {@code encounter-rules.json} into the encounter rule fold's owner layer. */
+    public static void reloadRules() {
+        OwnerLayerReader.apply(LOG_TAG, directory.resolve(RULES_FILE), EncounterRuleAsset.class,
+                EncounterRuleAsset.CODEC, EncounterRuleConfig.getInstance(), "encounter rule");
+    }
+
+    /** Every file, for the reload verb. */
     public static void reloadAll() {
         reloadBindings();
         reloadParticipation();
+        reloadRules();
     }
 }

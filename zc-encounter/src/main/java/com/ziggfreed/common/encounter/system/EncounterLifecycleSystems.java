@@ -1,9 +1,12 @@
 package com.ziggfreed.common.encounter.system;
 
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.hypixel.hytale.builtin.encountermanager.EncounterManager;
 import com.hypixel.hytale.component.AddReason;
@@ -17,17 +20,21 @@ import com.hypixel.hytale.component.system.HolderSystem;
 import com.hypixel.hytale.component.system.RefSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.asset.builder.BuilderInfo;
+import com.ziggfreed.common.encounter.asset.EncounterBindingConfig;
 import com.ziggfreed.common.encounter.event.Encounters;
 import com.ziggfreed.common.encounter.event.ResetReason;
+import com.ziggfreed.common.encounter.run.EncounterAttachGuard;
 import com.ziggfreed.common.encounter.run.EncounterLifecycle;
 import com.ziggfreed.common.encounter.run.EncounterRuns;
 import com.ziggfreed.common.encounter.run.ZigEncounterRun;
+import com.ziggfreed.common.encounter.validate.EncounterScripts;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * Where a run BEGINS and ENDS with its entity: every encounter entity added to a store carries a
- * run from its first tick (whoever placed it: the spawner, a builder's command, a prefab, a chunk
- * load), and every removal ends the run with the reason the engine gave.
+ * Where a run BEGINS and ENDS with its entity: an encounter entity added to a store whose script
+ * counts as a fight ({@link EncounterAttachGuard}: it puts up a boss bar, or a binding row names it)
+ * carries a run from its first tick, whoever placed it (the spawner, a builder's command, a prefab,
+ * a chunk load), and every removal ends the run with the reason the engine gave.
  *
  * <p>A builder hot-reload removes and re-adds the entity under {@code UNLOAD} and {@code LOAD},
  * restarting the script at its start state; the reload listener notes the reloaded builder so the
@@ -39,6 +46,9 @@ public final class EncounterLifecycleSystems {
     private static final long RELOAD_WINDOW_NANOS = 15_000_000_000L;
 
     private static final Map<Integer, Long> RELOADING = new ConcurrentHashMap<>();
+
+    /** Each script id (lower-cased) whose skip has been said this boot, so it is said once, never per entity. */
+    private static final Set<String> SKIPS_SAID = ConcurrentHashMap.newKeySet();
 
     private EncounterLifecycleSystems() {
     }
@@ -56,7 +66,11 @@ public final class EncounterLifecycleSystems {
         return at != null && System.nanoTime() - at < RELOAD_WINDOW_NANOS;
     }
 
-    /** Attaches a run to every encounter entity that arrives without one, before its first tick. */
+    /**
+     * Attaches a run, before its first tick, to every encounter entity that arrives without a live
+     * one and whose script counts as a fight. Whether a script puts up a boss bar is read from the
+     * script cache the boot self-test fills, so a chunk load reads no file.
+     */
     public static final class Attach extends HolderSystem<EntityStore> {
 
         @Nonnull
@@ -73,13 +87,31 @@ public final class EncounterLifecycleSystems {
             }
             try {
                 ZigEncounterRun run = holder.getComponent(ZigEncounterRun.TYPE);
-                if (run == null) {
-                    holder.addComponent(ZigEncounterRun.TYPE, new ZigEncounterRun());
-                } else if (run.isEnded()) {
-                    holder.putComponent(ZigEncounterRun.TYPE, (ZigEncounterRun) run.clone());
+                EncounterManager manager = holder.getComponent(EncounterManager.getComponentType());
+                String encounterId = manager == null ? null : manager.getEncounterId();
+                boolean live = run != null && !run.isEnded();
+                // A live run is kept whatever the script says, so its script is never asked.
+                boolean bound = !live && encounterId != null
+                        && EncounterBindingConfig.getInstance().forEncounter(encounterId) != null;
+                boolean setsBar = !live && !bound && encounterId != null && EncounterScripts.setsBossBar(encounterId);
+                switch (EncounterAttachGuard.decide(run != null, run != null && run.isEnded(),
+                        run != null && run.spawned(), bound, setsBar)) {
+                    case OPEN -> holder.addComponent(ZigEncounterRun.TYPE, new ZigEncounterRun());
+                    case RENEW -> holder.putComponent(ZigEncounterRun.TYPE, (ZigEncounterRun) run.clone());
+                    case SKIP -> sayOnceSkipped(encounterId);
+                    case KEEP -> {
+                    }
                 }
             } catch (Throwable t) {
                 SafeLog.warn(Encounters.LOG_PREFIX + " could not attach a run to an encounter entity", t);
+            }
+        }
+
+        /** One INFO line per script id this boot, never one per entity. */
+        private static void sayOnceSkipped(@Nullable String encounterId) {
+            if (encounterId != null && SKIPS_SAID.add(encounterId.toLowerCase(Locale.ROOT))) {
+                SafeLog.info(Encounters.LOG_PREFIX + " no run for '" + encounterId + "': its script puts up no"
+                        + " boss bar and no binding row names it, so it is not counted as a fight");
             }
         }
 

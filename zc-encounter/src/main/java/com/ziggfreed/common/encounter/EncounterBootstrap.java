@@ -81,12 +81,15 @@ public final class EncounterBootstrap {
         }
     }
 
-    /** A builder hot-reload restarts every encounter built on it; note it so the removal reads as a reload. */
+    /**
+     * A builder hot-reload restarts every encounter built on it; note it so the removal reads as a
+     * reload, and read the scripts again before the engine re-adds those encounters.
+     */
     private static void registerReloadListener() {
         try {
             NPCPlugin.get().getBuilderManager().addBuilderReloadListener(info -> {
                 EncounterLifecycleSystems.noteReload(info);
-                EncounterScripts.invalidate();
+                EncounterScripts.rewarm();
             });
         } catch (Throwable t) {
             SafeLog.warn(Encounters.LOG_PREFIX + " could not hang the builder reload listener", t);

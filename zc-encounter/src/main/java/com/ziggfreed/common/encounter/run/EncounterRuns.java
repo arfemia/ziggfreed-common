@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -173,6 +174,39 @@ public final class EncounterRuns {
     /** True when {@code ref} is the bound subject of any live run. */
     public static boolean isBoundSubject(@Nonnull Ref<EntityStore> ref) {
         return runOfSubject(ref) != null;
+    }
+
+    /**
+     * True when {@code ref} is the subject of a live run, read the way a death needs it: the subject
+     * index first, else its uuid against every tracked run's bound subject, because an in-place role
+     * change reissues the boss's reference and the index learns the new one only on the next tick.
+     */
+    public static boolean isLiveSubject(@Nonnull ComponentAccessor<EntityStore> accessor,
+            @Nonnull Ref<EntityStore> ref) {
+        return isLiveSubject(ref, () -> EncounterSubjects.uuidOf(accessor, ref));
+    }
+
+    /**
+     * {@link #isLiveSubject(ComponentAccessor, Ref)} with the uuid read handed in, asked only when the
+     * index misses and a run is tracked; for a test with no store.
+     */
+    public static boolean isLiveSubject(@Nonnull Ref<EntityStore> ref, @Nonnull Supplier<UUID> uuidOf) {
+        if (isBoundSubject(ref)) {
+            return true;
+        }
+        if (LIVE.isEmpty()) {
+            return false;
+        }
+        UUID uuid = uuidOf.get();
+        if (uuid == null) {
+            return false;
+        }
+        for (Live live : LIVE.values()) {
+            if (uuid.equals(live.run().subjectUuid())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // ==================== the adds ====================

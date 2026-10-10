@@ -14,8 +14,8 @@ admin.desc.inspect = Show one encounter's run: its subject, its members and who 
 admin.desc.spawn = Stand an encounter script up, at you, at a world's spawn point or at coordinates.
 admin.desc.end = Remove a live encounter, settling an engaged fight as a wipe.
 admin.desc.state = Force an encounter's script into a state.
-admin.desc.validate = Audit every loaded encounter script, binding row and participation rule.
-admin.desc.reload = Re-read the owner files over the encounter bindings and participation rules.
+admin.desc.validate = Audit every loaded encounter script, binding row, participation rule and encounter rule.
+admin.desc.reload = Re-read the owner files over the encounter bindings, participation rules and encounter rules.
 admin.desc.arg.ref = A live encounter: a prefix of its run id as list prints it, or its script id.
 admin.desc.arg.asset = The encounter script id, its file name under Server/EncounterManager.
 admin.desc.arg.world = The world to spawn in. Defaults to yours, or to the default world from the console.
@@ -70,4 +70,4 @@ admin.validate.clean = Encounter content: nothing to report.
 admin.validate.counts = Encounter content: {0} errors, {1} warnings, {2} notes.
 admin.finding = {0} {1} [{2}] {3}
 
-admin.reload.done = Re-read the owner files: {0} bindings and {1} participation rules in force, {2} scripts loaded.
+admin.reload.done = Re-read the owner files: {0} bindings, {1} participation rules and {3} encounter rules in force, {2} scripts loaded.

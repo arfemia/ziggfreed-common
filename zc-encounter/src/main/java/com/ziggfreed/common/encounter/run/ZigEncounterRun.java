@@ -47,6 +47,7 @@ public final class ZigEncounterRun implements Component<EntityStore> {
     @Nullable private UUID worldUuid;
 
     // what the spawn call asked for; carried across a re-arm on the same entity
+    private boolean spawned;
     @Nullable private String ownerKey;
     @Nullable private String difficulty;
     private double healthMultiplier = 1.0;
@@ -91,6 +92,7 @@ public final class ZigEncounterRun implements Component<EntityStore> {
     @Nonnull
     public static ZigEncounterRun forSpawn(@Nonnull SpawnOptions options) {
         ZigEncounterRun run = new ZigEncounterRun();
+        run.spawned = true;
         run.ownerKey = options.ownerKey();
         run.difficulty = options.difficulty();
         run.healthMultiplier = options.healthMultiplier();
@@ -135,6 +137,14 @@ public final class ZigEncounterRun implements Component<EntityStore> {
     }
 
     // ==================== the spawn call ====================
+
+    /**
+     * Whether this library's spawner stood the encounter up ({@link EncounterSpawner}), which asked
+     * for a run whatever the script says; carried to the copy a re-add mints.
+     */
+    public boolean spawned() {
+        return spawned;
+    }
 
     @Nullable
     public String ownerKey() {
@@ -406,6 +416,7 @@ public final class ZigEncounterRun implements Component<EntityStore> {
     @Override
     public Component<EntityStore> clone() {
         ZigEncounterRun copy = new ZigEncounterRun();
+        copy.spawned = spawned;
         copy.ownerKey = ownerKey;
         copy.difficulty = difficulty;
         copy.healthMultiplier = healthMultiplier;

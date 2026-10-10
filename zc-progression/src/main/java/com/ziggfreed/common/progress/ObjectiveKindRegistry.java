@@ -55,7 +55,11 @@ import com.ziggfreed.common.util.SafeLog;
  * the run's difficulty label; {@code ENCOUNTER_ATTEMPT} fires once per participant when a fight
  * settles either way, won or wiped, same qualifier, so "fight it ten times" and "beat it ten
  * times" are two objectives; {@code ENCOUNTER_PHASE} fires once per member on every phase beat,
- * {@code Qualifier} the phase's own state name. {@code Amount} is 1 per fire.
+ * {@code Qualifier} the phase's own state name. {@code Amount} is 1 per fire. A fight with no run
+ * (no boss bar, no binding) counts through an encounter rule instead: a kill of the role the rule
+ * names fires {@code ENCOUNTER_ATTEMPT} then {@code ENCOUNTER_DEFEATED} for the killer, and there
+ * {@code Target} is that ROLE id with no qualifier. So a fight's target is a script id for a run and
+ * a role id for a rule credit; a step with no {@code Target} counts both.
  *
  * <p><b>One describes USING an item</b> ({@code USE_ITEM}): {@code Target} is the item used,
  * {@code Qualifier} how it was used (thrown, cracked open, aimed at somebody), {@code Amount} 1 per
@@ -193,8 +197,9 @@ public final class ObjectiveKindRegistry {
     private static final Set<String> BUILT_IN_CONTENT_TARGETED = Set.of("COMPLETE_QUEST");
 
     /**
-     * The pre-seeded kinds whose TARGET names a boss fight by its encounter script id, answered
-     * with a picture by whoever binds encounters - the same division a wallet has.
+     * The pre-seeded kinds whose TARGET names a boss fight: by its encounter script id for a run,
+     * by the role id for an encounter rule's credit. Answered with a picture by whoever binds
+     * encounters - the same division a wallet has.
      */
     private static final Set<String> BUILT_IN_ENCOUNTER_TARGETED = Set.of(
             "ENCOUNTER_DEFEATED", "ENCOUNTER_PHASE", "ENCOUNTER_ATTEMPT");

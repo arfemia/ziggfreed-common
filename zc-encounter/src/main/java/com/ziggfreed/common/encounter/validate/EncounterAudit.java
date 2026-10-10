@@ -29,6 +29,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.spawning.blockstates.SpawnMarkerBlock;
 import com.ziggfreed.common.encounter.asset.EncounterBindingConfig;
 import com.ziggfreed.common.encounter.asset.EncounterParticipationConfig;
+import com.ziggfreed.common.encounter.asset.EncounterRuleConfig;
 import com.ziggfreed.common.encounter.event.Encounters;
 import com.ziggfreed.common.encounter.validate.EncounterValidator.RoleReference;
 import com.ziggfreed.common.loot.LootRef;
@@ -42,9 +43,10 @@ import com.ziggfreed.common.validation.ValidationReport;
 
 /**
  * One pass over every piece of authored encounter content: the loaded scripts, the binding rows and
- * the participation rules, each read against the others, plus every role id the server names read
- * against the scripts (the engine keeps one builder per name across roles and scripts, so a script
- * named after a role silently replaces it).
+ * the participation rules, each read against the others, the encounter rules against the loaded
+ * roles ({@link EncounterRuleValidator}), plus every role id the server names read against the
+ * scripts (the engine keeps one builder per name across roles and scripts, so a script named after
+ * a role silently replaces it).
  *
  * <p>Total and fail-soft: a store that throws costs its own findings and one line, never the whole
  * audit. The boot-time pass is gated to once per boot and hung off first player ready, because the
@@ -114,6 +116,12 @@ public final class EncounterAudit {
             out.addAll(grantFindings);
         } catch (Throwable t) {
             SafeLog.warn(Encounters.LOG_PREFIX + " the encounter content could not be audited", t);
+        }
+        try {
+            out.addAll(EncounterRuleValidator.validate(EncounterRuleConfig.getInstance().all(),
+                    EncounterScripts.roleExists()));
+        } catch (Throwable t) {
+            SafeLog.warn(Encounters.LOG_PREFIX + " the encounter rules could not be audited", t);
         }
         out.addAll(prefabFindings());
         return out;

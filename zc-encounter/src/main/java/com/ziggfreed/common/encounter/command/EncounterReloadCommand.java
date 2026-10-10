@@ -9,12 +9,13 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncC
 import com.ziggfreed.common.encounter.asset.EncounterBindingConfig;
 import com.ziggfreed.common.encounter.asset.EncounterOwnerLayers;
 import com.ziggfreed.common.encounter.asset.EncounterParticipationConfig;
+import com.ziggfreed.common.encounter.asset.EncounterRuleConfig;
 import com.ziggfreed.common.encounter.validate.EncounterScripts;
 
 /**
- * Re-read the owner files ({@code encounters.json}, {@code encounter-participation.json}) and drop
- * every cached script reading. It can only re-read the layers this library owns; a pack's own files
- * are the engine's asset reload.
+ * Re-read the owner files ({@code encounters.json}, {@code encounter-participation.json},
+ * {@code encounter-rules.json}) and read every script again. It can only re-read the layers this
+ * library owns; a pack's own files are the engine's asset reload.
  */
 final class EncounterReloadCommand extends AbstractAsyncCommand {
 
@@ -26,9 +27,10 @@ final class EncounterReloadCommand extends AbstractAsyncCommand {
     @Nonnull
     protected CompletableFuture<Void> executeAsync(@Nonnull CommandContext ctx) {
         EncounterOwnerLayers.reloadAll();
-        EncounterScripts.invalidate();
+        int scripts = EncounterScripts.rewarm();
         EncounterAdminMessages.done(ctx, "reload.done", EncounterBindingConfig.getInstance().all().size(),
-                EncounterParticipationConfig.getInstance().all().size(), EncounterScripts.scanLoaded().size());
+                EncounterParticipationConfig.getInstance().all().size(), scripts,
+                EncounterRuleConfig.getInstance().all().size());
         return CompletableFuture.completedFuture(null);
     }
 }

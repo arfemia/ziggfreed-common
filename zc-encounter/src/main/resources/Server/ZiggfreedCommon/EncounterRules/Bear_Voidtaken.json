@@ -1,0 +1,18 @@
+{
+  "$Comment": [
+    "A Voidtaken Grizzly kill counts as a boss fight, attempted and won, for the player who lands the",
+    "killing blow: a quest step, a contract or an achievement counting boss fights counts it, with",
+    "Bear_Voidtaken as the target. The game runs its hunt site without a boss bar, so the library",
+    "keeps no run for it and this row is how it counts.",
+    "",
+    "Match.Role is the role id exactly, case ignored. NameKey names the fight with the game's own name",
+    "for the creature.",
+    "",
+    "Switch it off with Enabled false, or from mods/ziggfreedcommon/encounter-rules.json under the key",
+    "bear_voidtaken, and the kill counts as a kill and nothing more."
+  ],
+  "Match": {
+    "Role": "Bear_Voidtaken"
+  },
+  "NameKey": "server.npcRoles.Bear_Voidtaken.name"
+}

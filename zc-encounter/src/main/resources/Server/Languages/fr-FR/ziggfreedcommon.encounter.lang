@@ -11,8 +11,6 @@ admin.desc.inspect = Afficher le déroulement d'une rencontre : sa cible, ses me
 admin.desc.spawn = Mettre en place un script de rencontre, près de vous, au point d'apparition d'un monde ou à des coordonnées.
 admin.desc.end = Retirer une rencontre en cours ; un combat engagé compte comme une défaite du groupe.
 admin.desc.state = Forcer le script d'une rencontre dans un état.
-admin.desc.validate = Auditer chaque script de rencontre, ligne de liaison et règle de participation chargés.
-admin.desc.reload = Relire les fichiers du propriétaire sur les liaisons et les règles de participation.
 admin.desc.arg.ref = Une rencontre en cours : un préfixe de son identifiant de déroulement tel que list l'affiche, ou l'identifiant de son script.
 admin.desc.arg.asset = L'identifiant du script de rencontre, son nom de fichier sous Server/EncounterManager.
 admin.desc.arg.world = Le monde où la placer. Par défaut le vôtre, ou le monde par défaut depuis la console.
@@ -66,5 +64,3 @@ admin.state.refused = {0} n'a pas de machine à états à régler.
 admin.validate.clean = Contenu des rencontres : rien à signaler.
 admin.validate.counts = Contenu des rencontres : {0} erreurs, {1} avertissements, {2} notes.
 admin.finding = {0} {1} [{2}] {3}
-
-admin.reload.done = Fichiers du propriétaire relus : {0} liaisons et {1} règles de participation en vigueur, {2} scripts chargés.

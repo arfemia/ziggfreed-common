@@ -1,0 +1,23 @@
+{
+  "$Comment": [
+    "A Revenant Guardian (the Skeleton Elite) kill counts as a boss fight, attempted and won, for the",
+    "player who lands the killing blow: a quest step, a contract or an achievement counting boss fights",
+    "counts it, with Skeleton_Elite_Phase_2 as the target. The game runs this fight without a boss bar,",
+    "so the library keeps no run for it and this row is how it counts.",
+    "",
+    "It names the second phase so each fight counts once: the game turns the first phase into",
+    "Skeleton_Elite_Phase_2 when its health drops below a fifth or its guard breaks, so the creature that",
+    "finally dies is always the second phase. A kill that takes the first phase from above a fifth of its",
+    "health to nothing in one blow skips the second phase and counts nothing.",
+    "",
+    "Match.Role is the role id exactly, case ignored. The second phase has no name of its own, so",
+    "NameKey reuses the first phase's.",
+    "",
+    "Switch it off with Enabled false, or from mods/ziggfreedcommon/encounter-rules.json under the key",
+    "skeleton_elite_phase_2, and the kill counts as a kill and nothing more."
+  ],
+  "Match": {
+    "Role": "Skeleton_Elite_Phase_2"
+  },
+  "NameKey": "server.npcRoles.Skeleton_Elite.name"
+}

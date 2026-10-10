@@ -11,8 +11,6 @@ admin.desc.inspect = Mostrar la ejecución de un encuentro: su objetivo, sus mie
 admin.desc.spawn = Levantar un guion de encuentro, junto a ti, en el punto de aparición de un mundo o en unas coordenadas.
 admin.desc.end = Retirar un encuentro en curso; un combate ya empezado cuenta como derrota del grupo.
 admin.desc.state = Forzar el guion de un encuentro a un estado.
-admin.desc.validate = Auditar cada guion de encuentro, fila de vinculación y regla de participación cargados.
-admin.desc.reload = Releer los archivos del propietario sobre las vinculaciones y las reglas de participación.
 admin.desc.arg.ref = Un encuentro en curso: un prefijo de su id de ejecución tal como lo muestra list, o su id de guion.
 admin.desc.arg.asset = El id del guion de encuentro, su nombre de archivo bajo Server/EncounterManager.
 admin.desc.arg.world = El mundo donde levantarlo. Por defecto el tuyo, o el mundo por defecto desde la consola.
@@ -66,5 +64,3 @@ admin.state.refused = {0} no tiene ninguna máquina de estados que fijar.
 admin.validate.clean = Contenido de encuentros: nada que informar.
 admin.validate.counts = Contenido de encuentros: {0} errores, {1} avisos, {2} notas.
 admin.finding = {0} {1} [{2}] {3}
-
-admin.reload.done = Archivos del propietario releídos: {0} vinculaciones y {1} reglas de participación en vigor, {2} guiones cargados.

@@ -8,7 +8,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 
 import org.junit.jupiter.api.Test;
@@ -59,6 +61,8 @@ class EncounterScriptScanTest {
         assertTrue(base.targetSlots().contains("Boss"), "the parameterised slot resolves through its default");
         assertFalse(base.spawnable());
         assertEquals(0, base.onceHeadedBlockingLists(), "the re-arm list keeps a plain sensor, so it runs to its end");
+        assertTrue(base.setsBossBar(), "the base puts up the bar, so every script built on it opens a run");
+        assertEquals(Set.of("Boss"), base.bossBarSlots(), "the bar's sensor slot resolves through its default");
     }
 
     @Test
@@ -128,6 +132,102 @@ class EncounterScriptScanTest {
         assertTrue(scan.authors(EncounterSignal.Moment.ENGAGED));
         assertTrue(scan.targetSlots().contains("Champion"), "the Modify reached the base's parameter");
         assertTrue(scan.memberCollector());
+        assertTrue(scan.setsBossBar(), "the base's bar is the variant's");
+        assertEquals(Set.of("Champion"), scan.bossBarSlots(), "the bar follows the slot the Modify names");
+    }
+
+    // ==================== the boss bar, read off the engine's own script shapes ====================
+
+    /** The engine's Example_Boss, its Intro state's two bar-raising instructions and its spawn leaf as authored. */
+    private static final String EXAMPLE_BOSS_INTRO = "{\"Class\":\"EncounterManager\",\"Type\":\"Generic\","
+            + "\"Instructions\":[{\"Sensor\":{\"Type\":\"State\",\"State\":\"Intro\"},\"Instructions\":["
+            + "{\"Continue\":true,\"Sensor\":{\"Type\":\"Target\",\"Range\":100,\"TargetSlot\":\"%1$s\"},"
+            + "\"Actions\":[{\"Type\":\"SetEncounterBossBar\",\"Name\":\"server.npcRoles.Test_Boss_Basic_Intro.name\"}]},"
+            + "{\"Sensor\":{\"Type\":\"And\",\"Sensors\":[{\"Type\":\"Beacon\",\"Range\":100,\"Message\":\"Boss_In_Position\"},"
+            + "{\"Type\":\"Target\",\"Range\":100,\"TargetSlot\":\"%2$s\"}]},"
+            + "\"Actions\":[{\"Type\":\"SetTargetNPCInvulnerable\",\"Invulnerable\":false},"
+            + "{\"Type\":\"SetEncounterBossBar\",\"Name\":\"server.npcRoles.Test_Boss_Basic.name\"},"
+            + "{\"Type\":\"State\",\"State\":\"Phase_1\"}]},"
+            + "{\"Sensor\":{\"Type\":\"Not\",\"Sensor\":{\"Type\":\"Target\",\"Range\":100,\"TargetSlot\":\"%3$s\"}},"
+            + "\"ActionsBlocking\":true,\"Actions\":[{\"Type\":\"TriggerSpawners\",\"Count\":1,\"Range\":30,"
+            + "\"SpawnMarker\":\"Test_Boss_Marker\",\"TargetSlot\":\"%3$s\",\"Rebind\":true}]}]}]}";
+
+    private static JsonObject exampleBoss(String plainSlot, String andSlot, String notSlot) {
+        return JsonParser.parseString(String.format(Locale.ROOT, EXAMPLE_BOSS_INTRO, plainSlot, andSlot, notSlot))
+                .getAsJsonObject();
+    }
+
+    @Test
+    void theEnginesExampleBossPutsUpItsBarOverTheBossSlot() {
+        EncounterScriptScan scan = EncounterScriptScan.scan("Example_Boss", true, exampleBoss("Boss", "Boss", "Boss"),
+                name -> null);
+        assertTrue(scan.setsBossBar());
+        assertEquals(Set.of("Boss"), scan.bossBarSlots());
+    }
+
+    @Test
+    void aBarUnderAnAndSensorTakesTheNestedTargetsSlotAndANotSensorNamesNone() {
+        EncounterScriptScan scan = EncounterScriptScan.scan("Nested", true, exampleBoss("Intro_Slot", "Champion", "Spawn"),
+                name -> null);
+        assertEquals(Set.of("Intro_Slot", "Champion"), scan.bossBarSlots(),
+                "the And's Target is the bar's; the Not leaf raises no bar and names nothing to it");
+        assertTrue(scan.targetSlots().contains("Spawn"), "the spawn slot is still a slot the script names");
+    }
+
+    @Test
+    void aBarInsideAMacroTakesTheSlotItsReferenceForwards() {
+        Map<String, JsonObject> files = Map.of(
+                "Bar_Phase", JsonParser.parseString("{\"Class\":\"Instruction\",\"Type\":\"Component\","
+                        + "\"Parameters\":{\"Slot\":{\"Value\":\"Boss\"}},\"Content\":{\"Sensor\":{\"Type\":\"Target\","
+                        + "\"Range\":100,\"TargetSlot\":{\"Compute\":\"Slot\"}},\"Actions\":[{\"Type\":\"SetEncounterBossBar\","
+                        + "\"Name\":\"bar.name\"}]}}").getAsJsonObject(),
+                "Bar_Action", JsonParser.parseString("{\"Class\":\"Action\",\"Type\":\"Component\","
+                        + "\"Content\":{\"Type\":\"SetEncounterBossBar\",\"Name\":\"bar.name\"}}").getAsJsonObject());
+        JsonObject viaInstruction = JsonParser.parseString("{\"Instructions\":[{\"Reference\":\"Bar_Phase\","
+                + "\"Modify\":{\"Slot\":\"Champion\"}}]}").getAsJsonObject();
+        EncounterScriptScan instruction = EncounterScriptScan.scan("Via_Instruction", true, viaInstruction, files::get);
+        assertTrue(instruction.setsBossBar());
+        assertEquals(Set.of("Champion"), instruction.bossBarSlots(), "the Modify reached the macro's sensor");
+        JsonObject viaAction = JsonParser.parseString("{\"Instructions\":[{\"Sensor\":{\"Type\":\"Mob\",\"LockOnTarget\":true,"
+                + "\"LockedTargetSlot\":\"Captured\"},\"Actions\":[{\"Reference\":\"Bar_Action\"}]}]}").getAsJsonObject();
+        EncounterScriptScan action = EncounterScriptScan.scan("Via_Action", true, viaAction, files::get);
+        assertTrue(action.setsBossBar());
+        assertEquals(Set.of("Captured"), action.bossBarSlots(), "an action macro's bar tracks its referrer's sensor");
+    }
+
+    @Test
+    void theEnginesSkeletonEliteCapturesItsTargetButPutsUpNoBar() {
+        JsonObject elite = JsonParser.parseString("{\"Class\":\"EncounterManager\",\"Type\":\"Generic\","
+                + "\"StartState\":\"Phase_1\",\"Instructions\":["
+                + "{\"Continue\":true,\"Sensor\":{\"Type\":\"Mob\",\"Range\":30,\"LockOnTarget\":true,"
+                + "\"LockedTargetSlot\":\"EncounterTarget\",\"Rebind\":true},\"Actions\":[{\"Type\":\"Nothing\"}]},"
+                + "{\"Sensor\":{\"Type\":\"State\",\"State\":\"Phase_1\"},\"Instructions\":["
+                + "{\"Sensor\":{\"Type\":\"Target\",\"Range\":100,\"TargetSlot\":\"EncounterTarget\"},"
+                + "\"ActionsBlocking\":true,\"Actions\":[{\"Type\":\"SetTargetNPCInvulnerable\",\"Invulnerable\":true},"
+                + "{\"Type\":\"ChangeTargetRole\",\"Role\":\"Skeleton_Elite_Phase_2\",\"ChangeAppearance\":true},"
+                + "{\"Type\":\"State\",\"State\":\"Phase_2\"}]}]}]}").getAsJsonObject();
+        EncounterScriptScan scan = EncounterScriptScan.scan("Encounter_Skeleton_Elite", true, elite, name -> null);
+        assertFalse(scan.setsBossBar(), "the elite's phase swap is no boss fight of the library's");
+        assertTrue(scan.bossBarSlots().isEmpty());
+        assertTrue(scan.targetSlots().contains("EncounterTarget"), "the locked slot is a slot the script names");
+    }
+
+    @Test
+    void theEnginesVoidAnomalyVariantPutsUpNoBar() {
+        Map<String, JsonObject> files = Map.of("Template_Void_Anomaly", JsonParser.parseString(
+                "{\"Class\":\"EncounterManager\",\"Type\":\"Abstract\",\"Parameters\":{\"CrystalSpawnMarker\":"
+                        + "{\"Value\":\"Void_Anomaly_Crystal_Small\"}},\"Instructions\":[{\"Sensor\":{\"Type\":\"And\","
+                        + "\"Sensors\":[{\"Type\":\"Target\",\"Range\":100,\"TargetSlot\":\"Crystal\"},{\"Type\":\"Mob\","
+                        + "\"LockOnTarget\":true,\"LockedTargetSlot\":\"Crystal\"}]},\"Actions\":[{\"Type\":\"TriggerSpawners\","
+                        + "\"SpawnMarker\":{\"Compute\":\"CrystalSpawnMarker\"},\"TargetSlot\":\"Crystal\",\"Count\":1}]}]}")
+                .getAsJsonObject());
+        JsonObject small = JsonParser.parseString("{\"Class\":\"EncounterManager\",\"Type\":\"Variant\","
+                + "\"Reference\":\"Template_Void_Anomaly\",\"Modify\":{\"CrystalSpawnMarker\":\"Void_Anomaly_Crystal_Small\"}}")
+                .getAsJsonObject();
+        EncounterScriptScan scan = EncounterScriptScan.scan("Void_Anomaly_Small", true, small, files::get);
+        assertFalse(scan.setsBossBar(), "a void crystal is never counted as a fight");
+        assertTrue(scan.bossBarSlots().isEmpty());
+        assertTrue(scan.targetSlots().contains("Crystal"));
     }
 
     @Test
