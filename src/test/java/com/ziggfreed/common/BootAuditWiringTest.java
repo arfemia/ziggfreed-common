@@ -21,12 +21,13 @@ import com.ziggfreed.common.loot.LootAudit;
 import com.ziggfreed.common.npc.NpcIdentityConfig;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementConfig;
 import com.ziggfreed.common.objectives.title.TitleValidator;
+import com.ziggfreed.common.playerstats.asset.StatValidator;
 import com.ziggfreed.common.stats.gearset.GearSetValidator;
 
 /**
  * The boot audit's wiring: the root's {@code registerBootChecks()}, called from {@code setup()}, keeps
  * the pack range warning as its first registration and hangs one {@code BootEvent} listener that hands
- * zc-core's {@code BootAudit} every pass in order, the calendar, title, Almanac, derived-factor,
+ * zc-core's {@code BootAudit} every pass in order, the calendar, title, Almanac, stat, derived-factor,
  * NPC-identity and NPC-placement audits included, each under its owner's own label. Two passes take a
  * first-join audit's one run ({@code claimLateFindings}), so nothing prints twice; the title pass is the
  * walk that builds the progression runtime ({@code auditForcingBuild}), so a boot that nothing has built
@@ -48,6 +49,7 @@ class BootAuditWiringTest {
             "new BootAudit.Pass(CalendarEventValidator.LOG_LABEL, CalendarEventValidator::audit)",
             "new BootAudit.Pass(TitleValidator.LOG_LABEL, TitleValidator::auditForcingBuild)",
             "new BootAudit.Pass(AlmanacValidator.LOG_LABEL, AlmanacValidator::audit)",
+            "new BootAudit.Pass(StatValidator.LOG_LABEL, StatValidator::audit)",
             "new BootAudit.Pass(DerivedFactorConfig.LOG_LABEL, () -> DerivedFactorConfig.getInstance().audit())",
             "new BootAudit.Pass(NpcIdentityConfig.LOG_LABEL, () -> NpcIdentityConfig.getInstance().audit())",
             "new BootAudit.Pass(NpcPlacementConfig.LOG_LABEL, () -> NpcPlacementConfig.getInstance().claimLateFindings())");
@@ -95,6 +97,7 @@ class BootAuditWiringTest {
         labels.put("CalendarEventValidator", CalendarEventValidator.LOG_LABEL);
         labels.put("TitleValidator", TitleValidator.LOG_LABEL);
         labels.put("AlmanacValidator", AlmanacValidator.LOG_LABEL);
+        labels.put("StatValidator", StatValidator.LOG_LABEL);
         labels.put("DerivedFactorConfig", DerivedFactorConfig.LOG_LABEL);
         labels.put("NpcIdentityConfig", NpcIdentityConfig.LOG_LABEL);
         labels.put("NpcPlacementConfig", NpcPlacementConfig.LOG_LABEL);
@@ -106,6 +109,7 @@ class BootAuditWiringTest {
         expected.put("CalendarEventValidator", "[calendar] audit");
         expected.put("TitleValidator", "[title] audit");
         expected.put("AlmanacValidator", "[almanac] audit");
+        expected.put("StatValidator", "[stats] audit");
         expected.put("DerivedFactorConfig", "[factor] DerivedFactor");
         expected.put("NpcIdentityConfig", "[identity]");
         expected.put("NpcPlacementConfig", "[placement]");

@@ -9,8 +9,10 @@ public enum StatFormat {
 
     /** A plain count. */
     COUNT("Count"),
-    /** Seconds, read as a duration. */
+    /** Seconds, read as a short span in minutes and seconds (a best time). */
     TIME("Time"),
+    /** Seconds, read as a long span in hours and minutes (time played). */
+    DURATION("Duration"),
     /** Metres, read as a distance. */
     DISTANCE("Distance"),
     /** A share out of 100. */

@@ -33,8 +33,8 @@ import com.ziggfreed.common.validation.TextKeyAudit;
  * <p>The codes, each a stable machine token a consumer may filter on:
  * <ul>
  *   <li>ERROR {@link #STAT_ID_UNUSABLE} (the id carries {@code / @ | :}, so no tally can be kept under it),
- *       {@link #UNKNOWN_KIND}, {@link #UNKNOWN_FORMAT}, {@link #UNKNOWN_BREAKDOWN} (a word the store does
- *       not know, so the stat is left out);</li>
+ *       {@link #UNKNOWN_KIND}, {@link #UNKNOWN_BREAKDOWN} (a word the store does not know, so the stat is
+ *       left out), {@link #UNKNOWN_FORMAT} (the stat still counts, but the board gives it no column);</li>
  *   <li>WARNING {@link #SOURCE_WITHOUT_KIND} (a {@code From} entry that can never count),
  *       {@link #UNKNOWN_COUNT} (read as Moment), {@link #UNKNOWN_SECTION_STAT} (a section names a stat no
  *       file defines: its owner may register later, or be a mod this server does not run), and
@@ -46,6 +46,9 @@ import com.ziggfreed.common.validation.TextKeyAudit;
 public final class StatValidator {
 
     public static final String DOMAIN = "stats";
+
+    /** The label the boot audit's lines for this pass carry. */
+    public static final String LOG_LABEL = "[stats] audit";
 
     public static final String STAT_ID_UNUSABLE = "STAT_ID_UNUSABLE";
     public static final String UNKNOWN_KIND = "UNKNOWN_STAT_KIND";
@@ -135,7 +138,8 @@ public final class StatValidator {
         }
         if (stat.format() == null) {
             out.add(Finding.error(DOMAIN, UNKNOWN_FORMAT, where + " names the Format '" + stat.getFormat()
-                    + "'; write Count, Time, Distance or Percent. The stat still counts, but the board gives it no"
+                    + "'; write Count, Time, Duration, Distance or Percent. The stat still counts, but the board"
+                    + " gives it no"
                     + " column", id));
         }
         if (stat.breakdown() == null) {

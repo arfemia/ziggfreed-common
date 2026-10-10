@@ -71,6 +71,7 @@ public final class StatsBoardSource implements StatBoardSource {
     static ColumnFormat columnFormat(@Nonnull StatFormat format) {
         return switch (format) {
             case TIME -> ColumnFormat.TIME;
+            case DURATION -> ColumnFormat.DURATION;
             case PERCENT -> ColumnFormat.PERCENT;
             case COUNT, DISTANCE -> ColumnFormat.GROUPED;
         };

@@ -75,12 +75,13 @@ public final class StatAsset implements JsonAssetWithMap<String, DefaultAssetMap
                     (a, v) -> a.format = v, a -> a.format, (a, p) -> a.format = p.format)
             .metadata(EditorSchema.oneOfDocumented(
                     "Count", "A plain count",
-                    "Time", "Seconds, read as a duration",
+                    "Time", "Seconds, read in minutes and seconds: a short span, such as a best time",
+                    "Duration", "Seconds, read in hours and minutes: a long span, such as time played",
                     "Distance", "Metres, read as a distance",
                     "Percent", "A share out of 100"))
             .metadata(EditorSchema.defaultValue("Count"))
-            .documentation("How the number reads: Count, Time (seconds), Distance (metres) or Percent. "
-                    + "Unauthored means Count.").add()
+            .documentation("How the number reads: Count, Time (seconds as minutes and seconds), Duration "
+                    + "(seconds as hours and minutes), Distance (metres) or Percent. Unauthored means Count.").add()
             .appendInherited(new KeyedCodec<>("From",
                             new ArrayCodec<>(StatSourceAsset.CODEC, StatSourceAsset[]::new), false),
                     (a, v) -> a.from = v, a -> a.from, (a, p) -> a.from = p.from)

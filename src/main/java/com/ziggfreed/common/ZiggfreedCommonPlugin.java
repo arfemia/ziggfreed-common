@@ -79,6 +79,7 @@ import com.ziggfreed.common.objectives.settings.ObjectivesSettingsBootstrap;
 import com.ziggfreed.common.objectives.title.TitleBootstrap;
 import com.ziggfreed.common.objectives.title.TitleValidator;
 import com.ziggfreed.common.playerstats.StatsBootstrap;
+import com.ziggfreed.common.playerstats.asset.StatValidator;
 import com.ziggfreed.common.progress.asset.ProgressEditorDataSets;
 import com.ziggfreed.common.reputation.ReputationBootstrap;
 import com.ziggfreed.common.reward.CostumeRewardKind;
@@ -563,7 +564,8 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
      * What runs once the server has booted. Here, the content audits a headless boot asks for through
      * {@code BootAudit.ENV}: commerce (claiming the same once-per-boot flag as the first player's pass),
      * loot, gear sets, calendar events and their spawns, titles (the walk that builds the progression
-     * runtime first, so no Title reward goes unchecked), Almanac pages, derived factors, NPC identities
+     * runtime first, so no Title reward goes unchecked), Almanac pages, stats and the board sections that
+     * name them, derived factors, NPC identities
      * and NPC placements (claiming the first join's once-per-boot run, as commerce does); and, always,
      * the once-per-boot warning for a loaded pack whose ziggfreed-common range this version fails
      * ({@code PackRangeAudit}). Whether to run the audits is {@code BootAudit}'s to decide; this only
@@ -580,6 +582,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
                     new BootAudit.Pass(CalendarEventValidator.LOG_LABEL, CalendarEventValidator::audit),
                     new BootAudit.Pass(TitleValidator.LOG_LABEL, TitleValidator::auditForcingBuild),
                     new BootAudit.Pass(AlmanacValidator.LOG_LABEL, AlmanacValidator::audit),
+                    new BootAudit.Pass(StatValidator.LOG_LABEL, StatValidator::audit),
                     new BootAudit.Pass(DerivedFactorConfig.LOG_LABEL, () -> DerivedFactorConfig.getInstance().audit()),
                     new BootAudit.Pass(NpcIdentityConfig.LOG_LABEL, () -> NpcIdentityConfig.getInstance().audit()),
                     new BootAudit.Pass(NpcPlacementConfig.LOG_LABEL,
