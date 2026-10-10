@@ -1,0 +1,8 @@
+{
+  "$Comment": "Every conversation a player opens with a character, with one line per character beside the total.",
+  "NameKey": "ziggfreedcommon.stats.npcs_talked",
+  "Kind": "Sum",
+  "Format": "Count",
+  "From": [ { "Kind": "TALK_TO_NPC" } ],
+  "Breakdown": "Target"
+}

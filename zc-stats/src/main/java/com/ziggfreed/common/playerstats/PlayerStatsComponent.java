@@ -61,6 +61,9 @@ public final class PlayerStatsComponent implements Component<EntityStore>, Count
     private CounterMap seasons = new CounterMap();
     private final Set<String> imports = new TreeSet<>();
 
+    /** Seconds played since the last whole seconds were committed. Never saved; carried by {@link #clone}. */
+    private double playtimeCarry;
+
     public static final BuilderCodec<PlayerStatsComponent> CODEC;
 
     static {
@@ -203,6 +206,23 @@ public final class PlayerStatsComponent implements Component<EntityStore>, Count
         return true;
     }
 
+    /**
+     * Carry {@code seconds} of play, and take back the whole seconds to commit once at least
+     * {@code commitAt} have gathered ({@code 0} until then); the fraction stays carried. With
+     * {@code commitAt} of zero or less, every whole second gathered so far is taken (a logout).
+     */
+    public synchronized long accruePlaytime(double seconds, double commitAt) {
+        if (seconds > 0d) {
+            playtimeCarry += seconds;
+        }
+        if (playtimeCarry < Math.max(commitAt, 1d)) {
+            return 0L;
+        }
+        long whole = (long) playtimeCarry;
+        playtimeCarry -= whole;
+        return whole;
+    }
+
     @Nonnull
     private static String usableClaim(@Nullable String claimId) {
         if (claimId == null || claimId.isBlank() || claimId.indexOf(CLAIM_SEPARATOR) >= 0
@@ -292,6 +312,7 @@ public final class PlayerStatsComponent implements Component<EntityStore>, Count
         copy.tallies = tallies.copy();
         copy.seasons = seasons.copy();
         copy.imports.addAll(imports);
+        copy.playtimeCarry = playtimeCarry;
         return copy;
     }
 }

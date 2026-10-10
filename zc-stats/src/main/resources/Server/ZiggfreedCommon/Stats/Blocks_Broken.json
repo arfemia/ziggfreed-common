@@ -1,0 +1,8 @@
+{
+  "$Comment": "Every block a player breaks, except blocks a player placed, with one line per block beside the total.",
+  "NameKey": "ziggfreedcommon.stats.blocks_broken",
+  "Kind": "Sum",
+  "Format": "Count",
+  "From": [ { "Kind": "BREAK_BLOCK" } ],
+  "Breakdown": "Target"
+}

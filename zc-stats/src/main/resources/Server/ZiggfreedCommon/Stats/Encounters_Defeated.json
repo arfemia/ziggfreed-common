@@ -1,0 +1,8 @@
+{
+  "$Comment": "Every boss fight a player helps win, with one line per fight beside the total.",
+  "NameKey": "ziggfreedcommon.stats.encounters_defeated",
+  "Kind": "Sum",
+  "Format": "Count",
+  "From": [ { "Kind": "ENCOUNTER_DEFEATED" } ],
+  "Breakdown": "Target"
+}

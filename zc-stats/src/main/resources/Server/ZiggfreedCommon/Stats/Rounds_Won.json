@@ -1,0 +1,8 @@
+{
+  "$Comment": "Every instance round a player wins, with one line per mode beside the total.",
+  "NameKey": "ziggfreedcommon.stats.rounds_won",
+  "Kind": "Sum",
+  "Format": "Count",
+  "From": [ { "Kind": "INSTANCE_ROUND_WON" } ],
+  "Breakdown": "Target"
+}

@@ -1,0 +1,6 @@
+{
+  "$Comment": "How many times a player has died. The library counts it itself, so it lists no From.",
+  "NameKey": "ziggfreedcommon.stats.deaths",
+  "Kind": "Sum",
+  "Format": "Count"
+}

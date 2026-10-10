@@ -1,0 +1,8 @@
+{
+  "$Comment": "Every item a player crafts by hand (a craft of five counts five), with one line per item beside the total. Crafts at a workstation do not count yet: the game does not say who made them.",
+  "NameKey": "ziggfreedcommon.stats.items_crafted",
+  "Kind": "Sum",
+  "Format": "Count",
+  "From": [ { "Kind": "CRAFT_ITEM" } ],
+  "Breakdown": "Target"
+}

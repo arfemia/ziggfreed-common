@@ -1,0 +1,27 @@
+# The player stat store: what each of the library's stats is called, and the /zigstats command family.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.stats.<key>.
+# The command.desc.* keys are what the engine's own help resolves a command or an argument through.
+
+mob_kills = Mobs Defeated
+blocks_broken = Blocks Broken
+blocks_placed = Blocks Placed
+items_crafted = Items Crafted
+items_pickedup = Items Picked Up
+npcs_talked = Characters Talked To
+encounters_defeated = Bosses Defeated
+encounter_attempts = Boss Fights
+quests_completed = Quests Completed
+rounds_won = Rounds Won
+deaths = Deaths
+playtime_seconds = Playtime
+
+command.desc.family = Look up the stats a player has gathered.
+command.desc.show = List every stat a player holds, by the key a condition would name.
+command.desc.arg.player = The player to look up. Defaults to you.
+
+command.player.needed = Name a player with --player=<name>.
+command.player.offline = That player is not online, and their stats live on their own character.
+command.show.off = Stats are switched off on this server ($Enabled in mods/ziggfreedcommon/stats.json).
+command.show.none = {0} has no stats yet.
+command.show.header = Stats {0} holds ({1, number}):
+command.show.row = - {0}: {1, number}

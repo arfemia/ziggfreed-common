@@ -1,0 +1,8 @@
+{
+  "$Comment": "Every item a player picks up, except what came from a block they placed, with one line per item beside the total.",
+  "NameKey": "ziggfreedcommon.stats.items_pickedup",
+  "Kind": "Sum",
+  "Format": "Count",
+  "From": [ { "Kind": "PICKUP_ITEM" } ],
+  "Breakdown": "Target"
+}

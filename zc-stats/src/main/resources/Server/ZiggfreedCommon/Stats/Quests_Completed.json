@@ -1,0 +1,8 @@
+{
+  "$Comment": "Every quest a player turns in and collects. One total only: how often one quest was done is already its own reading (ziggfreedcommon:quest_completions).",
+  "NameKey": "ziggfreedcommon.stats.quests_completed",
+  "Kind": "Sum",
+  "Format": "Count",
+  "From": [ { "Kind": "COMPLETE_QUEST" } ],
+  "Breakdown": "None"
+}

@@ -1,0 +1,8 @@
+{
+  "$Comment": "Every boss fight a player takes part in, won or wiped, with one line per fight beside the total.",
+  "NameKey": "ziggfreedcommon.stats.encounter_attempts",
+  "Kind": "Sum",
+  "Format": "Count",
+  "From": [ { "Kind": "ENCOUNTER_ATTEMPT" } ],
+  "Breakdown": "Target"
+}

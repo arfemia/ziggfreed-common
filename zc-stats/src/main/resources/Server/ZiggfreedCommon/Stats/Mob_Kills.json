@@ -1,0 +1,8 @@
+{
+  "$Comment": "Every mob a player kills, fish included, with one line per mob role beside the total (Mob_Kills/<role>). The file name is the key each player's tally is kept under, so keep it. A pack can narrow or widen what counts by shipping its own Mob_Kills.json.",
+  "NameKey": "ziggfreedcommon.stats.mob_kills",
+  "Kind": "Sum",
+  "Format": "Count",
+  "From": [ { "Kind": "KILL_ENTITY" } ],
+  "Breakdown": "Target"
+}

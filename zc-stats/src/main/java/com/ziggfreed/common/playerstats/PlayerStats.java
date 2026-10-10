@@ -1,5 +1,6 @@
 package com.ziggfreed.common.playerstats;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -10,6 +11,7 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -22,17 +24,20 @@ import com.ziggfreed.common.util.SafeLog;
  * (a Sum: kills, blocks, seconds played); {@link #raise} keeps a best that grows (a Max); {@link #lower}
  * keeps a best that shrinks (a Min, such as a fastest time). Each writes the grand total
  * ({@code <stat>}) and, when a {@code thing} is named, that line of the breakdown
- * ({@code <stat>/<thing>}), both keyed by {@link StatKeys}. A {@link #gauge} is a number the consumer
- * owns (a skill level): it is ranked, never stored in the player's record.
+ * ({@code <stat>/<thing>}), both keyed by {@link StatKeys}, then hands the same keys to the stat board
+ * ({@link StatRankFeed}). A {@link #gauge} is a number the consumer owns (a skill level): it is ranked,
+ * never stored in the player's record.
  *
  * <p>Writes are called on the world thread that owns {@code store}, the way every producer runs. A
  * player with no record (the component never registered, or an entity that is not a player) counts
  * nothing; a stat id the key format cannot hold ({@link StatKeys#usableStatId}) counts nothing and is
- * reported once.
+ * reported once. With the store switched off ({@link StatsSwitch}) nothing is counted or ranked.
  */
 public final class PlayerStats {
 
     private static final Set<String> WARNED_IDS = ConcurrentHashMap.newKeySet();
+
+    private static volatile StatRankFeed feed = StatRankFeed.NONE;
 
     private PlayerStats() {
     }
@@ -44,17 +49,7 @@ public final class PlayerStats {
      */
     public static void add(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull String statId, @Nullable String thing, long amount) {
-        if (amount <= 0L || !usable(statId)) {
-            return;
-        }
-        PlayerStatsComponent record = PlayerStatsComponent.peek(store, ref);
-        if (record == null) {
-            return;
-        }
-        record.add(StatKeys.total(statId), amount);
-        if (StatKeys.usableThing(thing)) {
-            record.add(StatKeys.line(statId, thing), amount);
-        }
+        write(store, ref, StatKind.SUM, statId, thing, amount);
     }
 
     /**
@@ -63,17 +58,7 @@ public final class PlayerStats {
      */
     public static void raise(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull String statId, @Nullable String thing, long value) {
-        if (value <= 0L || !usable(statId)) {
-            return;
-        }
-        PlayerStatsComponent record = PlayerStatsComponent.peek(store, ref);
-        if (record == null) {
-            return;
-        }
-        record.raise(StatKeys.total(statId), value);
-        if (StatKeys.usableThing(thing)) {
-            record.raise(StatKeys.line(statId, thing), value);
-        }
+        write(store, ref, StatKind.MAX, statId, thing, value);
     }
 
     /**
@@ -83,31 +68,25 @@ public final class PlayerStats {
      */
     public static void lower(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull String statId, @Nullable String thing, long value) {
-        if (value <= 0L || !usable(statId)) {
-            return;
-        }
-        PlayerStatsComponent record = PlayerStatsComponent.peek(store, ref);
-        if (record == null) {
-            return;
-        }
-        record.lower(StatKeys.total(statId), value);
-        if (StatKeys.usableThing(thing)) {
-            record.lower(StatKeys.line(statId, thing), value);
-        }
+        write(store, ref, StatKind.MIN, statId, thing, value);
     }
 
     /**
      * Rank a number the consumer owns (a Gauge stat, such as a skill level) for the player
-     * {@code uuid}, online or not: it sets {@code statId} (and the {@code thing} line, when named) on
-     * the stat board's all-time ranking and is never stored in the player's record. {@code name} is
-     * the name the board shows, or null to keep the one it holds. Callable from any thread.
+     * {@code uuid}, online or not: it sets {@code statId}'s {@code thing} line (the grand total when no
+     * thing is named) on the stat board's all-time ranking and is never stored in the player's record.
+     * {@code name} is the name the board shows, or null to keep the one it holds. Callable from any
+     * thread.
      */
     public static void gauge(@Nonnull UUID uuid, @Nullable String name, @Nonnull String statId,
             @Nullable String thing, long value) {
-        if (!usable(statId)) {
+        if (!StatsSwitch.isOn() || !usable(statId)) {
             return;
         }
-        // The stat board lands with the rest of the store; until then a gauge has no ranking to set.
+        String key = StatKeys.usableThing(thing) ? StatKeys.line(statId, thing) : StatKeys.total(statId);
+        Map<String, Long> values = new LinkedHashMap<>();
+        values.put(key, value);
+        rank(StatKind.GAUGE, uuid, name, values);
     }
 
     /**
@@ -115,6 +94,7 @@ public final class PlayerStats {
      * {@code mymod:statistics@1}): every tally is added to the lifetime bag under its own key, and the
      * claim is kept in the record, so a second call, a relog or a restart changes nothing. The merge is
      * built aside and swapped in whole, so a throw before the swap changes nothing and claims nothing.
+     * It runs with the store switched off too: it moves saved data rather than counting anything.
      *
      * @return true when this call folded the import; false when it was already claimed, or the player
      *         has no record to fold it into
@@ -134,6 +114,95 @@ public final class PlayerStats {
     public static StatsView view(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
         PlayerStatsComponent record = PlayerStatsComponent.peek(store, ref);
         return record == null ? StatsView.EMPTY : record.view();
+    }
+
+    // ==================== The library's own wiring ====================
+
+    /** Put the stat board in charge of ranking what is counted. One call, at library setup; null ranks nothing. */
+    static void rankInto(@Nullable StatRankFeed rankFeed) {
+        feed = rankFeed == null ? StatRankFeed.NONE : rankFeed;
+    }
+
+    /** One write the moment counter worked out, moved its stat's own way. */
+    static void count(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+            @Nonnull StatCounter.Write write) {
+        write(store, ref, write.kind(), write.statId(), write.thing(), write.value());
+    }
+
+    /**
+     * Hand the stat board this player's whole record, so its all-time ranking matches what the player
+     * holds (a record imported, or counted while the board was off). Called on the player's world thread.
+     */
+    static void resync(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
+        if (!StatsSwitch.isOn()) {
+            return;
+        }
+        PlayerStatsComponent record = PlayerStatsComponent.peek(store, ref);
+        PlayerRef player = record == null ? null : playerRef(store, ref);
+        if (player == null) {
+            return;
+        }
+        Map<String, Long> tallies = record.tallies();
+        if (!tallies.isEmpty()) {
+            rank(StatKind.GAUGE, player.getUuid(), player.getUsername(), tallies);
+        }
+    }
+
+    // ==================== Internals ====================
+
+    private static void write(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+            @Nonnull StatKind kind, @Nonnull String statId, @Nullable String thing, long value) {
+        if (value <= 0L || !StatsSwitch.isOn() || !usable(statId)) {
+            return;
+        }
+        PlayerStatsComponent record = PlayerStatsComponent.peek(store, ref);
+        if (record == null) {
+            return;
+        }
+        Map<String, Long> keys = new LinkedHashMap<>();
+        keys.put(StatKeys.total(statId), value);
+        if (StatKeys.usableThing(thing)) {
+            keys.put(StatKeys.line(statId, thing), value);
+        }
+        for (String key : keys.keySet()) {
+            switch (kind) {
+                case MAX -> record.raise(key, value);
+                case MIN -> record.lower(key, value);
+                default -> record.add(key, value);
+            }
+        }
+        if (feed == StatRankFeed.NONE) {
+            return;
+        }
+        PlayerRef player = playerRef(store, ref);
+        if (player != null) {
+            rank(kind, player.getUuid(), player.getUsername(), keys);
+        }
+    }
+
+    /** Hand {@code values} to the board the {@code kind}'s way; a failing board costs only its ranking. */
+    private static void rank(@Nonnull StatKind kind, @Nonnull UUID uuid, @Nullable String name,
+            @Nonnull Map<String, Long> values) {
+        StatRankFeed current = feed;
+        try {
+            switch (kind) {
+                case SUM -> current.add(uuid, name, values);
+                case MAX -> current.raise(uuid, name, values);
+                case MIN -> current.lower(uuid, name, values);
+                default -> current.setAllTime(uuid, name, values);
+            }
+        } catch (Throwable t) {
+            SafeLog.warn("[stats] the stat board could not rank a write: " + t.getMessage());
+        }
+    }
+
+    @Nullable
+    private static PlayerRef playerRef(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
+        try {
+            return ref.isValid() ? store.getComponent(ref, PlayerRef.getComponentType()) : null;
+        } catch (Throwable t) {
+            return null;
+        }
     }
 
     /** Is {@code statId} a key the store can hold? Reported once per id when it is not. */

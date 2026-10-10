@@ -95,6 +95,9 @@ import com.ziggfreed.common.objectives.title.TitleOwnerLayers;
 import com.ziggfreed.common.progress.asset.ObjectiveKindAsset;
 import com.ziggfreed.common.progress.asset.ObjectiveKindConfig;
 import com.ziggfreed.common.progress.asset.ObjectiveKindFold;
+import com.ziggfreed.common.playerstats.StatsSwitch;
+import com.ziggfreed.common.playerstats.asset.StatAsset;
+import com.ziggfreed.common.playerstats.asset.StatConfig;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.quest.asset.QuestAssetStore;
@@ -839,6 +842,21 @@ public final class FrameworkAssetRegistrar {
                     ReputationOwnerLayers.reload();
                 });
 
+        // --- Stats (Pattern A) - one stat the player stat store keeps per file, keyed by the file name
+        //     (the tally key every player's record files it under): its name, what its number means, how
+        //     it reads, the moments it counts and its breakdown. The library ships its own (Mob_Kills,
+        //     Deaths, ...) in its jar, and a consumer ships the stats it feeds. Owner file
+        //     mods/ziggfreedcommon/stats.json, whose $Enabled is the store's switch (also read once at
+        //     setup by StatsBootstrap), re-read on this same event. ---
+        AssetStoreRegistrar.registerStore(StatAsset.class,
+                new DefaultAssetMap<String, StatAsset>(), StatAsset.TYPE_ROOT,
+                StatAsset::getId, StatAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, StatAsset.class,
+                (LoadedAssetsEvent<String, StatAsset, DefaultAssetMap<String, StatAsset>> ev) -> {
+                    StatConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    StatsSwitch.reload();
+                });
+
         // --- The native recipe index (zc-entity) - not a store of ours: a read-side index over the
         //     ENGINE's CraftingRecipe store, built on first read. It is dropped on every recipe and
         //     item load and removal (an item reload reloads the recipes authored inside it), so the
@@ -871,7 +889,8 @@ public final class FrameworkAssetRegistrar {
                             + "ShopEntryGenerators, Boards, Bounties, Encounters, EncounterParticipation, "
                             + "CalendarEvents (owner file mods/ziggfreedcommon/calendar.json), CalendarSpawns, "
                             + "GearSets (owner file mods/ziggfreedcommon/gear-sets.json), Titles (owner file mods/ziggfreedcommon/titles.json), "
-                            + "Reputations (owner file mods/ziggfreedcommon/reputation.json)).");
+                            + "Reputations (owner file mods/ziggfreedcommon/reputation.json), "
+                            + "Stats (owner file mods/ziggfreedcommon/stats.json)).");
         } catch (Throwable ignored) {
             // log-manager-less unit JVM: never let a presence log escape into setup().
         }

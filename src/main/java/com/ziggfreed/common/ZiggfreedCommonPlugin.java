@@ -264,7 +264,10 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // with the other framework stores.
         ReputationBootstrap.install(this);
         // The player stat store: the per-player record, registered before any world loads so it reads
-        // off entities saved carrying it, and its connect hook.
+        // off entities saved carrying it, and its connect hook; the owner's switch, the moment counter,
+        // the death and playtime systems, the board's ready re-sync, the library's default counter
+        // source and the /zigstats family. Its stat file store is registered with the other framework
+        // stores.
         StatsBootstrap.install(this);
         // The once-at-boot checks (the boot audit a headless dev boot asks for), on BootEvent: every
         // store has folded and every mod has registered its vocabulary by then.

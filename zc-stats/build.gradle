@@ -4,8 +4,15 @@ apply from: "$rootDir/gradle/zc-module.gradle"
 // fed by the library's own producers on any server and by whatever a consumer adds through PlayerStats,
 // and the library's default ziggfreedcommon:counter source. The package is playerstats, never stats:
 // zc-core and zc-entity already split that one (zc-entity's stats/CLAUDE.md).
+//
+// Nothing in the library depends on this module: a consumer reaches it through PlayerStats.
 
 dependencies {
-    // SafeLog, the counter bag and its packed save string, the counter factor seam and its source.
+    // SafeLog, the counter bag and its packed save string, the counter factor seam and its source, the
+    // keyed asset base and owner-file reader, the editor schema, i18n, validation findings, the
+    // target-player command walk.
     implementation project(':zc-core')
+    // The shared moment stream the store counts from (MomentListener, ProgressionRuntime), and the
+    // objective leaf a stat's From entry is written in (ObjectiveLeafAsset, ObjectiveDef).
+    implementation project(':zc-progression')
 }

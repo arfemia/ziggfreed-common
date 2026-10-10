@@ -68,6 +68,9 @@ import com.ziggfreed.common.npc.placement.runtime.PlacedNpcComponent;
 import com.ziggfreed.common.objectives.store.ZigProgressComponent;
 import com.ziggfreed.common.objectives.title.TitleAsset;
 import com.ziggfreed.common.party.PartySettingsAsset;
+import com.ziggfreed.common.playerstats.PlayerStatsComponent;
+import com.ziggfreed.common.playerstats.asset.StatAsset;
+import com.ziggfreed.common.playerstats.asset.StatSourceAsset;
 import com.ziggfreed.common.progress.asset.ContentRewardsAsset;
 import com.ziggfreed.common.progress.asset.GeneratorAxisAsset;
 import com.ziggfreed.common.progress.asset.ObjectiveLeafAsset;
@@ -230,6 +233,15 @@ class AssetCodecInitTest {
         assertNotNull(ReputationAsset.RankName.CODEC, "the rank name codec must static-init");
         assertNotNull(ReputationAsset.Kill.CODEC, "the kill row codec must static-init");
         assertNotNull(ReputationAsset.Beyond.CODEC, "the Beyond group codec must static-init");
+    }
+
+    @Test
+    void statCodecsInitialize() {
+        assertNotNull(StatAsset.CODEC, "StatAsset.CODEC must static-init (PascalCase keys)");
+        // A From entry is embedded rather than stored, so a lower-case key in it would fail at a pack
+        // author's decode instead of at this build.
+        assertNotNull(StatSourceAsset.CODEC, "the From entry codec must static-init");
+        assertNotNull(PlayerStatsComponent.CODEC, "PlayerStatsComponent.CODEC must static-init (PascalCase keys)");
     }
 
     @Test

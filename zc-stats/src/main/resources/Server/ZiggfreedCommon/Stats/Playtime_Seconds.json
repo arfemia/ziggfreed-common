@@ -1,0 +1,6 @@
+{
+  "$Comment": "Seconds a player has spent in the world, added once a minute and when they leave. The library counts it itself, so it lists no From.",
+  "NameKey": "ziggfreedcommon.stats.playtime_seconds",
+  "Kind": "Sum",
+  "Format": "Time"
+}
