@@ -35,25 +35,33 @@ public final class LeaderboardEntry {
     /**
      * Every cumulative tally: {@value #TOTAL_POINTS} plus whatever the consumer names (a hit count,
      * a pickup count). Lazily allocated, so an entry that has counted nothing carries no map.
+     *
+     * <p>Copy on write once a board holds the entry: {@link Leaderboard} never changes a bag it has
+     * published, it swaps in a changed copy, so a flush or a page reading the bag off the bucket's lock
+     * never meets a write. Volatile, so the swap is seen at once; a reader takes the field once.
      */
-    @Nullable public CounterMap counters;
+    @Nullable public volatile CounterMap counters;
 
-    /** The tally bag, created on first use. */
+    /** The tally bag, created on first use: for an entry no board holds yet (a merged view, a fresh row). */
     @Nonnull
     public CounterMap counters() {
-        if (counters == null) {
-            counters = new CounterMap();
+        CounterMap held = counters;
+        if (held == null) {
+            held = new CounterMap();
+            counters = held;
         }
-        return counters;
+        return held;
     }
 
     /** The sum of every score recorded for this player in the bucket. */
     public long totalPoints() {
-        return counters == null ? 0L : counters.get(TOTAL_POINTS);
+        CounterMap held = counters;
+        return held == null ? 0L : held.get(TOTAL_POINTS);
     }
 
     /** One consumer tally, defaulting to 0 when the bag or the key is absent. */
     public long stat(@Nullable String key) {
-        return counters == null ? 0L : counters.get(key);
+        CounterMap held = counters;
+        return held == null ? 0L : held.get(key);
     }
 }

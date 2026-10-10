@@ -107,6 +107,28 @@ public final class StatBoard {
         }
     }
 
+    /** True when the board has taken the one-time import {@code claimId}; false before {@link #install}. */
+    public static boolean imported(@Nonnull String claimId) {
+        Leaderboard target = board;
+        return target != null && target.imported(claimId);
+    }
+
+    /**
+     * Run the one-time import {@code claimId} unless the board has taken it, then claim it in the board's
+     * {@code imports}, saved with its rows: true only for the call that ran it ({@link Leaderboard#importOnce}).
+     * The writes go through {@link #setAllTime}, absolute values a second run would leave as they were, since a
+     * throw claims nothing and the next call runs the import again. Nothing runs before {@link #install} or
+     * while the source says the board is off, and nothing is claimed then, so the import waits for a board
+     * that takes it.
+     */
+    public static boolean importOnce(@Nonnull String claimId, @Nonnull Runnable writes) {
+        Leaderboard target = board;
+        if (target == null || !source.enabled()) {
+            return false;
+        }
+        return target.importOnce(claimId, writes);
+    }
+
     /** Write what the debounce has not yet: the library's stop. Never throws. */
     public static void flushNow() {
         Leaderboard target = board;

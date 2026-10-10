@@ -162,11 +162,14 @@ public final class Leaderboard {
             if (score > e.bestScore) {
                 e.bestScore = score;
             }
-            e.counters().add(LeaderboardEntry.TOTAL_POINTS, score);
             if (win && timeSeconds > 0 && (e.bestTimeSeconds <= 0 || timeSeconds < e.bestTimeSeconds)) {
                 e.bestTimeSeconds = timeSeconds;
             }
-            e.counters().mergeSums(statDeltas);
+            // Copy on write: a flush or a page may be walking the bag this entry holds right now.
+            CounterMap next = nextBag(e);
+            next.add(LeaderboardEntry.TOTAL_POINTS, score);
+            next.mergeSums(statDeltas);
+            e.counters = next;
             return e;
         });
         // Marked after the row lands, so a write that takes the mark also carries the row.
@@ -235,18 +238,32 @@ public final class Leaderboard {
             if (name != null && !name.isBlank()) {
                 e.name = name;
             }
+            // Copy on write: a flush or a page may be walking the bag this entry holds right now.
+            CounterMap next = nextBag(e);
             for (Map.Entry<String, Long> v : values.entrySet()) {
                 String key = v.getKey();
                 Long value = v.getValue();
                 if (key == null || key.isBlank() || value == null) {
                     continue;
                 }
-                move(e.counters(), key, value, move);
+                move(next, key, value, move);
             }
+            e.counters = next;
             return e;
         });
         dirty.set(true);
         scheduleFlush();
+    }
+
+    /**
+     * A copy of {@code e}'s bag for a write to change and then swap in whole. A bag an entry has
+     * published is never changed in place, so a flush serializing it and a page summing it, both off the
+     * bucket's lock, never meet a write mid-way; the entry's field is volatile, so the swap is seen.
+     */
+    @Nonnull
+    private static CounterMap nextBag(@Nonnull LeaderboardEntry e) {
+        CounterMap held = e.counters;
+        return held == null ? new CounterMap() : held.copy();
     }
 
     private static void move(@Nonnull CounterMap bag, @Nonnull String key, long value, @Nonnull StatMove move) {
