@@ -62,11 +62,11 @@ pluginManager.withPlugin('java-test-fixtures') {
     }
 }
 
-// Never call a deprecated engine API (family-wide rule, hyMMO's
+// Never call a deprecated engine API (family-wide rule, the workspace's
 // .claude/rules/java-conventions.md): -Xlint:removal surfaces every Hytale API annotated @Deprecated(forRemoval = true)
 // still in use, and -Werror promotes that warning to a hard compile failure. A future Hytale
 // server update that deprecates-for-removal an API this mod calls fails the build on sight.
-// compileJava only (not compileTestJava), matching the hyMMO jar's own scoping. A plain
+// compileJava only (not compileTestJava), matching the MMO jar's own scoping. A plain
 // @Deprecated call compiles green here: the deprecation gate applied below (see the root
 // build.gradle) fails `check` on any such call, in any source set, not marked
 // "// DEPRECATION-KEPT: <why>".

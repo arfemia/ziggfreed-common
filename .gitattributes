@@ -1,2 +1,2 @@
-# The deprecation gate is a byte copy of hyMMO's, compared byte for byte: it stays LF on every checkout.
+# The deprecation gate is a byte copy of the MMO's (mmo-family/mmo-skills), compared byte for byte: it stays LF on every checkout.
 gradle/deprecation-gate.gradle text eol=lf

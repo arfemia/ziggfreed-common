@@ -23,7 +23,7 @@ import com.ziggfreed.common.util.AssetIndexCache;
 /**
  * The native-pickup-MIMIC notifier (round-5, 2026-07-22, lifted here per the maintainer's
  * common-lift amendment): reproduces the ENGINE's own item-pickup feedback mechanism -
- * {@code Player#notifyPickupItem}'s exact shape (source: {@code shared-source/release/.../entity/
+ * {@code Player#notifyPickupItem}'s exact shape (source: {@code reference/shared-source/release/.../entity/
  * entities/Player.java:498-529}) - for a PROGRAMMATIC item grant that never went through a real
  * ground-item pickup, so a mod handing a player an item can still give it the item-icon
  * Notification packet + the {@code SFX_Player_Pickup_Item} cue players already associate with
@@ -51,7 +51,7 @@ import com.ziggfreed.common.util.AssetIndexCache;
 public final class PickupMimic {
 
     /**
-     * The native pickup cue's asset id ({@code shared-source/release}'s own {@code
+     * The native pickup cue's asset id ({@code reference/shared-source/release}'s own {@code
      * TempAssetIdUtil.SOUND_EVENT_PLAYER_PICKUP_ITEM} constant value - referenced here as a plain
      * data literal, NOT via that engine class, which is {@code @Deprecated(forRemoval = true)} in
      * its entirety; resolved through the SAME non-deprecated {@link AssetIndexCache} seam {@code

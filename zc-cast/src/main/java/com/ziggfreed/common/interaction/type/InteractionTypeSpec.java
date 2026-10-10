@@ -19,7 +19,7 @@ import com.hypixel.hytale.server.core.modules.interaction.interaction.config.Int
  * reaches a {@code RangeValidator} whose {@code <clinit>} touches {@code HytaleLogger}, which
  * throws {@code IllegalStateException("Log manager wasn't set!")} unless the Hytale server has
  * already installed {@code HytaleLogManager} as the JVM's log manager (documented at
- * {@code additional-mods/command-interactions/src/main/java/com/ziggfreed/interactioncommands
+ * {@code mods/command-interactions/src/main/java/com/ziggfreed/interactioncommands
  * /interaction/RunCommandInteraction.java:127-137}).
  *
  * <p>Holding a {@link Supplier} instead of the codec itself means a spec can be CONSTRUCTED,

@@ -11,7 +11,7 @@
 - `PlacementKeepAlivePins` is reference counted: pin on the first insert, unpin on the last removal, never re-pin per sweep.
 - `NpcPlacementPositionCache` is keyed `(world, placementId, anchorKey)`, never by placement id alone (two instances of one dungeon share it), and is never an authority.
 - `fortify` raises max health because a direct stat-map health write ignores a role's `Invulnerable` flag.
-- Query structure markers as `SpawnMarkerEntity` alone, keyed by floored world position: an open-world marker is re-created by its block with no `From*` tag, and an instance's saved marker has no `SpawnMarkerBlockReference` (`shared-source/release/HytaleServer/NPC/src/main/java/com/hypixel/hytale/server/spawning/blockstates/SpawnMarkerBlockStateSystems.java`).
+- Query structure markers as `SpawnMarkerEntity` alone, keyed by floored world position: an open-world marker is re-created by its block with no `From*` tag, and an instance's saved marker has no `SpawnMarkerBlockReference` (`reference/shared-source/release/HytaleServer/NPC/src/main/java/com/hypixel/hytale/server/spawning/blockstates/SpawnMarkerBlockStateSystems.java`).
 - A calendar event's start and end force a sweep of every live world (zc-objectives `objectives/calendar/CalendarPlacementSweep`). Any other moment that changes what a `Requires` answers (a feature a mod flips at runtime) calls `forceSweep` itself, or the change waits for the world's next ordinary sweep.
 
 ## Authoring

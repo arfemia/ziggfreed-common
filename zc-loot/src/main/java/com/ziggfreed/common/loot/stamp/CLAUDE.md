@@ -10,4 +10,4 @@
 - Never conflate `StampPlan.NOTHING` (a legitimate miss) with `DENIED` (the item is full: abort before charging).
 - `StampTooltip` is the one item-description writer. It drops the base prose when the item's own description carries markup, because this surface has no markup parser.
 - A stat's name resolves an authored `StatDisplays` file, then a registered `StatNamer`, then the client key `client.itemTooltip.stats.<StatId>`, then the id, so a new stat needs no registration to get a name.
-- Engine item metadata (`ItemStack.withMetadata` in `shared-source/release/HytaleServer/CoreServer/src/main/java/com/hypixel/hytale/server/core/inventory/ItemStack.java`): writing an empty document deletes its key, an undecodable value throws on read, and every read decodes again.
+- Engine item metadata (`ItemStack.withMetadata` in `reference/shared-source/release/HytaleServer/CoreServer/src/main/java/com/hypixel/hytale/server/core/inventory/ItemStack.java`): writing an empty document deletes its key, an undecodable value throws on read, and every read decodes again.

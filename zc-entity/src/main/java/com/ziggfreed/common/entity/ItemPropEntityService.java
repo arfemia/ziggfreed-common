@@ -36,7 +36,7 @@ import com.ziggfreed.common.CommonLog;
  * held prop, a trophy case, ...). Lifted config-free out of a consumer's own placed-input
  * display (RPG Stations' {@code station.StationCustodyDisplay}), which itself copied the
  * mechanism VERBATIM from the engine's own sanctioned admin "Entity Spawn Page" Items tab
- * ({@code shared-source/release/HytaleServer/NPC/.../pages/EntitySpawnPage.java}).
+ * ({@code reference/shared-source/release/HytaleServer/NPC/.../pages/EntitySpawnPage.java}).
  *
  * <p>Two routes, picked by whether the representative item has a native {@code BlockType}:
  * <ul>
