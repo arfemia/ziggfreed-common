@@ -135,7 +135,8 @@ public final class StatValidator {
         }
         if (stat.format() == null) {
             out.add(Finding.error(DOMAIN, UNKNOWN_FORMAT, where + " names the Format '" + stat.getFormat()
-                    + "'; write Count, Time, Distance or Percent. The stat is left out", id));
+                    + "'; write Count, Time, Distance or Percent. The stat still counts, but the board gives it no"
+                    + " column", id));
         }
         if (stat.breakdown() == null) {
             out.add(Finding.error(DOMAIN, UNKNOWN_BREAKDOWN, where + " names the Breakdown '"

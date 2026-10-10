@@ -20,8 +20,8 @@ command.desc.show = List every stat a player holds, by the key a condition would
 command.desc.arg.player = The player to look up. Defaults to you.
 
 command.player.needed = Name a player with --player=<name>.
-command.player.offline = That player is not online, and their stats live on their own character.
+command.player.offline = That player is not online. Stats are read from a player who is in the world.
 command.show.off = Stats are switched off on this server ($Enabled in mods/ziggfreedcommon/stats.json).
 command.show.none = {0} has no stats yet.
-command.show.header = Stats {0} holds ({1, number}):
+command.show.header = {0}'s stats ({1, number}):
 command.show.row = - {0}: {1, number}

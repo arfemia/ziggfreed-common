@@ -94,7 +94,10 @@ public final class PlayerStats {
      * {@code mymod:statistics@1}): every tally is added to the lifetime bag under its own key, and the
      * claim is kept in the record, so a second call, a relog or a restart changes nothing. The merge is
      * built aside and swapped in whole, so a throw before the swap changes nothing and claims nothing.
-     * It runs with the store switched off too: it moves saved data rather than counting anything.
+     * It runs with the store switched off too: it moves saved data rather than counting anything. A fold
+     * that lands re-ranks the player's whole record on the stat board at once (the ready pass's re-sync,
+     * skipped while the store is off), so an import made after the player is ready shows on Records
+     * without waiting for their next login. Called on the world thread that owns {@code store}.
      *
      * @return true when this call folded the import; false when it was already claimed, or the player
      *         has no record to fold it into
@@ -103,7 +106,11 @@ public final class PlayerStats {
     public static boolean importOnce(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull String claimId, @Nullable Map<String, Long> lifetime) {
         PlayerStatsComponent record = PlayerStatsComponent.peek(store, ref);
-        return record != null && record.importOnce(claimId, lifetime);
+        if (record == null || !record.importOnce(claimId, lifetime)) {
+            return false;
+        }
+        resync(store, ref);
+        return true;
     }
 
     /**
