@@ -9,6 +9,7 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.asset.ModGateFold;
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.loot.reward.CollectingRewardKind;
@@ -347,6 +348,25 @@ class LootableValidatorTest {
                 LootRef.of(new String[] {"nothing_ships_this", " "}, null), "site", null);
         assertEquals(Severity.WARNING, find(findings, LootableValidator.UNKNOWN_TABLE).severity());
         assertTrue(has(findings, LootableValidator.BLANK_TABLE_REF));
+    }
+
+    /**
+     * A table the mod gate refused at load is absent by design: a reference to it, in any case, says
+     * nothing, while a table nothing ships still warns.
+     */
+    @Test
+    void aReferenceToATableTheModGateRefusedIsSilent() {
+        LootableConfig config = LootableConfig.getInstance();
+        config.mergePackLayer(new ModGateFold<>(LootableConfig.MOD_GATE_STORE, Map.of(),
+                Map.of("gated_table", "Yourmod:Absent")));
+        try {
+            List<Finding> findings = LootableValidator.auditRef(
+                    LootRef.of(new String[] {" Gated_Table ", "nothing_ships_this"}, null), "site", null);
+            assertEquals(1, findings.size(), findings.toString());
+            assertTrue(findings.get(0).message().contains("'nothing_ships_this'"), findings.toString());
+        } finally {
+            config.mergePackLayer(Map.of());
+        }
     }
 
     @Test

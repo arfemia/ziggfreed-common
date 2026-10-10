@@ -191,4 +191,33 @@ class QuestOwnerModGateTest {
         assertNotNull(pool.definition("harvest_gather_copper"));
         assertTrue(lines.isEmpty(), "nothing dropped says nothing: " + lines);
     }
+
+    /**
+     * Every id the owner's gate took out reads as refused afterwards, so a validator naming one stays silent:
+     * an owner quest gated itself, one following a refused or dropped Parent out, an ungated quest the owner
+     * gated, and the family over it. A quest that loaded does not, and with the mod installed the next fold
+     * refuses nothing.
+     */
+    @Test
+    void everyIdTheOwnersGateTookOutReadsAsRefusedUntilTheModIsInstalled() throws Exception {
+        anOwnerGateOverQuestsThatShipUngated();
+        List<String> takenOut = List.of("Mmo_Gather", "owner_mmo_errand", "OWNER_MMO_SEQUEL", "owner_hunt_sequel",
+                "harvest_gather", "Harvest_Hunt", "owner_harvest_sequel", "harvest_gather_copper");
+        mmoInstalled(false);
+        foldAsTheLoadHandlerDoes(packs);
+        STORE.resolve(null);
+
+        for (String id : takenOut) {
+            assertTrue(STORE.modGateRefused(id), id + " reads as refused");
+        }
+        assertFalse(STORE.modGateRefused("owner_errand"), "an ungated owner quest loaded");
+
+        mmoInstalled(true);
+        foldAsTheLoadHandlerDoes(packs);
+        STORE.resolve(null);
+
+        for (String id : takenOut) {
+            assertFalse(STORE.modGateRefused(id), id + " loads with the mod installed");
+        }
+    }
 }

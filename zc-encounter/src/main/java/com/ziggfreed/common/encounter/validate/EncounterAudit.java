@@ -33,6 +33,7 @@ import com.ziggfreed.common.encounter.event.Encounters;
 import com.ziggfreed.common.encounter.validate.EncounterValidator.RoleReference;
 import com.ziggfreed.common.loot.LootRef;
 import com.ziggfreed.common.loot.LootableConfig;
+import com.ziggfreed.common.loot.LootableValidator;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.util.SafeLog;
@@ -268,12 +269,15 @@ public final class EncounterAudit {
         }
     }
 
-    /** Which shared loot tables are loaded, or null when nothing can say. */
+    /**
+     * Which shared loot tables a payout may name without a finding, or null when nothing can say: a loaded
+     * one, and one the mod gate kept off this server on purpose, which is absent by design.
+     */
     @Nullable
     private static Predicate<String> lootables() {
         try {
             LootableConfig config = LootableConfig.getInstance();
-            return config::has;
+            return table -> config.has(table) || LootableValidator.modGateRefused(table);
         } catch (Throwable t) {
             return null;
         }

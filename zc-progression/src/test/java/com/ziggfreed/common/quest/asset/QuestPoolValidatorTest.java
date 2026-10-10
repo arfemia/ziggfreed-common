@@ -1,17 +1,21 @@
 package com.ziggfreed.common.quest.asset;
 
 import static com.ziggfreed.common.quest.asset.QuestAssetCodecTest.decodeRoot;
+import static com.ziggfreed.common.quest.asset.QuestGatedBaseTest.foldAsTheLoadHandlerDoes;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.factor.ModGates;
 import com.ziggfreed.common.i18n.LangCatalog;
+import com.ziggfreed.common.quest.asset.QuestGatedBaseTest.PackMap;
 import com.ziggfreed.common.progress.ConventionKeys;
 import com.ziggfreed.common.progress.ObjectiveKindRegistry;
 import com.ziggfreed.common.progress.gate.GateKindRegistry;
@@ -206,6 +210,38 @@ class QuestPoolValidatorTest {
                         { "Objectives": { "a": { "Kind": "BREAK_BLOCK", "Target": "x" } },
                           "Requires": { "Quests": ["intro_1"] } }
                         """))).isEmpty());
+    }
+
+    /**
+     * A quest the mod gate refused at load is absent by design: a prerequisite, a ShowWhen prerequisite or a
+     * reset target naming it, in any case, reports nothing, while an id nobody authored still does.
+     */
+    @Test
+    void aReferenceToAQuestTheModGateRefusedIsSilent() throws Exception {
+        String absent = "Yourmod:Absent";
+        ModGates.useProbeForTests(param -> param != null && param.trim().equals(absent) ? 0.0 : 1.0);
+        try {
+            foldAsTheLoadHandlerDoes(new PackMap().load("Gated_Intro",
+                    "Server/ZiggfreedCommon/Quests/Yourmod/Gated_Intro.json",
+                    "{ \"Requires\": { \"Factors\": [ { \"Factor\": \"hytale:mod_installed\", \"Param\": \"" + absent
+                            + "\", \"Min\": 1 } ] }, \"Objectives\": { \"a\": { \"Kind\": \"BREAK_BLOCK\","
+                            + " \"Target\": \"x\" } } }"));
+
+            List<Finding> issues = validate(poolOf("q", """
+                    { "Objectives": { "a": { "Kind": "BREAK_BLOCK", "Target": "x" } },
+                      "Requires": { "Quests": ["Gated_Intro", "intro_1"] },
+                      "Listing": { "ShowWhen": { "Quests": ["GATED_INTRO"] } },
+                      "Repeat": { "ResetsOnComplete": ["gated_intro", "daily_1"] } }
+                    """));
+
+            assertEquals(List.of("UNKNOWN_PREREQUISITE", "UNKNOWN_RESET_TARGET"), codes(issues),
+                    "only the ids nobody authored: " + issues);
+            assertTrue(issues.stream().noneMatch(f -> f.message().toLowerCase(Locale.ROOT).contains("gated_intro")),
+                    "no finding names the refused quest: " + issues);
+        } finally {
+            QuestAssetStore.getInstance().mergeQuests(Map.of());
+            ModGates.useProbeForTests(null);
+        }
     }
 
     @Test

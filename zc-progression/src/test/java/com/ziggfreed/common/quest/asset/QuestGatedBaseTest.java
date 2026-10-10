@@ -141,4 +141,49 @@ class QuestGatedBaseTest {
                 "with the MMO the same Base resolves, so the generator does name the store's own id");
         assertFalse(codes(with.issues()).contains("UNKNOWN_BASE"), with.issues().toString());
     }
+
+    // ==================== what a validator reads as refused ====================
+
+    /**
+     * An id the mod gate kept out reads as refused, trimmed and in any case, so a validator naming it stays
+     * silent: a pack file the load handler refused, the family over it, and a generated child gated itself.
+     * A quest that loaded does not, nor does an id nobody authored, which a validator still reports.
+     */
+    @Test
+    void anIdTheGateKeptOutReadsAsRefusedInAnyCaseAndALoadedOneDoesNot() throws Exception {
+        String gate = "\"Requires\": { \"Factors\": [ { \"Factor\": \"hytale:mod_installed\", \"Param\": \"" + MMO
+                + "\", \"Min\": 1 } ] }";
+        String step = "\"Objectives\": { \"collect\": { \"Kind\": \"PICKUP_ITEM\", \"Target\": \"Ore\", \"Amount\": 5 } }";
+        PackMap files = new PackMap()
+                .load("Mmo_Gather_Base", "Server/ZiggfreedCommon/Quests/Mmo/Mmo_Gather_Base.json",
+                        "{ " + gate + ", " + step + " }")
+                .load("Gather_Base", "Server/ZiggfreedCommon/Quests/Gather/Gather_Base.json", "{ " + step + " }");
+        STORE.mergeGenerators(Map.of(
+                "mmo_ladder", generator(ladderOver("mmo_gather_base",
+                        "{ \"Objectives\": { \"collect\": { \"Target\": \"{material}_Ore\" } } }"), "mmo_ladder"),
+                "ladder", generator(ladderOver("gather_base", "{ " + gate + " }"), "ladder")));
+
+        ModGates.useProbeForTests(param -> param != null && param.trim().equals(MMO) ? 0.0 : 1.0);
+        foldAsTheLoadHandlerDoes(files);
+        QuestAssetStore.Resolution without = STORE.resolve(null);
+
+        assertTrue(STORE.modGateRefused("mmo_gather_base"), "the pack file the load handler refused");
+        assertTrue(STORE.modGateRefused(" MMO_Gather_Base "), "trimmed and case-folded, as quest ids are");
+        assertTrue(STORE.modGateRefused("Mmo_Gather_Base_Copper"), "the family over a refused base");
+        assertTrue(STORE.modGateRefused("gather_base_copper"), "a generated child gated itself");
+        assertNotNull(without.pool().definition("gather_base"));
+        assertFalse(STORE.modGateRefused("gather_base"), "a quest that loaded");
+        assertFalse(STORE.modGateRefused("gather_bsae"), "an id nobody authored");
+        assertFalse(STORE.modGateRefused(null));
+        assertFalse(STORE.modGateRefused(" "));
+
+        ModGates.useProbeForTests(param -> 1.0);
+        foldAsTheLoadHandlerDoes(files);
+        QuestAssetStore.Resolution with = STORE.resolve(null);
+
+        assertNotNull(with.pool().definition("mmo_gather_base_copper"));
+        assertFalse(STORE.modGateRefused("mmo_gather_base"), "with the mod installed nothing is refused");
+        assertFalse(STORE.modGateRefused("mmo_gather_base_copper"));
+        assertFalse(STORE.modGateRefused("gather_base_copper"));
+    }
 }

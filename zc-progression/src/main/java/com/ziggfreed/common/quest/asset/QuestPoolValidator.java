@@ -137,7 +137,7 @@ public final class QuestPoolValidator {
             out.addAll(ContentListingAsset.chainFindings(definition.chains(), DOMAIN, id));
 
             for (String other : definition.resetsOnComplete()) {
-                if (pool.definition(other) == null) {
+                if (!resolves(pool, other)) {
                     out.add(Finding.warning(DOMAIN, "UNKNOWN_RESET_TARGET",
                             "ResetsOnComplete names '" + other + "', which is not a quest in this pool; nothing "
                                     + "is reset unless another mod supplies it", id));
@@ -404,7 +404,15 @@ public final class QuestPoolValidator {
     private static void validateRequires(@Nonnull QuestDefinition definition, @Nonnull QuestPool pool,
             @Nullable GateKindRegistry gateKinds, @Nonnull List<Finding> out) {
         out.addAll(GateValidator.validate(definition.requires(), DOMAIN, definition.id(), NOUN,
-                gateKinds, null, prerequisite -> pool.definition(prerequisite) != null));
+                gateKinds, null, prerequisite -> resolves(pool, prerequisite)));
+    }
+
+    /**
+     * Does a reference to {@code questId} resolve for this audit? The pool carries it, or the mod gate kept
+     * it off this server on purpose ({@link QuestAssetStore#modGateRefused}), so no finding may name it.
+     */
+    private static boolean resolves(@Nonnull QuestPool pool, @Nonnull String questId) {
+        return pool.definition(questId) != null || QuestAssetStore.getInstance().modGateRefused(questId);
     }
 
     /**
@@ -420,7 +428,7 @@ public final class QuestPoolValidator {
             return;
         }
         for (Finding finding : GateValidator.validate(showWhen, DOMAIN, definition.id(), NOUN,
-                gateKinds, null, prerequisite -> pool.definition(prerequisite) != null)) {
+                gateKinds, null, prerequisite -> resolves(pool, prerequisite))) {
             out.add(new Finding(finding.severity(), "SHOW_WHEN_" + finding.code(),
                     "in Listing.ShowWhen: " + finding.message(), finding.sourceId(), finding.domain()));
         }

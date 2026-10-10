@@ -102,6 +102,14 @@ public final class QuestAssetStore {
      */
     @Nonnull
     private volatile Map<String, String> gatedOut = Map.of();
+    /**
+     * Quest ids the last {@link #resolve} took out on the mod gate, lower-cased, each to its missing mod:
+     * what the owner folder's own gate took out whole, and each generated child whose base the gate refused
+     * or whose own body gates on a missing mod. A new loaded layer forgets them; its load handler folds
+     * again at once.
+     */
+    @Nonnull
+    private volatile Map<String, String> foldGatedOut = Map.of();
 
     private QuestAssetStore() {
     }
@@ -149,6 +157,7 @@ public final class QuestAssetStore {
             }
         }
         gatedOut = Collections.unmodifiableMap(out);
+        foldGatedOut = Map.of();
         file(layer, quests, layerFindings, "files");
     }
 
@@ -277,6 +286,24 @@ public final class QuestAssetStore {
         return Collections.unmodifiableMap(generators);
     }
 
+    /**
+     * Did the mod gate keep the quest {@code questId} off this server on purpose? True for an id the load
+     * handler refused (its pack file gates on a mod this server does not run) and for one the last fold
+     * took out on the gate (an owner file gated on a missing mod, itself or through its {@code Parent}, and
+     * a generated child of a refused base or gated itself). Matched trimmed and case-folded, as quest ids are.
+     *
+     * <p>A validator reads such an id as absent by design: a reference to it (a conversation's accept or
+     * hand-in, a {@code Requires.Quests} prerequisite, a reset target) reports nothing, while an id nobody
+     * authored still reports as unknown. Ask it for an id the pool lacks.
+     */
+    public boolean modGateRefused(@Nullable String questId) {
+        if (questId == null || questId.isBlank()) {
+            return false;
+        }
+        String id = questId.trim().toLowerCase(Locale.ROOT);
+        return gatedOut.containsKey(id) || foldGatedOut.containsKey(id);
+    }
+
     // ==================== the fold ====================
 
     /** The folded pool, findings logged. */
@@ -299,6 +326,8 @@ public final class QuestAssetStore {
      * <p>A reward row whose own {@code Requires} names a missing mod is absent from the quest it would
      * pay ({@code RewardEntryAsset.toSpec}); this fold counts those rows, across every quest it folds (a
      * skeleton's only through the quests that inherit them), in the store's one row line per missing mod.
+     * Every id it takes out on the mod gate reads as refused until the next fold or load
+     * ({@link #modGateRefused}).
      *
      * @param enumerators the registered value sources a generator axis may name
      */
@@ -307,6 +336,7 @@ public final class QuestAssetStore {
         List<Finding> issues = new ArrayList<>();
         Map<String, String> ownerGatedOut = new LinkedHashMap<>();
         Map<String, QuestAsset> authored = compose(issues, ownerGatedOut);
+        Map<String, String> takenOut = new LinkedHashMap<>(ownerGatedOut);
         Map<String, QuestDefinition> out = new LinkedHashMap<>();
         List<String> gatedRows = new ArrayList<>();
 
@@ -346,7 +376,12 @@ public final class QuestAssetStore {
                 }
                 QuestAsset base = authored.get(body.baseId());
                 if (base == null && (gatedOut.containsKey(body.baseId()) || ownerGatedOut.containsKey(body.baseId()))) {
-                    continue; // the base belongs to a mod this server lacks, so the family is absent on purpose
+                    // the base belongs to a mod this server lacks, so the family is absent on purpose
+                    if (!authored.containsKey(body.id())) {
+                        takenOut.putIfAbsent(body.id(), gatedOut.containsKey(body.baseId())
+                                ? gatedOut.get(body.baseId()) : ownerGatedOut.get(body.baseId()));
+                    }
+                    continue;
                 }
                 if (base == null) {
                     issues.add(Finding.error(QuestPoolValidator.DOMAIN, "UNKNOWN_BASE",
@@ -368,7 +403,12 @@ public final class QuestAssetStore {
                     continue;
                 }
                 QuestAsset decoded = decodeGenerated(body, base, generatorId, issues);
-                if (decoded == null || decoded.isAbstract() || !GateSpec.passesModGate(decoded.getRequires())) {
+                if (decoded == null || decoded.isAbstract()) {
+                    continue;
+                }
+                String missingMod = GateSpec.missingMod(decoded.getRequires());
+                if (missingMod != null) {
+                    takenOut.putIfAbsent(body.id(), missingMod);
                     continue; // a generated child obeys the file rule: gated on an absent mod, it is not here
                 }
                 out.put(body.id(), decoded.toDefinition(generatorId));
@@ -377,6 +417,7 @@ public final class QuestAssetStore {
             }
         }
         ModGates.reportRewardRows(MOD_GATE_STORE, gatedRows);
+        foldGatedOut = Collections.unmodifiableMap(takenOut);
         return new Resolution(new QuestPool(out), issues);
     }
 

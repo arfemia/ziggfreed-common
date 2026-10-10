@@ -3,6 +3,7 @@ package com.ziggfreed.common.loot;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 import javax.annotation.Nonnull;
@@ -240,7 +241,7 @@ public final class LootableValidator {
                 if (tableId == null || tableId.isBlank()) {
                     findings.add(Finding.warning(DOMAIN, BLANK_TABLE_REF,
                             "A loot table reference is empty and does nothing.", sourceId));
-                } else if (LootableConfig.getInstance().resolve(tableId) == null) {
+                } else if (LootableConfig.getInstance().resolve(tableId) == null && !modGateRefused(tableId)) {
                     findings.add(Finding.warning(DOMAIN, UNKNOWN_TABLE,
                             "No loot table named '" + tableId + "' is loaded, so it contributes nothing. "
                                     + "Check the spelling, or the pack that ships it.", sourceId));
@@ -254,6 +255,15 @@ public final class LootableValidator {
             }
         }
         return findings;
+    }
+
+    /**
+     * Did the mod gate keep the table {@code tableId} off this server on purpose (its pack file, or the
+     * owner's entry for it, gates on a mod this server does not run)? Then it is absent by design and no
+     * line may name it.
+     */
+    public static boolean modGateRefused(@Nonnull String tableId) {
+        return LootableConfig.getInstance().modGateRefused().containsKey(tableId.trim().toLowerCase(Locale.ROOT));
     }
 
     /** Audit ONE roll. Silent about where a collecting kind can pay, as a table's roll is. */
