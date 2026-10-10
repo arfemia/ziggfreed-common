@@ -62,11 +62,12 @@ configurations {
 // Compile against the SAME jar the server runs. In a workspace, its family.properties (at
 // workspaceRoot) names hytaleHome, patchline and game_build once for every family build; built
 // alone, with no family.properties there, this repo's gradle.properties gives them. These locals
-// shadow the gradle.properties values of the same names for the rest of this script.
+// shadow the gradle.properties values of the same names for the rest of this script. The file is
+// read through providers.fileContents, so the configuration cache tracks it, its absence included.
 def familyBuildKeys = new Properties()
-def familyBuildKeysFile = new File(rootProject.file(workspaceRoot), 'family.properties')
-if (familyBuildKeysFile.isFile()) {
-    familyBuildKeysFile.withReader('UTF-8') { familyBuildKeys.load(it) }
+def familyBuildKeysBytes = providers.fileContents(rootProject.layout.projectDirectory.file("${workspaceRoot}/family.properties")).asBytes.orNull
+if (familyBuildKeysBytes != null) {
+    familyBuildKeys.load(new StringReader(new String(familyBuildKeysBytes, 'UTF-8')))
 }
 def buildKey = { String key -> familyBuildKeys.getProperty(key)?.trim() ?: property(key).toString() }
 def hytaleHome = buildKey('hytaleHome')

@@ -32,11 +32,12 @@ repositories {
 }
 
 // Compile against the SAME jar the server runs, found as the root build.gradle finds it: the
-// workspace's family.properties keys when it is there, else this repo's gradle.properties.
+// workspace's family.properties keys when it is there, else this repo's gradle.properties (read
+// through providers.fileContents, so the configuration cache tracks the file, its absence included).
 def familyBuildKeys = new Properties()
-def familyBuildKeysFile = new File(rootProject.file(workspaceRoot), 'family.properties')
-if (familyBuildKeysFile.isFile()) {
-    familyBuildKeysFile.withReader('UTF-8') { familyBuildKeys.load(it) }
+def familyBuildKeysBytes = providers.fileContents(rootProject.layout.projectDirectory.file("${workspaceRoot}/family.properties")).asBytes.orNull
+if (familyBuildKeysBytes != null) {
+    familyBuildKeys.load(new StringReader(new String(familyBuildKeysBytes, 'UTF-8')))
 }
 def buildKey = { String key -> familyBuildKeys.getProperty(key)?.trim() ?: property(key).toString() }
 def hytaleHome = buildKey('hytaleHome')
@@ -116,7 +117,8 @@ javadoc {
 // task's run with its first tagged test and needs no build change; an engineItemTest that runs and
 // still discovers nothing does not fail.
 def engineItemsTag = 'engine-items'
-def exportProperties = System.properties.findAll { it.key.toString().startsWith('export') }
+// Read through providers, so the configuration cache sees a -Dexport* the command line adds or drops.
+def exportProperties = providers.systemPropertiesPrefixedBy('export').get()
 
 // Every test JVM in the module: a 512 MB heap, the serial collector and C1-only compilation, which
 // start fastest for a JVM that lives seconds, never long enough for C2 or a parallel GC to pay off.
