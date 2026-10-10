@@ -44,6 +44,7 @@ command.desc.arg.offset = How far to move it: 7d, 12h or 30m, with a minus sign 
 command.clock.bad_offset = '{0}' is not a time to move by. Try 7d, 12h, 30m, -1d or 0.
 command.clock.set = The records board's clock now runs {0} off the server's.
 command.clock.reset = The records board is back on the server's clock.
+command.clock.shifted = Plays now count in the shifted weeks and months, and no old week or month is dropped until you set the clock back to 0.
 command.clock.window = {0} reads {1}
 command.clock.window.none = {0} has not started yet
 

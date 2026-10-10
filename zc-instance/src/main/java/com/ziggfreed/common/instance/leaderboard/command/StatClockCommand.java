@@ -54,6 +54,8 @@ final class StatClockCommand extends AbstractAsyncCommand {
             LeaderboardCommandMessages.heading(ctx, "clock.reset");
         } else {
             LeaderboardCommandMessages.heading(ctx, "clock.set", authored.trim());
+            // A trial clock writes into windows that are not the real ones yet, and prunes none until it is back at 0.
+            LeaderboardCommandMessages.detail(ctx, "clock.shifted");
         }
         Instant now = StatClock.now();
         for (StatPeriod period : StatPeriodConfig.getInstance().periods()) {

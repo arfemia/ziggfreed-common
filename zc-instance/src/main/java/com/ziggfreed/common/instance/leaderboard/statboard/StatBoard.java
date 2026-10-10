@@ -155,6 +155,10 @@ public final class StatBoard {
             return;
         }
         Instant now = StatClock.now();
+        // While an admin runs the board's clock off the server's, a turnover is a trial: nothing is pruned
+        // and no window is remembered as the last one, so a jump ahead never drops the real running week,
+        // and setting the clock back to 0 finds no turnover either.
+        boolean shifted = !StatClock.offset().isZero();
         Set<String> buckets = new LinkedHashSet<>();
         buckets.add(StatPeriod.ALL_TIME);
         List<StatPeriod> turned = new ArrayList<>();
@@ -164,7 +168,7 @@ public final class StatBoard {
                 continue;
             }
             buckets.add(key);
-            if (period.windowPrefix() != null && !key.equals(lastWindow.put(period.id(), key))) {
+            if (!shifted && period.windowPrefix() != null && !key.equals(lastWindow.put(period.id(), key))) {
                 turned.add(period);
             }
         }
