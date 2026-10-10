@@ -1,6 +1,7 @@
 package com.ziggfreed.common.instance.leaderboard.statboard;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -24,8 +25,9 @@ import com.ziggfreed.common.instance.leaderboard.Leaderboard;
  * <p><b>Buckets.</b> {@code all_time}, plus the running window of every period ({@link StatPeriod}):
  * {@code weekly@2026-W42}, {@code monthly@2026-10}, {@code range@<id>} while its range runs. A new window
  * is the reset; when a week or a month turns over, the board keeps that period's newest {@code Keep}
- * windows and drops the rest. Only a line some section names is written ({@link StatSectionConfig#ranked}),
- * so an entry carries just what Records can show.
+ * windows and drops the rest. While {@link StatClock} runs off the server's clock, a write lands in
+ * {@code all_time} alone and nothing is dropped. Only a line some section names is written
+ * ({@link StatSectionConfig#ranked}), so an entry carries just what Records can show.
  *
  * <p><b>Threading.</b> Each write lands in memory at once and the file follows on a 10-second debounce
  * (compact JSON), from any thread; the library writes it once more at its stop. Nothing is written
@@ -154,11 +156,17 @@ public final class StatBoard {
         if (ranked.isEmpty()) {
             return;
         }
-        Instant now = StatClock.now();
-        // While an admin runs the board's clock off the server's, a turnover is a trial: nothing is pruned
-        // and no window is remembered as the last one, so a jump ahead never drops the real running week,
-        // and setting the clock back to 0 finds no turnover either.
-        boolean shifted = !StatClock.offset().isZero();
+        // One read of the offset, so a /zigleaderboard clock racing this write cannot mix a shifted check
+        // with an unshifted now.
+        Duration off = StatClock.offset();
+        if (!off.isZero()) {
+            // A shifted clock only moves which windows the board reads. A write lands in all_time alone: a
+            // future window written now would outlive the trial (retain keeps the newest by text, so after
+            // clock 0 or a restart it would drop the real running week), and nothing is pruned or remembered.
+            move.apply(target, StatPeriod.ALL_TIME, uuid, name, ranked);
+            return;
+        }
+        Instant now = Instant.now().plus(off);
         Set<String> buckets = new LinkedHashSet<>();
         buckets.add(StatPeriod.ALL_TIME);
         List<StatPeriod> turned = new ArrayList<>();
@@ -168,7 +176,7 @@ public final class StatBoard {
                 continue;
             }
             buckets.add(key);
-            if (!shifted && period.windowPrefix() != null && !key.equals(lastWindow.put(period.id(), key))) {
+            if (period.windowPrefix() != null && !key.equals(lastWindow.put(period.id(), key))) {
                 turned.add(period);
             }
         }
