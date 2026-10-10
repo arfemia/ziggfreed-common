@@ -103,6 +103,17 @@ test {
     useJUnitPlatform()
 }
 
+// Every test JVM: a 512 MB heap, the serial collector and C1-only compilation, which start fastest
+// for a JVM that lives seconds (gradle/zc-module.gradle sets the same for every module).
+tasks.withType(Test).configureEach {
+    maxHeapSize = '512m'
+    jvmArgs '-XX:+UseSerialGC', '-XX:TieredStopAtLevel=1'
+    // Never from the build cache: a test can read an input no task declares, and a -D generator run
+    // writes files that are no task's output, so only a real run proves it. UP-TO-DATE still skips
+    // a test task whose declared inputs are unchanged.
+    outputs.cacheIf('tests read undeclared inputs') { false }
+}
+
 // The single installable runtime jar: this project's two classes plus every module's contents,
 // flattened. DuplicatesStrategy.EXCLUDE keeps the first copy of a directory entry the modules
 // share (com/, com/ziggfreed/, com/ziggfreed/common/, META-INF/) instead of failing on it.
@@ -141,6 +152,15 @@ javadoc {
     source = sourceSets.main.allJava + fileTree(aggregatedSources) { include '**/*.java' }
     classpath = sourceSets.main.compileClasspath
     options.addStringOption('Xdoclint:-missing', '-quiet')
+}
+
+// The -javadoc jar is a release artifact, not a build check: `build` leaves it (and the javadoc run
+// behind it) out, `gradlew build -Prelease` builds it with everything else, and naming javadocJar
+// builds it alone.
+if (!providers.gradleProperty('release').map { it != 'false' }.getOrElse(false)) {
+    tasks.named('assemble') {
+        setDependsOn(dependsOn.findAll { !((it instanceof Task || it instanceof TaskProvider) && it.name == 'javadocJar') })
+    }
 }
 
 processResources {

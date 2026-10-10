@@ -101,10 +101,23 @@ javadoc {
 // not automatic: a guard test tagged into `engineItemTest` would pass without proving its guard, so
 // never tag one. SafeLogTest carries an explicit check (it asserts it runs with no engine log manager
 // installed); other guard tests rely on staying untagged. `check`
-// (so `gradlew build`) runs both. A module with no tagged test runs an empty engineItemTest, so that
-// task alone does not fail on discovering nothing.
+// (so `gradlew build`) runs both. A module whose test sources never name the tag (@Tag("engine-items"),
+// quotes included) skips engineItemTest instead of starting an empty JVM, so a module gains the
+// task's run with its first tagged test and needs no build change; an engineItemTest that runs and
+// still discovers nothing does not fail.
 def engineItemsTag = 'engine-items'
 def exportProperties = System.properties.findAll { it.key.toString().startsWith('export') }
+
+// Every test JVM in the module: a 512 MB heap, the serial collector and C1-only compilation, which
+// start fastest for a JVM that lives seconds, never long enough for C2 or a parallel GC to pay off.
+tasks.withType(Test).configureEach {
+    maxHeapSize = '512m'
+    jvmArgs '-XX:+UseSerialGC', '-XX:TieredStopAtLevel=1'
+    // Never from the build cache: a test can read an input no task declares, and a -D generator run
+    // writes files that are no task's output, so only a real run proves it. UP-TO-DATE still skips
+    // a test task whose declared inputs are unchanged.
+    outputs.cacheIf('tests read undeclared inputs') { false }
+}
 
 test {
     useJUnitPlatform {
@@ -128,6 +141,11 @@ def engineItemTest = tasks.register('engineItemTest', Test) {
     systemProperties exportProperties
     systemProperty 'java.util.logging.manager', 'com.hypixel.hytale.logger.backend.HytaleLogManager'
     shouldRunAfter test
+    def testSources = sourceSets.test.java
+    def tagLiteral = '"' + engineItemsTag + '"'
+    onlyIf('a test source names the engine-items tag') {
+        testSources.files.any { it.name.endsWith('.java') && it.getText('UTF-8').contains(tagLiteral) }
+    }
 }
 
 tasks.named('check') {

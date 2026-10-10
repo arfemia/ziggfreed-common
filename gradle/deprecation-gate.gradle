@@ -16,7 +16,10 @@
 // Apply it once the java (or java-library) plugin is applied:
 //     apply from: "$rootDir/gradle/deprecation-gate.gradle"
 // Each source set gets its own task (deprecationGateMain, deprecationGateTest, ...), UP-TO-DATE
-// while that source set's sources, its compile classpath and this script stay unchanged.
+// while that source set's sources, its compile classpath and this script stay unchanged. The
+// classpath is compared as javac sees it (CompileClasspathNormalizer: class signatures and their
+// annotations, @Deprecated included, never a method body), so an upstream implementation change
+// leaves the gate UP-TO-DATE and a new deprecation upstream reruns it.
 // `gradlew deprecationGate` runs every one of them, and `check` (so `build`) depends on that.
 //
 // This file is kept byte-identical in every repository that applies it: edit the master copy and
@@ -61,7 +64,7 @@ pluginManager.withPlugin('java') {
             t.description = "Fails on a deprecated-API call in the ${setName} source set not marked // DEPRECATION-KEPT: <why>."
             t.inputs.files(sources).withPropertyName('sources')
                     .withPathSensitivity(PathSensitivity.RELATIVE).skipWhenEmpty()
-            t.inputs.files(classpath).withPropertyName('classpath').withNormalizer(ClasspathNormalizer)
+            t.inputs.files(classpath).withPropertyName('classpath').withNormalizer(CompileClasspathNormalizer)
             if (gateScriptFile != null) {
                 t.inputs.file(gateScriptFile).withPropertyName('gateScript').withPathSensitivity(PathSensitivity.NONE)
             }

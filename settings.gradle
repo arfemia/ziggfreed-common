@@ -25,3 +25,39 @@ include 'zc-encounter'
 include 'zc-calendar'
 include 'zc-almanac'
 include 'zc-reputation'
+
+// The local build cache, shared by every family repo and every tree on this machine: the main
+// checkout's .gradle-build-cache, on the workspace's drive, never Gradle's default under the user
+// home. The workspace root is workspaceRoot (gradle.properties) from this folder; a tree is a
+// linked worktree of the workspace (its .git is a file), and git's commondir leads from it back to
+// the main checkout, so every tree shares the one cache. A repo built outside a workspace (no
+// family.properties at workspaceRoot) keeps its own .gradle-build-cache beside this file
+// (git-ignored), still never the default under the user home.
+def familyBuildCache = {
+    def rel = providers.gradleProperty('workspaceRoot').getOrNull()
+    File root = rel ? new File(settingsDir, rel).canonicalFile : null
+    if (root == null || !new File(root, 'family.properties').isFile()) {
+        return new File(settingsDir, '.gradle-build-cache')
+    }
+    File dotGit = new File(root, '.git')
+    def gitdir = dotGit.isFile() ? (dotGit.getText('UTF-8') =~ '(?m)^gitdir:\\s*(.+?)\\s*$') : null
+    if (gitdir != null && gitdir.find()) {
+        File treeGitDir = new File(gitdir.group(1))
+        if (!treeGitDir.absolute) {
+            treeGitDir = new File(root, gitdir.group(1))
+        }
+        File commondir = new File(treeGitDir, 'commondir')
+        if (commondir.isFile()) {
+            File common = new File(treeGitDir, commondir.getText('UTF-8').trim()).canonicalFile
+            if (common.name == '.git' && common.isDirectory()) {
+                root = common.parentFile
+            }
+        }
+    }
+    new File(root, '.gradle-build-cache')
+}()
+buildCache {
+    local {
+        directory = familyBuildCache
+    }
+}

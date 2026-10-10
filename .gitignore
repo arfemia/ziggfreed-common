@@ -7,3 +7,5 @@ out/
 # zc-encounter source package com.ziggfreed.common.encounter.run and its test twin.
 /run/
 local.properties
+# The build cache of a repo built outside a workspace (settings.gradle's fallback).
+/.gradle-build-cache/
