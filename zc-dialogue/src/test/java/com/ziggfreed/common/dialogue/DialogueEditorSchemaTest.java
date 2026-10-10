@@ -106,14 +106,24 @@ class DialogueEditorSchemaTest {
 
     @Test
     void aOncePerConversationLeafIsABooleanThatDeclaresItsUnauthoredFalse() {
+        assertUnauthoredFalseKnob("PerConversation");
+    }
+
+    @Test
+    void aOncePerCharacterLeafIsABooleanThatDeclaresItsUnauthoredFalse() {
+        assertUnauthoredFalseKnob("PerCharacter");
+    }
+
+    /** A Once group leaf that is a plain knob: a boolean, its unauthored false declared, its meaning said. */
+    private static void assertUnauthoredFalseKnob(@Nonnull String name) {
         Schema once = DialogueOnce.CODEC.toSchema(new SchemaContext());
         ObjectSchema group = (ObjectSchema) once.getAnyOf()[1];
-        Schema leaf = group.getProperties().get("PerConversation");
-        assertNotNull(leaf, "the group carries the PerConversation leaf");
+        Schema leaf = group.getProperties().get(name);
+        assertNotNull(leaf, "the group carries the " + name + " leaf");
         assertTrue(leaf instanceof BooleanSchema, "a knob, not a mode: " + leaf.getClass().getSimpleName());
         assertEquals(Boolean.FALSE, ((BooleanSchema) leaf).getDefault(),
-                "the editor shows what an unauthored leaf means");
-        assertNotNull(leaf.getMarkdownDescription(), "the leaf says what it changes");
+                "the editor shows what an unauthored " + name + " means");
+        assertNotNull(leaf.getMarkdownDescription(), "the " + name + " leaf says what it changes");
     }
 
     @Test

@@ -3,6 +3,7 @@ package com.ziggfreed.common.reputation.page;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -23,6 +24,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.progress.gate.GatedContent;
+import com.ziggfreed.common.reputation.ReputationDef;
 import com.ziggfreed.common.reputation.ReputationLadder;
 import com.ziggfreed.common.reputation.ReputationRuntime;
 import com.ziggfreed.common.reputation.ReputationService;
@@ -116,7 +118,7 @@ public final class ReputationPage extends InteractiveCustomUIPage<ReputationEven
         rail = ZigMenu.paint(cmd, events, store, ref, store.getComponent(ref, Player.getComponentType()),
                 MenuSlot.REPUTATION.id(), false);
 
-        ReputationLadder ladder = ladder();
+        Function<ReputationDef, ReputationLadder> ladders = ladders();
         List<ReputationView.Row> rows = rows(store, ref);
         ReputationView.Row row = ReputationView.pick(rows, selected);
         if (row == null) {
@@ -127,9 +129,10 @@ public final class ReputationPage extends InteractiveCustomUIPage<ReputationEven
         }
         selected = row.id();
         try {
-            LedgerPainter.paint(cmd, events, LIST, ReputationView.ledger(rows, ladder), Set.of(), selected, ROWS,
+            LedgerPainter.paint(cmd, events, LIST, ReputationView.ledger(rows, ladders), Set.of(), selected, ROWS,
                     RowSize.STANDARD, playerRef);
-            DetailPainter.paint(cmd, events, DETAIL, ReputationView.detail(row, ladder, gated(), worn()),
+            DetailPainter.paint(cmd, events, DETAIL,
+                    ReputationView.detail(row, ladders.apply(row.reputation()), gated(), worn()),
                     DETAIL_BINDINGS, playerRef);
         } catch (Throwable t) {
             // build() must not throw: a reading that fails leaves the page as far as it got.
@@ -161,13 +164,17 @@ public final class ReputationPage extends InteractiveCustomUIPage<ReputationEven
         sendUpdate(new UICommandBuilder(), new UIEventBuilder(), false);
     }
 
+    /**
+     * Each reputation's own ladder (the shared ranks plus its own tiers above the top), the one {@link #rows}
+     * reads, so the list, the ranks, the colour and Beyond all read the same top.
+     */
     @Nonnull
-    private static ReputationLadder ladder() {
+    private static Function<ReputationDef, ReputationLadder> ladders() {
         try {
-            return ReputationRuntime.service().ladder();
+            return ReputationRuntime.service()::ladderFor;
         } catch (Throwable t) {
-            SafeLog.warn("[reputation] the page could not read the rank ladder", t);
-            return ReputationLadder.EMPTY;
+            SafeLog.warn("[reputation] the page could not read the rank ladders", t);
+            return def -> ReputationLadder.EMPTY;
         }
     }
 

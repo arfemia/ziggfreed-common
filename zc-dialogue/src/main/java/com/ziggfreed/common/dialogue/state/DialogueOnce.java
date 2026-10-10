@@ -145,6 +145,7 @@ public final class DialogueOnce {
                     .documentation(PERIOD_DOC).add()
                     .append(new KeyedCodec<>("PerCharacter", Codec.BOOLEAN, false),
                             (o, v) -> o.perCharacter = v, o -> o.perCharacter)
+                    .metadata(EditorSchema.defaultValue(false))
                     .documentation(PER_CHARACTER_DOC).add()
                     .append(new KeyedCodec<>("PerConversation", Codec.BOOLEAN, false),
                             (o, v) -> o.perConversation = v, o -> o.perConversation)

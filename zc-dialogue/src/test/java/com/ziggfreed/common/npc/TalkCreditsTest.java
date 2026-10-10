@@ -175,40 +175,21 @@ class TalkCreditsTest {
         }
     }
 
-    /**
-     * The library's own sink is the floor: it credits a conversation on a server where nothing else
-     * does, and stands aside the moment anything else counts conversations, so an older consumer
-     * that still credits talk itself is never counted twice.
-     */
     @Nested
     class TheLibrarySink {
 
         @Test
-        void itRunsAloneWhenNoOtherSinkIsRegisteredAndYieldsToAConsumerSinkOtherwise() {
+        void itRunsBesideAConsumerSinkAndOneCreditReachesBothOnceEach() {
             List<String> told = new ArrayList<>();
             TalkCredits.registerLibrarySink(c -> told.add("library:" + c.npcId()));
-
-            TalkCredits.dispatch(UUID.randomUUID(), credit("guide"));
-            assertEquals(List.of("library:guide"), told,
-                    "with no consumer sink the library's own sink is the one that credits the conversation");
-
-            told.clear();
             TalkCredits.register("mymod", "MyMod", c -> told.add("mymod:" + c.npcId()));
-            TalkCredits.dispatch(UUID.randomUUID(), credit("guide"));
-            assertEquals(List.of("mymod:guide"), told,
-                    "a consumer that still counts conversations itself must not be counted twice beside the library");
-        }
-
-        @Test
-        void itYieldsWhicheverRegisteredFirst() {
-            List<String> told = new ArrayList<>();
-            TalkCredits.register("mymod", "MyMod", c -> told.add("mymod"));
-            TalkCredits.registerLibrarySink(c -> told.add("library"));
 
             TalkCredits.dispatch(UUID.randomUUID(), credit("guide"));
 
-            assertEquals(List.of("mymod"), told,
-                    "the yield is decided when a conversation is credited, never by setup order");
+            assertEquals(2, told.size(), "one credit tells each sink once: " + told);
+            assertTrue(told.contains("library:guide"),
+                    "the library's own sink always counts, whatever else is registered");
+            assertTrue(told.contains("mymod:guide"), "and a consumer's sink runs beside it");
         }
 
         @Test

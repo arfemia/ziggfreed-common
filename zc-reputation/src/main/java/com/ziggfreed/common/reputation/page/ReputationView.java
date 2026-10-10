@@ -128,12 +128,16 @@ public final class ReputationView {
 
     // ==================== the list ====================
 
-    /** The list: one section holding a row per met reputation, in page order. */
+    /**
+     * The list: one section holding a row per met reputation, in page order, each coloured on its own ladder
+     * ({@code ladderOf}, as {@link #rows} reads it), so a tier above the shared top reads as that reputation's top.
+     */
     @Nonnull
-    public static LedgerModel ledger(@Nonnull List<Row> rows, @Nonnull ReputationLadder ladder) {
+    public static LedgerModel ledger(@Nonnull List<Row> rows,
+            @Nonnull Function<ReputationDef, ReputationLadder> ladderOf) {
         List<LedgerRow> out = new ArrayList<>(rows.size());
         for (Row row : rows) {
-            out.add(ledgerRow(row, ladder));
+            out.add(ledgerRow(row, ladderOf.apply(row.reputation())));
         }
         return LedgerModel.of(List.of(new LedgerSection(SECTION, ReputationText.line("page.section"), out, true)));
     }
@@ -209,7 +213,11 @@ public final class ReputationView {
 
     // ==================== the reading page ====================
 
-    /** The reading page of {@code row}: {@code gated} is every gated entry this server lists. */
+    /**
+     * The reading page of {@code row}: {@code ladder} is that reputation's own
+     * ({@link ReputationService#ladderFor}), never the shared one, and {@code gated} is every gated entry this
+     * server lists.
+     */
     @Nonnull
     public static DetailView detail(@Nonnull Row row, @Nonnull ReputationLadder ladder,
             @Nonnull List<GatedContent.Entry> gated) {

@@ -19,9 +19,10 @@ import com.ziggfreed.common.progress.DispatchOptions;
  * <p>A conversation is not a native event: it is credited by an authored beat ({@code MarkTalked}, or
  * the {@code ZigTalkCredit} role action) through zc-dialogue's {@link TalkCredits}, which decides
  * whether the moment counts at all (the re-trigger window) and resolves the alias set. This producer
- * is the library's own SINK there, registered under {@link TalkCredits#LIBRARY_SINK_ID}, and it runs
- * only while no consumer has a sink of its own: a consumer that still counts conversations itself
- * keeps doing so alone, and one conversation never counts twice.
+ * is the library's own SINK there, registered under {@link TalkCredits#LIBRARY_SINK_ID}, and it
+ * always runs, beside any sink a consumer registers. A consumer reacts to the moment produced here
+ * through a {@code MomentListener} and never dispatches {@code TALK_TO_NPC} from a sink of its own,
+ * or one conversation counts twice.
  *
  * <p><b>The three-call shape is load-bearing.</b> The primary goes through the producer form of
  * {@link ProgressDispatch#fire}: every reaction sees it with a {@link TalkPayload}, and both engines
