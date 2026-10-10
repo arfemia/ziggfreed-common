@@ -22,6 +22,7 @@ import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
+import com.ziggfreed.common.instance.result.ColumnFormat;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.menu.MenuFrame;
@@ -72,6 +73,8 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
     // Synthesized "All" tab: a reserved bucket key (no real preset id / party size contains it),
     // appended to the end of any axis with >= 2 concrete tabs; selecting it aggregates that axis.
     private static final String ALL = "*";
+    /** The action a primary-row link carries: open the linked board's page ({@link LeaderboardPageDeps#primaryLinks}). */
+    private static final String LINK = "link";
 
     private final LeaderboardPageDeps deps;
     private final String activePrimary; // "" when there is no primary axis
@@ -438,8 +441,16 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
             if (c < shown) {
                 StatColumnDef def = cols.get(c);
                 long value = e.stat(def.statKey());
-                // A low-wins best with no value is no record, shown as the Rankings view shows a missing time.
-                UiText.setText(cmd, cell + ".Text", def.ascending() && value <= 0 ? "-" : def.format().render(value));
+                Message words = def.format() == ColumnFormat.DURATION ? deps.text().duration(value) : null;
+                if (def.ascending() && value <= 0) {
+                    // A low-wins best with no value is no record, shown as the Rankings view shows a missing time.
+                    UiText.setText(cmd, cell + ".Text", "-");
+                } else if (words != null) {
+                    // Hours and minutes in the reader's words carry parameters, which only TextSpans substitutes.
+                    cmd.set(cell + ".TextSpans", words);
+                } else {
+                    UiText.setText(cmd, cell + ".Text", def.format().render(value));
+                }
                 cmd.set(cell + ".Visible", true);
             } else {
                 cmd.set(cell + ".Visible", false);
@@ -470,6 +481,32 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
             String group = action.equals("group") ? tab.bucketKey() : activePrimary;
             String bucket = action.equals("group") ? activeSecondary : tab.bucketKey();
             bind(events, sel + " #TabBtn", action, group, bucket, sort.name(), statSort, viewStr);
+        }
+        if (!action.equals("group")) {
+            return;
+        }
+        // The primary row's links come last, each a tab that opens another board's page while it has one.
+        int next = display.size();
+        for (LeaderboardPageDeps.PageLink link : deps.primaryLinks()) {
+            if (target(link) == null) {
+                continue;
+            }
+            cmd.append(container, TAB_TEMPLATE);
+            String sel = container + "[" + next + "]";
+            next++;
+            UiText.setText(cmd, sel + " #TabBtn.Text", link.label());
+            style(cmd, sel + " #TabBtn", false);
+            bind(events, sel + " #TabBtn", LINK, link.key(), activeSecondary, sort.name(), statSort, viewStr);
+        }
+    }
+
+    /** The page {@code link} opens now, or null when it has none (or its builder failed). */
+    @Nullable
+    private static LeaderboardPageDeps target(@Nonnull LeaderboardPageDeps.PageLink link) {
+        try {
+            return link.opens().get();
+        } catch (RuntimeException e) {
+            return null;
         }
     }
 
@@ -552,6 +589,21 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         }
         if (data.action == null || "close".equals(data.action)) {
             player.getPageManager().setPage(ref, store, Page.None);
+            return;
+        }
+        if (LINK.equals(data.action)) {
+            LeaderboardPageDeps opened = null;
+            for (LeaderboardPageDeps.PageLink link : deps.primaryLinks()) {
+                if (link.key().equals(data.group)) {
+                    opened = target(link);
+                    break;
+                }
+            }
+            if (opened == null) {
+                answer();
+            } else {
+                player.getPageManager().openCustomPage(ref, store, new LeaderboardPage(playerRef, opened));
+            }
             return;
         }
         String primary = data.group;

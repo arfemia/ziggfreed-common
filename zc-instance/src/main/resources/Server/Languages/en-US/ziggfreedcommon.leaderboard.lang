@@ -49,3 +49,5 @@ command.clock.window.none = {0} has not started yet
 
 # The shared menu's tab for the records this server keeps (today, the boss fights above).
 menu.records = Records
+# The tab on the stat board's first row that opens the boss fights' records.
+records.boss_fights = Boss Fights

@@ -1,11 +1,15 @@
 package com.ziggfreed.common.instance.leaderboard;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
+import com.hypixel.hytale.server.core.Message;
 
 /**
  * The immutable consumer-policy bundle a {@link LeaderboardPage} is built from: the
@@ -38,6 +42,15 @@ public final class LeaderboardPageDeps {
     /** The composition every board had before a board could name its own: {@code "<primary>_<secondary>"}. */
     public static final BucketKeys UNDERSCORE = (primary, secondary) -> primary + "_" + secondary;
 
+    /**
+     * A tab at the end of the primary row that opens another board's page instead of selecting a bucket
+     * (Records' boss fights beside the stat board's sections). {@code opens} is asked each time the row is
+     * painted and again on the click: null hides the tab, or answers the click with nothing opened.
+     */
+    public record PageLink(@Nonnull String key, @Nonnull Message label,
+                           @Nonnull Supplier<LeaderboardPageDeps> opens) {
+    }
+
     private final Leaderboard board;
     private final List<LeaderboardBucketTab> primaryTabs;
     private final List<LeaderboardBucketTab> tabs;
@@ -49,6 +62,7 @@ public final class LeaderboardPageDeps {
     private final Map<String, List<StatColumnDef>> columnsByPrimary;
     private final boolean allTabs;
     private final boolean statsOnly;
+    private final List<PageLink> primaryLinks;
 
     /** Back-compat: a single-axis, score-only board (no difficulty axis, no stats view). */
     public LeaderboardPageDeps(@Nonnull Leaderboard board, @Nonnull List<LeaderboardBucketTab> tabs,
@@ -67,14 +81,15 @@ public final class LeaderboardPageDeps {
     public LeaderboardPageDeps(@Nonnull Leaderboard board, @Nonnull List<LeaderboardBucketTab> primaryTabs,
                                @Nonnull List<LeaderboardBucketTab> tabs, @Nonnull List<StatColumnDef> statColumns,
                                @Nonnull LeaderboardScreenMessages text, @Nonnull BucketKeys bucketKeys) {
-        this(board, primaryTabs, tabs, statColumns, text, bucketKeys, null, Map.of(), true, false);
+        this(board, primaryTabs, tabs, statColumns, text, bucketKeys, null, Map.of(), true, false, List.of());
     }
 
     private LeaderboardPageDeps(@Nonnull Leaderboard board, @Nonnull List<LeaderboardBucketTab> primaryTabs,
                                 @Nonnull List<LeaderboardBucketTab> tabs, @Nonnull List<StatColumnDef> statColumns,
                                 @Nonnull LeaderboardScreenMessages text, @Nonnull BucketKeys bucketKeys,
                                 @Nullable String menuTab, @Nonnull Map<String, List<StatColumnDef>> columnsByPrimary,
-                                boolean allTabs, boolean statsOnly) {
+                                boolean allTabs, boolean statsOnly, @Nonnull List<PageLink> primaryLinks) {
+        this.primaryLinks = List.copyOf(primaryLinks);
         this.board = board;
         this.primaryTabs = List.copyOf(primaryTabs);
         this.tabs = List.copyOf(tabs);
@@ -98,7 +113,7 @@ public final class LeaderboardPageDeps {
     @Nonnull
     public LeaderboardPageDeps withMenuTab(@Nullable String tab) {
         return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, tab,
-                columnsByPrimary, allTabs, statsOnly);
+                columnsByPrimary, allTabs, statsOnly, primaryLinks);
     }
 
     /**
@@ -109,7 +124,7 @@ public final class LeaderboardPageDeps {
     @Nonnull
     public LeaderboardPageDeps withColumnsByPrimary(@Nonnull Map<String, List<StatColumnDef>> columns) {
         return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, menuTab,
-                columns, allTabs, statsOnly);
+                columns, allTabs, statsOnly, primaryLinks);
     }
 
     /**
@@ -119,7 +134,7 @@ public final class LeaderboardPageDeps {
     @Nonnull
     public LeaderboardPageDeps withoutAllTabs() {
         return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, menuTab,
-                columnsByPrimary, false, statsOnly);
+                columnsByPrimary, false, statsOnly, primaryLinks);
     }
 
     /**
@@ -129,7 +144,26 @@ public final class LeaderboardPageDeps {
     @Nonnull
     public LeaderboardPageDeps statsOnly() {
         return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, menuTab,
-                columnsByPrimary, allTabs, true);
+                columnsByPrimary, allTabs, true, primaryLinks);
+    }
+
+    /**
+     * A copy with one more {@link PageLink} at the end of the primary row: a tab labelled {@code label} that
+     * opens the page {@code opens} builds. Everything else is kept.
+     */
+    @Nonnull
+    public LeaderboardPageDeps withPrimaryLink(@Nonnull String key, @Nonnull Message label,
+                                               @Nonnull Supplier<LeaderboardPageDeps> opens) {
+        List<PageLink> links = new ArrayList<>(primaryLinks);
+        links.add(new PageLink(key, label, opens));
+        return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, menuTab,
+                columnsByPrimary, allTabs, statsOnly, links);
+    }
+
+    /** The tabs at the end of the primary row that open another page ({@link #withPrimaryLink}). */
+    @Nonnull
+    public List<PageLink> primaryLinks() {
+        return primaryLinks;
     }
 
     /** Whether an axis of two or more tabs gets the synthesized "All" tab (true unless {@link #withoutAllTabs}). */

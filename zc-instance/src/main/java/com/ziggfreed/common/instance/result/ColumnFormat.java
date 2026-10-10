@@ -18,7 +18,13 @@ public enum ColumnFormat {
     /** A percentage (the value is the whole-number percent, e.g. 87 -> "87%"). */
     PERCENT,
     /** The raw number, unformatted. */
-    RAW;
+    RAW,
+    /**
+     * A long span of seconds (a playtime) in hours and minutes. A page whose messages provider words it
+     * ({@code LeaderboardScreenMessages.duration}, "12h 30m") paints those words; anywhere else it reads
+     * as h:mm, which needs no words.
+     */
+    DURATION;
 
     /** Render {@code value} per this format to a display string. */
     public String render(long value) {
@@ -28,7 +34,15 @@ public enum ColumnFormat {
             case TIME -> time(value);
             case PERCENT -> value + "%";
             case RAW -> Long.toString(value);
+            case DURATION -> hoursMinutes(value);
         };
+    }
+
+    private static String hoursMinutes(long seconds) {
+        long s = Math.max(0, seconds);
+        long h = s / 3600;
+        long m = (s % 3600) / 60;
+        return h + ":" + (m < 10 ? "0" + m : Long.toString(m));
     }
 
     private static String time(long seconds) {

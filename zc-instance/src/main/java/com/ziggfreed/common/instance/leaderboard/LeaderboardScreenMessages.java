@@ -79,4 +79,12 @@ public interface LeaderboardScreenMessages {
 
     /** Footer when the viewer has no ranked entry in the selected bucket. */
     @Nonnull Message yourRankNone();
+
+    /**
+     * A {@code DURATION} stat cell's words for {@code seconds} ("12h 30m", "45m"), painted on the cell's
+     * {@code TextSpans}, so it may carry parameters. Null (the default) paints the format's own h:mm.
+     */
+    @Nullable default Message duration(long seconds) {
+        return null;
+    }
 }

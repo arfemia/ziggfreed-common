@@ -23,8 +23,9 @@ import com.ziggfreed.common.ui.route.Destinations;
  * Records: the library's tab and destination for the records a server keeps: the board filled through
  * {@link #setBoard} (the stat board) while it shows, else the encounter board's boss fights.
  * {@code "Open": "Records"} opens that board on the library's records page, on the rail with this tab
- * selected; for the encounter board, the first fight on record (by its binding row's id). The tab shows
- * while either has something to show. Opened on the player's own ref.
+ * selected; for the encounter board, the first fight on record (by its binding row's id). Over the filled
+ * board, a Boss Fights tab ends its first row and opens that same fight page, so boss records are always
+ * a click from Records. The tab shows while either has something to show. Opened on the player's own ref.
  */
 public final class RecordsDestinations {
 
@@ -34,6 +35,9 @@ public final class RecordsDestinations {
 
     /** The tab's picture: a pile of skulls, for the boss fights it records. */
     static final String ICON = "Deco_Bone_Skulls";
+
+    /** The key of the filled board's tab that opens the boss fights. */
+    static final String BOSS_FIGHTS = "boss_fights";
 
     /** The board Records opens before the encounter board; null for the encounter board alone. */
     @Nullable private static volatile RecordsBoard board;
@@ -79,7 +83,12 @@ public final class RecordsDestinations {
         }
         RecordsBoard first = board;
         LeaderboardPageDeps deps = first != null && first.shows() ? first.deps() : null;
-        if (deps == null) {
+        if (deps != null) {
+            // The boss fights stay one tab away: the filled board's first row ends in a tab that opens the
+            // encounter board's page while a fight on it has rows.
+            deps = deps.withPrimaryLink(BOSS_FIGHTS, EncounterLeaderboardMessages.line("records.boss_fights"),
+                    RecordsDestinations::encounterDeps);
+        } else {
             deps = encounterDeps();
         }
         if (deps == null) {

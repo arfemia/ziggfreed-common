@@ -5,4 +5,5 @@
 - Only a line some `StatSections` file names is written (`StatSectionConfig.ranked`). A line the source gives no column shows none, and a section left with none shows no tab, so a zc-only server shows no column nobody counts (M513).
 - Periods are `Server/ZiggfreedCommon/StatPeriods/`; a server owner's overrides and ranges are the top-level entries of `mods/ziggfreedcommon/stats.json` (`StatPeriodOwnerLayers`), whose `$` keys (`$Enabled`) are the store's.
 - Records opens this board first (`RecordsDestinations.setBoard`, filled by `InstanceBootstrap.installStatBoard`): sections over periods, each section with its own columns, the Stats view alone and no All tab (`LeaderboardPageDeps.withColumnsByPrimary`, `withoutAllTabs`, `statsOnly`).
+- A long span of seconds (playtime) takes `ColumnFormat.DURATION`, worded "12h 30m" by `StatBoardMessages.duration` on the cell's `TextSpans`; `TIME` (m:ss) is for a short one, such as a fight's best time.
 - `StatClock` is the board's time. `/zigleaderboard clock <offset>` moves it in memory only, to smoke a turnover. The board's words are `ziggfreedcommon.statboard.lang`.

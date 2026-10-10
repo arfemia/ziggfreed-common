@@ -100,4 +100,12 @@ public final class StatBoardMessages implements LeaderboardScreenMessages {
     @Override @Nonnull public Message yourRankNone() {
         return line("your_rank.none");
     }
+
+    /** A playtime in hours and minutes ("12h 30m"), or minutes alone under an hour ("45m"). */
+    @Override @Nonnull public Message duration(long seconds) {
+        long s = Math.max(0L, seconds);
+        long hours = s / 3600L;
+        long minutes = (s % 3600L) / 60L;
+        return hours > 0L ? line("duration.hours", hours, minutes) : line("duration.minutes", minutes);
+    }
 }
