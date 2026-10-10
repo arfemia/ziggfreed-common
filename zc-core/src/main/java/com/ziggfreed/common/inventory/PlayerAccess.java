@@ -1,5 +1,7 @@
 package com.ziggfreed.common.inventory;
 
+import java.util.UUID;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -11,6 +13,7 @@ import com.hypixel.hytale.server.core.inventory.InventoryComponent;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.inventory.container.CombinedItemContainer;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 /**
@@ -146,6 +149,27 @@ public final class PlayerAccess {
         }
         Store<EntityStore> store = ref.getStore();
         return store == null ? null : store.getComponent(ref, Player.getComponentType());
+    }
+
+    /**
+     * The live entity reference of the player {@code playerId} names while they are connected and in a
+     * world, else null (offline, between worlds, or no universe at all, as in a unit JVM). Any thread:
+     * it reads the universe's table of connected players, never a store, so a caller that acts on the
+     * reference still hops to that entity's world thread first.
+     */
+    @Nullable
+    public static Ref<EntityStore> liveRef(@Nullable UUID playerId) {
+        if (playerId == null) {
+            return null;
+        }
+        try {
+            Universe universe = Universe.get();
+            PlayerRef playerRef = universe == null ? null : universe.getPlayer(playerId);
+            Ref<EntityStore> ref = playerRef == null ? null : playerRef.getReference();
+            return usable(ref) ? ref : null;
+        } catch (Throwable t) {
+            return null;
+        }
     }
 
     /**

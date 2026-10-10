@@ -1,37 +1,39 @@
 package com.ziggfreed.common.entity.title;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.hypixel.hytale.server.core.util.io.FileUtil;
-import com.ziggfreed.common.util.SafeLog;
-
 /**
- * Who shows which title, for a reader that is not on that player's world thread: a menu or a
- * leaderboard naming players who may stand in another world, whose entity stores it may not touch,
- * or who are not online at all. It answers the same whether the player is online or not, so a title
- * on a row never tells a viewer who is online.
+ * The process-wide record of each player's titles, for a reader that is not on that player's world
+ * thread: a menu or a leaderboard naming players who may stand in another world, whose entity stores
+ * it may not touch, or who are not online at all. It answers the same whether the player is online or
+ * not, so a title on a row never tells a viewer who is online.
  *
- * <p>For an online player it mirrors {@link ZigTitleComponent#activeTitle()}: seeded at connect from
- * the saved record and refreshed by every changed write through the title write path, so a row reads
- * the live choice. A player who leaves keeps their entry. The whole record is written to its file
- * ({@link #DEFAULT_FILE}) a moment after a change, on the flusher {@link #persistTo} was given, and at
- * once when a player leaves, so a restart names every player with the title they last chose. A
- * player who chose a title before the record existed enters it at their next connect.
+ * <p>Per player it keeps three things: the title they show, every title they have earned, and the
+ * username they last connected with (so an admin command can name a player who is offline). For an
+ * online player it mirrors {@link ZigTitleComponent}: seeded at connect from the saved record and
+ * refreshed by every changed write through the title write path, so a row reads the live choice. A
+ * player who leaves keeps their entry. The whole record is written to its file ({@link #DEFAULT_FILE})
+ * a moment after a change, on the flusher {@link #persistTo} was given, and at once when a player
+ * leaves, so a restart names every player with the title they last chose. A file from before the
+ * earned set and usernames were kept reads them as empty, and each player enters them at their next
+ * connect.
  *
  * <p>Single-process: a fleet sharing one database keeps one per server, each corrected at the
  * player's next connect there. Lock-free reads from any thread; writes to the file are serialized.
@@ -44,27 +46,45 @@ public final class ActiveTitles {
     /** How long a change waits before the record is written, so a burst of connects writes once. */
     public static final long FLUSH_DELAY_SECONDS = 2L;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
-
     private static final Map<UUID, String> BY_PLAYER = new ConcurrentHashMap<>();
 
-    /** A change memory holds that the file does not yet. */
-    private static final AtomicBoolean DIRTY = new AtomicBoolean();
+    /** Each player's earned ids, lower-cased, as an unmodifiable sorted set; a player with none has no row. */
+    private static final Map<UUID, Set<String>> EARNED = new ConcurrentHashMap<>();
 
-    /** A flush is already waiting on the flusher, so a change needs to ask for no other. */
-    private static final AtomicBoolean FLUSH_ASKED = new AtomicBoolean();
+    /** The username each player last connected with, as the engine spelt it. */
+    private static final Map<UUID, String> USERNAMES = new ConcurrentHashMap<>();
 
-    private static final Object WRITE_LOCK = new Object();
+    /** A lower-cased username to the player who last connected with it. */
+    private static final Map<String, UUID> BY_USERNAME = new ConcurrentHashMap<>();
 
-    @Nullable
-    private static volatile Path file;
+    private static final RecordFile FILE = new RecordFile("the shown titles",
+            "a restart may show an offline player an older title until they connect again", new RecordFile.Body() {
+                @Override
+                @Nonnull
+                public String write() {
+                    return writeDoc();
+                }
 
-    @Nullable
-    private static volatile Executor flusher;
+                @Override
+                public void read(@Nonnull String text) {
+                    readDoc(text);
+                }
 
-    /** On-disk shape: a player's id to the lower-cased id of the title they show. */
+                @Override
+                public void forget() {
+                    forgetAll();
+                }
+            });
+
+    /**
+     * On-disk shape: a player's id to the lower-cased id of the title they show, to the ids they have
+     * earned, and to the username they last connected with. The last two may be absent (a file written
+     * before they were kept), and read as empty.
+     */
     private static final class Doc {
         Map<String, String> shownTitles;
+        Map<String, List<String>> earnedTitles;
+        Map<String, String> usernames;
     }
 
     private ActiveTitles() {
@@ -76,12 +96,51 @@ public final class ActiveTitles {
         return playerId == null ? null : BY_PLAYER.get(playerId);
     }
 
+    /**
+     * Every title {@code playerId} has earned, online or not: lower-cased, sorted, unmodifiable, and
+     * empty for a player with none or one this record has never seen.
+     */
+    @Nonnull
+    public static Set<String> earned(@Nullable UUID playerId) {
+        Set<String> earned = playerId == null ? null : EARNED.get(playerId);
+        return earned == null ? Set.of() : earned;
+    }
+
+    /** The username {@code playerId} last connected with, or null when this record has never seen them. */
+    @Nullable
+    public static String usernameOf(@Nullable UUID playerId) {
+        return playerId == null ? null : USERNAMES.get(playerId);
+    }
+
+    /**
+     * The player who last connected as {@code username}, matched whatever the casing, or null. When two
+     * players have used one name, the one who connected with it last answers.
+     */
+    @Nullable
+    public static UUID idOf(@Nullable String username) {
+        String key = nameKey(username);
+        return key == null ? null : BY_USERNAME.get(key);
+    }
+
     /** Record what {@code playerId} shows now; a null or blank id records that they show nothing. */
     public static void put(@Nonnull UUID playerId, @Nullable String titleId) {
-        String shown = normalize(titleId);
-        String before = shown == null ? BY_PLAYER.remove(playerId) : BY_PLAYER.put(playerId, shown);
-        if (!Objects.equals(before, shown)) {
-            changed();
+        if (putShown(playerId, titleId)) {
+            FILE.changed();
+        }
+    }
+
+    /**
+     * Record everything this record keeps about {@code playerId} at once: the title they show (null for
+     * none), every title they have earned, and the username they connected with (null or blank keeps the
+     * one already recorded). The connect seed and every changed write come through here.
+     */
+    public static void refresh(@Nonnull UUID playerId, @Nullable String username, @Nullable String shownTitleId,
+            @Nullable Collection<String> earnedTitleIds) {
+        boolean changed = putShown(playerId, shownTitleId);
+        changed |= putEarned(playerId, earnedTitleIds);
+        changed |= putUsername(playerId, username);
+        if (changed) {
+            FILE.changed();
         }
     }
 
@@ -91,105 +150,120 @@ public final class ActiveTitles {
      * {@link #flush} is called). Called once from the library's setup, before any player connects.
      */
     public static void persistTo(@Nullable Path target, @Nullable Executor flushOn) {
-        synchronized (WRITE_LOCK) {
-            file = target;
-            flusher = flushOn;
-            FLUSH_ASKED.set(false);
-            DIRTY.set(false);
-            BY_PLAYER.clear();
-            if (target != null) {
-                load(target);
-            }
-        }
+        FILE.persistTo(target, flushOn);
     }
 
     /** Write the record to its file now, if anything changed since the last write. Any thread. */
     public static void flush() {
-        synchronized (WRITE_LOCK) {
-            Path target = file;
-            if (target == null || !DIRTY.getAndSet(false)) {
-                return;
-            }
-            Doc doc = new Doc();
-            doc.shownTitles = new TreeMap<>();
-            for (Map.Entry<UUID, String> e : BY_PLAYER.entrySet()) {
-                doc.shownTitles.put(e.getKey().toString(), e.getValue());
-            }
-            try {
-                Path parent = target.toAbsolutePath().getParent();
-                if (parent != null) {
-                    Files.createDirectories(parent);
-                }
-                FileUtil.writeStringAtomic(target, GSON.toJson(doc), true);
-            } catch (Throwable t) {
-                DIRTY.set(true);
-                SafeLog.warn("[title] could not write " + target + ", so a restart may show an offline player"
-                        + " an older title until they connect again: " + t.getMessage());
-            }
-        }
+        FILE.flush();
     }
 
     /** Forget everybody in memory, never in the file: a test, or a restart's first step. */
     public static void clear() {
-        BY_PLAYER.clear();
-        DIRTY.set(false);
+        forgetAll();
+        FILE.clean();
     }
 
-    private static void changed() {
-        DIRTY.set(true);
-        Executor later = flusher;
-        if (later == null || file == null || !FLUSH_ASKED.compareAndSet(false, true)) {
-            return;
-        }
-        try {
-            later.execute(ActiveTitles::askedFlush);
-        } catch (Throwable t) {
-            // No flusher to wait on (a scheduler already shut down): write it now instead.
-            FLUSH_ASKED.set(false);
-            flush();
-        }
+    private static boolean putShown(@Nonnull UUID playerId, @Nullable String titleId) {
+        String shown = normalize(titleId);
+        String before = shown == null ? BY_PLAYER.remove(playerId) : BY_PLAYER.put(playerId, shown);
+        return !Objects.equals(before, shown);
     }
 
-    private static void askedFlush() {
-        FLUSH_ASKED.set(false);
-        flush();
+    private static boolean putEarned(@Nonnull UUID playerId, @Nullable Collection<String> titleIds) {
+        Set<String> earned = normalizedSet(titleIds);
+        Set<String> before = earned.isEmpty() ? EARNED.remove(playerId) : EARNED.put(playerId, earned);
+        return !Objects.equals(before == null ? Set.of() : before, earned);
     }
 
-    /** Read {@code target}, else the copy the atomic write kept before it, else start empty. */
-    private static void load(@Nonnull Path target) {
-        if (read(target)) {
-            return;
-        }
-        Path backup = target.resolveSibling(target.getFileName() + ".bak");
-        if (read(backup)) {
-            SafeLog.warn("[title] " + target + " is missing or torn, so the shown titles come from "
-                    + backup.getFileName());
-        }
-    }
-
-    /** True when {@code source} was there and read whole into memory. */
-    private static boolean read(@Nonnull Path source) {
-        if (!Files.isRegularFile(source)) {
+    private static boolean putUsername(@Nonnull UUID playerId, @Nullable String username) {
+        String key = nameKey(username);
+        if (key == null) {
             return false;
         }
-        try {
-            Doc doc = GSON.fromJson(Files.readString(source), Doc.class);
-            BY_PLAYER.clear();
-            if (doc != null && doc.shownTitles != null) {
-                for (Map.Entry<String, String> e : doc.shownTitles.entrySet()) {
-                    UUID playerId = playerIdOf(e.getKey());
-                    String shown = normalize(e.getValue());
-                    if (playerId != null && shown != null) {
-                        BY_PLAYER.put(playerId, shown);
-                    }
+        String name = username.trim();
+        String before = USERNAMES.put(playerId, name);
+        String beforeKey = nameKey(before);
+        if (beforeKey != null && !beforeKey.equals(key)) {
+            BY_USERNAME.remove(beforeKey, playerId);
+        }
+        BY_USERNAME.put(key, playerId);
+        return !name.equals(before);
+    }
+
+    @Nonnull
+    private static String writeDoc() {
+        Doc doc = new Doc();
+        doc.shownTitles = new TreeMap<>();
+        for (Map.Entry<UUID, String> e : BY_PLAYER.entrySet()) {
+            doc.shownTitles.put(e.getKey().toString(), e.getValue());
+        }
+        doc.earnedTitles = new TreeMap<>();
+        for (Map.Entry<UUID, Set<String>> e : EARNED.entrySet()) {
+            doc.earnedTitles.put(e.getKey().toString(), new ArrayList<>(e.getValue()));
+        }
+        doc.usernames = new TreeMap<>();
+        for (Map.Entry<UUID, String> e : USERNAMES.entrySet()) {
+            doc.usernames.put(e.getKey().toString(), e.getValue());
+        }
+        return RecordFile.GSON.toJson(doc);
+    }
+
+    private static void readDoc(@Nonnull String text) {
+        Doc doc = RecordFile.GSON.fromJson(text, Doc.class);
+        forgetAll();
+        if (doc == null) {
+            return;
+        }
+        if (doc.shownTitles != null) {
+            for (Map.Entry<String, String> e : doc.shownTitles.entrySet()) {
+                UUID playerId = playerIdOf(e.getKey());
+                String shown = normalize(e.getValue());
+                if (playerId != null && shown != null) {
+                    BY_PLAYER.put(playerId, shown);
                 }
             }
-            return true;
-        } catch (Throwable t) {
-            BY_PLAYER.clear();
-            SafeLog.warn("[title] could not read " + source + ": " + t.getMessage());
-            return false;
         }
+        if (doc.earnedTitles != null) {
+            for (Map.Entry<String, List<String>> e : doc.earnedTitles.entrySet()) {
+                UUID playerId = playerIdOf(e.getKey());
+                Set<String> earned = normalizedSet(e.getValue());
+                if (playerId != null && !earned.isEmpty()) {
+                    EARNED.put(playerId, earned);
+                }
+            }
+        }
+        if (doc.usernames != null) {
+            for (Map.Entry<String, String> e : doc.usernames.entrySet()) {
+                UUID playerId = playerIdOf(e.getKey());
+                if (playerId != null) {
+                    putUsername(playerId, e.getValue());
+                }
+            }
+        }
+    }
+
+    private static void forgetAll() {
+        BY_PLAYER.clear();
+        EARNED.clear();
+        USERNAMES.clear();
+        BY_USERNAME.clear();
+    }
+
+    /** {@code titleIds} lower-cased, blanks dropped, as an unmodifiable sorted set. */
+    @Nonnull
+    private static Set<String> normalizedSet(@Nullable Collection<String> titleIds) {
+        if (titleIds == null || titleIds.isEmpty()) {
+            return Set.of();
+        }
+        Set<String> sorted = new TreeSet<>();
+        for (String titleId : titleIds) {
+            String id = normalize(titleId);
+            if (id != null) {
+                sorted.add(id);
+            }
+        }
+        return sorted.isEmpty() ? Set.of() : Collections.unmodifiableSet(sorted);
     }
 
     @Nullable
@@ -204,5 +278,10 @@ public final class ActiveTitles {
     @Nullable
     private static String normalize(@Nullable String titleId) {
         return titleId == null || titleId.isBlank() ? null : titleId.trim().toLowerCase(Locale.ROOT);
+    }
+
+    @Nullable
+    private static String nameKey(@Nullable String username) {
+        return username == null || username.isBlank() ? null : username.trim().toLowerCase(Locale.ROOT);
     }
 }

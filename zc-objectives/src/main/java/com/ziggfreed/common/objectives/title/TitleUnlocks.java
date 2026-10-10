@@ -16,6 +16,7 @@ import com.ziggfreed.common.entity.title.ActiveTitles;
 import com.ziggfreed.common.entity.title.ZigTitleComponent;
 import com.ziggfreed.common.subject.PlayerRefSubjectHandle;
 import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The ONE write path onto a player's titles ({@link ZigTitleComponent}): unlock, revoke, show one
@@ -60,7 +61,14 @@ public final class TitleUnlocks {
         REFUSED(false),
 
         /** The player carries no title record (registration failed, or not attached). */
-        NO_RECORD(false);
+        NO_RECORD(false),
+
+        /**
+         * The player was not online, so the change waits in the queue of changes owed to offline
+         * players ({@code PendingTitles}) and is made, and announced, at their next login (at once, if
+         * they came online meanwhile). Nothing changed yet. Only {@link ZigTitles} answers it.
+         */
+        QUEUED(false);
 
         private final boolean changed;
 
@@ -144,8 +152,27 @@ public final class TitleUnlocks {
         changed(titles, who, id, outcome);
         if (unlock) {
             TitleText.announceUnlocked(who, id);
+            autoShow(titles, who, id);
         }
         return outcome;
+    }
+
+    /**
+     * A new unlock shows itself (R114, R214) when the owner left {@code $AutoShow} on, the player shows
+     * nothing and never chose to show none, and the title is on offer: it is activated through the
+     * ordinary path, so {@code ACTIVATED} fires as for a picker press. In a burst of unlocks (a login)
+     * the first one shows. Guarded whole: it must never undo the unlock.
+     */
+    private static void autoShow(@Nonnull ZigTitleComponent titles, @Nonnull Subject who, @Nonnull String titleId) {
+        try {
+            if (!TitleOwnerLayers.autoShow() || titles.activeTitle() != null || titles.choseNone()
+                    || TitleConfig.getInstance().shown(titleId) == null) {
+                return;
+            }
+            activateWrite(titles, who, titleId);
+        } catch (Throwable t) {
+            SafeLog.warn("[title] '" + titleId + "' could not show itself after its unlock: " + t.getMessage());
+        }
     }
 
     @Nonnull
@@ -174,7 +201,9 @@ public final class TitleUnlocks {
             return Outcome.NO_RECORD;
         }
         String was = titles.activeTitle();
-        if (was == null || !titles.deactivate()) {
+        // Always asked, so Show none pressed while nothing shows still records the choice (R214).
+        boolean wasShowing = titles.deactivate();
+        if (was == null || !wasShowing) {
             return Outcome.NONE_ACTIVE;
         }
         changed(titles, who, was, Outcome.DEACTIVATED);
@@ -191,16 +220,20 @@ public final class TitleUnlocks {
         return ids;
     }
 
-    /** A real change: refresh the record first (a listener may read it), then announce. */
+    /**
+     * A real change: refresh the record first (the shown title, the earned set and the name the player
+     * goes by; a listener may read it), then announce.
+     */
     private static void changed(@Nonnull ZigTitleComponent titles, @Nonnull Subject who,
                                 @Nonnull String titleId, @Nonnull Outcome change) {
         String shown = titles.activeTitle();
-        ActiveTitles.put(who.id(), shown);
+        ActiveTitles.refresh(who.id(), who.name(), shown, titles.unlockedTitles);
         TitleEvents.fireChanged(who, titleId, change, shown);
     }
 
+    /** A title id this write path can hold, trimmed and lower-cased, or null for a blank or reserved one. */
     @Nullable
-    private static String usable(@Nullable String titleId) {
+    static String usable(@Nullable String titleId) {
         if (titleId == null || titleId.isBlank() || ZigTitleComponent.usesReservedDelimiter(titleId)) {
             return null;
         }

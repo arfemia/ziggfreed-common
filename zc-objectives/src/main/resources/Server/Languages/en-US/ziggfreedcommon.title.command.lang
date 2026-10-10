@@ -12,6 +12,7 @@ desc.arg.title = The title id.
 
 player.needed = Name a player with --player=<name>.
 player.offline = That player is not online, and their titles live on their own entity.
+player.unknown = Could not find a player called '{0}'.
 player.no_record = {0} has no title record to write to.
 title.needed = Name a title with --title=<id>.
 title.refused = '{0}' is not a usable title id: it carries '|' or ':', which the save format reserves.
@@ -19,11 +20,14 @@ title.refused = '{0}' is not a usable title id: it carries '|' or ':', which the
 grant.done = Unlocked the title '{1}' for {0}.
 grant.already = {0} already has the title '{1}'.
 grant.unknown = Nothing loaded defines a title '{0}'; it is unlocked anyway, in case the pack that ships it loads later.
+grant.queued = {0} is not online, so the title '{1}' is queued and unlocks the next time they log in.
 revoke.done = Took the title '{1}' away from {0}.
 revoke.absent = {0} did not have the title '{1}'.
+revoke.queued = {0} is not online, so taking the title '{1}' away is queued for the next time they log in.
 list.header = Titles {0} has unlocked ({1}):
 list.row = - {0}
 list.row_shown = - {0} (shown)
 list.none = {0} has no titles unlocked.
+list.queued = {1, number} queued title {1, plural, one {change waits} other {changes wait}} for {0} to log in.
 open.needs_player = Only a player can open the title picker.
 open.failed = The title picker could not be opened.

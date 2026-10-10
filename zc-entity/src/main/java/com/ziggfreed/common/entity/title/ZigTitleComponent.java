@@ -4,6 +4,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nonnull;
@@ -38,9 +39,10 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p>{@link #register} runs once from the library's setup, BEFORE any world loads (a component type
  * registered later cannot be read off entities saved carrying it), and {@link #install} reads back
- * the record of what every player shows ({@link ActiveTitles}), hangs the connect hook that attaches
- * one to every player and seeds that record, plus the disconnect hook that writes it down: a player
- * who leaves keeps their title on every row. Write it only through zc-objectives' title write path,
+ * the record of every player's titles ({@link ActiveTitles}) and the queue of changes owed to offline
+ * players ({@link PendingTitles}), hangs the connect hook that attaches one to every player and seeds
+ * that record, plus the disconnect hook that writes both down: a player who leaves keeps their title
+ * on every row. Write it only through zc-objectives' title write path,
  * which announces each change and keeps {@link ActiveTitles} current. A reader PEEKS it
  * ({@code TYPE} is null when registration failed) and treats a missing record as no titles.
  */
@@ -60,6 +62,13 @@ public class ZigTitleComponent implements Component<EntityStore> {
     @Nullable
     private volatile String activeTitle;
 
+    /**
+     * The player took their title off (Show none, or pressing the shown one): a title they earn later
+     * does not show itself (R214). Set by {@link #deactivate}, cleared by {@link #activate}; a revoke
+     * never touches it. Saved only while set.
+     */
+    private volatile boolean choseNone;
+
     public static final BuilderCodec<ZigTitleComponent> CODEC;
 
     static {
@@ -70,6 +79,9 @@ public class ZigTitleComponent implements Component<EntityStore> {
         builder.append(new KeyedCodec<>("ActiveTitle", Codec.STRING),
                 (c, v, info) -> c.activeTitle = normalize(v),
                 (c, info) -> c.activeTitle == null ? "" : c.activeTitle).add();
+        builder.append(new KeyedCodec<>("ChoseNone", Codec.BOOLEAN),
+                (c, v, info) -> c.choseNone = Boolean.TRUE.equals(v),
+                (c, info) -> c.choseNone ? Boolean.TRUE : null).add();
         CODEC = builder.build();
     }
 
@@ -142,13 +154,15 @@ public class ZigTitleComponent implements Component<EntityStore> {
     }
 
     /**
-     * Read back the record of shown titles (written a moment after each change, on the server's
-     * scheduler), then hang the connect hook (attach and seed the record) and the disconnect hook
-     * (write it down).
+     * Read back the record of players' titles and the queue of changes owed to offline players (each
+     * written a moment after a change, on the server's scheduler), then hang the connect hook (attach
+     * and seed the record) and the disconnect hook (write both down).
      */
     public static void install(@Nonnull PluginBase plugin) {
-        ActiveTitles.persistTo(ActiveTitles.DEFAULT_FILE, flush -> HytaleServer.SCHEDULED_EXECUTOR.schedule(
-                flush, ActiveTitles.FLUSH_DELAY_SECONDS, TimeUnit.SECONDS));
+        Executor later = flush -> HytaleServer.SCHEDULED_EXECUTOR.schedule(
+                flush, ActiveTitles.FLUSH_DELAY_SECONDS, TimeUnit.SECONDS);
+        ActiveTitles.persistTo(ActiveTitles.DEFAULT_FILE, later);
+        PendingTitles.persistTo(PendingTitles.DEFAULT_FILE, later);
         plugin.getEventRegistry().register(PlayerConnectEvent.class, ZigTitleComponent::onPlayerConnect);
         plugin.getEventRegistry().register(PlayerDisconnectEvent.class, ZigTitleComponent::onPlayerDisconnect);
     }
@@ -161,7 +175,8 @@ public class ZigTitleComponent implements Component<EntityStore> {
             // The holder is not in a world yet, so reading the saved record here is thread-safe.
             ZigTitleComponent record = event.getHolder().ensureAndGetComponent(TYPE);
             PlayerRef playerRef = event.getPlayerRef();
-            seed(playerRef == null ? null : playerRef.getUuid(), record);
+            seed(playerRef == null ? null : playerRef.getUuid(), playerRef == null ? null : playerRef.getUsername(),
+                    record);
         } catch (Throwable t) {
             SafeLog.warn("[title] could not ensure the title record", t);
         }
@@ -177,20 +192,30 @@ public class ZigTitleComponent implements Component<EntityStore> {
 
     /**
      * A player left. They keep their entry in {@link ActiveTitles}, so a row naming them offline shows
-     * the title it would show online and says nothing about presence; the record is written down now,
-     * so a restart keeps it. A server stopping disconnects every player first, so this also writes it
-     * at shutdown.
+     * the title it would show online and says nothing about presence; the record and the queue are
+     * written down now, so a restart keeps them. A server stopping disconnects every player first, so
+     * this also writes them at shutdown.
      */
     static void left() {
         ActiveTitles.flush();
+        PendingTitles.flush();
     }
 
-    /** Put what {@code record} shows into the record for {@code playerId}; nothing to key, nothing done. */
+    /** {@link #seed(UUID, String, ZigTitleComponent)} keeping the username already recorded. */
     static void seed(@Nullable UUID playerId, @Nullable ZigTitleComponent record) {
+        seed(playerId, null, record);
+    }
+
+    /**
+     * Put what {@code record} holds (the shown title and every earned one) and the {@code username} the
+     * player connected with into the record for {@code playerId}; nothing to key, nothing done.
+     */
+    static void seed(@Nullable UUID playerId, @Nullable String username, @Nullable ZigTitleComponent record) {
         if (playerId == null) {
             return;
         }
-        ActiveTitles.put(playerId, record == null ? null : record.activeTitle());
+        ActiveTitles.refresh(playerId, username, record == null ? null : record.activeTitle(),
+                record == null ? null : record.unlockedTitles);
     }
 
     /** True when {@code titleId} (any case) has been earned. */
@@ -231,21 +256,37 @@ public class ZigTitleComponent implements Component<EntityStore> {
         return shown != null && unlockedTitles.contains(shown) ? shown : null;
     }
 
-    /** Show {@code titleId}. True when that changed what is shown; false when unearned or already shown. */
+    /**
+     * Show {@code titleId}, which clears {@link #choseNone()}. True when that changed what is shown;
+     * false when unearned (nothing changes) or already shown.
+     */
     public boolean activate(@Nullable String titleId) {
         String id = normalize(titleId);
-        if (id == null || !unlockedTitles.contains(id) || id.equals(activeTitle())) {
+        if (id == null || !unlockedTitles.contains(id)) {
+            return false;
+        }
+        choseNone = false;
+        if (id.equals(activeTitle())) {
             return false;
         }
         activeTitle = id;
         return true;
     }
 
-    /** Show no title. True when one was shown. */
+    /** Show no title, which marks {@link #choseNone()}. True when one was shown. */
     public boolean deactivate() {
         boolean wasShowing = activeTitle() != null;
         activeTitle = null;
+        choseNone = true;
         return wasShowing;
+    }
+
+    /**
+     * True when the player chose to show no title (their last choice was Show none, or taking the shown
+     * one off) and has not shown one since, so a title they earn later does not show itself.
+     */
+    public boolean choseNone() {
+        return choseNone;
     }
 
     @Override
@@ -254,6 +295,7 @@ public class ZigTitleComponent implements Component<EntityStore> {
         ZigTitleComponent c = new ZigTitleComponent();
         c.unlockedTitles.addAll(this.unlockedTitles);
         c.activeTitle = this.activeTitle;
+        c.choseNone = this.choseNone;
         return c;
     }
 }

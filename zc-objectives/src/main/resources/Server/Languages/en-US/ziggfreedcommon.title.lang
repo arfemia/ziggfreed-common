@@ -7,6 +7,12 @@
 
 display = {0}, {1}
 chip = Title: {0}
+
+# What a requirement on a title reads as, where a lock line names it (Factors/Title_Earned.json and
+# Title_Shown.json).
+factor.title_earned = an earned title
+factor.title_shown = a title shown beside your name
+
 unlocked = Title unlocked: {0}
 unlocked_hint = Choose the title you show with /zigtitle open
 

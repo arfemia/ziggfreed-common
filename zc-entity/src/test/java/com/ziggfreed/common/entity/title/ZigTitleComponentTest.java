@@ -119,6 +119,59 @@ class ZigTitleComponentTest {
     }
 
     @Test
+    void showingNoneIsRememberedUntilATitleIsShownAndARevokeLeavesItAlone() {
+        ZigTitleComponent titles = new ZigTitleComponent();
+        titles.unlock("pumpkin_king");
+        titles.unlock("hallows_eve_hallowed");
+        assertFalse(titles.choseNone(), "a new record has made no choice");
+
+        titles.deactivate();
+        assertTrue(titles.choseNone(), "Show none with nothing shown is still a choice");
+        assertFalse(titles.activate("never_earned"));
+        assertTrue(titles.choseNone(), "showing an unearned title changes nothing");
+
+        titles.activate("pumpkin_king");
+        assertFalse(titles.choseNone(), "showing a title clears it");
+        titles.revoke("pumpkin_king");
+        assertFalse(titles.choseNone(), "a revoke takes the title off without making the choice");
+
+        titles.activate("hallows_eve_hallowed");
+        titles.deactivate();
+        titles.revoke("hallows_eve_hallowed");
+        assertTrue(titles.choseNone(), "a revoke never clears it either");
+    }
+
+    @Test
+    void theCodecKeepsShowingNoneAndAnOlderSaveReadsItUnset() throws IOException {
+        ZigTitleComponent titles = new ZigTitleComponent();
+        titles.unlock("pumpkin_king");
+        titles.deactivate();
+
+        ExtraInfo info = new ExtraInfo();
+        assertTrue(ZigTitleComponent.CODEC.decode(ZigTitleComponent.CODEC.encode(titles, info), info).choseNone());
+        assertTrue(titles.clone().choseNone());
+        assertFalse(ZigTitleComponent.CODEC.decode(
+                ZigTitleComponent.CODEC.encode(new ZigTitleComponent(), info), info).choseNone());
+
+        ZigTitleComponent older = ZigTitleComponent.CODEC.decodeJson(RawJsonReader.fromJsonString(
+                "{\"UnlockedTitles\": \"pumpkin_king\", \"ActiveTitle\": \"\"}"), new ExtraInfo());
+        assertFalse(older.choseNone(), "a save from before the flag existed has made no choice");
+    }
+
+    @Test
+    void connectingSeedsTheEarnedSetAndTheUsername() {
+        UUID player = UUID.randomUUID();
+        ZigTitleComponent titles = new ZigTitleComponent();
+        titles.unlock("pumpkin_king");
+        titles.unlock("hallows_eve_hallowed");
+
+        ZigTitleComponent.seed(player, "Ziggfreed", titles);
+
+        assertEquals(Set.of("pumpkin_king", "hallows_eve_hallowed"), ActiveTitles.earned(player));
+        assertEquals(player, ActiveTitles.idOf("ziggfreed"));
+    }
+
+    @Test
     void theWritePathDropsAReservedIdLoudlyInsteadOfCorruptingItsNeighbours() {
         // A grant is already refused, so only a direct write to the public set can smuggle one in.
         Set<String> unlocked = new LinkedHashSet<>();

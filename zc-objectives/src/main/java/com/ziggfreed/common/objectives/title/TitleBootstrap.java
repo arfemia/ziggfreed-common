@@ -13,18 +13,23 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Wires the title surface at plugin {@code setup()}, right after the entity module registers the
- * record: the {@code Title} reward kind, its chip reading and the {@code /zigtitle} family, the
- * login pass that hands over the titles earned achievements owe ({@link TitleBackfill}), and fills
- * the display-name seam, so a menu shows a player's title beside their name. This module hosts it
- * because it sees every end being joined (the record, the reward vocabulary, the notice engine).
- * Registration only: {@code RootRegistrationOnlyTest} scans every {@code *Bootstrap}.
+ * record: the {@code Title} reward kind, its chip reading and the {@code /zigtitle} family, the two
+ * title factors ({@link TitleFactors}), the login payout of changes queued for offline players
+ * ({@link TitleQueue}) one beat before the login pass that hands over the titles earned achievements
+ * owe ({@link TitleBackfill}), and fills the display-name seam, so a menu shows a player's title
+ * beside their name. This module hosts it because it sees every end being joined (the record, the
+ * reward vocabulary, the notice engine). Registration only: {@code RootRegistrationOnlyTest} scans
+ * every {@code *Bootstrap}.
  */
 public final class TitleBootstrap {
 
     private TitleBootstrap() {
     }
 
-    /** Register the kind, contribute its chip, register the command family and the login pass, and fill the name seam. */
+    /**
+     * Register the kind, contribute its chip and the factors, register the command family, the queue's
+     * payout and the login pass, and fill the name seam.
+     */
     public static void registerTitles(@Nonnull PluginBase plugin) {
         try {
             TitleRewardKind.registerInto(RewardKinds.shared());
@@ -33,6 +38,19 @@ public final class TitleBootstrap {
         } catch (Throwable t) {
             SafeLog.warn("[title] could not wire the Title reward kind and the /zigtitle family;"
                     + " a title reward reads as an unregistered kind this boot", t);
+        }
+        try {
+            TitleFactors.contribute();
+        } catch (Throwable t) {
+            SafeLog.warn("[title] could not contribute the title factors; a condition on a title stays shut"
+                    + " this boot", t);
+        }
+        try {
+            plugin.getEventRegistry().registerGlobal(TitleQueue.READY_PRIORITY, PlayerReadyEvent.class,
+                    TitleQueue::onPlayerReady);
+        } catch (Throwable t) {
+            SafeLog.warn("[title] could not register the payout of queued title changes; they wait for the"
+                    + " next boot", t);
         }
         try {
             plugin.getEventRegistry().registerGlobal(EventPriority.LATE, PlayerReadyEvent.class,

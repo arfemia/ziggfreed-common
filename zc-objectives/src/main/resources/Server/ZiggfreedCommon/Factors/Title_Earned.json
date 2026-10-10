@@ -1,0 +1,5 @@
+{
+  "$Comment": "Names the ziggfreedcommon:title_earned reading for requirement lines. Param is a title id; the reading is 1 when the player has earned that title and 0 when they have not, read from the library's record of every player's titles. To name a requirement on one of your own titles, ship a Factors file of your own with a ParamNames Keys entry for its id.",
+  "Factor": "ziggfreedcommon:title_earned",
+  "Text": { "TitleKey": "ziggfreedcommon.title.factor.title_earned" }
+}

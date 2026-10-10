@@ -154,6 +154,47 @@ class ActiveTitlesTest {
     }
 
     /**
+     * Tagged {@code engine-items}: it reads back what the engine's atomic writer wrote. The earned set
+     * and the last username survive a restart beside the shown title, and a name finds its player
+     * whatever the casing.
+     */
+    @Tag("engine-items")
+    @Test
+    void theEarnedSetAndTheUsernameSurviveASaveAndARestart() {
+        Path file = dir.resolve("shown-titles.json");
+        UUID player = UUID.randomUUID();
+        UUID renamed = UUID.randomUUID();
+        ActiveTitles.persistTo(file, null);
+        ActiveTitles.refresh(player, "Ziggfreed", "Pumpkin_King", List.of("Pumpkin_King", "hallows_eve_hallowed"));
+        ActiveTitles.refresh(renamed, "OldName", null, List.of());
+        ActiveTitles.refresh(renamed, "NewName", null, List.of());
+        ActiveTitles.flush();
+
+        restart(file);
+
+        assertEquals("pumpkin_king", ActiveTitles.of(player));
+        assertEquals(List.of("hallows_eve_hallowed", "pumpkin_king"), List.copyOf(ActiveTitles.earned(player)));
+        assertEquals("Ziggfreed", ActiveTitles.usernameOf(player));
+        assertEquals(player, ActiveTitles.idOf("ZIGGFREED"));
+        assertEquals(renamed, ActiveTitles.idOf("newname"));
+        assertNull(ActiveTitles.idOf("OldName"), "a name the player left behind finds nobody");
+        assertTrue(ActiveTitles.earned(renamed).isEmpty());
+    }
+
+    @Test
+    void aFileFromBeforeTheEarnedSetAndUsernamesReadsThemEmpty() throws IOException {
+        Path file = dir.resolve("shown-titles.json");
+        UUID player = UUID.randomUUID();
+        Files.writeString(file, "{ \"shownTitles\": { \"" + player + "\": \"pumpkin_king\" } }");
+
+        ActiveTitles.persistTo(file, null);
+
+        assertEquals("pumpkin_king", ActiveTitles.of(player), "the shown title still reads");
+        assertTrue(ActiveTitles.earned(player).isEmpty());
+        assertNull(ActiveTitles.usernameOf(player));
+    }
+
+    /**
      * The record in a JVM whose engine writer cannot run (a consumer mod's unit tests, or this module's
      * plain {@code test} task on Update 7): a change, a flush on the caller's thread and one handed to
      * the flusher never throw, and the record answers from memory, whatever the write does. Untagged

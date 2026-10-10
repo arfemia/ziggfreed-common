@@ -13,6 +13,10 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractComman
  * /zigtitle open                                  open the title picker (every player)
  * </pre>
  *
+ * <p>{@code --player} names a player online or not (a username, or a player id): a grant or a revoke
+ * for one who is not online is queued and made at their next login, and a list reads the title
+ * record as it stood when they were last here.
+ *
  * <p>No permission check is written here: the engine derives one node per verb
  * ({@code ziggfreed.ziggfreedcommon.command.zigtitle.<verb>}) that nobody holds until a server grants
  * it, and the console holds everything, which is what lets a retry queue run the grant line. The one
