@@ -437,7 +437,7 @@ public final class AchievementEngine {
         for (ObjectiveIndex.Entry entry : entries) {
             ObjectiveDef criterion = entry.objective();
             // A follow-up fire under an additional id must not re-count a match-all criterion.
-            if (options.targetedOnly() && criterion.target().isBlank()) {
+            if (options.targetedOnly() && !criterion.hasTarget()) {
                 continue;
             }
             Achievement achievement = achievements.get(entry.ownerId());

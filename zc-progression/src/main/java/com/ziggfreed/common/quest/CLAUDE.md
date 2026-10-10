@@ -6,7 +6,7 @@
 - The store is the only state and owns id hygiene (`usesReservedDelimiter`). A store whose `recordsCompletions()` answers false leaves `Reset`, `MaxCompletions` and `PerRun` inert.
 - A giver listing asks `isOfferable`, never `isVisible`; `isVisible` is the one question for a browsable listing, and a hidden quest is where the two part.
 - Ask what a place offers of `NpcOfferProviders`; never widen `QuestStateReader` for it.
-- `readyToTurnInAt` marks a destination and `canDeliverTurnInAt` offers a hand-in button. `canCompleteAt` is the one collection-site predicate, and `claim` and `checkCompletion` enforce it.
+- `readyToTurnInAt` marks a destination and `canDeliverTurnInAt` offers a hand-in button. `canCompleteAt` is the one collection-site predicate, and `claim` and `checkCompletion` enforce it; a site a gate reports gone (`QuestGates.siteStillThere`, server-wide, never the viewer's) binds nothing, so the quest collects anywhere.
 - `QuestEngine.clearQuest` is the only re-arm and reports through `QuestResets` (`store().clearQuest` is not a shortcut). It keeps the completion record; `wipeQuest` and `wipeAllQuests` are the admin wipe.
 - `CompletionRecord` keeps two tallies: `repeatCheck` reads finishes, `quest_completions` reads collections, and a one-shot writes no record.
 - `Quest.repeat()` is nullable and its presence is the repeatable flag. A `Reset` window is one length, never a daily or weekly enum; `QuestCadence` is the one bucketing, and `CooldownFrom` is an anchor, not a mode.

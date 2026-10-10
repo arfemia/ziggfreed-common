@@ -29,14 +29,22 @@ import javax.annotation.Nullable;
  * RUNS as another kind with its target rewritten. Every text and icon surface reads the authored
  * pair, so "reach rank 30 in Mining" never renders as the channel id it is measured on; every
  * engine site reads the run pair and never learns an alias exists.
+ *
+ * <p><b>Several targets, one step.</b> {@link #targets()} lists more accepted targets beside
+ * {@link #target()} (the {@code Targets} leaf): a moment counts when its target matches the single
+ * one or any entry, each under {@link #matchMode()}, so one step can count three named creatures
+ * without catching every id that merely contains a shared word. {@link #hasTarget()} is the one
+ * "does this step name anything" read, and {@link #namedTarget()} the one a line names.
  */
 public final class ObjectiveDef {
 
     private final String id;
     private final String kind;
     private final String target;
+    private final List<String> targets;
     private final String authoredKind;
     private final String authoredTarget;
+    private final List<String> authoredTargets;
     private final MatchMode matchMode;
     @Nullable private final String qualifier;
     private final List<String> qualifiers;
@@ -50,8 +58,10 @@ public final class ObjectiveDef {
         this.id = b.id;
         this.kind = b.kind;
         this.target = b.target != null ? b.target : "";
+        this.targets = b.targets;
         this.authoredKind = b.authoredKind != null ? b.authoredKind : this.kind;
         this.authoredTarget = b.authoredTarget != null ? b.authoredTarget : this.target;
+        this.authoredTargets = b.authoredTargets != null ? b.authoredTargets : this.targets;
         this.matchMode = b.matchMode;
         this.qualifier = b.qualifier;
         this.qualifiers = b.qualifiers;
@@ -74,10 +84,48 @@ public final class ObjectiveDef {
         return kind;
     }
 
-    /** What specifically counts. Never null; EMPTY means match-all - see {@link ObjectiveMatch}. */
+    /**
+     * What specifically counts. Never null; EMPTY means match-all - see {@link ObjectiveMatch} -
+     * unless {@link #targets()} names something.
+     */
     @Nonnull
     public String target() {
         return target;
+    }
+
+    /**
+     * More accepted targets beside {@link #target()} (the {@code Targets} leaf), as the engine runs
+     * them: an event counts when its target matches the single one or any of these, each under
+     * {@link #matchMode()}. Immutable, in authored order, with every blank entry already dropped;
+     * never null, empty when none were authored (and then {@link #target()} alone decides, exactly
+     * as before the list existed).
+     */
+    @Nonnull
+    public List<String> targets() {
+        return targets;
+    }
+
+    /**
+     * Does this step name anything to count? True when {@link #target()} is not blank or
+     * {@link #targets()} lists an entry. The one read every "is it targeted" question asks: a
+     * follow-up fire under an additional id skips a step naming nothing (it would count twice), and
+     * a value threshold naming nothing has no channel to read.
+     */
+    public boolean hasTarget() {
+        return !target.isBlank() || !targets.isEmpty();
+    }
+
+    /**
+     * The one target a line names, off the AUTHORED side: {@link #authoredTarget()} when it is not
+     * empty, else the first of {@link #authoredTargets()}, else empty (a step naming nothing).
+     * Naming the first accepted target lets the author pick the word by the order.
+     */
+    @Nonnull
+    public String namedTarget() {
+        if (!authoredTarget.isEmpty()) {
+            return authoredTarget;
+        }
+        return authoredTargets.isEmpty() ? "" : authoredTargets.get(0);
     }
 
     /**
@@ -96,6 +144,15 @@ public final class ObjectiveDef {
     @Nonnull
     public String authoredTarget() {
         return authoredTarget;
+    }
+
+    /**
+     * The {@code Targets} list the FILE named, for the same surfaces. The same as {@link #targets()}
+     * unless a kind alias rewrote each entry; never null, blanks dropped.
+     */
+    @Nonnull
+    public List<String> authoredTargets() {
+        return authoredTargets;
     }
 
     @Nonnull
@@ -167,12 +224,13 @@ public final class ObjectiveDef {
     }
 
     /**
-     * Does the identifier + qualifier an event carries satisfy this objective? The qualifier is
-     * accepted when it matches {@link #qualifier()} or any of {@link #qualifiers()}.
+     * Does the identifier + qualifier an event carries satisfy this objective? The target is
+     * accepted when it matches {@link #target()} or any of {@link #targets()}, and the qualifier when
+     * it matches {@link #qualifier()} or any of {@link #qualifiers()}.
      */
     public boolean matches(@Nonnull String eventTarget,
                            @Nullable String eventQualifier) {
-        return ObjectiveMatch.matches(target, matchMode, qualifier, qualifiers, qualifierMatchMode,
+        return ObjectiveMatch.matches(target, targets, matchMode, qualifier, qualifiers, qualifierMatchMode,
                 eventTarget, eventQualifier);
     }
 
@@ -197,8 +255,10 @@ public final class ObjectiveDef {
         private final String id;
         private final String kind;
         @Nullable private String target;
+        private List<String> targets = List.of();
         @Nullable private String authoredKind;
         @Nullable private String authoredTarget;
+        @Nullable private List<String> authoredTargets;
         private MatchMode matchMode = MatchMode.CONTAINS;
         @Nullable private String qualifier;
         private List<String> qualifiers = List.of();
@@ -220,6 +280,17 @@ public final class ObjectiveDef {
         }
 
         /**
+         * More accepted targets beside {@link #target}, in order, as the engine runs them; a null,
+         * empty or blank entry is dropped, and null or an empty collection authors none. Replaces
+         * any list set before.
+         */
+        @Nonnull
+        public Builder targets(@Nullable Collection<String> targets) {
+            this.targets = nonBlank(targets);
+            return this;
+        }
+
+        /**
          * What the file named, when the run pair differs from it because a kind alias fired. Left
          * unset, the authored pair IS the run pair, which is every ordinary objective.
          */
@@ -227,6 +298,18 @@ public final class ObjectiveDef {
         public Builder authored(@Nullable String authoredKind, @Nullable String authoredTarget) {
             this.authoredKind = authoredKind == null || authoredKind.isBlank() ? null : authoredKind.trim();
             this.authoredTarget = authoredTarget == null ? "" : authoredTarget;
+            return this;
+        }
+
+        /**
+         * {@link #authored(String, String)} with the {@code Targets} list the file named, for an
+         * alias that rewrote each entry; blanks are dropped as {@link #targets} drops them.
+         */
+        @Nonnull
+        public Builder authored(@Nullable String authoredKind, @Nullable String authoredTarget,
+                                @Nullable Collection<String> authoredTargets) {
+            authored(authoredKind, authoredTarget);
+            this.authoredTargets = nonBlank(authoredTargets);
             return this;
         }
 
@@ -248,18 +331,23 @@ public final class ObjectiveDef {
          */
         @Nonnull
         public Builder qualifiers(@Nullable Collection<String> qualifiers) {
-            if (qualifiers == null || qualifiers.isEmpty()) {
-                this.qualifiers = List.of();
-                return this;
+            this.qualifiers = nonBlank(qualifiers);
+            return this;
+        }
+
+        /** {@code entries} as an immutable list in order, every null or blank entry dropped. */
+        @Nonnull
+        private static List<String> nonBlank(@Nullable Collection<String> entries) {
+            if (entries == null || entries.isEmpty()) {
+                return List.of();
             }
-            List<String> named = new ArrayList<>(qualifiers.size());
-            for (String entry : qualifiers) {
+            List<String> named = new ArrayList<>(entries.size());
+            for (String entry : entries) {
                 if (entry != null && !entry.isBlank()) {
                     named.add(entry);
                 }
             }
-            this.qualifiers = List.copyOf(named);
-            return this;
+            return List.copyOf(named);
         }
 
         /** The qualifier's own comparison; left unset it is {@link MatchMode#EXACT}, compared whole. */

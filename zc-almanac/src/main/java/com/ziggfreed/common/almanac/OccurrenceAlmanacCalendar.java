@@ -1,5 +1,6 @@
 package com.ziggfreed.common.almanac;
 
+import java.util.List;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
@@ -61,6 +62,16 @@ public final class OccurrenceAlmanacCalendar implements AlmanacCalendar {
                     occurrences.datesMove(eventId), occurrences.recurrence(eventId, nowMs));
         } catch (Throwable t) {
             return Dates.UNKNOWN;
+        }
+    }
+
+    @Override
+    @Nonnull
+    public List<OccurrenceSource.LiveRun> liveRuns() {
+        try {
+            return source.get().liveRuns(clock.getAsLong());
+        } catch (Throwable t) {
+            return List.of();
         }
     }
 }

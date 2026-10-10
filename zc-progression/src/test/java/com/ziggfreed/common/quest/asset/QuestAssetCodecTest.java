@@ -528,6 +528,36 @@ class QuestAssetCodecTest {
             assertNotNull(((ArraySchema) qualifiers).getItems());
         }
 
+        /**
+         * {@code Targets} round trip: the list decodes onto the step beside {@code Target}, a blank
+         * entry is dropped, any entry counts under the step's one {@code MatchMode}, the step reads
+         * as targeted, its line names the first entry, and the leaf's schema is a declared array.
+         */
+        @Test
+        void aStepNamesSeveralTargetsUnderTheOneMatchMode() throws Exception {
+            QuestAsset asset = decodeRoot("""
+                    { "Objectives": { "a": { "Kind": "KILL_ENTITY", "MatchMode": "EXACT",
+                                             "Targets": ["yourmod:Wolf_Grey", " ", "yourmod:Wolf_Black"] },
+                                      "b": { "Kind": "KILL_ENTITY", "Target": "Boar",
+                                             "Targets": ["Bear"], "MatchMode": "PREFIX" } } }
+                    """, "q");
+            Quest quest = asset.toDefinition(null).quest();
+            ObjectiveDef a = quest.objective("a");
+            assertEquals(List.of("yourmod:Wolf_Grey", "yourmod:Wolf_Black"), a.targets());
+            assertTrue(a.matches("YOURMOD:wolf_black", null), "any entry counts, compared ignoring case");
+            assertFalse(a.matches("yourmod:Wolf_Grey_Alpha", null), "EXACT reads every entry");
+            assertTrue(a.hasTarget(), "a step naming only Targets is a targeted step");
+            assertEquals("yourmod:Wolf_Grey", a.namedTarget(), "its line names the first entry");
+            ObjectiveDef b = quest.objective("b");
+            assertTrue(b.matches("Boar_Piglet", null), "Target joins the list");
+            assertTrue(b.matches("Bear_Polar", null), "and PREFIX reads every entry");
+            assertFalse(b.matches("Wolf", null));
+            assertEquals("Boar", b.namedTarget());
+            Schema targets = QuestObjectiveAsset.CODEC.toSchema(new SchemaContext()).getProperties().get("Targets");
+            assertTrue(targets instanceof ArraySchema, "a quest step gets the shared leaf through appendLeaves");
+            assertNotNull(((ArraySchema) targets).getItems());
+        }
+
         @Test
         void abstractQuestsAreStillOrdinaryAssetsTheyAreJustNeverOffered() throws Exception {
             assertTrue(decodeRoot("{ \"Abstract\": true }", "base").isAbstract());

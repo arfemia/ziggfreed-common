@@ -46,6 +46,14 @@ public interface OccurrenceSource {
         }
     };
 
+    /**
+     * One run going on, with what its event is called and pictured by, for a reader that names what is on
+     * without knowing any event: {@code titleKey} is a lang key and {@code icon} an item id, each as the event
+     * authored it and null when it names none.
+     */
+    record LiveRun(@Nonnull Occurrence run, @Nullable String titleKey, @Nullable String icon) {
+    }
+
     /** Is {@code eventId} on this server and switched on, whether or not it is running now? */
     boolean isEnabled(@Nonnull String eventId);
 
@@ -183,5 +191,16 @@ public interface OccurrenceSource {
     @Nullable
     default Recurrence recurrence(@Nonnull String eventId, long nowMs) {
         return null;
+    }
+
+    /**
+     * Every run going on at {@code nowMs}, one per event, as {@link #live} answers each (forces counted), with
+     * its event's title key and icon ({@link LiveRun}), in the order they come round ({@link Occurrence#IN_ORDER}):
+     * the run that started last is the last entry. A run forced on keeps its own days, so it sorts by them. Empty
+     * when nothing is on, and from a source that names no events (the default).
+     */
+    @Nonnull
+    default List<LiveRun> liveRuns(long nowMs) {
+        return List.of();
     }
 }

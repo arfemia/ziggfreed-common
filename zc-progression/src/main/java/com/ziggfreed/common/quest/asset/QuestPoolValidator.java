@@ -324,7 +324,7 @@ public final class QuestPoolValidator {
             }
 
             if (ObjectiveKindRegistry.STAT_THRESHOLD.equalsIgnoreCase(kind.trim())
-                    && objective.target().isBlank()) {
+                    && !objective.hasTarget()) {
                 out.add(Finding.warning(DOMAIN, "STAT_THRESHOLD_WITHOUT_TARGET",
                         "step '" + objective.id() + "' listens for "
                                 + ObjectiveKindRegistry.STAT_THRESHOLD + " but names no Target, so there "

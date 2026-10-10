@@ -79,7 +79,8 @@ import com.ziggfreed.common.world.WorldSelector;
  * each value is the ordinary {@code Requires} block every gated thing on this server uses. So a band
  * can be gated on anything a factor can read, the board itself learns nothing about levels or
  * classes, and the check happens at ACCEPT: a contract a player cannot take yet is still POSTED, and
- * still shown, locked, so they can see what to work towards.
+ * still shown, locked, so they can see what to work towards. One contract's own {@code Boards} entry
+ * may write its own {@code AcceptRequires}, which stands in for its band's on this board.
  *
  * <p><b>{@code Currencies} is the balance strip in the header.</b> List the wallets a player earns
  * or spends AT THIS BOARD - the one its rewards pay out in, the one its reroll charges - so what
@@ -195,8 +196,9 @@ public final class BoardAsset implements JsonAssetWithMap<String, DefaultAssetMa
                     + "keyed by the band's own word. Each value is the ordinary Requires block, so a band can be "
                     + "gated on anything a requirement can ask. A band left out is open to everybody. Checked "
                     + "when the contract is taken, never when it is posted, so a player still sees the work they "
-                    + "are not ready for. Under Parent this merges per BAND, so a child board can raise one "
-                    + "band's bar and keep the rest.")
+                    + "are not ready for. A contract whose own Boards entry writes AcceptRequires uses that "
+                    + "instead of its band's here. Under Parent this merges per BAND, so a child board can raise "
+                    + "one band's bar and keep the rest.")
             .add()
             .appendInherited(new KeyedCodec<>("Requires", GateSpec.CODEC, false),
                     (a, v) -> a.requires = v, a -> a.requires, (a, p) -> a.requires = p.requires)

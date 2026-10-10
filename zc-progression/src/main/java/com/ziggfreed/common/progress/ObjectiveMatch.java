@@ -18,7 +18,8 @@ import javax.annotation.Nullable;
  * A qualifier has a comparison of its own ({@link #qualifierMatches(String, MatchMode, String)}),
  * the same three shapes the target has, compared whole unless the objective says otherwise, and
  * an objective may accept several qualifiers at once
- * ({@link #qualifierMatches(String, Collection, MatchMode, String)}: any one of them counts).
+ * ({@link #qualifierMatches(String, Collection, MatchMode, String)}: any one of them counts) and
+ * several targets the same way ({@link #targetMatches(String, Collection, MatchMode, String)}).
  * Quest objectives and achievement criteria - and every other consumer of this engine family -
  * match by the same rule, so a criterion moved between content types never changes what it counts.
  *
@@ -69,6 +70,58 @@ public final class ObjectiveMatch {
                                   @Nonnull String eventTarget, @Nullable String eventQualifier) {
         return targetMatches(authoredTarget, mode, eventTarget)
                 && qualifierMatches(authoredQualifier, authoredQualifiers, qualifierMode, eventQualifier);
+    }
+
+    /**
+     * The whole predicate with several accepted targets AND several accepted qualifiers: the
+     * event's target matching {@code authoredTarget} or any of {@code authoredTargets} under
+     * {@code mode} (see {@link #targetMatches(String, Collection, MatchMode, String)}), AND its
+     * qualifier as {@link #matches(String, MatchMode, String, Collection, MatchMode, String, String)}
+     * reads it. An empty target list is exactly that form.
+     */
+    public static boolean matches(@Nonnull String authoredTarget, @Nonnull Collection<String> authoredTargets,
+                                  @Nonnull MatchMode mode,
+                                  @Nullable String authoredQualifier, @Nonnull Collection<String> authoredQualifiers,
+                                  @Nonnull MatchMode qualifierMode,
+                                  @Nonnull String eventTarget, @Nullable String eventQualifier) {
+        return targetMatches(authoredTarget, authoredTargets, mode, eventTarget)
+                && qualifierMatches(authoredQualifier, authoredQualifiers, qualifierMode, eventQualifier);
+    }
+
+    /**
+     * Target comparison against SEVERAL accepted targets: {@code authoredTarget} (the {@code Target}
+     * leaf) plus every entry of {@code authoredTargets} (the {@code Targets} leaf). The event matches
+     * when its target matches ANY of them under the one {@code mode}, each by
+     * {@link #targetMatches(String, MatchMode, String)}'s rule. A union, as the qualifier list is.
+     *
+     * <ul>
+     *   <li>An empty {@code authoredTarget} names nothing here, and a null, empty or blank list entry
+     *       is ignored.</li>
+     *   <li>With nothing named (an empty {@code Target} and no real entry) every target matches, as a
+     *       step that authors neither leaf always has.</li>
+     *   <li>With an empty list this is exactly the single-target form, so a file that authors only
+     *       {@code Target} keeps its meaning byte for byte.</li>
+     * </ul>
+     */
+    public static boolean targetMatches(@Nonnull String authoredTarget, @Nonnull Collection<String> authoredTargets,
+                                        @Nonnull MatchMode mode, @Nonnull String eventTarget) {
+        boolean namedAny = false;
+        if (!authoredTarget.isEmpty()) {
+            if (targetMatches(authoredTarget, mode, eventTarget)) {
+                return true;
+            }
+            namedAny = true;
+        }
+        for (String entry : authoredTargets) {
+            if (entry == null || entry.isBlank()) {
+                continue;
+            }
+            if (targetMatches(entry, mode, eventTarget)) {
+                return true;
+            }
+            namedAny = true;
+        }
+        return !namedAny;
     }
 
     /**

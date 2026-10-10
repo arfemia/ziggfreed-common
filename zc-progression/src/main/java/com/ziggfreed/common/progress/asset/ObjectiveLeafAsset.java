@@ -1,6 +1,8 @@
 package com.ziggfreed.common.progress.asset;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -23,11 +25,14 @@ import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
  * <pre>{@code
  * { "Kind": "PICKUP_ITEM", "Target": "Copper_Ore", "MatchMode": "EXACT", "Amount": 10 }
  * { "Kind": "COMPLETE_QUEST", "Qualifiers": ["REPEATABLE", "SEASONAL"], "Amount": 10 }
+ * { "Kind": "KILL_ENTITY", "Targets": ["yourmod:Wolf_Grey", "yourmod:Wolf_Black"], "MatchMode": "EXACT" }
  * }</pre>
  *
  * <p>The accepted qualifiers are {@code Qualifier} plus every {@code Qualifiers} entry, a union
  * compared under the one {@code QualifierMatchMode}: the second example counts a repeatable quest
- * and a seasonal one alike, and a daily not at all.
+ * and a seasonal one alike, and a daily not at all. Targets read the same way: {@code Target} plus
+ * every {@code Targets} entry, each under the one {@code MatchMode}, so the third example counts
+ * the two wolves it names and no other.
  *
  * <p><b>Why a shared base rather than two similar codecs.</b> Two lifecycle engines author
  * objectives, and the moment their field names drift an author has to remember which spelling
@@ -43,6 +48,7 @@ public class ObjectiveLeafAsset {
 
     @Nullable protected String kind;
     @Nullable protected String target;
+    @Nullable protected String[] targets;
     @Nullable protected String matchMode;
     @Nullable protected String qualifier;
     @Nullable protected String[] qualifiers;
@@ -55,7 +61,7 @@ public class ObjectiveLeafAsset {
             appendLeaves(BuilderCodec.builder(ObjectiveLeafAsset.class, ObjectiveLeafAsset::new)).build();
 
     /**
-     * Register the nine shared leaves on {@code builder}. Every engine's own objective codec starts
+     * Register the ten shared leaves on {@code builder}. Every engine's own objective codec starts
      * from this call, which is what keeps the field names from drifting apart.
      */
     @Nonnull
@@ -71,6 +77,14 @@ public class ObjectiveLeafAsset {
                         (o, v) -> o.target = v, o -> o.target, (o, p) -> o.target = p.target)
                 .documentation("Which one specifically (a block id, an entity id, a place id). Leave it out "
                         + "for 'any': an empty target matches everything, whatever MatchMode says.").add()
+                .appendInherited(new KeyedCodec<>("Targets", Codec.STRING_ARRAY, false),
+                        (o, v) -> o.targets = v, o -> o.targets, (o, p) -> o.targets = p.targets)
+                .documentation("More targets that also count, beside Target: a moment counts when its target "
+                        + "matches Target or any entry here, each compared by MatchMode. Use it to count a few "
+                        + "named things toward one step, such as three kinds of bear with EXACT, without catching "
+                        + "every id that shares a word. A step's line names Target, or the first entry when Target "
+                        + "is left out. A blank entry is ignored, and with neither this nor Target authored "
+                        + "everything counts. This is ONE leaf: authoring it replaces an inherited list whole.").add()
                 .appendInherited(new KeyedCodec<>("MatchMode", Codec.STRING, false),
                         (o, v) -> o.matchMode = v, o -> o.matchMode, (o, p) -> o.matchMode = p.matchMode)
                 .metadata(EditorSchema.oneOfDocumented(
@@ -78,8 +92,9 @@ public class ObjectiveLeafAsset {
                         "CONTAINS", "The identifier must contain the target anywhere inside it",
                         "PREFIX", "The identifier must start with the target"))
                 .metadata(EditorSchema.defaultValue("CONTAINS"))
-                .documentation("How Target is compared: EXACT, CONTAINS, or PREFIX. Unauthored means CONTAINS, "
-                        + "so 'Copper' also counts Copper_Ore; author EXACT when only one id may count.").add()
+                .documentation("How Target and each Targets entry are compared: EXACT, CONTAINS, or PREFIX. "
+                        + "Unauthored means CONTAINS, so 'Copper' also counts Copper_Ore; author EXACT when only "
+                        + "the ids you name may count.").add()
                 .appendInherited(new KeyedCodec<>("Qualifier", Codec.STRING, false),
                         (o, v) -> o.qualifier = v, o -> o.qualifier, (o, p) -> o.qualifier = p.qualifier)
                 .documentation("Optional secondary filter whose meaning belongs to the kind's producer (a tool, "
@@ -128,6 +143,12 @@ public class ObjectiveLeafAsset {
     @Nullable
     public String getTarget() {
         return target;
+    }
+
+    /** The authored {@code Targets} list as written (blanks included), or null when unauthored. */
+    @Nullable
+    public String[] getTargets() {
+        return targets == null ? null : targets.clone();
     }
 
     /** The authored comparison name, unparsed; {@link #effectiveMatchMode()} is the read. */
@@ -216,9 +237,22 @@ public class ObjectiveLeafAsset {
         ObjectiveKindRegistry.Alias alias = kinds == null ? null : kinds.alias(authoredKind);
         String runKind = alias == null ? authoredKind : alias.runsAs();
         String runTarget = alias == null ? target : alias.rewriteTarget(target);
+        List<String> authoredTargets = new ArrayList<>();
+        List<String> runTargets = new ArrayList<>();
+        if (targets != null) {
+            for (String entry : targets) {
+                // A blank entry names nothing, so it is dropped before the alias sees it: a rewrite
+                // of "none named" could otherwise mint a real target out of a blank.
+                if (entry != null && !entry.isBlank()) {
+                    authoredTargets.add(entry);
+                    runTargets.add(alias == null ? entry : alias.rewriteTarget(entry));
+                }
+            }
+        }
         return ObjectiveDef.builder(objectiveId, runKind)
-                .authored(authoredKind, target)
+                .authored(authoredKind, target, authoredTargets)
                 .target(runTarget)
+                .targets(runTargets)
                 .matchMode(effectiveMatchMode())
                 .qualifier(qualifier)
                 .qualifiers(qualifiers == null ? null : Arrays.asList(qualifiers))

@@ -47,7 +47,8 @@ import com.ziggfreed.common.util.SafeLog;
  * <p><b>Read off the AUTHORED pair</b> ({@link ObjectiveDef#authoredKind()} /
  * {@link ObjectiveDef#authoredTarget()}), the same pair the sentence is composed from: a step whose
  * kind is an alias for another is pictured as what the file wrote about, never as the channel it
- * is measured on.
+ * is measured on. A step naming several targets is pictured as the one its line names
+ * ({@link ObjectiveDef#namedTarget()}).
  */
 public final class ProgressionIcons {
 
@@ -71,9 +72,9 @@ public final class ProgressionIcons {
         if (kind == null) {
             return null;
         }
-        String target = objective.authoredTarget();
+        String target = objective.namedTarget();
 
-        if (target != null && !target.isBlank()) {
+        if (!target.isBlank()) {
             IconSpec authored = kind.presentation().iconForTarget(target.trim());
             if (authored != null) {
                 return authored;

@@ -40,11 +40,14 @@ public final class CommerceStepIcons {
         return CommerceStepIcons::iconFor;
     }
 
-    /** Read off the authored pair, as every picture and sentence beside a step is. */
+    /**
+     * Read off the authored pair, as every picture and sentence beside a step is: the target its
+     * line names ({@link ObjectiveDef#namedTarget()}).
+     */
     @Nullable
     private static IconSpec iconFor(@Nonnull String contentId, @Nonnull ObjectiveDef objective) {
-        String target = objective.authoredTarget();
-        if (target == null || target.isBlank()) {
+        String target = objective.namedTarget();
+        if (target.isBlank()) {
             return null;
         }
         ObjectiveKind kind = ProgressionRuntime.objectiveKinds().kind(objective.authoredKind());

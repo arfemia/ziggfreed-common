@@ -660,7 +660,7 @@ public final class QuestEngine implements QuestStateReader {
         for (ObjectiveIndex.Entry entry : entries) {
             ObjectiveDef objective = entry.objective();
             // A follow-up fire under an additional id must not re-count a match-all objective.
-            if (options.targetedOnly() && objective.target().isBlank()) {
+            if (options.targetedOnly() && !objective.hasTarget()) {
                 continue;
             }
             Quest quest = quests.get(entry.ownerId());
@@ -712,6 +712,10 @@ public final class QuestEngine implements QuestStateReader {
     /**
      * A quest the player is not carrying may still start right here, if it is an auto-accept quest
      * they are eligible for and have not already been through. Anything else is skipped.
+     *
+     * <p>The giver is recorded as the accept site, exactly as {@link #autoAcceptAvailable} records
+     * it: a quest that arms on its first event was still handed over by its giver, so an ACCEPT_SITE
+     * hand-in resolves there instead of nowhere.
      */
     private boolean tryAutoAcceptOnEvent(@Nonnull Subject subject, @Nonnull Quest quest) {
         if (!quest.autoAccept() || !quest.available()) {
@@ -720,7 +724,7 @@ public final class QuestEngine implements QuestStateReader {
         if (status(subject, quest) != QuestStatus.NOT_STARTED) {
             return false;
         }
-        return canAccept(subject, quest).allowed() && accept(subject, quest);
+        return canAccept(subject, quest).allowed() && accept(subject, quest, quest.npcViewId());
     }
 
     // ==================== Ordering ====================
@@ -1231,7 +1235,10 @@ public final class QuestEngine implements QuestStateReader {
      *   <li>a {@link QuestTurnInSite.Kind#ACCEPT_SITE} site passes when {@code atId} matches the place
      *   this player took the quest from. Progress recorded before the quest carried that form has no
      *   place stored, so it matches nowhere until the quest is taken again - which is why the form
-     *   belongs to content that comes back round rather than to a one-shot.</li>
+     *   belongs to content that comes back round rather than to a one-shot;</li>
+     *   <li>a site that is GONE ({@link QuestGates#siteStillThere} answers false for it: a notice board
+     *   taken down or out of its season) binds nothing, so the quest may be completed anywhere, as if it
+     *   named no site, rather than wait on a place that is not there.</li>
      * </ul>
      */
     public boolean canCompleteAt(@Nonnull Subject subject, @Nonnull Quest quest,
@@ -1240,7 +1247,25 @@ public final class QuestEngine implements QuestStateReader {
         if (site == null) {
             return true;
         }
-        return site.matches(atId, site.isAcceptSite() ? acceptSiteOf(subject, quest.id()) : null);
+        String required = site.isAcceptSite() ? acceptSiteOf(subject, quest.id()) : site.id();
+        if (required != null && !required.isBlank() && siteGone(quest, required.trim())) {
+            return true;
+        }
+        return site.matches(atId, site.isAcceptSite() ? required : null);
+    }
+
+    /**
+     * Has {@code siteId}, where {@code quest} is collected, gone ({@link QuestGates#siteStillThere})?
+     * A gate that throws keeps the site: a collection is never let loose over a consumer bug.
+     */
+    private boolean siteGone(@Nonnull Quest quest, @Nonnull String siteId) {
+        try {
+            return !gates.siteStillThere(quest, siteId);
+        } catch (Throwable t) {
+            warnOnce("site-gate:" + siteId, "Asking whether '" + siteId + "' is still there failed, so it is"
+                    + " read as there: " + t.getMessage());
+            return false;
+        }
     }
 
     /**

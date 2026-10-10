@@ -50,9 +50,10 @@ import com.ziggfreed.common.util.SafeLog;
  *       decided BEFORE a price is drained, so a player is never charged for a guaranteed no-op.</li>
  * </ul>
  *
- * <p><b>Every gate is the shared one.</b> Board access and per-difficulty accept gates are ordinary
- * {@code Requires} blocks answered by the same {@link GateEvaluator} a quest accept uses, so a lock
- * on a board means exactly what a lock on a quest means, and its refusal is worded once.
+ * <p><b>Every gate is the shared one.</b> Board access, per-difficulty accept gates, a contract's own
+ * entry gate and its own {@code Requires} are ordinary {@code Requires} blocks answered by the same
+ * {@link GateEvaluator} a quest accept uses, so a lock on a board means exactly what a lock on a quest
+ * means, and its refusal is worded once.
  *
  * <p>The engine holds no clock. Every entry point takes {@code nowMs}.
  */
@@ -264,8 +265,9 @@ public final class BoardEngine {
 
     /**
      * May this subject take {@code bounty}, posted in {@code postedIn} ({@link #postedSlot}), off
-     * {@code board} right now? Board access, the per-difficulty accept gate, the posting slot's own gate,
-     * the period lock, and whether they are already carrying it - asked in that order, without taking
+     * {@code board} right now? Board access, the entry gate ({@link #entryGateFor}: the contract's own
+     * entry's, else its band's), the contract's own {@code Requires}, the posting slot's own gate, the
+     * period lock, and whether they are already carrying it - asked in that order, without taking
      * anything.
      */
     @Nonnull
@@ -281,10 +283,13 @@ public final class BoardEngine {
         if (boardFailure != null) {
             return BoardCheck.refused(boardFailure);
         }
-        String gradeFailure = gates.firstFailure(subject,
-                acceptGateFor(board, bounty.difficultyOn(board.boardId())));
+        String gradeFailure = gates.firstFailure(subject, entryGateFor(board, bounty));
         if (gradeFailure != null) {
             return BoardCheck.refused(gradeFailure);
+        }
+        String contractFailure = gates.firstFailure(subject, bounty.requires());
+        if (contractFailure != null) {
+            return BoardCheck.refused(contractFailure);
         }
         String slotFailure = gates.firstFailure(subject, slotGateFor(board, postedIn));
         if (slotFailure != null) {
@@ -333,25 +338,40 @@ public final class BoardEngine {
     /**
      * EVERY unmet gate requirement standing between {@code subject} and taking {@code bounty}, posted in
      * {@code postedIn}, off {@code board}, as structured records: the board's own {@code Requires} first,
-     * then the per-difficulty accept gate, then the posting slot's own gate, in the evaluator's own order.
-     * Empty when the gates pass - which says nothing about the other accept checks ({@link #canAccept}
-     * still owns the decision), so this is the DETAIL read for a locked row's panel, never a second accept
-     * authority.
+     * then the entry gate ({@link #entryGateFor}), then the contract's own {@code Requires}, then the
+     * posting slot's own gate, in the evaluator's own order. Empty when the gates pass - which says nothing
+     * about the other accept checks ({@link #canAccept} still owns the decision), so this is the DETAIL
+     * read for a locked row's panel, never a second accept authority.
      */
     @Nonnull
     public List<GateRefusal> acceptGateRefusals(@Nonnull Subject subject, @Nonnull BoardSpec board,
             @Nonnull BountyRef bounty, @Nullable PoolSlot postedIn) {
         List<GateRefusal> refusals =
                 new ArrayList<>(gates.allRefusals(subject, board.requires()));
-        refusals.addAll(gates.allRefusals(subject,
-                acceptGateFor(board, bounty.difficultyOn(board.boardId()))));
+        refusals.addAll(gates.allRefusals(subject, entryGateFor(board, bounty)));
+        refusals.addAll(gates.allRefusals(subject, bounty.requires()));
         refusals.addAll(gates.allRefusals(subject, slotGateFor(board, postedIn)));
         return refusals;
     }
 
     /**
+     * The gate guarding {@code bounty}'s entry on {@code board}: its own entry's
+     * {@link BountyRef#acceptRequiresOn} when that entry authors one (an empty block opens it), else
+     * the gate on its band there ({@link #acceptGateFor}). Null when nothing guards it.
+     */
+    @Nullable
+    public GateSpec entryGateFor(@Nonnull BoardSpec board, @Nonnull BountyRef bounty) {
+        GateSpec own = bounty.acceptRequiresOn(board.boardId());
+        if (own != null) {
+            return own;
+        }
+        return acceptGateFor(board, bounty.difficultyOn(board.boardId()));
+    }
+
+    /**
      * The requirement block guarding contracts of {@code difficulty} on this board, matched
-     * case-insensitively, or null when that grade is open to everyone.
+     * case-insensitively, or null when that grade is open to everyone. A contract whose own entry
+     * authors a gate is guarded by that instead ({@link #entryGateFor}).
      */
     @Nullable
     public GateSpec acceptGateFor(@Nonnull BoardSpec board, @Nullable String difficulty) {

@@ -8,6 +8,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.ziggfreed.common.occurrence.Occurrence;
+import com.ziggfreed.common.occurrence.OccurrenceSource;
 import com.ziggfreed.common.occurrence.Recurrence;
 
 /**
@@ -78,5 +79,15 @@ public interface AlmanacCalendar {
     @Nonnull
     default Dates dates(@Nonnull String eventId, long nowMs) {
         return Dates.UNKNOWN;
+    }
+
+    /**
+     * Every event's run going on now, with the event's own title key and icon, in the order they came round
+     * ({@link OccurrenceSource#liveRuns}): any event on the server, listed in the Almanac or not. Empty from a
+     * calendar that names no events.
+     */
+    @Nonnull
+    default List<OccurrenceSource.LiveRun> liveRuns() {
+        return List.of();
     }
 }

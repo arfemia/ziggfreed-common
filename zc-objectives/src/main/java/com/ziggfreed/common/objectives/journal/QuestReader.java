@@ -244,11 +244,11 @@ public final class QuestReader {
     /**
      * Whether {@code q} is finished and waits to be collected somewhere other than where the player stands: at
      * {@code here}, a character none of whose ids it may be collected under; in the book, a quest collected only at
-     * its site ({@link QuestActions#collectableHere}). Such a quest reads Elsewhere, offers no Collect, and its hint
-     * says where it is collected.
+     * its site while that site is there ({@link QuestActions#collectableHere}). Such a quest reads Elsewhere, offers
+     * no Collect, and its hint says where it is collected.
      */
     public boolean collectsElsewhere(@Nonnull Quest q, @Nullable CharacterQuestListing here) {
-        return status(q) == QuestStatus.COMPLETED_UNCLAIMED && !QuestActions.collectableHere(q, here);
+        return status(q) == QuestStatus.COMPLETED_UNCLAIMED && !QuestActions.collectableHere(q, this, here);
     }
 
     /** The state word a row wears, in its section's tone. */

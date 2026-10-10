@@ -3,19 +3,31 @@ package com.ziggfreed.common;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.hypixel.hytale.assetstore.AssetExtraInfo;
+import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.achievement.FirstClaims;
+import com.ziggfreed.common.board.asset.BoardAssetStore;
+import com.ziggfreed.common.board.asset.BountyAsset;
+import com.ziggfreed.common.commerce.fold.CommerceDefaults;
 import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
 import com.ziggfreed.common.progress.runtime.ProgressionGates;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.progress.runtime.ProgressionTextSource;
+import com.ziggfreed.common.quest.InMemoryQuestProgressStore;
 import com.ziggfreed.common.quest.NpcOfferProviders;
+import com.ziggfreed.common.quest.Quest;
+import com.ziggfreed.common.quest.QuestEngine;
+import com.ziggfreed.common.quest.QuestTurnInSite;
+import com.ziggfreed.common.subject.Subject;
 
 /**
  * A seam that SHIPS is a seam that is FILLED.
@@ -130,5 +142,38 @@ class SeamsFilledTest {
 
         assertTrue(ProgressionRuntime.usesDefaultStores(),
                 "with no consumer registered, the library's own store must be the active one");
+    }
+
+    /**
+     * "Is the place this quest is collected at still there" ({@code QuestGates.siteStillThere}) has a
+     * library answer for boards: a contract is collected at the board it was taken from, so without
+     * one, a board taken down or out of its season strands every contract still waiting there. Walked
+     * through the live engine: taken at a board nothing loads, the contract collects anywhere, while a
+     * quest no board posts still waits for its site.
+     */
+    @Test
+    void aContractWhoseBoardIsGoneCollectsAnywhere() throws IOException {
+        ProgressionDefaults.register();
+        CommerceDefaults.registerQuestSites();
+        ProgressionRuntime.registrar("seams-filled-test").questStore(new InMemoryQuestProgressStore());
+        BoardAssetStore.getInstance().merge(Map.of("yourmod_hunt", BountyAsset.CODEC.decodeAndInheritJsonAsset(
+                RawJsonReader.fromJsonString("{ }"), null,
+                new AssetExtraInfo<>(new AssetExtraInfo.Data(BountyAsset.class, "yourmod_hunt", null)))));
+        try {
+            Quest contract = Quest.builder("yourmod_hunt").turnInAt(QuestTurnInSite.ACCEPT_SITE).build();
+            Quest errand = Quest.builder("yourmod_errand").turnInAt(QuestTurnInSite.ACCEPT_SITE).build();
+            ProgressionRuntime.publishQuests("seams-filled-test", List.of(contract, errand));
+            QuestEngine engine = ProgressionRuntime.quests();
+            Subject player = Subject.of(UUID.randomUUID(), "tester");
+            engine.accept(player, contract, "yourmod_gone_board");
+            engine.accept(player, errand, "yourmod_gone_board");
+
+            assertTrue(engine.canCompleteAt(player, contract, null),
+                    "a contract whose board is gone is collected anywhere");
+            assertFalse(engine.canCompleteAt(player, errand, null),
+                    "a quest no board posts still waits for the place it was taken");
+        } finally {
+            BoardAssetStore.getInstance().merge(Map.of());
+        }
     }
 }

@@ -138,4 +138,19 @@ public interface QuestGates {
                                     @Nonnull ObjectiveDef objective) {
         return 0L;
     }
+
+    /**
+     * Is {@code siteId}, the place {@code quest} is collected at, still there to collect it at? Asked
+     * by {@link QuestEngine#canCompleteAt} for a site-bound quest (the recorded accept site, or the
+     * named character), so every collection check reads one answer. False says the place is GONE for
+     * good or for now - a notice board taken down or out of its season - and a quest whose site is gone
+     * may be collected anywhere, rather than sit uncollectable until the place comes back.
+     *
+     * <p>A server-wide question, never a player's: a place the viewer merely cannot see from where they
+     * stand is still there. Answer only for the places this gate owns and say true for every other id,
+     * which is the default: everything is always there.
+     */
+    default boolean siteStillThere(@Nonnull Quest quest, @Nonnull String siteId) {
+        return true;
+    }
 }

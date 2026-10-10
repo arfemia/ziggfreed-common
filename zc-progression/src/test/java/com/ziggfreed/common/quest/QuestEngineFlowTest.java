@@ -636,6 +636,33 @@ class QuestEngineFlowTest {
             assertEquals(QuestStatus.COMPLETED, engine.status(player, q));
         }
 
+        /**
+         * A quest that arms on its first event was still handed over by its giver: the giver is
+         * recorded as the accept site, as the on-ready pass records it, so an accept-site hand-in
+         * collects there and not nowhere.
+         */
+        @Test
+        void aQuestArmedByItsFirstEventRecordsItsGiverAsTheAcceptSiteAndHandsInThere() {
+            Quest q = quest("q_armed_at_giver")
+                    .objective(objective("x", "BREAK_BLOCK", "Oak_Log", 1))
+                    .reward(RewardSpec.of("NOTE", "text", "paid"))
+                    .autoAccept(true)
+                    .turnInAt(QuestTurnInSite.ACCEPT_SITE)
+                    .npcViewId("Yourmod_Giver")
+                    .build();
+            QuestEngine engine = engine().build();
+            engine.setQuests(List.of(q));
+
+            engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 1);
+
+            assertEquals("Yourmod_Giver", engine.acceptSiteOf(player, q.id()),
+                    "the event that armed it records its giver as where it was taken");
+            assertEquals(QuestStatus.COMPLETED_UNCLAIMED, engine.status(player, q));
+            assertFalse(engine.canCompleteAt(player, q, "Yourmod_Someone_Else"));
+            assertTrue(engine.claim(player, q, "Yourmod_Giver"), "it hands in at its giver");
+            assertEquals(List.of("paid"), granted);
+        }
+
         @Test
         void autoAcceptOnReadyStartsAndSettlesEligibleQuests() {
             Quest q = quest("q_ready")

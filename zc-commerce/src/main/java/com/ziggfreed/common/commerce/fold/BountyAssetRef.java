@@ -5,14 +5,15 @@ import javax.annotation.Nullable;
 
 import com.ziggfreed.common.board.BountyRef;
 import com.ziggfreed.common.board.asset.BountyAsset;
+import com.ziggfreed.common.progress.gate.GateSpec;
 
 /**
  * One authored contract, as the board engine sees it.
  *
- * <p>Three of the four questions are about ONE board, and each is answered by walking the contract's
- * own authored membership list. Nothing is precomputed per board: the list is short, a draw asks
- * each candidate once, and keeping the list where the author wrote it is what stops a second
- * membership type existing on the engine side.
+ * <p>The questions about ONE board are each answered by walking the contract's own authored
+ * membership list. Nothing is precomputed per board: the list is short, a draw asks each candidate
+ * once, and keeping the list where the author wrote it is what stops a second membership type
+ * existing on the engine side.
  *
  * <p>What the contract IS - its steps, its rewards, its gate, its lifecycle - is a quest, reached
  * through the quest engine after {@link BountyAsset#toDefinition} has folded it. This view answers
@@ -66,6 +67,20 @@ public final class BountyAssetRef implements BountyRef {
     public boolean enabled() {
         // Live: switched off, or hidden by a feature that reads off, and every draw leaves it out.
         return asset.isAvailable();
+    }
+
+    @Override
+    @Nullable
+    public GateSpec requires() {
+        // The lock alone: a feature or mod condition is already enabled()'s, so it hides, never locks.
+        return asset.acceptGate();
+    }
+
+    @Override
+    @Nullable
+    public GateSpec acceptRequiresOn(@Nonnull String boardId) {
+        BountyAsset.BoardMembership membership = asset.membershipOn(boardId);
+        return membership == null ? null : membership.getAcceptRequires();
     }
 
     @Override

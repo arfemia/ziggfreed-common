@@ -307,6 +307,10 @@ public final class BoardValidator {
                                 + "contract unpostable; it is read as 1. Take it off the board with Enabled "
                                 + "instead", id));
             }
+            // An entry's own accept gate stands in for its band's on that board: the shared requirement
+            // audit, at its path, exactly as the band's is read on the board.
+            out.addAll(GateValidator.validate(membership.getAcceptRequires(), DOMAIN,
+                    id + ".Boards." + boardId + ".AcceptRequires", NOUN, gateKinds, knownFactors, null));
         }
 
         Map<String, QuestObjectiveAsset> objectives = bounty.objectivesOrEmpty();

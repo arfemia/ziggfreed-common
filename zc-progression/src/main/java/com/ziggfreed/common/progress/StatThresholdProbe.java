@@ -93,9 +93,22 @@ public final class StatThresholdProbe {
      * <p>The reading is FLOORED into a whole number, because progress is counted in whole units and
      * a threshold is only genuinely reached at the number itself: a channel sitting fractionally
      * below its target must not round up into a completion.
+     *
+     * <p>A step naming several channels ({@code Target} plus its {@code Targets} entries) reads the
+     * highest of them, the union a moment-counted step takes: it is met once any one channel it
+     * names reaches the amount.
      */
     public long valueFor(@Nonnull Subject subject, @Nonnull ObjectiveDef objective) {
-        String channel = objective.target().trim();
+        long best = valueFor(subject, objective.target());
+        for (String channel : objective.targets()) {
+            best = Math.max(best, valueFor(subject, channel));
+        }
+        return best;
+    }
+
+    /** One channel's floored reading for {@code subject}, or {@code 0} when it cannot be read. */
+    private long valueFor(@Nonnull Subject subject, @Nonnull String authoredChannel) {
+        String channel = authoredChannel.trim();
         if (channel.isEmpty()) {
             return 0L;
         }

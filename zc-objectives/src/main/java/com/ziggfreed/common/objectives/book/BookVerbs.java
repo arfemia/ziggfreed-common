@@ -120,7 +120,9 @@ public final class BookVerbs {
         }
         RewardGrants.GrantOutcome paid = ProgressionRuntime.questScope().around(subject, s -> engine.tryClaim(s, quest));
         if (paid == null) {
-            toast(ToastKind.ERROR, ctx.text(quest.turnInAt() != null
+            // Said as where to collect it only while the engine still binds it to a site: one whose site is
+            // gone was refused for something else (no room), and naming a place that is not there misleads.
+            toast(ToastKind.ERROR, ctx.text(!engine.canCompleteAt(subject, quest, null)
                     ? "book.quests.claim_at_site" : "book.toast.claim_failed"));
             return false;
         }

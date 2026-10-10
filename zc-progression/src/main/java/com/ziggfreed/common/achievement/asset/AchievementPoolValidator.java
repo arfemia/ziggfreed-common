@@ -185,7 +185,7 @@ public final class AchievementPoolValidator {
                                 + "player does anything", id));
             }
             if (ObjectiveKindRegistry.STAT_THRESHOLD.equalsIgnoreCase(kind.trim())
-                    && criterion.target().isBlank()) {
+                    && !criterion.hasTarget()) {
                 out.add(Finding.warning(DOMAIN, "STAT_THRESHOLD_WITHOUT_TARGET",
                         where + " listens for " + ObjectiveKindRegistry.STAT_THRESHOLD + " but names no "
                                 + "Target, so there is no stat channel to measure; give it the channel id "

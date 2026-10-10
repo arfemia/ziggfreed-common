@@ -77,7 +77,9 @@ import com.ziggfreed.common.text.ContentTextAsset;
  *
  * <p><b>{@code Difficulty} is a free word the content invents</b> - training, easy, normal, hard -
  * matched against a board's slots however it is capitalized. A board gates a whole band through its
- * own {@code AcceptRequires}, so nothing about who may take this contract is written here.
+ * own {@code AcceptRequires}. Who may take one contract is written here only when it is special: a
+ * {@code Boards} entry's own {@code AcceptRequires} replaces its band's gate on that board (an empty
+ * block opens it), and the contract's {@code Requires} applies on every board it hangs on.
  *
  * <p>A family of near-identical contracts is better written as one {@code Abstract} contract plus
  * children carrying a {@code Parent} than as twenty files to keep in step.
@@ -157,8 +159,9 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
             .appendInherited(new KeyedCodec<>("Requires", GateSpec.CODEC, false),
                     (a, v) -> a.requires = v, a -> a.requires, (a, p) -> a.requires = p.requires)
             .documentation("What a player must already have or have done before they may take THIS contract "
-                    + "specifically. An unauthored block asks for nothing. A whole difficulty band is gated on "
-                    + "the board instead, so reach for this only when one contract is special. A plain feature or "
+                    + "specifically, on every board it hangs on, checked after the board's own gate and its "
+                    + "band's. An unauthored block asks for nothing. A whole difficulty band is gated on the "
+                    + "board instead, so reach for this only when one contract is special. A plain feature or "
                     + "mod condition at the top level decides instead whether the contract exists at all: while "
                     + "it reads off, it is never posted and cannot be taken, and a player already carrying it can "
                     + "still finish it at its board.")
@@ -266,10 +269,31 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
         return null;
     }
 
-    /** What must be true before this contract may be taken, or null when anybody may. */
+    /**
+     * The authored {@code Requires} block, hide axis included: presence is {@link #isAvailable()}, the
+     * lock a board checks is {@link #acceptGate()}.
+     */
     @Nullable
     public GateSpec getRequires() {
         return requires;
+    }
+
+    /**
+     * What must be true before this contract may be taken, as a board asks it: {@code Requires} with
+     * every plain top-level feature or mod condition lifted out exactly as {@link #toDefinition} lifts
+     * them (those decide whether the contract is posted at all, so a switched-off feature hides it
+     * and is never read again as a lock). Null when what is left asks for nothing.
+     */
+    @Nullable
+    public GateSpec acceptGate() {
+        GateSpec remaining = remaining(requires, FeatureLift.liftKnown(requires));
+        return remaining == null || remaining.isEmpty() ? null : remaining;
+    }
+
+    /** The block left once {@code lift} has taken its conditions out: the authored one when nothing was lifted. */
+    @Nullable
+    private static GateSpec remaining(@Nullable GateSpec requires, @Nonnull FeatureLift.Result lift) {
+        return lift.lifted().isEmpty() ? requires : lift.requires();
     }
 
     /** The authored steps in authored order, keyed by step id. */
@@ -322,7 +346,7 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
 
         FeatureLift.Result lift = FeatureLift.liftKnown(requires);
         List<FeatureLift.Lifted> lifted = lift.lifted();
-        GateSpec remaining = lifted.isEmpty() ? requires : lift.requires();
+        GateSpec remaining = remaining(requires, lift);
         boolean enabled = isEnabled();
 
         Quest.Builder quest = Quest.builder(contractId)
@@ -432,12 +456,17 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
      * a difficulty with no board names a band on nothing, and a weight with no board biases a draw
      * that never happens. It replaces a packed label list, where a mistyped separator silently took
      * a contract off every board without anything saying so.
+     *
+     * <p>{@code AcceptRequires} is this entry's own accept gate on its board, in place of the band's:
+     * authored, it replaces the board's {@code AcceptRequires} for this contract's band there ({@code {}}
+     * opens it to everyone); unauthored, the band's gate applies.
      */
     public static final class BoardMembership {
 
         @Nullable protected String board;
         @Nullable protected String difficulty;
         @Nullable protected Double weight;
+        @Nullable protected GateSpec acceptRequires;
 
         public static final BuilderCodec<BoardMembership> CODEC =
                 BuilderCodec.builder(BoardMembership.class, BoardMembership::new)
@@ -458,6 +487,14 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
                         .documentation("How strongly this contract is drawn against its rivals for one slot. "
                                 + "Unauthored means 1; 2 is twice as likely as a 1. Zero or less would make it "
                                 + "unpostable, so it is read as 1 and reported.").add()
+                        .appendInherited(new KeyedCodec<>("AcceptRequires", GateSpec.CODEC, false),
+                                (o, v) -> o.acceptRequires = v, o -> o.acceptRequires,
+                                (o, p) -> o.acceptRequires = p.acceptRequires)
+                        .documentation("Who may take this contract on this board, in place of the gate the board "
+                                + "puts on its Difficulty band. An empty block {} opens it to everyone, such as an "
+                                + "easy contract posted in a harder band; unauthored, the band's gate applies. The "
+                                + "board's own Requires, the contract's Requires and the posting slot's Requires "
+                                + "still apply.").add()
                         .build();
 
         public BoardMembership() {
@@ -502,6 +539,16 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
         @Nullable
         public Double getWeight() {
             return weight;
+        }
+
+        /**
+         * This entry's own accept gate on its board, replacing the band's there, or null when the entry
+         * authors none and the band's gate applies. An authored empty block is not null: it opens the
+         * contract on this board.
+         */
+        @Nullable
+        public GateSpec getAcceptRequires() {
+            return acceptRequires;
         }
     }
 }

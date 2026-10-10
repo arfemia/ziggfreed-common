@@ -445,6 +445,11 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
                                        @Nonnull ObjectiveDef objective) {
             return ProgressionRuntime.parts().questGates().preSatisfiedAmount(subject, quest, objective);
         }
+
+        @Override
+        public boolean siteStillThere(@Nonnull Quest quest, @Nonnull String siteId) {
+            return ProgressionRuntime.parts().questGates().siteStillThere(quest, siteId);
+        }
     };
 
     static final AchievementGates ACHIEVEMENT_GATES = new AchievementGates() {
@@ -554,6 +559,18 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
                     best = Math.max(best, gate.preSatisfiedAmount(subject, quest, objective));
                 }
                 return best;
+            }
+
+            @Override
+            public boolean siteStillThere(@Nonnull Quest quest, @Nonnull String siteId) {
+                // A site is there until a gate that owns it says it is gone; every other gate's default yes
+                // leaves the answer to the owner.
+                for (QuestGates gate : frozen) {
+                    if (!gate.siteStillThere(quest, siteId)) {
+                        return false;
+                    }
+                }
+                return true;
             }
         };
     }

@@ -83,14 +83,16 @@ final class NeutralObjectiveComposer implements ObjectiveComposer {
      * Composed from the AUTHORED pair throughout: the kind and the target the file named, which
      * differ from the pair the engine runs on only when a kind alias fired at the fold. A sentence
      * built from the run pair would name the channel a threshold is measured on rather than the
-     * thing the author wrote about.
+     * thing the author wrote about. A step that accepts several targets names the first of them
+     * ({@link ObjectiveDef#namedTarget()}), as it names the first of several qualifiers.
      */
     @Override
     @Nullable
     public Message compose(@Nonnull ObjectiveDef objective, @Nullable String authoredKey) {
         String amount = NumberFormatter.grouped(objective.amount());
-        boolean emptyTarget = objective.authoredTarget().isEmpty();
-        Message target = emptyTarget ? Msg.raw("") : targetName(objective);
+        String named = objective.namedTarget();
+        boolean emptyTarget = named.isEmpty();
+        Message target = emptyTarget ? Msg.raw("") : targetName(objective.authoredKind(), named);
 
         Message sentence = null;
         if (authoredKey != null && !authoredKey.isBlank() && ContentKeys.known(authoredKey.trim())) {
@@ -178,14 +180,14 @@ final class NeutralObjectiveComposer implements ObjectiveComposer {
      * then the prettified id.
      */
     @Nonnull
-    private Message targetName(@Nonnull ObjectiveDef objective) {
-        if (ObjectiveKindRegistry.STAT_THRESHOLD.equalsIgnoreCase(objective.authoredKind())) {
-            Message channel = FactorNames.name(STAT_FACTOR, objective.authoredTarget());
+    private Message targetName(@Nonnull String authoredKind, @Nonnull String target) {
+        if (ObjectiveKindRegistry.STAT_THRESHOLD.equalsIgnoreCase(authoredKind)) {
+            Message channel = FactorNames.name(STAT_FACTOR, target);
             if (channel != null) {
                 return channel;
             }
         }
-        return NativeNames.targetNameMsg(objective.authoredTarget(), keyExists);
+        return NativeNames.targetNameMsg(target, keyExists);
     }
 
     private boolean exists(@Nonnull String key) {

@@ -27,8 +27,8 @@ import com.ziggfreed.common.ui.kit.DetailAction;
  * <p><b>In the book</b> ({@code here} null): Accept only for a quest the log may take now that is taken neither at its
  * giver ({@link BookVerbs#takenAtGiver}; a quest that arms itself never is) nor at a board; Hand in when a step can be
  * handed in somewhere unlocked ({@code firstActiveTurnIn(subject, quest, null)}; a hand-in locked to a character
- * never completes from the book); Collect for a finished quest unless it is collected only at its site; Abandon on
- * a carried quest, a board's too.
+ * never completes from the book); Collect for a finished quest unless it is collected only at its site and that site
+ * is still there; Abandon on a carried quest, a board's too.
  *
  * <p><b>At a character</b> ({@code here} non-null, the NPC quest page), the place decides: Accept for anything
  * Available there (a giver-bound quest included, since this is where it is taken); Hand in when a step resolves
@@ -140,7 +140,7 @@ public final class QuestActions {
                         ? action(ActionSlot.PRIMARY, QuestReader.text("action.hand_in"), ActionLook.NORMAL, HAND_IN)
                         : null;
             }
-            case COMPLETED_UNCLAIMED -> collectableHere(q, here)
+            case COMPLETED_UNCLAIMED -> collectableHere(q, r, here)
                     ? action(ActionSlot.PRIMARY, QuestReader.text("action.collect"), ActionLook.COLLECT, COLLECT)
                     : null;
             case ON_COOLDOWN, COMPLETED -> null;
@@ -149,10 +149,23 @@ public final class QuestActions {
 
     /**
      * Whether a finished quest can be collected where the player stands: at {@code here}, under an id the character
-     * answers to ({@link CharacterQuestListing#collectionSite}); in the book, only when it names no site, since the
-     * engine refuses a site-bound payout from nowhere. Where this is false the row reads Elsewhere
+     * answers to ({@link CharacterQuestListing#collectionSite}); in the book, wherever the engine lets a payout from
+     * nowhere through ({@code canCompleteAt} with no place): a quest naming no site, or one whose site is gone (a
+     * board taken down or out of season). Where this is false the row reads Elsewhere
      * ({@link QuestReader#collectsElsewhere}) and there is no Collect.
      */
+    public static boolean collectableHere(@Nonnull Quest q, @Nonnull QuestReader r,
+            @Nullable CharacterQuestListing here) {
+        return here != null ? here.collectionSite(q) != null : r.engine().canCompleteAt(r.subject(), q, null);
+    }
+
+    /**
+     * The 2.2.0 form, kept so a caller built against it still links: in the book it reads only whether the quest
+     * names a site, so it cannot see a site that is gone.
+     *
+     * @deprecated ask {@link #collectableHere(Quest, QuestReader, CharacterQuestListing)}, which asks the engine
+     */
+    @Deprecated(since = "2.3.0")
     public static boolean collectableHere(@Nonnull Quest q, @Nullable CharacterQuestListing here) {
         return here != null ? here.collectionSite(q) != null : q.turnInAt() == null;
     }

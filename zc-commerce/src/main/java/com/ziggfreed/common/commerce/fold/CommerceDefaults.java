@@ -7,11 +7,16 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.event.events.player.PlayerConnectEvent;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
+import com.ziggfreed.common.board.asset.BoardAsset;
+import com.ziggfreed.common.board.asset.BoardConfig;
 import com.ziggfreed.common.commerce.CommerceStore;
 import com.ziggfreed.common.commerce.CommerceStores;
 import com.ziggfreed.common.commerce.ComponentCommerceStore;
 import com.ziggfreed.common.currency.CurrencyEngine;
 import com.ziggfreed.common.progress.gate.GatedContent;
+import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
+import com.ziggfreed.common.quest.Quest;
+import com.ziggfreed.common.quest.QuestGates;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -42,18 +47,48 @@ public final class CommerceDefaults {
     }
 
     /**
+     * Whether the board a contract was taken from is still up to collect it at: the quest engine's
+     * "is the place still there" question ({@link QuestGates#siteStillThere}), answered for contracts
+     * alone. A contract's site is the board's id; the board is there while one of that id is loaded and
+     * {@link BoardAsset#isAvailable()} (switched on, in its season, its feature on), never judged by a
+     * viewer's {@code Where}. A board taken down or out of season is gone, so what was taken there is
+     * collected anywhere. Every quest no board posts keeps its site.
+     */
+    static final QuestGates BOARD_SITES = new QuestGates() {
+        @Override
+        public boolean siteStillThere(@Nonnull Quest quest, @Nonnull String siteId) {
+            if (AssetBoardCatalog.getInstance().bounty(quest.id()) == null) {
+                return true;
+            }
+            BoardAsset board = BoardConfig.getInstance().resolve(siteId);
+            return board != null && board.isAvailable();
+        }
+    };
+
+    /**
      * Install the defaults, once, from the wiring root's {@code setup()}: the component-backed state
      * store, the currency engine over the authored wallets, the connect hook that gives each
-     * player somewhere to keep it, and the gated offers and board slots a requirement's reader
-     * lists ({@link CommerceGatedContent}).
+     * player somewhere to keep it, the gated offers and board slots a requirement's reader
+     * lists ({@link CommerceGatedContent}), and the board answer to whether a contract's site is still
+     * there ({@link #registerQuestSites}).
      */
     public static void install(@Nonnull PluginBase plugin) {
         CommerceStores.install(ComponentCommerceStore.INSTANCE);
         installCurrencyEngine(assetBacked());
         GatedContent.register(CommerceGatedContent.ID, CommerceGatedContent::entries);
+        registerQuestSites();
         plugin.getEventRegistry().register(PlayerConnectEvent.class, CommerceDefaults::onPlayerConnect);
         SafeLog.info("[commerce] economy ready: wallets, prices and rotations read the authored "
                 + "content, and commerce state is kept on a per-player component saved with the world");
+    }
+
+    /**
+     * Contribute {@link #BOARD_SITES} to the shared progression runtime at library-default rank, so a
+     * server running the library alone collects a contract whose board is gone. Called by
+     * {@link #install}; idempotent, since the runtime keeps one contribution per instance.
+     */
+    public static void registerQuestSites() {
+        ProgressionRuntime.defaults(CommerceDestinations.OWNER).questGates(BOARD_SITES);
     }
 
     /**

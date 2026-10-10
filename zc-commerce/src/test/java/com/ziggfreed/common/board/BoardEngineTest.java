@@ -66,6 +66,34 @@ class BoardEngineTest {
         }
     }
 
+    /** A bounty whose own entry on its one board authors an accept gate in place of its band's. */
+    private record EntryGatedBounty(String id, String board, String difficulty, GateSpec entryGate)
+            implements BountyRef {
+
+        @Override
+        @Nonnull
+        public String bountyId() {
+            return id;
+        }
+
+        @Override
+        public boolean isOn(@Nonnull String boardId) {
+            return board.equalsIgnoreCase(boardId);
+        }
+
+        @Override
+        @Nullable
+        public String difficultyOn(@Nonnull String boardId) {
+            return isOn(boardId) ? difficulty : null;
+        }
+
+        @Override
+        @Nullable
+        public GateSpec acceptRequiresOn(@Nonnull String boardId) {
+            return isOn(boardId) ? entryGate : null;
+        }
+    }
+
     /** A contract switched off (or hidden by a feature) after a player took it. */
     private record SwitchedOffBounty(String id, String board) implements BountyRef {
 
@@ -306,6 +334,25 @@ class BoardEngineTest {
         BoardEngine.BoardCheck refusal = engine.canAccept(SUBJECT, gated, hard, DAY_ONE);
         assertFalse(refusal.ok());
         assertEquals(GateEvaluator.REASON_PERMISSION, refusal.reason());
+    }
+
+    @Test
+    @DisplayName("a contract's own entry gate replaces its band's: {} opens it, a gate of its own stands instead, absent keeps the band's")
+    void anEntryGateReplacesTheBandsGate() throws IOException {
+        TestBoard gated = new TestBoard("Daily", daily().slots(), null,
+                Map.of("Hard", gate("{ \"Permission\": \"board.veteran\" }")));
+        BountyRef banded = new TestBounty("hunt_hard_1", "Daily", "Hard");
+        BountyRef opened = new EntryGatedBounty("hunt_hard_2", "Daily", "Hard", gate("{ }"));
+        BountyRef own = new EntryGatedBounty("hunt_hard_3", "Daily", "Hard",
+                gate("{ \"Quests\": [\"yourmod:intro\"] }"));
+
+        assertEquals(GateEvaluator.REASON_PERMISSION, engine.canAccept(SUBJECT, gated, banded, DAY_ONE).reason(),
+                "an entry that authors no gate keeps its band's");
+        assertTrue(engine.canAccept(SUBJECT, gated, opened, DAY_ONE).ok(), "an empty entry gate opens it");
+        assertTrue(engine.acceptGateRefusals(SUBJECT, gated, opened).isEmpty(), "and its lock panel lists nothing");
+        assertEquals(GateEvaluator.REASON_QUEST + "yourmod:intro",
+                engine.canAccept(SUBJECT, gated, own, DAY_ONE).reason(), "its own gate stands in for the band's");
+        assertEquals(1, engine.acceptGateRefusals(SUBJECT, gated, own).size(), "and the band's is not asked as well");
     }
 
     @Test

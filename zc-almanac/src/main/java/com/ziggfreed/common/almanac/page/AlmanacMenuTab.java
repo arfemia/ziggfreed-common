@@ -1,13 +1,18 @@
 package com.ziggfreed.common.almanac.page;
 
+import java.util.List;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.ziggfreed.common.almanac.AlmanacCalendar;
+import com.ziggfreed.common.almanac.AlmanacSwitch;
 import com.ziggfreed.common.almanac.AlmanacText;
 import com.ziggfreed.common.almanac.OccurrenceAlmanacCalendar;
 import com.ziggfreed.common.almanac.view.AlmanacView;
 import com.ziggfreed.common.icon.IconSpec;
+import com.ziggfreed.common.occurrence.Occurrence;
+import com.ziggfreed.common.occurrence.OccurrenceSource;
 import com.ziggfreed.common.ui.menu.MenuEntry;
 import com.ziggfreed.common.ui.menu.MenuSlot;
 import com.ziggfreed.common.ui.menu.MenuSubline;
@@ -16,8 +21,8 @@ import com.ziggfreed.common.ui.menu.MenuSubline;
  * When the shared menu (and a consumer's hub tile) offers the Almanac: two owner knobs, read from
  * {@code almanac.json}'s {@code $MenuTab} group by {@code AlmanacOwnerLayers}, and the one rule over them,
  * {@link #visible}, which {@link AlmanacPages#menuTabVisible} asks. Two booleans, not a mode: whether the
- * tab shows at all, and whether it waits for a season to be running. While a season runs, the tab's
- * second line names it with its picture.
+ * tab shows at all, and whether it waits for a season to be running. While an event runs, the tab's
+ * second line names the one that started last with its picture, else the season on now.
  */
 public final class AlmanacMenuTab {
 
@@ -60,10 +65,11 @@ public final class AlmanacMenuTab {
     }
 
     /**
-     * The tab's second line (the maintainer's ruling M485): the season on now, by the name and picture its Almanac
-     * page gives it, asked on every paint so it comes and goes with the season. Null while no season runs, while
-     * the Almanac is off, when that season's page names no title or no picture (never its raw id), or when the
-     * read fails: the tab is then one line.
+     * The tab's second line (the maintainer's rulings M485 and M499): the event on now that started last among
+     * those whose calendar file names both a title and a picture ({@link AlmanacCalendar#liveRuns}), else the
+     * season on now by the name and picture its Almanac page gives it, asked on every paint so it comes and goes
+     * with the event. Null while nothing named runs, while the Almanac is off, when the season's page names no
+     * title or no picture (never its raw id), or when the read fails: the tab is then one line.
      */
     @Nullable
     static MenuSubline subline() {
@@ -76,12 +82,41 @@ public final class AlmanacMenuTab {
 
     @Nullable
     static MenuSubline subline(@Nonnull AlmanacCalendar calendar) {
+        if (!AlmanacSwitch.isOn()) {
+            return null;
+        }
+        MenuSubline event = latestNamedRun(calendar.liveRuns());
+        if (event != null) {
+            return event;
+        }
         AlmanacView.Season season = AlmanacPages.seasonOnNow(calendar);
         if (season == null || missing(season.titleKey()) || missing(season.icon())) {
             return null;
         }
         return new MenuSubline(AlmanacText.authored(season.titleKey(), season.eventId()),
                 IconSpec.ofItem(season.icon().trim()));
+    }
+
+    /**
+     * The run that came round last ({@link Occurrence#IN_ORDER}) among {@code runs} whose event names both a title
+     * and a picture, as a second line; null when none does.
+     */
+    @Nullable
+    static MenuSubline latestNamedRun(@Nonnull List<OccurrenceSource.LiveRun> runs) {
+        OccurrenceSource.LiveRun latest = null;
+        for (OccurrenceSource.LiveRun run : runs) {
+            if (run == null || missing(run.titleKey()) || missing(run.icon())) {
+                continue;
+            }
+            if (latest == null || Occurrence.IN_ORDER.compare(run.run(), latest.run()) >= 0) {
+                latest = run;
+            }
+        }
+        if (latest == null) {
+            return null;
+        }
+        return new MenuSubline(AlmanacText.authored(latest.titleKey(), latest.run().eventId()),
+                IconSpec.ofItem(latest.icon().trim()));
     }
 
     private static boolean missing(@Nullable String authored) {
