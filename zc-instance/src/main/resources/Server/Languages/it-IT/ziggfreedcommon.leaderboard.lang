@@ -25,16 +25,11 @@ view.stats = Statistiche
 filter.all = Tutti
 your_rank = Il tuo migliore: #{0, number} ({1, number})
 your_rank.none = Qui non hai ancora un record per questo scontro.
-stat.damage_dealt = Danni inflitti
-stat.damage_taken = Danni subiti
 command.desc.family = Vedi i record degli scontri con i boss di questo server.
 command.desc.encounter = Apri i record di uno scontro con un boss.
-command.desc.arg.encounter = L'id dello script dello scontro. Omettilo quando solo uno scontro ha record.
 command.open.needs_player = Solo un giocatore può aprire la schermata dei record.
 command.open.failed = Non è stato possibile aprire la schermata dei record. Riprova tra un attimo.
 command.encounter.unranked = '{0}' non tiene record su questo server.
 command.encounter.none = Nessuno scontro con un boss ha ancora un record.
-command.encounter.choose = Più di uno scontro con un boss ha record. Scegline uno:
-command.encounter.choice = {0}: /zigleaderboard encounter --encounter={1}
 menu.records = Record
 

@@ -1,0 +1,6 @@
+{
+  "$Comment": "Records' Boss Fights tab: a page of its own with one tab per boss fight on record, its periods under them, and these columns, at most four. Each entry is Stat/*, every line of a stat's breakdown, read one fight at a time. A fight keeps records once its binding row names a Leaderboard Bucket. A stat nothing on this server counts shows no column.",
+  "NameKey": "ziggfreedcommon.leaderboard.records.boss_fights",
+  "Order": 40,
+  "Stats": ["Encounters_Won/*", "Encounter_Best_Time/*", "Encounter_Best_Share/*", "Encounter_Damage_Dealt/*"]
+}

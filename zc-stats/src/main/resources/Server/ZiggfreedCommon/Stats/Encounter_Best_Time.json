@@ -1,0 +1,6 @@
+{
+  "$Comment": "A player's fastest win of each boss fight, in seconds, one line per fight; the total is the fastest of all. Lower is better. The library counts it itself, so it lists no From.",
+  "NameKey": "ziggfreedcommon.stats.encounter_best_time",
+  "Kind": "Min",
+  "Format": "Time"
+}

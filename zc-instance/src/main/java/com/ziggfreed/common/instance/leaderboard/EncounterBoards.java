@@ -3,6 +3,7 @@ package com.ziggfreed.common.instance.leaderboard;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -14,24 +15,26 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.encounter.asset.EncounterBindingAsset;
+import com.ziggfreed.common.encounter.run.EncounterLifecycle;
 import com.ziggfreed.common.i18n.Msg;
-import com.ziggfreed.common.ui.menu.MenuSlot;
 
 /**
- * One boss fight's records, readable on any server: how the rows {@link EncounterLeaderboardListener}
- * writes onto its own board become a {@link LeaderboardPage}. The fight's binding row says how its
- * bucket is split (by party size, by difficulty, both, or neither); the board says which of those
- * splits hold rows; a {@link LeaderboardLayout} whose id is the bucket may name the tabs, order the
- * difficulties and replace the Stats columns.
+ * Boss fights as Records names them: which binding row a recorded fight key belongs to, and the tab it
+ * reads under. A fight's records are keyed by the bucket string {@link EncounterLeaderboardListener#bucketFor}
+ * composes from its binding row ({@code Leaderboard.Bucket}, suffixed with the party size and the run's
+ * difficulty when the row splits by them), the key the stat store's encounter stats file each line under;
+ * the row says how its bucket is split, the recorded keys which of those splits hold records, and a
+ * {@link LeaderboardLayout} whose id is the bucket may name the split labels.
  *
- * <p><b>The keys round-trip.</b> Every tab key, and every pair a two-axis selection composes through
- * the deps' {@link LeaderboardPageDeps.BucketKeys}, is built by the listener's own
- * {@link EncounterLeaderboardListener#bucketFor}, so the page reads exactly the buckets the listener
- * writes. A two-way split is difficulty (the primary axis) over party size (the secondary).
+ * <p><b>The keys round-trip.</b> Every tab key is built by the same {@link EncounterLeaderboardListener#bucketFor},
+ * so a tab reads exactly the lines a defeat writes. A key written under another split of the same bucket
+ * (the row's knobs changed since) is left out, so a tab never shows a half-read key.
  *
- * <p><b>Tab labels.</b> A tab is a {@code TextButton}, whose text resolves a translation but never
- * substitutes a parameter, so an unnamed tab shows its recorded value as it stands: the party size's
- * digits, the difficulty's label. A layout names them.
+ * <p><b>Tab labels.</b> An unsplit fight's tab is its name (the binding row's {@code NameKey}), a bare
+ * translation on a {@code TextButton}. A split one joins its name and the split's recorded value (the party
+ * size as a typed number, the difficulty's label as text, or a layout's name for either), so it is a
+ * {@link LeaderboardBucketTab#withSpans} tab, painted unflattened on a rich button's {@code .TextSpans} and
+ * read in each player's own language.
  */
 public final class EncounterBoards {
 
@@ -47,19 +50,18 @@ public final class EncounterBoards {
     }
 
     /**
-     * The splits {@code bucketKeys} hold rows for under {@code group}'s bucket, party sizes ascending,
-     * then labels A to Z. A key written under another split of the same bucket (the row's knobs changed
-     * since) is left out, so a tab never shows a half-read key; so is another bucket's.
+     * The splits {@code keys} hold records for under {@code group}'s bucket, party sizes ascending, then
+     * labels A to Z. A key written under another split of the same bucket (the row's knobs changed since) is
+     * left out, so a tab never shows a half-read key; so is another bucket's.
      */
     @Nonnull
-    public static List<Split> splits(@Nonnull Collection<String> bucketKeys,
-            @Nonnull EncounterBindingAsset.Leaderboard group) {
+    public static List<Split> splits(@Nonnull Collection<String> keys, @Nonnull EncounterBindingAsset.Leaderboard group) {
         String bucket = group.getBucket();
         if (bucket == null) {
             return List.of();
         }
         Set<Split> found = new TreeSet<>(ORDER);
-        for (String key : bucketKeys) {
+        for (String key : keys) {
             Split split = parse(key, bucket.trim(), group.byPartySize(), group.byDifficulty());
             if (split != null) {
                 found.add(split);
@@ -69,45 +71,43 @@ public final class EncounterBoards {
     }
 
     /**
-     * The page for one fight's records on {@code board}.
-     *
-     * @param layout the layout whose id is the fight's bucket, or null: it names the tabs, orders the
-     *               difficulties and may replace the Stats columns
+     * One tab per fight key {@code recorded} holds, the binding rows by id and each row's splits in
+     * {@link #splits} order: its key is the fight's bucket string, its label the fight's name. A key no row
+     * claims is left out, and a key two rows share shows once, under the first.
      */
     @Nonnull
-    public static LeaderboardPageDeps deps(@Nonnull Leaderboard board, @Nonnull EncounterBindingAsset.Leaderboard group,
-            @Nullable LeaderboardLayout layout, @Nonnull EncounterLeaderboardMessages text) {
-        List<Split> splits = splits(board.bucketKeys(), group);
-        boolean byParty = group.byPartySize();
-        boolean byDifficulty = group.byDifficulty();
-        List<LeaderboardBucketTab> difficultyTabs = new ArrayList<>();
-        for (String label : difficulties(splits, layout)) {
-            String key = byParty ? label : keyOf(group, 0, label);
-            difficultyTabs.add(new LeaderboardBucketTab(key, difficultyLabel(label, layout)));
+    public static List<LeaderboardBucketTab> fightTabs(@Nonnull Collection<String> recorded,
+            @Nonnull Collection<EncounterBindingAsset> rows) {
+        List<EncounterBindingAsset> ordered = new ArrayList<>(rows);
+        ordered.sort(Comparator.comparing(
+                (EncounterBindingAsset row) -> row.getId() == null ? "" : row.getId().toLowerCase(Locale.ROOT)));
+        Set<String> seen = new HashSet<>();
+        List<LeaderboardBucketTab> out = new ArrayList<>();
+        for (EncounterBindingAsset row : ordered) {
+            EncounterBindingAsset.Leaderboard group = row.getLeaderboard();
+            if (group == null || group.getBucket() == null) {
+                continue;
+            }
+            Message title = EncounterLifecycle.titleOf(row.encounterAsset(), row);
+            boolean split = group.byPartySize() || group.byDifficulty();
+            LeaderboardLayout layout = split ? layoutFor(group) : null;
+            for (Split s : splits(recorded, group)) {
+                String key = keyOf(group, s.partySize() == null ? 0 : s.partySize(), s.difficulty());
+                if (key.isEmpty() || !seen.add(key)) {
+                    continue;
+                }
+                // A split fight's name joins parts, which only a rich tab's TextSpans paints unflattened.
+                out.add(split ? LeaderboardBucketTab.withSpans(key, Msg.cat(title, Msg.raw(" "), splitLabel(s, layout)))
+                        : new LeaderboardBucketTab(key, title));
+            }
         }
-        List<LeaderboardBucketTab> partyTabs = new ArrayList<>();
-        for (int party : parties(splits)) {
-            String key = byDifficulty ? Integer.toString(party) : keyOf(group, party, null);
-            partyTabs.add(new LeaderboardBucketTab(key, partyLabel(party, layout)));
-        }
-        if (!byParty && !byDifficulty && !splits.isEmpty()) {
-            partyTabs.add(new LeaderboardBucketTab(keyOf(group, 0, null), text.filterAll()));
-        }
-        return new LeaderboardPageDeps(board, difficultyTabs, partyTabs, statColumns(layout, text), text,
-                (difficulty, party) -> keyOf(group, partyOrZero(party), difficulty));
+        return out;
     }
 
-    /**
-     * The page for {@code row}'s records on {@code board}, named and laid out as the row says, on the shared
-     * menu's rail with the Records tab selected; null when the row ranks nothing. The Records destination and
-     * {@code /zigleaderboard encounter} both open this.
-     */
-    @Nullable
-    public static LeaderboardPageDeps deps(@Nonnull Leaderboard board, @Nonnull EncounterBindingAsset row) {
-        EncounterBindingAsset.Leaderboard group = row.getLeaderboard();
-        return group == null ? null
-                : deps(board, group, layoutFor(group), new EncounterLeaderboardMessages(row.getNameKey()))
-                        .withMenuTab(MenuSlot.RECORDS.id());
+    /** Whether {@code key} is one of {@code group}'s fight keys, under the split the row asks for now. */
+    public static boolean holds(@Nonnull EncounterBindingAsset.Leaderboard group, @Nonnull String key) {
+        String bucket = group.getBucket();
+        return bucket != null && parse(key, bucket.trim(), group.byPartySize(), group.byDifficulty()) != null;
     }
 
     /** The layout named after {@code group}'s bucket, or null when no pack authored one. */
@@ -115,23 +115,6 @@ public final class EncounterBoards {
     public static LeaderboardLayout layoutFor(@Nonnull EncounterBindingAsset.Leaderboard group) {
         String bucket = group.getBucket();
         return bucket == null ? null : LeaderboardLayoutConfig.getInstance().resolve(bucket.trim());
-    }
-
-    /** Every binding row whose bucket holds rows on {@code board}, by row id. */
-    @Nonnull
-    public static List<EncounterBindingAsset> ranked(@Nonnull Leaderboard board,
-            @Nonnull Collection<EncounterBindingAsset> rows) {
-        Set<String> keys = board.bucketKeys();
-        List<EncounterBindingAsset> out = new ArrayList<>();
-        for (EncounterBindingAsset row : rows) {
-            EncounterBindingAsset.Leaderboard group = row.getLeaderboard();
-            if (group != null && !splits(keys, group).isEmpty()) {
-                out.add(row);
-            }
-        }
-        out.sort(Comparator.comparing(
-                (EncounterBindingAsset row) -> row.getId() == null ? "" : row.getId().toLowerCase(Locale.ROOT)));
-        return List.copyOf(out);
     }
 
     /** One key read under {@code bucket}'s split, or null when it is another bucket's or another split's. */
@@ -161,37 +144,15 @@ public final class EncounterBoards {
         return new Split(null, rest);
     }
 
-    /** The recorded difficulty labels: the layout's order first, then the rest A to Z. */
+    /** A split's recorded value: the party size, the difficulty, or both, each named by the layout when it names it. */
     @Nonnull
-    private static List<String> difficulties(@Nonnull List<Split> splits, @Nullable LeaderboardLayout layout) {
-        Set<String> recorded = new TreeSet<>();
-        for (Split split : splits) {
-            if (split.difficulty() != null) {
-                recorded.add(split.difficulty());
-            }
+    private static Message splitLabel(@Nonnull Split split, @Nullable LeaderboardLayout layout) {
+        Message party = split.partySize() == null ? null : partyLabel(split.partySize(), layout);
+        Message difficulty = split.difficulty() == null ? null : difficultyLabel(split.difficulty(), layout);
+        if (party != null && difficulty != null) {
+            return Msg.cat(party, Msg.raw(" "), difficulty);
         }
-        List<String> out = new ArrayList<>();
-        if (layout != null) {
-            for (LeaderboardBucketTab tab : layout.primaryTabs()) {
-                String id = tab.bucketKey().trim().toLowerCase(Locale.ROOT);
-                if (recorded.remove(id)) {
-                    out.add(id);
-                }
-            }
-        }
-        out.addAll(recorded);
-        return out;
-    }
-
-    @Nonnull
-    private static List<Integer> parties(@Nonnull List<Split> splits) {
-        Set<Integer> out = new TreeSet<>();
-        for (Split split : splits) {
-            if (split.partySize() != null) {
-                out.add(split.partySize());
-            }
-        }
-        return List.copyOf(out);
+        return party != null ? party : Objects.requireNonNullElse(difficulty, Msg.raw(""));
     }
 
     @Nonnull
@@ -204,8 +165,8 @@ public final class EncounterBoards {
     private static Message partyLabel(int party, @Nullable LeaderboardLayout layout) {
         String id = Integer.toString(party);
         LeaderboardBucketTab named = layout == null ? null : named(layout.secondaryTabs(), id);
-        // A tab cannot substitute a parameter, so an unnamed party size shows its own digits.
-        return named != null ? named.label() : Msg.raw(id);
+        // A count binds as a typed number, which the rich tab's TextSpans substitutes.
+        return named != null ? named.label() : Msg.num(party);
     }
 
     @Nullable
@@ -216,16 +177,6 @@ public final class EncounterBoards {
             }
         }
         return null;
-    }
-
-    @Nonnull
-    private static List<StatColumnDef> statColumns(@Nullable LeaderboardLayout layout,
-            @Nonnull EncounterLeaderboardMessages text) {
-        if (layout != null && !layout.statColumns().isEmpty()) {
-            return layout.statColumns();
-        }
-        return List.of(StatColumnDef.grouped(EncounterLeaderboardListener.STAT_DAMAGE_DEALT, text.statDamageDealt()),
-                StatColumnDef.grouped(EncounterLeaderboardListener.STAT_DAMAGE_TAKEN, text.statDamageTaken()));
     }
 
     @Nonnull
@@ -241,10 +192,5 @@ public final class EncounterBoards {
         } catch (NumberFormatException e) {
             return null;
         }
-    }
-
-    private static int partyOrZero(@Nonnull String digits) {
-        Integer party = partyOf(digits);
-        return party == null ? 0 : party;
     }
 }

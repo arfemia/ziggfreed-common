@@ -129,7 +129,7 @@ public final class StatsBoardSource implements StatBoardSource {
         };
     }
 
-    /** Every section's lines, by section id, for the stat audit's unknown-stat check. */
+    /** Every section's lines as written ({@code Stat/*} ones included), by section id, for the stat audit's unknown-stat check. */
     @Nonnull
     public static Map<String, Collection<String>> sectionLines() {
         Map<String, Collection<String>> out = new LinkedHashMap<>();

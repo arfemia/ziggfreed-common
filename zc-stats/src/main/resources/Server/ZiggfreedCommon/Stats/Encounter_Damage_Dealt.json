@@ -1,0 +1,6 @@
+{
+  "$Comment": "Damage a player dealt the boss across their wins of each boss fight, one line per fight beside the total. The library counts it itself, so it lists no From.",
+  "NameKey": "ziggfreedcommon.stats.encounter_damage_dealt",
+  "Kind": "Sum",
+  "Format": "Count"
+}

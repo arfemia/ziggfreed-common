@@ -129,7 +129,7 @@ public final class StatBoardRecords implements RecordsBoard {
 
     /** The source's column for {@code line}; a source that throws gives it none, and says so. */
     @Nullable
-    private static StatColumnDef columnOf(@Nonnull String line, @Nonnull StatBoardSource source) {
+    static StatColumnDef columnOf(@Nonnull String line, @Nonnull StatBoardSource source) {
         try {
             return source.column(line);
         } catch (RuntimeException e) {
@@ -141,10 +141,10 @@ public final class StatBoardRecords implements RecordsBoard {
     /**
      * The period row: one tab per period that reads a window now, keyed by the period's id so a page left
      * open across a turnover reads the new window, and one per run a season shows, keyed by that run's own
-     * bucket, which never moves.
+     * bucket, which never moves. The sections and Records' Boss Fights share it.
      */
     @Nonnull
-    private static List<LeaderboardBucketTab> periodTabs(@Nonnull Leaderboard board) {
+    static List<LeaderboardBucketTab> periodTabs(@Nonnull Leaderboard board) {
         Instant now = StatClock.now();
         OccurrenceSource runs = Occurrences.source();
         Set<String> held = null;
@@ -179,7 +179,7 @@ public final class StatBoardRecords implements RecordsBoard {
      * empty, which holds nothing, for a period gone since.
      */
     @Nonnull
-    private static String bucketOf(@Nonnull String tab) {
+    static String bucketOf(@Nonnull String tab) {
         for (StatPeriod period : StatPeriodConfig.getInstance().periods()) {
             if (period.id().equals(tab)) {
                 String key = period.readKey(StatClock.now());

@@ -24,20 +24,18 @@ public final class InstanceBootstrap {
     }
 
     /**
-     * Open the encounter leaderboard beside the library's owner files ({@code mods/ziggfreedcommon/},
-     * the encounter owner files' folder) and hang its listener on the shared bus, so a boss defeat
-     * writes its rows on every server running this library, with no consumer board needed; and
-     * register {@code /zigleaderboard}, which reads those rows back as a fight's records screen for
-     * any player. The listener is this module's one edge to the encounter framework that listens; the
-     * screen only reads. Each guarded on its own.
+     * Open the frozen encounter leaderboard beside the library's owner files ({@code mods/ziggfreedcommon/},
+     * the encounter owner files' folder), which nothing writes any more: the stat store imports its rows
+     * once and keeps a fight's records on the stat board; and register {@code /zigleaderboard}, which opens
+     * Records' Boss Fights for any player. Each guarded on its own.
      */
     public static void installEncounterLeaderboard(@Nonnull JavaPlugin plugin) {
         try {
             // Before 2.2.0 the board sat in the library's data folder; the first load that finds it
             // only there moves it across.
-            EncounterLeaderboardListener.install(plugin, EncounterOwnerLayers.directory(), plugin.getDataDirectory());
+            EncounterLeaderboardListener.open(EncounterOwnerLayers.directory(), plugin.getDataDirectory());
         } catch (Throwable t) {
-            SafeLog.warn("[encounter] the leaderboard listener could not be installed", t);
+            SafeLog.warn("[encounter] the frozen encounter leaderboard could not be opened", t);
         }
         try {
             plugin.getCommandRegistry().registerCommand(new ZigLeaderboardCommand());
@@ -47,9 +45,9 @@ public final class InstanceBootstrap {
     }
 
     /**
-     * Open the stat board ({@code stats-board.json}) beside the library's owner files and put it first
-     * on Records. It shows nothing until the store that keeps the stats fills its source
-     * ({@code StatBoard.setSource}), so until then Records stays the encounter board.
+     * Open the stat board ({@code stats-board.json}) beside the library's owner files and put it on
+     * Records. It shows nothing until the store that keeps the stats fills its source
+     * ({@code StatBoard.setSource}), so until then Records shows no tab.
      */
     public static void installStatBoard() {
         try {
@@ -73,10 +71,10 @@ public final class InstanceBootstrap {
     }
 
     /**
-     * Write the encounter board's rows still waiting on their debounce, so a defeat in the last
-     * seconds before a stop is kept. Called from the library's {@code shutdown()}, which the server
-     * runs after it has disconnected every player and shut every world down, so no fight ends after
-     * it. A stop with nothing new writes nothing, and it never throws.
+     * Write the boards' rows still waiting on their debounce, so a stat counted in the last seconds
+     * before a stop is kept. Called from the library's {@code shutdown()}, which the server runs after it
+     * has disconnected every player and shut every world down, so nothing is counted after it. A stop
+     * with nothing new writes nothing, and it never throws.
      */
     public static void shutdown() {
         try {

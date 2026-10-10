@@ -113,16 +113,4 @@ public final class EncounterLeaderboardMessages implements LeaderboardScreenMess
     @Override @Nonnull public Message yourRankNone() {
         return line("your_rank.none");
     }
-
-    /** The Stats view's damage-dealt column header. */
-    @Nonnull
-    public Message statDamageDealt() {
-        return line("stat.damage_dealt");
-    }
-
-    /** The Stats view's damage-taken column header. */
-    @Nonnull
-    public Message statDamageTaken() {
-        return line("stat.damage_taken");
-    }
 }

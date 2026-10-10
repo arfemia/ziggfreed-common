@@ -19,4 +19,8 @@ dependencies {
     // shape it asks for (StatColumnDef, ColumnFormat). One-way: zc-instance never sees this module, so the
     // store fills the board's source seam at setup.
     implementation project(':zc-instance')
+    // The boss framework's defeat event and its binding rows: the store counts a defeat into its encounter
+    // stats, keyed by the bucket the binding row names. It only listens and reads; one-way, since
+    // zc-encounter never imports this module (EncounterEdgeTest).
+    implementation project(':zc-encounter')
 }

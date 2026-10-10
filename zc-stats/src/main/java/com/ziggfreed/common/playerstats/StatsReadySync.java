@@ -7,6 +7,7 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.playerstats.encounter.EncounterBoardImport;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -15,7 +16,8 @@ import com.ziggfreed.common.util.SafeLog;
  * every native stat's reading ({@link PlayerStats#readNative}), so what the engine records ranks as of
  * this login.
  * Registered at NORMAL priority and run as a task on the player's world, so a consumer's FIRST-priority
- * ready task (a one-time import into this record) has already run when it reads.
+ * ready task (a one-time import into this record) has already run when it reads. The player's own rows of
+ * the frozen encounter board are folded into the record first, once, before they can win a fight.
  */
 public final class StatsReadySync {
 
@@ -33,7 +35,10 @@ public final class StatsReadySync {
             world.execute(() -> {
                 try {
                     if (ref.isValid()) {
-                        PlayerStats.resync(ref.getStore(), ref);
+                        // A fold that lands re-ranks the record itself; the native readings follow either way.
+                        if (!EncounterBoardImport.intoRecord(ref.getStore(), ref)) {
+                            PlayerStats.resync(ref.getStore(), ref);
+                        }
                         PlayerStats.readNative(ref.getStore(), ref);
                     }
                 } catch (Throwable t) {

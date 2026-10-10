@@ -1,0 +1,6 @@
+{
+  "$Comment": "A player's best share of a boss fight's credit, out of 100 (the top contributor of a win reads 100), one line per fight. The library counts it itself, so it lists no From.",
+  "NameKey": "ziggfreedcommon.stats.encounter_best_share",
+  "Kind": "Max",
+  "Format": "Percent"
+}

@@ -7,10 +7,9 @@ dependencies {
     implementation project(':zc-core')
     implementation project(':zc-presentation')
     implementation project(':zc-loot')
-    // The boss framework's defeat event and its folded binding rows: the leaderboard listener writes
-    // a defeat's rows into the bucket the binding row names, and EncounterBoards and /zigleaderboard
-    // read those rows back as a fight's records screen. It only listens and reads; nothing here
-    // reaches into a fight, and the presets stay boss-unaware. One-way: zc-encounter never imports
-    // this module (EncounterEdgeTest fails its build if it tries).
+    // The boss framework's folded binding rows: the bucket a row names keys a fight's records, and
+    // EncounterBoards, Records' Boss Fights and /zigleaderboard read the rows to name and find them. It
+    // only reads; nothing here reaches into a fight, and the presets stay boss-unaware. One-way:
+    // zc-encounter never imports this module (EncounterEdgeTest fails its build if it tries).
     implementation project(':zc-encounter')
 }

@@ -30,7 +30,7 @@ public final class StatSectionConfig extends AbstractKeyedAssetConfig<StatSectio
     private volatile List<StatSection> sections = List.of();
     /** Every line some section names, lower-cased. */
     private volatile Set<String> named = Set.of();
-    /** Every stat some section names as {@code Stat/*}, lower-cased: each of its lines is ranked. */
+    /** Every stat some section names as {@code Stat/*}, lower-cased: each of its lines is ranked, never its total. */
     private volatile Set<String> everyLine = Set.of();
 
     @Nonnull

@@ -26,11 +26,12 @@ import com.ziggfreed.common.instance.leaderboard.StatColumnDef;
  * }</pre>
  *
  * <p>A line is a stat id, {@code Stat/Thing} for one line of a stat's breakdown
- * ({@code Mob_Kills/Trork_Warrior}), or {@code Stat/*} for every line the stat's source names now, one
- * column each ({@code Reputation/*}, each reputation on the server). A line no store on this server
- * counts shows no column, and a section left with none shows no tab, so a section can name a stat a mod
- * adds and still read right on a server without that mod. Only a line some section names is ranked at
- * all.
+ * ({@code Mob_Kills/Trork_Warrior}), or {@code Stat/*} for every line of a stat: on the sections row one
+ * column per line the stat's source names now ({@code Reputation/*}, each reputation on the server), and in
+ * the {@code boss_fights} section one column per stat read a fight per tab ({@code Encounters_Won/*}). A
+ * line no store on this server counts shows no column, and a section left with none shows no tab, so a
+ * section can name a stat a mod adds and still read right on a server without that mod. Only a line some
+ * section names is ranked at all.
  */
 public final class StatSectionAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, StatSectionAsset>> {
 
@@ -64,8 +65,9 @@ public final class StatSectionAsset implements JsonAssetWithMap<String, DefaultA
                     (a, v) -> a.stats = v, a -> a.stats, (a, parent) -> a.stats = parent.stats)
             .documentation("The stats the section ranks, one column each, at most four: a stat id such as "
                     + "Mob_Kills, Stat/Thing for one line of its breakdown, such as Mob_Kills/Trork_Warrior, or "
-                    + "Stat/* for every line a read stat names, such as Reputation/* for each reputation on the "
-                    + "server. A stat nothing on this server counts shows no column.").add()
+                    + "Stat/* for every line of a stat: a column per line a read stat names, such as Reputation/* "
+                    + "for each reputation on the server, or in the Boss_Fights section a column per stat with a "
+                    + "tab per fight. A stat nothing on this server counts shows no column.").add()
             .build();
 
     public StatSectionAsset() {

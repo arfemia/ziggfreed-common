@@ -1,0 +1,6 @@
+{
+  "$Comment": "Boss fights a player helped win, one line per fight beside the total, for every fight whose binding row names a Leaderboard Bucket. The library counts it itself, so it lists no From. Records' Boss Fights shows it as Wins.",
+  "NameKey": "ziggfreedcommon.stats.encounters_won",
+  "Kind": "Sum",
+  "Format": "Count"
+}

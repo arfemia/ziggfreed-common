@@ -8,16 +8,15 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 /**
- * A board the Records tab opens in place of the encounter board while it shows: the seam
- * {@link RecordsDestinations#setBoard} fills. With none filled, Records is the encounter board alone,
- * as it always was.
+ * The board the Records tab opens while it shows: the seam {@link RecordsDestinations#setBoard} fills (the
+ * stat board). With none filled, Records shows no tab.
  */
 public interface RecordsBoard {
 
     /** Whether the board has anything to show now. */
     boolean shows();
 
-    /** The page to open now, or null when there is nothing to open, which leaves Records to the encounter board. */
+    /** The page to open now, or null when there is nothing to open. */
     @Nullable
     LeaderboardPageDeps deps();
 

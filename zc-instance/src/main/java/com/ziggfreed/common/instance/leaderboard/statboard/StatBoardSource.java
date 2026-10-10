@@ -17,8 +17,8 @@ import com.ziggfreed.common.instance.leaderboard.StatColumnDef;
  * moments), so the store fills this seam at setup through {@link StatBoard#setSource}.
  *
  * <p>The default, {@link #NONE}, knows no stat: every section is left without a column, so the board
- * shows no tab and Records opens the encounter board as it always has. That is the right answer on a
- * server where nothing counts stats, and it never shows a column nobody counts.
+ * shows no tab and Records shows none. That is the right answer on a server where nothing counts stats,
+ * and it never shows a column nobody counts.
  */
 public interface StatBoardSource {
 
@@ -40,8 +40,8 @@ public interface StatBoardSource {
     boolean enabled();
 
     /**
-     * The column for one section line (a stat id, or {@code Stat/Thing}, one written or one a
-     * {@code Stat/*} line stands for), or null when nothing on this
+     * The column for one section line (a stat id, or {@code Stat/Thing}: one written, one a {@code Stat/*}
+     * line stands for, or one fight's line the Boss Fights page asks for), or null when nothing on this
      * server counts it, which leaves it out. Its {@link StatColumnDef#statKey()} is the line as the board
      * stores it; its label is a bare translation, since a column header is painted on a {@code .Text} sink
      * that never substitutes a parameter; {@link StatColumnDef#ascending()} ranks a best that shrinks
@@ -53,7 +53,8 @@ public interface StatBoardSource {
     /**
      * Every line a section's {@code Stat/*} line stands for, each written {@code Stat/Thing}, in the order
      * their columns show: the things the stat's source can name now (the server's reputations, say). None,
-     * the default, leaves the line without a column.
+     * the default, leaves the line without a column on the sections row; that is the answer for a stat whose
+     * things are tabs instead (the Boss Fights stats, a fight per tab, {@link StatBoardBossFights}).
      */
     @Nonnull
     default List<String> everyLine(@Nonnull String statId) {
