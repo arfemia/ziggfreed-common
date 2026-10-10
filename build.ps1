@@ -15,10 +15,20 @@ $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 
 Write-Host "`n=== Building ZiggfreedCommon (gradle build) ===" -ForegroundColor Cyan
-# Gradle runs through hyMMO's lane when this repo sits in hyMMO's additional-mods/ (R139): the lane
-# waits for a free machine and keeps one build per tree. Cloned alone, it runs gradlew here.
-$lane = Join-Path $root '..\..\tools\lane\lane.ps1'
-if (Test-Path $lane) {
+# Gradle runs through the workspace's lane when a folder above this repo holds tools\lane\lane.ps1 (R139):
+# the lane waits for a free machine and keeps one build per tree. Cloned alone, it runs gradlew here.
+function Find-Lane([string]$From) {
+    # Walks up from $From's parent to the workspace root (main's, or a tree's, which holds its own tools\).
+    $dir = Split-Path -Parent $From
+    while ($dir) {
+        $candidate = Join-Path $dir 'tools\lane\lane.ps1'
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) { return $candidate }
+        $dir = Split-Path -Parent $dir
+    }
+    return $null
+}
+$lane = Find-Lane $root
+if ($lane) {
     & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $lane build -Dir $root -Tasks 'build'
 } else {
     & (Join-Path $root 'gradlew.bat') build
