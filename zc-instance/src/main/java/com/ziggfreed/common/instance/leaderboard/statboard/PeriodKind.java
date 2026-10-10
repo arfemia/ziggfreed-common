@@ -15,6 +15,11 @@ public enum PeriodKind {
     WEEKLY("Weekly"),
     /** A calendar month in {@code Zone}: {@code <id>@2026-10}. */
     MONTHLY("Monthly"),
+    /**
+     * One window per run of a calendar event, while the run is live and readable after it ends:
+     * {@code <id>@<event>:2026}, {@code <id>@<event>:2026#09} for a year's run 9.
+     */
+    SEASON_RUN("SeasonRun"),
     /** One window between {@code From} and {@code To}: {@code range@<id>}, readable after it ends. */
     RANGE("Range");
 

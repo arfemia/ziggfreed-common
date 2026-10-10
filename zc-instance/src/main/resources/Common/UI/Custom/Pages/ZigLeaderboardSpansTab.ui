@@ -1,0 +1,24 @@
+$M = "../Common/ZigButtons.ui";
+$ZT = "../Common/ZigType.ui";
+
+// One leaderboard bucket tab whose name carries parameters (a season run's: the event's name and its
+// year), appended into a tab row in place of Pages/ZigLeaderboardTab.ui; see LeaderboardPage. A
+// TextButton's .Text never substitutes a parameter, so this is a Button with an inner Label #Label
+// whose message goes on .TextSpans (ui/ZigRichButton), sized and tinted like its TextButton sibling;
+// the active tab is tinted from Java over the neutral @ZigRichTabBtnStyle.
+
+Group #ZigLeaderboardSpansTab {
+  FlexWeight: 1;
+  Anchor: (Height: 34, Right: 6);
+
+  Button #TabBtn {
+    Anchor: (Full: 0);
+    Style: $M.@ZigRichTabBtnStyle;
+
+    Label #Label {
+      FlexWeight: 1;
+      Text: "";
+      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #b6c9de, HorizontalAlignment: Center, VerticalAlignment: Center);
+    }
+  }
+}

@@ -131,6 +131,18 @@ $ZT = "ZigType.ui";
   Sounds: $C.@ButtonSounds
 );
 
+// The Button twin of @ZigTabBtnStyle, for a tab whose name carries parameters (a leaderboard's season
+// tab: an event's name and a year), which only a Label's .TextSpans substitutes. A `ButtonStyle` (the
+// same patch and per-state tints, Sounds, NO LabelStyle) for a `Button` wrapping a `Label #Label`
+// (ZigRichButton); the label's text style lives on that Label, and the page retints the active tab's
+// backgrounds and label from Java exactly as it does the TextButton tabs.
+@ZigRichTabBtnStyle = ButtonStyle(
+  Default: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary.png", Border: 12, Color: #4a596b)),
+  Hovered: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Hovered.png", Border: 12, Color: #6f8398)),
+  Pressed: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Pressed.png", Border: 12, Color: #3a4658)),
+  Sounds: $C.@ButtonSounds
+);
+
 // ── ziggfreed-common shared PRIMARY CTA button ────────────────────────────────
 // Imported per page as:  $M = "../Common/ZigButtons.ui";  then  Style: $M.@ZigPrimaryBtnStyle;
 //

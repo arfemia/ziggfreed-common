@@ -322,10 +322,23 @@ public final class CalendarService implements OccurrenceSource {
     }
 
     /**
+     * The loaded event's {@code Presentation.TitleKey} as authored, whatever its switches say; null for no such
+     * event or one that names no title.
+     */
+    @Override
+    @Nullable
+    public String titleKey(@Nonnull String eventId) {
+        CalendarEventAsset event = event(eventId);
+        CalendarEventAsset.Presentation presentation = event == null ? null : event.presentation();
+        return presentation == null ? null : presentation.titleKey();
+    }
+
+    /**
      * Every event running at {@code nowMs}, by id, in id order. One event that cannot answer costs only itself:
      * it reads as not running, so the tick sees its run end (a real end) and start afresh once it answers again.
      * Its last answer is not carried forward, since a carried run could outlive its own end.
      */
+    @Override
     @Nonnull
     public Map<String, Occurrence> liveAll(long nowMs) {
         return eachEvent(config.ids(), id -> live(id, nowMs));

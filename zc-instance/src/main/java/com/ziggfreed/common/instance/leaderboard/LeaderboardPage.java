@@ -25,6 +25,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.instance.result.ColumnFormat;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.UiText;
+import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.menu.MenuFrame;
 import com.ziggfreed.common.ui.menu.MenuRail;
 import com.ziggfreed.common.ui.menu.ZigMenu;
@@ -62,6 +63,8 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
     private static final String ROW_TEMPLATE = "Pages/ZigLeaderboardRow.ui";
     private static final String STATS_ROW_TEMPLATE = "Pages/ZigLeaderboardStatsRow.ui";
     private static final String TAB_TEMPLATE = "Pages/ZigLeaderboardTab.ui";
+    /** A tab whose label carries parameters ({@link LeaderboardBucketTab#spans}): a rich button on {@code .TextSpans}. */
+    private static final String SPANS_TAB_TEMPLATE = "Pages/ZigLeaderboardSpansTab.ui";
     private static final int MAX_ROWS = 100;
     // Strong active/inactive contrast so the current filter selection is obvious.
     private static final String ACTIVE_TINT = "#5e86bd";
@@ -474,10 +477,17 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         }
         for (int i = 0; i < display.size(); i++) {
             LeaderboardBucketTab tab = display.get(i);
-            cmd.append(container, TAB_TEMPLATE);
             String sel = container + "[" + i + "]";
-            UiText.setText(cmd, sel + " #TabBtn.Text", tab.label());
-            style(cmd, sel + " #TabBtn", tab.bucketKey().equals(active));
+            if (tab.spans()) {
+                // A label with parameters: a Button whose inner Label takes the message on .TextSpans.
+                cmd.append(container, SPANS_TAB_TEMPLATE);
+                ZigRichButton.text(cmd, sel + " #TabBtn", tab.label());
+                styleSpans(cmd, sel + " #TabBtn", tab.bucketKey().equals(active));
+            } else {
+                cmd.append(container, TAB_TEMPLATE);
+                UiText.setText(cmd, sel + " #TabBtn.Text", tab.label());
+                style(cmd, sel + " #TabBtn", tab.bucketKey().equals(active));
+            }
             String group = action.equals("group") ? tab.bucketKey() : activePrimary;
             String bucket = action.equals("group") ? activeSecondary : tab.bucketKey();
             bind(events, sel + " #TabBtn", action, group, bucket, sort.name(), statSort, viewStr);
@@ -535,6 +545,17 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         UiRetint.retintButtonStates(cmd, btnSelector, bg, active ? ACTIVE_HOVER : INACTIVE_HOVER, bg);
         cmd.set(btnSelector + ".Style.Default.LabelStyle.TextColor", active ? ACTIVE_TEXT : INACTIVE_TEXT);
         cmd.set(btnSelector + ".Style.Default.LabelStyle.RenderBold", active);
+    }
+
+    /**
+     * {@link #style} for a {@link LeaderboardBucketTab#spans} tab: the same tints, on a {@code Button}'s
+     * backgrounds and its inner label, since a {@code ButtonStyle} carries no label style.
+     */
+    private static void styleSpans(@Nonnull UICommandBuilder cmd, @Nonnull String btnSelector, boolean active) {
+        String bg = active ? ACTIVE_TINT : INACTIVE_TINT;
+        UiRetint.retintButtonStates(cmd, btnSelector, bg, active ? ACTIVE_HOVER : INACTIVE_HOVER, bg);
+        ZigRichButton.color(cmd, btnSelector, active ? ACTIVE_TEXT : INACTIVE_TEXT);
+        cmd.set(btnSelector + " " + ZigRichButton.LABEL + ".Style.RenderBold", active);
     }
 
     private static void setLabel(@Nonnull UICommandBuilder cmd, @Nonnull String sel, @Nullable Message label) {

@@ -1,0 +1,8 @@
+{
+  "$Comment": "One Records tab per run of a calendar event: it fills while the run is live and still reads after the run ends. Event is the event's id, or * for every event that is live. Keep is how many runs of each event the board holds, the newest first. A server owner can follow one event only in mods/ziggfreedcommon/stats.json, as \"Season\": { \"Event\": \"Hallows_Eve\" }.",
+  "Kind": "SeasonRun",
+  "Event": "*",
+  "NameKey": "ziggfreedcommon.statboard.period.season",
+  "Keep": 2,
+  "Order": 30
+}

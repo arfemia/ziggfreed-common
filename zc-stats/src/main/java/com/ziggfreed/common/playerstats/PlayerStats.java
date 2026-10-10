@@ -1,10 +1,14 @@
 package com.ziggfreed.common.playerstats;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -13,6 +17,8 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.occurrence.Occurrence;
+import com.ziggfreed.common.occurrence.Occurrences;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -24,8 +30,10 @@ import com.ziggfreed.common.util.SafeLog;
  * (a Sum: kills, blocks, seconds played); {@link #raise} keeps a best that grows (a Max); {@link #lower}
  * keeps a best that shrinks (a Min, such as a fastest time). Each writes the grand total
  * ({@code <stat>}) and, when a {@code thing} is named, that line of the breakdown
- * ({@code <stat>/<thing>}), both keyed by {@link StatKeys}, then hands the same keys to the stat board
- * ({@link StatRankFeed}). A {@link #gauge} is a number the consumer owns (a skill level): it is ranked,
+ * ({@code <stat>/<thing>}), both keyed by {@link StatKeys}, moves the same keys' copy for every season
+ * live on the calendar ({@code <event>@<year>/<key>}, one copy per season-year however many runs it has),
+ * then hands the same keys to the stat board ({@link StatRankFeed}), which ranks each live run in its own
+ * bucket. A {@link #gauge} is a number the consumer owns (a skill level): it is ranked,
  * never stored in the player's record.
  *
  * <p>Writes are called on the world thread that owns {@code store}, the way every producer runs. A
@@ -36,6 +44,9 @@ import com.ziggfreed.common.util.SafeLog;
 public final class PlayerStats {
 
     private static final Set<String> WARNED_IDS = ConcurrentHashMap.newKeySet();
+
+    /** Whether a failed read of the live seasons has been said, so the log says it once. */
+    private static final AtomicBoolean WARNED_SEASONS = new AtomicBoolean();
 
     private static volatile StatRankFeed feed = StatRankFeed.NONE;
 
@@ -178,6 +189,11 @@ public final class PlayerStats {
                 default -> record.add(key, value);
             }
         }
+        for (Occurrence run : liveRuns()) {
+            for (String key : keys.keySet()) {
+                record.moveSeason(kind, StatKeys.season(run.eventId(), run.year(), key), value);
+            }
+        }
         if (feed == StatRankFeed.NONE) {
             return;
         }
@@ -201,6 +217,36 @@ public final class PlayerStats {
         } catch (Throwable t) {
             SafeLog.warn("[stats] the stat board could not rank a write: " + t.getMessage());
         }
+    }
+
+    /**
+     * Every season live now on the server's own clock (never the stat board's trial clock: this is the
+     * record, not a ranking), whose events a {@code Seasons} key can name; the calendar is walked at most once
+     * a second however many writes ask ({@link Occurrences#liveAllCached}). A calendar that throws costs the
+     * season copies of this write, never the count, and says so once.
+     */
+    @Nonnull
+    private static Collection<Occurrence> liveRuns() {
+        Map<String, Occurrence> live;
+        try {
+            live = Occurrences.liveAllCached(System.currentTimeMillis());
+        } catch (Throwable t) {
+            if (WARNED_SEASONS.compareAndSet(false, true)) {
+                SafeLog.warn("[stats] the calendar could not say which seasons are live, so this write moves no"
+                        + " season's copy: " + t.getMessage());
+            }
+            return List.of();
+        }
+        if (live.isEmpty()) {
+            return List.of();
+        }
+        List<Occurrence> usable = new ArrayList<>(live.size());
+        for (Occurrence run : live.values()) {
+            if (StatKeys.usableEvent(run.eventId())) {
+                usable.add(run);
+            }
+        }
+        return usable;
     }
 
     @Nullable

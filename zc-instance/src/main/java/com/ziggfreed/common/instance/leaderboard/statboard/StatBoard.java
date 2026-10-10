@@ -3,18 +3,21 @@ package com.ziggfreed.common.instance.leaderboard.statboard;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.ziggfreed.common.instance.leaderboard.Leaderboard;
+import com.ziggfreed.common.occurrence.Occurrence;
+import com.ziggfreed.common.occurrence.Occurrences;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The stat board: every player's ranked stats, one bucket per period window, in
@@ -23,9 +26,11 @@ import com.ziggfreed.common.instance.leaderboard.Leaderboard;
  * and {@link #setAllTime}), and re-syncs {@code all_time} from its own record when the player is ready.
  *
  * <p><b>Buckets.</b> {@code all_time}, plus the running window of every period ({@link StatPeriod}):
- * {@code weekly@2026-W42}, {@code monthly@2026-10}, {@code range@<id>} while its range runs. A new window
- * is the reset; when a week or a month turns over, the board keeps that period's newest {@code Keep}
- * windows and drops the rest. While {@link StatClock} runs off the server's clock, a write lands in
+ * {@code weekly@2026-W42}, {@code monthly@2026-10}, {@code range@<id>} while its range runs, and
+ * {@code season@<event>:2026} for each live run a season follows (asked of zc-core's {@code Occurrences}).
+ * A new window is the reset; when a week, a month or an event's run turns over, the board keeps that
+ * period's newest {@code Keep} windows (of a season, that event's runs) and drops the rest. While
+ * {@link StatClock} runs off the server's clock, a write lands in
  * {@code all_time} alone and nothing is dropped. Only a line some section names is written
  * ({@link StatSectionConfig#ranked}), so an entry carries just what Records can show.
  *
@@ -43,8 +48,13 @@ public final class StatBoard {
 
     @Nullable private static volatile Leaderboard board;
     @Nonnull private static volatile StatBoardSource source = StatBoardSource.NONE;
-    /** Each week's or month's period id -> the window it last wrote, so a turnover is seen once. */
+    /**
+     * Each kind of window's prefix (a week's or a month's period, a season's event) -> the window it last
+     * wrote, so a turnover is seen once.
+     */
     private static final Map<String, String> lastWindow = new ConcurrentHashMap<>();
+    /** Whether a season's failed calendar read has been said, so the log says it once. */
+    private static final AtomicBoolean WARNED_SEASON = new AtomicBoolean();
 
     private StatBoard() {
     }
@@ -167,28 +177,47 @@ public final class StatBoard {
             return;
         }
         Instant now = Instant.now().plus(off);
+        // Every running event, asked once a season needs it and at most once a second across every write.
+        Map<String, Occurrence> live = null;
         Set<String> buckets = new LinkedHashSet<>();
         buckets.add(StatPeriod.ALL_TIME);
-        List<StatPeriod> turned = new ArrayList<>();
+        // Each window's prefix -> how many of its kind to keep, for every window this write turned over.
+        Map<String, Integer> turned = new LinkedHashMap<>();
         for (StatPeriod period : StatPeriodConfig.getInstance().periods()) {
-            String key = period.writeKey(now);
-            if (key == null) {
-                continue;
+            if (live == null && period.kind() == PeriodKind.SEASON_RUN) {
+                live = liveAt(now);
             }
-            buckets.add(key);
-            if (period.windowPrefix() != null && !key.equals(lastWindow.put(period.id(), key))) {
-                turned.add(period);
+            for (StatPeriod.Window window : period.windows(now, live == null ? Map.of() : live)) {
+                buckets.add(window.key());
+                String prefix = window.prefix();
+                if (prefix != null && !window.key().equals(lastWindow.put(prefix, window.key()))) {
+                    turned.put(prefix, period.keep());
+                }
             }
         }
         for (String bucket : buckets) {
             move.apply(target, bucket, uuid, name, ranked);
         }
         // After the writes, so the running window is one of the Keep newest it keeps.
-        for (StatPeriod period : turned) {
-            String prefix = period.windowPrefix();
-            if (prefix != null) {
-                target.retain(prefix, period.keep());
+        for (Map.Entry<String, Integer> window : turned.entrySet()) {
+            target.retain(window.getKey(), window.getValue());
+        }
+    }
+
+    /**
+     * Every event running at {@code now} ({@link Occurrences#liveAllCached}); none when the calendar throws,
+     * which costs the seasons' ranking for this write and says so once, never the count or the other periods.
+     */
+    @Nonnull
+    private static Map<String, Occurrence> liveAt(@Nonnull Instant now) {
+        try {
+            return Occurrences.liveAllCached(now.toEpochMilli());
+        } catch (RuntimeException e) {
+            if (WARNED_SEASON.compareAndSet(false, true)) {
+                SafeLog.warn("[statboard] the calendar could not say which runs are live, so the seasons rank"
+                        + " nothing for now", e);
             }
+            return Map.of();
         }
     }
 }
