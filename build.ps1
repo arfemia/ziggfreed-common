@@ -14,9 +14,26 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 
-Write-Host "`n=== Building ZiggfreedCommon (gradlew build) ===" -ForegroundColor Cyan
-& (Join-Path $root 'gradlew.bat') build
-if ($LASTEXITCODE -ne 0) { throw "gradlew build failed (exit $LASTEXITCODE)" }
+Write-Host "`n=== Building ZiggfreedCommon (gradle build) ===" -ForegroundColor Cyan
+# Gradle runs through the workspace's lane when a folder above this repo holds tools\lane\lane.ps1 (R139):
+# the lane waits for a free machine and keeps one build per tree. Cloned alone, it runs gradlew here.
+function Find-Lane([string]$From) {
+    # Walks up from $From's parent to the workspace root (main's, or a tree's, which holds its own tools\).
+    $dir = Split-Path -Parent $From
+    while ($dir) {
+        $candidate = Join-Path $dir 'tools\lane\lane.ps1'
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) { return $candidate }
+        $dir = Split-Path -Parent $dir
+    }
+    return $null
+}
+$lane = Find-Lane $root
+if ($lane) {
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $lane build -Dir $root -Tasks 'build'
+} else {
+    & (Join-Path $root 'gradlew.bat') build
+}
+if ($LASTEXITCODE -ne 0) { throw "gradle build failed (exit $LASTEXITCODE)" }
 
 # Pin the runtime jar by gradle.properties version. The -Filter glob MUST NOT be
 # 'ZiggfreedCommon-*.jar' - that also matches the -sources.jar / -javadoc.jar siblings.
