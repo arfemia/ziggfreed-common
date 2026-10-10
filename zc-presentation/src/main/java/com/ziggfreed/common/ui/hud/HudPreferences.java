@@ -49,7 +49,7 @@ public final class HudPreferences {
 
     /** Whether {@code panelId} is hidden for the player: by the switch over every panel, or its own Show. */
     public static boolean isHidden(@Nullable PlayerRef playerRef, @Nonnull String panelId) {
-        return PlayerSettings.hideAll(playerRef) || !PlayerSettings.shown(playerRef, panelId);
+        return !PlayerSettings.visible(playerRef, panelId);
     }
 
     /** Whether the player hid every panel at once. */

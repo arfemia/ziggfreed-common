@@ -9,10 +9,11 @@ import com.ziggfreed.common.ui.theme.Palette;
 
 /**
  * What a consumer says about the shared menu, in one call ({@link ZigMenu#consumer}): its section of
- * tabs above the library's four, where {@code /ziggui} lands, how the rail's branding is painted, the ONE
- * {@link Palette} the frame and the rail read every colour and texture from, and, for a consumer that
- * paints the frame by its own policy, how a page's template reaches the screen. Every leaf defaults to the
- * library's own answer, so {@link #EMPTY} is a working menu of the four slots in the default palette.
+ * tabs above the library's own ({@link MenuSlot}), where {@code /ziggui} lands, how the rail's branding is
+ * painted, the ONE {@link Palette} the frame and the rail read every colour and texture from, and, for a
+ * consumer that paints the frame by its own policy, how a page's template reaches the screen. Every leaf
+ * defaults to the library's own answer, so {@link #EMPTY} is a working menu of the library's slots in the
+ * default palette.
  */
 public final class MenuDeps {
 
@@ -47,7 +48,7 @@ public final class MenuDeps {
     public static final BrandingPainter NO_BRANDING = (cmd, titleRow) -> {
     };
 
-    /** The library's own menu: the four slots, no section, no landing, the default palette. */
+    /** The library's own menu: its slots, no section, no landing, the default palette. */
     public static final MenuDeps EMPTY = builder().build();
 
     @Nullable private final PageTheme theme;

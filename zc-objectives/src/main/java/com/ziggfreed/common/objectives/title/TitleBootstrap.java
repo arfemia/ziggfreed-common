@@ -2,6 +2,8 @@ package com.ziggfreed.common.objectives.title;
 
 import javax.annotation.Nonnull;
 
+import com.hypixel.hytale.event.EventPriority;
+import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardKinds;
@@ -11,17 +13,18 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Wires the title surface at plugin {@code setup()}, right after the entity module registers the
- * record: the {@code Title} reward kind, its chip reading and the {@code /zigtitle} family, and
- * fills the display-name seam, so a menu shows a player's title beside their name. This module
- * hosts it because it sees every end being joined (the record, the reward vocabulary, the notice
- * engine). Registration only: {@code RootRegistrationOnlyTest} scans every {@code *Bootstrap}.
+ * record: the {@code Title} reward kind, its chip reading and the {@code /zigtitle} family, the
+ * login pass that hands over the titles earned achievements owe ({@link TitleBackfill}), and fills
+ * the display-name seam, so a menu shows a player's title beside their name. This module hosts it
+ * because it sees every end being joined (the record, the reward vocabulary, the notice engine).
+ * Registration only: {@code RootRegistrationOnlyTest} scans every {@code *Bootstrap}.
  */
 public final class TitleBootstrap {
 
     private TitleBootstrap() {
     }
 
-    /** Register the kind, contribute its chip, register the command family and fill the name seam. */
+    /** Register the kind, contribute its chip, register the command family and the login pass, and fill the name seam. */
     public static void registerTitles(@Nonnull PluginBase plugin) {
         try {
             TitleRewardKind.registerInto(RewardKinds.shared());
@@ -30,6 +33,13 @@ public final class TitleBootstrap {
         } catch (Throwable t) {
             SafeLog.warn("[title] could not wire the Title reward kind and the /zigtitle family;"
                     + " a title reward reads as an unregistered kind this boot", t);
+        }
+        try {
+            plugin.getEventRegistry().registerGlobal(EventPriority.LATE, PlayerReadyEvent.class,
+                    TitleBackfill::onPlayerReady);
+        } catch (Throwable t) {
+            SafeLog.warn("[title] could not register the login title pass; a title an earned achievement"
+                    + " owes waits for the next boot", t);
         }
         try {
             PlayerDisplayNames.fillDecorator(TitleDisplay.decorator());

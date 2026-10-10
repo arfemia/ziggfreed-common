@@ -1,5 +1,10 @@
 package com.ziggfreed.common.objectives.title;
 
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -56,6 +61,22 @@ public final class TitleRewardKind implements RewardHandler {
     public static String titleOf(@Nonnull RewardSpec spec) {
         String current = spec.paramOr(PARAM_TITLE, "").trim();
         return current.isEmpty() ? spec.paramOr(PARAM_TITLE_ID, "").trim() : current;
+    }
+
+    /** Every title {@code rewards} unlock, lower-cased, each once, in reward order; a reward naming none is skipped. */
+    @Nonnull
+    public static List<String> titlesIn(@Nonnull List<RewardSpec> rewards) {
+        Set<String> titles = new LinkedHashSet<>();
+        for (RewardSpec reward : rewards) {
+            if (!isTitleReward(reward)) {
+                continue;
+            }
+            String titleId = titleOf(reward).toLowerCase(Locale.ROOT);
+            if (!titleId.isEmpty()) {
+                titles.add(titleId);
+            }
+        }
+        return List.copyOf(titles);
     }
 
     @Override

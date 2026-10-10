@@ -211,11 +211,14 @@ public final class TrackedQuestHud extends KeyedCustomHud implements TrackedQues
         repaint();
     }
 
-    /** World thread: the state to draw, off the runtime's own subject for this player and their own Show. */
+    /**
+     * World thread: the state to draw, off the runtime's own subject for this player, their own Show and
+     * their hide-all switch ({@code /zighud hide} hides the tracker with the bars).
+     */
     @Nonnull
     private TrackedQuestSnapshot snapshot(@Nonnull TrackedQuestHudDeps deps) {
         TrackedQuestSnapshot snapshot = TrackedQuestSnapshot.of(ProgressionRuntime.quests(), subject(), deps,
-                PlayerSettings.shown(getPlayerRef(), PlayerSettings.QUEST_TRACKER));
+                PlayerSettings.visible(getPlayerRef(), PlayerSettings.QUEST_TRACKER));
         shownQuestIds = snapshot.questIds();
         shownPanelVisible = snapshot.panelVisible();
         return snapshot;

@@ -114,9 +114,17 @@ public final class PlayerSettings {
         return PlayerSettingsConfig.getInstance().level();
     }
 
-    /** Whether {@code surface} shows for this player (the hide-all switch is the panels' own business). */
+    /** Whether {@code surface}'s own Show is on for this player; {@link #visible} also asks the hide-all switch. */
     public static boolean shown(@Nullable PlayerRef playerRef, @Nonnull String surface) {
         return effectiveShown(component(playerRef), surface, rules(surface));
+    }
+
+    /**
+     * Whether {@code surface} is on this player's screen: its own Show is on and the hide-all switch is off.
+     * The one read every surface draws by and every Show switch reads, the quest tracker's included.
+     */
+    public static boolean visible(@Nullable PlayerRef playerRef, @Nonnull String surface) {
+        return !hideAll(playerRef) && shown(playerRef, surface);
     }
 
     /** {@link #shown(PlayerRef, String)} for a caller holding the entity handles. World thread. */

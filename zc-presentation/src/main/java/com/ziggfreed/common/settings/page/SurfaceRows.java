@@ -20,13 +20,17 @@ public final class SurfaceRows {
     private SurfaceRows() {
     }
 
-    /** The Show switch of {@code surface}: the player's effective answer, kept as their own choice. */
+    /**
+     * The Show switch of {@code surface}: whether it is on the player's screen ({@link PlayerSettings#visible},
+     * so every switch reads off under {@code /zighud hide}), kept as their own choice. Turning one on also
+     * clears the hide-all switch, or the surface would stay hidden behind it.
+     */
     @Nonnull
     public static SettingsRow.Toggle show(@Nonnull String surface) {
         return new SettingsRow.Toggle() {
             @Override
             public boolean on(@Nonnull SettingsViewer viewer) {
-                return PlayerSettings.shown(viewer.playerRef(), surface);
+                return PlayerSettings.visible(viewer.playerRef(), surface);
             }
 
             @Override
@@ -34,6 +38,9 @@ public final class SurfaceRows {
                 PlayerRef playerRef = viewer.playerRef();
                 if (!PlayerSettings.writable(playerRef)) {
                     return false;
+                }
+                if (on && PlayerSettings.hideAll(playerRef)) {
+                    PlayerSettings.setHideAll(playerRef, false);
                 }
                 PlayerSettings.setShown(playerRef, surface, on);
                 return true;

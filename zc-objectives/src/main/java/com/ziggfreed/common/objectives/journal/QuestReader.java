@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -328,7 +329,7 @@ public final class QuestReader {
         if (requirements != null) {
             blocks.add(requirements);
         }
-        blocks.addAll(objectiveBlocks(q));
+        blocks.addAll(objectiveBlocks(q, true));
         DetailBlock rewards = rewards(q);
         if (rewards != null) {
             blocks.add(rewards);
@@ -407,10 +408,12 @@ public final class QuestReader {
     /**
      * The Objectives block, and one block per later order group under its own "Step N" heading. Which steps list is
      * the engine's answer ({@link QuestEngine#listedObjectives}): a quest that hides its locked steps while carried
-     * draws neither the heading nor the lines of a group until it opens.
+     * draws neither the heading nor the lines of a group until it opens. With {@code noteHidden}, the last block ends
+     * on one locked line saying how many steps are still to come ({@link #hiddenSteps}), so a hidden step is never
+     * read as the end of the quest; the objective lines alone ({@link #objectiveLines}) leave it out.
      */
     @Nonnull
-    private List<DetailBlock> objectiveBlocks(@Nonnull Quest q) {
+    private List<DetailBlock> objectiveBlocks(@Nonnull Quest q, boolean noteHidden) {
         List<ObjectiveDef> objectives = engine.listedObjectives(subject, q);
         if (objectives.isEmpty()) {
             return List.of();
@@ -438,8 +441,41 @@ public final class QuestReader {
             }
             lines.add(objectiveLine(q, objective, status, progress));
         }
+        int hidden = noteHidden ? hiddenSteps(q, objectives) : 0;
+        if (hidden > 0) {
+            lines.add(new DetailLine(Picture.NONE, text("block.more_steps", hidden), null, null, Tick.LOCKED, null,
+                    false));
+        }
         blocks.add(new DetailBlock(blockId, label, meta, lines));
         return blocks;
+    }
+
+    /**
+     * How many steps {@code listed} leaves out of {@code q}: each later order group of an ordered quest, else each
+     * objective of a one-at-a-time quest. Zero when everything lists (a quest that shows its locked steps, or one the
+     * player is not carrying).
+     */
+    private static int hiddenSteps(@Nonnull Quest q, @Nonnull List<ObjectiveDef> listed) {
+        if (listed.size() >= q.objectives().size()) {
+            return 0;
+        }
+        Set<String> shown = new HashSet<>();
+        for (ObjectiveDef objective : listed) {
+            shown.add(objective.id());
+        }
+        Set<Integer> groups = new HashSet<>();
+        int loose = 0;
+        for (ObjectiveDef objective : q.objectives()) {
+            if (shown.contains(objective.id())) {
+                continue;
+            }
+            if (q.hasOrderedObjectives() && objective.order() > 0) {
+                groups.add(objective.order());
+            } else {
+                loose++;
+            }
+        }
+        return groups.size() + loose;
     }
 
     /** How the steps are taken, for a quest with more than one: in order, in any order, or step by step. */
@@ -473,12 +509,13 @@ public final class QuestReader {
 
     /**
      * {@code q}'s Objectives lines in the order its page draws them, every block's lines one after another: what a
-     * repaint after a hand-in reads, so it never walks the steps by an index a heading has shifted.
+     * repaint after a hand-in reads, so it never walks the steps by an index a heading has shifted. It leaves out the
+     * "more steps after this" line the page draws under a quest that hides its later steps, so every line is a step.
      */
     @Nonnull
     public List<DetailLine> objectiveLines(@Nonnull Quest q) {
         List<DetailLine> lines = new ArrayList<>();
-        for (DetailBlock block : objectiveBlocks(q)) {
+        for (DetailBlock block : objectiveBlocks(q, false)) {
             lines.addAll(block.lines());
         }
         return lines;

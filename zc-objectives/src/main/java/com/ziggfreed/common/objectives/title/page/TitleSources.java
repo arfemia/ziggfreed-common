@@ -126,12 +126,8 @@ public final class TitleSources {
     private static List<String> titlesOf(@Nonnull Achievement achievement) {
         List<String> titles = new ArrayList<>();
         for (List<RewardSpec> rewards : List.of(achievement.autoRewards(), achievement.claimRewards())) {
-            for (RewardSpec reward : rewards) {
-                if (!TitleRewardKind.isTitleReward(reward)) {
-                    continue;
-                }
-                String titleId = key(TitleRewardKind.titleOf(reward));
-                if (!titleId.isEmpty() && !titles.contains(titleId)) {
+            for (String titleId : TitleRewardKind.titlesIn(rewards)) {
+                if (!titles.contains(titleId)) {
                     titles.add(titleId);
                 }
             }
