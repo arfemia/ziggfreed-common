@@ -344,6 +344,18 @@ public final class QuestPoolValidator {
                                 + QuestObjectiveAsset.HAND_IN_KIND + " step, "
                                 + "so the place is never consulted", id));
             }
+
+            // Targets widens what a fired moment matches, and nothing else: where a place-targeted
+            // step points and what a hand-in takes are each read off the one Target.
+            boolean placeTargeted = objectiveKinds != null && objectiveKinds.isPlaceTargeted(kind);
+            if (!objective.targets().isEmpty() && (turnIn || placeTargeted)) {
+                out.add(Finding.warning(DOMAIN, "TARGETS_ON_SINGLE_TARGET_KIND",
+                        "step '" + objective.id() + "' lists Targets on a " + kind + " step, which "
+                                + (turnIn ? "takes only the item its Target names"
+                                        : "reads only the place its Target names")
+                                + "; Targets is read only by kinds that count moments, so name one "
+                                + "target in Target", id));
+            }
         }
     }
 

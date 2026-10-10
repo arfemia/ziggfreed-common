@@ -30,9 +30,10 @@ import com.ziggfreed.common.subject.Subject;
  * follow-on grants, its bookkeeping. Without it a claim from a shared surface pays out in silence.
  *
  * <p>{@code claim --quest=all} collects everything parked that can be collected from NOWHERE in
- * particular. A quest that names a place it is collected at is skipped quietly rather than refused
- * one line at a time, because the engine would refuse a placeless claim of it by design and a loop
- * of refusals tells the reader nothing the single-quest form does not.
+ * particular ({@link QuestEngine#canCompleteAt} with no place, as the book's Collect asks). A quest
+ * still bound to a place it is collected at is skipped quietly rather than refused one line at a
+ * time, because the engine would refuse a placeless claim of it by design and a loop of refusals
+ * tells the reader nothing the single-quest form does not; one whose place is gone is collected.
  */
 final class QuestLogCommand extends TargetPlayerSubCommand {
 
@@ -119,7 +120,9 @@ final class QuestLogCommand extends TargetPlayerSubCommand {
             ProgressAdminMessages.refused(ctx, "quest.claim.not_parked", quest.id(), name);
             return;
         }
-        if (quest.turnInAt() != null) {
+        // The engine's own site question, as the book's Collect asks it: a quest whose site is gone (a
+        // board taken down or out of season) is collected from anywhere, so only a bound one is refused.
+        if (!engine.canCompleteAt(subject, quest, null)) {
             ProgressAdminMessages.refused(ctx, "quest.claim.at_site", quest.id());
             return;
         }
@@ -138,7 +141,7 @@ final class QuestLogCommand extends TargetPlayerSubCommand {
         int refused = 0;
         for (Quest quest : List.copyOf(engine.activeAndUnclaimed(subject))) {
             if (engine.store().status(subject, quest.id()) != QuestStatus.COMPLETED_UNCLAIMED
-                    || quest.turnInAt() != null) {
+                    || !engine.canCompleteAt(subject, quest, null)) {
                 continue;
             }
             if (Boolean.TRUE.equals(scope().around(subject, s -> Boolean.valueOf(engine.claim(s, quest))))) {

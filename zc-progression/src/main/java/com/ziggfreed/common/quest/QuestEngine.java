@@ -1412,7 +1412,8 @@ public final class QuestEngine implements QuestStateReader {
     /**
      * {@link #claim(Subject, Quest, String)} from a surface with no place attached - a log, a book,
      * a menu. A quest that names a {@link Quest#turnInAt() site} refuses this call by definition:
-     * "anywhere" is precisely what such a quest is not.
+     * "anywhere" is precisely what such a quest is not, until its site is gone
+     * ({@link #canCompleteAt}).
      */
     public boolean claim(@Nonnull Subject subject, @Nonnull Quest quest) {
         return claim(subject, quest, null);

@@ -82,9 +82,12 @@ public class ObjectiveLeafAsset {
                 .documentation("More targets that also count, beside Target: a moment counts when its target "
                         + "matches Target or any entry here, each compared by MatchMode. Use it to count a few "
                         + "named things toward one step, such as three kinds of bear with EXACT, without catching "
-                        + "every id that shares a word. A step's line names Target, or the first entry when Target "
-                        + "is left out. A blank entry is ignored, and with neither this nor Target authored "
-                        + "everything counts. This is ONE leaf: authoring it replaces an inherited list whole.").add()
+                        + "every id that shares a word. Only kinds that count moments read it: a kind whose Target "
+                        + "is a place, such as TALK_TO_NPC or REACH_LOCATION, and a TURN_IN hand-in read Target "
+                        + "alone, so name one target in Target there. A step's line names Target, or the first "
+                        + "entry when Target is left out. A blank entry is ignored, and with neither this nor "
+                        + "Target authored everything counts. This is ONE leaf: authoring it replaces an inherited "
+                        + "list whole.").add()
                 .appendInherited(new KeyedCodec<>("MatchMode", Codec.STRING, false),
                         (o, v) -> o.matchMode = v, o -> o.matchMode, (o, p) -> o.matchMode = p.matchMode)
                 .metadata(EditorSchema.oneOfDocumented(

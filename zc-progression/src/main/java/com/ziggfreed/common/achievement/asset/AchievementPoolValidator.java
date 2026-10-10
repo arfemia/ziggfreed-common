@@ -203,6 +203,15 @@ public final class AchievementPoolValidator {
                         where + " listens for '" + kind + "', which is registered as something nothing ever "
                                 + "fires, so it can never progress", id));
             }
+            // Targets widens what a fired moment matches, and nothing else: a place-targeted kind's
+            // place is read off the one Target (a producer that watches it, a marker that points at it).
+            // The hand-in kind is the quest engine's alone, so an achievement has no hand-in to check.
+            if (!criterion.targets().isEmpty() && objectiveKinds.isPlaceTargeted(kind)) {
+                out.add(Finding.warning(DOMAIN, "TARGETS_ON_SINGLE_TARGET_KIND",
+                        where + " lists Targets on a " + kind + " criterion, which reads only the place its "
+                                + "Target names; Targets is read only by kinds that count moments, so name one "
+                                + "target in Target", id));
+            }
         }
     }
 
