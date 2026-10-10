@@ -64,7 +64,12 @@ def hytaleServerJar = new File("${hytaleHome}/${patchline}/package/game/${game_b
 
 dependencies {
     zcModules.each { m ->
-        implementation project(m)
+        // compileOnly + testImplementation, never implementation: the modules reach a consumer only
+        // inside the aggregate jar (moduleBundle), so this project's runtimeElements, which a sibling's
+        // test classpath resolves in the family's umbrella build, must not list their 17 jars again
+        // beside it.
+        compileOnly project(m)
+        testImplementation project(m)
         moduleBundle project(m)
         moduleSources project(m)
     }
@@ -123,6 +128,15 @@ jar {
     from({ configurations.moduleBundle.collect { zipTree(it) } }) {
         exclude moduleJarNoise
     }
+}
+
+// What a sibling resolves from this project in the family's umbrella build (the workspace root's
+// settings.gradle substitutes ziggfreed:ZiggfreedCommon with it): apiElements and runtimeElements,
+// whose one artifact is the aggregate jar above. No secondary variant either: under java-library,
+// apiElements carries a `classes` variant (this project's own two classes, none of the modules') that a
+// sibling's compile would take over the jar. That is also why this project stays on the java plugin.
+['apiElements', 'runtimeElements'].each { name ->
+    configurations.named(name) { outgoing.variants.clear() }
 }
 
 sourcesJar {
