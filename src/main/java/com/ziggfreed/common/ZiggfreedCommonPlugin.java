@@ -36,6 +36,7 @@ import com.ziggfreed.common.commerce.page.CommerceStepIcons;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.currency.asset.CurrencyConfig;
 import com.ziggfreed.common.effect.NativeEffectUtil;
+import com.ziggfreed.common.effect.buff.BuffBootstrap;
 import com.ziggfreed.common.effect.costume.CostumeBootstrap;
 import com.ziggfreed.common.encounter.EncounterBootstrap;
 import com.ziggfreed.common.encounter.seam.EncounterSeams;
@@ -227,6 +228,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         EntityBootstrap.installGearSets(this);
         registerGearSetSeams();
         CostumeBootstrap.registerCostumes(this);
+        // Timed buffs on the native buff bar: the per-player slot record (unconditional, so a saved one
+        // always reads back) and the ready and respawn refreshes, inert until a consumer registers a source.
+        BuffBootstrap.install(this);
         PlacedBlockBootstrap.setupPlacedBlockLedger(this);
         BlockStashBootstrap.registerBlockStash(this);
         // The yearly calendar declares its feature switches, its two readings and the occurrence slot

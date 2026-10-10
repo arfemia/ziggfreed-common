@@ -1,0 +1,4 @@
+{
+  "$Comment": "Slot 4 of the personal timed-buff pool, which a fifth personal buff shares: everything comes from its Parent, so restyle Zig_Buff_Personal instead.",
+  "Parent": "Zig_Buff_Personal"
+}

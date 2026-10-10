@@ -1,0 +1,9 @@
+{
+  "$Comment": "ziggfreed-common's default tile for a server-wide timed buff (TimedBuffs, BuffScope.SERVER), the first slot of a pool of four: Zig_Buff_Server_2 to _4 name this as their Parent, so each live buff shows on its own tile. The binding applies it with the buff's real remaining time (Overwrite), so the ring reads that time against this Duration and empties when the buff ends. A pack restyles the whole pool (icon, name) by shipping a file with this same id.",
+  "Name": "ziggfreedcommon.buff.server.name",
+  "StatusEffectIcon": "Icons/ItemsGenerated/Ingredient_Crystal_Fragments_Purple.png",
+  "Duration": 1800,
+  "OverlapBehavior": "Overwrite",
+  "Infinite": false,
+  "Debuff": false
+}

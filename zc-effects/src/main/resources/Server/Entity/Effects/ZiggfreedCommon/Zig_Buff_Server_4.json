@@ -1,0 +1,4 @@
+{
+  "$Comment": "Slot 4 of the server-wide timed-buff pool, which a fifth server-wide buff shares: everything comes from its Parent, so restyle Zig_Buff_Server instead.",
+  "Parent": "Zig_Buff_Server"
+}

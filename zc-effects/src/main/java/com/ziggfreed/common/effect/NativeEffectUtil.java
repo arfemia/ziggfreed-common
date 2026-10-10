@@ -11,6 +11,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
 import com.hypixel.hytale.server.core.asset.type.entityeffect.config.OverlapBehavior;
+import com.hypixel.hytale.server.core.entity.effect.ActiveEntityEffect;
 import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.CommonLog;
@@ -51,6 +52,10 @@ import it.unimi.dsi.fastutil.objects.ObjectOpenCustomHashSet;
  *       the entity has the effect active right now ({@code EffectControllerComponent.hasEffect} on
  *       the id's current engine index); false whenever it cannot tell, so a caller reconciling a
  *       wanted effect asks this and applies on false.</li>
+ *   <li>{@link #remaining(Store, Ref, String)} / {@link #remaining(ComponentAccessor, Ref, String)} -
+ *       the seconds the effect has left on the entity right now; null when it is not on or when this
+ *       cannot tell, so a caller reconciling a timed effect applies on null, as it does on a false
+ *       {@code has}.</li>
  * </ul>
  *
  * <p><b>Fail-closed throughout.</b> A {@code null}/blank id, an invalid ref, a target with no
@@ -286,6 +291,59 @@ public final class NativeEffectUtil {
         } catch (Throwable t) {
             fine("has: '" + effectId + "' failed: " + t.getMessage());
             return false;
+        }
+    }
+
+    // --- remaining time by id (reads the active entry at the id's current engine index) ---
+
+    /** {@link Store} form of remaining-by-id. */
+    @javax.annotation.Nullable
+    public static Float remaining(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+                                  @Nonnull String effectId) {
+        return remainingInternal(store, ref, effectId);
+    }
+
+    /** {@link ComponentAccessor} form of remaining-by-id (also fits a {@code CommandBuffer}). */
+    @javax.annotation.Nullable
+    public static Float remaining(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
+                                  @Nonnull String effectId) {
+        return remainingInternal(accessor, ref, effectId);
+    }
+
+    /**
+     * How many seconds {@code effectId} has left on the entity right now, read off the controller's
+     * active entry at the id's current engine index ({@code getActiveEffects()}, keyed by index);
+     * {@link Float#POSITIVE_INFINITY} for an infinite one. Null when the effect is not on the entity
+     * and whenever it cannot tell (a bad ref, a blank or unregistered id, no controller, an engine
+     * throw), each logged at FINE only, as {@link #has} is: a caller reconciling a timed effect
+     * applies on null.
+     */
+    @javax.annotation.Nullable
+    private static Float remainingInternal(@Nonnull ComponentAccessor<EntityStore> accessor,
+                                           @Nonnull Ref<EntityStore> ref, @Nonnull String effectId) {
+        if (ref == null || !ref.isValid() || effectId == null || effectId.isBlank()) {
+            fine("remaining: invalid ref or blank id (" + effectId + ")");
+            return null;
+        }
+        try {
+            int idx = EntityEffect.getAssetMap().getIndex(effectId);
+            if (idx == Integer.MIN_VALUE) {
+                fine("remaining: EntityEffect '" + effectId + "' not found in asset map");
+                return null;
+            }
+            EffectControllerComponent ctrl = accessor.getComponent(ref, EffectControllerComponent.getComponentType());
+            if (ctrl == null) {
+                fine("remaining: entity has no EffectControllerComponent - " + effectId);
+                return null;
+            }
+            ActiveEntityEffect active = ctrl.getActiveEffects().get(idx);
+            if (active == null) {
+                return null;
+            }
+            return active.isInfinite() ? Float.POSITIVE_INFINITY : active.getRemainingDuration();
+        } catch (Throwable t) {
+            fine("remaining: '" + effectId + "' failed: " + t.getMessage());
+            return null;
         }
     }
 
