@@ -16,10 +16,8 @@ import com.hypixel.hytale.protocol.packets.interface_.Page;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
-import com.hypixel.hytale.server.core.ui.Anchor;
 import com.hypixel.hytale.server.core.ui.DropdownEntryInfo;
 import com.hypixel.hytale.server.core.ui.ItemGridSlot;
-import com.hypixel.hytale.server.core.ui.Value;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
@@ -34,6 +32,8 @@ import com.ziggfreed.common.commerce.fold.ShelfSpec;
 import com.ziggfreed.common.commerce.fold.ShopEntryOffer;
 import com.ziggfreed.common.commerce.fold.StorefrontView;
 import com.ziggfreed.common.cost.Cost;
+import com.ziggfreed.common.cost.ItemCost;
+import com.ziggfreed.common.currency.CurrencyDef;
 import com.ziggfreed.common.currency.CurrencyEngine;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.loot.reward.RewardChip;
@@ -48,10 +48,15 @@ import com.ziggfreed.common.shop.asset.StorefrontAsset;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.text.ContentTextAsset;
 import com.ziggfreed.common.ui.SettingsUiUtil;
-import com.ziggfreed.common.ui.rows.BuiltRows;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.ZigRichButton;
+import com.ziggfreed.common.ui.icon.IconRenderer;
+import com.ziggfreed.common.ui.kit.Picture;
+import com.ziggfreed.common.ui.kit.Pill;
+import com.ziggfreed.common.ui.kit.TilePainter;
+import com.ziggfreed.common.ui.kit.Tone;
+import com.ziggfreed.common.ui.kit.WareTile;
 import com.ziggfreed.common.ui.toast.RewardToastLines;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastSpec;
@@ -69,11 +74,11 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <h2>Two kinds of run, one list</h2>
  *
- * <p>A storefront's rotating SHELVES read first, each under a header carrying the countdown to its
+ * <p>A storefront's rotating SHELVES read first, each under a heading carrying the countdown to its
  * next turnover, because they are the part that will not be there tomorrow. Its standing catalogue
- * reads below, in the category order the storefront itself declared. Both are the same row template,
- * and the section headings share it too, because a list mixing two templates gives two different
- * child sets at one index and a partial update addresses the wrong one.
+ * reads below, in the category order the storefront itself declared. Every run is the kit's titled
+ * section of ware tiles, the vanilla Memories grid: a picture, a name and a price per ware, the way a
+ * vendor's window reads, and a ware out of reach dimmed with its reason on hover.
  *
  * <p>Two dropdowns narrow the list: one names every run the storefront draws (each shelf, each
  * category), the other keeps only the rotating or only the standing stock. Both are page-instance
@@ -95,7 +100,9 @@ import com.ziggfreed.common.util.SafeLog;
 public final class ZigShopPage extends ToastablePage<ShopEventData> {
 
     private static final String PAGE_TEMPLATE = "Pages/ZigShopPage.ui";
-    private static final String ROW_TEMPLATE = "Pages/ZigSelectRow.ui";
+
+    /** The scrolling list the runs are appended into, one titled section of tiles each. */
+    private static final String LIST = "#OfferList";
 
     /** What a theme is offered to repaint: the panel carrying the catalogue. */
     private static final String FRAME_SELECTOR = "#LeftPanel";
@@ -106,8 +113,8 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
     /** The domain segment every key on this page carries (the {@code ziggfreedcommon.commerce.lang} file). */
     private static final String DOMAIN = "commerce.";
 
-    /** A hard ceiling on list rows, so a very large catalogue cannot build an unbounded page. */
-    private static final int MAX_ROWS = 200;
+    /** A hard ceiling on tiles, so a very large catalogue cannot build an unbounded page. */
+    private static final int MAX_TILES = 200;
 
     /** A ceiling on the lines inside one detail section. */
     private static final int MAX_LINES = 24;
@@ -115,50 +122,22 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
     /** A ceiling on the chips in one strip, so a wide price cannot push a row off the panel. */
     private static final int MAX_CHIPS = 6;
 
-    /** The height a heading row grows to when it shows the countdown under its label. */
-    private static final int HEADER_WITH_META_HEIGHT = 54;
+    /** The reroll button's words at rest; armed, they turn the short colour. */
+    private static final String REROLL_TEXT = "#c6d4e4";
 
-    /** The gap under a grown heading row, so its countdown does not touch the row beneath. */
-    private static final int HEADER_WITH_META_BOTTOM = 2;
-
-    /**
-     * The Anchor a heading row grows to when it shows the countdown under its label: the row line
-     * plus the meta line of the shared template, exactly. Without the growth the countdown paints
-     * over the first row of the run it heads, because a row's authored height fits one line.
-     *
-     * <p>Built as an {@link Anchor} and pushed with {@code setObject}, never as the string an
-     * authored {@code .ui} would carry: {@code .Anchor} is an OBJECT slot, and a String handed to
-     * it fails the whole CustomUI update, which disconnects the player rather than misdrawing one
-     * row.
-     */
-    @Nonnull
-    private static Anchor headerWithMetaAnchor() {
-        Anchor anchor = new Anchor();
-        anchor.setHeight(Value.of(HEADER_WITH_META_HEIGHT));
-        anchor.setBottom(Value.of(HEADER_WITH_META_BOTTOM));
-        return anchor;
+    /** What stands between this buyer and an offer, as its tile shows it. */
+    private enum Reach {
+        /** Buyable now. */
+        READY,
+        /** Short of a wallet or an item: the price reads in the danger ink. */
+        SHORT,
+        /** No room in the bag for what it hands over. */
+        NO_ROOM,
+        /** A daily or total limit is used up: dimmed, its pill says which. */
+        LIMITED,
+        /** Behind a requirement, switched off or rotated away: dimmed, with the lock. */
+        LOCKED
     }
-
-    // The selected row's accent, and the shared row style's own per-state colours to revert to.
-    private static final String ROW_SELECTED_TINT = "#1a2d44";
-    private static final String ROW_SELECTED_TEXT = "#ffffff";
-    private static final String ROW_TINT = "#41506a";
-    private static final String ROW_HOVER_TINT = "#5b6f8c";
-    private static final String ROW_PRESSED_TINT = "#344156";
-    private static final String ROW_TEXT = "#b6c9de";
-
-    /**
-     * A section heading is a HEADING: it reads at least as brightly as the rows under it, or a
-     * player takes a shelf's name for a greyed-out entry rather than for the run it opens. Kept in
-     * step with the row template's own default for the same element.
-     */
-    private static final String HEADER_TEXT = "#c2d4e8";
-
-    // The status dot: what stands between this buyer and this offer, at a glance.
-    private static final String DOT_READY = "#7affa0";
-    private static final String DOT_SHORT = "#ffcc4a";
-    private static final String DOT_LIMITED = "#c8a86a";
-    private static final String DOT_LOCKED = "#96a9be";
 
     @Nonnull private final String shopId;
 
@@ -179,12 +158,13 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
     private final ConfirmArm rerollArm = new ConfirmArm();
 
     /**
-     * The exact rows the last full build rendered - each offer's index and the run it was drawn
-     * under, section headings occupying an index of their own - so a partial update addresses the
-     * row the client DOM actually holds. Every press that changes what a row says reopens this
-     * page, so the run it records is read only as the record of what is on screen.
+     * The exact tiles the last full build drew: each offer's normalized id to the button selector
+     * {@link TilePainter#wares} answered for it, so a partial update addresses the tile the client
+     * DOM actually holds. An offer the record lacks reopens the page instead. Every press that
+     * changes what a tile says reopens this page, so this is read only as the record of what is on
+     * screen.
      */
-    private final BuiltRows builtRows = new BuiltRows();
+    private final Map<String, String> wareOf = new LinkedHashMap<>();
 
     /** Which shelf and position each drawn offer came from, for a reroll press. */
     private final Map<String, ShelfPosition> shelfOf = new LinkedHashMap<>();
@@ -209,7 +189,7 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton",
                 EventData.of("Action", "close"));
 
-        builtRows.clear();
+        wareOf.clear();
         shelfOf.clear();
 
         StorefrontAsset asset = shopAsset();
@@ -468,90 +448,98 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
         SettingsUiUtil.bindDropdown(events, "#KindFilter", "filter_kind");
     }
 
+    /**
+     * One titled section of ware tiles per run, through the kit's {@link TilePainter}, recording each
+     * tile's selector for the partial updates. The tile ceiling is shared by the whole page, and a
+     * section is only started with room for at least one tile under it, so a list cut short never
+     * ends on a heading with nothing beneath.
+     */
     private void appendRuns(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
             @Nonnull ShopEngine engine, @Nonnull Subject subject, @Nonnull List<Run> runs, long now) {
-        int index = 0;
+        int section = 0;
+        int budget = MAX_TILES;
         for (Run run : runs) {
-            // A heading and the first row under it are budgeted TOGETHER, so a list cut short by the
-            // row ceiling never ends on a heading with nothing under it.
-            if (index + 1 >= MAX_ROWS) {
+            if (budget <= 0) {
                 break;
             }
-            index = appendHeader(cmd, index, run.heading(), run.meta());
-            String runKey = ShopSections.runKey(run.kind(), run.runId());
-            for (ShopOffer offer : run.offers()) {
-                if (index >= MAX_ROWS) {
-                    break;
-                }
-                index = appendOfferRow(cmd, events, engine, subject, index, offer, runKey, now);
+            List<ShopOffer> shown = run.offers().subList(0, Math.min(run.offers().size(), budget));
+            budget -= shown.size();
+            String grid = TilePainter.section(cmd, LIST, section++, run.heading(), run.meta());
+            List<WareTile> tiles = new ArrayList<>(shown.size());
+            for (ShopOffer offer : shown) {
+                tiles.add(wareTile(engine, subject, offer, now));
+            }
+            List<String> selectors = TilePainter.wares(cmd, events, grid, tiles,
+                    tile -> EventData.of("Action", "select").append("OfferId", tile.id()));
+            for (int i = 0; i < shown.size(); i++) {
+                // An offer drawn twice (two shelves landing on it) answers with its first tile.
+                wareOf.putIfAbsent(CommerceText.normalize(shown.get(i).offerId()), selectors.get(i));
             }
         }
-    }
-
-    /** A heading, drawn as a row whose button is hidden and whose label carries the run's name. */
-    private int appendHeader(@Nonnull UICommandBuilder cmd, int index, @Nonnull Message label,
-            @Nullable Message meta) {
-        String sel = appendRow(cmd, index);
-        builtRows.addHeader();
-        cmd.set(sel + " #RowBtn.Visible", false);
-        cmd.set(sel + " #StatusDot.Visible", false);
-        cmd.set(sel + " #SectionLabel.TextSpans", label);
-        cmd.set(sel + " #SectionLabel.Style.TextColor", HEADER_TEXT);
-        cmd.set(sel + " #SectionLabel.Visible", true);
-        if (meta != null) {
-            cmd.set(sel + " #SectionMeta.TextSpans", meta);
-            cmd.set(sel + " #SectionMeta.Visible", true);
-            // The row must GROW to hold the second line, or the countdown paints over the first
-            // row of the run it heads.
-            cmd.setObject(sel + ".Anchor", headerWithMetaAnchor());
-        }
-        return index + 1;
-    }
-
-    private int appendOfferRow(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
-            @Nonnull ShopEngine engine, @Nonnull Subject subject, int index, @Nonnull ShopOffer offer,
-            @Nonnull String runKey, long now) {
-        String sel = appendRow(cmd, index);
-        builtRows.add(offer.offerId(), runKey);
-        ZigRichButton.text(cmd, sel + " #RowBtn", offerName(offer));
-        cmd.set(sel + " #StatusDot.Background", dotFor(engine, subject, offer, now));
-        Message badge = limitBadge(engine, subject, offer, now);
-        if (badge != null) {
-            cmd.set(sel + " #RowBadge.TextSpans", badge);
-            cmd.set(sel + " #RowBadge.Visible", true);
-        }
-        if (CommerceText.sameId(offer.offerId(), selectedOfferId)) {
-            paintRowSelected(cmd, sel, true);
-        }
-        events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #RowBtn",
-                EventData.of("Action", "select").append("OfferId", offer.offerId()), false);
-        return index + 1;
-    }
-
-    @Nonnull
-    private static String appendRow(@Nonnull UICommandBuilder cmd, int index) {
-        cmd.append("#OfferList", ROW_TEMPLATE);
-        return "#OfferList[" + index + "]";
     }
 
     /**
-     * The selected row's accent, and the exact per-state colours of the shared row style to revert
-     * to. Tinting the button's states is what a partial update can do; replacing its background with
-     * a bare string is what red-Xes a patch style.
+     * One offer as its tile reads: its picture, name and price, the pill counting what its limits
+     * leave, dimmed when it is out of reach (the lock when a requirement or a switch stands in the
+     * way), the refusal it would answer with as the tooltip, and the selected look on the offer the
+     * panel shows.
      */
-    private static void paintRowSelected(@Nonnull UICommandBuilder cmd, @Nonnull String rowSel,
-            boolean selected) {
-        if (selected) {
-            UiRetint.retintButtonStates(cmd, rowSel + " #RowBtn",
-                    ROW_SELECTED_TINT, ROW_SELECTED_TINT, ROW_SELECTED_TINT);
-            ZigRichButton.color(cmd, rowSel + " #RowBtn", ROW_SELECTED_TEXT);
-            cmd.set(rowSel + " #RowBtn #Label.Style.RenderBold", true);
-        } else {
-            UiRetint.retintButtonStates(cmd, rowSel + " #RowBtn",
-                    ROW_TINT, ROW_HOVER_TINT, ROW_PRESSED_TINT);
-            ZigRichButton.color(cmd, rowSel + " #RowBtn", ROW_TEXT);
-            cmd.set(rowSel + " #RowBtn #Label.Style.RenderBold", false);
+    @Nonnull
+    private WareTile wareTile(@Nonnull ShopEngine engine, @Nonnull Subject subject,
+            @Nonnull ShopOffer offer, long now) {
+        ShopEngine.PurchaseCheck check = engine.canPurchase(subject, offer, now);
+        Reach reach = reachOf(check);
+        Cost price = engine.priceFor(subject, offer);
+        CurrencyEngine currencies = CommerceDefaults.currencyEngine();
+        Picture costPicture = Picture.NONE;
+        Message cost = text("shop.tile.free");
+        if (!price.isFree()) {
+            long amount = 0L;
+            boolean found = false;
+            for (Map.Entry<String, Long> entry : price.currencies().entrySet()) {
+                CurrencyDef def = currencies.catalog().get(entry.getKey());
+                costPicture = Picture.item(def == null ? null : CurrencyText.iconOf(def));
+                amount = entry.getValue() == null ? 0L : entry.getValue().longValue();
+                found = true;
+                break;
+            }
+            if (!found) {
+                for (ItemCost item : price.items()) {
+                    if (item != null && !item.isBlank()) {
+                        costPicture = Picture.item(item.item());
+                        amount = item.count();
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            if (found) {
+                // Every component is owed under All, so the tile says how many more there are; under Any
+                // the first one alone pays, so its amount is the whole story.
+                int others = price.componentCount() - 1;
+                cost = others > 0 && price.combine() != Cost.Combine.ANY
+                        ? text("shop.tile.cost_more", amount, others) : Msg.num(amount);
+            }
         }
+        return new WareTile(offer.offerId(), offerName(offer), Picture.item(pictureOf(offer)), costPicture,
+                cost, reach == Reach.SHORT, limitBadge(offer, subject, now),
+                reach == Reach.LIMITED, reach == Reach.LOCKED,
+                check.ok() ? null : refusalLine(check.reason()),
+                CommerceText.sameId(offer.offerId(), selectedOfferId));
+    }
+
+    /**
+     * The item whose picture stands for an offer: its own {@code Icon}, else whatever its first reward
+     * can supply (the fallback the offer's {@code Icon} documents), else none.
+     */
+    @Nullable
+    private String pictureOf(@Nonnull ShopOffer offer) {
+        String icon = offer instanceof ShopEntryOffer entry ? entry.asset().getIcon() : null;
+        if (icon != null && !icon.isBlank()) {
+            return icon;
+        }
+        List<RewardChip> chips = RewardChips.chipsFor(offer.rewards(), deps.rewardChips());
+        return chips.isEmpty() ? null : chips.get(0).iconItemId();
     }
 
     private static void showEmpty(@Nonnull UICommandBuilder cmd, @Nonnull Message line) {
@@ -582,6 +570,8 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
 
         ContentTextAsset text = textOf(offer);
         cmd.set("#DetailTitle.TextSpans", offerName(offer));
+        // The tile's own picture, larger; the row closes up when the offer has none.
+        cmd.set("#DetailPicRow.Visible", IconRenderer.applyPlainIcon(cmd, "#DetailPic", pictureOf(offer), null));
         Message flavor = CommerceText.flavor(text, deps.titleArgs());
         if (flavor != null) {
             cmd.set("#Flavor.TextSpans", flavor);
@@ -710,7 +700,7 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
         boolean armed = rerollArm.isArmed(armKey(offer.offerId()), now);
         ZigRichButton.text(cmd, "#RerollBtn",
                 text(armed ? "action.confirm" : "shop.action.reroll"));
-        ZigRichButton.color(cmd, "#RerollBtn", armed ? CommerceChips.COLOR_SHORT : ROW_TEXT);
+        ZigRichButton.color(cmd, "#RerollBtn", armed ? CommerceChips.COLOR_SHORT : REROLL_TEXT);
 
         ShopEngine.PurchaseCheck check = engine.canRerollShelf(subject, shelf, at.position(), now);
         if (!check.ok()) {
@@ -785,21 +775,20 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
     }
 
     /**
-     * Swap the highlighted row and re-render the detail panel in place, so the list keeps its scroll
-     * position. Falls back to a full reopen when the clicked row is not one the last build recorded,
-     * because a recomputed index can address a different row entirely - a section heading has no
-     * status dot, and an unresolved selector disconnects the player.
+     * Swap the selected tile and re-render the detail panel in place, so the grid keeps its scroll
+     * position. Falls back to a full reopen when the clicked tile is not one the last build recorded,
+     * because an unresolved selector disconnects the player.
      */
     private void selectOffer(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
             @Nonnull Player player, @Nullable String offerId) {
-        // An arm left standing behind a different row would charge for a click that was never about
+        // An arm left standing behind a different tile would charge for a click that was never about
         // it, so changing what the panel shows forgets every arm.
         rerollArm.reset();
         ShopEngine engine = CommerceEngines.shopsAt(shopId);
         ShopOffer offer = offerId == null ? null : engine.catalog().offer(offerId);
-        int row = builtRows.indexOf(offerId);
+        String tile = offerId == null ? null : wareOf.get(CommerceText.normalize(offerId));
         Subject subject = subjectOf(store, ref);
-        if (offer == null || row < 0 || subject == null) {
+        if (offer == null || tile == null || subject == null) {
             this.selectedOfferId = offerId;
             player.getPageManager().openCustomPage(ref, store, this);
             return;
@@ -807,11 +796,11 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
         String previous = this.selectedOfferId;
         this.selectedOfferId = offer.offerId();
         UICommandBuilder cmd = new UICommandBuilder();
-        int oldRow = builtRows.indexOf(previous);
-        if (oldRow >= 0 && oldRow != row) {
-            paintRowSelected(cmd, "#OfferList[" + oldRow + "]", false);
+        String oldTile = previous == null ? null : wareOf.get(CommerceText.normalize(previous));
+        if (oldTile != null && !oldTile.equals(tile)) {
+            TilePainter.selectWare(cmd, oldTile, false);
         }
-        paintRowSelected(cmd, "#OfferList[" + row + "]", true);
+        TilePainter.selectWare(cmd, tile, true);
         renderDetail(cmd, engine, subject, offer, System.currentTimeMillis());
         this.sendUpdate(cmd, new UIEventBuilder(), false);
     }
@@ -938,10 +927,12 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
         return Msg.num(price.componentCount());
     }
 
-    /** How much of a capped offer is left, as the badge on its row. */
+    /**
+     * How much of a capped offer is left, as the pill on its tile: what is left in the available
+     * tone, none today in the waiting tone (it comes back tomorrow), sold out in the blocked tone.
+     */
     @Nullable
-    private Message limitBadge(@Nonnull ShopEngine engine, @Nonnull Subject subject,
-            @Nonnull ShopOffer offer, long now) {
+    private Pill limitBadge(@Nonnull ShopOffer offer, @Nonnull Subject subject, long now) {
         PurchaseLimits limits = offer.limits();
         if (limits == null || limits.isOpen()) {
             return null;
@@ -955,32 +946,32 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
                         - CommerceStores.get().purchasesTotal(subject, offer.offerId()));
         long remaining = Math.min(remainingDay, remainingTotal);
         if (remaining == 0) {
-            return text(remainingTotal == 0 ? "shop.badge.sold_out" : "shop.badge.none_today");
+            return remainingTotal == 0 ? Pill.of(text("shop.badge.sold_out"), Tone.BLOCKED)
+                    : Pill.of(text("shop.badge.none_today"), Tone.WAITING);
         }
         if (remaining == Long.MAX_VALUE) {
             return null;
         }
-        return text("shop.badge.left", remaining);
+        return Pill.of(text("shop.badge.left", remaining), Tone.AVAILABLE);
     }
 
-    /** What stands between this buyer and this offer, at a glance. */
+    /** What stands between this buyer and this offer, as the engine's own check answers it. */
     @Nonnull
-    private static String dotFor(@Nonnull ShopEngine engine, @Nonnull Subject subject,
-            @Nonnull ShopOffer offer, long now) {
-        ShopEngine.PurchaseCheck check = engine.canPurchase(subject, offer, now);
+    private static Reach reachOf(@Nonnull ShopEngine.PurchaseCheck check) {
         if (check.ok()) {
-            return DOT_READY;
+            return Reach.READY;
         }
         String reason = check.reason() == null ? "" : check.reason();
-        if (reason.startsWith(ShopEngine.REASON_SHORT_CURRENCY)
-                || reason.startsWith(ShopEngine.REASON_SHORT_ITEM)
-                || ShopEngine.REASON_NO_ROOM.equals(reason)) {
-            return DOT_SHORT;
+        if (reason.startsWith(ShopEngine.REASON_SHORT_CURRENCY) || reason.startsWith(ShopEngine.REASON_SHORT_ITEM)) {
+            return Reach.SHORT;
+        }
+        if (ShopEngine.REASON_NO_ROOM.equals(reason)) {
+            return Reach.NO_ROOM;
         }
         if (ShopEngine.REASON_LIMIT_DAILY.equals(reason) || ShopEngine.REASON_LIMIT_TOTAL.equals(reason)) {
-            return DOT_LIMITED;
+            return Reach.LIMITED;
         }
-        return DOT_LOCKED;
+        return Reach.LOCKED;
     }
 
     /** Grey a button that will refuse, without unbinding it: the press still answers with a reason. */

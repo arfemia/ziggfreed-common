@@ -36,6 +36,11 @@ shop.empty.nothing = Nothing is for sale here right now.
 shop.empty.filtered = Nothing for sale matches these filters.
 shop.offer.untitled = Unnamed offer
 
+# A ware's tile: the price line of an offer that costs nothing, and of a price with more parts than a
+# tile has room for (the first part's amount, then how many more parts the full price lists).
+shop.tile.free = Free
+shop.tile.cost_more = {0, number} +{1, number} more
+
 shop.header.cost = Price
 shop.header.cost_any = Price (pay either)
 shop.header.rewards = You receive

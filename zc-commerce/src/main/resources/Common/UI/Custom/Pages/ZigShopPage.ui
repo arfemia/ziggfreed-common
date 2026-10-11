@@ -2,53 +2,49 @@ $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
 $Z = "../Common/ZigButtons.ui";
 $ZT = "../Common/ZigType.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZW = "../Common/ZigKit.ui";
 
-// The storefront page (com.ziggfreed.common.commerce.page.ZigShopPage): what a shop sells on the
-// left, the offer being read on the right, and what the buyer is carrying across the top.
+// The storefront page (com.ziggfreed.common.commerce.page.ZigShopPage), in the look of vanilla's Memories page
+// (Pages/Memories/MemoriesPanel.ui): its size and centring, the runes pane under a grid of tiles on the left, the
+// secondary container on the right for the ware being read.
 //
-// LEFT: the shop's name and icon, the wallet strip (#BalanceRow, one Pages/ZigCommerceChip.ui per
-// currency the shop authored, one per line), the two list filters (#FilterRow: a run of the catalogue by name,
-// and rotating vs standing stock), a count, and the scrolling #OfferList the page appends
-// Pages/ZigSelectRow.ui into - rotating shelves first, each under a heading carrying its
-// countdown, then the standing catalogue by category. #EmptyLabel carries the one line an empty
-// or filtered-to-nothing storefront shows.
+// TOP: the shop's name and icon, then one strip holding what the buyer carries (#BalanceRow, one
+// Pages/ZigCommerceChip.ui per wallet the shop authored, side by side), the two list filters (#FilterRow: a run of
+// the catalogue by name, and rotating vs standing stock, hidden until there are runs) and a count.
 //
-// RIGHT: #RightPanel, hidden outright when there is nothing selected. Its four appended containers
-// (#CostRow, #RewardsList, #StatusList, #RerollCostRow) take chips or Pages/ZigDetailLine.ui rows,
-// and the page CLEARS each one before re-rendering, so a second render for a different offer cannot
-// collide with the rows of the first.
+// LEFT: #LeftPanel, the panel a consumer's theme repaints, holding #OfferList: one Pages/ZigTileSection.ui per run
+// (rotating shelves first, each heading carrying its countdown, then the standing catalogue by category), each
+// holding its Pages/ZigWareTile.ui tiles, all appended through the kit's TilePainter. #EmptyLabel carries the one line
+// an empty or filtered-to-nothing storefront shows.
 //
-// Every labeled button here is a Button + inner Label #Label, never a TextButton: an offer title, a
-// price and a reward line are all parameterized Messages, and those only substitute on .TextSpans.
-// The action buttons default Visible:false and the page flips exactly the ones a state offers, so
-// there is never a control that does nothing.
+// RIGHT: #RightPanel, hidden outright when nothing is selected: the ware's name, its category, its picture, then a
+// scrolling #DetailBody whose appended containers (#CostRow, #RewardsList, #StatusList) take chips or
+// Pages/ZigDetailLine.ui rows, CLEARED before each re-render, and the reroll price and the two actions at the foot.
 //
-// Shipped once in ziggfreed-common; neutral Zig* ids. Smoke-test in-game.
+// Every labeled button here is a Button + inner Label #Label, never a TextButton: an offer title, a price and a
+// reward line are all parameterized Messages, and those only substitute on .TextSpans. The action buttons default
+// Visible:false and the page flips exactly the ones a state offers, so there is never a control that does nothing.
 
-$C.@PageOverlay {}
+$C.@PageOverlay {
+  LayoutMode: Middle;
 
-$F.@ZigDecoratedFrame {
-  @CloseButton = true;
-  @Ornaments = true;
-  Anchor: (Width: 1050, Height: 850);
+  $F.@ZigDecoratedFrame {
+    @CloseButton = true;
+    @Ornaments = true;
+    Anchor: (Width: 1070, Height: 825);
 
-  #Content {
-    Anchor: (Top: 0);
-    LayoutMode: Left;
-    Padding: (Full: 0);
-
-    Group #LeftPanel {
-      Anchor: (Width: 360);
-      Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
+    #Content {
+      Anchor: (Top: 0);
       LayoutMode: Top;
-      Padding: (Full: 14);
+      Padding: (Horizontal: 20, Top: 16, Bottom: 18);
 
       Group #TitleRow {
         LayoutMode: Left;
-        Anchor: (Height: 32, Bottom: 4);
+        Anchor: (Height: 34, Bottom: 6);
 
         Group #ShopIconSlot {
-          Anchor: (Width: 22, Height: 22, Top: 4, Right: 8);
+          Anchor: (Width: 22, Height: 22, Top: 6, Right: 10);
           ItemGrid #ShopIcon {
             Anchor: (Width: 22, Height: 22);
             SlotsPerRow: 1;
@@ -61,158 +57,188 @@ $F.@ZigDecoratedFrame {
         Label #ShopTitle {
           FlexWeight: 1;
           Text: "";
-          Anchor: (Height: 32);
-          Style: (FontSize: $ZT.@ZigFontTitle, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
+          Anchor: (Height: 34);
+          Style: (FontSize: $ZT.@ZigFontTitle, TextColor: $ZK.@ZigAccent, FontName: "Secondary", RenderBold: true, RenderUppercase: true, LetterSpacing: 0.5, VerticalAlignment: Center);
         }
       }
 
-      // One wallet per line, each chip as wide as its words: no fixed height, so the strip grows.
-      Group #BalanceRow {
-        LayoutMode: Top;
-        Anchor: (Bottom: 4);
-      }
-
-      // The two list filters: one run of the catalogue by name, and rotating vs standing stock.
-      // Hidden until the page has runs to offer; an empty dropdown filtering nothing is noise.
-      Group #FilterRow {
+      Group #HeaderRow {
         LayoutMode: Left;
-        Anchor: (Height: 34, Bottom: 6);
-        Visible: false;
+        Anchor: (Height: 34, Bottom: 10);
 
-        $C.@DropdownBox #RunFilter {
-          Anchor: (Width: 200, Height: $C.@SmallButtonHeight);
+        // One chip per wallet, side by side, each as wide as its words.
+        Group #BalanceRow {
+          LayoutMode: Left;
+          FlexWeight: 1;
+          Anchor: (Height: 30, Top: 2);
         }
 
-        Group { Anchor: (Width: 8); }
+        // The two list filters. Hidden until the page has runs to offer; an empty dropdown filtering nothing is noise.
+        Group #FilterRow {
+          LayoutMode: Left;
+          Anchor: (Width: 340, Height: 34);
+          Visible: false;
 
-        $C.@DropdownBox #KindFilter {
-          Anchor: (Width: 124, Height: $C.@SmallButtonHeight);
+          $C.@DropdownBox #RunFilter {
+            Anchor: (Width: 200, Height: $C.@SmallButtonHeight);
+          }
+
+          Group { Anchor: (Width: 8); }
+
+          $C.@DropdownBox #KindFilter {
+            Anchor: (Width: 132, Height: $C.@SmallButtonHeight);
+          }
+        }
+
+        Label #OfferCount {
+          Text: "";
+          Anchor: (Width: 120, Height: 34, Left: 12);
+          Style: (FontSize: $ZT.@ZigFontCaption, TextColor: $ZK.@ZigInkMuted, HorizontalAlignment: End, VerticalAlignment: Center);
         }
       }
 
-      Label #OfferCount {
-        Text: "";
-        Anchor: (Height: 20, Bottom: 8);
-        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #b3c4d6, VerticalAlignment: Center);
-      }
-
-      Group { Anchor: (Height: 1, Bottom: 8); Background: #1e2a36; }
-
-      Group #OfferList {
+      Group #Panes {
+        LayoutMode: Left;
         FlexWeight: 1;
-        LayoutMode: TopScrolling;
-        ScrollbarStyle: $C.@DefaultScrollbarStyle;
-        // The scrollbar rides the right edge of this list, so the rows inside keep clear of it
-        // here rather than each row carrying its own margin: a stock badge ends flush right, and
-        // without this gap it reads as though it were part of the scrollbar.
-        Padding: (Right: 12);
-      }
 
-      Label #EmptyLabel {
-        Text: "";
-        Visible: false;
-        Anchor: (Height: 40, Top: 8);
-        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #8696a8, HorizontalAlignment: Center, Wrap: true);
-      }
-    }
+        Group #LeftPanel {
+          FlexWeight: 1;
+          Background: (TexturePath: "../Pages/Memories/MemoriesRunes.png", Border: 15);
+          LayoutMode: Top;
+          Padding: (Left: 16, Right: 6, Vertical: 14);
 
-    Group #RightPanel {
-      FlexWeight: 1;
-      LayoutMode: Top;
-      Padding: (Full: 20);
-
-      Label #DetailTitle {
-        Text: "";
-        Anchor: (Height: 30, Bottom: 4);
-        Style: (FontSize: $ZT.@ZigFontDisplay, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
-      }
-
-      Label #DetailCategory {
-        Text: "";
-        Visible: false;
-        Anchor: (Height: 20, Bottom: 8);
-        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #96a9be, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
-      }
-
-      Group { Anchor: (Height: 1, Bottom: 12); Background: #1e2a36; }
-
-      Label #Flavor {
-        Text: "";
-        Visible: false;
-        Anchor: (Bottom: 12);
-        Style: (FontSize: $ZT.@ZigFontBody, TextColor: #b6c9de, Wrap: true);
-      }
-
-      Label #CostHeader {
-        Text: "";
-        Anchor: (Height: 20, Bottom: 6);
-        Style: $Z.@ZigSectionHeaderStyle;
-      }
-
-      Group #CostRow {
-        LayoutMode: Left;
-        Anchor: (Height: 28, Bottom: 8);
-      }
-
-      Label #LimitLabel {
-        Text: "";
-        Visible: false;
-        Anchor: (Height: 20, Bottom: 12);
-        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #93a4b8, VerticalAlignment: Center);
-      }
-
-      Label #RewardsHeader {
-        Text: "";
-        Visible: false;
-        Anchor: (Height: 20, Bottom: 6);
-        Style: $Z.@ZigSectionHeaderStyle;
-      }
-
-      Group #RewardsList {
-        LayoutMode: Top;
-        Anchor: (Bottom: 12);
-      }
-
-      Group #StatusList {
-        LayoutMode: Top;
-        Anchor: (Bottom: 12);
-      }
-
-      Group { FlexWeight: 1; }
-
-      Group #RerollCostRow {
-        LayoutMode: Left;
-        Visible: false;
-        Anchor: (Height: 28, Bottom: 6);
-      }
-
-      Group #ActionRow {
-        LayoutMode: Left;
-        Anchor: (Height: 40);
-
-        Button #BuyBtn {
-          Style: $Z.@ZigRichPrimaryBtnStyle;
-          Anchor: (Width: 150, Height: 36, Right: 8);
-          Visible: false;
-          Label #Label {
+          Group #OfferList {
             FlexWeight: 1;
+            LayoutMode: TopScrolling;
+            ScrollbarStyle: $C.@DefaultScrollbarStyle;
+            // The scrollbar rides the right edge of this list, so the tiles keep clear of it here.
+            Padding: (Right: 10);
+          }
+
+          Label #EmptyLabel {
             Text: "";
-            Style: (FontSize: $ZT.@ZigFontBody, TextColor: #eef4fb, HorizontalAlignment: Center, VerticalAlignment: Center);
+            Visible: false;
+            Anchor: (Height: 40, Top: 8);
+            Style: (FontSize: $ZT.@ZigFontBody, TextColor: $ZK.@ZigInkMuted, HorizontalAlignment: Center, Wrap: true);
           }
         }
 
-        Button #RerollBtn {
-          Style: $Z.@ZigRichRowBtnStyle;
-          Anchor: (Width: 130, Height: 36);
-          Visible: false;
-          Label #Label {
-            FlexWeight: 1;
+        Group #RightPanel {
+          Anchor: (Width: 420, Left: 12);
+          Background: (TexturePath: "../Pages/Memories/ContainerBackgroundSecondary.png", Border: 23);
+          LayoutMode: Top;
+          Padding: (Horizontal: 24, Top: 24, Bottom: 20);
+
+          Label #DetailTitle {
             Text: "";
-            Style: (FontSize: $ZT.@ZigFontBody, TextColor: #c6d4e4, HorizontalAlignment: Center, VerticalAlignment: Center);
+            Anchor: (Bottom: 2);
+            Style: (FontSize: $ZT.@ZigFontDisplay, TextColor: $ZK.@ZigInkStrong, FontName: "Secondary", RenderBold: true, RenderUppercase: true, LetterSpacing: 0.5, HorizontalAlignment: Center, Wrap: true);
+          }
+
+          Label #DetailCategory {
+            Text: "";
+            Visible: false;
+            Anchor: (Height: 20);
+            Style: (FontSize: $ZT.@ZigFontCaption, TextColor: $ZK.@ZigInkMuted, RenderBold: true, RenderUppercase: true, LetterSpacing: 1, HorizontalAlignment: Center, VerticalAlignment: Center);
+          }
+
+          Group #DetailPicRow {
+            LayoutMode: Center;
+            Anchor: (Height: $ZK.@ZigPicLarge, Vertical: 12);
+
+            $ZW.@ZigPicture #DetailPic {
+              @Size = $ZK.@ZigPicLarge;
+            }
+          }
+
+          Group #DetailBody {
+            FlexWeight: 1;
+            LayoutMode: TopScrolling;
+            ScrollbarStyle: $C.@DefaultScrollbarStyle;
+            Padding: (Right: 8);
+
+            Label #Flavor {
+              Text: "";
+              Visible: false;
+              Anchor: (Bottom: 12);
+              Style: (FontSize: $ZT.@ZigFontBody, TextColor: $ZK.@ZigInkBody, HorizontalAlignment: Center, Wrap: true);
+            }
+
+            Group { Anchor: (Height: 1, Bottom: 12); Background: (Color: $ZK.@ZigDivider); }
+
+            Label #CostHeader {
+              Text: "";
+              Anchor: (Height: 20, Bottom: 6);
+              Style: $Z.@ZigSectionHeaderStyle;
+            }
+
+            Group #CostRow {
+              LayoutMode: Left;
+              Anchor: (Height: 30, Bottom: 6);
+            }
+
+            Label #LimitLabel {
+              Text: "";
+              Visible: false;
+              Anchor: (Height: 20, Bottom: 12);
+              Style: (FontSize: $ZT.@ZigFontCaption, TextColor: $ZK.@ZigInkMuted, VerticalAlignment: Center);
+            }
+
+            Label #RewardsHeader {
+              Text: "";
+              Visible: false;
+              Anchor: (Height: 20, Top: 6, Bottom: 6);
+              Style: $Z.@ZigSectionHeaderStyle;
+            }
+
+            Group #RewardsList {
+              LayoutMode: Top;
+              Anchor: (Bottom: 12);
+            }
+
+            Group #StatusList {
+              LayoutMode: Top;
+              Anchor: (Bottom: 12);
+            }
+          }
+
+          Group #RerollCostRow {
+            LayoutMode: Left;
+            Visible: false;
+            Anchor: (Height: 30, Top: 6, Bottom: 6);
+          }
+
+          Group #ActionRow {
+            LayoutMode: Left;
+            Anchor: (Height: 40, Top: 6);
+
+            Group { FlexWeight: 1; }
+
+            Button #RerollBtn {
+              Style: $Z.@ZigRichRowBtnStyle;
+              Anchor: (Width: 130, Height: 36, Right: 8);
+              Visible: false;
+              Label #Label {
+                FlexWeight: 1;
+                Text: "";
+                Style: (FontSize: $ZT.@ZigFontBody, TextColor: #c6d4e4, HorizontalAlignment: Center, VerticalAlignment: Center);
+              }
+            }
+
+            Button #BuyBtn {
+              Style: $Z.@ZigRichPrimaryBtnStyle;
+              Anchor: (Width: 160, Height: 36);
+              Visible: false;
+              Label #Label {
+                FlexWeight: 1;
+                Text: "";
+                Style: (FontSize: $ZT.@ZigFontBody, TextColor: #eef4fb, HorizontalAlignment: Center, VerticalAlignment: Center);
+              }
+            }
+
+            Group { FlexWeight: 1; }
           }
         }
-
-        Group { FlexWeight: 1; }
       }
     }
   }
