@@ -29,9 +29,11 @@ import it.unimi.dsi.fastutil.objects.Object2FloatMap;
  *
  * <p>The table is one immutable snapshot behind a volatile field, so a read on any world thread
  * takes no lock. It is rebuilt lazily, on the first read after {@link #markDirty} (an
- * {@code Interaction} load or removal, or a new indexed key), under one lock; a mark that lands
- * while a rebuild runs makes the next read rebuild again. A rebuild that throws logs once and
- * leaves an empty table, so every hit reads untagged until the next interaction load.
+ * {@code Interaction} load or removal, or a new indexed key), under one lock; a read on another
+ * thread while that rebuild runs waits for it rather than take the table being replaced (a friendly
+ * bloom's check reads this), and a mark that lands while a rebuild runs makes the next read rebuild
+ * again. A rebuild that throws logs once and leaves an empty table, so every hit reads untagged
+ * until the next interaction load.
  *
  * <p>A rebuild walks the interaction asset map by index ({@code getNextIndex} / {@code getAsset(int)},
  * the map's lock-free array read) and, for each {@link DamageEntityInteraction}, records its main
@@ -54,6 +56,9 @@ final class HitTagIndex {
     private static volatile Snapshot snapshot = Snapshot.EMPTY;
 
     private static volatile boolean dirty = true;
+
+    /** True from the moment a rebuild clears {@link #dirty} until it publishes, so a read meanwhile waits. */
+    private static volatile boolean rebuilding;
 
     private static final AtomicBoolean REBUILD_FAILURE_LOGGED = new AtomicBoolean();
 
@@ -125,7 +130,8 @@ final class HitTagIndex {
 
     @Nonnull
     private static Snapshot current() {
-        if (dirty) {
+        // A rebuild in flight holds LOCK, so rebuild() here waits for it and then returns at once.
+        if (dirty || rebuilding) {
             rebuild();
         }
         return snapshot;
@@ -136,19 +142,25 @@ final class HitTagIndex {
             if (!dirty) {
                 return;
             }
+            // Raised before dirty clears, so a reader that sees dirty cleared also sees this and waits.
+            rebuilding = true;
             // Cleared before the walk, so a load that lands mid-walk marks it again and the next read rebuilds.
             dirty = false;
-            Snapshot built;
             try {
-                built = build(keys);
-            } catch (Throwable t) {
-                if (REBUILD_FAILURE_LOGGED.compareAndSet(false, true)) {
-                    SafeLog.warn("[hit-tags] could not index the interactions' tags; every hit reads untagged"
-                            + " until the next interaction load", t);
+                Snapshot built;
+                try {
+                    built = build(keys);
+                } catch (Throwable t) {
+                    if (REBUILD_FAILURE_LOGGED.compareAndSet(false, true)) {
+                        SafeLog.warn("[hit-tags] could not index the interactions' tags; every hit reads untagged"
+                                + " until the next interaction load", t);
+                    }
+                    built = Snapshot.EMPTY;
                 }
-                built = Snapshot.EMPTY;
+                snapshot = built;
+            } finally {
+                rebuilding = false;
             }
-            snapshot = built;
         }
     }
 
