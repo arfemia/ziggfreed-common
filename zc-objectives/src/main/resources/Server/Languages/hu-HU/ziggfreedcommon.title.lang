@@ -43,7 +43,7 @@ picker.not_earned = Még nem szerezted meg
 picker.show_none = Cím elrejtése
 picker.from = Forrás: "{0}", {1, number} / {2, number}
 picker.collect = Vedd át innen: "{0}"
-picker.none_yet = Még nincs címed. Ezek a teljesítmények adnak egyet:
+picker.none_yet = Még nincs címed. Itt van, honnan jön mindegyik:
 picker.none_on_server = Ezen a szerveren nincs megszerezhető cím.
 picker.secret_only = Néhány cím titok marad, amíg meg nem szerzed.
 

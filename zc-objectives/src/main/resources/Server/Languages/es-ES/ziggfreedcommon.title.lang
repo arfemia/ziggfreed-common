@@ -43,7 +43,7 @@ picker.not_earned = Aún no conseguidos
 picker.show_none = No mostrar ninguno
 picker.from = De "{0}", {1, number} / {2, number}
 picker.collect = Recógelo en "{0}"
-picker.none_yet = Aún no tienes títulos. Estos logros dan uno:
+picker.none_yet = Aún no tienes títulos. Aquí ves de dónde sale cada uno:
 picker.none_on_server = Este servidor no tiene títulos que conseguir.
 picker.secret_only = Algunos títulos son secretos hasta que los consigues.
 

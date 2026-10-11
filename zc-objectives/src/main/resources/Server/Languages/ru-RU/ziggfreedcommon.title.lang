@@ -40,7 +40,7 @@ picker.not_earned = Ещё не полученные
 picker.show_none = Не показывать
 picker.from = За «{0}», {1, number} / {2, number}
 picker.collect = Получите его в «{0}»
-picker.none_yet = Титулов пока нет. Титул дают эти достижения:
+picker.none_yet = Титулов пока нет. Вот где можно получить каждый:
 picker.none_on_server = На этом сервере нет титулов, которые можно получить.
 picker.secret_only = Некоторые титулы остаются тайной, пока вы их не получите.
 

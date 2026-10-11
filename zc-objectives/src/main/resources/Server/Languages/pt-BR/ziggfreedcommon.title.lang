@@ -43,7 +43,7 @@ picker.not_earned = Ainda não desbloqueados
 picker.show_none = Não mostrar nenhum
 picker.from = De "{0}", {1, number} / {2, number}
 picker.collect = Receba em "{0}"
-picker.none_yet = Nenhum título ainda. Estas conquistas dão um:
+picker.none_yet = Nenhum título ainda. Veja de onde vem cada um:
 picker.none_on_server = Este servidor não tem títulos para desbloquear.
 picker.secret_only = Alguns títulos ficam secretos até você desbloqueá-los.
 

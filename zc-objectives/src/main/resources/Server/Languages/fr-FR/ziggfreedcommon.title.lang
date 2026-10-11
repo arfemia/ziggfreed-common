@@ -44,7 +44,7 @@ picker.not_earned = Pas encore obtenus
 picker.show_none = N'en afficher aucun
 picker.from = Via "{0}", {1, number} / {2, number}
 picker.collect = À récupérer via "{0}"
-picker.none_yet = Aucun titre pour le moment. Ces succès en donnent un :
+picker.none_yet = Aucun titre pour le moment. Voici d'où vient chacun :
 picker.none_on_server = Ce serveur n'a aucun titre à obtenir.
 picker.secret_only = Certains titres restent secrets jusqu'à ce que vous les obteniez.
 

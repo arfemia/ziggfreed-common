@@ -36,7 +36,7 @@ picker.not_earned = Henüz kazanılmayanlar
 picker.show_none = Hiçbirini gösterme
 picker.from = "{0}" başarımından, {1, number} / {2, number}
 picker.collect = "{0}" başarımından al
-picker.none_yet = Henüz unvan yok. Şu başarımlar unvan verir:
+picker.none_yet = Henüz unvan yok. Her birinin nereden geldiği şöyle:
 picker.none_on_server = Bu sunucuda kazanılacak unvan yok.
 picker.secret_only = Bazı unvanlar sen kazanana dek gizli kalır.
 
