@@ -74,7 +74,8 @@ public final class TimedBuffs {
         try {
             WorldEvictors.worldOf(ref).execute(() -> refreshNow(ref));
         } catch (Throwable t) {
-            SafeLog.warn("[buff] could not queue a buff refresh: " + t.getMessage());
+            // FINE: a stopping world refuses every task, once per player online, and nothing is lost.
+            SafeLog.fine("[buff] could not queue a buff refresh: " + t.getMessage());
         }
     }
 
