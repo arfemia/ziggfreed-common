@@ -1,0 +1,32 @@
+# The player stat store: what each of the library's stats is called, and the /zigstats command family.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.stats.<key>.
+# The command.desc.* keys are what the engine's own help resolves a command or an argument through.
+
+mob_kills = Legyőzött Mobok
+blocks_broken = Feltört Blokkok
+blocks_placed = Lehelyezett Blokkok
+items_crafted = Elkészített Tárgyak
+items_pickedup = Felvett Tárgyak
+npcs_talked = Beszélgetések Karakterekkel
+encounters_defeated = Legyőzött Főellenségek
+encounter_attempts = Főellenség-harcok
+encounters_won = Győzelmek
+encounter_best_time = Legjobb idő
+encounter_best_share = Legjobb részesedés
+encounter_damage_dealt = Sebzés
+quests_completed = Teljesített Küldetések
+rounds_won = Megnyert Körök
+deaths = Halálok
+playtime_seconds = Játékidő
+objectives_completed = Teljesített Célok
+
+command.desc.family = Egy játékos összegyűjtött statisztikáinak lekérdezése.
+command.desc.show = Felsorolja a játékos minden statisztikáját, azzal a kulccsal, amellyel egy feltétel nevezné.
+command.desc.arg.player = A lekérdezendő játékos. Alapértelmezés: te.
+
+command.player.needed = Add meg a játékost így: --player=<name>.
+command.player.offline = Ez a játékos nincs fenn. A statisztikák csak a világban lévő játékosból olvashatók.
+command.show.off = A statisztikák ki vannak kapcsolva ezen a szerveren ($Enabled a mods/ziggfreedcommon/stats.json fájlban).
+command.show.none = {0}: még nincs statisztika.
+command.show.header = {0} statisztikái ({1, number}):
+command.show.row = - {0}: {1, number}

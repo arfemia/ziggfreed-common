@@ -1,0 +1,32 @@
+# The player stat store: what each of the library's stats is called, and the /zigstats command family.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.stats.<key>.
+# The command.desc.* keys are what the engine's own help resolves a command or an argument through.
+
+mob_kills = Besiegte Mobs
+blocks_broken = Abgebaute Blöcke
+blocks_placed = Platzierte Blöcke
+items_crafted = Hergestellte Gegenstände
+items_pickedup = Aufgesammelte Gegenstände
+npcs_talked = Gespräche mit Figuren
+encounters_defeated = Besiegte Bosse
+encounter_attempts = Bosskämpfe
+encounters_won = Siege
+encounter_best_time = Beste Zeit
+encounter_best_share = Bester Anteil
+encounter_damage_dealt = Schaden
+quests_completed = Abgeschlossene Quests
+rounds_won = Gewonnene Runden
+deaths = Tode
+playtime_seconds = Spielzeit
+objectives_completed = Abgeschlossene Ziele
+
+command.desc.family = Sieh nach, welche Statistiken ein Spieler gesammelt hat.
+command.desc.show = Liste jede Statistik eines Spielers auf, mit dem Schlüssel, den eine Bedingung nennen würde.
+command.desc.arg.player = Der Spieler, den du nachschlägst. Standard bist du.
+
+command.player.needed = Nenne einen Spieler mit --player=<name>.
+command.player.offline = Dieser Spieler ist nicht online. Statistiken werden bei einem Spieler gelesen, der in der Welt ist.
+command.show.off = Statistiken sind auf diesem Server abgeschaltet ($Enabled in mods/ziggfreedcommon/stats.json).
+command.show.none = {0} hat noch keine Statistiken.
+command.show.header = Statistiken von {0} ({1, number}):
+command.show.row = - {0}: {1, number}

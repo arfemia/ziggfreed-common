@@ -1,0 +1,32 @@
+# The player stat store: what each of the library's stats is called, and the /zigstats command family.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.stats.<key>.
+# The command.desc.* keys are what the engine's own help resolves a command or an argument through.
+
+mob_kills = Alt Edilen Moblar
+blocks_broken = Kırılan Bloklar
+blocks_placed = Yerleştirilen Bloklar
+items_crafted = Üretilen Eşyalar
+items_pickedup = Toplanan Eşyalar
+npcs_talked = Karakterlerle Konuşmalar
+encounters_defeated = Alt Edilen Patronlar
+encounter_attempts = Patron Dövüşleri
+encounters_won = Zaferler
+encounter_best_time = En İyi Süre
+encounter_best_share = En İyi Pay
+encounter_damage_dealt = Hasar
+quests_completed = Tamamlanan Görevler
+rounds_won = Kazanılan Turlar
+deaths = Ölümler
+playtime_seconds = Oyun Süresi
+objectives_completed = Tamamlanan Hedefler
+
+command.desc.family = Bir oyuncunun topladığı istatistiklere bak.
+command.desc.show = Bir oyuncunun tuttuğu her istatistiği, bir koşulun adlandıracağı anahtarla listele.
+command.desc.arg.player = Bakılacak oyuncu. Varsayılan sensin.
+
+command.player.needed = --player=<name> ile bir oyuncu belirt.
+command.player.offline = O oyuncu çevrimiçi değil. İstatistikler dünyada olan bir oyuncudan okunur.
+command.show.off = İstatistikler bu sunucuda kapalı (mods/ziggfreedcommon/stats.json içinde $Enabled).
+command.show.none = {0} oyuncusunun henüz istatistiği yok.
+command.show.header = {0} oyuncusunun istatistikleri ({1, number}):
+command.show.row = - {0}: {1, number}
