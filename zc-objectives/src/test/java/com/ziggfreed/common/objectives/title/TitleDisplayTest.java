@@ -71,7 +71,7 @@ class TitleDisplayTest {
         TitleConfig.getInstance().mergePackLayer(Map.of());
         TitleConfig.getInstance().mergeOwnerLayer(Map.of());
         LangCatalog.overrideForTests(null);
-        PlayerDisplayNames.fillDecorator(null);
+        PlayerDisplayNames.contribute(TitleDisplay.OWNER, TitleDisplay.ORDER, null);
         PlayerDisplayNames.fillLiveNames(null);
     }
 
@@ -99,7 +99,7 @@ class TitleDisplayTest {
     @Test
     void theSeamCarriesItToAMenuRowOnlineOrNot() {
         ActiveTitles.put(ZIG, "hallows_eve_hallowed");
-        PlayerDisplayNames.fillDecorator(TitleDisplay.decorator());
+        contributeTitles();
 
         PlayerDisplayNames.fillLiveNames(id -> "Ziggfreed");
         assertEquals("Ziggfreed the Hallowed", row());
@@ -111,7 +111,7 @@ class TitleDisplayTest {
 
     @Test
     void anOnlineRowReadsTheLiveChoice() {
-        PlayerDisplayNames.fillDecorator(TitleDisplay.decorator());
+        contributeTitles();
         PlayerDisplayNames.fillLiveNames(id -> "Ziggfreed");
         ZigTitleComponent titles = new ZigTitleComponent();
         TitleUnlocks.write(titles, ZIGGFREED, "Hallows_Eve_Hallowed", true);
@@ -206,7 +206,12 @@ class TitleDisplayTest {
         ActiveTitles.clear();
         ActiveTitles.persistTo(record(), null);
         PlayerDisplayNames.fillLiveNames(id -> null);
-        PlayerDisplayNames.fillDecorator(TitleDisplay.decorator());
+        contributeTitles();
+    }
+
+    /** Fill the seam the way the bootstrap does. */
+    private static void contributeTitles() {
+        PlayerDisplayNames.contribute(TitleDisplay.OWNER, TitleDisplay.ORDER, TitleDisplay.contribution());
     }
 
     @Nonnull

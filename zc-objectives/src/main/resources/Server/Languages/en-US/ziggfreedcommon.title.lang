@@ -17,9 +17,11 @@ unlocked = Title unlocked: {0}
 unlocked_hint = Choose the title you show in Settings, under Title.
 
 # The title picker (/zigtitle open). In preview, {0} is the player's name as menus show it, title
-# included; in shown, {0} is the title's name.
+# included; in shown, {0} is the title's name. subtitle_chat stands in for subtitle on a server that
+# shows titles in chat too.
 picker.title = Titles
 picker.subtitle = Choose the title shown beside your name in menus and leaderboards.
+picker.subtitle_chat = Choose the title shown beside your name in menus, leaderboards and chat.
 picker.preview = You appear as: {0}
 picker.on = Shown
 picker.off = Show
@@ -45,7 +47,6 @@ picker.settings_none_count = No title shown ({0, number} of {1, number} earned)
 # achievement that gives the title, {1} the player's count toward it and {2} its target. In collect, {0} is
 # an achievement the player has earned but not yet collected, which gives the title when they do.
 # secret_only stands in for none_on_server when every title left is a secret one.
-picker.earned = Earned
 picker.earned_count = Earned ({0, number} of {1, number})
 picker.not_earned = Not earned yet
 picker.show_none = Show none

@@ -14,6 +14,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.server.core.Message;
+import com.ziggfreed.common.i18n.LangCatalog;
+import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.i18n.PlainText;
 
 /**
  * The one way a menu names a player: the plain-name ladder (live, stored, the start of the id), the
@@ -87,6 +90,29 @@ class PlayerDisplayNamesTest {
 
         assertEquals("OldName", PlayerDisplayNames.displayName(ZIG, "OldName").getRawText());
         assertEquals("OldName", PlayerDisplayNames.displayName(ZIG, "OldName").getRawText(), "and again");
+    }
+
+    @Test
+    void contributionsWrapLowestOrderFirstAndOneThatThrowsIsSkippedAlone() {
+        online.put(ZIG, "Ziggfreed");
+        LangCatalog.overrideForTests(Map.of("test.outer", "[{0}]", "test.inner", "{0} the Bold"));
+        try {
+            PlayerDisplayNames.contribute("test:outer", 10, (id, name) -> Msg.key("test.outer", name));
+            PlayerDisplayNames.contribute("test:broken", 5, (id, name) -> {
+                throw new IllegalStateException("boom");
+            });
+            PlayerDisplayNames.contribute("test:inner", -10, (id, name) -> Msg.raw("replaced"));
+            PlayerDisplayNames.contribute("test:inner", -10, (id, name) -> Msg.key("test.inner", name));
+
+            assertEquals("[Ziggfreed the Bold]", PlainText.of(PlayerDisplayNames.displayName(ZIG, null)),
+                    "the lower order wraps first, the same owner's second call replaces its first, and the"
+                            + " throwing one costs only its own wrap");
+        } finally {
+            PlayerDisplayNames.contribute("test:outer", 10, null);
+            PlayerDisplayNames.contribute("test:broken", 5, null);
+            PlayerDisplayNames.contribute("test:inner", -10, null);
+            LangCatalog.overrideForTests(null);
+        }
     }
 
     @Test

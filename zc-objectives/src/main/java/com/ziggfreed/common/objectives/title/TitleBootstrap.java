@@ -18,10 +18,11 @@ import com.ziggfreed.common.util.SafeLog;
  * {@code Title} reward kind, its chip reading and the {@code /zigtitle} family, the two
  * title factors ({@link TitleFactors}), the login payout of changes queued for offline players
  * ({@link TitleQueue}) one beat before the login pass that hands over the titles earned achievements
- * owe ({@link TitleBackfill}), and fills the display-name seam, so a menu shows a player's title
- * beside their name. This module hosts it because it sees every end being joined (the record, the
- * reward vocabulary, the notice engine). Registration only: {@code RootRegistrationOnlyTest} scans
- * every {@code *Bootstrap}.
+ * owe ({@link TitleBackfill}), the titles' contribution to the display-name seam, so a menu shows a
+ * player's title beside their name, and the chat listener ({@link TitleChat}), which shows it in chat
+ * only while a server owner switches that on. This module hosts it because it sees every end being
+ * joined (the record, the reward vocabulary, the notice engine). Registration only:
+ * {@code RootRegistrationOnlyTest} scans every {@code *Bootstrap}.
  */
 public final class TitleBootstrap {
 
@@ -30,7 +31,7 @@ public final class TitleBootstrap {
 
     /**
      * Seed the destination, register the kind, contribute its chip and the factors, register the command
-     * family, the queue's payout and the login pass, and fill the name seam.
+     * family, the queue's payout and the login pass, contribute to the name seam and listen on chat.
      */
     public static void registerTitles(@Nonnull PluginBase plugin) {
         try {
@@ -68,9 +69,15 @@ public final class TitleBootstrap {
                     + " owes waits for the next boot", t);
         }
         try {
-            PlayerDisplayNames.fillDecorator(TitleDisplay.decorator());
+            PlayerDisplayNames.contribute(TitleDisplay.OWNER, TitleDisplay.ORDER, TitleDisplay.contribution());
         } catch (Throwable t) {
-            SafeLog.warn("[title] could not fill the display-name seam, so menus show plain names this boot", t);
+            SafeLog.warn("[title] could not contribute to the display-name seam, so menus show names without"
+                    + " titles this boot", t);
+        }
+        try {
+            TitleChat.register(plugin);
+        } catch (Throwable t) {
+            SafeLog.warn("[title] could not listen on chat, so a chat line shows no title this boot", t);
         }
     }
 }

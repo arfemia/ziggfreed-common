@@ -28,6 +28,7 @@ import com.ziggfreed.common.objectives.book.ObjectiveBookPage;
 import com.ziggfreed.common.objectives.book.ObjectiveBookPages;
 import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
 import com.ziggfreed.common.objectives.title.TitleConfig;
+import com.ziggfreed.common.objectives.title.TitleOwnerLayers;
 import com.ziggfreed.common.objectives.title.TitleText;
 import com.ziggfreed.common.objectives.title.TitleUnlocks;
 import com.ziggfreed.common.objectives.title.page.TitlePickerRows.Line;
@@ -106,7 +107,8 @@ public final class TitlePickerPage extends ToastablePage<TitlePickerEventData> {
         Plan plan = readPlan(ref);
 
         cmd.set("#Title.TextSpans", TitleText.picker("title"));
-        cmd.set("#Subtitle.TextSpans", TitleText.picker("subtitle"));
+        cmd.set("#Subtitle.TextSpans", TitleOwnerLayers.chat()
+                ? TitleText.picker("subtitle_chat") : TitleText.picker("subtitle"));
         cmd.set("#Preview.TextSpans", preview());
         ZigRichButton.text(cmd, "#BackButton", TitleText.picker("back"));
         ZigRichButton.text(cmd, "#ShowNone", TitleText.picker("show_none"));

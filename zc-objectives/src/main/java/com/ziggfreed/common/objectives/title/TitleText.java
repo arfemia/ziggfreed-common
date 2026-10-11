@@ -111,6 +111,16 @@ public final class TitleText {
     @Nonnull
     public static Message display(@Nonnull String titleId, @Nullable TitleAsset title,
             @Nonnull String playerName) {
+        return display(titleId, title, Msg.raw(playerName));
+    }
+
+    /**
+     * {@link #display(String, TitleAsset, String)} around a name already built as a {@link Message}
+     * (another module's wrap included), nested as the line's {@code {0}}.
+     */
+    @Nonnull
+    public static Message display(@Nonnull String titleId, @Nullable TitleAsset title,
+            @Nonnull Message playerName) {
         String own = displayKey(titleId);
         if (ContentKeys.known(own)) {
             return ContentKeys.tr(own, playerName);
