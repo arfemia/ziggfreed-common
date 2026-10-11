@@ -15,7 +15,8 @@
   "Dependencies": {
     "Hytale:NPC": "*",
     "Hytale:EncounterManager": "*",
-    "Hytale:Instances": "*"
+    "Hytale:Instances": "*",
+    "Hytale:TriggerVolumes": "*"
   },
   "IncludesAssetPack": true
 }
