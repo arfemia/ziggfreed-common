@@ -18,6 +18,11 @@ shop.empty.nothing = Şu anda burada satılık bir şey yok.
 shop.empty.filtered = Bu filtrelere uyan ürün yok.
 shop.offer.untitled = İsimsiz teklif
 
+# Bir malın kutusu: bedeli olmayan teklifin fiyat satırı ve kutuya sığmayacak kadar çok parçalı fiyatın
+# satırı (ilk parçanın miktarı, sonra tam fiyatta kaç parça daha olduğu).
+shop.tile.free = Bedava
+shop.tile.cost_more = {0, number} +{1, number} daha
+
 shop.header.cost = Fiyat
 shop.header.cost_any = Fiyat (birini öde)
 shop.header.rewards = Aldıkların

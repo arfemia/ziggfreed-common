@@ -17,6 +17,8 @@ shop.empty.closed = Esta loja está fechada.
 shop.empty.nothing = Não há nada à venda aqui agora.
 shop.empty.filtered = Nenhuma oferta corresponde a esses filtros.
 shop.offer.untitled = Oferta sem nome
+shop.tile.free = Grátis
+shop.tile.cost_more = {0, number} +{1, number} a mais
 
 shop.header.cost = Preço
 shop.header.cost_any = Preço (pague um dos dois)

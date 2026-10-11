@@ -18,6 +18,11 @@ shop.empty.nothing = Aquí no hay nada a la venta ahora mismo.
 shop.empty.filtered = Ninguna oferta coincide con estos filtros.
 shop.offer.untitled = Oferta sin nombre
 
+# Casilla de un artículo: la línea de precio de una oferta gratuita, y de un precio con más partes de
+# las que caben en la casilla (la cantidad de la primera parte, luego cuántas partes más lista el precio completo).
+shop.tile.free = Gratis
+shop.tile.cost_more = {0, number} +{1, number} más
+
 shop.header.cost = Precio
 shop.header.cost_any = Precio (paga cualquiera)
 shop.header.rewards = Recibes

@@ -18,6 +18,11 @@ shop.empty.nothing = Hier wird gerade nichts verkauft.
 shop.empty.filtered = Kein Angebot passt zu diesen Filtern.
 shop.offer.untitled = Unbenanntes Angebot
 
+# Preiszeile einer Ware: ein Angebot ohne Kosten, und ein Preis mit mehr Teilen, als eine Kachel fasst
+# (Menge des ersten Teils, dann wie viele weitere Teile der volle Preis nennt).
+shop.tile.free = Gratis
+shop.tile.cost_more = {0, number} +{1, number} weitere
+
 shop.header.cost = Preis
 shop.header.cost_any = Preis (eines davon)
 shop.header.rewards = Du erhältst

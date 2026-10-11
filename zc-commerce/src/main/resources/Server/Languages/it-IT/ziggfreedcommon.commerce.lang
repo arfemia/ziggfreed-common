@@ -18,6 +18,11 @@ shop.empty.nothing = Qui non c'è nulla in vendita al momento.
 shop.empty.filtered = Nessuna offerta corrisponde a questi filtri.
 shop.offer.untitled = Offerta senza nome
 
+# La tessera di un articolo: la riga del prezzo di un'offerta gratuita, e di un prezzo con più parti di
+# quante ne entrino nella tessera (l'importo della prima parte, poi quante altre parti ha il prezzo intero).
+shop.tile.free = Gratis
+shop.tile.cost_more = {0, number} +{1, number} altri
+
 shop.header.cost = Prezzo
 shop.header.cost_any = Prezzo (paghi uno dei due)
 shop.header.rewards = Ricevi

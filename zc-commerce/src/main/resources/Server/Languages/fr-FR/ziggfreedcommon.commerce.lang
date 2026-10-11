@@ -18,6 +18,11 @@ shop.empty.nothing = Rien n'est en vente ici pour le moment.
 shop.empty.filtered = Aucune offre ne correspond à ces filtres.
 shop.offer.untitled = Offre sans nom
 
+# Tuile d'un article : la ligne de prix d'une offre gratuite, et d'un prix qui compte plus de parties
+# qu'une tuile n'a de place (le montant de la première, puis combien d'autres le prix complet liste).
+shop.tile.free = Gratuit
+shop.tile.cost_more = {0, number} +{1, number} de plus
+
 shop.header.cost = Prix
 shop.header.cost_any = Prix (l'un ou l'autre)
 shop.header.rewards = Tu reçois

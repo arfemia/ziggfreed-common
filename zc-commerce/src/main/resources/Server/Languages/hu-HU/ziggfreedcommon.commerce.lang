@@ -18,6 +18,11 @@ shop.empty.nothing = Most nincs itt semmi eladó.
 shop.empty.filtered = Egyetlen árucikk sem felel meg ezeknek a szűrőknek.
 shop.offer.untitled = Névtelen ajánlat
 
+# A ware's tile: the price line of an offer that costs nothing, and of a price with more parts than a
+# tile has room for (the first part's amount, then how many more parts the full price lists).
+shop.tile.free = Ingyen
+shop.tile.cost_more = {0, number} +{1, number} további
+
 shop.header.cost = Ár
 shop.header.cost_any = Ár (bármelyiket fizetheted)
 shop.header.rewards = Ezt kapod
