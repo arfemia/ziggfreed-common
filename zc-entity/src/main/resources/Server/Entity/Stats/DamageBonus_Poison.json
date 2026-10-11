@@ -1,0 +1,8 @@
+{
+  "$Comment": "Percent bonus to Poison damage the carrier deals, in whole percent points (10 is +10%). Any item's StatModifiers raise it like any stat; ziggfreed-common adds it to every hit whose damage cause is Poison or filed under it, after the hit's other bonuses. Base 0; Min is a generous negative so a subtractive modifier never clamps.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

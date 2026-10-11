@@ -15,6 +15,8 @@ import com.ziggfreed.common.entity.overhead.OverheadVisibilityFilter;
 import com.ziggfreed.common.entity.performer.PerformerIdentityComponent;
 import com.ziggfreed.common.entity.title.ZigTitleComponent;
 import com.ziggfreed.common.stats.EquipStatBridge;
+import com.ziggfreed.common.stats.damage.TypedDamageBonusSystem;
+import com.ziggfreed.common.stats.damage.TypedDamageBonuses;
 import com.ziggfreed.common.stats.gearset.GearSetLifecycleSystems;
 import com.ziggfreed.common.stats.gearset.GearSetLooksComponent;
 import com.ziggfreed.common.stats.gearset.GearSets;
@@ -80,6 +82,21 @@ public final class EntityBootstrap {
     @javax.annotation.Nullable
     public static EquipStatBridge equipStatBridge() {
         return equipStatBridge;
+    }
+
+    /**
+     * Register the per-type damage bonus step ({@link TypedDamageBonusSystem}): every hit an entity
+     * deals takes its {@code DamageBonus_<Type>} and {@code DamageBonusFlat_<Type>} stats (and any a
+     * consumer registered for that type through {@link TypedDamageBonuses#registerSource}), so gear on a
+     * server running the library alone can raise one type's damage. A consumer whose own damage fold
+     * must run first orders itself BEFORE the system class; it never registers a second one.
+     */
+    public static void installTypedDamageBonuses(@Nonnull PluginBase plugin) {
+        try {
+            plugin.getEntityStoreRegistry().registerSystem(new TypedDamageBonusSystem());
+        } catch (Throwable t) {
+            SafeLog.warn("[stats] could not register the per-type damage bonus step", t);
+        }
     }
 
     /**

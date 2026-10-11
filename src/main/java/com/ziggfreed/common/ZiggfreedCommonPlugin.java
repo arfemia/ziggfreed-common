@@ -226,6 +226,8 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         EntityBootstrap.installEquipStatBridge(this);
         // Set bonuses hang on that same bridge: one post-apply listener, never a fourth trigger.
         EntityBootstrap.installGearSets(this);
+        // Per-type damage bonuses: gear raising DamageBonus_<Type> stats hits harder with that type.
+        EntityBootstrap.installTypedDamageBonuses(this);
         registerGearSetSeams();
         CostumeBootstrap.registerCostumes(this);
         // Timed buffs on the native buff bar: the per-player slot record (unconditional, so a saved one
