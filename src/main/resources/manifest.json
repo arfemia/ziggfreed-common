@@ -14,7 +14,8 @@
   "Main": "com.ziggfreed.common.ZiggfreedCommonPlugin",
   "Dependencies": {
     "Hytale:NPC": "*",
-    "Hytale:EncounterManager": "*"
+    "Hytale:EncounterManager": "*",
+    "Hytale:Instances": "*"
   },
   "IncludesAssetPack": true
 }

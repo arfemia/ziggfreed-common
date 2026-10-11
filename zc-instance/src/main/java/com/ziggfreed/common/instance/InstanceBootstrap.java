@@ -10,6 +10,7 @@ import com.ziggfreed.common.instance.leaderboard.command.ZigLeaderboardCommand;
 import com.ziggfreed.common.instance.leaderboard.statboard.StatBoard;
 import com.ziggfreed.common.instance.leaderboard.statboard.StatBoardRecords;
 import com.ziggfreed.common.instance.leaderboard.statboard.StatPeriodOwnerLayers;
+import com.ziggfreed.common.instance.world.InstanceWorlds;
 import com.ziggfreed.common.ui.menu.MenuSlot;
 import com.ziggfreed.common.ui.menu.ZigMenu;
 import com.ziggfreed.common.util.SafeLog;
@@ -72,11 +73,17 @@ public final class InstanceBootstrap {
 
     /**
      * Write the boards' rows still waiting on their debounce, so a stat counted in the last seconds
-     * before a stop is kept. Called from the library's {@code shutdown()}, which the server runs after it
-     * has disconnected every player and shut every world down, so nothing is counted after it. A stop
-     * with nothing new writes nothing, and it never throws.
+     * before a stop is kept, and stop the instance copies' remover thread. Called from the library's
+     * {@code shutdown()}, which the server runs after it has disconnected every player and shut every
+     * world down, so nothing is counted after it. A stop with nothing new writes nothing, and it never
+     * throws.
      */
     public static void shutdown() {
+        try {
+            InstanceWorlds.shutdown();
+        } catch (Throwable t) {
+            SafeLog.warn("[instance] the copies' remover thread could not be stopped", t);
+        }
         try {
             EncounterLeaderboardListener.flushNow();
         } catch (Throwable t) {
