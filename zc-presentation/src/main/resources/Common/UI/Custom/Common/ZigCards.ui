@@ -42,8 +42,8 @@ $ZT = "ZigType.ui";
   DurabilityBarBackground: "../Common/ContainerPanelPatch.png",
   DurabilityBarAnchor: (Bottom: 0, Left: 0, Width: 0, Height: 0),
   DurabilityBarColorStart: #a63232, DurabilityBarColorEnd: #63b649,
-  CursedIconPatch: "../Common/ContainerPanelPatch.png",
-  CursedIconAnchor: (Bottom: 0, Left: 0, Width: 0, Height: 0)
+  EphemeralIconPatch: "../Common/ContainerPanelPatch.png",
+  EphemeralIconAnchor: (Bottom: 0, Left: 0, Width: 0, Height: 0)
 );
 
 // Flat per-state colours rather than a tinted patch: a PatchStyle tint multiplies and can only darken,
