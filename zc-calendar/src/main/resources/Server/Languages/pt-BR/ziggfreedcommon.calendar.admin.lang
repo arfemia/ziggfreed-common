@@ -6,7 +6,7 @@ desc.family = Veja e teste os eventos do calendário deste servidor.
 desc.list = Lista todos os eventos do calendário e se estão em andamento.
 desc.status = Mostra um evento do calendário: suas datas, seu primeiro ano e suas edições até agora.
 desc.force = Inicia ou para um evento do calendário agora, sem olhar as datas.
-desc.force.on = Inicia um evento do calendário agora. Ele fica forçado até você limpar ou o servidor reiniciar.
+desc.force.on = Inicia um evento do calendário agora: a edição em andamento ou a próxima. Ele fica forçado até os dias dessa edição acabarem (uma edição já encerrada roda de novo pela duração de sempre), até você limpar ou até o servidor reiniciar.
 desc.force.off = Para um evento do calendário agora. Ele fica parado até você limpar ou o servidor reiniciar.
 desc.force.clear = Faz um evento do calendário voltar a seguir suas datas.
 desc.reload = Lê o arquivo de dono do calendário de novo.
@@ -22,17 +22,23 @@ row.live = {0}: em andamento, a {1} edição, até {2}.
 row.live.forced = {0}: em andamento porque foi forçado, a {1} edição, até {2}.
 row.stopped = {0}: parado por um comando.
 row.waiting = {0}: o próximo começa {1}.
+row.done = {0}: sem edições restantes, pois o último ano com data já passou.
 
 status.window = Acontece {0} todo ano, contado em {1}.
-status.first = Primeiro ano: {0}.
+status.window.moving = Acontece {0}, contado em {1}; seus dias mudam de um ano para o outro.
+status.window.several = Acontece {0}, contado em {1}; ele volta várias vezes por ano.
+status.run = A edição {0}: {1} a {2}.
+status.first =Primeiro ano: {0}.
 status.first.none = Sem primeiro ano, então nunca acontece.
 status.history = Edições até agora: {0}.
 status.history.none = Nenhuma edição ainda.
 status.problem = Problema: {0}.
+status.note = Nota: {0}.
 
 force.unknown = Não existe evento do calendário chamado {0}.
 force.absent = {0} está desligado ou não pode rodar, então forçá-lo não muda nada.
-force.on.done = {0} está em andamento agora. Ele fica forçado até você limpar ou o servidor reiniciar.
+force.on.nodates = {0} não tem datas este ano, então não pode ser forçado.
+force.on.done = {0} está em andamento agora. Ele fica forçado até os dias desta edição acabarem (uma edição já encerrada roda de novo pela duração de sempre), até você limpar ou até o servidor reiniciar.
 force.off.done = {0} está parado agora. Ele fica parado até você limpar ou o servidor reiniciar.
 force.clear.done = {0} volta a seguir suas datas.
 

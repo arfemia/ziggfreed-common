@@ -11,6 +11,7 @@ book.more = +{0} ещё
 quest.cadence.repeatable = Повторяемое
 quest.cadence.daily = Ежедневное
 quest.cadence.weekly = Еженедельное
+quest.cadence.seasonal = Сезонное
 
 book.quests.section.active = В процессе
 book.quests.section.ready = Готово к получению

@@ -11,7 +11,9 @@ admin.desc.inspect = Mostrare l'esecuzione di un incontro: il bersaglio, i membr
 admin.desc.spawn = Avviare uno script di incontro, accanto a te, al punto di comparsa di un mondo o a delle coordinate.
 admin.desc.end = Rimuovere un incontro in corso; un combattimento già iniziato conta come sconfitta del gruppo.
 admin.desc.state = Forzare lo script di un incontro in uno stato.
-admin.desc.arg.ref = Un incontro in corso: un prefisso del suo id di esecuzione come lo mostra list, o l'id del suo script.
+admin.desc.validate = Controllare ogni script di incontro caricato, ogni riga di collegamento, ogni regola di partecipazione e ogni regola degli incontri.
+admin.desc.reload = Rileggere i file dei proprietari sopra i collegamenti degli incontri, le regole di partecipazione e le regole degli incontri.
+admin.desc.arg.ref =Un incontro in corso: un prefisso del suo id di esecuzione come lo mostra list, o l'id del suo script.
 admin.desc.arg.asset = L'id dello script di incontro, il suo nome di file sotto Server/EncounterManager.
 admin.desc.arg.world = Il mondo in cui avviarlo. Per impostazione predefinita il tuo, o il mondo predefinito dalla console.
 admin.desc.arg.x = La coordinata X in cui avviarlo; indica tutte e tre o nessuna.
@@ -61,6 +63,8 @@ admin.end.done = {0} terminato (esecuzione {1}).
 admin.state.done = {0} è ora nello stato {1}.
 admin.state.refused = {0} non ha alcuna macchina a stati da impostare.
 
-admin.validate.clean = Contenuto degli incontri: niente da segnalare.
+admin.reload.done = File dei proprietari riletti: {0} collegamenti, {1} regole di partecipazione e {3} regole degli incontri in vigore, {2} script caricati.
+
+admin.validate.clean =Contenuto degli incontri: niente da segnalare.
 admin.validate.counts = Contenuto degli incontri: {0} errori, {1} avvisi, {2} note.
 admin.finding = {0} {1} [{2}] {3}

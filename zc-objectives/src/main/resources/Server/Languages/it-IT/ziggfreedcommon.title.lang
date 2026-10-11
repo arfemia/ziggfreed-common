@@ -7,10 +7,13 @@
 
 display = {0}, {1}
 chip = Titolo: {0}
+factor.title_earned = un titolo ottenuto
+factor.title_shown = un titolo mostrato accanto al tuo nome
 unlocked = Titolo sbloccato: {0}
-unlocked_hint = Scegli il titolo da mostrare con /zigtitle open
+unlocked_hint = Scegli il titolo da mostrare nelle Impostazioni, sotto Titolo.
 picker.title = Titoli
 picker.subtitle = Scegli il titolo mostrato accanto al tuo nome nei menu e nelle classifiche.
+picker.subtitle_chat = Scegli il titolo mostrato accanto al tuo nome nei menu, nelle classifiche e nella chat.
 picker.preview = Appari come: {0}
 picker.on = Mostrato
 picker.off = Mostra
@@ -22,13 +25,17 @@ picker.settings_heading = Titolo
 picker.settings_tile = Il tuo titolo
 picker.settings_wearing = Mostri {0}
 picker.settings_none = Nessun titolo mostrato
+picker.settings_wearing_count = Mostri {0} ({1, number} di {2, number} ottenuti)
+picker.settings_none_count = Nessun titolo mostrato ({0, number} di {1, number} ottenuti)
+picker.earned_count = Ottenuti ({0, number} di {1, number})
 
 # I riquadri dei titoli ottenuti e i titoli ancora da ottenere. In from, {0} è l'obiettivo che dà il titolo,
 # {1} il conteggio del giocatore e {2} il suo obiettivo numerico.
-picker.earned = Ottenuti
 picker.not_earned = Non ancora ottenuti
 picker.show_none = Non mostrare nessuno
 picker.from = Da "{0}", {1, number} / {2, number}
 picker.none_yet = Ancora nessun titolo. Questi obiettivi ne danno uno:
 picker.none_on_server = Su questo server non ci sono titoli da ottenere.
+picker.collect = Ottienilo da "{0}"
+picker.secret_only = Alcuni titoli restano segreti finché non li ottieni.
 

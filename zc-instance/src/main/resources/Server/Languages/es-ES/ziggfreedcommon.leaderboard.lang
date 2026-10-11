@@ -30,9 +30,23 @@ your_rank.none = Aún no tienes ningún récord de este combate aquí.
 # ayuda del motor usa para un comando o un argumento.
 command.desc.family = Consulta los récords de los combates contra jefes de este servidor.
 command.desc.encounter = Abre los récords de un combate contra un jefe.
+command.desc.arg.encounter = El id del guion del combate. Omítelo para abrir el primer combate con récords.
 command.open.needs_player = Solo un jugador puede abrir la pantalla de récords.
 command.open.failed = No se pudo abrir la pantalla de récords. Inténtalo de nuevo en un momento.
 command.encounter.unranked = '{0}' no guarda récords en este servidor.
 command.encounter.none = Ningún combate contra un jefe tiene aún un récord.
+command.encounter.off = Los récords están desactivados en este servidor ($Enabled en mods/ziggfreedcommon/stats.json).
+command.desc.clock = Mueve el reloj del tablero de récords para ver cómo cambia una semana o un mes. 0 lo devuelve a su sitio.
+command.desc.arg.offset = Cuánto moverlo: 7d, 12h o 30m, con un signo menos para retroceder, o 0.
+command.clock.bad_offset = '{0}' no es un tiempo válido para mover. Prueba 7d, 12h, 30m, -1d o 0.
+command.clock.set = El reloj del tablero de récords va ahora {0} respecto al del servidor.
+command.clock.reset = El tablero de récords vuelve a usar el reloj del servidor.
+command.clock.shifted = Mientras el reloj esté movido, las estadísticas solo cuentan para Todo el Tiempo. Las semanas y los meses se llenan de nuevo cuando lo vuelvas a poner en 0.
+command.clock.window = {0} marca {1}
+command.clock.window.none = {0} aún no ha empezado
+
+# La pestaña del menú compartido para los récords que guarda este servidor (el tablero de estadísticas y sus combates contra jefes).
 menu.records = Récords
+# La pestaña de la primera fila del tablero que abre los récords de los combates contra jefes, y el nombre de esa sección.
+records.boss_fights = Combates contra Jefes
 

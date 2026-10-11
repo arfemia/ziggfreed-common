@@ -11,6 +11,8 @@ admin.desc.inspect = Den Durchlauf einer Begegnung zeigen: Ziel, Mitglieder und 
 admin.desc.spawn = Ein Begegnungsskript aufstellen: bei dir, am Spawnpunkt einer Welt oder an Koordinaten.
 admin.desc.end = Eine laufende Begegnung entfernen; ein begonnener Kampf zählt als Wipe.
 admin.desc.state = Das Skript einer Begegnung in einen Zustand zwingen.
+admin.desc.validate = Jedes geladene Begegnungsskript, jede Bindungszeile, Teilnahmeregel und Begegnungsregel prüfen.
+admin.desc.reload = Die Besitzerdateien über den Begegnungsbindungen, Teilnahmeregeln und Begegnungsregeln neu einlesen.
 admin.desc.arg.ref = Eine laufende Begegnung: der Anfang ihrer Durchlauf-ID, wie list sie zeigt, oder ihre Skript-ID.
 admin.desc.arg.asset = Die Skript-ID der Begegnung, ihr Dateiname unter Server/EncounterManager.
 admin.desc.arg.world = Die Welt zum Aufstellen. Standard: deine, oder von der Konsole aus die Standardwelt.
@@ -64,3 +66,5 @@ admin.state.refused = {0} hat keinen Zustandsautomaten, den man setzen könnte.
 admin.validate.clean = Begegnungsinhalte: nichts zu melden.
 admin.validate.counts = Begegnungsinhalte: {0} Fehler, {1} Warnungen, {2} Hinweise.
 admin.finding = {0} {1} [{2}] {3}
+
+admin.reload.done = Besitzerdateien neu eingelesen: {0} Bindungen, {1} Teilnahmeregeln und {3} Begegnungsregeln gelten, {2} Skripte geladen.

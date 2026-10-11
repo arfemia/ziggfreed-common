@@ -13,6 +13,7 @@ rank.none = Rütbesiz
 factor.reputation = bir itibardaki puan
 factor.reputation_earned = bir itibarda kazanılmış puan
 factor.reputation_rank = bir itibarda bir rütbe
+factor.rank_with = {1} nezdinde {0}
 
 reward.gain = +{0, number} {1}
 reward.loss = {0, number} {1}
@@ -59,3 +60,5 @@ gear_set.line = {0}: {1}
 
 
 menu.tab = İtibar
+
+stat.standing = İtibar

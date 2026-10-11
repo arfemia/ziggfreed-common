@@ -8,12 +8,15 @@
 display = {0}, {1}
 chip = Титул: {0}
 unlocked = Титул открыт: {0}
-unlocked_hint = Выберите титул, который вы показываете, через /zigtitle open
+factor.title_earned = полученный титул
+factor.title_shown = титул, показанный рядом с вашим именем
+unlocked_hint = Выберите титул, который вы показываете, в Настройках, в разделе «Титул».
 
 # Выбор титула (/zigtitle open). В preview {0} - имя игрока в том виде, как его показывают меню,
 # вместе с титулом; в shown {0} - название титула.
 picker.title = Титулы
 picker.subtitle = Выберите титул, который показывается рядом с вашим именем в меню и таблицах лидеров.
+picker.subtitle_chat = Выберите титул, который показывается рядом с вашим именем в меню, таблицах лидеров и чате.
 picker.preview = Вы выглядите так: {0}
 picker.on = Показан
 picker.off = Показать
@@ -26,14 +29,18 @@ picker.settings_heading = Титул
 picker.settings_tile = Ваш титул
 picker.settings_wearing = Показан: {0}
 picker.settings_none = Титул не показан
+picker.settings_wearing_count = Показан: {0} (получено {1, number} из {2, number})
+picker.settings_none_count = Титул не показан (получено {0, number} из {1, number})
 
 # Полученные титулы и те, что ещё предстоит получить; picker.on и picker.off выше - кнопка «Показать» на плитке.
 # Оба заголовка разделов рисуются заглавными. В from {0} - достижение, которое даёт титул, {1} - счёт игрока
 # по нему, {2} - цель.
-picker.earned = Полученные
+picker.earned_count = Получено ({0, number} из {1, number})
 picker.not_earned = Ещё не полученные
 picker.show_none = Не показывать
 picker.from = За «{0}», {1, number} / {2, number}
+picker.collect = Получите его в «{0}»
 picker.none_yet = Титулов пока нет. Титул дают эти достижения:
 picker.none_on_server = На этом сервере нет титулов, которые можно получить.
+picker.secret_only = Некоторые титулы остаются тайной, пока вы их не получите.
 

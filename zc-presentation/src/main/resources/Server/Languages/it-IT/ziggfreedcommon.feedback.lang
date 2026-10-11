@@ -22,3 +22,5 @@ encounter.wiped.seconds = Dopo {0, number} secondi. È ancora lì.
 gearset.active = {0} ({1, number}/{2, number})
 gearset.inactive = {0} ({1, number}/{2, number}): bonus perso
 gearset.tier = {0}
+gearset.tier_next = {0} Prossimo: {1}
+gearset.piece = {0} ({1, number}/{2, number})

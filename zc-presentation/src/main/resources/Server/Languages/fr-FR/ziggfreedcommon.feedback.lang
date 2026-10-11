@@ -4,6 +4,8 @@
 gearset.active = {0} ({1, number}/{2, number})
 gearset.inactive = {0} ({1, number}/{2, number}) : bonus perdu
 gearset.tier = {0}
+gearset.tier_next = {0} Ensuite : {1}
+gearset.piece = {0} ({1, number}/{2, number})
 
 quest.completed = Quête terminée : {0}
 quest.parked = Quête terminée : {0}. Revenez récupérer votre récompense.

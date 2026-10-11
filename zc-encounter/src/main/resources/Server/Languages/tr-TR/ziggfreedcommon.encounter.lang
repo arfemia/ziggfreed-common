@@ -11,6 +11,8 @@ admin.desc.inspect = Bir karşılaşmanın koşusunu göster: hedefi, üyeleri v
 admin.desc.spawn = Bir karşılaşma betiğini ayağa kaldır: yanında, bir dünyanın doğma noktasında ya da koordinatlarda.
 admin.desc.end = Süren bir karşılaşmayı kaldır; başlamış bir dövüş grup yenilgisi sayılır.
 admin.desc.state = Bir karşılaşmanın betiğini bir duruma zorla.
+admin.desc.validate = Yüklü her karşılaşma betiğini, bağlama satırını, katılım kuralını ve karşılaşma kuralını denetle.
+admin.desc.reload = Sahip dosyalarını karşılaşma bağlamalarının, katılım kurallarının ve karşılaşma kurallarının üzerine yeniden oku.
 admin.desc.arg.ref = Süren bir karşılaşma: list'in gösterdiği koşu kimliğinin başı ya da betik kimliği.
 admin.desc.arg.asset = Karşılaşma betiğinin kimliği, Server/EncounterManager altındaki dosya adı.
 admin.desc.arg.world = Kaldırılacağı dünya. Varsayılan seninki, konsoldan ise varsayılan dünya.
@@ -64,3 +66,5 @@ admin.state.refused = {0} ayarlanacak bir durum makinesi taşımıyor.
 admin.validate.clean = Karşılaşma içeriği: bildirilecek bir şey yok.
 admin.validate.counts = Karşılaşma içeriği: {0} hata, {1} uyarı, {2} not.
 admin.finding = {0} {1} [{2}] {3}
+
+admin.reload.done = Sahip dosyaları yeniden okundu: {0} bağlama, {1} katılım kuralı ve {3} karşılaşma kuralı yürürlükte, {2} betik yüklendi.

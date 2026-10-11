@@ -36,6 +36,7 @@ tag.all = Все метки
 block.requirements = Требования
 block.objectives = Цели
 block.step = Этап {0, number}
+block.more_steps = После этого ещё {0, number} {0, plural, one {этап} few {этапа} many {этапов} other {этапа}}
 block.rewards = Награды
 action.accept = Принять
 action.hand_in = Сдать

@@ -11,6 +11,7 @@ book.more = +{0} további
 quest.cadence.repeatable = Ismételhető
 quest.cadence.daily = Napi
 quest.cadence.weekly = Heti
+quest.cadence.seasonal = Szezonális
 
 book.quests.section.active = Folyamatban
 book.quests.section.ready = Átvehető

@@ -4,6 +4,8 @@
 gearset.active = {0} ({1, number}/{2, number})
 gearset.inactive = {0} ({1, number}/{2, number}): a bónusz megszűnt
 gearset.tier = {0}
+gearset.tier_next = {0} Következő: {1}
+gearset.piece = {0} ({1, number}/{2, number})
 
 quest.completed = Küldetés teljesítve: {0}
 quest.parked = Küldetés teljesítve: {0}. Gyere vissza a jutalmadért.

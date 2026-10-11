@@ -15,6 +15,7 @@ rank.none = Ohne Rang
 factor.reputation = Ruf bei einer Fraktion
 factor.reputation_earned = verdienten Ruf bei einer Fraktion
 factor.reputation_rank = einen Rang bei einer Fraktion
+factor.rank_with = {0} bei {1}
 
 reward.gain = +{0, number} {1}
 reward.loss = {0, number} {1}
@@ -58,3 +59,4 @@ standing.cap = Maximal zu verdienen
 block.gear_sets = Getragene Sets
 gear_set.line = {0}: {1}
 menu.tab = Ruf
+stat.standing = Ruf

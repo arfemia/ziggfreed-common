@@ -11,18 +11,22 @@ desc.arg.player = İşlem yapılacak oyuncu. Varsayılan sensin.
 desc.arg.title = Unvan kimliği.
 player.needed = --player=<name> ile bir oyuncu belirt.
 player.offline = Bu oyuncu çevrimiçi değil, unvanları kendi varlığında duruyor.
+player.unknown = '{0}' adında bir oyuncu bulunamadı.
 player.no_record = {0} oyuncusunun yazılacak bir unvan kaydı yok.
 title.needed = --title=<id> ile bir unvan belirt.
 title.refused = '{0}' kullanılabilir bir unvan kimliği değil: kayıt biçiminin ayırdığı '|' veya ':' içeriyor.
 grant.done = {0} için '{1}' unvanının kilidi açıldı.
 grant.already = {0} oyuncusunda '{1}' unvanı zaten var.
 grant.unknown = Yüklü hiçbir şey '{0}' unvanını tanımlamıyor; onu getiren paket sonra yüklenebilir diye yine de kilidi açıldı.
+grant.queued = {0} çevrimiçi değil, bu yüzden '{1}' unvanı sıraya alındı ve oyuncu bir dahaki girişinde açılacak.
 revoke.done = '{1}' unvanı {0} oyuncusundan geri alındı.
 revoke.absent = {0} oyuncusunda '{1}' unvanı yoktu.
+revoke.queued = {0} çevrimiçi değil, bu yüzden '{1}' unvanının geri alınması oyuncunun bir dahaki girişi için sıraya alındı.
 list.header = {0} oyuncusunun kilidini açtığı unvanlar ({1}):
 list.row = - {0}
 list.row_shown = - {0} (gösteriliyor)
 list.none = {0} oyuncusunun kilidi açık unvanı yok.
+list.queued = {0} oyuncusunun girişini bekleyen {1, number} {1, plural, one {unvan değişikliği} other {unvan değişikliği}} var.
 open.needs_player = Unvan seçiciyi yalnızca bir oyuncu açabilir.
 open.failed = Unvan seçici açılamadı.
 

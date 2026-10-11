@@ -11,6 +11,8 @@ admin.desc.inspect = Mostrar a execução de um encontro: seu alvo, seus membros
 admin.desc.spawn = Erguer um script de encontro, junto a você, no ponto de surgimento de um mundo ou em coordenadas.
 admin.desc.end = Remover um encontro em andamento; um combate já iniciado conta como derrota do grupo.
 admin.desc.state = Forçar o script de um encontro para um estado.
+admin.desc.validate = Auditar cada script de encontro, linha de vínculo, regra de participação e regra de encontro carregados.
+admin.desc.reload = Ler de novo os arquivos de dono sobre os vínculos de encontro, as regras de participação e as regras de encontro.
 admin.desc.arg.ref = Um encontro em andamento: um prefixo do id de execução como o list mostra, ou o id do script.
 admin.desc.arg.asset = O id do script de encontro, seu nome de arquivo em Server/EncounterManager.
 admin.desc.arg.world = O mundo onde erguer. Por padrão o seu, ou o mundo padrão a partir do console.
@@ -64,3 +66,5 @@ admin.state.refused = {0} não tem máquina de estados para definir.
 admin.validate.clean = Conteúdo de encontros: nada a relatar.
 admin.validate.counts = Conteúdo de encontros: {0} erros, {1} avisos, {2} notas.
 admin.finding = {0} {1} [{2}] {3}
+
+admin.reload.done = Arquivos de dono lidos de novo: {0} vínculos, {1} regras de participação e {3} regras de encontro em vigor, {2} scripts carregados.

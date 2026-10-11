@@ -30,10 +30,22 @@ your_rank.none = Vous n'avez pas encore de record pour ce combat ici.
 # l'aide du moteur résout une commande ou un argument.
 command.desc.family = Consultez les records des combats de boss de ce serveur.
 command.desc.encounter = Ouvre les records d'un combat de boss.
+command.desc.arg.encounter = L'identifiant du script de rencontre du combat. Omettez-le pour ouvrir le premier combat enregistré.
 command.open.needs_player = Seul un joueur peut ouvrir l'écran des records.
 command.open.failed = L'écran des records n'a pas pu s'ouvrir. Réessayez dans un instant.
 command.encounter.unranked = '{0}' ne garde aucun record sur ce serveur.
 command.encounter.none = Aucun combat de boss n'a encore de record.
+command.encounter.off = Les records sont désactivés sur ce serveur ($Enabled dans mods/ziggfreedcommon/stats.json).
+command.desc.clock = Décale l'horloge du classement des records pour voir passer une semaine ou un mois. 0 la remet en place.
+command.desc.arg.offset = De combien la décaler : 7d, 12h ou 30m, avec un signe moins pour reculer, ou 0.
+command.clock.bad_offset = '{0}' n'est pas une durée de décalage. Essayez 7d, 12h, 30m, -1d ou 0.
+command.clock.set = L'horloge du classement des records est maintenant décalée de {0} par rapport à celle du serveur.
+command.clock.reset = Le classement des records est revenu sur l'horloge du serveur.
+command.clock.shifted = Tant que l'horloge est décalée, les statistiques ne comptent que pour Depuis toujours. Les semaines et les mois se remplissent de nouveau après son retour à 0.
+command.clock.window = {0} indique {1}
+command.clock.window.none = {0} n'a pas encore commencé
 
 menu.records = Records
+# The tab on the stat board's first row that opens the boss fights' records, and that section's name.
+records.boss_fights = Combats de boss
 

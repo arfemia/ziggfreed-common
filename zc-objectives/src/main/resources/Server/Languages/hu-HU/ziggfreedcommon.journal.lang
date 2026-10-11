@@ -36,6 +36,8 @@ tag.all = Minden címke
 block.requirements = Feltételek
 block.objectives = Célok
 block.step = {0, number}. lépés
+# The locked line under a quest that keeps its later steps hidden until they open: {0} is how many are still to come.
+block.more_steps = Még {0, number} {0, plural, one {lépés} other {lépés}} ezután
 block.rewards = Jutalmak
 action.accept = Elfogadás
 action.hand_in = Leadás

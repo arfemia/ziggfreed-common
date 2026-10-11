@@ -37,6 +37,7 @@ block.requirements = Requisiti
 block.objectives = Obiettivi
 block.step = Fase {0, number}
 block.rewards = Ricompense
+block.more_steps = Altre {0, number} {0, plural, one {fase} other {fasi}} dopo questa
 action.accept = Accetta
 action.hand_in = Consegna
 action.collect = Riscuoti

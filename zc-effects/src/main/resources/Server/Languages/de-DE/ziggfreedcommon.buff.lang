@@ -1,0 +1,3 @@
+# The names a timed buff's tile shows on the buff bar when its owner names no effect of its own.
+personal.name = Persönlicher Bonus
+server.name = Server-Bonus

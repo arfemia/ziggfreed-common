@@ -30,10 +30,21 @@ your_rank.none = Você não tem recorde desta luta aqui ainda.
 # ajuda do motor usa para resolver um comando ou um argumento.
 command.desc.family = Veja os recordes das lutas de chefe deste servidor.
 command.desc.encounter = Abre os recordes de uma luta de chefe.
+command.desc.arg.encounter = O id do roteiro de encontro da luta. Deixe de fora para abrir a primeira luta com recorde.
 command.open.needs_player = Só um jogador pode abrir a tela de recordes.
 command.open.failed = A tela de recordes não abriu. Tente de novo daqui a pouco.
 command.encounter.unranked = '{0}' não guarda recordes neste servidor.
 command.encounter.none = Nenhuma luta de chefe tem recorde ainda.
+command.encounter.off = Os recordes estão desligados neste servidor ($Enabled em mods/ziggfreedcommon/stats.json).
+command.desc.clock = Move o relógio do quadro de recordes para ver uma semana ou um mês virar. 0 o devolve.
+command.desc.arg.offset = Quanto mover: 7d, 12h ou 30m, com sinal de menos para voltar, ou 0.
+command.clock.bad_offset = '{0}' não é um tempo para mover. Tente 7d, 12h, 30m, -1d ou 0.
+command.clock.set = O relógio do quadro de recordes agora anda {0} longe do relógio do servidor.
+command.clock.reset = O quadro de recordes voltou ao relógio do servidor.
+command.clock.shifted = Enquanto o relógio estiver deslocado, as estatísticas contam só para Desde Sempre. As semanas e os meses voltam a encher depois que você o devolver a 0.
+command.clock.window = {0} marca {1}
+command.clock.window.none = {0} ainda não começou
 
 menu.records = Recordes
+records.boss_fights = Lutas de Chefe
 

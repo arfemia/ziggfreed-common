@@ -30,10 +30,21 @@ your_rank.none = У вас пока нет рекорда в этом бою з�
 # справка движка для команды и её аргументов.
 command.desc.family = Рекорды боёв с боссами этого сервера.
 command.desc.encounter = Открыть рекорды боя с боссом.
+command.desc.arg.encounter = Id скрипта боя. Не указывайте его, чтобы открыть первый бой с рекордами.
 command.open.needs_player = Открыть экран рекордов может только игрок.
 command.open.failed = Не удалось открыть экран рекордов. Повторите через минуту.
 command.encounter.unranked = '{0}' не ведёт рекордов на этом сервере.
 command.encounter.none = Ни у одного боя с боссом пока нет рекорда.
+command.encounter.off = Рекорды на этом сервере отключены ($Enabled в mods/ziggfreedcommon/stats.json).
+command.desc.clock = Сдвинуть часы доски рекордов, чтобы увидеть, как сменяется неделя или месяц. 0 возвращает их назад.
+command.desc.arg.offset = На сколько сдвинуть: 7d, 12h или 30m, со знаком минус для сдвига назад, или 0.
+command.clock.bad_offset = '{0}' не подходит как сдвиг по времени. Попробуйте 7d, 12h, 30m, -1d или 0.
+command.clock.set = Часы доски рекордов теперь отличаются от серверных на {0}.
+command.clock.reset = Доска рекордов снова идёт по часам сервера.
+command.clock.shifted = Пока часы сдвинуты, статистика идёт только в «За всё время». Недели и месяцы заполнятся снова, когда вы вернёте сдвиг на 0.
+command.clock.window = {0}: {1}
+command.clock.window.none = {0} ещё не начался
 
 menu.records = Рекорды
+records.boss_fights = Бои с боссами
 

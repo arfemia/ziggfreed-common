@@ -7,13 +7,20 @@
 
 display = {0}, {1}
 chip = Cím: {0}
+
+# What a requirement on a title reads as, where a lock line names it (Factors/Title_Earned.json and
+# Title_Shown.json).
+factor.title_earned = egy megszerzett cím
+factor.title_shown = a neved mellett látható cím
+
 unlocked = Cím feloldva: {0}
-unlocked_hint = A megjelenített címet itt választhatod ki: /zigtitle open
+unlocked_hint = Válaszd ki a címet, amelyet a Beállításokban mutatsz, a Cím alatt.
 
 # A címválasztó (/zigtitle open). A preview-ban {0} a játékos neve, ahogy a menük mutatják, a címmel
 # együtt; a shown-ban {0} a cím neve.
 picker.title = Címek
 picker.subtitle = Válaszd ki a neved mellett megjelenő címet a menükben és a ranglistákon.
+picker.subtitle_chat = Válaszd ki a neved mellett megjelenő címet a menükben, a ranglistákon és a chatben.
 picker.preview = Így jelensz meg: {0}
 picker.on = Látható
 picker.off = Mutat
@@ -25,14 +32,18 @@ picker.settings_heading = Cím
 picker.settings_tile = A címed
 picker.settings_wearing = Látszik: {0}
 picker.settings_none = Nem látszik cím
+picker.settings_wearing_count = Látszik: {0} ({1, number} / {2, number} megszerezve)
+picker.settings_none_count = Nem látszik cím ({0, number} / {1, number} megszerezve)
 
 # A választó megszerzett csempéi és a még megszerezhető címek; a fenti picker.on és picker.off egy csempe
 # Mutat gombja. A két szakaszfejléc nagybetűvel jelenik meg. A from-ban {0} a címet adó teljesítmény, {1}
 # a játékos eddigi állása, {2} pedig a cél.
-picker.earned = Megszerzett
+picker.earned_count = Megszerezve ({0, number} / {1, number})
 picker.not_earned = Még nem szerezted meg
 picker.show_none = Cím elrejtése
 picker.from = Forrás: "{0}", {1, number} / {2, number}
+picker.collect = Vedd át innen: "{0}"
 picker.none_yet = Még nincs címed. Ezek a teljesítmények adnak egyet:
 picker.none_on_server = Ezen a szerveren nincs megszerezhető cím.
+picker.secret_only = Néhány cím titok marad, amíg meg nem szerzed.
 

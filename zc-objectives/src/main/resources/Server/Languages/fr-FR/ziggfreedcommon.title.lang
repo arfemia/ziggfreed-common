@@ -7,13 +7,20 @@
 
 display = {0}, {1}
 chip = Titre : {0}
+
+# What a requirement on a title reads as, where a lock line names it (Factors/Title_Earned.json and
+# Title_Shown.json).
+factor.title_earned = un titre obtenu
+factor.title_shown = un titre affiché à côté de votre nom
+
 unlocked = Titre débloqué : {0}
-unlocked_hint = Choisissez le titre à afficher avec /zigtitle open
+unlocked_hint = Choisissez le titre que vous affichez dans Paramètres, sous Titre.
 
 # Le sélecteur de titre (/zigtitle open). Dans preview, {0} est le nom du joueur tel que les menus l'affichent, titre
 # compris ; dans shown, {0} est le nom du titre.
 picker.title = Titres
 picker.subtitle = Choisissez le titre affiché à côté de votre nom dans les menus et les classements.
+picker.subtitle_chat = Choisissez le titre affiché à côté de votre nom dans les menus, les classements et le chat.
 picker.preview = Vous apparaissez ainsi : {0}
 picker.on = Affiché
 picker.off = Afficher
@@ -26,14 +33,18 @@ picker.settings_heading = Titre
 picker.settings_tile = Votre titre
 picker.settings_wearing = Affiché : {0}
 picker.settings_none = Aucun titre affiché
+picker.settings_wearing_count = Affiché : {0} ({1, number} sur {2, number} obtenus)
+picker.settings_none_count = Aucun titre affiché ({0, number} sur {1, number} obtenus)
 
 # Les tuiles des titres obtenus et les titres encore à obtenir ; picker.on et picker.off ci-dessus sont le bouton
 # Afficher d'une tuile. Les deux en-têtes de section s'affichent en capitales. Dans from, {0} est le succès qui
 # donne le titre, {1} le compte du joueur pour l'obtenir et {2} son objectif.
-picker.earned = Obtenus
+picker.earned_count = Obtenus ({0, number} sur {1, number})
 picker.not_earned = Pas encore obtenus
 picker.show_none = N'en afficher aucun
 picker.from = Via "{0}", {1, number} / {2, number}
+picker.collect = À récupérer via "{0}"
 picker.none_yet = Aucun titre pour le moment. Ces succès en donnent un :
 picker.none_on_server = Ce serveur n'a aucun titre à obtenir.
+picker.secret_only = Certains titres restent secrets jusqu'à ce que vous les obteniez.
 

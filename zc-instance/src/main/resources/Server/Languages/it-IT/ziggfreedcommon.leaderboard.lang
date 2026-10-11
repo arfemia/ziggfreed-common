@@ -27,9 +27,21 @@ your_rank = Il tuo migliore: #{0, number} ({1, number})
 your_rank.none = Qui non hai ancora un record per questo scontro.
 command.desc.family = Vedi i record degli scontri con i boss di questo server.
 command.desc.encounter = Apri i record di uno scontro con un boss.
+command.desc.arg.encounter = L'id dello script dello scontro. Omettilo per aprire il primo scontro registrato.
 command.open.needs_player = Solo un giocatore può aprire la schermata dei record.
 command.open.failed = Non è stato possibile aprire la schermata dei record. Riprova tra un attimo.
 command.encounter.unranked = '{0}' non tiene record su questo server.
 command.encounter.none = Nessuno scontro con un boss ha ancora un record.
+command.encounter.off = I record sono disattivati su questo server ($Enabled in mods/ziggfreedcommon/stats.json).
+command.desc.clock = Sposta l'orologio della bacheca dei record per vedere il cambio di una settimana o di un mese. 0 lo rimette a posto.
+command.desc.arg.offset = Di quanto spostarlo: 7d, 12h o 30m, con un segno meno per tornare indietro, oppure 0.
+command.clock.bad_offset = '{0}' non è un intervallo valido. Prova 7d, 12h, 30m, -1d o 0.
+command.clock.set = L'orologio della bacheca dei record ora è sfasato di {0} rispetto a quello del server.
+command.clock.reset = La bacheca dei record è tornata sull'orologio del server.
+command.clock.shifted = Finché l'orologio è spostato, le statistiche contano solo per Di sempre. Le settimane e i mesi si riempiono di nuovo dopo che lo rimetti a 0.
+command.clock.window = {0} segna {1}
+command.clock.window.none = {0} non è ancora iniziato
+
 menu.records = Record
+records.boss_fights = Scontri con i boss
 

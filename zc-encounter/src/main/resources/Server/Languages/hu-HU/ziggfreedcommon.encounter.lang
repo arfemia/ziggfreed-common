@@ -11,6 +11,8 @@ admin.desc.inspect = Egy találkozás menetének megjelenítése: a célpont, a 
 admin.desc.spawn = Egy találkozás-szkript felállítása: nálad, egy világ kezdőpontján vagy megadott koordinátákon.
 admin.desc.end = Egy futó találkozás eltávolítása; a már megkezdett harc csapatvereségnek számít.
 admin.desc.state = Egy találkozás szkriptjének kényszerítése egy állapotba.
+admin.desc.validate = Minden betöltött találkozás-szkript, kötési sor, részvételi szabály és találkozás-szabály ellenőrzése.
+admin.desc.reload = A tulajdonosi fájlok újraolvasása a találkozás-kötések, részvételi szabályok és találkozás-szabályok felett.
 admin.desc.arg.ref = Egy futó találkozás: a menetazonosítójának eleje, ahogy a list mutatja, vagy a szkript azonosítója.
 admin.desc.arg.asset = A találkozás-szkript azonosítója, a fájlneve a Server/EncounterManager alatt.
 admin.desc.arg.world = A világ, ahol felállítjuk. Alapból a tiéd, vagy konzolról az alapértelmezett világ.
@@ -64,3 +66,5 @@ admin.state.refused = A(z) {0} nem hordoz beállítható állapotgépet.
 admin.validate.clean = Találkozás-tartalom: nincs jelentenivaló.
 admin.validate.counts = Találkozás-tartalom: {0} hiba, {1} figyelmeztetés, {2} megjegyzés.
 admin.finding = {0} {1} [{2}] {3}
+
+admin.reload.done = A tulajdonosi fájlok újraolvasva: {0} kötés, {1} részvételi szabály és {3} találkozás-szabály van érvényben, {2} szkript betöltve.

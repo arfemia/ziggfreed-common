@@ -36,6 +36,8 @@ tag.all = Todas las etiquetas
 block.requirements = Requisitos
 block.objectives = Objetivos
 block.step = Paso {0, number}
+# The locked line under a quest that keeps its later steps hidden until they open: {0} is how many are still to come.
+block.more_steps = {0, number} {0, plural, one {paso más} other {pasos más}} después de este
 block.rewards = Recompensas
 action.accept = Aceptar
 action.hand_in = Entregar

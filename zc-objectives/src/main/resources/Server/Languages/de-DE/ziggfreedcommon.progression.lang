@@ -11,6 +11,7 @@ book.more = +{0} weitere
 quest.cadence.repeatable = Wiederholbar
 quest.cadence.daily = Täglich
 quest.cadence.weekly = Wöchentlich
+quest.cadence.seasonal = Saisonal
 
 book.quests.section.active = In Arbeit
 book.quests.section.ready = Abholbereit

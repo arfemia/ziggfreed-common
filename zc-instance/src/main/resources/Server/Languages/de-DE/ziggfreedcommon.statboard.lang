@@ -1,0 +1,28 @@
+# The stat board on Records: the page's own lines, its periods and its sections.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.statboard.<key>.
+# Every line but your_rank, the duration lines and period.season (a season tab is a rich button) is
+# painted where a parameter is never substituted, so only those take one. The column words the page
+# shares with the boss records come from ziggfreedcommon.leaderboard.lang.
+
+title = Rekorde
+empty = Auf dieser Tafel steht noch niemand.
+your_rank = Dein Rang: #{0, number}
+your_rank.none = Du stehst noch nicht auf dieser Tafel.
+
+# A playtime cell: hours and minutes, or minutes alone under an hour.
+duration.hours = {0, number} Std. {1, number} Min.
+duration.minutes = {0, number} Min.
+
+# The period tabs (Server/ZiggfreedCommon/StatPeriods).
+period.all_time = Gesamt
+period.weekly = Diese Woche
+period.monthly = Dieser Monat
+# A season tab, one per run of a calendar event: {0} is the event's name, {1} the year the run
+# belongs to, a plain number that never takes digit grouping.
+period.season = {0} {1}
+
+# The section tabs (Server/ZiggfreedCommon/StatSections).
+section.combat = Kampf
+section.gathering = Sammeln
+section.adventure = Abenteuer
+section.renown = Ansehen

@@ -30,9 +30,20 @@ your_rank.none = Ehhez a harchoz itt még nincs rekordod.
 # oldja fel a játék saját súgója a parancsot és az argumentumokat.
 command.desc.family = A szerver főellenség-harcainak rekordjai.
 command.desc.encounter = Megnyitja egy főellenség-harc rekordjait.
+command.desc.arg.encounter = A harc összecsapás-szkriptjének azonosítója. Hagyd el, hogy az első rögzített harc nyíljon meg.
 command.open.needs_player = A rekordok képernyőjét csak játékos nyithatja meg.
 command.open.failed = A rekordok képernyőjét nem sikerült megnyitni. Próbáld újra egy pillanat múlva.
 command.encounter.unranked = A(z) '{0}' nem tart rekordokat ezen a szerveren.
 command.encounter.none = Még egyetlen főellenség-harcnak sincs rekordja.
+command.encounter.off = A rekordok ki vannak kapcsolva ezen a szerveren ($Enabled a mods/ziggfreedcommon/stats.json fájlban).
+command.desc.clock = Told el a rekordtábla óráját, hogy lásd, ahogy egy hét vagy egy hónap átfordul. A 0 visszaállítja.
+command.desc.arg.offset = Mennyivel told el: 7d, 12h vagy 30m, mínusz jellel visszafelé, vagy 0.
+command.clock.bad_offset = A(z) '{0}' nem olyan idő, amivel el lehetne tolni. Próbáld így: 7d, 12h, 30m, -1d vagy 0.
+command.clock.set = A rekordtábla órája most {0} eltéréssel jár a szerverétől.
+command.clock.reset = A rekordtábla újra a szerver óráját követi.
+command.clock.shifted = Amíg az óra el van tolva, a statisztikák csak a Mindenkori fülbe számítanak. A hetek és hónapok újra megtelnek, ha visszaállítod 0-ra.
+command.clock.window = {0} értéke: {1}
+command.clock.window.none = {0} még nem kezdődött el
 menu.records = Rekordok
+records.boss_fights = Főellenség-harcok
 

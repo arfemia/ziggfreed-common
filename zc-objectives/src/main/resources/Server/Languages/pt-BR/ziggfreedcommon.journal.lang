@@ -36,6 +36,7 @@ tag.all = Todas as etiquetas
 block.requirements = Requisitos
 block.objectives = Objetivos
 block.step = Etapa {0, number}
+block.more_steps = Mais {0, number} {0, plural, one {etapa} other {etapas}} depois desta
 block.rewards = Recompensas
 action.accept = Aceitar
 action.hand_in = Entregar

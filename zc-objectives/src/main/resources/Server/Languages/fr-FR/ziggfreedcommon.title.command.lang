@@ -12,6 +12,7 @@ desc.arg.title = L'id du titre.
 
 player.needed = Nommez un joueur avec --player=<name>.
 player.offline = Ce joueur n'est pas en ligne, et ses titres sont portés par sa propre entité.
+player.unknown = Impossible de trouver un joueur nommé '{0}'.
 player.no_record = {0} n'a aucun enregistrement de titres où écrire.
 title.needed = Nommez un titre avec --title=<id>.
 title.refused = '{0}' n'est pas un id de titre utilisable : il contient '|' ou ':', que le format de sauvegarde réserve.
@@ -19,12 +20,15 @@ title.refused = '{0}' n'est pas un id de titre utilisable : il contient '|' ou '
 grant.done = Titre '{1}' débloqué pour {0}.
 grant.already = {0} a déjà le titre '{1}'.
 grant.unknown = Rien de chargé ne définit un titre '{0}' ; il est débloqué quand même, au cas où le pack qui l'apporte se chargerait plus tard.
+grant.queued = {0} n'est pas en ligne, donc le titre '{1}' est en attente et sera débloqué à sa prochaine connexion.
 revoke.done = Titre '{1}' retiré à {0}.
 revoke.absent = {0} n'avait pas le titre '{1}'.
+revoke.queued = {0} n'est pas en ligne, donc le retrait du titre '{1}' est en attente pour sa prochaine connexion.
 list.header = Titres débloqués par {0} ({1}) :
 list.row = - {0}
 list.row_shown = - {0} (affiché)
 list.none = {0} n'a débloqué aucun titre.
+list.queued = {1, number} {1, plural, one {changement de titre attend} other {changements de titre attendent}} la connexion de {0}.
 open.needs_player = Seul un joueur peut ouvrir le sélecteur de titre.
 open.failed = Le sélecteur de titre n'a pas pu être ouvert.
 

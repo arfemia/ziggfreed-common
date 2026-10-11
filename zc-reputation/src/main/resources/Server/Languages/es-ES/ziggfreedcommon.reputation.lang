@@ -13,6 +13,8 @@ rank.none = Sin rango
 factor.reputation = puntos en una reputación
 factor.reputation_earned = puntos ganados en una reputación
 factor.reputation_rank = un rango en una reputación
+# A lock line's name for a rank gate on a reputation that names itself: {0} the rank, {1} the reputation.
+factor.rank_with = {0} con {1}
 
 reward.gain = +{0, number} {1}
 reward.loss = {0, number} {1}
@@ -59,3 +61,6 @@ gear_set.line = {0}: {1}
 
 
 menu.tab = Reputación
+
+# A Records column ranking standing, for a reputation that names itself nothing.
+stat.standing = Reputación

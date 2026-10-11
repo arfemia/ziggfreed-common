@@ -7,10 +7,13 @@
 
 display = {0}, {1}
 chip = Unvan: {0}
+factor.title_earned = kazanılmış bir unvan
+factor.title_shown = adının yanında gösterilen bir unvan
 unlocked = Unvan açıldı: {0}
-unlocked_hint = Gösterdiğin unvanı /zigtitle open ile seç
+unlocked_hint = Göstereceğin unvanı Ayarlar'da, Unvan bölümünden seç.
 picker.title = Unvanlar
 picker.subtitle = Menülerde ve liderlik tablolarında adının yanında görünen unvanı seç.
+picker.subtitle_chat = Menülerde, liderlik tablolarında ve sohbette adının yanında görünen unvanı seç.
 picker.preview = Şöyle görünürsün: {0}
 picker.on = Gösteriliyor
 picker.off = Göster
@@ -22,14 +25,18 @@ picker.settings_heading = Unvan
 picker.settings_tile = Unvanın
 picker.settings_wearing = {0} gösteriliyor
 picker.settings_none = Gösterilen unvan yok
+picker.settings_wearing_count = {0} gösteriliyor ({2, number} içinden {1, number} kazanıldı)
+picker.settings_none_count = Gösterilen unvan yok ({1, number} içinden {0, number} kazanıldı)
 
 # Seçicinin kazanılmış kutucukları ve henüz kazanılacak unvanlar; yukarıdaki picker.on ve picker.off bir
 # kutucuğun Göster düğmesidir. İki bölüm başlığı büyük harfle çizilir. from satırında {0} unvanı veren
 # başarım, {1} oyuncunun ona doğru sayısı ve {2} hedefidir.
-picker.earned = Kazanılanlar
+picker.earned_count = Kazanılan ({1, number} içinden {0, number})
 picker.not_earned = Henüz kazanılmayanlar
 picker.show_none = Hiçbirini gösterme
 picker.from = "{0}" başarımından, {1, number} / {2, number}
+picker.collect = "{0}" başarımından al
 picker.none_yet = Henüz unvan yok. Şu başarımlar unvan verir:
 picker.none_on_server = Bu sunucuda kazanılacak unvan yok.
+picker.secret_only = Bazı unvanlar sen kazanana dek gizli kalır.
 

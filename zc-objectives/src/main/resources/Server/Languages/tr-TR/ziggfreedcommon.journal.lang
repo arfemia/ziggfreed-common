@@ -36,6 +36,7 @@ tag.all = Tüm etiketler
 block.requirements = Gerekenler
 block.objectives = Hedefler
 block.step = Adım {0, number}
+block.more_steps = Bundan sonra {0, number} {0, plural, one {adım} other {adım}} daha var
 block.rewards = Ödüller
 action.accept = Kabul et
 action.hand_in = Teslim et

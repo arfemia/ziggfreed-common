@@ -36,6 +36,7 @@ tag.all = Alle Schlagwörter
 block.requirements = Voraussetzungen
 block.objectives = Ziele
 block.step = Schritt {0, number}
+block.more_steps = Danach {0, plural, one {folgt} other {folgen}} noch {0, number} {0, plural, one {Schritt} other {Schritte}}
 block.rewards = Belohnungen
 action.accept = Annehmen
 action.hand_in = Abgeben

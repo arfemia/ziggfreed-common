@@ -7,13 +7,19 @@
 
 display = {0}, {1}
 chip = Título: {0}
+
+# What a requirement on a title reads as, where a lock line names it (Factors/Title_Earned.json and
+# Title_Shown.json).
+factor.title_earned = um título desbloqueado
+factor.title_shown = um título mostrado ao lado do seu nome
 unlocked = Título desbloqueado: {0}
-unlocked_hint = Escolha o título que você mostra com /zigtitle open
+unlocked_hint = Escolha o título que você mostra em Configurações, em Título.
 
 # O seletor de títulos (/zigtitle open). Em preview, {0} é o nome do jogador como os menus o mostram,
 # título incluído; em shown, {0} é o nome do título.
 picker.title = Títulos
 picker.subtitle = Escolha o título mostrado ao lado do seu nome nos menus e rankings.
+picker.subtitle_chat = Escolha o título mostrado ao lado do seu nome nos menus, rankings e chat.
 picker.preview = Você aparece como: {0}
 picker.on = Mostrado
 picker.off = Mostrar
@@ -26,14 +32,18 @@ picker.settings_heading = Título
 picker.settings_tile = Seu título
 picker.settings_wearing = Mostrando {0}
 picker.settings_none = Nenhum título mostrado
+picker.settings_wearing_count = Mostrando {0} ({1, number} de {2, number} desbloqueados)
+picker.settings_none_count = Nenhum título mostrado ({0, number} de {1, number} desbloqueados)
 
 # Os blocos de títulos desbloqueados do seletor e os títulos ainda por desbloquear; picker.on e picker.off acima são
 # o botão Mostrar de um bloco. Os dois cabeçalhos de seção aparecem em maiúsculas. Em from, {0} é a conquista que dá
 # o título, {1} a contagem do jogador para ela e {2} a meta.
-picker.earned = Desbloqueados
+picker.earned_count = Desbloqueados ({0, number} de {1, number})
 picker.not_earned = Ainda não desbloqueados
 picker.show_none = Não mostrar nenhum
 picker.from = De "{0}", {1, number} / {2, number}
+picker.collect = Receba em "{0}"
 picker.none_yet = Nenhum título ainda. Estas conquistas dão um:
 picker.none_on_server = Este servidor não tem títulos para desbloquear.
+picker.secret_only = Alguns títulos ficam secretos até você desbloqueá-los.
 
