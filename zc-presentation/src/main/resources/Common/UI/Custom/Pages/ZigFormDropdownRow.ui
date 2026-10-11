@@ -1,5 +1,5 @@
 $C = "../Common.ui";
-$ZT = "../Common/ZigType.ui";
+$ZM = "../Common/ZigForm.ui";
 
 // ── ziggfreed-common appendable SETTINGS-FORM dropdown row ────────────────────
 // Appended by SettingsForm.buildRows into a consumer's list container:
@@ -9,33 +9,26 @@ $ZT = "../Common/ZigType.ui";
 //
 // The TRISTATE/DROPDOWN row: a flexing label (#Title) plus a fixed-width dropdown
 // (#Dropdown), entries populated from Java via SettingsUiUtil.populate. A white,
-// non-uppercase label style keeps it readable against the dark settings background.
+// non-uppercase label style (Common/ZigForm.ui's @ZigFormDropdownStyle) keeps it
+// readable against the dark settings background.
 // #Row wraps the control line (LayoutMode: Left) so an optional #Hint sub-label can
 // sit below it (LayoutMode: Top on the root); #Hint starts hidden and collapses to
 // zero height until SettingsForm.buildRows/applyHint paints + shows it.
-
-@DropStyle = DropdownBoxStyle(
-  ...$C.@DefaultDropdownBoxStyle,
-  LabelStyle: (...$C.@DefaultDropdownBoxLabelStyle, TextColor: #ffffff, RenderUppercase: false)
-);
 
 Group #ZigFormDropdownRow {
   LayoutMode: Top;
   Anchor: (Bottom: 5);
 
-  Group #Row {
-    LayoutMode: Left;
-    Anchor: (Height: 32);
-
+  $ZM.@ZigFormRow #Row {
     Label #Title {
       FlexWeight: 1;
       Text: "";
-      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #cdd8e6, VerticalAlignment: Center);
+      Style: $ZM.@ZigFormLabelStyle;
     }
 
     $C.@DropdownBox #Dropdown {
       Anchor: (Width: 190, Height: 30);
-      Style: @DropStyle;
+      Style: $ZM.@ZigFormDropdownStyle;
     }
   }
 
@@ -43,6 +36,6 @@ Group #ZigFormDropdownRow {
     Visible: false;
     Text: "";
     Padding: (Right: 96);
-    Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #aabccf, Wrap: true);
+    Style: (...$ZM.@ZigFormNoteStyle, Wrap: true);
   }
 }

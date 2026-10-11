@@ -1,5 +1,4 @@
-$Z = "../Common/ZigButtons.ui";
-$ZT = "../Common/ZigType.ui";
+$ZM = "../Common/ZigForm.ui";
 
 // ── ziggfreed-common appendable SETTINGS-FORM toggle row ──────────────────────
 // Appended by SettingsForm.buildRows into a consumer's list container:
@@ -7,7 +6,8 @@ $ZT = "../Common/ZigType.ui";
 // then addressed by the INDEXED PARENT (e.g. "#MyForm[0] #Toggle"), so the bare
 // descendant ids below are safe across many rows AND across mods (the ZigListRow rule).
 //
-// The TOGGLE row: a flexing label (#Title) plus an instant on/off button (#Toggle).
+// The TOGGLE row: a flexing label (#Title) plus an instant on/off button (#Toggle,
+// Common/ZigForm.ui's @ZigToggle, 96 by 30).
 // #Toggle's OWN inner #Label (On/Off state text) is what SettingsUiUtil.setToggle
 // paints - the row label stays #Title so the two ids never collide. #Row wraps the
 // control line (LayoutMode: Left) so an optional #Hint sub-label can sit below it
@@ -18,31 +18,20 @@ Group #ZigFormToggleRow {
   LayoutMode: Top;
   Anchor: (Bottom: 5);
 
-  Group #Row {
-    LayoutMode: Left;
-    Anchor: (Height: 32);
-
+  $ZM.@ZigFormRow #Row {
     Label #Title {
       FlexWeight: 1;
       Text: "";
-      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #cdd8e6, VerticalAlignment: Center);
+      Style: $ZM.@ZigFormLabelStyle;
     }
 
-    Button #Toggle {
-      Style: $Z.@ZigRichRowBtnStyle;
-      Anchor: (Width: 96, Height: 30);
-      Label #Label {
-        FlexWeight: 1;
-        Text: "";
-        Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
-      }
-    }
+    $ZM.@ZigToggle #Toggle {}
   }
 
   Label #Hint {
     Visible: false;
     Text: "";
     Padding: (Right: 96);
-    Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #aabccf, Wrap: true);
+    Style: (...$ZM.@ZigFormNoteStyle, Wrap: true);
   }
 }

@@ -1,0 +1,55 @@
+$C = "../Common.ui";
+$Z = "ZigButtons.ui";
+$ZT = "ZigType.ui";
+
+// ── ziggfreed-common's settings-form look, by name: the styles and pieces of the five form rows ──
+// Imported per document as:  $ZM = "../Common/ZigForm.ui";  (from Pages/; "ZigForm.ui" from Common/) and used as
+//   Style: $ZM.@ZigFormLabelStyle;
+//   $ZM.@ZigFormRow #MyRow { Label #MyLabel { ... } ... }
+//   $ZM.@ZigToggle #MyToggle {}
+// The five appended rows SettingsForm builds (Pages/ZigFormHeaderRow.ui, ZigFormNoteRow.ui, ZigFormFieldRow.ui,
+// ZigFormDropdownRow.ui and ZigFormToggleRow.ui) read these names, so a page of its own that wants the settings
+// form's look takes it from here, and the two never drift. Every size is a Common/ZigType.ui step.
+//
+// @ZigFormHeaderStyle    a section heading: amber and bold at Emphasis.
+// @ZigFormLabelStyle     a row's label: light steel at Body, centred on the row's height.
+// @ZigFormNoteStyle      a note or a hint: muted steel at Caption, with NO Wrap, so a note in a fixed-height row
+//                        cannot overflow it. A note free to grow (the note row, a row's hint) spreads it and adds
+//                        the wrap itself:  Style: (...$ZM.@ZigFormNoteStyle, Wrap: true);
+// @ZigFormDropdownStyle  a dropdown: vanilla's box with a white, non-uppercase label.
+// @ZigFormRow            the label-and-control line: a Group laid out Left, 32 high; @Anchor adds its margins.
+// @ZigToggle             the on/off button: a Button holding Label #Label, on the rich row's steel patch (which
+//                        carries the click Sounds), 96 by 30. @Width and @Height size it and @Anchor adds its
+//                        margins; an instance's own Anchor replaces all three. SettingsUiUtil.setToggle paints it:
+//                        its words on #Label's .TextSpans, its state by retinting the patch and the label.
+
+@ZigFormHeaderStyle = LabelStyle(FontSize: $ZT.@ZigFontEmphasis, TextColor: #ffaa4a, RenderBold: true, VerticalAlignment: Center);
+
+@ZigFormLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontBody, TextColor: #cdd8e6, VerticalAlignment: Center);
+
+@ZigFormNoteStyle = LabelStyle(FontSize: $ZT.@ZigFontCaption, TextColor: #aabccf);
+
+@ZigFormDropdownStyle = DropdownBoxStyle(
+  ...$C.@DefaultDropdownBoxStyle,
+  LabelStyle: (...$C.@DefaultDropdownBoxLabelStyle, TextColor: #ffffff, RenderUppercase: false)
+);
+
+@ZigFormRow = Group {
+  @Anchor = ();
+  LayoutMode: Left;
+  Anchor: (...@Anchor, Height: 32);
+};
+
+@ZigToggle = Button {
+  @Anchor = ();
+  @Width = 96;
+  @Height = 30;
+  Style: $Z.@ZigRichRowBtnStyle;
+  Anchor: (...@Anchor, Width: @Width, Height: @Height);
+
+  Label #Label {
+    FlexWeight: 1;
+    Text: "";
+    Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+  }
+};

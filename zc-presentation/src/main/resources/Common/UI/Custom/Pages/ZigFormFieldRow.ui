@@ -1,5 +1,5 @@
 $C = "../Common.ui";
-$ZT = "../Common/ZigType.ui";
+$ZM = "../Common/ZigForm.ui";
 
 // ── ziggfreed-common appendable SETTINGS-FORM field row ───────────────────────
 // Appended by SettingsForm.buildRows into a consumer's list container:
@@ -18,14 +18,11 @@ Group #ZigFormFieldRow {
   LayoutMode: Top;
   Anchor: (Bottom: 5);
 
-  Group #Row {
-    LayoutMode: Left;
-    Anchor: (Height: 32);
-
+  $ZM.@ZigFormRow #Row {
     Label #Title {
       FlexWeight: 1;
       Text: "";
-      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #cdd8e6, VerticalAlignment: Center);
+      Style: $ZM.@ZigFormLabelStyle;
     }
 
     $C.@TextField #Field {
@@ -38,6 +35,6 @@ Group #ZigFormFieldRow {
     Visible: false;
     Text: "";
     Padding: (Right: 96);
-    Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #aabccf, Wrap: true);
+    Style: (...$ZM.@ZigFormNoteStyle, Wrap: true);
   }
 }
