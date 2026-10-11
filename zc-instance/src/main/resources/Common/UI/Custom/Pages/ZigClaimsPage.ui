@@ -1,0 +1,72 @@
+$C = "../Common.ui";
+$F = "../Common/ZigFrames.ui";
+$ZX = "../Common/ZigText.ui";
+$ZW = "../Common/ZigKit.ui";
+
+// The Claims page (com.ziggfreed.common.instance.claims.ClaimsPage): every reward the player has earned and
+// not taken yet on the left, the one being read on the right.
+//
+// Inside the shared menu frame: the frame's rail comes first (ui/menu/ZigMenu, the Claims tab selected), then
+// the list and the reading page. The frame owns the size, the padding and the close button.
+//
+// LEFT (#LeftPanel): the title, a short lead saying what waits here, and #ClaimsList, where the kit's
+// LedgerPainter appends one section of Pages/ZigLedgerRow.ui rows: a row per Claim, newest first (its first
+// item's picture, its title, how many rewards it holds). Its width is a third of MenuFrame.BODY_WIDTH, the
+// Reputation page's list width.
+//
+// RIGHT (#RightPanel): the bordered card the reading page fills, after a gutter. #Page is the kit's
+// @ZigDetailPage, painted by DetailPainter: the picture, the title and the difficulty pill, the lead, one block
+// of the rewards as reward chips, and the action bar's Claim and Claim All. #ClaimsEmpty takes its place when
+// nothing waits. Every press reopens the page, so every build is a full one.
+//
+// Shipped once in ziggfreed-common; neutral Zig* ids. Smoke-test in-game.
+
+$C.@PageOverlay {}
+
+$F.@ZigMenuFrame {
+  #Content {
+    Group #LeftPanel {
+      Anchor: (Width: 424);
+      LayoutMode: Top;
+      Padding: (Full: 12);
+
+      Label #ClaimsTitle {
+        Anchor: (Height: 28, Bottom: 4);
+        Text: "";
+        Style: (...$ZX.@ZigTitleStyle, VerticalAlignment: Center, WrapMaxLines: 1);
+      }
+
+      Label #ClaimsLead {
+        Anchor: (Bottom: 12);
+        Text: "";
+        Style: (...$ZX.@ZigCaptionStyle, VerticalAlignment: Start, Wrap: true);
+      }
+
+      Group #ClaimsList {
+        FlexWeight: 1;
+        LayoutMode: TopScrolling;
+        ScrollbarStyle: $C.@DefaultScrollbarStyle;
+        Padding: (Right: 8);
+      }
+    }
+
+    Group #ListGutter {
+      Anchor: (Width: 12);
+    }
+
+    Group #RightPanel {
+      FlexWeight: 1;
+      LayoutMode: Top;
+      Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
+
+      $ZW.@ZigDetailPage #Page {
+        FlexWeight: 1;
+      }
+
+      $ZW.@ZigEmptyState #ClaimsEmpty {
+        FlexWeight: 1;
+        Visible: false;
+      }
+    }
+  }
+}

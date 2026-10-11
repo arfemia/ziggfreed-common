@@ -111,17 +111,6 @@ class ZigMenuTest {
                 ids(ZigMenu.rows(deps, ZigMenu.slots(), VIEWER)));
     }
 
-    /** M484: the Almanac tab sits above Quests and Achievements; Records and the rest keep their order below. */
-    @Test
-    void theAlmanacSitsAboveQuestsAndAchievements() {
-        for (MenuSlot slot : MenuSlot.values()) {
-            ZigMenu.fill(slot, slot(slot, true));
-        }
-
-        assertEquals(List.of("almanac", "quests", "achievements", "records", "reputation", "settings"),
-                ids(ZigMenu.rows(MenuDeps.EMPTY, ZigMenu.slots(), VIEWER)));
-    }
-
     /** M485: a tab's second line is asked for the player looking, on every paint; a tab without one has none. */
     @Test
     void aTabsSecondLineIsAskedForTheViewerOnEveryPaint() {

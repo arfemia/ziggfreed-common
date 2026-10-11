@@ -23,6 +23,8 @@ public enum MenuSlot {
     ACHIEVEMENTS("achievements"),
     RECORDS("records"),
     REPUTATION("reputation"),
+    /** What a player has earned and not taken yet (zc-instance's Claims), after Reputation (lead's call). */
+    CLAIMS("claims"),
     SETTINGS("settings");
 
     private final String id;

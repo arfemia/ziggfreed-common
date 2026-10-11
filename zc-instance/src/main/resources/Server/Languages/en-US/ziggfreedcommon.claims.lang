@@ -1,0 +1,44 @@
+# The Claims tab (com.ziggfreed.common.instance.claims): the rewards a player has earned and not taken
+# yet, waiting until they press Claim. The file name is the key PREFIX: an entry here resolves as
+# ziggfreedcommon.claims.<key>. menu.tab is a rail label: 20 characters at most once uppercased.
+
+menu.tab = Claims
+page.title = Claims
+page.lead = Rewards you have earned wait here until you take them.
+page.section = Waiting
+row.rewards = {0, number} {0, plural, one {reward} other {rewards}}
+detail.rewards = Rewards
+detail.lead = Claim takes these. Claim All takes everything waiting.
+detail.hint = Items need room in your bags. Whatever does not fit stays here for later.
+action.claim = Claim
+action.claim_all = Claim All
+empty.title = Nothing to claim
+empty.line = Rewards from bosses and events wait here until you take them.
+untitled = Rewards
+
+# What a press says, over the page.
+toast.claimed = Claimed.
+toast.claimed_all = Claimed everything that was waiting.
+toast.kept = Your bags are full. What did not fit is still waiting here.
+toast.failed = Claimed, but part of it could not be handed over on this server.
+
+# Telling a player something waits: the toast when a Claim arrives, and the notice once a session at login.
+notice.added = A reward is waiting for you. Find it under Claims in your menu.
+notice.ready = {0, number} {0, plural, one {reward is} other {rewards are}} waiting for you under Claims in your menu.
+
+# A Claim's title when /zigclaims give wrote it: {0} is the loot table's id.
+title.admin = Loot from {0}
+
+# /zigclaims, the admin family. The command.desc.* keys are what the engine's own help resolves a command
+# or an argument through.
+command.desc.family = Put rewards in players' Claims.
+command.desc.give = Roll a loot table and put what it lands in a player's Claims.
+command.desc.arg.player = The player, online or not: a name or a player id. Defaults to you.
+command.desc.arg.lootable = The loot table to roll, by its id.
+command.player.needed = Name a player with --player=<name>.
+command.player.offline = That player is not in a world right now. Try again in a moment.
+command.player.unknown = Could not find a player called '{0}'. Their player id works too.
+command.lootable.needed = Name a loot table with --lootable=<id>.
+command.lootable.unknown = No loot table called '{0}' is loaded.
+command.give.done = Put {2, number} {2, plural, one {reward} other {rewards}} from {0} in {1}'s Claims.
+command.give.nothing = {0} landed nothing for {1}, so no Claim was written.

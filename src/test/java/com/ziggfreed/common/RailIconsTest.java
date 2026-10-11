@@ -11,6 +11,7 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 import com.ziggfreed.common.almanac.page.AlmanacMenuTab;
+import com.ziggfreed.common.instance.claims.ClaimsDestinations;
 import com.ziggfreed.common.instance.leaderboard.RecordsDestinations;
 import com.ziggfreed.common.objectives.book.ObjectiveBookMenu;
 import com.ziggfreed.common.ui.menu.MenuEntry;
@@ -25,7 +26,7 @@ class RailIconsTest {
     @Test
     void everyLibraryTabCarriesItsOwnPicture() {
         List<MenuEntry> tabs = List.of(ObjectiveBookMenu.quests(), ObjectiveBookMenu.achievements(),
-                AlmanacMenuTab.entry(), RecordsDestinations.entry());
+                AlmanacMenuTab.entry(), RecordsDestinations.entry(), ClaimsDestinations.entry());
         Set<String> pictures = new HashSet<>();
         for (MenuEntry tab : tabs) {
             assertNotNull(tab.icon(), tab.id() + " has a picture");
