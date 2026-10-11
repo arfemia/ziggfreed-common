@@ -26,6 +26,7 @@ import com.ziggfreed.common.progress.asset.ContentListingAsset;
 import com.ziggfreed.common.progress.asset.ContentMeta;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.season.DateWindow;
 import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.text.ContentTextAsset;
 
@@ -74,6 +75,7 @@ public final class ShopEntryAsset
     private AssetExtraInfo.Data data;
 
     @Nullable private Boolean enabled;
+    @Nullable private Dates dates;
     @Nullable private Boolean isAbstract;
     @Nullable private ContentTextAsset text;
     @Nullable private Listing listing;
@@ -104,6 +106,15 @@ public final class ShopEntryAsset
             .metadata(EditorSchema.defaultValue(true))
             .documentation("Whether the offer is for sale; unauthored means true. Setting false takes it off the "
                     + "page while leaving the file to come back with one edit.")
+            .add()
+            .appendInherited(new KeyedCodec<>("Dates", Dates.CODEC, false),
+                    (a, v) -> a.dates = v, a -> a.dates, (a, p) -> a.dates = p.dates)
+            .documentation("The days of the year the offer is on sale, every year, counted in UTC: Start and End, "
+                    + "each MM-DD, both days in. Outside them the offer is off the page and cannot be bought, and "
+                    + "nothing about it shows as locked. An End before its Start crosses the new year, so 11-20 to "
+                    + "01-06 holds Christmas and New Year's Day. Leave it out for an offer on sale all year. It is "
+                    + "one group: write it and an inherited one is replaced whole. A day that is not a real MM-DD "
+                    + "is reported, and the offer stays hidden. With a Season as well, both must allow it.")
             .add()
             // The ONE field that deliberately does NOT inherit: a child of a skeleton is a real
             // offer, so inheriting this would take every child of a base off the page too.
@@ -191,12 +202,31 @@ public final class ShopEntryAsset
     }
 
     /**
-     * Is the offer on this server RIGHT NOW: for sale and in its {@code Season}, and every plain
-     * top-level feature or mod condition in {@code Requires} reading on at this moment? An offer that
-     * answers false is off the page and cannot be bought.
+     * Is the offer on this server RIGHT NOW: for sale, in its {@code Season} and its {@code Dates}, and
+     * every plain top-level feature or mod condition in {@code Requires} reading on at this moment? An
+     * offer that answers false is off the page and cannot be bought.
      */
     public boolean isAvailable() {
-        return HideAxis.present(isEnabled(), getSeason(), requires);
+        return HideAxis.present(isEnabled(), getSeason(), requires) && inDates(System.currentTimeMillis());
+    }
+
+    /**
+     * Is {@code nowMs} inside the offer's {@code Dates}? True when none are written; false when they are
+     * written but unreadable, so a broken window hides rather than sells. A hide, never a lock:
+     * {@link #lockRequires()} never sees it.
+     */
+    public boolean inDates(long nowMs) {
+        if (dates == null || dates.isBlank()) {
+            return true;
+        }
+        DateWindow window = dates.window();
+        return window != null && window.contains(nowMs);
+    }
+
+    /** The authored {@code Dates} group exactly as written, or null when the offer names none. */
+    @Nullable
+    public Dates getDates() {
+        return dates;
     }
 
     /** The purchase lock: {@code Requires} with the hide axis taken out, or null when nothing is left. */
@@ -313,6 +343,62 @@ public final class ShopEntryAsset
             String authored = getCategory();
             return authored == null || authored.isBlank()
                     ? null : authored.trim().toLowerCase(Locale.ROOT);
+        }
+    }
+
+    // ==================== Dates ====================
+
+    /**
+     * The days of the year an offer is on sale: a {@code Start} and an {@code End}, each {@code MM-DD}, both
+     * days in, read through zc-core's {@link DateWindow}. One group with no per-day inheritance, so an author
+     * who writes it writes both days, and an owner's {@code {}} clears an inherited window.
+     */
+    public static final class Dates {
+
+        @Nullable protected String start;
+        @Nullable protected String end;
+
+        public static final BuilderCodec<Dates> CODEC = BuilderCodec.builder(Dates.class, Dates::new)
+                .append(new KeyedCodec<>("Start", Codec.STRING, false), (o, v) -> o.start = v, o -> o.start)
+                .documentation("The first day on sale, MM-DD, such as 11-20.").add()
+                .append(new KeyedCodec<>("End", Codec.STRING, false), (o, v) -> o.end = v, o -> o.end)
+                .documentation("The last day on sale, MM-DD, itself in the window. An End before the Start crosses "
+                        + "the new year.").add()
+                .build();
+
+        public Dates() {
+        }
+
+        /** Java-side factory; sets the same fields the codec fills. */
+        @Nonnull
+        public static Dates of(@Nullable String start, @Nullable String end) {
+            Dates d = new Dates();
+            d.start = start;
+            d.end = end;
+            return d;
+        }
+
+        /** Neither day written: no window, so the offer is on sale all year. */
+        public boolean isBlank() {
+            return (start == null || start.isBlank()) && (end == null || end.isBlank());
+        }
+
+        /** The window, or null when a day is missing or is not a real {@code MM-DD}. */
+        @Nullable
+        public DateWindow window() {
+            return DateWindow.parse(start, end);
+        }
+
+        /** The authored first day exactly as written, for an audit that must name a bad one. */
+        @Nullable
+        public String getStart() {
+            return start;
+        }
+
+        /** The authored last day exactly as written, for an audit. */
+        @Nullable
+        public String getEnd() {
+            return end;
         }
     }
 

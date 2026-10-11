@@ -8,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -36,8 +38,10 @@ import com.ziggfreed.common.quest.asset.QuestDefinition;
 import com.ziggfreed.common.shop.asset.StorefrontAsset;
 import com.ziggfreed.common.shop.asset.ShopEntryAsset;
 import com.ziggfreed.common.shop.asset.ShopPoolAsset;
+import com.ziggfreed.common.shop.asset.ShopValidator;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.kit.ZigTokens;
+import com.ziggfreed.common.validation.Finding;
 
 /**
  * The commerce types' decode contract, and above all what native {@code Parent} inheritance does to
@@ -148,6 +152,68 @@ class CommerceCodecTest {
                     """, "odd", null, null);
             assertTrue(offer.costOrFree().hasUnknownCombine());
             assertFalse(offer.costOrFree().combinesAny(), "an unreadable word must not become the Any route");
+        }
+    }
+
+    // ==================== the days an offer is on sale ====================
+
+    @Nested
+    class OfferDates {
+
+        private static long at(String instant) {
+            return Instant.parse(instant).toEpochMilli();
+        }
+
+        @Test
+        void aWindowCrossingTheNewYearHoldsBothOfItsDaysInUtc() throws Exception {
+            ShopEntryAsset offer = entry("""
+                    { "Dates": { "Start": "11-20", "End": "01-06" } }
+                    """, "wreath", null, null);
+
+            assertFalse(offer.inDates(at("2026-10-15T12:00:00Z")), "October is outside the window");
+            assertFalse(offer.inDates(at("2026-11-19T23:59:59Z")));
+            assertTrue(offer.inDates(at("2026-11-20T00:00:00Z")), "the Start day is in");
+            assertTrue(offer.inDates(at("2026-12-25T12:00:00Z")));
+            assertTrue(offer.inDates(at("2027-01-06T23:59:59Z")), "the End day is in, across the new year");
+            assertFalse(offer.inDates(at("2027-01-07T00:00:00Z")));
+            assertTrue(entry("{}", "plushie", null, null).inDates(at("2026-07-01T00:00:00Z")),
+                    "no Dates means on sale all year");
+        }
+
+        @Test
+        void aChildInheritsTheGroupWholeAndAWrittenGroupReplacesIt() throws Exception {
+            ShopEntryAsset base = entry("""
+                    { "Dates": { "Start": "11-20", "End": "01-06" } }
+                    """, "base", null, null);
+            ShopEntryAsset kept = entry("{}", "kept", "base", base);
+            ShopEntryAsset halfWritten = entry("""
+                    { "Dates": { "End": "01-10" } }
+                    """, "half", "base", base);
+            ShopEntryAsset cleared = entry("""
+                    { "Dates": {} }
+                    """, "cleared", "base", base);
+
+            assertEquals("11-20", kept.getDates().getStart());
+            assertFalse(kept.inDates(at("2026-10-15T12:00:00Z")), "an unwritten group carries the base's window");
+            assertNull(halfWritten.getDates().getStart(), "a written group is replaced whole, never merged by day");
+            assertFalse(halfWritten.inDates(at("2027-01-08T12:00:00Z")), "a window missing a day hides");
+            assertTrue(cleared.inDates(at("2026-10-15T12:00:00Z")), "an empty group clears the inherited window");
+        }
+
+        @Test
+        void anUnreadableDayHidesTheOfferAndIsReportedOnce() throws Exception {
+            ShopEntryAsset offer = entry("""
+                    { "Dates": { "Start": "02-30", "End": "03-10" } }
+                    """, "odd", null, null);
+            List<Finding> findings = new ArrayList<>();
+            ShopValidator.checkDates(findings, offer, "odd");
+            ShopValidator.checkDates(findings, entry("""
+                    { "Dates": { "Start": "11-20", "End": "01-06" } }
+                    """, "fine", null, null), "fine");
+
+            assertFalse(offer.inDates(at("2026-03-01T12:00:00Z")), "a broken window hides rather than sells");
+            assertEquals(1, findings.size(), "only the unreadable window is reported: " + findings);
+            assertEquals("DATES_UNREADABLE", findings.get(0).code());
         }
     }
 

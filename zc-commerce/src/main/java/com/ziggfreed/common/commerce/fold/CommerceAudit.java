@@ -164,17 +164,19 @@ public final class CommerceAudit {
 
     /**
      * Every commerce file naming a {@code Season} no loaded calendar event declares, in its own
-     * domain's name. Authored files only, skeletons included: a generated offer inherits its base's
-     * season, so a typo is one line. Asked at audit time, once every store (the calendar's among them)
-     * has loaded.
+     * domain's name, and every offer whose {@code Dates} cannot be read. Authored files only, skeletons
+     * included: a generated offer inherits its base's season and dates, so a typo is one line. Asked at
+     * audit time, once every store (the calendar's among them) has loaded.
      */
     @Nonnull
     static List<Finding> auditSeasons() {
         List<Finding> out = new ArrayList<>();
         CurrencyConfig.getInstance().all().forEach((id, wallet) ->
                 SeasonGate.checkKnown(out, CurrencyValidator.DOMAIN, wallet.getSeason(), id));
-        ShopAssetStore.getInstance().assets().forEach((id, offer) ->
-                SeasonGate.checkKnown(out, ShopValidator.DOMAIN, offer.getSeason(), id));
+        ShopAssetStore.getInstance().assets().forEach((id, offer) -> {
+            SeasonGate.checkKnown(out, ShopValidator.DOMAIN, offer.getSeason(), id);
+            ShopValidator.checkDates(out, offer, id);
+        });
         ShopConfig.getInstance().all().forEach((id, shop) ->
                 SeasonGate.checkKnown(out, ShopValidator.DOMAIN, shop.getSeason(), id));
         BoardConfig.getInstance().all().forEach((id, board) ->

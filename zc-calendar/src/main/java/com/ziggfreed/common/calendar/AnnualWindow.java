@@ -16,13 +16,12 @@ import java.util.NavigableMap;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.ziggfreed.common.occurrence.Occurrence;
+import com.ziggfreed.common.season.DateWindow;
 
 /**
  * The runs of an event, year by year: an every-year {@link YearRule} (fixed month-days, several spans of them,
@@ -77,8 +76,6 @@ public final class AnnualWindow {
 
     /** No floor: the window dates every year its rule or its listed years name. */
     public static final int NO_FLOOR = Integer.MIN_VALUE;
-
-    private static final Pattern MONTH_DAY = Pattern.compile("(\\d{2})-(\\d{2})");
 
     /** Runs in time: by start. Kept runs never overlap, so this is also their order by end. */
     private static final Comparator<DatedRun> BY_START = Comparator.comparing(run -> run.days().start());
@@ -141,8 +138,8 @@ public final class AnnualWindow {
     /** Fixed month-days from two {@code MM-DD} strings, or null when either is not a real day. */
     @Nullable
     public static YearRule.Fixed fixed(@Nullable String first, @Nullable String last) {
-        MonthDay from = monthDay(first);
-        MonthDay to = monthDay(last);
+        MonthDay from = DateWindow.monthDay(first);
+        MonthDay to = DateWindow.monthDay(last);
         return from == null || to == null ? null : new YearRule.Fixed(from, to);
     }
 
@@ -189,23 +186,6 @@ public final class AnnualWindow {
         }
         return new AnnualWindow(every, Collections.unmodifiableNavigableMap(new TreeMap<Integer, YearRule>(years)),
                 floor, Collections.unmodifiableMap(skipped));
-    }
-
-    /** {@code MM-DD} as a month-day, or null for anything else ({@code 1-5}, {@code 02-30}, {@code 13-01}). */
-    @Nullable
-    public static MonthDay monthDay(@Nullable String text) {
-        if (text == null) {
-            return null;
-        }
-        Matcher m = MONTH_DAY.matcher(text.trim());
-        if (!m.matches()) {
-            return null;
-        }
-        try {
-            return MonthDay.of(Integer.parseInt(m.group(1)), Integer.parseInt(m.group(2)));
-        } catch (DateTimeException e) {
-            return null;
-        }
     }
 
     /** The zone a {@code Clock} names: UTC when unauthored, null when java.time knows no such zone. */

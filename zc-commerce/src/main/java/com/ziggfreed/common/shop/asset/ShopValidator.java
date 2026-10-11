@@ -125,6 +125,22 @@ public final class ShopValidator {
         return out;
     }
 
+    /**
+     * Add {@code DATES_UNREADABLE} to {@code out} when {@code offer} writes a {@code Dates} group whose days are
+     * not two real {@code MM-DD} (a day missing counts), which keeps the offer hidden. Ask it once per authored
+     * file, never per generated offer: a generated offer inherits its base's group, so a typo is one line.
+     */
+    public static void checkDates(@Nonnull List<Finding> out, @Nonnull ShopEntryAsset offer,
+            @Nonnull String sourceId) {
+        ShopEntryAsset.Dates dates = offer.getDates();
+        if (dates == null || dates.isBlank() || dates.window() != null) {
+            return;
+        }
+        out.add(Finding.warning(DOMAIN, "DATES_UNREADABLE", "Dates reads '" + dates.getStart() + "' to '"
+                + dates.getEnd() + "', which is not two real days written MM-DD, so this offer stays hidden. "
+                + "Write both days, such as Start 11-20 and End 01-06.", sourceId));
+    }
+
     // ==================== storefronts ====================
 
     /**
