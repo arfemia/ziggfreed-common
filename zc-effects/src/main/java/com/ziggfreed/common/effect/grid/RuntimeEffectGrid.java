@@ -186,8 +186,8 @@ public final class RuntimeEffectGrid {
     /**
      * The bucket's asset write: complete once the asset is in the store, pending while it is queued off
      * the world thread, {@code null} when the body could not be built (logged). A bucket written this
-     * process is a set lookup here; a bucket still landing is never queued twice, later callers ride
-     * the same future.
+     * process is a set lookup here; a bucket still landing is tracked once, and later callers ride the
+     * same future (two first callers racing may each write the same body, which is harmless).
      */
     @Nullable
     public CompletableFuture<Void> landing(@Nonnull Bucket bucket) {
@@ -213,8 +213,11 @@ public final class RuntimeEffectGrid {
                 return raced; // another caller queued the same body first; ride its write
             }
             landing.whenComplete((landed, failure) -> {
-                settle(bucket, id, failure == null);
-                pending.remove(bucket, landing);
+                try {
+                    settle(bucket, id, failure == null);
+                } finally {
+                    pending.remove(bucket, landing);
+                }
             });
             return landing;
         } catch (Throwable t) {
@@ -224,16 +227,18 @@ public final class RuntimeEffectGrid {
     }
 
     /**
-     * Record a finished write: registered only when the asset is really in the store. A write can
-     * complete without throwing while the engine refuses the body (a key naming a damage cause that is
-     * not loaded), so the asset map is asked rather than the future; a refused bucket is not written
-     * again until {@link #resynthesizeAll}.
+     * Record a finished write: registered exactly when the asset is in the store, whatever the future
+     * says. A write can complete without throwing while the engine refuses the body (a key naming a
+     * damage cause that is not loaded), and can fail after the asset went in (a listener throwing), so
+     * the asset map is asked rather than the future; a bucket not in it is not written again until
+     * {@link #resynthesizeAll}.
      */
     private void settle(@Nonnull Bucket bucket, @Nonnull String id, boolean wrote) {
-        if (wrote && EntityEffect.getAssetMap().getIndex(id) != Integer.MIN_VALUE) {
+        if (EntityEffect.getAssetMap().getIndex(id) != Integer.MIN_VALUE) {
             registered.add(bucket);
         } else if (refused.add(bucket)) {
-            warn("RuntimeEffectGrid: '" + id + "' did not load; its body was refused (see the asset log)");
+            warn("RuntimeEffectGrid: '" + id + "' did not load; "
+                    + (wrote ? "its body was refused (see the asset log)" : "its write failed"));
         }
     }
 
