@@ -99,16 +99,46 @@ public final class GearSetDecision {
     public static int fullCount(@Nonnull GearSetAsset set) {
         int full = 0;
         for (GearSetAsset.Tier tier : set.tiers()) {
-            int slots = orZero(tier.getArmor()) + orZero(tier.getHeld()) + orZero(tier.getUtility());
-            full = Math.max(full, Math.max(orZero(tier.getPieces()), slots));
+            full = Math.max(full, size(tier));
         }
         return full;
     }
 
     /**
+     * How far {@code counts} stand toward the full set, never the raw {@code pieces}: the best, over
+     * the tiers, of how far they stand toward that tier ({@link #toward}), so a member in the wrong slot
+     * moves nothing and a tier that holds never reads below its own size. So a worn helm and a shield
+     * meant for the off hand, held in the main hand, stand at 1 of 2; a helm and the hatchet in the off
+     * hand stand at 2 of the Woodcutter's Kit's 5, its two-piece tier on. A count at the full set means
+     * a tier of that size holds. A set authoring no count answers {@code pieces}.
+     */
+    public static int progress(@Nonnull GearSetAsset set, @Nonnull SlotCounts counts) {
+        int best = -1;
+        for (GearSetAsset.Tier tier : set.tiers()) {
+            if (size(tier) > 0) {
+                best = Math.max(best, toward(tier, counts));
+            }
+        }
+        return best < 0 ? counts.pieces() : best;
+    }
+
+    /**
+     * How far {@code counts} stand toward {@code tier}: its {@link #size} less what it still lacks, the
+     * larger of its unmet slot minimums ({@code Armor}, {@code Held}, {@code Utility}, summed) and its
+     * unmet {@code Pieces}, at least 0. It equals the size exactly when the tier holds.
+     */
+    private static int toward(@Nonnull GearSetAsset.Tier tier, @Nonnull SlotCounts counts) {
+        int slotsLacking = shortfall(tier.getArmor(), counts.armor())
+                + shortfall(tier.getHeld(), counts.held())
+                + shortfall(tier.getUtility(), counts.utility());
+        int piecesLacking = shortfall(tier.getPieces(), counts.pieces());
+        return Math.max(0, size(tier) - Math.max(slotsLacking, piecesLacking));
+    }
+
+    /**
      * The count a notice shows: {@code pieces}, at most {@code full}, so a spare member past the
      * full set (a second shield in hand) never reads "3/2". A {@code full} of 0 (a set authoring no
-     * count) leaves {@code pieces} as it is.
+     * count) leaves {@code pieces} as it is. Pass {@link #progress}, never the raw {@code pieces}.
      */
     public static int shownPieces(int pieces, int full) {
         return full > 0 ? Math.min(pieces, full) : pieces;
@@ -131,6 +161,19 @@ public final class GearSetDecision {
 
     private static boolean met(Integer minimum, int count) {
         return minimum == null || count >= minimum;
+    }
+
+    /** How many pieces {@code tier} takes: {@code max(Pieces, Armor + Held + Utility)}, unauthored reading 0. */
+    private static int size(@Nonnull GearSetAsset.Tier tier) {
+        return Math.max(orZero(tier.getPieces()), slots(tier));
+    }
+
+    private static int slots(@Nonnull GearSetAsset.Tier tier) {
+        return orZero(tier.getArmor()) + orZero(tier.getHeld()) + orZero(tier.getUtility());
+    }
+
+    private static int shortfall(@Nullable Integer minimum, int count) {
+        return Math.max(0, orZero(minimum) - count);
     }
 
     private static int orZero(@Nullable Integer value) {

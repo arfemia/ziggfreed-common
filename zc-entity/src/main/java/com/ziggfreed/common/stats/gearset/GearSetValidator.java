@@ -43,7 +43,7 @@ import com.ziggfreed.common.validation.Finding;
  *       same arithmetic, so one filter covers both), {@link #UNKNOWN_SET_EFFECT},
  *       {@link #TOO_FEW_MEMBERS}, {@link #UNKNOWN_JOIN_TARGET}, {@link #JOIN_EFFECT_CLASH},
  *       {@link #UNKNOWN_SET_BADGE}, {@link #BADGE_WITHOUT_ICON}, {@link #BADGE_NOT_INFINITE},
- *       {@link #BADGE_ID_CLASH}, {@link #JOIN_BADGE_CLASH};</li>
+ *       {@link #BADGE_ID_CLASH}, {@link #JOIN_BADGE_CLASH}, {@link #LAYER_INHERITS_TARGET_TIERS};</li>
  *   <li>INFO {@link #UNNAMED_SET}.</li>
  * </ul>
  *
@@ -79,6 +79,7 @@ public final class GearSetValidator {
     public static final String BADGE_NOT_INFINITE = "BADGE_NOT_INFINITE";
     public static final String BADGE_ID_CLASH = "BADGE_ID_CLASH";
     public static final String JOIN_BADGE_CLASH = "JOIN_BADGE_CLASH";
+    public static final String LAYER_INHERITS_TARGET_TIERS = "LAYER_INHERITS_TARGET_TIERS";
 
     /** A set of one member is a set of nothing: the bonus is the item's own stats with extra steps. */
     static final int FEWEST_SENSIBLE_MEMBERS = 2;
@@ -145,6 +146,12 @@ public final class GearSetValidator {
         for (GearSetJoins.Dropped drop : folded.dropped()) {
             dropped.put(GearSetKeys.setId(drop.layerId()), drop);
         }
+        Map<String, GearSetAsset> asWritten = new HashMap<>();
+        for (GearSetAsset set : sets) {
+            if (set != null && set.getId() != null) {
+                asWritten.put(GearSetKeys.setId(set.getId()), set);
+            }
+        }
         Badges badges = new Badges(effectKnown, effectFacts);
         for (GearSetAsset set : sets) {
             if (set == null || set.getId() == null || !set.isEnabled()
@@ -162,6 +169,7 @@ public final class GearSetValidator {
                 out.add(droppedLayer(drop));
                 continue;
             }
+            checkInheritedTiers(set, asWritten, out);
             auditOne(set, joined.getOrDefault(GearSetKeys.setId(appliesAs(set)), set), itemKnown, statKnown,
                     effectKnown, baseMax, badges, out);
         }
@@ -172,6 +180,25 @@ public final class GearSetValidator {
     @Nonnull
     private static String appliesAs(@Nonnull GearSetAsset set) {
         return set.isLayer() ? String.valueOf(set.joinsId()) : set.getId();
+    }
+
+    /**
+     * A layer whose {@code Bonuses} are its own set's, inherited through {@code Parent} (a layer that
+     * names its set as its Parent and writes no Bonuses): the fold adds the set's tiers to themselves,
+     * so every stat they give is doubled.
+     */
+    private static void checkInheritedTiers(@Nonnull GearSetAsset set, @Nonnull Map<String, GearSetAsset> asWritten,
+            @Nonnull List<Finding> out) {
+        if (!set.isLayer()) {
+            return;
+        }
+        GearSetAsset target = asWritten.get(GearSetKeys.setId(String.valueOf(set.joinsId())));
+        if (target != null && target != set && set.inheritsBonusesOf(target)) {
+            out.add(Finding.warning(DOMAIN, LAYER_INHERITS_TARGET_TIERS, "gear set '" + set.getId() + "' joins '"
+                    + target.getId() + "' and inherits its Bonuses through Parent without writing its own, so the "
+                    + "fold adds those tiers to themselves and doubles every stat they give; write only the tiers "
+                    + "this file adds, or drop the Parent", set.getId()));
+        }
     }
 
     /** The one finding for a layer the fold dropped: its set is not loaded (WARNING) or is a layer itself (ERROR). */

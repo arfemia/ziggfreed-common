@@ -54,7 +54,8 @@ public final class GearSetEvents {
             int full = GearSetDecision.fullCount(set);
             return new ZigGearSetTierChangedEvent(playerId, liveRef(playerRef, set.getId()),
                     GearSetKeys.setId(set.getId()), tierIndex, active,
-                    GearSetDecision.shownPieces(counts.pieces(), full), set.memberIds().size(), full,
+                    GearSetDecision.shownPieces(GearSetDecision.progress(set, counts), full),
+                    set.memberIds().size(), full,
                     set.titleKey(), tier == null ? List.of() : tier.titleKeys(), nextTierTitleKeys(set, counts));
         });
     }
@@ -68,7 +69,8 @@ public final class GearSetEvents {
         SEAM.fire("ZigGearSetPiecesChanged", ZigGearSetPiecesChangedEvent.class, () -> {
             int full = GearSetDecision.fullCount(set);
             return new ZigGearSetPiecesChangedEvent(playerId, liveRef(playerRef, set.getId()),
-                    GearSetKeys.setId(set.getId()), GearSetDecision.shownPieces(counts.pieces(), full), full,
+                    GearSetKeys.setId(set.getId()), GearSetDecision.shownPieces(GearSetDecision.progress(set, counts), full),
+                    full,
                     set.titleKey(), nextTierTitleKeys(set, counts));
         });
     }

@@ -64,8 +64,9 @@ public final class ZigGearSetPiecesChangedEvent implements IEvent<Void> {
     }
 
     /**
-     * How many distinct members the player has on now, anywhere, at most {@link #fullSet()}
-     * ({@link GearSetDecision#shownPieces}), so a spare member never reads past the full set.
+     * How far the player stands toward the full set now ({@link GearSetDecision#progress}: the pieces
+     * that count in the slots the set's tiers ask for), at most {@link #fullSet()}
+     * ({@link GearSetDecision#shownPieces}), so a member in the wrong slot or a spare one never counts.
      */
     public int pieces() {
         return pieces;

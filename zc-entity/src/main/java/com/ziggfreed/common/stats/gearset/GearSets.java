@@ -255,11 +255,13 @@ public final class GearSets {
             Set<String> desiredEffects = new LinkedHashSet<>();
             Set<TierRef> active = new LinkedHashSet<>();
             Map<String, SlotCounts> countsBySet = new LinkedHashMap<>();
+            Map<String, Integer> progressBySet = new LinkedHashMap<>();
             Map<String, Integer> fullBySet = new LinkedHashMap<>();
             List<String> pooled = new ArrayList<>();
             for (GearSetAsset set : index.candidates(snapshot)) {
                 SlotCounts counts = GearSetDecision.count(set, snapshot);
                 countsBySet.put(GearSetKeys.setId(set.getId()), counts);
+                progressBySet.put(GearSetKeys.setId(set.getId()), GearSetDecision.progress(set, counts));
                 fullBySet.put(GearSetKeys.setId(set.getId()), GearSetDecision.fullCount(set));
                 List<GearSetAsset.Tier> tiers = set.tiers();
                 List<Integer> activeTiers = GearSetDecision.activeTiers(set, counts);
@@ -322,7 +324,7 @@ public final class GearSets {
             // What the engine answers for from here on: what it asked for, plus every look whose
             // remove did not go through, so the next recompute (and the next login) tries again.
             Set<String> answered = answeredAfter(shown, unremoved, GearSetValidator::effectKnown);
-            Map<String, Integer> pieces = piecesOf(countsBySet);
+            Map<String, Integer> pieces = piecesOf(progressBySet);
             GearSetApplied.put(playerId, new GearSetApplied.Applied(GearSetPlan.tiersOf(desired),
                     answered, active, pieces, seats));
             if (looks != null) {
@@ -440,13 +442,16 @@ public final class GearSets {
         return previous == null ? List.of() : flips(previous.activeTiers(), active);
     }
 
-    /** How many distinct members of each set are on, by folded set id, a set with none left out. Pure. */
+    /**
+     * How far each set stands toward its full set ({@link GearSetDecision#progress}), by folded set id, a set
+     * at none left out: the count a notice shows and a rise is measured in. Pure.
+     */
     @Nonnull
-    static Map<String, Integer> piecesOf(@Nonnull Map<String, SlotCounts> countsBySet) {
+    static Map<String, Integer> piecesOf(@Nonnull Map<String, Integer> progressBySet) {
         Map<String, Integer> out = new LinkedHashMap<>();
-        for (Map.Entry<String, SlotCounts> entry : countsBySet.entrySet()) {
-            if (entry.getValue().pieces() > 0) {
-                out.put(entry.getKey(), entry.getValue().pieces());
+        for (Map.Entry<String, Integer> entry : progressBySet.entrySet()) {
+            if (entry.getValue() > 0) {
+                out.put(entry.getKey(), entry.getValue());
             }
         }
         return out;

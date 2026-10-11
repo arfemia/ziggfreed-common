@@ -41,9 +41,9 @@ import com.ziggfreed.common.stats.gearset.GearSetKeys.TierRef;
 final class GearSetApplied {
 
     /**
-     * One player's last write. {@code pieces} is how many distinct members of each set (by folded
-     * id) the player had on, a set with none left out, so the next recompute can tell a count that
-     * rose from one that stayed. {@code badgeSeats} is the default tile each worn set naming no badge
+     * One player's last write. {@code pieces} is how far each set (by folded id) stood toward its
+     * full set ({@link GearSetDecision#progress}), a set at none left out, so the next recompute can
+     * tell a count that rose from one that stayed. {@code badgeSeats} is the default tile each worn set naming no badge
      * sat on, by folded id ({@link GearSetBadges#seat}), so the next recompute keeps it on that slot.
      */
     record Applied(@Nonnull Set<TierRef> writtenTiers, @Nonnull Set<String> effects, @Nonnull Set<TierRef> activeTiers,

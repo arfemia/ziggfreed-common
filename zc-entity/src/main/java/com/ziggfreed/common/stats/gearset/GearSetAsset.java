@@ -216,6 +216,14 @@ public final class GearSetAsset implements JsonAssetWithMap<String, DefaultAsset
         return Collections.unmodifiableList(out);
     }
 
+    /**
+     * Whether this file's {@code Bonuses} are {@code other}'s very list, inherited through {@code Parent}
+     * (directly or down a chain) rather than written: a file that writes the key decodes a list of its own.
+     */
+    boolean inheritsBonusesOf(@Nonnull GearSetAsset other) {
+        return bonuses != null && bonuses == other.bonuses;
+    }
+
     /** Java-side factory, for a test or a consumer registering a set without a file. */
     @Nonnull
     public static GearSetAsset of(@Nonnull String id, @Nullable ContentTextAsset text, @Nullable Boolean enabled,

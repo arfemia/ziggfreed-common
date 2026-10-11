@@ -39,6 +39,24 @@ class GearSetDecisionTest {
                 GearSetAsset.Tier.of(null, 4, 1, null, null, null, null));
     }
 
+    /** Hallowed: two helms and two shields for one tier of {@code Armor 1, Utility 1}. */
+    @Nonnull
+    private static GearSetAsset hallowed() {
+        return GearSetAsset.of("Hallows_Eve_Hallowed", null, null,
+                new String[] {"Jack_Helm", "Jack_Shield", "Burning_Jack_Helm", "Flaming_Jack_Shield"},
+                GearSetAsset.Tier.of(null, 1, null, 1, null, null, null));
+    }
+
+    /** The Woodcutter's Kit: four armor pieces and three hatchets, a ladder topping out at {@code Armor 4, Held 1}. */
+    @Nonnull
+    private static GearSetAsset woodcutters() {
+        return GearSetAsset.of("Woodcutters_Kit", null, null,
+                new String[] {"Head", "Chest", "Hands", "Legs", "Hatchet_Sawmiller", "Hatchet_Millwright", "Hatchet_Marn"},
+                GearSetAsset.Tier.of(2, null, null, null, null, null, null),
+                GearSetAsset.Tier.of(null, 4, null, null, null, null, null),
+                GearSetAsset.Tier.of(null, 4, 1, null, null, null, null));
+    }
+
     @Nonnull
     private static EquippedSnapshot wearing(String held, String offhand, String... armor) {
         return EquippedSnapshot.of(held, offhand, new ArrayList<>(Arrays.asList(armor)));
@@ -144,14 +162,8 @@ class GearSetDecisionTest {
      */
     @Test
     void theFullCountIsTheLargestTierNeverTheMemberList() {
-        GearSetAsset hallowed = GearSetAsset.of("Hallows_Eve_Hallowed", null, null,
-                new String[] {"Jack_Helm", "Jack_Shield", "Burning_Jack_Helm", "Flaming_Jack_Shield"},
-                GearSetAsset.Tier.of(null, 1, null, 1, null, null, null));
-        GearSetAsset woodcutters = GearSetAsset.of("Woodcutters_Kit", null, null,
-                new String[] {"Head", "Chest", "Hands", "Legs", "Hatchet_Sawmiller", "Hatchet_Millwright", "Hatchet_Marn"},
-                GearSetAsset.Tier.of(2, null, null, null, null, null, null),
-                GearSetAsset.Tier.of(null, 4, null, null, null, null, null),
-                GearSetAsset.Tier.of(null, 4, 1, null, null, null, null));
+        GearSetAsset hallowed = hallowed();
+        GearSetAsset woodcutters = woodcutters();
         GearSetAsset disenchanters = GearSetAsset.of("Disenchanters_Kit", null, null,
                 new String[] {"Head", "Chest", "Hands", "Legs", "Grimoire"},
                 GearSetAsset.Tier.of(2, null, null, null, null, null, null),
@@ -161,6 +173,44 @@ class GearSetDecisionTest {
         assertEquals(2, GearSetDecision.fullCount(hallowed), "a helm and a shield, out of four members");
         assertEquals(5, GearSetDecision.fullCount(woodcutters), "four armor pieces and a hatchet, out of seven");
         assertEquals(5, GearSetDecision.fullCount(disenchanters), "four armor pieces and the grimoire");
+    }
+
+    /**
+     * The count a notice shows stands against the fullest tier's own slots, never the raw member
+     * count: a Jack Shield in the main hand beside a worn helm is one of Hallowed's two (its tier asks
+     * Utility), so it never reads "2/2" while no bonus holds, and the same shield in the utility slot
+     * is two of two with the tier on. Four armor pieces with a hatchet in the utility slot are four of
+     * the Kit's five (its top tier asks Held), and a pieces-only tier still counts members.
+     */
+    @Test
+    void theCountStandsAgainstTheFullestTiersSlotsNeverTheRawPieces() {
+        GearSetAsset hallowed = hallowed();
+        SlotCounts shieldInHand = GearSetDecision.count(hallowed, wearing("Jack_Shield", null, "Jack_Helm"));
+        SlotCounts shieldOnArm = GearSetDecision.count(hallowed, wearing(null, "Jack_Shield", "Jack_Helm"));
+
+        assertEquals(new SlotCounts(2, 1, 1, 0), shieldInHand);
+        assertTrue(GearSetDecision.activeTiers(hallowed, shieldInHand).isEmpty(), "the tier asks Utility, not Held");
+        assertEquals(1, GearSetDecision.progress(hallowed, shieldInHand), "one of two, never a silent 2/2");
+        assertEquals(2, GearSetDecision.progress(hallowed, shieldOnArm));
+        assertEquals(List.of(0), GearSetDecision.activeTiers(hallowed, shieldOnArm), "at the full count the tier holds");
+
+        GearSetAsset woodcutters = woodcutters();
+        SlotCounts hatchetOnArm = GearSetDecision.count(woodcutters,
+                wearing(null, "Hatchet_Marn", "Head", "Chest", "Hands", "Legs"));
+        SlotCounts hatchetInHand = GearSetDecision.count(woodcutters,
+                wearing("Hatchet_Marn", null, "Head", "Chest", "Hands", "Legs"));
+
+        assertEquals(4, GearSetDecision.progress(woodcutters, hatchetOnArm), "the top tier wants the hatchet in hand");
+        assertEquals(5, GearSetDecision.progress(woodcutters, hatchetInHand));
+        SlotCounts helmAndHatchetOnArm = GearSetDecision.count(woodcutters, wearing(null, "Hatchet_Marn", "Head"));
+        assertEquals(List.of(0), GearSetDecision.activeTiers(woodcutters, helmAndHatchetOnArm));
+        assertEquals(2, GearSetDecision.progress(woodcutters, helmAndHatchetOnArm),
+                "a tier that holds never reads below its own size: the two-piece tier is on at 2 of 5");
+
+        GearSetAsset trio = GearSetAsset.of("Trio", null, null, new String[] {"A", "B", "C"},
+                GearSetAsset.Tier.of(3, null, null, null, null, null, null));
+        assertEquals(2, GearSetDecision.progress(trio, GearSetDecision.count(trio, wearing("A", "B"))),
+                "a pieces-only tier counts members wherever they sit");
     }
 
     @Test
