@@ -46,7 +46,7 @@ quest.list.row = {0} - {1}, {2} etapas{3}
 quest.list.off = , desligada
 quest.list.hidden = , oculta nas listagens abertas
 quest.list.repeatable = , repetível
-quest.list.tags = tags: {0}
+quest.list.tags = etiquetas: {0}
 
 quest.given = {0} iniciada para {1}.
 quest.given.everyone = {0} iniciada para {1} jogadores.
