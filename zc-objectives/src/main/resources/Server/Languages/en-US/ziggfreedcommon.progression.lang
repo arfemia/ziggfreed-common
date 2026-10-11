@@ -208,5 +208,10 @@ book.achievements.state.collect = Collect
 book.achievements.state.feat = Feat
 book.tooltip.unpin = Unpin this achievement
 
+# An achievement earned by holding a rank with a reputation, listed under that rank on the reputation's page:
+# {0} is the achievement's name and {1} what it pays, each reward as the book's Rewards block names it. The page
+# then says where it is found, by book.tab.achievements above.
+reputation.rank_achievement = {0} ({1})
+
 # The hover line on the map marker at a character with a quest the player could take; {0} is the quest's title.
 quest.marker.available = Quest on offer: {0}

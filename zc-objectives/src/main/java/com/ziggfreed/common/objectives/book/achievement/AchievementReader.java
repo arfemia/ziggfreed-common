@@ -686,13 +686,19 @@ public final class AchievementReader {
     /** Its own picture, else the folded definition's, else its category's. */
     @Nonnull
     Picture picture(@Nonnull Achievement a) {
-        String icon = a.icon();
-        if (icon == null || icon.isBlank()) {
-            icon = ProgressionDefaults.achievementIcon(a.id());
-        }
         AchievementCategoryAsset asset = category(AchievementGrouping.bucketOf(a));
         Picture fallback = asset == null ? Picture.NONE : Picture.item(asset.getIcon());
-        return Picture.item(icon).or(fallback);
+        return Picture.item(iconOf(a)).or(fallback);
+    }
+
+    /**
+     * The item {@code a} is pictured by: its own, else the folded definition's; null when neither names one (the
+     * book then draws its category's). Public so a surface outside the book pictures it the same way.
+     */
+    @Nullable
+    public static String iconOf(@Nonnull Achievement a) {
+        String icon = a.icon();
+        return icon == null || icon.isBlank() ? ProgressionDefaults.achievementIcon(a.id()) : icon;
     }
 
     @Nonnull
@@ -966,6 +972,16 @@ public final class AchievementReader {
     /** The reward chips for {@code rewards} through the consumer's reading; a reading that throws shows none. */
     @Nonnull
     List<RewardChip> chips(@Nonnull List<RewardSpec> rewards) {
+        return rewardChips(rewards, deps);
+    }
+
+    /**
+     * The reward chips for {@code rewards} as the book's Rewards block names them, through {@code deps}' reading
+     * ({@code ObjectiveBookPages.resolvedDeps()} outside the book); a reading that throws shows none. Public so a
+     * surface outside the book words an achievement's pay in the book's own words.
+     */
+    @Nonnull
+    public static List<RewardChip> rewardChips(@Nonnull List<RewardSpec> rewards, @Nonnull ObjectiveBookDeps deps) {
         if (rewards.isEmpty()) {
             return List.of();
         }

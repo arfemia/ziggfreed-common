@@ -39,6 +39,7 @@ import com.ziggfreed.common.inventory.InventoryUtil;
 import com.ziggfreed.common.objectives.hud.TrackedQuestHuds;
 import com.ziggfreed.common.objectives.marker.QuestMarkers;
 import com.ziggfreed.common.objectives.producer.EncounterQuestAxes;
+import com.ziggfreed.common.objectives.producer.RankAchievementGatedContent;
 import com.ziggfreed.common.objectives.producer.ZigBlockBreakProducer;
 import com.ziggfreed.common.objectives.producer.ZigCalendarProducer;
 import com.ziggfreed.common.objectives.producer.ZigCraftProducer;
@@ -59,6 +60,7 @@ import com.ziggfreed.common.objectives.store.ZigQuestStore;
 import com.ziggfreed.common.objectives.waypoint.QuestWaypoints;
 import com.ziggfreed.common.progress.ContentText;
 import com.ziggfreed.common.progress.gate.GateEvaluator;
+import com.ziggfreed.common.progress.gate.GatedContent;
 import com.ziggfreed.common.progress.runtime.ProgressionGates;
 import com.ziggfreed.common.progress.runtime.ProgressionRegistrar;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
@@ -197,8 +199,9 @@ public final class ProgressionDefaults {
      * about players rather than happening to an entity, so each arrives on the shared bus), the
      * library's talk-credit sink (a conversation is credited by an authored beat through
      * zc-dialogue's {@code TalkCredits}, and this sink always runs, beside any sink a consumer
-     * registers), and the tracked-quest HUD with its six event subscriptions. All of it is
-     * unconditional, and so is every dispatch those producers make.
+     * registers), the achievements a reputation's ranks earn as the Reputation page's gated content
+     * ({@link RankAchievementGatedContent}), and the tracked-quest HUD with its six event subscriptions.
+     * All of it is unconditional, and so is every dispatch those producers make.
      *
      * <p>The HUD installs itself after everything above and guards itself, so a failure there costs the
      * tracker and nothing registered before it. The quest marks install after it, guarded the same way.
@@ -220,6 +223,7 @@ public final class ProgressionDefaults {
         ZigLootReceivedProducer.install(plugin);
         ZigQuestCompletionProducer.install(plugin);
         ZigReputationProducer.install(plugin);
+        GatedContent.register(RankAchievementGatedContent.ID, RankAchievementGatedContent::entries);
         ZigTalkProducer.install(plugin);
         SafeLog.info("[progression] producers always-on: " + producedKinds()
                 + " (a mod firing a new moment calls ProgressDispatch.fire directly, no registration"
