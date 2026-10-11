@@ -13,17 +13,19 @@ import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.achievement.AchievementEngine;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.objectives.title.TitleRewardKind;
+import com.ziggfreed.common.objectives.title.page.TitleSources.Kind;
 import com.ziggfreed.common.progress.MatchMode;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveKind;
 import com.ziggfreed.common.progress.ObjectiveKindRegistry;
+import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.kit.Progress;
 
 /**
- * Which achievements give each title, read off the catalogue: an achievement gives a title when one of its rewards,
- * paid on unlock or on collect, is of the Title kind naming it. The picker's not-earned line shows the first one the
- * player can see, with how far along they are.
+ * Which achievements and quests give each title, read off the catalogues: one gives a title when one of its rewards,
+ * paid when earned or on collect, is of the Title kind naming it. The picker's not-earned line shows the first one
+ * the player can see, with how far along they are: a waiting collect first, then an achievement, then a quest.
  */
 class TitleSourcesTest {
 
@@ -76,6 +78,38 @@ class TitleSourcesTest {
     }
 
     @Test
+    void aQuestGivesEveryTitleItsRewardsNameInListOrder() {
+        Quest late = Quest.builder("a_late").listOrder(20).autoReward(title("Hallowed")).build();
+        Quest early = Quest.builder("z_early").listOrder(10).claimRewards(List.of(title("hallowed"))).build();
+        Quest tie = Quest.builder("b_tie").listOrder(20).autoReward(title("Hallowed"))
+                .claimRewards(List.of(title("HALLOWED"))).build();
+        Quest nothing = Quest.builder("plain").autoReward(RewardSpec.of("Money", "Amount", "5")).build();
+
+        TitleSources sources = TitleSources.of(List.of(), List.of(late, tie, nothing, early));
+
+        assertEquals(List.of("z_early", "a_late", "b_tie"),
+                sources.questGranters("Hallowed").stream().map(Quest::id).toList(),
+                "list order first, then the id; paid on the spot or on collect; a title paid twice lists it once");
+        assertEquals(List.of(), sources.granters("hallowed"), "a quest is never listed as an achievement");
+    }
+
+    @Test
+    void aWaitingCollectWinsThenTheAchievementThenTheQuest() {
+        TitleSources.Source achievement = new TitleSources.Source(Kind.ACHIEVEMENT, "a", new Progress(1, 3), false);
+        TitleSources.Source quest = new TitleSources.Source(Kind.QUEST, "q", new Progress(2, 5), false);
+        TitleSources.Source questToCollect = new TitleSources.Source(Kind.QUEST, "q", new Progress(5, 5), true);
+        TitleSources.Source achievementToCollect =
+                new TitleSources.Source(Kind.ACHIEVEMENT, "a", new Progress(3, 3), true);
+
+        assertEquals(achievement, TitleSources.first(achievement, quest));
+        assertEquals(questToCollect, TitleSources.first(achievement, questToCollect),
+                "collecting is the one step left, so it wins over an achievement still to earn");
+        assertEquals(achievementToCollect, TitleSources.first(achievementToCollect, questToCollect));
+        assertEquals(quest, TitleSources.first(null, quest));
+        assertNull(TitleSources.first(null, null));
+    }
+
+    @Test
     void theSourceIsTheFirstGranterThePlayerCanSeeWithTheirProgress() {
         Achievement hidden = Achievement.builder("secret").sortOrder(1).hidden(true)
                 .criterion(criterion("0", 3)).autoReward(title("Keeper_Of_Lanterns")).build();
@@ -85,7 +119,7 @@ class TitleSourcesTest {
         engine.store().setCriterionProgress(ALICE, "lantern_keeper", "0", 1L);
         TitleSources sources = TitleSources.of(engine.achievements());
 
-        assertEquals(new TitleSources.Source("lantern_keeper", new Progress(1, 3)),
+        assertEquals(new TitleSources.Source(Kind.ACHIEVEMENT, "lantern_keeper", new Progress(1, 3), false),
                 sources.source("keeper_of_lanterns", engine, ALICE),
                 "a hidden achievement is never named; the next one the player can see is");
         assertNull(sources.source("never_given", engine, ALICE));

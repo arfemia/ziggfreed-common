@@ -16,8 +16,8 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * What the title picker shows, worked out with nothing but the player's titles, the fold and a source lookup in
  * hand: the earned titles on offer as tiles in picker order, at most one of them shown; every other title on offer
- * the player may see as a line, with the achievement that gives it and the player's progress when one they can see
- * does (a {@code Hidden} title stays off until earned, R166); the count "n of N" ({@link TitleConfig.Tally}); and
+ * the player may see as a line, with the achievement or quest that gives it and the player's progress when one they
+ * can see does (a {@code Hidden} title stays off until earned, R166); the count "n of N" ({@link TitleConfig.Tally}); and
  * which empty state reads, if any. A plan, because a page cannot be stood up in a unit JVM.
  */
 final class TitlePickerRows {
@@ -30,7 +30,10 @@ final class TitlePickerRows {
         }
     }
 
-    /** One title still to earn, with the achievement that gives it; no source when none the player can see does. */
+    /**
+     * One title still to earn, with the achievement or quest that gives it; no source when none the player can see
+     * does.
+     */
     record Line(@Nonnull String titleId, @Nullable TitleSources.Source source) {
 
         Line {

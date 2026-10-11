@@ -52,6 +52,6 @@ picker.not_earned = Not earned yet
 picker.show_none = Show none
 picker.from = From "{0}", {1, number} / {2, number}
 picker.collect = Collect it from "{0}"
-picker.none_yet = No titles yet. These achievements give one:
+picker.none_yet = No titles yet. Here is where each one comes from:
 picker.none_on_server = This server has no titles to earn.
 picker.secret_only = Some titles stay secret until you earn them.

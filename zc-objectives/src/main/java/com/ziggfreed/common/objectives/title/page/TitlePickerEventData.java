@@ -7,13 +7,14 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 /**
  * What the picker round-trips on every binding: {@code Action} ({@code press}, {@code none}, {@code open},
  * {@code back}, {@code close}); for a press, {@code Title}, the tile's title id; for an open,
- * {@code Achievement}, the id of the achievement a not-earned line comes from.
+ * {@code Achievement} or {@code Quest}, the id of the achievement or quest a not-earned line comes from.
  */
 public final class TitlePickerEventData {
 
     public String action;
     public String title;
     public String achievement;
+    public String quest;
 
     public static final BuilderCodec<TitlePickerEventData> CODEC =
             BuilderCodec.builder(TitlePickerEventData.class, TitlePickerEventData::new)
@@ -28,6 +29,10 @@ public final class TitlePickerEventData {
                     .append(new KeyedCodec<>("Achievement", Codec.STRING),
                             (data, v, info) -> data.achievement = v,
                             (data, info) -> data.achievement)
+                    .add()
+                    .append(new KeyedCodec<>("Quest", Codec.STRING),
+                            (data, v, info) -> data.quest = v,
+                            (data, info) -> data.quest)
                     .add()
                     .build();
 }

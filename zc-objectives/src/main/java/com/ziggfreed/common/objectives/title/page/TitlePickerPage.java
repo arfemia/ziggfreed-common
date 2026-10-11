@@ -1,6 +1,7 @@
 package com.ziggfreed.common.objectives.title.page;
 
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -37,6 +38,8 @@ import com.ziggfreed.common.objectives.title.page.TitlePickerRows.Tile;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.progress.runtime.ProgressionSystem;
 import com.ziggfreed.common.progress.runtime.ProgressionTexts;
+import com.ziggfreed.common.quest.Quest;
+import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.SettingsUiUtil;
 import com.ziggfreed.common.ui.ZigRichButton;
@@ -60,9 +63,9 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * The title picker: the preview bar saying how the player appears, the titles they have earned as tiles with a Show
  * button each (at most one shown) under an "n of N" head, and every other title on offer they may see as a line
- * naming the achievement that gives it and how far along they are (or that it waits on their collecting it); a line
- * opens the objective book on that achievement. What it shows is the pure plan {@link TitlePickerRows}; what gives a
- * title is {@link TitleSources}.
+ * naming the achievement or quest that gives it and how far along they are (or that it waits on their collecting it);
+ * a line opens the objective book on that achievement or quest. What it shows is the pure plan
+ * {@link TitlePickerRows}; what gives a title is {@link TitleSources}.
  *
  * <p>Show shows that title, or takes it off when it is the one shown; Show none takes any off. Either writes through
  * {@code TitleUnlocks} and repaints only the tiles it moved and the preview, so the scroll position survives. Back
@@ -144,24 +147,36 @@ public final class TitlePickerPage extends ToastablePage<TitlePickerEventData> {
     }
 
     /**
-     * What gives each title, as this player sees the achievement catalogue; no source at all when they have no
-     * achievement record or the owner switched achievements off for them, since a line could not open the book then.
+     * What gives each title, as this player sees the achievement and quest catalogues ({@link TitleSources#first}
+     * picks between the two); no source of a kind they have no record of or the owner switched off for them, since a
+     * line could not open the book on it then.
      */
     @Nonnull
     private static Function<String, TitleSources.Source> sources(@Nonnull Store<EntityStore> store,
             @Nonnull Ref<EntityStore> ref) {
         try {
-            Subject subject = ProgressionRuntime.subjects().achievementSubject(store, ref);
-            if (subject == null || !ProgressionRuntime.systemEnabled(ProgressionSystem.ACHIEVEMENT, subject)) {
+            Subject achiever = enabled(ProgressionSystem.ACHIEVEMENT,
+                    ProgressionRuntime.subjects().achievementSubject(store, ref));
+            Subject quester = enabled(ProgressionSystem.QUEST, ProgressionRuntime.subjects().questSubject(store, ref));
+            if (achiever == null && quester == null) {
                 return titleId -> null;
             }
-            AchievementEngine engine = ProgressionRuntime.achievements();
-            TitleSources index = TitleSources.of(engine.achievements());
-            return titleId -> index.source(titleId, engine, subject);
+            AchievementEngine achievements = ProgressionRuntime.achievements();
+            QuestEngine quests = ProgressionRuntime.quests();
+            TitleSources index = TitleSources.of(achievements.achievements(), quests.quests());
+            return titleId -> TitleSources.first(
+                    achiever == null ? null : index.source(titleId, achievements, achiever),
+                    quester == null ? null : index.source(titleId, quests, quester));
         } catch (Throwable t) {
             SafeLog.warn("[title] the picker could not read what gives each title: " + t.getMessage());
             return titleId -> null;
         }
+    }
+
+    /** {@code subject} while {@code system} is on for them; null when there is none or it is off. */
+    @Nullable
+    private static Subject enabled(@Nonnull ProgressionSystem system, @Nullable Subject subject) {
+        return subject != null && ProgressionRuntime.systemEnabled(system, subject) ? subject : null;
     }
 
     /** "You appear as: ..." through the very seam every menu names the player by. */
@@ -236,22 +251,38 @@ public final class TitlePickerPage extends ToastablePage<TitlePickerEventData> {
 
     private static void renderLines(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
             @Nonnull List<Line> notEarned) {
-        AchievementEngine engine = ProgressionRuntime.achievements();
+        AchievementEngine achievements = ProgressionRuntime.achievements();
+        QuestEngine quests = ProgressionRuntime.quests();
         List<DetailLine> lines = new ArrayList<>(notEarned.size());
+        Map<DetailLine, TitleSources.Source> opens = new IdentityHashMap<>();
         for (Line line : notEarned) {
-            lines.add(lineOf(line, engine));
+            DetailLine detail = lineOf(line, achievements, quests);
+            lines.add(detail);
+            if (line.source() != null) {
+                opens.put(detail, line.source());
+            }
         }
-        DetailPainter.lines(cmd, events, NOT_EARNED, lines,
-                line -> EventData.of("Action", "open").append("Achievement", line.selectId()));
+        DetailPainter.lines(cmd, events, NOT_EARNED, lines, detail -> openOf(opens.get(detail)));
+    }
+
+    /** What a line's press sends: open the book on the achievement or quest it comes from; null opens nothing. */
+    @Nullable
+    private static EventData openOf(@Nullable TitleSources.Source source) {
+        if (source == null) {
+            return null;
+        }
+        return EventData.of("Action", "open")
+                .append(source.kind() == TitleSources.Kind.QUEST ? "Quest" : "Achievement", source.id());
     }
 
     /**
-     * A title still to earn: its name in bold, then the {@code picker.from} line (the achievement that gives it and
-     * the player's count toward it), or {@code picker.collect} when the title waits only on their collecting that
-     * achievement, over that achievement's picture, opening it; with no source, its name and flavor, opening nothing.
+     * A title still to earn: its name in bold, then the {@code picker.from} line (the achievement or quest that gives
+     * it and the player's count toward it), or {@code picker.collect} when the title waits only on their collecting
+     * it, over its picture, opening it; with no source, its name and flavor, opening nothing.
      */
     @Nonnull
-    private static DetailLine lineOf(@Nonnull Line line, @Nonnull AchievementEngine engine) {
+    private static DetailLine lineOf(@Nonnull Line line, @Nonnull AchievementEngine achievements,
+            @Nonnull QuestEngine quests) {
         Message name = Msg.bold(TitleText.nameOf(line.titleId()));
         TitleSources.Source source = line.source();
         if (source == null) {
@@ -259,13 +290,14 @@ public final class TitlePickerPage extends ToastablePage<TitlePickerEventData> {
             return DetailLine.of(Picture.NONE, flavor == null ? name
                     : Msg.join(name, Msg.raw(GAP), Msg.color(flavor, ZigTokens.INK_MUTED)));
         }
-        Message achievement = ProgressionTexts.titleOrUntitled(source.achievementId());
+        Message giver = ProgressionTexts.titleOrUntitled(source.id());
         Progress progress = source.progress();
-        Message from = source.collect() ? TitleText.picker("collect", achievement)
-                : TitleText.picker("from", achievement, progress.current(), progress.total());
-        return new DetailLine(pictureOf(engine.achievement(source.achievementId())),
-                Msg.join(name, Msg.raw(GAP), Msg.color(from, ZigTokens.INK_MUTED)),
-                null, null, Tick.NONE, source.achievementId(), false);
+        Message from = source.collect() ? TitleText.picker("collect", giver)
+                : TitleText.picker("from", giver, progress.current(), progress.total());
+        Picture picture = source.kind() == TitleSources.Kind.QUEST
+                ? pictureOf(quests.quest(source.id())) : pictureOf(achievements.achievement(source.id()));
+        return new DetailLine(picture, Msg.join(name, Msg.raw(GAP), Msg.color(from, ZigTokens.INK_MUTED)),
+                null, null, Tick.NONE, source.id(), false);
     }
 
     /** The achievement's picture: its own, else the one its folded file names, else none. */
@@ -281,6 +313,13 @@ public final class TitlePickerPage extends ToastablePage<TitlePickerEventData> {
         return Picture.item(icon);
     }
 
+    /** The quest's own picture, else none. */
+    @Nonnull
+    private static Picture pictureOf(@Nullable Quest quest) {
+        String icon = quest == null ? null : quest.icon();
+        return icon == null || icon.isBlank() ? Picture.NONE : Picture.item(icon);
+    }
+
     @Override
     public void handleDataEvent(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
             @Nonnull TitlePickerEventData data) {
@@ -294,7 +333,13 @@ public final class TitlePickerPage extends ToastablePage<TitlePickerEventData> {
             switch (action) {
                 case "press" -> handlePress(store, ref, data.title);
                 case "none" -> handleNone(store, ref);
-                case "open" -> openAchievement(store, ref, player, data.achievement);
+                case "open" -> {
+                    if (data.quest != null && !data.quest.isBlank()) {
+                        openBook(store, ref, player, ObjectiveBookPage.TAB_QUESTS, data.quest);
+                    } else {
+                        openBook(store, ref, player, ObjectiveBookPage.TAB_ACHIEVEMENTS, data.achievement);
+                    }
+                }
                 case "back" -> {
                     if (!goBack(store, ref, player)) {
                         player.getPageManager().setPage(ref, store, Page.None);
@@ -370,11 +415,14 @@ public final class TitlePickerPage extends ToastablePage<TitlePickerEventData> {
         this.sendUpdate(cmd, new UIEventBuilder(), false);
     }
 
-    /** Open the objective book on the achievement a line comes from; a refusal leaves the picker as it was. */
-    private void openAchievement(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
-            @Nonnull Player player, @Nullable String achievementId) {
-        String id = achievementId == null ? "" : achievementId.trim();
-        if (id.isEmpty() || !ObjectiveBookPages.open(ObjectiveBookPage.TAB_ACHIEVEMENTS, id, store, ref, player)) {
+    /**
+     * Open the objective book on {@code tab} at the achievement or quest a line comes from; a refusal leaves the
+     * picker as it was.
+     */
+    private void openBook(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref, @Nonnull Player player,
+            @Nonnull String tab, @Nullable String contentId) {
+        String id = contentId == null ? "" : contentId.trim();
+        if (id.isEmpty() || !ObjectiveBookPages.open(tab, id, store, ref, player)) {
             answerNothing();
         }
     }

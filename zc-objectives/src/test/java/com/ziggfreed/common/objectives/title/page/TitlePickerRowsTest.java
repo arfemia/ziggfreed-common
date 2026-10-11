@@ -24,13 +24,14 @@ import com.ziggfreed.common.ui.kit.Progress;
 
 /**
  * What the picker shows, worked out with no builder in hand: the earned titles on offer as tiles in picker order with
- * at most one shown; every other title on offer as a line naming the achievement that gives it and the player's
- * progress; "No titles yet" over those lines when nothing is earned, and "no titles to earn" when the server offers
+ * at most one shown; every other title on offer as a line naming the achievement or quest that gives it and the
+ * player's progress; "No titles yet" over those lines when nothing is earned, and "no titles to earn" when the server offers
  * none. A switched-off or unknown title is never listed.
  */
 class TitlePickerRowsTest {
 
-    private static final TitleSources.Source LANTERNS = new TitleSources.Source("lantern_keeper", new Progress(1, 3));
+    private static final TitleSources.Source LANTERNS =
+            new TitleSources.Source(TitleSources.Kind.ACHIEVEMENT, "lantern_keeper", new Progress(1, 3), false);
 
     private static final Function<String, TitleSources.Source> SOURCES =
             id -> Map.of("keeper_of_lanterns", LANTERNS).get(id);
