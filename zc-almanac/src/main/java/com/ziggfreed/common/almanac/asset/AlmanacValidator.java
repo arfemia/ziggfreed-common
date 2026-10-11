@@ -107,7 +107,9 @@ public final class AlmanacValidator {
             List<Finding> out = new ArrayList<>(audit(AlmanacEntryConfig.getInstance().all().values(),
                     AlmanacValidator::eventLoaded, ItemIds::exists, ProgressionRuntime.objectiveKinds(),
                     TextKeyAudit.liveCatalogue(),
-                    keepsake -> AlmanacKeepsakeCheck.loaded(keepsake, AchievementAssetStore.getInstance().assets()),
+                    // A keepsake the mod gate refused is absent by design and named nowhere.
+                    keepsake -> AlmanacKeepsakeCheck.loaded(keepsake, AchievementAssetStore.getInstance().assets())
+                            || AchievementAssetStore.getInstance().modGateRefused(keepsake),
                     Destinations::validate));
             out.addAll(AlmanacKeepsakeCheck.findings());
             return out;

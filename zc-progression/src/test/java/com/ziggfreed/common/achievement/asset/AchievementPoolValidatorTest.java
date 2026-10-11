@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import com.ziggfreed.common.achievement.AchievementProgressStore;
 import com.ziggfreed.common.achievement.InMemoryAchievementProgressStore;
+import com.ziggfreed.common.asset.ModGateFold;
 import com.ziggfreed.common.loot.reward.CollectingRewardKind;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.progress.ObjectiveKind;
@@ -122,6 +123,24 @@ class AchievementPoolValidatorTest {
         assertEquals(Severity.WARNING, only(findings, "UNKNOWN_META_CHILD").severity());
         assertEquals(Severity.ERROR, only(findings, "META_SELF_REFERENCE").severity(),
                 "a capstone waiting on itself can never be satisfied, so it is not a maybe");
+    }
+
+    // The load handler's gated fold keeps its refusals in the store (it once kept only the layer), so a capstone
+    // naming a child the mod gate refused, or that child's yearly copy, names it nowhere; an unknown child still warns.
+    @Test
+    void aChildTheModGateRefusedIsNamedNowhere() throws Exception {
+        AchievementAssetStore store = AchievementAssetStore.getInstance();
+        store.merge(new ModGateFold<>(AchievementAssetStore.MOD_GATE_STORE, Map.of(),
+                Map.of("Gated_Child", "Ziggfreed:KweebecNightmare")));
+        try {
+            List<Finding> findings = validate(pool(Map.of("capstone", """
+                    { "MetaChildren": [ "gated_child", "Gated_Child_2027", "missing_one" ] }
+                    """)));
+            assertTrue(only(findings, "UNKNOWN_META_CHILD").message().contains("'missing_one'"),
+                    () -> "only the child nobody authored is named: " + findings);
+        } finally {
+            store.merge(Map.of());
+        }
     }
 
     @Test

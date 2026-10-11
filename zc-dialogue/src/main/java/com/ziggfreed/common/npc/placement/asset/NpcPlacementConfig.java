@@ -1,7 +1,9 @@
 package com.ziggfreed.common.npc.placement.asset;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -10,6 +12,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
+import com.ziggfreed.common.asset.ModGateFold;
 import com.ziggfreed.common.npc.NpcIdentities;
 import com.ziggfreed.common.npc.placement.runtime.NpcPlacementPositionCache;
 import com.ziggfreed.common.npc.placement.runtime.NpcPlacementReconciler;
@@ -50,6 +53,14 @@ public final class NpcPlacementConfig extends AbstractKeyedAssetConfig<NpcPlacem
     @Nullable
     private volatile String lateAuditOwner;
 
+    /**
+     * Each pack file the mod gate refused at the last pack fold, by lower-cased id, as it was read: never
+     * part of the pool, kept only so who it would have stood up reads as refused, never unknown
+     * ({@link #modGateRefusedFiles}).
+     */
+    @Nonnull
+    private volatile Map<String, NpcPlacementAsset> packRefusedFiles = Map.of();
+
     private NpcPlacementConfig() {
         super(MOD_GATE_STORE);
     }
@@ -84,9 +95,48 @@ public final class NpcPlacementConfig extends AbstractKeyedAssetConfig<NpcPlacem
 
     @Override
     public synchronized void mergePackLayer(@Nonnull Map<String, NpcPlacementAsset> layer) {
+        packRefusedFiles = Map.of();
         super.mergePackLayer(layer);
         onPoolChanged();
         logFindings();
+    }
+
+    /**
+     * {@link #mergePackLayer(ModGateFold)}, also keeping each file {@code fold} refused as {@code assetMap}
+     * read it, so a character only a refused placement declares reads as refused by the gate
+     * ({@link NpcIdentities#modGateRefusedNpcId}), never as unknown.
+     */
+    public synchronized void mergePackLayer(@Nonnull ModGateFold<NpcPlacementAsset> fold,
+            @Nonnull Map<String, NpcPlacementAsset> assetMap) {
+        Map<String, NpcPlacementAsset> refused = new LinkedHashMap<>();
+        for (NpcPlacementAsset asset : assetMap.values()) {
+            String id = asset == null ? null : asset.getId();
+            if (id != null && fold.refused().containsKey(id.trim().toLowerCase(Locale.ROOT))) {
+                refused.put(id.trim().toLowerCase(Locale.ROOT), asset);
+            }
+        }
+        mergePackLayer(fold);
+        packRefusedFiles = Collections.unmodifiableMap(refused);
+        NpcIdentities.invalidate();
+    }
+
+    /**
+     * Every placement the mod gate kept out, by lower-cased id: a refused pack file as it was read, and an
+     * owner take-out (an owner entry gated on a missing mod) as the layers below the owner hold it. None of
+     * them is in the pool; an audit asks them only so it names nothing they would have stood up.
+     */
+    @Nonnull
+    public Map<String, NpcPlacementAsset> modGateRefusedFiles() {
+        Map<String, NpcPlacementAsset> out = new LinkedHashMap<>(packRefusedFiles);
+        for (String id : modGateRefused().keySet()) {
+            if (!out.containsKey(id)) {
+                NpcPlacementAsset below = resolveBelowOwner(id);
+                if (below != null) {
+                    out.put(id, below);
+                }
+            }
+        }
+        return out;
     }
 
     @Override

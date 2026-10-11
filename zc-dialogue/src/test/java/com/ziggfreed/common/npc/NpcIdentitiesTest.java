@@ -15,6 +15,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.asset.ModGateFold;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementAsset;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementConfig;
 
@@ -66,6 +67,24 @@ class NpcIdentitiesTest {
     void clearBothPools() {
         NpcPlacementConfig.getInstance().mergePackLayer(Map.of());
         NpcIdentityConfig.getInstance().mergePackLayer(Map.of());
+    }
+
+    // The registrar keeps each placement the mod gate refused, so who it would have stood up (its primary and its
+    // aliases) reads as refused, never unknown, while it declares nobody; a plain pack merge forgets them.
+    @Test
+    void whoARefusedPlacementWouldHaveStoodUpReadsAsRefused() {
+        NpcPlacementConfig.getInstance().mergePackLayer(
+                new ModGateFold<>(NpcPlacementConfig.MOD_GATE_STORE, Map.of(),
+                        Map.of("winter_stall", "Ziggfreed:SeasonsOfOrbis")),
+                Map.of("winter_stall", placement("winter_stall", "Winter_Host", "Snow_Host")));
+
+        assertTrue(NpcIdentities.modGateRefusedNpcId("winter_host"), "the primary, matched without regard to case");
+        assertTrue(NpcIdentities.modGateRefusedNpcId("Snow_Host"), "and each alias");
+        assertFalse(NpcIdentities.allDeclaredNpcIds().contains("Winter_Host"), "a refused placement declares nobody");
+        assertFalse(NpcIdentities.modGateRefusedNpcId("nobody_at_all"));
+
+        NpcPlacementConfig.getInstance().mergePackLayer(Map.of());
+        assertFalse(NpcIdentities.modGateRefusedNpcId("winter_host"), "a plain pack merge forgets the refusals");
     }
 
     @Nested

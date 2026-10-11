@@ -131,7 +131,8 @@ public final class AchievementPoolValidator {
             if (child.equalsIgnoreCase(id)) {
                 out.add(Finding.error(DOMAIN, "META_SELF_REFERENCE",
                         "MetaChildren names the achievement itself, which can never be satisfied", id));
-            } else if (pool.definition(child) == null) {
+            } else if (pool.definition(child) == null && !AchievementAssetStore.getInstance().modGateRefused(child)) {
+                // A child the mod gate refused is absent by design and named nowhere; one nobody authored warns.
                 out.add(Finding.warning(DOMAIN, "UNKNOWN_META_CHILD",
                         "MetaChildren names '" + child + "', which is not an achievement in this pool; "
                                 + "nobody can ever earn it, so this one stays out of reach", id));

@@ -284,6 +284,16 @@ public final class NpcIdentities {
         return index().allDeclared;
     }
 
+    /**
+     * Would a placement the mod gate kept out ({@code NpcPlacementConfig.modGateRefusedFiles}: its file, or
+     * the owner's entry for it, gates on a mod this server does not run) have stood up a character answering
+     * to {@code npcId}, its primary or an alias? Matched without regard to case. A validator reads such an id
+     * as absent by design and names it nowhere, while an id nothing declares still warns.
+     */
+    public static boolean modGateRefusedNpcId(@Nullable String npcId) {
+        return npcId != null && !npcId.isBlank() && index().refusedDeclared.contains(normalize(npcId));
+    }
+
     /** Drop the resolved index. Called by both source configs on every layer merge. */
     public static void invalidate() {
         INDEX.set(null);
@@ -301,7 +311,8 @@ public final class NpcIdentities {
                          @Nonnull Map<String, List<String>> placementsByAnsweredId,
                          @Nonnull Map<String, String> primaryByRole,
                          @Nonnull Map<String, String> primaryByGroup,
-                         @Nonnull Set<String> allDeclared) {
+                         @Nonnull Set<String> allDeclared,
+                         @Nonnull Set<String> refusedDeclared) {
     }
 
     @Nonnull
@@ -391,6 +402,24 @@ public final class NpcIdentities {
             SafeLog.warn("[identity] could not index the loaded identity overlays: " + t.getMessage());
         }
 
+        // Who the placements the mod gate kept out would have stood up, the same answers a loaded one
+        // declares, case-folded: never declared, but never unknown either.
+        Set<String> refusedDeclared = new LinkedHashSet<>();
+        try {
+            for (NpcPlacementAsset placement : NpcPlacementConfig.getInstance().modGateRefusedFiles().values()) {
+                String primary = placement == null ? null : primaryOf(placement);
+                if (primary == null) {
+                    continue;
+                }
+                refusedDeclared.add(normalize(primary));
+                for (String alias : aliasesDeclaredBy(placement)) {
+                    refusedDeclared.add(normalize(alias));
+                }
+            }
+        } catch (Throwable t) {
+            SafeLog.warn("[identity] could not index the placements the mod gate refused: " + t.getMessage());
+        }
+
         Map<String, List<String>> frozenPlacements = new LinkedHashMap<>();
         placementsByAnsweredId.forEach((id, list) -> frozenPlacements.put(id, List.copyOf(list)));
         Map<String, Set<String>> frozenAnswers = new LinkedHashMap<>();
@@ -398,7 +427,7 @@ public final class NpcIdentities {
 
         return new Index(Map.copyOf(primaryByPlacement), Map.copyOf(answersByPlacement),
                 Map.copyOf(frozenAnswers), Map.copyOf(frozenPlacements),
-                Map.copyOf(primaryByRole), Map.copyOf(primaryByGroup), frozen(allDeclared));
+                Map.copyOf(primaryByRole), Map.copyOf(primaryByGroup), frozen(allDeclared), frozen(refusedDeclared));
     }
 
     /**

@@ -3,7 +3,7 @@
 ## Identity and names
 
 - `NpcIdentities` answers who an NPC is: the placement's `Identity.NpcId` (or, with none authored, the role that placement names), then an identity overlay on its role (following native `Variant` chains), then an overlay on a group it belongs to, then its role id. The convention is the floor, never a rung above the overlays. An unauthored `NpcId` means the character IS its role, so two placements of one role are one character.
-- An alias is one-way: what a character responds to, never what it is (a nameplate and a waypoint use the primary). Authored case is kept, every membership test is case-insensitive, and `allDeclaredNpcIds()` cannot include convention ids, so treat an id missing from it as unverifiable, never as an error.
+- An alias is one-way: what a character responds to, never what it is (a nameplate and a waypoint use the primary). Authored case is kept, every membership test is case-insensitive, and `allDeclaredNpcIds()` cannot include convention ids, so treat an id missing from it as unverifiable, never as an error. `modGateRefusedNpcId` answers for the ids a placement the mod gate kept out would have declared (`NpcPlacementConfig.modGateRefusedFiles`: a refused pack file the registrar keeps through `mergePackLayer(fold, assetMap)`, and an owner take-out), so an audit checking a character reference names none of them.
 - `NpcNames` reads only the role's `NameTranslationKey`. When none resolves, null is the answer, never a guessed `npcs.<id>.name` key or a prettified id. An audit asks `canResolveNames()` first: false means there is no role registry to ask yet, not that no role carries a name.
 
 ## Talk credit

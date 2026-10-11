@@ -438,7 +438,8 @@ public final class FrameworkAssetRegistrar {
                 (LoadedAssetsEvent<String, NpcPlacementAsset, DefaultAssetMap<String, NpcPlacementAsset>> ev) -> {
                     NpcPlacementConfig.getInstance().mergePackLayer(AssetMergeAdapter.gate(
                             NpcPlacementConfig.MOD_GATE_STORE, ev.getAssetMap(),
-                            p -> NpcPlacementAsset.Requires.missingMod(p.getRequires())));
+                            p -> NpcPlacementAsset.Requires.missingMod(p.getRequires())),
+                            AssetMergeAdapter.layer(ev.getAssetMap()));
                     // The owner file's own placements land HERE rather than at setup, for the same
                     // reason the commerce owner layers do: an owner entry is decoded against
                     // whatever the packs already say about that id, so it has nothing to inherit
@@ -621,7 +622,7 @@ public final class FrameworkAssetRegistrar {
                 (LoadedAssetsEvent<String, AchievementAsset, DefaultAssetMap<String, AchievementAsset>> ev) -> {
                     AchievementAssetStore.getInstance().merge(AssetMergeAdapter.gate(
                             AchievementAssetStore.MOD_GATE_STORE, ev.getAssetMap(),
-                            a -> GateSpec.missingMod(a.getRequires())).layer());
+                            a -> GateSpec.missingMod(a.getRequires())));
                     ProgressionDefaults.republishAssetContent();
                 });
 

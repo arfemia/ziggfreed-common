@@ -7,9 +7,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
+import com.ziggfreed.common.asset.ModGateFold;
 import com.ziggfreed.common.factor.ModGates;
 import com.ziggfreed.common.progress.asset.ContentRewardsAsset;
 import com.ziggfreed.common.util.SafeLog;
@@ -60,12 +63,69 @@ public final class AchievementAssetStore {
     private final Map<String, AchievementAsset> achievements = new ConcurrentHashMap<>();
     /** What the last {@link #merge} noticed about the layer itself, replayed by every fold. */
     private final List<Finding> layerFindings = new ArrayList<>();
+    /**
+     * Achievement ids the mod gate refused at load (zc-core {@code ModGates}, through the registrar),
+     * lower-cased, each to the missing mod that refused it: a reference to one is absent by design
+     * ({@link #modGateRefused}).
+     */
+    @Nonnull
+    private volatile Map<String, String> gatedOut = Map.of();
 
     private AchievementAssetStore() {
     }
 
     /**
-     * Rebuild the layer from a load event's decoded assets. Idempotent on re-import.
+     * Rebuild the layer from the load handler's gated fold ({@code AssetMergeAdapter.gate}): its layer, and
+     * each refused id with the mod that refused it, so a reference to one reads as refused, never as
+     * unknown ({@link #modGateRefused}). Idempotent on re-import.
+     */
+    public synchronized void merge(@Nonnull ModGateFold<AchievementAsset> fold) {
+        merge(fold.layer());
+        Map<String, String> refused = new LinkedHashMap<>();
+        for (Map.Entry<String, String> e : fold.refused().entrySet()) {
+            if (e.getKey() != null && !e.getKey().isBlank()) {
+                refused.put(e.getKey().trim().toLowerCase(Locale.ROOT), e.getValue());
+            }
+        }
+        gatedOut = Collections.unmodifiableMap(refused);
+    }
+
+    /**
+     * Did the mod gate keep the achievement {@code achievementId} off this server on purpose (its file gates
+     * on a mod this server does not run)? A yearly copy's id ({@code <base>_<year>}) answers for its base.
+     * Matched trimmed and case-folded, as achievement ids are.
+     *
+     * <p>A validator reads such an id as absent by design: a reference to it (a capstone's
+     * {@code MetaChildren}, an earned-achievement requirement) reports nothing, while an id nobody
+     * authored still reports as unknown. Ask it for an id the pool lacks.
+     */
+    public boolean modGateRefused(@Nullable String achievementId) {
+        if (achievementId == null || achievementId.isBlank()) {
+            return false;
+        }
+        String id = achievementId.trim().toLowerCase(Locale.ROOT);
+        if (gatedOut.containsKey(id)) {
+            return true;
+        }
+        int cut = id.lastIndexOf('_');
+        return cut > 0 && isYear(id.substring(cut + 1)) && gatedOut.containsKey(id.substring(0, cut));
+    }
+
+    /** Is {@code text} a four-digit year, the tail a yearly copy's id carries? */
+    private static boolean isYear(@Nonnull String text) {
+        if (text.length() != 4) {
+            return false;
+        }
+        for (int i = 0; i < text.length(); i++) {
+            if (!Character.isDigit(text.charAt(i))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Rebuild the layer from a load event's decoded assets, refusing nothing. Idempotent on re-import.
      *
      * <p>Each is filed under its OWN id rather than the key the event carries, because a
      * {@code _}-marked folder folds into that id ({@code asset/NestedAssetId}) and the event key is
@@ -75,6 +135,7 @@ public final class AchievementAssetStore {
     public synchronized void merge(@Nonnull Map<String, AchievementAsset> layer) {
         achievements.clear();
         layerFindings.clear();
+        gatedOut = Map.of();
         for (Map.Entry<String, AchievementAsset> e : layer.entrySet()) {
             AchievementAsset asset = e.getValue();
             if (e.getKey() == null || asset == null) {
@@ -131,7 +192,7 @@ public final class AchievementAssetStore {
      */
     @Nonnull
     public Resolution resolve() {
-        Resolution resolution = resolve(achievements, layerFindings, OccurrenceReader.LIVE);
+        Resolution resolution = resolve(achievements, layerFindings, OccurrenceReader.LIVE, this::modGateRefused);
         ModGates.reportRewardRows(MOD_GATE_STORE, gatedRows(achievements));
         return resolution;
     }
@@ -156,6 +217,17 @@ public final class AchievementAssetStore {
     @Nonnull
     static Resolution resolve(@Nonnull Map<String, AchievementAsset> assets,
             @Nonnull List<Finding> layerFindings, @Nonnull OccurrenceReader calendar) {
+        return resolve(assets, layerFindings, calendar, id -> false);
+    }
+
+    /**
+     * {@link #resolve(Map, List, OccurrenceReader)}, with {@code gateRefused} naming the ids the mod gate kept
+     * out: a {@code Parent} naming one is absent by design, so no finding names it.
+     */
+    @Nonnull
+    static Resolution resolve(@Nonnull Map<String, AchievementAsset> assets,
+            @Nonnull List<Finding> layerFindings, @Nonnull OccurrenceReader calendar,
+            @Nonnull Predicate<String> gateRefused) {
         List<Finding> issues = new ArrayList<>(layerFindings);
         Map<String, AchievementDefinition> out = new LinkedHashMap<>();
 
@@ -167,7 +239,7 @@ public final class AchievementAssetStore {
             if (asset == null) {
                 continue;
             }
-            reportUnknownParent(asset, id, assets, issues);
+            reportUnknownParent(asset, id, assets, gateRefused, issues);
             if (asset.isAbstract()) {
                 continue;
             }
@@ -195,12 +267,14 @@ public final class AchievementAssetStore {
     /**
      * Report a file naming a {@code Parent} nothing in the folded layer carries. It is a WARNING rather
      * than an error because the parent may be shipped by a pack a given server does not install; the
-     * effect is that the file inherited nothing, which is worth saying out loud either way.
+     * effect is that the file inherited nothing, which is worth saying out loud either way. A parent the
+     * mod gate refused is absent by design and named nowhere.
      */
     private static void reportUnknownParent(@Nonnull AchievementAsset asset, @Nonnull String id,
-            @Nonnull Map<String, AchievementAsset> assets, @Nonnull List<Finding> issues) {
+            @Nonnull Map<String, AchievementAsset> assets, @Nonnull Predicate<String> gateRefused,
+            @Nonnull List<Finding> issues) {
         String parentId = asset.getParentId();
-        if (parentId != null && !assets.containsKey(parentId)) {
+        if (parentId != null && !assets.containsKey(parentId) && !gateRefused.test(parentId)) {
             issues.add(Finding.warning(AchievementPoolValidator.DOMAIN, "UNKNOWN_PARENT",
                     "Parent names '" + parentId + "', which no loaded file provides, so this inherited "
                             + "nothing and carries only what it authored itself", id));
