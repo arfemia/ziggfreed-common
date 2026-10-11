@@ -17,10 +17,10 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * Who a typed {@code --player} names for {@code /zigclaims}, online or not, since a Claim can wait for a player
  * who is away. The first answer wins: an online player with exactly that username (any case); the text read as
- * a player id (a UUID); an online player whose username starts with it (the engine's own player argument's
- * match); the engine's profile lookup, which asks the profile service and so needs an authenticated server.
- * The exact name comes before a partial match, so a name typed for somebody offline never lands on an online
- * player whose name merely starts with it.
+ * a player id (a UUID); the engine's profile lookup, which asks the profile service and so needs an
+ * authenticated server; last, an online player whose username starts with it (the engine's own player
+ * argument's match). Every exact answer comes before the partial match, so a full name typed for somebody
+ * offline never lands on an online player whose name merely starts with it.
  */
 final class ClaimTargets {
 
@@ -42,11 +42,14 @@ final class ClaimTargets {
         if (literal != null) {
             return CompletableFuture.completedFuture(new Named(literal, typed));
         }
+        return lookUp(typed).thenApply(found -> found != null ? found : partial(typed));
+    }
+
+    /** An online player whose username starts with {@code typed}, or null. */
+    @Nullable
+    private static Named partial(@Nonnull String typed) {
         PlayerRef partial = online(typed, NameMatching.DEFAULT);
-        if (partial != null) {
-            return CompletableFuture.completedFuture(new Named(partial.getUuid(), partial.getUsername()));
-        }
-        return lookUp(typed);
+        return partial == null ? null : new Named(partial.getUuid(), partial.getUsername());
     }
 
     /** The engine's profile lookup. Null when it is unauthenticated, finds nobody or fails. */

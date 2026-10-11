@@ -115,8 +115,9 @@ public final class ClaimStore {
     }
 
     /**
-     * Pay {@code player} {@code claim}. A Claim whose id the player still holds answers false and counts
-     * nothing. Otherwise one clear of {@code diminishKey} is counted under {@code spec} (none with a null spec),
+     * Pay {@code player} {@code claim}. A Claim with no rewards (a roll that landed nothing), or one whose id the
+     * player still holds, answers false and counts nothing, so a payout of nothing never spends a clear. Otherwise
+     * one clear of {@code diminishKey} is counted under {@code spec} (none with a null spec),
      * every reward's quantity is scaled by the multiplier that clear pays at (a fraction pays whole through
      * {@link StochasticCount}, and a reward scaled to nothing is dropped), and a Claim left with no rewards is
      * not written. A written Claim is saved and announced ({@link ClaimAddedEvent}). Every payout that writes
@@ -126,7 +127,7 @@ public final class ClaimStore {
      */
     public synchronized boolean award(@Nonnull UUID player, @Nonnull Claim claim, @Nullable DiminishSpec spec,
             @Nonnull String diminishKey, long nowMs) {
-        if (holds(player, claim.id())) {
+        if (claim.rewards().isEmpty() || holds(player, claim.id())) {
             return false;
         }
         double multiplier = spec == null ? 1.0 : ledger.count(player, diminishKey, spec, nowMs);
