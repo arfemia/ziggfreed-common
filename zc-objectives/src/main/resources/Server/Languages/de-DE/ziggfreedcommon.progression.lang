@@ -195,5 +195,8 @@ book.achievements.state.collect = Abholen
 book.achievements.state.feat = Heldentat
 book.tooltip.unpin = Diesen Erfolg lösen
 
+# Ein Erfolg für einen gehaltenen Rang bei einem Ruf; {0} ist sein Name, {1} was er einbringt.
+reputation.rank_achievement = {0} ({1})
+
 # The hover line on the map marker at a character with a quest the player could take; {0} is the quest's title.
 quest.marker.available = Quest verfügbar: {0}

@@ -20,6 +20,8 @@ reward.loss = {0, number} {1}
 
 feedback.rank.title = Artık {0} rütbesindesin
 feedback.rank.with = {0} ile
+feedback.beyond.title = {0} tarafından bir ödül seni bekliyor
+feedback.beyond.line = İtibar sayfandan al.
 
 objective.reputation_rank = {1} rütbesine ulaş
 objective.reputation_rank.any = Yeni bir rütbeye ulaş
@@ -50,6 +52,11 @@ unlock.open = Açıldı
 block.beyond = {0} sonrası
 block.beyond.meta = Her {0, number} kazanılan puanda
 beyond.next = Sonraki ödül {0, number} kazanılmış puanda gelir.
+beyond.waiting = {0, number} {0, plural, one {ödül} other {ödül}} seni bekliyor.
+beyond.collect = Al
+beyond.toast.collected = {0, number} {0, plural, one {ödül} other {ödül}} aldın.
+beyond.toast.no_room = Envanterin dolu. Bu ödülleri almak için yer aç.
+beyond.toast.failed = Bu ödüller şu an ödenemedi. Hâlâ seni bekliyorlar.
 block.standing = Puan durumun
 standing.earned = Kazanılan
 standing.gear = Giydiğin teçhizattan

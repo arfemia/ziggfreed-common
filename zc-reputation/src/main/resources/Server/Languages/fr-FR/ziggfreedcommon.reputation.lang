@@ -21,6 +21,8 @@ reward.loss = {0, number} {1}
 
 feedback.rank.title = Vous êtes maintenant {0}
 feedback.rank.with = Réputation : {0}
+feedback.beyond.title = Une récompense de {0} vous attend
+feedback.beyond.line = Récupérez-la sur votre page Réputation.
 
 objective.reputation_rank = Atteignez le rang {1}
 objective.reputation_rank.any = Atteignez un nouveau rang
@@ -51,6 +53,11 @@ unlock.open = Débloqué
 block.beyond = Au-delà du rang {0}
 block.beyond.meta = Tous les {0, number} gagnés
 beyond.next = La prochaine récompense arrive à {0, number} gagnés.
+beyond.waiting = {0, number} {0, plural, one {récompense vous attend} other {récompenses vous attendent}}.
+beyond.collect = Récupérer
+beyond.toast.collected = Vous avez récupéré {0, number} {0, plural, one {récompense} other {récompenses}}.
+beyond.toast.no_room = Votre inventaire est plein. Faites de la place pour récupérer ces récompenses.
+beyond.toast.failed = Ces récompenses n'ont pas pu être versées pour le moment. Elles vous attendent toujours.
 block.standing = Votre réputation
 standing.earned = Gagné
 standing.gear = Via l'équipement porté

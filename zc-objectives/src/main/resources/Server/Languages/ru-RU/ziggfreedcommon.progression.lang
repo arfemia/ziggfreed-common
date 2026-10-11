@@ -198,3 +198,6 @@ book.tooltip.unpin = Открепить это достижение
 
 # The hover line on the map marker at a character with a quest the player could take; {0} is the quest's title.
 quest.marker.available = Предложен квест: {0}
+
+# {0} is the achievement's name and {1} what it pays.
+reputation.rank_achievement = {0} ({1})

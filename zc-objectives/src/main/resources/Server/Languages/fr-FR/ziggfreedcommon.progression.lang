@@ -196,5 +196,7 @@ book.achievements.state.collect = À récupérer
 book.achievements.state.feat = Exploit
 book.tooltip.unpin = Désépingler ce succès
 
+reputation.rank_achievement = {0} ({1})
+
 # The hover line on the map marker at a character with a quest the player could take; {0} is the quest's title.
 quest.marker.available = Quête disponible : {0}

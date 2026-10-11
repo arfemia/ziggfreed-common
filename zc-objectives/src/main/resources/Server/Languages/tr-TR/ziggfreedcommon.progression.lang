@@ -197,3 +197,5 @@ book.tooltip.unpin = Bu başarımın sabitlemesini kaldır
 
 # The hover line on the map marker at a character with a quest the player could take; {0} is the quest's title.
 quest.marker.available = Sunulan görev: {0}
+
+reputation.rank_achievement = {0} ({1})
