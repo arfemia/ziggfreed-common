@@ -9,7 +9,7 @@ $ZT = "ZigType.ui";
 //   $ZM.@ZigToggle #MyToggle {}
 // The five appended rows SettingsForm builds (Pages/ZigFormHeaderRow.ui, ZigFormNoteRow.ui, ZigFormFieldRow.ui,
 // ZigFormDropdownRow.ui and ZigFormToggleRow.ui) read these names, so a page of its own that wants the settings
-// form's look takes it from here, and the two never drift. Every size is a Common/ZigType.ui step.
+// form's look takes it from here, and the two never drift. Every text size is a Common/ZigType.ui step.
 //
 // @ZigFormHeaderStyle    a section heading: amber and bold at Emphasis.
 // @ZigFormLabelStyle     a row's label: light steel at Body, centred on the row's height.
