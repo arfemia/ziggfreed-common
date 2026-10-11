@@ -170,6 +170,71 @@ class RewardKindAssetCodecTest {
         }
     }
 
+    // ==================== the item the command hands over ====================
+
+    /**
+     * {@code Hands} is what lets a command kind's claim wait for bag room; a key or inheritance slip
+     * here silently turns that wait off and the item lands at the player's feet instead.
+     */
+    @Nested
+    class HandsGroup {
+
+        static final String GIFT_KIND = """
+                {
+                  "Params": { "Tier": { "Required": true } },
+                  "Command": "giftbox {player} {Tier}",
+                  "Hands": { "Item": "Furniture_Ancient_Chest_Small", "Count": 2 }
+                }
+                """;
+
+        @Test
+        void bothLeavesSurviveADecode() throws Exception {
+            RewardKindAsset kind = decodeRoot(GIFT_KIND, "Giftbox");
+
+            assertNotNull(kind.getHands());
+            assertEquals("Furniture_Ancient_Chest_Small", kind.getHands().itemId());
+            assertEquals(2, kind.getHands().effectiveCount());
+        }
+
+        @Test
+        void aKindWithoutTheGroupHandsOverNothing() throws Exception {
+            assertNull(decodeRoot("{ \"Command\": \"pay {player}\" }", "Plain").getHands());
+        }
+
+        @Test
+        void aChildRetunesOneLeafAndKeepsTheOther() throws Exception {
+            RewardKindAsset parent = decodeRoot(GIFT_KIND, "Giftbox");
+
+            RewardKindAsset bigger = decode("""
+                    { "Hands": { "Count": 3 } }
+                    """, "Big_Giftbox", "Giftbox", parent);
+            assertNotNull(bigger.getHands());
+            assertEquals("Furniture_Ancient_Chest_Small", bigger.getHands().itemId(),
+                    "retuning the count must not lose the item it inherited");
+            assertEquals(3, bigger.getHands().effectiveCount());
+
+            RewardKindAsset other = decode("""
+                    { "Hands": { "Item": "Furniture_Ancient_Chest_Large" } }
+                    """, "Large_Giftbox", "Giftbox", parent);
+            assertNotNull(other.getHands());
+            assertEquals("Furniture_Ancient_Chest_Large", other.getHands().itemId());
+            assertEquals(2, other.getHands().effectiveCount(),
+                    "retuning the item must not lose the count it inherited");
+        }
+
+        @Test
+        void aChildWritingNoGroupInheritsTheWholeGroup() throws Exception {
+            RewardKindAsset parent = decodeRoot(GIFT_KIND, "Giftbox");
+
+            RewardKindAsset child = decode("{ \"Command\": \"othergift {player} {Tier}\" }",
+                    "Other_Giftbox", "Giftbox", parent);
+
+            assertNotNull(child.getHands());
+            assertEquals("Furniture_Ancient_Chest_Small", child.getHands().itemId());
+            assertEquals(2, child.getHands().effectiveCount());
+        }
+    }
+
     // ==================== the default presentation ====================
 
     /**
