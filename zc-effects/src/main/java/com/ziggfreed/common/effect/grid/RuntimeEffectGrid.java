@@ -90,6 +90,8 @@ public final class RuntimeEffectGrid {
     private final Set<Bucket> registered = ConcurrentHashMap.newKeySet();
     @Nonnull
     private final Map<Bucket, CompletableFuture<Void>> pending = new ConcurrentHashMap<>();
+    @Nonnull
+    private final Set<Bucket> refused = ConcurrentHashMap.newKeySet();
 
     /**
      * @param prefix  the effect-id prefix every bucket of this family carries; distinct per family,
@@ -192,35 +194,57 @@ public final class RuntimeEffectGrid {
         if (registered.contains(bucket)) {
             return CompletableFuture.completedFuture(null);
         }
+        if (refused.contains(bucket)) {
+            return null; // the engine refused this body; logged once, retried by resynthesizeAll
+        }
         CompletableFuture<Void> queued = pending.get(bucket);
         if (queued != null) {
             return queued;
         }
+        String id = effectId(bucket);
         try {
-            CompletableFuture<Void> landing = write(Map.of(effectId(bucket), body.apply(bucket)),
-                    "runtime effect " + effectId(bucket));
-            if (!landing.isDone()) {
-                pending.put(bucket, landing);
+            CompletableFuture<Void> landing = write(Map.of(id, body.apply(bucket)), "runtime effect " + id);
+            if (landing.isDone()) {
+                settle(bucket, id, !landing.isCompletedExceptionally());
+                return registered.contains(bucket) ? landing : null;
+            }
+            CompletableFuture<Void> raced = pending.putIfAbsent(bucket, landing);
+            if (raced != null) {
+                return raced; // another caller queued the same body first; ride its write
             }
             landing.whenComplete((landed, failure) -> {
-                pending.remove(bucket);
-                if (failure == null) {
-                    registered.add(bucket);
-                }
+                settle(bucket, id, failure == null);
+                pending.remove(bucket, landing);
             });
             return landing;
         } catch (Throwable t) {
-            warn("RuntimeEffectGrid: could not generate '" + effectId(bucket) + "': " + t.getMessage());
+            warn("RuntimeEffectGrid: could not generate '" + id + "': " + t.getMessage());
             return null;
+        }
+    }
+
+    /**
+     * Record a finished write: registered only when the asset is really in the store. A write can
+     * complete without throwing while the engine refuses the body (a key naming a damage cause that is
+     * not loaded), so the asset map is asked rather than the future; a refused bucket is not written
+     * again until {@link #resynthesizeAll}.
+     */
+    private void settle(@Nonnull Bucket bucket, @Nonnull String id, boolean wrote) {
+        if (wrote && EntityEffect.getAssetMap().getIndex(id) != Integer.MIN_VALUE) {
+            registered.add(bucket);
+        } else if (refused.add(bucket)) {
+            warn("RuntimeEffectGrid: '" + id + "' did not load; its body was refused (see the asset log)");
         }
     }
 
     /**
      * Re-write every bucket generated so far, in one batch: a body keys a roster (the damage causes under
      * a school, say) that can change on a reload, and an applied effect reads its asset live, so the new
-     * body reaches entities already carrying it with no re-apply. A no-op before the first bucket.
+     * body reaches entities already carrying it with no re-apply. A no-op before the first bucket. A
+     * bucket the engine refused before is written afresh the next time anyone needs it.
      */
     public void resynthesizeAll() {
+        refused.clear();
         try {
             Map<String, String> bodies = new LinkedHashMap<>();
             for (Bucket bucket : registered) {
@@ -322,14 +346,15 @@ public final class RuntimeEffectGrid {
                 return Outcome.PENDING;
             }
             String wantedId = effectId(bucket);
+            // Resolve the new value first, so a bucket that failed to load never strips the running one.
+            EntityEffect effect = EntityEffect.getAssetMap().getAsset(wantedId);
+            if (effect == null) {
+                return Outcome.FAILED;
+            }
             for (Map.Entry<String, Integer> e : activeOwned(ctrl).entrySet()) {
                 if (!e.getKey().equalsIgnoreCase(wantedId) && bucket.channel().equals(channelOf(e.getKey()))) {
                     ctrl.removeEffect(ref, e.getValue().intValue(), RemovalBehavior.COMPLETE, accessor);
                 }
-            }
-            EntityEffect effect = EntityEffect.getAssetMap().getAsset(wantedId);
-            if (effect == null) {
-                return Outcome.FAILED;
             }
             return ctrl.addEffect(ref, effect, Math.max(0f, seconds), OverlapBehavior.OVERWRITE, accessor)
                     ? Outcome.APPLIED : Outcome.FAILED;

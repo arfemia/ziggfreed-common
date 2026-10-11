@@ -104,7 +104,7 @@ public final class TypedDamageBonuses {
 
     /** The bonus step: {@code (amount + flat) * (1 + percentPoints / 100)}, floored at zero. */
     public static double apply(double amount, double percentPoints, double flat) {
-        if (percentPoints == 0.0 && flat == 0.0) {
+        if ((percentPoints == 0.0 && flat == 0.0) || !Double.isFinite(percentPoints) || !Double.isFinite(flat)) {
             return amount;
         }
         return Math.max(0.0, (amount + flat) * (1.0 + percentPoints / 100.0));
@@ -178,7 +178,9 @@ public final class TypedDamageBonuses {
             return 0.0;
         }
         EntityStatValue value = stats.get(idx);
-        return value == null ? 0.0 : value.getMax();
+        double max = value == null ? 0.0 : value.getMax();
+        // No cap stands behind this read, so a non-finite maximum must never reach a hit's amount.
+        return Double.isFinite(max) ? max : 0.0;
     }
 
     @Nullable
