@@ -1,0 +1,3 @@
+deathCause.arcane = Você foi morto por dano arcano!
+deathCause.void = Você foi morto por dano de vazio!
+deathCause.life = Você teve a vida drenada!

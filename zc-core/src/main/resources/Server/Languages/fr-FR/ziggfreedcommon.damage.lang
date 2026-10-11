@@ -1,0 +1,3 @@
+deathCause.arcane = Vous êtes mort de dégâts d'arcane !
+deathCause.void = Vous êtes mort de dégâts de vide !
+deathCause.life = Votre vie a été drainée !
