@@ -5,12 +5,15 @@ import javax.annotation.Nonnull;
 import com.hypixel.hytale.assetstore.event.LoadedAssetsEvent;
 import com.hypixel.hytale.assetstore.event.RemovedAssetsEvent;
 import com.hypixel.hytale.assetstore.map.DefaultAssetMap;
+import com.hypixel.hytale.assetstore.map.IndexedLookupTableAssetMap;
 import com.hypixel.hytale.server.core.asset.type.item.config.CraftingRecipe;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.hypixel.hytale.server.core.event.events.BootEvent;
+import com.hypixel.hytale.server.core.modules.interaction.interaction.config.Interaction;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.damage.HitTags;
 import com.ziggfreed.common.dialogue.style.DialogueOptionThemeConfig;
 import com.ziggfreed.common.dialogue.asset.DialogueAssetStore;
 import com.ziggfreed.common.dialogue.asset.DialogueExtensionAsset;
@@ -913,6 +916,17 @@ public final class FrameworkAssetRegistrar {
         plugin.getEventRegistry().register(RemovedAssetsEvent.class, Item.class,
                 (RemovedAssetsEvent<String, Item, DefaultAssetMap<String, Item>> ev) ->
                         RecipeIndex.live().invalidate());
+
+        // --- Hit tags (zc-core) - not a store of ours either: a read-side index over the ENGINE's
+        //     Interaction store (each damage node's calculator to its native Tags), built on the first
+        //     read after it is marked dirty. Every interaction load and removal marks it (an item or
+        //     root-interaction reload reloads the interactions authored inside it). ---
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, Interaction.class,
+                (LoadedAssetsEvent<String, Interaction, IndexedLookupTableAssetMap<String, Interaction>> ev) ->
+                        HitTags.markDirty());
+        plugin.getEventRegistry().register(RemovedAssetsEvent.class, Interaction.class,
+                (RemovedAssetsEvent<String, Interaction, IndexedLookupTableAssetMap<String, Interaction>> ev) ->
+                        HitTags.markDirty());
 
         try {
             CommonLog.LOGGER.atInfo().log(
