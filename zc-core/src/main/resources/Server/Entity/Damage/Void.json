@@ -1,0 +1,7 @@
+{
+  "$Comment": "Void damage, one of the three damage types this library ships beside Hytale's own (Arcane and Life are the others). Shaped like the game's Fire: a sub-type of Elemental, so anything keyed on Elemental also matches it. DamageTextColor tints its floating damage numbers; DeathMessageKey names the line a player killed by it reads.",
+  "Parent": "Elemental",
+  "Inherits": "Elemental",
+  "DamageTextColor": "#7B2CBF",
+  "DeathMessageKey": "ziggfreedcommon.damage.deathCause.void"
+}

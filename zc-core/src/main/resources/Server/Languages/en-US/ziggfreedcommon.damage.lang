@@ -1,0 +1,3 @@
+deathCause.arcane = You were killed by arcane damage!
+deathCause.void = You were killed by void damage!
+deathCause.life = You were drained of life!
