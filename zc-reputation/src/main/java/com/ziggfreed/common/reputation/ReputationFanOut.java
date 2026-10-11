@@ -12,8 +12,8 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 /**
  * Where the service's outcomes go. Production is {@code EngineReputationFanOut} (the native events, the
- * World bar, the rank notice, the Beyond payout); a test records them. Called on the world thread; a
- * failure here never undoes a write.
+ * World bar, the rank notice, the Beyond payouts parked to collect); a test records them. Called on the world
+ * thread; a failure here never undoes a write.
  */
 public interface ReputationFanOut {
 
@@ -35,7 +35,7 @@ public interface ReputationFanOut {
         }
     };
 
-    /** Earned standing changed: the change event, the bar, the Beyond payout. */
+    /** Earned standing changed: the change event, the bar, the Beyond payouts it crossed. */
     void changed(@Nullable Store<EntityStore> store, @Nullable Ref<EntityStore> ref, @Nonnull ReputationChange change);
 
     /**

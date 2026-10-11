@@ -23,6 +23,9 @@ import com.ziggfreed.common.reputation.ReputationFactors;
 import com.ziggfreed.common.reputation.ReputationLadder;
 import com.ziggfreed.common.reputation.ReputationService;
 import com.ziggfreed.common.reputation.ReputationText;
+import com.ziggfreed.common.ui.kit.ActionLook;
+import com.ziggfreed.common.ui.kit.ActionSlot;
+import com.ziggfreed.common.ui.kit.DetailAction;
 import com.ziggfreed.common.ui.kit.DetailBlock;
 import com.ziggfreed.common.ui.kit.DetailLine;
 import com.ziggfreed.common.ui.kit.DetailView;
@@ -42,8 +45,8 @@ import com.ziggfreed.common.util.SafeLog;
  * What the Reputation page shows, decided where a test can reach it: one row per met reputation (in the
  * service's page order) with its rank, its bar and what comes next; which row is read; and the reading page of
  * the one picked (its standing on a bar, its description whole, how to earn it, every rank with what each
- * opens, what it pays past the top, and the numbers behind the standing). The page paints this and decides
- * nothing.
+ * opens, what it pays past the top and how much of that waits to be collected, and the numbers behind the
+ * standing). The page paints this and decides nothing.
  */
 public final class ReputationView {
 
@@ -56,6 +59,9 @@ public final class ReputationView {
     static final String BLOCK_BEYOND = "beyond";
     static final String BLOCK_STANDING = "standing";
     static final String BLOCK_GEAR_SETS = "gear_sets";
+
+    /** The page's own id for the Collect press, on the action bar's primary button. */
+    public static final String ACTION_COLLECT = "collect";
 
     /**
      * A gear set tier the player is wearing: its set's name, the tier's own line (null when it has none) and the
@@ -231,6 +237,17 @@ public final class ReputationView {
     @Nonnull
     public static DetailView detail(@Nonnull Row row, @Nonnull ReputationLadder ladder,
             @Nonnull List<GatedContent.Entry> gated, @Nonnull List<WornSet> worn) {
+        return detail(row, ladder, gated, worn, 0L);
+    }
+
+    /**
+     * The reading page of {@code row} for a player with {@code owed} of its Beyond payouts waiting: the Beyond
+     * block says how many wait and the action bar carries the gold Collect button ({@link #ACTION_COLLECT}).
+     * Nothing waiting, or no Beyond block, shows neither.
+     */
+    @Nonnull
+    public static DetailView detail(@Nonnull Row row, @Nonnull ReputationLadder ladder,
+            @Nonnull List<GatedContent.Entry> gated, @Nonnull List<WornSet> worn, long owed) {
         ReputationDef def = row.reputation();
         ReputationService.Standing standing = row.standing();
         Tone tone = tone(ladder, def, standing.rank());
@@ -242,7 +259,7 @@ public final class ReputationView {
             blocks.add(new DetailBlock(BLOCK_RANKS, ReputationText.line("block.ranks"),
                     ReputationText.line("block.ranks.meta"), ranks));
         }
-        DetailBlock beyond = beyondBlock(row, ladder);
+        DetailBlock beyond = beyondBlock(row, ladder, owed);
         if (beyond != null) {
             blocks.add(beyond);
         }
@@ -253,8 +270,16 @@ public final class ReputationView {
             blocks.add(new DetailBlock(BLOCK_GEAR_SETS, ReputationText.line("block.gear_sets"), null, sets));
         }
         Message hint = def.gearStat() == null ? null : ReputationText.line("hint.gear");
+        List<DetailAction> actions = beyond != null && owed > 0 ? List.of(collectAction()) : List.of();
         return new DetailView(picture(def), ReputationText.name(def), null, null, List.of(rank), null, bar(row),
-                progressLabel(row), ReputationText.description(def), blocks, List.of(), hint);
+                progressLabel(row), ReputationText.description(def), blocks, actions, hint);
+    }
+
+    /** The gold Collect button that pays the Beyond payouts waiting. */
+    @Nonnull
+    static DetailAction collectAction() {
+        return new DetailAction(ActionSlot.PRIMARY, ReputationText.line("beyond.collect"), ActionLook.COLLECT,
+                ACTION_COLLECT, null, true, null);
     }
 
     /** Each worn set tier that moves this reputation's gear stat: "Hallowed Set: what the full set does". */
@@ -413,12 +438,15 @@ public final class ReputationView {
         return null;
     }
 
-    /** Past the top: every so much earned pays out, what it pays, and where the next one lands. */
+    /**
+     * Past the top: every so much earned pays out, what it pays, where the next one lands, and, with
+     * {@code owed} of them waiting, how many wait to be collected.
+     */
     @Nullable
-    static DetailBlock beyondBlock(@Nonnull Row row, @Nonnull ReputationLadder ladder) {
+    static DetailBlock beyondBlock(@Nonnull Row row, @Nonnull ReputationLadder ladder, long owed) {
         ReputationDef def = row.reputation();
         ReputationLadder.Rank top = ladder.top();
-        if (top == null || def.beyondEvery() <= 0 || def.beyondRewards().isEmpty()) {
+        if (top == null || !def.hasBeyond()) {
             return null;
         }
         List<DetailLine> lines = new ArrayList<>();
@@ -429,6 +457,9 @@ public final class ReputationView {
         long next = row.nextReward() != null ? row.nextReward()
                 : ReputationLadder.nextRewardAt(row.standing().earned(), top.min(), def.beyondEvery());
         lines.add(DetailLine.of(Picture.NONE, ReputationText.line("beyond.next", next)));
+        if (owed > 0) {
+            lines.add(DetailLine.of(Picture.NONE, ReputationText.line("beyond.waiting", owed)));
+        }
         return new DetailBlock(BLOCK_BEYOND, ReputationText.line("block.beyond", ReputationText.rankName(def, top)),
                 ReputationText.line("block.beyond.meta", def.beyondEvery()), lines);
     }

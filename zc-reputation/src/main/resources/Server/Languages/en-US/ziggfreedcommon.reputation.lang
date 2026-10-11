@@ -27,6 +27,11 @@ reward.loss = {0, number} {1}
 feedback.rank.title = You are now {0}
 feedback.rank.with = with {0}
 
+# The notice when standing past the top rank earns a reward that waits to be collected: {0} the reputation's
+# name.
+feedback.beyond.title = A reward from {0} is waiting
+feedback.beyond.line = Collect it on your Reputation page.
+
 # A REPUTATION_RANK step: {1} is the rank it names. The .any twin reads when a step names no rank.
 objective.reputation_rank = Reach {1}
 objective.reputation_rank.any = Reach a new rank
@@ -76,6 +81,14 @@ block.beyond = Past {0}
 block.beyond.meta = Every {0, number} earned
 # {0} the earned standing the next payout lands at.
 beyond.next = The next reward comes at {0, number} earned.
+# How many rewards wait to be collected: {0} the count.
+beyond.waiting = {0, number} {0, plural, one {reward is} other {rewards are}} waiting for you.
+# The button that pays them.
+beyond.collect = Collect
+# After a press: {0} how many rewards it paid.
+beyond.toast.collected = You collected {0, number} {0, plural, one {reward} other {rewards}}.
+beyond.toast.no_room = Your inventory is full. Make room to collect these rewards.
+beyond.toast.failed = These rewards could not be paid right now. They are still waiting for you.
 
 # The numbers behind the standing.
 block.standing = Your standing

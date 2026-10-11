@@ -7,7 +7,8 @@ import com.ziggfreed.common.ui.menu.ZigMenu;
 
 /**
  * What the Reputation page round-trips on a binding: {@code action} is {@code select} (open the page on
- * {@code reputation}) or {@code close}, or a rail click, which carries {@code menu}.
+ * {@code reputation}), {@code collect} (the Collect button, on the reputation being read) or {@code close},
+ * or a rail click, which carries {@code menu}.
  */
 public class ReputationEventData {
 

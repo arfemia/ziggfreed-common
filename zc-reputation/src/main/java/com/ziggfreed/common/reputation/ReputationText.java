@@ -35,7 +35,9 @@ public final class ReputationText {
             "detail.rank", "detail.standing", "detail.standing.reward", "detail.standing.top", "hint.gear",
             "block.earn", "earn.kills", "earn.gear", "earn.default",
             "block.ranks", "block.ranks.meta", "unlock.at", "unlock.open",
-            "block.beyond", "block.beyond.meta", "beyond.next",
+            "block.beyond", "block.beyond.meta", "beyond.next", "beyond.waiting", "beyond.collect",
+            "beyond.toast.collected", "beyond.toast.no_room", "beyond.toast.failed",
+            "feedback.beyond.title", "feedback.beyond.line",
             "block.standing", "standing.earned", "standing.gear", "standing.gear.count", "standing.cap",
             "menu.tab");
 

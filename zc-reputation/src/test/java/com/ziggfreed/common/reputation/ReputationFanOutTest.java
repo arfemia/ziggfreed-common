@@ -39,7 +39,7 @@ import com.ziggfreed.common.ui.hud.panel.HudRowDisplay;
  * What the production fan-out says: the change event with every fact, the ranks-held event a credit
  * raises, the bar's row, reading and look, which change goes to the centred panel instead (one made
  * while a page is open; one row per reputation, the World bar's reading, full only at the cap), the rank
- * notice's values, the Beyond payout held to its ceiling, and the two shipped files that go with them.
+ * notice's values, and the two shipped files that go with them.
  */
 class ReputationFanOutTest {
 
@@ -182,18 +182,6 @@ class ReputationFanOutTest {
         assertEquals("test.jack.name", ((Message) args.get("name")).getMessageId());
         assertEquals("ziggfreedcommon.reputation.rank.friendly", ((Message) args.get("rank")).getMessageId());
         assertEquals("Test_Icon", args.get("icon"));
-    }
-
-    @Test
-    void pastTheTopEachCrossingPaysOnceAndAHugeGainIsHeldToTheCeiling() {
-        ReputationFixtures.loadCompanions(Map.of("test_old_jack", ReputationFixtures.companion(ReputationFixtures.OLD_JACK,
-                "{ \"Beyond\": { \"Every\": 5000, \"Rewards\": [ { \"Kind\": \"Item\", \"Params\": { \"Item\": \"Test_Cache\" } } ] } }")));
-        assertEquals(3, EngineReputationFanOut.beyondPayout(change(25_000, 11_000)).size());
-        assertTrue(EngineReputationFanOut.beyondPayout(change(500, 100)).isEmpty(), "below the top nothing pays");
-        ReputationFixtures.loadCompanions(Map.of("test_old_jack", ReputationFixtures.companion(ReputationFixtures.OLD_JACK,
-                "{ \"Beyond\": { \"Every\": 1, \"Rewards\": [ { \"Kind\": \"Item\", \"Params\": { \"Item\": \"Test_Cache\" } } ] } }")));
-        assertEquals(EngineReputationFanOut.MAX_BEYOND_PAYOUTS,
-                EngineReputationFanOut.beyondPayout(change(25_000, 11_000)).size());
     }
 
     @Test

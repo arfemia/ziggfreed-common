@@ -15,7 +15,6 @@ import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.protocol.packets.interface_.Page;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.entity.entities.player.pages.InteractiveCustomUIPage;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
@@ -24,6 +23,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.progress.gate.GatedContent;
+import com.ziggfreed.common.reputation.ReputationBeyond;
 import com.ziggfreed.common.reputation.ReputationDef;
 import com.ziggfreed.common.reputation.ReputationLadder;
 import com.ziggfreed.common.reputation.ReputationRuntime;
@@ -35,6 +35,7 @@ import com.ziggfreed.common.stats.gearset.GearSetEvents;
 import com.ziggfreed.common.stats.gearset.GearSetIndex;
 import com.ziggfreed.common.stats.gearset.GearSetKeys.TierRef;
 import com.ziggfreed.common.stats.gearset.GearSets;
+import com.ziggfreed.common.ui.kit.ActionSlot;
 import com.ziggfreed.common.ui.kit.DetailBindings;
 import com.ziggfreed.common.ui.kit.DetailBlock;
 import com.ziggfreed.common.ui.kit.DetailLine;
@@ -50,17 +51,24 @@ import com.ziggfreed.common.ui.menu.MenuFrame;
 import com.ziggfreed.common.ui.menu.MenuRail;
 import com.ziggfreed.common.ui.menu.MenuSlot;
 import com.ziggfreed.common.ui.menu.ZigMenu;
+import com.ziggfreed.common.ui.toast.RewardToastLines;
+import com.ziggfreed.common.ui.toast.ToastKind;
+import com.ziggfreed.common.ui.toast.ToastSounds;
+import com.ziggfreed.common.ui.toast.ToastSpec;
+import com.ziggfreed.common.ui.toast.ToastablePage;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Reputation: every reputation the player has met on the left (the kit's list), the one being read on the
  * right (the kit's reading page). It paints {@link ReputationView} and decides nothing. Picking a row reopens
  * the page, so every build is a full one. It sits in the shared menu frame with the Reputation tab selected on
- * the rail; what its document must declare is {@link ReputationPageLayout}'s. Every {@code handleDataEvent} exit
- * opens a page, closes this one, or sends an empty answer (a rail click nothing opened for, an event with no
- * player behind it), so the client is never left waiting.
+ * the rail; what its document must declare is {@link ReputationPageLayout}'s. The reading page's gold Collect
+ * button, shown while Beyond payouts wait, hands the press to {@link ReputationBeyond#collect} and reopens the
+ * page with a toast saying how it went. Every {@code handleDataEvent} exit opens a page, closes this one, or
+ * sends an empty answer (a rail click nothing opened for, an event with no player behind it), so the client is
+ * never left waiting.
  */
-public final class ReputationPage extends InteractiveCustomUIPage<ReputationEventData> {
+public final class ReputationPage extends ToastablePage<ReputationEventData> {
 
     static final String PAGE_TEMPLATE = "Pages/ZigReputationPage.ui";
     static final String LIST = "#ReputationList";
@@ -112,8 +120,24 @@ public final class ReputationPage extends InteractiveCustomUIPage<ReputationEven
     @Override
     public void build(@Nonnull Ref<EntityStore> ref, @Nonnull UICommandBuilder cmd,
             @Nonnull UIEventBuilder events, @Nonnull Store<EntityStore> store) {
+        try {
+            paint(ref, cmd, events, store);
+        } catch (Throwable t) {
+            // build() must not throw: a reading that fails leaves the page as far as it got.
+            SafeLog.warn("[reputation] the page could not be built", t);
+        }
+        // Last, so the toast is the top sibling and draws over the page.
+        renderToastInto(cmd);
+    }
+
+    private void paint(@Nonnull Ref<EntityStore> ref, @Nonnull UICommandBuilder cmd,
+            @Nonnull UIEventBuilder events, @Nonnull Store<EntityStore> store) {
         ZigMenu.appendThemed(cmd, PAGE_TEMPLATE, MenuFrame.RAIL, "#RightPanel");
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton", EventData.of("Action", "close"));
+        // The action bar's buttons are live elements, bound once per build; only Collect is ever shown.
+        DetailPainter.bindActionsOnce(events, DETAIL,
+                slot -> slot == ActionSlot.PRIMARY ? EventData.of("Action", ReputationView.ACTION_COLLECT) : null,
+                null);
         cmd.set("#ReputationTitle.TextSpans", ReputationText.line("page.title"));
         cmd.set("#ReputationLead.TextSpans", ReputationText.line("page.lead"));
         // The shared menu's rail, the Reputation tab selected; painted before the empty-list early return.
@@ -134,7 +158,8 @@ public final class ReputationPage extends InteractiveCustomUIPage<ReputationEven
             LedgerPainter.paint(cmd, events, LIST, ReputationView.ledger(rows, ladders), Set.of(), selected, ROWS,
                     RowSize.STANDARD, playerRef);
             DetailPainter.paint(cmd, events, DETAIL,
-                    ReputationView.detail(row, ladders.apply(row.reputation()), gated(), worn()),
+                    ReputationView.detail(row, ladders.apply(row.reputation()), gated(), worn(),
+                            owed(store, ref, row.reputation())),
                     DETAIL_BINDINGS, playerRef);
         } catch (Throwable t) {
             // build() must not throw: a reading that fails leaves the page as far as it got.
@@ -158,7 +183,49 @@ public final class ReputationPage extends InteractiveCustomUIPage<ReputationEven
             player.getPageManager().openCustomPage(ref, store, this);
             return;
         }
+        if (ReputationView.ACTION_COLLECT.equals(data.action)) {
+            collect(store, ref);
+            player.getPageManager().openCustomPage(ref, store, this);
+            return;
+        }
         player.getPageManager().setPage(ref, store, Page.None);
+    }
+
+    /**
+     * One Collect press on the reputation being read, told as a toast: what it paid, that the bag needs room, or
+     * that it could not pay. A press with nothing waiting (a stale page) says nothing; the reopen shows the truth.
+     */
+    private void collect(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
+        try {
+            ReputationDef reputation = ReputationRuntime.service().known(selected);
+            if (reputation == null) {
+                return;
+            }
+            ReputationBeyond.Collected collected = ReputationBeyond.collect(store, ref, reputation);
+            switch (collected.status()) {
+                case PAID -> showToast(ToastSpec.of(ToastKind.REWARD,
+                                ReputationText.line("beyond.toast.collected", collected.paid()))
+                        .withLines(RewardToastLines.lines(collected.receipt(), null, null))
+                        .withSound(ToastSounds.RECEIPT));
+                case NO_ROOM -> showToast(ToastKind.ERROR, ReputationText.line("beyond.toast.no_room"));
+                case FAILED -> showToast(ToastKind.WARNING, ReputationText.line("beyond.toast.failed"));
+                case NOTHING -> {
+                }
+            }
+        } catch (Throwable t) {
+            SafeLog.warn("[reputation] the Collect press on '" + selected + "' failed", t);
+        }
+    }
+
+    /** How many of {@code reputation}'s Beyond payouts wait for this player; a failed read shows none. */
+    private static long owed(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+            @Nonnull ReputationDef reputation) {
+        try {
+            return ReputationBeyond.owed(store, ref, reputation);
+        } catch (Throwable t) {
+            SafeLog.warn("[reputation] the page could not read the rewards waiting for " + reputation.id(), t);
+            return 0L;
+        }
     }
 
     /** An empty update, for an event nothing opened or closed for: the client always hears back. */

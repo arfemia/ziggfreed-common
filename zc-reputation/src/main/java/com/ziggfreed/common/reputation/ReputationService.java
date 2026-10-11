@@ -202,10 +202,9 @@ public final class ReputationService {
         ReputationLadder ladder = ladderFor(def);
         long gear = engine.statMax(store, ref, def.gearStat());
         ReputationLadder.Rank top = ladder.top();
-        int crossings = top == null ? 0 : ReputationLadder.crossings(before, after, top.min(), def.beyondEvery());
         ReputationChange change = new ReputationChange(player, def, before, after, gear,
                 ladder.rankFor(before + gear), ladder.rankFor(after + gear),
-                ladder.progress(after + gear, def.beyondEvery()), crossings, source);
+                ladder.progress(after + gear, def.beyondEvery()), top == null ? null : top.min(), source);
         try {
             fanOut.changed(store, ref, change);
         } catch (Throwable t) {

@@ -20,7 +20,8 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Registers the reputation module at library setup, called once from the wiring root's {@code setup()}
- * (after the equip bridge is installed): the owner's switch, the three readings, the Reputation reward kind
+ * (after the equip bridge is installed): the owner's switch, the per-player record and the connect hook that
+ * attaches it, the three readings, the Reputation reward kind
  * and how it reads, the kill table on the shared moment stream, the standing reader the stat board ranks,
  * the Reputation destination and its tab in
  * the shared menu, the effective-rank checks at login, on every equip and their memory dropped at
@@ -43,6 +44,10 @@ public final class ReputationBootstrap {
         } catch (Throwable t) {
             SafeLog.warn("[reputation] the owner's reputation switch could not be read", t);
         }
+        // The per-player record (the Beyond payouts waiting to be collected) and its connect hook, before any
+        // world loads.
+        ReputationComponent.register(plugin.getEntityStoreRegistry());
+        ReputationComponent.install(plugin);
         registerVocabulary();
         registerMenu();
         registerRankChecks(plugin);

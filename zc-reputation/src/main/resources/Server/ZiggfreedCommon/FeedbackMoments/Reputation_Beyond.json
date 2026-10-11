@@ -1,0 +1,33 @@
+{
+  "$Comment": [
+    "What a player sees and hears when standing earned past a reputation's top rank crosses another",
+    "multiple of its Beyond Every and the reward for it WAITS to be collected: it fires once per change",
+    "that adds a waiting reward, and the player collects it with the Collect button on that reputation's",
+    "Reputation page. A reputation whose Beyond says Collect false pays on the spot and raises none.",
+    "",
+    "This is the library's own neutral default. A mod that ships a file with this same name in its own pack",
+    "replaces it (a pack that lists this library as a dependency loads after it), and a server owner can do",
+    "the same. Override the whole file rather than editing this one.",
+    "",
+    "The moment carries 'name' (the reputation's name, in the reader's language), 'waiting' (how many of",
+    "its rewards wait in all) and the reputation id under 'source'; 'player' is always who earned it.",
+    "Key is a line from a .lang file and Args names which of those values fill its blanks, in order.",
+    "",
+    "PlayerLevel true hands the toast to each player's own notification level, chosen on their Settings",
+    "tab. Tone colours the whole notification: gold Reward for a reward waiting to be collected."
+  ],
+  "Toast": {
+    "Title": {
+      "Key": "ziggfreedcommon.reputation.feedback.beyond.title",
+      "Args": ["name"]
+    },
+    "Secondary": {
+      "Key": "ziggfreedcommon.reputation.feedback.beyond.line"
+    },
+    "Tone": "Reward",
+    "PlayerLevel": true
+  },
+  "Sound": {
+    "Id": "SFX_Discovery_Z1_Short"
+  }
+}

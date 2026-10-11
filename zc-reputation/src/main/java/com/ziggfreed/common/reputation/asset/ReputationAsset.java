@@ -124,8 +124,9 @@ public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAs
             .appendInherited(new KeyedCodec<>("Beyond", Beyond.CODEC, false),
                     (a, v) -> a.beyond = v, a -> a.beyond, (a, p) -> a.beyond = p.beyond)
             .documentation("Rewards for standing earned past the floor of this reputation's top rank (its own "
-                    + "highest rank when Ranks adds some above the server's top), paid each time earned standing "
-                    + "crosses another multiple of Every.").add()
+                    + "highest rank when Ranks adds some above the server's top): each time earned standing "
+                    + "crosses another multiple of Every, one payout waits for the player to collect it on the "
+                    + "Reputation page (or pays on the spot with Collect false).").add()
             .appendInherited(new KeyedCodec<>("Earn", Earn.CODEC, false),
                     (a, v) -> a.earn = v, a -> a.earn, (a, p) -> a.earn = p.earn)
             .documentation("How a player earns this reputation, in your own words, for the Reputation page's "
@@ -249,6 +250,14 @@ public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAs
     public int beyondEvery() {
         Integer every = beyond == null ? null : beyond.every;
         return every == null || every <= 0 ? 0 : every;
+    }
+
+    /**
+     * Does a Beyond payout wait for the player to collect it on the Reputation page? Unauthored means true;
+     * false pays each crossing on the spot.
+     */
+    public boolean beyondCollects() {
+        return beyond == null || beyond.collect == null || beyond.collect;
     }
 
     /** What one Beyond crossing pays, as reward specs; empty when none. */
@@ -401,6 +410,7 @@ public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAs
 
         @Nullable protected Integer every;
         @Nullable protected RewardEntryAsset[] rewards;
+        @Nullable protected Boolean collect;
 
         public static final BuilderCodec<Beyond> CODEC = BuilderCodec.builder(Beyond.class, Beyond::new)
                 .appendInherited(new KeyedCodec<>("Every", Codec.INTEGER, false),
@@ -412,6 +422,17 @@ public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAs
                                 new ArrayCodec<>(RewardEntryAsset.CODEC, RewardEntryAsset[]::new), false),
                         (o, v) -> o.rewards = v, o -> o.rewards, (o, p) -> o.rewards = p.rewards)
                 .documentation("What each crossing pays: the same reward entries a quest pays.").add()
+                .appendInherited(new KeyedCodec<>("Collect", Codec.BOOLEAN, false),
+                        (o, v) -> o.collect = v, o -> o.collect, (o, p) -> o.collect = p.collect)
+                .metadata(EditorSchema.defaultValue(true))
+                .documentation("Whether each payout waits for the player to collect it; unauthored means true. "
+                        + "A waiting payout raises a notice, and the Reputation page shows a Collect button that "
+                        + "pays the Rewards as they are written at that moment, up to 20 payouts a press, and "
+                        + "only when the inventory has room for them. The highest standing a player has earned is "
+                        + "remembered, so losing standing and earning it back pays nothing twice, and a later "
+                        + "change to Every pays nothing back. False pays each crossing the "
+                        + "moment it happens instead, with no room check: an item that does not fit lands at the "
+                        + "player's feet.").add()
                 .build();
 
         public Beyond() {

@@ -261,16 +261,21 @@ public final class ReputationLadder {
         if (every <= 0 || after <= before) {
             return 0;
         }
-        long gained = steps(after, floor, every) - steps(before, floor, every);
+        long gained = beyondSteps(after, floor, every) - beyondSteps(before, floor, every);
         return (int) Math.max(0L, Math.min(Integer.MAX_VALUE, gained));
     }
 
     /** The earned standing the next Beyond payout lands at, for a player standing at {@code earned}. */
     public static long nextRewardAt(long earned, int floor, int every) {
-        return floor + (steps(earned, floor, every) + 1) * (long) every;
+        return floor + (beyondSteps(earned, floor, every) + 1) * (long) every;
     }
 
-    private static long steps(long value, int floor, int every) {
-        return value <= floor ? 0L : (value - floor) / every;
+    /**
+     * How many whole multiples of {@code every} past {@code floor} earned standing {@code value} has reached: the
+     * Beyond step it stands on. The floor itself and anything below it is step 0, and so is any value when
+     * {@code every} is zero or less.
+     */
+    public static long beyondSteps(long value, int floor, int every) {
+        return every <= 0 || value <= floor ? 0L : (value - floor) / every;
     }
 }

@@ -70,6 +70,16 @@ public record ReputationDef(@Nonnull String id, int initial, @Nullable Reputatio
         return companion == null ? List.of() : companion.beyondRewards();
     }
 
+    /** Does it pay past its top at all: an Every above zero and at least one reward row this server pays? */
+    public boolean hasBeyond() {
+        return beyondEvery() > 0 && !beyondRewards().isEmpty();
+    }
+
+    /** Does a Beyond payout wait to be collected (true unless its file says {@code Collect: false})? */
+    public boolean beyondCollects() {
+        return companion == null || companion.beyondCollects();
+    }
+
     /** The authored How to earn lines' keys, in order; empty when none. */
     @Nonnull
     public List<String> earnKeys() {

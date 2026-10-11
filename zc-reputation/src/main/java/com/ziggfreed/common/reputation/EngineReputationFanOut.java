@@ -1,25 +1,20 @@
 package com.ziggfreed.common.reputation;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.feedback.moment.FeedbackEngine;
 import com.ziggfreed.common.icon.IconSpec;
-import com.ziggfreed.common.loot.reward.RewardGrants;
-import com.ziggfreed.common.loot.reward.RewardKinds;
-import com.ziggfreed.common.loot.reward.RewardSpec;
-import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.reputation.event.ReputationEvents;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.hud.KeyedCustomHud;
@@ -30,9 +25,11 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The production {@link ReputationFanOut}: an earned change fires {@code ZigReputationChangedEvent}, shows on
- * ONE bar panel and pays the Beyond rewards once per crossing; a credit fires
- * {@code ZigReputationRanksHeldEvent} (zc-objectives turns it into {@code REPUTATION_RANK}); a rise during
- * play raises the {@code Reputation_Rank} notice. Each part is guarded on its own.
+ * ONE bar panel and, for a reputation with a Beyond, parks each newly crossed payout on the player's record
+ * ({@link ReputationBeyond}) and raises the {@code Reputation_Beyond} notice, or pays it on the spot when the
+ * reputation is authored {@code Collect: false}; a credit fires {@code ZigReputationRanksHeldEvent}
+ * (zc-objectives turns it into {@code REPUTATION_RANK}); a rise during play raises the {@code Reputation_Rank}
+ * notice. Each part is guarded on its own.
  *
  * <p>Which panel a change shows on is where the player was when it landed. Out in the world it moves the
  * reputation's World bar ({@code reputation:<id>}, its reading effective standing's progress through its
@@ -48,16 +45,17 @@ public final class EngineReputationFanOut implements ReputationFanOut {
     /** The moment a rise is authored under, and the shipped default file's name. */
     public static final String RANK_MOMENT = "Reputation_Rank";
 
+    /** The moment a parked Beyond payout is authored under, and the shipped default file's name. */
+    public static final String BEYOND_MOMENT = "Reputation_Beyond";
+
     /** A reputation's bar is the row {@code reputation:<id>}, on the World panel or the centred one. */
     public static final String ROW_PREFIX = "reputation:";
-
-    /** The most Beyond payouts one change pays, so one huge gain never queues a flood of rewards. */
-    static final int MAX_BEYOND_PAYOUTS = 20;
 
     /** The fixed argument the feedback engine draws a toast's picture from (an item id). */
     static final String ICON_ARG = "icon";
 
-    private static final String PAYOUT_SOURCE = "reputation:";
+    /** The parked notice's argument: how many of the reputation's payouts wait in all. */
+    static final String WAITING_ARG = "waiting";
 
     @Override
     public void changed(@Nullable Store<EntityStore> store, @Nullable Ref<EntityStore> ref,
@@ -71,9 +69,7 @@ public final class EngineReputationFanOut implements ReputationFanOut {
         } else {
             moveBar(store, ref, change);
         }
-        if (change.beyondCrossings() > 0) {
-            payBeyond(store, ref, change);
-        }
+        beyond(store, ref, change);
     }
 
     @Override
@@ -90,17 +86,7 @@ public final class EngineReputationFanOut implements ReputationFanOut {
         if (store == null || ref == null) {
             return;
         }
-        try {
-            if (!FeedbackEngine.answers(RANK_MOMENT)) {
-                return;
-            }
-            Subject subject = subject(store, ref);
-            if (subject != null) {
-                FeedbackEngine.fire(RANK_MOMENT, subject, rankArgs(reputation, rank));
-            }
-        } catch (Throwable t) {
-            SafeLog.warn("[reputation] the rank notice failed: " + t.getMessage());
-        }
+        notice(store, ref, RANK_MOMENT, () -> rankArgs(reputation, rank));
     }
 
     @Nonnull
@@ -151,26 +137,29 @@ public final class EngineReputationFanOut implements ReputationFanOut {
 
     @Nonnull
     static Map<String, Object> rankArgs(@Nonnull ReputationDef reputation, @Nonnull ReputationLadder.Rank rank) {
+        Map<String, Object> args = noticeArgs(reputation);
+        args.put("rank", ReputationText.rankName(reputation, rank));
+        return args;
+    }
+
+    /** The parked notice's values: the rank notice's own, with how many payouts wait in all. */
+    @Nonnull
+    static Map<String, Object> beyondArgs(@Nonnull ReputationDef reputation, long waiting) {
+        Map<String, Object> args = noticeArgs(reputation);
+        args.put(WAITING_ARG, waiting);
+        return args;
+    }
+
+    /** What both notices carry: the reputation id as the source, its name, and its picture when it has one. */
+    @Nonnull
+    private static Map<String, Object> noticeArgs(@Nonnull ReputationDef reputation) {
         Map<String, Object> args = new LinkedHashMap<>();
         args.put(FeedbackEngine.SOURCE_ARG, reputation.id());
         args.put("name", ReputationText.name(reputation));
-        args.put("rank", ReputationText.rankName(reputation, rank));
         if (reputation.icon() != null) {
             args.put(ICON_ARG, reputation.icon());
         }
         return args;
-    }
-
-    /** The Beyond rewards once per crossing, at most {@link #MAX_BEYOND_PAYOUTS} times. */
-    @Nonnull
-    static List<RewardSpec> beyondPayout(@Nonnull ReputationChange change) {
-        List<RewardSpec> once = change.reputation().beyondRewards();
-        int times = Math.min(change.beyondCrossings(), MAX_BEYOND_PAYOUTS);
-        List<RewardSpec> out = new ArrayList<>(once.size() * Math.max(0, times));
-        for (int i = 0; i < times; i++) {
-            out.addAll(once);
-        }
-        return out;
     }
 
     private static void moveBar(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
@@ -209,37 +198,47 @@ public final class EngineReputationFanOut implements ReputationFanOut {
         }
     }
 
-    private static void payBeyond(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+    /**
+     * Past the top: park what the change newly crossed and say so once ({@link #BEYOND_MOMENT}), or, for a
+     * reputation authored {@code Collect: false}, pay each crossing now. A reputation with no Beyond leaves the
+     * record alone. A crossing with nowhere to park (no record) is paid now rather than lost.
+     */
+    private static void beyond(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull ReputationChange change) {
+        ReputationDef reputation = change.reputation();
         try {
-            List<RewardSpec> rewards = beyondPayout(change);
-            if (rewards.isEmpty()) {
+            if (!reputation.hasBeyond()) {
                 return;
             }
-            if (change.beyondCrossings() > MAX_BEYOND_PAYOUTS) {
-                SafeLog.warn("[reputation] one change to '" + change.reputation().id() + "' crossed "
-                        + change.beyondCrossings() + " Beyond payouts; only " + MAX_BEYOND_PAYOUTS + " are paid");
-            }
-            Subject subject = subject(store, ref);
-            if (subject == null) {
-                SafeLog.warn("[reputation] nobody to pay the Beyond rewards of '" + change.reputation().id() + "' to");
+            long parked = reputation.beyondCollects() ? ReputationBeyond.park(store, ref, change) : -1L;
+            if (parked < 0) {
+                if (change.beyondCrossings() > 0) {
+                    ReputationBeyond.payNow(store, ref, reputation, change.beyondCrossings());
+                }
                 return;
             }
-            RewardGrants.grantAll(rewards, subject, PAYOUT_SOURCE + change.reputation().id(), RewardKinds.shared(),
-                    true, ProgressionRuntime.rewardRetryQueue(), SafeLog::warn);
+            if (parked > 0) {
+                long waiting = ReputationBeyond.owed(store, ref, reputation);
+                notice(store, ref, BEYOND_MOMENT, () -> beyondArgs(reputation, waiting));
+            }
         } catch (Throwable t) {
-            SafeLog.warn("[reputation] the Beyond payout for '" + change.reputation().id() + "' failed: "
-                    + t.getMessage());
+            SafeLog.warn("[reputation] the Beyond payout for '" + reputation.id() + "' failed: " + t.getMessage());
         }
     }
 
-    @Nullable
-    private static Subject subject(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
-        Subject subject = ProgressionRuntime.subjects().questSubject(store, ref);
-        if (subject != null) {
-            return subject;
+    /** Raise {@code moment} for the player at {@code ref} when a file answers it; a failure costs only the notice. */
+    private static void notice(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+            @Nonnull String moment, @Nonnull Supplier<Map<String, Object>> args) {
+        try {
+            if (!FeedbackEngine.answers(moment)) {
+                return;
+            }
+            Subject subject = ReputationBeyond.subject(store, ref);
+            if (subject != null) {
+                FeedbackEngine.fire(moment, subject, args.get());
+            }
+        } catch (Throwable t) {
+            SafeLog.warn("[reputation] the " + moment + " notice failed: " + t.getMessage());
         }
-        PlayerRef playerRef = store.getComponent(ref, PlayerRef.getComponentType());
-        return playerRef == null ? null : Subject.of(playerRef, store.getComponent(ref, Player.getComponentType()));
     }
 }

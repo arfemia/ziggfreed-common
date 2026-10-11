@@ -19,12 +19,12 @@ dependencies {
     implementation project(':zc-core')
     // StatIndexCache: the gear share is a stat's folded maximum, resolved the way hytale:stat resolves it.
     implementation project(':zc-entity')
-    // The reward vocabulary: the Reputation kind, its chip reading, the Beyond payout.
+    // The reward vocabulary: the Reputation kind, its chip reading, the Beyond payout and its bag-room probe.
     implementation project(':zc-loot')
     // The shared moment stream the kill table listens on, the reward entry shape, the runtime's subjects
     // and its reward retry queue.
     implementation project(':zc-progression')
     // The World bars, the centred panel and the page check, the feedback engine, the destination
-    // vocabulary, the shared menu and its rows.
+    // vocabulary, the shared menu and its rows, the in-page toast.
     implementation project(':zc-presentation')
 }
