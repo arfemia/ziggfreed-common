@@ -201,7 +201,6 @@ public final class TitleUnlocks {
             return Outcome.NO_RECORD;
         }
         String was = titles.activeTitle();
-        // Always asked, so Show none pressed while nothing shows still records the choice (R214).
         boolean wasShowing = titles.deactivate();
         if (was == null || !wasShowing) {
             return Outcome.NONE_ACTIVE;

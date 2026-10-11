@@ -85,7 +85,7 @@ class TitleSettingsTest {
         HudSettingsPages.deps(() -> HudSettingsDeps.builder().audience((store, ref, player) -> true).build());
         assertFalse(layout.visible().test(SettingsViewer.NOBODY), "still no player to ask the audience about");
 
-        assertTrue(row(TitleSettings.PICKER).visible().test(SettingsViewer.NOBODY), "the title tile is every player's");
+        assertTrue(row(TitleSettings.PICKER).visible().test(SettingsViewer.NOBODY), "the title tile shows every player while a title is on offer");
         assertFalse(row(TitleSettings.PICKER).tile().open(SettingsViewer.NOBODY), "nobody to open the picker for");
     }
 }

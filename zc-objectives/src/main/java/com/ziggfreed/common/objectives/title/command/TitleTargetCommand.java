@@ -15,12 +15,14 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.command.AbstractTargetPlayerCommand;
 import com.ziggfreed.common.entity.title.ZigTitleComponent;
 import com.ziggfreed.common.inventory.PlayerAccess;
+import com.ziggfreed.common.objectives.title.TitleQueue;
 import com.ziggfreed.common.objectives.title.command.TitlePlayers.Named;
 
 /**
  * The title family's fill of the shared target-player walk, in its typed-name form: {@code --player}
  * takes a player online or not ({@link TitlePlayers} says who a name means). An online player is
- * resolved on their own world thread and becomes a {@link Target}, today's path; one who is not goes
+ * resolved on their own world thread, has anything queued for them paid there, and becomes a
+ * {@link Target}, today's path; one who is not goes
  * to {@link #executeOffline}, where a write is queued through {@code ZigTitles} for their next login
  * and a read comes from the title record. The writing verbs share one reading of {@code --title}.
  */
@@ -42,10 +44,15 @@ abstract class TitleTargetCommand extends AbstractTargetPlayerCommand<TitleTarge
                 TitleCommandMessages::refused, true);
     }
 
+    /**
+     * On the player's world thread, before the verb acts: pay anything queued for them first, as the
+     * facade's own hop does, so a grant queued while they were away never lands after a revoke typed now.
+     */
     @Override
     @Nonnull
     protected Target buildTarget(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
                                  @Nonnull PlayerRef playerRef) {
+        TitleQueue.payOnWorldThread(ref);
         return new Target(store, ref, playerRef);
     }
 

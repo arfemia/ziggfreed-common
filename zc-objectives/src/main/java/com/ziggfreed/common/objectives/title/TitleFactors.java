@@ -18,12 +18,15 @@ import com.ziggfreed.common.factor.FactorContributions;
  * The two title readings, contributed to every vocabulary on the server, so a dialogue line, a shop
  * offer or a quest can ask about a player's titles. {@code Param} names the title (its id, any case):
  * <ul>
- *   <li>{@value #EARNED}: 1 when the player has earned it, else 0;</li>
- *   <li>{@value #SHOWN}: 1 when it is the title the player shows, else 0.</li>
+ *   <li>{@value #EARNED}: 1 when the player has earned it, else 0; a title switched off or unknown
+ *   still reads as earned;</li>
+ *   <li>{@value #SHOWN}: 1 when it is the title the player shows and it is on offer
+ *   ({@link TitleConfig#shown}), else 0, so it matches what players see beside the name.</li>
  * </ul>
- * Both read the process-wide record ({@link ActiveTitles}), never the player's entity, so a title
- * switched off or unknown still reads as held. Null (fail closed) for a blank {@code Param} or a
- * question about no player. Every authored condition carries a {@code Min}.
+ * Both need a live subject and run on its world thread, as the factor context does: the player is
+ * read off the subject's entity, and what they hold off the process-wide record ({@link ActiveTitles}).
+ * Null (fail closed) for a blank {@code Param} or a question with no live subject. Every authored
+ * condition carries a {@code Min}.
  */
 public final class TitleFactors {
 
@@ -57,10 +60,11 @@ public final class TitleFactors {
         if (titleId == null || playerId == null) {
             return null;
         }
-        return titleId.equals(ActiveTitles.of(playerId)) ? 1.0 : 0.0;
+        return titleId.equals(ActiveTitles.of(playerId)) && TitleConfig.getInstance().shown(titleId) != null
+                ? 1.0 : 0.0;
     }
 
-    /** The player the question is about, or null when it is about no live player. World thread, like the context. */
+    /** The player the question is about, or null when it has no live subject. The subject's world thread. */
     @Nullable
     private static UUID playerIdOf(@Nonnull FactorContext ctx) {
         Store<EntityStore> store = ctx.store();

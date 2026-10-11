@@ -67,8 +67,12 @@ public final class TitleQueue {
         }
     }
 
-    /** World thread: pay everything queued for the player behind {@code ref}, oldest first. */
-    static void payOnWorldThread(@Nullable Ref<EntityStore> ref) {
+    /**
+     * World thread: pay everything queued for the player behind {@code ref}, oldest first. Anything
+     * about to write a player's titles on their world thread calls it first (the facade's hop, an
+     * admin verb), so a change queued earlier never lands after a later one. Never throws.
+     */
+    public static void payOnWorldThread(@Nullable Ref<EntityStore> ref) {
         try {
             if (ref == null || !ref.isValid()) {
                 return;

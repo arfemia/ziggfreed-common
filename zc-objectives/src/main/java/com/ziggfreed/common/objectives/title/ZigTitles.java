@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -34,11 +35,22 @@ import com.ziggfreed.common.util.SafeLog;
  * at once. Changes queued for one player are made in the order they were queued, and a change for an
  * online player who still has queued ones waits behind them.
  *
+ * <p>Every future these return completes. A change that throws part-way on the world thread is queued
+ * and answered {@link Outcome#QUEUED}, so {@code QUEUED} can follow a write that half-landed; the queued
+ * copy is made again, and a grant or revoke made twice changes nothing the second time. An answer that
+ * waits on a world thread completes exceptionally with a {@link java.util.concurrent.TimeoutException}
+ * after five seconds (a world that took the task and stopped before running it): the change may still
+ * land later or never, and a caller may simply send it again, since writes are idempotent (a second
+ * grant answers {@link Outcome#ALREADY_UNLOCKED}, a second revoke {@link Outcome#NOT_UNLOCKED}).
+ *
  * <p><b>Reads</b> come from the process-wide record ({@link ActiveTitles}): seeded at connect,
  * refreshed by every change, kept across a leave and a restart. A player the record has never seen
  * reads as having no titles.
  */
 public final class ZigTitles {
+
+    /** How long an answer waits on a player's world thread before it completes with a timeout. */
+    private static final long WORLD_ANSWER_SECONDS = 5L;
 
     private ZigTitles() {
     }
@@ -48,6 +60,7 @@ public final class ZigTitles {
      * {@link Outcome#ALREADY_UNLOCKED} for an online player (on their world thread),
      * {@link Outcome#QUEUED} for one who is not, {@link Outcome#REFUSED} at once for a blank id or one
      * carrying a reserved character, and {@link Outcome#NO_RECORD} for an online player without a record.
+     * An online player's answer times out after five seconds, as the class says.
      */
     @Nonnull
     public static CompletableFuture<Outcome> grant(@Nonnull UUID playerId, @Nullable String titleId) {
@@ -127,15 +140,29 @@ public final class ZigTitles {
         if (ref != null) {
             CompletableFuture<Outcome> answer = new CompletableFuture<>();
             try {
-                ref.getStore().getExternalData().getWorld().execute(() -> answer.complete(onWorldThread(playerId, ref,
-                        id, kind)));
-                return answer;
+                ref.getStore().getExternalData().getWorld().execute(() -> answerOnWorldThread(answer, playerId, ref,
+                        id, kind));
+                // A world that took the task but stops before running it would leave the answer waiting.
+                return answer.orTimeout(WORLD_ANSWER_SECONDS, TimeUnit.SECONDS);
             } catch (Throwable t) {
                 // Their world takes no more tasks (it is stopping): the queue holds it for the next login.
                 SafeLog.fine("[title] could not reach a player's world, so the change is queued: " + t.getMessage());
             }
         }
         return CompletableFuture.completedFuture(queue(playerId, id, kind));
+    }
+
+    /** The world task: whatever throws, {@code answer} is completed. */
+    private static void answerOnWorldThread(@Nonnull CompletableFuture<Outcome> answer, @Nonnull UUID playerId,
+            @Nonnull Ref<EntityStore> ref, @Nonnull String id, @Nonnull PendingTitles.Kind kind) {
+        Outcome outcome = Outcome.REFUSED;
+        try {
+            outcome = onWorldThread(playerId, ref, id, kind);
+        } catch (Throwable t) {
+            SafeLog.warn("[title] the " + kind + " of '" + id + "' could not be answered", t);
+        } finally {
+            answer.complete(outcome);
+        }
     }
 
     /**
@@ -164,13 +191,26 @@ public final class ZigTitles {
         }
     }
 
-    /** Queue the change, then pay it at once if the player is online now after all. */
+    /**
+     * Queue the change, then pay it at once if the player is online now after all. Never throws:
+     * {@link Outcome#REFUSED} when nothing was queued, {@link Outcome#QUEUED} once it was, whatever the
+     * payout then does.
+     */
     @Nonnull
     private static Outcome queue(@Nonnull UUID playerId, @Nonnull String id, @Nonnull PendingTitles.Kind kind) {
-        if (!PendingTitles.add(playerId, kind, id)) {
+        try {
+            if (!PendingTitles.add(playerId, kind, id)) {
+                return Outcome.REFUSED;
+            }
+        } catch (Throwable t) {
+            SafeLog.warn("[title] the " + kind + " of '" + id + "' could not be queued", t);
             return Outcome.REFUSED;
         }
-        TitleQueue.payIfOnline(playerId);
+        try {
+            TitleQueue.payIfOnline(playerId);
+        } catch (Throwable t) {
+            SafeLog.fine("[title] a queued title change waits for the next login: " + t.getMessage());
+        }
         return Outcome.QUEUED;
     }
 }

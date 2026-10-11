@@ -19,6 +19,8 @@ import java.util.concurrent.Executor;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.util.SafeLog;
+
 /**
  * The process-wide record of each player's titles, for a reader that is not on that player's world
  * thread: a menu or a leaderboard naming players who may stand in another world, whose entity stores
@@ -56,6 +58,9 @@ public final class ActiveTitles {
 
     /** A lower-cased username to the player who last connected with it. */
     private static final Map<String, UUID> BY_USERNAME = new ConcurrentHashMap<>();
+
+    /** Keeps {@link #USERNAMES} and {@link #BY_USERNAME} agreeing that a name has one holder; reads take no lock. */
+    private static final Object NAMES_LOCK = new Object();
 
     private static final RecordFile FILE = new RecordFile("the shown titles",
             "a restart may show an offline player an older title until they connect again", new RecordFile.Body() {
@@ -106,7 +111,10 @@ public final class ActiveTitles {
         return earned == null ? Set.of() : earned;
     }
 
-    /** The username {@code playerId} last connected with, or null when this record has never seen them. */
+    /**
+     * The username {@code playerId} last connected with, or null when this record has never seen them
+     * or another player has connected with that name since (a name has one holder, the latest).
+     */
     @Nullable
     public static String usernameOf(@Nullable UUID playerId) {
         return playerId == null ? null : USERNAMES.get(playerId);
@@ -114,7 +122,7 @@ public final class ActiveTitles {
 
     /**
      * The player who last connected as {@code username}, matched whatever the casing, or null. When two
-     * players have used one name, the one who connected with it last answers.
+     * players have used one name, the one who connected with it last answers, after a restart too.
      */
     @Nullable
     public static UUID idOf(@Nullable String username) {
@@ -176,19 +184,28 @@ public final class ActiveTitles {
         return !Objects.equals(before == null ? Set.of() : before, earned);
     }
 
+    /**
+     * Give {@code username} to {@code playerId}. A name is held by one player at a time: another player
+     * who held it (any case) loses their entry, so the latest connect wins in memory and in the file,
+     * and across a restart. True when anything changed.
+     */
     private static boolean putUsername(@Nonnull UUID playerId, @Nullable String username) {
         String key = nameKey(username);
         if (key == null) {
             return false;
         }
         String name = username.trim();
-        String before = USERNAMES.put(playerId, name);
-        String beforeKey = nameKey(before);
-        if (beforeKey != null && !beforeKey.equals(key)) {
-            BY_USERNAME.remove(beforeKey, playerId);
+        synchronized (NAMES_LOCK) {
+            String before = USERNAMES.put(playerId, name);
+            String beforeKey = nameKey(before);
+            if (beforeKey != null && !beforeKey.equals(key)) {
+                BY_USERNAME.remove(beforeKey, playerId);
+            }
+            UUID heldBy = BY_USERNAME.put(key, playerId);
+            String held = heldBy == null || heldBy.equals(playerId) ? null : USERNAMES.get(heldBy);
+            boolean dropped = held != null && key.equals(nameKey(held)) && USERNAMES.remove(heldBy, held);
+            return dropped || !name.equals(before);
         }
-        BY_USERNAME.put(key, playerId);
-        return !name.equals(before);
     }
 
     @Nonnull
@@ -234,12 +251,36 @@ public final class ActiveTitles {
             }
         }
         if (doc.usernames != null) {
-            for (Map.Entry<String, String> e : doc.usernames.entrySet()) {
-                UUID playerId = playerIdOf(e.getKey());
-                if (playerId != null) {
-                    putUsername(playerId, e.getValue());
-                }
+            readUsernames(doc.usernames);
+        }
+    }
+
+    /**
+     * Read the saved usernames. The record writes each name under one player, so a file naming two
+     * (written before that held, or edited by hand) keeps the player whose id sorts first, whatever
+     * order the file lists them in, warns once, and is written again without the others.
+     */
+    private static void readUsernames(@Nonnull Map<String, String> saved) {
+        Map<UUID, String> byPlayer = new TreeMap<>();
+        for (Map.Entry<String, String> e : saved.entrySet()) {
+            UUID playerId = playerIdOf(e.getKey());
+            if (playerId != null && nameKey(e.getValue()) != null) {
+                byPlayer.put(playerId, e.getValue());
             }
+        }
+        int clashes = 0;
+        for (Map.Entry<UUID, String> e : byPlayer.entrySet()) {
+            UUID heldBy = BY_USERNAME.get(nameKey(e.getValue()));
+            if (heldBy != null && !heldBy.equals(e.getKey())) {
+                clashes++;
+                continue;
+            }
+            putUsername(e.getKey(), e.getValue());
+        }
+        if (clashes > 0) {
+            SafeLog.warn("[title] the shown titles named " + clashes + " username(s) under more than one player;"
+                    + " each name now finds the player whose id sorts first, until a player connects with it");
+            FILE.changed();
         }
     }
 

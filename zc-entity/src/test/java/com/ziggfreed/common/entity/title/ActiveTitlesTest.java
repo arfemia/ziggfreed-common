@@ -181,6 +181,32 @@ class ActiveTitlesTest {
         assertTrue(ActiveTitles.earned(renamed).isEmpty());
     }
 
+    /**
+     * Tagged {@code engine-items}: it reads back what the engine's atomic writer wrote. A name two
+     * players have connected with belongs to the latest, in memory and after a restart, and the
+     * earlier one no longer answers to it.
+     */
+    @Tag("engine-items")
+    @Test
+    void aNameTwoPlayersUsedBelongsToTheLatestAcrossARestart() {
+        Path file = dir.resolve("shown-titles.json");
+        UUID earlier = UUID.randomUUID();
+        UUID latest = UUID.randomUUID();
+        ActiveTitles.persistTo(file, null);
+        ActiveTitles.refresh(earlier, "Ziggfreed", null, List.of());
+        ActiveTitles.refresh(latest, "ziggfreed", null, List.of());
+
+        assertEquals(latest, ActiveTitles.idOf("Ziggfreed"));
+        assertNull(ActiveTitles.usernameOf(earlier), "the earlier holder gives the name up");
+        ActiveTitles.flush();
+
+        restart(file);
+
+        assertEquals(latest, ActiveTitles.idOf("ZIGGFREED"), "the latest connect still wins after a restart");
+        assertEquals("ziggfreed", ActiveTitles.usernameOf(latest));
+        assertNull(ActiveTitles.usernameOf(earlier), "only the latest holder resolves");
+    }
+
     @Test
     void aFileFromBeforeTheEarnedSetAndUsernamesReadsThemEmpty() throws IOException {
         Path file = dir.resolve("shown-titles.json");
