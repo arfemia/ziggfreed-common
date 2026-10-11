@@ -14,6 +14,9 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * Turns the authored {@link RewardKindAsset}s into registered handlers on a
  * {@link RewardKindRegistry}, so a kind written as a file pays out exactly like one written in Java.
+ * Each handler is a {@link CommandRewardKind} carrying its whole file, so what the file says beyond
+ * its command (its {@code Presentation}, and the item its {@code Hands} names, which the ask-first
+ * room check in {@link LootRewardKinds#canAddAll} counts) is read off the handler that pays it.
  *
  * <h2>It runs LAST, and JSON wins</h2>
  *
@@ -25,10 +28,11 @@ import com.ziggfreed.common.util.SafeLog;
  * <p>Which is also why it is LOUD. Every shadow logs one warning naming the file, and the returned
  * {@link Result} carries the same list for {@link RewardKindValidator#shadowed} to report in the
  * content audit. The warning matters because the swap is not free: a command-backed kind is a command
- * line and nothing else, so the shadowed kind's engine services go with it - the ask-first inventory
- * fit check that lets a payout say "come back with room" BEFORE charging a price, and any replay
- * richer than re-running the same line. An owner who reads the warning and keeps the file has made a
- * choice; one who never saw it has a bug they cannot find.
+ * line and nothing else, so the shadowed kind's engine services go with it - any replay richer than
+ * re-running the same line, and the ask-first inventory fit check that lets a payout say "come back
+ * with room" BEFORE charging a price, unless the file's {@code Hands} names the item its command
+ * hands over, which gives that check back ({@link RewardKindAsset.Hands}). An owner who reads the
+ * warning and keeps the file has made a choice; one who never saw it has a bug they cannot find.
  *
  * <p>It is exactly ONE warning, which is why the registration goes through
  * {@link RewardKindRegistry#registerQuietly}: the registry would otherwise add its own generic
@@ -138,9 +142,10 @@ public final class RewardKindFold {
         return "[reward-kind] '" + authoredId + "' is now paid out by the authored file "
                 + RewardKindAsset.TYPE_ROOT + "/" + authoredId + ".json instead of the mod that registered"
                 + " it. An authored kind runs a command and nothing else, so this kind loses that mod's"
-                + " engine services: the ask-first inventory check that lets a payout say 'come back with"
-                + " room' before charging a price, and any retry richer than re-running the same command"
-                + " line. Delete the file to hand the kind back.";
+                + " engine services: any retry richer than re-running the same command line, and the"
+                + " ask-first inventory check that lets a payout say 'come back with room' before charging"
+                + " a price, unless the file's Hands names the item its command hands over. Delete the"
+                + " file to hand the kind back.";
     }
 
     private static void report(@Nullable Consumer<String> warn, @Nonnull String message) {

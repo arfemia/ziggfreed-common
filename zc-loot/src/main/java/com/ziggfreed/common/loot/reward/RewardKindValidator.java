@@ -12,6 +12,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.command.system.CommandManager;
+import com.ziggfreed.common.inventory.ItemIds;
 import com.ziggfreed.common.validation.Finding;
 
 /**
@@ -43,6 +44,10 @@ public final class RewardKindValidator {
     public static final String JAVA_BACKED_KIND_SHADOWED = "REWARDKIND_JAVA_BACKED_KIND_SHADOWED";
     public static final String UNKNOWN_COMMAND = "REWARDKIND_UNKNOWN_COMMAND";
     public static final String SUSPECT_ARG = "REWARDKIND_SUSPECT_ARG";
+    public static final String HANDS_NO_ITEM = "REWARDKIND_HANDS_NO_ITEM";
+    public static final String HANDS_UNKNOWN_ITEM = "REWARDKIND_HANDS_UNKNOWN_ITEM";
+    public static final String HANDS_BAD_COUNT = "REWARDKIND_HANDS_BAD_COUNT";
+    public static final String HANDS_WITHOUT_COMMAND = "REWARDKIND_HANDS_WITHOUT_COMMAND";
 
     private RewardKindValidator() {
     }
@@ -110,6 +115,13 @@ public final class RewardKindValidator {
                         "This file decorates a Java-registered kind: its Presentation says how that "
                                 + "kind's rewards read, and the payout stays with the mod that "
                                 + "registered it.", sourceId));
+                if (asset.getHands() != null) {
+                    findings.add(Finding.warning(DOMAIN, HANDS_WITHOUT_COMMAND,
+                            "This file names Hands but no Command, so nothing reads it: the room check "
+                                    + "counts Hands only for a kind a file pays out, and the mod that "
+                                    + "registered this kind answers for its own room. Remove Hands.",
+                            sourceId));
+                }
             } else {
                 findings.add(Finding.error(DOMAIN, NO_COMMAND,
                         "This reward kind names no Command, so nothing is registered for it and any reward "
@@ -145,7 +157,44 @@ public final class RewardKindValidator {
             }
         }
 
+        findings.addAll(auditHands(asset, sourceId));
         findings.addAll(auditCommandHead(asset, registeredCommandHeads));
+        return findings;
+    }
+
+    /**
+     * The {@code Hands} group's mistakes, each of which makes the room check count something other
+     * than what the command hands over: no item (it counts nothing), a count under 1 (read as 1), and
+     * an item this server does not have. All WARNINGs: the command still pays, and an item another
+     * pack ships may simply not be loaded where the check runs. Silent about the item when no items
+     * are loaded to ask (a unit JVM, or an audit before the packs load).
+     */
+    @Nonnull
+    private static List<Finding> auditHands(@Nonnull RewardKindAsset asset, @Nonnull String sourceId) {
+        List<Finding> findings = new ArrayList<>();
+        RewardKindAsset.Hands hands = asset.getHands();
+        if (hands == null) {
+            return findings;
+        }
+        Integer count = hands.getCount();
+        if (count != null && count < 1) {
+            findings.add(Finding.warning(DOMAIN, HANDS_BAD_COUNT,
+                    "Hands.Count is " + count + ", and a command that hands over an item hands over at "
+                            + "least one, so the room check counts 1. Write a whole number of 1 or more, "
+                            + "or leave Count out for 1.", sourceId));
+        }
+        String itemId = hands.itemId();
+        if (itemId == null) {
+            findings.add(Finding.warning(DOMAIN, HANDS_NO_ITEM,
+                    "Hands names no Item, so the room check counts nothing for this kind and a claim made "
+                            + "with a full bag lands the item at the player's feet. Name the item the Command "
+                            + "hands over, or remove Hands.", sourceId));
+        } else if (Boolean.FALSE.equals(ItemIds.loaded(itemId))) {
+            findings.add(Finding.warning(DOMAIN, HANDS_UNKNOWN_ITEM,
+                    "Hands names the item '" + itemId + "', which this server does not have (ids match "
+                            + "case for case). The room check still counts it; check the spelling, or "
+                            + "whether the pack that ships the item is installed.", sourceId));
+        }
         return findings;
     }
 
@@ -298,6 +347,6 @@ public final class RewardKindValidator {
     public static List<String> codes() {
         return List.of(NO_COMMAND, PRESENTATION_ONLY, UNKNOWN_PARAM, MISSING_REQUIRED_PARAM,
                 UNUSED_PARAM, REQUIRED_WITH_DEFAULT, JAVA_BACKED_KIND_SHADOWED, UNKNOWN_COMMAND,
-                SUSPECT_ARG);
+                SUSPECT_ARG, HANDS_NO_ITEM, HANDS_UNKNOWN_ITEM, HANDS_BAD_COUNT, HANDS_WITHOUT_COMMAND);
     }
 }

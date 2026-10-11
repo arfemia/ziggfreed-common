@@ -7,6 +7,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 
 import javax.annotation.Nonnull;
@@ -217,8 +218,9 @@ public final class LootRewardKinds {
      *
      * <p>A spec that needs no room answers TRUE, and that includes the two it cannot know about: a
      * {@code Lootable} rolls its contents at grant time, and a kind another mod registered is that
-     * mod's business. So a false answer always means a specific, named item that specifically will
-     * not fit - never a guess.
+     * mod's business, unless it is a kind FILE whose {@code Hands} names the item its command hands
+     * over ({@link RewardKindAsset.Hands}). So a false answer always means a specific, named item
+     * that specifically will not fit - never a guess.
      */
     public static boolean canAdd(@Nonnull RewardSpec spec, @Nonnull Subject subject) {
         Handover handover = roomFor(spec);
@@ -251,9 +253,9 @@ public final class LootRewardKinds {
      *
      * <p>Rewards that need no room are skipped rather than refused, exactly as {@link #canAdd}
      * skips them: a {@code Lootable} rolls its contents at grant time and another mod's kind is
-     * that mod's business. A payout with no player behind it is not blocked, since it never
-     * reaches an inventory. So a false answer always names specific items that specifically will
-     * not fit.
+     * that mod's business, unless its kind file's {@code Hands} names the item it hands over. A
+     * payout with no player behind it is not blocked, since it never reaches an inventory. So a
+     * false answer always names specific items that specifically will not fit.
      */
     public static boolean canAddAll(@Nonnull List<RewardSpec> rewards, @Nonnull Subject subject) {
         return canAddAll(rewards, subject, "");
@@ -267,6 +269,16 @@ public final class LootRewardKinds {
      */
     public static boolean canAddAll(@Nonnull List<RewardSpec> rewards, @Nonnull Subject subject,
             @Nonnull String sourceId) {
+        return canAddAll(rewards, subject, sourceId, LootRewardKinds::bagTakes);
+    }
+
+    /**
+     * As {@link #canAddAll(List, Subject, String)}, asking {@code bag} whether the one batch fits.
+     * The seam a unit test drives, since a unit JVM has no live player whose inventory could answer;
+     * the public forms ask the subject's own inventory.
+     */
+    static boolean canAddAll(@Nonnull List<RewardSpec> rewards, @Nonnull Subject subject,
+            @Nonnull String sourceId, @Nonnull BiPredicate<Subject, List<ItemStack>> bag) {
         if (rewards.isEmpty()) {
             return true;
         }
@@ -280,9 +292,15 @@ public final class LootRewardKinds {
                 incoming.add(stack);
             }
         }
-        if (incoming.isEmpty()) {
-            return true;
-        }
+        return incoming.isEmpty() || bag.test(subject, incoming);
+    }
+
+    /**
+     * Would {@code subject}'s inventory take every stack in {@code incoming} at once? A payout with
+     * no player behind it never reaches an inventory, so it is not blocked; a probe that throws
+     * answers false.
+     */
+    private static boolean bagTakes(@Nonnull Subject subject, @Nonnull List<ItemStack> incoming) {
         Player player = playerOf(subject);
         if (player == null) {
             return true;
@@ -298,11 +316,26 @@ public final class LootRewardKinds {
     @Nullable
     private static Handover roomFor(@Nonnull RewardSpec spec) {
         if (!isItemKind(spec.kind())) {
-            return null;
+            return handsOf(spec);
         }
         String itemId = itemIdOf(spec);
         int count = countOf(spec);
         return (itemId == null || count <= 0) ? null : new Handover(itemId, count);
+    }
+
+    /**
+     * What a reward of a kind FILE hands over by its file's own word ({@link RewardKindAsset.Hands}),
+     * or null when the kind names no item or is not a kind file. Read off the handler the kind fold
+     * registered into the shared vocabulary, which carries the file it pays, so the probe asks the
+     * same kind that will pay.
+     */
+    @Nullable
+    private static Handover handsOf(@Nonnull RewardSpec spec) {
+        RewardHandler handler = RewardKinds.shared().handler(spec.kind());
+        RewardKindAsset.Hands hands = handler instanceof CommandRewardKind authored
+                ? authored.kind().getHands() : null;
+        String itemId = hands == null ? null : hands.itemId();
+        return itemId == null ? null : new Handover(itemId, hands.effectiveCount());
     }
 
     /** One item-shaped reward's payload, resolved once and read by both the probe and the batch. */
@@ -311,7 +344,9 @@ public final class LootRewardKinds {
 
     /**
      * The stack an item-shaped reward would hand over, or null when this reward needs no inventory
-     * room (a rolling kind, another mod's kind, or a spec naming no item).
+     * room (a rolling kind, another mod's kind, or a spec naming no item). A reward of a kind FILE
+     * whose {@code Hands} names an item is item-shaped too: {@code Count} of that item
+     * ({@link RewardKindAsset.Hands}).
      *
      * <p>For a caller checking SEVERAL rewards at once. Asking {@link #canAdd} per reward asks each
      * one about the same empty slot, so three rewards each answer yes and the third still lands on
@@ -326,8 +361,8 @@ public final class LootRewardKinds {
     }
 
     /**
-     * The same, for a caller that can also say WHO the payout is for: the item arms as above, plus
-     * a {@code Command} reward whose line is a {@code give}.
+     * The same, for a caller that can also say WHO the payout is for: the item arms as above (a kind
+     * file's {@code Hands} among them), plus a {@code Command} reward whose line is a {@code give}.
      *
      * <p>A command that hands over an item is still an item arriving in a bag, and a probe that
      * could not see that would let a hand-in spend a completion for a reward that lands on the

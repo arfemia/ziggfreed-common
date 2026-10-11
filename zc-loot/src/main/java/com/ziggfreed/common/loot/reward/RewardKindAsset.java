@@ -20,6 +20,8 @@ import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.hypixel.hytale.server.core.asset.type.item.config.Item;
+import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.codec.InheritMapCodec;
 
 /**
@@ -96,6 +98,24 @@ import com.ziggfreed.common.codec.InheritMapCodec;
  * <p>A reward may still write its own {@code NameKey} / {@code Icon} and that wins; the group is the
  * default for every reward that does not. See {@link Presentation}.
  *
+ * <h2>A kind whose command hands over an item</h2>
+ *
+ * <p>Nothing can read a command line and know that an item is about to arrive in a bag, so the room
+ * check a payout asks before its irreversible half ({@link LootRewardKinds#canAddAll}) cannot see
+ * what such a kind hands over, and a claim made with a full bag lands the item at the player's feet.
+ * The optional {@code Hands} group names it:
+ *
+ * <pre>{@code
+ * "Command": "giftbox {player} {Tier}",
+ * "Hands": { "Item": "Furniture_Ancient_Chest_Small", "Count": 1 }
+ * }</pre>
+ *
+ * <p>The room check then counts {@code Count} of {@code Item} for every reward of this kind, in the
+ * same one batch as every other item the payout hands over, so the claim waits for room the way an
+ * {@code Item} reward does. It speaks for room alone: the command still decides what is paid. The
+ * check counts a plain stack of the item, so it may ask for a free slot the real stack would not have
+ * needed (one it could have joined), which errs toward waiting. See {@link Hands}.
+ *
  * <h2>Naming a kind</h2>
  *
  * <p>An id is native-asset style: PascalCase with underscores, and the file name IS the id. The
@@ -112,17 +132,18 @@ import com.ziggfreed.common.codec.InheritMapCodec;
  *
  * <p><b>Read that warning before keeping such a file.</b> A command-backed kind is a command line and
  * nothing more, so it gives up the services the Java kind had: the ask-first inventory fit check that
- * turns "your bag is full" into a message before a price is charged, and the replayable retry that
- * parks a failed payout for the player's next connect. A command line can still be retried, but only
- * as the same line - nothing knows whether running it twice pays twice.
+ * turns "your bag is full" into a message before a price is charged (a {@code Hands} group naming the
+ * item the command hands over gives that check back), and the replayable retry that parks a failed
+ * payout for the player's next connect. A command line can still be retried, but only as the
+ * same line - nothing knows whether running it twice pays twice.
  *
  * <h2>Overriding and inheriting</h2>
  *
  * <p>A file carrying {@code "Parent": "<id>"} starts from that kind. {@code Params} merges per
- * PARAMETER, so a child redeclares one parameter and keeps the rest; {@code Presentation} merges per
- * LEAF and its {@code Icon.Values} merges per VALUE, so a child adds one mapping and keeps the rest;
- * {@code Command} replaces. To retune a kind someone else shipped, drop a file with the same name
- * into your own pack.
+ * PARAMETER, so a child redeclares one parameter and keeps the rest; {@code Presentation} and
+ * {@code Hands} merge per LEAF and {@code Icon.Values} merges per VALUE, so a child adds one mapping
+ * and keeps the rest; {@code Command} replaces. To retune a kind someone else shipped, drop a file
+ * with the same name into your own pack.
  *
  * <p><b>Those two are different moves.</b> A {@code Parent} MERGES; a file that takes an id another
  * layer already used REPLACES that kind outright, map and all. Extending a mapping table means
@@ -158,6 +179,7 @@ public final class RewardKindAsset implements JsonAssetWithMap<String, DefaultAs
     @Nullable private Map<String, Param> params;
     @Nullable private String command;
     @Nullable private Presentation presentation;
+    @Nullable private Hands hands;
 
     public static final AssetBuilderCodec<String, RewardKindAsset> CODEC = AssetBuilderCodec.builder(
                     RewardKindAsset.class,
@@ -191,6 +213,12 @@ public final class RewardKindAsset implements JsonAssetWithMap<String, DefaultAs
             .documentation("How a reward of this kind READS on a screen that shows it before it is handed "
                     + "over: a label key and an icon. Omit it and such a screen falls back to whatever it "
                     + "can work out on its own. A reward writing its own NameKey or Icon wins over this.").add()
+            .appendInherited(new KeyedCodec<>("Hands", Hands.CODEC, false),
+                    (a, v) -> a.hands = v, a -> a.hands, (a, parent) -> a.hands = parent.hands)
+            .documentation("The item the Command hands over, when it hands one over: Item, and Count for "
+                    + "how many (1 when left out). A payout that asks first whether the player's bag has "
+                    + "room counts it, so a claim waits for room instead of the item landing at the "
+                    + "player's feet. Leave it out for a command that hands over no item.").add()
             .build();
 
     public RewardKindAsset() {
@@ -207,12 +235,20 @@ public final class RewardKindAsset implements JsonAssetWithMap<String, DefaultAs
     @Nonnull
     public static RewardKindAsset of(@Nonnull String id, @Nullable Map<String, Param> params,
             @Nullable String command, @Nullable Presentation presentation) {
+        return of(id, params, command, presentation, null);
+    }
+
+    /** As {@link #of(String, Map, String, Presentation)}, naming the item the command hands over. */
+    @Nonnull
+    public static RewardKindAsset of(@Nonnull String id, @Nullable Map<String, Param> params,
+            @Nullable String command, @Nullable Presentation presentation, @Nullable Hands hands) {
         RewardKindAsset a = new RewardKindAsset();
         a.authoredId = id;
         a.id = id.toLowerCase(Locale.ROOT);
         a.params = params;
         a.command = command;
         a.presentation = presentation;
+        a.hands = hands;
         return a;
     }
 
@@ -365,6 +401,14 @@ public final class RewardKindAsset implements JsonAssetWithMap<String, DefaultAs
     @Nullable
     private static String blankToNull(@Nullable String value) {
         return value == null || value.isBlank() ? null : value;
+    }
+
+    // ==================== the item the command hands over ====================
+
+    /** The item this kind's command hands over, or null when the file names none. */
+    @Nullable
+    public Hands getHands() {
+        return hands;
     }
 
     /**
@@ -740,6 +784,82 @@ public final class RewardKindAsset implements JsonAssetWithMap<String, DefaultAs
                 }
             }
             return null;
+        }
+    }
+
+    // ==================== Hands ====================
+
+    /**
+     * The item a kind's command hands over, so the ask-first room check can count it: {@code Item},
+     * and {@code Count} for how many each reward of the kind hands over.
+     *
+     * <pre>{@code
+     * "Hands": { "Item": "Furniture_Ancient_Chest_Small" }
+     * }</pre>
+     *
+     * <p>Two independent leaves, each inherited on its own under {@code Parent}. {@code Item} alone is
+     * one of that item per reward; a group with no {@code Item} counts nothing. A {@code Count} under 1
+     * is read as 1, since a command that hands over an item hands over at least one, and the content
+     * audit reports it. An {@code Item} no loaded item answers to is still counted, and the audit
+     * reports it as a warning, never a refused file: the pack that ships the item may load later.
+     *
+     * <p>It changes no payout. The command runs exactly as written; this group only stops a payout
+     * that asks first from promising room it does not have.
+     */
+    public static final class Hands {
+
+        /** What {@link #effectiveCount()} answers when no positive {@code Count} is authored. */
+        public static final int DEFAULT_COUNT = 1;
+
+        @Nullable protected String item;
+        @Nullable protected Integer count;
+
+        public static final BuilderCodec<Hands> CODEC = BuilderCodec.builder(Hands.class, Hands::new)
+                .appendInherited(new KeyedCodec<>("Item", Codec.STRING, false),
+                        (o, v) -> o.item = v, o -> o.item, (o, p) -> o.item = p.item)
+                .metadata(EditorSchema.assetRef(Item.class))
+                .documentation("The item id the Command hands over (the item file's name). Leave it out and "
+                        + "the room check counts nothing for this kind.").add()
+                .appendInherited(new KeyedCodec<>("Count", Codec.INTEGER, false),
+                        (o, v) -> o.count = v, o -> o.count, (o, p) -> o.count = p.count)
+                .metadata(EditorSchema.defaultValue(DEFAULT_COUNT))
+                .documentation("How many of the item one reward of this kind hands over, a whole number of "
+                        + "1 or more. Omit for 1.").add()
+                .build();
+
+        public Hands() {
+        }
+
+        /** Java-side factory; sets the same fields the codec fills. */
+        @Nonnull
+        public static Hands of(@Nullable String item, @Nullable Integer count) {
+            Hands h = new Hands();
+            h.item = item;
+            h.count = count;
+            return h;
+        }
+
+        /** The authored item id, as written. */
+        @Nullable
+        public String getItem() {
+            return item;
+        }
+
+        /** The authored count, as written. */
+        @Nullable
+        public Integer getCount() {
+            return count;
+        }
+
+        /** The item id trimmed, or null when the group names none. */
+        @Nullable
+        public String itemId() {
+            return item == null || item.isBlank() ? null : item.trim();
+        }
+
+        /** How many one reward hands over: the authored count, or {@link #DEFAULT_COUNT} below 1 or absent. */
+        public int effectiveCount() {
+            return count != null && count > 0 ? count : DEFAULT_COUNT;
         }
     }
 }

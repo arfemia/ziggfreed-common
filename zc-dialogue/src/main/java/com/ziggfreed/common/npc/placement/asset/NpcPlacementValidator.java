@@ -10,10 +10,10 @@ import java.util.function.Function;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.dialogue.asset.DialogueAssetStore;
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorFormula;
+import com.ziggfreed.common.inventory.ItemIds;
 import com.ziggfreed.common.npc.NpcDestinations;
 import com.ziggfreed.common.npc.NpcNames;
 import com.ziggfreed.common.npc.placement.registry.AnchorResolverRegistry;
@@ -74,14 +74,14 @@ public final class NpcPlacementValidator {
      * not, null when it cannot tell (no items loaded yet, or a JVM with no asset store).
      */
     @Nonnull
-    private static volatile Function<String, Boolean> itemCatalog = NpcPlacementValidator::loadedItem;
+    private static volatile Function<String, Boolean> itemCatalog = ItemIds::loaded;
 
     private NpcPlacementValidator() {
     }
 
     /** Answer the prop-item check from {@code catalog} (tests); null restores this server's loaded items. */
     static void useItemCatalogForTests(@Nullable Function<String, Boolean> catalog) {
-        itemCatalog = catalog == null ? NpcPlacementValidator::loadedItem : catalog;
+        itemCatalog = catalog == null ? ItemIds::loaded : catalog;
     }
 
     // ==================== the full audit ====================
@@ -269,20 +269,6 @@ public final class NpcPlacementValidator {
                                 + "have (ids match case for case), so that prop is skipped and the rest are drawn",
                         id));
             }
-        }
-    }
-
-    /** Whether this server has {@code itemId}, or null when no items are loaded to ask. */
-    @Nullable
-    private static Boolean loadedItem(@Nonnull String itemId) {
-        try {
-            var items = Item.getAssetMap();
-            if (items == null || items.getAssetMap().isEmpty()) {
-                return null;
-            }
-            return items.getAsset(itemId) != null;
-        } catch (Throwable t) {
-            return null;
         }
     }
 

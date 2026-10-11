@@ -38,6 +38,28 @@ public final class ItemIds {
     }
 
     /**
+     * Whether this server ships {@code itemId}, or null when no items are loaded to ask (an audit run
+     * before the packs load, or a JVM with no asset store). The question a content audit asks: it
+     * reports an unknown id only on a definite false, so a check that could not run never invents a
+     * finding. {@link #exists} answers false in that case instead. A blank id is false.
+     */
+    @Nullable
+    public static Boolean loaded(@Nullable String itemId) {
+        if (itemId == null || itemId.isBlank()) {
+            return false;
+        }
+        try {
+            var items = Item.getAssetMap();
+            if (items == null || items.getAssetMap().isEmpty()) {
+                return null;
+            }
+            return items.getAsset(itemId) != null;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /**
      * The item's own picture as a Common-rooted texture path (its {@code Icon}, e.g.
      * {@code Icons/ItemsGenerated/Deco_Lever.png}), for a surface that draws the picture alone in an
      * {@code AssetImage}: no item tooltip and no rarity square, at any size. Null for a blank or
