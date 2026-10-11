@@ -88,7 +88,8 @@ public final class EncounterStats {
      * thread running, else queued there and the player found again when it runs, since a tick later a held
      * entity reference may name whoever took its slot. False when they are offline or their world is gone. A
      * player who changed world before the queued task runs is skipped with one INFO line naming the stats and
-     * {@code fight}, never the player.
+     * {@code fight}, never the player; a queued count that throws is one WARN line naming {@code fight}, never
+     * the player either.
      */
     private static boolean onPlayerThread(@Nonnull UUID playerId, @Nonnull String fight, @Nonnull PlayerTask task) {
         Ref<EntityStore> ref = liveRef(playerId);
@@ -112,7 +113,7 @@ public final class EncounterStats {
                             + fight + "' were skipped for them");
                 }
             } catch (Throwable t) {
-                SafeLog.warn("[encounter] the stat store could not count a defeat for " + playerId, t);
+                SafeLog.warn("[encounter] the stat store could not count a participant's defeat under '" + fight + "'", t);
             }
         });
         return true;

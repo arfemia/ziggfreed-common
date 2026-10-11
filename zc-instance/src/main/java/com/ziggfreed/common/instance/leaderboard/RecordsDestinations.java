@@ -21,7 +21,8 @@ import com.ziggfreed.common.util.SafeLog;
  * {@link #setBoard} (the stat board). {@code "Open": "Records"} opens that board on the library's records
  * page, on the rail with this tab selected. A Boss Fights tab ends its first row and opens the stat board's
  * boss fights ({@link StatBoardBossFights}) while a fight on it has a record, so boss records are always a
- * click from Records. The tab shows while the filled board does. Opened on the player's own ref, after the
+ * click from Records. The tab shows while the filled board does, or while a boss fight has a record (the
+ * boss fights then open alone). Opened on the player's own ref, after the
  * filled board has brought the opener's own numbers up to date ({@link RecordsBoard#opening}).
  */
 public final class RecordsDestinations {
@@ -60,10 +61,14 @@ public final class RecordsDestinations {
                 RECORDS, viewer -> firstShows());
     }
 
-    /** Whether the filled board shows; false with none filled. */
+    /**
+     * Whether Records has anything to open: the filled board shows, or, with none filled or showing, a boss
+     * fight has a record, which {@link #open} then opens alone. The board is asked first, so the boss fights'
+     * build runs only when it is empty.
+     */
     private static boolean firstShows() {
         RecordsBoard first = board;
-        return first != null && first.shows();
+        return (first != null && first.shows()) || StatBoardBossFights.deps() != null;
     }
 
     private static boolean open(@Nonnull Records destination, @Nonnull DestinationContext ctx) {

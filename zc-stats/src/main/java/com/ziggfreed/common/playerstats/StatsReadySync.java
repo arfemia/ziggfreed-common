@@ -35,8 +35,9 @@ public final class StatsReadySync {
             world.execute(() -> {
                 try {
                     if (ref.isValid()) {
-                        // A fold that lands re-ranks the record itself; the native readings follow either way.
-                        if (!EncounterBoardImport.intoRecord(ref.getStore(), ref)) {
+                        // A fold that lands re-ranks the record itself; one that finds nothing or throws
+                        // leaves that to the re-sync, and the native readings follow either way.
+                        if (!foldEncounterRows(ref)) {
                             PlayerStats.resync(ref.getStore(), ref);
                         }
                         PlayerStats.readNative(ref.getStore(), ref);
@@ -47,6 +48,20 @@ public final class StatsReadySync {
             });
         } catch (Throwable t) {
             SafeLog.warn("[stats] the ready re-sync of a player's stats failed", t);
+        }
+    }
+
+    /**
+     * Fold the frozen encounter board's rows into the player's record ({@link EncounterBoardImport#intoRecord}):
+     * true when the fold landed, false when it found nothing or threw, so a failed import never costs the
+     * re-sync or the native readings.
+     */
+    private static boolean foldEncounterRows(@Nonnull Ref<EntityStore> ref) {
+        try {
+            return EncounterBoardImport.intoRecord(ref.getStore(), ref);
+        } catch (Throwable t) {
+            SafeLog.warn("[stats] the encounter board import into a player's record failed; the re-sync runs without it", t);
+            return false;
         }
     }
 }
