@@ -1,0 +1,21 @@
+$ZK = "../Common/ZigTokens.ui";
+$ZW = "../Common/ZigKit.ui";
+
+// One titled run of tiles in a scrolling list (a storefront's shelf or category), appended by
+// com.ziggfreed.common.ui.kit.TilePainter.section into the list and addressed by index as "#List[i] #Id": the kit's
+// section header (#SecHead: its label, and its meta at the end, such as a shelf's countdown) over #SecGrid, the
+// wrapping grid the section's tiles are appended into, centred row by row as vanilla's Memories grid is
+// (Pages/Memories/MemoriesPanel.ui #IconList).
+
+Group #ZigTileSection {
+  LayoutMode: Top;
+  Anchor: (Bottom: $ZK.@ZigSpace3);
+
+  $ZW.@ZigSectionHeader #SecHead {
+    @Anchor = (Bottom: $ZK.@ZigSpace3);
+  }
+
+  Group #SecGrid {
+    LayoutMode: LeftCenterWrap;
+  }
+}

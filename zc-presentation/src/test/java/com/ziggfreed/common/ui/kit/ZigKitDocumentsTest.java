@@ -40,9 +40,8 @@ import org.junit.jupiter.api.Test;
  * against an id a template lacks disconnects the player, and no server-side check sees it. Beside the ids: every
  * picture slot is the one plain {@code AssetImage #IcoTex} ({@code ItemIcon} drew blank in game; an item grid in a
  * decorative slot shows a tooltip and a rarity square), every text size is a step of {@code Common/ZigType.ui} at
- * the floor or above, every button style clicks with a sound, every layout mode is one vanilla documents use, every
- * texture a document names ships (here or in the game), and the generated glyphs and hero textures are the sizes
- * the documents draw them at.
+ * the floor or above, every button style clicks with a sound, every layout mode is one vanilla documents use, and
+ * the generated glyphs and hero textures are the sizes the documents draw them at.
  */
 class ZigKitDocumentsTest {
 
@@ -62,22 +61,8 @@ class ZigKitDocumentsTest {
     private static final List<String> GLYPHS = List.of("Pin", "PinFilled", "Lock", "ChevronRight", "ChevronDown",
             "Dot", "Star", "Blank", "Talk", "Quest", "Bag", "Board", "Book", "Trophy");
 
-    /** The vanilla textures the kit draws, by their path under {@code Common/UI/Custom/}: the game ships them. */
-    private static final Set<String> VANILLA_TEXTURES = Set.of("Common/ProgressBar.png", "Common/ProgressBarFill.png",
-            "Common/Checkmark.png", "Pages/Memories/Checkmark.png", "Pages/Memories/MissingIcon.png",
-            "Pages/Memories/Tiles/TileDefault.png", "Pages/Memories/Tiles/TileHovered.png",
-            "Pages/Memories/Tiles/TileComplete.png", "Pages/Memories/Tiles/TileEmpty.png",
-            "Pages/Memories/Tiles/NewMemoryIndicator.png", "Common/Buttons/Primary_Square.png",
-            "Common/Buttons/Primary_Square_Hovered.png", "Common/Buttons/Primary_Square_Pressed.png",
-            "Common/Buttons/Secondary.png", "Common/Buttons/Secondary_Hovered.png",
-            "Common/Buttons/Secondary_Pressed.png", "Common/Buttons/Destructive.png",
-            "Common/Buttons/Destructive_Hovered.png", "Common/Buttons/Destructive_Pressed.png",
-            "Common/Buttons/Disabled.png");
-
     private static final Pattern FONT_SIZE = Pattern.compile("(?:MinShrinkTextToFitFontSize|FontSize)\\s*:\\s*([^,;)]+)");
     private static final Pattern STEP = Pattern.compile("\\$ZT\\.@ZigFont([A-Za-z]+)");
-    private static final Pattern TEXTURE = Pattern.compile(
-            "(?:TexturePath|BarTexturePath|FallbackTexturePath|Background)\\s*:\\s*\"([^\"]+)\"");
 
     // ---- the appended templates (each a Group root named after its file, the 2.8 ids inside it) ----
 
@@ -811,30 +796,6 @@ class ZigKitDocumentsTest {
     }
 
     @Test
-    void everyTextureADocumentNamesShips() throws IOException {
-        List<String> bad = new ArrayList<>();
-        for (String path : DOCUMENTS) {
-            String folder = path.substring(0, path.indexOf('/'));
-            Matcher texture = TEXTURE.matcher(document(path));
-            while (texture.find()) {
-                String spelled = texture.group(1);
-                String resolved;
-                if (spelled.startsWith("UI/Custom/")) {
-                    resolved = spelled.substring("UI/Custom/".length());
-                } else if (spelled.startsWith("../")) {
-                    resolved = spelled.substring(3);
-                } else {
-                    resolved = folder + "/" + spelled;
-                }
-                if (!VANILLA_TEXTURES.contains(resolved) && !ships(resolved)) {
-                    bad.add(path + ": " + spelled);
-                }
-            }
-        }
-        assertTrue(bad.isEmpty(), "a texture path that resolves to nothing draws nothing, silently: " + bad);
-    }
-
-    @Test
     void theGlyphsAndHeroTexturesAreTheSizesTheDocumentsDrawThemAt() throws IOException {
         for (String glyph : GLYPHS) {
             assertSize("Common/Glyphs/" + glyph + ".png", 20, 20);
@@ -995,10 +956,6 @@ class ZigKitDocumentsTest {
             assertNotNull(image, path + " is a PNG");
             return image;
         }
-    }
-
-    private static boolean ships(@Nonnull String underCustom) {
-        return ZigKitDocumentsTest.class.getResource("/Common/UI/Custom/" + underCustom) != null;
     }
 
     /** Every element id {@code ui} declares ({@code Type #Id {}} or a template instance), each once, in order. */

@@ -1,11 +1,14 @@
 package com.ziggfreed.common.ui.kit;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
@@ -14,14 +17,16 @@ import com.ziggfreed.common.ui.UiRetint;
 
 /**
  * Paints tile grids: category tiles ({@code Pages/ZigCollectionTile.ui}), keepsake shelves
- * ({@code Pages/ZigKeepsakeTile.ui}), statistic tiles ({@code Pages/ZigStatTile.ui}) and item slots
- * ({@code Pages/ZigItemSlotTile.ui}). Each call clears its grid and appends one template per tile, so a grid is
+ * ({@code Pages/ZigKeepsakeTile.ui}), statistic tiles ({@code Pages/ZigStatTile.ui}), item slots
+ * ({@code Pages/ZigItemSlotTile.ui}) and wares ({@code Pages/ZigWareTile.ui}), the last under titled runs
+ * ({@code Pages/ZigTileSection.ui}). Each tile call clears its grid and appends one template per tile, so a grid is
  * repainted whole (in a build, or a partial update that binds only the tiles it appended).
  *
  * <p>Selectors: a category tile's button {@code grid[i] #Tile}, a keepsake {@code shelf[i] #Keep} (its three
  * background layers {@code #KeepEarned}, {@code #KeepToEarn}, {@code #KeepMissed}, exactly one shown), a statistic
  * {@code grid[i] #StatTile}, an item slot {@code grid[i] #Slot} (its three background layers {@code #SlotOwned},
- * {@code #SlotSeen}, {@code #SlotHidden}, exactly one shown).
+ * {@code #SlotSeen}, {@code #SlotHidden}, exactly one shown), a ware's button {@code grid[i] #Ware}, a section's grid
+ * {@code list[i] #SecGrid}.
  */
 public final class TilePainter {
 
@@ -29,6 +34,8 @@ public final class TilePainter {
     public static final String KEEPSAKE_TEMPLATE = "Pages/ZigKeepsakeTile.ui";
     public static final String STAT_TEMPLATE = "Pages/ZigStatTile.ui";
     public static final String ITEM_SLOT_TEMPLATE = "Pages/ZigItemSlotTile.ui";
+    public static final String WARE_TEMPLATE = "Pages/ZigWareTile.ui";
+    public static final String SECTION_TEMPLATE = "Pages/ZigTileSection.ui";
 
     /**
      * Whether a category tile underway wears its completion ring ({@code #Ring}, vanilla's
@@ -163,5 +170,77 @@ public final class TilePainter {
                 KitPaint.tooltip(cmd, s, tile.tooltip());
             }
         }
+    }
+
+    /**
+     * One titled run of tiles appended into {@code list} at {@code index} (how many sections were appended there since
+     * it was last cleared): its heading, and its meta at the end ({@code null} hides it), such as a shelf's countdown.
+     *
+     * @return the selector of the grid the run's tiles go into ({@link #wares})
+     */
+    @Nonnull
+    public static String section(@Nonnull UICommandBuilder cmd, @Nonnull String list, int index,
+            @Nonnull Message heading, @Nullable Message meta) {
+        cmd.append(list, SECTION_TEMPLATE);
+        String s = KitPaint.child(list, index);
+        KitPaint.text(cmd, s + " #SecHead #HeadLabel", heading);
+        KitPaint.optional(cmd, s + " #SecHead #Meta", meta);
+        return s + " #SecGrid";
+    }
+
+    /**
+     * Ware tiles into {@code grid}: the selected look on the ware being read, picture, name, the price line (its
+     * picture hidden when there is none, the amount in the danger ink when short), the pill, the scrim over a ware out
+     * of reach, the lock on one behind a requirement, the tooltip; each tile bound to {@code binding}'s answer (null
+     * leaves it unbound) without locking the interface, since a ware's press answers with a partial update.
+     *
+     * @return each tile's button selector, in order: what {@link #selectWare} takes in a later partial update
+     */
+    @Nonnull
+    public static List<String> wares(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
+            @Nonnull String grid, @Nonnull List<WareTile> tiles, @Nonnull Function<WareTile, EventData> binding) {
+        cmd.clear(grid);
+        List<String> selectors = new ArrayList<>(tiles.size());
+        for (int i = 0; i < tiles.size(); i++) {
+            WareTile tile = tiles.get(i);
+            cmd.append(grid, WARE_TEMPLATE);
+            String w = KitPaint.child(grid, i) + " #Ware";
+            if (tile.selected()) {
+                ZigStyles.apply(cmd, w + ".Style", ZigStyles.Name.TILE_SELECTED, null);
+            }
+            KitPaint.picture(cmd, w + " #Pic", tile.picture());
+            KitPaint.text(cmd, w + " #Name", tile.name());
+            Message cost = tile.cost();
+            cmd.set(w + " #Foot.Visible", cost != null);
+            if (cost != null) {
+                KitPaint.text(cmd, w + " #Cost", cost);
+                if (tile.costShort()) {
+                    cmd.set(w + " #Cost.Style.TextColor", ZigTokens.TONE_DANGER_TEXT);
+                }
+                cmd.set(w + " #CostPic.Visible", KitPaint.picture(cmd, w + " #CostPic", tile.costPicture()));
+            }
+            Pill badge = tile.badge();
+            cmd.set(w + " #Badge.Visible", badge != null);
+            if (badge != null) {
+                PillPainter.paint(cmd, w + " #Badge", badge);
+            }
+            cmd.set(w + " #Scrim.Visible", tile.dimmed());
+            cmd.set(w + " #Lock.Visible", tile.locked());
+            if (tile.tooltip() != null) {
+                KitPaint.tooltip(cmd, w, tile.tooltip());
+            }
+            EventData data = binding.apply(tile);
+            if (data != null) {
+                events.addEventBinding(CustomUIEventBindingType.Activating, w, data, false);
+            }
+            selectors.add(w);
+        }
+        return selectors;
+    }
+
+    /** Swap a painted ware (a selector {@link #wares} answered) between its resting and its selected look. */
+    public static void selectWare(@Nonnull UICommandBuilder cmd, @Nonnull String wareSelector, boolean selected) {
+        ZigStyles.apply(cmd, wareSelector + ".Style",
+                selected ? ZigStyles.Name.TILE_SELECTED : ZigStyles.Name.TILE, null);
     }
 }

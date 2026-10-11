@@ -71,6 +71,9 @@ public final class ZigStyles {
         TILE("ZigTileStyle", Kind.BUTTON, ZigTokens.INK_BRIGHT, ZigTokens.INK_BRIGHT, ZigTokens.INK_BRIGHT),
         TILE_COMPLETE("ZigTileCompleteStyle", Kind.BUTTON, ZigTokens.TONE_DONE_TEXT, ZigTokens.TONE_DONE_TEXT,
                 ZigTokens.TONE_DONE_TEXT),
+        /** The tile being read (a ware the page's detail shows): vanilla's selected Memories tile. */
+        TILE_SELECTED("ZigTileSelectedStyle", Kind.BUTTON, ZigTokens.SURFACE_ROW_SELECTED,
+                ZigTokens.SURFACE_ROW_SELECTED, ZigTokens.SURFACE_ROW_SELECTED),
         BUTTON_PRIMARY("ZigButtonPrimaryStyle", Kind.BUTTON, ZigTokens.INK_BRIGHT, ZigTokens.INK_BRIGHT,
                 ZigTokens.INK_BRIGHT),
         BUTTON_SECONDARY("ZigButtonSecondaryStyle", Kind.BUTTON, ZigTokens.INK_BRIGHT, ZigTokens.INK_BRIGHT,

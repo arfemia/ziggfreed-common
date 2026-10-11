@@ -1,0 +1,94 @@
+$C = "../Common.ui";
+$ZT = "../Common/ZigType.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
+$ZW = "../Common/ZigKit.ui";
+
+// One ware of a storefront grid (an offer for sale), 128 x 160, appended by
+// com.ziggfreed.common.ui.kit.TilePainter into a wrapping grid and addressed by index as "#Grid[i] #Ware".
+//
+// The whole tile is one Button on vanilla's Memories tiles (Pages/Memories/Memory.ui): ZigTileStyle at rest and
+// ZigTileSelectedStyle while it is the ware being read, swapped by reference (Common/ZigStyles.ui). Inside it:
+//   #BadgeRow  a pill at the top ("3 left", "Sold out"); the row keeps its height when the pill hides, so the
+//              picture never moves
+//   #Pic       the 64px picture, painted through IconRenderer.applyPlainIcon
+//   #Name      the ware's name in the headline face, two lines, centred
+//   #Foot      what it costs, centred: a 20px picture (#CostPic, hidden when there is none) and the amount (#Cost)
+//   #Scrim     dims the picture of a ware out of reach
+//   #Lock      the lock glyph, top right, on a ware behind a requirement
+// The tooltip Java sets on #Ware draws in the game's tooltip; the overlays carry none, so a click anywhere reaches
+// the tile.
+
+Group #ZigWareTile {
+  Anchor: (Width: 128, Height: 160, Right: $ZK.@ZigSpace2, Bottom: $ZK.@ZigSpace2);
+
+  Button #Ware {
+    Anchor: (Full: 0);
+    LayoutMode: Full;
+    Style: $ZS.@ZigTileStyle;
+    TextTooltipStyle: $C.@DefaultTextTooltipStyle;
+
+    Group #WareBody {
+      Anchor: (Full: 0);
+      LayoutMode: Top;
+      Padding: (Top: 6, Horizontal: 6, Bottom: 6);
+
+      Group #BadgeRow {
+        LayoutMode: Left;
+        Anchor: (Height: $ZK.@ZigPillHeight, Bottom: 2);
+
+        $ZW.@ZigPill #Badge {
+          Visible: false;
+        }
+      }
+
+      Group #PicRow {
+        LayoutMode: Center;
+        Anchor: (Height: $ZK.@ZigPicLarge, Bottom: 4);
+
+        $ZW.@ZigPicture #Pic {
+          @Size = $ZK.@ZigPicLarge;
+        }
+      }
+
+      Label #Name {
+        Anchor: (Height: 34);
+        Text: "";
+        Style: (...$ZX.@ZigTileNameStyle, FontSize: $ZT.@ZigFontBody, HorizontalAlignment: Center);
+      }
+
+      Group {
+        FlexWeight: 1;
+      }
+
+      Group #Foot {
+        LayoutMode: Center;
+        Anchor: (Height: 20);
+
+        $ZW.@ZigPicture #CostPic {
+          @Size = $ZK.@ZigPicInline;
+          @Anchor = (Right: $ZK.@ZigSpace1);
+        }
+
+        Label #Cost {
+          Anchor: (Height: 20);
+          Text: "";
+          Style: (FontSize: $ZT.@ZigFontCaption, TextColor: $ZK.@ZigInkBody, RenderBold: true, VerticalAlignment: Center);
+        }
+      }
+    }
+
+    Group #Scrim {
+      Anchor: (Left: 32, Top: 32, Width: 64, Height: 64);
+      Background: (Color: $ZK.@ZigSurfaceScrim);
+      Visible: false;
+    }
+
+    Group #Lock {
+      Anchor: (Top: 10, Right: 10, Width: 16, Height: 16);
+      Background: (TexturePath: "../Common/Glyphs/Lock.png", Color: $ZK.@ZigInkMuted);
+      Visible: false;
+    }
+  }
+}

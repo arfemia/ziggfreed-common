@@ -95,6 +95,14 @@ $ZX = "ZigText.ui";
   Sounds: $C.@ButtonSounds
 );
 
+// The tile being read, vanilla's selected Memories tile (Pages/Memories/Memory.ui #ButtonSelected) in every state.
+@ZigTileSelectedStyle = ButtonStyle(
+  Default: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileSelected.png", Border: 8)),
+  Hovered: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileSelected.png", Border: 8)),
+  Pressed: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileSelected.png", Border: 8)),
+  Sounds: $C.@ButtonSounds
+);
+
 // ── Action buttons (a Button holding Label #Label): each greys out when Java disables it ──
 // Primary: vanilla's square primary patch.
 @ZigButtonPrimaryStyle = ButtonStyle(

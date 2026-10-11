@@ -116,6 +116,18 @@ class KitSelectorsTest {
         TilePainter.itemSlots(r.cmd(), "#Items", List.of(
                 new ItemSlotTile("a", Picture.texture(TEXTURE), true, false, Message.raw("?"), Message.raw("Tip")),
                 new ItemSlotTile("b", Picture.NONE, false, true, Message.raw("?"), null)));
+        r.cmd().clear("#Runs");
+        TilePainter.section(r.cmd(), "#Runs", 0, Message.raw("Shelf"), Message.raw("Refreshes in 2h"));
+        String grid = TilePainter.section(r.cmd(), "#Runs", 1, Message.raw("Catalogue"), null);
+        List<String> wares = TilePainter.wares(r.cmd(), r.events(), grid, List.of(
+                new WareTile("w", Message.raw("W"), Picture.texture(TEXTURE), Picture.texture(TEXTURE),
+                        Message.raw("12"), true, Pill.of(Message.raw("3 left"), Tone.AVAILABLE), false, true,
+                        Message.raw("Locked"), true),
+                new WareTile("x", Message.raw("X"), Picture.NONE, Picture.NONE, null, false, null, false, false, null,
+                        false)), t -> EventData.of("OfferId", t.id()));
+        r.record();
+        TilePainter.selectWare(r.cmd(), wares.get(0), false);
+        TilePainter.selectWare(r.cmd(), wares.get(1), true);
         r.record();
         r.assertDeclared("TilePainter");
     }

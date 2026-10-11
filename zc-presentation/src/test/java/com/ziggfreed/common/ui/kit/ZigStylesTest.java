@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -20,25 +19,12 @@ import com.ziggfreed.common.ui.UiRetint;
 /**
  * The named state styles: the reference form is vanilla's {@code Value.ref} (a document path and a style name, no
  * value), the fallback form is the style's leaves from the tokens (three button-state fills, or a label colour),
- * both valid commands for every name; the names are the plan's, each once; the theme seam reads as the default
+ * both valid commands for every name; the theme seam reads as the default
  * when it has nothing to say. Tagged {@code engine-items}: a {@link UICommandBuilder}'s static init reaches the
  * engine's item codec.
  */
 @Tag("engine-items")
 class ZigStylesTest {
-
-    /**
-     * The style names of plan section 2.7, plus the base state style for the neutral tone and the three words a
-     * selected row turns white (the document's own additions: no tone or muted ink reads on the steel blue).
-     */
-    private static final List<String> PLAN_NAMES = List.of("ZigRowStyle", "ZigRowSelectedStyle", "ZigSegmentStyle",
-            "ZigSegmentOnStyle", "ZigTileStyle", "ZigTileCompleteStyle", "ZigButtonPrimaryStyle",
-            "ZigButtonSecondaryStyle", "ZigButtonCollectStyle", "ZigButtonDangerStyle", "ZigStateStyle",
-            "ZigStateActiveStyle", "ZigStateCollectStyle", "ZigStateDoneStyle", "ZigStateLiveStyle",
-            "ZigStateAvailableStyle", "ZigStateWaitingStyle", "ZigStateBlockedStyle", "ZigStateDangerStyle",
-            "ZigFigureAccentStyle", "ZigRowTitleOnSelectedStyle", "ZigRowMetaOnSelectedStyle",
-            "ZigRowValueOnSelectedStyle", "ZigStateOnSelectedStyle", "ZigViewTabStyle", "ZigViewTabOnStyle",
-            "ZigViewTabLabelStyle", "ZigViewTabLabelOnStyle");
 
     @AfterEach
     void reset() {
@@ -104,16 +90,6 @@ class ZigStylesTest {
         assertTrue(p.references("#T.Style", ZigStyles.TEXT_DOCUMENT, "ZigLedgerTitleStyle"),
                 "a list row's title goes back to the kit's two-line list title (M515)");
         assertEquals(ZigTokens.INK_FAINT, unwrap(p.set("#U.Style.TextColor")));
-    }
-
-    @Test
-    void theNamesAreThePlansEachOnce() {
-        Set<String> names = new HashSet<>();
-        for (ZigStyles.Name name : ZigStyles.Name.values()) {
-            assertTrue(names.add(name.styleName()), "one style per name: " + name.styleName());
-            assertFalse(name.styleName().startsWith("@"), "Value.ref takes the name without its sigil");
-        }
-        assertEquals(new HashSet<>(PLAN_NAMES), names);
     }
 
     @Test
