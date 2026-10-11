@@ -107,7 +107,8 @@ public final class StackStats {
     }
 
     /**
-     * {@link #read}'s {@link #getEntries()}, or {@code null} for a {@code null}, bare, or
+     * {@link #read}'s {@link #getEntries()} under today's stat ids ({@link StatAliases#normalize}: a
+     * retired id the stack saved reads as its successors), or {@code null} for a {@code null}, bare, or
      * malformed stack. The one convenience call sites should use instead of re-deriving the
      * fetch + null-guard.
      */
@@ -117,7 +118,8 @@ public final class StackStats {
             return null;
         }
         StackStats meta = read(stack);
-        return meta != null ? meta.getEntries() : null;
+        Map<String, Double> entries = meta != null ? meta.getEntries() : null;
+        return entries != null ? StatAliases.normalize(entries) : null;
     }
 
     /**
@@ -180,12 +182,13 @@ public final class StackStats {
      * Pure form of {@link #mergeWith}: canonical summed entries across {@code base} + {@code
      * added}. The ONE summing authority for this record - display composition and cap
      * accounting should sum through this too, so a tooltip / budget can never disagree with what
-     * actually got stamped.
+     * actually got stamped. Both sides read under today's stat ids ({@link StatAliases#normalize}), so
+     * a stack stamped again stores its retired entries under their successors.
      */
     @Nonnull
     public static Map<String, Double> merge(@Nonnull Map<String, Double> base, @Nonnull Map<String, Double> added) {
-        Map<String, Double> summed = new LinkedHashMap<>(base);
-        for (Map.Entry<String, Double> e : added.entrySet()) {
+        Map<String, Double> summed = new LinkedHashMap<>(StatAliases.normalize(base));
+        for (Map.Entry<String, Double> e : StatAliases.normalize(added).entrySet()) {
             if (e.getKey() == null || e.getValue() == null) {
                 continue;
             }

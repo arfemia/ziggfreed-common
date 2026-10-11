@@ -82,6 +82,10 @@ public final class TypedDamageBonuses {
     @Nonnull
     private static final Map<String, List<Source>> SOURCES = new ConcurrentHashMap<>();
 
+    /** Asked before any source of any type; null (the default) lets every attacker's bonuses count. */
+    @Nullable
+    private static volatile Gate attackerGate;
+
     static {
         for (String type : TYPE_IDS) {
             registerSource(type, PERCENT_PREFIX + type, FLAT_PREFIX + type, null);
@@ -100,6 +104,16 @@ public final class TypedDamageBonuses {
         }
         SOURCES.computeIfAbsent(typeId.toLowerCase(Locale.ROOT), k -> new CopyOnWriteArrayList<>())
                 .add(new Source(blank(percentStatId) ? null : percentStatId, blank(flatStatId) ? null : flatStatId, gate));
+    }
+
+    /**
+     * Install the one rule asked before any bonus counts for an attacker (a world that plays plain
+     * combat, say): while it answers false, the attacker's hits take no per-type bonus at all, the
+     * library's own stats included. Null removes it; with none installed every bonus counts. Set once, at
+     * setup.
+     */
+    public static void installAttackerGate(@Nullable Gate gate) {
+        attackerGate = gate;
     }
 
     /** The bonus step: {@code (amount + flat) * (1 + percentPoints / 100)}, floored at zero. */
@@ -144,6 +158,10 @@ public final class TypedDamageBonuses {
             @Nullable String causeId, @Nonnull Collection<String> excludeStatIds) {
         List<String> types = typesFor(causeId);
         if (types.isEmpty()) {
+            return Sums.NONE;
+        }
+        Gate gate = attackerGate;
+        if (gate != null && !gate.allows(accessor, attacker)) {
             return Sums.NONE;
         }
         EntityStatMap stats = accessor.getComponent(attacker, EntityStatMap.getComponentType());
