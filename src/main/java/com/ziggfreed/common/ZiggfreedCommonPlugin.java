@@ -254,6 +254,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         InstanceBootstrap.registerRecords();
         InstanceBootstrap.installStatBoard();
         InstanceBootstrap.installClaims(this);
+        InstanceBootstrap.registerParty(this);
         // The shared progress-bar panels on every player: a row is created by the mod that reports
         // a value moved and dressed by what it said, and this only attaches the panels and takes
         // them down again. What a player said about their own HUD, and the page and command that

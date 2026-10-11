@@ -1,0 +1,57 @@
+# The library's own party: the party screen, its notices and /zigparty, so a party works on a server running
+# nothing else. The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.party.<key>.
+# The screen's tab, button and badge words, and count, are painted where a parameter is never substituted
+# (count is resolved on the server before it is sent), so only the notices and the command lines take one.
+
+title = Party
+tab.party = Party
+tab.invite = Invite
+empty.invite = No one online is free to invite right now.
+empty.party = You're not in a party. Invite someone from the Invite tab to start one.
+btn.invite = Invite
+btn.kick = Remove
+btn.leave = Leave Party
+btn.disband = Disband
+btn.queue = Queue
+btn.accept = Accept
+btn.decline = Decline
+owner_badge = Leader
+count = {0, number}/{1, number}
+privacy.public = Open Party
+privacy.private = Private Party
+toast.invite_failed = That player can't join your party right now.
+
+msg.invited = {0} invited you to their party ({1, number}/{2, number}).
+msg.banner = {0} invited you to their party
+msg.banner.sub = Type /zigparty accept to join
+msg.sent = Invite sent to {0}.
+msg.declined = {0} declined your invite.
+msg.expired = Your party invite ran out.
+msg.joined = {0} joined the party ({1, number}/{2, number}).
+msg.left = {0} left the party.
+msg.kicked = You were removed from the party.
+msg.kicked_member = {0} was removed from the party.
+msg.disbanded = The party was disbanded.
+msg.owner = {0} leads the party now.
+
+command.desc.family = Open your party, or invite, accept or leave
+command.desc.invite = Invite an online player to your party
+command.desc.accept = Join the party that invited you
+command.desc.leave = Leave your party
+command.desc.arg.player = The player to invite
+command.needs_player = Only a player can use this.
+command.open.failed = Your party couldn't be opened. Try again in a moment.
+command.player.needed = Name the player to invite, like /zigparty invite --player=Steve
+command.player.offline = That player isn't online.
+command.invite.self = Name the player to invite, like /zigparty invite --player=Steve
+command.invite.not_owner = Only the party leader can invite players.
+command.invite.full = Your party is full.
+command.invite.in_party = {0} is already in a party.
+command.invite.already = {0} already has your invite.
+command.accept.none = You don't have a party invite.
+command.accept.several = You have more than one party invite. Type /zigparty to choose one.
+command.accept.expired = That invite ran out. Ask for a new one.
+command.accept.full = That party is full now.
+command.accept.in_party = You're already in a party. Type /zigparty leave first.
+command.leave.done = You left the party.
+command.leave.none = You're not in a party.

@@ -182,10 +182,15 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
                 events.addEventBinding(CustomUIEventBindingType.Activating, "#QueueBtn", EventData.of("Action", "queue"));
             }
             if (viewerOwns) {
-                // Public/private pill: label shows the current state; clicking flips it.
-                cmd.set("#PrivacyBtn.Visible", true);
-                UiText.setText(cmd, "#PrivacyBtn.Text", snap.privateLobby() ? t.privacyPrivate() : t.privacyPublic());
-                events.addEventBinding(CustomUIEventBindingType.Activating, "#PrivacyBtn", EventData.of("Action", "privacy"));
+                // Public/private pill: label shows the current state; clicking flips it. Privacy only decides
+                // how the party queues, so with no queue handler there is nothing for it to change.
+                if (deps.queueHandler() != null) {
+                    cmd.set("#PrivacyBtn.Visible", true);
+                    UiText.setText(cmd, "#PrivacyBtn.Text",
+                            snap.privateLobby() ? t.privacyPrivate() : t.privacyPublic());
+                    events.addEventBinding(CustomUIEventBindingType.Activating, "#PrivacyBtn",
+                            EventData.of("Action", "privacy"));
+                }
                 cmd.set("#DisbandBtn.Visible", true);
                 UiText.setText(cmd, "#DisbandBtn.Text", t.disbandButton());
                 events.addEventBinding(CustomUIEventBindingType.Activating, "#DisbandBtn", EventData.of("Action", "disband"));

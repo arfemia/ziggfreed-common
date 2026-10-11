@@ -1,0 +1,6 @@
+{
+  "Name": "ZiggfreedCommon",
+  "MaxSize": 5,
+  "InviteTimeoutSeconds": 60,
+  "OwnerOnlyInvite": false
+}

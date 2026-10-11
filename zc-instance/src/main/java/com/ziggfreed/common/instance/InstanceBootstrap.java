@@ -19,6 +19,8 @@ import com.ziggfreed.common.instance.world.InstanceWorlds;
 import com.ziggfreed.common.loot.claim.ClaimAddedEvent;
 import com.ziggfreed.common.loot.claim.ClaimStore;
 import com.ziggfreed.common.loot.diminish.DiminishLedger;
+import com.ziggfreed.common.party.ZcParty;
+import com.ziggfreed.common.party.command.ZigPartyCommand;
 import com.ziggfreed.common.ui.menu.MenuSlot;
 import com.ziggfreed.common.ui.menu.ZigMenu;
 import com.ziggfreed.common.util.SafeLog;
@@ -114,11 +116,23 @@ public final class InstanceBootstrap {
     }
 
     /**
+     * The library's party command, {@code /zigparty}, over its one default party ({@code ZcParty}, built on first
+     * use). Registration only.
+     */
+    public static void registerParty(@Nonnull JavaPlugin plugin) {
+        try {
+            plugin.getCommandRegistry().registerCommand(new ZigPartyCommand());
+        } catch (Throwable t) {
+            SafeLog.warn("[party] /zigparty could not be registered", t);
+        }
+    }
+
+    /**
      * Write the boards' rows still waiting on their debounce, so a stat counted in the last seconds
-     * before a stop is kept, and stop the instance copies' remover thread. Called from the library's
-     * {@code shutdown()}, which the server runs after it has disconnected every player and shut every
-     * world down, so nothing is counted after it. A stop with nothing new writes nothing, and it never
-     * throws.
+     * before a stop is kept, and stop the instance copies' remover thread and the default party's invite
+     * timers. Called from the library's {@code shutdown()}, which the server runs after it has disconnected
+     * every player and shut every world down, so nothing is counted after it. A stop with nothing new
+     * writes nothing, and it never throws.
      */
     public static void shutdown() {
         try {
@@ -135,6 +149,11 @@ public final class InstanceBootstrap {
             StatBoard.flushNow();
         } catch (Throwable t) {
             SafeLog.warn("[statboard] the stat board could not be written at shutdown", t);
+        }
+        try {
+            ZcParty.shutdown();
+        } catch (Throwable t) {
+            SafeLog.warn("[party] the default party's invite timers could not be stopped", t);
         }
     }
 }
