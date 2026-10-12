@@ -1,0 +1,13 @@
+$ZW = "../Common/ZigKit.ui";
+
+// One segment whose label may wrap onto a second line, appended by com.ziggfreed.common.ui.kit.SegmentPainter
+// (appendTwoLine) and addressed by index as "#Host[i] #Seg": the kit's @ZigSegmentTwoLine (Common/ZigKit.ui),
+// 132 x 44, a Button with its #Label, #Check and #Dot, the same ids as Pages/ZigSegment.ui. A board's period row
+// uses it, so a season's name and year read in full. The chosen segment swaps to ZigSegmentOnStyle by reference.
+
+Group #ZigSegmentTwoLine {
+  LayoutMode: Left;
+  Anchor: (Width: 132, Height: 44, Right: 6);
+
+  $ZW.@ZigSegmentTwoLine #Seg {}
+}

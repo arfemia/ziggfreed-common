@@ -19,8 +19,9 @@ $ZW = "../Common/ZigKit.ui";
 // TOP: #Title and #Lead, the board's one line on how to read it (hidden when the board has none).
 // #GroupRow: the first row of tabs. A row whose tabs each bring their own columns (Records' sections, the
 // boss fights) is the kit's view tabs (Pages/ZigViewTab.ui, ViewTabPainter) over a thin rule (#GroupRule);
-// any other row is the kit's segments (Pages/ZigSegment.ui, SegmentPainter), as #TabRow, the periods,
-// always is. Both rows wrap onto a second line rather than run off the edge, and each has an optional
+// any other row is the kit's two-line segments (Pages/ZigSegmentTwoLine.ui, SegmentPainter.appendTwoLine), as
+// #TabRow, the periods, always is, so a long name wraps inside its segment rather than ending in an ellipsis.
+// Both rows wrap onto a second line rather than run off the edge, and each has an optional
 // section label above it. #ControlBar shows only on a board with a Rankings view: the sort and the view,
 // as segments.
 //
@@ -35,29 +36,31 @@ $ZW = "../Common/ZigKit.ui";
 // from its right edge), so a hidden column leaves both the same. #EmptyState (the kit's
 // @ZigEmptyState) takes the list's place when nobody is on the board.
 
-// A column header's words: the view tab's name, one line.
-@HeadStyle = LabelStyle(...$ZS.@ZigViewTabLabelStyle);
+// A column header's words: the view tab's name, wrapping onto a second line rather than cut off, in a 44px header.
+// Every header column is at least a figure column's share of the row, far wider than the one ellipsis under which
+// a two-line label would crash the client (the ui rule).
+@HeadStyle = LabelStyle(...$ZS.@ZigViewTabLabelStyle, ShrinkTextToFit: false, Wrap: true, WrapMaxLines: 2);
 @HeadEndStyle = LabelStyle(...@HeadStyle, HorizontalAlignment: End);
 
 // A column header that sorts the list: the view tab's faint pane, its name at the end like the figures under
 // it, #Mark before the name on the sorted column.
 @SortHeader = Button {
   FlexWeight: 1;
-  Anchor: (Height: 32, Left: 4);
+  Anchor: (Height: 44, Left: 4);
   LayoutMode: Left;
   Padding: (Horizontal: 10);
   Style: $ZS.@ZigViewTabStyle;
   TextTooltipStyle: $C.@DefaultTextTooltipStyle;
 
   Group #Mark {
-    Anchor: (Width: 12, Height: 12, Top: 10, Right: 4);
+    Anchor: (Width: 12, Height: 12, Top: 16, Right: 4);
     Background: (TexturePath: "../Common/Glyphs/ChevronDown.png", Color: $ZK.@ZigAccent);
     Visible: false;
   }
 
   Label #Label {
     FlexWeight: 1;
-    Anchor: (Height: 32);
+    Anchor: (Height: 44);
     Text: "";
     Style: @HeadEndStyle;
   }
@@ -205,23 +208,23 @@ $F.@ZigMenuFrame {
 
         Group #YouFigures {
           LayoutMode: Left;
-          Anchor: (Height: $ZK.@ZigHeaderHeight, Top: 4);
+          Anchor: (Height: 78, Top: 4);
 
-          $ZW.@ZigStat #YouPlace {}
+          $ZW.@ZigStatTwoLine #YouPlace {}
 
-          $ZW.@ZigStat #YouStat0 {
+          $ZW.@ZigStatTwoLine #YouStat0 {
             @Anchor = (Left: $ZK.@ZigSpace2);
           }
 
-          $ZW.@ZigStat #YouStat1 {
+          $ZW.@ZigStatTwoLine #YouStat1 {
             @Anchor = (Left: $ZK.@ZigSpace2);
           }
 
-          $ZW.@ZigStat #YouStat2 {
+          $ZW.@ZigStatTwoLine #YouStat2 {
             @Anchor = (Left: $ZK.@ZigSpace2);
           }
 
-          $ZW.@ZigStat #YouStat3 {
+          $ZW.@ZigStatTwoLine #YouStat3 {
             @Anchor = (Left: $ZK.@ZigSpace2);
           }
         }
@@ -236,7 +239,7 @@ $F.@ZigMenuFrame {
 
       Group #TableHeader {
         LayoutMode: Left;
-        Anchor: (Height: 32, Top: 14, Bottom: 4);
+        Anchor: (Height: 44, Top: 14, Bottom: 4);
         Padding: (Right: 4);
         Visible: false;
 
@@ -289,7 +292,7 @@ $F.@ZigMenuFrame {
 
       Group #StatsHeader {
         LayoutMode: Left;
-        Anchor: (Height: 32, Top: 14, Bottom: 4);
+        Anchor: (Height: 44, Top: 14, Bottom: 4);
         Padding: (Right: 4);
         Visible: false;
 

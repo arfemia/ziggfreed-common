@@ -50,7 +50,8 @@ class ZigKitDocumentsTest {
             "CenterMiddle", "MiddleCenter", "Full", "TopScrolling", "BottomScrolling", "LeftCenterWrap", "LeftWrap");
 
     /** The templates {@code Common/ZigKit.ui} defines. */
-    private static final List<String> KIT_TEMPLATES = List.of("@ZigSegment", "@ZigStat", "@ZigPill",
+    private static final List<String> KIT_TEMPLATES = List.of("@ZigSegment", "@ZigSegmentTwoLine", "@ZigStat",
+            "@ZigStatTwoLine", "@ZigPill",
             "@ZigProgressBar", "@ZigProgressBlock", "@ZigSectionHeader", "@ZigPicture", "@ZigDetailPage",
             "@ZigActionBar", "@ZigEmptyState", "@ZigHeroPlate");
 

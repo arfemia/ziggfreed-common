@@ -15,13 +15,17 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.ziggfreed.common.ui.ZigRichButton;
 
 /**
- * A segmented choice ({@code @ZigSegment}, {@code Pages/ZigSegment.ui}): its label on {@code #Label.TextSpans}, on and
- * off as the {@code ZigSegmentOnStyle} / {@code ZigSegmentStyle} swap, an optional check and dot.
+ * A segmented choice ({@code @ZigSegment}, {@code Pages/ZigSegment.ui}, or the two-line {@code @ZigSegmentTwoLine},
+ * {@code Pages/ZigSegmentTwoLine.ui}): its label on {@code #Label.TextSpans}, on and off as the
+ * {@code ZigSegmentOnStyle} / {@code ZigSegmentStyle} swap, an optional check and dot.
  */
 public final class SegmentPainter {
 
     /** One appended segment. */
     public static final String TEMPLATE = "Pages/ZigSegment.ui";
+
+    /** One appended segment whose label may wrap onto a second line ({@code @ZigSegmentTwoLine}, the same ids). */
+    public static final String TEMPLATE_TWO_LINE = "Pages/ZigSegmentTwoLine.ui";
 
     private SegmentPainter() {
     }
@@ -48,8 +52,28 @@ public final class SegmentPainter {
     @Nonnull
     public static String append(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events, @Nonnull String host,
             @Nonnull Message label, boolean on, boolean check, boolean dot, @Nullable EventData binding) {
+        return append(cmd, events, host, TEMPLATE, label, on, check, dot, binding);
+    }
+
+    /**
+     * {@link #append} with the two-line segment ({@link #TEMPLATE_TWO_LINE}), 44 tall, for a row whose choices can
+     * carry a long name: the label wraps onto a second line rather than ending in an ellipsis.
+     *
+     * @return the appended segment's button selector
+     */
+    @Nonnull
+    public static String appendTwoLine(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
+            @Nonnull String host, @Nonnull Message label, boolean on, boolean check, boolean dot,
+            @Nullable EventData binding) {
+        return append(cmd, events, host, TEMPLATE_TWO_LINE, label, on, check, dot, binding);
+    }
+
+    @Nonnull
+    private static String append(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events, @Nonnull String host,
+            @Nonnull String template, @Nonnull Message label, boolean on, boolean check, boolean dot,
+            @Nullable EventData binding) {
         int index = appendedSoFar(cmd, host);
-        cmd.append(host, TEMPLATE);
+        cmd.append(host, template);
         String seg = KitPaint.child(host, index) + " #Seg";
         ZigRichButton.text(cmd, seg, label);
         if (on) {

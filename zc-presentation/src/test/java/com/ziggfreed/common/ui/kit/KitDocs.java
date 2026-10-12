@@ -27,7 +27,8 @@ final class KitDocs {
             "Common/ZigKit.ui", "Pages/ZigLedgerRow.ui", "Pages/ZigLedgerRowCompact.ui", "Pages/ZigLedgerRowTall.ui",
             "Pages/ZigLedgerSection.ui",
             "Pages/ZigShowMoreRow.ui", "Pages/ZigDetailBlock.ui", "Pages/ZigDetailLine.ui", "Pages/ZigCollectionTile.ui",
-            "Pages/ZigKeepsakeTile.ui", "Pages/ZigStatTile.ui", "Pages/ZigSegment.ui", "Pages/ZigViewTab.ui",
+            "Pages/ZigKeepsakeTile.ui", "Pages/ZigStatTile.ui", "Pages/ZigSegment.ui", "Pages/ZigSegmentTwoLine.ui",
+            "Pages/ZigViewTab.ui",
             "Pages/ZigPill.ui", "Pages/ZigItemSlotTile.ui", "Pages/ZigWareTile.ui", "Pages/ZigTileSection.ui");
 
     /** The appended templates (a page appends each by path), each rooted at a Group named after its file. */

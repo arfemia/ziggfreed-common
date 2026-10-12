@@ -121,6 +121,36 @@ $ZS = "ZigStyles.ui";
   }
 };
 
+// ── @ZigSegmentTwoLine: @ZigSegment at 132 x 44, its label wrapping onto a second line instead of cut off, for a row
+// of choices whose names can run long (a season and its year). The same ids, so SegmentPainter paints either. Its
+// label is never narrower than about 80px, far over the one ellipsis under which a two-line label crashes the client. ──
+@ZigSegmentTwoLine = Button {
+  @Anchor = ();
+  Anchor: (...@Anchor, Width: 132, Height: 44);
+  LayoutMode: Left;
+  Padding: (Horizontal: 10);
+  Style: $ZS.@ZigSegmentStyle;
+
+  Group #Check {
+    Anchor: (Width: 16, Height: 16, Top: 14, Right: 4);
+    Background: (TexturePath: "../Common/Checkmark.png", Color: $ZK.@ZigToneDoneText);
+    Visible: false;
+  }
+
+  Label #Label {
+    FlexWeight: 1;
+    Anchor: (Height: 44);
+    Text: "";
+    Style: (...$ZX.@ZigButtonLabelStyle, ShrinkTextToFit: false, Wrap: true, WrapMaxLines: 2);
+  }
+
+  Group #Dot {
+    Anchor: (Width: 8, Height: 8, Top: 18, Left: 4);
+    Background: (TexturePath: "../Common/Glyphs/Dot.png", Color: $ZK.@ZigToneLiveFill);
+    Visible: false;
+  }
+};
+
 // ── @ZigStat: a header's number over its caption, 150 x 60, both at the end. ──
 @ZigStat = Group {
   @Anchor = ();
@@ -137,6 +167,27 @@ $ZS = "ZigStyles.ui";
     Anchor: (Height: 20);
     Text: "";
     Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: End, Wrap: true, WrapMaxLines: 1);
+  }
+};
+
+// ── @ZigStatTwoLine: @ZigStat at 150 x 78, its caption wrapping onto a second line instead of cut off, for a strip
+// whose captions name long things (a season's creatures). The same ids, so StatPainter paints either; the fixed
+// 150px width keeps the two-line caption clear of the one-ellipsis width under which it would crash the client. ──
+@ZigStatTwoLine = Group {
+  @Anchor = ();
+  LayoutMode: Top;
+  Anchor: (...@Anchor, Width: 150, Height: 78);
+
+  Label #Value {
+    Anchor: (Height: 38);
+    Text: "";
+    Style: $ZX.@ZigFigureStyle;
+  }
+
+  Label #Label {
+    Anchor: (Height: 38);
+    Text: "";
+    Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: End, VerticalAlignment: Start, Wrap: true, WrapMaxLines: 2);
   }
 };
 

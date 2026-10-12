@@ -421,14 +421,17 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         }
     }
 
-    /** One tab: a view tab with its picture on a row of views, else a segment. */
+    /**
+     * One tab: a view tab with its picture on a row of views, else a two-line segment, so a long name (a season run's
+     * name and year) wraps rather than ending in an ellipsis.
+     */
     private void appendTab(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events, @Nonnull String host,
                            @Nonnull Message label, @Nonnull String key, boolean on, boolean views,
                            @Nonnull EventData binding) {
         if (views) {
             ViewTabPainter.append(cmd, events, host, label, Picture.item(deps.primaryPicture(key)), on, binding);
         } else {
-            SegmentPainter.append(cmd, events, host, label, on, false, false, binding);
+            SegmentPainter.appendTwoLine(cmd, events, host, label, on, false, false, binding);
         }
     }
 

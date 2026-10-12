@@ -12,29 +12,31 @@ $ZW = "../Common/ZigKit.ui";
 // every part. Only #Board's padding differs, since this frame pads its own content. Shipped once in
 // ziggfreed-common; neutral Zig* ids.
 
-// A column header's words: the view tab's name, one line.
-@HeadStyle = LabelStyle(...$ZS.@ZigViewTabLabelStyle);
+// A column header's words: the view tab's name, wrapping onto a second line rather than cut off, in a 44px header.
+// Every header column is at least a figure column's share of the row, far wider than the one ellipsis under which
+// a two-line label would crash the client (the ui rule).
+@HeadStyle = LabelStyle(...$ZS.@ZigViewTabLabelStyle, ShrinkTextToFit: false, Wrap: true, WrapMaxLines: 2);
 @HeadEndStyle = LabelStyle(...@HeadStyle, HorizontalAlignment: End);
 
 // A column header that sorts the list: the view tab's faint pane, its name at the end like the figures under
 // it, #Mark before the name on the sorted column.
 @SortHeader = Button {
   FlexWeight: 1;
-  Anchor: (Height: 32, Left: 4);
+  Anchor: (Height: 44, Left: 4);
   LayoutMode: Left;
   Padding: (Horizontal: 10);
   Style: $ZS.@ZigViewTabStyle;
   TextTooltipStyle: $C.@DefaultTextTooltipStyle;
 
   Group #Mark {
-    Anchor: (Width: 12, Height: 12, Top: 10, Right: 4);
+    Anchor: (Width: 12, Height: 12, Top: 16, Right: 4);
     Background: (TexturePath: "../Common/Glyphs/ChevronDown.png", Color: $ZK.@ZigAccent);
     Visible: false;
   }
 
   Label #Label {
     FlexWeight: 1;
-    Anchor: (Height: 32);
+    Anchor: (Height: 44);
     Text: "";
     Style: @HeadEndStyle;
   }
@@ -184,23 +186,23 @@ $F.@ZigDecoratedFrame {
 
         Group #YouFigures {
           LayoutMode: Left;
-          Anchor: (Height: $ZK.@ZigHeaderHeight, Top: 4);
+          Anchor: (Height: 78, Top: 4);
 
-          $ZW.@ZigStat #YouPlace {}
+          $ZW.@ZigStatTwoLine #YouPlace {}
 
-          $ZW.@ZigStat #YouStat0 {
+          $ZW.@ZigStatTwoLine #YouStat0 {
             @Anchor = (Left: $ZK.@ZigSpace2);
           }
 
-          $ZW.@ZigStat #YouStat1 {
+          $ZW.@ZigStatTwoLine #YouStat1 {
             @Anchor = (Left: $ZK.@ZigSpace2);
           }
 
-          $ZW.@ZigStat #YouStat2 {
+          $ZW.@ZigStatTwoLine #YouStat2 {
             @Anchor = (Left: $ZK.@ZigSpace2);
           }
 
-          $ZW.@ZigStat #YouStat3 {
+          $ZW.@ZigStatTwoLine #YouStat3 {
             @Anchor = (Left: $ZK.@ZigSpace2);
           }
         }
@@ -215,7 +217,7 @@ $F.@ZigDecoratedFrame {
 
       Group #TableHeader {
         LayoutMode: Left;
-        Anchor: (Height: 32, Top: 14, Bottom: 4);
+        Anchor: (Height: 44, Top: 14, Bottom: 4);
         Padding: (Right: 4);
         Visible: false;
 
@@ -268,7 +270,7 @@ $F.@ZigDecoratedFrame {
 
       Group #StatsHeader {
         LayoutMode: Left;
-        Anchor: (Height: 32, Top: 14, Bottom: 4);
+        Anchor: (Height: 44, Top: 14, Bottom: 4);
         Padding: (Right: 4);
         Visible: false;
 
