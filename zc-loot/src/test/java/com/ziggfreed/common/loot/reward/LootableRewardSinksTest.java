@@ -2,6 +2,7 @@ package com.ziggfreed.common.loot.reward;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -17,6 +18,9 @@ import com.ziggfreed.common.loot.FactorLookup;
 import com.ziggfreed.common.loot.LootCues;
 import com.ziggfreed.common.loot.LootEngine;
 import com.ziggfreed.common.loot.LootGrants;
+import com.ziggfreed.common.loot.LootPool;
+import com.ziggfreed.common.loot.LootableAsset;
+import com.ziggfreed.common.loot.LootableConfig;
 import com.ziggfreed.common.loot.Roll;
 import com.ziggfreed.common.subject.Subject;
 
@@ -44,6 +48,51 @@ class LootableRewardSinksTest {
     @AfterEach
     void tearDown() {
         LootCues.clear();
+        LootableConfig.getInstance().mergePackLayer(Map.of());
+    }
+
+    /**
+     * A table authored as a pool alone, with no rolls, pays from its pool when a {@code Lootable} reward
+     * rolls it: the reward resolves the whole table, never its rolls alone, and it fails only on a table
+     * with neither.
+     */
+    @Test
+    void aPoolOnlyTablePaidThroughALootableRewardGrantsFromItsPool() {
+        LootGrants grants = LootGrants.of(null, null, null,
+                new LootGrants.Reward[] {LootGrants.Reward.of("Test_Point", Map.of("Amount", "7"))});
+        LootPool pool = LootPool.of(null, new LootPool.Entry[] {LootPool.Entry.of(1.0, null, grants)});
+        LootableConfig.getInstance().mergePackLayer(
+                Map.of("fixture_pool_only", LootableAsset.of("fixture_pool_only", null, pool, null)));
+        RewardSpec spec = RewardSpec.of(LootRewardKinds.KIND_LOOTABLE, Map.of("Lootable", "fixture_pool_only"));
+
+        LootEngine.Result result = LootRewardKinds.rollTable(LootRewardKinds.resolveTable("fixture_pool_only"),
+                null, FactorLookup.none(), () -> 0.0,
+                LootRewardKinds.lootableSinks(spec, subject, kinds, "reward:fixture_pool_only"));
+
+        assertEquals(List.of("7"), paid, "the pool's pick pays through the Lootable reward");
+        assertEquals(1, result.getRewardsPaid());
+        assertThrows(IllegalStateException.class, () -> LootRewardKinds.resolveTable("fixture_no_such_table"),
+                "a table with neither rolls nor a pool still fails loud");
+    }
+
+    /** A table with both rolls and a pool pays both through a {@code Lootable} reward: its rolls, then its pick. */
+    @Test
+    void aTableWithRollsAndAPoolPaysBothThroughALootableReward() {
+        LootGrants rolled = LootGrants.of(null, null, null,
+                new LootGrants.Reward[] {LootGrants.Reward.of("Test_Point", Map.of("Amount", "1"))});
+        LootGrants picked = LootGrants.of(null, null, null,
+                new LootGrants.Reward[] {LootGrants.Reward.of("Test_Point", Map.of("Amount", "2"))});
+        LootPool pool = LootPool.of(null, new LootPool.Entry[] {LootPool.Entry.of(1.0, null, picked)});
+        LootableConfig.getInstance().mergePackLayer(Map.of("fixture_both", LootableAsset.of("fixture_both",
+                new Roll[] {Roll.of(null, null, null, null, rolled, null)}, pool, null)));
+        RewardSpec spec = RewardSpec.of(LootRewardKinds.KIND_LOOTABLE, Map.of("Lootable", "fixture_both"));
+
+        LootEngine.Result result = LootRewardKinds.rollTable(LootRewardKinds.resolveTable("fixture_both"),
+                null, FactorLookup.none(), () -> 0.0,
+                LootRewardKinds.lootableSinks(spec, subject, kinds, "reward:fixture_both"));
+
+        assertEquals(List.of("1", "2"), paid, "the roll pays, then the pool's pick, never the roll alone");
+        assertEquals(2, result.getRewardsPaid());
     }
 
     @Test

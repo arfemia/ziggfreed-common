@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
+import java.util.function.DoubleSupplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -28,7 +29,6 @@ import com.ziggfreed.common.loot.GroundSpillSinks;
 import com.ziggfreed.common.loot.LootCues;
 import com.ziggfreed.common.loot.LootEngine;
 import com.ziggfreed.common.loot.LootRef;
-import com.ziggfreed.common.loot.Roll;
 import com.ziggfreed.common.loot.stamp.StampCapEngine;
 import com.ziggfreed.common.loot.stamp.StampInspection;
 import com.ziggfreed.common.loot.stamp.StampPlan;
@@ -437,7 +437,9 @@ public final class LootRewardKinds {
     // ==================== Lootable ====================
 
     /**
-     * {@code {"Lootable": "<id>"}} - roll a shared table and hand over whatever it produced.
+     * {@code {"Lootable": "<id>"}} - roll a shared table and hand over whatever it produced: its
+     * rolls, then its pool's draws ({@link #resolveTable}, {@link #rollTable}), so a table authored
+     * as a pool alone pays the same here as at any other site.
      *
      * <p>The whole grants vocabulary pays here, exactly as it does at a station: {@code Items} land
      * in the inventory, {@code DropLists} roll their native tables into it, {@code Commands} run as
@@ -488,12 +490,7 @@ public final class LootRewardKinds {
             if (player == null) {
                 throw new IllegalStateException("no player to grant lootable '" + tableId + "' to");
             }
-            List<Roll> rolls = LootEngine.resolveRolls(LootRef.of(new String[] {tableId}, null), null);
-            if (rolls.isEmpty()) {
-                throw new IllegalStateException("lootable '" + tableId
-                        + "' has no rolls to grant - either no table answers to that id"
-                        + " (is the pack that owns it installed?) or the table is empty");
-            }
+            LootEngine.Resolved table = resolveTable(tableId);
             int depth = NESTED.get();
             if (depth >= MAX_NESTED) {
                 throw new IllegalStateException("lootable '" + tableId + "' sits " + depth
@@ -509,7 +506,7 @@ public final class LootRewardKinds {
             NESTED.set(depth + 1);
             LootEngine.Result result;
             try {
-                result = LootEngine.rollAndGrant(rolls, trigger, lookupFor(subject),
+                result = rollTable(table, trigger, lookupFor(subject),
                         () -> ThreadLocalRandom.current().nextDouble(),
                         lootableSinks(spec, subject, kinds, tableSource));
             } finally {
@@ -520,6 +517,36 @@ public final class LootRewardKinds {
                 receipt.accept(landed);
             }
         }
+    }
+
+    /**
+     * Everything the table {@code tableId} evaluates when a {@code Lootable} reward rolls it: its
+     * rolls AND its pool ({@link LootEngine#resolve}), with whatever other packs and roll sources
+     * added to it. A table authored as a pool alone pays from that pool. Throws when the table has
+     * neither, which is either no table answering to the id or an empty one, so the reward fails
+     * loud rather than reporting a payout of nothing. Package-private so the seam is pinned with no
+     * server behind it.
+     */
+    @Nonnull
+    static LootEngine.Resolved resolveTable(@Nonnull String tableId) {
+        LootEngine.Resolved table = LootEngine.resolve(LootRef.of(new String[] {tableId}, null), null);
+        if (table.rolls().isEmpty() && table.pools().isEmpty()) {
+            throw new IllegalStateException("lootable '" + tableId
+                    + "' has no rolls or pool to grant - either no table answers to that id"
+                    + " (is the pack that owns it installed?) or the table is empty");
+        }
+        return table;
+    }
+
+    /**
+     * One pass over a resolved table, its rolls then its pool's draws, through {@code sinks}: the
+     * pass a {@code Lootable} reward makes. Package-private so the seam is pinned with no server
+     * behind it.
+     */
+    @Nonnull
+    static LootEngine.Result rollTable(@Nonnull LootEngine.Resolved table, @Nullable String trigger,
+            @Nonnull FactorLookup lookup, @Nonnull DoubleSupplier sample, @Nonnull LootEngine.Sinks sinks) {
+        return LootEngine.rollAndGrant(table.rolls(), table.pools(), trigger, lookup, sample, sinks);
     }
 
     /**
