@@ -20,7 +20,8 @@ import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
  * sections a store generates for what it registers in code ({@link #generated}, an owner at a time; a file
  * of the same id wins), and resolved once per change: the sections in tab order, and the set of lines any
  * of them names (with the stats one names as {@code Stat/*}, every line of which counts as named), which
- * is what decides whether a stat is ranked at all.
+ * is what decides whether a stat is ranked at all. A section's tab may also be split in code ({@link #split},
+ * {@link StatSplit}), and every line of a stat a split names is ranked too.
  */
 public final class StatSectionConfig extends AbstractKeyedAssetConfig<StatSectionAsset> {
 
@@ -31,6 +32,11 @@ public final class StatSectionConfig extends AbstractKeyedAssetConfig<StatSectio
 
     /** Each owner's generated sections, in the order owners first registered. Guarded by this. */
     private final Map<String, List<StatSection>> generated = new LinkedHashMap<>();
+    /** Section id (lower-cased) -> how its tab splits ({@link #split}). Guarded by this. */
+    private final Map<String, StatSplit> splitting = new LinkedHashMap<>();
+
+    /** The registered splits, by lower-cased section id. */
+    private volatile Map<String, StatSplit> splits = Map.of();
 
     private volatile List<StatSection> sections = List.of();
     /** The sections the files author, in tab order. */
@@ -76,6 +82,27 @@ public final class StatSectionConfig extends AbstractKeyedAssetConfig<StatSectio
             generated.put(owner, List.copyOf(owned));
         }
         rebuild();
+    }
+
+    /**
+     * Split section {@code sectionId}'s tab on Records as {@code split} says (null takes the split away), in place
+     * of any split it had: every line of each stat it names is ranked from now on. Whoever owns the lines
+     * registers it, at setup, before anything they publish should rank.
+     */
+    public synchronized void split(@Nonnull String sectionId, @Nullable StatSplit split) {
+        String id = sectionId.toLowerCase(Locale.ROOT);
+        if (split == null) {
+            splitting.remove(id);
+        } else {
+            splitting.put(id, split);
+        }
+        rebuild();
+    }
+
+    /** How section {@code sectionId}'s tab splits, or null when nothing splits it ({@link #split}). */
+    @Nullable
+    public StatSplit splitOf(@Nonnull String sectionId) {
+        return splits.get(sectionId.toLowerCase(Locale.ROOT));
     }
 
     /** Every section, the generated ones included, in tab order. */
@@ -164,6 +191,13 @@ public final class StatSectionConfig extends AbstractKeyedAssetConfig<StatSectio
         }
         Set<String> lines = new HashSet<>();
         Set<String> stats = new HashSet<>();
+        // A split stat's lines are each ranked, as a Stat/* line's are: a group's sum and a thing's columns read them.
+        for (StatSplit split : splitting.values()) {
+            for (StatSplit.Column column : split.columns()) {
+                stats.add(column.stat().toLowerCase(Locale.ROOT));
+            }
+        }
+        splits = Map.copyOf(splitting);
         for (StatSection section : out) {
             for (String line : section.lines()) {
                 String stat = StatSection.everyLineOf(line);

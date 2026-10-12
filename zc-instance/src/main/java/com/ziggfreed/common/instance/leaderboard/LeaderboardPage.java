@@ -1,6 +1,8 @@
 package com.ziggfreed.common.instance.leaderboard;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -16,6 +18,8 @@ import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.protocol.packets.interface_.Page;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.pages.InteractiveCustomUIPage;
+import com.hypixel.hytale.server.core.ui.DropdownEntryInfo;
+import com.hypixel.hytale.server.core.ui.LocalizableString;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
@@ -73,7 +77,12 @@ import com.ziggfreed.common.ui.name.PlayerDisplayNames;
  * <p>Each tab axis with two or more concrete tabs synthesizes a trailing "All" tab (reserved
  * bucket key {@code "*"}) that aggregates every concrete bucket on that axis, so All+All is the
  * full lifetime roll-up. The Stats view honors the tab selection and is sortable by each stat
- * column (and Plays) via clickable column headers; the Rankings view keeps its three-metric sort.
+ * column (and Plays) via clickable column headers, a tie broken by the other columns from the left; the
+ * Rankings view keeps its three-metric sort.
+ *
+ * <p>A primary tab with a split ({@link LeaderboardSplit}) adds a row under the others: its
+ * choices as segments and a picker of single things, each with its own columns over the same buckets; a choice
+ * other than the first, or a pick, may pin the second row to one tab and hide it.
  */
 public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventData> {
 
@@ -88,6 +97,13 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
     private static final String ALL = "*";
     /** The action a primary-row link carries: open the linked board's page ({@link LeaderboardPageDeps#primaryLinks}). */
     private static final String LINK = "link";
+    /** The picker of a tab's split ({@link LeaderboardSplit}): its first entry, the chosen choice's own columns. */
+    private static final String PICK = "#Pick";
+    /**
+     * The key the picker's binding carries its live value under, which the client echoes back as it is
+     * ({@link LeaderboardEventData} reads it into {@code pick}).
+     */
+    static final String PICK_ECHO = "@Pick";
     /**
      * What a column's own label key takes for its tooltip: {@code <label key>.tip}, a bare translation saying what
      * the column counts, used when the server ships one ({@link #columnTip}).
@@ -125,6 +141,14 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
     private final SortMode sort;
     private final String statSort; // the active Stats-view column metric ("" when no stat columns)
     private final boolean statsView;
+    /** The selected primary tab's split, or null when it has none. */
+    @Nullable private final LeaderboardSplit split;
+    /** The split's chosen choice ("" for its first, the tab's own columns). */
+    private final String activeSplit;
+    /** The split's picked thing ("" for none). */
+    private final String activePick;
+    /** The columns the selection shows: the pick's, else the choice's, else the primary tab's own. */
+    private final List<StatColumnDef> viewColumns;
 
     /** The rail this build painted (none when the deps name no tab), which a rail click is routed through. */
     @Nonnull private MenuRail rail = MenuRail.EMPTY;
@@ -154,21 +178,134 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
     public LeaderboardPage(@Nonnull PlayerRef playerRef, @Nonnull LeaderboardPageDeps deps,
                            @Nullable String primary, @Nullable String secondary,
                            @Nullable SortMode sort, @Nullable String statSort, boolean statsView) {
+        this(playerRef, deps, primary, secondary, sort, statSort, statsView, null, null);
+    }
+
+    /**
+     * As the seven-argument form, with the selected primary tab's split state: {@code split} a choice's key and
+     * {@code pick} a thing's ({@link LeaderboardSplit}); null, empty or unknown to the viewer is the split's first
+     * choice, or no pick.
+     */
+    public LeaderboardPage(@Nonnull PlayerRef playerRef, @Nonnull LeaderboardPageDeps deps,
+                           @Nullable String primary, @Nullable String secondary,
+                           @Nullable SortMode sort, @Nullable String statSort, boolean statsView,
+                           @Nullable String split, @Nullable String pick) {
         super(playerRef, CustomPageLifetime.CanDismissOrCloseThroughInteraction, LeaderboardEventData.CODEC);
         this.deps = deps;
         this.activePrimary = resolveKey(deps.primaryTabs(), primary, deps.allTabs());
-        this.activeSecondary = resolveKey(deps.tabs(), secondary, deps.allTabs());
+        this.split = deps.split(activePrimary);
+        LeaderboardSplit.Choice choice = this.split == null ? null : visibleChoice(this.split, split, playerRef);
+        this.activeSplit = choice == null ? "" : choice.key();
+        LeaderboardSplit.Pick picked = this.split == null ? null : visiblePick(this.split, choice, pick, playerRef);
+        this.activePick = picked == null ? "" : picked.key();
+        this.viewColumns = picked != null ? picked.columns()
+                : choice != null ? choice.columns() : deps.statColumns(activePrimary);
+        this.activeSecondary = pinned() ? this.split.pinnedTab()
+                : resolveKey(deps.tabs(), secondary, deps.allTabs());
         this.sort = sort != null ? sort : SortMode.BEST_SCORE;
-        this.statSort = resolveStatKey(deps.statColumns(activePrimary), statSort, deps.isStatsOnly());
+        this.statSort = resolveStatKey(viewColumns, statSort, deps.isStatsOnly());
         // A stats-only board has no other view to fall back to, so it shows the Stats view even when the
         // selected tab has no columns.
-        this.statsView = deps.isStatsOnly() || (statsView && !deps.statColumns(activePrimary).isEmpty());
+        this.statsView = deps.isStatsOnly() || (statsView && !viewColumns.isEmpty());
     }
 
-    /** The Stats columns under the selected primary tab. */
+    /** The Stats columns the selection shows: a pick's, else a split choice's, else the primary tab's own. */
     @Nonnull
     private List<StatColumnDef> columns() {
-        return deps.statColumns(activePrimary);
+        return viewColumns;
+    }
+
+    /**
+     * Whether the second row is pinned to the split's {@link LeaderboardSplit#pinnedTab} and hidden: on a choice
+     * other than the first, or a pick, of a split that pins one the row holds.
+     */
+    private boolean pinned() {
+        if (split == null || split.pinnedTab() == null || (activeSplit.isEmpty() && activePick.isEmpty())) {
+            return false;
+        }
+        for (LeaderboardBucketTab tab : deps.tabs()) {
+            if (tab.bucketKey().equals(split.pinnedTab())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The split's choices {@code viewer} sees: each with a pick they see. */
+    @Nonnull
+    private static List<LeaderboardSplit.Choice> visibleChoices(@Nonnull LeaderboardSplit split,
+                                                                @Nonnull PlayerRef viewer) {
+        List<LeaderboardSplit.Choice> out = new ArrayList<>();
+        for (LeaderboardSplit.Choice choice : split.choices()) {
+            if (!visiblePicks(split, List.of(choice), viewer).isEmpty()) {
+                out.add(choice);
+            }
+        }
+        return out;
+    }
+
+    /** The picks of {@code choices} {@code viewer} sees, each once, in order. */
+    @Nonnull
+    private static List<LeaderboardSplit.Pick> visiblePicks(@Nonnull LeaderboardSplit split,
+                                                            @Nonnull List<LeaderboardSplit.Choice> choices,
+                                                            @Nonnull PlayerRef viewer) {
+        Map<String, LeaderboardSplit.Pick> out = new LinkedHashMap<>();
+        for (LeaderboardSplit.Choice choice : choices) {
+            for (LeaderboardSplit.Pick pick : choice.picks()) {
+                if (!out.containsKey(pick.key()) && shows(split, viewer, pick.key())) {
+                    out.put(pick.key(), pick);
+                }
+            }
+        }
+        return new ArrayList<>(out.values());
+    }
+
+    /** Whether {@code viewer} sees {@code pick}; a filter that throws shows it. */
+    private static boolean shows(@Nonnull LeaderboardSplit split, @Nonnull PlayerRef viewer, @Nonnull String pick) {
+        try {
+            return split.shows().test(viewer, pick);
+        } catch (RuntimeException e) {
+            return true;
+        }
+    }
+
+    /** The visible choice keyed {@code key}, or null for the first choice (the tab's own columns). */
+    @Nullable
+    private static LeaderboardSplit.Choice visibleChoice(@Nonnull LeaderboardSplit split, @Nullable String key,
+                                                         @Nonnull PlayerRef viewer) {
+        if (key == null || key.isEmpty()) {
+            return null;
+        }
+        for (LeaderboardSplit.Choice choice : visibleChoices(split, viewer)) {
+            if (choice.key().equals(key)) {
+                return choice;
+            }
+        }
+        return null;
+    }
+
+    /** The picks the picker offers: the chosen choice's, or every visible choice's under the first. */
+    @Nonnull
+    private static List<LeaderboardSplit.Pick> offered(@Nonnull LeaderboardSplit split,
+                                                       @Nullable LeaderboardSplit.Choice choice,
+                                                       @Nonnull PlayerRef viewer) {
+        return visiblePicks(split, choice != null ? List.of(choice) : visibleChoices(split, viewer), viewer);
+    }
+
+    /** The offered pick keyed {@code key}, or null for none. */
+    @Nullable
+    private static LeaderboardSplit.Pick visiblePick(@Nonnull LeaderboardSplit split,
+                                                     @Nullable LeaderboardSplit.Choice choice, @Nullable String key,
+                                                     @Nonnull PlayerRef viewer) {
+        if (key == null || key.isEmpty() || ALL.equals(key)) {
+            return null;
+        }
+        for (LeaderboardSplit.Pick pick : offered(split, choice, viewer)) {
+            if (pick.key().equals(key)) {
+                return pick;
+            }
+        }
+        return null;
     }
 
     /** How many of {@link #columns()} the page shows: the stats row holds {@value StatColumnDef#MAX_STAT_COLUMNS}. */
@@ -343,7 +480,8 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
                               @Nonnull LeaderboardScreenMessages t) {
         boolean views = deps.primaryTabsCarryColumns();
         boolean primary = !deps.primaryTabs().isEmpty();
-        boolean secondary = !deps.tabs().isEmpty();
+        // A split choice that pins the second row reads its pinned tab with the row hidden.
+        boolean secondary = !deps.tabs().isEmpty() && !pinned();
         cmd.set("#GroupRow.Visible", primary);
         cmd.set("#GroupRule.Visible", primary && views);
         cmd.set("#TabRow.Visible", secondary);
@@ -355,6 +493,51 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         if (secondary) {
             buildTabRow(cmd, events, t, "#TabBar", deps.tabs(), activeSecondary, "tab", false);
         }
+        paintSplitRow(cmd, events);
+    }
+
+    /**
+     * The selected tab's split, when it has one: its choices as segments (the first, the tab's own columns, then
+     * each group the viewer sees a pick of) and the picker of single things, whose first entry is the chosen
+     * choice's own columns. A choice click clears the pick; a pick keeps the choice.
+     */
+    private void paintSplitRow(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events) {
+        cmd.set("#SplitRow.Visible", split != null);
+        if (split == null) {
+            return;
+        }
+        String viewStr = statsView ? "stats" : "rankings";
+        appendTab(cmd, events, "#SplitBar", split.allLabel(), "", activeSplit.isEmpty(), false,
+                binding("split", activePrimary, activeSecondary, sort.name(), statSort, viewStr, "", ""));
+        LeaderboardSplit.Choice chosen = null;
+        for (LeaderboardSplit.Choice choice : visibleChoices(split, playerRef)) {
+            boolean on = choice.key().equals(activeSplit);
+            if (on) {
+                chosen = choice;
+            }
+            appendTab(cmd, events, "#SplitBar", choice.label(), choice.key(), on, false,
+                    binding("split", activePrimary, activeSecondary, sort.name(), statSort, viewStr, choice.key(), ""));
+        }
+        // A dropdown entry is a String sink the client resolves only from a key: a translated name goes as its key,
+        // a name nothing translates (one a server made up) as its plain words.
+        List<DropdownEntryInfo> entries = new ArrayList<>();
+        entries.add(new DropdownEntryInfo(entryLabel(split.pickAllLabel()), ALL));
+        for (LeaderboardSplit.Pick pick : offered(split, chosen, playerRef)) {
+            entries.add(new DropdownEntryInfo(entryLabel(pick.label()), pick.key()));
+        }
+        cmd.set(PICK + ".Entries", entries);
+        cmd.set(PICK + ".Value", activePick.isEmpty() ? ALL : activePick);
+        // The binding carries no Pick of its own: the client's echo of the live value is the pick.
+        events.addEventBinding(CustomUIEventBindingType.ValueChanged, PICK,
+                binding("pick", activePrimary, activeSecondary, sort.name(), statSort, viewStr, activeSplit, null)
+                        .append(PICK_ECHO, PICK + ".Value"), false);
+    }
+
+    /** A dropdown entry's words: a translation as its key, anything else as its plain characters. */
+    @Nonnull
+    private static LocalizableString entryLabel(@Nonnull Message name) {
+        return UiText.isClientResolvable(name) ? LocalizableString.fromMessageId(name.getMessageId())
+                : LocalizableString.fromString(UiText.flatten(name));
     }
 
     /** The sort and the view, on a board with a Rankings view; a stats-only board shows neither. */
@@ -402,11 +585,14 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
             display.add(new LeaderboardBucketTab(ALL, t.filterAll()));
         }
         for (LeaderboardBucketTab tab : display) {
-            String group = action.equals("group") ? tab.bucketKey() : activePrimary;
-            String bucket = action.equals("group") ? activeSecondary : tab.bucketKey();
-            // Every tab's label goes on a .TextSpans, so a season run's name and year substitute either way.
+            boolean primaryRow = action.equals("group");
+            String group = primaryRow ? tab.bucketKey() : activePrimary;
+            String bucket = primaryRow ? activeSecondary : tab.bucketKey();
+            // Every tab's label goes on a .TextSpans, so a season run's name and year substitute either way. A new
+            // primary tab starts on its split's first choice; a period keeps the split's state.
             appendTab(cmd, events, container, tab.label(), tab.bucketKey(), tab.bucketKey().equals(active), views,
-                    binding(action, group, bucket, sort.name(), statSort, viewStr));
+                    binding(action, group, bucket, sort.name(), statSort, viewStr, primaryRow ? "" : activeSplit,
+                            primaryRow ? "" : activePick));
         }
         if (!action.equals("group")) {
             return;
@@ -458,7 +644,8 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
 
     /**
      * The selected buckets' entries (a concrete difficulty+size, an "All" axis roll-up, or All+All for the
-     * full lifetime view), ranked by the active stat column.
+     * full lifetime view), ranked by the active stat column, a tie broken by the other shown columns from the
+     * left.
      */
     @Nonnull
     private List<Map.Entry<UUID, LeaderboardEntry>> statsSorted() {
@@ -470,8 +657,43 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
             // A board of bare tallies holds a player for any stat; this tab lists only those with one of its own.
             sorted.removeIf(en -> !holdsAny(en.getValue(), cols, shown));
         }
-        sorted.sort(SortMode.byStat(statSort, ascending(cols, statSort)));
+        StatColumnDef ranked = columnOf(cols, statSort);
+        Comparator<Map.Entry<UUID, LeaderboardEntry>> order = ranked != null ? byColumn(ranked)
+                : SortMode.byStat(statSort, false);
+        for (int c = 0; c < shown; c++) {
+            if (cols.get(c) != ranked) {
+                order = order.thenComparing(byColumn(cols.get(c)));
+            }
+        }
+        sorted.sort(order);
         return sorted;
+    }
+
+    /** The column keyed {@code key}, or null for the reserved {@code "plays"} and {@code "total"}. */
+    @Nullable
+    private static StatColumnDef columnOf(@Nonnull List<StatColumnDef> cols, @Nonnull String key) {
+        for (StatColumnDef c : cols) {
+            if (c.statKey().equals(key)) {
+                return c;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Ranks by {@code col}'s value ({@link StatColumnDef#valueOf}, a sum read as it is asked): highest first, or
+     * lowest first for a best that shrinks, where no value (0) sorts after every real one.
+     */
+    @Nonnull
+    private static Comparator<Map.Entry<UUID, LeaderboardEntry>> byColumn(@Nonnull StatColumnDef col) {
+        if (col.ascending()) {
+            return Comparator.comparingLong((Map.Entry<UUID, LeaderboardEntry> e) -> {
+                long value = col.valueOf(e.getValue());
+                return value > 0L ? value : Long.MAX_VALUE;
+            });
+        }
+        return Comparator.comparingLong((Map.Entry<UUID, LeaderboardEntry> e) -> col.valueOf(e.getValue()))
+                .reversed();
     }
 
     /** Where {@code uuid} stands in {@code sorted}, or -1 when they are not on it. */
@@ -487,18 +709,8 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
     /** Whether {@code e} holds a value in any of the first {@code shown} columns. */
     private static boolean holdsAny(@Nonnull LeaderboardEntry e, @Nonnull List<StatColumnDef> cols, int shown) {
         for (int c = 0; c < shown; c++) {
-            if (e.stat(cols.get(c).statKey()) != 0L) {
+            if (cols.get(c).valueOf(e) != 0L) {
                 return true;
-            }
-        }
-        return false;
-    }
-
-    /** Whether the column sorted on ranks lowest-first; Plays and an unknown key rank highest-first. */
-    private static boolean ascending(@Nonnull List<StatColumnDef> cols, @Nonnull String key) {
-        for (StatColumnDef c : cols) {
-            if (c.statKey().equals(key)) {
-                return c.ascending();
             }
         }
         return false;
@@ -616,7 +828,7 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
                 String cell = sel + " #Col" + c;
                 if (c < shown) {
                     StatColumnDef def = cols.get(c);
-                    cmd.set(cell + ".TextSpans", cell(def, e.stat(def.statKey()), t));
+                    cmd.set(cell + ".TextSpans", cell(def, def.valueOf(e), t));
                 } else {
                     cmd.set(cell + ".Visible", false);
                 }
@@ -716,7 +928,7 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         List<Stat> out = new ArrayList<>(shown);
         for (int c = 0; c < shown; c++) {
             StatColumnDef def = cols.get(c);
-            out.add(new Stat(cell(def, mine.stat(def.statKey()), t), def.label(), Tone.NEUTRAL));
+            out.add(new Stat(cell(def, def.valueOf(mine), t), def.label(), Tone.NEUTRAL));
         }
         return out;
     }
@@ -741,16 +953,29 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         cmd.set(label + ".Visible", text != null);
     }
 
-    /** The event a control carries: the page's full NEXT state (no duplicate keys). */
+    /** The event a control carries: the page's full NEXT state, the split's as it stands. */
+    @Nonnull
+    private EventData binding(@Nonnull String action, @Nonnull String group, @Nonnull String bucket,
+                              @Nonnull String sortName, @Nonnull String statSortName, @Nonnull String view) {
+        return binding(action, group, bucket, sortName, statSortName, view, activeSplit, activePick);
+    }
+
+    /**
+     * The event a control carries: the page's full NEXT state (no duplicate keys). A null {@code pick} writes no
+     * Pick, for the picker, whose live value comes back under {@link #PICK_ECHO} instead.
+     */
     @Nonnull
     private static EventData binding(@Nonnull String action, @Nonnull String group, @Nonnull String bucket,
-                                     @Nonnull String sortName, @Nonnull String statSortName, @Nonnull String view) {
-        return EventData.of("Action", action)
+                                     @Nonnull String sortName, @Nonnull String statSortName, @Nonnull String view,
+                                     @Nonnull String splitKey, @Nullable String pick) {
+        EventData data = EventData.of("Action", action)
                 .append("Group", group)
                 .append("Bucket", bucket)
                 .append("Sort", sortName)
                 .append("StatSort", statSortName)
-                .append("View", view);
+                .append("View", view)
+                .append("Split", splitKey);
+        return pick == null ? data : data.append("Pick", pick);
     }
 
     @Override
@@ -788,8 +1013,8 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         String secondary = data.bucket;
         SortMode nextSort = parseSort(data.sort);
         boolean nextStats = "stats".equals(data.view);
-        player.getPageManager().openCustomPage(ref, store,
-                new LeaderboardPage(playerRef, deps, primary, secondary, nextSort, data.statSort, nextStats));
+        player.getPageManager().openCustomPage(ref, store, new LeaderboardPage(playerRef, deps, primary, secondary,
+                nextSort, data.statSort, nextStats, data.split, data.pick));
     }
 
     /** An empty update, for a rail click nothing opened for: the client always hears back. */

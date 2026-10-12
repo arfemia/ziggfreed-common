@@ -104,6 +104,21 @@ $F.@ZigDecoratedFrame {
         }
       }
 
+      Group #SplitRow {
+        LayoutMode: Left;
+        Anchor: (Height: 44, Top: 12);
+        Visible: false;
+
+        Group #SplitBar {
+          FlexWeight: 1;
+          LayoutMode: Left;
+        }
+
+        $C.@DropdownBox #Pick {
+          Anchor: (Width: 240, Height: 32, Top: 6);
+        }
+      }
+
       Group #ControlBar {
         LayoutMode: Left;
         Anchor: (Height: 54, Top: 12);

@@ -96,6 +96,14 @@ public final class StatsBoardSource implements StatBoardSource {
         return out;
     }
 
+    /** A gauge and a native reading are set on {@code all_time} alone, never counted into a window. */
+    @Override
+    public boolean allTimeOnly(@Nonnull String statId) {
+        StatAsset stat = StatConfig.getInstance().index().stat(statId);
+        StatKind kind = stat == null ? null : stat.kind();
+        return kind == StatKind.GAUGE || kind == StatKind.NATIVE;
+    }
+
     /**
      * A season page line's column, while its owner is on: named by the line's own key (resolved for the
      * client), else its name in the record; a count, highest first. Null for anything that is no such line.

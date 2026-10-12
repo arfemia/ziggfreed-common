@@ -12,8 +12,10 @@ import com.ziggfreed.common.ui.menu.ZigMenu;
  * {@code sort}), {@code statsort} (Stats-view column metric, value in {@code statSort}),
  * {@code view} (rankings/stats, value in {@code view}), or {@code close}. The Rankings sort
  * ({@code sort}) and the Stats sort ({@code statSort}) are carried independently on every
- * binding so both views' sort states survive a round-trip. On the shared menu's rail, a rail click
- * carries {@code menu} and no action.
+ * binding so both views' sort states survive a round-trip. On a tab with a split ({@link LeaderboardSplit}),
+ * {@code split} (a choice's segment, value in {@code split}) and {@code pick} (the picker, value in {@code pick})
+ * carry the split's state on every binding too. On the shared menu's rail, a rail click carries {@code menu}
+ * and no action.
  */
 public class LeaderboardEventData {
 
@@ -23,6 +25,10 @@ public class LeaderboardEventData {
     public String sort;
     public String statSort;
     public String view;
+    /** The split's chosen choice; empty or null for its first, the tab's own columns. */
+    public String split;
+    /** The split's picked thing; empty or null for none. */
+    public String pick;
     /** The rail row a click came from ({@code ZigMenu.EVENT_KEY}); null for every event of the page's own. */
     public String menu;
 
@@ -51,6 +57,21 @@ public class LeaderboardEventData {
                     .append(new KeyedCodec<>("View", Codec.STRING),
                             (data, value, info) -> data.view = value,
                             (data, info) -> data.view)
+                    .add()
+                    .append(new KeyedCodec<>("Split", Codec.STRING),
+                            (data, value, info) -> data.split = value,
+                            (data, info) -> data.split)
+                    .add()
+                    // The picker's binding appends its live value under an @-directive, and the client echoes it
+                    // back under that same @-prefixed key: both spellings fill the one field, so the pick is
+                    // heard whichever key arrives (a page declaring only the bare name hears nothing).
+                    .append(new KeyedCodec<>("Pick", Codec.STRING),
+                            (data, value, info) -> data.pick = value,
+                            (data, info) -> data.pick)
+                    .add()
+                    .append(new KeyedCodec<>(LeaderboardPage.PICK_ECHO, Codec.STRING),
+                            (data, value, info) -> data.pick = value,
+                            (data, info) -> data.pick)
                     .add()
                     .append(new KeyedCodec<>(ZigMenu.EVENT_KEY, Codec.STRING),
                             (data, value, info) -> data.menu = value,

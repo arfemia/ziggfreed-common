@@ -67,6 +67,8 @@ public final class LeaderboardPageDeps {
     private final Map<String, String> primaryPictures;
     /** Primary tab key -> the line saying what counts there and how to get on it ({@link #withPrimaryHints}). */
     private final Map<String, Message> primaryHints;
+    /** Primary tab key -> that tab's own split of its board ({@link #withSplits}); a tab not in it has none. */
+    private final Map<String, LeaderboardSplit> splits;
 
     /** Back-compat: a single-axis, score-only board (no difficulty axis, no stats view). */
     public LeaderboardPageDeps(@Nonnull Leaderboard board, @Nonnull List<LeaderboardBucketTab> tabs,
@@ -86,7 +88,7 @@ public final class LeaderboardPageDeps {
                                @Nonnull List<LeaderboardBucketTab> tabs, @Nonnull List<StatColumnDef> statColumns,
                                @Nonnull LeaderboardScreenMessages text, @Nonnull BucketKeys bucketKeys) {
         this(board, primaryTabs, tabs, statColumns, text, bucketKeys, null, Map.of(), true, false, List.of(),
-                Map.of(), Map.of());
+                Map.of(), Map.of(), Map.of());
     }
 
     private LeaderboardPageDeps(@Nonnull Leaderboard board, @Nonnull List<LeaderboardBucketTab> primaryTabs,
@@ -95,7 +97,9 @@ public final class LeaderboardPageDeps {
                                 @Nullable String menuTab, @Nonnull Map<String, List<StatColumnDef>> columnsByPrimary,
                                 boolean allTabs, boolean statsOnly, @Nonnull List<PageLink> primaryLinks,
                                 @Nonnull Map<String, String> primaryPictures,
-                                @Nonnull Map<String, Message> primaryHints) {
+                                @Nonnull Map<String, Message> primaryHints,
+                                @Nonnull Map<String, LeaderboardSplit> splits) {
+        this.splits = Map.copyOf(splits);
         this.primaryLinks = List.copyOf(primaryLinks);
         this.primaryPictures = Map.copyOf(primaryPictures);
         this.primaryHints = Map.copyOf(primaryHints);
@@ -122,7 +126,7 @@ public final class LeaderboardPageDeps {
     @Nonnull
     public LeaderboardPageDeps withMenuTab(@Nullable String tab) {
         return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, tab,
-                columnsByPrimary, allTabs, statsOnly, primaryLinks, primaryPictures, primaryHints);
+                columnsByPrimary, allTabs, statsOnly, primaryLinks, primaryPictures, primaryHints, splits);
     }
 
     /**
@@ -133,7 +137,7 @@ public final class LeaderboardPageDeps {
     @Nonnull
     public LeaderboardPageDeps withColumnsByPrimary(@Nonnull Map<String, List<StatColumnDef>> columns) {
         return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, menuTab,
-                columns, allTabs, statsOnly, primaryLinks, primaryPictures, primaryHints);
+                columns, allTabs, statsOnly, primaryLinks, primaryPictures, primaryHints, splits);
     }
 
     /**
@@ -143,7 +147,7 @@ public final class LeaderboardPageDeps {
     @Nonnull
     public LeaderboardPageDeps withoutAllTabs() {
         return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, menuTab,
-                columnsByPrimary, false, statsOnly, primaryLinks, primaryPictures, primaryHints);
+                columnsByPrimary, false, statsOnly, primaryLinks, primaryPictures, primaryHints, splits);
     }
 
     /**
@@ -153,7 +157,7 @@ public final class LeaderboardPageDeps {
     @Nonnull
     public LeaderboardPageDeps statsOnly() {
         return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, menuTab,
-                columnsByPrimary, allTabs, true, primaryLinks, primaryPictures, primaryHints);
+                columnsByPrimary, allTabs, true, primaryLinks, primaryPictures, primaryHints, splits);
     }
 
     /**
@@ -166,7 +170,7 @@ public final class LeaderboardPageDeps {
         List<PageLink> links = new ArrayList<>(primaryLinks);
         links.add(new PageLink(key, label, opens));
         return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, menuTab,
-                columnsByPrimary, allTabs, statsOnly, links, primaryPictures, primaryHints);
+                columnsByPrimary, allTabs, statsOnly, links, primaryPictures, primaryHints, splits);
     }
 
     /**
@@ -183,7 +187,7 @@ public final class LeaderboardPageDeps {
             }
         }
         return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, menuTab,
-                columnsByPrimary, allTabs, statsOnly, primaryLinks, pictures, primaryHints);
+                columnsByPrimary, allTabs, statsOnly, primaryLinks, pictures, primaryHints, splits);
     }
 
     /**
@@ -201,7 +205,30 @@ public final class LeaderboardPageDeps {
             }
         }
         return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, menuTab,
-                columnsByPrimary, allTabs, statsOnly, primaryLinks, primaryPictures, lines);
+                columnsByPrimary, allTabs, statsOnly, primaryLinks, primaryPictures, lines, splits);
+    }
+
+    /**
+     * A copy whose primary tabs may each split their board ({@code tab key -> split}): a row of choices under the
+     * tab and a picker of single things, each with its own columns ({@link LeaderboardSplit}). Added over the
+     * splits already set; a tab the map leaves out has none. Everything else is kept.
+     */
+    @Nonnull
+    public LeaderboardPageDeps withSplits(@Nonnull Map<String, LeaderboardSplit> byPrimary) {
+        Map<String, LeaderboardSplit> out = new LinkedHashMap<>(splits);
+        for (Map.Entry<String, LeaderboardSplit> e : byPrimary.entrySet()) {
+            if (e.getKey() != null && e.getValue() != null) {
+                out.put(e.getKey(), e.getValue());
+            }
+        }
+        return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, menuTab,
+                columnsByPrimary, allTabs, statsOnly, primaryLinks, primaryPictures, primaryHints, out);
+    }
+
+    /** Primary tab {@code key}'s split of its board, or null when it has none ({@link #withSplits}). */
+    @Nullable
+    public LeaderboardSplit split(@Nonnull String key) {
+        return splits.get(key);
     }
 
     /** The item {@code key}'s tab (or link) shows as its picture, or null for none ({@link #withPrimaryPictures}). */

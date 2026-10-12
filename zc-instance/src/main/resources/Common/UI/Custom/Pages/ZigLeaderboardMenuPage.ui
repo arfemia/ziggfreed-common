@@ -22,8 +22,11 @@ $ZW = "../Common/ZigKit.ui";
 // any other row is the kit's two-line segments (Pages/ZigSegmentTwoLine.ui, SegmentPainter.appendTwoLine), as
 // #TabRow, the periods, always is, so a long name wraps inside its segment rather than ending in an ellipsis.
 // Both rows wrap onto a second line rather than run off the edge, and each has an optional
-// section label above it. #ControlBar shows only on a board with a Rankings view: the sort and the view,
-// as segments.
+// section label above it. #SplitRow shows only on a tab with a split (LeaderboardSplit): its
+// choices as two-line segments in #SplitBar, one row of them, then #Pick, the vanilla dropdown the
+// achievements page uses, for one thing alone; the menu frame's width holds about six choices beside it, and
+// the 860 frame carries no split. #ControlBar shows only on a board with a Rankings view: the sort and the
+// view, as segments.
 //
 // #YouStrip: the viewer's place on this board and their own number in each column (the kit's @ZigStat,
 // StatPainter), or, with no place yet, the line saying how to get on it. Hidden while the board is empty.
@@ -123,6 +126,21 @@ $F.@ZigMenuFrame {
 
         Group #TabBar {
           LayoutMode: LeftWrap;
+        }
+      }
+
+      Group #SplitRow {
+        LayoutMode: Left;
+        Anchor: (Height: 44, Top: 12);
+        Visible: false;
+
+        Group #SplitBar {
+          FlexWeight: 1;
+          LayoutMode: Left;
+        }
+
+        $C.@DropdownBox #Pick {
+          Anchor: (Width: 240, Height: 32, Top: 6);
         }
       }
 

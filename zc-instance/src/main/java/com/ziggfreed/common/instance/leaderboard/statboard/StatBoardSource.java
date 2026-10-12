@@ -62,6 +62,15 @@ public interface StatBoardSource {
     }
 
     /**
+     * Whether stat {@code statId} only ever holds all-time numbers (a gauge set as it stands, a native reading),
+     * so a week, a month or a season reads none of it. A split over such stats reads All Time alone
+     * ({@link StatSplit}). False, the default.
+     */
+    default boolean allTimeOnly(@Nonnull String statId) {
+        return false;
+    }
+
+    /**
      * Before the board opens for the player at {@code ref}: set on the board what the store reads live
      * rather than counts (its native readings), so the player sees their own numbers as they stand. Nothing,
      * the default. World thread.

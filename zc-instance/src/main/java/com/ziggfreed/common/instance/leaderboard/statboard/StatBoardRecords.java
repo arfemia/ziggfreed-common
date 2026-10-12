@@ -19,6 +19,7 @@ import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.instance.leaderboard.Leaderboard;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardBucketTab;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardPageDeps;
+import com.ziggfreed.common.instance.leaderboard.LeaderboardSplit;
 import com.ziggfreed.common.instance.leaderboard.RecordsBoard;
 import com.ziggfreed.common.instance.leaderboard.StatColumnDef;
 import com.ziggfreed.common.occurrence.OccurrenceSource;
@@ -33,7 +34,8 @@ import com.ziggfreed.common.util.SafeLog;
  * {@value StatColumnDef#MAX_STAT_COLUMNS}; a section left with none shows no tab; a range shows its tab from
  * the moment it starts; a season shows one tab per run, while it is live and after it ends for as long as
  * the board keeps it. The page shows the Stats view alone, with no "All" tab on either row, since
- * neither sections nor periods add up.
+ * neither sections nor periods add up. A section split in code ({@link StatSplit}) adds its row of groups and
+ * its picker of single things under its tab.
  *
  * <p>A tab reads the period's window at the board's own time ({@link StatClock}) each time the page
  * builds, so a page left open across a turnover reads the new window at its next click. As Records opens,
@@ -52,6 +54,9 @@ public final class StatBoardRecords implements RecordsBoard {
      * bars, a nod to a bar chart, as the Achievements tab's Statistics view is pictured.
      */
     static final String PICTURE = "Ingredient_Bar_Copper";
+
+    /** What separates a split stat from its group in a group's sum key ({@code Kills+BEASTS}). */
+    private static final String SUM = "+";
 
     private StatBoardRecords() {
     }
@@ -95,14 +100,120 @@ public final class StatBoardRecords implements RecordsBoard {
         if (sectionTabs.isEmpty() || periodTabs.isEmpty()) {
             return null;
         }
+        Map<String, LeaderboardSplit> splits = new LinkedHashMap<>();
+        String allTime = allTimeTab(periodTabs);
+        for (LeaderboardBucketTab tab : sectionTabs) {
+            StatSplit split = config.splitOf(tab.bucketKey());
+            LeaderboardSplit shown = split == null ? null : split(split, source, allTime);
+            if (shown != null) {
+                splits.put(tab.bucketKey(), shown);
+            }
+        }
         return new LeaderboardPageDeps(board, sectionTabs, periodTabs, List.of(), StatBoardMessages.INSTANCE,
                 (section, period) -> bucketOf(period))
                 .withColumnsByPrimary(columns)
                 .withPrimaryPictures(pictures)
                 .withPrimaryHints(hints)
+                .withSplits(splits)
                 .withoutAllTabs()
                 .statsOnly()
                 .withMenuTab(MenuSlot.RECORDS.id());
+    }
+
+    /**
+     * A section's split as Records shows it ({@link StatSplit}): each group a choice whose columns sum its things'
+     * lines, each thing a pick with its own lines, a line the source gives no column left out, and a group or a
+     * thing left with none hidden. Pinned to {@code allTime} when every split stat holds all-time numbers alone (a
+     * gauge), so a week never reads empty. Null when nothing is left, or the groups could not be read.
+     */
+    @Nullable
+    static LeaderboardSplit split(@Nonnull StatSplit split, @Nonnull StatBoardSource source,
+                                  @Nullable String allTime) {
+        List<StatSplit.Group> groups;
+        try {
+            groups = split.groups().get();
+        } catch (RuntimeException e) {
+            SafeLog.warn("[statboard] a section's split could not list its groups, so its tab shows none", e);
+            return null;
+        }
+        if (groups == null || split.columns().isEmpty()) {
+            return null;
+        }
+        List<LeaderboardSplit.Choice> choices = new ArrayList<>();
+        for (StatSplit.Group group : groups) {
+            if (group == null || group.id().isBlank()) {
+                continue;
+            }
+            List<LeaderboardSplit.Pick> picks = new ArrayList<>();
+            List<List<String>> parts = new ArrayList<>();
+            List<StatColumnDef> formats = new ArrayList<>();
+            for (int c = 0; c < split.columns().size(); c++) {
+                parts.add(new ArrayList<>());
+                formats.add(null);
+            }
+            for (StatSplit.Thing thing : group.things()) {
+                List<StatColumnDef> own = new ArrayList<>();
+                for (int c = 0; c < split.columns().size(); c++) {
+                    StatSplit.Column column = split.columns().get(c);
+                    StatColumnDef line = columnOf(column.stat() + "/" + thing.id(), source);
+                    if (line == null) {
+                        continue;
+                    }
+                    own.add(new StatColumnDef(line.statKey(), column.label(), line.format(), line.ascending()));
+                    parts.get(c).add(line.statKey());
+                    formats.set(c, line);
+                }
+                if (!own.isEmpty()) {
+                    picks.add(new LeaderboardSplit.Pick(thing.id(), thing.label(), own));
+                }
+            }
+            List<StatColumnDef> sums = new ArrayList<>();
+            for (int c = 0; c < split.columns().size(); c++) {
+                StatSplit.Column column = split.columns().get(c);
+                if (formats.get(c) != null) {
+                    // Named by the stat and the group, a key no stored line can be (no '/' before the group).
+                    sums.add(StatColumnDef.summing(column.stat() + SUM + group.id(), column.label(),
+                            formats.get(c).format(), parts.get(c), column.partsOver()));
+                }
+            }
+            if (!picks.isEmpty() && !sums.isEmpty()) {
+                choices.add(new LeaderboardSplit.Choice(group.id(), group.label(), sums, picks));
+            }
+        }
+        if (choices.isEmpty()) {
+            return null;
+        }
+        boolean allTimeOnly = true;
+        for (StatSplit.Column column : split.columns()) {
+            allTimeOnly &= allTimeOnly(column.stat(), source);
+        }
+        return new LeaderboardSplit(split.allLabel(), split.pickAllLabel(), choices, split.shows(),
+                allTimeOnly ? allTime : null);
+    }
+
+    /** Whether the source says {@code stat} holds all-time numbers alone; a source that throws says no. */
+    private static boolean allTimeOnly(@Nonnull String stat, @Nonnull StatBoardSource source) {
+        try {
+            return source.allTimeOnly(stat);
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
+    /** The period row's All Time tab (its period's id), or null when the row holds none. */
+    @Nullable
+    private static String allTimeTab(@Nonnull List<LeaderboardBucketTab> periodTabs) {
+        for (StatPeriod period : StatPeriodConfig.getInstance().periods()) {
+            if (period.kind() != PeriodKind.ALL_TIME) {
+                continue;
+            }
+            for (LeaderboardBucketTab tab : periodTabs) {
+                if (tab.bucketKey().equals(period.id())) {
+                    return tab.bucketKey();
+                }
+            }
+        }
+        return null;
     }
 
     /**
