@@ -44,7 +44,8 @@
     },
     "Tone": "Info",
     "EveryPercent": 25,
-    "PlayerLevel": true
+    "PlayerLevel": true,
+    "Priority": 1
   },
   "Variants": [
     {
@@ -55,7 +56,8 @@
           "Args": ["step"]
         },
         "Tone": "Success",
-        "PlayerLevel": true
+        "PlayerLevel": true,
+        "Priority": 1
       }
     }
   ]

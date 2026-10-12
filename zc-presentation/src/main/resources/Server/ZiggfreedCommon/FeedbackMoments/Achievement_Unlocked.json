@@ -37,7 +37,8 @@
       "Args": ["points"]
     },
     "Tone": "Reward",
-    "PlayerLevel": true
+    "PlayerLevel": true,
+    "Priority": 2
   },
   "Sound": {
     "Id": "SFX_Capture_Crate_Capture_Succeed_Local"

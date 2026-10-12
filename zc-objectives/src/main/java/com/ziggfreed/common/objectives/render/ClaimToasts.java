@@ -34,13 +34,22 @@ public final class ClaimToasts {
     }
 
     /**
+     * The in-page rank of a completion or claim toast built on a page, the same rank the library's
+     * {@code Quest_Completed}, {@code Quest_Parked} and claim moments ship with, so a step's progress
+     * notice fired in the same moment never replaces it ({@link ToastSpec#withPriority}).
+     */
+    public static final int CLAIM_PRIORITY = 3;
+
+    /**
      * The gold claim toast for {@code rewards}. An empty payout degrades to the plain headline;
-     * {@code source} is the consumer's own chip reading, exactly as on every chip surface.
+     * {@code source} is the consumer's own chip reading, exactly as on every chip surface. Ranked
+     * {@link #CLAIM_PRIORITY}.
      */
     @Nonnull
     public static ToastSpec rewardToast(@Nonnull Message headline, @Nonnull List<RewardSpec> rewards,
             @Nullable RewardChips.Source source, @Nullable IntFunction<Message> overflow) {
         return ToastSpec.of(ToastKind.REWARD, headline)
-                .withLines(RewardToastLines.lines(rewards, source, overflow));
+                .withLines(RewardToastLines.lines(rewards, source, overflow))
+                .withPriority(CLAIM_PRIORITY);
     }
 }

@@ -32,13 +32,24 @@ public final class ToastController {
         this.surface = surface;
     }
 
-    /** Show {@code spec} now (push), schedule its auto-dismiss (push). */
+    /** Show {@code spec} now (push), schedule its auto-dismiss (push). {@link #offer} answering nothing. */
     public void show(@Nonnull ToastSpec spec) {
+        offer(spec);
+    }
+
+    /**
+     * {@link #show}, answering whether it showed: false when there is no player, or when a higher-ranked
+     * toast still on screen kept it off ({@link ToastStore#HELD_BACK}), so it was dropped from the page.
+     */
+    public boolean offer(@Nonnull ToastSpec spec) {
         UUID id = playerId.get();
         if (id == null) {
-            return;
+            return false;
         }
         final long gen = ToastStore.show(id, spec);
+        if (gen == ToastStore.HELD_BACK) {
+            return false;
+        }
 
         UICommandBuilder showCmd = new UICommandBuilder();
         ToastRenderer.apply(showCmd, spec);
@@ -52,6 +63,7 @@ public final class ToastController {
                 surface.push(idleCmd);
             }
         }, ttl, TimeUnit.MILLISECONDS);
+        return true;
     }
 
     /**
@@ -67,6 +79,9 @@ public final class ToastController {
             return;
         }
         final long gen = ToastStore.show(id, spec);
+        if (gen == ToastStore.HELD_BACK) {
+            return;
+        }
         long ttl = spec.durationMs() > 0 ? spec.durationMs() : DEFAULT_TTL_MS;
         HytaleServer.SCHEDULED_EXECUTOR.schedule(() -> {
             if (ToastStore.clearIfCurrent(id, gen)) {

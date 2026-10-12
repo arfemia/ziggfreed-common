@@ -213,8 +213,9 @@ public abstract class ToastablePage<T> extends InteractiveCustomUIPage<T> {
 
     /** Show a fully-specified toast (custom duration / title / icon / lines / sound). */
     protected void showToast(@Nonnull ToastSpec spec) {
-        toast.show(spec);
-        playToastSound(spec);
+        if (toast.offer(spec)) {
+            playToastSound(spec);
+        }
     }
 
     /**

@@ -292,6 +292,7 @@ public final class FeedbackMomentAsset
         @Nullable protected Integer everyPercent;
         @Nullable protected Boolean merge;
         @Nullable protected Boolean playerLevel;
+        @Nullable protected Integer priority;
 
         public static final BuilderCodec<Toast> CODEC = BuilderCodec.builder(Toast.class, Toast::new)
                 .appendInherited(new KeyedCodec<>("Title", Line.CODEC, false),
@@ -363,9 +364,25 @@ public final class FeedbackMomentAsset
                         + "drawn into an open page it still shows. A variant replaces the whole toast, so "
                         + "restate it there.")
                 .add()
+                .appendInherited(new KeyedCodec<>("Priority", Codec.INTEGER, false),
+                        (o, v) -> o.priority = v, o -> o.priority, (o, p) -> o.priority = p.priority)
+                .metadata(EditorSchema.defaultValue(0))
+                .documentation("Ranks this toast against the others drawn into an open page in the same "
+                        + "moment: a ranked toast never replaces a higher-ranked one still on screen, which "
+                        + "stays for its full time while the lower one is dropped. The library ships a "
+                        + "quest step's progress at 1, an achievement earned at 2 and a quest completed, "
+                        + "waiting to be collected or collected at 3. Left out (0) the toast is unranked: "
+                        + "it always shows and holds nothing back. The corner feed is unaffected. A "
+                        + "variant replaces the whole toast, so restate it there.")
+                .add()
                 .build();
 
         public Toast() {
+        }
+
+        /** The in-page rank ({@code ToastSpec.withPriority}); 0, unranked, when unauthored. */
+        public int priority() {
+            return priority == null ? 0 : Math.max(0, priority);
         }
 
         @Nullable

@@ -453,6 +453,7 @@ public final class FeedbackEngine {
         return ToastSpec.of(spec.tone(), title)
                 .withIcon(icon(args))
                 .withLines(rows)
+                .withPriority(spec.priority())
                 .silent();
     }
 

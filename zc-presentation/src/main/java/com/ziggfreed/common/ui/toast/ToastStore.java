@@ -25,13 +25,33 @@ public final class ToastStore {
     private static final ConcurrentHashMap<UUID, Entry> ACTIVE = new ConcurrentHashMap<>();
     private static final AtomicLong GEN = new AtomicLong();
 
+    /** What {@link #show} answers when a higher-ranked toast is still on screen and keeps it. */
+    public static final long HELD_BACK = -1L;
+
     private ToastStore() {}
 
-    /** Set the player's current toast; returns the generation token for the matching clear. */
+    /**
+     * Set the player's current toast; returns the generation token for the matching clear, or
+     * {@link #HELD_BACK} when the toast still on screen outranks it ({@link #outranks}), which then
+     * stays for its full time while this one is dropped.
+     */
     public static long show(@Nonnull UUID playerId, @Nonnull ToastSpec spec) {
         long g = GEN.incrementAndGet();
-        ACTIVE.put(playerId, new Entry(spec, g));
-        return g;
+        Entry fresh = new Entry(spec, g);
+        Entry kept = ACTIVE.compute(playerId,
+                (id, current) -> current != null && outranks(current.spec(), spec) ? current : fresh);
+        return kept == fresh ? g : HELD_BACK;
+    }
+
+    /**
+     * Does {@code showing} keep {@code incoming} off the screen? Only when both are ranked and the one
+     * showing ranks higher: an unranked toast (a page's own answer to a click) always shows, and an
+     * equal rank replaces as before. A lower-ranked notice that meets a higher one still showing is
+     * dropped from the page, not queued: it still shows in the book (and on the quest tracker), and its
+     * moment's sound still plays.
+     */
+    static boolean outranks(@Nonnull ToastSpec showing, @Nonnull ToastSpec incoming) {
+        return incoming.priority() > 0 && showing.priority() > incoming.priority();
     }
 
     /** The player's current toast, or {@code null} if none is showing. */

@@ -134,6 +134,13 @@ public final class CommercePageDeps {
     /** Everything at its library default: two pages that work on a server running nothing else. */
     public static final CommercePageDeps DEFAULTS = builder().build();
 
+    /**
+     * The in-page rank of a contract's completion toast, the rank the library's {@code Quest_Completed},
+     * {@code Quest_Parked} and claim moments ship with, so a step's progress notice fired in the same
+     * moment never replaces it ({@code ToastSpec.withPriority}).
+     */
+    private static final int CLAIM_PRIORITY = 3;
+
     @Nonnull private final PageTheme theme;
     @Nonnull private final CurrencyText.Source currencyNames;
     @Nonnull private final CommerceText.ArgResolver titleArgs;
@@ -224,7 +231,7 @@ public final class CommercePageDeps {
             @Nullable IntFunction<Message> overflow) {
         if (paid == null) {
             // Silent: the engine's Quest_Parked moment for the same press owns the sound.
-            return ToastSpec.of(ToastKind.SUCCESS, parkedHeadline).silent();
+            return ToastSpec.of(ToastKind.SUCCESS, parkedHeadline).silent().withPriority(CLAIM_PRIORITY);
         }
         return resolveCompletionToast(bountyId, paid.receipt(), paidHeadline, overflow);
     }
@@ -252,7 +259,8 @@ public final class CommercePageDeps {
             // A consumer's toast failing costs its own line, never the hand-in that earned it.
         }
         return ToastSpec.of(ToastKind.REWARD, headline)
-                .withLines(RewardToastLines.lines(rewards, rewardChips, overflow));
+                .withLines(RewardToastLines.lines(rewards, rewardChips, overflow))
+                .withPriority(CLAIM_PRIORITY);
     }
 
     /** Immutable-by-copy assembly; every knob defaults to the library's own answer. */

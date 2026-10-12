@@ -35,7 +35,8 @@
       "Args": ["title"]
     },
     "Tone": "Reward",
-    "PlayerLevel": true
+    "PlayerLevel": true,
+    "Priority": 3
   },
   "Sound": {
     "Id": "SFX_Discovery_Z1_Short"
@@ -49,7 +50,8 @@
           "Args": ["title"]
         },
         "Tone": "Error",
-        "PlayerLevel": true
+        "PlayerLevel": true,
+        "Priority": 3
       },
       "Sound": {}
     }

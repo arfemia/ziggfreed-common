@@ -295,7 +295,8 @@ public final class NpcQuestPageDeps {
             @Nullable IntFunction<Message> overflow) {
         if (paid == null) {
             // Silent: the engine's Quest_Parked moment for the same press owns the sound.
-            return ToastSpec.of(ToastKind.SUCCESS, parkedHeadline).silent();
+            return ToastSpec.of(ToastKind.SUCCESS, parkedHeadline).silent()
+                    .withPriority(ClaimToasts.CLAIM_PRIORITY);
         }
         return resolveCompletionToast(quest, paid.receipt(), paidHeadline, overflow);
     }

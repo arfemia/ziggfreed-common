@@ -31,10 +31,12 @@ public final class ToastSpec {
     @Nonnull private final List<ToastLine> lines;
     @Nullable private final String soundOverride;
     private final boolean silent;
+    private final int priority;
 
     private ToastSpec(@Nonnull ToastKind kind, @Nonnull Message message,
                       @Nullable String iconItemId, long durationMs,
-                      @Nonnull List<ToastLine> lines, @Nullable String soundOverride, boolean silent) {
+                      @Nonnull List<ToastLine> lines, @Nullable String soundOverride, boolean silent,
+                      int priority) {
         this.kind = kind;
         this.message = message;
         this.iconItemId = iconItemId;
@@ -42,38 +44,57 @@ public final class ToastSpec {
         this.lines = lines;
         this.soundOverride = soundOverride;
         this.silent = silent;
+        this.priority = priority;
     }
 
     @Nonnull
     public static ToastSpec of(@Nonnull ToastKind kind, @Nonnull Message message) {
-        return new ToastSpec(kind, message, null, 0L, List.of(), null, false);
+        return new ToastSpec(kind, message, null, 0L, List.of(), null, false, 0);
     }
 
     @Nonnull
     public ToastSpec withDuration(long ms) {
-        return new ToastSpec(kind, message, iconItemId, ms, lines, soundOverride, silent);
+        return new ToastSpec(kind, message, iconItemId, ms, lines, soundOverride, silent, priority);
     }
 
     @Nonnull
     public ToastSpec withIcon(@Nullable String iconItemId) {
-        return new ToastSpec(kind, message, iconItemId, durationMs, lines, soundOverride, silent);
+        return new ToastSpec(kind, message, iconItemId, durationMs, lines, soundOverride, silent, priority);
     }
 
     @Nonnull
     public ToastSpec withLines(@Nonnull List<ToastLine> lines) {
-        return new ToastSpec(kind, message, iconItemId, durationMs, List.copyOf(lines), soundOverride, silent);
+        return new ToastSpec(kind, message, iconItemId, durationMs, List.copyOf(lines), soundOverride, silent,
+                priority);
     }
 
     /** Replace the kind's default SFX with {@code soundId} (null falls back to the kind default). */
     @Nonnull
     public ToastSpec withSound(@Nullable String soundId) {
-        return new ToastSpec(kind, message, iconItemId, durationMs, lines, soundId, silent);
+        return new ToastSpec(kind, message, iconItemId, durationMs, lines, soundId, silent, priority);
     }
 
     /** Suppress all SFX for this toast (its sound is owned elsewhere, or a chime is unwanted). */
     @Nonnull
     public ToastSpec silent() {
-        return new ToastSpec(kind, message, iconItemId, durationMs, lines, soundOverride, true);
+        return new ToastSpec(kind, message, iconItemId, durationMs, lines, soundOverride, true, priority);
+    }
+
+    /**
+     * Rank this toast against the others raised in the same moment ({@link ToastStore#show}): a ranked
+     * toast ({@code priority > 0}) never replaces a higher-ranked one still on screen, so a payout's
+     * notice is not overwritten by a progress tick fired a moment later. 0, the default, is unranked: it
+     * always shows, as a page's own answer to a click does, and holds nothing back.
+     */
+    @Nonnull
+    public ToastSpec withPriority(int priority) {
+        return new ToastSpec(kind, message, iconItemId, durationMs, lines, soundOverride, silent,
+                Math.max(0, priority));
+    }
+
+    /** This toast's rank; 0 is unranked ({@link #withPriority}). */
+    public int priority() {
+        return priority;
     }
 
     @Nonnull
