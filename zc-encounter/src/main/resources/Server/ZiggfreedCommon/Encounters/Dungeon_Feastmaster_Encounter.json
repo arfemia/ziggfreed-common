@@ -1,0 +1,24 @@
+{
+  "$Comment": [
+    "The binding row for the game's own Feastmaster fight, the boss of the goblin Deepworks",
+    "(Dungeon_Feastmaster_Encounter). The script shows a boss bar, so the library already runs and",
+    "credits the fight without a row; this row only names it and keeps its records (wins, fastest",
+    "win, best share, damage) on Records' Boss Fights under the bucket dungeon_feastmaster.",
+    "",
+    "Subject.TargetSlot names the script's own slot for the boss (Feastmaster), so the library binds",
+    "the boss it credits; a row left at the default Boss would bind nothing. Beyond that it writes",
+    "nothing on purpose: no Scale, Loot, Timing, Feedback or Discovery, so the fight runs exactly as",
+    "the game authored it, under the library's defaults (no extra health, no pay, no map marker, no",
+    "rest). Add a group here to change one of those for your server. Switch the row off with Enabled",
+    "false, or from mods/ziggfreedcommon/encounters.json under the key dungeon_feastmaster_encounter,",
+    "and the fight keeps no records."
+  ],
+  "EncounterAsset": "Dungeon_Feastmaster_Encounter",
+  "NameKey": "server.npcRoles.Dungeon_Feastmaster_Boss.name",
+  "Subject": {
+    "TargetSlot": "Feastmaster"
+  },
+  "Leaderboard": {
+    "Bucket": "dungeon_feastmaster"
+  }
+}

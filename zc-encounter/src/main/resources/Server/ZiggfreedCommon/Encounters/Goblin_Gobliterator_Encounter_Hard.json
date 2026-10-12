@@ -1,0 +1,25 @@
+{
+  "$Comment": [
+    "The binding row for the Gobliterator's hard mode (Goblin_Gobliterator_Encounter_Hard), the fight",
+    "the arena's difficulty lever switches on. It keeps its records on Records' Boss Fights in a tab",
+    "of its own, under the bucket goblin_gobliterator_hard and the game's own hard-mode name (the one",
+    "its boss bar shows), beside the standard fight's tab. Progression.Difficulty labels its runs",
+    "hard, which every credited player's ENCOUNTER_DEFEATED carries as its Qualifier, so a step,",
+    "contract or achievement can ask for a hard win alone.",
+    "",
+    "Like the standard row it names the script's own slot for the machine (Gobliterator) and writes",
+    "nothing else, so the fight runs as the game authored it. Switch it off with Enabled false, or",
+    "from mods/ziggfreedcommon/encounters.json under the key goblin_gobliterator_encounter_hard."
+  ],
+  "EncounterAsset": "Goblin_Gobliterator_Encounter_Hard",
+  "NameKey": "server.npcRoles.Goblin_Gobliterator_HM.name",
+  "Subject": {
+    "TargetSlot": "Gobliterator"
+  },
+  "Leaderboard": {
+    "Bucket": "goblin_gobliterator_hard"
+  },
+  "Progression": {
+    "Difficulty": "hard"
+  }
+}

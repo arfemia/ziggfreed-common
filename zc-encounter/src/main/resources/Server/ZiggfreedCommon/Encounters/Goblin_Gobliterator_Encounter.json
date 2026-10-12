@@ -1,0 +1,25 @@
+{
+  "$Comment": [
+    "The binding row for the game's own Gobliterator fight in the goblin Deepworks, its standard",
+    "mode (Goblin_Gobliterator_Encounter). The script shows a boss bar, so the library already runs",
+    "and credits the fight without a row; this row names it and keeps its records (wins, fastest",
+    "win, best share, damage) on Records' Boss Fights under the bucket goblin_gobliterator. Its hard",
+    "mode is a script of its own, Goblin_Gobliterator_Encounter_Hard, whose row keeps a tab of its",
+    "own under the game's hard-mode name.",
+    "",
+    "Subject.TargetSlot names the script's own slot for the machine (Gobliterator), so the library",
+    "binds the boss it credits through every phase; a row left at the default Boss would bind",
+    "nothing. Beyond that it writes nothing on purpose: no Scale, Loot, Timing, Feedback or",
+    "Discovery, so the fight runs exactly as the game authored it, under the library's defaults (no",
+    "extra health, no pay, no map marker, no rest). Switch the row off with Enabled false, or from",
+    "mods/ziggfreedcommon/encounters.json under the key goblin_gobliterator_encounter."
+  ],
+  "EncounterAsset": "Goblin_Gobliterator_Encounter",
+  "NameKey": "server.npcRoles.Goblin_Gobliterator.name",
+  "Subject": {
+    "TargetSlot": "Gobliterator"
+  },
+  "Leaderboard": {
+    "Bucket": "goblin_gobliterator"
+  }
+}
