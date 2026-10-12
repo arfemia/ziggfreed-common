@@ -22,9 +22,11 @@ import org.junit.jupiter.api.Test;
  * caller that tries again stands a second one beside it (break list X29: the hub NPC on a headless boot).
  * zc-world's {@code world/TickingSections} is the one place that reads and wakes a section.
  *
- * <p><b>The kept column reads.</b> {@code NpcPlacementService.isChunkLoaded} and {@code requestChunk} keep
- * their 2.2.0 descriptors and their column reads for a consumer that links them; nothing in the library
- * calls them, and this test holds that file to exactly those two lines.
+ * <p><b>The kept column request.</b> {@code NpcPlacementService.isChunkLoaded} and {@code requestChunk} keep
+ * their 2.2.0 descriptors for a consumer that links them, and nothing in the library calls them.
+ * {@code isChunkLoaded} reads the column's {@code NonTicking} component (Update 7's final release dropped
+ * {@code ChunkFlag.TICKING}), so only {@code requestChunk}'s column request still matches, and this test
+ * holds that file to exactly that one line.
  *
  * <p>Comments and string literals are blanked first ({@code BlockAccessorHygieneTest}'s blanker), so prose
  * naming the flags passes.
@@ -40,8 +42,8 @@ class SectionTickingHygieneTest {
     /** The 2.2.0 column methods kept for linkage. */
     private static final String KEPT = "zc-dialogue/src/main/java/com/ziggfreed/common/npc/placement/runtime/NpcPlacementService.java";
 
-    /** {@code isChunkLoaded}'s flag read and {@code requestChunk}'s column request. */
-    private static final int KEPT_LINES = 2;
+    /** {@code requestChunk}'s column request ({@code isChunkLoaded} reads {@code NonTicking}, which never matches). */
+    private static final int KEPT_LINES = 1;
 
     @Test
     void noLibraryMainSourceDecidesAnEntitysStayFromTheColumn() throws IOException {
@@ -56,12 +58,13 @@ class SectionTickingHygieneTest {
     }
 
     @Test
-    void theKeptColumnMethodsHoldExactlyTheirTwoLines() throws IOException {
+    void theKeptColumnMethodsHoldExactlyOneLine() throws IOException {
         List<String> kept = BlockAccessorHygieneTest.mainSourceHits(COLUMN_TICKING).stream()
                 .filter(hit -> slashed(hit).contains(KEPT))
                 .toList();
-        assertEquals(KEPT_LINES, kept.size(), () -> "NpcPlacementService keeps isChunkLoaded's column flag read and"
-                + " requestChunk's column request for 2.2.0 linkage, and nothing else:\n" + String.join("\n", kept));
+        assertEquals(KEPT_LINES, kept.size(), () -> "NpcPlacementService keeps requestChunk's column request for"
+                + " 2.2.0 linkage, and nothing else (isChunkLoaded reads NonTicking, never ChunkFlag.TICKING):\n"
+                + String.join("\n", kept));
     }
 
     @Nonnull

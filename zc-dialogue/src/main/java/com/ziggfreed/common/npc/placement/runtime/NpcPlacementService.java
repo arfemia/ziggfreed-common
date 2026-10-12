@@ -24,7 +24,6 @@ import com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntitySta
 import com.hypixel.hytale.server.core.modules.entitystats.modifier.Modifier;
 import com.hypixel.hytale.server.core.modules.entitystats.modifier.StaticModifier;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.chunk.ChunkFlag;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.chunk.section.EntitySection;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
@@ -355,14 +354,26 @@ public final class NpcPlacementService {
      * Is the chunk COLUMN containing {@code (x, z)} resident and ticking?
      *
      * <p>Kept for a consumer linking 2.2.0; the library no longer asks it. On Update 7 a column's ticking
-     * flag does not say whether an entity added in it stays: a chunk section loads asleep whatever its
+     * state does not say whether an entity added in it stays: a chunk section loads asleep whatever its
      * column does, and an entity added into a sleeping section is parked on the spot. The reconciler reads
      * the anchor's own section through zc-world's {@code world/TickingSections.stateAt}.
+     *
+     * <p>A column ticks when its chunk entity carries no {@code NonTicking}, the one record of it on
+     * Update 7's final release, which dropped the column's ticking flag (the pre-release kept the two in
+     * step, so the answer is the same on both).
      */
     public static boolean isChunkLoaded(@Nonnull World world, double x, double z) {
         try {
             WorldChunk chunk = residentChunk(world, ChunkUtil.indexChunkFromBlock(x, z));
-            return chunk != null && chunk.is(ChunkFlag.TICKING);
+            if (chunk == null) {
+                return false;
+            }
+            Ref<ChunkStore> chunkRef = chunk.getReference();
+            if (chunkRef == null || !chunkRef.isValid()) {
+                return false;
+            }
+            return world.getChunkStore().getStore()
+                    .getComponent(chunkRef, ChunkStore.REGISTRY.getNonTickingComponentType()) == null;
         } catch (Throwable t) {
             SafeLog.fine("[placement] chunk-loaded check failed: " + t.getMessage());
             return false;
