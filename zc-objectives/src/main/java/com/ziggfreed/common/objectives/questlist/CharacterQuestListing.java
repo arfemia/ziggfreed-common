@@ -92,10 +92,15 @@ public final class CharacterQuestListing {
         return new ArrayList<>(out.values());
     }
 
-    /** Is this character where the quest's outstanding step resolves, under any id it answers to? */
+    /**
+     * Is this character where the quest's outstanding step resolves, under any id it answers to? A hand-in
+     * that names no place counts nowhere here ({@link QuestEngine#nextStepNamesPlace}): it can be made
+     * anywhere, so it is no one character's business, and reading it as here would list the quest on every
+     * character's page at once.
+     */
     public boolean readyHere(@Nonnull Quest quest) {
         for (String id : answersTo) {
-            if (engine.readyToTurnInAt(subject, quest, id)) {
+            if (engine.nextStepNamesPlace(subject, quest, id)) {
                 return true;
             }
         }

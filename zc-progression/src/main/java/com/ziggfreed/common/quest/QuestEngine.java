@@ -871,13 +871,23 @@ public final class QuestEngine implements QuestStateReader {
     @Nullable
     public ObjectiveDef firstActiveTurnIn(@Nonnull Subject subject, @Nonnull Quest quest,
                                                @Nullable String atId) {
+        return firstActiveTurnIn(subject, quest, atId, true);
+    }
+
+    /**
+     * {@link #firstActiveTurnIn(Subject, Quest, String)}, skipping every hand-in that names no place when
+     * {@code anywhere} is false: then only a hand-in locked to {@code atId} qualifies.
+     */
+    @Nullable
+    private ObjectiveDef firstActiveTurnIn(@Nonnull Subject subject, @Nonnull Quest quest,
+                                           @Nullable String atId, boolean anywhere) {
         Map<String, ObjectiveProgressState> progress = progressOf(subject, quest.id());
         for (ObjectiveDef objective : quest.objectives()) {
             if (!isTurnIn(objective)) {
                 continue;
             }
             String lockedTo = objective.turnInLockId();
-            if (lockedTo != null && (atId == null || !lockedTo.equalsIgnoreCase(atId))) {
+            if (lockedTo == null ? !anywhere : (atId == null || !lockedTo.equalsIgnoreCase(atId))) {
                 continue;
             }
             ObjectiveProgressState state = progress.get(objective.id());
@@ -903,6 +913,26 @@ public final class QuestEngine implements QuestStateReader {
      * check for actually OFFERING the hand-in.
      */
     public boolean readyToTurnInAt(@Nonnull Subject subject, @Nonnull Quest quest, @Nullable String atId) {
+        return nextStepAt(subject, quest, atId, true);
+    }
+
+    /**
+     * {@link #readyToTurnInAt}, counting a hand-in only when it is locked to {@code atId}: is this place
+     * the one the quest's outstanding step NAMES? A hand-in that names no place can be made anywhere, so it
+     * belongs to no one place, and a listing of a place's own business asks this (a character's quest list)
+     * so such a quest does not turn up at every place at once. {@link #readyToTurnInAt} still answers yes
+     * everywhere for it, which is what marks a destination and offers the hand-in wherever the player is.
+     */
+    public boolean nextStepNamesPlace(@Nonnull Subject subject, @Nonnull Quest quest, @Nullable String atId) {
+        return nextStepAt(subject, quest, atId, false);
+    }
+
+    /**
+     * The one body of {@link #readyToTurnInAt} ({@code anywhere} true) and {@link #nextStepNamesPlace}
+     * ({@code anywhere} false): whether a hand-in that names no place counts as here.
+     */
+    private boolean nextStepAt(@Nonnull Subject subject, @Nonnull Quest quest, @Nullable String atId,
+                               boolean anywhere) {
         if (atId == null || atId.isBlank()) {
             return false;
         }
@@ -910,7 +940,7 @@ public final class QuestEngine implements QuestStateReader {
         if (status(subject, quest) != QuestStatus.ACTIVE || !quest.available()) {
             return false;
         }
-        if (firstActiveTurnIn(subject, quest, atId) != null) {
+        if (firstActiveTurnIn(subject, quest, atId, anywhere) != null) {
             return true;
         }
         Map<String, ObjectiveProgressState> progress = progressOf(subject, quest.id());

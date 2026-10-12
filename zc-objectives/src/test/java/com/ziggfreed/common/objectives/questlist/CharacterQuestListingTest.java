@@ -136,6 +136,25 @@ class CharacterQuestListingTest {
         assertFalse(elsewhere.settlesHere(quest));
     }
 
+    /**
+     * A hand-in that names no place (a board contract's delivery) can be made anywhere, so it is no
+     * character's business: it lists on no unrelated character's page, while the engine still offers the
+     * hand-in wherever the player stands.
+     */
+    @Test
+    void aHandInThatNamesNoPlaceListsOnNoUnrelatedCharacter() {
+        Quest quest = Quest.builder("q_deliver")
+                .objective(ObjectiveDef.builder("give", "TURN_IN").target("Pumpkin").amount(3).build())
+                .build();
+        engine.setQuests(List.of(quest));
+        assertTrue(engine.accept(player, quest, "board"));
+
+        CharacterQuestListing atStranger = new CharacterQuestListing(engine, player, Set.of("stranger"));
+        assertTrue(engine.readyToTurnInAt(player, quest, "stranger"), "the hand-in is still offered anywhere");
+        assertFalse(atStranger.readyHere(quest), "a hand-in that names no place is not this character's");
+        assertTrue(atStranger.questsHere().isEmpty(), "so it does not list on an unrelated character");
+    }
+
     @Test
     void aFinishedQuestWaitingToBeCollectedIsReadyWhereItMayBeCollected() {
         Quest quest = gather("q_gather");
