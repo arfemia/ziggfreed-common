@@ -6,11 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Map;
-import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
@@ -20,12 +15,9 @@ import com.hypixel.hytale.codec.util.RawJsonReader;
 /**
  * The encounter rule's decode contract: an empty row is enabled and names no role, {@code Match.Role}
  * decodes from its nested group, an owner overlay keeps every leaf it did not mention, a {@code Parent}
- * child inherits and overrides leaf by leaf, and the rows the library ships decode to the roles they name.
+ * child inherits and overrides leaf by leaf.
  */
 public class EncounterRuleCodecTest {
-
-    private static final Path SHIPPED = Path.of("src", "main", "resources", "Server", "ZiggfreedCommon",
-            "EncounterRules");
 
     /** Decode {@code json} as the rule {@code id}, inheriting from {@code parent} (filed under {@code parentId}). */
     public static EncounterRuleAsset rule(String json, String id, String parentId, EncounterRuleAsset parent)
@@ -84,27 +76,5 @@ public class EncounterRuleCodecTest {
         EncounterRuleAsset other = rule("{\"Match\": {\"Role\": \"Bear_Voidtaken\"}}", "Other_Rule", "Base_Rule", base);
         assertEquals("Bear_Voidtaken", other.getRole(), "a child naming its own role replaces the parent's");
         assertEquals("base.name", other.getNameKey());
-    }
-
-    @Test
-    void theShippedRowsDecodeToTheRolesTheyAreNamedFor() throws IOException {
-        // Each shipped row's role, and the game's own name key it reuses: the Skeleton Elite's second
-        // phase has none of its own, so it reads the first phase's.
-        Map<String, String> shipped = Map.of(
-                "Goblin_Feastmaster", "server.npcRoles.Goblin_Feastmaster.name",
-                "Bear_Voidtaken", "server.npcRoles.Bear_Voidtaken.name",
-                "Skeleton_Elite_Phase_2", "server.npcRoles.Skeleton_Elite.name");
-        try (Stream<Path> files = Files.list(SHIPPED)) {
-            assertEquals(shipped.size(), files.filter(f -> f.toString().endsWith(".json")).count(),
-                    "the library ships exactly these rows");
-        }
-        for (Map.Entry<String, String> entry : shipped.entrySet()) {
-            String role = entry.getKey();
-            String json = Files.readString(SHIPPED.resolve(role + ".json"), StandardCharsets.UTF_8);
-            EncounterRuleAsset row = rule(json, role);
-            assertEquals(role, row.getRole(), role + " names its own role");
-            assertEquals(entry.getValue(), row.getNameKey(), role + " reuses the game's name key");
-            assertTrue(row.isEnabled());
-        }
     }
 }

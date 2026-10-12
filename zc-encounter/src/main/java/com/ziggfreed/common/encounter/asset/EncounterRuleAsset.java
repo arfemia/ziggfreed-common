@@ -19,8 +19,8 @@ import com.ziggfreed.common.asset.EditorSchema;
  *
  * <pre>{@code
  * {
- *   "Match":   { "Role": "Goblin_Feastmaster" },
- *   "NameKey": "server.npcRoles.Goblin_Feastmaster.name"
+ *   "Match":   { "Role": "Bear_Voidtaken" },
+ *   "NameKey": "server.npcRoles.Bear_Voidtaken.name"
  * }
  * }</pre>
  *
@@ -117,7 +117,7 @@ public final class EncounterRuleAsset
         public static final BuilderCodec<Match> CODEC = BuilderCodec.builder(Match.class, Match::new)
                 .appendInherited(new KeyedCodec<>("Role", Codec.STRING, false),
                         (o, v) -> o.role = v, o -> o.role, (o, p) -> o.role = p.role)
-                .documentation("The NPC role id, exactly as the role's file is named (Goblin_Feastmaster); "
+                .documentation("The NPC role id, exactly as the role's file is named (Bear_Voidtaken); "
                         + "case is ignored, and a copy of the role under another id never matches.")
                 .add()
                 .build();

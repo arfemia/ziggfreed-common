@@ -1,18 +1,23 @@
 {
   "$Comment": [
-    "A Goblin Feastmaster kill counts as a boss fight, attempted and won, for the player who lands the",
-    "killing blow: a quest step, a contract or an achievement counting boss fights counts it, with",
-    "Goblin_Feastmaster as the target. The game runs this fight without a boss bar, so the library",
-    "keeps no run for it and this row is how it counts.",
+    "The Feastmaster, the boss of the goblin Deepworks. Its fight shows a boss bar, so the library",
+    "runs it by its encounter script and credits every player the fight counted under the script id",
+    "Dungeon_Feastmaster_Encounter; this row never counts that fight twice, since a creature a live",
+    "fight holds is never credited here.",
     "",
-    "Match.Role is the role id exactly, case ignored, so a copy of the Feastmaster under another role",
-    "id never counts. NameKey names the fight with the game's own name for the creature.",
+    "This row is for a Feastmaster killed outside its fight (one a builder spawned on its own, with no",
+    "encounter around it): the player who lands the killing blow is credited with a boss fight,",
+    "attempted and won, with Dungeon_Feastmaster_Boss as the target.",
+    "",
+    "Match.Role is the role id exactly, case ignored, so a copy under another role id never counts.",
+    "NameKey names the fight with the game's own name for the creature. The file keeps its old name so",
+    "an owner override under goblin_feastmaster still reaches it.",
     "",
     "Switch it off with Enabled false, or from mods/ziggfreedcommon/encounter-rules.json under the key",
-    "goblin_feastmaster, and the kill counts as a kill and nothing more."
+    "goblin_feastmaster, and such a kill counts as a kill and nothing more."
   ],
   "Match": {
-    "Role": "Goblin_Feastmaster"
+    "Role": "Dungeon_Feastmaster_Boss"
   },
-  "NameKey": "server.npcRoles.Goblin_Feastmaster.name"
+  "NameKey": "server.npcRoles.Dungeon_Feastmaster_Boss.name"
 }
