@@ -175,7 +175,7 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
             UiText.setText(cmd, "#ViewLbBtn.Text", t.viewLeaderboardButton());
             events.addEventBinding(CustomUIEventBindingType.Activating, "#ViewLbBtn", EventData.of("Action", "leaderboard"));
         }
-        if (actions != null) {
+        if (actions != null && actions.offersPlayAgain()) {
             cmd.set("#PlayAgainBtn.Visible", true);
             UiText.setText(cmd, "#PlayAgainBtn.Text", t.playAgainButton());
             events.addEventBinding(CustomUIEventBindingType.Activating, "#PlayAgainBtn", EventData.of("Action", "again"));
@@ -232,7 +232,7 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
             actions.viewLeaderboard(ref, store, result.leaderboardBucket());
             return; // the handler owns the next page
         }
-        if (actions != null && "again".equals(action)) {
+        if (actions != null && actions.offersPlayAgain() && "again".equals(action)) {
             actions.playAgain(ref, store);
             return;
         }

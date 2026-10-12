@@ -6,8 +6,10 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
 
 import javax.annotation.Nonnull;
@@ -17,6 +19,7 @@ import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.encounter.asset.EncounterBindingAsset;
 import com.ziggfreed.common.encounter.run.EncounterLifecycle;
 import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.instance.dungeon.DungeonRuns;
 
 /**
  * Boss fights as Records names them: which binding row a recorded fight key belongs to, and the tab it
@@ -34,7 +37,9 @@ import com.ziggfreed.common.i18n.Msg;
  * translation on a {@code TextButton}. A split one joins its name and the split's recorded value (the party
  * size as a typed number, the difficulty's label as text, or a layout's name for either), so it is a
  * {@link LeaderboardBucketTab#withSpans} tab, painted unflattened on a rich button's {@code .TextSpans} and
- * read in each player's own language.
+ * read in each player's own language. A fight fought inside a dungeon area is filed under its run's source
+ * ({@code <key>@dungeon:<id>}) and gets a tab of its own, naming the dungeon after the fight
+ * ({@code DungeonRuns.fightIn}), a {@code withSpans} tab too.
  */
 public final class EncounterBoards {
 
@@ -72,12 +77,22 @@ public final class EncounterBoards {
 
     /**
      * One tab per fight key {@code recorded} holds, the binding rows by id and each row's splits in
-     * {@link #splits} order: its key is the fight's bucket string, its label the fight's name. A key no row
-     * claims is left out, and a key two rows share shows once, under the first.
+     * {@link #splits} order, the fights in no run first and then each run's (a dungeon area's) by its source:
+     * its key is the fight's bucket string, filed under its run when it has one
+     * ({@link EncounterLeaderboardListener#fightInRun}), its label the fight's name, followed by the run's
+     * dungeon when it has one. A key no row claims is left out, and a key two rows share shows once, under the
+     * first.
      */
     @Nonnull
     public static List<LeaderboardBucketTab> fightTabs(@Nonnull Collection<String> recorded,
             @Nonnull Collection<EncounterBindingAsset> rows) {
+        // The recorded fight keys by the run they are filed under, "" (first) for a fight in none.
+        Map<String, List<String>> byRun = new TreeMap<>();
+        for (String key : recorded) {
+            String run = EncounterLeaderboardListener.runOf(key);
+            byRun.computeIfAbsent(run == null ? "" : run, k -> new ArrayList<>())
+                    .add(EncounterLeaderboardListener.fightOf(key));
+        }
         List<EncounterBindingAsset> ordered = new ArrayList<>(rows);
         ordered.sort(Comparator.comparing(
                 (EncounterBindingAsset row) -> row.getId() == null ? "" : row.getId().toLowerCase(Locale.ROOT)));
@@ -91,23 +106,36 @@ public final class EncounterBoards {
             Message title = EncounterLifecycle.titleOf(row.encounterAsset(), row);
             boolean split = group.byPartySize() || group.byDifficulty();
             LeaderboardLayout layout = split ? layoutFor(group) : null;
-            for (Split s : splits(recorded, group)) {
-                String key = keyOf(group, s.partySize() == null ? 0 : s.partySize(), s.difficulty());
-                if (key.isEmpty() || !seen.add(key)) {
-                    continue;
+            for (Map.Entry<String, List<String>> filed : byRun.entrySet()) {
+                String run = filed.getKey().isEmpty() ? null : filed.getKey();
+                for (Split s : splits(filed.getValue(), group)) {
+                    String fight = keyOf(group, s.partySize() == null ? 0 : s.partySize(), s.difficulty());
+                    String key = fight.isEmpty() ? "" : EncounterLeaderboardListener.fightInRun(fight, run);
+                    if (key.isEmpty() || !seen.add(key)) {
+                        continue;
+                    }
+                    // A split fight's name joins parts, and a fight in a run names its dungeon too, which only a
+                    // rich tab's TextSpans paints unflattened.
+                    Message name = split ? Msg.cat(title, Msg.raw(" "), splitLabel(s, layout)) : title;
+                    if (run != null) {
+                        out.add(LeaderboardBucketTab.withSpans(key, DungeonRuns.fightIn(name, run)));
+                    } else {
+                        out.add(split ? LeaderboardBucketTab.withSpans(key, name) : new LeaderboardBucketTab(key, title));
+                    }
                 }
-                // A split fight's name joins parts, which only a rich tab's TextSpans paints unflattened.
-                out.add(split ? LeaderboardBucketTab.withSpans(key, Msg.cat(title, Msg.raw(" "), splitLabel(s, layout)))
-                        : new LeaderboardBucketTab(key, title));
             }
         }
         return out;
     }
 
-    /** Whether {@code key} is one of {@code group}'s fight keys, under the split the row asks for now. */
+    /**
+     * Whether {@code key} is one of {@code group}'s fight keys, under the split the row asks for now, whether or not
+     * it is filed under a run.
+     */
     public static boolean holds(@Nonnull EncounterBindingAsset.Leaderboard group, @Nonnull String key) {
         String bucket = group.getBucket();
-        return bucket != null && parse(key, bucket.trim(), group.byPartySize(), group.byDifficulty()) != null;
+        return bucket != null && parse(EncounterLeaderboardListener.fightOf(key), bucket.trim(), group.byPartySize(),
+                group.byDifficulty()) != null;
     }
 
     /** The layout named after {@code group}'s bucket, or null when no pack authored one. */

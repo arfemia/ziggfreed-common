@@ -18,6 +18,8 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.asset.SeasonLeaf;
 import com.ziggfreed.common.codec.Vec3;
+import com.ziggfreed.common.loot.LootableAsset;
+import com.ziggfreed.common.loot.diminish.DiminishSpec;
 import com.ziggfreed.common.season.SeasonGate;
 
 /**
@@ -30,7 +32,10 @@ import com.ziggfreed.common.season.SeasonGate;
  *   "Share": { "PartyLocked": true, "MaxPlayers": 5, "AreasPerCopy": 4 },
  *   "Area": { "Prefab": "MyPack/Crypt/Crypt_Main.prefab.json", "Spacing": 2048, "EntryOffset": { "Y": 1 } },
  *   "Run": { "TimeLimitSeconds": 900, "FailOnWipe": false },
- *   "Complete": { "Bosses": ["MyPack_Crypt_Lich"], "AllBosses": false },
+ *   "Complete": { "Bosses": ["MyPack_Crypt_Lich"], "AllBosses": false,
+ *                 "Objective": { "Kind": "PICKUP_ITEM", "Target": "MyPack_Crypt_Relic", "Amount": 3 },
+ *                 "SurviveTimer": 300 },
+ *   "Rewards": { "Lootable": "MyPack_Crypt_Clear", "Diminish": { "Steps": [1, 0.5], "Window": "Daily" } },
  *   "Copy": { "EmptyCloseSeconds": 60 },
  *   "Difficulty": "",
  *   "Season": "Hallows_Eve",
@@ -83,6 +88,7 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
     @Nullable private Area area;
     @Nullable private Run run;
     @Nullable private Complete complete;
+    @Nullable private Rewards rewards;
     @Nullable private Copy copy;
     @Nullable private String difficulty;
     @Nullable private String season;
@@ -120,9 +126,14 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
             .documentation("How a party's run ends besides finishing it.").add()
             .appendInherited(new KeyedCodec<>("Complete", Complete.CODEC, false),
                     (a, v) -> a.complete = v, a -> a.complete, (a, p) -> a.complete = p.complete)
-            .documentation("What finishes a party's run, clearing it. Unauthored, nothing clears a run: it "
-                    + "ends only by failing (its time limit, every member leaving, or a wipe where FailOnWipe "
-                    + "is set).").add()
+            .documentation("What finishes a party's run, clearing it: every leaf written here must hold (the "
+                    + "bosses fallen, the objective met and the survive timer run out), and the run clears the "
+                    + "moment the last of them does. Unauthored, nothing clears a run: it ends only by failing "
+                    + "(its time limit, every member leaving, or a wipe where FailOnWipe is set).").add()
+            .appendInherited(new KeyedCodec<>("Rewards", Rewards.CODEC, false),
+                    (a, v) -> a.rewards = v, a -> a.rewards, (a, p) -> a.rewards = p.rewards)
+            .documentation("What each member present at a clear earns: one Claim they collect on the results "
+                    + "screen, or later on the Claims tab. Unauthored, a clear pays nothing.").add()
             .appendInherited(new KeyedCodec<>("Copy", Copy.CODEC, false),
                     (a, v) -> a.copy = v, a -> a.copy, (a, p) -> a.copy = p.copy)
             .documentation("How long a copy stays open.").add()
@@ -259,6 +270,45 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
         return v != null && v;
     }
 
+    /**
+     * {@code Complete.Objective}: the moment a member must meet in the area before a run clears, or null when the
+     * file names none, or names one with no {@code Kind}, which nothing could ever meet.
+     */
+    @Nullable
+    public DungeonObjective completeObjective() {
+        Objective o = complete == null ? null : complete.objective;
+        if (o == null || o.kind == null || o.kind.isBlank()) {
+            return null;
+        }
+        return new DungeonObjective(o.kind.trim(), o.target == null ? "" : o.target.trim(),
+                blankToNull(o.matchMode), o.qualifier == null ? null : o.qualifier.trim(),
+                o.amount == null ? 1L : Math.max(1L, o.amount));
+    }
+
+    /** {@code Complete.SurviveTimer} in seconds, or null when the run has none (unauthored, zero or less). */
+    @Nullable
+    public Integer surviveTimerSeconds() {
+        Integer v = complete == null ? null : complete.surviveTimer;
+        return v == null || v <= 0 ? null : v;
+    }
+
+    /** Whether anything in {@code Complete} can clear a run: a boss, an objective or a survive timer. */
+    public boolean hasClear() {
+        return !completeBosses().isEmpty() || completeObjective() != null || surviveTimerSeconds() != null;
+    }
+
+    /** {@code Rewards.Lootable}, the loot table a clear rolls for each member, trimmed, or null when none. */
+    @Nullable
+    public String rewardsLootable() {
+        return blankToNull(rewards == null ? null : rewards.lootable);
+    }
+
+    /** {@code Rewards.Diminish} as written, or null: every clear pays in full. */
+    @Nullable
+    public DiminishSpec rewardsDiminish() {
+        return rewards == null ? null : rewards.diminish;
+    }
+
     /** {@code Copy.EmptyCloseSeconds}: how long an emptied copy stands before it closes, zero or more. */
     public int emptyCloseSeconds() {
         Integer v = copy == null ? null : copy.emptyCloseSeconds;
@@ -391,6 +441,8 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
 
         @Nullable protected String[] bosses;
         @Nullable protected Boolean allBosses;
+        @Nullable protected Objective objective;
+        @Nullable protected Integer surviveTimer;
 
         public static final BuilderCodec<Complete> CODEC = BuilderCodec.builder(Complete.class, Complete::new)
                 .appendInherited(new KeyedCodec<>("Bosses", Codec.STRING_ARRAY, false),
@@ -404,9 +456,90 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
                 .metadata(EditorSchema.defaultValue(false))
                 .documentation("Whether every boss Bosses names must fall in the run before it clears. "
                         + "Unauthored means false: the first of them to fall clears it.").add()
+                .appendInherited(new KeyedCodec<>("Objective", Objective.CODEC, false),
+                        (o, v) -> o.objective = v, o -> o.objective, (o, p) -> o.objective = p.objective)
+                .documentation("Something a member must do inside the area before the run clears, written the "
+                        + "way a quest step is (Kind, Target, MatchMode, Qualifier, Amount): picking up a relic, "
+                        + "killing a number of a mob, talking to someone. Every member's moments count toward one "
+                        + "total for the party. Unauthored, or with no Kind, no objective is needed.").add()
+                .appendInherited(new KeyedCodec<>("SurviveTimer", Codec.INTEGER, false),
+                        (o, v) -> o.surviveTimer = v, o -> o.surviveTimer, (o, p) -> o.surviveTimer = p.surviveTimer)
+                .documentation("How long a run must last, in seconds from its first arrival, before it clears: "
+                        + "the party survives that long without the run failing. Keep it under "
+                        + "Run.TimeLimitSeconds, or the time limit fails the run first. Unauthored, or zero or "
+                        + "less, means no timer.").add()
                 .build();
 
         public Complete() {
+        }
+    }
+
+    // ==================== Objective ====================
+
+    /** Something a member must do inside the area, written the way a quest step is. */
+    public static final class Objective {
+
+        @Nullable protected String kind;
+        @Nullable protected String target;
+        @Nullable protected String matchMode;
+        @Nullable protected String qualifier;
+        @Nullable protected Long amount;
+
+        public static final BuilderCodec<Objective> CODEC = BuilderCodec.builder(Objective.class, Objective::new)
+                .appendInherited(new KeyedCodec<>("Kind", Codec.STRING, false),
+                        (o, v) -> o.kind = v, o -> o.kind, (o, p) -> o.kind = p.kind)
+                .documentation("Which kind of moment counts, the same kinds a quest step names, such as "
+                        + "KILL_ENTITY, PICKUP_ITEM or BREAK_BLOCK. Unauthored, no objective is needed.").add()
+                .appendInherited(new KeyedCodec<>("Target", Codec.STRING, false),
+                        (o, v) -> o.target = v, o -> o.target, (o, p) -> o.target = p.target)
+                .documentation("Which one specifically (an entity id, an item id, a block id). Leave it out for "
+                        + "any.").add()
+                .appendInherited(new KeyedCodec<>("MatchMode", Codec.STRING, false),
+                        (o, v) -> o.matchMode = v, o -> o.matchMode, (o, p) -> o.matchMode = p.matchMode)
+                .metadata(EditorSchema.oneOfDocumented(
+                        "EXACT", "The whole identifier must equal the target",
+                        "CONTAINS", "The identifier must contain the target anywhere inside it",
+                        "PREFIX", "The identifier must start with the target"))
+                .metadata(EditorSchema.defaultValue("CONTAINS"))
+                .documentation("How Target is compared: EXACT, CONTAINS or PREFIX. Unauthored means CONTAINS, "
+                        + "as a quest step reads it.").add()
+                .appendInherited(new KeyedCodec<>("Qualifier", Codec.STRING, false),
+                        (o, v) -> o.qualifier = v, o -> o.qualifier, (o, p) -> o.qualifier = p.qualifier)
+                .documentation("The kind's own secondary filter, compared whole, as a quest step reads it. "
+                        + "Unauthored means any.").add()
+                .appendInherited(new KeyedCodec<>("Amount", Codec.LONG, false),
+                        (o, v) -> o.amount = v, o -> o.amount, (o, p) -> o.amount = p.amount)
+                .metadata(EditorSchema.defaultValue(1L))
+                .documentation("How many the party needs in all. Unauthored, or less than 1, means 1.").add()
+                .build();
+
+        public Objective() {
+        }
+    }
+
+    // ==================== Rewards ====================
+
+    /** What each member present at a clear earns. */
+    public static final class Rewards {
+
+        @Nullable protected String lootable;
+        @Nullable protected DiminishSpec diminish;
+
+        public static final BuilderCodec<Rewards> CODEC = BuilderCodec.builder(Rewards.class, Rewards::new)
+                .appendInherited(new KeyedCodec<>("Lootable", Codec.STRING, false),
+                        (o, v) -> o.lootable = v, o -> o.lootable, (o, p) -> o.lootable = p.lootable)
+                .metadata(EditorSchema.assetRef(LootableAsset.class))
+                .documentation("The loot table a clear rolls once for each member present, by id (a file under "
+                        + "Server/ZiggfreedCommon/Lootables/). What it lands is one Claim the member collects on "
+                        + "the results screen or the Claims tab. Unauthored, a clear pays nothing.").add()
+                .appendInherited(new KeyedCodec<>("Diminish", DiminishSpec.CODEC, false),
+                        (o, v) -> o.diminish = v, o -> o.diminish, (o, p) -> o.diminish = p.diminish)
+                .documentation("How much a repeat clear earns in one window, counted per player for this dungeon "
+                        + "and difficulty: Steps [1, 0.5] with Window Daily pays half for every clear after the "
+                        + "first that day. Unauthored, every clear pays in full.").add()
+                .build();
+
+        public Rewards() {
         }
     }
 

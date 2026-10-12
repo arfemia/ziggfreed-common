@@ -42,6 +42,8 @@ import com.ziggfreed.common.encounter.ledger.ParticipationShares;
 import com.ziggfreed.common.encounter.payout.EncounterDiscovery;
 import com.ziggfreed.common.encounter.payout.EncounterFeedback;
 import com.ziggfreed.common.encounter.payout.EncounterLoot;
+import com.ziggfreed.common.encounter.seam.EncounterSeams;
+import com.ziggfreed.common.encounter.seam.RunTag;
 import com.ziggfreed.common.encounter.signal.EncounterSignal;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.loot.reward.RewardSpec;
@@ -152,14 +154,18 @@ public final class EncounterLifecycle {
         run.keepSettledShares(shares);
         double elapsedSeconds = run.elapsedMs(now) / 1000.0;
         List<UUID> memberIds = EncounterRuns.memberIds(store, encounterRef);
+        // A fight inside a dungeon area is filed under the area's run (R105), asked before anyone hears the
+        // defeat, since a listener may end that run.
+        RunTag runTag = EncounterSeams.runTagFor(run.worldUuid(), shares.participantIds());
         SafeLog.info(Encounters.LOG_PREFIX + " defeated run=" + EncounterRun.shortId(run.runId()) + " encounter="
                 + encounterId + " after " + Math.round(elapsedSeconds) + "s, participants=" + shares.size()
-                + " credited=" + shares.credited().size() + " deaths=" + run.memberDeaths() + " by=" + how);
+                + " credited=" + shares.credited().size() + " deaths=" + run.memberDeaths() + " by=" + how
+                + (runTag == null ? "" : " in=" + runTag.source()));
         String difficulty = difficultyOf(run, row);
         Encounters.fireDefeated(() -> new EncounterDefeatedEvent(run.runId(), encounterId, run.worldUuid(),
                 run.subjectUuid(), run.subjectMobId(), shares.participants(), shares.participantIds(),
                 shares.shares(), shares.damageDealt(), elapsedSeconds, run.memberDeaths(), difficulty,
-                run.lastHitter()));
+                run.lastHitter(), runTag));
         EncounterRest.stamp(store, commandBuffer, encounterRef, run, encounterId, row);
         // Paid before it is announced, and each participant's own receipt rides into their moment:
         // a player whose roll wrote them a Claim reads one row saying it waits on the Claims tab,

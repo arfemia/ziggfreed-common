@@ -10,6 +10,7 @@ import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.universe.world.spawn.ISpawnProvider;
 import com.ziggfreed.common.encounter.asset.EncounterOwnerLayers;
 import com.ziggfreed.common.encounter.event.EncounterDefeatedEvent;
+import com.ziggfreed.common.encounter.seam.EncounterSeams;
 import com.ziggfreed.common.instance.claims.ClaimNotices;
 import com.ziggfreed.common.instance.claims.ClaimsDestinations;
 import com.ziggfreed.common.instance.claims.command.ZigClaimsCommand;
@@ -144,8 +145,10 @@ public final class InstanceBootstrap {
      * {@code enter}); the area-aware spawn provider every dungeon copy carries, on the engine's spawn
      * provider codec so a copy's config saves and loads; and a player's two ways in, the {@code ZigEnterDungeon}
      * interaction Type and the {@code Dungeon} destination, both before any asset decodes (an item, block or
-     * placement naming either fails to load otherwise); and the runs' ear for a boss defeat, which may clear the
-     * run of each participant's area. Their store registers with the other framework stores. Registration only.
+     * placement naming either fails to load otherwise); the runs' ear for a boss defeat, which may clear the
+     * run of each participant's area; and the encounter module's run-tag seam, filled from the runs, so a fight
+     * inside an area is filed under the area's run. Their store registers with the other framework stores.
+     * Registration only.
      */
     public static void registerDungeons(@Nonnull JavaPlugin plugin) {
         try {
@@ -174,6 +177,12 @@ public final class InstanceBootstrap {
             plugin.getEventRegistry().registerGlobal(EncounterDefeatedEvent.class, DungeonRuns::onEncounterDefeated);
         } catch (Throwable t) {
             SafeLog.warn("[dungeon] the dungeon runs could not listen for boss defeats", t);
+        }
+        try {
+            EncounterSeams.fillRunTag(DungeonRuns.shared()::runOf);
+        } catch (Throwable t) {
+            SafeLog.warn("[dungeon] the encounter run-tag seam could not be filled, so a fight inside a dungeon is "
+                    + "filed under no run", t);
         }
     }
 

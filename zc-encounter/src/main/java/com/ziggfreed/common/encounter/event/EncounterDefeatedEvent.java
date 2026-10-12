@@ -9,6 +9,7 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.event.IEvent;
 import com.ziggfreed.common.encounter.ledger.ParticipantShare;
+import com.ziggfreed.common.encounter.seam.RunTag;
 
 /**
  * The subject is down: its death component landed (the precise instant), or the script signalled
@@ -35,13 +36,27 @@ public final class EncounterDefeatedEvent implements IEvent<Void> {
     private final int memberDeaths;
     @Nullable private final String difficulty;
     @Nullable private final UUID lastHitter;
+    @Nullable private final RunTag runTag;
 
+    /** A defeat filed under no zc run. */
     public EncounterDefeatedEvent(@Nonnull UUID runId, @Nonnull String encounterId, @Nullable UUID worldUuid,
                                   @Nullable UUID subjectUuid, @Nullable String subjectMobId,
                                   @Nonnull List<ParticipantShare> participantShares, @Nonnull List<UUID> participants,
                                   @Nonnull Map<UUID, Double> shares, @Nonnull Map<UUID, Double> damageDealt,
                                   double elapsedSeconds, int memberDeaths, @Nullable String difficulty,
                                   @Nullable UUID lastHitter) {
+        this(runId, encounterId, worldUuid, subjectUuid, subjectMobId, participantShares, participants, shares,
+                damageDealt, elapsedSeconds, memberDeaths, difficulty, lastHitter, null);
+    }
+
+    /** @param runTag the zc run the fight belongs to (a dungeon area's), or null for none */
+    public EncounterDefeatedEvent(@Nonnull UUID runId, @Nonnull String encounterId, @Nullable UUID worldUuid,
+                                  @Nullable UUID subjectUuid, @Nullable String subjectMobId,
+                                  @Nonnull List<ParticipantShare> participantShares, @Nonnull List<UUID> participants,
+                                  @Nonnull Map<UUID, Double> shares, @Nonnull Map<UUID, Double> damageDealt,
+                                  double elapsedSeconds, int memberDeaths, @Nullable String difficulty,
+                                  @Nullable UUID lastHitter, @Nullable RunTag runTag) {
+        this.runTag = runTag;
         this.runId = runId;
         this.encounterId = encounterId;
         this.worldUuid = worldUuid;
@@ -124,5 +139,14 @@ public final class EncounterDefeatedEvent implements IEvent<Void> {
     @Nullable
     public UUID lastHitter() {
         return lastHitter;
+    }
+
+    /**
+     * The zc run the fight belongs to (a fight inside a dungeon area belongs to the area's run), as the run-tag
+     * seam answered it at the defeat, or null for a fight in no run.
+     */
+    @Nullable
+    public RunTag runTag() {
+        return runTag;
     }
 }

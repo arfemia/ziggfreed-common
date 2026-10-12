@@ -29,6 +29,7 @@ import com.hypixel.hytale.server.core.asset.type.portalworld.PortalType;
 import com.hypixel.hytale.server.core.prefab.PrefabStore;
 import com.ziggfreed.common.encounter.validate.EncounterScriptScan;
 import com.ziggfreed.common.encounter.validate.EncounterScripts;
+import com.ziggfreed.common.loot.LootableConfig;
 import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
@@ -51,9 +52,10 @@ import com.ziggfreed.common.validation.TextKeyAudit;
  *       {@link #PACKED_WORLD_EVENTS} (a portal's timer and world events belong to the whole world, so a copy
  *       shared by several parties would share them);</li>
  *   <li>WARNING {@link #UNKNOWN_DUNGEON_TEMPLATE}, {@link #UNKNOWN_DUNGEON_PREFAB},
- *       {@link #NO_DUNGEON_PREFAB} and {@link #UNKNOWN_DUNGEON_BOSS} (an id may belong to a pack this server
- *       does not run), {@link #NO_DUNGEON_CLEAR} (nothing in {@code Complete} can clear a run, so every run
- *       ends failed), and the shared {@code UNKNOWN_SEASON} and {@code UNKNOWN_TEXT_KEY}.</li>
+ *       {@link #NO_DUNGEON_PREFAB}, {@link #UNKNOWN_DUNGEON_BOSS} and {@link #UNKNOWN_DUNGEON_LOOTABLE} (an id may
+ *       belong to a pack this server does not run), {@link #NO_DUNGEON_CLEAR} (nothing in {@code Complete} can
+ *       clear a run, or its survive timer outlasts its time limit, so every run ends failed), and the shared
+ *       {@code UNKNOWN_SEASON} and {@code UNKNOWN_TEXT_KEY}.</li>
  * </ul>
  */
 public final class DungeonValidator {
@@ -72,6 +74,7 @@ public final class DungeonValidator {
     public static final String PACKED_WORLD_EVENTS = "PACKED_WORLD_EVENTS";
     public static final String NO_DUNGEON_CLEAR = "NO_DUNGEON_CLEAR";
     public static final String UNKNOWN_DUNGEON_BOSS = "UNKNOWN_DUNGEON_BOSS";
+    public static final String UNKNOWN_DUNGEON_LOOTABLE = "UNKNOWN_DUNGEON_LOOTABLE";
 
     /** The template's config file, inside its folder under {@code Server/Instances/}. */
     static final String TEMPLATE_CONFIG = "instance.bson";
@@ -114,8 +117,8 @@ public final class DungeonValidator {
         List<String> errors = new ArrayList<>();
         try {
             for (Finding finding : audit(List.of(dungeon), DungeonValidator::templateKnown,
-                    DungeonValidator::templateFacts, DungeonValidator::prefabKnown, script -> true, minimumSpacing(),
-                    key -> true)) {
+                    DungeonValidator::templateFacts, DungeonValidator::prefabKnown, script -> true, table -> true,
+                    minimumSpacing(), key -> true)) {
                 if (finding.severity() == Severity.ERROR) {
                     errors.add(finding.code());
                     SafeLog.warn(LOG_LABEL + " '" + id + "' [" + finding.code() + "] " + finding.message()
@@ -141,6 +144,7 @@ public final class DungeonValidator {
                     DungeonValidator::templateFacts,
                     DungeonValidator::prefabKnown,
                     loadedScripts(),
+                    DungeonValidator::lootableKnown,
                     minimumSpacing(),
                     TextKeyAudit.liveCatalogue());
         } catch (Throwable t) {
@@ -156,29 +160,30 @@ public final class DungeonValidator {
      * @param templateFacts  what a known template's config says ({@link TemplateFacts}), null when it cannot be read
      * @param prefabKnown    whether a path under {@code Server/Prefabs/} names a prefab some loaded pack ships
      * @param scriptKnown    whether an id names an encounter script some loaded pack ships
+     * @param lootableKnown  whether an id names a loaded loot table ({@code Server/ZiggfreedCommon/Lootables/})
      * @param minimumSpacing the least {@code Area.Spacing}, in blocks, that keeps areas out of each other's view
      * @param textShipped    whether a lang key is shipped ({@link TextKeyAudit#liveCatalogue})
      */
     @Nonnull
     public static List<Finding> audit(@Nonnull Collection<DungeonAsset> dungeons,
             @Nonnull Predicate<String> templateKnown, @Nonnull Function<String, TemplateFacts> templateFacts,
-            @Nonnull Predicate<String> prefabKnown, @Nonnull Predicate<String> scriptKnown, int minimumSpacing,
-            @Nonnull Predicate<String> textShipped) {
+            @Nonnull Predicate<String> prefabKnown, @Nonnull Predicate<String> scriptKnown,
+            @Nonnull Predicate<String> lootableKnown, int minimumSpacing, @Nonnull Predicate<String> textShipped) {
         List<Finding> out = new ArrayList<>();
         for (DungeonAsset dungeon : dungeons) {
             if (dungeon == null || dungeon.getId() == null || !dungeon.isEnabled()) {
                 continue;
             }
-            auditOne(dungeon, templateKnown, templateFacts, prefabKnown, scriptKnown, minimumSpacing, textShipped,
-                    out);
+            auditOne(dungeon, templateKnown, templateFacts, prefabKnown, scriptKnown, lootableKnown, minimumSpacing,
+                    textShipped, out);
         }
         return out;
     }
 
     private static void auditOne(@Nonnull DungeonAsset dungeon, @Nonnull Predicate<String> templateKnown,
             @Nonnull Function<String, TemplateFacts> templateFacts, @Nonnull Predicate<String> prefabKnown,
-            @Nonnull Predicate<String> scriptKnown, int minimumSpacing, @Nonnull Predicate<String> textShipped,
-            @Nonnull List<Finding> out) {
+            @Nonnull Predicate<String> scriptKnown, @Nonnull Predicate<String> lootableKnown, int minimumSpacing,
+            @Nonnull Predicate<String> textShipped, @Nonnull List<Finding> out) {
         String id = dungeon.getId();
         String where = "dungeon '" + id + "'";
         boolean shared = dungeon.areasPerCopy() > 1;
@@ -220,20 +225,35 @@ public final class DungeonValidator {
                     + "its pack may not be installed here), so its areas stay empty", id));
         }
 
-        // What clears a run: Complete.Bosses (a later Complete leaf joins this check when it can clear one).
+        // What clears a run: every Complete leaf written (Bosses, Objective, SurviveTimer) must hold.
         List<String> bosses = dungeon.completeBosses();
-        if (bosses.isEmpty()) {
-            out.add(Finding.warning(DOMAIN, NO_DUNGEON_CLEAR, where + " names no boss in Complete.Bosses, so a run "
-                    + "there can never be cleared: every run ends failed, once its party leaves or its time limit passes. "
-                    + "Name the encounter script of the fight that clears it", id));
-        } else {
-            for (String boss : bosses) {
-                if (!asks(scriptKnown, boss)) {
-                    out.add(Finding.warning(DOMAIN, UNKNOWN_DUNGEON_BOSS, where + " is cleared by beating the "
-                            + "encounter script '" + boss + "', which no loaded pack ships (its pack may not be "
-                            + "installed here; check the spelling otherwise), so that fight never clears a run", id));
-                }
+        Integer survive = dungeon.surviveTimerSeconds();
+        Integer limit = dungeon.timeLimitSeconds();
+        if (!dungeon.hasClear()) {
+            out.add(Finding.warning(DOMAIN, NO_DUNGEON_CLEAR, where + " writes nothing in Complete that can clear "
+                    + "a run (no Bosses, no Objective with a Kind, no SurviveTimer), so a run there can never be "
+                    + "cleared: every run ends failed, once its party leaves or its time limit passes. Name the fight, "
+                    + "the objective or the time that clears it", id));
+        } else if (survive != null && limit != null && survive > limit) {
+            out.add(Finding.warning(DOMAIN, NO_DUNGEON_CLEAR, where + " asks a run to last "
+                    + survive + " s (Complete.SurviveTimer), longer than its " + limit + " s time limit "
+                    + "(Run.TimeLimitSeconds), so the limit fails every run first. Shorten the timer or raise the "
+                    + "limit", id));
+        }
+        for (String boss : bosses) {
+            if (!asks(scriptKnown, boss)) {
+                out.add(Finding.warning(DOMAIN, UNKNOWN_DUNGEON_BOSS, where + " is cleared by beating the "
+                        + "encounter script '" + boss + "', which no loaded pack ships (its pack may not be "
+                        + "installed here; check the spelling otherwise), so that fight never clears a run", id));
             }
+        }
+
+        String lootable = dungeon.rewardsLootable();
+        if (lootable != null && !asks(lootableKnown, lootable)) {
+            out.add(Finding.warning(DOMAIN, UNKNOWN_DUNGEON_LOOTABLE, where + " pays its clears from the loot table '"
+                    + lootable + "' (Rewards.Lootable), which no loaded file defines under "
+                    + "Server/ZiggfreedCommon/Lootables/ (its pack may not be installed here), so a clear pays "
+                    + "nothing", id));
         }
 
         if (shared && dungeon.spacing() < minimumSpacing) {
@@ -375,6 +395,15 @@ public final class DungeonValidator {
             ids.add(id.toLowerCase(Locale.ROOT));
         }
         return script -> ids.contains(script.trim().toLowerCase(Locale.ROOT));
+    }
+
+    /** Does a loaded loot table answer to this id? One that cannot be asked reads as known. */
+    private static boolean lootableKnown(@Nonnull String id) {
+        try {
+            return LootableConfig.getInstance().resolve(id) != null;
+        } catch (Throwable t) {
+            return true; // cannot tell is not "missing"
+        }
     }
 
     /** Twice the server's view radius, in blocks. */

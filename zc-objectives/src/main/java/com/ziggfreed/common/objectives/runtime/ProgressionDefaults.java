@@ -36,6 +36,7 @@ import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.factor.HytaleFactors;
 import com.ziggfreed.common.inventory.InventoryUtil;
+import com.ziggfreed.common.objectives.dungeon.DungeonObjectives;
 import com.ziggfreed.common.objectives.hud.TrackedQuestHuds;
 import com.ziggfreed.common.objectives.marker.QuestMarkers;
 import com.ziggfreed.common.objectives.producer.EncounterQuestAxes;
@@ -199,7 +200,8 @@ public final class ProgressionDefaults {
      * about players rather than happening to an entity, so each arrives on the shared bus), the
      * library's talk-credit sink (a conversation is credited by an authored beat through
      * zc-dialogue's {@code TalkCredits}, and this sink always runs, beside any sink a consumer
-     * registers), the achievements a reputation's ranks earn as the Reputation page's gated content
+     * registers), the moment listener that meets a dungeon's {@code Complete.Objective}
+     * ({@link DungeonObjectives}), the achievements a reputation's ranks earn as the Reputation page's gated content
      * ({@link RankAchievementGatedContent}), and the tracked-quest HUD with its six event subscriptions.
      * All of it is unconditional, and so is every dispatch those producers make.
      *
@@ -218,6 +220,8 @@ public final class ProgressionDefaults {
         plugin.getEntityStoreRegistry().registerSystem(new ZigPickupProducer());
         plugin.getEntityStoreRegistry().registerSystem(new ZigPlaceBlockProducer());
         ZigInstanceRoundProducer.install(plugin);
+        // A dungeon's Complete.Objective is met off the same moments, which the instance module cannot see.
+        ProgressionRuntime.defaults(OWNER).momentListener(DungeonObjectives.INSTANCE);
         ZigEncounterProducer.install(plugin);
         ZigCalendarProducer.install(plugin);
         ZigLootReceivedProducer.install(plugin);

@@ -26,6 +26,15 @@ public interface ResultsActions {
     }
 
     /**
+     * Whether the page offers Play Again at all. True by default, so a consumer with a queue keeps its button; a
+     * walk-in run with nothing to queue again (a dungeon, which a player re-enters at its gate) answers false and
+     * the page shows no button that would do nothing.
+     */
+    default boolean offersPlayAgain() {
+        return true;
+    }
+
+    /**
      * Claim (grant) the run's pending spoils, applying the full-inventory guard. Returns
      * {@code true} when everything was delivered, {@code false} when some reward could not fit
      * and is held for a later claim (the page then shows the "make space" note). The default

@@ -23,7 +23,9 @@ import com.ziggfreed.common.encounter.asset.EncounterBindingAsset;
  * <p><b>The bucket.</b> A binding row's {@code Leaderboard.Bucket}, suffixed with the party size when
  * {@code ByPartySize} is set and with the run's difficulty when {@code ByDifficulty} is, joined with
  * {@code :} the way an instance round names its mode, so a fight fought by four on hard is
- * {@code <bucket>:4:hard}. A row naming no bucket keeps no records.
+ * {@code <bucket>:4:hard}. A row naming no bucket keeps no records. A fight fought inside a zc run (a dungeon
+ * area's; zc-encounter's run tag) is filed under that run's source as well, {@code <bucket>@dungeon:<id>}
+ * ({@link #fightInRun}), so Boss Fights shows it under its dungeon.
  */
 public final class EncounterLeaderboardListener {
 
@@ -35,6 +37,9 @@ public final class EncounterLeaderboardListener {
 
     /** What joins the bucket to its party-size and difficulty suffixes. */
     static final char BUCKET_SEPARATOR = ':';
+
+    /** What joins a fight's key to the source of the run it was fought in. */
+    static final char RUN_SEPARATOR = '@';
 
     /** The difficulty suffix for a run that carried no label. */
     static final String NO_DIFFICULTY = "any";
@@ -94,5 +99,35 @@ public final class EncounterLeaderboardListener {
             out.append(BUCKET_SEPARATOR).append(label);
         }
         return out.toString();
+    }
+
+    /**
+     * {@code fight}'s key filed under the run it was fought in: {@code <fight>@<runSource>}, or {@code fight} alone
+     * when {@code runSource} is null or blank (a fight in no run). A source carries no {@code @} or {@code |}.
+     */
+    @Nonnull
+    public static String fightInRun(@Nonnull String fight, @Nullable String runSource) {
+        return runSource == null || runSource.isBlank() ? fight : fight + RUN_SEPARATOR + runSource.trim();
+    }
+
+    /**
+     * The run source a recorded fight key is filed under, or null for a fight in no run. A source reads
+     * {@code <site>:<id>}, so text after an {@code @} that holds no {@code :} is part of the fight's own key.
+     */
+    @Nullable
+    public static String runOf(@Nonnull String key) {
+        int at = key.lastIndexOf(RUN_SEPARATOR);
+        if (at <= 0 || at == key.length() - 1) {
+            return null;
+        }
+        String source = key.substring(at + 1);
+        return source.indexOf(BUCKET_SEPARATOR) > 0 ? source : null;
+    }
+
+    /** A recorded fight key without the run it is filed under ({@link #runOf}): the key {@link #bucketFor} built. */
+    @Nonnull
+    public static String fightOf(@Nonnull String key) {
+        String run = runOf(key);
+        return run == null ? key : key.substring(0, key.length() - run.length() - 1);
     }
 }

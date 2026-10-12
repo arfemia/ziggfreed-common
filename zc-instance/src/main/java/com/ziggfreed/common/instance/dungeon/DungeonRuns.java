@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -18,18 +19,22 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.modules.entity.damage.DeathComponent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.encounter.event.EncounterDefeatedEvent;
+import com.ziggfreed.common.encounter.seam.RunTag;
+import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.instance.metadata.InstanceRoundCompletedEvent;
 import com.ziggfreed.common.instance.metadata.InstanceRoundStartedEvent;
 import com.ziggfreed.common.instance.metadata.InstanceRounds;
 import com.ziggfreed.common.instance.metadata.RoundMetadata;
 import com.ziggfreed.common.instance.result.ResultKind;
 import com.ziggfreed.common.instance.world.CopyKey;
+import com.ziggfreed.common.loot.diminish.DiminishSpec;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -43,10 +48,15 @@ import com.ziggfreed.common.util.SafeLog;
  *   <li>It <b>begins</b> at its area's first arrival. The start names that player and everyone already on the
  *       way into the area; whoever arrives later joins it. The dungeon's knobs are read once, here, so a reload
  *       mid-run changes the next run, not this one.</li>
- *   <li>It is <b>cleared</b> when its {@code Complete} holds: a boss its {@code Bosses} names falls, or with
- *       {@code AllBosses} every one of them has. A boss fight's {@link EncounterDefeatedEvent} names its world
- *       and participants but no area, so it counts for the run of the area each participant is in. A dungeon
- *       with no {@code Bosses} has no clear: its runs end only by failing.</li>
+ *   <li>It is <b>cleared</b> when every leaf its {@code Complete} writes holds, the moment the last of them does:
+ *       a boss its {@code Bosses} names has fallen (with {@code AllBosses} every one of them), its
+ *       {@code Objective} has been met as many times as it asks, and its {@code SurviveTimer} has run out since
+ *       the start. A boss fight's {@link EncounterDefeatedEvent} names its world and participants but no area, so
+ *       it counts for the run of the area each participant is in; an objective's moments arrive from
+ *       zc-objectives, which matches the moment stream against {@link #objectiveOf} and counts through
+ *       {@link #countObjective}, since this module cannot see that stream; the survive timer is read on the
+ *       ticker. A dungeon whose {@code Complete} writes none of them has no clear: its runs end only by
+ *       failing.</li>
  *   <li>It <b>fails</b> when its {@code Run.TimeLimitSeconds} passes, when every member has left (its area
  *       is free: nobody in it or on the way), or, only with {@code Run.FailOnWipe} on, when every member in
  *       the area is dead at once. The wipe is read on the copy's world thread, in a hop the ticker makes for
@@ -55,6 +65,10 @@ import com.ziggfreed.common.util.SafeLog;
  *       and is pasted afresh.</li>
  * </ul>
  *
+ * <p><b>What its members see.</b> At a clear every member in the area earns the dungeon's completion Claim and
+ * sees the results screen ({@link DungeonResults}); at a failure its party could have prevented (the time limit,
+ * a wipe) every member in the area is told why. A failure because everyone left tells nobody.
+ *
  * <p><b>The round contract</b> (lead's call): mod id {@value #MOD_ID}, mode the dungeon's {@code Difficulty}
  * label (empty for normal), preset the dungeon id, so a step targets {@code dungeon:} (any difficulty) or
  * {@code dungeon:hard}, qualified by the dungeon. A clear names as winners every member in the area at that
@@ -62,18 +76,26 @@ import com.ziggfreed.common.util.SafeLog;
  * those already on the way) and every player who arrived later, so each player counted at the start is counted
  * at the end.
  *
+ * <p><b>The run tag.</b> A boss fight inside an area belongs to the area's run (R105): zc-encounter asks
+ * {@link #runOf} through its run-tag seam at the defeat, which files the fight's records under
+ * {@code dungeon:<id>} and lets a payout name the run.
+ *
  * <p><b>Threads and locks.</b> {@link AreaMembers} calls {@link #arrived}, {@link #left} and {@link #freed}
- * under its own lock and {@link #tick} after it, on its 1 Hz ticker thread; a boss defeat arrives on the copy's
- * world thread. This list's lock is a leaf: nothing is called while it is held, the defeat path asks
- * {@link AreaMembers} before it takes it, and a round moment is never fired under any lock. Every moment is
- * queued and posted to the copy's world thread ({@code world.execute}), the start and the end alike; only a
- * copy no longer taking tasks has its moment fired where the queue is drained, since listeners hop to each
- * player's own world themselves. Nothing here ever waits on a world thread.
+ * under its own lock and {@link #tick} after it, on its 1 Hz ticker thread; a boss defeat, the run-tag question
+ * and an objective's moment arrive on the copy's world thread. This list's lock is a leaf: nothing is called
+ * while it is held, every path that needs {@link AreaMembers} asks it before taking this lock, and a round
+ * moment is never fired under any lock. Every moment, a clear's payout and a failure's line are queued and
+ * posted to the copy's world thread ({@code world.execute}); only a copy no longer taking tasks has its queue
+ * run where it is drained, since everything queued hops to each player's own world itself. Nothing here ever
+ * waits on a world thread.
  */
 public final class DungeonRuns {
 
     /** The mod id every dungeon round carries. */
     public static final String MOD_ID = "dungeon";
+
+    /** What a dungeon run's tag, its completion Claim's source and its returns key start with. */
+    public static final String SOURCE_PREFIX = "dungeon:";
 
     private static final String LOG = "[dungeon] ";
 
@@ -85,17 +107,33 @@ public final class DungeonRuns {
         return SHARED;
     }
 
-    /** How a run ended. */
+    /** How a run ended, and the line a failure tells the members still in the area (null: none). */
     private enum Ending {
-        CLEARED("was cleared"),
-        TIME_LIMIT("failed: its time limit passed"),
-        ALL_LEFT("failed: every member left"),
-        WIPE("failed: every member was dead at once");
+        CLEARED("was cleared", null),
+        TIME_LIMIT("failed: its time limit passed", "run.failed.time_limit"),
+        ALL_LEFT("failed: every member left", null),
+        WIPE("failed: every member was dead at once", "run.failed.wipe");
 
         final String words;
+        @Nullable final String lineKey;
 
-        Ending(String words) {
+        Ending(String words, @Nullable String lineKey) {
             this.words = words;
+            this.lineKey = lineKey;
+        }
+    }
+
+    /** A dungeon's knobs, read once when a run begins. */
+    private record Knobs(@Nonnull String mode, @Nullable String nameKey, long limitMs, boolean failOnWipe,
+                         @Nonnull Set<String> bosses, boolean allBosses, @Nullable DungeonObjective objective,
+                         long surviveMs, @Nullable String lootable, @Nullable DiminishSpec diminish) {
+
+        /** A dungeon no longer loaded: no limit, no clear, no reward. */
+        static final Knobs BARE = new Knobs("", null, 0L, false, Set.of(), false, null, 0L, null, null);
+
+        /** Whether anything can clear the run. */
+        boolean canClear() {
+            return !bosses.isEmpty() || objective != null || surviveMs > 0;
         }
     }
 
@@ -104,13 +142,10 @@ public final class DungeonRuns {
         final CopyKey area;
         final World world;
         final UUID worldId;
+        /** Which run this is, unique across restarts: its tag and its Claims name it. */
+        final UUID runId = UUID.randomUUID();
         final String dungeon;
-        final String mode;
-        final long limitMs;
-        final boolean failOnWipe;
-        /** The bosses that clear it, lower-cased; empty when none does. */
-        final Set<String> bosses;
-        final boolean allBosses;
+        final Knobs knobs;
         final long startedAtMs;
         /**
          * Every player the start named (the first arriver and those on the way with them) and every player who
@@ -119,43 +154,54 @@ public final class DungeonRuns {
         final Set<UUID> participants = new LinkedHashSet<>();
         /** Every player in the area now. */
         final Set<UUID> present = new LinkedHashSet<>();
-        /** The bosses of {@link #bosses} that have fallen in the run. */
+        /** The bosses of {@code knobs.bosses} that have fallen in the run, lower-cased. */
         final Set<String> fallen = new HashSet<>();
+        /** How many times the run's objective has been met, by every member together. */
+        long objectiveCount;
+        /** How many boss fights were won in the area during the run, whether or not {@code Complete} names them. */
+        int bossesDefeated;
+        /** The damage each member dealt the bosses that fell in the area during the run. */
+        final Map<UUID, Double> damage = new HashMap<>();
         boolean ended;
         /** A wipe check is queued on the world thread and has not run yet. */
         boolean wipeCheckQueued;
         /** A wipe check has already warned that it failed. */
         boolean wipeCheckWarned;
 
-        Run(CopyKey area, World world, String dungeon, String mode, long limitMs, boolean failOnWipe,
-                Set<String> bosses, boolean allBosses, long startedAtMs) {
+        Run(CopyKey area, World world, String dungeon, Knobs knobs, long startedAtMs) {
             this.area = area;
             this.world = world;
             this.worldId = world.getWorldConfig().getUuid();
             this.dungeon = dungeon;
-            this.mode = mode;
-            this.limitMs = limitMs;
-            this.failOnWipe = failOnWipe;
-            this.bosses = bosses;
-            this.allBosses = allBosses;
+            this.knobs = knobs;
             this.startedAtMs = startedAtMs;
+        }
+
+        boolean objectiveOpen() {
+            return knobs.objective != null && objectiveCount < knobs.objective.amount();
         }
 
         String where() {
             return area.world() + " area " + area.area() + " (" + dungeon + ", "
-                    + (mode.isEmpty() ? "normal" : mode) + ")";
+                    + (knobs.mode.isEmpty() ? "normal" : knobs.mode) + ")";
         }
     }
 
-    /** A round moment waiting to be posted to its copy's world thread. */
+    /** What is waiting to be posted to a copy's world thread: a round moment, a clear's payout, a failure's line. */
     private record Fire(@Nonnull World world, @Nonnull Runnable task) {
     }
 
     /** Every run by its area. Guarded by {@code this}. */
     private final Map<CopyKey, Run> runs = new HashMap<>();
 
-    /** The round moments waiting to be posted, drained outside every lock. */
+    /** What is waiting to be posted, drained outside every lock. */
     private final Queue<Fire> outbox = new ConcurrentLinkedQueue<>();
+
+    /**
+     * Whether some live run's objective is still counting: the moment listener's one question on every moment,
+     * so a server with no such run pays a volatile read. Written under {@code this}.
+     */
+    private volatile boolean objectivesOpen;
 
     private DungeonRuns() {
     }
@@ -193,6 +239,7 @@ public final class DungeonRuns {
             run.participants.add(player);
             run.present.add(player);
             runs.put(area, run);
+            noteObjectives();
 
             List<UUID> named = new ArrayList<>();
             named.add(player);
@@ -207,10 +254,11 @@ public final class DungeonRuns {
             outbox.add(new Fire(world, () -> InstanceRounds.fireStarted(event)));
             line = "a run began in " + run.where() + " with " + player
                     + (named.size() > 1 ? " and " + (named.size() - 1) + " more on the way" : "")
-                    + (run.limitMs > 0 ? "; it fails after " + run.limitMs / 1000L + " s" : "; it has no time limit")
-                    + (run.bosses.isEmpty() ? "; no boss clears it" : "; it clears when "
-                            + (run.allBosses ? "every one of " : "the first of ") + run.bosses + " falls")
-                    + (run.failOnWipe ? "; a wipe fails it" : "");
+                    + (run.knobs.limitMs > 0 ? "; it fails after " + run.knobs.limitMs / 1000L + " s"
+                            : "; it has no time limit")
+                    + "; " + clearWords(run.knobs)
+                    + (run.knobs.failOnWipe ? "; a wipe fails it" : "")
+                    + (run.knobs.lootable == null ? "" : "; a clear pays " + run.knobs.lootable);
         }
         SafeLog.info(LOG + line);
     }
@@ -241,9 +289,10 @@ public final class DungeonRuns {
     // ==================== the ticker (after AreaMembers' lock) ====================
 
     /**
-     * Once a second, on the members' ticker thread and outside its lock: fail each run past its time limit,
-     * queue a wipe check on the world thread for each run that fails on a wipe, and post every queued moment.
-     * Never throws.
+     * Once a second, on the members' ticker thread and outside its lock: clear each run whose survive timer ran
+     * out, with someone in the area and the rest of its {@code Complete} met, fail each run past its time limit
+     * (a clear due on the same tick wins), queue a wipe check on the world thread for each run that fails on a
+     * wipe, and post everything queued. Never throws.
      */
     void tick(long nowMs) {
         try {
@@ -253,11 +302,17 @@ public final class DungeonRuns {
                     if (run.ended) {
                         continue;
                     }
-                    if (run.limitMs > 0 && nowMs - run.startedAtMs >= run.limitMs) {
+                    // A timer clears a run only for a party standing in it when it runs out.
+                    if (run.knobs.surviveMs > 0 && !run.present.isEmpty() && holds(run, nowMs)) {
+                        end(run, Ending.CLEARED, nowMs, "its party lasted " + run.knobs.surviveMs / 1000L + " s");
+                        continue;
+                    }
+                    if (run.knobs.limitMs > 0 && nowMs - run.startedAtMs >= run.knobs.limitMs) {
                         end(run, Ending.TIME_LIMIT, nowMs, null);
                         continue;
                     }
-                    if (run.failOnWipe && !run.wipeCheckQueued && !run.present.isEmpty() && run.world.isAlive()) {
+                    if (run.knobs.failOnWipe && !run.wipeCheckQueued && !run.present.isEmpty()
+                            && run.world.isAlive()) {
                         run.wipeCheckQueued = true;
                         wipeChecks.add(run);
                     }
@@ -346,25 +401,28 @@ public final class DungeonRuns {
      */
     public static void onEncounterDefeated(@Nonnull EncounterDefeatedEvent event) {
         try {
-            SHARED.defeated(event.encounterId(), event.worldUuid(), event.participants(), System.currentTimeMillis());
+            SHARED.defeated(event.encounterId(), event.worldUuid(), event.participants(), event.damageDealt(),
+                    System.currentTimeMillis());
         } catch (Throwable t) {
             SafeLog.warn(LOG + "a boss defeat could not be counted for its dungeon run", t);
         }
     }
 
     /**
-     * Boss {@code encounterId} fell in world {@code worldId} with {@code participants}: count it for each of their
-     * areas' runs that it clears. AreaMembers is asked first, before this list's lock is taken.
+     * Boss {@code encounterId} fell in world {@code worldId} with {@code participants}, who dealt it
+     * {@code damage}: count it for each of their areas' runs, which it may clear. AreaMembers is asked first,
+     * before this list's lock is taken.
      */
-    void defeated(@Nullable String encounterId, @Nullable UUID worldId, @Nonnull List<UUID> participants, long nowMs) {
+    void defeated(@Nullable String encounterId, @Nullable UUID worldId, @Nonnull List<UUID> participants,
+            @Nonnull Map<UUID, Double> damage, long nowMs) {
         if (encounterId == null || encounterId.isBlank() || participants.isEmpty()) {
             return;
         }
-        Set<CopyKey> areas = new LinkedHashSet<>();
+        Map<CopyKey, List<UUID>> areas = new LinkedHashMap<>();
         for (UUID participant : participants) {
             CopyKey area = AreaMembers.shared().presentArea(participant);
             if (area != null) {
-                areas.add(area);
+                areas.computeIfAbsent(area, k -> new ArrayList<>()).add(participant);
             }
         }
         if (areas.isEmpty()) {
@@ -372,17 +430,128 @@ public final class DungeonRuns {
         }
         String boss = encounterId.trim().toLowerCase(Locale.ROOT);
         synchronized (this) {
-            for (CopyKey area : areas) {
-                Run run = runs.get(area);
-                if (run == null || run.ended || !run.bosses.contains(boss)
-                        || (worldId != null && !worldId.equals(run.worldId))) {
+            for (Map.Entry<CopyKey, List<UUID>> entry : areas.entrySet()) {
+                Run run = runs.get(entry.getKey());
+                if (run == null || run.ended || (worldId != null && !worldId.equals(run.worldId))) {
                     continue;
                 }
-                run.fallen.add(boss);
-                if (run.allBosses ? run.fallen.containsAll(run.bosses) : !run.fallen.isEmpty()) {
-                    end(run, Ending.CLEARED, nowMs, encounterId.trim());
+                run.bossesDefeated++;
+                for (UUID member : entry.getValue()) {
+                    Double dealt = damage.get(member);
+                    if (dealt != null && Double.isFinite(dealt) && dealt > 0.0) {
+                        run.damage.merge(member, dealt, Double::sum);
+                    }
+                }
+                if (run.knobs.bosses.contains(boss)) {
+                    run.fallen.add(boss);
+                    if (holds(run, nowMs)) {
+                        end(run, Ending.CLEARED, nowMs, encounterId.trim() + " fell");
+                    }
                 }
             }
+        }
+        drain();
+    }
+
+    // ==================== the run tag (the copy's world thread) ====================
+
+    /**
+     * The run a fight in {@code worldUuid} belongs to: the run of the area the first of {@code players} who stands
+     * in one is in, ended or not, so a fight fought after its run cleared is still filed under it; null when none
+     * of them is in an area of that world. zc-encounter's run-tag seam asks it at a defeat. AreaMembers is asked
+     * before this list's lock is taken.
+     */
+    @Nullable
+    public RunTag runOf(@Nullable UUID worldUuid, @Nonnull List<UUID> players) {
+        for (UUID player : players) {
+            CopyKey area = AreaMembers.shared().presentArea(player);
+            if (area == null) {
+                continue;
+            }
+            synchronized (this) {
+                Run run = runs.get(area);
+                if (run != null && (worldUuid == null || worldUuid.equals(run.worldId))) {
+                    return new RunTag(SOURCE_PREFIX + run.dungeon, run.runId.toString());
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * What a run's tag source names as its players read it: a dungeon's name ({@code Text.NameKey}, else its id)
+     * for {@code dungeon:<id>}, else the source as written. Boss Fights names a fight's dungeon through it.
+     */
+    @Nonnull
+    public static Message nameOfSource(@Nonnull String source) {
+        String trimmed = source.trim();
+        if (!trimmed.toLowerCase(Locale.ROOT).startsWith(SOURCE_PREFIX)) {
+            return Msg.raw(trimmed);
+        }
+        String id = trimmed.substring(SOURCE_PREFIX.length());
+        DungeonAsset dungeon = id.isBlank() ? null : DungeonConfig.getInstance().resolve(id);
+        return DungeonResults.nameOf(dungeon == null || dungeon.getId() == null ? id : dungeon.getId(),
+                dungeon == null ? null : dungeon.nameKey());
+    }
+
+    /**
+     * A fight's name with the run it was fought in, as Boss Fights' tab reads it ({@code records.fight}, the fight
+     * then the dungeon's name): a translation with nested params, so it goes on a {@code TextSpans} sink.
+     */
+    @Nonnull
+    public static Message fightIn(@Nonnull Message fight, @Nonnull String source) {
+        return Msg.key(DungeonResults.PREFIX + "records.fight", fight, nameOfSource(source));
+    }
+
+    // ==================== an objective's moments (the player's world thread) ====================
+
+    /** Whether some live run's objective is still counting; false costs the moment listener nothing more. */
+    public boolean anyObjective() {
+        return objectivesOpen;
+    }
+
+    /**
+     * The objective a moment of {@code player}'s may count toward: the {@code Complete.Objective} of the run of
+     * the area they stand in, while it still counts; null when they are in no such run. The caller matches the
+     * moment against it and counts a match with {@link #countObjective}, handing the same instance back.
+     */
+    @Nullable
+    public DungeonObjective objectiveOf(@Nonnull UUID player) {
+        if (!objectivesOpen) {
+            return null;
+        }
+        CopyKey area = AreaMembers.shared().presentArea(player);
+        if (area == null) {
+            return null;
+        }
+        synchronized (this) {
+            Run run = runs.get(area);
+            return run == null || run.ended || !run.objectiveOpen() ? null : run.knobs.objective;
+        }
+    }
+
+    /**
+     * {@code player} met {@code objective} {@code amount} times: count it for the run of their area, if that run
+     * still counts that very objective (the instance {@link #objectiveOf} answered), which may clear it.
+     */
+    public void countObjective(@Nonnull UUID player, @Nonnull DungeonObjective objective, long amount, long nowMs) {
+        if (amount <= 0) {
+            return;
+        }
+        CopyKey area = AreaMembers.shared().presentArea(player);
+        if (area == null) {
+            return;
+        }
+        synchronized (this) {
+            Run run = runs.get(area);
+            if (run == null || run.ended || run.knobs.objective != objective || !run.objectiveOpen()) {
+                return;
+            }
+            run.objectiveCount = Math.min(objective.amount(), run.objectiveCount + amount);
+            if (holds(run, nowMs)) {
+                end(run, Ending.CLEARED, nowMs, "its objective was met");
+            }
+            noteObjectives();
         }
         drain();
     }
@@ -395,21 +564,79 @@ public final class DungeonRuns {
             @Nullable DungeonAsset dungeon, long nowMs) {
         String preset = dungeon != null && dungeon.getId() != null && !dungeon.getId().isBlank()
                 ? dungeon.getId().trim() : dungeonId == null ? area.world() : dungeonId;
-        if (dungeon == null) {
-            return new Run(area, world, preset, "", 0L, false, Set.of(), false, nowMs);
-        }
+        return new Run(area, world, preset, dungeon == null ? Knobs.BARE : knobsOf(dungeon), nowMs);
+    }
+
+    /** What a run needs of {@code dungeon}, read once. */
+    @Nonnull
+    private static Knobs knobsOf(@Nonnull DungeonAsset dungeon) {
         Set<String> bosses = new LinkedHashSet<>();
         for (String boss : dungeon.completeBosses()) {
             bosses.add(boss.toLowerCase(Locale.ROOT));
         }
         Integer limit = dungeon.timeLimitSeconds();
-        return new Run(area, world, preset, dungeon.difficulty(), limit == null ? 0L : limit * 1000L,
-                dungeon.failOnWipe(), Set.copyOf(bosses), dungeon.completeAllBosses(), nowMs);
+        Integer survive = dungeon.surviveTimerSeconds();
+        return new Knobs(dungeon.difficulty(), dungeon.nameKey(), limit == null ? 0L : limit * 1000L,
+                dungeon.failOnWipe(), Set.copyOf(bosses), dungeon.completeAllBosses(), dungeon.completeObjective(),
+                survive == null ? 0L : survive * 1000L, dungeon.rewardsLootable(), dungeon.rewardsDiminish());
     }
 
-    /** End {@code run} (under this list's lock): mark it, and queue its end moment. {@code boss} names a clear's. */
-    private void end(@Nonnull Run run, @Nonnull Ending ending, long nowMs, @Nullable String boss) {
+    /**
+     * Does every leaf {@code run}'s {@code Complete} writes hold at {@code nowMs}? Never for a run nothing can
+     * clear. Under this list's lock.
+     */
+    private static boolean holds(@Nonnull Run run, long nowMs) {
+        Knobs knobs = run.knobs;
+        if (!knobs.canClear()) {
+            return false;
+        }
+        boolean bosses = knobs.bosses.isEmpty()
+                || (knobs.allBosses ? run.fallen.containsAll(knobs.bosses) : !run.fallen.isEmpty());
+        boolean objective = knobs.objective == null || run.objectiveCount >= knobs.objective.amount();
+        boolean survived = knobs.surviveMs <= 0 || nowMs - run.startedAtMs >= knobs.surviveMs;
+        return bosses && objective && survived;
+    }
+
+    /** How a run's log line says what clears it. */
+    @Nonnull
+    private static String clearWords(@Nonnull Knobs knobs) {
+        if (!knobs.canClear()) {
+            return "nothing clears it";
+        }
+        List<String> parts = new ArrayList<>();
+        if (!knobs.bosses.isEmpty()) {
+            parts.add((knobs.allBosses ? "every one of " : "the first of ") + knobs.bosses + " falling");
+        }
+        if (knobs.objective != null) {
+            DungeonObjective o = knobs.objective;
+            parts.add(o.amount() + " x " + o.kind() + (o.target().isEmpty() ? "" : " " + o.target()));
+        }
+        if (knobs.surviveMs > 0) {
+            parts.add("lasting " + knobs.surviveMs / 1000L + " s");
+        }
+        return "it clears on " + String.join(" and ", parts);
+    }
+
+    /** Keep {@link #objectivesOpen} true exactly while a live run's objective still counts. Under this list's lock. */
+    private void noteObjectives() {
+        boolean open = false;
+        for (Run run : runs.values()) {
+            if (!run.ended && run.objectiveOpen()) {
+                open = true;
+                break;
+            }
+        }
+        objectivesOpen = open;
+    }
+
+    /**
+     * End {@code run} (under this list's lock): mark it, and queue its end moment, then, after a clear, its
+     * payout and results screen, or after a failure its party could have prevented, the line telling the members
+     * still in the area why. {@code why} names what cleared it, for the log.
+     */
+    private void end(@Nonnull Run run, @Nonnull Ending ending, long nowMs, @Nullable String why) {
         run.ended = true;
+        noteObjectives();
         boolean cleared = ending == Ending.CLEARED;
         long seconds = Math.max(0L, nowMs - run.startedAtMs) / 1000L;
         List<UUID> participants = List.copyOf(run.participants);
@@ -418,8 +645,22 @@ public final class DungeonRuns {
                 metadata(run, participants.size(), seconds, cleared ? ResultKind.WIN : ResultKind.LOSS),
                 participants, winners);
         outbox.add(new Fire(run.world, () -> InstanceRounds.fireCompleted(event)));
-        SafeLog.info(LOG + "the run in " + run.where() + " " + ending.words
-                + (boss == null ? "" : " (" + boss + " fell)") + " after " + seconds + " s: "
+        if (cleared && !winners.isEmpty()) {
+            Map<UUID, Long> dealt = new HashMap<>();
+            for (Map.Entry<UUID, Double> entry : run.damage.entrySet()) {
+                dealt.put(entry.getKey(), Math.round(entry.getValue()));
+            }
+            DungeonResults.Clear clear = new DungeonResults.Clear(run.dungeon, run.runId.toString(), run.knobs.mode,
+                    run.knobs.nameKey, run.knobs.lootable, run.knobs.diminish, seconds, winners, Map.copyOf(dealt),
+                    run.bossesDefeated);
+            outbox.add(new Fire(run.world, () -> DungeonResults.cleared(clear)));
+        } else if (ending.lineKey != null && !run.present.isEmpty()) {
+            DungeonResults.Failure failure = new DungeonResults.Failure(run.dungeon, run.knobs.nameKey,
+                    ending.lineKey, List.copyOf(run.present));
+            outbox.add(new Fire(run.world, () -> DungeonResults.failed(failure)));
+        }
+        SafeLog.info(LOG + "the run " + run.runId + " in " + run.where() + " " + ending.words
+                + (why == null ? "" : " (" + why + ")") + " after " + seconds + " s: "
                 + participants.size() + " took part, " + winners.size() + " won");
     }
 
@@ -427,7 +668,7 @@ public final class DungeonRuns {
     @Nonnull
     private static RoundMetadata metadata(@Nonnull Run run, int players, long seconds, @Nullable ResultKind result) {
         return RoundMetadata.builder(MOD_ID)
-                .modeId(run.mode)
+                .modeId(run.knobs.mode)
                 .presetId(run.dungeon)
                 .playerCount(players)
                 .durationSeconds(seconds)
@@ -435,7 +676,7 @@ public final class DungeonRuns {
                 .build();
     }
 
-    /** Post every queued moment to its copy's world thread. Outside every lock; never throws. */
+    /** Post everything queued to its copy's world thread. Outside every lock; never throws. */
     private void drain() {
         Fire fire;
         while ((fire = outbox.poll()) != null) {
@@ -445,7 +686,7 @@ public final class DungeonRuns {
 
     /**
      * Run {@code fire} on its copy's world thread; a copy no longer taking tasks has it run here instead, since
-     * a moment's listeners hop to each player's own world themselves.
+     * everything queued hops to each player's own world itself.
      */
     private static void post(@Nonnull Fire fire) {
         try {
@@ -459,7 +700,7 @@ public final class DungeonRuns {
         try {
             fire.task().run();
         } catch (Throwable t) {
-            SafeLog.warn(LOG + "a dungeon run's round moment could not be fired", t);
+            SafeLog.warn(LOG + "a dungeon run's round moment, payout or line could not be posted", t);
         }
     }
 }

@@ -27,7 +27,9 @@ import com.ziggfreed.common.util.SafeLog;
  * {@code Encounter_Best_Share} (their share of the credit in whole percent, kept highest) and
  * {@code Encounter_Damage_Dealt} (the raw damage they dealt the boss), each on the line of the fight's bucket
  * string ({@link EncounterLeaderboardListener#bucketFor}), the key the old encounter board's rows were filed
- * under, so an imported row and a new win land on the same line.
+ * under, so an imported row and a new win land on the same line. A fight the event files under a zc run (a
+ * dungeon area's) lands on that bucket filed under the run's source
+ * ({@link EncounterLeaderboardListener#fightInRun}), so Boss Fights shows it under its dungeon.
  *
  * <p>Every participant the ledger saw is counted, credited or not, as the encounter board counted them. A
  * binding row naming no {@code Leaderboard.Bucket} keeps no records, and a participant who is no longer
@@ -42,11 +44,14 @@ public final class EncounterStats {
     public static void onDefeated(@Nonnull EncounterDefeatedEvent event) {
         try {
             EncounterBindingAsset row = EncounterBindingConfig.getInstance().forEncounter(event.encounterId());
-            String fight = EncounterLeaderboardListener.bucketFor(row == null ? null : row.getLeaderboard(),
+            String bucket = EncounterLeaderboardListener.bucketFor(row == null ? null : row.getLeaderboard(),
                     event.participants().size(), event.difficulty());
-            if (fight == null) {
+            if (bucket == null) {
                 return;
             }
+            // A fight inside a dungeon area is filed under its run's dungeon, which Boss Fights then names.
+            String fight = EncounterLeaderboardListener.fightInRun(bucket,
+                    event.runTag() == null ? null : event.runTag().source());
             long seconds = Math.round(event.elapsedSeconds());
             int counted = 0;
             for (ParticipantShare share : event.participantShares()) {
