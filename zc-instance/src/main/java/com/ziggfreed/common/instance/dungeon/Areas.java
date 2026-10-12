@@ -56,8 +56,9 @@ import com.ziggfreed.common.world.TickingSections;
  * players, found through {@code TargetUtil.getAllEntitiesInBox} (the list copied, since it is the engine's
  * thread-local one) and, because that spatial query never lists an {@code Intangible} entity (spawn markers,
  * dropped items and projectiles all carry it), through a second sweep of the store's intangible entities;
- * each removed with {@code RemoveReason.REMOVE}. The {@code FORCE} re-paste resets every block of the prefab's
- * footprint; a block a player placed outside it stays.
+ * each removed with {@code RemoveReason.REMOVE}. The {@code FORCE} re-paste rewrites only the cells the prefab
+ * lists, so a used area pastes back clean because no player changes a block there: zc's dungeon gameplay
+ * config refuses placing, breaking and gathering. A template naming another gameplay config owns that rule.
  *
  * <p><b>Measured.</b> Every paste logs one INFO line under {@code [dungeon]}: its two stalls of the world
  * thread (the wake task, and the clear and paste task), each against the {@link #PASTE_BUDGET_MS} budget past
@@ -163,10 +164,14 @@ public final class Areas {
         return ready;
     }
 
-    /** Every player has left {@code area}: the next party it is given finds it cleared and pasted afresh. */
-    public synchronized void released(@Nonnull CopyKey area) {
+    /**
+     * Every player has left {@code area} of {@code world}: the next party it is given finds it cleared and pasted
+     * afresh. Copy names repeat, so a paste into a newer copy of the same name is left alone; a null world (the
+     * copy never came up for the player who left) marks whatever paste the area holds.
+     */
+    public synchronized void released(@Nullable World world, @Nonnull CopyKey area) {
         Slot slot = slots.get(area);
-        if (slot != null) {
+        if (slot != null && (world == null || slot.world == world)) {
             slot.used = true;
         }
     }

@@ -30,7 +30,8 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p><b>The steps</b>, on the entering player's current world thread:
  * <ol>
- *   <li>the dungeon is loaded and open (switched on, in season), and its prefab is shipped;</li>
+ *   <li>the dungeon is loaded and open (switched on, in season), its prefab is shipped, and its audit finds no
+ *       ERROR ({@link DungeonValidator#entryErrors});</li>
  *   <li>the player is in no area and on the way into none;</li>
  *   <li>the router reserves a place, filed with {@link AreaMembers} as one step;</li>
  *   <li>a new copy is spawned through {@code InstanceWorlds.spawn}, its config step setting the area-aware
@@ -60,6 +61,8 @@ public final class DungeonEntry {
         NO_PREFAB,
         /** No loaded pack ships the dungeon's prefab. */
         MISSING_PREFAB,
+        /** The dungeon's audit finds an ERROR in it ({@link DungeonValidator#entryErrors}); the log names it. */
+        AUDIT_ERROR,
         /** The player is already on the way into an area. */
         ON_THE_WAY,
         /** The player is already in an area. */
@@ -97,6 +100,23 @@ public final class DungeonEntry {
     @Nonnull
     public static Outcome enter(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
             @Nonnull PlayerRef player, @Nonnull World from, @Nonnull String dungeonId, @Nonnull String partyKey) {
+        return enter(ref, store, player, from, dungeonId, partyKey, false);
+    }
+
+    /**
+     * Send {@code player} into dungeon {@code dungeonId} alone: a party of one, given an empty area even where the
+     * dungeon's areas are not party-locked (where later parties may still be put in with them). The admin's way in.
+     */
+    @Nonnull
+    public static Outcome enterAlone(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
+            @Nonnull PlayerRef player, @Nonnull World from, @Nonnull String dungeonId) {
+        return enter(ref, store, player, from, dungeonId, CopyRouter.partyKey(null, player.getUuid()), true);
+    }
+
+    @Nonnull
+    private static Outcome enter(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
+            @Nonnull PlayerRef player, @Nonnull World from, @Nonnull String dungeonId, @Nonnull String partyKey,
+            boolean emptyArea) {
         String id = dungeonId.trim().toLowerCase(Locale.ROOT);
         DungeonAsset dungeon = id.isEmpty() ? null : DungeonConfig.getInstance().resolve(id);
         if (dungeon == null) {
@@ -113,6 +133,9 @@ public final class DungeonEntry {
         if (prefab == null) {
             return new Outcome(Result.MISSING_PREFAB, dungeon, prefabId, null);
         }
+        if (!DungeonValidator.entryErrors(id, dungeon).isEmpty()) {
+            return new Outcome(Result.AUDIT_ERROR, dungeon, prefabId, null);
+        }
         UUID uuid = player.getUuid();
         AreaMembers.Standing standing = AreaMembers.shared().standing(uuid);
         if (standing == AreaMembers.Standing.ON_THE_WAY) {
@@ -124,8 +147,12 @@ public final class DungeonEntry {
 
         long now = System.currentTimeMillis();
         CompletableFuture<World> ready = new CompletableFuture<>();
-        CopyRouter.Placement placement = AreaMembers.shared().reserve(partyKey, uuid, dungeon.routerRules(id), now,
-                PROBE, ready);
+        CopyRouter.Rules rules = dungeon.routerRules(id);
+        if (emptyArea && !rules.partyLocked()) {
+            rules = new CopyRouter.Rules(rules.dungeon(), rules.areasPerCopy(), rules.maxPlayers(), true,
+                    rules.emptyCloseMs());
+        }
+        CopyRouter.Placement placement = AreaMembers.shared().reserve(partyKey, uuid, rules, now, PROBE, ready);
         if (placement == null) {
             return new Outcome(Result.ON_THE_WAY, dungeon, prefabId, null);
         }
@@ -134,33 +161,42 @@ public final class DungeonEntry {
             return new Outcome(Result.FULL, dungeon, prefabId, null);
         }
 
-        Transform here = standingAt(ref, store, player);
-        CompletableFuture<World> copy;
+        // The place is reserved and filed: from here, anything that throws fails it at once, rather than leaving
+        // the player "on the way" until the ticker's limit.
+        Transform here;
         AreaLayout layout;
-        if (placement.opensCopy()) {
-            layout = AreaLayout.of(id, dungeon);
-            copy = open(dungeon, area.world(), from, here, layout);
-        } else {
-            Opening opening = OPENING.get(area.world());
-            World live = opening == null ? LiveWorlds.world(area.world()) : null;
-            if (opening == null && (live == null || !live.isAlive())) {
-                ready.completeExceptionally(new IllegalStateException("the copy " + area.world() + " is gone"));
-                return new Outcome(Result.COPY_GONE, dungeon, prefabId, area);
+        try {
+            here = standingAt(ref, store, player);
+            CompletableFuture<World> copy;
+            if (placement.opensCopy()) {
+                layout = AreaLayout.of(id, dungeon);
+                copy = open(dungeon, area.world(), from, here, layout);
+            } else {
+                Opening opening = OPENING.get(area.world());
+                World live = opening == null ? LiveWorlds.world(area.world()) : null;
+                if (opening == null && (live == null || !live.isAlive())) {
+                    ready.completeExceptionally(new IllegalStateException("the copy " + area.world() + " is gone"));
+                    return new Outcome(Result.COPY_GONE, dungeon, prefabId, area);
+                }
+                copy = opening != null ? opening.world() : CompletableFuture.completedFuture(live);
+                layout = opening != null ? opening.layout() : layoutOf(live, id, dungeon);
             }
-            copy = opening != null ? opening.world() : CompletableFuture.completedFuture(live);
-            layout = opening != null ? opening.layout() : layoutOf(live, id, dungeon);
-        }
 
-        AreaLayout areas = layout;
-        copy.thenCompose(world -> Areas.shared().prepare(world, area, areas, prefabId, prefab)
-                        .thenApply(ignored -> world))
-                .whenComplete((world, error) -> {
-                    if (error != null) {
-                        ready.completeExceptionally(error);
-                    } else {
-                        ready.complete(world);
-                    }
-                });
+            AreaLayout areas = layout;
+            copy.thenCompose(world -> Areas.shared().prepare(world, area, areas, prefabId, prefab)
+                            .thenApply(ignored -> world))
+                    .whenComplete((world, error) -> {
+                        if (error != null) {
+                            ready.completeExceptionally(error);
+                        } else {
+                            ready.complete(world);
+                        }
+                    });
+        } catch (Throwable t) {
+            SafeLog.warn(LOG + uuid + " could not be sent into " + area.world() + " area " + area.area(), t);
+            ready.completeExceptionally(t);
+            return new Outcome(Result.FAILED, dungeon, prefabId, area);
+        }
         if (ready.isCompletedExceptionally()) {
             // The copy was refused outright (its name taken, its template unreadable): the engine's loading
             // teleport would lift the player out of their world only to put them back. The ticker gives the

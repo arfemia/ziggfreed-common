@@ -6,6 +6,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -25,6 +27,7 @@ import com.hypixel.hytale.server.core.prefab.PrefabStore;
 import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
+import com.ziggfreed.common.validation.Severity;
 import com.ziggfreed.common.validation.TextKeyAudit;
 
 /**
@@ -78,7 +81,45 @@ public final class DungeonValidator {
     public record TemplateFacts(@Nullable String instanceKey, boolean portalTimed, boolean worldEvents) {
     }
 
+    /** A dungeon's entry verdict: the loaded asset it was read for, and its ERROR codes. */
+    private record EntryVerdict(@Nonnull DungeonAsset dungeon, @Nonnull List<String> errors) {
+    }
+
+    /** Each dungeon's entry verdict, by the fold's lower-cased id. */
+    private static final Map<String, EntryVerdict> ENTRY_VERDICTS = new ConcurrentHashMap<>();
+
     private DungeonValidator() {
+    }
+
+    /**
+     * The ERROR codes the audit finds in {@code dungeon} as loaded now, filed under {@code id} (the fold's
+     * lower-cased id); empty when it has none. The entry refuses a dungeon with any, since its copies would break
+     * what shared areas rely on. The boot audit runs only when the process asks for it, so the entry asks here:
+     * the same engine walk, once per loaded asset (a reload folds new ones), each ERROR's sentence logged once.
+     */
+    @Nonnull
+    public static List<String> entryErrors(@Nonnull String id, @Nonnull DungeonAsset dungeon) {
+        EntryVerdict known = ENTRY_VERDICTS.get(id);
+        if (known != null && known.dungeon() == dungeon) {
+            return known.errors();
+        }
+        List<String> errors = new ArrayList<>();
+        try {
+            for (Finding finding : audit(List.of(dungeon), DungeonValidator::templateKnown,
+                    DungeonValidator::templateFacts, DungeonValidator::prefabKnown, minimumSpacing(),
+                    key -> true)) {
+                if (finding.severity() == Severity.ERROR) {
+                    errors.add(finding.code());
+                    SafeLog.warn(LOG_LABEL + " '" + id + "' [" + finding.code() + "] " + finding.message()
+                            + "; it cannot be entered until this is fixed");
+                }
+            }
+        } catch (Throwable t) {
+            SafeLog.warn("[dungeon] the entry audit of '" + id + "' failed: " + t.getMessage(), t);
+        }
+        List<String> verdict = List.copyOf(errors);
+        ENTRY_VERDICTS.put(id, new EntryVerdict(dungeon, verdict));
+        return verdict;
     }
 
     /** The engine walk over every folded dungeon. */

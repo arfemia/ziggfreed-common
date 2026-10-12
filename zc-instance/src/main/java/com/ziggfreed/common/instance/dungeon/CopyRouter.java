@@ -38,7 +38,7 @@ import com.ziggfreed.common.instance.world.CopyKey;
  *   <li>A player's place is reserved before the asynchronous teleport and settled when it lands
  *       ({@link #arrived}) or fails ({@link #failed}); an area every player has left frees, and the party
  *       holding it lets it go ({@link #left}).</li>
- *   <li>Nothing is reserved into a copy within one ticker period ({@link #TICKER_PERIOD_MS}) of its close:
+ *   <li>Nothing is reserved into a copy within {@link #CLOSE_MARGIN_MS} of its close:
  *       a copy closes once it has stood empty for its dungeon's {@code EmptyCloseSeconds}, and a copy an
  *       admin is closing ({@link #closing}) takes no one.</li>
  * </ul>
@@ -52,11 +52,15 @@ public final class CopyRouter {
     /** A copy whose recent average tick runs over this many milliseconds takes no new party (lead's call). */
     public static final double LAG_BUDGET_MS = 25.0;
 
-    /**
-     * The period of the dungeon ticker, in milliseconds: nothing is reserved into a copy closer than this to
-     * its close, since the ticker may not see the arrival before the engine removes the world.
-     */
+    /** The period of the dungeon ticker, in milliseconds. */
     public static final long TICKER_PERIOD_MS = 1_000L;
+
+    /**
+     * Nothing is reserved into a copy closer than this to its close, in milliseconds (lead's call): an arriving
+     * player sits on the loading screen while their area is pasted, and the ticker must see them land before
+     * the engine removes the world.
+     */
+    public static final long CLOSE_MARGIN_MS = 10_000L;
 
     private static final CopyRouter SHARED = new CopyRouter();
 
@@ -371,7 +375,7 @@ public final class CopyRouter {
             return false;
         }
         Long closesAt = copy.closesAtMs();
-        if (closesAt != null && nowMs >= closesAt - TICKER_PERIOD_MS) {
+        if (closesAt != null && nowMs >= closesAt - CLOSE_MARGIN_MS) {
             return false;
         }
         return !lagging(copy, probe.tickAverageMs(copy.world));

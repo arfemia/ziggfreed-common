@@ -94,6 +94,8 @@ public final class AreaMembers {
         @Nullable World world;
         @Nullable UUID worldId;
         @Nullable AreaLayout layout;
+        /** A tick has already warned that it could not settle this member. Read and written by the ticker only. */
+        boolean tickFailed;
 
         Member(UUID player, CopyKey area, CompletableFuture<World> ready, long sinceMs) {
             this.player = player;
@@ -188,7 +190,10 @@ public final class AreaMembers {
         }
     }
 
-    /** One pass over every member. Never throws: a periodic task that throws is never run again. */
+    /**
+     * One pass over every member. Never throws: a periodic task that throws is never run again. One member who
+     * cannot be judged or settled is passed over (warned once), so the others still settle.
+     */
     private void tick() {
         try {
             long now = System.currentTimeMillis();
@@ -198,8 +203,16 @@ public final class AreaMembers {
             }
             Universe universe = Universe.get();
             for (Member member : snapshot) {
-                PlayerRef player = universe == null ? null : universe.getPlayer(member.player);
-                settle(member, judge(member, player, now), player, now);
+                try {
+                    PlayerRef player = universe == null ? null : universe.getPlayer(member.player);
+                    settle(member, judge(member, player, now), player, now);
+                } catch (Throwable t) {
+                    if (!member.tickFailed) {
+                        member.tickFailed = true;
+                        SafeLog.warn(LOG + "the area members' tick could not settle " + member.player + " in "
+                                + member.area.world() + " area " + member.area.area(), t);
+                    }
+                }
             }
             Areas.shared().prune();
         } catch (Throwable t) {
@@ -283,12 +296,21 @@ public final class AreaMembers {
                             + (now - member.arrivedAtMs) + " ms inside";
                 }
                 if (nobodyIn(member.area)) {
-                    Areas.shared().released(member.area);
+                    Areas.shared().released(worldOf(member), member.area);
                     line += "; the area is free, and the next party there finds it cleared and pasted afresh";
                 }
             }
         }
         SafeLog.info(LOG + line);
+    }
+
+    /** The copy {@code member} arrived in, else the one their teleport was waiting on, else null. */
+    @Nullable
+    private static World worldOf(@Nonnull Member member) {
+        if (member.world != null) {
+            return member.world;
+        }
+        return member.ready.state() == Future.State.SUCCESS ? member.ready.resultNow() : null;
     }
 
     /** Is no one in {@code area} or on the way into it? Under this list's lock. */
