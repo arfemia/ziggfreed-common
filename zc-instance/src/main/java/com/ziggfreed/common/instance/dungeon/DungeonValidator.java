@@ -115,7 +115,9 @@ public final class DungeonValidator {
                 }
             }
         } catch (Throwable t) {
+            // What could not be told is no ERROR, and the verdict is not kept: the next entry asks again.
             SafeLog.warn("[dungeon] the entry audit of '" + id + "' failed: " + t.getMessage(), t);
+            return List.copyOf(errors);
         }
         List<String> verdict = List.copyOf(errors);
         ENTRY_VERDICTS.put(id, new EntryVerdict(dungeon, verdict));

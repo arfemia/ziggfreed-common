@@ -1,7 +1,9 @@
 {
-  "$Comment": "The gameplay of zc's dungeon template: the game's Default_Instance (no block breaking or gathering, no world events) with block placing switched off too, so nobody builds in a dungeon and every area pastes back clean for the next party; and a player who dies respawns at the world's spawn provider, which puts each player back in their own area. Default_Instance itself sends the dead out of the instance. A dungeon whose template names another gameplay config keeps that one's rules.",
+  "$Comment": "The gameplay of zc's dungeon template: the game's Default_Instance (no world events) with no block placing, breaking or gathering, so nobody builds in a dungeon and every area pastes back clean for the next party; and a player who dies respawns at the world's spawn provider, which puts each player back in their own area. Default_Instance itself sends the dead out of the instance. A World group replaces the parent's whole group rather than adding to it, so all three block switches are written here. A dungeon whose template names another gameplay config keeps that one's rules.",
   "Parent": "Default_Instance",
   "World": {
+    "AllowBlockBreaking": false,
+    "AllowBlockGathering": false,
     "AllowBlockPlacement": false
   },
   "Death": {
