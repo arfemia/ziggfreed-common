@@ -125,9 +125,12 @@ public final class ClaimsView {
         return ContentKeys.tr(claim.titleKey(), claim.titleArgs().toArray());
     }
 
-    /** One reward as the library's reward chip; an id the server cannot name reads as itself. */
+    /**
+     * One reward as the library's reward chip; an id the server cannot name reads as itself. Public so every
+     * surface that shows a Claim's rewards (the Claims tab, a dungeon's results screen) draws them alike.
+     */
     @Nonnull
-    static RewardChip chip(@Nonnull InstanceReward reward) {
+    public static RewardChip chip(@Nonnull InstanceReward reward) {
         try {
             return RewardChipRenderer.toChip(reward, (key, quantity) -> ContentKeys.tr(key, quantity));
         } catch (Throwable t) {
