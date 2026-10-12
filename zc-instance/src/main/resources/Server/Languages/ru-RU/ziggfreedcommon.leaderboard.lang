@@ -26,6 +26,14 @@ filter.all = Все
 your_rank = Ваш лучший: №{0, number} ({1, number})
 your_rank.none = У вас пока нет рекорда в этом бою здесь.
 
+# The strip over the list: your place on the board and your own numbers.
+you.heading = Ваше место
+you.place = №{0, number}
+you.place.label = Место
+you.players = Игроков на этой доске: {0, number}
+# A column you can click to rank by, when the column says nothing of its own.
+tip.sort = Нажмите, чтобы упорядочить всех по этому столбцу.
+
 # /zigleaderboard, команда, открывающая экран выше. Ключи command.desc.* использует собственная
 # справка движка для команды и её аргументов.
 command.desc.family = Рекорды боёв с боссами этого сервера.

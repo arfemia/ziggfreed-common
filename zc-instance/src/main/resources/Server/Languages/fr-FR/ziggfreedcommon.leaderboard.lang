@@ -26,6 +26,14 @@ filter.all = Tous
 your_rank = Votre meilleur : n° {0, number} ({1, number})
 your_rank.none = Vous n'avez pas encore de record pour ce combat ici.
 
+# The strip over the list: your place on the board and your own numbers.
+you.heading = Votre position
+you.place = n° {0, number}
+you.place.label = Votre rang
+you.players = Joueurs sur ce classement : {0, number}
+# A column you can click to rank by, when the column says nothing of its own.
+tip.sort = Cliquez pour classer tout le monde selon ceci.
+
 # /zigleaderboard, la commande qui ouvre l'écran ci-dessus. Les clés command.desc.* sont celles par lesquelles
 # l'aide du moteur résout une commande ou un argument.
 command.desc.family = Consultez les records des combats de boss de ce serveur.

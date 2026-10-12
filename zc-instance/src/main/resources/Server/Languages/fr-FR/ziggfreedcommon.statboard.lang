@@ -5,7 +5,11 @@
 # shares with the boss records come from ziggfreedcommon.leaderboard.lang.
 
 title = Records
+lead = Voyez comment vous vous classez parmi tous les joueurs de ce serveur. Cliquez sur une colonne pour classer selon elle.
 empty = Personne n'est encore sur ce classement.
+# What counts on a tab and how to get on it, for a player with no place there yet and under a board
+# nobody is on. A section file names its own with HintKey; hint is for a tab that names none.
+hint = Tout ce qui figure dans ces colonnes compte. Faites n'importe laquelle de ces choses pour entrer sur ce classement.
 your_rank = Votre rang : n° {0, number}
 your_rank.none = Vous n'êtes pas encore sur ce classement.
 
@@ -26,3 +30,8 @@ section.combat = Combat
 section.gathering = Récolte
 section.adventure = Aventure
 section.renown = Renommée
+section.combat.hint = Vainquez des mobs ou affrontez un boss pour entrer sur ce classement. Vos morts comptent ici aussi.
+section.gathering.hint = Cassez ou placez des blocs, fabriquez des objets à la main ou ramassez des choses pour entrer sur ce classement.
+section.adventure.hint = Terminez des quêtes, parlez à des personnages, gagnez des manches ou jouez simplement pour entrer sur ce classement.
+section.renown.hint = Atteignez les objectifs du jeu ou gagnez en estime auprès d'une réputation pour entrer sur ce classement. La renommée ne compte que dans Depuis toujours.
+section.boss_fights.hint = Aidez à vaincre ce boss pour entrer sur son classement.

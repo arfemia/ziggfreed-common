@@ -25,6 +25,15 @@ view.stats = Statistiche
 filter.all = Tutti
 your_rank = Il tuo migliore: #{0, number} ({1, number})
 your_rank.none = Qui non hai ancora un record per questo scontro.
+
+# The strip over the list: your place on the board and your own numbers.
+you.heading = La tua posizione
+you.place = #{0, number}
+you.place.label = Posizione
+you.players = Giocatori in questa classifica: {0, number}
+# A column you can click to rank by, when the column says nothing of its own.
+tip.sort = Clicca per ordinare tutti in base a questo.
+
 command.desc.family = Vedi i record degli scontri con i boss di questo server.
 command.desc.encounter = Apri i record di uno scontro con un boss.
 command.desc.arg.encounter = L'id dello script dello scontro. Omettilo per aprire il primo scontro registrato.

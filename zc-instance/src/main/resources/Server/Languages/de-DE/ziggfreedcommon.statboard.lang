@@ -5,7 +5,11 @@
 # shares with the boss records come from ziggfreedcommon.leaderboard.lang.
 
 title = Rekorde
+lead = Sieh, wie du im Vergleich zu allen auf diesem Server stehst. Klicke auf eine Spalte, um danach zu ordnen.
 empty = Auf dieser Tafel steht noch niemand.
+# What counts on a tab and how to get on it, for a player with no place there yet and under a board
+# nobody is on. A section file names its own with HintKey; hint is for a tab that names none.
+hint = Alles in diesen Spalten zählt. Tu irgendetwas davon, um auf diese Tafel zu kommen.
 your_rank = Dein Rang: #{0, number}
 your_rank.none = Du stehst noch nicht auf dieser Tafel.
 
@@ -26,3 +30,8 @@ section.combat = Kampf
 section.gathering = Sammeln
 section.adventure = Abenteuer
 section.renown = Ansehen
+section.combat.hint = Besiege Mobs oder fordere einen Boss heraus, um auf diese Tafel zu kommen. Deine Tode zählen hier auch.
+section.gathering.hint = Baue Blöcke ab oder platziere sie, stelle Gegenstände von Hand her oder sammle Dinge auf, um auf diese Tafel zu kommen.
+section.adventure.hint = Schließe Quests ab, sprich mit Figuren, gewinne Runden oder spiel einfach, um auf diese Tafel zu kommen.
+section.renown.hint = Schließe die Ziele des Spiels ab oder verdiene dir Ruf bei einer Fraktion, um auf diese Tafel zu kommen. Ansehen zählt nur für Gesamt.
+section.boss_fights.hint = Hilf, diesen Boss zu besiegen, um auf seine Tafel zu kommen.

@@ -5,7 +5,11 @@
 # shares with the boss records come from ziggfreedcommon.leaderboard.lang.
 
 title = Récords
+lead = Mira cómo te clasificas entre todos los de este servidor. Haz clic en una columna para ordenar por ella.
 empty = Aún no hay nadie en este tablero.
+# What counts on a tab and how to get on it, for a player with no place there yet and under a board
+# nobody is on. A section file names its own with HintKey; hint is for a tab that names none.
+hint = Cuenta todo lo de estas columnas. Haz cualquier cosa de ahí para entrar en este tablero.
 your_rank = Tu puesto: #{0, number}
 your_rank.none = Aún no estás en este tablero.
 
@@ -26,3 +30,8 @@ section.combat = Combate
 section.gathering = Recolección
 section.adventure = Aventura
 section.renown = Renombre
+section.combat.hint = Derrota mobs o enfréntate a un jefe para entrar en este tablero. Tus muertes también cuentan aquí.
+section.gathering.hint = Rompe o coloca bloques, fabrica objetos a mano o recoge cosas para entrar en este tablero.
+section.adventure.hint = Termina misiones, habla con personajes, gana rondas o simplemente juega para entrar en este tablero.
+section.renown.hint = Completa los objetivos del juego o gana prestigio con una reputación para entrar en este tablero. El Renombre cuenta solo para Todo el Tiempo.
+section.boss_fights.hint = Ayuda a derrotar a este jefe para entrar en su tablero.

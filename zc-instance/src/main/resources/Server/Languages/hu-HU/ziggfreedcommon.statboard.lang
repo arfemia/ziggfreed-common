@@ -5,7 +5,11 @@
 # shares with the boss records come from ziggfreedcommon.leaderboard.lang.
 
 title = Rekordok
+lead = Nézd meg, hol állsz a szerver összes játékosához képest. Kattints egy oszlopra, hogy aszerint rangsorolj.
 empty = Még senki sincs ezen a táblán.
+# What counts on a tab and how to get on it, for a player with no place there yet and under a board
+# nobody is on. A section file names its own with HintKey; hint is for a tab that names none.
+hint = Ezekben az oszlopokban minden számít. Csinálj bármit belőlük, hogy felkerülj erre a táblára.
 your_rank = A helyezésed: #{0, number}
 your_rank.none = Te még nem vagy ezen a táblán.
 
@@ -26,3 +30,8 @@ section.combat = Harc
 section.gathering = Gyűjtögetés
 section.adventure = Kaland
 section.renown = Hírnév
+section.combat.hint = Győzz le mobokat, vagy szállj szembe egy főellenséggel, hogy felkerülj erre a táblára. A halálaid itt is számítanak.
+section.gathering.hint = Törj vagy helyezz le blokkokat, készíts tárgyakat kézzel, vagy vegyél fel dolgokat, hogy felkerülj erre a táblára.
+section.adventure.hint = Teljesíts küldetéseket, beszélj karakterekkel, nyerj meg köröket, vagy egyszerűen játssz, hogy felkerülj erre a táblára.
+section.renown.hint = Teljesítsd a játék céljait, vagy növeld egy hírnév állását, hogy felkerülj erre a táblára. A Hírnév csak a Mindenkori fülbe számít.
+section.boss_fights.hint = Segíts legyőzni ezt a főellenséget, hogy felkerülj a tábláján.

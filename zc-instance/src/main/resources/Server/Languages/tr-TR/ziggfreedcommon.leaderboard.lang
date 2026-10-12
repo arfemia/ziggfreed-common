@@ -25,6 +25,15 @@ view.stats = İstatistikler
 filter.all = Hepsi
 your_rank = En iyin: #{0, number} ({1, number})
 your_rank.none = Burada bu dövüş için henüz rekorun yok.
+
+# The strip over the list: your place on the board and your own numbers.
+you.heading = Durumun
+you.place = #{0, number}
+you.place.label = Sıran
+you.players = Bu panodaki oyuncular: {0, number}
+# A column you can click to rank by, when the column says nothing of its own.
+tip.sort = Herkesi buna göre sıralamak için tıkla.
+
 command.desc.family = Bu sunucudaki patron dövüşlerinin rekorlarını gör.
 command.desc.encounter = Bir patron dövüşünün rekorlarını aç.
 command.desc.arg.encounter = Dövüşün karşılaşma betiği kimliği. Vermezsen kayıtlı ilk dövüş açılır.

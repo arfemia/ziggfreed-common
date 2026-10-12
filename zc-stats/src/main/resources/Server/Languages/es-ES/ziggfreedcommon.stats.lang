@@ -20,6 +20,26 @@ deaths = Muertes
 playtime_seconds = Tiempo de Juego
 objectives_completed = Objetivos Completados
 
+# What each stat counts: the tooltip over its column on Records (a stat's name key with .tip added).
+# A tooltip prints a parameter as written, so none of these takes one.
+mob_kills.tip = Todos los mobs que has derrotado, peces incluidos.
+blocks_broken.tip = Todos los bloques que has roto, salvo los que colocaste tú.
+blocks_placed.tip = Todos los bloques que has colocado.
+items_crafted.tip = Todos los objetos que has fabricado a mano.
+items_pickedup.tip = Todos los objetos que has recogido, salvo los de bloques que colocaste tú.
+npcs_talked.tip = Todas las veces que has empezado a hablar con un personaje.
+encounters_defeated.tip = Todos los combates contra jefes que has ayudado a ganar.
+encounter_attempts.tip = Todos los combates contra jefes en los que has participado, ganados o perdidos.
+encounters_won.tip = Cuántas veces has ayudado a derrotar a este jefe.
+encounter_best_time.tip = Tu victoria más rápida contra este jefe.
+encounter_best_share.tip = Tu mayor parte en una victoria contra este jefe, sobre 100.
+encounter_damage_dealt.tip = El daño que has infligido a este jefe en tus victorias.
+quests_completed.tip = Todas las misiones que has entregado y cobrado.
+rounds_won.tip = Todas las rondas de minijuego que has ganado.
+deaths.tip = Cuántas veces has muerto.
+playtime_seconds.tip = Cuánto tiempo has pasado en este servidor.
+objectives_completed.tip = Los objetivos propios del juego que has completado.
+
 command.desc.family = Consulta las estadísticas que ha reunido un jugador.
 command.desc.show = Lista todas las estadísticas de un jugador, por la clave que nombraría una condición.
 command.desc.arg.player = El jugador que se consulta. Por defecto, tú.

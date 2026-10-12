@@ -26,6 +26,14 @@ filter.all = Mind
 your_rank = A legjobbad: #{0, number} ({1, number})
 your_rank.none = Ehhez a harchoz itt még nincs rekordod.
 
+# The strip over the list: your place on the board and your own numbers.
+you.heading = A helyezésed
+you.place = #{0, number}
+you.place.label = Helyezés
+you.players = Játékosok ezen a táblán: {0, number}
+# A column you can click to rank by, when the column says nothing of its own.
+tip.sort = Kattints, hogy mindenkit e szerint rangsorolj.
+
 # /zigleaderboard, a parancs, amely megnyitja a fenti képernyőt. A command.desc.* kulcsokon keresztül
 # oldja fel a játék saját súgója a parancsot és az argumentumokat.
 command.desc.family = A szerver főellenség-harcainak rekordjai.

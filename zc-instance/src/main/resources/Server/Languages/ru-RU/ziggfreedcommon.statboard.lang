@@ -5,7 +5,11 @@
 # shares with the boss records come from ziggfreedcommon.leaderboard.lang.
 
 title = Рекорды
+lead = Узнайте, какое место вы занимаете среди всех игроков сервера. Нажмите на столбец, чтобы упорядочить по нему.
 empty = На этой доске пока никого нет.
+# What counts on a tab and how to get on it, for a player with no place there yet and under a board
+# nobody is on. A section file names its own with HintKey; hint is for a tab that names none.
+hint = Учитывается всё, что есть в этих столбцах. Сделайте что-нибудь из этого, чтобы попасть на эту доску.
 your_rank = Ваше место: №{0, number}
 your_rank.none = Вас на этой доске пока нет.
 
@@ -26,3 +30,8 @@ section.combat = Бой
 section.gathering = Добыча
 section.adventure = Приключения
 section.renown = Слава
+section.combat.hint = Побеждайте мобов или бросьте вызов боссу, чтобы попасть на эту доску. Ваши смерти здесь тоже учитываются.
+section.gathering.hint = Ломайте или ставьте блоки, создавайте предметы вручную или подбирайте вещи, чтобы попасть на эту доску.
+section.adventure.hint = Выполняйте квесты, разговаривайте с персонажами, выигрывайте раунды или просто играйте, чтобы попасть на эту доску.
+section.renown.hint = Выполняйте цели игры или повышайте репутацию, чтобы попасть на эту доску. Слава учитывается только в разделе «За всё время».
+section.boss_fights.hint = Помогите победить этого босса, чтобы попасть на его доску.

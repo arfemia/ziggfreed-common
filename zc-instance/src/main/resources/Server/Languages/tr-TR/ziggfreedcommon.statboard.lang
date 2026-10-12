@@ -5,7 +5,11 @@
 # shares with the boss records come from ziggfreedcommon.leaderboard.lang.
 
 title = Rekorlar
+lead = Bu sunucudaki herkese göre nerede durduğuna bak. Sıralamak için bir sütuna tıkla.
 empty = Bu panoda henüz kimse yok.
+# What counts on a tab and how to get on it, for a player with no place there yet and under a board
+# nobody is on. A section file names its own with HintKey; hint is for a tab that names none.
+hint = Bu sütunlardaki her şey sayılır. Bu panoya girmek için herhangi birini yap.
 your_rank = Sıran: #{0, number}
 your_rank.none = Henüz bu panoda değilsin.
 
@@ -26,3 +30,8 @@ section.combat = Savaş
 section.gathering = Toplama
 section.adventure = Macera
 section.renown = Şöhret
+section.combat.hint = Bu panoya girmek için mob alt et ya da bir patronla dövüş. Ölümlerin de burada sayılır.
+section.gathering.hint = Bu panoya girmek için blok kır ya da yerleştir, elle eşya üret ya da bir şeyler topla.
+section.adventure.hint = Bu panoya girmek için görev bitir, karakterlerle konuş, tur kazan ya da sadece oyna.
+section.renown.hint = Bu panoya girmek için oyunun hedeflerini tamamla ya da bir itibarda puan kazan. Şöhret yalnızca Tüm Zamanlar'a sayılır.
+section.boss_fights.hint = Bu patronun panosuna girmek için onu alt etmeye yardım et.

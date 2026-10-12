@@ -20,6 +20,26 @@ deaths = Ölümler
 playtime_seconds = Oyun Süresi
 objectives_completed = Tamamlanan Hedefler
 
+# What each stat counts: the tooltip over its column on Records (a stat's name key with .tip added).
+# A tooltip prints a parameter as written, so none of these takes one.
+mob_kills.tip = Alt ettiğin her mob, balıklar dahil.
+blocks_broken.tip = Kırdığın her blok, yerleştirdiklerin hariç.
+blocks_placed.tip = Yerleştirdiğin her blok.
+items_crafted.tip = Elle ürettiğin her eşya.
+items_pickedup.tip = Topladığın her eşya, yerleştirdiğin bloklardan toplananlar hariç.
+npcs_talked.tip = Bir karakterle konuşmaya başladığın her seferde.
+encounters_defeated.tip = Kazanmaya yardım ettiğin her patron dövüşü.
+encounter_attempts.tip = Katıldığın her patron dövüşü, kazanılmış ya da kaybedilmiş.
+encounters_won.tip = Bu patronu alt etmeye kaç kez yardım ettin.
+encounter_best_time.tip = Bu patrona karşı en hızlı zaferin.
+encounter_best_share.tip = Bu patrona karşı bir zaferdeki en büyük payın, 100 üzerinden.
+encounter_damage_dealt.tip = Zaferlerin boyunca bu patrona verdiğin hasar.
+quests_completed.tip = Teslim edip ödülünü aldığın her görev.
+rounds_won.tip = Kazandığın her mini oyun turu.
+deaths.tip = Kaç kez öldün.
+playtime_seconds.tip = Bu sunucuda ne kadar vakit geçirdin.
+objectives_completed.tip = Tamamladığın oyunun kendi hedefleri.
+
 command.desc.family = Bir oyuncunun topladığı istatistiklere bak.
 command.desc.show = Bir oyuncunun tuttuğu her istatistiği, bir koşulun adlandıracağı anahtarla listele.
 command.desc.arg.player = Bakılacak oyuncu. Varsayılan sensin.

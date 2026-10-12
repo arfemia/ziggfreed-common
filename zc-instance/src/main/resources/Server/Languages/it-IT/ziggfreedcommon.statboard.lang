@@ -5,7 +5,11 @@
 # shares with the boss records come from ziggfreedcommon.leaderboard.lang.
 
 title = Record
+lead = Guarda come ti piazzi rispetto a tutti gli altri su questo server. Clicca su una colonna per ordinare in base a essa.
 empty = Nessuno è ancora in questa classifica.
+# What counts on a tab and how to get on it, for a player with no place there yet and under a board
+# nobody is on. A section file names its own with HintKey; hint is for a tab that names none.
+hint = Tutto ciò che sta in queste colonne conta. Basta una qualsiasi di queste cose per entrare in questa classifica.
 your_rank = La tua posizione: #{0, number}
 your_rank.none = Non sei ancora in questa classifica.
 
@@ -26,3 +30,8 @@ section.combat = Combattimento
 section.gathering = Raccolta
 section.adventure = Avventura
 section.renown = Fama
+section.combat.hint = Sconfiggi dei mob o affronta un boss per entrare in questa classifica. Anche le tue morti contano qui.
+section.gathering.hint = Rompi o piazza blocchi, fabbrica oggetti a mano o raccogli cose per entrare in questa classifica.
+section.adventure.hint = Completa missioni, parla con i personaggi, vinci round o semplicemente gioca per entrare in questa classifica.
+section.renown.hint = Completa gli obiettivi del gioco o guadagna stima con una reputazione per entrare in questa classifica. La Fama conta solo per Di sempre.
+section.boss_fights.hint = Aiuta a sconfiggere questo boss per entrare nella sua classifica.
