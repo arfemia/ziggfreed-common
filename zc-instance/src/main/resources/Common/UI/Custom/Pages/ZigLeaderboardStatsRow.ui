@@ -1,20 +1,85 @@
-$C = "../Common.ui";
-$ZT = "../Common/ZigType.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
 
-// One lifetime-stats leaderboard row (appended into #LeaderboardList for the Stats view; see
-// LeaderboardPage): Rank / Player / 4 generic stat cells (#Col0..#Col3) / Plays. The page fills
-// the first K cells from the consumer's StatColumnDef list and hides the rest (4-stat cap).
-// Medal ranks + the viewer's row are tinted from Java. Colour-only.
+// One row of the Stats view (appended into #LeaderboardList; see LeaderboardPage): the place (#RankCell: a
+// trophy #Medal in its slot, then the #Rank number), the player, four generic figures (#Col0..#Col3; the page
+// fills the first K from the board's StatColumnDef list and hides the rest) and Plays. Its widths are the
+// header's (Pages/ZigLeaderboardMenuPage.ui #StatsHeader): Rank 72, Player FlexWeight 2, each figure
+// FlexWeight 1 after a 4px gap, 10px in from its right edge. A long name ends in "...". The page shows the
+// medal and tints it and the number gold, silver or bronze for the top three, and lays the viewer's own row
+// on the selected row's fill with its words in the bright ink, all from Common/ZigTokens.ui.
 
 Group #ZigLeaderboardStatsRow {
   LayoutMode: Left;
-  Anchor: (Height: 28, Bottom: 2);
+  Anchor: (Height: 36, Bottom: 2);
+  Background: (Color: $ZK.@ZigSurfaceRow);
 
-  Label #Rank   { Anchor: (Width: 48);  Padding: (Left: 10); Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #d7e4f0, VerticalAlignment: Center, RenderBold: true); }
-  Label #Player { FlexWeight: 1;        Padding: (Left: 4);  Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #d7e4f0, VerticalAlignment: Center); }
-  Label #Col0   { Anchor: (Width: 110); Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #cfe3c0, VerticalAlignment: Center, HorizontalAlignment: End); }
-  Label #Col1   { Anchor: (Width: 110); Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #cfe3c0, VerticalAlignment: Center, HorizontalAlignment: End); }
-  Label #Col2   { Anchor: (Width: 110); Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #cfe3c0, VerticalAlignment: Center, HorizontalAlignment: End); }
-  Label #Col3   { Anchor: (Width: 110); Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #cfe3c0, VerticalAlignment: Center, HorizontalAlignment: End); }
-  Label #Plays  { Anchor: (Width: 60);  Padding: (Right: 10); Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
+  Group #RankCell {
+    Anchor: (Width: 72);
+    LayoutMode: Left;
+    Padding: (Left: 12);
+
+    Group #MedalSlot {
+      Anchor: (Width: 24);
+
+      Group #Medal {
+        Anchor: (Width: 16, Height: 16, Top: 10, Left: 0);
+        Background: (TexturePath: "../Common/Glyphs/Trophy.png", Color: $ZK.@ZigAccent);
+        Visible: false;
+      }
+    }
+
+    Label #Rank {
+      FlexWeight: 1;
+      Text: "";
+      Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigInkMuted, RenderBold: true);
+    }
+  }
+
+  Label #Player {
+    FlexWeight: 2;
+    Padding: (Left: 4);
+    Text: "";
+    Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigInkStrong, Wrap: true, WrapMaxLines: 1);
+  }
+
+  Label #Col0 {
+    FlexWeight: 1;
+    Anchor: (Left: 4);
+    Padding: (Right: 10);
+    Text: "";
+    Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigInkStrong, HorizontalAlignment: End, Wrap: true, WrapMaxLines: 1);
+  }
+
+  Label #Col1 {
+    FlexWeight: 1;
+    Anchor: (Left: 4);
+    Padding: (Right: 10);
+    Text: "";
+    Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigInkStrong, HorizontalAlignment: End, Wrap: true, WrapMaxLines: 1);
+  }
+
+  Label #Col2 {
+    FlexWeight: 1;
+    Anchor: (Left: 4);
+    Padding: (Right: 10);
+    Text: "";
+    Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigInkStrong, HorizontalAlignment: End, Wrap: true, WrapMaxLines: 1);
+  }
+
+  Label #Col3 {
+    FlexWeight: 1;
+    Anchor: (Left: 4);
+    Padding: (Right: 10);
+    Text: "";
+    Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigInkStrong, HorizontalAlignment: End, Wrap: true, WrapMaxLines: 1);
+  }
+
+  Label #Plays {
+    FlexWeight: 1;
+    Anchor: (Left: 4);
+    Padding: (Right: 10);
+    Text: "";
+    Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigInkMuted, HorizontalAlignment: End, Wrap: true, WrapMaxLines: 1);
+  }
 }

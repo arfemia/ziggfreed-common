@@ -1,105 +1,318 @@
 $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
-$M = "../Common/ZigButtons.ui";
-$ZT = "../Common/ZigType.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
+$ZW = "../Common/ZigKit.ui";
 
 // The generic leaderboard page (com.ziggfreed.common.instance.leaderboard.LeaderboardPage) on the shared
 // menu's rail: the page builds from this document instead of Pages/ZigLeaderboardPage.ui when its deps
-// name a rail tab (LeaderboardPageDeps.menuTab), as the encounter board's Records does. A board with no
-// tab keeps the standalone document and its own 860 x 700 frame.
+// name a rail tab (LeaderboardPageDeps.menuTab), as Records and its Boss Fights do. A board with no tab
+// keeps the standalone document and its own 860 x 700 frame.
 //
-// The frame's rail comes first (ui/menu/ZigMenu paints it, with the deps' tab selected), then ONE column
-// holding exactly the standalone document's body: the same elements, the same ids, the same order
-// (LeaderboardMenuDocumentTest holds the two one for one, since the page addresses either with the same
-// commands). Change the body in both documents together. The frame owns the size, the padding and the
-// close button.
+// The frame's rail comes first (ui/menu/ZigMenu paints it, with the deps' tab selected), then #Board, the
+// one column holding exactly the standalone document's body: the same elements, the same ids, the same
+// order (LeaderboardMenuDocumentTest holds the two one for one, since the page addresses either with the
+// same commands). Change the body in both documents together. The frame owns the size and the close
+// button; every colour is a Common/ZigTokens.ui token and every size a Common/ZigType.ui step.
+//
+// TOP: #Title and #Lead, the board's one line on how to read it (hidden when the board has none).
+// #GroupRow: the first row of tabs. A row whose tabs each bring their own columns (Records' sections, the
+// boss fights) is the kit's view tabs (Pages/ZigViewTab.ui, ViewTabPainter) over a thin rule (#GroupRule);
+// any other row is the kit's segments (Pages/ZigSegment.ui, SegmentPainter), as #TabRow, the periods,
+// always is. Both rows wrap onto a second line rather than run off the edge, and each has an optional
+// section label above it. #ControlBar shows only on a board with a Rankings view: the sort and the view,
+// as segments.
+//
+// #YouStrip: the viewer's place on this board and their own number in each column (the kit's @ZigStat,
+// StatPainter), or, with no place yet, the line saying how to get on it. Hidden while the board is empty.
+//
+// LIST: one of two headers (#TableHeader for Rankings; #StatsHeader for Stats, whose columns are
+// @SortHeader buttons: the sorted one swaps to the view tab's chosen look, its name turns gold and its
+// #Mark shows, and each carries a tooltip saying what it counts), then #LeaderboardList, which the page
+// appends Pages/ZigLeaderboardRow.ui or Pages/ZigLeaderboardStatsRow.ui into. The header and the rows
+// share their widths (Rank 72, Player FlexWeight 2, each figure FlexWeight 1 after a 4px gap, 10px in
+// from its right edge), so a hidden column leaves both the same. #EmptyState (the kit's
+// @ZigEmptyState) takes the list's place when nobody is on the board.
+
+// A column header's words: the view tab's name, one line.
+@HeadStyle = LabelStyle(...$ZS.@ZigViewTabLabelStyle);
+@HeadEndStyle = LabelStyle(...@HeadStyle, HorizontalAlignment: End);
+
+// A column header that sorts the list: the view tab's faint pane, its name at the end like the figures under
+// it, #Mark before the name on the sorted column.
+@SortHeader = Button {
+  FlexWeight: 1;
+  Anchor: (Height: 32, Left: 4);
+  LayoutMode: Left;
+  Padding: (Horizontal: 10);
+  Style: $ZS.@ZigViewTabStyle;
+  TextTooltipStyle: $C.@DefaultTextTooltipStyle;
+
+  Group #Mark {
+    Anchor: (Width: 12, Height: 12, Top: 10, Right: 4);
+    Background: (TexturePath: "../Common/Glyphs/ChevronDown.png", Color: $ZK.@ZigAccent);
+    Visible: false;
+  }
+
+  Label #Label {
+    FlexWeight: 1;
+    Anchor: (Height: 32);
+    Text: "";
+    Style: @HeadEndStyle;
+  }
+};
 
 $C.@PageOverlay {}
 
 $F.@ZigMenuFrame {
   #Content {
-    Group {
+    Group #Board {
       FlexWeight: 1;
       LayoutMode: Top;
-      Padding: (Full: 18);
+      Padding: (Horizontal: 18, Top: 14, Bottom: 14);
 
       Label #Title {
+        Anchor: (Height: 28, Bottom: 2);
         Text: "";
-        Anchor: (Height: 30, Bottom: 8);
-        Style: (FontSize: $ZT.@ZigFontTitle, TextColor: #ffd97a, RenderBold: true);
+        Style: (...$ZX.@ZigTitleStyle, VerticalAlignment: Center, WrapMaxLines: 1);
       }
 
-      // "Which leaderboard" selectors: a primary axis (difficulty) over a secondary axis (party size),
-      // each with a leading label so the row's purpose is unambiguous.
+      Label #Lead {
+        Anchor: (Height: 20);
+        Text: "";
+        Visible: false;
+        Style: (...$ZX.@ZigCaptionStyle, Wrap: true, WrapMaxLines: 1);
+      }
+
       Group #GroupRow {
-        LayoutMode: Left;
-        Anchor: (Height: 34, Bottom: 6);
-        Label #GroupLabel { Anchor: (Width: 84); Padding: (Left: 2); Visible: false; Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #8696a8, VerticalAlignment: Center); }
-        Group #GroupBar { FlexWeight: 1; LayoutMode: Left; }
+        LayoutMode: Top;
+        Anchor: (Top: 12);
+
+        Label #GroupLabel {
+          Anchor: (Height: 22);
+          Text: "";
+          Visible: false;
+          Style: $ZX.@ZigSectionLabelStyle;
+        }
+
+        Group #GroupBar {
+          LayoutMode: LeftWrap;
+        }
+      }
+
+      Group #GroupRule {
+        Anchor: (Height: 1);
+        Background: (Color: $ZK.@ZigDivider);
+        Visible: false;
       }
 
       Group #TabRow {
-        LayoutMode: Left;
-        Anchor: (Height: 34, Bottom: 8);
-        Label #TabLabel { Anchor: (Width: 84); Padding: (Left: 2); Visible: false; Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #8696a8, VerticalAlignment: Center); }
-        Group #TabBar { FlexWeight: 1; LayoutMode: Left; }
+        LayoutMode: Top;
+        Anchor: (Top: 12);
+
+        Label #TabLabel {
+          Anchor: (Height: 22);
+          Text: "";
+          Visible: false;
+          Style: $ZX.@ZigSectionLabelStyle;
+        }
+
+        Group #TabBar {
+          LayoutMode: LeftWrap;
+        }
       }
 
-      // Divider: separates "which leaderboard" (above) from "how it is shown" (below).
-      Group { Anchor: (Height: 1, Bottom: 8); Background: #1e2a36; }
-
-      // "How it is shown" controls: the sort metric (left) and the Rankings/Stats view (right edge).
       Group #ControlBar {
         LayoutMode: Left;
-        Anchor: (Height: 30, Bottom: 10);
+        Anchor: (Height: 54, Top: 12);
+        Visible: false;
 
-        Label #SortLabel { Anchor: (Width: 48); Padding: (Left: 2); Visible: false; Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #8696a8, VerticalAlignment: Center); }
         Group #SortGroup {
-          LayoutMode: Left;
           FlexWeight: 1;
-          TextButton #SortBest  { Anchor: (Width: 108, Right: 6); Text: ""; Style: $M.@ZigTabBtnStyle; }
-          TextButton #SortTotal { Anchor: (Width: 108, Right: 6); Text: ""; Style: $M.@ZigTabBtnStyle; }
-          TextButton #SortTime  { Anchor: (Width: 108, Right: 6); Text: ""; Style: $M.@ZigTabBtnStyle; }
+          LayoutMode: Top;
+
+          Label #SortLabel {
+            Anchor: (Height: 22);
+            Text: "";
+            Visible: false;
+            Style: $ZX.@ZigSectionLabelStyle;
+          }
+
+          Group #SortBar {
+            LayoutMode: Left;
+            Anchor: (Height: $ZK.@ZigControlHeight);
+
+            $ZW.@ZigSegment #SortBest {
+              @Anchor = (Right: 6);
+            }
+
+            $ZW.@ZigSegment #SortTotal {
+              @Anchor = (Right: 6);
+            }
+
+            $ZW.@ZigSegment #SortTime {}
+          }
         }
 
-        Label #ViewLabel { Anchor: (Width: 44); Text: ""; Visible: false; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
         Group #ViewGroup {
-          LayoutMode: Left;
-          Anchor: (Width: 226);
-          TextButton #ViewRankings { Anchor: (Width: 108, Right: 6); Text: ""; Style: $M.@ZigTabBtnStyle; }
-          TextButton #ViewStats    { Anchor: (Width: 108);          Text: ""; Style: $M.@ZigTabBtnStyle; }
+          Anchor: (Width: 270);
+          LayoutMode: Top;
+
+          Label #ViewLabel {
+            Anchor: (Height: 22);
+            Text: "";
+            Visible: false;
+            Style: $ZX.@ZigSectionLabelStyle;
+          }
+
+          Group #ViewBar {
+            LayoutMode: Left;
+            Anchor: (Height: $ZK.@ZigControlHeight);
+
+            $ZW.@ZigSegment #ViewRankings {
+              @Anchor = (Right: 6);
+            }
+
+            $ZW.@ZigSegment #ViewStats {}
+          }
         }
       }
 
-      // Rankings column header.
+      Group #YouStrip {
+        LayoutMode: Top;
+        Anchor: (Top: 14);
+        Padding: (Horizontal: $ZK.@ZigSpace4, Vertical: 10);
+        Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
+        Visible: false;
+
+        Group #YouHead {
+          LayoutMode: Left;
+          Anchor: (Height: 20);
+
+          Label #YouHeading {
+            FlexWeight: 1;
+            Text: "";
+            Style: (...$ZX.@ZigSectionLabelStyle, Wrap: true, WrapMaxLines: 1);
+          }
+
+          Label #YourRank {
+            FlexWeight: 1;
+            Text: "";
+            Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: End, Wrap: true, WrapMaxLines: 1);
+          }
+        }
+
+        Group #YouFigures {
+          LayoutMode: Left;
+          Anchor: (Height: $ZK.@ZigHeaderHeight, Top: 4);
+
+          $ZW.@ZigStat #YouPlace {}
+
+          $ZW.@ZigStat #YouStat0 {
+            @Anchor = (Left: $ZK.@ZigSpace2);
+          }
+
+          $ZW.@ZigStat #YouStat1 {
+            @Anchor = (Left: $ZK.@ZigSpace2);
+          }
+
+          $ZW.@ZigStat #YouStat2 {
+            @Anchor = (Left: $ZK.@ZigSpace2);
+          }
+
+          $ZW.@ZigStat #YouStat3 {
+            @Anchor = (Left: $ZK.@ZigSpace2);
+          }
+        }
+
+        Label #YouHint {
+          Anchor: (Height: 24, Top: 4);
+          Text: "";
+          Visible: false;
+          Style: (...$ZX.@ZigBodyStyle, Wrap: true, WrapMaxLines: 1);
+        }
+      }
+
       Group #TableHeader {
         LayoutMode: Left;
-        Anchor: (Height: 22, Bottom: 4);
-        Label #HdrRank   { Anchor: (Width: 48);  Padding: (Left: 10); Text: ""; Style: (FontSize: $ZT.@ZigFontSection, TextColor: #8696a8, VerticalAlignment: Center); }
-        Label #HdrPlayer { FlexWeight: 1;        Padding: (Left: 4);  Text: ""; Style: (FontSize: $ZT.@ZigFontSection, TextColor: #8696a8, VerticalAlignment: Center); }
-        Label #HdrTotal  { Anchor: (Width: 100); Text: ""; Style: (FontSize: $ZT.@ZigFontSection, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
-        Label #HdrScore  { Anchor: (Width: 90);  Text: ""; Style: (FontSize: $ZT.@ZigFontSection, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
-        Label #HdrTime   { Anchor: (Width: 70);  Text: ""; Style: (FontSize: $ZT.@ZigFontSection, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
-        Label #HdrPlays  { Anchor: (Width: 60);  Padding: (Right: 10); Text: ""; Style: (FontSize: $ZT.@ZigFontSection, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
+        Anchor: (Height: 32, Top: 14, Bottom: 4);
+        Padding: (Right: 4);
+        Visible: false;
+
+        Label #HdrRank {
+          Anchor: (Width: 72);
+          Padding: (Left: 12);
+          Text: "";
+          Style: @HeadStyle;
+        }
+
+        Label #HdrPlayer {
+          FlexWeight: 2;
+          Padding: (Left: 4);
+          Text: "";
+          Style: @HeadStyle;
+        }
+
+        Label #HdrTotal {
+          FlexWeight: 1;
+          Anchor: (Left: 4);
+          Padding: (Right: 10);
+          Text: "";
+          Style: @HeadEndStyle;
+        }
+
+        Label #HdrScore {
+          FlexWeight: 1;
+          Anchor: (Left: 4);
+          Padding: (Right: 10);
+          Text: "";
+          Style: @HeadEndStyle;
+        }
+
+        Label #HdrTime {
+          FlexWeight: 1;
+          Anchor: (Left: 4);
+          Padding: (Right: 10);
+          Text: "";
+          Style: @HeadEndStyle;
+        }
+
+        Label #HdrPlays {
+          FlexWeight: 1;
+          Anchor: (Left: 4);
+          Padding: (Right: 10);
+          Text: "";
+          Style: @HeadEndStyle;
+        }
       }
 
-      // Stats column header (4 generic stat cells; the page hides the unused ones). The stat cells +
-      // Plays are clickable sort headers (TextButton @ZigSortHeaderBtnStyle): the page binds each to
-      // set the active sort metric and tints the active one from Java (style()). Rank/Player stay Labels.
       Group #StatsHeader {
         LayoutMode: Left;
+        Anchor: (Height: 32, Top: 14, Bottom: 4);
+        Padding: (Right: 4);
         Visible: false;
-        Anchor: (Height: 22, Bottom: 4);
-        Label      #SHdrRank   { Anchor: (Width: 48);  Padding: (Left: 10); Text: ""; Style: (FontSize: $ZT.@ZigFontSection, TextColor: #8696a8, VerticalAlignment: Center); }
-        Label      #SHdrPlayer { FlexWeight: 1;        Padding: (Left: 4);  Text: ""; Style: (FontSize: $ZT.@ZigFontSection, TextColor: #8696a8, VerticalAlignment: Center); }
-        TextButton #SHdrCol0   { Anchor: (Width: 110); Text: ""; Style: $M.@ZigSortHeaderBtnStyle; }
-        TextButton #SHdrCol1   { Anchor: (Width: 110); Text: ""; Style: $M.@ZigSortHeaderBtnStyle; }
-        TextButton #SHdrCol2   { Anchor: (Width: 110); Text: ""; Style: $M.@ZigSortHeaderBtnStyle; }
-        TextButton #SHdrCol3   { Anchor: (Width: 110); Text: ""; Style: $M.@ZigSortHeaderBtnStyle; }
-        TextButton #SHdrPlays  { Anchor: (Width: 60);  Padding: (Right: 10); Text: ""; Style: $M.@ZigSortHeaderBtnStyle; }
-      }
 
-      Group { Anchor: (Height: 1, Bottom: 6); Background: #1e2a36; }
+        Label #SHdrRank {
+          Anchor: (Width: 72);
+          Padding: (Left: 12);
+          Text: "";
+          Style: @HeadStyle;
+        }
+
+        Label #SHdrPlayer {
+          FlexWeight: 2;
+          Padding: (Left: 4);
+          Text: "";
+          Style: @HeadStyle;
+        }
+
+        @SortHeader #SHdrCol0 {}
+        @SortHeader #SHdrCol1 {}
+        @SortHeader #SHdrCol2 {}
+        @SortHeader #SHdrCol3 {}
+        @SortHeader #SHdrPlays {}
+      }
 
       Group #LeaderboardList {
         FlexWeight: 1;
@@ -108,18 +321,9 @@ $F.@ZigMenuFrame {
         Padding: (Right: 4);
       }
 
-      Label #EmptyState {
-        Text: "";
+      $ZW.@ZigEmptyState #EmptyState {
+        FlexWeight: 1;
         Visible: false;
-        Anchor: (Height: 22, Top: 6);
-        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #8696a8, HorizontalAlignment: Center);
-      }
-
-      Group { Anchor: (Height: 1, Top: 8); Background: #1e2a36; }
-      Label #YourRank {
-        Text: "";
-        Anchor: (Height: 24, Top: 6);
-        Style: (FontSize: $ZT.@ZigFontBody, TextColor: #ffd97a, VerticalAlignment: Center, HorizontalAlignment: Center);
       }
     }
   }

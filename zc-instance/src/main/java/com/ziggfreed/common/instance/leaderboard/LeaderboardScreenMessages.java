@@ -7,12 +7,51 @@ import com.hypixel.hytale.server.core.Message;
 
 /**
  * The locale-free chrome text for the {@link LeaderboardPage}: the title, the column
- * headers, the empty state, and the "your rank" footer. The consumer returns pre-built
+ * headers, the empty state, and the viewer's own strip. The consumer returns pre-built
  * client-resolved {@link Message}s; common stays locale-free.
+ *
+ * <p>The page paints every line on a {@code .TextSpans}, so any line may carry parameters, with one
+ * exception: a column header's tooltip ({@link #sortTip}) is a {@code .TooltipText}, which prints a
+ * parameter as written, so it stays a bare translation. The lines the page added for its strip, its lead and
+ * its tooltips have defaults from the library's own {@code ziggfreedcommon.leaderboard.lang}, so a board
+ * built before them reads right unchanged.
  */
 public interface LeaderboardScreenMessages {
 
     @Nonnull Message title();
+
+    /** One line under the title on how to read the board ("Click a column to rank by it"); null shows none. */
+    @Nullable default Message lead() {
+        return null;
+    }
+
+    /** The heading of the viewer's own strip ("Your standing"). */
+    @Nonnull default Message youHeading() {
+        return EncounterLeaderboardMessages.line("you.heading");
+    }
+
+    /** The viewer's place as a figure ("#3"); the rank binds as a typed number. */
+    @Nonnull default Message youPlace(int rank) {
+        return EncounterLeaderboardMessages.line("you.place", rank);
+    }
+
+    /** The caption under the viewer's place ("Your rank"). */
+    @Nonnull default Message youPlaceLabel() {
+        return EncounterLeaderboardMessages.line("you.place.label");
+    }
+
+    /** How many players the board holds, beside the viewer's place; the count binds as a typed number. */
+    @Nonnull default Message youPlayers(int players) {
+        return EncounterLeaderboardMessages.line("you.players", players);
+    }
+
+    /**
+     * A sortable column header's tooltip when the column's own words have none (the header's label key with
+     * {@code .tip} added, when the server ships one). A bare translation: a tooltip prints a parameter as written.
+     */
+    @Nonnull default Message sortTip() {
+        return EncounterLeaderboardMessages.line("tip.sort");
+    }
 
     // ---- Optional leading row labels (default null = no label shown). Clarify which axis each
     // selector row drives; the consumer overrides to name its axes (Kweebec: Difficulty / Players). ----
@@ -74,10 +113,13 @@ public interface LeaderboardScreenMessages {
      */
     @Nonnull Message filterAll();
 
-    /** Footer: the viewer's own rank + best score in the selected bucket. */
+    /**
+     * The viewer's own rank + best score in the selected bucket. The page's own strip shows the place and every
+     * figure on its own since the strip replaced the footer, so it no longer paints this line.
+     */
     @Nonnull Message yourRank(int rank, long bestScore);
 
-    /** Footer when the viewer has no ranked entry in the selected bucket. */
+    /** The viewer's strip when they have no ranked entry in the selected bucket. */
     @Nonnull Message yourRankNone();
 
     /**

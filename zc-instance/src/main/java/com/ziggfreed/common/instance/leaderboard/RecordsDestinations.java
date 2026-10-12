@@ -1,5 +1,7 @@
 package com.ziggfreed.common.instance.leaderboard;
 
+import java.util.Map;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -7,6 +9,7 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.ziggfreed.common.icon.IconSpec;
 import com.ziggfreed.common.instance.leaderboard.statboard.StatBoardBossFights;
+import com.ziggfreed.common.instance.leaderboard.statboard.StatSectionConfig;
 import com.ziggfreed.common.ui.menu.MenuEntry;
 import com.ziggfreed.common.ui.menu.MenuSlot;
 import com.ziggfreed.common.ui.route.Destination;
@@ -92,6 +95,8 @@ public final class RecordsDestinations {
         LeaderboardPageDeps opened = deps != null
                 ? deps.withPrimaryLink(BOSS_FIGHTS, EncounterLeaderboardMessages.line("records.boss_fights"),
                         StatBoardBossFights::deps)
+                        .withPrimaryPictures(Map.of(BOSS_FIGHTS,
+                                StatBoardBossFights.picture(StatSectionConfig.getInstance())))
                 : StatBoardBossFights.deps();
         if (opened == null) {
             return false;

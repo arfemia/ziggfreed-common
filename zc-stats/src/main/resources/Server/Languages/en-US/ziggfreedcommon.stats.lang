@@ -20,6 +20,26 @@ deaths = Deaths
 playtime_seconds = Playtime
 objectives_completed = Objectives Completed
 
+# What each stat counts: the tooltip over its column on Records (a stat's name key with .tip added).
+# A tooltip prints a parameter as written, so none of these takes one.
+mob_kills.tip = Every mob you have defeated, fish included.
+blocks_broken.tip = Every block you have broken, except ones you placed.
+blocks_placed.tip = Every block you have placed.
+items_crafted.tip = Every item you have crafted by hand.
+items_pickedup.tip = Every item you have picked up, except from blocks you placed.
+npcs_talked.tip = Every time you have started talking to a character.
+encounters_defeated.tip = Every boss fight you have helped win.
+encounter_attempts.tip = Every boss fight you have taken part in, won or lost.
+encounters_won.tip = How many times you have helped defeat this boss.
+encounter_best_time.tip = Your fastest win against this boss.
+encounter_best_share.tip = Your biggest share of a win against this boss, out of 100.
+encounter_damage_dealt.tip = The damage you have dealt this boss across your wins.
+quests_completed.tip = Every quest you have turned in and collected.
+rounds_won.tip = Every minigame round you have won.
+deaths.tip = How many times you have died.
+playtime_seconds.tip = How long you have spent on this server.
+objectives_completed.tip = The game's own objectives you have completed.
+
 command.desc.family = Look up the stats a player has gathered.
 command.desc.show = List every stat a player holds, by the key a condition would name.
 command.desc.arg.player = The player to look up. Defaults to you.

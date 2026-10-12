@@ -1,9 +1,9 @@
 # The library's own words for a records screen (the column, sort and view words every records page
 # shares, Records' Boss Fights included), so they read on a server running nothing else.
 # The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.leaderboard.<key>.
-# Every screen line but your_rank is painted where a parameter is never substituted, so only
-# your_rank takes one. A fight names its own screen through its binding row's NameKey; title is the
-# fallback.
+# The screen paints every line on a label's TextSpans, so a line may take a parameter, except a
+# tooltip (tip.*), which prints one as written. A fight names its own screen through its binding
+# row's NameKey; title is the fallback.
 
 title = Boss Records
 axis.difficulty = Difficulty
@@ -25,6 +25,14 @@ view.stats = Stats
 filter.all = All
 your_rank = Your best: #{0, number} ({1, number})
 your_rank.none = You have no record for this fight here yet.
+
+# The strip over the list: your place on the board and your own numbers.
+you.heading = Your standing
+you.place = #{0, number}
+you.place.label = Your rank
+you.players = Players on this board: {0, number}
+# A column you can click to rank by, when the column says nothing of its own.
+tip.sort = Click to rank everyone by this.
 
 # /zigleaderboard, the command that opens Records' Boss Fights. The command.desc.* keys are what the
 # engine's own help resolves a command or an argument through.

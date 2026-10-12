@@ -11,8 +11,8 @@ import com.ziggfreed.common.instance.leaderboard.LeaderboardScreenMessages;
  * The stat board's words on the records page: its own lines in {@code ziggfreedcommon.statboard.lang},
  * and the column words every records screen shares from {@code ziggfreedcommon.leaderboard.lang}. The
  * board shows the Stats view alone, so the Rankings view's lines are never painted; they resolve to the
- * shared words all the same, since the page asks for them. Every line but the footer is a bare
- * translation, since the page paints them on {@code .Text} sinks.
+ * shared words all the same, since the page asks for them. The page paints every line on a
+ * {@code .TextSpans}, so a line may carry parameters.
  */
 public final class StatBoardMessages implements LeaderboardScreenMessages {
 
@@ -31,6 +31,15 @@ public final class StatBoardMessages implements LeaderboardScreenMessages {
         return Msg.key(PREFIX + key, args);
     }
 
+    /**
+     * The line under a tab that names none of its own ({@code HintKey}): what counts and how to get on the
+     * board, said for any columns.
+     */
+    @Nonnull
+    public static Message hint() {
+        return line("hint");
+    }
+
     @Nonnull
     private static Message shared(@Nonnull String key) {
         return EncounterLeaderboardMessages.line(key);
@@ -38,6 +47,11 @@ public final class StatBoardMessages implements LeaderboardScreenMessages {
 
     @Override @Nonnull public Message title() {
         return line("title");
+    }
+
+    /** How to read the board: everyone ranked, a click on a column ranks by it. */
+    @Override @Nonnull public Message lead() {
+        return line("lead");
     }
 
     @Override @Nonnull public Message colRank() {

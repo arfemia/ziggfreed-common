@@ -1,6 +1,8 @@
 {
-  "$Comment": "A Records tab and its columns, at most four. Each entry in Stats is a stat id, or Stat/Thing for one line of a stat's breakdown. A stat nothing on this server counts shows no column.",
+  "$Comment": "A Records tab and its columns, at most four. Each entry in Stats is a stat id, or Stat/Thing for one line of a stat's breakdown. A stat nothing on this server counts shows no column. Icon is the item the tab is pictured by; HintKey the line a player with no place on the tab reads.",
   "NameKey": "ziggfreedcommon.statboard.section.adventure",
   "Order": 30,
+  "Icon": "Deco_Map",
+  "HintKey": "ziggfreedcommon.statboard.section.adventure.hint",
   "Stats": ["Quests_Completed", "Npcs_Talked", "Rounds_Won", "Playtime_Seconds"]
 }

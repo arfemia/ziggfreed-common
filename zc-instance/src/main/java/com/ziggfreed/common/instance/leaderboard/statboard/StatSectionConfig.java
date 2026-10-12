@@ -39,6 +39,10 @@ public final class StatSectionConfig extends AbstractKeyedAssetConfig<StatSectio
     private volatile Set<String> named = Set.of();
     /** Every stat some section names as {@code Stat/*}, lower-cased: each of its lines is ranked, never its total. */
     private volatile Set<String> everyLine = Set.of();
+    /** Section id -> the item its file pictures its tab by ({@code Icon}); a section naming none is absent. */
+    private volatile Map<String, String> icons = Map.of();
+    /** Section id -> its file's {@code HintKey}; a section naming none is absent. */
+    private volatile Map<String, String> hintKeys = Map.of();
 
     @Nonnull
     public static StatSectionConfig getInstance() {
@@ -86,6 +90,21 @@ public final class StatSectionConfig extends AbstractKeyedAssetConfig<StatSectio
         return authored;
     }
 
+    /** The item section {@code sectionId}'s file pictures its tab by ({@code Icon}), or null when it names none. */
+    @Nullable
+    public String iconOf(@Nonnull String sectionId) {
+        return icons.get(sectionId.toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * The key of the line section {@code sectionId}'s file gives for how to get on its board ({@code HintKey}), as
+     * written, or null when it names none.
+     */
+    @Nullable
+    public String hintKeyOf(@Nonnull String sectionId) {
+        return hintKeys.get(sectionId.toLowerCase(Locale.ROOT));
+    }
+
     /**
      * Whether some section names {@code line} (a stat id or {@code Stat/Thing}), matched without regard to
      * case: written as it is, or as one line of a stat a section names as {@code Stat/*}.
@@ -120,11 +139,21 @@ public final class StatSectionConfig extends AbstractKeyedAssetConfig<StatSectio
     private void rebuild() {
         List<StatSection> files = new ArrayList<>();
         Set<String> ids = new HashSet<>();
+        Map<String, String> pictures = new LinkedHashMap<>();
+        Map<String, String> hints = new LinkedHashMap<>();
         for (Map.Entry<String, StatSectionAsset> e : all().entrySet()) {
             StatSection section = e.getValue().toSection(e.getKey());
             files.add(section);
             ids.add(section.id());
+            if (e.getValue().icon() != null) {
+                pictures.put(section.id(), e.getValue().icon());
+            }
+            if (e.getValue().hintKey() != null) {
+                hints.put(section.id(), e.getValue().hintKey());
+            }
         }
+        icons = Map.copyOf(pictures);
+        hintKeys = Map.copyOf(hints);
         List<StatSection> out = new ArrayList<>(files);
         for (List<StatSection> owned : generated.values()) {
             for (StatSection section : owned) {

@@ -63,6 +63,10 @@ public final class LeaderboardPageDeps {
     private final boolean allTabs;
     private final boolean statsOnly;
     private final List<PageLink> primaryLinks;
+    /** Primary tab or link key -> the item whose picture its tab shows ({@link #withPrimaryPictures}). */
+    private final Map<String, String> primaryPictures;
+    /** Primary tab key -> the line saying what counts there and how to get on it ({@link #withPrimaryHints}). */
+    private final Map<String, Message> primaryHints;
 
     /** Back-compat: a single-axis, score-only board (no difficulty axis, no stats view). */
     public LeaderboardPageDeps(@Nonnull Leaderboard board, @Nonnull List<LeaderboardBucketTab> tabs,
@@ -81,15 +85,20 @@ public final class LeaderboardPageDeps {
     public LeaderboardPageDeps(@Nonnull Leaderboard board, @Nonnull List<LeaderboardBucketTab> primaryTabs,
                                @Nonnull List<LeaderboardBucketTab> tabs, @Nonnull List<StatColumnDef> statColumns,
                                @Nonnull LeaderboardScreenMessages text, @Nonnull BucketKeys bucketKeys) {
-        this(board, primaryTabs, tabs, statColumns, text, bucketKeys, null, Map.of(), true, false, List.of());
+        this(board, primaryTabs, tabs, statColumns, text, bucketKeys, null, Map.of(), true, false, List.of(),
+                Map.of(), Map.of());
     }
 
     private LeaderboardPageDeps(@Nonnull Leaderboard board, @Nonnull List<LeaderboardBucketTab> primaryTabs,
                                 @Nonnull List<LeaderboardBucketTab> tabs, @Nonnull List<StatColumnDef> statColumns,
                                 @Nonnull LeaderboardScreenMessages text, @Nonnull BucketKeys bucketKeys,
                                 @Nullable String menuTab, @Nonnull Map<String, List<StatColumnDef>> columnsByPrimary,
-                                boolean allTabs, boolean statsOnly, @Nonnull List<PageLink> primaryLinks) {
+                                boolean allTabs, boolean statsOnly, @Nonnull List<PageLink> primaryLinks,
+                                @Nonnull Map<String, String> primaryPictures,
+                                @Nonnull Map<String, Message> primaryHints) {
         this.primaryLinks = List.copyOf(primaryLinks);
+        this.primaryPictures = Map.copyOf(primaryPictures);
+        this.primaryHints = Map.copyOf(primaryHints);
         this.board = board;
         this.primaryTabs = List.copyOf(primaryTabs);
         this.tabs = List.copyOf(tabs);
@@ -113,7 +122,7 @@ public final class LeaderboardPageDeps {
     @Nonnull
     public LeaderboardPageDeps withMenuTab(@Nullable String tab) {
         return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, tab,
-                columnsByPrimary, allTabs, statsOnly, primaryLinks);
+                columnsByPrimary, allTabs, statsOnly, primaryLinks, primaryPictures, primaryHints);
     }
 
     /**
@@ -124,7 +133,7 @@ public final class LeaderboardPageDeps {
     @Nonnull
     public LeaderboardPageDeps withColumnsByPrimary(@Nonnull Map<String, List<StatColumnDef>> columns) {
         return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, menuTab,
-                columns, allTabs, statsOnly, primaryLinks);
+                columns, allTabs, statsOnly, primaryLinks, primaryPictures, primaryHints);
     }
 
     /**
@@ -134,7 +143,7 @@ public final class LeaderboardPageDeps {
     @Nonnull
     public LeaderboardPageDeps withoutAllTabs() {
         return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, menuTab,
-                columnsByPrimary, false, statsOnly, primaryLinks);
+                columnsByPrimary, false, statsOnly, primaryLinks, primaryPictures, primaryHints);
     }
 
     /**
@@ -144,7 +153,7 @@ public final class LeaderboardPageDeps {
     @Nonnull
     public LeaderboardPageDeps statsOnly() {
         return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, menuTab,
-                columnsByPrimary, allTabs, true, primaryLinks);
+                columnsByPrimary, allTabs, true, primaryLinks, primaryPictures, primaryHints);
     }
 
     /**
@@ -157,7 +166,63 @@ public final class LeaderboardPageDeps {
         List<PageLink> links = new ArrayList<>(primaryLinks);
         links.add(new PageLink(key, label, opens));
         return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, menuTab,
-                columnsByPrimary, allTabs, statsOnly, links);
+                columnsByPrimary, allTabs, statsOnly, links, primaryPictures, primaryHints);
+    }
+
+    /**
+     * A copy whose primary tabs (and links) show pictures: {@code tab or link key -> item id}, each drawn as the
+     * item's own icon on a row of view tabs ({@link #primaryTabsCarryColumns}) and above the empty state. Added
+     * over the pictures already set; a key the map leaves out shows none. Everything else is kept.
+     */
+    @Nonnull
+    public LeaderboardPageDeps withPrimaryPictures(@Nonnull Map<String, String> itemIds) {
+        Map<String, String> pictures = new LinkedHashMap<>(primaryPictures);
+        for (Map.Entry<String, String> e : itemIds.entrySet()) {
+            if (e.getKey() != null && e.getValue() != null && !e.getValue().isBlank()) {
+                pictures.put(e.getKey(), e.getValue().trim());
+            }
+        }
+        return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, menuTab,
+                columnsByPrimary, allTabs, statsOnly, primaryLinks, pictures, primaryHints);
+    }
+
+    /**
+     * A copy whose primary tabs each carry a line saying what counts there and how to get on the board
+     * ({@code tab key -> line}), shown to a viewer with no place on it and under an empty board. The page paints
+     * it on a {@code .TextSpans}, so it may carry parameters. Added over the lines already set; a tab the map
+     * leaves out shows {@link LeaderboardScreenMessages#yourRankNone()} alone. Everything else is kept.
+     */
+    @Nonnull
+    public LeaderboardPageDeps withPrimaryHints(@Nonnull Map<String, Message> hints) {
+        Map<String, Message> lines = new LinkedHashMap<>(primaryHints);
+        for (Map.Entry<String, Message> e : hints.entrySet()) {
+            if (e.getKey() != null && e.getValue() != null) {
+                lines.put(e.getKey(), e.getValue());
+            }
+        }
+        return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, menuTab,
+                columnsByPrimary, allTabs, statsOnly, primaryLinks, primaryPictures, lines);
+    }
+
+    /** The item {@code key}'s tab (or link) shows as its picture, or null for none ({@link #withPrimaryPictures}). */
+    @Nullable
+    public String primaryPicture(@Nonnull String key) {
+        return primaryPictures.get(key);
+    }
+
+    /** The line saying how to get on {@code key}'s board, or null for none ({@link #withPrimaryHints}). */
+    @Nullable
+    public Message primaryHint(@Nonnull String key) {
+        return primaryHints.get(key);
+    }
+
+    /**
+     * Whether the primary tabs each bring their own columns ({@link #withColumnsByPrimary}), as a stat board's
+     * sections and its boss fights do: the page then draws that row as view tabs, since each tab is a different
+     * board, and any other row (a difficulty that filters the same columns) as segments.
+     */
+    public boolean primaryTabsCarryColumns() {
+        return !columnsByPrimary.isEmpty();
     }
 
     /** The tabs at the end of the primary row that open another page ({@link #withPrimaryLink}). */

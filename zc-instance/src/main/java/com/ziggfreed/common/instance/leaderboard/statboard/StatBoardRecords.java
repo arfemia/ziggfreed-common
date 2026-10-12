@@ -47,6 +47,12 @@ public final class StatBoardRecords implements RecordsBoard {
     /** The board's own season tab name, under {@link StatBoardMessages#PREFIX}, for a season naming none. */
     private static final String SEASON_NAME = "period.season";
 
+    /**
+     * The picture of a section tab whose file names no {@code Icon} and belongs to no event that has one: copper
+     * bars, a nod to a bar chart, as the Achievements tab's Statistics view is pictured.
+     */
+    static final String PICTURE = "Ingredient_Bar_Copper";
+
     private StatBoardRecords() {
     }
 
@@ -71,13 +77,18 @@ public final class StatBoardRecords implements RecordsBoard {
         }
         List<LeaderboardBucketTab> sectionTabs = new ArrayList<>();
         Map<String, List<StatColumnDef>> columns = new LinkedHashMap<>();
+        Map<String, String> pictures = new LinkedHashMap<>();
+        Map<String, Message> hints = new LinkedHashMap<>();
         OccurrenceSource events = Occurrences.source();
-        for (StatSection section : StatSectionConfig.getInstance().sections()) {
+        StatSectionConfig config = StatSectionConfig.getInstance();
+        for (StatSection section : config.sections()) {
             List<StatColumnDef> shown = columnsOf(section, source);
             if (!shown.isEmpty()) {
                 sectionTabs.add(new LeaderboardBucketTab(section.id(),
                         name(sectionNameKey(section, events), section.id())));
                 columns.put(section.id(), shown);
+                pictures.put(section.id(), sectionPicture(section, config, events));
+                hints.put(section.id(), hint(config.hintKeyOf(section.id())));
             }
         }
         List<LeaderboardBucketTab> periodTabs = periodTabs(board);
@@ -87,9 +98,39 @@ public final class StatBoardRecords implements RecordsBoard {
         return new LeaderboardPageDeps(board, sectionTabs, periodTabs, List.of(), StatBoardMessages.INSTANCE,
                 (section, period) -> bucketOf(period))
                 .withColumnsByPrimary(columns)
+                .withPrimaryPictures(pictures)
+                .withPrimaryHints(hints)
                 .withoutAllTabs()
                 .statsOnly()
                 .withMenuTab(MenuSlot.RECORDS.id());
+    }
+
+    /**
+     * The item a section's tab is pictured by: its file's {@code Icon}, else, for a section generated for a
+     * calendar event, the event's own picture, else {@link #PICTURE}. Read as each page builds, as the name is.
+     */
+    @Nonnull
+    static String sectionPicture(@Nonnull StatSection section, @Nonnull StatSectionConfig config,
+                                 @Nonnull OccurrenceSource events) {
+        String icon = config.iconOf(section.id());
+        if (icon == null && section.event() != null) {
+            try {
+                String eventIcon = events.icon(section.event());
+                icon = eventIcon == null || eventIcon.isBlank() ? null : eventIcon.trim();
+            } catch (RuntimeException e) {
+                icon = null;
+            }
+        }
+        return icon != null ? icon : PICTURE;
+    }
+
+    /**
+     * A tab's line on how to get on its board: its section's {@code HintKey} as the client resolves it, else the
+     * board's own line, which says anything in the columns counts.
+     */
+    @Nonnull
+    static Message hint(@Nullable String hintKey) {
+        return hintKey != null ? Message.translation(ContentKeys.resolved(hintKey)) : StatBoardMessages.hint();
     }
 
     /**

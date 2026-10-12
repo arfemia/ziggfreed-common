@@ -12,6 +12,7 @@ import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.counter.CounterMap;
 import com.ziggfreed.common.encounter.asset.EncounterBindingAsset;
 import com.ziggfreed.common.encounter.asset.EncounterBindingConfig;
@@ -50,18 +51,26 @@ public final class StatBoardBossFights {
         if (board == null || !source.enabled()) {
             return null;
         }
-        List<String> stats = statsOf(StatSectionConfig.getInstance().sections());
+        StatSectionConfig config = StatSectionConfig.getInstance();
+        List<String> stats = statsOf(config.sections());
         if (stats.isEmpty()) {
             return null;
         }
         List<LeaderboardBucketTab> fights = new ArrayList<>();
         Map<String, List<StatColumnDef>> columns = new LinkedHashMap<>();
+        // Every fight's tab takes the section's picture and its line on how to get on the board.
+        String picture = picture(config);
+        Message hint = StatBoardRecords.hint(config.hintKeyOf(SECTION));
+        Map<String, String> pictures = new LinkedHashMap<>();
+        Map<String, Message> hints = new LinkedHashMap<>();
         for (LeaderboardBucketTab fight : EncounterBoards.fightTabs(recorded(board, stats),
                 EncounterBindingConfig.getInstance().all().values())) {
             List<StatColumnDef> shown = columnsOf(fight.bucketKey(), stats, source);
             if (!shown.isEmpty()) {
                 fights.add(fight);
                 columns.put(fight.bucketKey(), shown);
+                pictures.put(fight.bucketKey(), picture);
+                hints.put(fight.bucketKey(), hint);
             }
         }
         List<LeaderboardBucketTab> periods = StatBoardRecords.periodTabs(board);
@@ -71,9 +80,21 @@ public final class StatBoardBossFights {
         return new LeaderboardPageDeps(board, fights, periods, List.of(), StatBoardMessages.INSTANCE,
                 (fight, period) -> StatBoardRecords.bucketOf(period))
                 .withColumnsByPrimary(columns)
+                .withPrimaryPictures(pictures)
+                .withPrimaryHints(hints)
                 .withoutAllTabs()
                 .statsOnly()
                 .withMenuTab(MenuSlot.RECORDS.id());
+    }
+
+    /**
+     * The picture of a fight's tab, and of Records' Boss Fights tab: the {@value #SECTION} section's {@code Icon},
+     * else the stat board's own section picture.
+     */
+    @Nonnull
+    public static String picture(@Nonnull StatSectionConfig config) {
+        String icon = config.iconOf(SECTION);
+        return icon != null ? icon : StatBoardRecords.PICTURE;
     }
 
     /** The first tab on {@code deps} that holds {@code row}'s records, or null when it has none. */

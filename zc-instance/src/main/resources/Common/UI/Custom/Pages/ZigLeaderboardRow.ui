@@ -1,18 +1,76 @@
-$C = "../Common.ui";
-$ZT = "../Common/ZigType.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
 
-// One ranked leaderboard row (appended into #LeaderboardList; see LeaderboardPage):
-// Rank / Player / Total / Score(best) / Time / Plays. Medal ranks + the viewer's row are
-// tinted from Java. Colour-only.
+// One row of the Rankings view (appended into #LeaderboardList; see LeaderboardPage): the place (#RankCell: a
+// trophy #Medal in its slot, then the #Rank number), the player, Total, Best (#Score), Time and Plays. Its
+// widths are the header's (Pages/ZigLeaderboardMenuPage.ui #TableHeader): Rank 72, Player FlexWeight 2, each
+// figure FlexWeight 1 after a 4px gap, 10px in from its right edge. A long name ends in "...". The page shows
+// the medal and tints it and the number gold, silver or bronze for the top three, and lays the viewer's own
+// row on the selected row's fill with its words in the bright ink, all from Common/ZigTokens.ui.
 
 Group #ZigLeaderboardRow {
   LayoutMode: Left;
-  Anchor: (Height: 28, Bottom: 2);
+  Anchor: (Height: 36, Bottom: 2);
+  Background: (Color: $ZK.@ZigSurfaceRow);
 
-  Label #Rank   { Anchor: (Width: 48);  Padding: (Left: 10); Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #d7e4f0, VerticalAlignment: Center, RenderBold: true); }
-  Label #Player { FlexWeight: 1;        Padding: (Left: 4);  Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #d7e4f0, VerticalAlignment: Center); }
-  Label #Total  { Anchor: (Width: 100); Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6d6a0, VerticalAlignment: Center, HorizontalAlignment: End); }
-  Label #Score  { Anchor: (Width: 90);  Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #cfe3c0, VerticalAlignment: Center, HorizontalAlignment: End); }
-  Label #Time   { Anchor: (Width: 70);  Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #b6c9de, VerticalAlignment: Center, HorizontalAlignment: End); }
-  Label #Plays  { Anchor: (Width: 60);  Padding: (Right: 10); Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
+  Group #RankCell {
+    Anchor: (Width: 72);
+    LayoutMode: Left;
+    Padding: (Left: 12);
+
+    Group #MedalSlot {
+      Anchor: (Width: 24);
+
+      Group #Medal {
+        Anchor: (Width: 16, Height: 16, Top: 10, Left: 0);
+        Background: (TexturePath: "../Common/Glyphs/Trophy.png", Color: $ZK.@ZigAccent);
+        Visible: false;
+      }
+    }
+
+    Label #Rank {
+      FlexWeight: 1;
+      Text: "";
+      Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigInkMuted, RenderBold: true);
+    }
+  }
+
+  Label #Player {
+    FlexWeight: 2;
+    Padding: (Left: 4);
+    Text: "";
+    Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigInkStrong, Wrap: true, WrapMaxLines: 1);
+  }
+
+  Label #Total {
+    FlexWeight: 1;
+    Anchor: (Left: 4);
+    Padding: (Right: 10);
+    Text: "";
+    Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigInkStrong, HorizontalAlignment: End, Wrap: true, WrapMaxLines: 1);
+  }
+
+  Label #Score {
+    FlexWeight: 1;
+    Anchor: (Left: 4);
+    Padding: (Right: 10);
+    Text: "";
+    Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigInkStrong, HorizontalAlignment: End, Wrap: true, WrapMaxLines: 1);
+  }
+
+  Label #Time {
+    FlexWeight: 1;
+    Anchor: (Left: 4);
+    Padding: (Right: 10);
+    Text: "";
+    Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigInkStrong, HorizontalAlignment: End, Wrap: true, WrapMaxLines: 1);
+  }
+
+  Label #Plays {
+    FlexWeight: 1;
+    Anchor: (Left: 4);
+    Padding: (Right: 10);
+    Text: "";
+    Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigInkMuted, HorizontalAlignment: End, Wrap: true, WrapMaxLines: 1);
+  }
 }

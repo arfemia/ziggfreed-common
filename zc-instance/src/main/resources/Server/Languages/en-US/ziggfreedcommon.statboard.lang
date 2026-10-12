@@ -1,11 +1,14 @@
 # The stat board on Records: the page's own lines, its periods and its sections.
 # The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.statboard.<key>.
-# Every line but your_rank, the duration lines and period.season (a season tab is a rich button) is
-# painted where a parameter is never substituted, so only those take one. The column words the page
-# shares with the boss records come from ziggfreedcommon.leaderboard.lang.
+# The page paints every line on a label's TextSpans, so a line may take a parameter. The column
+# words the page shares with the boss records come from ziggfreedcommon.leaderboard.lang.
 
 title = Records
+lead = See how you rank against everyone on this server. Click a column to rank by it.
 empty = Nobody is on this board yet.
+# What counts on a tab and how to get on it, for a player with no place there yet and under a board
+# nobody is on. A section file names its own with HintKey; hint is for a tab that names none.
+hint = Everything in these columns counts. Do any of it to get on this board.
 your_rank = Your rank: #{0, number}
 your_rank.none = You are not on this board yet.
 
@@ -26,3 +29,8 @@ section.combat = Combat
 section.gathering = Gathering
 section.adventure = Adventure
 section.renown = Renown
+section.combat.hint = Defeat mobs or take on a boss to get on this board. Your deaths count here too.
+section.gathering.hint = Break or place blocks, craft items by hand or pick things up to get on this board.
+section.adventure.hint = Finish quests, talk to characters, win rounds or just play to get on this board.
+section.renown.hint = Complete the game's objectives or earn standing with a reputation to get on this board. Renown counts toward All Time only.
+section.boss_fights.hint = Help defeat this boss to get on its board.

@@ -1,7 +1,6 @@
 package com.ziggfreed.common.instance.leaderboard;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -21,11 +20,9 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 /**
- * Every line the boss-records screen says resolves from the module's own English file, and every one
- * of them but the footer is a bare translation: the page paints them on {@code .Text} sinks (a
- * {@code TextButton}, a header Label), which resolve a key but never substitute a parameter, so a
- * {@code {0}} there would print at players. Every line {@code /zigleaderboard} says, and every
- * description its help resolves, ships there too. Read from the sources and the shipped file; no server.
+ * Every line the boss-records screen says resolves from the module's own English file. Every line
+ * {@code /zigleaderboard} says, and every description its help resolves, ships there too. Read from the
+ * sources and the shipped file; no server.
  */
 class LeaderboardLangKeysTest {
 
@@ -60,17 +57,6 @@ class LeaderboardLangKeysTest {
         assertTrue(said.size() >= 20, "the scan found almost nothing, so it is not scanning: " + said);
         assertEquals(List.of(), said.stream().filter(key -> !shipped.containsKey(key)).toList(),
                 "lines the screen says but " + ENGLISH + " does not ship");
-    }
-
-    @Test
-    void everyScreenLineButTheFooterIsABareTranslation() throws IOException {
-        for (Map.Entry<String, String> line : shipped().entrySet()) {
-            if (line.getKey().equals("your_rank") || line.getKey().startsWith("command.")) {
-                continue;
-            }
-            assertFalse(line.getValue().contains("{"), line.getKey()
-                    + " is painted on a .Text sink, which never substitutes a parameter");
-        }
     }
 
     @Test

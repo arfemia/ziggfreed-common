@@ -22,22 +22,42 @@ import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
+import com.ziggfreed.common.i18n.LangCatalog;
+import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.instance.result.ColumnFormat;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.ZigRichButton;
+import com.ziggfreed.common.ui.kit.EmptyState;
+import com.ziggfreed.common.ui.kit.EmptyStatePainter;
+import com.ziggfreed.common.ui.kit.Picture;
+import com.ziggfreed.common.ui.kit.SegmentPainter;
+import com.ziggfreed.common.ui.kit.Stat;
+import com.ziggfreed.common.ui.kit.StatPainter;
+import com.ziggfreed.common.ui.kit.Tone;
+import com.ziggfreed.common.ui.kit.ViewTabPainter;
+import com.ziggfreed.common.ui.kit.ZigStyles;
+import com.ziggfreed.common.ui.kit.ZigTokens;
 import com.ziggfreed.common.ui.menu.MenuFrame;
 import com.ziggfreed.common.ui.menu.MenuRail;
 import com.ziggfreed.common.ui.menu.ZigMenu;
 import com.ziggfreed.common.ui.name.PlayerDisplayNames;
-import com.ziggfreed.common.util.NumberFormatter;
 
 /**
  * The generic leaderboard page (the reusable lift of {@code KweebecLeaderboardPage}). Two tab
- * axes (an optional PRIMARY axis - difficulty - over the SECONDARY axis - party size), a
- * three-metric sort toggle (best score / total points / best time), a Rankings/Stats view
- * toggle, a scrollable ranked list (top three gold/silver/bronze, the viewer's row highlighted),
- * and a "your rank" footer. The {@code ResultsPage} CTA deep-links here to the just-played bucket.
+ * axes (an optional PRIMARY axis over the SECONDARY axis), a three-metric sort (best score / total
+ * points / best time) and a Rankings/Stats view on a board that keeps both, the viewer's own strip
+ * (their place and their number in each column, or the line saying how to get on the board), and a
+ * scrollable ranked list (the top three gold, silver and bronze, the viewer's row on the selected
+ * row's fill). The {@code ResultsPage} CTA deep-links here to the just-played bucket.
+ *
+ * <p>Built from zc's kit: a first row whose tabs each bring their own columns (a stat board's
+ * sections, its boss fights) is a row of view tabs ({@link ViewTabPainter}), every other row a
+ * segmented control ({@link SegmentPainter}), the viewer's figures {@code @ZigStat}s
+ * ({@link StatPainter}), the empty board the kit's empty state ({@link EmptyStatePainter}), and
+ * every colour a {@link ZigTokens} token or a {@link ZigStyles} named style. Every line goes on a
+ * {@code .TextSpans}; a column header's tooltip, a {@code .TooltipText} that prints a parameter as
+ * written, is always a bare translation.
  *
  * <p>Consumer policy (the {@link Leaderboard} for the mode, the tab axes, the stat columns, the
  * chrome) is supplied through {@link LeaderboardPageDeps}; the page is mod-agnostic. When the
@@ -53,7 +73,7 @@ import com.ziggfreed.common.util.NumberFormatter;
  * <p>Each tab axis with two or more concrete tabs synthesizes a trailing "All" tab (reserved
  * bucket key {@code "*"}) that aggregates every concrete bucket on that axis, so All+All is the
  * full lifetime roll-up. The Stats view honors the tab selection and is sortable by each stat
- * column (and Plays) via clickable column headers; the Rankings view keeps its three-metric toggle.
+ * column (and Plays) via clickable column headers; the Rankings view keeps its three-metric sort.
  */
 public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventData> {
 
@@ -62,22 +82,42 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
     private static final String MENU_PAGE_TEMPLATE = "Pages/ZigLeaderboardMenuPage.ui";
     private static final String ROW_TEMPLATE = "Pages/ZigLeaderboardRow.ui";
     private static final String STATS_ROW_TEMPLATE = "Pages/ZigLeaderboardStatsRow.ui";
-    private static final String TAB_TEMPLATE = "Pages/ZigLeaderboardTab.ui";
-    /** A tab whose label carries parameters ({@link LeaderboardBucketTab#spans}): a rich button on {@code .TextSpans}. */
-    private static final String SPANS_TAB_TEMPLATE = "Pages/ZigLeaderboardSpansTab.ui";
     private static final int MAX_ROWS = 100;
-    // Strong active/inactive contrast so the current filter selection is obvious.
-    private static final String ACTIVE_TINT = "#5e86bd";
-    private static final String ACTIVE_HOVER = "#6f97cf";
-    private static final String ACTIVE_TEXT = "#ffffff";
-    private static final String INACTIVE_TINT = "#2f3b49";
-    private static final String INACTIVE_HOVER = "#445364";
-    private static final String INACTIVE_TEXT = "#9fb0c2";
     // Synthesized "All" tab: a reserved bucket key (no real preset id / party size contains it),
     // appended to the end of any axis with >= 2 concrete tabs; selecting it aggregates that axis.
     private static final String ALL = "*";
     /** The action a primary-row link carries: open the linked board's page ({@link LeaderboardPageDeps#primaryLinks}). */
     private static final String LINK = "link";
+    /**
+     * What a column's own label key takes for its tooltip: {@code <label key>.tip}, a bare translation saying what
+     * the column counts, used when the server ships one ({@link #columnTip}).
+     */
+    static final String TIP_SUFFIX = ".tip";
+    /** The figures the viewer's strip holds beside their place ({@code #YouStat0..#YouStat3}). */
+    private static final int YOU_FIGURES = 4;
+    /** The words of a Rankings row the viewer's own row turns bright, beside its rank. */
+    private static final List<String> RANKING_CELLS = List.of("#Player", "#Total", "#Score", "#Time", "#Plays");
+    /** The words of a Stats row the viewer's own row turns bright, beside its rank. */
+    private static final List<String> STATS_CELLS = List.of("#Player", "#Col0", "#Col1", "#Col2", "#Col3", "#Plays");
+
+    /** The top three places, each with the token its trophy and its number are tinted in. */
+    private enum Medal {
+        GOLD(ZigTokens.ACCENT),
+        SILVER(ZigTokens.INK_STRONG),
+        BRONZE(ZigTokens.TONE_AVAILABLE_FILL);
+
+        private final String colour;
+
+        Medal(@Nonnull String colour) {
+            this.colour = colour;
+        }
+
+        /** The medal of place {@code rank}, or null past the third. */
+        @Nullable
+        static Medal of(int rank) {
+            return rank >= 1 && rank <= 3 ? values()[rank - 1] : null;
+        }
+    }
 
     private final LeaderboardPageDeps deps;
     private final String activePrimary; // "" when there is no primary axis
@@ -129,6 +169,11 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
     @Nonnull
     private List<StatColumnDef> columns() {
         return deps.statColumns(activePrimary);
+    }
+
+    /** How many of {@link #columns()} the page shows: the stats row holds {@value StatColumnDef#MAX_STAT_COLUMNS}. */
+    private int shownColumns() {
+        return Math.min(columns().size(), StatColumnDef.MAX_STAT_COLUMNS);
     }
 
     @Nonnull
@@ -258,153 +303,182 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         }
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton", EventData.of("Action", "close"));
 
-        UiText.setText(cmd, "#Title.Text", t.title());
-        // A stats-only board shows its one view with no toggle to leave it.
-        boolean hasStats = !columns().isEmpty() && !deps.isStatsOnly();
+        cmd.set("#Title.TextSpans", t.title());
+        optional(cmd, "#Lead", t.lead());
+        paintTabRows(cmd, events, t);
+        paintControls(cmd, events, t);
 
-        // Leading row labels (optional; clarify what each selector row drives).
-        setLabel(cmd, "#GroupLabel", t.primaryAxisLabel());
-        setLabel(cmd, "#TabLabel", t.secondaryAxisLabel());
-        setLabel(cmd, "#SortLabel", t.sortLabel());
-        setLabel(cmd, "#ViewLabel", t.viewLabel());
-
-        // Tab axes (each axis with >= 2 concrete tabs gets a synthesized trailing "All" tab).
-        buildTabRow(cmd, events, t, "#GroupBar", deps.primaryTabs(), activePrimary, "group");
-        buildTabRow(cmd, events, t, "#TabBar", deps.tabs(), activeSecondary, "tab");
-        cmd.set("#GroupRow.Visible", !deps.primaryTabs().isEmpty());
-
-        // Sort toggle (Rankings only) + view toggle.
-        String viewStr = statsView ? "stats" : "rankings";
-        UiText.setText(cmd, "#SortBest.Text", t.sortScore());
-        UiText.setText(cmd, "#SortTotal.Text", t.sortTotal());
-        UiText.setText(cmd, "#SortTime.Text", t.sortTime());
-        bind(events, "#SortBest", "sort", activePrimary, activeSecondary, SortMode.BEST_SCORE.name(), statSort, viewStr);
-        bind(events, "#SortTotal", "sort", activePrimary, activeSecondary, SortMode.TOTAL_POINTS.name(), statSort, viewStr);
-        bind(events, "#SortTime", "sort", activePrimary, activeSecondary, SortMode.BEST_TIME.name(), statSort, viewStr);
-        style(cmd, "#SortBest", !statsView && sort == SortMode.BEST_SCORE);
-        style(cmd, "#SortTotal", !statsView && sort == SortMode.TOTAL_POINTS);
-        style(cmd, "#SortTime", !statsView && sort == SortMode.BEST_TIME);
-        cmd.set("#SortGroup.Visible", !statsView);
-        cmd.set("#SortLabel.Visible", !statsView && t.sortLabel() != null);
-
-        UiText.setText(cmd, "#ViewRankings.Text", t.viewRankings());
-        UiText.setText(cmd, "#ViewStats.Text", t.viewStats());
-        bind(events, "#ViewRankings", "view", activePrimary, activeSecondary, sort.name(), statSort, "rankings");
-        bind(events, "#ViewStats", "view", activePrimary, activeSecondary, sort.name(), statSort, "stats");
-        cmd.set("#ViewGroup.Visible", hasStats);
-        cmd.set("#ViewLabel.Visible", hasStats && t.viewLabel() != null);
-        style(cmd, "#ViewRankings", !statsView);
-        style(cmd, "#ViewStats", statsView);
-
+        List<Map.Entry<UUID, LeaderboardEntry>> sorted = statsView ? statsSorted() : rankingsSorted();
+        boolean empty = sorted.isEmpty();
+        cmd.set("#YouStrip.Visible", !empty);
+        cmd.set("#TableHeader.Visible", !statsView && !empty);
+        cmd.set("#StatsHeader.Visible", statsView && !empty);
+        cmd.set("#LeaderboardList.Visible", !empty);
+        cmd.set("#EmptyState.Visible", empty);
+        if (empty) {
+            // Nobody on the board: what counts here and how to get on it, in the list's place.
+            EmptyStatePainter.paint(cmd, events, "#EmptyState", new EmptyState(
+                    Picture.item(deps.primaryPicture(activePrimary)), t.empty(), deps.primaryHint(activePrimary), null),
+                    null);
+            return;
+        }
+        int self = indexOf(sorted, playerRef.getUuid());
         if (statsView) {
-            buildStats(cmd, events, t);
+            paintStatsHeader(cmd, events, t);
+            paintStatsRows(cmd, t, sorted, self);
         } else {
-            buildRankings(cmd, t);
+            paintRankingsHeader(cmd, t);
+            paintRankingRows(cmd, sorted, self);
+        }
+        paintYou(cmd, t, sorted, self);
+    }
+
+    // ==================== the rows of tabs and the controls ====================
+
+    /**
+     * The first row (sections, difficulty), its rule when it is a row of view tabs, and the second (periods,
+     * party size), each with its optional label above it.
+     */
+    private void paintTabRows(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
+                              @Nonnull LeaderboardScreenMessages t) {
+        boolean views = deps.primaryTabsCarryColumns();
+        boolean primary = !deps.primaryTabs().isEmpty();
+        boolean secondary = !deps.tabs().isEmpty();
+        cmd.set("#GroupRow.Visible", primary);
+        cmd.set("#GroupRule.Visible", primary && views);
+        cmd.set("#TabRow.Visible", secondary);
+        optional(cmd, "#GroupLabel", t.primaryAxisLabel());
+        optional(cmd, "#TabLabel", t.secondaryAxisLabel());
+        if (primary) {
+            buildTabRow(cmd, events, t, "#GroupBar", deps.primaryTabs(), activePrimary, "group", views);
+        }
+        if (secondary) {
+            buildTabRow(cmd, events, t, "#TabBar", deps.tabs(), activeSecondary, "tab", false);
         }
     }
 
-    // ==================== rankings view ====================
+    /** The sort and the view, on a board with a Rankings view; a stats-only board shows neither. */
+    private void paintControls(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
+                               @Nonnull LeaderboardScreenMessages t) {
+        boolean controls = !deps.isStatsOnly();
+        cmd.set("#ControlBar.Visible", controls);
+        if (!controls) {
+            return;
+        }
+        String viewStr = statsView ? "stats" : "rankings";
+        segment(cmd, events, "#SortBest", t.sortScore(), !statsView && sort == SortMode.BEST_SCORE,
+                binding("sort", activePrimary, activeSecondary, SortMode.BEST_SCORE.name(), statSort, viewStr));
+        segment(cmd, events, "#SortTotal", t.sortTotal(), !statsView && sort == SortMode.TOTAL_POINTS,
+                binding("sort", activePrimary, activeSecondary, SortMode.TOTAL_POINTS.name(), statSort, viewStr));
+        segment(cmd, events, "#SortTime", t.sortTime(), !statsView && sort == SortMode.BEST_TIME,
+                binding("sort", activePrimary, activeSecondary, SortMode.BEST_TIME.name(), statSort, viewStr));
+        cmd.set("#SortGroup.Visible", !statsView);
+        optional(cmd, "#SortLabel", t.sortLabel());
 
-    private void buildRankings(@Nonnull UICommandBuilder cmd, @Nonnull LeaderboardScreenMessages t) {
-        cmd.set("#TableHeader.Visible", true);
-        cmd.set("#StatsHeader.Visible", false);
-        UiText.setText(cmd, "#HdrRank.Text", t.colRank());
-        UiText.setText(cmd, "#HdrPlayer.Text", t.colPlayer());
-        UiText.setText(cmd, "#HdrTotal.Text", t.colTotal());
-        UiText.setText(cmd, "#HdrScore.Text", t.colScore());
-        UiText.setText(cmd, "#HdrTime.Text", t.colTime());
-        UiText.setText(cmd, "#HdrPlays.Text", t.colPlays());
+        segment(cmd, events, "#ViewRankings", t.viewRankings(), !statsView,
+                binding("view", activePrimary, activeSecondary, sort.name(), statSort, "rankings"));
+        segment(cmd, events, "#ViewStats", t.viewStats(), statsView,
+                binding("view", activePrimary, activeSecondary, sort.name(), statSort, "stats"));
+        cmd.set("#ViewGroup.Visible", !columns().isEmpty());
+        optional(cmd, "#ViewLabel", t.viewLabel());
+    }
 
-        Map<UUID, LeaderboardEntry> bucket = deps.board().forBuckets(effectiveBuckets());
-        List<Map.Entry<UUID, LeaderboardEntry>> sorted = new ArrayList<>(bucket.entrySet());
+    /** One of the document's own segments, painted on or off and bound. */
+    private void segment(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events, @Nonnull String selector,
+                         @Nonnull Message label, boolean on, @Nonnull EventData binding) {
+        SegmentPainter.set(cmd, selector, label, on, playerRef);
+        events.addEventBinding(CustomUIEventBindingType.Activating, selector, binding, false);
+    }
+
+    private void buildTabRow(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
+                             @Nonnull LeaderboardScreenMessages t, @Nonnull String container,
+                             @Nonnull List<LeaderboardBucketTab> tabs, @Nonnull String active,
+                             @Nonnull String action, boolean views) {
+        String viewStr = statsView ? "stats" : "rankings";
+        // Append a synthesized trailing "All" tab to any axis with >= 2 concrete tabs (the default
+        // selection stays the first concrete tab, so existing behavior + deep-links are unchanged).
+        List<LeaderboardBucketTab> display = new ArrayList<>(tabs);
+        if (hasAllTab(tabs, deps.allTabs())) {
+            display.add(new LeaderboardBucketTab(ALL, t.filterAll()));
+        }
+        for (LeaderboardBucketTab tab : display) {
+            String group = action.equals("group") ? tab.bucketKey() : activePrimary;
+            String bucket = action.equals("group") ? activeSecondary : tab.bucketKey();
+            // Every tab's label goes on a .TextSpans, so a season run's name and year substitute either way.
+            appendTab(cmd, events, container, tab.label(), tab.bucketKey(), tab.bucketKey().equals(active), views,
+                    binding(action, group, bucket, sort.name(), statSort, viewStr));
+        }
+        if (!action.equals("group")) {
+            return;
+        }
+        // The primary row's links come last, each a tab that opens another board's page while it has one.
+        for (LeaderboardPageDeps.PageLink link : deps.primaryLinks()) {
+            if (target(link) == null) {
+                continue;
+            }
+            appendTab(cmd, events, container, link.label(), link.key(), false, views,
+                    binding(LINK, link.key(), activeSecondary, sort.name(), statSort, viewStr));
+        }
+    }
+
+    /** One tab: a view tab with its picture on a row of views, else a segment. */
+    private void appendTab(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events, @Nonnull String host,
+                           @Nonnull Message label, @Nonnull String key, boolean on, boolean views,
+                           @Nonnull EventData binding) {
+        if (views) {
+            ViewTabPainter.append(cmd, events, host, label, Picture.item(deps.primaryPicture(key)), on, binding);
+        } else {
+            SegmentPainter.append(cmd, events, host, label, on, false, false, binding);
+        }
+    }
+
+    /** The page {@code link} opens now, or null when it has none (or its builder failed). */
+    @Nullable
+    private static LeaderboardPageDeps target(@Nonnull LeaderboardPageDeps.PageLink link) {
+        try {
+            return link.opens().get();
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    // ==================== the list ====================
+
+    /** The selected buckets' entries, ranked by the Rankings sort. */
+    @Nonnull
+    private List<Map.Entry<UUID, LeaderboardEntry>> rankingsSorted() {
+        List<Map.Entry<UUID, LeaderboardEntry>> sorted =
+                new ArrayList<>(deps.board().forBuckets(effectiveBuckets()).entrySet());
         sorted.sort(sort.comparator());
-
-        UUID self = playerRef.getUuid();
-        if (sorted.isEmpty()) {
-            UiText.setText(cmd, "#EmptyState.Text", t.empty());
-            cmd.set("#EmptyState.Visible", true);
-        } else {
-            int max = Math.min(sorted.size(), MAX_ROWS);
-            for (int i = 0; i < max; i++) {
-                Map.Entry<UUID, LeaderboardEntry> en = sorted.get(i);
-                appendRankRow(cmd, i, i + 1, en.getKey(), en.getValue(), en.getKey().equals(self));
-            }
-        }
-        setYourRank(cmd, t, sorted, self);
+        return sorted;
     }
 
-    private void appendRankRow(@Nonnull UICommandBuilder cmd, int index, int rank,
-                               @Nonnull UUID uuid, @Nonnull LeaderboardEntry e, boolean isSelf) {
-        cmd.append("#LeaderboardList", ROW_TEMPLATE);
-        String sel = "#LeaderboardList[" + index + "]";
-        // Rank and numbers are plain data on .Text. The name is the library's display name (a title
-        // the player shows, when one is), a parameterized Message, so it goes on the Label's
-        // TextSpans: a .Text sink would print its {0} instead of the name.
-        UiText.setText(cmd, sel + " #Rank.Text", "#" + rank);
-        cmd.set(sel + " #Player.TextSpans", PlayerDisplayNames.displayName(uuid, e.name));
-        UiText.setText(cmd, sel + " #Total.Text", NumberFormatter.grouped(e.totalPoints()));
-        UiText.setText(cmd, sel + " #Score.Text", NumberFormatter.grouped(e.bestScore));
-        UiText.setText(cmd, sel + " #Time.Text", e.bestTimeSeconds > 0 ? formatTime(e.bestTimeSeconds) : "-");
-        UiText.setText(cmd, sel + " #Plays.Text", Integer.toString(e.plays));
-        paintRank(cmd, sel, rank, isSelf);
-    }
-
-    // ==================== stats view ====================
-
-    private void buildStats(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
-                            @Nonnull LeaderboardScreenMessages t) {
-        cmd.set("#TableHeader.Visible", false);
-        cmd.set("#StatsHeader.Visible", true);
-        UiText.setText(cmd, "#SHdrRank.Text", t.colRank());
-        UiText.setText(cmd, "#SHdrPlayer.Text", t.colPlayer());
-
-        // Stat column headers are clickable: a click re-sorts the list by that column's metric and
-        // highlights the active header (the same active/inactive tint as the tabs).
+    /**
+     * The selected buckets' entries (a concrete difficulty+size, an "All" axis roll-up, or All+All for the
+     * full lifetime view), ranked by the active stat column.
+     */
+    @Nonnull
+    private List<Map.Entry<UUID, LeaderboardEntry>> statsSorted() {
         List<StatColumnDef> cols = columns();
-        int shown = Math.min(cols.size(), StatColumnDef.MAX_STAT_COLUMNS);
-        for (int c = 0; c < StatColumnDef.MAX_STAT_COLUMNS; c++) {
-            String hdr = "#SHdrCol" + c;
-            if (c < shown) {
-                String key = cols.get(c).statKey();
-                UiText.setText(cmd, hdr + ".Text", cols.get(c).label());
-                cmd.set(hdr + ".Visible", true);
-                style(cmd, hdr, statSort.equals(key));
-                bindStatSort(events, hdr, key);
-            } else {
-                cmd.set(hdr + ".Visible", false);
-            }
-        }
-        // The Plays column is sortable too (reserved "plays" key); a stats-only board records no play.
-        if (deps.isStatsOnly()) {
-            cmd.set("#SHdrPlays.Visible", false);
-        } else {
-            UiText.setText(cmd, "#SHdrPlays.Text", t.colPlays());
-            style(cmd, "#SHdrPlays", statSort.equals("plays"));
-            bindStatSort(events, "#SHdrPlays", "plays");
-        }
-
-        // Aggregate across the SELECTED buckets (honoring the tabs): a concrete difficulty+size, an
-        // "All" axis roll-up, or All+All for the full lifetime view. Sorted by the active stat metric.
-        Map<UUID, LeaderboardEntry> all = deps.board().forBuckets(effectiveBuckets());
-        List<Map.Entry<UUID, LeaderboardEntry>> sorted = new ArrayList<>(all.entrySet());
+        int shown = shownColumns();
+        List<Map.Entry<UUID, LeaderboardEntry>> sorted =
+                new ArrayList<>(deps.board().forBuckets(effectiveBuckets()).entrySet());
         if (deps.isStatsOnly()) {
             // A board of bare tallies holds a player for any stat; this tab lists only those with one of its own.
             sorted.removeIf(en -> !holdsAny(en.getValue(), cols, shown));
         }
         sorted.sort(SortMode.byStat(statSort, ascending(cols, statSort)));
+        return sorted;
+    }
 
-        UUID self = playerRef.getUuid();
-        if (sorted.isEmpty()) {
-            UiText.setText(cmd, "#EmptyState.Text", t.empty());
-            cmd.set("#EmptyState.Visible", true);
-        } else {
-            int max = Math.min(sorted.size(), MAX_ROWS);
-            for (int i = 0; i < max; i++) {
-                Map.Entry<UUID, LeaderboardEntry> en = sorted.get(i);
-                appendStatsRow(cmd, i, i + 1, en.getKey(), en.getValue(), cols, shown, en.getKey().equals(self));
+    /** Where {@code uuid} stands in {@code sorted}, or -1 when they are not on it. */
+    private static int indexOf(@Nonnull List<Map.Entry<UUID, LeaderboardEntry>> sorted, @Nonnull UUID uuid) {
+        for (int i = 0; i < sorted.size(); i++) {
+            if (sorted.get(i).getKey().equals(uuid)) {
+                return i;
             }
         }
-        setYourRank(cmd, t, sorted, self);
+        return -1;
     }
 
     /** Whether {@code e} holds a value in any of the first {@code shown} columns. */
@@ -427,173 +501,253 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         return false;
     }
 
-    private void appendStatsRow(@Nonnull UICommandBuilder cmd, int index, int rank, @Nonnull UUID uuid,
-                                @Nonnull LeaderboardEntry e, @Nonnull List<StatColumnDef> cols, int shown,
-                                boolean isSelf) {
-        cmd.append("#LeaderboardList", STATS_ROW_TEMPLATE);
-        String sel = "#LeaderboardList[" + index + "]";
-        UiText.setText(cmd, sel + " #Rank.Text", "#" + rank);
-        cmd.set(sel + " #Player.TextSpans", PlayerDisplayNames.displayName(uuid, e.name));
-        if (deps.isStatsOnly()) {
-            cmd.set(sel + " #Plays.Visible", false);
-        } else {
-            UiText.setText(cmd, sel + " #Plays.Text", Integer.toString(e.plays));
-        }
-        for (int c = 0; c < StatColumnDef.MAX_STAT_COLUMNS; c++) {
-            String cell = sel + " #Col" + c;
-            if (c < shown) {
-                StatColumnDef def = cols.get(c);
-                long value = e.stat(def.statKey());
-                Message words = def.format() == ColumnFormat.DURATION ? deps.text().duration(value) : null;
-                if (def.ascending() && value <= 0) {
-                    // A low-wins best with no value is no record, shown as the Rankings view shows a missing time.
-                    UiText.setText(cmd, cell + ".Text", "-");
-                } else if (words != null) {
-                    // Hours and minutes in the reader's words carry parameters, which only TextSpans substitutes.
-                    cmd.set(cell + ".TextSpans", words);
-                } else {
-                    UiText.setText(cmd, cell + ".Text", def.format().render(value));
-                }
-                cmd.set(cell + ".Visible", true);
-            } else {
-                cmd.set(cell + ".Visible", false);
-            }
-        }
-        paintRank(cmd, sel, rank, isSelf);
+    /** The Rankings header, the sorted column's name in gold. */
+    private void paintRankingsHeader(@Nonnull UICommandBuilder cmd, @Nonnull LeaderboardScreenMessages t) {
+        cmd.set("#HdrRank.TextSpans", t.colRank());
+        cmd.set("#HdrPlayer.TextSpans", t.colPlayer());
+        cmd.set("#HdrTotal.TextSpans", t.colTotal());
+        cmd.set("#HdrScore.TextSpans", t.colScore());
+        cmd.set("#HdrTime.TextSpans", t.colTime());
+        cmd.set("#HdrPlays.TextSpans", t.colPlays());
+        String sorted = switch (sort) {
+            case BEST_SCORE -> "#HdrScore";
+            case TOTAL_POINTS -> "#HdrTotal";
+            case BEST_TIME -> "#HdrTime";
+        };
+        cmd.set(sorted + ".Style.TextColor", ZigTokens.ACCENT);
     }
 
-    // ==================== shared rendering ====================
-
-    private void buildTabRow(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
-                             @Nonnull LeaderboardScreenMessages t, @Nonnull String container,
-                             @Nonnull List<LeaderboardBucketTab> tabs, @Nonnull String active,
-                             @Nonnull String action) {
-        String viewStr = statsView ? "stats" : "rankings";
-        // Append a synthesized trailing "All" tab to any axis with >= 2 concrete tabs (the default
-        // selection stays the first concrete tab, so existing behavior + deep-links are unchanged).
-        List<LeaderboardBucketTab> display = new ArrayList<>(tabs);
-        if (hasAllTab(tabs, deps.allTabs())) {
-            display.add(new LeaderboardBucketTab(ALL, t.filterAll()));
+    private void paintRankingRows(@Nonnull UICommandBuilder cmd,
+                                  @Nonnull List<Map.Entry<UUID, LeaderboardEntry>> sorted, int self) {
+        int max = Math.min(sorted.size(), MAX_ROWS);
+        for (int i = 0; i < max; i++) {
+            Map.Entry<UUID, LeaderboardEntry> en = sorted.get(i);
+            LeaderboardEntry e = en.getValue();
+            cmd.append("#LeaderboardList", ROW_TEMPLATE);
+            String sel = "#LeaderboardList[" + i + "]";
+            // The name is the library's display name (a title the player shows, when one is), a
+            // parameterized Message, so it goes on the Label's TextSpans like every other cell.
+            cmd.set(sel + " #Rank.TextSpans", Msg.num(i + 1));
+            cmd.set(sel + " #Player.TextSpans", PlayerDisplayNames.displayName(en.getKey(), e.name));
+            cmd.set(sel + " #Total.TextSpans", Msg.num(e.totalPoints()));
+            cmd.set(sel + " #Score.TextSpans", Msg.num(e.bestScore));
+            cmd.set(sel + " #Time.TextSpans", time(e.bestTimeSeconds));
+            cmd.set(sel + " #Plays.TextSpans", Msg.num(e.plays));
+            paintPlace(cmd, sel, i + 1, i == self, RANKING_CELLS);
         }
-        for (int i = 0; i < display.size(); i++) {
-            LeaderboardBucketTab tab = display.get(i);
-            String sel = container + "[" + i + "]";
-            if (tab.spans()) {
-                // A label with parameters: a Button whose inner Label takes the message on .TextSpans.
-                cmd.append(container, SPANS_TAB_TEMPLATE);
-                ZigRichButton.text(cmd, sel + " #TabBtn", tab.label());
-                styleSpans(cmd, sel + " #TabBtn", tab.bucketKey().equals(active));
-            } else {
-                cmd.append(container, TAB_TEMPLATE);
-                UiText.setText(cmd, sel + " #TabBtn.Text", tab.label());
-                style(cmd, sel + " #TabBtn", tab.bucketKey().equals(active));
-            }
-            String group = action.equals("group") ? tab.bucketKey() : activePrimary;
-            String bucket = action.equals("group") ? activeSecondary : tab.bucketKey();
-            bind(events, sel + " #TabBtn", action, group, bucket, sort.name(), statSort, viewStr);
-        }
-        if (!action.equals("group")) {
-            return;
-        }
-        // The primary row's links come last, each a tab that opens another board's page while it has one.
-        int next = display.size();
-        for (LeaderboardPageDeps.PageLink link : deps.primaryLinks()) {
-            if (target(link) == null) {
-                continue;
-            }
-            cmd.append(container, TAB_TEMPLATE);
-            String sel = container + "[" + next + "]";
-            next++;
-            UiText.setText(cmd, sel + " #TabBtn.Text", link.label());
-            style(cmd, sel + " #TabBtn", false);
-            bind(events, sel + " #TabBtn", LINK, link.key(), activeSecondary, sort.name(), statSort, viewStr);
-        }
-    }
-
-    /** The page {@code link} opens now, or null when it has none (or its builder failed). */
-    @Nullable
-    private static LeaderboardPageDeps target(@Nonnull LeaderboardPageDeps.PageLink link) {
-        try {
-            return link.opens().get();
-        } catch (RuntimeException e) {
-            return null;
-        }
-    }
-
-    /** Bind a Stats-view column header so a click re-sorts the Stats list by {@code statKey}. */
-    private void bindStatSort(@Nonnull UIEventBuilder events, @Nonnull String selector, @Nonnull String statKey) {
-        bind(events, selector, "statsort", activePrimary, activeSecondary, sort.name(), statKey, "stats");
-    }
-
-    /** Bind a control so its click round-trips the page's full NEXT state (no duplicate keys). */
-    private void bind(@Nonnull UIEventBuilder events, @Nonnull String selector, @Nonnull String action,
-                      @Nonnull String group, @Nonnull String bucket, @Nonnull String sortName,
-                      @Nonnull String statSortName, @Nonnull String view) {
-        events.addEventBinding(CustomUIEventBindingType.Activating, selector,
-                EventData.of("Action", action)
-                        .append("Group", group)
-                        .append("Bucket", bucket)
-                        .append("Sort", sortName)
-                        .append("StatSort", statSortName)
-                        .append("View", view),
-                false);
-    }
-
-    /** Paint a tab/sort/view button as the ACTIVE selection (bright + bold + white) or an inactive one (muted). */
-    private static void style(@Nonnull UICommandBuilder cmd, @Nonnull String btnSelector, boolean active) {
-        String bg = active ? ACTIVE_TINT : INACTIVE_TINT;
-        UiRetint.retintButtonStates(cmd, btnSelector, bg, active ? ACTIVE_HOVER : INACTIVE_HOVER, bg);
-        cmd.set(btnSelector + ".Style.Default.LabelStyle.TextColor", active ? ACTIVE_TEXT : INACTIVE_TEXT);
-        cmd.set(btnSelector + ".Style.Default.LabelStyle.RenderBold", active);
     }
 
     /**
-     * {@link #style} for a {@link LeaderboardBucketTab#spans} tab: the same tints, on a {@code Button}'s
-     * backgrounds and its inner label, since a {@code ButtonStyle} carries no label style.
+     * The Stats header: each shown column a sort button (the sorted one on the view tab's chosen look, its name
+     * gold, its mark showing) with a tooltip saying what it counts, then Plays on a board that records plays.
      */
-    private static void styleSpans(@Nonnull UICommandBuilder cmd, @Nonnull String btnSelector, boolean active) {
-        String bg = active ? ACTIVE_TINT : INACTIVE_TINT;
-        UiRetint.retintButtonStates(cmd, btnSelector, bg, active ? ACTIVE_HOVER : INACTIVE_HOVER, bg);
-        ZigRichButton.color(cmd, btnSelector, active ? ACTIVE_TEXT : INACTIVE_TEXT);
-        cmd.set(btnSelector + " " + ZigRichButton.LABEL + ".Style.RenderBold", active);
-    }
-
-    private static void setLabel(@Nonnull UICommandBuilder cmd, @Nonnull String sel, @Nullable Message label) {
-        if (label != null) {
-            UiText.setText(cmd, sel + ".Text", label);
-            cmd.set(sel + ".Visible", true);
-        } else {
-            cmd.set(sel + ".Visible", false);
-        }
-    }
-
-    private static void paintRank(@Nonnull UICommandBuilder cmd, @Nonnull String rowSel, int rank, boolean isSelf) {
-        if (rank == 1) {
-            cmd.set(rowSel + " #Rank.Style.TextColor", "#ffd700");
-        } else if (rank == 2) {
-            cmd.set(rowSel + " #Rank.Style.TextColor", "#c0c0c0");
-        } else if (rank == 3) {
-            cmd.set(rowSel + " #Rank.Style.TextColor", "#cd7f32");
-        }
-        if (isSelf) {
-            cmd.set(rowSel + ".Background", "#1a3d4a");
-        }
-    }
-
-    private void setYourRank(@Nonnull UICommandBuilder cmd, @Nonnull LeaderboardScreenMessages t,
-                             @Nonnull List<Map.Entry<UUID, LeaderboardEntry>> sorted, @Nonnull UUID self) {
-        for (int i = 0; i < sorted.size(); i++) {
-            if (sorted.get(i).getKey().equals(self)) {
-                long metric = statsView
-                        ? SortMode.statMetric(sorted.get(i).getValue(), statSort)
-                        : sort.metric(sorted.get(i).getValue());
-                // The footer carries the rank and a figure as parameters, which a Label substitutes on
-                // its TextSpans; its .Text would print the {0} instead.
-                cmd.set("#YourRank.TextSpans", t.yourRank(i + 1, metric));
-                return;
+    private void paintStatsHeader(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
+                                  @Nonnull LeaderboardScreenMessages t) {
+        cmd.set("#SHdrRank.TextSpans", t.colRank());
+        cmd.set("#SHdrPlayer.TextSpans", t.colPlayer());
+        List<StatColumnDef> cols = columns();
+        int shown = shownColumns();
+        for (int c = 0; c < StatColumnDef.MAX_STAT_COLUMNS; c++) {
+            String hdr = "#SHdrCol" + c;
+            if (c < shown) {
+                StatColumnDef col = cols.get(c);
+                sortHeader(cmd, events, hdr, col.label(), columnTip(col.label(), t), col.statKey());
+            } else {
+                cmd.set(hdr + ".Visible", false);
             }
         }
-        cmd.set("#YourRank.TextSpans", t.yourRankNone());
+        // The Plays column is sortable too (reserved "plays" key); a stats-only board records no play.
+        if (deps.isStatsOnly()) {
+            cmd.set("#SHdrPlays.Visible", false);
+        } else {
+            sortHeader(cmd, events, "#SHdrPlays", t.colPlays(), columnTip(t.colPlays(), t), "plays");
+        }
+    }
+
+    /** One sort header: its words, its tooltip, its chosen look when it is the sorted column, and its click. */
+    private void sortHeader(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events, @Nonnull String header,
+                            @Nonnull Message label, @Nonnull Message tip, @Nonnull String statKey) {
+        ZigRichButton.text(cmd, header, label);
+        UiText.setText(cmd, header + ".TooltipText", tip);
+        if (statSort.equals(statKey)) {
+            ZigStyles.apply(cmd, header + ".Style", ZigStyles.Name.VIEW_TAB_ON, playerRef);
+            ZigRichButton.color(cmd, header, ZigTokens.ACCENT);
+            cmd.set(header + " #Mark.Visible", true);
+        }
+        events.addEventBinding(CustomUIEventBindingType.Activating, header,
+                binding("statsort", activePrimary, activeSecondary, sort.name(), statKey, "stats"), false);
+    }
+
+    /**
+     * A column header's tooltip: the column's own label key with {@link #TIP_SUFFIX} when the server ships that
+     * key (a stat's "what this counts" line), else the board's line on how a click sorts. Always a bare
+     * translation, since a {@code .TooltipText} prints a parameter as written.
+     */
+    @Nonnull
+    static Message columnTip(@Nonnull Message label, @Nonnull LeaderboardScreenMessages t) {
+        String id = label.getMessageId();
+        if (id != null && !id.isBlank() && LangCatalog.has(id + TIP_SUFFIX)) {
+            return Message.translation(id + TIP_SUFFIX);
+        }
+        return t.sortTip();
+    }
+
+    private void paintStatsRows(@Nonnull UICommandBuilder cmd, @Nonnull LeaderboardScreenMessages t,
+                                @Nonnull List<Map.Entry<UUID, LeaderboardEntry>> sorted, int self) {
+        List<StatColumnDef> cols = columns();
+        int shown = shownColumns();
+        int max = Math.min(sorted.size(), MAX_ROWS);
+        for (int i = 0; i < max; i++) {
+            Map.Entry<UUID, LeaderboardEntry> en = sorted.get(i);
+            LeaderboardEntry e = en.getValue();
+            cmd.append("#LeaderboardList", STATS_ROW_TEMPLATE);
+            String sel = "#LeaderboardList[" + i + "]";
+            cmd.set(sel + " #Rank.TextSpans", Msg.num(i + 1));
+            cmd.set(sel + " #Player.TextSpans", PlayerDisplayNames.displayName(en.getKey(), e.name));
+            if (deps.isStatsOnly()) {
+                cmd.set(sel + " #Plays.Visible", false);
+            } else {
+                cmd.set(sel + " #Plays.TextSpans", Msg.num(e.plays));
+            }
+            for (int c = 0; c < StatColumnDef.MAX_STAT_COLUMNS; c++) {
+                String cell = sel + " #Col" + c;
+                if (c < shown) {
+                    StatColumnDef def = cols.get(c);
+                    cmd.set(cell + ".TextSpans", cell(def, e.stat(def.statKey()), t));
+                } else {
+                    cmd.set(cell + ".Visible", false);
+                }
+            }
+            paintPlace(cmd, sel, i + 1, i == self, STATS_CELLS);
+        }
+    }
+
+    /**
+     * A stat cell's words: "-" for a low-wins best with no value (no record, as a missing time reads), a
+     * playtime in the reader's words when the board words one, a count as a typed number the client groups,
+     * else the column's own format.
+     */
+    @Nonnull
+    private static Message cell(@Nonnull StatColumnDef def, long value, @Nonnull LeaderboardScreenMessages t) {
+        if (def.ascending() && value <= 0) {
+            return Message.raw("-");
+        }
+        if (def.format() == ColumnFormat.DURATION) {
+            Message words = t.duration(value);
+            if (words != null) {
+                return words;
+            }
+        }
+        if (def.format() == ColumnFormat.GROUPED) {
+            return Msg.num(value);
+        }
+        return Message.raw(def.format().render(value));
+    }
+
+    /** A best time as m:ss, or "-" with no winning time. */
+    @Nonnull
+    private static Message time(int seconds) {
+        return Message.raw(seconds > 0 ? formatTime(seconds) : "-");
+    }
+
+    /**
+     * A row's place: the trophy and the number gold, silver or bronze for the top three, and the viewer's own
+     * row on the selected row's fill with every word bright (the medal inks do not read on it).
+     */
+    private static void paintPlace(@Nonnull UICommandBuilder cmd, @Nonnull String row, int rank, boolean self,
+                                   @Nonnull List<String> cells) {
+        Medal medal = Medal.of(rank);
+        if (medal != null) {
+            cmd.set(row + " #Medal.Visible", true);
+            UiRetint.retintColor(cmd, row + " #Medal", medal.colour);
+        }
+        if (self) {
+            UiRetint.fill(cmd, row, ZigTokens.SURFACE_ROW_SELECTED);
+            cmd.set(row + " #Rank.Style.TextColor", ZigTokens.INK_BRIGHT);
+            for (String cell : cells) {
+                cmd.set(row + " " + cell + ".Style.TextColor", ZigTokens.INK_BRIGHT);
+            }
+        } else if (medal != null) {
+            cmd.set(row + " #Rank.Style.TextColor", medal.colour);
+        }
+    }
+
+    // ==================== the viewer's strip ====================
+
+    /**
+     * The viewer's own strip: their place, the count on the board and their figure in each column; or, with no
+     * place yet, the line saying so and the tab's line on how to get on.
+     */
+    private void paintYou(@Nonnull UICommandBuilder cmd, @Nonnull LeaderboardScreenMessages t,
+                          @Nonnull List<Map.Entry<UUID, LeaderboardEntry>> sorted, int self) {
+        cmd.set("#YouHeading.TextSpans", t.youHeading());
+        boolean ranked = self >= 0;
+        cmd.set("#YouFigures.Visible", ranked);
+        if (!ranked) {
+            cmd.set("#YourRank.TextSpans", t.yourRankNone());
+            optional(cmd, "#YouHint", deps.primaryHint(activePrimary));
+            return;
+        }
+        cmd.set("#YouHint.Visible", false);
+        cmd.set("#YourRank.TextSpans", t.youPlayers(sorted.size()));
+        int rank = self + 1;
+        StatPainter.paint(cmd, "#YouPlace", new Stat(t.youPlace(rank), t.youPlaceLabel(),
+                rank == 1 ? Tone.COLLECT : Tone.NEUTRAL));
+        LeaderboardEntry mine = sorted.get(self).getValue();
+        List<Stat> figures = statsView ? statFigures(t, mine) : rankingFigures(t, mine);
+        for (int i = 0; i < YOU_FIGURES; i++) {
+            String figure = "#YouStat" + i;
+            boolean shown = i < figures.size();
+            cmd.set(figure + ".Visible", shown);
+            if (shown) {
+                StatPainter.paint(cmd, figure, figures.get(i));
+            }
+        }
+    }
+
+    /** The viewer's figure in each shown Stats column, under the column's own name. */
+    @Nonnull
+    private List<Stat> statFigures(@Nonnull LeaderboardScreenMessages t, @Nonnull LeaderboardEntry mine) {
+        List<StatColumnDef> cols = columns();
+        int shown = shownColumns();
+        List<Stat> out = new ArrayList<>(shown);
+        for (int c = 0; c < shown; c++) {
+            StatColumnDef def = cols.get(c);
+            out.add(new Stat(cell(def, mine.stat(def.statKey()), t), def.label(), Tone.NEUTRAL));
+        }
+        return out;
+    }
+
+    /** The viewer's Rankings figures: total, best, fastest and plays, under the Rankings view's own names. */
+    @Nonnull
+    private static List<Stat> rankingFigures(@Nonnull LeaderboardScreenMessages t, @Nonnull LeaderboardEntry mine) {
+        return List.of(
+                new Stat(Msg.num(mine.totalPoints()), t.colTotal(), Tone.NEUTRAL),
+                new Stat(Msg.num(mine.bestScore), t.colScore(), Tone.NEUTRAL),
+                new Stat(time(mine.bestTimeSeconds), t.colTime(), Tone.NEUTRAL),
+                new Stat(Msg.num(mine.plays), t.colPlays(), Tone.NEUTRAL));
+    }
+
+    // ==================== shared ====================
+
+    /** A label shown with {@code text} on its {@code .TextSpans}, or hidden when there is none. */
+    private static void optional(@Nonnull UICommandBuilder cmd, @Nonnull String label, @Nullable Message text) {
+        if (text != null) {
+            cmd.set(label + ".TextSpans", text);
+        }
+        cmd.set(label + ".Visible", text != null);
+    }
+
+    /** The event a control carries: the page's full NEXT state (no duplicate keys). */
+    @Nonnull
+    private static EventData binding(@Nonnull String action, @Nonnull String group, @Nonnull String bucket,
+                                     @Nonnull String sortName, @Nonnull String statSortName, @Nonnull String view) {
+        return EventData.of("Action", action)
+                .append("Group", group)
+                .append("Bucket", bucket)
+                .append("Sort", sortName)
+                .append("StatSort", statSortName)
+                .append("View", view);
     }
 
     @Override
