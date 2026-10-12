@@ -166,12 +166,12 @@ public class PlayModePage extends ToastablePage<PlayEventData> {
 
         QueueSnapshot snap = queue.snapshot();
         LobbyConfig cfg = snap.config();
-        // TextSpans (not .Text): the nested preset-name Message param resolves only on TextSpans
-        // (see buildChooser).
+        // TextSpans (not .Text) on all four Labels: the nested preset-name Message param, and the
+        // count, countdown and wait numbers, resolve only on TextSpans (a .Text prints "{0}").
         cmd.set("#Subtitle.TextSpans", t.difficulty(deps.presetName().apply(snap.key().presetId())));
-        UiText.setText(cmd, "#PlayerCount.Text", t.playerCount(snap.size(), cfg.maxParty()));
-        UiText.setText(cmd, "#Status.Text", statusFor(t, snap));
-        UiText.setText(cmd, "#WaitEstimate.Text", t.waitEstimate(cfg.fillTimeoutSeconds() + cfg.countdownSeconds()));
+        cmd.set("#PlayerCount.TextSpans", t.playerCount(snap.size(), cfg.maxParty()));
+        cmd.set("#Status.TextSpans", statusFor(t, snap));
+        cmd.set("#WaitEstimate.TextSpans", t.waitEstimate(cfg.fillTimeoutSeconds() + cfg.countdownSeconds()));
 
         List<UUID> members = snap.members();
         for (int i = 0; i < members.size() && i < MAX_ROWS; i++) {
@@ -260,8 +260,8 @@ public class PlayModePage extends ToastablePage<PlayEventData> {
             PlayScreenMessages t = deps.text();
             LobbyConfig cfg = snap.config();
             UICommandBuilder cmd = new UICommandBuilder();
-            UiText.setText(cmd, "#PlayerCount.Text", t.playerCount(snap.size(), cfg.maxParty()));
-            UiText.setText(cmd, "#Status.Text", statusFor(t, snap));
+            cmd.set("#PlayerCount.TextSpans", t.playerCount(snap.size(), cfg.maxParty()));
+            cmd.set("#Status.TextSpans", statusFor(t, snap));
             pushStatus(cmd);
         } catch (Throwable ignored) {
             // a malformed push must never corrupt the queue's listener fan-out
@@ -274,7 +274,7 @@ public class PlayModePage extends ToastablePage<PlayEventData> {
         }
         try {
             UICommandBuilder cmd = new UICommandBuilder();
-            UiText.setText(cmd, "#Status.Text", deps.text().statusLaunching());
+            cmd.set("#Status.TextSpans", deps.text().statusLaunching());
             pushStatus(cmd);
         } catch (Throwable ignored) {
         }
