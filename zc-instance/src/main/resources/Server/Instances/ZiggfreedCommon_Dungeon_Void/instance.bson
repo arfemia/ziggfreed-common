@@ -1,5 +1,5 @@
 {
-  "$Comment": "The dungeon template: an empty void world that saves nothing. A dungeon's prefab is pasted into each of its areas, and every copy is spawned under its own name with its removal and delete flags set when it opens, so this template pins no InstanceKey and sets no RemovalConditions. A dungeon names another template in its Instance leaf; keep that one free of an InstanceKey too.",
+  "$Comment": "The dungeon template: an empty void world that saves nothing. A dungeon's prefab is pasted into each of its areas, and every copy is spawned under its own name with its removal and delete flags set when it opens, so this template pins no InstanceKey and sets no RemovalConditions. Its gameplay config, ZiggfreedCommon_Dungeon, respawns a player who dies in their own area. A dungeon names another template in its Instance leaf; keep that one free of an InstanceKey too.",
   "Version": 4,
   "GameMode": "Adventure",
   "WorldGen": {
@@ -19,7 +19,7 @@
       "Roll": 0.0
     }
   },
-  "GameplayConfig": "Default_Instance",
+  "GameplayConfig": "ZiggfreedCommon_Dungeon",
   "IsPvpEnabled": false,
   "IsSpawningNPC": true,
   "IsSpawnMarkersEnabled": true,

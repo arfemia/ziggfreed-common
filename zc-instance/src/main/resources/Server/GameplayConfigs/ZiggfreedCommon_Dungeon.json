@@ -1,0 +1,12 @@
+{
+  "$Comment": "The gameplay of zc's dungeon template: the game's Default_Instance (no block breaking or gathering, no world events), except that a player who dies respawns at the world's spawn provider, which puts each player back in their own area. Default_Instance itself sends the dead out of the instance. A dungeon whose template names another gameplay config keeps that one's death rule.",
+  "Parent": "Default_Instance",
+  "Death": {
+    "RespawnController": {
+      "Type": "WorldSpawnPoint"
+    }
+  },
+  "Plugin": {
+    "WorldEvents": {}
+  }
+}

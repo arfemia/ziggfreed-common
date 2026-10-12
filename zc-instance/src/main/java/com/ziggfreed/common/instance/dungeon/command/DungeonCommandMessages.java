@@ -6,7 +6,10 @@ import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
+import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.instance.dungeon.DungeonAsset;
+import com.ziggfreed.common.season.SeasonGate;
 
 /**
  * Every line {@code /zigdungeon} says: a sentence or a word is a key in {@code ziggfreedcommon.dungeon.lang},
@@ -39,6 +42,22 @@ public final class DungeonCommandMessages {
     @Nonnull
     static Message word(@Nonnull String key, @Nonnull Object... args) {
         return Msg.key(PREFIX + key, args);
+    }
+
+    /** A dungeon's name as its players read it, or its id when it names no key. */
+    @Nonnull
+    static Message dungeonName(@Nonnull String id, @Nonnull DungeonAsset dungeon) {
+        String key = dungeon.nameKey();
+        return key == null ? Msg.raw(id) : ContentKeys.tr(key);
+    }
+
+    /** Switched off, waiting on its season, or open. */
+    @Nonnull
+    static Message state(@Nonnull DungeonAsset dungeon) {
+        if (!dungeon.isEnabled()) {
+            return word("state.off");
+        }
+        return SeasonGate.live(dungeon.getSeason()) ? word("state.open") : word("state.out_of_season");
     }
 
     static void heading(@Nonnull CommandContext ctx, @Nonnull String key, @Nonnull Object... args) {

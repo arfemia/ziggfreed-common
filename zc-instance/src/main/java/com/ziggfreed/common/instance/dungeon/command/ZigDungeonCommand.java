@@ -9,6 +9,7 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractComman
  * /zigdungeon list            every dungeon and how it is set up
  * /zigdungeon status          every copy open now: its areas, its players, its tick time
  * /zigdungeon close &lt;copy&gt;    close a copy now; everyone inside goes back where they came in
+ * /zigdungeon enter &lt;id&gt;      go into a dungeon yourself, in an area of your own
  * </pre>
  *
  * <p>No permission check is written here: the engine derives one node per verb
@@ -23,14 +24,19 @@ public final class ZigDungeonCommand extends AbstractCommandCollection {
     static final String LIST = "list";
     static final String STATUS = "status";
     static final String CLOSE = "close";
+    static final String ENTER = "enter";
 
     /** {@code close}'s one argument: the copy's world name. */
     static final String ARG_COPY = "copy";
+
+    /** {@code enter}'s one argument: the dungeon's id. */
+    static final String ARG_DUNGEON = "dungeon";
 
     public ZigDungeonCommand() {
         super(FAMILY, DungeonCommandMessages.desc("family"));
         addSubCommand(new DungeonListCommand());
         addSubCommand(new DungeonStatusCommand());
         addSubCommand(new DungeonCloseCommand());
+        addSubCommand(new DungeonEnterCommand());
     }
 }

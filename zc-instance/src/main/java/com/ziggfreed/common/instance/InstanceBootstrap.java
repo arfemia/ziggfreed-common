@@ -5,10 +5,13 @@ import javax.annotation.Nonnull;
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
+import com.hypixel.hytale.server.core.universe.world.spawn.ISpawnProvider;
 import com.ziggfreed.common.encounter.asset.EncounterOwnerLayers;
 import com.ziggfreed.common.instance.claims.ClaimNotices;
 import com.ziggfreed.common.instance.claims.ClaimsDestinations;
 import com.ziggfreed.common.instance.claims.command.ZigClaimsCommand;
+import com.ziggfreed.common.instance.dungeon.AreaMembers;
+import com.ziggfreed.common.instance.dungeon.AreaSpawnProvider;
 import com.ziggfreed.common.instance.dungeon.command.ZigDungeonCommand;
 import com.ziggfreed.common.instance.leaderboard.EncounterLeaderboardListener;
 import com.ziggfreed.common.instance.leaderboard.RecordsDestinations;
@@ -129,8 +132,10 @@ public final class InstanceBootstrap {
     }
 
     /**
-     * The dungeons' admin command, {@code /zigdungeon} ({@code list}, {@code status}, {@code close}). Their
-     * store registers with the other framework stores. Registration only.
+     * The dungeons' admin command, {@code /zigdungeon} ({@code list}, {@code status}, {@code close},
+     * {@code enter}), and the area-aware spawn provider every dungeon copy carries, on the engine's spawn
+     * provider codec so a copy's config saves and loads. Their store registers with the other framework stores.
+     * Registration only.
      */
     public static void registerDungeons(@Nonnull JavaPlugin plugin) {
         try {
@@ -138,20 +143,31 @@ public final class InstanceBootstrap {
         } catch (Throwable t) {
             SafeLog.warn("[dungeon] /zigdungeon could not be registered", t);
         }
+        try {
+            plugin.getCodecRegistry(ISpawnProvider.CODEC)
+                    .register(AreaSpawnProvider.TYPE, AreaSpawnProvider.class, AreaSpawnProvider.CODEC);
+        } catch (Throwable t) {
+            SafeLog.warn("[dungeon] the dungeon areas' spawn provider could not be registered", t);
+        }
     }
 
     /**
      * Write the boards' rows still waiting on their debounce, so a stat counted in the last seconds
-     * before a stop is kept, and stop the instance copies' remover thread and the default party's invite
-     * timers. Called from the library's {@code shutdown()}, which the server runs after it has disconnected
-     * every player and shut every world down, so nothing is counted after it. A stop with nothing new
-     * writes nothing, and it never throws.
+     * before a stop is kept, and stop the instance copies' remover thread, the dungeon areas' member ticker
+     * and the default party's invite timers. Called from the library's {@code shutdown()}, which the server
+     * runs after it has disconnected every player and shut every world down, so nothing is counted after it.
+     * A stop with nothing new writes nothing, and it never throws.
      */
     public static void shutdown() {
         try {
             InstanceWorlds.shutdown();
         } catch (Throwable t) {
             SafeLog.warn("[instance] the copies' remover thread could not be stopped", t);
+        }
+        try {
+            AreaMembers.shutdown();
+        } catch (Throwable t) {
+            SafeLog.warn("[dungeon] the area members' ticker could not be stopped", t);
         }
         try {
             EncounterLeaderboardListener.flushNow();

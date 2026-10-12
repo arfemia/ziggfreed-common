@@ -2,11 +2,13 @@
 # lines nest. The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.dungeon.<key>.
 
 # /zigdungeon. The command.desc.* keys are what the engine's own help resolves a command or an argument through.
-command.desc.family = See this server's dungeons and the copies they have open.
+command.desc.family = See this server's dungeons and the copies they have open, or go into one.
 command.desc.list = List every dungeon and how it is set up.
 command.desc.status = List the dungeon copies open right now.
 command.desc.close = Close a dungeon copy now. Everyone inside goes back where they came in.
+command.desc.enter = Go into a dungeon yourself, in an area of your own.
 command.desc.arg.copy = The copy to close, by its world name, like crypt-1.
+command.desc.arg.dungeon = The dungeon to go into, by its id, like crypt.
 command.list.none = No dungeons are loaded.
 command.list.header = {0, number} {0, plural, one {dungeon} other {dungeons}}:
 command.list.dungeon = {0} ({1}): {2}. Difficulty {3}, season {4}.
@@ -18,6 +20,16 @@ command.status.header = {0, number} dungeon {0, plural, one {copy} other {copies
 command.status.copy = {0} ({1}): {2, number} of {3, number} {3, plural, one {area} other {areas}} in use, {4, number} {4, plural, one {player} other {players}} inside, {5, number} on the way. {6}. {7}.
 command.close.done = Closing {0}. Everyone inside goes back where they came in.
 command.close.unknown = No dungeon copy called {0} is open. /zigdungeon status lists the ones that are.
+command.enter.sent = Sending you into {0}, area {1, number} of {2}.
+command.enter.unknown = No dungeon called {0} is loaded. /zigdungeon list shows the ones that are.
+command.enter.closed = {0} cannot be entered right now: it is {1}.
+command.enter.no_prefab = {0} names no prefab, so its areas would be empty void.
+command.enter.missing_prefab = {0} names the prefab {1}, which no loaded pack ships.
+command.enter.on_the_way = You are already on your way into a dungeon.
+command.enter.inside = You are already in a dungeon area. Leave it first.
+command.enter.full = That area is full.
+command.enter.copy_gone = That dungeon copy just closed. Try again.
+command.enter.failed = The dungeon copy could not be opened, or the teleport was refused. The server log says why.
 
 # Words the lines above nest.
 state.open = open

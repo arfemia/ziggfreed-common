@@ -5,15 +5,12 @@ import java.util.concurrent.CompletableFuture;
 
 import javax.annotation.Nonnull;
 
-import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncCommand;
 import com.ziggfreed.common.codec.Vec3;
-import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.instance.dungeon.DungeonAsset;
 import com.ziggfreed.common.instance.dungeon.DungeonConfig;
-import com.ziggfreed.common.season.SeasonGate;
 
 /**
  * {@code list}: every loaded dungeon, four lines each: its name, whether it is open, its difficulty and
@@ -47,7 +44,8 @@ final class DungeonListCommand extends AbstractAsyncCommand {
 
     private static void describe(@Nonnull CommandContext ctx, @Nonnull String id, @Nonnull DungeonAsset dungeon) {
         String season = dungeon.getSeason();
-        DungeonCommandMessages.heading(ctx, "list.dungeon", name(id, dungeon), id, state(dungeon),
+        DungeonCommandMessages.heading(ctx, "list.dungeon", DungeonCommandMessages.dungeonName(id, dungeon), id,
+                DungeonCommandMessages.state(dungeon),
                 dungeon.difficulty().isEmpty() ? DungeonCommandMessages.word("difficulty.normal")
                         : Msg.raw(dungeon.difficulty()),
                 season == null ? DungeonCommandMessages.word("season.all_year") : Msg.raw(season));
@@ -64,22 +62,5 @@ final class DungeonListCommand extends AbstractAsyncCommand {
                         : DungeonCommandMessages.word("run.limit", limit),
                 DungeonCommandMessages.word(dungeon.failOnWipe() ? "wipe.fails" : "wipe.ignored"),
                 dungeon.emptyCloseSeconds());
-    }
-
-    /** The dungeon's name as its players read it, or its id when it names no key. */
-    @Nonnull
-    private static Message name(@Nonnull String id, @Nonnull DungeonAsset dungeon) {
-        String key = dungeon.nameKey();
-        return key == null ? Msg.raw(id) : ContentKeys.tr(key);
-    }
-
-    /** Open, switched off, or waiting on its season. */
-    @Nonnull
-    private static Message state(@Nonnull DungeonAsset dungeon) {
-        if (!dungeon.isEnabled()) {
-            return DungeonCommandMessages.word("state.off");
-        }
-        return SeasonGate.live(dungeon.getSeason()) ? DungeonCommandMessages.word("state.open")
-                : DungeonCommandMessages.word("state.out_of_season");
     }
 }

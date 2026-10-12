@@ -12,4 +12,8 @@ dependencies {
     // only reads; nothing here reaches into a fight, and the presets stay boss-unaware. One-way:
     // zc-encounter never imports this module (EncounterEdgeTest fails its build if it tries).
     implementation project(':zc-encounter')
+    // TickingSections only: a dungeon area's paste wakes every chunk section its prefab covers, so the pasted
+    // entities stay in the world and a used area's parked ones come back to be cleared (on Update 7 an entity
+    // added into a sleeping section is parked out of the store). One-way: zc-world never imports this module.
+    implementation project(':zc-world')
 }
