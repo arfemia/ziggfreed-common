@@ -5,16 +5,20 @@ import java.util.List;
 import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.builtin.triggervolumes.TriggerVolumesPlugin;
+import com.hypixel.hytale.server.core.event.events.BootEvent;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.ziggfreed.common.interaction.type.InteractionTypeSpec;
 import com.ziggfreed.common.interaction.type.InteractionTypes;
+import com.ziggfreed.common.objectives.gate.RequiresVolumeAudit;
 import com.ziggfreed.common.objectives.gate.ZigRequiresTriggerCondition;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Registers the item interaction Types that feed progression, pay rewards and gate on a {@code Requires}
- * block: {@code ZigCreditProgress}, {@code ZigGrantReward} and {@code ZigRequires}; and {@code ZigRequires}'
- * trigger-volume twin on the TriggerVolumes plugin. Registration only.
+ * block: {@code ZigCreditProgress}, {@code ZigGrantReward} and {@code ZigRequires}; {@code ZigRequires}'
+ * trigger-volume twin on the TriggerVolumes plugin; and the every-boot audit of the packs' trigger-volume
+ * effect files for a {@code ZigRequires} the engine would let through ({@link RequiresVolumeAudit}).
+ * Registration only.
  */
 public final class ProgressInteractionsBootstrap {
 
@@ -34,9 +38,9 @@ public final class ProgressInteractionsBootstrap {
     }
 
     /**
-     * Register the Types, then the trigger condition. Call from plugin {@code setup()}, before any asset
-     * decode: an item naming a Type the registry has not seen fails to load, and a trigger volume drops a
-     * condition it cannot decode. Fail-soft per step.
+     * Register the Types, then the trigger condition, then hang its audit on boot. Call from plugin
+     * {@code setup()}, before any asset decode: an item naming a Type the registry has not seen fails to load,
+     * and a trigger volume drops a condition it cannot decode. Fail-soft per step.
      */
     public static void registerProgressInteractions(@Nonnull PluginBase plugin) {
         try {
@@ -45,6 +49,20 @@ public final class ProgressInteractionsBootstrap {
             SafeLog.warn("[interaction] the progress interaction Types could not be registered", t);
         }
         registerRequiresCondition();
+        registerRequiresAudit(plugin);
+    }
+
+    /**
+     * The audit of every loaded pack's trigger-volume effect files, on each boot and never behind the boot-audit
+     * switch: the engine skips a {@code ZigRequires} it cannot decode and decodes a misspelt key as a block that
+     * asks for nothing, keeping the volume either way, so each such condition is named as an ERROR.
+     */
+    private static void registerRequiresAudit(@Nonnull PluginBase plugin) {
+        try {
+            plugin.getEventRegistry().register(BootEvent.class, event -> RequiresVolumeAudit.run());
+        } catch (Throwable t) {
+            SafeLog.warn("[gate] the trigger-volume Requires audit could not be hung on boot", t);
+        }
     }
 
     /**
