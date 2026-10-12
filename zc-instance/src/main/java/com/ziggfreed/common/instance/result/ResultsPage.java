@@ -79,9 +79,11 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
         cmd.append(PAGE_TEMPLATE);
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton", EventData.of("Action", "close"));
 
-        UiText.setText(cmd, "#OutcomeTitle.Text", t.outcomeTitle(result.kind()));
+        // Every label goes on its .TextSpans, the sink that fills a consumer line's parameters (a .Text prints
+        // "{0}" as written); only the TextButtons below keep .Text, the one sink they have.
+        cmd.set("#OutcomeTitle.TextSpans", t.outcomeTitle(result.kind()));
         cmd.set("#OutcomeTitle.Style.TextColor", outcomeColor(result.kind()));
-        UiText.setText(cmd, "#Duration.Text", t.duration(result.durationSeconds()));
+        cmd.set("#Duration.TextSpans", t.duration(result.durationSeconds()));
 
         // Team-grouped per-player rows.
         boolean multiTeam = result.teams().size() > 1;
@@ -107,7 +109,7 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
         }
 
         // Viewer's point-breakdown (how the score was earned).
-        UiText.setText(cmd, "#BreakdownTitle.Text", t.breakdownTitle());
+        cmd.set("#BreakdownTitle.TextSpans", t.breakdownTitle());
         if (viewerRow != null) {
             int b = 0;
             for (ScoreColumn col : viewerRow.columns()) {
@@ -119,7 +121,7 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
         }
 
         // Viewer's run-stats breakdown (raw per-run activity, a second section below the points).
-        UiText.setText(cmd, "#StatsTitle.Text", t.statsTitle());
+        cmd.set("#StatsTitle.TextSpans", t.statsTitle());
         if (viewerRow != null) {
             int s = 0;
             for (ScoreColumn col : viewerRow.statColumns()) {
@@ -132,14 +134,14 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
 
         // Reward strip: a preview note (in-instance), the no-spoils line, or the claimable spoils chips.
         // Nothing is granted on render - the player presses Claim (a manual claim, full-inventory guarded).
-        UiText.setText(cmd, "#RewardsTitle.Text", t.rewardsTitle());
+        cmd.set("#RewardsTitle.TextSpans", t.rewardsTitle());
         List<RewardChip> chips = result.rewards();
         if (rewardsPreviewNote != null) {
             cmd.set("#NoRewards.Visible", true);
-            UiText.setText(cmd, "#NoRewards.Text", rewardsPreviewNote);
+            cmd.set("#NoRewards.TextSpans", rewardsPreviewNote);
         } else if (chips.isEmpty()) {
             cmd.set("#NoRewards.Visible", true);
-            UiText.setText(cmd, "#NoRewards.Text", t.noRewards());
+            cmd.set("#NoRewards.TextSpans", t.noRewards());
         } else {
             for (int i = 0; i < chips.size(); i++) {
                 RewardChip chip = chips.get(i);
@@ -156,7 +158,7 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
             // amber = some held for a later claim (a full inventory at claim time).
             if (claimed) {
                 cmd.set("#PendingNote.Visible", true);
-                UiText.setText(cmd, "#PendingNote.Text", claimAllSucceeded ? t.claimedNote() : t.pendingNote());
+                cmd.set("#PendingNote.TextSpans", claimAllSucceeded ? t.claimedNote() : t.pendingNote());
                 cmd.set("#PendingNote.Style.TextColor", claimAllSucceeded ? "#7ad17a" : "#e0a030");
             }
         }
