@@ -509,19 +509,40 @@ class ZigProgressComponentTest {
         assertEquals(Map.of("combat", 1_700_000_000_000L, "seasons", 1_800_000_000_000L), back.achievementSeenMarks());
     }
 
+    // ==================== settled claim rows (the appended AchievementClaimRows leaf) ====================
+
+    /**
+     * The note the engine offers added claim rows by: a note of no rows survives a save as "no rows" (not as
+     * "no note", which would read as a record from before the note), each fingerprint counts even where it
+     * cannot match, a blob from before the leaf reads as no note, and the leaf is the codec's last.
+     */
     @Test
-    void theSeenLeafIsAppendedAfterEveryOlderLeaf() {
+    void aClaimRowNoteRoundTripsInTheLastLeafAndAnOlderBlobReadsUnnoted() {
         ZigProgressComponent component = new ZigProgressComponent();
         component.setAchievementSeen("combat", 5L);
-        component.setDialogueMemory("flag");
-        component.claimMigration("m1");
+        component.setAchievementClaimRows("guest", List.of());
+        component.setAchievementClaimRows("miner", List.of("0a0b0c0d", "11223344", "n:2"));
+        component.setAchievementClaimRows("odd", List.of("a|b", " "));
 
         BsonDocument encoded = ZigProgressComponent.CODEC.encode(component, ExtraInfo.THREAD_LOCAL.get());
         String last = null;
         for (String key : encoded.keySet()) {
             last = key;
         }
-        assertEquals("AchievementSeen", last, "a new leaf goes on the end of the codec, never in the middle");
+        assertEquals("AchievementClaimRows", last, "a new leaf goes on the end of the codec, never in the middle");
+        ZigProgressComponent back = new ZigProgressComponent();
+        ZigProgressComponent.CODEC.decode(BsonDocument.parse(encoded.toJson()), back, ExtraInfo.THREAD_LOCAL.get());
+
+        assertEquals(List.of(), back.achievementClaimRows("guest"), "settled with no row is a note, not its absence");
+        assertEquals(List.of("0a0b0c0d", "11223344", "n:2"), back.achievementClaimRows("miner"), "entry for entry");
+        assertEquals(2, back.achievementClaimRows("odd").size(), "a row the packing cannot hold still counts");
+        assertNull(back.achievementClaimRows("never"), "no note at all reads null");
+        assertTrue(back.knownAchievementIds().contains("guest"));
+
+        BsonDocument older = new BsonDocument();
+        older.put("AchievementStates", new BsonString("guest=CLAIMED"));
+        assertNull(ZigProgressComponent.CODEC.decode(older, new ExtraInfo()).achievementClaimRows("guest"),
+                "a blob saved before the leaf existed holds no note");
     }
 
     @Test

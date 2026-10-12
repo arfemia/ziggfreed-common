@@ -517,16 +517,18 @@ public final class AchievementReader {
                     ? Pill.of(text("book.achievements.reward.auto"), Tone.DONE)
                     : Pill.of(text("book.achievements.reward.locked"), Tone.BLOCKED)));
         }
-        for (RewardChip chip : chips(a.claimRewards())) {
-            Pill tag;
-            if (claimed) {
-                tag = Pill.of(text("book.achievements.reward.collected"), Tone.DONE);
-            } else if (unlocked) {
-                tag = Pill.of(text("book.achievements.reward.waiting"), Tone.COLLECT);
-            } else {
-                tag = Pill.of(text("book.achievements.reward.locked"), Tone.BLOCKED);
-            }
-            lines.add(DetailLine.reward(chip, tag));
+        // What Collect pays now: every row on a first collect, only the rows added since on one the engine
+        // reopened (offerAddedClaimRewards), whose other rows were already collected.
+        List<RewardSpec> waiting = unlocked && !claimed ? engine.claimRewardsOwed(subject, a) : List.of();
+        List<RewardSpec> settled = new ArrayList<>(a.claimRewards());
+        settled.removeIf(row -> waiting.stream().anyMatch(owed -> owed == row));
+        for (RewardChip chip : chips(settled)) {
+            lines.add(DetailLine.reward(chip, unlocked
+                    ? Pill.of(text("book.achievements.reward.collected"), Tone.DONE)
+                    : Pill.of(text("book.achievements.reward.locked"), Tone.BLOCKED)));
+        }
+        for (RewardChip chip : chips(waiting)) {
+            lines.add(DetailLine.reward(chip, Pill.of(text("book.achievements.reward.waiting"), Tone.COLLECT)));
         }
         return lines.isEmpty() ? null : new DetailBlock("rewards", text("book.achievements.block.rewards"), null, lines);
     }
@@ -611,9 +613,13 @@ public final class AchievementReader {
         return AchievementPinOffer.offersPin(a.featOfStrength(), pinned(a), engine.pinnable(subject, a.id()));
     }
 
-    /** Whether {@code a} is earned with rewards still to collect (the page's Collect). */
+    /**
+     * Whether {@code a} is earned with rewards still to collect (the page's Collect): on a first collect any Claim
+     * row, on one reopened for rows added since only those ({@link AchievementEngine#claimRewardsOwed}).
+     */
     public boolean waiting(@Nonnull Achievement a) {
-        return engine.status(subject, a.id()) == AchievementStatus.UNLOCKED && a.requiresClaim();
+        return engine.status(subject, a.id()) == AchievementStatus.UNLOCKED
+                && !engine.claimRewardsOwed(subject, a).isEmpty();
     }
 
     // ==================== shared readings (package: the browse and overview rules read them) ====================

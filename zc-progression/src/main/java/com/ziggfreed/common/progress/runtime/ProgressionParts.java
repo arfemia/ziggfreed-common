@@ -312,6 +312,18 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
             return ProgressionRuntime.parts().achievementStore().clearPin(subject, achievementId);
         }
 
+        @Nullable
+        @Override
+        public List<String> claimRowsSettled(@Nonnull Subject subject, @Nonnull String achievementId) {
+            return ProgressionRuntime.parts().achievementStore().claimRowsSettled(subject, achievementId);
+        }
+
+        @Override
+        public void setClaimRowsSettled(@Nonnull Subject subject, @Nonnull String achievementId,
+                                        @Nullable List<String> fingerprints) {
+            ProgressionRuntime.parts().achievementStore().setClaimRowsSettled(subject, achievementId, fingerprints);
+        }
+
         @Override
         public boolean usesReservedDelimiter(@Nullable String id) {
             return ProgressionRuntime.parts().achievementStore().usesReservedDelimiter(id);

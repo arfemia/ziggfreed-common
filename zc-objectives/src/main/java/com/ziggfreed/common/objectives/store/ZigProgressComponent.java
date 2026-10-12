@@ -1,5 +1,6 @@
 package com.ziggfreed.common.objectives.store;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -42,7 +43,7 @@ import com.ziggfreed.common.util.SafeLog;
  * stores are the active ones: a
  * conversation remembers things on a server whose quests belong to somebody else.
  *
- * <p><b>Thirteen packed string leaves, not thirteen collections.</b> Each one travels as a single
+ * <p><b>Fourteen packed string leaves, not fourteen collections.</b> Each one travels as a single
  * string through {@link ProgressBlob}, which is the shape a codec-persisted ECS component reliably
  * supports; the component is the thing that is saved into every world, so the wire format is a
  * contract and a plain string is the least surprising one to keep.
@@ -132,7 +133,22 @@ public final class ZigProgressComponent implements Component<EntityStore> {
             .append(new KeyedCodec<>("AchievementSeen", Codec.STRING),
                     (c, v) -> c.achievementSeen = ProgressBlob.deserializeLongs(v),
                     c -> ProgressBlob.serializeLongs(ProgressBlob.ordered(c.achievementSeen))).add()
+            // Which Claim rows each settled achievement covered (achievementId -> the engine's note: the rows'
+            // fingerprints and a row count), so a row added to the list later is offered. Appended last: a blob
+            // saved before it decodes to no notes, which the engine reads as a record from before it noted collects.
+            .append(new KeyedCodec<>("AchievementClaimRows", Codec.STRING),
+                    (c, v) -> c.achievementClaimRows = ProgressBlob.deserializeStrings(v),
+                    c -> ProgressBlob.serializeStrings(ProgressBlob.ordered(c.achievementClaimRows))).add()
             .build();
+
+    /** How a note of NO settled claim rows is written, since the packing drops an empty value. */
+    private static final String NO_CLAIM_ROWS = "-";
+
+    /** Joins the fingerprints inside one note; collides with neither reserved character. */
+    private static final String CLAIM_ROW_SEPARATOR = ",";
+
+    /** Stands in a note for a fingerprint the packing could not hold, so the row still counts. */
+    private static final String UNREADABLE_ROW = "?";
 
     /** questId -> {@link QuestStatus#name()}. */
     @Nonnull
@@ -193,6 +209,10 @@ public final class ZigProgressComponent implements Component<EntityStore> {
     /** Achievement category (lower case) -> when the player last opened it, in epoch milliseconds. */
     @Nonnull
     private Map<String, Long> achievementSeen = new ConcurrentHashMap<>();
+
+    /** achievementId -> the engine's note of settled claim rows, entries joined by commas, or {@link #NO_CLAIM_ROWS}. */
+    @Nonnull
+    private Map<String, String> achievementClaimRows = new ConcurrentHashMap<>();
 
     public ZigProgressComponent() {
     }
@@ -433,6 +453,7 @@ public final class ZigProgressComponent implements Component<EntityStore> {
         Set<String> ids = new HashSet<>(achievementStates.keySet());
         ids.addAll(achievementUnlockedAt.keySet());
         ids.addAll(achievementPins.keySet());
+        ids.addAll(achievementClaimRows.keySet());
         for (String key : achievementProgress.keySet()) {
             int split = key.indexOf(AchievementProgressStore.CRITERION_SEPARATOR);
             ids.add(split > 0 ? key.substring(0, split) : key);
@@ -512,6 +533,51 @@ public final class ZigProgressComponent implements Component<EntityStore> {
     /** Drop a pin. Returns true when one was actually there. */
     public boolean clearAchievementPin(@Nonnull String achievementId) {
         return achievementPins.remove(achievementId) != null;
+    }
+
+    /**
+     * The engine's note of the claim rows this player's record says were settled for {@code achievementId}
+     * (row fingerprints and a row count), entry for entry as written; empty for an empty note; null when the
+     * record notes none.
+     */
+    @Nullable
+    public List<String> achievementClaimRows(@Nonnull String achievementId) {
+        String note = achievementClaimRows.get(achievementId);
+        if (note == null) {
+            return null;
+        }
+        if (note.equals(NO_CLAIM_ROWS)) {
+            return List.of();
+        }
+        List<String> rows = new ArrayList<>();
+        for (String row : note.split(CLAIM_ROW_SEPARATOR, -1)) {
+            // Every entry counts, even one that cannot match: a short count would offer a settled row again.
+            rows.add(row.isBlank() ? UNREADABLE_ROW : row.trim());
+        }
+        return List.copyOf(rows);
+    }
+
+    /**
+     * Record the engine's note of settled claim rows for {@code achievementId}; null forgets it. An entry that
+     * could not be read back as itself (blank, or holding {@code |}, {@code =} or the comma) is kept as
+     * {@link #UNREADABLE_ROW}: it then matches no row, but still counts as one, since a note covering fewer
+     * rows than were settled would offer a row twice.
+     */
+    public void setAchievementClaimRows(@Nonnull String achievementId, @Nullable List<String> fingerprints) {
+        if (fingerprints == null) {
+            achievementClaimRows.remove(achievementId);
+            return;
+        }
+        StringBuilder note = new StringBuilder();
+        for (String row : fingerprints) {
+            boolean readable = row != null && !row.isBlank() && !row.contains("|") && !row.contains("=")
+                    && !row.contains(CLAIM_ROW_SEPARATOR) && !row.trim().equals(NO_CLAIM_ROWS);
+            if (note.length() > 0) {
+                note.append(CLAIM_ROW_SEPARATOR);
+            }
+            note.append(readable ? row.trim() : UNREADABLE_ROW);
+        }
+        achievementClaimRows.put(achievementId, note.length() == 0 ? NO_CLAIM_ROWS : note.toString());
     }
 
     // ==================== achievement seen marks ====================
@@ -645,6 +711,7 @@ public final class ZigProgressComponent implements Component<EntityStore> {
         c.dialogueMemories = ProgressBlob.copySet(this.dialogueMemories);
         c.migrations = ProgressBlob.copySet(this.migrations);
         c.achievementSeen = ProgressBlob.copy(this.achievementSeen);
+        c.achievementClaimRows = ProgressBlob.copy(this.achievementClaimRows);
         return c;
     }
 

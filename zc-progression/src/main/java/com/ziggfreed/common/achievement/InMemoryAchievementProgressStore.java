@@ -2,12 +2,14 @@ package com.ziggfreed.common.achievement;
 
 import java.util.HashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.ziggfreed.common.subject.Subject;
 
@@ -31,6 +33,7 @@ public final class InMemoryAchievementProgressStore implements AchievementProgre
         private final Map<String, Long> unlockedAt = new ConcurrentHashMap<>();
         private final Map<Integer, AchievementStatus> milestones = new ConcurrentHashMap<>();
         private final Map<String, Long> pins = new ConcurrentHashMap<>();
+        private final Map<String, List<String>> claimRows = new ConcurrentHashMap<>();
     }
 
     private final Map<UUID, SubjectState> subjects = new ConcurrentHashMap<>();
@@ -84,6 +87,7 @@ public final class InMemoryAchievementProgressStore implements AchievementProgre
         SubjectState subjectState = state(subject);
         Set<String> ids = new LinkedHashSet<>(subjectState.statuses.keySet());
         ids.addAll(subjectState.unlockedAt.keySet());
+        ids.addAll(subjectState.claimRows.keySet());
         for (String key : subjectState.progress.keySet()) {
             int separator = key.indexOf(CRITERION_SEPARATOR);
             ids.add(separator > 0 ? key.substring(0, separator) : key);
@@ -143,6 +147,22 @@ public final class InMemoryAchievementProgressStore implements AchievementProgre
     @Override
     public boolean clearPin(@Nonnull Subject subject, @Nonnull String achievementId) {
         return state(subject).pins.remove(achievementId) != null;
+    }
+
+    @Override
+    @Nullable
+    public List<String> claimRowsSettled(@Nonnull Subject subject, @Nonnull String achievementId) {
+        return state(subject).claimRows.get(achievementId);
+    }
+
+    @Override
+    public void setClaimRowsSettled(@Nonnull Subject subject, @Nonnull String achievementId,
+            @Nullable List<String> fingerprints) {
+        if (fingerprints == null) {
+            state(subject).claimRows.remove(achievementId);
+        } else {
+            state(subject).claimRows.put(achievementId, List.copyOf(fingerprints));
+        }
     }
 
     /** Forget one subject entirely (they left, the round ended). */

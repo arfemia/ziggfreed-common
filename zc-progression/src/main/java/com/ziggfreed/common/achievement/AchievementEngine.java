@@ -1,5 +1,7 @@
 package com.ziggfreed.common.achievement;
 
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -524,6 +526,8 @@ public final class AchievementEngine {
                 earnedRows(achievement, outcome));
         if (!achievement.requiresClaim()) {
             store.setStatus(subject, achievement.id(), AchievementStatus.CLAIMED);
+            // Settled with no Claim row at all, noted as such: a row added later is then provably owed.
+            noteSettled(subject, achievement);
             fireClaimed(achievement, subject, outcome, false);
         }
         // Reported as a change, NOT committed. Earning is something the engine decides rather than
@@ -554,22 +558,133 @@ public final class AchievementEngine {
      * rolled table as the items it produced - so a surface that presses Collect can list it rather
      * than the authored promise. Null when the claim was refused, on exactly the rules
      * {@code claim} refuses on.
+     *
+     * <p>It pays {@link #claimRewardsOwed}: every Claim row on a first collect, and only the rows added since
+     * on one {@link #offerAddedClaimRewards} reopened. Either way it adds every current row to the record's
+     * note of settled rows, which never drops one.
      */
     @Nullable
     public RewardGrants.GrantOutcome tryClaim(@Nonnull Subject subject, @Nonnull Achievement achievement) {
         if (store.status(subject, achievement.id()) != AchievementStatus.UNLOCKED) {
             return null;
         }
-        if (!safeGate(() -> gates.canReceiveRewards(subject, achievement), "canReceiveRewards", achievement)) {
+        List<RewardSpec> owed = claimRewardsOwed(subject, achievement);
+        // The gate weighs what THIS collect pays: on one reopened for added rows, never the rows already paid.
+        Achievement asked = owed.size() == achievement.claimRewards().size()
+                ? achievement : achievement.withClaimRewards(owed);
+        if (!safeGate(() -> gates.canReceiveRewards(subject, asked), "canReceiveRewards", achievement)) {
             return null;
         }
-        RewardGrants.GrantOutcome outcome = grant(subject, achievement, achievement.claimRewards());
+        RewardGrants.GrantOutcome outcome = grant(subject, achievement, owed);
         store.setStatus(subject, achievement.id(), AchievementStatus.CLAIMED);
+        noteSettled(subject, achievement);
         // Collecting is a subject-owned transaction boundary, so the writes are committed here.
         store.markDirty(subject);
         store.flush(subject);
         fireClaimed(achievement, subject, outcome, true);
         return outcome;
+    }
+
+    /**
+     * What collecting this achievement would pay this subject now: nothing unless it waits to be collected;
+     * every Claim row when its record notes no earlier settle (the first collect); otherwise only rows no
+     * settle ever covered, at most as many as the list now holds beyond the most rows one settle covered (the
+     * last such rows, since rows are appended), which is what an achievement {@link #offerAddedClaimRewards}
+     * reopened holds. A surface listing what Collect pays, or checking the room it needs, reads this.
+     */
+    @Nonnull
+    public List<RewardSpec> claimRewardsOwed(@Nonnull Subject subject, @Nonnull Achievement achievement) {
+        if (store.status(subject, achievement.id()) != AchievementStatus.UNLOCKED) {
+            return List.of();
+        }
+        List<String> settled = store.claimRowsSettled(subject, achievement.id());
+        return settled == null ? achievement.claimRewards() : ClaimRows.uncovered(achievement.claimRewards(), settled);
+    }
+
+    /**
+     * Offer this subject the {@code Claim} rows added to an achievement after they settled it: each one their
+     * record covers fewer rows than its list now holds goes back to waiting ({@link AchievementStatus#UNLOCKED}),
+     * so the achievements page shows Collect and counts it as ready, and {@link #tryClaim} pays only the rows
+     * added. Nothing is paid here, nothing is announced, and points, milestones and titles do not move: the
+     * achievement stays earned.
+     *
+     * <p>A record the engine has not noted yet (settled before it noted what each collect paid) is noted here
+     * by what it can prove. One earned before its achievement's {@link Achievement#claimAddedOn()} settled on
+     * the spot with nothing to collect, so it is noted as covering no row and every row is offered. Any other
+     * was collected by hand under rows nobody can know now, so it is noted as covering the list as it stands
+     * and nothing is offered; a row added after that is. An achievement no longer catalogued is left alone,
+     * and a store that keeps no such note ({@link AchievementProgressStore#claimRowsSettled}) offers nothing.
+     *
+     * <p>The note never drops a row: a row that leaves the list (its mod missing, an owner override, a reload)
+     * and comes back is still covered. One reopened whose added rows have gone again before a collect settles
+     * back, and a settled one owing nothing takes the list's retuned rows into its note, so a row appended
+     * later is told apart. Reported as a change, never committed: it runs inside {@link #selfHeal}.
+     *
+     * @return how many achievements it put back to waiting
+     */
+    public int offerAddedClaimRewards(@Nonnull Subject subject) {
+        int reopened = 0;
+        boolean wrote = false;
+        for (String achievementId : List.copyOf(store.knownAchievementIds(subject))) {
+            AchievementStatus status = store.status(subject, achievementId);
+            Achievement achievement = achievements.get(achievementId);
+            if (!status.isUnlocked() || achievement == null) {
+                continue;
+            }
+            List<RewardSpec> rows = achievement.claimRewards();
+            List<String> note = store.claimRowsSettled(subject, achievementId);
+            if (note == null) {
+                if (status != AchievementStatus.CLAIMED) {
+                    continue; // waiting for its first collect, which settles every row
+                }
+                store.setClaimRowsSettled(subject, achievementId, settledWithNothingToCollect(subject, achievement)
+                        ? ClaimRows.none() : ClaimRows.settle(null, rows));
+                note = store.claimRowsSettled(subject, achievementId);
+                if (note == null) {
+                    continue; // a store that cannot keep the note must never reopen: it would at every login
+                }
+                wrote = true;
+            }
+            boolean owes = !ClaimRows.uncovered(rows, note).isEmpty();
+            if (status == AchievementStatus.CLAIMED && owes) {
+                store.setStatus(subject, achievementId, AchievementStatus.UNLOCKED);
+                reopened++;
+                continue;
+            }
+            if (owes) {
+                continue; // reopened and still waiting to be collected
+            }
+            if (status == AchievementStatus.UNLOCKED) {
+                store.setStatus(subject, achievementId, AchievementStatus.CLAIMED);
+                wrote = true;
+            }
+            List<String> merged = ClaimRows.settle(note, rows);
+            if (!merged.equals(note)) {
+                store.setClaimRowsSettled(subject, achievementId, merged);
+                wrote = true;
+            }
+        }
+        if (wrote || reopened > 0) {
+            store.markDirty(subject);
+        }
+        return reopened;
+    }
+
+    /** Add every current Claim row to this record's note of settled rows, which never drops one. */
+    private void noteSettled(@Nonnull Subject subject, @Nonnull Achievement achievement) {
+        store.setClaimRowsSettled(subject, achievement.id(),
+                ClaimRows.settle(store.claimRowsSettled(subject, achievement.id()), achievement.claimRewards()));
+    }
+
+    /**
+     * Does an unnoted settled record prove nothing was collected? Only when it was earned before its
+     * achievement's Claim rows first shipped: it had none then, so it settled on the spot.
+     */
+    private boolean settledWithNothingToCollect(@Nonnull Subject subject, @Nonnull Achievement achievement) {
+        LocalDate since = achievement.claimAddedOn();
+        long earnedAt = store.unlockedAt(subject, achievement.id());
+        return since != null && earnedAt > 0L
+                && earnedAt < since.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli();
     }
 
     /**
@@ -889,7 +1004,9 @@ public final class AchievementEngine {
      * sweep below in the same pass.
      *
      * <p>Deliberately non-destructive: an achievement whose definition has gone is LEFT alone (it may
-     * come back), and nothing already earned is ever revisited.
+     * come back), and nothing already earned is ever taken back. The one thing it revisits on an earned
+     * achievement is what is left to collect: {@link #offerAddedClaimRewards} puts one whose Claim list
+     * grew since it was settled back to waiting, paying and announcing nothing.
      *
      * <p><b>Skipped outright for a player the owner's system switch has achievements OFF for.</b>
      * The threshold re-read below reads live standing values and the sweep after it EARNS, so on a
@@ -913,6 +1030,7 @@ public final class AchievementEngine {
                 changed++;
             }
         }
+        changed += offerAddedClaimRewards(subject);
         changed += checkMilestones(subject);
         if (changed > 0) {
             store.markDirty(subject);

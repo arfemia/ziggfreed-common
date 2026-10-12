@@ -1,5 +1,6 @@
 package com.ziggfreed.common.achievement;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -13,14 +14,16 @@ import com.ziggfreed.common.subject.Subject;
  * interface, and the engine never sees the storage underneath - a component on an entity, a row in a
  * database, a map that dies with the round, all satisfy it identically.
  *
- * <p>There are five kinds of per-subject state:
+ * <p>There are six kinds of per-subject state:
  * <ul>
  *   <li><b>criterion progress</b> - one long per criterion, keyed
  *   {@code "<achievementId>#<criterionId>"} by {@link #criterionKey};
  *   <li><b>status</b> per achievement ({@link AchievementStatus});
  *   <li><b>unlock instant</b> per achievement - epoch milliseconds, {@code 0} for none;
  *   <li><b>milestone status</b> per points threshold;
- *   <li><b>pins</b> - the achievements the subject pinned, each with the instant they pinned it.
+ *   <li><b>pins</b> - the achievements the subject pinned, each with the instant they pinned it;
+ *   <li><b>settled claim rows</b> per achievement ({@link #claimRowsSettled}), a default pair a store
+ *   overrides to keep them.
  * </ul>
  *
  * <p><b>The composite key is a DEFAULT here, so every store gets it right.</b> A store implements
@@ -102,6 +105,28 @@ public interface AchievementProgressStore {
     /** Drop a pin. Returns true when one was actually there. */
     boolean clearPin(@Nonnull Subject subject, @Nonnull String achievementId);
 
+    /**
+     * Which {@code Claim} rows this subject's record says were settled for the achievement: the engine's note,
+     * written at every collect and when it settled on earning with nothing to collect, and kept verbatim (its
+     * entries are short strings with none of {@code | = ,}; a store reads back exactly what it was given, in
+     * order). Null when the record notes none: a record settled before the library noted this, one still
+     * waiting to be collected for the first time, or a store that keeps no such note.
+     *
+     * <p>The engine reads it to offer a row added to the list after a player settled it (see
+     * {@link AchievementEngine#offerAddedClaimRewards}). The default keeps nothing, which makes every
+     * settled record read as unnoted and offers nothing; a store that persists the rest of an achievement's
+     * state overrides this pair to persist it too.
+     */
+    @Nullable
+    default List<String> claimRowsSettled(@Nonnull Subject subject, @Nonnull String achievementId) {
+        return null;
+    }
+
+    /** Record the engine's note of settled {@code Claim} rows ({@link #claimRowsSettled}); null forgets it. */
+    default void setClaimRowsSettled(@Nonnull Subject subject, @Nonnull String achievementId,
+            @Nullable List<String> fingerprints) {
+    }
+
     /** One criterion's progress, under the composite key. See the class javadoc. */
     default long criterionProgress(@Nonnull Subject subject, @Nonnull String achievementId,
                                    @Nonnull String criterionId) {
@@ -116,7 +141,7 @@ public interface AchievementProgressStore {
 
     /**
      * Forget one achievement for this subject entirely - every criterion's progress (including the
-     * legacy bare key), its status, its unlock instant, and its pin.
+     * legacy bare key), its status, its unlock instant, its pin, and its note of settled claim rows.
      */
     default void clearAchievement(@Nonnull Subject subject, @Nonnull String achievementId) {
         String prefix = achievementId + CRITERION_SEPARATOR;
@@ -128,6 +153,7 @@ public interface AchievementProgressStore {
         setStatus(subject, achievementId, AchievementStatus.LOCKED);
         setUnlockedAt(subject, achievementId, 0L);
         clearPin(subject, achievementId);
+        setClaimRowsSettled(subject, achievementId, null);
     }
 
     /**

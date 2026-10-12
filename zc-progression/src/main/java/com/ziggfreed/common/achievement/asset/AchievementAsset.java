@@ -1,6 +1,8 @@
 package com.ziggfreed.common.achievement.asset;
 
 import java.nio.file.Path;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -89,6 +91,7 @@ public final class AchievementAsset
     @Nullable private String[] metaChildren;
     @Nullable private MetaSelector metaSelector;
     @Nullable private ContentRewardsAsset rewards;
+    @Nullable private String claimAddedOn;
     @Nullable private Map<String, JsonElement> meta;
 
     public static final AssetBuilderCodec<String, AchievementAsset> CODEC = AssetBuilderCodec.builder(
@@ -180,6 +183,16 @@ public final class AchievementAsset
                     (a, v) -> a.rewards = v, a -> a.rewards, (a, p) -> a.rewards = p.rewards)
             .documentation("What earning it pays, split by the two moments a payout can land in: Auto lands the "
                     + "instant it is earned, Claim waits on the achievements surface to be collected.")
+            .add()
+            .appendInherited(new KeyedCodec<>("ClaimAddedOn", Codec.STRING, false),
+                    (a, v) -> a.claimAddedOn = v, a -> a.claimAddedOn, (a, p) -> a.claimAddedOn = p.claimAddedOn)
+            .documentation("The day this achievement's Claim rewards first shipped, written 2026-10-13 and read "
+                    + "in UTC, for an achievement that had none before. A player who earned it before that day had "
+                    + "nothing to collect, so the achievements surface offers them every Claim reward once. Rows "
+                    + "added after a player collected are offered without it: the library notes what each collect "
+                    + "paid. Add a new Claim reward at the end of the list, never in the middle. It only matters "
+                    + "for a player whose collect was never noted, from before the library noted them; leave it "
+                    + "out when the achievement always had Claim rewards.")
             .add()
             .appendInherited(new KeyedCodec<>(ContentMeta.KEY, ContentMeta.CODEC, false),
                     (a, v) -> a.meta = v, a -> a.meta, (a, p) -> a.meta = p.meta)
@@ -301,6 +314,26 @@ public final class AchievementAsset
         return rewards;
     }
 
+    /** The authored {@code ClaimAddedOn}, trimmed, or null when unauthored or blank. */
+    @Nullable
+    public String getClaimAddedOn() {
+        return claimAddedOn == null || claimAddedOn.isBlank() ? null : claimAddedOn.trim();
+    }
+
+    /** {@link #getClaimAddedOn()} as a day, or null when unauthored or not a {@code yyyy-MM-dd} date. */
+    @Nullable
+    public LocalDate claimAddedOnDay() {
+        String day = getClaimAddedOn();
+        if (day == null) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(day);
+        } catch (DateTimeParseException notADay) {
+            return null;
+        }
+    }
+
     /** The per-namespace extra facts, exactly as authored; empty when the file carried none. */
     @Nonnull
     public Map<String, JsonElement> metaOrEmpty() {
@@ -350,7 +383,8 @@ public final class AchievementAsset
                 .points(scoring == null ? Scoring.DEFAULT_POINTS : scoring.pointsOrDefault())
                 .countsTowardTotal(scoring == null || scoring.isCountsTowardTotal())
                 .tags(listing == null ? List.of() : listing.tagList())
-                .legacySince(listing == null ? null : listing.getLegacySince());
+                .legacySince(listing == null ? null : listing.getLegacySince())
+                .claimAddedOn(claimAddedOnDay());
         // A companion mod's presence decides whether the achievement exists here, as it does a quest's;
         // a feature condition stays in the gate (a refusal the self-heal re-reads).
         FeatureLift.Result lift = FeatureLift.liftModPresence(requires);

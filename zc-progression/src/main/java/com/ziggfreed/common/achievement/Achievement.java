@@ -1,5 +1,6 @@
 package com.ziggfreed.common.achievement;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -70,6 +71,7 @@ public final class Achievement {
     @Nullable private final String legacySince;
     @Nullable private final Occurrence occurrence;
     private final Map<String, Object> momentArgs;
+    @Nullable private final LocalDate claimAddedOn;
 
     private Achievement(@Nonnull Builder b) {
         this.id = b.id;
@@ -100,6 +102,7 @@ public final class Achievement {
         this.legacySince = b.legacySince;
         this.occurrence = b.occurrence;
         this.momentArgs = Map.copyOf(b.momentArgs);
+        this.claimAddedOn = b.claimAddedOn;
     }
 
     /**
@@ -177,6 +180,19 @@ public final class Achievement {
     }
 
     /**
+     * This achievement paying {@code claimRewards} on collect instead, everything else carried over: what the
+     * engine asks a collect gate about when a collect pays only the rows added since it was settled, so the gate
+     * weighs the room that collect needs rather than rows already paid.
+     */
+    @Nonnull
+    Achievement withClaimRewards(@Nonnull List<RewardSpec> claimRewards) {
+        Builder copy = toBuilder();
+        copy.claimRewards.clear();
+        copy.claimRewards.addAll(claimRewards);
+        return copy.build();
+    }
+
+    /**
      * A builder already holding every leaf of this one, live readings as the suppliers they are.
      * Every copy above starts here, so a leaf added later is named in ONE place and no copy can keep
      * it while another drops it, or freeze a live reading into a snapshot.
@@ -208,7 +224,8 @@ public final class Achievement {
                 .featOfStrength(featOfStrength)
                 .legacySince(legacySince)
                 .occurrence(occurrence)
-                .momentArgs(momentArgs);
+                .momentArgs(momentArgs)
+                .claimAddedOn(claimAddedOn);
     }
 
     @Nonnull
@@ -300,6 +317,18 @@ public final class Achievement {
     /** True when something is left to collect after it is earned. */
     public boolean requiresClaim() {
         return !claimRewards.isEmpty();
+    }
+
+    /**
+     * The day (UTC) its {@link #claimRewards()} first shipped, for an achievement that had none before, or
+     * null when unauthored. It is how the engine knows a record from before it noted what each collect paid
+     * held nothing to collect: one earned before this day settled on the spot with nothing collected, so
+     * {@link AchievementEngine#offerAddedClaimRewards} offers it every row now. Never read for a record whose
+     * collect the engine noted.
+     */
+    @Nullable
+    public LocalDate claimAddedOn() {
+        return claimAddedOn;
     }
 
     /** How much this is worth toward a points total. */
@@ -588,6 +617,7 @@ public final class Achievement {
         @Nullable private String legacySince;
         @Nullable private Occurrence occurrence;
         private final Map<String, Object> momentArgs = new LinkedHashMap<>();
+        @Nullable private LocalDate claimAddedOn;
 
         private Builder(@Nonnull String id) {
             this.id = id;
@@ -754,6 +784,13 @@ public final class Achievement {
         @Nonnull
         public Builder occurrence(@Nullable Occurrence occurrence) {
             this.occurrence = occurrence;
+            return this;
+        }
+
+        /** The day its claim rewards first shipped ({@link Achievement#claimAddedOn()}); null means unauthored. */
+        @Nonnull
+        public Builder claimAddedOn(@Nullable LocalDate claimAddedOn) {
+            this.claimAddedOn = claimAddedOn;
             return this;
         }
 

@@ -76,6 +76,7 @@ public final class AchievementPoolValidator {
         Map<String, AchievementAsset> files = AchievementAssetStore.getInstance().assets();
         List<Finding> out = new ArrayList<>();
         Set<String> unnamedBases = new HashSet<>();
+        Set<String> badDayFiles = new HashSet<>();
         for (Map.Entry<String, AchievementDefinition> entry : pool.definitions().entrySet()) {
             AchievementDefinition definition = entry.getValue();
             String id = entry.getKey();
@@ -89,6 +90,7 @@ public final class AchievementPoolValidator {
 
             validateShape(definition, pool, out);
             validateName(definition, unnamedBases, out);
+            validateClaimAddedOn(definition, files, badDayFiles, out);
             out.addAll(ContentListingAsset.chainFindings(definition.chains(), DOMAIN, id));
 
             validateCriteria(definition, objectiveKinds, store, out);
@@ -109,6 +111,24 @@ public final class AchievementPoolValidator {
         AchievementAsset file = files.get(occurrence != null ? occurrence.baseId() : definition.id());
         GateSpec authored = file == null ? null : file.getRequires();
         return authored != null ? authored : definition.requires();
+    }
+
+    /**
+     * A {@code ClaimAddedOn} that is not a day reads as unauthored, so a player it was written for is never
+     * offered what was added: said once per file (a yearly copy's is its base file's).
+     */
+    private static void validateClaimAddedOn(@Nonnull AchievementDefinition definition,
+            @Nonnull Map<String, AchievementAsset> files, @Nonnull Set<String> reported, @Nonnull List<Finding> out) {
+        Achievement.Occurrence occurrence = definition.achievement().occurrence();
+        String fileId = occurrence != null ? occurrence.baseId() : definition.id();
+        AchievementAsset file = files.get(fileId);
+        if (file == null || file.getClaimAddedOn() == null || file.claimAddedOnDay() != null || !reported.add(fileId)) {
+            return;
+        }
+        out.add(Finding.warning(DOMAIN, "BAD_CLAIM_ADDED_ON",
+                "ClaimAddedOn '" + file.getClaimAddedOn() + "' is not a day written like 2026-10-13, so it is "
+                        + "ignored and a player who earned this before its Claim rewards shipped is not offered them",
+                fileId));
     }
 
     /** The whole-achievement checks: is there anything to earn, and does a capstone stand on anything? */

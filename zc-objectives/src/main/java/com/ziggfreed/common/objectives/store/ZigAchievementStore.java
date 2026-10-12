@@ -1,5 +1,6 @@
 package com.ziggfreed.common.objectives.store;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -180,5 +181,23 @@ public final class ZigAchievementStore implements AchievementProgressStore {
             return false;
         }
         return component.clearAchievementPin(achievementId);
+    }
+
+    @Nullable
+    @Override
+    public List<String> claimRowsSettled(@Nonnull Subject subject, @Nonnull String achievementId) {
+        ZigProgressComponent component = componentOf(subject);
+        return component == null ? null : component.achievementClaimRows(achievementId);
+    }
+
+    @Override
+    public void setClaimRowsSettled(@Nonnull Subject subject, @Nonnull String achievementId,
+            @Nullable List<String> fingerprints) {
+        ZigProgressComponent component = componentOf(subject);
+        if (component == null) {
+            dropped(subject, "claim note");
+            return;
+        }
+        component.setAchievementClaimRows(achievementId, fingerprints);
     }
 }

@@ -212,7 +212,9 @@ public final class RequiresGates implements QuestGates, AchievementGates {
     /**
      * Whether what is still owed can reach this subject now. It is the CLAIM rewards that are asked
      * about, because those are the ones this answer holds back: what lands on earning has already
-     * been paid by the time anything asks.
+     * been paid by the time anything asks. On a collect reopened for rows added since it was settled,
+     * the engine hands in the achievement holding only those rows ({@code claimRewardsOwed}), so rows
+     * already paid never take room the collect does not need.
      */
     @Override
     public boolean canReceiveRewards(@Nonnull Subject subject, @Nonnull Achievement achievement) {
