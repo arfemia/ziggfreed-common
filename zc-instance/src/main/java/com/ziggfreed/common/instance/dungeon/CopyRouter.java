@@ -30,7 +30,7 @@ import com.ziggfreed.common.instance.world.CopyKey;
  *   <li>An area holds {@code MaxPlayers} at most, counting the players on their way in; one more is
  *       refused ({@link Kind#FULL}).</li>
  *   <li>A party with no area takes a free area of a live copy before a new copy opens, which is named
- *       {@code <dungeon>-<n>}, {@code n} the lowest number no copy here holds and no live world carries. A
+ *       {@code <dungeon>-<n>}, {@code n} the lowest number no copy here holds and no world the server still holds carries. A
  *       dungeon whose areas are not party-locked first puts the party in an area that still has room.</li>
  *   <li>A copy whose recent tick length is over {@link #LAG_BUDGET_MS} takes no new party. The engine's
  *       average lags (its window is ten seconds), so parties reserved into a copy and not yet arrived count
@@ -43,8 +43,9 @@ import com.ziggfreed.common.instance.world.CopyKey;
  *       admin is closing ({@link #closing}) takes no one.</li>
  * </ul>
  *
- * <p>A copy the probe no longer finds live, and that no player is on the way into, is forgotten at the next
- * read, so a copy the engine closed needs no listener here. Every method is synchronized.
+ * <p>A copy whose name the server no longer holds, and that no player is on the way into, is forgotten at the
+ * next read, so a copy the engine closed needs no listener here; a copy still stopping is kept, taking no
+ * party, until its name is free. Every method is synchronized.
  */
 public final class CopyRouter {
 
@@ -340,7 +341,7 @@ public final class CopyRouter {
         forget(world.trim().toLowerCase(Locale.ROOT));
     }
 
-    /** Every copy this router holds, in the order they opened, after forgetting the ones no longer live. */
+    /** Every copy this router holds, in the order they opened, after forgetting the ones the server no longer holds. */
     @Nonnull
     public synchronized List<CopyView> copies(@Nonnull WorldProbe probe) {
         prune(probe);

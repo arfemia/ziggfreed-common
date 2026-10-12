@@ -196,7 +196,8 @@ public final class DungeonValidator {
         }
         JsonObject portal = object(object(plugin, "PortalWorldConfig"), "Config");
         boolean portalTimed;
-        if (member(portal, "TimeLimitSeconds") != null) {
+        JsonElement written = member(portal, "TimeLimitSeconds");
+        if (written != null && !written.isJsonNull()) {
             portalTimed = number(portal, "TimeLimitSeconds") > 0;
         } else {
             String portalType = string(portal, "PortalType");
