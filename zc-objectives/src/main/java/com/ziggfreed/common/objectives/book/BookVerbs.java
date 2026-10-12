@@ -98,7 +98,14 @@ public final class BookVerbs {
         }
         if (!ctx.deps().announcesActions()) {
             // A filled feedback seam owns the announcement; two toasts for one accept would double-report it.
-            toast(ToastKind.SUCCESS, ctx.text("book.toast.accepted"));
+            // One that paid on the spot lists what it handed over (reputation among it) under the gold line a
+            // Collect raises: the book's toast is the one place a payout made under a page shows.
+            List<RewardSpec> paid = RewardGrants.GrantOutcome.receiptOf(accepted.settled());
+            if (paid.isEmpty()) {
+                toast(ToastKind.SUCCESS, ctx.text("book.toast.accepted"));
+            } else {
+                rewardToast(ctx.text("book.toast.quest_complete", questName(quest)), paid);
+            }
         }
         return true;
     }

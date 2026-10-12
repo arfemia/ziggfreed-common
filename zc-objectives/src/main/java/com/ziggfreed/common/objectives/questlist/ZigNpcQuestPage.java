@@ -25,6 +25,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.loot.reward.RewardGrants;
+import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.npc.NpcNames;
 import com.ziggfreed.common.objectives.book.ObjectiveBookMenu;
 import com.ziggfreed.common.objectives.journal.QuestActions;
@@ -654,9 +655,22 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
      * it matters, and a surface that decided for it would have to know. The accept is the shared verb
      * ({@link QuestVerbs#acceptAt}), so a quest whose steps a standing value already met settles here at once, as it
      * does from the book or a conversation.
+     *
+     * <p>One that PAID on the spot is answered with the gold "quest complete" line listing what it handed over (its
+     * receipt, reputation among it), never the plain "accepted" line: this page's toast is the only place a payout
+     * made under a page shows, and the plain line would replace the completion notice drawn into the page a moment
+     * earlier.
      */
     private void accept(@Nonnull Subject subject, @Nonnull Quest quest) {
-        boolean ok = QuestVerbs.acceptAt(subject, quest, npcId).accepted();
+        QuestVerbs.Accepted accepted = QuestVerbs.acceptAt(subject, quest, npcId);
+        List<RewardSpec> paid = RewardGrants.GrantOutcome.receiptOf(accepted.settled());
+        if (accepted.accepted() && !paid.isEmpty()) {
+            showToast(ClaimToasts.rewardToast(
+                    text("book.toast.quest_complete", ProgressionTexts.titleOrUntitled(quest.id())), paid,
+                    deps.rewardChips(), dropped -> text("book.more", dropped)));
+            return;
+        }
+        boolean ok = accepted.accepted();
         showToast(ok ? ToastKind.SUCCESS : ToastKind.WARNING,
                 text(ok ? "book.toast.accepted" : "book.toast.accept_failed"));
     }

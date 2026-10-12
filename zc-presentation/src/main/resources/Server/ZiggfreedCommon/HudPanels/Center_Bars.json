@@ -2,10 +2,12 @@
   "$Comment": [
     "The centred panel: a short stack in the middle of the screen for a value that moved while a",
     "player had a page open (a shop, a board, the book, a conversation), where the game draws no HUD.",
-    "As shipped, a reputation change made in a page lands here, and one made out in the world stays",
-    "on the World bars. A row adds every further change to the same thing to the one number it shows",
-    "(+N, or -N for a net loss) and goes away a few seconds after it can be seen. Which panel a row",
-    "lands on is decided by the mod reporting it.",
+    "Nothing in the library puts a row here: a reputation change made in a page shows in the notice",
+    "that page raises for whatever paid it, and one made out in the world stays on the World bars.",
+    "So the panel ships switched off (Enabled false), which also keeps it off the Settings tab, and it",
+    "will be removed in a later release. A row adds every further change to the same thing to the one",
+    "number it shows (+N, or -N for a net loss) and goes away a few seconds after it can be seen.",
+    "Which panel a row lands on is decided by the mod reporting it.",
     "",
     "HoldWhilePageOpen is what makes it work: a row moved while a page is open waits, and shows for",
     "its whole time once the player has no page open. A row already up when a page opens waits too",
@@ -23,9 +25,9 @@
     "",
     "To change a leaf without copying this file, add an entry keyed 'Center_Bars' to",
     "mods/ziggfreedcommon/hud-panels.json with only the leaves you want different, or use the",
-    "server HUD layout page. Set Enabled to false to switch the whole panel off for everyone."
+    "server HUD layout page. Enabled false keeps the whole panel off for everyone."
   ],
-  "Enabled": true,
+  "Enabled": false,
   "LabelKey": "ziggfreedcommon.hud.panel.center_bars",
   "Position": {
     "Preset": "TopCenter",

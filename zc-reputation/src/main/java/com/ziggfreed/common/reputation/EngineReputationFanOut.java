@@ -24,21 +24,21 @@ import com.ziggfreed.common.ui.hud.panel.HudRowDisplay;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * The production {@link ReputationFanOut}: an earned change fires {@code ZigReputationChangedEvent}, shows on
- * ONE bar panel and, for a reputation with a Beyond, parks each newly crossed payout on the player's record
- * ({@link ReputationBeyond}) and raises the {@code Reputation_Beyond} notice, or pays it on the spot when the
- * reputation is authored {@code Collect: false}; a credit fires {@code ZigReputationRanksHeldEvent}
- * (zc-objectives turns it into {@code REPUTATION_RANK}); a rise during play raises the {@code Reputation_Rank}
- * notice. Each part is guarded on its own.
+ * The production {@link ReputationFanOut}: an earned change fires {@code ZigReputationChangedEvent}, moves
+ * the reputation's World bar when the player is out in the world and, for a reputation with a Beyond, parks
+ * each newly crossed payout on the player's record ({@link ReputationBeyond}) and raises the
+ * {@code Reputation_Beyond} notice, or pays it on the spot when the reputation is authored
+ * {@code Collect: false}; a credit fires {@code ZigReputationRanksHeldEvent} (zc-objectives turns it into
+ * {@code REPUTATION_RANK}); a rise during play raises the {@code Reputation_Rank} notice. Each part is
+ * guarded on its own.
  *
- * <p>Which panel a change shows on is where the player was when it landed. Out in the world it moves the
- * reputation's World bar ({@code reputation:<id>}, its reading effective standing's progress through its
- * rank). Made while they had a custom page open (a board, a shop, the book, a conversation), where the
- * client draws no HUD, it goes to the centred panel instead ({@code HudPanels.movedInCenter}), which holds
- * it until no page is open and then shows it: the same row id, so changes made in one visit add up on the
- * reputation's one row ("+N", or "-N" for a net loss), and the World bar's own reading, full only at the
- * reputation's Cap. Both panels already honour a player's hidden and HideAll choices, so the bars need
- * nothing of their own for them.
+ * <p>Whether the bar moves is where the player was when the change landed ({@link #movesBar}). Out in the
+ * world it moves the reputation's World bar ({@code reputation:<id>}, its reading effective standing's
+ * progress through its rank), which already honours a player's hidden and HideAll choices. Made while they
+ * had a custom page open (a board, a shop, the book, a conversation), it queues nothing on any HUD panel:
+ * the action that paid it names it in its own toast, as a reward row read through
+ * {@link ReputationRewardKind#chipFor} ("+250 Town Guard"), and a row held for the page's close would play it
+ * a second time, long after, in the middle of the screen (R290).
  */
 public final class EngineReputationFanOut implements ReputationFanOut {
 
@@ -48,7 +48,7 @@ public final class EngineReputationFanOut implements ReputationFanOut {
     /** The moment a parked Beyond payout is authored under, and the shipped default file's name. */
     public static final String BEYOND_MOMENT = "Reputation_Beyond";
 
-    /** A reputation's bar is the row {@code reputation:<id>}, on the World panel or the centred one. */
+    /** A reputation's bar is the row {@code reputation:<id>} on the World panel. */
     public static final String ROW_PREFIX = "reputation:";
 
     /** The fixed argument the feedback engine draws a toast's picture from (an item id). */
@@ -64,9 +64,7 @@ public final class EngineReputationFanOut implements ReputationFanOut {
         if (store == null || ref == null) {
             return;
         }
-        if (centred(change, underPage(store, ref))) {
-            toast(store, ref, change);
-        } else {
+        if (movesBar(underPage(store, ref))) {
             moveBar(store, ref, change);
         }
         beyond(store, ref, change);
@@ -101,25 +99,12 @@ public final class EngineReputationFanOut implements ReputationFanOut {
     }
 
     /**
-     * Whether {@code change} goes to the centred panel: only when the player had a custom page open as it
-     * landed ({@code underPage}), a gain or a loss alike. Every other change is the World bar's alone.
+     * Whether a change moves the World bar: only when the player had no custom page open as it landed. Under
+     * a page, a gain or a loss alike, nothing goes on any HUD panel, neither the World bar nor a row held for
+     * the page's close; the action that paid it lists it in its own toast.
      */
-    static boolean centred(@Nonnull ReputationChange change, boolean underPage) {
-        return underPage && change.delta() != 0;
-    }
-
-    /**
-     * The centred row's bar: the World bar's own {@link #reading} (through the rank held, and on the open
-     * top toward the next Beyond payout), and a full bar only where the reputation stops earning, at its
-     * Cap.
-     */
-    @Nonnull
-    static HudBarReading toastReading(@Nonnull ReputationChange change) {
-        Integer cap = change.reputation().cap();
-        if (cap != null && change.earnedAfter() >= cap) {
-            return HudBarReading.FULL;
-        }
-        return reading(change);
+    static boolean movesBar(boolean underPage) {
+        return !underPage;
     }
 
     /**
@@ -175,7 +160,7 @@ public final class EngineReputationFanOut implements ReputationFanOut {
 
     /**
      * Whether the player at {@code ref} has a custom page open right now (world thread); false when that
-     * cannot be read, so the change falls back to the World bar rather than going nowhere.
+     * cannot be read, so the change falls back to the World bar rather than going unseen.
      */
     private static boolean underPage(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
         try {
@@ -184,17 +169,6 @@ public final class EngineReputationFanOut implements ReputationFanOut {
         } catch (Throwable t) {
             SafeLog.warn("[reputation] could not tell whether a page was open: " + t.getMessage());
             return false;
-        }
-    }
-
-    private static void toast(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
-            @Nonnull ReputationChange change) {
-        try {
-            PlayerRef playerRef = store.getComponent(ref, PlayerRef.getComponentType());
-            HudPanels.movedInCenter(playerRef, rowId(change), change.delta(), toastReading(change), display(change));
-        } catch (Throwable t) {
-            SafeLog.warn("[reputation] the change to '" + change.reputation().id() + "' made in a page could not "
-                    + "be held for the centre: " + t.getMessage());
         }
     }
 

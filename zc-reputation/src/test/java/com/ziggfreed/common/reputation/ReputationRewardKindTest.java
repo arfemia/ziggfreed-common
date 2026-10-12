@@ -104,6 +104,18 @@ class ReputationRewardKindTest {
     }
 
     @Test
+    void aGainTheCapCutsShortIsReceiptedAtWhatLanded() {
+        ReputationFixtures.loadCompanions(Map.of("test_old_jack",
+                ReputationFixtures.companion(ReputationFixtures.OLD_JACK, "{ \"Cap\": 100 }")));
+        engine.stored.put("Test_Old_Jack", 40);
+        List<RewardSpec> receipt = new ArrayList<>();
+        new ReputationRewardKind(service).pay(null, null, spec("Test_Old_Jack", 250), "quest:test", receipt::add);
+        assertEquals(100, engine.stored.get("Test_Old_Jack"));
+        assertEquals(60, ReputationRewardKind.amountOf(receipt.get(0)),
+                "a page's toast is the one place a gain made in a menu shows, so its row says what moved");
+    }
+
+    @Test
     void aPayoutWithNobodyLiveThrowsForTheRetryQueue() {
         engine.live = false;
         assertThrows(IllegalStateException.class, () -> new ReputationRewardKind(service)

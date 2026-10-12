@@ -29,14 +29,15 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p><b>Attach and detach.</b> Every player gets all three panels at ready and loses them at
  * disconnect: {@link LedgerPanelHud}, the Activity ledger, {@link WorldPanelHud}, the World bars, and
- * {@link CenterPanelHud}, the centred panel. They are attached LATE on the ready event so they land
+ * {@link CenterPanelHud}, the centred panel (deprecated since 2.3.0: nothing in the library moves a row
+ * there, and it ships switched off until it is removed). They are attached LATE on the ready event so they land
  * after whatever a consumer does there, and kept in {@link #LIVE} by player uuid so a change
  * reported from any thread finds the right one in two map reads. Where each sits for a given player
  * is resolved per paint ({@link HudSpot}), and a player changing their own pick or hiding a panel
  * ({@link HudPreferences}) repaints theirs through the watcher this class registers at install.
  *
  * <p><b>Which panel a row lands on is the CALLER's choice, made by which call it makes</b>
- * ({@link #moved}, {@link #movedInWorld} or {@link #movedInCenter}), never by anything this class
+ * ({@link #moved} or {@link #movedInWorld}), never by anything this class
  * reads out of the row. Only the mod reporting a movement knows what the player is in the middle
  * of, and that is the whole basis of the choice.
  *
@@ -75,8 +76,9 @@ public final class HudPanels {
      * never follows an authored leaf. The centred panel is last, so a gain shown there is never
      * under another panel. Where a settings page lists them is {@link #listing}.
      */
-    private static final List<HudPanelLayout> PANELS =
-            List.of(LedgerPanelHud.LAYOUT, WorldPanelHud.LAYOUT, CenterPanelHud.LAYOUT);
+    private static final List<HudPanelLayout> PANELS = List.of(LedgerPanelHud.LAYOUT, WorldPanelHud.LAYOUT,
+            // DEPRECATION-KEPT: the centred panel still attaches until its removal, so an owner file or a player choice naming Center_Bars resolves
+            CenterPanelHud.LAYOUT);
 
     private HudPanels() {
     }
@@ -158,11 +160,17 @@ public final class HudPanels {
      * As {@link #moved}, on the centred panel instead: a short stack in the middle of the screen for
      * a value that moved while the player had a page open, where the client draws no HUD and a corner
      * panel's row would run out unseen. Further moves under the same id add to the one figure the row
-     * shows. As shipped the panel holds such a row until the player has no page open
+     * shows. The panel holds such a row until the player has no page open
      * ({@link HudPanelAsset#holdsWhilePageOpen}), so a change made in a shop or a conversation shows
      * once it closes. Whether a page is open is the caller's to ask
      * ({@link KeyedCustomHud#coveredByPage}), on the world thread.
+     *
+     * @deprecated a value that moves under a page belongs in the toast of the action that moved it, which
+     *     the player is looking at, never in a row that plays after the page closes; the library's own
+     *     caller (a reputation change) stopped in 2.3.0, the shipped {@code Center_Bars.json} is switched
+     *     off, and this goes with {@link CenterPanelHud} in a later release
      */
+    @Deprecated(since = "2.3.0")
     public static boolean movedInCenter(@Nullable PlayerRef playerRef, @Nonnull String rowId, double delta,
             @Nonnull HudBarReading reading, @Nonnull HudRowDisplay display) {
         return report(playerRef, CenterPanelHud.HUD_KEY, rowId, reading, null, delta, display, false);
@@ -321,8 +329,10 @@ public final class HudPanels {
             }
             HudPanelHud stack = new LedgerPanelHud(playerRef);
             HudPanelHud grid = new WorldPanelHud(playerRef);
+            // DEPRECATION-KEPT: the centred panel attaches until its removal, hidden while its shipped file keeps it off
             HudPanelHud center = new CenterPanelHud(playerRef);
             LIVE.put(uuid, Map.of(LedgerPanelHud.HUD_KEY, stack, WorldPanelHud.HUD_KEY, grid,
+                    // DEPRECATION-KEPT: the centred panel's key, kept with the panel until its removal
                     CenterPanelHud.HUD_KEY, center));
             // In PANELS order: a later layer draws over an earlier one.
             player.getHudManager().addCustomHud(playerRef, stack);

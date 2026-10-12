@@ -23,7 +23,13 @@ import com.ziggfreed.common.ui.hud.HudPosition;
  * (a 296-wide column, so a name, its gain and a 226-wide fill read comfortably at a glance), in a
  * layer of its own, and attaches after the other two so it draws over both where they meet. The
  * corner below is only the fallback for a server where the panel file is gone.
+ *
+ * @deprecated a value that moves under a page belongs in the toast of the action that moved it, never in
+ *     a row that plays after the page closes. Its one library caller (a reputation change) stopped in
+ *     2.3.0, the shipped {@code Center_Bars.json} is switched off ({@code Enabled: false}), and the panel,
+ *     its file and {@link HudPanels#movedInCenter} go in a later release
  */
+@Deprecated(since = "2.3.0")
 public final class CenterPanelHud extends HudPanelHud {
 
     /** This panel's key on the native per-player {@code HudManager}, under this library's own id. */

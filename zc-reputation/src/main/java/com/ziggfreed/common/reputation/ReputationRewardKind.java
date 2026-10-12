@@ -123,14 +123,19 @@ public final class ReputationRewardKind implements RewardHandler {
         pay(ref.getStore(), ref, spec, sourceId, receipt);
     }
 
-    /** The payout over a resolved player: receipted only when standing actually moved. World thread. */
+    /**
+     * The payout over a resolved player: receipted only when standing actually moved, and at what moved. A
+     * gain the Cap or the engine's clamp cut short is receipted at the part that landed, so the toast a page
+     * raises after the payout (the one place a change made under a page shows) says "+100", not the "+250"
+     * authored. World thread.
+     */
     void pay(@Nullable Store<EntityStore> store, @Nullable Ref<EntityStore> ref, @Nonnull RewardSpec spec,
             @Nonnull String sourceId, @Nonnull Consumer<RewardSpec> receipt) {
         String id = requireReputation(spec);
         int amount = requireAmount(spec, id);
         ReputationService.Result result = service.change(store, ref, id, amount, sourceId);
         switch (result.status()) {
-            case CHANGED -> receipt.accept(spec);
+            case CHANGED -> receipt.accept(landed(spec, amount, result.change()));
             case UNCHANGED -> {
                 // A gain the Cap or the engine's clamp cut to nothing: paid as authored, nothing moved.
             }
@@ -150,6 +155,15 @@ public final class ReputationRewardKind implements RewardHandler {
         ReputationDef def = service.known(reputationOf(spec));
         int amount = amountOf(spec);
         return def == null || amount == 0 ? null : retryLine(def.id(), amount, subject.name());
+    }
+
+    /** {@code spec} as it reads on a receipt: unchanged when the whole {@code amount} landed, else at the change's own delta. */
+    @Nonnull
+    static RewardSpec landed(@Nonnull RewardSpec spec, int amount, @Nullable ReputationChange change) {
+        if (change == null || change.delta() == amount) {
+            return spec;
+        }
+        return spec.with(PARAM_AMOUNT, Integer.toString(change.delta()));
     }
 
     @Nonnull
