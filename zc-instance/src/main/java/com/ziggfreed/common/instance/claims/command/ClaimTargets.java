@@ -8,8 +8,7 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.NameMatching;
 import com.hypixel.hytale.server.core.auth.ProfileServiceClient;
-import com.hypixel.hytale.server.core.command.system.ParseResult;
-import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
+import com.hypixel.hytale.server.core.auth.ServerAuthManager;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.ziggfreed.common.util.SafeLog;
@@ -17,10 +16,11 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * Who a typed {@code --player} names for {@code /zigclaims}, online or not, since a Claim can wait for a player
  * who is away. The first answer wins: an online player with exactly that username (any case); the text read as
- * a player id (a UUID); the engine's profile lookup, which asks the profile service and so needs an
- * authenticated server; last, an online player whose username starts with it (the engine's own player
- * argument's match). Every exact answer comes before the partial match, so a full name typed for somebody
- * offline never lands on an online player whose name merely starts with it.
+ * a player id (a UUID); the profile service's player with exactly that username, which needs an authenticated
+ * server; last, an online player whose username starts with it (the engine's own player argument's match).
+ * Every exact answer comes before the partial match, so a full name typed for somebody offline never lands on
+ * an online player whose name merely starts with it. The profile service is asked directly, never through the
+ * engine's {@code GAME_PROFILE_LOOKUP_ASYNC} argument, which tries an online starts-with match first.
  */
 final class ClaimTargets {
 
@@ -52,15 +52,20 @@ final class ClaimTargets {
         return partial == null ? null : new Named(partial.getUuid(), partial.getUsername());
     }
 
-    /** The engine's profile lookup. Null when it is unauthenticated, finds nobody or fails. */
+    /**
+     * The profile service's player with exactly the username {@code typed}, asked off the calling thread. Null
+     * when the server holds no session (an offline-auth server), the service finds nobody, or the call fails.
+     */
     @Nonnull
     private static CompletableFuture<Named> lookUp(@Nonnull String typed) {
         try {
-            CompletableFuture<ProfileServiceClient.PublicGameProfile> profile =
-                    ArgTypes.GAME_PROFILE_LOOKUP_ASYNC.parse(typed, new ParseResult());
-            if (profile == null) {
+            ServerAuthManager auth = ServerAuthManager.getInstance();
+            String token = auth == null ? null : auth.getSessionToken();
+            if (token == null) {
                 return CompletableFuture.completedFuture(null);
             }
+            CompletableFuture<ProfileServiceClient.PublicGameProfile> profile =
+                    auth.getProfileServiceClient().getProfileByUsernameAsync(typed.trim(), token);
             return profile.handle((found, failure) -> found == null || found.getUuid() == null ? null
                     : new Named(found.getUuid(), found.getUsername() == null ? typed : found.getUsername()));
         } catch (Throwable t) {
