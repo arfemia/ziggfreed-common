@@ -109,7 +109,7 @@ public final class CommerceChips {
             cmd.set(sel + " #ChipIcon.Visible", false);
             cmd.set(sel + " #ChipIconSlot.Visible",
                     IconRenderer.applyPlainIcon(cmd, sel + " #ChipIconSlot", chip.iconItemId(), null));
-            UiText.setText(cmd, sel + " #ChipBox.TooltipText", chip.tooltip());
+            UiText.setTooltip(cmd, sel + " #ChipBox", chip.tooltip());
         }
     }
 
@@ -294,7 +294,9 @@ public final class CommerceChips {
         cmd.set(sel + " #LineText.Style.TextColor", color);
         cmd.set(sel + " " + IconRenderer.ITEM_ICON_ID + ".Visible", false);
         cmd.set(sel + " #LineIconSlot.Visible", IconRenderer.applyPlainIcon(cmd, sel, chip.iconItemId(), null));
-        UiText.setText(cmd, sel + " #LineIconSlot.TooltipText", chip.tooltip());
+        if (chip.tooltip() != null) {
+            UiText.setTooltip(cmd, sel + " #LineIconSlot", chip.tooltip());
+        }
     }
 
     /**

@@ -39,7 +39,9 @@ import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.loot.reward.RewardChip;
 import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardSpec;
+import com.ziggfreed.common.progress.gate.GateRefusal;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
+import com.ziggfreed.common.quest.LockReasons;
 import com.ziggfreed.common.shop.PurchaseLimits;
 import com.ziggfreed.common.shop.ShopEngine;
 import com.ziggfreed.common.shop.ShopOffer;
@@ -524,7 +526,7 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
         return new WareTile(offer.offerId(), offerName(offer), Picture.item(pictureOf(offer)), costPicture,
                 cost, reach == Reach.SHORT, limitBadge(offer, subject, now),
                 reach == Reach.LIMITED, reach == Reach.LOCKED,
-                check.ok() ? null : refusalLine(check.reason()),
+                check.ok() ? null : refusalTooltip(engine, subject, offer, check.reason()),
                 CommerceText.sameId(offer.offerId(), selectedOfferId));
     }
 
@@ -603,8 +605,7 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
             // The button stays BOUND: the press re-checks and answers with the same line as a toast,
             // so a stale screen can never silently do nothing.
             paintLocked(cmd, "#BuyBtn");
-            renderStatus(cmd, currencies, check.reason(), statusLines);
-            statusLines++;
+            statusLines = renderStatus(cmd, engine, subject, offer, check.reason(), statusLines);
         }
         renderReroll(cmd, engine, subject, offer, now, statusLines);
     }
@@ -655,29 +656,66 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
     }
 
     /**
-     * Why this offer is out of reach, in one line the player can act on.
+     * Why this offer is out of reach, one line per thing the player can act on, appended to the
+     * status list from {@code index}.
      *
-     * <p>A shortfall names the wallet or the item it is short of, resolved HERE so it reads in the
-     * player's own language; every other commerce refusal is the engine's token turned into its own
-     * sentence, and a gate refusal reads through the shared lock-reason mapping - the same words
-     * every other locked surface shows for that same gate.
+     * <p>A gate refusal names every unmet requirement ({@link #refusalLines}), the way the board's
+     * locked contract does; a shortfall names the wallet or the item it is short of, resolved HERE so
+     * it reads in the player's own language; every other commerce refusal is the engine's token
+     * turned into its own sentence.
+     *
+     * @return the index the next status line goes at
      */
-    private void renderStatus(@Nonnull UICommandBuilder cmd, @Nonnull CurrencyEngine currencies,
-            @Nullable String reason, int index) {
-        CommerceRefusals.Refusal refusal = CommerceRefusals.of(reason);
-        Message line;
-        if (refusal.line() != null) {
-            line = refusal.line();
-        } else if (refusal.currencyId() != null) {
-            line = text(refusal.key(),
-                    CommerceChips.nameOf(currencies, refusal.currencyId(), deps.currencyNames()));
-        } else if (refusal.itemId() != null) {
-            line = text(refusal.key(), CommerceChips.itemName(refusal.itemId()));
-        } else {
-            line = text(refusal.key());
+    private int renderStatus(@Nonnull UICommandBuilder cmd, @Nonnull ShopEngine engine,
+            @Nonnull Subject subject, @Nonnull ShopOffer offer, @Nullable String reason, int index) {
+        int next = index;
+        for (Message line : refusalLines(engine, subject, offer, reason)) {
+            if (next >= MAX_LINES) {
+                break;
+            }
+            CommerceChips.setLine(cmd, CommerceChips.appendLine(cmd, "#StatusList", next), line,
+                    CommerceChips.COLOR_REFUSAL);
+            next++;
         }
-        CommerceChips.setLine(cmd, CommerceChips.appendLine(cmd, "#StatusList", index), line,
-                CommerceChips.COLOR_REFUSAL);
+        return next;
+    }
+
+    /**
+     * A refusal as the lines it reads with. When a gate refused, every unmet requirement is rendered
+     * from the evaluator's records ({@link ShopEngine#gateRefusals}) through the shared lock-reason
+     * mapping, the same words every other locked surface shows: a reputation rank by its name and
+     * the reputation's ("Friendly with the Hallowed"), an either-or gate as "Unlocked by: A or B".
+     * The bare token drops what a factor asks for, so it is only the fallback, for a gate whose
+     * records name nothing. Any other refusal is its one line ({@link #refusalLine}).
+     */
+    @Nonnull
+    private List<Message> refusalLines(@Nonnull ShopEngine engine, @Nonnull Subject subject,
+            @Nonnull ShopOffer offer, @Nullable String reason) {
+        if (GateRefusal.fromToken(reason) != null) {
+            List<Message> lines = LockReasons.linesOf(engine.gateRefusals(subject, offer));
+            if (!lines.isEmpty()) {
+                return lines;
+            }
+        }
+        return List.of(refusalLine(reason));
+    }
+
+    /** A ware's hover text when it cannot be bought: its refusal's lines, one under the other. */
+    @Nonnull
+    private Message refusalTooltip(@Nonnull ShopEngine engine, @Nonnull Subject subject,
+            @Nonnull ShopOffer offer, @Nullable String reason) {
+        List<Message> lines = refusalLines(engine, subject, offer, reason);
+        if (lines.size() == 1) {
+            return lines.get(0);
+        }
+        List<Message> parts = new ArrayList<>(lines.size() * 2 - 1);
+        for (Message line : lines) {
+            if (!parts.isEmpty()) {
+                parts.add(Msg.raw("\n"));
+            }
+            parts.add(line);
+        }
+        return Msg.join(parts.toArray(new Message[0]));
     }
 
     /**
@@ -815,7 +853,8 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
         ShopEngine.PurchaseOutcome outcome =
                 engine.purchase(subject, offer, System.currentTimeMillis());
         if (!outcome.ok()) {
-            showToast(ToastKind.ERROR, refusalLine(outcome.reason()));
+            // The first of the lines the panel shows for it, so a gate names what it asks for here too.
+            showToast(ToastKind.ERROR, refusalLines(engine, subject, offer, outcome.reason()).get(0));
             return;
         }
         showToast(purchaseToast(offer, outcome));

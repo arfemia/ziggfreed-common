@@ -10,6 +10,8 @@ import java.util.List;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+import com.hypixel.hytale.protocol.packets.interface_.CustomUICommand;
+import com.hypixel.hytale.protocol.packets.interface_.CustomUICommandType;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
@@ -303,6 +305,70 @@ class TilePainterTest {
         Painted p = Painted.of(cmd);
         assertEquals("{\"0\": \"\"}", p.set("#X.TooltipText"));
         assertTrue(p.set("#Y.TooltipText").contains("Shown"));
+    }
+
+    /**
+     * {@code TooltipText} resolves a translation but prints its {@code {0}} slots as written, which is how the
+     * Almanac's item slot read "{0} - {1}". A tooltip with params, or with parts, goes on {@code TooltipTextSpans}
+     * for the client to fill in the viewer's own locale; a bare translation stays client-resolved where it was.
+     */
+    @Test
+    void aTooltipWithParamsIsNeverSentAsABarePlaceholderKey() {
+        Message source = Message.translation("ziggfreedcommon.almanac.collection.source")
+                .param("0", Message.raw("Jack Lantern")).param("1", Message.raw("Hallows Eve"));
+        UICommandBuilder cmd = new UICommandBuilder();
+        TilePainter.itemSlots(cmd, "#Grid", List.of(new ItemSlotTile("a", Picture.texture(TEXTURE), true, false,
+                Message.raw("?"), source)));
+        KitPaint.tooltip(cmd, "#Parts", Message.join(Message.raw("Locked"), Message.raw(" for now")));
+        KitPaint.tooltip(cmd, "#Bare", Message.translation("ziggfreedcommon.kit.bare"));
+        Painted p = Painted.of(cmd);
+
+        assertEquals("{\"0\": \"\"}", p.set("#Grid[0] #Slot.TooltipText"),
+                "a tooltip with params never lands on the sink that prints {0}");
+        String spans = p.set("#Grid[0] #Slot.TooltipTextSpans");
+        assertTrue(spans.contains("ziggfreedcommon.almanac.collection.source") && spans.contains("Jack Lantern")
+                && spans.contains("Hallows Eve"), "its key and its params go together, for the client to fill");
+        assertEquals("#Grid[0] #Slot.TooltipTextSpans", lastWrite(cmd, "#Grid[0] #Slot"), "the sink in use is written last");
+        assertEquals("{\"0\": \"\"}", p.set("#Parts.TooltipText"), "a tooltip in parts keeps its parts");
+        assertTrue(p.set("#Parts.TooltipTextSpans").contains(" for now"));
+        assertFalse(p.set("#Bare.TooltipTextSpans").contains("ziggfreedcommon.kit.bare"), "the spans sink is emptied");
+        assertTrue(p.set("#Bare.TooltipText").contains("ziggfreedcommon.kit.bare"),
+                "a bare translation is still sent for the client to resolve");
+        assertEquals("#Bare.TooltipText", lastWrite(cmd, "#Bare"), "the sink in use is written last");
+    }
+
+    /**
+     * A detail page repaints its toggle and its action buttons in place, never appending them again, so each
+     * tooltip paint settles both sinks: a tooltip with params that gives way to none, or to a bare one, leaves
+     * nothing behind in the sink the new paint does not use.
+     */
+    @Test
+    void aRepaintInPlaceLeavesNoTooltipInTheOtherSink() {
+        Message withParams = Message.translation("ziggfreedcommon.kit.pinned").param("0", Message.raw("Old Jack"));
+        UICommandBuilder cmd = new UICommandBuilder();
+        KitPaint.tooltip(cmd, "#Toggle", withParams);
+        KitPaint.tooltip(cmd, "#Toggle", null);
+        KitPaint.tooltip(cmd, "#Action", withParams);
+        KitPaint.tooltip(cmd, "#Action", Message.translation("ziggfreedcommon.kit.bare"));
+        Painted p = Painted.of(cmd);
+
+        assertFalse(p.set("#Toggle.TooltipTextSpans").contains("Old Jack"), "no spans tooltip is left once there is none");
+        assertEquals("{\"0\": \"\"}", p.set("#Toggle.TooltipText"));
+        assertEquals("#Toggle.TooltipText", lastWrite(cmd, "#Toggle"), "the clear ends on the sink it has always used");
+        assertFalse(p.set("#Action.TooltipTextSpans").contains("Old Jack"), "nor once a bare tooltip replaces it");
+        assertTrue(p.set("#Action.TooltipText").contains("ziggfreedcommon.kit.bare"));
+    }
+
+    /** The selector of the last property written on {@code element}, in the order the client applies them. */
+    private static String lastWrite(UICommandBuilder cmd, String element) {
+        String last = null;
+        for (CustomUICommand command : cmd.getCommands()) {
+            if (command.type == CustomUICommandType.Set && command.selector != null
+                    && command.selector.startsWith(element + ".")) {
+                last = command.selector;
+            }
+        }
+        return last;
     }
 
     @Test

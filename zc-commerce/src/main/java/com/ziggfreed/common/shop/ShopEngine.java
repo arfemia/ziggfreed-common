@@ -21,6 +21,7 @@ import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.progress.gate.GateEvaluator;
+import com.ziggfreed.common.progress.gate.GateRefusal;
 import com.ziggfreed.common.rotation.PoolSeed;
 import com.ziggfreed.common.rotation.RerollSpec;
 import com.ziggfreed.common.rotation.SelectionStrategies;
@@ -222,6 +223,22 @@ public final class ShopEngine {
             return PurchaseCheck.refused(REASON_NO_ROOM);
         }
         return PurchaseCheck.OK;
+    }
+
+    /**
+     * EVERY unmet gate requirement standing between {@code subject} and {@code offer}, as the shared
+     * evaluator's structured records: the storefront's lock first, then the offer's own
+     * {@code Requires}, the order {@link #canPurchase} asks them in. Empty when both gates pass, which
+     * says nothing about the other checks ({@link #canPurchase} still owns the decision), so this is the
+     * DETAIL read for a locked offer's lines, never a second purchase authority. Unlike the token
+     * {@link #canPurchase} answers, a record keeps what the requirement asks for (a factor's
+     * {@code Param} and bounds), so a reputation rank reads by its name.
+     */
+    @Nonnull
+    public List<GateRefusal> gateRefusals(@Nonnull Subject subject, @Nonnull ShopOffer offer) {
+        List<GateRefusal> refusals = new ArrayList<>(gates.allRefusals(subject, offer.storefrontRequires()));
+        refusals.addAll(gates.allRefusals(subject, offer.requires()));
+        return refusals;
     }
 
     /** The limits half on its own, for a listing that greys out what is already spent. */

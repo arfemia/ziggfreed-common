@@ -39,15 +39,12 @@ final class KitPaint {
     }
 
     /**
-     * An element's tooltip: a translation goes for the client to resolve, anything else as plain characters
-     * ({@link UiText}); none clears a tooltip an earlier paint left.
+     * An element's tooltip, through {@link UiText#setTooltip}: a message with params or parts goes on the spans
+     * sink, which fills them in the viewer's locale; a bare one on {@code TooltipText}; none clears a tooltip an
+     * earlier paint left.
      */
     static void tooltip(@Nonnull UICommandBuilder cmd, @Nonnull String element, @Nullable Message tooltip) {
-        if (tooltip == null) {
-            UiText.setText(cmd, element + ".TooltipText", "");
-        } else {
-            UiText.setText(cmd, element + ".TooltipText", tooltip);
-        }
+        UiText.setTooltip(cmd, element, tooltip);
     }
 
     /** {@code list[index]}. */

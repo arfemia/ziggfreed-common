@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.commerce.InMemoryCommerceStore;
 import com.ziggfreed.common.cost.Cost;
 import com.ziggfreed.common.cost.CostEngine;
@@ -28,11 +29,14 @@ import com.ziggfreed.common.currency.CurrencyCatalog;
 import com.ziggfreed.common.currency.CurrencyDef;
 import com.ziggfreed.common.currency.CurrencyEngine;
 import com.ziggfreed.common.currency.ItemWallet;
+import com.ziggfreed.common.factor.FactorNames;
+import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.loot.reward.RewardHandler;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.progress.gate.GateEvaluator;
 import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.quest.LockReasons;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.PeriodMath;
 
@@ -431,5 +435,27 @@ class ShopEngineTest {
         currencies.credit(SUBJECT, "Bounty_Token", 500);
 
         assertTrue(shop.canPurchase(SUBJECT, new StorefrontGatedOffer("candy", null, null), DAY_ONE).ok());
+    }
+
+    /**
+     * The purchase check's token drops a factor's {@code Param}, so a rank lock read through it names only the
+     * factor ("a rank with a reputation"). The records keep it, so the lock line names the rank the offer asks for.
+     */
+    @Test
+    @DisplayName("a rank-gated offer's lock names the rank it asks for")
+    void aRankGatedOfferReadsTheNamedRank() throws IOException {
+        String rankFactor = "shoptest:reputation_rank";
+        FactorNames.registerParamNamer(rankFactor,
+                param -> "Hallowed/Friendly".equals(param) ? Msg.raw("Friendly with the Hallowed") : null);
+        StorefrontGatedOffer candy = new StorefrontGatedOffer("candy", null, gate("{ \"Factors\": [ { \"Factor\": \""
+                + rankFactor + "\", \"Param\": \"Hallowed/Friendly\", \"Min\": 1 } ] }"));
+        assertFalse(shop.canPurchase(SUBJECT, candy, DAY_ONE).ok());
+
+        List<Message> lines = LockReasons.linesOf(shop.gateRefusals(SUBJECT, candy));
+
+        assertEquals(1, lines.size());
+        assertEquals("ziggfreedcommon.progress.lock.factor", lines.get(0).getMessageId(), "the factor's own lock line");
+        assertEquals("Friendly with the Hallowed", lines.get(0).getFormattedMessage().messageParams.get("0").rawText,
+                "naming the rank and the reputation");
     }
 }
