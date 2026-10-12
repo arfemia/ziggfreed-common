@@ -287,7 +287,8 @@ class DetailPainterTest {
         Painted p = paint(off);
         String toggle = HOST + " " + DetailPainter.TOGGLE;
         assertTrue(p.references(toggle + ".Style", ZigStyles.DOCUMENT, "ZigButtonSecondaryStyle"));
-        assertEquals("{\"0\": \"\"}", p.set(toggle + ".TooltipText"), "no tooltip clears the last one");
+        assertEquals("{\"0\": null}", p.set(toggle + ".TooltipText"),
+                "a control painted with no tooltip turns it off, so no empty box opens (R297)");
     }
 
     @Test

@@ -41,8 +41,9 @@ import com.ziggfreed.common.i18n.PlainText;
  * <p><b>Tooltips have both sinks.</b> Every element carries {@code TooltipText} (the same
  * {@code String} sink, placeholders and all) and {@code TooltipTextSpans} (a full message tree,
  * params filled and children kept, in the viewer's own locale; vanilla's Memories page hangs its
- * pluralized chest tooltips on it). {@link #setTooltip} picks between them, so a tooltip is written
- * only through it.
+ * pluralized chest tooltips on it). On the client the two are one tooltip, the last write winning.
+ * {@link #setTooltip} picks between them and turns a tooltip off the one way that shows no empty
+ * box, so a tooltip is written only through it.
  */
 public final class UiText {
 
@@ -85,30 +86,33 @@ public final class UiText {
      * Write {@code value} as {@code element}'s tooltip, in the viewer's own locale. A message with
      * params or children goes on {@code TooltipTextSpans}, which fills the params and keeps the
      * children; a bare translation or bare raw text goes on {@code TooltipText} exactly as
-     * {@link #setText(UICommandBuilder, String, Message)} writes a {@code .Text}. A null value clears
-     * the tooltip an earlier paint left. Nothing here flattens a translation on the server.
+     * {@link #setText(UICommandBuilder, String, Message)} writes a {@code .Text}. A null value turns
+     * off the tooltip an earlier paint left. Nothing here flattens a translation on the server.
      *
-     * <p>Every write settles BOTH sinks, the other one emptied first and the real one written last,
-     * so an element repainted in place (a detail page's toggle and action buttons) never keeps the
-     * last paint's tooltip in the sink this one does not use. The last write is always one already
-     * proven on the client: a filled spans tree (vanilla's Memories page), or {@code TooltipText}
-     * with a translation, raw text or {@code ""} (this library's clear).
+     * <p>What the client does with the two sinks (its {@code Element} setters, read off the installed
+     * client): they are ONE tooltip. Either setter replaces whatever the other held, so the last write
+     * wins and one write on one sink settles an element repainted in place (a detail page's toggle
+     * and action buttons). Either setter also marks the element as having a tooltip whenever the value
+     * is not null, and the hover box opens on that mark alone, so a {@code TooltipText} of {@code ""}
+     * or an empty spans message still opens an EMPTY box. Only a JSON null on {@code TooltipText}
+     * ({@code setNull}, the way vanilla's Memories page clears a {@code .Background}) leaves no box.
+     * A null on {@code TooltipTextSpans} throws on the client and fails the set, so it is never sent.
+     * A message with nothing to show (no key, no params, blank raw text, every child the same) is
+     * treated as null, so it turns the tooltip off rather than opening an empty box.
      *
      * @param element the element's selector with no property (e.g. {@code "#Grid[0] #Slot"})
      */
     public static void setTooltip(@Nonnull UICommandBuilder cmd, @Nonnull String element,
             @Nullable Message value) {
-        if (value != null && (hasParams(value) || hasChildren(value))) {
-            setText(cmd, element + ".TooltipText", "");
+        if (value == null || isBlank(value.getFormattedMessage())) {
+            cmd.setNull(element + ".TooltipText");
+            return;
+        }
+        if (hasParams(value) || hasChildren(value)) {
             cmd.set(element + ".TooltipTextSpans", value);
             return;
         }
-        cmd.set(element + ".TooltipTextSpans", Message.raw(""));
-        if (value == null) {
-            setText(cmd, element + ".TooltipText", "");
-        } else {
-            setText(cmd, element + ".TooltipText", value);
-        }
+        setText(cmd, element + ".TooltipText", value);
     }
 
     /**
@@ -136,6 +140,27 @@ public final class UiText {
             }
         }
         return false;
+    }
+
+    /** Whether {@code value} shows nothing: no key, no params, blank raw text and only blank children. */
+    private static boolean isBlank(@Nullable FormattedMessage value) {
+        if (value == null) {
+            return true;
+        }
+        if ((value.messageId != null && !value.messageId.isEmpty())
+                || (value.messageParams != null && !value.messageParams.isEmpty())
+                || (value.params != null && !value.params.isEmpty())
+                || (value.rawText != null && !value.rawText.isBlank())) {
+            return false;
+        }
+        if (value.children != null) {
+            for (FormattedMessage child : value.children) {
+                if (!isBlank(child)) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     /** Whether {@code value} carries children, which a {@code String} sink drops. */

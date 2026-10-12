@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.Tag;
@@ -16,6 +17,8 @@ import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
+
+import com.ziggfreed.common.ui.UiText;
 
 /**
  * What the tile painters send: a grid cleared and one template per tile by index; a category tile's parts on its
@@ -297,16 +300,6 @@ class TilePainterTest {
         assertEquals(0, p.bindingCount(), "a repaint never binds the live button again");
     }
 
-    @Test
-    void noTooltipClearsTheLastOne() {
-        UICommandBuilder cmd = new UICommandBuilder();
-        KitPaint.tooltip(cmd, "#X", null);
-        KitPaint.tooltip(cmd, "#Y", Message.raw("Shown"));
-        Painted p = Painted.of(cmd);
-        assertEquals("{\"0\": \"\"}", p.set("#X.TooltipText"));
-        assertTrue(p.set("#Y.TooltipText").contains("Shown"));
-    }
-
     /**
      * {@code TooltipText} resolves a translation but prints its {@code {0}} slots as written, which is how the
      * Almanac's item slot read "{0} - {1}". A tooltip with params, or with parts, goes on {@code TooltipTextSpans}
@@ -323,52 +316,55 @@ class TilePainterTest {
         KitPaint.tooltip(cmd, "#Bare", Message.translation("ziggfreedcommon.kit.bare"));
         Painted p = Painted.of(cmd);
 
-        assertEquals("{\"0\": \"\"}", p.set("#Grid[0] #Slot.TooltipText"),
-                "a tooltip with params never lands on the sink that prints {0}");
         String spans = p.set("#Grid[0] #Slot.TooltipTextSpans");
         assertTrue(spans.contains("ziggfreedcommon.almanac.collection.source") && spans.contains("Jack Lantern")
                 && spans.contains("Hallows Eve"), "its key and its params go together, for the client to fill");
-        assertEquals("#Grid[0] #Slot.TooltipTextSpans", lastWrite(cmd, "#Grid[0] #Slot"), "the sink in use is written last");
-        assertEquals("{\"0\": \"\"}", p.set("#Parts.TooltipText"), "a tooltip in parts keeps its parts");
         assertTrue(p.set("#Parts.TooltipTextSpans").contains(" for now"));
-        assertFalse(p.set("#Bare.TooltipTextSpans").contains("ziggfreedcommon.kit.bare"), "the spans sink is emptied");
         assertTrue(p.set("#Bare.TooltipText").contains("ziggfreedcommon.kit.bare"),
                 "a bare translation is still sent for the client to resolve");
-        assertEquals("#Bare.TooltipText", lastWrite(cmd, "#Bare"), "the sink in use is written last");
     }
 
     /**
-     * A detail page repaints its toggle and its action buttons in place, never appending them again, so each
-     * tooltip paint settles both sinks: a tooltip with params that gives way to none, or to a bare one, leaves
-     * nothing behind in the sink the new paint does not use.
+     * The client keeps one tooltip per element behind both sinks (the last write wins), opens a hover box for any
+     * value that is not null, and fails a null on {@code TooltipTextSpans}. So each tooltip paint is one write on one
+     * sink, and no tooltip is a JSON null on {@code TooltipText}: an empty string there still opened an empty box,
+     * the one a player saw under the quest page's Abandon button.
      */
     @Test
-    void aRepaintInPlaceLeavesNoTooltipInTheOtherSink() {
-        Message withParams = Message.translation("ziggfreedcommon.kit.pinned").param("0", Message.raw("Old Jack"));
+    void aTooltipIsOneWriteOnOneSinkAndNoneIsANullOnTooltipText() {
         UICommandBuilder cmd = new UICommandBuilder();
-        KitPaint.tooltip(cmd, "#Toggle", withParams);
-        KitPaint.tooltip(cmd, "#Toggle", null);
-        KitPaint.tooltip(cmd, "#Action", withParams);
-        KitPaint.tooltip(cmd, "#Action", Message.translation("ziggfreedcommon.kit.bare"));
+        UiText.setTooltip(cmd, "#None", null);
+        UiText.setTooltip(cmd, "#Params",
+                Message.translation("ziggfreedcommon.kit.pinned").param("0", Message.raw("Old Jack")));
+        UiText.setTooltip(cmd, "#Parts", Message.join(Message.raw("Locked"), Message.raw(" for now")));
+        UiText.setTooltip(cmd, "#Bare", Message.translation("ziggfreedcommon.kit.bare"));
+        UiText.setTooltip(cmd, "#Raw", Message.raw("Shown"));
+        UiText.setTooltip(cmd, "#Blank", Message.join(Message.raw(""), Message.raw(" ")));
         Painted p = Painted.of(cmd);
 
-        assertFalse(p.set("#Toggle.TooltipTextSpans").contains("Old Jack"), "no spans tooltip is left once there is none");
-        assertEquals("{\"0\": \"\"}", p.set("#Toggle.TooltipText"));
-        assertEquals("#Toggle.TooltipText", lastWrite(cmd, "#Toggle"), "the clear ends on the sink it has always used");
-        assertFalse(p.set("#Action.TooltipTextSpans").contains("Old Jack"), "nor once a bare tooltip replaces it");
-        assertTrue(p.set("#Action.TooltipText").contains("ziggfreedcommon.kit.bare"));
+        assertEquals(List.of("#None.TooltipText"), writes(cmd, "#None"), "no tooltip touches the spans sink");
+        assertEquals("{\"0\": null}", p.set("#None.TooltipText"), "no tooltip is a null, never an empty string");
+        assertEquals(List.of("#Params.TooltipTextSpans"), writes(cmd, "#Params"), "params go on the spans alone");
+        assertTrue(p.set("#Params.TooltipTextSpans").contains("Old Jack"));
+        assertEquals(List.of("#Parts.TooltipTextSpans"), writes(cmd, "#Parts"), "so do parts");
+        assertEquals(List.of("#Bare.TooltipText"), writes(cmd, "#Bare"), "a bare translation goes on TooltipText alone");
+        assertTrue(p.set("#Bare.TooltipText").contains("ziggfreedcommon.kit.bare"));
+        assertEquals(List.of("#Raw.TooltipText"), writes(cmd, "#Raw"), "and so does bare raw text");
+        assertTrue(p.set("#Raw.TooltipText").contains("Shown"));
+        assertEquals("{\"0\": null}", p.set("#Blank.TooltipText"), "a message with nothing to show is no tooltip");
+        assertEquals(List.of("#Blank.TooltipText"), writes(cmd, "#Blank"));
     }
 
-    /** The selector of the last property written on {@code element}, in the order the client applies them. */
-    private static String lastWrite(UICommandBuilder cmd, String element) {
-        String last = null;
+    /** Every property written on {@code element}, in the order the client applies them. */
+    private static List<String> writes(UICommandBuilder cmd, String element) {
+        List<String> selectors = new ArrayList<>();
         for (CustomUICommand command : cmd.getCommands()) {
             if (command.type == CustomUICommandType.Set && command.selector != null
                     && command.selector.startsWith(element + ".")) {
-                last = command.selector;
+                selectors.add(command.selector);
             }
         }
-        return last;
+        return selectors;
     }
 
     @Test
