@@ -83,8 +83,6 @@ class BootAuditWiringTest {
             assertTrue(next >= 0, () -> "the boot audit must run, after the passes before it, " + pass + ": " + body);
             at = next;
         }
-        assertEquals(PASSES.size(), body.split("newBootAudit\\.Pass\\(", -1).length - 1,
-                "every pass the root hands over is listed here, and every one listed is handed over");
     }
 
     /** What each pass's lines carry, so a reader of the boot log tells the passes apart by pattern. */

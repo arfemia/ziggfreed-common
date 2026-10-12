@@ -1,0 +1,30 @@
+{
+  "$Comment": "zc's dungeon template: an empty void world that saves nothing. A dungeon's prefab is pasted into each of its areas, and every copy is spawned under zc's own name with its removal and delete flags set (zc-instance world/InstanceWorlds), so this template pins no InstanceKey and sets no RemovalConditions.",
+  "Version": 4,
+  "GameMode": "Adventure",
+  "WorldGen": {
+    "Type": "Void"
+  },
+  "ChunkStorage": {
+    "Type": "Hytale"
+  },
+  "SpawnProvider": {
+    "Id": "Global",
+    "SpawnPoint": {
+      "X": 0.5,
+      "Y": 64.0,
+      "Z": 0.5,
+      "Pitch": 0.0,
+      "Yaw": 0.0,
+      "Roll": 0.0
+    }
+  },
+  "GameplayConfig": "Default_Instance",
+  "IsPvpEnabled": false,
+  "IsSpawningNPC": true,
+  "IsSpawnMarkersEnabled": true,
+  "IsCompassUpdating": true,
+  "IsSavingChunks": false,
+  "SaveNewChunks": false,
+  "DeleteOnRemove": true
+}

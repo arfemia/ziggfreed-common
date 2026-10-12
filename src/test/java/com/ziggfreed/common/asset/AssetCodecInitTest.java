@@ -50,6 +50,7 @@ import com.ziggfreed.common.factor.DerivedFactorAsset;
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.feedback.moment.FeedbackMomentAsset;
+import com.ziggfreed.common.instance.dungeon.DungeonAsset;
 import com.ziggfreed.common.instance.effect.BandedEffectAsset;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardLayoutAsset;
 import com.ziggfreed.common.instance.leaderboard.statboard.StatPeriodAsset;
@@ -289,6 +290,18 @@ class AssetCodecInitTest {
     @Test
     void partySettingsAssetCodecInitializes() {
         assertNotNull(PartySettingsAsset.CODEC, "PartySettingsAsset.CODEC must static-init (PascalCase keys)");
+    }
+
+    @Test
+    void dungeonCodecsInitialize() {
+        assertNotNull(DungeonAsset.CODEC, "DungeonAsset.CODEC must static-init (PascalCase keys)");
+        // The groups are embedded rather than stored, so a lower-case key in one would fail at a pack
+        // author's decode instead of at this build.
+        assertNotNull(DungeonAsset.Share.CODEC, "the Share group codec must static-init");
+        assertNotNull(DungeonAsset.Area.CODEC, "the Area group codec must static-init");
+        assertNotNull(DungeonAsset.Run.CODEC, "the Run group codec must static-init");
+        assertNotNull(DungeonAsset.Copy.CODEC, "the Copy group codec must static-init");
+        assertNotNull(DungeonAsset.Text.CODEC, "the Text group codec must static-init");
     }
 
     @Test

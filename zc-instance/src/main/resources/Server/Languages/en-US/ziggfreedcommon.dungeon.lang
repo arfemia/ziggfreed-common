@@ -1,0 +1,39 @@
+# zc's dungeons (com.ziggfreed.common.instance.dungeon): /zigdungeon, the admin family, and the words its
+# lines nest. The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.dungeon.<key>.
+
+# /zigdungeon. The command.desc.* keys are what the engine's own help resolves a command or an argument through.
+command.desc.family = See this server's dungeons and the copies they have open.
+command.desc.list = List every dungeon and how it is set up.
+command.desc.status = List the dungeon copies open right now.
+command.desc.close = Close a dungeon copy now. Everyone inside goes back where they came in.
+command.desc.arg.copy = The copy to close, by its world name, like crypt-1.
+command.list.none = No dungeons are loaded.
+command.list.header = {0, number} {0, plural, one {dungeon} other {dungeons}}:
+command.list.dungeon = {0} ({1}): {2}. Difficulty {3}, season {4}.
+command.list.place = Template {0}, prefab {1}.
+command.list.share = {0, number} {0, plural, one {area} other {areas}} a copy, {1, number} {1, plural, one {block} other {blocks}} apart, {2, number} {2, plural, one {player} other {players}} an area, {3}.
+command.list.run = Players land at {0, number}, {1, number}, {2, number} in their area. {3}. A wipe {4}. A copy closes {5, number} {5, plural, one {second} other {seconds}} after it empties.
+command.status.none = No dungeon copies are open.
+command.status.header = {0, number} dungeon {0, plural, one {copy} other {copies}} open:
+command.status.copy = {0} ({1}): {2, number} of {3, number} {3, plural, one {area} other {areas}} in use, {4, number} {4, plural, one {player} other {players}} inside, {5, number} on the way. {6}. {7}.
+command.close.done = Closing {0}. Everyone inside goes back where they came in.
+command.close.unknown = No dungeon copy called {0} is open. /zigdungeon status lists the ones that are.
+
+# Words the lines above nest.
+state.open = open
+state.off = switched off
+state.out_of_season = closed until its season runs
+difficulty.normal = normal
+season.all_year = all year
+prefab.none = none set
+share.locked = one party an area
+share.open = parties share an area while it has room
+run.limit = Runs end after {0, number} {0, plural, one {second} other {seconds}}
+run.no_limit = No time limit
+wipe.fails = ends the run
+wipe.ignored = does not end the run
+status.tick = Ticking in {0, number} ms on average
+status.tick.unknown = Tick time not known yet
+status.taking = Taking parties
+status.empty = Empty, closes in {0, number} {0, plural, one {second} other {seconds}}
+status.closing = Closing

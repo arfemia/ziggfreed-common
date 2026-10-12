@@ -9,6 +9,7 @@ import com.ziggfreed.common.encounter.asset.EncounterOwnerLayers;
 import com.ziggfreed.common.instance.claims.ClaimNotices;
 import com.ziggfreed.common.instance.claims.ClaimsDestinations;
 import com.ziggfreed.common.instance.claims.command.ZigClaimsCommand;
+import com.ziggfreed.common.instance.dungeon.command.ZigDungeonCommand;
 import com.ziggfreed.common.instance.leaderboard.EncounterLeaderboardListener;
 import com.ziggfreed.common.instance.leaderboard.RecordsDestinations;
 import com.ziggfreed.common.instance.leaderboard.command.ZigLeaderboardCommand;
@@ -124,6 +125,18 @@ public final class InstanceBootstrap {
             plugin.getCommandRegistry().registerCommand(new ZigPartyCommand());
         } catch (Throwable t) {
             SafeLog.warn("[party] /zigparty could not be registered", t);
+        }
+    }
+
+    /**
+     * The dungeons' admin command, {@code /zigdungeon} ({@code list}, {@code status}, {@code close}). Their
+     * store registers with the other framework stores. Registration only.
+     */
+    public static void registerDungeons(@Nonnull JavaPlugin plugin) {
+        try {
+            plugin.getCommandRegistry().registerCommand(new ZigDungeonCommand());
+        } catch (Throwable t) {
+            SafeLog.warn("[dungeon] /zigdungeon could not be registered", t);
         }
     }
 

@@ -32,6 +32,9 @@ import com.ziggfreed.common.factor.DerivedFactorAsset;
 import com.ziggfreed.common.factor.DerivedFactorConfig;
 import com.ziggfreed.common.instance.arena.ArenaDefinitionAsset;
 import com.ziggfreed.common.instance.arena.ArenaDefinitionConfig;
+import com.ziggfreed.common.instance.dungeon.DungeonAsset;
+import com.ziggfreed.common.instance.dungeon.DungeonConfig;
+import com.ziggfreed.common.instance.dungeon.DungeonOwnerLayers;
 import com.ziggfreed.common.instance.effect.BandedEffectAsset;
 import com.ziggfreed.common.instance.effect.BandedEffectConfig;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardLayoutAsset;
@@ -414,6 +417,20 @@ public final class FrameworkAssetRegistrar {
                 (LoadedAssetsEvent<String, PartySettingsAsset, DefaultAssetMap<String, PartySettingsAsset>> ev) ->
                         PartySettingsConfig.getInstance().mergePackLayer(
                                 AssetMergeAdapter.layer(ev.getAssetMap(), (id, a) -> a.toConfig())));
+
+        // --- Dungeons (Pattern A) - one dungeon per file: the native template its copies start from, the
+        //     prefab pasted into each party's area, how many parties share a copy, and how a run ends. The
+        //     library ships none, only the void template a dungeon copies by default. Owner layer
+        //     mods/ziggfreedcommon/dungeons.json, read here once the packs have landed. No top-level
+        //     Requires. ---
+        AssetStoreRegistrar.registerStore(DungeonAsset.class,
+                new DefaultAssetMap<String, DungeonAsset>(), DungeonAsset.TYPE_ROOT,
+                DungeonAsset::getId, DungeonAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, DungeonAsset.class,
+                (LoadedAssetsEvent<String, DungeonAsset, DefaultAssetMap<String, DungeonAsset>> ev) -> {
+                    DungeonConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    DungeonOwnerLayers.reload();
+                });
 
         // --- Dialogue option theme (Pattern A) - the data-driven look per option style kind. Common
         //     ships the neutral defaults as its own pack (DialogueOptionTheme/*.json); a consumer pack
@@ -943,7 +960,8 @@ public final class FrameworkAssetRegistrar {
                     "ZiggfreedCommon framework stores registered (DialogueFragments, DialogueExtensions, Dialogues, Instances, "
                             + "Lootables, RollPools, BonusRows (owner file mods/ziggfreedcommon/bonus-rows.json), "
                             + "StatDisplays, RewardKinds, BandedEffects, PrefabPlacements, Gateways, Leaderboard, "
-                            + "Arenas, Party, NpcPlacements, NpcIdentities, Factors, FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, "
+                            + "Arenas, Party, Dungeons (owner file mods/ziggfreedcommon/dungeons.json), "
+                            + "NpcPlacements, NpcIdentities, Factors, FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, "
                             + "PlayerSettings (owner file mods/ziggfreedcommon/player-settings.json), "
                             + "Quests (owner folder mods/ziggfreedcommon/quests/), QuestGenerators, QuestCategories, "
                             + "Achievements, AchievementCategories, "
