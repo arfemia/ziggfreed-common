@@ -16,4 +16,8 @@ dependencies {
     // entities stay in the world and a used area's parked ones come back to be cleared (on Update 7 an entity
     // added into a sleeping section is parked out of the store). One-way: zc-world never imports this module.
     implementation project(':zc-world')
+    // The interaction-Type toolkit only: ZigEnterDungeon registers through InteractionTypes and runs its step
+    // through InteractionOutcome.guard and InteractionCtx. One-way: zc-cast depends on zc-core alone and never
+    // imports this module.
+    implementation project(':zc-cast')
 }

@@ -261,7 +261,7 @@ public final class CopyRouter {
         }
         if (mine != null) {
             Copy copy = copies.get(mine.world());
-            if (copy != null && copy.dungeon.equals(dungeon) && !copy.closing) {
+            if (copy != null && copy.dungeon.equals(dungeon) && !copy.closing && !stopping(copy, probe)) {
                 return new Placement(Kind.HELD, mine);
             }
             drop(player, nowMs);
@@ -270,7 +270,7 @@ public final class CopyRouter {
         CopyKey holding = areaOf(partyKey, dungeon);
         if (holding != null) {
             Copy copy = copies.get(holding.world());
-            if (copy != null && !copy.closing) {
+            if (copy != null && !copy.closing && !stopping(copy, probe)) {
                 Area area = copy.areas[holding.area()];
                 if (area.players() >= rules.maxPlayers()) {
                     return new Placement(Kind.FULL, null);
@@ -368,6 +368,16 @@ public final class CopyRouter {
     }
 
     // ==================== internals ====================
+
+    /**
+     * Is {@code copy} on its way out: still held by the server, so kept here until its name is free, but no longer
+     * running? A held place in it is let go, never answered, so nobody is sent into a world that is stopping. A copy
+     * the server does not hold yet is one still being spawned ({@link #prune} forgets every other), and its party
+     * keeps it.
+     */
+    private static boolean stopping(@Nonnull Copy copy, @Nonnull WorldProbe probe) {
+        return probe.isRegistered(copy.world) && !probe.isLive(copy.world);
+    }
 
     /** Can {@code copy} take a new party now: live, not closing, not about to close, and not lagging? */
     private static boolean takesParties(@Nonnull Copy copy, long nowMs, @Nonnull WorldProbe probe) {

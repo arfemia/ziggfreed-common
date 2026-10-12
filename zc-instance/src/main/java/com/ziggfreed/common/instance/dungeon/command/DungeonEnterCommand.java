@@ -38,17 +38,17 @@ final class DungeonEnterCommand extends AbstractPlayerCommand {
         DungeonEntry.Outcome outcome = DungeonEntry.enterAlone(ref, store, player, world, id);
         DungeonAsset dungeon = outcome.dungeon();
         switch (outcome.result()) {
-            case SENT -> DungeonCommandMessages.done(ctx, "enter.sent", DungeonCommandMessages.dungeonName(id, dungeon),
+            case SENT -> DungeonCommandMessages.done(ctx, "enter.sent", DungeonCommandMessages.dungeonName(dungeon),
                     outcome.area().area() + 1, outcome.area().world());
             case UNKNOWN -> DungeonCommandMessages.refused(ctx, "enter.unknown", id);
             case CLOSED -> DungeonCommandMessages.refused(ctx, "enter.closed",
-                    DungeonCommandMessages.dungeonName(id, dungeon), DungeonCommandMessages.state(dungeon));
+                    DungeonCommandMessages.dungeonName(dungeon), DungeonCommandMessages.state(dungeon));
             case NO_PREFAB -> DungeonCommandMessages.refused(ctx, "enter.no_prefab",
-                    DungeonCommandMessages.dungeonName(id, dungeon));
+                    DungeonCommandMessages.dungeonName(dungeon));
             case MISSING_PREFAB -> DungeonCommandMessages.refused(ctx, "enter.missing_prefab",
-                    DungeonCommandMessages.dungeonName(id, dungeon), Msg.raw(outcome.prefab()));
+                    DungeonCommandMessages.dungeonName(dungeon), Msg.raw(outcome.prefab()));
             case AUDIT_ERROR -> DungeonCommandMessages.refused(ctx, "enter.audit_error",
-                    DungeonCommandMessages.dungeonName(id, dungeon));
+                    DungeonCommandMessages.dungeonName(dungeon));
             case ON_THE_WAY -> DungeonCommandMessages.refused(ctx, "enter.on_the_way");
             case INSIDE -> DungeonCommandMessages.refused(ctx, "enter.inside");
             case FULL -> DungeonCommandMessages.refused(ctx, "enter.full");

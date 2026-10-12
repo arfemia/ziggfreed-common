@@ -1,5 +1,6 @@
-# zc's dungeons (com.ziggfreed.common.instance.dungeon): /zigdungeon, the admin family, and the words its
-# lines nest. The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.dungeon.<key>.
+# zc's dungeons (com.ziggfreed.common.instance.dungeon): /zigdungeon, the admin family, the words its lines
+# nest, and what a player is told when a way in refuses them. The file name is the key PREFIX: an entry here
+# resolves as ziggfreedcommon.dungeon.<key>.
 
 # /zigdungeon. The command.desc.* keys are what the engine's own help resolves a command or an argument through.
 command.desc.family = See this server's dungeons and the copies they have open, or go into one.
@@ -50,3 +51,15 @@ status.tick.unknown = Tick time not known yet
 status.taking = Taking parties
 status.empty = Empty, closes in {0, number} {0, plural, one {second} other {seconds}}
 status.closing = Closing
+
+# What a player is told when a way in (a block, a character, a conversation) cannot send them into a dungeon.
+# {0} is the dungeon's name, {1} its season's.
+entry.off = {0} is closed for now.
+entry.out_of_season = {0} only opens during {1}.
+entry.out_of_season.unnamed = {0} only opens in its season.
+entry.full = There is no more room with your party in {0}.
+entry.on_the_way = You are already on your way into a dungeon.
+entry.inside = You are already in a dungeon. Leave it first.
+entry.copy_gone = {0} closed just as you got there. Try again.
+entry.unavailable = {0} cannot be entered right now.
+entry.unavailable.unnamed = That dungeon cannot be entered right now.

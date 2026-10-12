@@ -44,7 +44,7 @@ final class DungeonListCommand extends AbstractAsyncCommand {
 
     private static void describe(@Nonnull CommandContext ctx, @Nonnull String id, @Nonnull DungeonAsset dungeon) {
         String season = dungeon.getSeason();
-        DungeonCommandMessages.heading(ctx, "list.dungeon", DungeonCommandMessages.dungeonName(id, dungeon), id,
+        DungeonCommandMessages.heading(ctx, "list.dungeon", DungeonCommandMessages.dungeonName(dungeon), id,
                 DungeonCommandMessages.state(dungeon),
                 dungeon.difficulty().isEmpty() ? DungeonCommandMessages.word("difficulty.normal")
                         : Msg.raw(dungeon.difficulty()),

@@ -1,5 +1,7 @@
 package com.ziggfreed.common.instance;
 
+import java.util.List;
+
 import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
@@ -12,6 +14,8 @@ import com.ziggfreed.common.instance.claims.ClaimsDestinations;
 import com.ziggfreed.common.instance.claims.command.ZigClaimsCommand;
 import com.ziggfreed.common.instance.dungeon.AreaMembers;
 import com.ziggfreed.common.instance.dungeon.AreaSpawnProvider;
+import com.ziggfreed.common.instance.dungeon.DungeonDestinations;
+import com.ziggfreed.common.instance.dungeon.ZigEnterDungeonInteraction;
 import com.ziggfreed.common.instance.dungeon.command.ZigDungeonCommand;
 import com.ziggfreed.common.instance.leaderboard.EncounterLeaderboardListener;
 import com.ziggfreed.common.instance.leaderboard.RecordsDestinations;
@@ -20,6 +24,8 @@ import com.ziggfreed.common.instance.leaderboard.statboard.StatBoard;
 import com.ziggfreed.common.instance.leaderboard.statboard.StatBoardRecords;
 import com.ziggfreed.common.instance.leaderboard.statboard.StatPeriodOwnerLayers;
 import com.ziggfreed.common.instance.world.InstanceWorlds;
+import com.ziggfreed.common.interaction.type.InteractionTypeSpec;
+import com.ziggfreed.common.interaction.type.InteractionTypes;
 import com.ziggfreed.common.loot.claim.ClaimAddedEvent;
 import com.ziggfreed.common.loot.claim.ClaimStore;
 import com.ziggfreed.common.loot.diminish.DiminishLedger;
@@ -133,8 +139,10 @@ public final class InstanceBootstrap {
 
     /**
      * The dungeons' admin command, {@code /zigdungeon} ({@code list}, {@code status}, {@code close},
-     * {@code enter}), and the area-aware spawn provider every dungeon copy carries, on the engine's spawn
-     * provider codec so a copy's config saves and loads. Their store registers with the other framework stores.
+     * {@code enter}); the area-aware spawn provider every dungeon copy carries, on the engine's spawn
+     * provider codec so a copy's config saves and loads; and a player's two ways in, the {@code ZigEnterDungeon}
+     * interaction Type and the {@code Dungeon} destination, both before any asset decodes (an item, block or
+     * placement naming either fails to load otherwise). Their store registers with the other framework stores.
      * Registration only.
      */
     public static void registerDungeons(@Nonnull JavaPlugin plugin) {
@@ -148,6 +156,17 @@ public final class InstanceBootstrap {
                     .register(AreaSpawnProvider.TYPE, AreaSpawnProvider.class, AreaSpawnProvider.CODEC);
         } catch (Throwable t) {
             SafeLog.warn("[dungeon] the dungeon areas' spawn provider could not be registered", t);
+        }
+        try {
+            InteractionTypes.registerAll(plugin, List.of(InteractionTypeSpec.of(ZigEnterDungeonInteraction.TYPE_NAME,
+                    ZigEnterDungeonInteraction.class, ZigEnterDungeonInteraction::codec)));
+        } catch (Throwable t) {
+            SafeLog.warn("[dungeon] the ZigEnterDungeon interaction Type could not be registered", t);
+        }
+        try {
+            DungeonDestinations.register();
+        } catch (Throwable t) {
+            SafeLog.warn("[dungeon] the Dungeon destination could not be registered", t);
         }
     }
 

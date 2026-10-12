@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.math.vector.Transform;
@@ -21,12 +22,15 @@ import com.hypixel.hytale.server.core.universe.world.spawn.ISpawnProvider;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.instance.world.CopyKey;
 import com.ziggfreed.common.instance.world.InstanceWorlds;
+import com.ziggfreed.common.party.Party;
+import com.ziggfreed.common.party.ZcParty;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The one way into a dungeon: the gate, a place from the router, the copy spawned or joined, the area pasted
- * while the player loads, and the teleport. {@code /zigdungeon enter} runs it, and so does any other entry (a
- * block's interaction, a conversation), so every one keeps the same rules.
+ * while the player loads, and the teleport. {@code /zigdungeon enter} runs it ({@link #enterAlone}), and so does
+ * every way in a player takes ({@link #enterWithParty}: a block's {@code ZigEnterDungeon}, a placement's or a
+ * conversation's {@code Dungeon} destination), so every one keeps the same rules.
  *
  * <p><b>The steps</b>, on the entering player's current world thread:
  * <ol>
@@ -113,8 +117,29 @@ public final class DungeonEntry {
         return enter(ref, store, player, from, dungeonId, CopyRouter.partyKey(null, player.getUuid()), true);
     }
 
+    /**
+     * Send {@code player} into dungeon {@code dungeonId} with their party: the area their zc party ({@link ZcParty})
+     * holds there, or a new one, so members who walk in one after the other land together; a player in no party is
+     * a party of one, so a seasonal dungeon stays soloable. Only the members who walk in are routed, and only those
+     * on the way or inside count against an area ({@link CopyRouter}): a member who is offline (nothing drops them
+     * from the party) neither enters nor holds a place. The way in for a player.
+     *
+     * <p>Run on the player's current world thread. {@code accessor} is their store, or the command buffer of the
+     * system they are in (an interaction chain's), since the teleport writes components and a store refuses that
+     * while one of its systems runs.
+     */
     @Nonnull
-    private static Outcome enter(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
+    public static Outcome enterWithParty(@Nonnull Ref<EntityStore> ref,
+            @Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull PlayerRef player, @Nonnull World from,
+            @Nonnull String dungeonId) {
+        UUID uuid = player.getUuid();
+        Party party = ZcParty.service().partyOf(uuid);
+        String partyKey = CopyRouter.partyKey(party == null ? null : party.id(), uuid);
+        return enter(ref, accessor, player, from, dungeonId, partyKey, false);
+    }
+
+    @Nonnull
+    private static Outcome enter(@Nonnull Ref<EntityStore> ref, @Nonnull ComponentAccessor<EntityStore> store,
             @Nonnull PlayerRef player, @Nonnull World from, @Nonnull String dungeonId, @Nonnull String partyKey,
             boolean emptyArea) {
         String id = dungeonId.trim().toLowerCase(Locale.ROOT);
@@ -244,7 +269,7 @@ public final class DungeonEntry {
 
     /** Where the player stands now: their return point, and a new copy's. */
     @Nonnull
-    private static Transform standingAt(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
+    private static Transform standingAt(@Nonnull Ref<EntityStore> ref, @Nonnull ComponentAccessor<EntityStore> store,
             @Nonnull PlayerRef player) {
         TransformComponent at = store.getComponent(ref, TransformComponent.getComponentType());
         return at != null ? new Transform(at.getTransform()) : new Transform(player.getTransform());
