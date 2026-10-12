@@ -24,10 +24,10 @@ import com.ziggfreed.common.util.SafeLog;
  * that reads it, so there is no registration race and one consumer's vocabulary never leaks into
  * another's.
  *
- * <p><b>Twenty-eight engine-generic kinds are PRE-SEEDED</b> (see {@link #seedBuiltIns}) - the ones
+ * <p><b>Thirty engine-generic kinds are PRE-SEEDED</b> (see {@link #seedBuiltIns}) - the ones
  * whose meaning does not depend on any particular game's systems: breaking a block, killing an
  * entity, talking to somebody, handing something in, using an item, standing at some measured
- * value, fighting a boss. All twenty-eight seed as producible, all but {@link #STAT_THRESHOLD}
+ * value, fighting a boss, playing a round. All thirty seed as producible, all but {@link #STAT_THRESHOLD}
  * accumulate, none reads a ceiling, two of them ({@code TALK_TO_NPC}, {@code REACH_LOCATION}) seed
  * as place-targeted and three ({@code ENCOUNTER_DEFEATED}, {@code ENCOUNTER_PHASE},
  * {@code ENCOUNTER_ATTEMPT}) as encounter-targeted; a consumer that has no producer for one can
@@ -40,13 +40,15 @@ import com.ziggfreed.common.util.SafeLog;
  * this class's flags in a second place, which holds until this class learns to seed a flag the
  * consumer has never heard of and silently resets it.
  *
- * <p><b>Two of them describe a finished INSTANCE ROUND</b> - a minigame match, a co-op session, a
- * dungeon clear - and share one contract. {@code Target} is {@code <modId>:<modeId>} (e.g.
- * {@code kweebec:chase}), so the PREFIX {@code kweebec:} matches any mode of that mod;
- * {@code Qualifier} is the preset id; {@code Amount} is 1 per round.
- * {@code INSTANCE_ROUND_ENDED} fires once per PARTICIPANT on every completion, win or lose,
- * and {@code INSTANCE_ROUND_WON} fires once per WINNER and only on a win - so "play ten
- * rounds" and "win ten rounds" are two different objectives rather than one with a flag.
+ * <p><b>Four of them describe an INSTANCE ROUND</b> - a minigame match, a co-op session, a
+ * dungeon run - and share one contract. {@code Target} is {@code <modId>:<modeId>} (e.g.
+ * {@code kweebec:chase}, {@code dungeon:hard}), so the PREFIX {@code kweebec:} matches any mode of
+ * that mod; {@code Qualifier} is the preset id; {@code Amount} is 1 per round.
+ * {@code INSTANCE_ROUND_STARTED} fires once per player a round's start names;
+ * {@code INSTANCE_ROUND_ENDED} fires once per PARTICIPANT on every completion, win or lose;
+ * {@code INSTANCE_ROUND_WON} fires once per WINNER and only on a win; and
+ * {@code INSTANCE_ROUND_LOST} fires once per PARTICIPANT and only when nobody won - so "play ten
+ * rounds", "win ten rounds" and "fail ten runs" are different objectives rather than one with a flag.
  *
  * <p><b>Three describe a BOSS FIGHT</b> run by the engine's own encounter scripts, and share one
  * contract: {@code Target} is the encounter SCRIPT id (never the boss creature's id, which an
@@ -147,7 +149,7 @@ public final class ObjectiveKindRegistry {
             "TAKE_FALL_DAMAGE", "PLAYER_DEATH", "SPRINT_DISTANCE", "SWIM_DISTANCE",
             "BREED_ANIMAL", "FEED_ANIMAL", "HARVEST_ANIMAL", "COMPANION_COMBAT",
             "REACH_LOCATION", "CONSUME_ITEM", "USE_ITEM", "LOOT_RECEIVED",
-            "INSTANCE_ROUND_WON", "INSTANCE_ROUND_ENDED",
+            "INSTANCE_ROUND_WON", "INSTANCE_ROUND_ENDED", "INSTANCE_ROUND_STARTED", "INSTANCE_ROUND_LOST",
             "ENCOUNTER_DEFEATED", "ENCOUNTER_PHASE", "ENCOUNTER_ATTEMPT");
 
     /**
@@ -232,7 +234,7 @@ public final class ObjectiveKindRegistry {
         seedBuiltIns();
     }
 
-    /** Register the twenty-eight engine-generic kinds, all producible, each with its own arithmetic. */
+    /** Register the thirty engine-generic kinds, all producible, each with its own arithmetic. */
     private void seedBuiltIns() {
         for (String id : BUILT_IN_ACCUMULATING) {
             ledger.put(id, BUILT_IN_OWNER, new ObjectiveKind(id, false, true,
@@ -252,7 +254,7 @@ public final class ObjectiveKindRegistry {
     }
 
     /**
-     * Is {@code kindId} one of the twenty-eight this class seeds? A consumer registering its own
+     * Is {@code kindId} one of the thirty this class seeds? A consumer registering its own
      * vocabulary asks this to add only what it ADDS, leaving the built-ins stated once, here, with
      * every flag they carry - including any this class learns to seed later.
      */

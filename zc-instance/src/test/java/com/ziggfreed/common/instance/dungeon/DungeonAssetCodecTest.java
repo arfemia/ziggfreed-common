@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.util.List;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -35,6 +36,8 @@ class DungeonAssetCodecTest {
                         "EntryOffset": { "X": 1.5, "Y": 2, "Z": -3 } },
               "Run": { "TimeLimitSeconds": 900, "FailOnWipe": true },
               "Copy": { "EmptyCloseSeconds": 30 },
+              "Complete": { "Bosses": [" Crypt_Lord_Encounter ", "", "Crypt_Lord_Encounter", "Crypt_Lich_Encounter"],
+                            "AllBosses": true },
               "Difficulty": " Hard ",
               "Season": "Hallows_Eve",
               "Text": { "NameKey": "mypack.dungeon.crypt.name", "DescriptionKey": "mypack.dungeon.crypt.description" }
@@ -71,13 +74,16 @@ class DungeonAssetCodecTest {
         assertNull(bare.getSeason(), "no season is all year");
         assertNull(bare.nameKey());
         assertNull(bare.descriptionKey());
+        assertTrue(bare.completeBosses().isEmpty(), "no Complete names no boss");
+        assertFalse(bare.completeAllBosses(), "the first listed boss to fall clears, unless AllBosses says every one");
     }
 
     @Test
     void underParentAChildKeepsEveryLeafOfAGroupItDoesNotRestate() throws IOException {
         DungeonAsset parent = decode("MyPack_Crypt", CRYPT, null);
         DungeonAsset child = decode("MyPack_Crypt_Solo", """
-                { "Enabled": true, "Share": { "AreasPerCopy": 1 }, "Run": { "TimeLimitSeconds": 0 } }
+                { "Enabled": true, "Share": { "AreasPerCopy": 1 }, "Run": { "TimeLimitSeconds": 0 },
+                  "Complete": { "AllBosses": false } }
                 """, parent);
 
         assertTrue(child.isEnabled(), "the restated leaf is the child's");
@@ -88,6 +94,9 @@ class DungeonAssetCodecTest {
         assertTrue(child.failOnWipe());
         assertEquals("MyPack/Crypt/Crypt_Main.prefab.json", child.prefabPath(), "an unrestated group is inherited");
         assertEquals("Hallows_Eve", child.getSeason());
+        assertFalse(child.completeAllBosses(), "the restated leaf is the child's");
+        assertEquals(List.of("Crypt_Lord_Encounter", "Crypt_Lich_Encounter"), child.completeBosses(),
+                "Complete merges leaf by leaf too");
     }
 
     private static void assertCrypt(@Nonnull DungeonAsset crypt) {
@@ -111,6 +120,9 @@ class DungeonAssetCodecTest {
         assertEquals("Hallows_Eve", crypt.getSeason());
         assertEquals("mypack.dungeon.crypt.name", crypt.nameKey());
         assertEquals("mypack.dungeon.crypt.description", crypt.descriptionKey());
+        assertEquals(List.of("Crypt_Lord_Encounter", "Crypt_Lich_Encounter"), crypt.completeBosses(),
+                "Bosses reads trimmed, blanks and repeats dropped, in order");
+        assertTrue(crypt.completeAllBosses());
         CopyRouter.Rules rules = crypt.routerRules("MyPack_Crypt");
         assertEquals("mypack_crypt", rules.dungeon(), "the router files a dungeon under its lower-cased id");
         assertEquals(30_000L, rules.emptyCloseMs());

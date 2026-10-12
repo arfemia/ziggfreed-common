@@ -14,6 +14,7 @@ import javax.annotation.Nullable;
 import org.junit.jupiter.api.Test;
 
 import com.ziggfreed.common.instance.metadata.InstanceRoundCompletedEvent;
+import com.ziggfreed.common.instance.metadata.InstanceRoundStartedEvent;
 import com.ziggfreed.common.instance.metadata.RoundMetadata;
 import com.ziggfreed.common.instance.result.ResultKind;
 
@@ -56,15 +57,6 @@ class ZigInstanceRoundProducerTest {
     // ==================== who gets what ====================
 
     @Test
-    void everyParticipantIsCreditedWithTheRoundEnding() {
-        List<Fired> fired = fanOut(event(chase(ResultKind.LOSS), List.of(ALICE, BOB), List.of()));
-
-        assertEquals(2, fired.size());
-        assertTrue(fired.stream().allMatch(f -> ZigInstanceRoundProducer.KIND_ENDED.equals(f.kind())));
-        assertEquals(List.of(ALICE, BOB), fired.stream().map(Fired::playerId).toList());
-    }
-
-    @Test
     void onlyWinnersAreCreditedWithTheWinAndTheyAlsoGetTheEnding() {
         List<Fired> fired = fanOut(event(chase(ResultKind.WIN), List.of(ALICE, BOB), List.of(ALICE)));
 
@@ -89,6 +81,51 @@ class ZigInstanceRoundProducerTest {
     @Test
     void aRoundWithNobodyInItFiresNothing() {
         assertTrue(fanOut(event(chase(ResultKind.ABORT), List.of(), List.of())).isEmpty());
+    }
+
+    // ==================== a lost round and a started one ====================
+
+    @Test
+    void aRoundNobodyWonCreditsEveryParticipantWithTheEndingThenTheLoss() {
+        List<Fired> fired = fanOut(event(chase(ResultKind.LOSS), List.of(ALICE, BOB), List.of()));
+
+        assertEquals(List.of(
+                        new Fired(ALICE, ZigInstanceRoundProducer.KIND_ENDED, "kweebec:chase", "moonlit"),
+                        new Fired(BOB, ZigInstanceRoundProducer.KIND_ENDED, "kweebec:chase", "moonlit"),
+                        new Fired(ALICE, ZigInstanceRoundProducer.KIND_LOST, "kweebec:chase", "moonlit"),
+                        new Fired(BOB, ZigInstanceRoundProducer.KIND_LOST, "kweebec:chase", "moonlit")),
+                fired, "a failed run is played and lost by everyone in it, the ending first");
+    }
+
+    @Test
+    void aRoundSomebodyWonCreditsNoLossEvenToAParticipantWhoDidNotWin() {
+        List<Fired> fired = fanOut(event(chase(ResultKind.WIN), List.of(ALICE, BOB), List.of(ALICE)));
+
+        assertTrue(fired.stream().noneMatch(f -> ZigInstanceRoundProducer.KIND_LOST.equals(f.kind())),
+                "lost means nobody won; a participant of a won round has the ending alone");
+    }
+
+    @Test
+    void everyPlayerAStartNamesIsCreditedWithTheStartUnderTheRoundsTargetAndQualifier() {
+        RoundMetadata run = RoundMetadata.builder("dungeon").modeId("Hard").presetId("Crypt").playerCount(2).build();
+        List<Fired> fired = new ArrayList<>();
+        ZigInstanceRoundProducer.fanOutStarted(new InstanceRoundStartedEvent(run, List.of(ALICE, BOB)),
+                (playerId, kind, target, qualifier) -> fired.add(new Fired(playerId, kind, target, qualifier)));
+
+        assertEquals(List.of(
+                        new Fired(ALICE, ZigInstanceRoundProducer.KIND_STARTED, "dungeon:Hard", "Crypt"),
+                        new Fired(BOB, ZigInstanceRoundProducer.KIND_STARTED, "dungeon:Hard", "Crypt")),
+                fired, "a start reads as its end does, so 'dungeon:' or 'dungeon:hard' counts it");
+    }
+
+    @Test
+    void aStartNamingNobodyFiresNothing() {
+        List<Fired> fired = new ArrayList<>();
+        ZigInstanceRoundProducer.fanOutStarted(
+                new InstanceRoundStartedEvent(RoundMetadata.builder("dungeon").build(), List.of()),
+                (playerId, kind, target, qualifier) -> fired.add(new Fired(playerId, kind, target, qualifier)));
+
+        assertTrue(fired.isEmpty());
     }
 
     // ==================== what an author matches on ====================

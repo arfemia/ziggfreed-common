@@ -1,0 +1,6 @@
+{
+  "$Comment": "Records' Dungeons tab and its columns, at most four: every dungeon run a player began, cleared and failed, over every dungeon. Each stat also keeps one line per difficulty and dungeon, Stat/dungeon:<difficulty>@<dungeon id> (dungeon:@My_Crypt for a normal run), which a column here may name one at a time. A stat nothing on this server counts shows no column.",
+  "NameKey": "ziggfreedcommon.statboard.section.dungeons",
+  "Order": 35,
+  "Stats": ["Dungeon_Runs_Started", "Dungeon_Runs_Completed", "Dungeon_Runs_Failed"]
+}

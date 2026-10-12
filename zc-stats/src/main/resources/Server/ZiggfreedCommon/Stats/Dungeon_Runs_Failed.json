@@ -1,0 +1,8 @@
+{
+  "$Comment": "Every dungeon run a player took part in that failed (its time ran out, everyone left, or a wipe where the dungeon fails on one), with one line per difficulty and dungeon beside the total (dungeon:<difficulty>@<dungeon id>, an empty difficulty for normal).",
+  "NameKey": "ziggfreedcommon.stats.dungeon_runs_failed",
+  "Kind": "Sum",
+  "Format": "Count",
+  "From": [ { "Kind": "INSTANCE_ROUND_LOST", "Target": "dungeon:", "MatchMode": "PREFIX" } ],
+  "Breakdown": "TargetAtQualifier"
+}

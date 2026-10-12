@@ -244,7 +244,8 @@ public final class ProgressionDefaults {
     public static String producedKinds() {
         return String.join(", ", ZigBlockBreakProducer.KIND, ZigMobKillProducer.KIND,
                 ZigCraftProducer.KIND, ZigPickupProducer.KIND, ZigPlaceBlockProducer.KIND,
-                ZigInstanceRoundProducer.KIND_ENDED, ZigInstanceRoundProducer.KIND_WON,
+                ZigInstanceRoundProducer.KIND_STARTED, ZigInstanceRoundProducer.KIND_ENDED,
+                ZigInstanceRoundProducer.KIND_WON, ZigInstanceRoundProducer.KIND_LOST,
                 ZigEncounterProducer.KIND_ATTEMPT, ZigEncounterProducer.KIND_DEFEATED,
                 ZigEncounterProducer.KIND_PHASE, ZigCalendarProducer.KIND, ZigLootReceivedProducer.KIND,
                 ZigQuestCompletionProducer.KIND, ZigReputationProducer.KIND, ZigTalkProducer.KIND);

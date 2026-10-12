@@ -1,6 +1,9 @@
 package com.ziggfreed.common.instance.dungeon;
 
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -27,6 +30,7 @@ import com.ziggfreed.common.season.SeasonGate;
  *   "Share": { "PartyLocked": true, "MaxPlayers": 5, "AreasPerCopy": 4 },
  *   "Area": { "Prefab": "MyPack/Crypt/Crypt_Main.prefab.json", "Spacing": 2048, "EntryOffset": { "Y": 1 } },
  *   "Run": { "TimeLimitSeconds": 900, "FailOnWipe": false },
+ *   "Complete": { "Bosses": ["MyPack_Crypt_Lich"], "AllBosses": false },
  *   "Copy": { "EmptyCloseSeconds": 60 },
  *   "Difficulty": "",
  *   "Season": "Hallows_Eve",
@@ -78,6 +82,7 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
     @Nullable private Share share;
     @Nullable private Area area;
     @Nullable private Run run;
+    @Nullable private Complete complete;
     @Nullable private Copy copy;
     @Nullable private String difficulty;
     @Nullable private String season;
@@ -113,6 +118,11 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
             .appendInherited(new KeyedCodec<>("Run", Run.CODEC, false),
                     (a, v) -> a.run = v, a -> a.run, (a, p) -> a.run = p.run)
             .documentation("How a party's run ends besides finishing it.").add()
+            .appendInherited(new KeyedCodec<>("Complete", Complete.CODEC, false),
+                    (a, v) -> a.complete = v, a -> a.complete, (a, p) -> a.complete = p.complete)
+            .documentation("What finishes a party's run, clearing it. Unauthored, nothing clears a run: it "
+                    + "ends only by failing (its time limit, every member leaving, or a wipe where FailOnWipe "
+                    + "is set).").add()
             .appendInherited(new KeyedCodec<>("Copy", Copy.CODEC, false),
                     (a, v) -> a.copy = v, a -> a.copy, (a, p) -> a.copy = p.copy)
             .documentation("How long a copy stays open.").add()
@@ -218,6 +228,34 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
     /** {@code Run.FailOnWipe}, unauthored false: a run fails when every member is dead at once only when set. */
     public boolean failOnWipe() {
         Boolean v = run == null ? null : run.failOnWipe;
+        return v != null && v;
+    }
+
+    /**
+     * {@code Complete.Bosses}: the encounter script ids whose defeat clears a run, trimmed, blanks and repeats
+     * dropped, in the order written; empty when the file names none, and then no boss clears a run.
+     */
+    @Nonnull
+    public List<String> completeBosses() {
+        String[] raw = complete == null ? null : complete.bosses;
+        if (raw == null) {
+            return List.of();
+        }
+        Set<String> out = new LinkedHashSet<>();
+        for (String id : raw) {
+            if (id != null && !id.isBlank()) {
+                out.add(id.trim());
+            }
+        }
+        return List.copyOf(out);
+    }
+
+    /**
+     * {@code Complete.AllBosses}, unauthored false: a run clears once every boss {@link #completeBosses()} names
+     * has fallen in it, rather than at the first of them.
+     */
+    public boolean completeAllBosses() {
+        Boolean v = complete == null ? null : complete.allBosses;
         return v != null && v;
     }
 
@@ -343,6 +381,32 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
                 .build();
 
         public Run() {
+        }
+    }
+
+    // ==================== Complete ====================
+
+    /** What finishes a party's run, clearing it. */
+    public static final class Complete {
+
+        @Nullable protected String[] bosses;
+        @Nullable protected Boolean allBosses;
+
+        public static final BuilderCodec<Complete> CODEC = BuilderCodec.builder(Complete.class, Complete::new)
+                .appendInherited(new KeyedCodec<>("Bosses", Codec.STRING_ARRAY, false),
+                        (o, v) -> o.bosses = v, o -> o.bosses, (o, p) -> o.bosses = p.bosses)
+                .documentation("The boss fights that clear a run, by their encounter script ids (the file names "
+                        + "under Server/EncounterManager). A fight counts for the run of the area its players "
+                        + "are in. Unauthored or empty, no boss clears a run. This is ONE leaf: authoring it "
+                        + "replaces an inherited list whole.").add()
+                .appendInherited(new KeyedCodec<>("AllBosses", Codec.BOOLEAN, false),
+                        (o, v) -> o.allBosses = v, o -> o.allBosses, (o, p) -> o.allBosses = p.allBosses)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("Whether every boss Bosses names must fall in the run before it clears. "
+                        + "Unauthored means false: the first of them to fall clears it.").add()
+                .build();
+
+        public Complete() {
         }
     }
 

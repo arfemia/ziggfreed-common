@@ -1,0 +1,10 @@
+{
+  "$Comment": "Losing a round of an instanced mode: a round nobody won, such as a failed dungeon run.",
+  "ValueBased": false,
+  "Producible": true,
+  "Presentation": {
+    "Icon": {
+      "ItemId": "Deco_Trophy_Harvest"
+    }
+  }
+}

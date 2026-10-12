@@ -1,0 +1,8 @@
+{
+  "$Comment": "Every dungeon run a player clears, with one line per difficulty and dungeon beside the total (dungeon:<difficulty>@<dungeon id>, an empty difficulty for normal). A clear also counts as a round won.",
+  "NameKey": "ziggfreedcommon.stats.dungeon_runs_completed",
+  "Kind": "Sum",
+  "Format": "Count",
+  "From": [ { "Kind": "INSTANCE_ROUND_WON", "Target": "dungeon:", "MatchMode": "PREFIX" } ],
+  "Breakdown": "TargetAtQualifier"
+}

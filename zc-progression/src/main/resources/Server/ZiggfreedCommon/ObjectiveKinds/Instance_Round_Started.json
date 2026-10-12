@@ -1,0 +1,10 @@
+{
+  "$Comment": "Starting a round of an instanced mode, such as a dungeon run, once per player the start names.",
+  "ValueBased": false,
+  "Producible": true,
+  "Presentation": {
+    "Icon": {
+      "ItemId": "Deco_Trophy_Harvest"
+    }
+  }
+}

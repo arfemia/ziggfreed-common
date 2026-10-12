@@ -39,14 +39,17 @@ import com.ziggfreed.common.util.SafeLog;
  *       ({@link AreaLayout#inCell}).</li>
  * </ul>
  * Each settles with the router ({@link CopyRouter#arrived}, {@link CopyRouter#failed},
- * {@link CopyRouter#left}); an area whose last player left or failed is free, the router lets the party
- * holding it go, and {@link Areas} pastes it afresh for the next party. The ticker touches no store and no
- * entity, so nothing it settles needs the world thread.
+ * {@link CopyRouter#left}) and with the area's run ({@link DungeonRuns}: an arrival begins or joins it, a
+ * freed area ends one still going); an area whose last player left or failed is free, the router lets the
+ * party holding it go, and {@link Areas} pastes it afresh for the next party. The ticker touches no store and
+ * no entity, so nothing it settles needs the world thread; after each pass it hands the runs their own tick
+ * ({@link DungeonRuns#tick}: time limits, wipe checks, the round moments), outside this list's lock.
  *
  * <p><b>One step.</b> A place is reserved with the router and filed here under this list's lock
- * ({@link #reserve}), and a member is settled with the router and the areas under the same lock, so an entry
- * and a leave of one area never interleave: an area is marked free here exactly when the router frees it.
- * The lock order is this list, then the router, then the areas; neither of those calls back here.
+ * ({@link #reserve}), and a member is settled with the router, the areas and the runs under the same lock, so
+ * an entry and a leave of one area never interleave: an area is marked free here exactly when the router
+ * frees it. The lock order is this list, then the router, then the areas, then the runs; none of those calls
+ * back here under its own lock.
  *
  * <p>The thread starts with the first member and stops at the library's shutdown ({@link #shutdown}).
  */
@@ -139,6 +142,13 @@ public final class AreaMembers {
         return member == null ? null : member.area;
     }
 
+    /** The area {@code player} has arrived in and not left, or null (on the way into one counts as none). */
+    @Nullable
+    public synchronized CopyKey presentArea(@Nonnull UUID player) {
+        Member member = members.get(player);
+        return member == null || !member.present ? null : member.area;
+    }
+
     /**
      * Reserve {@code player} a place with the router ({@link CopyRouter#reserve}) and file them as on their way,
      * as one step. {@code ready} is the future their teleport waits on: complete it with the copy once it is
@@ -218,6 +228,7 @@ public final class AreaMembers {
         } catch (Throwable t) {
             SafeLog.warn(LOG + "the area members' tick failed", t);
         }
+        DungeonRuns.shared().tick(System.currentTimeMillis());
     }
 
     /** What has become of {@code member}, read off their cached {@code PlayerRef}. Touches no store. */
@@ -280,6 +291,7 @@ public final class AreaMembers {
                 member.worldId = world.getWorldConfig().getUuid();
                 member.layout = layoutOf(world);
                 CopyRouter.shared().arrived(member.player);
+                DungeonRuns.shared().arrived(member.area, world, member.player, onTheWayInto(member.area), now);
                 Vector3d at = player == null ? null : player.getTransform().getPosition();
                 line = member.player + " arrived in " + world.getName() + " area " + member.area.area()
                         + (at == null ? "" : String.format(Locale.ROOT, " at %.1f %.1f %.1f", at.x, at.y, at.z))
@@ -292,11 +304,13 @@ public final class AreaMembers {
                             + reason(member, player);
                 } else {
                     CopyRouter.shared().left(member.player, now);
+                    DungeonRuns.shared().left(member.area, member.player);
                     line = member.player + " left " + member.area.world() + " area " + member.area.area() + " after "
                             + (now - member.arrivedAtMs) + " ms inside";
                 }
                 if (nobodyIn(member.area)) {
                     Areas.shared().released(worldOf(member), member.area);
+                    DungeonRuns.shared().freed(member.area, now);
                     line += "; the area is free, and the next party there finds it cleared and pasted afresh";
                 }
             }
@@ -311,6 +325,18 @@ public final class AreaMembers {
             return member.world;
         }
         return member.ready.state() == Future.State.SUCCESS ? member.ready.resultNow() : null;
+    }
+
+    /** Every player on the way into {@code area} and not yet in it. Under this list's lock. */
+    @Nonnull
+    private List<UUID> onTheWayInto(@Nonnull CopyKey area) {
+        List<UUID> out = new ArrayList<>();
+        for (Member other : members.values()) {
+            if (!other.present && other.area.equals(area)) {
+                out.add(other.player);
+            }
+        }
+        return out;
     }
 
     /** Is no one in {@code area} or on the way into it? Under this list's lock. */

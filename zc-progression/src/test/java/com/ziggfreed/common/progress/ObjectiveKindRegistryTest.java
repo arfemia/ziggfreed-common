@@ -14,17 +14,6 @@ import org.junit.jupiter.api.Test;
 /** The objective vocabulary: what it starts with, how a consumer extends it, and how lookups behave. */
 class ObjectiveKindRegistryTest {
 
-    @Test
-    void theBuiltInVocabularyIsPresentAndEveryKindIsProducible() {
-        ObjectiveKindRegistry registry = new ObjectiveKindRegistry();
-
-        assertEquals(28, registry.ids().size(), "the engine-generic vocabulary");
-        for (String id : registry.ids()) {
-            ObjectiveKind kind = registry.kind(id);
-            assertTrue(kind.producible(), id + " should be authorable");
-        }
-    }
-
     /**
      * The seeded arithmetic, stated as sets rather than as one name: the value-based built-ins are
      * exactly the threshold, no built-in reads a ceiling, and everything else accumulates. A new

@@ -1,0 +1,8 @@
+{
+  "$Comment": "Every dungeon run a player begins, with one line per difficulty and dungeon beside the total (dungeon:<difficulty>@<dungeon id>, an empty difficulty for normal).",
+  "NameKey": "ziggfreedcommon.stats.dungeon_runs_started",
+  "Kind": "Sum",
+  "Format": "Count",
+  "From": [ { "Kind": "INSTANCE_ROUND_STARTED", "Target": "dungeon:", "MatchMode": "PREFIX" } ],
+  "Breakdown": "TargetAtQualifier"
+}

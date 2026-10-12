@@ -9,12 +9,14 @@ import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.universe.world.spawn.ISpawnProvider;
 import com.ziggfreed.common.encounter.asset.EncounterOwnerLayers;
+import com.ziggfreed.common.encounter.event.EncounterDefeatedEvent;
 import com.ziggfreed.common.instance.claims.ClaimNotices;
 import com.ziggfreed.common.instance.claims.ClaimsDestinations;
 import com.ziggfreed.common.instance.claims.command.ZigClaimsCommand;
 import com.ziggfreed.common.instance.dungeon.AreaMembers;
 import com.ziggfreed.common.instance.dungeon.AreaSpawnProvider;
 import com.ziggfreed.common.instance.dungeon.DungeonDestinations;
+import com.ziggfreed.common.instance.dungeon.DungeonRuns;
 import com.ziggfreed.common.instance.dungeon.ZigEnterDungeonInteraction;
 import com.ziggfreed.common.instance.dungeon.command.ZigDungeonCommand;
 import com.ziggfreed.common.instance.leaderboard.EncounterLeaderboardListener;
@@ -142,8 +144,8 @@ public final class InstanceBootstrap {
      * {@code enter}); the area-aware spawn provider every dungeon copy carries, on the engine's spawn
      * provider codec so a copy's config saves and loads; and a player's two ways in, the {@code ZigEnterDungeon}
      * interaction Type and the {@code Dungeon} destination, both before any asset decodes (an item, block or
-     * placement naming either fails to load otherwise). Their store registers with the other framework stores.
-     * Registration only.
+     * placement naming either fails to load otherwise); and the runs' ear for a boss defeat, which may clear the
+     * run of each participant's area. Their store registers with the other framework stores. Registration only.
      */
     public static void registerDungeons(@Nonnull JavaPlugin plugin) {
         try {
@@ -167,6 +169,11 @@ public final class InstanceBootstrap {
             DungeonDestinations.register();
         } catch (Throwable t) {
             SafeLog.warn("[dungeon] the Dungeon destination could not be registered", t);
+        }
+        try {
+            plugin.getEventRegistry().registerGlobal(EncounterDefeatedEvent.class, DungeonRuns::onEncounterDefeated);
+        } catch (Throwable t) {
+            SafeLog.warn("[dungeon] the dungeon runs could not listen for boss defeats", t);
         }
     }
 

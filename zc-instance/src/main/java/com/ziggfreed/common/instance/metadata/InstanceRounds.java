@@ -7,7 +7,7 @@ import com.hypixel.hytale.server.core.HytaleServer;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * Fires the generic round-completion moment on the shared engine event bus.
+ * Fires the generic round moments, a round's start and its completion, on the shared engine event bus.
  *
  * <p><b>The contract</b>, the same one every other native fire in this library keeps: resolve the
  * dispatcher, guard on {@code hasListener()} so a server with nobody listening pays nothing at all,
@@ -24,6 +24,22 @@ import com.ziggfreed.common.util.SafeLog;
 public final class InstanceRounds {
 
     private InstanceRounds() {
+    }
+
+    /**
+     * Announce that a round began. Silent no-op when nothing is listening, and never propagates a failure
+     * back to the caller.
+     */
+    public static void fireStarted(@Nonnull InstanceRoundStartedEvent event) {
+        try {
+            IEventDispatcher<InstanceRoundStartedEvent, InstanceRoundStartedEvent> dispatcher =
+                    HytaleServer.get().getEventBus().dispatchFor(InstanceRoundStartedEvent.class);
+            if (dispatcher.hasListener()) {
+                dispatcher.dispatch(event);
+            }
+        } catch (Throwable t) {
+            SafeLog.warn("[instance] failed to fire InstanceRoundStarted event", t);
+        }
     }
 
     /**

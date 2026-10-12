@@ -5,8 +5,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -24,6 +27,8 @@ import com.hypixel.hytale.server.core.HytaleServer;
 import com.hypixel.hytale.server.core.asset.type.gameplay.GameplayConfig;
 import com.hypixel.hytale.server.core.asset.type.portalworld.PortalType;
 import com.hypixel.hytale.server.core.prefab.PrefabStore;
+import com.ziggfreed.common.encounter.validate.EncounterScriptScan;
+import com.ziggfreed.common.encounter.validate.EncounterScripts;
 import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
@@ -36,7 +41,7 @@ import com.ziggfreed.common.validation.TextKeyAudit;
  *
  * <p>Split the way every validator in this family is: {@link #audit()} is the thin engine walk (the loaded
  * packs' instance templates and prefabs, the server's view distance, the gameplay configs) and
- * {@link #audit(Collection, Predicate, Function, Predicate, int, Predicate)} the pure core.
+ * {@link #audit(Collection, Predicate, Function, Predicate, Predicate, int, Predicate)} the pure core.
  *
  * <p>The codes:
  * <ul>
@@ -45,9 +50,10 @@ import com.ziggfreed.common.validation.TextKeyAudit;
  *       (areas closer than twice the view distance see each other), {@link #PACKED_PORTAL_TIMER} and
  *       {@link #PACKED_WORLD_EVENTS} (a portal's timer and world events belong to the whole world, so a copy
  *       shared by several parties would share them);</li>
- *   <li>WARNING {@link #UNKNOWN_DUNGEON_TEMPLATE}, {@link #UNKNOWN_DUNGEON_PREFAB} and
- *       {@link #NO_DUNGEON_PREFAB} (an id may belong to a pack this server does not run), and the shared
- *       {@code UNKNOWN_SEASON} and {@code UNKNOWN_TEXT_KEY}.</li>
+ *   <li>WARNING {@link #UNKNOWN_DUNGEON_TEMPLATE}, {@link #UNKNOWN_DUNGEON_PREFAB},
+ *       {@link #NO_DUNGEON_PREFAB} and {@link #UNKNOWN_DUNGEON_BOSS} (an id may belong to a pack this server
+ *       does not run), {@link #NO_DUNGEON_CLEAR} (nothing in {@code Complete} can clear a run, so every run
+ *       ends failed), and the shared {@code UNKNOWN_SEASON} and {@code UNKNOWN_TEXT_KEY}.</li>
  * </ul>
  */
 public final class DungeonValidator {
@@ -64,6 +70,8 @@ public final class DungeonValidator {
     public static final String SPACING_TOO_SMALL = "SPACING_TOO_SMALL";
     public static final String PACKED_PORTAL_TIMER = "PACKED_PORTAL_TIMER";
     public static final String PACKED_WORLD_EVENTS = "PACKED_WORLD_EVENTS";
+    public static final String NO_DUNGEON_CLEAR = "NO_DUNGEON_CLEAR";
+    public static final String UNKNOWN_DUNGEON_BOSS = "UNKNOWN_DUNGEON_BOSS";
 
     /** The template's config file, inside its folder under {@code Server/Instances/}. */
     static final String TEMPLATE_CONFIG = "instance.bson";
@@ -106,7 +114,7 @@ public final class DungeonValidator {
         List<String> errors = new ArrayList<>();
         try {
             for (Finding finding : audit(List.of(dungeon), DungeonValidator::templateKnown,
-                    DungeonValidator::templateFacts, DungeonValidator::prefabKnown, minimumSpacing(),
+                    DungeonValidator::templateFacts, DungeonValidator::prefabKnown, script -> true, minimumSpacing(),
                     key -> true)) {
                 if (finding.severity() == Severity.ERROR) {
                     errors.add(finding.code());
@@ -132,6 +140,7 @@ public final class DungeonValidator {
                     DungeonValidator::templateKnown,
                     DungeonValidator::templateFacts,
                     DungeonValidator::prefabKnown,
+                    loadedScripts(),
                     minimumSpacing(),
                     TextKeyAudit.liveCatalogue());
         } catch (Throwable t) {
@@ -146,26 +155,30 @@ public final class DungeonValidator {
      * @param templateKnown  whether a template id names a folder some loaded pack ships under {@code Server/Instances/}
      * @param templateFacts  what a known template's config says ({@link TemplateFacts}), null when it cannot be read
      * @param prefabKnown    whether a path under {@code Server/Prefabs/} names a prefab some loaded pack ships
+     * @param scriptKnown    whether an id names an encounter script some loaded pack ships
      * @param minimumSpacing the least {@code Area.Spacing}, in blocks, that keeps areas out of each other's view
      * @param textShipped    whether a lang key is shipped ({@link TextKeyAudit#liveCatalogue})
      */
     @Nonnull
     public static List<Finding> audit(@Nonnull Collection<DungeonAsset> dungeons,
             @Nonnull Predicate<String> templateKnown, @Nonnull Function<String, TemplateFacts> templateFacts,
-            @Nonnull Predicate<String> prefabKnown, int minimumSpacing, @Nonnull Predicate<String> textShipped) {
+            @Nonnull Predicate<String> prefabKnown, @Nonnull Predicate<String> scriptKnown, int minimumSpacing,
+            @Nonnull Predicate<String> textShipped) {
         List<Finding> out = new ArrayList<>();
         for (DungeonAsset dungeon : dungeons) {
             if (dungeon == null || dungeon.getId() == null || !dungeon.isEnabled()) {
                 continue;
             }
-            auditOne(dungeon, templateKnown, templateFacts, prefabKnown, minimumSpacing, textShipped, out);
+            auditOne(dungeon, templateKnown, templateFacts, prefabKnown, scriptKnown, minimumSpacing, textShipped,
+                    out);
         }
         return out;
     }
 
     private static void auditOne(@Nonnull DungeonAsset dungeon, @Nonnull Predicate<String> templateKnown,
             @Nonnull Function<String, TemplateFacts> templateFacts, @Nonnull Predicate<String> prefabKnown,
-            int minimumSpacing, @Nonnull Predicate<String> textShipped, @Nonnull List<Finding> out) {
+            @Nonnull Predicate<String> scriptKnown, int minimumSpacing, @Nonnull Predicate<String> textShipped,
+            @Nonnull List<Finding> out) {
         String id = dungeon.getId();
         String where = "dungeon '" + id + "'";
         boolean shared = dungeon.areasPerCopy() > 1;
@@ -205,6 +218,22 @@ public final class DungeonValidator {
             out.add(Finding.warning(DOMAIN, UNKNOWN_DUNGEON_PREFAB, where + " names the prefab '" + prefab
                     + "', which no loaded pack ships under Server/Prefabs/ (write the path with its extension; "
                     + "its pack may not be installed here), so its areas stay empty", id));
+        }
+
+        // What clears a run: Complete.Bosses (a later Complete leaf joins this check when it can clear one).
+        List<String> bosses = dungeon.completeBosses();
+        if (bosses.isEmpty()) {
+            out.add(Finding.warning(DOMAIN, NO_DUNGEON_CLEAR, where + " names no boss in Complete.Bosses, so a run "
+                    + "there can never be cleared: every run ends failed, once its party leaves or its time limit passes. "
+                    + "Name the encounter script of the fight that clears it", id));
+        } else {
+            for (String boss : bosses) {
+                if (!asks(scriptKnown, boss)) {
+                    out.add(Finding.warning(DOMAIN, UNKNOWN_DUNGEON_BOSS, where + " is cleared by beating the "
+                            + "encounter script '" + boss + "', which no loaded pack ships (its pack may not be "
+                            + "installed here; check the spelling otherwise), so that fight never clears a run", id));
+                }
+            }
         }
 
         if (shared && dungeon.spacing() < minimumSpacing) {
@@ -323,6 +352,29 @@ public final class DungeonValidator {
         } catch (Throwable t) {
             return true; // cannot tell is not "missing"
         }
+    }
+
+    /**
+     * Whether an id names a loaded encounter script, read once for the whole pass through zc-encounter's
+     * {@code EncounterScripts}; with none loaded (the engine not up) every id reads as known, since cannot tell
+     * is not "missing".
+     */
+    @Nonnull
+    private static Predicate<String> loadedScripts() {
+        Map<String, EncounterScriptScan> loaded;
+        try {
+            loaded = EncounterScripts.scanLoaded();
+        } catch (Throwable t) {
+            return script -> true;
+        }
+        if (loaded.isEmpty()) {
+            return script -> true;
+        }
+        Set<String> ids = new HashSet<>();
+        for (String id : loaded.keySet()) {
+            ids.add(id.toLowerCase(Locale.ROOT));
+        }
+        return script -> ids.contains(script.trim().toLowerCase(Locale.ROOT));
     }
 
     /** Twice the server's view radius, in blocks. */

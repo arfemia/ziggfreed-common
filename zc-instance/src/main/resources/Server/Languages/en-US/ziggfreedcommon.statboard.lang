@@ -28,6 +28,7 @@ period.season = {0} {1}
 section.combat = Combat
 section.gathering = Gathering
 section.adventure = Adventure
+section.dungeons = Dungeons
 section.renown = Renown
 section.combat.hint = Defeat mobs or take on a boss to get on this board. Your deaths count here too.
 section.gathering.hint = Break or place blocks, craft items by hand or pick things up to get on this board.
