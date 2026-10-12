@@ -35,6 +35,11 @@ public final class LiveWorlds implements CopyRouter.WorldProbe {
     }
 
     @Override
+    public boolean isRegistered(@Nonnull String world) {
+        return world(world) != null;
+    }
+
+    @Override
     public double tickAverageMs(@Nonnull String world) {
         World live = world(world);
         if (live == null) {

@@ -20,6 +20,7 @@ import com.hypixel.hytale.builtin.instances.InstancesPlugin;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.HytaleServer;
 import com.hypixel.hytale.server.core.asset.type.gameplay.GameplayConfig;
+import com.hypixel.hytale.server.core.asset.type.portalworld.PortalType;
 import com.hypixel.hytale.server.core.prefab.PrefabStore;
 import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.util.SafeLog;
@@ -36,8 +37,8 @@ import com.ziggfreed.common.validation.TextKeyAudit;
  *
  * <p>The codes:
  * <ul>
- *   <li>ERROR {@link #TEMPLATE_INSTANCE_KEY} (the engine converges every spawn of a template with an
- *       {@code InstanceKey} on one world, so no copy of its own ever opens), {@link #SPACING_TOO_SMALL}
+ *   <li>ERROR {@link #TEMPLATE_INSTANCE_KEY} (the engine converges every spawn and return that goes by a
+ *       template's {@code InstanceKey} on one world, which a copy zc names must never share), {@link #SPACING_TOO_SMALL}
  *       (areas closer than twice the view distance see each other), {@link #PACKED_PORTAL_TIMER} and
  *       {@link #PACKED_WORLD_EVENTS} (a portal's timer and world events belong to the whole world, so a copy
  *       shared by several parties would share them);</li>
@@ -135,9 +136,9 @@ public final class DungeonValidator {
             TemplateFacts facts = facts(templateFacts, template);
             if (facts != null && facts.instanceKey() != null) {
                 out.add(Finding.error(DOMAIN, TEMPLATE_INSTANCE_KEY, where + " copies the template '" + template
-                        + "', which pins its world with the InstanceKey '" + facts.instanceKey() + "': every spawn "
-                        + "of it lands in that one world, so no copy of the dungeon opens. Name a template "
-                        + "without an InstanceKey", id));
+                        + "', which pins its world with the InstanceKey '" + facts.instanceKey() + "': every other "
+                        + "spawn or return that goes by that key converges on one world, which the dungeon's copies "
+                        + "must not share. Name a template without an InstanceKey", id));
             }
             if (facts != null && shared && facts.portalTimed()) {
                 out.add(Finding.error(DOMAIN, PACKED_PORTAL_TIMER, where + " shares each copy between "
@@ -178,21 +179,30 @@ public final class DungeonValidator {
 
     /**
      * What a template's config says, read off its JSON: the {@code InstanceKey} under {@code Plugin.Instance}
-     * (or the top-level {@code Instance} of a version 2 or older file), a portal timer
-     * ({@code Plugin.PortalWorldConfig.Config.TimeLimitSeconds} above zero), and world events: the
-     * {@code GameplayConfig} it names (the engine's {@code Default} when it names none) runs some
-     * ({@code gameplayHasWorldEvents}), unless the template switches them off
-     * ({@code Plugin.WorldEvents.EnableWorldEvents} false). Pure over its gameplay question.
+     * (or the top-level {@code Instance} of a version 2 or older file), a portal timer (read as the engine's
+     * {@code PortalKey.getTimeLimitSeconds} reads it: {@code Plugin.PortalWorldConfig.Config.TimeLimitSeconds}
+     * when written, else the named {@code PortalType}'s own limit, {@code portalTypeLimit}; above zero is a
+     * timer), and world events: the {@code GameplayConfig} it names (the engine's {@code Default} when it
+     * names none) runs some ({@code gameplayHasWorldEvents}), unless the template switches them off
+     * ({@code Plugin.WorldEvents.EnableWorldEvents} false). Pure over its two engine questions.
      */
     @Nonnull
-    public static TemplateFacts read(@Nonnull JsonObject root, @Nonnull Predicate<String> gameplayHasWorldEvents) {
+    public static TemplateFacts read(@Nonnull JsonObject root, @Nonnull Predicate<String> gameplayHasWorldEvents,
+            @Nonnull Function<String, Integer> portalTypeLimit) {
         JsonObject plugin = object(root, "Plugin");
         String key = string(object(plugin, "Instance"), "InstanceKey");
         if (key == null) {
             key = string(object(root, "Instance"), "InstanceKey");
         }
         JsonObject portal = object(object(plugin, "PortalWorldConfig"), "Config");
-        boolean portalTimed = number(portal, "TimeLimitSeconds") > 0;
+        boolean portalTimed;
+        if (member(portal, "TimeLimitSeconds") != null) {
+            portalTimed = number(portal, "TimeLimitSeconds") > 0;
+        } else {
+            String portalType = string(portal, "PortalType");
+            Integer typeLimit = portalType == null ? null : limit(portalTypeLimit, portalType);
+            portalTimed = typeLimit != null && typeLimit > 0;
+        }
         JsonElement enabled = member(object(plugin, "WorldEvents"), "EnableWorldEvents");
         boolean eventsOff = enabled != null && enabled.isJsonPrimitive() && !enabled.getAsBoolean();
         String gameplay = string(root, "GameplayConfig");
@@ -221,7 +231,8 @@ public final class DungeonValidator {
             Path config = InstancesPlugin.getInstanceAssetPath(template).resolve(TEMPLATE_CONFIG);
             JsonElement root = JsonParser.parseString(Files.readString(config, StandardCharsets.UTF_8));
             return root != null && root.isJsonObject()
-                    ? read(root.getAsJsonObject(), DungeonValidator::gameplayHasWorldEvents) : null;
+                    ? read(root.getAsJsonObject(), DungeonValidator::gameplayHasWorldEvents,
+                            DungeonValidator::portalTypeLimit) : null;
         } catch (Throwable t) {
             return null;
         }
@@ -235,6 +246,27 @@ public final class DungeonValidator {
             return events != null && (events.events().length > 0 || events.globalEvents().length > 0);
         } catch (Throwable t) {
             return false;
+        }
+    }
+
+    /** The loaded portal type's own time limit in seconds (-1 for none), or null when no such type is loaded. */
+    @Nullable
+    private static Integer portalTypeLimit(@Nonnull String id) {
+        try {
+            PortalType type = PortalType.getAssetMap().getAsset(id);
+            return type == null ? null : type.getTimeLimitSeconds();
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /** {@code read}'s answer for {@code id}, or null when it throws. */
+    @Nullable
+    private static Integer limit(@Nonnull Function<String, Integer> read, @Nonnull String id) {
+        try {
+            return read.apply(id);
+        } catch (Throwable t) {
+            return null;
         }
     }
 

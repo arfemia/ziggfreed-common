@@ -87,6 +87,12 @@ public final class CopyRouter {
         /** Is a world of this name loaded and running now? */
         boolean isLive(@Nonnull String world);
 
+        /**
+         * Does the server still hold a world of this name, running or on its way out? A stopping world stays
+         * registered after it stops running, and its name cannot be spawned again until it is gone.
+         */
+        boolean isRegistered(@Nonnull String world);
+
         /** Its recent average tick length in milliseconds; NaN when it cannot be read. */
         double tickAverageMs(@Nonnull String world);
     }
@@ -414,10 +420,10 @@ public final class CopyRouter {
         return -1;
     }
 
-    /** The lowest copy number of {@code dungeon} no copy here holds and no live world carries. */
+    /** The lowest copy number of {@code dungeon} no copy here holds and no world the server holds carries. */
     private int nextNumber(@Nonnull String dungeon, @Nonnull WorldProbe probe) {
         int number = 1;
-        while (copies.containsKey(copyName(dungeon, number)) || probe.isLive(copyName(dungeon, number))) {
+        while (copies.containsKey(copyName(dungeon, number)) || probe.isRegistered(copyName(dungeon, number))) {
             number++;
         }
         return number;
@@ -477,11 +483,14 @@ public final class CopyRouter {
         }
     }
 
-    /** Forget every copy no longer live that no player is on the way into. */
+    /**
+     * Forget every copy the server no longer holds that no player is on the way into. A stopping copy is kept
+     * (it takes no party, not being live) until its name is free again.
+     */
     private void prune(@Nonnull WorldProbe probe) {
         List<String> gone = new ArrayList<>();
         for (Copy copy : copies.values()) {
-            if (!copy.anyoneOnTheWay() && !probe.isLive(copy.world)) {
+            if (!copy.anyoneOnTheWay() && !probe.isRegistered(copy.world)) {
                 gone.add(copy.world);
             }
         }

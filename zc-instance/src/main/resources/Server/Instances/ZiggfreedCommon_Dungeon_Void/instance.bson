@@ -1,5 +1,5 @@
 {
-  "$Comment": "zc's dungeon template: an empty void world that saves nothing. A dungeon's prefab is pasted into each of its areas, and every copy is spawned under zc's own name with its removal and delete flags set (zc-instance world/InstanceWorlds), so this template pins no InstanceKey and sets no RemovalConditions.",
+  "$Comment": "The dungeon template: an empty void world that saves nothing. A dungeon's prefab is pasted into each of its areas, and every copy is spawned under its own name with its removal and delete flags set when it opens, so this template pins no InstanceKey and sets no RemovalConditions. A dungeon names another template in its Instance leaf; keep that one free of an InstanceKey too.",
   "Version": 4,
   "GameMode": "Adventure",
   "WorldGen": {
