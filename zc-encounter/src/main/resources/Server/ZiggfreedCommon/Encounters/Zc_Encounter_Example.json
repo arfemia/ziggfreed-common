@@ -11,7 +11,8 @@
     "own spawners raise, each by its own leaves (HealthPerMember 0.2 makes every add in a four-member",
     "fight 1.6 times as tough); leave it out and adds keep the health their role gives them. Timing",
     "guards the run from outside: how long an empty arena counts as a wipe, how long a run may last",
-    "at most. Loot.OnDefeat is rolled per credited participant and scaled by their share;",
+    "at most. Loot.OnDefeat is rolled per credited participant, scaled by their share, and waits as",
+    "a Claim on their Claims tab (the first defeat each day pays, later ones that day pay nothing);",
     "Loot.OnPhase, keyed by the script's state name, drops on the ground at the boss. Feedback names",
     "the FeedbackMoment fired at each beat. Discovery puts a world-map marker over the boss while the",
     "fight is on. Leaderboard.Bucket keeps the fight's records (wins, fastest win, best share, damage)",
@@ -50,8 +51,7 @@
           }
         }
       ]
-    },
-    "QueueIfOffline": true
+    }
   },
   "Leaderboard": {
     "Bucket": "zc_encounter_example"

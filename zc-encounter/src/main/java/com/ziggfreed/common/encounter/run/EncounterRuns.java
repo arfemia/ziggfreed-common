@@ -14,6 +14,7 @@ import com.hypixel.hytale.builtin.encountermanager.EncounterManager;
 import com.hypixel.hytale.builtin.encountermanager.EncounterMembers;
 import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.encounter.ledger.ParticipationLedger;
@@ -50,6 +51,8 @@ public final class EncounterRuns {
     private static final Map<Ref<EntityStore>, UUID> MEMBER_INDEX = new ConcurrentHashMap<>();
     private static final Map<String, UUID> LINEAGE_INDEX = new ConcurrentHashMap<>();
     private static final Map<UUID, Map<Ref<EntityStore>, Integer>> PENDING_ADDS = new ConcurrentHashMap<>();
+    /** A continuing run's next id, before its first tick tracks it, to the encounter entity carrying it. */
+    private static final Map<UUID, Ref<EntityStore>> SUCCESSORS = new ConcurrentHashMap<>();
 
     private EncounterRuns() {
     }
@@ -116,6 +119,7 @@ public final class EncounterRuns {
     public static void track(@Nonnull ZigEncounterRun run, @Nonnull UUID worldUuid, @Nonnull String encounterId,
             @Nonnull Ref<EntityStore> encounterRef) {
         LIVE.put(run.runId(), new Live(worldUuid, encounterId, encounterRef, run));
+        SUCCESSORS.remove(run.runId());
     }
 
     public static boolean isTracked(@Nonnull UUID runId) {
@@ -123,9 +127,33 @@ public final class EncounterRuns {
     }
 
     public static void untrack(@Nonnull UUID runId) {
-        LIVE.remove(runId);
+        untrack(runId, null, null);
+    }
+
+    /**
+     * Forget {@code runId}. When the same entity carries on as {@code successor}, its members stay indexed,
+     * pointed at the successor until the successor's first tick re-indexes its own roster: a reward granted in
+     * between (a leash or a {@code zc:reset} beat ahead of a {@code GrantReward} in one action list) then finds
+     * a run that has ended, never a player in no run at all, who would be paid at a full share. The
+     * successor's encounter entity ({@code encounterRef}, else the one the run was tracked or handed on with)
+     * is remembered until then too, so {@link #runRostering} finds a player who joined its roster on that same
+     * tick.
+     */
+    public static void untrack(@Nonnull UUID runId, @Nullable UUID successor,
+            @Nullable Ref<EntityStore> encounterRef) {
+        Live ended = LIVE.remove(runId);
+        Ref<EntityStore> carrier = encounterRef != null ? encounterRef
+                : ended != null ? ended.encounterRef() : SUCCESSORS.get(runId);
+        SUCCESSORS.remove(runId);
         SUBJECT_INDEX.values().removeIf(runId::equals);
-        MEMBER_INDEX.values().removeIf(runId::equals);
+        if (successor == null) {
+            MEMBER_INDEX.values().removeIf(runId::equals);
+        } else {
+            MEMBER_INDEX.replaceAll((ref, run) -> runId.equals(run) ? successor : run);
+            if (carrier != null) {
+                SUCCESSORS.put(successor, carrier);
+            }
+        }
         LINEAGE_INDEX.values().removeIf(runId::equals);
         PENDING_ADDS.remove(runId);
     }
@@ -169,6 +197,32 @@ public final class EncounterRuns {
     @Nullable
     public static UUID runOfMember(@Nonnull Ref<EntityStore> ref) {
         return MEMBER_INDEX.isEmpty() ? null : MEMBER_INDEX.get(ref);
+    }
+
+    /**
+     * The run in {@code store} whose encounter's engine roster holds {@code member} right now, or null: the
+     * member index read past its one-tick lag, for a player who joined the roster on this very tick. A live
+     * run is asked first, then a continuing run's successor that has not ticked yet. World thread.
+     */
+    @Nullable
+    public static UUID runRostering(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> member) {
+        for (Live live : LIVE.values()) {
+            if (rosters(store, live.encounterRef(), member)) {
+                return live.run().runId();
+            }
+        }
+        for (Map.Entry<UUID, Ref<EntityStore>> successor : SUCCESSORS.entrySet()) {
+            if (rosters(store, successor.getValue(), member)) {
+                return successor.getKey();
+            }
+        }
+        return null;
+    }
+
+    private static boolean rosters(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> encounterRef,
+            @Nonnull Ref<EntityStore> member) {
+        return encounterRef.isValid() && encounterRef.getStore() == store
+                && memberRefs(store, encounterRef).contains(member);
     }
 
     /** True when {@code ref} is the bound subject of any live run. */
@@ -266,5 +320,6 @@ public final class EncounterRuns {
         MEMBER_INDEX.clear();
         LINEAGE_INDEX.clear();
         PENDING_ADDS.clear();
+        SUCCESSORS.clear();
     }
 }

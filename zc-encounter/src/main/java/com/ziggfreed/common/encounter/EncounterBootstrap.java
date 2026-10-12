@@ -2,6 +2,7 @@ package com.ziggfreed.common.encounter;
 
 import javax.annotation.Nonnull;
 
+import com.hypixel.hytale.builtin.rewards.asset.RewardAsset;
 import com.hypixel.hytale.component.system.ISystem;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
@@ -10,6 +11,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.NPCPlugin;
 import com.ziggfreed.common.encounter.command.ZigEncounterCommand;
 import com.ziggfreed.common.encounter.event.Encounters;
+import com.ziggfreed.common.encounter.payout.ZigClaimReward;
 import com.ziggfreed.common.encounter.run.ZigEncounterRest;
 import com.ziggfreed.common.encounter.run.ZigEncounterRun;
 import com.ziggfreed.common.encounter.signal.EncounterSignalSystem;
@@ -26,8 +28,9 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The encounter module's registration phase, called as one line from the wiring root's
- * {@code setup()}: the run and rest components, the six encounter Types, the systems, the builder
- * reload listener, the content audit, the command family and the boot self-test. Registration
+ * {@code setup()}: the run and rest components, the six encounter Types, the ZigClaim reward type,
+ * the systems, the builder reload listener, the content audit, the command family and the boot
+ * self-test. Registration
  * only; every decision lives in the module behind it.
  */
 public final class EncounterBootstrap {
@@ -39,6 +42,7 @@ public final class EncounterBootstrap {
     public static void install(@Nonnull JavaPlugin plugin) {
         registerComponents(plugin);
         EncounterTypes.register();
+        registerRewardType(plugin);
         registerSystems(plugin);
         registerReloadListener();
         registerAudit(plugin);
@@ -56,6 +60,21 @@ public final class EncounterBootstrap {
     private static void registerComponents(@Nonnull JavaPlugin plugin) {
         ZigEncounterRun.register(plugin.getEntityStoreRegistry());
         ZigEncounterRest.register(plugin.getEntityStoreRegistry());
+    }
+
+    /**
+     * The boss Claim as a native reward type, {@code "Type": "ZigClaim"} under {@code Server/Rewards/},
+     * registered into the engine's own reward codec before any reward file decodes, so a script's
+     * {@code GrantReward} names one exactly as it names the game's own. The library manifest depends on
+     * {@code Hytale:Rewards}, which registers that store in its own setup, ahead of this one.
+     */
+    private static void registerRewardType(@Nonnull JavaPlugin plugin) {
+        try {
+            plugin.getCodecRegistry(RewardAsset.CODEC).register(ZigClaimReward.TYPE, ZigClaimReward.class,
+                    ZigClaimReward.CODEC);
+        } catch (Throwable t) {
+            SafeLog.warn(Encounters.LOG_PREFIX + " could not register the " + ZigClaimReward.TYPE + " reward type", t);
+        }
     }
 
     /**

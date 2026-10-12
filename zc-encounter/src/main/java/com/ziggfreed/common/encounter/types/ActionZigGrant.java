@@ -1,5 +1,9 @@
 package com.ziggfreed.common.encounter.types;
 
+import java.util.Locale;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -24,9 +28,12 @@ import com.ziggfreed.common.loot.LootRef;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * Pays the run's credited participants a loot reference, share-scaled, from inside the script. The
- * run is read off the executing encounter entity; the credit rules are the matched participation
- * rule under the binding row's own override, exactly as a defeat settles them.
+ * The retired script grant, kept so a script written for it still pays: it writes each of the run's
+ * credited participants a Claim of its loot reference, share-scaled, through the same Claim path a
+ * {@code ZigClaim} reward and a binding row's {@code Loot.OnDefeat} take, and never into the bag. After
+ * the defeat it pays from the shares the defeat settled; before it, from the shares as they stand. Its
+ * {@code ToKiller} and {@code QueueIfOffline} are read and ignored. The first time a script runs one it
+ * says so once, naming the native {@code GrantReward} of a {@code ZigClaim} reward to move to.
  *
  * <p>Like every action this library registers, it ALWAYS answers finished: to the engine a
  * {@code false} from {@code execute} means "still running, ask me again next tick", and a blocking
@@ -35,17 +42,16 @@ import com.ziggfreed.common.util.SafeLog;
  */
 public class ActionZigGrant extends ActionBase {
 
+    /** The scripts already told this action is retired, one warning per script. */
+    private static final Set<String> WARNED = ConcurrentHashMap.newKeySet();
+
     private final boolean toMembers;
-    private final boolean toKiller;
-    private final boolean queueIfOffline;
     @Nullable private final LootRef loot;
     private final boolean lootUnreadable;
 
     public ActionZigGrant(@Nonnull BuilderActionZigGrant builder, @Nonnull BuilderSupport support) {
         super(builder);
         this.toMembers = builder.getToMembers(support);
-        this.toKiller = builder.getToKiller(support);
-        this.queueIfOffline = builder.getQueueIfOffline(support);
         // Decoded once when the script loaded, in the script's own asset context (see the builder).
         this.loot = builder.getLootRef();
         this.lootUnreadable = builder.isLootUnreadable();
@@ -62,6 +68,7 @@ public class ActionZigGrant extends ActionBase {
                 EncounterTypes.executed(EncounterTypes.GRANT, "this entity carries no run, nothing to pay");
                 return true;
             }
+            warnRetiredOnce(encounterId);
             if (loot == null || loot.isEmpty()) {
                 EncounterTypes.executed(EncounterTypes.GRANT, "run=" + EncounterRun.shortId(run.runId())
                         + " encounter=" + encounterId + (lootUnreadable
@@ -71,16 +78,26 @@ public class ActionZigGrant extends ActionBase {
             }
             EncounterBindingAsset row = EncounterBindingConfig.getInstance().forEncounter(encounterId);
             ParticipationSpec spec = EncounterLifecycle.specFor(store, run, row);
-            ParticipationShares shares = toMembers ? EncounterLifecycle.settle(store, run, spec)
-                    : ParticipationShares.EMPTY;
+            ParticipationShares shares = !toMembers ? ParticipationShares.EMPTY
+                    : run.isDefeated() ? run.settledShares() : EncounterLifecycle.settle(store, run, spec);
             EncounterTypes.executed(EncounterTypes.GRANT, "run=" + EncounterRun.shortId(run.runId()) + " encounter="
-                    + encounterId + " participants=" + shares.size() + " credited=" + shares.credited().size()
-                    + (toKiller ? " +killer" : ""));
-            EncounterLoot.grantShares(store, run, encounterId, loot, spec, shares, toKiller, queueIfOffline,
+                    + encounterId + " participants=" + shares.size() + " credited=" + shares.credited().size());
+            EncounterLoot.grantShares(store, run, encounterId, row, loot, spec, shares, EncounterTypes.GRANT,
                     EncounterTypes.GRANT);
         } catch (Throwable t) {
             SafeLog.warn(Encounters.LOG_PREFIX + " " + EncounterTypes.GRANT + " failed", t);
         }
         return true;
+    }
+
+    /** Say once per script that this action is retired and what replaces it. */
+    private static void warnRetiredOnce(@Nonnull String encounterId) {
+        if (!WARNED.add(encounterId.toLowerCase(Locale.ROOT))) {
+            return;
+        }
+        SafeLog.warn(Encounters.LOG_PREFIX + " '" + encounterId + "' pays through " + EncounterTypes.GRANT
+                + ", which is retired: it now writes each credited player a Claim they collect from the Claims tab, "
+                + "and its ToKiller and QueueIfOffline are ignored. Grant a ZigClaim reward with the engine's "
+                + "GrantReward action instead.");
     }
 }

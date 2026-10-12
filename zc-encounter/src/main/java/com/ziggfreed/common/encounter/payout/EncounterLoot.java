@@ -4,10 +4,11 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.Locale;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
 
@@ -32,37 +33,30 @@ import com.ziggfreed.common.encounter.run.EncounterRun;
 import com.ziggfreed.common.encounter.run.EncounterSubjects;
 import com.ziggfreed.common.encounter.run.EncounterLifecycle;
 import com.ziggfreed.common.encounter.run.ZigEncounterRun;
-import com.ziggfreed.common.encounter.seam.EncounterSeams;
-import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.instance.reward.NativeLootService;
 import com.ziggfreed.common.loot.FactorLookup;
 import com.ziggfreed.common.loot.GroundSpillSinks;
-import com.ziggfreed.common.loot.LootCues;
 import com.ziggfreed.common.loot.LootEngine;
 import com.ziggfreed.common.loot.LootGrants;
 import com.ziggfreed.common.loot.LootRef;
-import com.ziggfreed.common.loot.reward.DroplistRewardKind;
-import com.ziggfreed.common.loot.reward.LootRewardKinds;
-import com.ziggfreed.common.loot.reward.RewardGrants;
-import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.loot.reward.RewardSpec;
-import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
 
 import com.hypixel.hytale.math.vector.Rotation3f;
 import org.joml.Vector3d;
 
 /**
- * What a fight pays, through the library's own loot vocabulary and issuance pass and nothing new.
+ * What a fight pays, through the library's own loot vocabulary and nothing new.
  *
- * <p><b>A defeat pays each credited participant separately, and the rolls SCALE with their share.</b>
+ * <p><b>A defeat pays each credited participant a Claim, and the rolls SCALE with their share.</b>
  * The row's {@code Loot.OnDefeat} is evaluated once per participant against their own factor
  * readings, then every roll they won is KEPT with a chance equal to their share: the top contributor
  * (share 1) keeps everything, a participant at 0.3 keeps about a third of what they would have. What
- * is kept is issued as ordinary reward specs through the one grant pass, so an item lands in the
- * bag with the usual overflow rule, a command runs with the usual placeholders, and an OFFLINE
- * participant's whole payout is parked as replayable commands on the queue every other library
- * payout retries through.
+ * is kept is written as one Claim through {@link EncounterClaims}, which waits on the player's Claims
+ * tab until they collect it (M428), online or not, and is counted against the boss's diminishing
+ * returns; nothing goes into the bag. The row's {@code ToKiller} and {@code QueueIfOffline} are read
+ * and ignored, with one warning per row: the killer is paid at the share they earned, and a Claim
+ * already waits for a player who is offline.
  *
  * <p>A phase drop rolls once and spills on the ground at the subject, the way a mob's own death
  * drops do: everything it won goes through the same engine pass, its items and drop lists through
@@ -74,20 +68,19 @@ import org.joml.Vector3d;
  */
 public final class EncounterLoot {
 
-    /** The source label every encounter payout carries in logs and retry commands. */
-    private static final String SOURCE_PREFIX = "encounter:";
+    /** The binding rows already warned about their retired payout leaves, one warning per row. */
+    private static final Set<String> WARNED_RETIRED = ConcurrentHashMap.newKeySet();
 
     private EncounterLoot() {
     }
 
     /**
-     * Pay the defeat: {@code Loot.OnDefeat} per credited participant (plus the last hitter at a full
-     * share when {@code ToKiller}), share-scaled, offline participants queued when the row allows.
+     * Pay the defeat: {@code Loot.OnDefeat} as one Claim per credited participant, share-scaled.
      *
-     * @return each paid player's own RECEIPT - what their share-scaled roll actually put in their
-     *         hands, one spec per thing, as the grant pass reported it - keyed by player id, so the
-     *         defeat moment that follows can list a participant their own roll and never another's.
-     *         A player whose roll landed nothing, or whose whole payout was queued, has no entry.
+     * @return each paid player's own RECEIPT, keyed by player id, so the defeat moment that follows
+     *         tells a participant their reward waits and never tells it to another: one row for a
+     *         player whose roll wrote them a Claim. A player whose roll landed nothing, or whose
+     *         Claim the boss's diminishing returns took to nothing, has no entry.
      */
     @Nonnull
     public static Map<UUID, List<RewardSpec>> grantDefeat(@Nonnull Store<EntityStore> store,
@@ -98,51 +91,53 @@ public final class EncounterLoot {
         if (ref == null || ref.isEmpty()) {
             return Map.of();
         }
-        List<Recipient> recipients = recipients(run, shares, loot.toKiller());
-        if (recipients.isEmpty()) {
-            SafeLog.info(Encounters.LOG_PREFIX + " payout run=" + EncounterRun.shortId(run.runId()) + " encounter="
-                    + encounterId + ": no credited participant to pay");
-            return Map.of();
-        }
-        return grantEach(store, run, encounterId, ref, spec, recipients, loot.queueIfOffline());
+        warnRetiredLeaves(encounterId, loot);
+        return grantShares(store, run, encounterId, row, ref, spec, shares, EncounterClaims.ON_DEFEAT, "payout");
     }
 
     /**
-     * Pay everybody credited in {@code shares} the loot {@code ref}, share-scaled: the path the
-     * {@code ZigGrant} action takes, with no row involved. Answers the same per-player receipts as
+     * Pay everybody credited in {@code shares} the loot {@code ref} as one Claim each, share-scaled, under
+     * the reward name {@code reward} (the Claim's id and the boss's diminishing-returns count both carry it):
+     * the defeat's path and the {@code ZigGrant} action's. Answers the same per-player receipts as
      * {@link #grantDefeat}.
+     *
+     * @param row   the fight's binding row, which titles the Claim with the fight's name; may be null
+     * @param label what the log lines call this payout
      */
     @Nonnull
     public static Map<UUID, List<RewardSpec>> grantShares(@Nonnull Store<EntityStore> store,
-            @Nonnull ZigEncounterRun run, @Nonnull String encounterId, @Nonnull LootRef ref,
-            @Nonnull ParticipationSpec spec, @Nonnull ParticipationShares shares, boolean toKiller,
-            boolean queueIfOffline, @Nonnull String label) {
-        List<Recipient> recipients = recipients(run, shares, toKiller);
-        if (recipients.isEmpty()) {
+            @Nonnull ZigEncounterRun run, @Nonnull String encounterId, @Nullable EncounterBindingAsset row,
+            @Nonnull LootRef ref, @Nonnull ParticipationSpec spec, @Nonnull ParticipationShares shares,
+            @Nonnull String reward, @Nonnull String label) {
+        List<ParticipantShare> credited = shares.credited();
+        if (credited.isEmpty()) {
             SafeLog.info(Encounters.LOG_PREFIX + " " + label + " run=" + EncounterRun.shortId(run.runId()) + " encounter="
                     + encounterId + ": nobody to pay (0 credited participants)");
             return Map.of();
         }
-        return grantEach(store, run, encounterId, ref, spec, recipients, queueIfOffline);
-    }
-
-    /** Resolve {@code ref} once and pay every recipient their own roll of it, collecting the receipts. */
-    @Nonnull
-    private static Map<UUID, List<RewardSpec>> grantEach(@Nonnull Store<EntityStore> store,
-            @Nonnull ZigEncounterRun run, @Nonnull String encounterId, @Nonnull LootRef ref,
-            @Nonnull ParticipationSpec spec, @Nonnull List<Recipient> recipients, boolean queueIfOffline) {
         LootEngine.Resolved resolved = LootEngine.resolve(ref, unknown -> SafeLog.warn(Encounters.LOG_PREFIX
                 + " '" + encounterId + "' names no loot table called '" + unknown + "'"));
-        String sourceId = SOURCE_PREFIX + encounterId;
+        String titleKey = EncounterClaims.nameKeyOf(row);
+        String difficulty = EncounterLifecycle.difficultyOf(run, row);
         Map<UUID, List<RewardSpec>> receipts = new LinkedHashMap<>();
-        for (Recipient recipient : recipients) {
-            List<RewardSpec> receipt = grantTo(store, run, encounterId, sourceId, resolved, recipient, spec,
-                    queueIfOffline);
-            if (!receipt.isEmpty()) {
-                receipts.put(recipient.playerId(), receipt);
+        for (ParticipantShare participant : credited) {
+            if (claimFor(store, run, encounterId, resolved, reward, titleKey, difficulty, spec, participant, label)) {
+                receipts.put(participant.playerId(), EncounterClaims.receipt());
             }
         }
         return receipts;
+    }
+
+    /** Say once per row that its {@code ToKiller} and {@code QueueIfOffline} no longer change the payout. */
+    private static void warnRetiredLeaves(@Nonnull String encounterId, @Nonnull EncounterBindingAsset.Loot loot) {
+        List<String> retired = loot.retiredLeaves();
+        if (retired.isEmpty() || !WARNED_RETIRED.add(encounterId.toLowerCase(Locale.ROOT))) {
+            return;
+        }
+        SafeLog.warn(Encounters.LOG_PREFIX + " the binding row for '" + encounterId + "' writes Loot."
+                + String.join(" and Loot.", retired) + ", which no longer change the payout: every credited "
+                + "player is paid a Claim at the share they earned, and it waits for a player who is offline. "
+                + "Leave " + (retired.size() == 1 ? "it" : "them") + " out.");
     }
 
     /** Roll the row's {@code Loot.OnPhase[state]} once and spill it at the subject. */
@@ -249,133 +244,39 @@ public final class EncounterLoot {
 
     // ==================== one participant ====================
 
-    /** Who is paid, at what share. */
-    private record Recipient(@Nonnull UUID playerId, @Nonnull String name, double share, boolean killer) {
-    }
-
-    @Nonnull
-    private static List<Recipient> recipients(@Nonnull ZigEncounterRun run, @Nonnull ParticipationShares shares,
-            boolean toKiller) {
-        List<Recipient> out = new ArrayList<>();
-        boolean killerListed = false;
-        UUID killer = run.lastHitter();
-        for (ParticipantShare share : shares.credited()) {
-            boolean isKiller = killer != null && killer.equals(share.playerId());
-            killerListed |= isKiller;
-            out.add(new Recipient(share.playerId(), share.playerName(), toKiller && isKiller ? 1.0 : share.share(),
-                    isKiller));
-        }
-        if (toKiller && killer != null && !killerListed) {
-            String name = run.memberName(killer);
-            out.add(new Recipient(killer, name == null ? "" : name, 1.0, true));
-        }
-        return out;
-    }
-
     /**
-     * Pay one recipient their share-scaled roll, answering what actually reached them: the grant
-     * pass's receipt, empty for a roll that landed nothing, for a payout parked on the queue, or for
-     * a participant this call could not pay at all.
+     * Write one credited participant their share-scaled Claim, answering whether one was written. A
+     * participant who has left the server is paid only when the fight's rule credits a disconnected
+     * participant, and their Claim waits for their next login; one in another world rolls with no factor
+     * readings about them, as an offline one does.
      */
-    @Nonnull
-    private static List<RewardSpec> grantTo(@Nonnull Store<EntityStore> store, @Nonnull ZigEncounterRun run,
-            @Nonnull String encounterId, @Nonnull String sourceId, @Nonnull LootEngine.Resolved resolved,
-            @Nonnull Recipient recipient, @Nonnull ParticipationSpec spec, boolean queueIfOffline) {
+    private static boolean claimFor(@Nonnull Store<EntityStore> store, @Nonnull ZigEncounterRun run,
+            @Nonnull String encounterId, @Nonnull LootEngine.Resolved resolved, @Nonnull String reward,
+            @Nullable String titleKey, @Nullable String difficulty, @Nonnull ParticipationSpec spec,
+            @Nonnull ParticipantShare participant, @Nonnull String label) {
+        String head = Encounters.LOG_PREFIX + " " + label + " " + participant.playerName() + " run="
+                + EncounterRun.shortId(run.runId()) + " encounter=" + encounterId + " reward=" + reward;
         try {
-            PlayerRef player = Universe.get().getPlayer(recipient.playerId());
+            PlayerRef player = Universe.get().getPlayer(participant.playerId());
             Ref<EntityStore> ref = player == null ? null : player.getReference();
-            boolean online = ref != null && ref.isValid() && ref.getStore() == store;
-            Subject subject;
-            BiConsumer<Subject, String> queue = null;
-            if (online) {
-                subject = EncounterSeams.subjectFor(store, ref);
-                if (subject == null) {
-                    return List.of();
-                }
-            } else {
-                if (!spec.creditDisconnected() || !queueIfOffline) {
-                    SafeLog.info(Encounters.LOG_PREFIX + " payout run=" + EncounterRun.shortId(run.runId())
-                            + ": " + recipient.name() + " is offline and is credited but not paid");
-                    return List.of();
-                }
-                queue = EncounterSeams.rewardQueue();
-                if (queue == null) {
-                    return List.of();
-                }
-                subject = Subject.of(recipient.playerId(), recipient.name());
+            boolean here = ref != null && ref.isValid() && ref.getStore() == store;
+            if (player == null && !spec.creditDisconnected()) {
+                SafeLog.info(head + ": offline, and this fight's rule pays nobody who left, so no Claim");
+                return false;
             }
-            FactorLookup lookup = FactorLookup.through(EncounterFactors.registry(),
-                    FactorContext.about(online ? store : null, online ? ref : null));
-            DoubleSupplier sample = sampler();
-            List<LootEngine.Selected> won = LootEngine.select(resolved.rolls(), resolved.pools(), null, lookup, sample);
-            List<RewardSpec> specs = new ArrayList<>();
-            List<String> cues = new ArrayList<>();
-            int kept = 0;
-            for (LootEngine.Selected selected : won) {
-                if (sample.getAsDouble() >= recipient.share()) {
-                    continue; // this roll did not survive the share
-                }
-                kept++;
-                specs.addAll(toSpecs(selected.grants(), run, encounterId, recipient));
-                if (selected.cue() != null && !selected.cue().isBlank()) {
-                    cues.add(selected.cue());
-                }
-            }
-            RewardGrants.GrantOutcome outcome = specs.isEmpty() ? RewardGrants.GrantOutcome.EMPTY
-                    : RewardGrants.grantAll(specs, subject, sourceId, RewardKinds.shared(), online, queue,
-                            message -> SafeLog.warn(Encounters.LOG_PREFIX + " " + message));
-            if (online && !cues.isEmpty()) {
-                LootCues.presentAll(cues, subject, sourceId);
-            }
-            SafeLog.info(Encounters.LOG_PREFIX + " paid " + recipient.name() + " run=" + EncounterRun.shortId(run.runId())
-                    + " share=" + String.format(Locale.ROOT, "%.2f", recipient.share())
-                    + (recipient.killer() ? " (killer)" : "") + " rolls=" + kept + "/" + won.size()
-                    + " granted=" + outcome.granted() + " queued=" + outcome.queued() + " lost=" + outcome.failed()
-                    + (online ? "" : " (offline)"));
-            return outcome.receipt();
+            double share = participant.share();
+            EncounterClaims.Outcome outcome = EncounterClaims.award(here ? store : null, here ? ref : null,
+                    participant.playerId(), resolved, share,
+                    EncounterClaims.bossClaim(encounterId, run.runId(), reward, participant.playerId(), titleKey,
+                            difficulty, EncounterClaims.FIRST_EACH_DAY),
+                    EncounterClaims.placeholders(encounterId, run.runId(), share));
+            SafeLog.info(head + " share=" + EncounterClaims.shareText(share) + " " + outcome.describe()
+                    + (player == null ? " (offline, it waits)" : ""));
+            return outcome.written();
         } catch (Throwable t) {
-            SafeLog.warn(Encounters.LOG_PREFIX + " paying " + recipient.name() + " for '" + encounterId + "' failed", t);
-            return List.of();
+            SafeLog.warn(head + ": the Claim failed", t);
+            return false;
         }
-    }
-
-    /** One selected grants group as reward specs, so the one grant pass issues (or queues) all of it. */
-    @Nonnull
-    private static List<RewardSpec> toSpecs(@Nullable LootGrants grants, @Nonnull ZigEncounterRun run,
-            @Nonnull String encounterId, @Nonnull Recipient recipient) {
-        List<RewardSpec> out = new ArrayList<>();
-        if (grants == null) {
-            return out;
-        }
-        for (LootGrants.Item item : grants.itemsOrEmpty()) {
-            Map<String, String> params = new LinkedHashMap<>();
-            params.put("item", item.getItem());
-            params.put("count", Integer.toString(Math.max(1, item.effectiveCount())));
-            out.add(RewardSpec.of(LootRewardKinds.KIND_ITEM, params));
-        }
-        String[] dropLists = grants.getDropLists();
-        if (dropLists != null) {
-            for (String dropList : dropLists) {
-                if (dropList != null && !dropList.isBlank()) {
-                    out.add(RewardSpec.of(DroplistRewardKind.KIND, "droplist", dropList));
-                }
-            }
-        }
-        String[] commands = grants.getCommands();
-        if (commands != null) {
-            for (String command : commands) {
-                if (command != null && !command.isBlank()) {
-                    Map<String, String> params = new LinkedHashMap<>();
-                    params.put(LootRewardKinds.P_COMMAND, command);
-                    params.put("encounter", encounterId);
-                    params.put("run", EncounterRun.shortId(run.runId()));
-                    params.put("share", String.format(Locale.ROOT, "%.2f", recipient.share()));
-                    out.add(RewardSpec.of(LootRewardKinds.KIND_COMMAND, params));
-                }
-            }
-        }
-        out.addAll(grants.rewardSpecs());
-        return out;
     }
 
     @Nonnull

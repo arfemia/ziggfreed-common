@@ -22,8 +22,9 @@ import com.ziggfreed.common.loot.LootRef;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * Builds {@link ActionZigGrant}: {@code {"Type": "ZigGrant", "Loot": {...}, "ToMembers": true,
- * "ToKiller": false, "QueueIfOffline": true}}.
+ * Builds {@link ActionZigGrant}, the retired script grant: {@code {"Type": "ZigGrant", "Loot": {...},
+ * "ToMembers": true}}. {@code ToKiller} and {@code QueueIfOffline} are still read, so a script that writes
+ * them loads, and are ignored.
  *
  * <p>{@code Loot} is the library's loot reference group (shared tables by id, rolls written inline,
  * or both), kept as authored JSON and decoded ONCE, when the script loads, in the asset context the
@@ -47,16 +48,17 @@ public class BuilderActionZigGrant extends BuilderActionBase {
     @Nonnull
     @Override
     public String getShortDescription() {
-        return "Pay the encounter's credited participants a loot reference, scaled by each one's share";
+        return "Retired: write the encounter's credited participants a Claim of a loot reference, scaled by "
+                + "each one's share";
     }
 
     @Nonnull
     @Override
     public String getLongDescription() {
-        return "Settles the run's participation credit and pays each credited participant the Loot group "
-                + "(Lootables by id and/or inline Rolls), keeping each roll with a chance equal to that "
-                + "participant's share of the top contributor's. ToKiller adds the last hitter at a full share; "
-                + "QueueIfOffline parks an offline participant's payout for their next connect.";
+        return "Retired in favour of the engine's GrantReward of a ZigClaim reward. Writes each credited "
+                + "participant a Claim of the Loot group (Lootables by id and/or inline Rolls), keeping each roll "
+                + "with a chance equal to that participant's share of the top contributor's; the Claim waits on "
+                + "their Claims tab. ToKiller and QueueIfOffline are read and ignored.";
     }
 
     @Nonnull
@@ -77,9 +79,9 @@ public class BuilderActionZigGrant extends BuilderActionBase {
         getBoolean(data, "ToMembers", toMembers, true, BuilderDescriptorState.Stable,
                 "Pay every credited participant", null);
         getBoolean(data, "ToKiller", toKiller, false, BuilderDescriptorState.Stable,
-                "Also pay whoever landed the killing blow, at a full share", null);
+                "Ignored: the killer is paid the share they earned", null);
         getBoolean(data, "QueueIfOffline", queueIfOffline, true, BuilderDescriptorState.Stable,
-                "Park an offline participant's payout for their next connect", null);
+                "Ignored: a Claim always waits for a participant who is offline", null);
         // Read through the helper so the key counts as one this builder asked for.
         this.loot = getOptionalJsonElement(data, LOOT);
         readLoot();

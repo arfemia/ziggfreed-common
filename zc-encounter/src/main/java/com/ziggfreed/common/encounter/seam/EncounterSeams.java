@@ -1,7 +1,6 @@
 package com.ziggfreed.common.encounter.seam;
 
 import java.util.List;
-import java.util.function.BiConsumer;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -18,16 +17,15 @@ import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * The four questions this module cannot answer alone, and what it does until somebody answers them.
+ * The three questions this module cannot answer alone, and what it does until somebody answers them.
  *
- * <p>Each is a SEAM the wiring root fills at setup: who a non-player attacker acts for
- * ({@link EncounterAttribution}), how much power a party has ({@link EncounterPowerSource}), who a
- * player is to the engines that pay and notify them ({@link EncounterSubjectSource}), and where an
- * offline payout waits ({@link EncounterRewardQueue}). Each has a posture for a server nothing filled
- * it on, and each REPORTS ON ITSELF, once, the first time it has to fall back: the fall-back is
- * invisible from every other side (a turret's hits simply credit nobody, a boss simply does not
- * harden, a payout simply pays only who is present), so this layer says so rather than leaving the
- * omission to be discovered as a bug report.
+ * <p>Each is a SEAM filled at setup: who a non-player attacker acts for ({@link EncounterAttribution}),
+ * how much power a party has ({@link EncounterPowerSource}), and who a player is to the engines that pay
+ * and notify them ({@link EncounterSubjectSource}). Each has a posture for a server nothing filled it
+ * on, and each REPORTS ON ITSELF, once, the first time it has to fall back: the fall-back is invisible
+ * from every other side (a turret's hits simply credit nobody, a boss simply does not harden, a notice
+ * simply reads no preference), so this layer says so rather than leaving the omission to be discovered
+ * as a bug report. An offline player needs no seam: every payout is a Claim, which waits for them.
  *
  * <p>The report fires only when the seam is actually CONSULTED unfilled: a server that never scales
  * on power never hears about the power seam.
@@ -37,12 +35,10 @@ public final class EncounterSeams {
     private static final AtomicReference<EncounterAttribution> ATTRIBUTION = new AtomicReference<>();
     private static final AtomicReference<EncounterPowerSource> POWER = new AtomicReference<>();
     private static final AtomicReference<EncounterSubjectSource> SUBJECTS = new AtomicReference<>();
-    private static final AtomicReference<EncounterRewardQueue> REWARD_QUEUE = new AtomicReference<>();
 
     private static final AtomicBoolean WARNED_ATTRIBUTION = new AtomicBoolean();
     private static final AtomicBoolean WARNED_POWER = new AtomicBoolean();
     private static final AtomicBoolean WARNED_SUBJECTS = new AtomicBoolean();
-    private static final AtomicBoolean WARNED_REWARD_QUEUE = new AtomicBoolean();
 
     private EncounterSeams() {
     }
@@ -61,20 +57,14 @@ public final class EncounterSeams {
         SUBJECTS.set(source);
     }
 
-    public static void fillRewardQueue(@Nullable EncounterRewardQueue queue) {
-        REWARD_QUEUE.set(queue);
-    }
-
     /** Drop every fill and every once-only report; for a test starting from nothing. */
     public static void resetForTests() {
         ATTRIBUTION.set(null);
         POWER.set(null);
         SUBJECTS.set(null);
-        REWARD_QUEUE.set(null);
         WARNED_ATTRIBUTION.set(false);
         WARNED_POWER.set(false);
         WARNED_SUBJECTS.set(false);
-        WARNED_REWARD_QUEUE.set(false);
     }
 
     public static boolean isAttributionFilled() {
@@ -87,10 +77,6 @@ public final class EncounterSeams {
 
     public static boolean isSubjectSourceFilled() {
         return SUBJECTS.get() != null;
-    }
-
-    public static boolean isRewardQueueFilled() {
-        return REWARD_QUEUE.get() != null;
     }
 
     // ==================== asking ====================
@@ -150,22 +136,6 @@ public final class EncounterSeams {
         return fallbackSubject(store, playerRef);
     }
 
-    /** The offline queue, or null; consulting the unfilled seam reports once. */
-    @Nullable
-    public static BiConsumer<Subject, String> rewardQueue() {
-        EncounterRewardQueue filled = rewardQueueOrWarn();
-        if (filled == null) {
-            return null;
-        }
-        try {
-            return filled.queue();
-        } catch (Throwable t) {
-            SafeLog.warn(Encounters.LOG_PREFIX + " the reward-queue fill failed, so an offline payout has nowhere "
-                    + "to wait: " + t.getMessage());
-            return null;
-        }
-    }
-
     // ==================== the seam's own reports ====================
 
     /** The attribution fill, or null having REPORTED once that there is none. */
@@ -201,17 +171,6 @@ public final class EncounterSeams {
         return filled;
     }
 
-    /** The queue fill, or null having REPORTED once that there is none. */
-    @Nullable
-    static EncounterRewardQueue rewardQueueOrWarn() {
-        EncounterRewardQueue filled = REWARD_QUEUE.get();
-        if (filled == null) {
-            warnOnce(WARNED_REWARD_QUEUE, "no offline reward queue is installed, so a participant who is offline "
-                    + "at a defeat is credited but not paid");
-        }
-        return filled;
-    }
-
     /** The once-only latch behind {@code seam}, for the test that pins each report fires once. */
     @Nonnull
     static AtomicBoolean latchForTests(@Nonnull String seam) {
@@ -219,7 +178,6 @@ public final class EncounterSeams {
             case "attribution" -> WARNED_ATTRIBUTION;
             case "power" -> WARNED_POWER;
             case "subjects" -> WARNED_SUBJECTS;
-            case "rewardQueue" -> WARNED_REWARD_QUEUE;
             default -> throw new IllegalArgumentException("no seam called " + seam);
         };
     }

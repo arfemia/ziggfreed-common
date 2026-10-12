@@ -17,6 +17,7 @@ import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.encounter.event.Encounters;
+import com.ziggfreed.common.encounter.ledger.ParticipationShares;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -69,6 +70,7 @@ public final class ZigEncounterRun implements Component<EntityStore> {
     private boolean defeated;
     private boolean ended;
     @Nullable private UUID lastHitter;
+    @Nonnull private ParticipationShares settledShares = ParticipationShares.EMPTY;
 
     // members
     private final Set<UUID> knownMembers = new LinkedHashSet<>();
@@ -286,6 +288,21 @@ public final class ZigEncounterRun implements Component<EntityStore> {
         }
     }
 
+    /**
+     * The shares the defeat settled, kept on the run until it resets, so a reward the script grants after
+     * the defeat (a native {@code GrantReward}, which hands the reward no run) pays from them. Empty before
+     * a defeat and on a run that was lost.
+     */
+    @Nonnull
+    public ParticipationShares settledShares() {
+        return settledShares;
+    }
+
+    /** Keep {@code shares} as the defeat's settlement, for whatever the script grants after it. */
+    public void keepSettledShares(@Nonnull ParticipationShares shares) {
+        settledShares = shares;
+    }
+
     // ==================== members ====================
 
     /** Every player seen as a member during this run, in first-seen order. */
@@ -399,6 +416,7 @@ public final class ZigEncounterRun implements Component<EntityStore> {
         concluded = false;
         defeated = false;
         lastHitter = null;
+        settledShares = ParticipationShares.EMPTY;
         knownMembers.clear();
         memberNames.clear();
         deadMembers.clear();

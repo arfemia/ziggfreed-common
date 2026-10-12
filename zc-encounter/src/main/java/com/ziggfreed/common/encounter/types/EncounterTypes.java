@@ -14,8 +14,8 @@ import com.ziggfreed.common.util.SafeLog;
  * and what lets a pack-only boss pay out, notify, scale and rest with zero Java.
  *
  * <ul>
- *   <li>{@code ZigGrant} (action) - pay the run's credited participants a loot reference,
- *       share-scaled;</li>
+ *   <li>{@code ZigGrant} (action, retired for the engine's {@code GrantReward} of a {@code ZigClaim}
+ *       reward) - write the run's credited participants a Claim of a loot reference, share-scaled;</li>
  *   <li>{@code ZigFeedback} (action) - draw an authored FeedbackMoment for each member;</li>
  *   <li>{@code ZigScaleTarget} (action) - apply the binding row's health scale to the subject now;</li>
  *   <li>{@code ZigMembers} (sensor) - true while the live member count is inside a range;</li>

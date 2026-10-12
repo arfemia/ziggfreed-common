@@ -218,7 +218,7 @@ public final class EncounterValidator {
                     && !boundScripts.containsKey(scan.id().toLowerCase(Locale.ROOT))) {
                 findings.add(Finding.info(DOMAIN, SCRIPT_UNBOUND, "This script fires zc: beats but no binding row "
                         + "names it, so its fight is announced and credited under the library's defaults and pays "
-                        + "only what a ZigGrant inside it says.", scan.id()));
+                        + "only what the script grants itself (a GrantReward, or the retired ZigGrant).", scan.id()));
             }
         }
         for (EncounterParticipationAsset rule : rules) {

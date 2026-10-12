@@ -60,25 +60,6 @@ class EncounterSeamsTest {
         assertTrue(EncounterSeams.warnOnce(latchOf("subjects"), "unspent"));
     }
 
-    @Test
-    void theRewardQueueSeamSaysOnceThatNobodyFilledIt() {
-        assertNull(EncounterSeams.rewardQueueOrWarn());
-        assertFalse(EncounterSeams.warnOnce(latchOf("rewardQueue"), "again"));
-        EncounterSeams.resetForTests();
-        EncounterSeams.fillRewardQueue(() -> null);
-        assertNotNull(EncounterSeams.rewardQueueOrWarn());
-        assertTrue(EncounterSeams.warnOnce(latchOf("rewardQueue"), "unspent"));
-    }
-
-    @Test
-    void anUnfilledPowerSeamReadsZeroAndAnUnfilledQueueReadsNull() {
-        assertNull(EncounterSeams.rewardQueue());
-        assertFalse(EncounterSeams.isPowerSourceFilled());
-        assertFalse(EncounterSeams.isAttributionFilled());
-        assertFalse(EncounterSeams.isSubjectSourceFilled());
-        assertFalse(EncounterSeams.isRewardQueueFilled());
-    }
-
     private static AtomicBoolean latchOf(String seam) {
         return EncounterSeams.latchForTests(seam);
     }

@@ -148,6 +148,8 @@ public final class EncounterLifecycle {
         EncounterBindingAsset row = EncounterBindingConfig.getInstance().forEncounter(encounterId);
         ParticipationSpec spec = specFor(store, run, row);
         ParticipationShares shares = settle(store, run, spec);
+        // Kept until the reset: a reward the script grants after this beat pays from these shares.
+        run.keepSettledShares(shares);
         double elapsedSeconds = run.elapsedMs(now) / 1000.0;
         List<UUID> memberIds = EncounterRuns.memberIds(store, encounterRef);
         SafeLog.info(Encounters.LOG_PREFIX + " defeated run=" + EncounterRun.shortId(run.runId()) + " encounter="
@@ -160,8 +162,8 @@ public final class EncounterLifecycle {
                 run.lastHitter()));
         EncounterRest.stamp(store, commandBuffer, encounterRef, run, encounterId, row);
         // Paid before it is announced, and each participant's own receipt rides into their moment:
-        // the toast lists what THEIR roll put in their hands, never a generic row and never
-        // another player's roll.
+        // a player whose roll wrote them a Claim reads one row saying it waits on the Claims tab,
+        // and a player whose roll landed nothing reads the headline alone.
         Map<UUID, List<RewardSpec>> receipts = EncounterLoot.grantDefeat(store, run, encounterId, row, spec, shares);
         Map<String, Object> args = baseArgs(run, encounterId, row, memberIds.size(), now);
         args.put(EncounterFeedback.SECONDS_ARG, Math.round(elapsedSeconds));
@@ -273,8 +275,10 @@ public final class EncounterLifecycle {
         UUID endedId = run.runId();
         EncounterDiscovery.onReset(store, run);
         EncounterRuns.LEDGER.drop(endedId);
-        EncounterRuns.untrack(endedId);
         UUID nextId = continues ? run.rollOver() : null;
+        // A continuing run's members stay indexed, on the next run, so a reward granted before its first tick
+        // finds a run that has ended, never a player in no run.
+        EncounterRuns.untrack(endedId, nextId, encounterRef);
         if (!continues) {
             run.end();
         }

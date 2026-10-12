@@ -31,9 +31,9 @@ import com.ziggfreed.common.util.SafeLog;
  * name, a nested message the reader's client resolves), {@code phase}, {@code members},
  * {@code seconds}, and at a settlement {@code share} (the reader's own, as whole percent points of
  * the top contributor's, a typed number), {@code rank} (their place, 1 for the top contributor) and,
- * at a defeat that paid them, {@code rewards} (what THIS reader's roll actually put in their hands,
- * one entry per thing, which the in-page toast lists as rows; a reader whose roll landed nothing
- * carries none, and nobody is ever shown another player's roll). Two more ride for an authored
+ * at a defeat that paid them, {@code rewards} (one row saying THIS reader's reward waits under Claims,
+ * which the in-page toast lists under its headline; a reader whose roll wrote no Claim carries none,
+ * and nobody is ever told of another player's). Two more ride for an authored
  * BANNER rather than for a line: {@code participants} (the players the beat is about, so a banner's
  * {@code ToParticipants} reaches them wherever they stand) and {@code source} (the script id again,
  * so a banner's {@code MinSecondsBetween} is kept per fight). A moment nobody authored costs one
@@ -73,9 +73,9 @@ public final class EncounterFeedback {
     /**
      * {@link #fireWithShares(Store, String, List, Map)} for a beat that PAID: each participant's
      * map also carries their own receipt under {@code rewards}, read from {@code receipts} by player
-     * id, so the in-page toast lists what that player's roll put in their hands. A participant with
-     * no entry (a roll that landed nothing, a payout parked for their next connect) carries no
-     * rewards argument at all, and the toast shows its headline alone rather than a generic row.
+     * id, so the in-page toast tells that player their Claim waits. A participant with no entry (a
+     * roll that wrote no Claim) carries no rewards argument at all, and the toast shows its headline
+     * alone rather than a generic row.
      */
     public static void fireWithShares(@Nonnull Store<EntityStore> store, @Nonnull String momentId,
             @Nonnull List<ParticipantShare> shares, @Nonnull Map<String, Object> args,

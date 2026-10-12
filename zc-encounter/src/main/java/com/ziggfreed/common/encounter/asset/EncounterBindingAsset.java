@@ -1,6 +1,8 @@
 package com.ziggfreed.common.encounter.asset;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import javax.annotation.Nonnull;
@@ -37,7 +39,7 @@ import com.ziggfreed.common.loot.LootRef;
  *   "Subject":       { "TargetSlot": "Boss" },
  *   "Scale":         { "HealthPerMember": 0.35, "MaxHealthMultiplier": 5.0, "Adds": { "HealthPerMember": 0.2 } },
  *   "Timing":        { "WipeGraceSeconds": 15, "Rest": "P1D" },
- *   "Loot":          { "OnDefeat": { "Rolls": [ ... ] }, "QueueIfOffline": true },
+ *   "Loot":          { "OnDefeat": { "Rolls": [ ... ] } },
  *   "Feedback":      { "Defeated": "Encounter_Defeated" },
  *   "Discovery":     { "MapMarker": true }
  * }
@@ -592,7 +594,9 @@ public final class EncounterBindingAsset
                         (o, v) -> o.onDefeat = v, o -> o.onDefeat, (o, p) -> o.onDefeat = p.onDefeat)
                 .documentation("Rolled once PER credited participant when the subject dies, each roll "
                         + "kept with a chance equal to that participant's share, so the top "
-                        + "contributor keeps everything they win and a marginal one keeps a little.")
+                        + "contributor keeps everything they win and a marginal one keeps a little. What "
+                        + "is kept waits as a Claim on the player's Claims tab; the first defeat each day "
+                        + "pays, later ones that day pay nothing.")
                 .add()
                 .appendInherited(new KeyedCodec<>("OnPhase", new InheritMapCodec<>(LootRef.CODEC), false),
                         (o, v) -> o.onPhase = v, o -> o.onPhase, (o, p) -> o.onPhase = p.onPhase)
@@ -602,15 +606,15 @@ public final class EncounterBindingAsset
                 .appendInherited(new KeyedCodec<>("ToKiller", Codec.BOOLEAN, false),
                         (o, v) -> o.toKiller = v, o -> o.toKiller, (o, p) -> o.toKiller = p.toKiller)
                 .metadata(EditorSchema.defaultValue(false))
-                .documentation("Also pay the player who landed the killing blow, at a full share, "
-                        + "whatever their credited share was.")
+                .documentation("Ignored, with one warning: the player who landed the killing blow is paid "
+                        + "the share they earned, like everyone else. Leave it out.")
                 .add()
                 .appendInherited(new KeyedCodec<>("QueueIfOffline", Codec.BOOLEAN, false),
                         (o, v) -> o.queueIfOffline = v, o -> o.queueIfOffline,
                         (o, p) -> o.queueIfOffline = p.queueIfOffline)
                 .metadata(EditorSchema.defaultValue(true))
-                .documentation("Hold a credited participant's payout for their next connect when they "
-                        + "are offline at the defeat. False pays only whoever is present.")
+                .documentation("Ignored, with one warning: a credited participant's Claim always waits for "
+                        + "them, online or not. Leave it out.")
                 .add()
                 .build();
 
@@ -633,6 +637,19 @@ public final class EncounterBindingAsset
 
         public boolean queueIfOffline() {
             return queueIfOffline == null || queueIfOffline;
+        }
+
+        /** The leaves this group writes that no longer change the payout ({@code ToKiller}, {@code QueueIfOffline}). */
+        @Nonnull
+        public List<String> retiredLeaves() {
+            List<String> out = new ArrayList<>(2);
+            if (toKiller != null) {
+                out.add("ToKiller");
+            }
+            if (queueIfOffline != null) {
+                out.add("QueueIfOffline");
+            }
+            return out;
         }
     }
 

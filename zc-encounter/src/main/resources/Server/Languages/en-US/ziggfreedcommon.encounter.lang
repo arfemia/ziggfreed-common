@@ -8,6 +8,9 @@
 bar.default = Boss
 example.name = Example Encounter
 
+# The row a fight's defeat notice shows a player its payout wrote a Claim for.
+claim.waits = Your reward is waiting under Claims in your menu.
+
 admin.desc.family = Inspect and drive this server's encounters.
 admin.desc.list = List every live encounter, with its run and state.
 admin.desc.inspect = Show one encounter's run: its subject, its members and who has earned what.

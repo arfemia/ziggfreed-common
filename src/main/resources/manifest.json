@@ -16,7 +16,8 @@
     "Hytale:NPC": "*",
     "Hytale:EncounterManager": "*",
     "Hytale:Instances": "*",
-    "Hytale:TriggerVolumes": "*"
+    "Hytale:TriggerVolumes": "*",
+    "Hytale:Rewards": "*"
   },
   "IncludesAssetPack": true
 }
