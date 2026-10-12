@@ -6,6 +6,7 @@ import com.hypixel.hytale.assetstore.event.LoadedAssetsEvent;
 import com.hypixel.hytale.assetstore.event.RemovedAssetsEvent;
 import com.hypixel.hytale.assetstore.map.DefaultAssetMap;
 import com.hypixel.hytale.assetstore.map.IndexedLookupTableAssetMap;
+import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
 import com.hypixel.hytale.server.core.asset.type.item.config.CraftingRecipe;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.hypixel.hytale.server.core.event.events.BootEvent;
@@ -919,15 +920,23 @@ public final class FrameworkAssetRegistrar {
                         RecipeIndex.live().invalidate());
 
         // --- Hit tags (zc-core) - not a store of ours either: a read-side index over the ENGINE's
-        //     Interaction store (each damage node's calculator to its native Tags), built on the first
-        //     read after it is marked dirty. Every interaction load and removal marks it (an item or
-        //     root-interaction reload reloads the interactions authored inside it). ---
+        //     Interaction and EntityEffect stores (each damage node's and each effect's calculator to
+        //     its native Tags), built on the first read after it is marked dirty. Every interaction
+        //     load and removal marks it (an item or root-interaction reload reloads the interactions
+        //     authored inside it); an effect load or removal marks it only when a tagged effect is
+        //     involved, so the runtime effects a grid writes during play cost no rebuild. ---
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, Interaction.class,
                 (LoadedAssetsEvent<String, Interaction, IndexedLookupTableAssetMap<String, Interaction>> ev) ->
                         HitTags.markDirty());
         plugin.getEventRegistry().register(RemovedAssetsEvent.class, Interaction.class,
                 (RemovedAssetsEvent<String, Interaction, IndexedLookupTableAssetMap<String, Interaction>> ev) ->
                         HitTags.markDirty());
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, EntityEffect.class,
+                (LoadedAssetsEvent<String, EntityEffect, IndexedLookupTableAssetMap<String, EntityEffect>> ev) ->
+                        HitTags.effectsLoaded(ev.getLoadedAssets()));
+        plugin.getEventRegistry().register(RemovedAssetsEvent.class, EntityEffect.class,
+                (RemovedAssetsEvent<String, EntityEffect, IndexedLookupTableAssetMap<String, EntityEffect>> ev) ->
+                        HitTags.effectsRemoved(ev.getRemovedAssets()));
 
         try {
             CommonLog.LOGGER.atInfo().log(
