@@ -107,7 +107,8 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
         PartyScreenMessages t = deps.text();
         cmd.append(PAGE_TEMPLATE);
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton", EventData.of("Action", "close"));
-        UiText.setText(cmd, "#Title.Text", t.title());
+        // Labels take TextSpans (the viewer's locale, params filled); the TextButtons stay on UiText.
+        cmd.set("#Title.TextSpans", t.title());
 
         UiText.setText(cmd, "#TabParty.Text", t.tabParty());
         UiText.setText(cmd, "#TabInvite.Text", t.tabInvite());
@@ -160,7 +161,7 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
         if (snap != null) {
             boolean viewerOwns = snap.isOwner(viewer);
             cmd.set("#MemberCount.Visible", true);
-            UiText.setText(cmd, "#MemberCount.Text", t.memberCount(snap.size(), snap.maxSize()));
+            cmd.set("#MemberCount.TextSpans", t.memberCount(snap.size(), snap.maxSize()));
             for (UUID m : snap.members()) {
                 if (row >= MAX_ROWS) {
                     break;
@@ -203,7 +204,7 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
 
         if (row == 0) {
             cmd.set("#EmptyState.Visible", true);
-            UiText.setText(cmd, "#EmptyState.Text", t.emptyParty());
+            cmd.set("#EmptyState.TextSpans", t.emptyParty());
         }
     }
 
@@ -248,7 +249,7 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
         }
         if (row == 0) {
             cmd.set("#EmptyState.Visible", true);
-            UiText.setText(cmd, "#EmptyState.Text", t.emptyInviteList());
+            cmd.set("#EmptyState.TextSpans", t.emptyInviteList());
         }
     }
 
@@ -258,12 +259,12 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
     private String appendRow(@Nonnull UICommandBuilder cmd, int row, @Nonnull Message name, @Nullable Message badge) {
         cmd.append("#PartyList", ROW_TEMPLATE);
         String sel = "#PartyList[" + row + "]";
-        // The name is the library's display name, a Message (a title rides with it), so it goes on
-        // the Label's TextSpans. The badge (a localized ownerBadge) stays a translation, which .Text resolves.
+        // The name is the library's display name, a Message (a title rides with it), and the badge a
+        // consumer's ownerBadge line; both are Labels, so both go on TextSpans, whatever the Message carries.
         cmd.set(sel + " #RowName.TextSpans", name);
         if (badge != null) {
             cmd.set(sel + " #RowBadge.Visible", true);
-            UiText.setText(cmd, sel + " #RowBadge.Text", badge);
+            cmd.set(sel + " #RowBadge.TextSpans", badge);
         }
         return sel;
     }

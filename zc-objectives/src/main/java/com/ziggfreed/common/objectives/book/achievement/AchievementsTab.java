@@ -583,8 +583,8 @@ public final class AchievementsTab implements BookTab {
                     false, ctx.binding(BookActions.STATUS, s));
         }
 
-        // A dropdown entry is a String sink the client resolves only from a key: a translated name goes as its
-        // key, a name nothing translates as its plain words.
+        // A dropdown entry is a String sink the client resolves only from a key: a bare translated name goes as its
+        // key, one with params or a name nothing translates as its plain words.
         String category = BrowseFilter.of(ctx.state()).category();
         String chosen = BookState.ALL;
         List<DropdownEntryInfo> categories = new ArrayList<>();

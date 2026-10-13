@@ -10,9 +10,9 @@ import com.hypixel.hytale.server.core.Message;
  * headers, the empty state, and the viewer's own strip. The consumer returns pre-built
  * client-resolved {@link Message}s; common stays locale-free.
  *
- * <p>The page paints every line on a {@code .TextSpans}, so any line may carry parameters, with one
- * exception: a column header's tooltip ({@link #sortTip}) is a {@code .TooltipText}, which prints a
- * parameter as written, so it stays a bare translation. The lines the page added for its strip, its lead and
+ * <p>The page paints every line on a {@code .TextSpans}, so any line may carry parameters; a column
+ * header's tooltip ({@link #sortTip}) goes through {@code UiText.setTooltip}, which puts a parameterized
+ * line on {@code .TooltipTextSpans}, so it may carry them too. The lines the page added for its strip, its lead and
  * its tooltips have defaults from the library's own {@code ziggfreedcommon.leaderboard.lang}, so a board
  * built before them reads right unchanged.
  */
@@ -47,7 +47,7 @@ public interface LeaderboardScreenMessages {
 
     /**
      * A sortable column header's tooltip when the column's own words have none (the header's label key with
-     * {@code .tip} added, when the server ships one). A bare translation: a tooltip prints a parameter as written.
+     * {@code .tip} added, when the server ships one).
      */
     @Nonnull default Message sortTip() {
         return EncounterLeaderboardMessages.line("tip.sort");

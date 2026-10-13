@@ -92,7 +92,8 @@ public class PlayModePage extends ToastablePage<PlayEventData> {
         PlayScreenMessages t = deps.text();
         cmd.append(PAGE_TEMPLATE);
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton", EventData.of("Action", "close"));
-        UiText.setText(cmd, "#Title.Text", t.title());
+        // Labels take TextSpans (the viewer's locale, params filled); the TextButtons stay on UiText.
+        cmd.set("#Title.TextSpans", t.title());
 
         MatchmakingQueue queue = deps.lobby().currentQueueOf(playerRef.getUuid());
         if (queue == null) {
@@ -132,7 +133,7 @@ public class PlayModePage extends ToastablePage<PlayEventData> {
                 cmd.set(sel + " #CardIcon.Visible", false);
             }
             UiText.setText(cmd, sel + " #CardBtn.Text", labelFor(e, t));
-            UiText.setText(cmd, sel + " #CardSub.Text", t.modeDesc(e.mode()));
+            cmd.set(sel + " #CardSub.TextSpans", t.modeDesc(e.mode()));
             events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #CardBtn",
                     EventData.of("Action", "pick").append("Mode", e.mode().wire()), false);
         }

@@ -23,20 +23,25 @@ import com.ziggfreed.common.i18n.PlainText;
  * singleplayer world that ends the session. A blank label would be a cosmetic bug; this is the
  * whole world going down because one line of authored content had no translation behind it.
  *
- * <p><b>So the rule is: text that can be resolved is sent for the client to resolve, and text that
- * cannot is sent as plain characters.</b> A translation keeps its client-side localization (the
- * server never reads the viewer's locale); anything else - a raw literal a pack author wrote, a
- * concatenation, a key nothing ships a value for - is flattened to a {@link String} and lands in
- * the sink the property actually is. Content that is missing a translation then READS wrong on
- * screen, which is a bug an author can see and fix, instead of taking the server's players with it.
+ * <p><b>So the rule is: text the client can resolve whole is sent for the client to resolve, and
+ * text it cannot is sent as plain characters.</b> A bare translation keeps its client-side
+ * localization (the server never reads the viewer's locale); anything else - a raw literal a pack
+ * author wrote, a concatenation, a translation carrying params or parts, a key nothing ships a value
+ * for - is flattened to a {@link String} and lands in the sink the property actually is. Content
+ * that is missing a translation then READS wrong on screen, which is a bug an author can see and
+ * fix, instead of taking the server's players with it.
  *
- * <p><b>One caveat worth authoring around:</b> a {@code .Text} sink resolves a translation but does
- * NOT substitute its {@code {0},{1},...} params - a parameterized message prints its placeholders
- * literally. That is a rendering limit of the property, not something this class can paper over: a
- * clickable, parameterized line wants a {@code Button} element with a child {@code Label}, whose
- * {@code TextSpans} takes a full message tree. {@code TextSpans} has none of these limits and is
- * always the better sink when the element offers one; this class is for the elements that do not,
- * {@code TextButton} chief among them.
+ * <p><b>One caveat worth authoring around:</b> a {@code .Text} sink resolves a translation's key but
+ * never substitutes its {@code {0},{1},...} params and drops its children, so a parameterized or
+ * composite message sent whole would print its placeholders literally ("{0}/{1}"). This class
+ * flattens such a message instead, which fills the params but reads in the server's default
+ * language, not the viewer's. A {@code Label} takes {@code .TextSpans} (a plain {@code cmd.set}),
+ * which takes the full message tree and keeps the viewer's locale, its number formats and plurals:
+ * always the better sink when the element offers one. This class is for the sinks with no
+ * {@code TextSpans}, {@code TextButton} chief among them. Known limit: {@link PlainText} fills only a
+ * bare {@code {N}} slot, so a {@code {0, number}} or a plural on such a sink still prints as written;
+ * a clickable line that needs one wants a {@code Button} with a child {@code Label}
+ * ({@code ZigRichButton}).
  *
  * <p><b>Tooltips have both sinks.</b> Every element carries {@code TooltipText} (the same
  * {@code String} sink, placeholders and all) and {@code TooltipTextSpans} (a full message tree,
@@ -52,9 +57,11 @@ public final class UiText {
     }
 
     /**
-     * Write {@code value} to a {@code .Text} property: a translation is sent as a {@link Message} so
-     * the client resolves it in its own locale, anything else is flattened to plain characters. A
-     * null value writes nothing, leaving whatever the markup authored.
+     * Write {@code value} to a {@code .Text} property: a bare translation ({@link #isClientResolvable})
+     * is sent as a {@link Message} so the client resolves it in its own locale; anything else, a
+     * translation with params or children included, is {@link #flatten flattened} to plain characters
+     * in the server's default language. A null value writes nothing, leaving whatever the markup
+     * authored. A {@code Label} takes {@code .TextSpans} instead (see the class note).
      *
      * @param selector the FULL property selector, ending in {@code .Text}
      *                 (e.g. {@code "#OptionsList[0] #OptionBtn.Text"})
@@ -170,15 +177,18 @@ public final class UiText {
     }
 
     /**
-     * Whether the client can resolve this message on a {@code .Text} sink: true only for a
-     * translation, which is the one form that carries a {@code MessageId} for the client to look up.
+     * Whether the client can resolve this message WHOLE on a {@code String} sink ({@code .Text}, a
+     * dropdown entry's key): true only for a bare translation, a non-empty {@code MessageId} with no
+     * params and no children. The client looks the key up in the viewer's locale but fills no
+     * {@code {0}} slot and drops every child, so a translation carrying either is not resolvable
+     * here and goes out {@link #flatten flattened}; so does raw text, which has no key to look up.
      */
     public static boolean isClientResolvable(@Nullable Message value) {
         if (value == null) {
             return false;
         }
         String messageId = value.getMessageId();
-        return messageId != null && !messageId.isEmpty();
+        return messageId != null && !messageId.isEmpty() && !hasParams(value) && !hasChildren(value);
     }
 
     /**

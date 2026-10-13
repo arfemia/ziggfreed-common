@@ -60,8 +60,8 @@ import com.ziggfreed.common.ui.name.PlayerDisplayNames;
  * segmented control ({@link SegmentPainter}), the viewer's figures {@code @ZigStat}s
  * ({@link StatPainter}), the empty board the kit's empty state ({@link EmptyStatePainter}), and
  * every colour a {@link ZigTokens} token or a {@link ZigStyles} named style. Every line goes on a
- * {@code .TextSpans}; a column header's tooltip, a {@code .TooltipText} that prints a parameter as
- * written, is always a bare translation.
+ * {@code .TextSpans}; a column header's tooltip goes through {@link UiText#setTooltip}, the one
+ * tooltip writer.
  *
  * <p>Consumer policy (the {@link Leaderboard} for the mode, the tab axes, the stat columns, the
  * chrome) is supplied through {@link LeaderboardPageDeps}; the page is mod-agnostic. When the
@@ -552,8 +552,8 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
             appendTab(cmd, events, "#SplitBar", choice.label(), choice.key(), on, false,
                     binding("split", activePrimary, activeSecondary, sort.name(), statSort, viewStr, choice.key(), ""));
         }
-        // A dropdown entry is a String sink the client resolves only from a key: a translated name goes as its key,
-        // a name nothing translates (one a server made up) as its plain words.
+        // A dropdown entry is a String sink the client resolves only from a key: a bare translated name goes as its
+        // key, one with params or a name nothing translates (one a server made up) as its plain words.
         List<DropdownEntryInfo> entries = new ArrayList<>();
         entries.add(new DropdownEntryInfo(entryLabel(split.pickAllLabel()), ALL));
         for (LeaderboardSplit.Pick pick : offered(split, chosen, playerRef)) {
@@ -567,7 +567,7 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
                         .append(PICK_ECHO, PICK + ".Value"), false);
     }
 
-    /** A dropdown entry's words: a translation as its key, anything else as its plain characters. */
+    /** A dropdown entry's words: a bare translation as its key, anything else as its plain characters. */
     @Nonnull
     private static LocalizableString entryLabel(@Nonnull Message name) {
         return UiText.isClientResolvable(name) ? LocalizableString.fromMessageId(name.getMessageId())
@@ -817,7 +817,7 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
     private void sortHeader(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events, @Nonnull String header,
                             @Nonnull Message label, @Nonnull Message tip, @Nonnull String statKey) {
         ZigRichButton.text(cmd, header, label);
-        UiText.setText(cmd, header + ".TooltipText", tip);
+        UiText.setTooltip(cmd, header, tip);
         if (statSort.equals(statKey)) {
             ZigStyles.apply(cmd, header + ".Style", ZigStyles.Name.VIEW_TAB_ON, playerRef);
             ZigRichButton.color(cmd, header, ZigTokens.ACCENT);
@@ -829,8 +829,8 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
 
     /**
      * A column header's tooltip: the column's own label key with {@link #TIP_SUFFIX} when the server ships that
-     * key (a stat's "what this counts" line), else the board's line on how a click sorts. Always a bare
-     * translation, since a {@code .TooltipText} prints a parameter as written.
+     * key (a stat's "what this counts" line), else the board's line on how a click sorts. Written through
+     * {@link UiText#setTooltip}, which puts a line with params on {@code .TooltipTextSpans}.
      */
     @Nonnull
     static Message columnTip(@Nonnull Message label, @Nonnull LeaderboardScreenMessages t) {

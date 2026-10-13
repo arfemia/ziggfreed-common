@@ -3,9 +3,7 @@ package com.ziggfreed.common.party;
 import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.server.core.Message;
-import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.party.page.PartyScreenMessages;
-import com.ziggfreed.common.ui.UiText;
 
 /** The library party screen's chrome, each a line of {@code ziggfreedcommon.party.lang}. */
 public final class ZcPartyScreenMessages implements PartyScreenMessages {
@@ -88,14 +86,11 @@ public final class ZcPartyScreenMessages implements PartyScreenMessages {
         return ZcPartyText.line("owner_badge");
     }
 
-    /**
-     * The page paints the count on a {@code .Text} sink, which resolves a translation but never substitutes its
-     * params, so the line is resolved here, in the server's language, and sent as plain characters.
-     */
+    /** The page paints the count on a Label's {@code .TextSpans}, which fills its params in the viewer's locale. */
     @Override
     @Nonnull
     public Message memberCount(int size, int maxSize) {
-        return Msg.raw(UiText.flatten(ZcPartyText.line("count", size, maxSize)));
+        return ZcPartyText.line("count", size, maxSize);
     }
 
     @Override
