@@ -24,6 +24,15 @@ import com.hypixel.hytale.server.core.Message;
  */
 public final class ToastSpec {
 
+    /** The rank of a progress notice, such as a quest step's ({@link #withPriority}). */
+    public static final int PRIORITY_PROGRESS = 1;
+
+    /** The rank of something earned: an achievement, a level. */
+    public static final int PRIORITY_EARNED = 2;
+
+    /** The rank of a payout or a finish: a claim, a quest completed, parked or collected. */
+    public static final int PRIORITY_CLAIM = 3;
+
     private final ToastKind kind;
     @Nonnull private final Message message;
     @Nullable private final String iconItemId;
@@ -83,8 +92,10 @@ public final class ToastSpec {
     /**
      * Rank this toast against the others raised in the same moment ({@link ToastStore#show}): a ranked
      * toast ({@code priority > 0}) never replaces a higher-ranked one still on screen, so a payout's
-     * notice is not overwritten by a progress tick fired a moment later. 0, the default, is unranked: it
-     * always shows, as a page's own answer to a click does, and holds nothing back.
+     * notice is not overwritten by a progress tick fired a moment later; it waits its turn behind it
+     * instead. 0, the default, is unranked: it always shows, as a page's own answer to a click does, and
+     * holds nothing back. The shipped ranks are {@link #PRIORITY_PROGRESS}, {@link #PRIORITY_EARNED} and
+     * {@link #PRIORITY_CLAIM}.
      */
     @Nonnull
     public ToastSpec withPriority(int priority) {

@@ -65,10 +65,13 @@ public abstract class ToastablePage<T> extends InteractiveCustomUIPage<T> {
 
     // The surface captures only the player UUID (same player for life), never `this`: each push
     // re-resolves the player's live toastable page from ACTIVE, so a hide scheduled by one page
-    // instance correctly fires through whichever instance is open when it lands.
+    // instance correctly fires through whichever instance is open when it lands. With no page open
+    // when a toast ends, the notices queued behind it are dropped (isShowing); the queue is never
+    // cleared in onDismiss, since a reopen dismisses one instance just before the next one builds.
     private final ToastController toast = new ToastController(
             () -> this.playerRef.getUuid(),
-            cmd -> pushToActive(this.playerRef.getUuid(), cmd));
+            cmd -> pushToActive(this.playerRef.getUuid(), cmd),
+            ToastablePage::isShowing);
 
     /** Route a toast command to the player's currently-active toastable page (or drop it). */
     private static void pushToActive(@Nullable UUID id, @Nonnull UICommandBuilder cmd) {

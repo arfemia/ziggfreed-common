@@ -38,7 +38,7 @@ public final class ClaimToasts {
      * {@code Quest_Completed}, {@code Quest_Parked} and claim moments ship with, so a step's progress
      * notice fired in the same moment never replaces it ({@link ToastSpec#withPriority}).
      */
-    public static final int CLAIM_PRIORITY = 3;
+    public static final int CLAIM_PRIORITY = ToastSpec.PRIORITY_CLAIM;
 
     /**
      * The gold claim toast for {@code rewards}. An empty payout degrades to the plain headline;
