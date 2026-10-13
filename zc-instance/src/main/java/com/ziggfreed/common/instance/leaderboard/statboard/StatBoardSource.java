@@ -63,8 +63,9 @@ public interface StatBoardSource {
 
     /**
      * Whether stat {@code statId} only ever holds all-time numbers (a gauge set as it stands, a native reading),
-     * so a week, a month or a season reads none of it. A split over such stats reads All Time alone
-     * ({@link StatSplit}). False, the default.
+     * so a week, a month or a season reads none of it. A split over such stats reads All Time alone unless it names
+     * what it ranks off All Time ({@link StatSplit#offAllTime}), and that view's first choice leaves out a section
+     * column over such a stat. False, the default.
      */
     default boolean allTimeOnly(@Nonnull String statId) {
         return false;

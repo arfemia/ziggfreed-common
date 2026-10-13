@@ -82,7 +82,9 @@ import com.ziggfreed.common.ui.name.PlayerDisplayNames;
  *
  * <p>A primary tab with a split ({@link LeaderboardSplit}) adds a row under the others: its
  * choices as segments and a picker of single things, each with its own columns over the same buckets; a choice
- * other than the first, or a pick, may pin the second row to one tab and hide it.
+ * other than the first, or a pick, may pin the second row to one tab and hide it. A split with a periodic view
+ * ({@link LeaderboardSplit#periods}) instead shows each selection's periodic columns on every second-row tab but
+ * its all-time one, with the selection's all-time figure beside each name.
  */
 public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventData> {
 
@@ -109,6 +111,8 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
      * the column counts, used when the server ships one ({@link #columnTip}).
      */
     static final String TIP_SUFFIX = ".tip";
+    /** What separates a row's name from the figure beside it ({@link #withMeta}). */
+    private static final String META_GAP = "   ";
     /** The figures the viewer's strip holds beside their place ({@code #YouStat0..#YouStat3}). */
     private static final int YOU_FIGURES = 4;
     /** The words of a Rankings row the viewer's own row turns bright, beside its rank. */
@@ -147,8 +151,16 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
     private final String activeSplit;
     /** The split's picked thing ("" for none). */
     private final String activePick;
-    /** The columns the selection shows: the pick's, else the choice's, else the primary tab's own. */
+    /**
+     * The columns the selection shows: the pick's, else the choice's, else the primary tab's own, each its periodic
+     * ones off the split's all-time tab ({@link LeaderboardSplit#periods}) when it has some.
+     */
     private final List<StatColumnDef> viewColumns;
+    /**
+     * The column each row's figure beside its name reads on the all-time bucket, off the split's all-time tab
+     * ({@link LeaderboardSplit.Periodic#meta}); null shows the name alone.
+     */
+    @Nullable private final StatColumnDef metaColumn;
 
     /** The rail this build painted (none when the deps name no tab), which a rail click is routed through. */
     @Nonnull private MenuRail rail = MenuRail.EMPTY;
@@ -198,10 +210,18 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         this.activeSplit = choice == null ? "" : choice.key();
         LeaderboardSplit.Pick picked = this.split == null ? null : visiblePick(this.split, choice, pick, playerRef);
         this.activePick = picked == null ? "" : picked.key();
-        this.viewColumns = picked != null ? picked.columns()
-                : choice != null ? choice.columns() : deps.statColumns(activePrimary);
         this.activeSecondary = pinned() ? this.split.pinnedTab()
                 : resolveKey(deps.tabs(), secondary, deps.allTabs());
+        // Off the split's all-time tab, a selection with columns of its own for a window shows them, and the figure
+        // its rows read from all time beside each name.
+        LeaderboardSplit.Periodic periodic = !offAllTime() ? null
+                : picked != null ? picked.periodic()
+                : choice != null ? choice.periodic() : this.split.periods().first();
+        List<StatColumnDef> allTime = picked != null ? picked.columns()
+                : choice != null ? choice.columns() : deps.statColumns(activePrimary);
+        this.viewColumns = periodic != null && !periodic.columns().isEmpty() ? periodic.columns() : allTime;
+        this.metaColumn = periodic == null || this.split.periods().allTimeTab() == null
+                || this.split.periods().words() == null ? null : periodic.meta();
         this.sort = sort != null ? sort : SortMode.BEST_SCORE;
         this.statSort = resolveStatKey(viewColumns, statSort, deps.isStatsOnly());
         // A stats-only board has no other view to fall back to, so it shows the Stats view even when the
@@ -229,6 +249,14 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
             }
         }
         return false;
+    }
+
+    /**
+     * Whether the split reads its periodic view ({@link LeaderboardSplit#periods}): it has one and the second row's
+     * selected tab is not its all-time one.
+     */
+    private boolean offAllTime() {
+        return split != null && split.periods() != null && !activeSecondary.equals(split.periods().allTimeTab());
     }
 
     /** The split's choices {@code viewer} sees: each with a pick they see. */
@@ -397,8 +425,14 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
      */
     @Nonnull
     private List<String> effectiveBuckets() {
+        return bucketsFor(activeSecondary);
+    }
+
+    /** The bucket keys the selection resolves to with {@code secondary} as the second row's tab ({@link #effectiveBuckets}). */
+    @Nonnull
+    private List<String> bucketsFor(@Nonnull String secondary) {
         List<String> primaries = ALL.equals(activePrimary) ? concreteKeys(deps.primaryTabs()) : List.of(activePrimary);
-        List<String> secondaries = ALL.equals(activeSecondary) ? concreteKeys(deps.tabs()) : List.of(activeSecondary);
+        List<String> secondaries = ALL.equals(secondary) ? concreteKeys(deps.tabs()) : List.of(secondary);
         if (deps.primaryTabs().isEmpty()) {
             return secondaries; // single secondary axis (legacy board)
         }
@@ -812,13 +846,16 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         List<StatColumnDef> cols = columns();
         int shown = shownColumns();
         int max = Math.min(sorted.size(), MAX_ROWS);
+        Map<UUID, LeaderboardEntry> allTime = metaColumn == null ? Map.of()
+                : deps.board().forBuckets(bucketsFor(split.periods().allTimeTab()));
         for (int i = 0; i < max; i++) {
             Map.Entry<UUID, LeaderboardEntry> en = sorted.get(i);
             LeaderboardEntry e = en.getValue();
             cmd.append("#LeaderboardList", STATS_ROW_TEMPLATE);
             String sel = "#LeaderboardList[" + i + "]";
             cmd.set(sel + " #Rank.TextSpans", Msg.num(i + 1));
-            cmd.set(sel + " #Player.TextSpans", PlayerDisplayNames.displayName(en.getKey(), e.name));
+            cmd.set(sel + " #Player.TextSpans",
+                    withMeta(PlayerDisplayNames.displayName(en.getKey(), e.name), allTime.get(en.getKey())));
             if (deps.isStatsOnly()) {
                 cmd.set(sel + " #Plays.Visible", false);
             } else {
@@ -834,6 +871,24 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
                 }
             }
             paintPlace(cmd, sel, i + 1, i == self, STATS_CELLS);
+        }
+    }
+
+    /**
+     * A row's name with the selection's all-time figure beside it, muted ({@link #metaColumn}, worded by the split's
+     * {@link LeaderboardSplit.Periods#words}), joined with {@link Msg#cat} so the name keeps its own parameters; the
+     * name alone with no figure to show, no all-time entry to read it from, or words that fail.
+     */
+    @Nonnull
+    private Message withMeta(@Nonnull Message name, @Nullable LeaderboardEntry allTime) {
+        if (metaColumn == null || allTime == null) {
+            return name;
+        }
+        try {
+            Message words = split.periods().words().apply(metaColumn.valueOf(allTime));
+            return words == null ? name : Msg.cat(name, Msg.raw(META_GAP), Msg.color(words, ZigTokens.INK_MUTED));
+        } catch (RuntimeException ex) {
+            return name;
         }
     }
 

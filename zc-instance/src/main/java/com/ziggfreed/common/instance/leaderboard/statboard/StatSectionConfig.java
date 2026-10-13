@@ -21,7 +21,8 @@ import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
  * of the same id wins), and resolved once per change: the sections in tab order, and the set of lines any
  * of them names (with the stats one names as {@code Stat/*}, every line of which counts as named), which
  * is what decides whether a stat is ranked at all. A section's tab may also be split in code ({@link #split},
- * {@link StatSplit}), and every line of a stat a split names is ranked too.
+ * {@link StatSplit}), and every line of a stat a split names is ranked too, with the total of a stat it ranks off
+ * All Time ({@link StatSplit#periodic}) or reads beside a name there ({@link StatSplit#meta}).
  */
 public final class StatSectionConfig extends AbstractKeyedAssetConfig<StatSectionAsset> {
 
@@ -192,9 +193,18 @@ public final class StatSectionConfig extends AbstractKeyedAssetConfig<StatSectio
         Set<String> lines = new HashSet<>();
         Set<String> stats = new HashSet<>();
         // A split stat's lines are each ranked, as a Stat/* line's are: a group's sum and a thing's columns read them.
+        // A periodic stat's and the meta's total is ranked too, since the first choice reads it off All Time.
         for (StatSplit split : splitting.values()) {
             for (StatSplit.Column column : split.columns()) {
                 stats.add(column.stat().toLowerCase(Locale.ROOT));
+            }
+            for (StatSplit.Column column : split.periodic()) {
+                stats.add(column.stat().toLowerCase(Locale.ROOT));
+                lines.add(column.stat().toLowerCase(Locale.ROOT));
+            }
+            if (split.meta() != null) {
+                stats.add(split.meta().stat().toLowerCase(Locale.ROOT));
+                lines.add(split.meta().stat().toLowerCase(Locale.ROOT));
             }
         }
         splits = Map.copyOf(splitting);

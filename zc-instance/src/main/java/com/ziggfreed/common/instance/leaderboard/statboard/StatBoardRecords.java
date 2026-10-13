@@ -104,7 +104,8 @@ public final class StatBoardRecords implements RecordsBoard {
         String allTime = allTimeTab(periodTabs);
         for (LeaderboardBucketTab tab : sectionTabs) {
             StatSplit split = config.splitOf(tab.bucketKey());
-            LeaderboardSplit shown = split == null ? null : split(split, source, allTime);
+            LeaderboardSplit shown = split == null ? null
+                    : split(split, source, allTime, columns.getOrDefault(tab.bucketKey(), List.of()));
             if (shown != null) {
                 splits.put(tab.bucketKey(), shown);
             }
@@ -123,12 +124,15 @@ public final class StatBoardRecords implements RecordsBoard {
     /**
      * A section's split as Records shows it ({@link StatSplit}): each group a choice whose columns sum its things'
      * lines, each thing a pick with its own lines, a line the source gives no column left out, and a group or a
-     * thing left with none hidden. Pinned to {@code allTime} when every split stat holds all-time numbers alone (a
-     * gauge), so a week never reads empty. Null when nothing is left, or the groups could not be read.
+     * thing left with none hidden. A split naming periodic stats ({@link StatSplit#offAllTime}) ranks them on every
+     * period but {@code allTime}, read the same way: on the first choice their totals and then the section's own
+     * columns ({@code own}) that count into a window, beside each name the meta figure from All Time. Otherwise it is
+     * pinned to {@code allTime} when every split stat holds all-time numbers alone (a gauge), so a week never reads
+     * empty. Null when nothing is left, or the groups could not be read.
      */
     @Nullable
     static LeaderboardSplit split(@Nonnull StatSplit split, @Nonnull StatBoardSource source,
-                                  @Nullable String allTime) {
+                                  @Nullable String allTime, @Nonnull List<StatColumnDef> own) {
         List<StatSplit.Group> groups;
         try {
             groups = split.groups().get();
@@ -139,49 +143,40 @@ public final class StatBoardRecords implements RecordsBoard {
         if (groups == null || split.columns().isEmpty()) {
             return null;
         }
+        StatSplit.Meta meta = split.meta();
+        boolean periodic = false;
         List<LeaderboardSplit.Choice> choices = new ArrayList<>();
         for (StatSplit.Group group : groups) {
             if (group == null || group.id().isBlank()) {
                 continue;
             }
             List<LeaderboardSplit.Pick> picks = new ArrayList<>();
-            List<List<String>> parts = new ArrayList<>();
-            List<StatColumnDef> formats = new ArrayList<>();
-            for (int c = 0; c < split.columns().size(); c++) {
-                parts.add(new ArrayList<>());
-                formats.add(null);
-            }
             for (StatSplit.Thing thing : group.things()) {
-                List<StatColumnDef> own = new ArrayList<>();
-                for (int c = 0; c < split.columns().size(); c++) {
-                    StatSplit.Column column = split.columns().get(c);
-                    StatColumnDef line = columnOf(column.stat() + "/" + thing.id(), source);
-                    if (line == null) {
-                        continue;
-                    }
-                    own.add(new StatColumnDef(line.statKey(), column.label(), line.format(), line.ascending()));
-                    parts.get(c).add(line.statKey());
-                    formats.set(c, line);
-                }
-                if (!own.isEmpty()) {
-                    picks.add(new LeaderboardSplit.Pick(thing.id(), thing.label(), own));
+                List<StatColumnDef> lines = thingColumns(split.columns(), thing, source);
+                if (!lines.isEmpty()) {
+                    List<StatColumnDef> windowed = thingColumns(split.periodic(), thing, source);
+                    periodic |= !windowed.isEmpty();
+                    picks.add(new LeaderboardSplit.Pick(thing.id(), thing.label(), lines,
+                            new LeaderboardSplit.Periodic(windowed,
+                                    meta == null ? null : columnOf(lineOf(meta.stat(), thing.id()), source))));
                 }
             }
-            List<StatColumnDef> sums = new ArrayList<>();
-            for (int c = 0; c < split.columns().size(); c++) {
-                StatSplit.Column column = split.columns().get(c);
-                if (formats.get(c) != null) {
-                    // Named by the stat and the group, a key no stored line can be (no '/' before the group).
-                    sums.add(StatColumnDef.summing(column.stat() + SUM + group.id(), column.label(),
-                            formats.get(c).format(), parts.get(c), column.partsOver()));
-                }
-            }
+            List<StatColumnDef> sums = groupSums(split.columns(), group, source);
             if (!picks.isEmpty() && !sums.isEmpty()) {
-                choices.add(new LeaderboardSplit.Choice(group.id(), group.label(), sums, picks));
+                choices.add(new LeaderboardSplit.Choice(group.id(), group.label(), sums, picks,
+                        new LeaderboardSplit.Periodic(groupSums(split.periodic(), group, source),
+                                meta == null ? null : groupSum(meta.stat(), null, meta.partsOver(), group, source))));
             }
         }
         if (choices.isEmpty()) {
             return null;
+        }
+        List<StatColumnDef> first = firstPeriodic(split.periodic(), own, source);
+        if (periodic || !first.isEmpty()) {
+            LeaderboardSplit.Periodic firstView = new LeaderboardSplit.Periodic(first,
+                    meta == null ? null : columnOf(meta.stat(), source));
+            return new LeaderboardSplit(split.allLabel(), split.pickAllLabel(), choices, split.shows(), null,
+                    new LeaderboardSplit.Periods(allTime, firstView, meta == null ? null : meta.words()));
         }
         boolean allTimeOnly = true;
         for (StatSplit.Column column : split.columns()) {
@@ -189,6 +184,106 @@ public final class StatBoardRecords implements RecordsBoard {
         }
         return new LeaderboardSplit(split.allLabel(), split.pickAllLabel(), choices, split.shows(),
                 allTimeOnly ? allTime : null);
+    }
+
+    /**
+     * The first choice's columns off All Time: each periodic stat's total the source gives a column, under the
+     * split's label, then each of the section's own columns whose stat counts into a window (a gauge's would read
+     * nothing there). Empty when no periodic stat has a column.
+     */
+    @Nonnull
+    private static List<StatColumnDef> firstPeriodic(@Nonnull List<StatSplit.Column> periodic,
+                                                     @Nonnull List<StatColumnDef> own,
+                                                     @Nonnull StatBoardSource source) {
+        List<StatColumnDef> out = new ArrayList<>();
+        for (StatSplit.Column column : periodic) {
+            StatColumnDef total = columnOf(column.stat(), source);
+            if (total != null) {
+                out.add(relabelled(total, column.label()));
+            }
+        }
+        if (out.isEmpty()) {
+            return out;
+        }
+        for (StatColumnDef column : own) {
+            String key = column.statKey();
+            int slash = key.indexOf('/');
+            if (!allTimeOnly(slash < 0 ? key : key.substring(0, slash), source) && !holds(out, key)) {
+                out.add(column);
+            }
+        }
+        return out;
+    }
+
+    /** Whether {@code columns} already hold one keyed {@code key}. */
+    private static boolean holds(@Nonnull List<StatColumnDef> columns, @Nonnull String key) {
+        for (StatColumnDef column : columns) {
+            if (column.statKey().equals(key)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** A thing's own columns: each stat's line for {@code thing} the source gives a column, under the split's label. */
+    @Nonnull
+    private static List<StatColumnDef> thingColumns(@Nonnull List<StatSplit.Column> stats,
+                                                    @Nonnull StatSplit.Thing thing, @Nonnull StatBoardSource source) {
+        List<StatColumnDef> out = new ArrayList<>();
+        for (StatSplit.Column column : stats) {
+            StatColumnDef line = columnOf(lineOf(column.stat(), thing.id()), source);
+            if (line != null) {
+                out.add(relabelled(line, column.label()));
+            }
+        }
+        return out;
+    }
+
+    /** A group's columns: each stat's lines over the group's things summed, a stat with none left out. */
+    @Nonnull
+    private static List<StatColumnDef> groupSums(@Nonnull List<StatSplit.Column> stats, @Nonnull StatSplit.Group group,
+                                                 @Nonnull StatBoardSource source) {
+        List<StatColumnDef> out = new ArrayList<>();
+        for (StatSplit.Column column : stats) {
+            StatColumnDef sum = groupSum(column.stat(), column.label(), column.partsOver(), group, source);
+            if (sum != null) {
+                out.add(sum);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Stat {@code stat}'s lines over {@code group}'s things that the source gives a column, summed past
+     * {@code partsOver} as the page builds, under {@code label} (the lines' own when null); null when none has one.
+     */
+    @Nullable
+    private static StatColumnDef groupSum(@Nonnull String stat, @Nullable Message label, long partsOver,
+                                          @Nonnull StatSplit.Group group, @Nonnull StatBoardSource source) {
+        List<String> parts = new ArrayList<>();
+        StatColumnDef format = null;
+        for (StatSplit.Thing thing : group.things()) {
+            StatColumnDef line = columnOf(lineOf(stat, thing.id()), source);
+            if (line != null) {
+                parts.add(line.statKey());
+                format = line;
+            }
+        }
+        // Named by the stat and the group, a key no stored line can be (no '/' before the group).
+        return format == null ? null : StatColumnDef.summing(stat + SUM + group.id(),
+                label != null ? label : format.label(), format.format(), parts, partsOver);
+    }
+
+    /** Stat {@code stat}'s line for {@code thing}. */
+    @Nonnull
+    private static String lineOf(@Nonnull String stat, @Nonnull String thing) {
+        return stat + "/" + thing;
+    }
+
+    /** {@code line} under {@code label}, the split's name for its column. */
+    @Nonnull
+    private static StatColumnDef relabelled(@Nonnull StatColumnDef line, @Nonnull Message label) {
+        return new StatColumnDef(line.statKey(), label, line.format(), line.ascending());
     }
 
     /** Whether the source says {@code stat} holds all-time numbers alone; a source that throws says no. */

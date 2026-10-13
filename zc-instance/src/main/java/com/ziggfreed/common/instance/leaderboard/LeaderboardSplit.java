@@ -2,6 +2,7 @@ package com.ziggfreed.common.instance.leaderboard;
 
 import java.util.List;
 import java.util.function.BiPredicate;
+import java.util.function.LongFunction;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -23,10 +24,12 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
  *                     of is hidden from them
  * @param pinnedTab    the second row's tab every choice but the first reads, its row hidden, for lines that
  *                     only ever hold all-time numbers; null keeps the row
+ * @param periods      how the split reads on every second-row tab but its all-time one, or null to read the same
+ *                     columns on every tab
  */
 public record LeaderboardSplit(@Nonnull Message allLabel, @Nonnull Message pickAllLabel,
                                @Nonnull List<Choice> choices, @Nonnull BiPredicate<PlayerRef, String> shows,
-                               @Nullable String pinnedTab) {
+                               @Nullable String pinnedTab, @Nullable Periods periods) {
 
     /** Every pick shows to every viewer. */
     public static final BiPredicate<PlayerRef, String> EVERYONE = (viewer, pick) -> true;
@@ -35,24 +38,68 @@ public record LeaderboardSplit(@Nonnull Message allLabel, @Nonnull Message pickA
         choices = List.copyOf(choices);
     }
 
+    /** A split that reads the same columns on every second-row tab. */
+    public LeaderboardSplit(@Nonnull Message allLabel, @Nonnull Message pickAllLabel,
+                            @Nonnull List<Choice> choices, @Nonnull BiPredicate<PlayerRef, String> shows,
+                            @Nullable String pinnedTab) {
+        this(allLabel, pickAllLabel, choices, shows, pinnedTab, null);
+    }
+
     /**
-     * One group: its key (never empty, which is the first choice), its name, its columns (sums over its picks)
-     * and its picks.
+     * How a split reads on every second-row tab but {@code allTimeTab} (a week, a month, a season): the first choice
+     * shows {@code first}, a choice or a pick its own {@link Periodic}, and each row names its player with the
+     * selection's meta beside them, read from the {@code allTimeTab} bucket and worded by {@code words} (null shows no
+     * figure). A null {@code allTimeTab} (a row holding no all-time tab) reads every tab this way, with no figure
+     * beside the name.
+     */
+    public record Periods(@Nullable String allTimeTab, @Nonnull Periodic first,
+                          @Nullable LongFunction<Message> words) {
+    }
+
+    /**
+     * What a selection shows off its all-time tab: its columns (empty keeps the ones it shows there) and the column
+     * the figure beside each name reads on the all-time bucket, or null for none.
+     */
+    public record Periodic(@Nonnull List<StatColumnDef> columns, @Nullable StatColumnDef meta) {
+
+        /** Nothing of its own: the selection's all-time columns and no figure beside the name. */
+        public static final Periodic NONE = new Periodic(List.of(), null);
+
+        public Periodic {
+            columns = List.copyOf(columns);
+        }
+    }
+
+    /**
+     * One group: its key (never empty, which is the first choice), its name, its columns (sums over its picks),
+     * its picks and what it shows off the all-time tab ({@link Periods}).
      */
     public record Choice(@Nonnull String key, @Nonnull Message label, @Nonnull List<StatColumnDef> columns,
-                         @Nonnull List<Pick> picks) {
+                         @Nonnull List<Pick> picks, @Nonnull Periodic periodic) {
 
         public Choice {
             columns = List.copyOf(columns);
             picks = List.copyOf(picks);
         }
+
+        /** A group showing the same columns on every tab. */
+        public Choice(@Nonnull String key, @Nonnull Message label, @Nonnull List<StatColumnDef> columns,
+                      @Nonnull List<Pick> picks) {
+            this(key, label, columns, picks, Periodic.NONE);
+        }
     }
 
-    /** One thing to rank alone: its key (never empty), its name and its columns. */
-    public record Pick(@Nonnull String key, @Nonnull Message label, @Nonnull List<StatColumnDef> columns) {
+    /** One thing to rank alone: its key (never empty), its name, its columns and what it shows off the all-time tab. */
+    public record Pick(@Nonnull String key, @Nonnull Message label, @Nonnull List<StatColumnDef> columns,
+                       @Nonnull Periodic periodic) {
 
         public Pick {
             columns = List.copyOf(columns);
+        }
+
+        /** A thing showing the same columns on every tab. */
+        public Pick(@Nonnull String key, @Nonnull Message label, @Nonnull List<StatColumnDef> columns) {
+            this(key, label, columns, Periodic.NONE);
         }
     }
 }
