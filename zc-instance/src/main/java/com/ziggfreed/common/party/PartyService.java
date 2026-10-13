@@ -256,6 +256,8 @@ public final class PartyService {
         partyOf.remove(member, party.id());
         if (party.isEmpty()) {
             parties.remove(party.id(), party);
+            // The snapshot names no member now; the leaver's open page knows the party by its id.
+            fireChange(party);
             return true;
         }
         if (wasOwner) {
@@ -283,6 +285,8 @@ public final class PartyService {
         for (UUID u : members) {
             info(u, messages.disbanded());
         }
+        // The Party object keeps its roster, so the snapshot still names everyone it held.
+        fireChange(party);
         return true;
     }
 

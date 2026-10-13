@@ -1,9 +1,16 @@
 package com.ziggfreed.common.party.page;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -20,6 +27,7 @@ import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
+import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.party.InviteResult;
@@ -33,6 +41,7 @@ import com.ziggfreed.common.ui.ZigSearchRow;
 import com.ziggfreed.common.ui.name.PlayerDisplayNames;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastablePage;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The generic party + invite screen (the {@code KweebecLeaderboardPage}/{@code DialoguePage}
@@ -54,6 +63,17 @@ import com.ziggfreed.common.ui.toast.ToastablePage;
  * {@code handleDataEvent} exit path sends a response (re-open or {@code Page.None}) or the
  * client spins forever. The {@code .ui} ships once in ziggfreed-common and resolves
  * client-side across the merged asset tree.
+ *
+ * <p><b>Live repaint.</b> An open page repaints itself when its party changes, so a member
+ * who joins, leaves or is kicked shows on everyone's open page, not only the actor's. The
+ * first build wires one listener on the page's {@link PartyService} (one per service, by
+ * identity, so a consumer wires nothing). A change queues a reopen of this SAME instance on
+ * the viewer's own world thread, which keeps its tab, search text and chosen difficulty, for
+ * every viewer on the Party tab who is in the party, holds an invite from it, or was last
+ * shown it (the kicked, the departed, the disbanded and a stale invite row). The listener
+ * runs under the service's lock, so it only reads and queues; the reopen happens after a
+ * recheck that this page is still the one the viewer has open. A viewer on the Invite tab is
+ * never repainted: a reopen would steal the search field's focus and drop what is typed in it.
  */
 public class PartyInvitePage extends ToastablePage<PartyEventData> {
 
@@ -75,9 +95,37 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
      */
     private static final String SEARCH_KEY = "@Query";
 
+    /**
+     * The party page each viewer has open (viewer uuid to page): put on every build, removed on
+     * dismiss only while it still maps to that instance. A party change walks it for the pages to
+     * repaint; an entry a disconnect left behind is harmless, since a repaint first rechecks that the
+     * page is still the one open.
+     */
+    private static final ConcurrentHashMap<UUID, PartyInvitePage> OPEN = new ConcurrentHashMap<>();
+
+    /** The services already carrying this page's listener, by identity: one listener per service. */
+    private static final Set<PartyService> WIRED =
+            Collections.synchronizedSet(Collections.newSetFromMap(new IdentityHashMap<>()));
+
+    /** Logs the first repaint that throws, never one line per party change. */
+    private static final AtomicBoolean REPAINT_FAILURE_LOGGED = new AtomicBoolean(false);
+
     private final PartyPageDeps deps;
-    private String activeTab = TAB_PARTY;
+    /** Volatile: the party listener reads it off the world thread to skip an Invite-tab viewer. */
+    private volatile String activeTab = TAB_PARTY;
     private String searchText = "";
+    /**
+     * The party ids the last Party-tab build showed: the viewer's own party and every party an invite
+     * row came from (empty on the Invite tab). Replaced whole, never mutated, since the listener reads
+     * it off the world thread.
+     */
+    private volatile Set<String> shownPartyIds = Set.of();
+    /**
+     * True while a repaint waits on the viewer's world thread: set by the listener's queueing, cleared
+     * by the queued task and at the top of every build, so a viewer whose own click reopened the page
+     * is never painted twice for one change.
+     */
+    private final AtomicBoolean repaintQueued = new AtomicBoolean(false);
     /** The difficulty chosen upstream (Play screen -> Party mode); threaded to the Queue handler. */
     @Nullable
     private String presetId = null;
@@ -104,6 +152,14 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
     @Override
     public void build(@Nonnull Ref<EntityStore> ref, @Nonnull UICommandBuilder cmd,
                       @Nonnull UIEventBuilder events, @Nonnull Store<EntityStore> store) {
+        // Any build paints the state as it is now, so a repaint queued before it has nothing left to do.
+        repaintQueued.set(false);
+        wire(deps.service());
+        UUID viewer = playerRef.getUuid();
+        if (viewer != null) {
+            OPEN.put(viewer, this);
+        }
+
         PartyScreenMessages t = deps.text();
         cmd.append(PAGE_TEMPLATE);
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton", EventData.of("Action", "close"));
@@ -118,7 +174,6 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
                 EventData.of("Action", "tab").append("Target", TAB_INVITE), false);
         paintActiveTab(cmd, TAB_INVITE.equals(activeTab) ? "#TabInvite" : "#TabParty");
 
-        UUID viewer = playerRef.getUuid();
         if (TAB_INVITE.equals(activeTab)) {
             buildInviteTab(cmd, events, t, viewer);
         } else {
@@ -141,12 +196,14 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
         cmd.set("#SearchRow.Visible", false);
         PartyService svc = deps.service();
         int row = 0;
+        Set<String> shown = new HashSet<>();
 
         // Incoming invites (actionable) first.
         for (PartyInvite inv : svc.pendingInvitesFor(viewer)) {
             if (row >= MAX_ROWS) {
                 break;
             }
+            shown.add(inv.partyId());
             String sel = appendRow(cmd, row, PlayerDisplayNames.displayName(inv.inviter(), null), null);
             bindRowButton(cmd, events, sel, "#RowBtnPrimary", t.acceptButton(),
                     EventData.of("Action", "accept").append("PartyId", inv.partyId()));
@@ -159,6 +216,7 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
         Party party = svc.partyOf(viewer);
         PartySnapshot snap = party != null ? party.snapshot() : null;
         if (snap != null) {
+            shown.add(snap.id());
             boolean viewerOwns = snap.isOwner(viewer);
             cmd.set("#MemberCount.Visible", true);
             cmd.set("#MemberCount.TextSpans", t.memberCount(snap.size(), snap.maxSize()));
@@ -206,12 +264,15 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
             cmd.set("#EmptyState.Visible", true);
             cmd.set("#EmptyState.TextSpans", t.emptyParty());
         }
+        // Read by the party listener off the world thread: one immutable set, swapped whole.
+        shownPartyIds = Set.copyOf(shown);
     }
 
     // ==================== Invite tab ====================
 
     private void buildInviteTab(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
                                 @Nonnull PartyScreenMessages t, @Nonnull UUID viewer) {
+        shownPartyIds = Set.of(); // the Invite tab shows no party, and the listener skips it anyway
         cmd.set(SEARCH_ROW + ".Visible", true);
         ZigSearchRow.wire(cmd, events, SEARCH_ROW, searchText, SEARCH_KEY,
                 EventData.of("Action", "search"), EventData.of("Action", "clear"));
@@ -284,6 +345,118 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
         } catch (Throwable t) {
             return List.of();
         }
+    }
+
+    // ==================== live repaint (party listener -> reopen on the viewer's world thread) ====================
+
+    /** Register the page's one listener on {@code svc}, the first time any page builds over it. */
+    private static void wire(@Nonnull PartyService svc) {
+        if (WIRED.add(svc)) {
+            svc.addListener(snap -> repaintAffected(svc, snap));
+        }
+    }
+
+    /**
+     * The listener: queue a repaint on every open page over {@code svc} that shows {@code snap}'s
+     * party. Runs synchronously under the service's lock on the mutating thread, so it only reads
+     * volatile state and queues; it never blocks and never opens a page here.
+     */
+    private static void repaintAffected(@Nonnull PartyService svc, @Nonnull PartySnapshot snap) {
+        for (Map.Entry<UUID, PartyInvitePage> e : OPEN.entrySet()) {
+            PartyInvitePage page = e.getValue();
+            if (page.deps.service() == svc && page.shows(e.getKey(), snap)) {
+                page.queueRepaint();
+            }
+        }
+    }
+
+    /**
+     * Whether this page, viewed by {@code viewer}, shows the party {@code snap} describes: the Party
+     * tab only, for a member, an invitee, or a viewer last shown that party (which covers the kicked,
+     * the departed, the disbanded and an invite row gone stale).
+     */
+    private boolean shows(@Nonnull UUID viewer, @Nonnull PartySnapshot snap) {
+        if (!TAB_PARTY.equals(activeTab)) {
+            return false;
+        }
+        if (snap.members().contains(viewer) || shownPartyIds.contains(snap.id())) {
+            return true;
+        }
+        for (PartyInvite inv : snap.pendingInvites()) {
+            if (viewer.equals(inv.invitee())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Queue one reopen of this page on the viewer's world thread, resolved the way the toast push
+     * resolves it; a repaint already waiting covers this change too, since it reads the state as it
+     * is when it runs. Called off the world thread (under the service's lock), so it only enqueues.
+     */
+    private void queueRepaint() {
+        if (!repaintQueued.compareAndSet(false, true)) {
+            return;
+        }
+        Ref<EntityStore> ref = playerRef.getReference();
+        if (ref == null) {
+            repaintQueued.set(false);
+            return;
+        }
+        Store<EntityStore> store;
+        World world;
+        try {
+            store = ref.getStore();
+            world = store.getExternalData().getWorld();
+        } catch (Throwable t) {
+            repaintQueued.set(false);
+            return;
+        }
+        if (world == null) {
+            repaintQueued.set(false);
+            return;
+        }
+        try {
+            world.execute(() -> repaintNow(ref, store));
+        } catch (Throwable t) {
+            repaintQueued.set(false); // the world has stopped taking tasks
+        }
+    }
+
+    /**
+     * The queued reopen, on the viewer's world thread: skipped when a build since the queueing already
+     * painted the change, or when this page is no longer the one the player has open. Reopens THIS
+     * instance with the player's own ref, so the tab, the search text and the difficulty carry over.
+     */
+    private void repaintNow(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store) {
+        if (!repaintQueued.getAndSet(false)) {
+            return;
+        }
+        try {
+            if (isDismissed() || !ref.isValid()) {
+                return;
+            }
+            Player player = store.getComponent(ref, Player.getComponentType());
+            if (player == null || player.getPageManager().getCustomPage() != this) {
+                return;
+            }
+            player.getPageManager().openCustomPage(ref, store, this);
+        } catch (Throwable t) {
+            if (REPAINT_FAILURE_LOGGED.compareAndSet(false, true)) {
+                SafeLog.warn("[party] an open party page failed to repaint on a party change (logged once)", t);
+            }
+        }
+    }
+
+    @Override
+    public void onDismiss(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store) {
+        // Remove this instance's entry only, never a newer party page the same viewer has since built.
+        UUID viewer = playerRef.getUuid();
+        if (viewer != null) {
+            OPEN.remove(viewer, this);
+        }
+        super.onDismiss(ref, store);
     }
 
     // ==================== event handling ====================

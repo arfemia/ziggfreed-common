@@ -7,8 +7,10 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -269,5 +271,38 @@ class PartyServiceTest {
         assertNotNull(last[0]);
         assertEquals(party.id(), last[0].id());
         assertTrue(last[0].members().contains(guest));
+    }
+
+    /** The open party page repaints on the listener, so a disband must fire it, naming who was in. */
+    @Test
+    void disbandFiresOneChange() {
+        UUID owner = id();
+        UUID guest = id();
+        PartyService svc = service(new HashSet<>(Set.of(owner, guest)));
+        svc.invite(owner, guest);
+        Party party = svc.partyOf(owner);
+        svc.accept(guest, party.id());
+        List<PartySnapshot> seen = new ArrayList<>();
+        svc.addListener(seen::add);
+
+        assertTrue(svc.disband(owner));
+        assertEquals(1, seen.size(), "a disband fires one change");
+        assertEquals(party.id(), seen.get(0).id());
+        assertTrue(seen.get(0).members().contains(guest), "the snapshot still names the members it held");
+    }
+
+    /** A leave that empties the party fires too, though its snapshot names nobody. */
+    @Test
+    void leaveThatEmptiesThePartyFiresOneChange() {
+        UUID owner = id();
+        PartyService svc = service(new HashSet<>(Set.of(owner)));
+        Party party = svc.getOrCreate(owner);
+        List<PartySnapshot> seen = new ArrayList<>();
+        svc.addListener(seen::add);
+
+        assertTrue(svc.leave(owner));
+        assertEquals(1, seen.size(), "a leave that empties the party fires one change");
+        assertEquals(party.id(), seen.get(0).id());
+        assertTrue(seen.get(0).members().isEmpty());
     }
 }

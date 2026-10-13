@@ -5,3 +5,4 @@
 - A party queues as a unit: the Queue button calls the consumer's `PartyQueueHandler`, which routes into `LobbyService.queueParty`. A private party queues under `QueueKey.privateQueue(gameId, presetId, partyId)`, and a null `presetId` (the page opened standalone) falls back to the consumer's default preset.
 - Party settings are pack-authored under `Server/ZiggfreedCommon/Party/`; read `PartySettingsConfig.getInstance().resolveOrDefault(...)` lazily, after assets load.
 - The invite search is the shared `ZigSearchRow`: Search submits and nothing binds per keystroke.
+- An open party page repaints itself on its service's changes, the Party tab only: the page registers its own `PartyListener` (one per service) and reopens the same instance on the viewer's world thread, so a consumer wires nothing. Every mutation fires the listener, a disband and an emptying leave included.
