@@ -20,13 +20,20 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 /**
- * Every line {@code /zigleaderboard} says, and every description its help resolves, ships in the module's
- * own English file. Read from the sources and the shipped file; no server.
+ * Every word the records screen shares from this module's English file (the stat board's columns, sorts,
+ * views and All tab) ships there. Every line {@code /zigleaderboard} says, and every description its help
+ * resolves, ships there too. Read from the sources and the shipped file; no server.
  */
 class LeaderboardLangKeysTest {
 
     static final Path ENGLISH = Path.of("src", "main", "resources", "Server", "Languages", "en-US",
             "ziggfreedcommon.leaderboard.lang");
+
+    private static final Path MESSAGES = Path.of("src", "main", "java", "com", "ziggfreed", "common", "instance",
+            "leaderboard", "statboard", "StatBoardMessages.java");
+
+    /** A word the stat board resolves through {@code EncounterLeaderboardMessages.line}, by its {@code shared} call. */
+    private static final Pattern SHARED = Pattern.compile("shared\\(\"([a-z][a-z0-9_.]*)\"");
 
     private static final Path COMMANDS = Path.of("src", "main", "java", "com", "ziggfreed", "common", "instance",
             "leaderboard", "command");
@@ -39,6 +46,19 @@ class LeaderboardLangKeysTest {
     private static final Pattern DESCRIPTION = Pattern.compile("desc\\(\"([a-z][a-z0-9_.]*)\"\\)");
 
     private static final Pattern DESCRIPTION_OF_VERB = Pattern.compile("desc\\(LeaderboardCommandLine\\.([A-Z_]+)\\)");
+
+    @Test
+    void everyLineTheScreenSaysShipsInEnglish() throws IOException {
+        Map<String, String> shipped = shipped();
+        Set<String> said = new TreeSet<>();
+        Matcher m = SHARED.matcher(Files.readString(MESSAGES, StandardCharsets.UTF_8));
+        while (m.find()) {
+            said.add(m.group(1));
+        }
+        assertTrue(said.size() >= 12, "the scan found almost nothing, so it is not scanning: " + said);
+        assertEquals(List.of(), said.stream().filter(key -> !shipped.containsKey(key)).toList(),
+                "lines the screen says but " + ENGLISH + " does not ship");
+    }
 
     @Test
     void everyLineTheCommandSaysShipsInEnglish() throws IOException {

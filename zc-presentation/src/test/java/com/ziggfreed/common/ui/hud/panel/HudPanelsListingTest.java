@@ -41,13 +41,36 @@ class HudPanelsListingTest {
     }
 
     @Test
+    void theListingFollowsEachPanelsOrderLowerFirst() throws Exception {
+        HudPanelConfig fold = HudPanelConfig.getInstance();
+        fold.mergePackLayer(Map.of(HudPanelAsset.WORLD_ID, panel(HudPanelAsset.WORLD_ID, 10)));
+        assertEquals(List.of(HudPanelAsset.WORLD_ID, HudPanelAsset.LEDGER_ID),
+                HudPanels.listing(fold), "a panel naming no Order lists after one that names one, whatever its id");
+
+        fold.mergePackLayer(Map.of(
+                HudPanelAsset.WORLD_ID, panel(HudPanelAsset.WORLD_ID, 10),
+                HudPanelAsset.LEDGER_ID, panel(HudPanelAsset.LEDGER_ID, 20)));
+        assertEquals(List.of(HudPanelAsset.WORLD_ID, HudPanelAsset.LEDGER_ID),
+                HudPanels.listing(fold), "the lower Order lists first");
+
+        fold.mergeOwnerLayer(Map.of(HudPanelAsset.LEDGER_ID, panel(HudPanelAsset.LEDGER_ID, 5)));
+        assertEquals(List.of(HudPanelAsset.LEDGER_ID, HudPanelAsset.WORLD_ID),
+                HudPanels.listing(fold), "an owner's Order reorders the listing on the next open");
+    }
+
+    @Test
     void panelsNamingNoOrderListByIdAndAnEmptyFoldStillAnswers() {
+        assertEquals(List.of(HudPanelAsset.LEDGER_ID, HudPanelAsset.WORLD_ID),
+                HudPanels.listing(HudPanelConfig.getInstance()),
+                "nothing authored: every panel reads the default order, so the ids decide");
         assertEquals(HudPanelAsset.DEFAULT_ORDER, HudPanelAsset.defaults().order());
     }
 
     @Test
     void theAttachOrderIsNotWhatTheTabsSortBy() throws Exception {
         List<String> before = attached();
+        assertEquals(List.of(HudPanelAsset.LEDGER_ID, HudPanelAsset.WORLD_ID), before,
+                "the ledger attaches first, so the World bars draw over it");
 
         HudPanelConfig fold = HudPanelConfig.getInstance();
         fold.mergePackLayer(Map.of(
@@ -62,6 +85,12 @@ class HudPanelsListingTest {
         int world = shippedOrder("World_Bars.json");
         int ledger = shippedOrder("Activity_Ledger.json");
         assertTrue(world < ledger, "World_Bars (" + world + ") lists ahead of Activity_Ledger (" + ledger + ")");
+        HudPanelConfig fold = HudPanelConfig.getInstance();
+        fold.mergePackLayer(Map.of(
+                HudPanelAsset.WORLD_ID, panel(HudPanelAsset.WORLD_ID, world),
+                HudPanelAsset.LEDGER_ID, panel(HudPanelAsset.LEDGER_ID, ledger)));
+        assertEquals(List.of(HudPanelAsset.WORLD_ID, HudPanelAsset.LEDGER_ID),
+                HudPanels.listing(fold));
     }
 
     private static int shippedOrder(String file) throws Exception {
