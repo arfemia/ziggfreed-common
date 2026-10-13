@@ -7,11 +7,12 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.dialogue.quest.QuestDialogueHost;
 
 /**
  * A surface that can show a player what a character has to offer.
  *
- * <p>The sibling of {@link com.ziggfreed.common.dialogue.quest.QuestDialogueHost}, one step earlier
+ * <p>The sibling of {@link QuestDialogueHost}, one step earlier
  * in a quest's life: that one puts the conversation a settled quest leads to on the screen, this one
  * puts the list a player opens at a character. A consumer registers its own quest panel once at
  * setup with {@link NpcQuestListHosts} and the shared {@code Quests} destination then drives it, so

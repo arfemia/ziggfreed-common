@@ -36,7 +36,7 @@ import com.hypixel.hytale.codec.KeyedCodec;
  * reserved for a late-encounter tier). The horror/"scare" naming of Kweebec's source
  * type is deliberately kept OUT of common - this is the neutral, reusable primitive.
  *
- * <p><b>Pattern A - full structured asset</b> (mirrors {@link com.ziggfreed.common.instance.preset.InstancePresetAsset}
+ * <p><b>Pattern A - full structured asset</b> (mirrors {@code InstancePresetAsset}
  * / hyMMO's {@code QuestGiverAsset} field-for-field). The engine decodes a banded effect
  * DIRECTLY into typed fields via {@link #CODEC} - the codec IS the single schema authority
  * on both the pack layer and any owner override (the same CODEC decodes an owner override).

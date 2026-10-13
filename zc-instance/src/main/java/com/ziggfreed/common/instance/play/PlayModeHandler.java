@@ -6,10 +6,11 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.instance.preset.QueueModeId;
 
 /**
  * The consumer policy a {@link PlayModePage} invokes when a player picks a queue mode
- * card. Each method maps a {@link com.ziggfreed.common.instance.preset.QueueModeId} to a
+ * card. Each method maps a {@link QueueModeId} to a
  * distinct lobby path; the page itself stays mod-agnostic and imports no lobby wiring.
  * All three run on the world thread (the page's event handler), so a hop to {@code
  * world.execute} is the consumer's call only if it needs one.

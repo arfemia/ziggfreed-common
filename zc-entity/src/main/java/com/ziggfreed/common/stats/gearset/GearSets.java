@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
@@ -96,8 +95,6 @@ public final class GearSets {
      * no-op under the bridge's identity dedup rather than a second recompute per equip.
      */
     private static final EquipStatBridge.AppliedListener LISTENER = GearSets::recompute;
-
-    private static final Set<String> WARNED_UNKNOWN_STATS = ConcurrentHashMap.newKeySet();
 
     /** The counts of a set the player no longer has any piece of: it is no candidate, so it was never counted. */
     private static final SlotCounts NONE_ON = new SlotCounts(0, 0, 0, 0);
@@ -278,7 +275,7 @@ public final class GearSets {
                     TierRef tierRef = new TierRef(set.getId(), tierIndex);
                     active.add(tierRef);
                     desired.add(new GearSetPlan.Desired(tierRef,
-                            GearSetPlan.resolve(tier, StatIndexCache::resolve, GearSets::warnUnknownStatOnce)));
+                            GearSetPlan.resolve(tier, StatIndexCache::resolve, StatIndexCache::warnUnknownOnce)));
                     String effect = tier.effectId();
                     if (effect != null) {
                         desiredEffects.add(effect);
@@ -552,12 +549,5 @@ public final class GearSets {
     private static StaticModifier existingStatic(@Nonnull EntityStatMap statMap, int index, @Nonnull String key) {
         Modifier existing = statMap.getModifier(index, key);
         return existing instanceof StaticModifier sm ? sm : null;
-    }
-
-    private static void warnUnknownStatOnce(@Nonnull String statId) {
-        if (WARNED_UNKNOWN_STATS.add(statId)) {
-            SafeLog.warn("[gearset] unknown stat channel '" + statId + "' in a gear set's StatModifiers, skipped "
-                    + "(not registered yet, or misspelled)");
-        }
     }
 }

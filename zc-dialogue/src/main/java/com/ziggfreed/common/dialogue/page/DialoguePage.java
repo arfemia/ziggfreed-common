@@ -20,6 +20,7 @@ import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
+import com.ziggfreed.common.dialogue.DialoguePayloads;
 import com.ziggfreed.common.dialogue.type.DialogueAction;
 import com.ziggfreed.common.dialogue.type.DialogueActionExecutor;
 import com.ziggfreed.common.dialogue.DialogueEngine;
@@ -66,7 +67,7 @@ import com.ziggfreed.common.util.SafeLog;
  * vocabulary ({@link DialogueEngine#shared()}), the one conversation store, the header sources a
  * conversation names, and the name the character's own role authored. Authored keys resolve in the
  * namespace of whichever mod ships them and every mod's payload is reachable through
- * {@link com.ziggfreed.common.dialogue.DialoguePayloads}, so a conversation reads the same whoever
+ * {@link DialoguePayloads}, so a conversation reads the same whoever
  * opened it - which is the whole point: a server running two talking mods has one dialogue system,
  * not one per mod with the last one to start up deciding for everybody.
  *
@@ -141,7 +142,7 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
 
     /**
      * @param npcRef the live NPC entity the player is standing at, when there is one, so the
-     *        header name can be answered from the live role ({@link com.ziggfreed.common.npc.NpcNames}'s
+     *        header name can be answered from the live role ({@link NpcNames}'s
      *        live-entity form) instead of a static walk. Null for a conversation opened with no
      *        entity in hand (e.g. a Java call site that only has an id).
      * @param preResolved the entry {@link DialogueOpener} resolved for this open, or null to let the
@@ -308,7 +309,7 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
     /**
      * The per-player context every render and click is evaluated in. It packs NO payload of its own:
      * each mod says how to build its own through
-     * {@link com.ziggfreed.common.dialogue.DialoguePayloads}, and the context asks for one by class
+     * {@link DialoguePayloads}, and the context asks for one by class
      * when an action or condition reaches for it. So a line belonging to any mod on the server
      * answers correctly here, whoever's character the player happens to be standing at.
      */

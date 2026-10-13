@@ -10,7 +10,7 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * A PER-CONSUMER instance holding that consumer's {@link ParamFoldResolver} - the same
- * per-consumer-instance idiom as {@code com.ziggfreed.common.cast.OnHitRegistry}: a consumer news
+ * per-consumer-instance idiom as {@code OnHitRegistry}: a consumer news
  * up its own {@code ParamFold} (or several, one per parameter family) so two mods sharing this
  * jar never see each other's fold.
  *

@@ -22,7 +22,6 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.util.RawJsonReader;
-import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.LibraryOwner;
 import com.ziggfreed.common.dialogue.quest.DialogueQuests;
 import com.ziggfreed.common.dialogue.quest.QuestDialogueActions;
@@ -56,6 +55,7 @@ import com.ziggfreed.common.registry.RegistryLedger;
 import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.route.Destination;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The dialogue runtime: what an action DOES, what a condition ANSWERS, which page an
@@ -1355,12 +1355,6 @@ public final class DialogueEngine {
     /** Default time source for a periodic {@code Once}: the system clock, epoch milliseconds. */
     private static final LongSupplier DEFAULT_CLOCK = System::currentTimeMillis;
 
-    /** Default warn: logs through the common plugin logger, guarded for log-manager-less unit JVMs. */
-    private static final Consumer<String> DEFAULT_WARN = msg -> {
-        try {
-            CommonLog.LOGGER.atWarning().log("[Dialogue] %s", msg);
-        } catch (Throwable ignored) {
-            // a unit JVM with no log manager throws an Error from the fluent logger; swallow it.
-        }
-    };
+    /** Default warn: logs through {@code SafeLog}, guarded for log-manager-less unit JVMs. */
+    private static final Consumer<String> DEFAULT_WARN = msg -> SafeLog.warn("[Dialogue] " + msg);
 }

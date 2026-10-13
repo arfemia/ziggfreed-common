@@ -8,7 +8,6 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.asset.type.attitude.Attitude;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.role.support.WorldSupport;
-import com.ziggfreed.common.CommonLog;
 
 /**
  * Hostility query using the NPC's {@link WorldSupport} attitude cache.
@@ -44,7 +43,7 @@ public final class HostilityUtil {
             return attitude == Attitude.HOSTILE;
 
         } catch (Throwable t) {
-            CommonLog.LOGGER.atFine().log("HostilityUtil failed: " + t);
+            SafeLog.fine("HostilityUtil failed: " + t);
             return false;
         }
     }

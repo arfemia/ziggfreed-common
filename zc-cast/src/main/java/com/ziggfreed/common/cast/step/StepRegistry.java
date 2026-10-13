@@ -6,12 +6,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.cast.OnHitRegistry;
+
 /**
  * Maps a step key to the {@link StepHandler} that executes it. The generic register / get
  * mechanism the {@link CastKernel} dispatches through. Ships EMPTY - a consumer news up its
  * own registry and registers every handler it ships; common bakes in no keys and no handlers.
  *
- * <p><b>Per-consumer instance:</b> like {@link com.ziggfreed.common.cast.OnHitRegistry}, this is
+ * <p><b>Per-consumer instance:</b> like {@link OnHitRegistry}, this is
  * an INSTANTIABLE registry (no static singleton), so two mods sharing this jar never see each
  * other's handler registrations. A consumer that wants a shared production registry holds its
  * own reference to one instance.

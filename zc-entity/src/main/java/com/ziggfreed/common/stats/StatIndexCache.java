@@ -1,10 +1,12 @@
 package com.ziggfreed.common.stats;
 
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Resolves a native {@link EntityStatType} id to its engine asset-map index and memoizes the
@@ -28,6 +30,10 @@ public final class StatIndexCache {
 
     @Nonnull
     private static final ConcurrentHashMap<String, Integer> CACHE = new ConcurrentHashMap<>();
+
+    /** Channel ids already named as unregistered, by whichever reader met them first. */
+    @Nonnull
+    private static final Set<String> WARNED_UNKNOWN = ConcurrentHashMap.newKeySet();
 
     private StatIndexCache() {
     }
@@ -56,5 +62,19 @@ public final class StatIndexCache {
             return idx;
         }
         return UNRESOLVED;
+    }
+
+    /**
+     * Names a stat channel nothing is registered under, once per id across every reader that
+     * resolves through this cache ({@link EquipStatBridge}, a gear set's tiers, the
+     * {@code hytale:stat} and {@code hytale:item_stat} factors), so one misspelled or late channel
+     * logs one line rather than one per reader. A miss is never cached by {@link #resolve}, so a
+     * channel registered later still resolves; only the log line is latched. Never throws.
+     */
+    public static void warnUnknownOnce(@Nonnull String statId) {
+        if (WARNED_UNKNOWN.add(statId)) {
+            SafeLog.warn("[stats] unknown stat channel '" + statId
+                    + "' - skipping (not registered yet, or misspelled)");
+        }
     }
 }

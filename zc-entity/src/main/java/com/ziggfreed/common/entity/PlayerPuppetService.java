@@ -37,7 +37,7 @@ import com.hypixel.hytale.server.core.modules.physics.util.PhysicsMath;
 import com.hypixel.hytale.server.core.modules.entity.tracker.EntityTrackerSystems;
 import com.hypixel.hytale.server.core.modules.entity.tracker.NetworkId;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.CommonLog;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Spawns / despawns / animates a networked PUPPET entity cloning a live player's
@@ -949,23 +949,10 @@ public final class PlayerPuppetService {
     // ==================== logging ====================
 
     private static void warn(@Nonnull String message, @Nullable Throwable cause) {
-        try {
-            if (cause != null) {
-                CommonLog.LOGGER.atWarning().withCause(cause)
-                        .log("[ziggfreed-common][puppet] " + message);
-            } else {
-                CommonLog.LOGGER.atWarning().log("[ziggfreed-common][puppet] " + message);
-            }
-        } catch (Throwable ignored) {
-            // log-manager-less unit JVM: the flogger LOGGER can throw; swallow it.
-        }
+        SafeLog.warn("[puppet] " + message, cause);
     }
 
     private static void fine(@Nonnull String message) {
-        try {
-            CommonLog.LOGGER.atFine().log("[ziggfreed-common][puppet] " + message);
-        } catch (Throwable ignored) {
-            // log-manager-less unit JVM: the flogger LOGGER can throw; swallow it.
-        }
+        SafeLog.fine("[puppet] " + message);
     }
 }

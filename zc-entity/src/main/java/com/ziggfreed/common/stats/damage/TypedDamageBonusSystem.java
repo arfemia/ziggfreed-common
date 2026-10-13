@@ -16,7 +16,7 @@ import com.hypixel.hytale.server.core.modules.entity.damage.DamageCause;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageEventSystem;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageModule;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.CommonLog;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Applies {@link TypedDamageBonuses} to every hit an entity deals: the attacker's summed per-type bonus
@@ -62,11 +62,7 @@ public final class TypedDamageBonusSystem extends DamageEventSystem {
             }
             damage.setAmount((float) TypedDamageBonuses.apply(damage.getAmount(), sums.percentPoints(), sums.flat()));
         } catch (Throwable t) {
-            try {
-                CommonLog.LOGGER.atWarning().log("[ziggfreed-common][damage-bonus] hit failed: " + t.getMessage());
-            } catch (Throwable ignored) {
-                // log-manager-less unit JVM
-            }
+            SafeLog.warn("[damage-bonus] hit failed: " + t.getMessage());
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.ziggfreed.common;
 
 import com.hypixel.hytale.logger.HytaleLogger;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The library's one logger handle.
@@ -21,7 +22,7 @@ import com.hypixel.hytale.logger.HytaleLogger;
  * <p><b>Guard this logger on any path a unit test can reach.</b> The underlying flogger backend
  * throws in a log-manager-less unit JVM, and it throws an {@code Error} that escapes
  * {@code catch (Exception)}. Either route the call through
- * {@link com.ziggfreed.common.util.SafeLog} (which catches {@code Throwable} for you and is the
+ * {@link SafeLog} (which catches {@code Throwable} for you and is the
  * better default) or wrap it in a {@code try/catch (Throwable)} of your own.
  */
 public final class CommonLog {

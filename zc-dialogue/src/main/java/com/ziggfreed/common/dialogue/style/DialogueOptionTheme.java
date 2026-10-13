@@ -2,6 +2,8 @@ package com.ziggfreed.common.dialogue.style;
 
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.dialogue.page.DialoguePage;
+
 /**
  * The resolved, data-driven look for one {@link DialogueOptionStyle} kind: the three button
  * tint states plus the leading glyph token. Authored as a {@code DialogueOptionTheme} asset
@@ -12,7 +14,7 @@ import javax.annotation.Nullable;
  * <p>Every leaf is nullable so a partial override inherits the rest at paint time: author only
  * {@code Color} and the hover/press derive from it (or fall back to the enum); author only
  * {@code Glyph} and the colours stay the kind's default. A kind with no asset at all resolves to
- * {@code null} and {@link com.ziggfreed.common.dialogue.page.DialoguePage} paints straight from
+ * {@code null} and {@link DialoguePage} paints straight from
  * the {@link DialogueOptionStyle} enum - the fail-closed neutral fallback.
  *
  * @param color       the default button tint ({@code #rrggbb}), or null to use the enum default

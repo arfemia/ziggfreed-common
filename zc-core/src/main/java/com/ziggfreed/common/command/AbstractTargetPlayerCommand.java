@@ -16,6 +16,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.subject.Subject;
 
 /**
  * The half every per-player admin verb in this library shares: name a player, find them, and be on
@@ -23,7 +24,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
  *
  * <p>Two library command families ({@code commerce} and {@code objectives}) each had their own copy
  * of exactly this resolution walk, wired to a different subject source (a live {@link
- * com.ziggfreed.common.subject.Subject} built straight off the player's own components, versus a
+ * Subject} built straight off the player's own components, versus a
  * runtime-registered store's own subject-building). The walk itself - the argument, the online
  * check, the world-thread hop - was byte-for-byte the same in both; only what gets built out of a
  * resolved player differs. {@link #buildTarget} is that one seam: a family builds whatever object

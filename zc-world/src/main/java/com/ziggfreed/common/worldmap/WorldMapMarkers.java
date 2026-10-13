@@ -19,7 +19,6 @@ import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MapMarkerBuilder;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MarkersCollector;
-import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.entity.PlayerIdentityCache;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -284,11 +283,6 @@ public final class WorldMapMarkers {
     }
 
     private static void warn(@Nonnull String op, @Nonnull String id, @Nonnull Throwable t) {
-        try {
-            CommonLog.LOGGER.atFine().log(
-                    "[ZiggfreedCommon] WorldMapMarkers." + op + "(" + id + ") failed: " + t.getMessage());
-        } catch (Throwable ignored) {
-            // a log-manager-less unit JVM must not crash on the logging facade itself
-        }
+        SafeLog.fine("WorldMapMarkers." + op + "(" + id + ") failed: " + t.getMessage());
     }
 }

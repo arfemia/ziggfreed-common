@@ -9,7 +9,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.ziggfreed.common.CommonLog;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * A generic per-world queue partition: one {@link ConcurrentLinkedQueue} of entries per
@@ -108,10 +108,6 @@ public final class WorldKeyedQueues<E> {
     }
 
     private static void warn(@Nonnull String message) {
-        try {
-            CommonLog.LOGGER.atWarning().log(message);
-        } catch (Throwable ignored) {
-            // log-manager-less unit JVM: the flogger LOGGER can throw; swallow it.
-        }
+        SafeLog.warn(message);
     }
 }

@@ -16,8 +16,8 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.inventory.PlayerAccess;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Mod-agnostic base for a custom in-world HUD overlay. Owns the machinery every HUD
@@ -262,15 +262,11 @@ public abstract class KeyedCustomHud extends CustomUIHud {
     }
 
     // ---------------------------------------------------------------------------------
-    // Guarded logging (unit-JVM safe; mirrors the MMO's SafeLog guard, kept local so this
-    // base has no consumer logging-facade dependency)
+    // Guarded logging (unit-JVM safe, through the library's SafeLog, so this base has no
+    // consumer logging-facade dependency)
     // ---------------------------------------------------------------------------------
 
     private static void warn(@Nonnull String message) {
-        try {
-            CommonLog.LOGGER.atWarning().log(message);
-        } catch (Throwable ignored) {
-            // no Hytale log manager (unit JVM)
-        }
+        SafeLog.warn(message);
     }
 }

@@ -13,7 +13,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.CommonLog;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Registry of nested {@code onHit} builders for cast / ability params. A consumer
@@ -250,10 +250,6 @@ public final class OnHitRegistry {
     }
 
     private static void fine(@Nonnull String message) {
-        try {
-            CommonLog.LOGGER.atFine().log(message);
-        } catch (Throwable ignored) {
-            // log-manager-less unit JVM: the flogger LOGGER can throw; swallow it.
-        }
+        SafeLog.fine(message);
     }
 }

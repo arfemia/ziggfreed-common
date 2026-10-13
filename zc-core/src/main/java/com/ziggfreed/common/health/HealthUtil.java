@@ -12,7 +12,7 @@ import com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntitySta
 import com.hypixel.hytale.server.core.modules.entitystats.modifier.Modifier;
 import com.hypixel.hytale.server.core.modules.entitystats.modifier.StaticModifier;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.CommonLog;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Mod-agnostic helpers for restoring an entity's vital stats through the NATIVE
@@ -288,10 +288,6 @@ public final class HealthUtil {
     }
 
     private static void warn(@Nonnull String label, @Nonnull Throwable t) {
-        try {
-            CommonLog.LOGGER.atFine().log("HealthUtil." + label + " failed: " + t.getMessage());
-        } catch (Throwable ignored) {
-            // log manager absent (unit JVM) - swallow so the heal stays a no-op, never a throw.
-        }
+        SafeLog.fine("HealthUtil." + label + " failed: " + t.getMessage());
     }
 }

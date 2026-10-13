@@ -10,6 +10,7 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.ziggfreed.common.dialogue.DialogueContext;
+import com.ziggfreed.common.dialogue.DialogueEngine;
 import com.ziggfreed.common.world.WorldSelector;
 
 /**
@@ -163,7 +164,7 @@ public final class DialogueMemory {
      * kept per world and this world is not one its pattern matches (reads are "forgotten", writes
      * drop).
      *
-     * <p>Public for {@link com.ziggfreed.common.dialogue.DialogueEngine}, which resolves every
+     * <p>Public for {@link DialogueEngine}, which resolves every
      * declared memory through it.
      */
     @Nullable

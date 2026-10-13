@@ -161,8 +161,8 @@ public final class BuildPermission {
         }
         Store<ChunkStore> store = chunkStore.getStore();
         return (x, y, z) -> {
-            Ref<ChunkStore> sectionRef = chunkStore.getChunkSectionReferenceAtBlock(x, y, z);
-            if (sectionRef == null || !sectionRef.isValid()) {
+            Ref<ChunkStore> sectionRef = ChunkSections.at(chunkStore, x, y, z);
+            if (sectionRef == null) {
                 return null;
             }
             EnvironmentSection environments = store.getComponent(sectionRef, EnvironmentSection.getComponentType());

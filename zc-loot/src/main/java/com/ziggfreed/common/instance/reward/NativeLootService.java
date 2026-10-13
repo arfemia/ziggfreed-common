@@ -24,8 +24,8 @@ import com.hypixel.hytale.server.core.modules.entity.item.ItemComponent;
 import com.hypixel.hytale.server.core.modules.item.ItemModule;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.cast.WorldEvictors;
+import com.ziggfreed.common.util.SafeLog;
 
 import org.joml.Vector3d;
 
@@ -378,10 +378,6 @@ public final class NativeLootService {
     }
 
     private static void warn(@Nonnull String message) {
-        try {
-            CommonLog.LOGGER.atWarning().log("[ZiggfreedCommon] NativeLootService: " + message);
-        } catch (Throwable ignored) {
-            // a log-manager-less unit JVM must not crash on the logging facade itself
-        }
+        SafeLog.warn("NativeLootService: " + message);
     }
 }

@@ -10,7 +10,7 @@ import com.hypixel.hytale.protocol.packets.world.UpdateForcedMusic;
 import com.hypixel.hytale.server.core.asset.type.musiccontainer.config.MusicContainer;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.CommonLog;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Forces a MUSIC container (a music "bed") onto a single player, overriding whatever
@@ -136,18 +136,10 @@ public final class ForcedMusicService {
     }
 
     private static void warn(@Nonnull String message) {
-        try {
-            CommonLog.LOGGER.atWarning().log("[ziggfreed-common][music] " + message);
-        } catch (Throwable ignored) {
-            // log-manager-less unit JVM: the flogger LOGGER can throw; swallow it.
-        }
+        SafeLog.warn("[music] " + message);
     }
 
     private static void fine(@Nonnull String message) {
-        try {
-            CommonLog.LOGGER.atFine().log("[ziggfreed-common][music] " + message);
-        } catch (Throwable ignored) {
-            // log-manager-less unit JVM: the flogger LOGGER can throw; swallow it.
-        }
+        SafeLog.fine("[music] " + message);
     }
 }

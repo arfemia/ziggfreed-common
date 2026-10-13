@@ -27,8 +27,9 @@ import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
  *
  * <p>The store ships ZERO baked-in defaults (all content is consumer pack JSON, per the
  * library paradigm); a consumer with a Java baseline floor calls {@link #loadDefaults}
- * once at setup. The store is registered by the consumer at
- * {@code Server/ZiggfreedCommon/PrefabPlacements} via {@code AssetStoreRegistrar}.
+ * once at setup. The library registers the store at
+ * {@code Server/ZiggfreedCommon/PrefabPlacements} ({@code FrameworkAssetRegistrar}); a
+ * consumer never registers it again.
  */
 public final class WeightedPrefabPlacementConfig
         extends AbstractKeyedAssetConfig<WeightedPrefabPlacementAsset> {

@@ -30,7 +30,7 @@ import com.ziggfreed.common.registry.RegistryLedger;
  *
  * <p><b>The gate never silently opens.</b> An unregistered factor, a throwing provider, and a
  * provider that cannot answer all resolve to {@code null}, and a
- * {@code com.ziggfreed.common.factor.FactorCondition} rejects null whatever its bounds say - so a
+ * {@code FactorCondition} rejects null whatever its bounds say - so a
  * placement gated on a mod that is not installed stays absent rather than appearing
  * unconditionally, INCLUDING the bounds-less presence-check form. That is the whole reason the
  * resolution is a nullable Double rather than a number with a zero default: "the factor's owner is

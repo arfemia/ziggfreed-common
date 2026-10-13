@@ -176,8 +176,8 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
     /**
      * The library's logger, kept here as a convenience for anything already holding the plugin
      * class. It is the very same handle as {@link CommonLog#LOGGER} (same name, same backend), so
-     * either route prints identical lines; prefer {@code CommonLog.LOGGER} in library code, which
-     * needs no reference to the plugin entry point at all.
+     * either route prints identical lines. Library code logs through {@code util.SafeLog} instead,
+     * which needs no reference to the plugin entry point and never throws in a unit JVM.
      */
     public static final HytaleLogger LOGGER = CommonLog.LOGGER;
 
@@ -191,7 +191,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
     public ZiggfreedCommonPlugin(@Nonnull JavaPluginInit init) {
         super(init);
         instance = this;
-        LOGGER.atInfo().log("ZiggfreedCommon initializing...");
+        SafeLog.info("ZiggfreedCommon initializing...");
     }
 
     @Override
@@ -291,7 +291,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // store has folded and every mod has registered its vocabulary by then.
         registerBootChecks();
 
-        LOGGER.atInfo().log("ZiggfreedCommon setup complete (framework stores + shared primitives available).");
+        SafeLog.info("ZiggfreedCommon setup complete (framework stores + shared primitives available).");
     }
 
     /**
@@ -623,6 +623,6 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         AssetStoreWriter.shutdown();
         // Overhead markers are never persisted either; what goes here is only the per-world tables.
         OverheadIndicators.shutdown();
-        LOGGER.atInfo().log("ZiggfreedCommon shutdown complete.");
+        SafeLog.info("ZiggfreedCommon shutdown complete.");
     }
 }

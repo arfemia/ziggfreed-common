@@ -23,9 +23,9 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.hypixel.hytale.server.core.HytaleServer;
 import com.hypixel.hytale.server.core.util.io.FileUtil;
-import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.counter.CounterMap;
 import com.ziggfreed.common.util.DataFileMove;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * A generic, mod-agnostic, bucketed, UUID-keyed leaderboard persisted as JSON - the
@@ -52,7 +52,7 @@ import com.ziggfreed.common.util.DataFileMove;
  * ({@link #addStats}, {@link #raiseStats}, {@link #lowerStats}, {@link #setStats}), which move only
  * the counter bag, the name and the time, never the play count or a best. A board of windows
  * (a week's bucket, a month's) drops the old ones through {@link #retain}, and a one-time import
- * into a board claims an id in its {@link #claimImport imports} list, saved with its rows.
+ * into a board claims an id in its {@link #importOnce imports} list, saved with its rows.
  */
 public final class Leaderboard {
 
@@ -516,9 +516,6 @@ public final class Leaderboard {
     }
 
     private static void warn(@Nonnull String msg) {
-        try {
-            CommonLog.LOGGER.atWarning().log("%s", msg);
-        } catch (Throwable ignored) {
-        }
+        SafeLog.warn(msg);
     }
 }

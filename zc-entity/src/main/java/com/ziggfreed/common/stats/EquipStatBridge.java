@@ -7,7 +7,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -36,7 +35,7 @@ import com.hypixel.hytale.server.core.modules.entitystats.EntityStatsModule;
 import com.hypixel.hytale.server.core.modules.entitystats.modifier.Modifier;
 import com.hypixel.hytale.server.core.modules.entitystats.modifier.StaticModifier;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.CommonLog;
+import com.ziggfreed.common.util.SafeLog;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 
@@ -143,9 +142,6 @@ public final class EquipStatBridge {
     public interface AppliedListener {
         void onApplied(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref);
     }
-
-    @Nonnull
-    private static final Set<String> WARNED_UNKNOWN_STATS = ConcurrentHashMap.newKeySet();
 
     @Nonnull
     private final String namespace;
@@ -458,7 +454,7 @@ public final class EquipStatBridge {
 
     private void applySource(@Nonnull EntityStatMap statMap, @Nonnull String key, @Nonnull Map<String, Double> entries) {
         Plan p = plan(entries, entryFilter, namespace, StatIndexCache::resolve,
-                idx -> existingAmount(statMap, idx, key), statMap.size(), EquipStatBridge::warnUnknownStatOnce);
+                idx -> existingAmount(statMap, idx, key), statMap.size(), StatIndexCache::warnUnknownOnce);
         for (Map.Entry<Integer, Float> put : p.puts.entrySet()) {
             StaticModifier mod = new StaticModifier(Modifier.ModifierTarget.MAX, StaticModifier.CalculationType.ADDITIVE,
                     put.getValue());
@@ -747,16 +743,6 @@ public final class EquipStatBridge {
         return new UtilityPlan(puts, removes);
     }
 
-    private static void warnUnknownStatOnce(@Nonnull String statId) {
-        if (WARNED_UNKNOWN_STATS.add(statId)) {
-            try {
-                CommonLog.LOGGER.atWarning().log("EquipStatBridge: unknown stat channel '" + statId
-                        + "' - skipping (not registered yet, or misspelled)");
-            } catch (Throwable ignored) {
-            }
-        }
-    }
-
     /**
      * Run {@code action} for every listener, isolating a throwing one so the rest still run.
      * Generic over the listener type (and so unit-testable with no live store) because the
@@ -774,10 +760,7 @@ public final class EquipStatBridge {
     }
 
     private static void warn(@Nonnull String label, @Nonnull Throwable t) {
-        try {
-            CommonLog.LOGGER.atFine().log("EquipStatBridge." + label + " failed: " + t.getMessage());
-        } catch (Throwable ignored) {
-        }
+        SafeLog.fine("EquipStatBridge." + label + " failed: " + t.getMessage());
     }
 
     // ---- E6 triggers: abstract bases only - the ECS system registry is class-keyed, so each

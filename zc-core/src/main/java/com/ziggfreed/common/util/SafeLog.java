@@ -16,9 +16,8 @@ import com.ziggfreed.common.CommonLog;
  * <p>Prefer a per-subsystem tag inside the message (e.g. {@code "[interaction] ..."}) over adding a
  * new method here.
  *
- * <p>This facade is used by NEW code only; the ~90 existing raw {@code
- * CommonLog.LOGGER} call sites across the mod are not retrofitted (out of scope
- * for this change).
+ * <p>Every library log line on {@code CommonLog.LOGGER} goes through this facade; no library code
+ * calls it directly. {@code JsonOverrideWriter} keeps its own guarded logger on purpose.
  */
 public final class SafeLog {
 

@@ -12,7 +12,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.CommonLog;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The single seam that resolves "which world is this entity in" and fans out per-world
@@ -138,10 +138,6 @@ public final class WorldEvictors {
     }
 
     private static void warn(@Nonnull String message) {
-        try {
-            CommonLog.LOGGER.atWarning().log(message);
-        } catch (Throwable ignored) {
-            // log-manager-less unit JVM: the flogger LOGGER can throw; swallow it.
-        }
+        SafeLog.warn(message);
     }
 }

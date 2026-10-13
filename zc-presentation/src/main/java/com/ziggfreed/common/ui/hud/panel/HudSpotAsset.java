@@ -52,7 +52,7 @@ import com.ziggfreed.common.ui.hud.card.HudCardLook;
  * panel would otherwise leave partly showing.
  *
  * <p>{@code Color} is the look a panel wears at this spot, as the one hex every HUD card
- * understands ({@link com.ziggfreed.common.ui.hud.card.HudCardLook}: a multiply over the shipped
+ * understands ({@link HudCardLook}: a multiply over the shipped
  * frame, eight digits carrying a transparency), restated over the shared record every card reads
  * and under the panel's own inline {@code Color}.
  */

@@ -29,9 +29,9 @@ import com.hypixel.hytale.server.npc.NPCPlugin;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
 import com.hypixel.hytale.server.npc.role.Role;
 import com.hypixel.hytale.server.npc.util.InventoryHelper;
-import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.cast.WorldEvictors;
 import com.ziggfreed.common.entity.performer.PerformerLook.SkinSource;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The Role-driven {@code NPCEntity} performer backend - the spike-proven mechanism promoted to a
@@ -563,23 +563,10 @@ public final class NpcRolePerformer implements StationPerformer {
     // ==================== logging ====================
 
     private static void warn(@Nonnull String message, @Nullable Throwable cause) {
-        try {
-            if (cause != null) {
-                CommonLog.LOGGER.atWarning().withCause(cause)
-                        .log("[ziggfreed-common][performer] " + message);
-            } else {
-                CommonLog.LOGGER.atWarning().log("[ziggfreed-common][performer] " + message);
-            }
-        } catch (Throwable ignored) {
-            // log-manager-less unit JVM.
-        }
+        SafeLog.warn("[performer] " + message, cause);
     }
 
     private static void fine(@Nonnull String message) {
-        try {
-            CommonLog.LOGGER.atFine().log("[ziggfreed-common][performer] " + message);
-        } catch (Throwable ignored) {
-            // log-manager-less unit JVM.
-        }
+        SafeLog.fine("[performer] " + message);
     }
 }

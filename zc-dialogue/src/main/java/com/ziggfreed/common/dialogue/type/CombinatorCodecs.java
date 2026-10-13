@@ -6,6 +6,7 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.lookup.CodecMapCodec;
+import com.ziggfreed.common.dialogue.schema.DialogueTypeTable;
 
 /**
  * The boolean combinators' DECODE arm: {@code AllOf}/{@code AnyOf}/{@code Not}, each writing the
@@ -27,7 +28,7 @@ public final class CombinatorCodecs {
     /**
      * Register {@code AllOf} ({@code All}), {@code AnyOf} ({@code Any}) and {@code Not} ({@code Of})
      * into {@code conditionCodec}, each keyed on {@code conditionsArray} - the ONE decode vocabulary
-     * a {@link com.ziggfreed.common.dialogue.schema.DialogueTypeTable} assembles calls this once its
+     * a {@link DialogueTypeTable} assembles calls this once its
      * array exists, rather than reaching into this package's field itself.
      */
     public static void registerCodecs(@Nonnull CodecMapCodec<DialogueCondition> conditionCodec,

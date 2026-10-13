@@ -7,7 +7,7 @@ import com.ziggfreed.common.match.NamePattern;
 /**
  * The WORLD flavour of the shared name-pattern grammar. The grammar itself - what {@code *} means,
  * where it may sit, how a pattern is scored - lives once in
- * {@link com.ziggfreed.common.match.NamePattern}; this class is the world-side handle on it, so a
+ * {@link NamePattern}; this class is the world-side handle on it, so a
  * world-targeting field and a loot trigger key can never disagree about what a pattern means.
  *
  * <p>What the grammar buys HERE: instance worlds spawn with BOTH a leading {@code instance-} prefix

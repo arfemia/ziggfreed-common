@@ -16,12 +16,12 @@ import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.entity.PlayerModelService;
 import com.ziggfreed.common.entity.PlayerPuppetService;
 import com.ziggfreed.common.entity.PlayerPuppetService.PuppetSpawnRequest;
 import com.ziggfreed.common.entity.PuppetNav;
 import com.ziggfreed.common.entity.performer.PerformerLook.LookSource;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The bare-{@code Holder} performer backend - the shipped, in-game-crowned puppet route re-expressed
@@ -323,23 +323,10 @@ public final class HolderPerformer implements StationPerformer {
     // ==================== logging ====================
 
     private static void warn(@Nonnull String message, @Nullable Throwable cause) {
-        try {
-            if (cause != null) {
-                CommonLog.LOGGER.atWarning().withCause(cause)
-                        .log("[ziggfreed-common][performer] " + message);
-            } else {
-                CommonLog.LOGGER.atWarning().log("[ziggfreed-common][performer] " + message);
-            }
-        } catch (Throwable ignored) {
-            // log-manager-less unit JVM.
-        }
+        SafeLog.warn("[performer] " + message, cause);
     }
 
     private static void fine(@Nonnull String message) {
-        try {
-            CommonLog.LOGGER.atFine().log("[ziggfreed-common][performer] " + message);
-        } catch (Throwable ignored) {
-            // log-manager-less unit JVM.
-        }
+        SafeLog.fine("[performer] " + message);
     }
 }

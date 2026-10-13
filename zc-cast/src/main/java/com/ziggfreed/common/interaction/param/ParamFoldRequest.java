@@ -9,7 +9,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 /**
  * One fire-time parameter-fold question, as an immutable FIELD-ADDITIVE carrier - explicitly
- * modelled on {@code com.ziggfreed.common.cast.HitContext}: a new field is a new builder method
+ * modelled on {@code HitContext}: a new field is a new builder method
  * plus a new getter and never breaks a {@link ParamFoldResolver} implementer, unlike widening a
  * JDK functional interface's generic parameter. Do not widen or reorder anything already
  * declared here; only append.

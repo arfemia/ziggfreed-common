@@ -13,7 +13,7 @@ import com.hypixel.hytale.server.core.cosmetics.CosmeticsModule;
 import com.hypixel.hytale.server.core.modules.entity.component.ModelComponent;
 import com.hypixel.hytale.server.core.modules.entity.player.PlayerSkinComponent;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.CommonLog;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Swaps a PLAYER's rendered model and restores it, mod-agnostic. Mirrors the engine's
@@ -54,8 +54,7 @@ public final class PlayerModelService {
             ModelAsset modelAsset = ModelAsset.getAssetMap().getAsset(modelId);
             if (modelAsset == null) {
                 if (WARNED_MISSING.add(modelId)) {
-                    CommonLog.LOGGER.atWarning()
-                        .log("PlayerModelService.apply: no ModelAsset for id '" + modelId + "' (no-op)");
+                    SafeLog.warn("PlayerModelService.apply: no ModelAsset for id '" + modelId + "' (no-op)");
                 }
                 return false;
             }
@@ -65,7 +64,7 @@ public final class PlayerModelService {
             store.putComponent(ref, ModelComponent.getComponentType(), new ModelComponent(model));
             return true;
         } catch (Throwable t) {
-            CommonLog.LOGGER.atFine().log("PlayerModelService.apply failed: " + t.getMessage());
+            SafeLog.fine("PlayerModelService.apply failed: " + t.getMessage());
             return false;
         }
     }
@@ -91,7 +90,7 @@ public final class PlayerModelService {
             store.putComponent(ref, ModelComponent.getComponentType(), new ModelComponent(model));
             skin.setNetworkOutdated();
         } catch (Throwable t) {
-            CommonLog.LOGGER.atFine().log("PlayerModelService.restore failed: " + t.getMessage());
+            SafeLog.fine("PlayerModelService.restore failed: " + t.getMessage());
         }
     }
 
@@ -103,7 +102,7 @@ public final class PlayerModelService {
         try {
             return ModelAsset.getAssetMap().getAsset(modelId) != null;
         } catch (Throwable t) {
-            CommonLog.LOGGER.atFine().log("PlayerModelService.modelExists failed: " + t.getMessage());
+            SafeLog.fine("PlayerModelService.modelExists failed: " + t.getMessage());
             return false;
         }
     }

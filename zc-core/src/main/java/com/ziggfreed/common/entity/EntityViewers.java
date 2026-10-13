@@ -8,7 +8,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.protocol.ToClientPacket;
 import com.hypixel.hytale.server.core.modules.entity.tracker.EntityTrackerSystems;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.CommonLog;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Delivers a packet to the players who can currently SEE an entity: the entity's own tracker record
@@ -63,10 +63,6 @@ public final class EntityViewers {
     }
 
     private static void fine(@Nonnull String message) {
-        try {
-            CommonLog.LOGGER.atFine().log("[ziggfreed-common][viewers] " + message);
-        } catch (Throwable ignored) {
-            // log-manager-less unit JVM: the flogger LOGGER can throw; swallow it.
-        }
+        SafeLog.fine("[viewers] " + message);
     }
 }

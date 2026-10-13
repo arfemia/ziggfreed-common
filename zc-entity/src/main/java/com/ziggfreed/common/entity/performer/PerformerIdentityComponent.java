@@ -12,7 +12,7 @@ import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.CommonLog;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * A registered ECS component every performer entity carries (both backends, for uniformity) binding
@@ -105,12 +105,7 @@ public final class PerformerIdentityComponent implements Component<EntityStore> 
             TYPE = registry.registerComponent(PerformerIdentityComponent.class, REGISTRY_ID, CODEC);
             return TYPE;
         } catch (Throwable t) {
-            try {
-                CommonLog.LOGGER.atWarning().withCause(t)
-                        .log("[ziggfreed-common][performer] PerformerIdentityComponent register failed");
-            } catch (Throwable ignored) {
-                // log-manager-less unit JVM.
-            }
+            SafeLog.warn("[performer] PerformerIdentityComponent register failed", t);
             return null;
         }
     }

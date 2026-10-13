@@ -12,7 +12,7 @@ import com.hypixel.hytale.server.core.entity.entities.player.hud.CustomUIHud;
 import com.hypixel.hytale.server.core.entity.entities.player.hud.HudManager;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.CommonLog;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Minimal helpers for installing a custom {@link CustomUIHud} overlay and managing
@@ -59,7 +59,7 @@ public final class CustomHudHelper {
             manager.setVisibleHudComponents(playerRef, kept);
             return true;
         } catch (Throwable t) {
-            CommonLog.LOGGER.atWarning().log("CustomHudHelper.install failed: " + t.getMessage());
+            SafeLog.warn("CustomHudHelper.install failed: " + t.getMessage());
             return false;
         }
     }
@@ -78,7 +78,7 @@ public final class CustomHudHelper {
             }
             player.getHudManager().removeCustomHud(playerRef, hudKey);
         } catch (Throwable t) {
-            CommonLog.LOGGER.atFine().log("CustomHudHelper.remove failed: " + t.getMessage());
+            SafeLog.fine("CustomHudHelper.remove failed: " + t.getMessage());
         }
     }
 
@@ -95,7 +95,7 @@ public final class CustomHudHelper {
             }
             player.getHudManager().resetHud(playerRef);
         } catch (Throwable t) {
-            CommonLog.LOGGER.atFine().log("CustomHudHelper.restore failed: " + t.getMessage());
+            SafeLog.fine("CustomHudHelper.restore failed: " + t.getMessage());
         }
     }
 
@@ -114,7 +114,7 @@ public final class CustomHudHelper {
             }
             player.getHudManager().setVisibleHudComponents(playerRef, kept);
         } catch (Throwable t) {
-            CommonLog.LOGGER.atFine().log("CustomHudHelper.strip failed: " + t.getMessage());
+            SafeLog.fine("CustomHudHelper.strip failed: " + t.getMessage());
         }
     }
 

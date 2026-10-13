@@ -12,8 +12,8 @@ import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
  * The chunk section holding a block, resolved the way the engine's own reader does on Update 7:
  * {@code ChunkStore.getChunkSectionReferenceAtBlock}, a null or invalid ref read as absent, then a
  * component off that section ({@code BlockSection}, {@code EnvironmentSection}, a library section).
- * The one spelling of that lookup for zc-world's {@code BlockOps} and placed-block ledger and for
- * {@link SectionBlockCursor}.
+ * The one spelling of that lookup for zc-world's {@code BlockOps}, {@code BuildPermission} and
+ * placed-block ledger and for {@link SectionBlockCursor}.
  *
  * <p><b>It never loads a chunk.</b> The lookup is the synchronous map read, so a section not in
  * memory answers null. Each engine call is made directly, so it links the same on both server lines;

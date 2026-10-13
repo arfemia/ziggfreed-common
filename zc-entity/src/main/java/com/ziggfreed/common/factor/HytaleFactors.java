@@ -1,8 +1,6 @@
 package com.ziggfreed.common.factor;
 
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -20,7 +18,6 @@ import com.ziggfreed.common.codec.TagMatch;
 import com.ziggfreed.common.entity.HeldItemUtil;
 import com.ziggfreed.common.entity.ItemReadings;
 import com.ziggfreed.common.stats.StatIndexCache;
-import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The PORTABLE {@code hytale:} factor standard library: straight reads of NATIVE engine data about
@@ -147,13 +144,6 @@ public final class HytaleFactors {
     private static final Double YES = 1.0;
     private static final Double NO = 0.0;
 
-    /**
-     * Stat channel ids already reported as unregistered, so a typo'd {@code Param} is named ONCE
-     * rather than on every evaluation. A miss is never cached by {@link StatIndexCache}, so a
-     * channel registered later still resolves normally; only the log line is latched.
-     */
-    private static final Set<String> WARNED_UNKNOWN_STAT = ConcurrentHashMap.newKeySet();
-
     private HytaleFactors() {
     }
 
@@ -196,7 +186,7 @@ public final class HytaleFactors {
         }
         int index = StatIndexCache.resolve(statId);
         if (index == StatIndexCache.UNRESOLVED) {
-            warnUnknownStat(STAT, statId);
+            StatIndexCache.warnUnknownOnce(statId);
             return null;
         }
         Store<EntityStore> store = ctx.store();
@@ -426,22 +416,13 @@ public final class HytaleFactors {
             return null;
         }
         if (StatIndexCache.resolve(statId) == StatIndexCache.UNRESOLVED) {
-            warnUnknownStat(ITEM_STAT, statId);
+            StatIndexCache.warnUnknownOnce(statId);
             return null;
         }
         return ItemReadings.statTotal(ctx.item(), statId);
     }
 
     // ==================== helpers ====================
-
-    /** Name an unregistered stat channel once per id, whichever stat-addressed factor asked first. */
-    private static void warnUnknownStat(@Nonnull String factorId, @Nonnull String statId) {
-        if (WARNED_UNKNOWN_STAT.add(statId)) {
-            SafeLog.warn("[factor] " + factorId + " - no stat channel registered under '" + statId
-                    + "', conditions and weights on it fail closed"
-                    + " (register the channel before any content referencing it decodes)");
-        }
-    }
 
     /**
      * One family/value probe through the shared {@code TagMatch} matcher, so the tag semantics a

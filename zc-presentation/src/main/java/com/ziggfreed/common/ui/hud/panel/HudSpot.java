@@ -8,6 +8,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.ziggfreed.common.ui.hud.HudPosition;
+import com.ziggfreed.common.ui.hud.card.HudCardLook;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -28,7 +29,7 @@ import com.ziggfreed.common.util.SafeLog;
  *   <li>Else <b>the document's fallback</b>: the corner its layout declares, one column, one row
  *       per column, no band, no cut, no floor and no colour of its own (the shared card look, which
  *       is the layer under every colour here, is folded in by the paint through
- *       {@link com.ziggfreed.common.ui.hud.card.HudCardLook#resolve}).</li>
+ *       {@link HudCardLook#resolve}).</li>
  * </ol>
  *
  * <p>A panel naming a spot nothing authored sits at the document's fallback and says so once

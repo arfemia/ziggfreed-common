@@ -25,7 +25,6 @@ import com.hypixel.hytale.codec.lookup.CodecMapCodec;
 import com.hypixel.hytale.codec.schema.SchemaContext;
 import com.hypixel.hytale.codec.schema.config.Schema;
 import com.hypixel.hytale.codec.util.RawJsonReader;
-import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.dialogue.DialogueEngine;
@@ -37,6 +36,7 @@ import com.ziggfreed.common.dialogue.type.DialogueAction;
 import com.ziggfreed.common.dialogue.type.DialogueActionType;
 import com.ziggfreed.common.dialogue.type.DialogueCondition;
 import com.ziggfreed.common.dialogue.type.DialogueConditionType;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The one DECODE vocabulary for authored dialogues: every {@code Type} an option's {@code Actions}
@@ -626,10 +626,6 @@ public final class DialogueTypeTable {
         if (!warnedOnce.add(key.toLowerCase(Locale.ROOT))) {
             return;
         }
-        try {
-            CommonLog.LOGGER.atWarning().log("[Dialogue] %s", message);
-        } catch (Throwable ignored) {
-            // a unit JVM with no log manager throws an Error from the fluent logger; swallow it.
-        }
+        SafeLog.warn("[Dialogue] " + message);
     }
 }

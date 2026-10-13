@@ -2,10 +2,12 @@ package com.ziggfreed.common.ui.theme;
 
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.ui.UiRetint;
+
 /**
  * A generic, mod-agnostic menu/UI THEME palette: a set of named colour slots plus
  * an optional bespoke 9-slice texture set, consumed by a retint painter (see
- * {@link com.ziggfreed.common.ui.UiRetint}). It is pure DATA - no gate, no
+ * {@link UiRetint}). It is pure DATA - no gate, no
  * entitlement, no consumer policy. A consumer reads the slots it cares about and
  * pushes them through the retint primitive, deriving any unset (null) slot from
  * the base colours, so a 3-colour recolor still paints fully.

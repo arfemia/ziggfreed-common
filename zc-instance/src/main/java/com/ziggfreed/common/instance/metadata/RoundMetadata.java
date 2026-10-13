@@ -22,7 +22,7 @@ import com.ziggfreed.common.instance.result.ResultKind;
  *   <li>{@code durationSeconds} - wall-clock length of the round in seconds.</li>
  *   <li>{@code resultKind} - the outcome tag, optional. It stays a free STRING so a consumer with an
  *       outcome this library has never heard of can still say what happened, but the CONVENTION is a
- *       {@link com.ziggfreed.common.instance.result.ResultKind} name ({@code WIN} / {@code LOSS} /
+ *       {@link ResultKind} name ({@code WIN} / {@code LOSS} /
  *       {@code DRAW} / {@code ABORT}), which is what a cross-mod listener will try to read. Pass the
  *       enum to {@link Builder#resultKind(com.ziggfreed.common.instance.result.ResultKind)} and it is
  *       by construction.</li>

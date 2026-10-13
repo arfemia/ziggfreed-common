@@ -6,7 +6,7 @@ import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.ziggfreed.common.CommonLog;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * A generic, guarded observer registry: register {@code Consumer<E>} listeners and {@link #fire}
@@ -61,11 +61,6 @@ public final class ObserverRegistry<E> {
     }
 
     private void warn(@Nonnull String message) {
-        try {
-            String prefix = label != null ? "[ziggfreed-common][" + label + "] " : "[ziggfreed-common][observer] ";
-            CommonLog.LOGGER.atWarning().log(prefix + message);
-        } catch (Throwable ignored) {
-            // log-manager-less unit JVM: the flogger LOGGER can throw; swallow it.
-        }
+        SafeLog.warn((label != null ? "[" + label + "] " : "[observer] ") + message);
     }
 }

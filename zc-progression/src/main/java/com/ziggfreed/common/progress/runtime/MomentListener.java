@@ -2,6 +2,8 @@ package com.ziggfreed.common.progress.runtime;
 
 import javax.annotation.Nonnull;
 
+import com.ziggfreed.common.progress.ProgressDispatchTap;
+
 /**
  * "This just happened to this player" - a REACTION to a produced moment, called once for every
  * moment any producer fires, before either engine is asked anything about it.
@@ -12,7 +14,7 @@ import javax.annotation.Nonnull;
  * native event beside the producer and resolving the target, the zone, the placed guard and the
  * owner a second time.
  *
- * <p><b>What it is not.</b> It is not the {@link com.ziggfreed.common.progress.ProgressDispatchTap
+ * <p><b>What it is not.</b> It is not the {@link ProgressDispatchTap
  * dispatch tap}: the tap says "an engine considered this", fires inside each engine, after that
  * engine's subject was found and its system gate said yes, and is spent once per action. A listener
  * says "this happened", fires whether or not this player has a quest subject, whether or not an

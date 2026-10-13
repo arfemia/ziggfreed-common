@@ -13,10 +13,10 @@ import com.hypixel.hytale.server.npc.asset.builder.BuilderSupport;
 import com.hypixel.hytale.server.npc.corecomponents.ActionBase;
 import com.hypixel.hytale.server.npc.instructions.ExecutionSupport;
 import com.hypixel.hytale.server.npc.sensorinfo.InfoProvider;
-import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.dialogue.page.DialogueOpener;
 import com.ziggfreed.common.dialogue.page.DialoguePage;
 import com.ziggfreed.common.ui.route.DestinationContext;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Generic custom NPC interaction action that opens a {@link DialoguePage} for the
@@ -90,10 +90,6 @@ public class ActionOpenDialogue extends ActionBase {
     }
 
     private static void warn(@Nonnull String msg) {
-        try {
-            CommonLog.LOGGER.atWarning().log("%s", msg);
-        } catch (Throwable ignored) {
-            // log-manager-less unit JVM; swallow.
-        }
+        SafeLog.warn(msg);
     }
 }

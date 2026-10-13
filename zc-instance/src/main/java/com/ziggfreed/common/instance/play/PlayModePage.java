@@ -26,6 +26,7 @@ import com.ziggfreed.common.instance.preset.QueueModeEntry;
 import com.ziggfreed.common.instance.preset.QueueModeId;
 import com.ziggfreed.common.instance.preset.QueueModeSet;
 import com.ziggfreed.common.lobby.LobbyConfig;
+import com.ziggfreed.common.lobby.LobbyService;
 import com.ziggfreed.common.lobby.MatchmakingQueue;
 import com.ziggfreed.common.lobby.QueueKey;
 import com.ziggfreed.common.lobby.QueueListener;
@@ -52,7 +53,7 @@ import com.ziggfreed.common.ui.toast.ToastablePage;
  *       no page reopen and no polling. Close keeps the queue reservation; Leave de-queues.</li>
  * </ul>
  *
- * <p>Consumer policy (the {@link com.ziggfreed.common.lobby.LobbyService}, the resolved
+ * <p>Consumer policy (the {@link LobbyService}, the resolved
  * {@link QueueModeSet}, the chrome {@link PlayScreenMessages}, the {@link PlayModeHandler})
  * is supplied through {@link PlayModePageDeps}; the page imports no mod types. Usernames
  * resolve live at render time. Every {@code handleDataEvent} exit path sends a response.

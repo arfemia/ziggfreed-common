@@ -23,7 +23,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.util.io.FileUtil;
-import com.ziggfreed.common.CommonLog;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * A durable, crash-safe per-player store of full {@link InventorySnapshot}s for a minigame's
@@ -217,10 +217,6 @@ public final class InventorySnapshotStore {
     }
 
     private static void warn(@Nonnull String msg) {
-        try {
-            CommonLog.LOGGER.atWarning().log("%s", msg);
-        } catch (Throwable ignored) {
-            // a log-manager-less unit JVM must not crash on the logging facade itself
-        }
+        SafeLog.warn(msg);
     }
 }

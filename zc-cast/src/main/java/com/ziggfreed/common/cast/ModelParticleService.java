@@ -23,8 +23,8 @@ import com.hypixel.hytale.server.core.modules.entity.EntityModule;
 import com.hypixel.hytale.server.core.modules.entity.tracker.NetworkId;
 import com.hypixel.hytale.server.core.universe.world.ParticleUtil;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.entity.EntityViewers;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Thin, fully-guarded wrappers over the engine {@link ParticleUtil} particle spawns, so a
@@ -286,10 +286,6 @@ public final class ModelParticleService {
     }
 
     private static void fine(@Nonnull String message) {
-        try {
-            CommonLog.LOGGER.atFine().log("[ziggfreed-common][particle] " + message);
-        } catch (Throwable ignored) {
-            // log-manager-less unit JVM: the flogger LOGGER can throw; swallow it.
-        }
+        SafeLog.fine("[particle] " + message);
     }
 }

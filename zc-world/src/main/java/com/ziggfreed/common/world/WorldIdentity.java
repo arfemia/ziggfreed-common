@@ -7,7 +7,7 @@ import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.ziggfreed.common.CommonLog;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The guarded read of what worlds this server actually has, in the two axes a {@code Where} scores
@@ -58,10 +58,6 @@ public final class WorldIdentity {
     }
 
     private static void warn(@Nonnull String message) {
-        try {
-            CommonLog.LOGGER.atWarning().log(message);
-        } catch (Throwable ignored) {
-            // log-manager-less unit JVM: the flogger LOGGER can throw; swallow it.
-        }
+        SafeLog.warn(message);
     }
 }

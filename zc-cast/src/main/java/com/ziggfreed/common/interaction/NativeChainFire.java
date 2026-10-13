@@ -14,7 +14,7 @@ import com.hypixel.hytale.server.core.entity.InteractionManager;
 import com.hypixel.hytale.server.core.modules.interaction.InteractionModule;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.RootInteraction;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.CommonLog;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Fires a named engine {@code RootInteraction} chain on an entity - {@code initChain} + {@code
@@ -72,7 +72,7 @@ public final class NativeChainFire {
      * As {@link #fire(Store, Ref, String, InteractionType)}, but with a decorator invoked on the
      * freshly-built {@link InteractionContext} AFTER {@code initChain} and BEFORE {@code
      * queueExecuteChain} - the per-fire context door. Pair with {@code
-     * com.ziggfreed.common.interaction.param.CastScopes#decorator(CastScope)} to attach a {@code
+     * CastScopes#decorator(CastScope)} to attach a {@code
      * CastScope} that every node in the chain, INCLUDING every Selector hit fork, can read back (a
      * fork is a {@code context.duplicate()}, which copies the meta store).
      *
@@ -151,18 +151,10 @@ public final class NativeChainFire {
     }
 
     private static void warn(@Nonnull String message) {
-        try {
-            CommonLog.LOGGER.atWarning().log("[ziggfreed-common][interaction] " + message);
-        } catch (Throwable ignored) {
-            // log-manager-less unit JVM: the flogger LOGGER can throw; swallow it.
-        }
+        SafeLog.warn("[interaction] " + message);
     }
 
     private static void fine(@Nonnull String message) {
-        try {
-            CommonLog.LOGGER.atFine().log("[ziggfreed-common][interaction] " + message);
-        } catch (Throwable ignored) {
-            // log-manager-less unit JVM: the flogger LOGGER can throw; swallow it.
-        }
+        SafeLog.fine("[interaction] " + message);
     }
 }

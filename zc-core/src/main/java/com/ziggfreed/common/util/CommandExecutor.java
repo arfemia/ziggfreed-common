@@ -6,7 +6,6 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.server.core.command.system.CommandManager;
 import com.hypixel.hytale.server.core.console.ConsoleSender;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
-import com.ziggfreed.common.CommonLog;
 
 /**
  * Executes commands programmatically as the server console or as a player, via the
@@ -74,21 +73,12 @@ public final class CommandExecutor {
         }
     }
 
-    // The flogger-backed LOGGER throws in a log-manager-less unit JVM; guard every
-    // call so a test that reaches this util cannot crash with a logging Error.
+    // Through SafeLog, so a test that reaches this util cannot crash with a logging Error.
     private static void logInfo(@Nonnull String msg) {
-        try {
-            CommonLog.LOGGER.atInfo().log(msg);
-        } catch (Throwable ignored) {
-            // no log manager (unit test); the command still ran
-        }
+        SafeLog.info(msg);
     }
 
     private static void logWarning(@Nonnull String msg) {
-        try {
-            CommonLog.LOGGER.atWarning().log(msg);
-        } catch (Throwable ignored) {
-            // no log manager (unit test)
-        }
+        SafeLog.warn(msg);
     }
 }

@@ -14,6 +14,7 @@ import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.dialogue.DialogueEngine;
 import com.ziggfreed.common.dialogue.state.DialogueMemory;
 import com.ziggfreed.common.factor.FactorCondition;
+import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.world.WorldSelector;
 
 /**
@@ -31,7 +32,7 @@ import com.ziggfreed.common.world.WorldSelector;
  * {@code Remembered}/{@code NotRemembered} read a declared {@link DialogueMemory}
  * through the context's state store, and the generic {@code World} scores the
  * player's current world against an embedded
- * {@link com.ziggfreed.common.world.WorldSelector}.
+ * {@link WorldSelector}.
  */
 public abstract class DialogueCondition {
 
@@ -89,7 +90,7 @@ public abstract class DialogueCondition {
 
     /**
      * Passes only when the player's CURRENT world matches the embedded
-     * {@link com.ziggfreed.common.world.WorldSelector} under {@code Where} - the ONE
+     * {@link WorldSelector} under {@code Where} - the ONE
      * world-identity authority, written here in exactly the spelling every other
      * world-targeting asset uses:
      *
@@ -142,13 +143,13 @@ public abstract class DialogueCondition {
      * Passes when a NUMBER some other mod owns satisfies the authored bounds:
      * {@code {"Type":"Factor","Factor":"yourmod:reputation","Param":"guild","Min":10}}.
      *
-     * <p>The shape is the shared {@link com.ziggfreed.common.factor.FactorCondition} leaf, written
+     * <p>The shape is the shared {@link FactorCondition} leaf, written
      * inline here with its own keys, and the semantics are entirely that type's (see
      * {@link #getCondition()}): {@code Min}/{@code Max} are inclusive and independently optional,
      * and a condition with NEITHER is a presence check that passes as long as the factor resolves
      * at all - which is how "only where that mod is installed" is written.
      *
-     * <p>The number comes from the {@link com.ziggfreed.common.factor.FactorRegistry} installed into
+     * <p>The number comes from the {@link FactorRegistry} installed into
      * the shared engine's one factor slot ({@code DialogueEngine.installFactors}; a test sandbox
      * built with {@code DialogueEngine.builder()} takes its own). <b>Fail-closed twice over</b>: an
      * unregistered id, a provider that cannot answer, and a THROWING provider all resolve to

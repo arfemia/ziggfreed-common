@@ -18,8 +18,8 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.schema.SchemaContext;
 import com.hypixel.hytale.codec.schema.config.Schema;
 import com.hypixel.hytale.codec.util.RawJsonReader;
-import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.dialogue.DialogueContext;
+import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.world.WhereValidator;
 import com.ziggfreed.common.world.WorldNameMatcher.Pattern;
 import com.ziggfreed.common.world.WorldSelector;
@@ -346,16 +346,12 @@ public final class DialogueFlagScope {
         if (!WARNED_UNMATCHED.add(described)) {
             return;
         }
-        try {
-            CommonLog.LOGGER.atWarning().log(
-                    "[Dialogue] state '%s' is kept per world %s, which matches no world this server"
-                            + " has loaded - it will never be written or read. Check it against your real"
-                            + " worlds (GameplayConfig for an instance world, *Name* for a family of"
-                            + " them).",
-                    flag, described);
-        } catch (Throwable ignored) {
-            // log-manager-less unit JVM: the flogger LOGGER can throw; swallow it.
-        }
+        SafeLog.warn(String.format(Locale.ROOT,
+                "[Dialogue] state '%s' is kept per world %s, which matches no world this server"
+                        + " has loaded - it will never be written or read. Check it against your real"
+                        + " worlds (GameplayConfig for an instance world, *Name* for a family of"
+                        + " them).",
+                flag, described));
     }
 
     // ==================== helpers ====================

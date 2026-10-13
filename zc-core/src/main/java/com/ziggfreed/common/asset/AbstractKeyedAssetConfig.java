@@ -14,7 +14,7 @@ import javax.annotation.Nullable;
  * The generic, mod-agnostic {@code defaults < pack < owner} fold for a keyed framework
  * config, lifted out of the per-type config singletons that every consumer was
  * re-deriving (Kweebec's {@code PresetConfig}/{@code HunterArchetypeConfig}/... and
- * common's own {@link com.ziggfreed.common.instance.preset.InstancePresetConfig}). A
+ * common's own {@code InstancePresetConfig}). A
  * concrete config singleton extends this with one resolved value type {@code T} and adds
  * only its type-specific getters.
  *

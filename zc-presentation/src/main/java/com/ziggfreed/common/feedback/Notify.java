@@ -10,7 +10,7 @@ import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.io.PacketHandler;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.util.NotificationUtil;
-import com.ziggfreed.common.CommonLog;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * A thin, styled wrapper over the engine {@code NotificationUtil} toast API. Routes
@@ -82,7 +82,7 @@ public final class Notify {
             PacketHandler handler = playerRef.getPacketHandler();
             NotificationUtil.sendNotification(handler, message, null, null, null, style, tag(tag));
         } catch (Throwable t) {
-            CommonLog.LOGGER.atFine().log("Notify.send failed: " + t.getMessage());
+            SafeLog.fine("Notify.send failed: " + t.getMessage());
         }
     }
 
@@ -137,7 +137,7 @@ public final class Notify {
             NotificationUtil.sendNotification(playerRef.getPacketHandler(), title, secondary,
                     null, icon, style, tag(tag));
         } catch (Throwable t) {
-            CommonLog.LOGGER.atFine().log("Notify.withIcon failed: " + t.getMessage());
+            SafeLog.fine("Notify.withIcon failed: " + t.getMessage());
         }
     }
 
@@ -174,7 +174,7 @@ public final class Notify {
             NotificationUtil.sendNotification(handler, title, secondary, null, itemStack.toPacket(),
                     NotificationStyle.Default, tag(tag));
         } catch (Throwable t) {
-            CommonLog.LOGGER.atFine().log("Notify.itemKeyed failed: " + t.getMessage());
+            SafeLog.fine("Notify.itemKeyed failed: " + t.getMessage());
         }
     }
 

@@ -13,9 +13,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.dialogue.DialogueEngine;
 import com.ziggfreed.common.dialogue.state.DialogueMemory;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * A branching NPC dialogue: a STANDALONE tree keyed by its OWN id (never bound to
@@ -293,28 +293,20 @@ public class NpcDialogue {
     }
 
     private void unknownFragment(@Nonnull String nodeId, @Nullable String name) {
-        try {
-            CommonLog.LOGGER.atWarning().log(
-                    "[Dialogue] '%s' screen '%s' pulls in shared options '%s', which neither this"
-                            + " conversation's Fragments nor any DialogueFragments file provides",
-                    id, nodeId, String.valueOf(name));
-        } catch (Throwable ignored) {
-            // a unit JVM with no log manager throws an Error from the fluent logger; swallow it.
-        }
+        SafeLog.warn(String.format(Locale.ROOT,
+                "[Dialogue] '%s' screen '%s' pulls in shared options '%s', which neither this"
+                        + " conversation's Fragments nor any DialogueFragments file provides",
+                id, nodeId, String.valueOf(name)));
     }
 
     private void includeCycle(@Nonnull String reentered, @Nonnull Set<String> onTheWayDown) {
         if (!WARNED_CYCLES.add(id + ":" + NodeSelector.fold(reentered))) {
             return;
         }
-        try {
-            CommonLog.LOGGER.atWarning().log(
-                    "[Dialogue] '%s' shared option group '%s' includes itself by way of %s; the"
-                            + " re-entry is dropped so the file still loads, but remove the loop",
-                    id, reentered, onTheWayDown);
-        } catch (Throwable ignored) {
-            // a unit JVM with no log manager throws an Error from the fluent logger; swallow it.
-        }
+        SafeLog.warn(String.format(Locale.ROOT,
+                "[Dialogue] '%s' shared option group '%s' includes itself by way of %s; the"
+                        + " re-entry is dropped so the file still loads, but remove the loop",
+                id, reentered, onTheWayDown));
     }
 
     /** The dialogue id (lowercased). */

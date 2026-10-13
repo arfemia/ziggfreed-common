@@ -8,7 +8,7 @@ import javax.annotation.Nullable;
 import com.ziggfreed.common.loot.reward.RewardChip;
 
 /**
- * The immutable snapshot the {@link com.ziggfreed.common.instance.result.ResultsPage}
+ * The immutable snapshot the {@link ResultsPage}
  * renders: the outcome, the duration, the team-grouped score breakdown, the granted /
  * pending reward chips, and the leaderboard bucket the "View Leaderboard" CTA deep-links
  * into. The consumer builds this at its resolve / teardown choke-point (Kweebec at

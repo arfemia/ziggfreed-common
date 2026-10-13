@@ -18,9 +18,9 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.modules.entity.tracker.NetworkId;
 import com.hypixel.hytale.server.core.universe.world.SoundUtil;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.entity.EntityViewers;
 import com.ziggfreed.common.util.AssetIndexCache;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Shared 3D {@code SoundEvent} playback: the superset of the MMO Skill Tree
@@ -108,9 +108,9 @@ public final class Sound3D {
             if (idx == AssetIndexCache.UNRESOLVED) {
                 String msg = contextLabel + " sound '" + soundEventId + "' not in SoundEvent registry";
                 if (warnOnMissing) {
-                    CommonLog.LOGGER.atWarning().log(msg);
+                    SafeLog.warn(msg);
                 } else {
-                    CommonLog.LOGGER.atFine().log(msg);
+                    SafeLog.fine(msg);
                 }
                 return;
             }
@@ -118,9 +118,9 @@ public final class Sound3D {
         } catch (Throwable t) {
             String msg = contextLabel + " sound (" + soundEventId + ") failed: " + t.getMessage();
             if (warnOnMissing) {
-                CommonLog.LOGGER.atWarning().log(msg);
+                SafeLog.warn(msg);
             } else {
-                CommonLog.LOGGER.atFine().log(msg);
+                SafeLog.fine(msg);
             }
         }
     }
@@ -192,15 +192,15 @@ public final class Sound3D {
             if (idx == AssetIndexCache.UNRESOLVED) {
                 String msg = contextLabel + " sound '" + soundEventId + "' not in SoundEvent registry";
                 if (warnOnMissing) {
-                    CommonLog.LOGGER.atWarning().log(msg);
+                    SafeLog.warn(msg);
                 } else {
-                    CommonLog.LOGGER.atFine().log(msg);
+                    SafeLog.fine(msg);
                 }
                 return 0;
             }
             NetworkId networkId = store.getComponent(entityRef, NetworkId.getComponentType());
             if (networkId == null) {
-                CommonLog.LOGGER.atFine().log(contextLabel + " sound '" + soundEventId
+                SafeLog.fine(contextLabel + " sound '" + soundEventId
                         + "' skipped: the entity has no NetworkId");
                 return 0;
             }
@@ -209,9 +209,9 @@ public final class Sound3D {
         } catch (Throwable t) {
             String msg = contextLabel + " sound (" + soundEventId + ") on an entity failed: " + t.getMessage();
             if (warnOnMissing) {
-                CommonLog.LOGGER.atWarning().log(msg);
+                SafeLog.warn(msg);
             } else {
-                CommonLog.LOGGER.atFine().log(msg);
+                SafeLog.fine(msg);
             }
             return 0;
         }

@@ -12,7 +12,6 @@ import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.hypixel.hytale.server.core.event.events.BootEvent;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.Interaction;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
-import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.ZiggfreedCommonPlugin;
 import com.ziggfreed.common.damage.HitTags;
 import com.ziggfreed.common.dialogue.style.DialogueOptionThemeConfig;
@@ -140,6 +139,7 @@ import com.ziggfreed.common.ui.hud.panel.HudSpotConfig;
 import com.ziggfreed.common.ui.hud.card.HudCardAsset;
 import com.ziggfreed.common.ui.hud.card.HudCardConfig;
 import com.ziggfreed.common.ui.hud.card.HudCardOwnerLayers;
+import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.world.WeightedPrefabPlacementAsset;
 import com.ziggfreed.common.world.WeightedPrefabPlacementConfig;
 import com.ziggfreed.common.worldmap.GatewayAsset;
@@ -955,25 +955,20 @@ public final class FrameworkAssetRegistrar {
                 (RemovedAssetsEvent<String, EntityEffect, IndexedLookupTableAssetMap<String, EntityEffect>> ev) ->
                         HitTags.effectsRemoved(ev.getRemovedAssets()));
 
-        try {
-            CommonLog.LOGGER.atInfo().log(
-                    "ZiggfreedCommon framework stores registered (DialogueFragments, DialogueExtensions, Dialogues, Instances, "
-                            + "Lootables, RollPools, BonusRows (owner file mods/ziggfreedcommon/bonus-rows.json), "
-                            + "StatDisplays, RewardKinds, BandedEffects, PrefabPlacements, Gateways, Leaderboard, "
-                            + "Arenas, Party, Dungeons (owner file mods/ziggfreedcommon/dungeons.json), "
-                            + "NpcPlacements, NpcIdentities, Factors, FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, "
-                            + "PlayerSettings (owner file mods/ziggfreedcommon/player-settings.json), "
-                            + "Quests (owner folder mods/ziggfreedcommon/quests/), QuestGenerators, QuestCategories, "
-                            + "Achievements, AchievementCategories, "
-                            + "AchievementMilestones, Almanac (owner file mods/ziggfreedcommon/almanac.json), "
-                            + "Currencies, Shops, ShopPools, ShopEntries, "
-                            + "ShopEntryGenerators, Boards, Bounties, Encounters, EncounterParticipation, "
-                            + "CalendarEvents (owner file mods/ziggfreedcommon/calendar.json), CalendarSpawns, "
-                            + "GearSets (owner file mods/ziggfreedcommon/gear-sets.json), Titles (owner file mods/ziggfreedcommon/titles.json), "
-                            + "Reputations (owner file mods/ziggfreedcommon/reputation.json), "
-                            + "Stats (owner file mods/ziggfreedcommon/stats.json)).");
-        } catch (Throwable ignored) {
-            // log-manager-less unit JVM: never let a presence log escape into setup().
-        }
+        SafeLog.info("ZiggfreedCommon framework stores registered (DialogueFragments, DialogueExtensions, Dialogues, Instances, "
+                        + "Lootables, RollPools, BonusRows (owner file mods/ziggfreedcommon/bonus-rows.json), "
+                        + "StatDisplays, RewardKinds, BandedEffects, PrefabPlacements, Gateways, Leaderboard, "
+                        + "Arenas, Party, Dungeons (owner file mods/ziggfreedcommon/dungeons.json), "
+                        + "NpcPlacements, NpcIdentities, Factors, FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, "
+                        + "PlayerSettings (owner file mods/ziggfreedcommon/player-settings.json), "
+                        + "Quests (owner folder mods/ziggfreedcommon/quests/), QuestGenerators, QuestCategories, "
+                        + "Achievements, AchievementCategories, "
+                        + "AchievementMilestones, Almanac (owner file mods/ziggfreedcommon/almanac.json), "
+                        + "Currencies, Shops, ShopPools, ShopEntries, "
+                        + "ShopEntryGenerators, Boards, Bounties, Encounters, EncounterParticipation, "
+                        + "CalendarEvents (owner file mods/ziggfreedcommon/calendar.json), CalendarSpawns, "
+                        + "GearSets (owner file mods/ziggfreedcommon/gear-sets.json), Titles (owner file mods/ziggfreedcommon/titles.json), "
+                        + "Reputations (owner file mods/ziggfreedcommon/reputation.json), "
+                        + "Stats (owner file mods/ziggfreedcommon/stats.json)).");
     }
 }

@@ -21,7 +21,7 @@ import com.hypixel.hytale.common.plugin.PluginManifest;
 import com.hypixel.hytale.common.semver.Semver;
 import com.hypixel.hytale.common.semver.SemverRange;
 import com.hypixel.hytale.server.core.asset.AssetModule;
-import com.ziggfreed.common.CommonLog;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * A mod-agnostic primitive for shipping a RUNTIME-GENERATED localization overlay to clients: write
@@ -394,11 +394,6 @@ public final class GeneratedLangPack {
     }
 
     private static void warn(@Nonnull String op, @Nullable String message) {
-        try {
-            CommonLog.LOGGER.atFine()
-                    .log("[ZiggfreedCommon] GeneratedLangPack." + op + " failed: " + message);
-        } catch (Throwable ignored) {
-            // a log-manager-less unit JVM must not crash on the logging facade itself
-        }
+        SafeLog.fine("GeneratedLangPack." + op + " failed: " + message);
     }
 }

@@ -5,7 +5,7 @@ import java.util.Collection;
 import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
-import com.ziggfreed.common.CommonLog;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Boot-time channel-presence check: the load-order silent-drop guard. Native item
@@ -47,14 +47,10 @@ public final class StatChannelAudit {
     }
 
     private static void logMiss(@Nonnull String id) {
-        try {
-            CommonLog.LOGGER.atSevere().log("StatChannelAudit: expected stat channel '" + id
-                    + "' failed to resolve - register it BEFORE any item asset decodes (a jar-bundled "
-                    + "Server/Entity/Stats/*.json channel, or setup()-time dynamic registration); a channel "
-                    + "that registers AFTER item decode is silently dropped from that item's StatModifiers "
-                    + "with no other warning (load-order gap).");
-        } catch (Throwable ignored) {
-            // log manager absent (unit JVM) - swallow, never throw out of an audit pass.
-        }
+        SafeLog.severe("StatChannelAudit: expected stat channel '" + id
+                + "' failed to resolve - register it BEFORE any item asset decodes (a jar-bundled "
+                + "Server/Entity/Stats/*.json channel, or setup()-time dynamic registration); a channel "
+                + "that registers AFTER item decode is silently dropped from that item's StatModifiers "
+                + "with no other warning (load-order gap).");
     }
 }

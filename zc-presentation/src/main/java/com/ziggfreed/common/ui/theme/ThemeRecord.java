@@ -2,13 +2,15 @@ package com.ziggfreed.common.ui.theme;
 
 import javax.annotation.Nonnull;
 
+import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
+
 /**
  * One loaded theme retained in a theme registry: enough to drive a theme picker /
  * command (id + display-name localization key + premium tag + sort order) and the
  * runtime recolor (its {@link Palette}). Generic + mod-agnostic.
  *
  * <p>A consumer folds these records over the generic {@code defaults < pack < owner}
- * backbone ({@link com.ziggfreed.common.asset.AbstractKeyedAssetConfig}) and applies
+ * backbone ({@link AbstractKeyedAssetConfig}) and applies
  * its OWN gate / policy on top - {@code premium} is a neutral tag the consumer
  * interprets (e.g. "requires an entitlement to actually paint"); this type carries
  * no concept of whether a premium theme is unlocked.

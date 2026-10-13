@@ -15,7 +15,7 @@ import javax.annotation.Nullable;
  * it, an opaque consumer payload, and an optional string var overlay.
  *
  * <p><b>FIELD-ADDITIVE by construction</b>, explicitly modelled on
- * {@code com.ziggfreed.common.cast.HitContext}: a new field is a new builder method plus a new
+ * {@code HitContext}: a new field is a new builder method plus a new
  * getter and never breaks an existing {@link ParamFoldResolver} implementer - unlike widening a
  * JDK functional interface's generic parameter, which breaks every implementer at once. Do not
  * widen or reorder anything already declared here; only append.
