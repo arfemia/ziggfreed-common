@@ -15,7 +15,8 @@ $ZT = "../Common/ZigType.ui";
 // RIGHT: #RightPanel, hidden outright when there is nothing selected. Its four appended containers
 // (#ObjectivesList, #RewardsList, #StatusList, #RerollCostRow) take chips or
 // Pages/ZigDetailLine.ui rows, and the page CLEARS each one before re-rendering, so a second
-// render for a different contract cannot collide with the rows of the first.
+// render for a different contract cannot collide with the rows of the first. #StatusNote says why
+// a locked contract cannot be taken.
 //
 // Every labeled button here is a Button + inner Label #Label, never a TextButton: a contract title
 // and a step's "3/10" are parameterized Messages, and those only substitute on .TextSpans. The five
@@ -194,6 +195,16 @@ $F.@ZigDecoratedFrame {
       Group #RewardsList {
         LayoutMode: Top;
         Anchor: (Bottom: 12);
+      }
+
+      // Why a locked contract cannot be taken, one line per requirement, in a label of its own rather than detail
+      // lines: a requirement with routes ("Unlocked by: ... or ...") runs past one line and wraps here instead of
+      // ending in an ellipsis. Java sets its colour, as it does a detail line's.
+      Label #StatusNote {
+        Text: "";
+        Visible: false;
+        Anchor: (Bottom: 12);
+        Style: (FontSize: $ZT.@ZigFontHeading, TextColor: #e6eef7, Wrap: true);
       }
 
       Group #StatusList {

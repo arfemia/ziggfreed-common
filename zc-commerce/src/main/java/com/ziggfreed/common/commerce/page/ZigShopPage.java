@@ -483,8 +483,8 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
     /**
      * One offer as its tile reads: its picture, name and price, the pill counting what its limits
      * leave, dimmed when it is out of reach (the lock when a requirement or a switch stands in the
-     * way), the refusal it would answer with as the tooltip, and the selected look on the offer the
-     * panel shows.
+     * way), its whole name and the refusal it would answer with as the tooltip, and the selected look
+     * on the offer the panel shows.
      */
     @Nonnull
     private WareTile wareTile(@Nonnull ShopEngine engine, @Nonnull Subject subject,
@@ -523,10 +523,11 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
                         ? text("shop.tile.cost_more", amount, others) : Msg.num(amount);
             }
         }
-        return new WareTile(offer.offerId(), offerName(offer), Picture.item(pictureOf(offer)), costPicture,
+        Message name = offerName(offer);
+        return new WareTile(offer.offerId(), name, Picture.item(pictureOf(offer)), costPicture,
                 cost, reach == Reach.SHORT, limitBadge(offer, subject, now),
                 reach == Reach.LIMITED, reach == Reach.LOCKED,
-                check.ok() ? null : refusalTooltip(engine, subject, offer, check.reason()),
+                tileTooltip(engine, subject, offer, name, check),
                 CommerceText.sameId(offer.offerId(), selectedOfferId));
     }
 
@@ -569,6 +570,7 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
         cmd.set("#RerollBtn.Visible", false);
         cmd.set("#RerollCostRow.Visible", false);
         cmd.set("#DetailCategory.Visible", false);
+        cmd.set("#StatusNote.Visible", false);
 
         ContentTextAsset text = textOf(offer);
         cmd.set("#DetailTitle.TextSpans", offerName(offer));
@@ -598,16 +600,13 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
         ShopEngine.PurchaseCheck check = engine.canPurchase(subject, offer, now);
         ZigRichButton.text(cmd, "#BuyBtn", text(price.isFree() ? "shop.action.take" : "shop.action.buy"));
         cmd.set("#BuyBtn.Visible", true);
-        // The status list is APPENDED to, so its next index is counted rather than assumed: a
-        // selector naming a row the container does not hold disconnects the player outright.
-        int statusLines = 0;
         if (!check.ok()) {
             // The button stays BOUND: the press re-checks and answers with the same line as a toast,
             // so a stale screen can never silently do nothing.
             paintLocked(cmd, "#BuyBtn");
-            statusLines = renderStatus(cmd, engine, subject, offer, check.reason(), statusLines);
+            renderStatus(cmd, engine, subject, offer, check.reason());
         }
-        renderReroll(cmd, engine, subject, offer, now, statusLines);
+        renderReroll(cmd, engine, subject, offer, now);
     }
 
     /** How much of a capped offer is left, as the line under the price. */
@@ -656,28 +655,17 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
     }
 
     /**
-     * Why this offer is out of reach, one line per thing the player can act on, appended to the
-     * status list from {@code index}.
+     * Why this offer is out of reach, one line per thing the player can act on, in the status note
+     * ({@link CommerceChips#setNote}), which wraps where a detail line would cut a long requirement short.
      *
      * <p>A gate refusal names every unmet requirement ({@link #refusalLines}), the way the board's
      * locked contract does; a shortfall names the wallet or the item it is short of, resolved HERE so
      * it reads in the player's own language; every other commerce refusal is the engine's token
      * turned into its own sentence.
-     *
-     * @return the index the next status line goes at
      */
-    private int renderStatus(@Nonnull UICommandBuilder cmd, @Nonnull ShopEngine engine,
-            @Nonnull Subject subject, @Nonnull ShopOffer offer, @Nullable String reason, int index) {
-        int next = index;
-        for (Message line : refusalLines(engine, subject, offer, reason)) {
-            if (next >= MAX_LINES) {
-                break;
-            }
-            CommerceChips.setLine(cmd, CommerceChips.appendLine(cmd, "#StatusList", next), line,
-                    CommerceChips.COLOR_REFUSAL);
-            next++;
-        }
-        return next;
+    private void renderStatus(@Nonnull UICommandBuilder cmd, @Nonnull ShopEngine engine,
+            @Nonnull Subject subject, @Nonnull ShopOffer offer, @Nullable String reason) {
+        CommerceChips.setNote(cmd, "#StatusNote", refusalLines(engine, subject, offer, reason));
     }
 
     /**
@@ -700,22 +688,20 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
         return List.of(refusalLine(reason));
     }
 
-    /** A ware's hover text when it cannot be bought: its refusal's lines, one under the other. */
+    /**
+     * A ware's hover text: its whole name, since a long one can run past the tile's lines, and when it cannot be
+     * bought, its refusal's lines under it.
+     */
     @Nonnull
-    private Message refusalTooltip(@Nonnull ShopEngine engine, @Nonnull Subject subject,
-            @Nonnull ShopOffer offer, @Nullable String reason) {
-        List<Message> lines = refusalLines(engine, subject, offer, reason);
-        if (lines.size() == 1) {
-            return lines.get(0);
+    private Message tileTooltip(@Nonnull ShopEngine engine, @Nonnull Subject subject, @Nonnull ShopOffer offer,
+            @Nonnull Message name, @Nonnull ShopEngine.PurchaseCheck check) {
+        if (check.ok()) {
+            return name;
         }
-        List<Message> parts = new ArrayList<>(lines.size() * 2 - 1);
-        for (Message line : lines) {
-            if (!parts.isEmpty()) {
-                parts.add(Msg.raw("\n"));
-            }
-            parts.add(line);
-        }
-        return Msg.join(parts.toArray(new Message[0]));
+        List<Message> lines = new ArrayList<>();
+        lines.add(name);
+        lines.addAll(refusalLines(engine, subject, offer, check.reason()));
+        return CommerceChips.stacked(lines);
     }
 
     /**
@@ -725,7 +711,7 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
      * vanishing.
      */
     private void renderReroll(@Nonnull UICommandBuilder cmd, @Nonnull ShopEngine engine,
-            @Nonnull Subject subject, @Nonnull ShopOffer offer, long now, int statusIndex) {
+            @Nonnull Subject subject, @Nonnull ShopOffer offer, long now) {
         ShelfPosition at = shelfOf.get(CommerceText.normalize(offer.offerId()));
         if (at == null) {
             return;
@@ -743,7 +729,9 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
         ShopEngine.PurchaseCheck check = engine.canRerollShelf(subject, shelf, at.position(), now);
         if (!check.ok()) {
             paintLocked(cmd, "#RerollBtn");
-            CommerceChips.setLine(cmd, CommerceChips.appendLine(cmd, "#StatusList", statusIndex),
+            // The status list holds only this line (the purchase's own refusal is the note above it), and
+            // renderDetail cleared it, so it is row 0.
+            CommerceChips.setLine(cmd, CommerceChips.appendLine(cmd, "#StatusList", 0),
                     refusalLine(check.reason()), CommerceChips.COLOR_REFUSAL);
             return;
         }

@@ -5,7 +5,7 @@ $ZX = "../Common/ZigText.ui";
 $ZS = "../Common/ZigStyles.ui";
 $ZW = "../Common/ZigKit.ui";
 
-// One ware of a storefront grid (an offer for sale), 128 x 160, appended by
+// One ware of a storefront grid (an offer for sale), 128 x 180, appended by
 // com.ziggfreed.common.ui.kit.TilePainter into a wrapping grid and addressed by index as "#Grid[i] #Ware".
 //
 // The whole tile is one Button on vanilla's Memories tiles (Pages/Memories/Memory.ui): ZigTileStyle at rest and
@@ -13,7 +13,8 @@ $ZW = "../Common/ZigKit.ui";
 //   #BadgeRow  a pill at the top ("3 left", "Sold out"); the row keeps its height when the pill hides, so the
 //              picture never moves
 //   #Pic       the 64px picture, painted through IconRenderer.applyPlainIcon
-//   #Name      the ware's name in the headline face, two lines, centred
+//   #Name      the ware's name in the headline face, three lines, centred: a tile is 116px inside, about twelve
+//              capitals a line, so "Shattering Lantern Bomb" needs the third; the tooltip carries the whole name
 //   #Foot      what it costs, centred: a 20px picture (#CostPic, hidden when there is none) and the amount (#Cost)
 //   #Scrim     dims the picture of a ware out of reach
 //   #Lock      the lock glyph, top right, on a ware behind a requirement
@@ -21,7 +22,7 @@ $ZW = "../Common/ZigKit.ui";
 // the tile.
 
 Group #ZigWareTile {
-  Anchor: (Width: 128, Height: 160, Right: $ZK.@ZigSpace2, Bottom: $ZK.@ZigSpace2);
+  Anchor: (Width: 128, Height: 180, Right: $ZK.@ZigSpace2, Bottom: $ZK.@ZigSpace2);
 
   Button #Ware {
     Anchor: (Full: 0);
@@ -53,9 +54,9 @@ Group #ZigWareTile {
       }
 
       Label #Name {
-        Anchor: (Height: 34);
+        Anchor: (Height: 51);
         Text: "";
-        Style: (...$ZX.@ZigTileNameStyle, FontSize: $ZT.@ZigFontBody, HorizontalAlignment: Center);
+        Style: (...$ZX.@ZigTileNameStyle, FontSize: $ZT.@ZigFontBody, HorizontalAlignment: Center, WrapMaxLines: 3);
       }
 
       Group {

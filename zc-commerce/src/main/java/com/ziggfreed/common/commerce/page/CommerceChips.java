@@ -267,6 +267,33 @@ public final class CommerceChips {
     }
 
     /**
+     * Fill a page's status note ({@code sel}, a label that wraps) with why something is out of reach, one
+     * line under the other in the refusal colour, and show it. A detail line holds one line of text and
+     * ends the rest in an ellipsis, and a requirement with routes ("Unlocked by: A or B") runs past it.
+     */
+    public static void setNote(@Nonnull UICommandBuilder cmd, @Nonnull String sel, @Nonnull List<Message> lines) {
+        cmd.set(sel + ".TextSpans", stacked(lines));
+        cmd.set(sel + ".Style.TextColor", COLOR_REFUSAL);
+        cmd.set(sel + ".Visible", true);
+    }
+
+    /** {@code lines}, one under the other, as one message. */
+    @Nonnull
+    public static Message stacked(@Nonnull List<Message> lines) {
+        if (lines.size() == 1) {
+            return lines.get(0);
+        }
+        List<Message> parts = new ArrayList<>(Math.max(0, lines.size() * 2 - 1));
+        for (Message line : lines) {
+            if (!parts.isEmpty()) {
+                parts.add(Msg.raw("\n"));
+            }
+            parts.add(line);
+        }
+        return Msg.join(parts.toArray(new Message[0]));
+    }
+
+    /**
      * Fill an appended line and the picture beside it. The picture is a spec rather than an item id
      * so a line can show a creature's own portrait as readily as an item, which an id alone cannot
      * express; a null one leaves the slot collapsed.

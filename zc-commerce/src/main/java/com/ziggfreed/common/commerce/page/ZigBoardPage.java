@@ -526,6 +526,7 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
         cmd.set("#AbandonBtn.Visible", false);
         cmd.set("#RerollBtn.Visible", false);
         cmd.set("#RerollCostRow.Visible", false);
+        cmd.set("#StatusNote.Visible", false);
 
         BoardSections.Section section = sectionOf(engine, quests, subject, board, ref, quest, now);
         cmd.set("#DetailTitle.TextSpans", bountyName(ref));
@@ -554,8 +555,7 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
                 ZigRichButton.text(cmd, "#AcceptBtn", text("board.action.accept"));
                 cmd.set("#AcceptBtn.Visible", true);
             }
-            case LOCKED -> statusLines = renderLockedDetail(cmd, engine, subject, board, ref, now,
-                    statusLines);
+            case LOCKED -> renderLockedDetail(cmd, engine, subject, board, ref, now);
             case SPENT -> statusLines = renderLine(cmd, text("board.status.spent_detail"), statusLines);
             case READY -> {
                 ZigRichButton.text(cmd, "#ClaimBtn", text("board.action.claim"));
@@ -635,16 +635,6 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
         }
     }
 
-    /**
-     * Why a visible contract cannot be taken, so a locked row explains itself instead of sitting
-     * inert. A commerce token reads with its own line; a gate refusal reads through the shared
-     * lock-reason mapping - the same words the objective book and the offer page show for that
-     * same gate.
-     */
-    private int renderRefusals(@Nonnull UICommandBuilder cmd, @Nullable String reason, int index) {
-        return renderLine(cmd, refusalLine(reason), index);
-    }
-
     /** One refusal token as the line it reads with, commerce-owned or delegated alike. */
     @Nonnull
     private Message refusalLine(@Nullable String reason) {
@@ -653,27 +643,25 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
     }
 
     /**
-     * The status lines for a LOCKED contract: when what shut the accept is the GATE, every unmet
-     * requirement is rendered from the evaluator's structured records - the factor's own
-     * asset-given name with the bound it asks for, the prerequisite quest by title - through the
-     * same shared mapping every other locked surface reads. A non-gate refusal (the period lock,
-     * a board switch) keeps its own commerce line.
+     * Why a LOCKED contract cannot be taken, so a locked row explains itself instead of sitting inert,
+     * in the status note ({@link CommerceChips#setNote}), which wraps where a detail line would cut a long
+     * requirement short. When what shut the accept is the GATE, every unmet requirement is rendered from
+     * the evaluator's structured records - the factor's own asset-given name with the bound it asks for,
+     * the prerequisite quest by title - through the same shared lock-reason mapping the objective book and
+     * the offer page read. A non-gate refusal (the period lock, a board switch) keeps its own commerce line.
      */
-    private int renderLockedDetail(@Nonnull UICommandBuilder cmd, @Nonnull BoardEngine engine,
-            @Nonnull Subject subject, @Nonnull BoardAssetSpec board, @Nonnull BountyRef ref,
-            long now, int index) {
+    private void renderLockedDetail(@Nonnull UICommandBuilder cmd, @Nonnull BoardEngine engine,
+            @Nonnull Subject subject, @Nonnull BoardAssetSpec board, @Nonnull BountyRef ref, long now) {
         PoolSlot posted = postedIn(engine, subject, board, ref, now);
         String reason = engine.canAccept(subject, board, ref, posted, now).reason();
         if (GateRefusal.fromToken(reason) != null) {
             List<Message> lines = LockReasons.linesOf(engine.acceptGateRefusals(subject, board, ref, posted));
             if (!lines.isEmpty()) {
-                for (Message line : lines) {
-                    index = renderLine(cmd, line, index);
-                }
-                return index;
+                CommerceChips.setNote(cmd, "#StatusNote", lines);
+                return;
             }
         }
-        return renderRefusals(cmd, reason, index);
+        CommerceChips.setNote(cmd, "#StatusNote", List.of(refusalLine(reason)));
     }
 
     private int renderLine(@Nonnull UICommandBuilder cmd, @Nonnull Message line, int index) {

@@ -8,6 +8,7 @@
 - Take the `Subject` from the shared progression runtime (`ProgressionRuntime.subjects()`); a locally built one reads zero balances and silently drops writes.
 - Every press re-asks the engine and never trusts the last render. Anything that could leave a player short (a lapse, a period lock, a reroll probe, the accept site) is engine behaviour, never a page decision.
 - Build engines per call through `fold/CommerceEngines`, never hold one in a field: a reload replaces every offer, and a consumer may install its own store after this module's setup.
+- Why a ware or a contract is out of reach goes in the page's wrapping `#StatusNote` through `CommerceChips.setNote`, never a `ZigDetailLine` row, which holds one line and cuts an either-or requirement short.
 - A refusal token becomes words only in `CommerceRefusals`; gate tokens and unknown tokens delegate to zc-progression's `quest.LockReasons`. `CommerceRefusalsTest` finds every engine `REASON_*` constant by reflection and fails on one with no shipped en-US line.
 - A partial update addresses rows only through the `BuiltRows` record of the last full build, and the storefront's tiles only through the selectors `TilePainter.wares` answered in it (`wareOf`); when the record is gone, reopen in full.
 - Action buttons bind once per build with no id in the binding and act on whatever the detail panel shows; a partial update can restyle an element but never add or change a binding.

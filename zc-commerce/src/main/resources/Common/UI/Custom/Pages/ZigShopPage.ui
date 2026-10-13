@@ -20,11 +20,21 @@ $ZW = "../Common/ZigKit.ui";
 //
 // RIGHT: #RightPanel, hidden outright when nothing is selected: the ware's name, its category, its picture, then a
 // scrolling #DetailBody whose appended containers (#CostRow, #RewardsList, #StatusList) take chips or
-// Pages/ZigDetailLine.ui rows, CLEARED before each re-render, and the reroll price and the two actions at the foot.
+// Pages/ZigDetailLine.ui rows, CLEARED before each re-render, with #StatusNote saying why the ware is out of reach,
+// and the reroll price and the two actions at the foot.
 //
 // Every labeled button here is a Button + inner Label #Label, never a TextButton: an offer title, a price and a
 // reward line are all parameterized Messages, and those only substitute on .TextSpans. The action buttons default
 // Visible:false and the page flips exactly the ones a state offers, so there is never a control that does nothing.
+
+// The filters' lists drop below their box at a width of their own, as vanilla's inspector dropdowns do
+// (Pages/Point/PointInspectorPage.ui): the default list opens beside its box, only as wide as it, so it cut its
+// entries short and covered the ware's name in the right panel.
+@FilterDropdownStyle = DropdownBoxStyle(
+  ...$C.@DefaultDropdownBoxStyle,
+  PanelAlign: Bottom,
+  PanelWidth: 240
+);
 
 $C.@PageOverlay {
   LayoutMode: Middle;
@@ -76,17 +86,19 @@ $C.@PageOverlay {
         // The two list filters. Hidden until the page has runs to offer; an empty dropdown filtering nothing is noise.
         Group #FilterRow {
           LayoutMode: Left;
-          Anchor: (Width: 340, Height: 34);
+          Anchor: (Width: 380, Height: 34);
           Visible: false;
 
           $C.@DropdownBox #RunFilter {
             Anchor: (Width: 200, Height: $C.@SmallButtonHeight);
+            Style: @FilterDropdownStyle;
           }
 
           Group { Anchor: (Width: 8); }
 
           $C.@DropdownBox #KindFilter {
-            Anchor: (Width: 132, Height: $C.@SmallButtonHeight);
+            Anchor: (Width: 172, Height: $C.@SmallButtonHeight);
+            Style: @FilterDropdownStyle;
           }
         }
 
@@ -194,6 +206,16 @@ $C.@PageOverlay {
             Group #RewardsList {
               LayoutMode: Top;
               Anchor: (Bottom: 12);
+            }
+
+            // Why the ware is out of reach, one line per requirement, in a label of its own rather than detail
+            // lines: a requirement with routes ("Unlocked by: ... or ...") runs past one line of this panel and
+            // wraps here instead of ending in an ellipsis. Java sets its colour, as it does a detail line's.
+            Label #StatusNote {
+              Text: "";
+              Visible: false;
+              Anchor: (Bottom: 12);
+              Style: (FontSize: $ZT.@ZigFontHeading, TextColor: $ZK.@ZigInkStrong, Wrap: true);
             }
 
             Group #StatusList {
