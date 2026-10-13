@@ -35,8 +35,11 @@ public final class ToastStore {
     /** How many notices wait at most; a fuller queue drops its lowest rank, oldest first. */
     static final int QUEUE_CAP = 3;
 
-    /** How long a notice may wait before it is dropped unseen. */
-    static final long STALE_MS = 6_000L;
+    /**
+     * How long a notice may wait before it is dropped unseen: long enough for a full queue to drain behind
+     * toasts of the default length, one after another.
+     */
+    static final long STALE_MS = 12_000L;
 
     /** A toast on screen; {@code arrival} is the generation it first came with, which a promotion keeps. */
     private record Entry(@Nonnull ToastSpec spec, long gen, long arrival) {}
