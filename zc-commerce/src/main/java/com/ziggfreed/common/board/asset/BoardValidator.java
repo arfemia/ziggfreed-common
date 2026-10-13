@@ -29,6 +29,7 @@ import com.ziggfreed.common.shop.asset.ShopValidator;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.kit.ZigTokens;
 import com.ziggfreed.common.validation.Finding;
+import com.ziggfreed.common.validation.TextKeyAudit;
 import com.ziggfreed.common.world.WhereValidator;
 
 /**
@@ -52,6 +53,9 @@ public final class BoardValidator {
 
     /** The content family these findings belong to. */
     public static final String DOMAIN = "board";
+
+    /** A board's {@code Hosts} names an NPC id no character answers to (a WARNING). */
+    public static final String UNKNOWN_HOST = "UNKNOWN_HOST";
 
     /** What one piece of this content is CALLED in a message written for the author. */
     private static final String NOUN = "contract";
@@ -83,6 +87,22 @@ public final class BoardValidator {
             @Nullable ShopValidator.CurrencyProbe currencies, @Nullable Predicate<String> rewardKinds,
             @Nullable Predicate<String> objectiveKinds, @Nullable GateKindRegistry gateKinds,
             @Nullable Predicate<String> knownFactors) {
+        return validate(boards, bounties, currencies, rewardKinds, objectiveKinds, gateKinds, knownFactors, null);
+    }
+
+    /**
+     * {@link #validate(Map, Map, ShopValidator.CurrencyProbe, Predicate, Predicate, GateKindRegistry, Predicate)}
+     * with the character vocabulary a board's {@code Hosts} is checked against.
+     *
+     * @param npcIds answers "does some character answer to this NPC id, or can that not be told?", or null to
+     *               skip; an id it answers no for is {@link #UNKNOWN_HOST}, a WARNING
+     */
+    @Nonnull
+    public static List<Finding> validate(@Nonnull Map<String, BoardAsset> boards,
+            @Nonnull Map<String, BountyAsset> bounties,
+            @Nullable ShopValidator.CurrencyProbe currencies, @Nullable Predicate<String> rewardKinds,
+            @Nullable Predicate<String> objectiveKinds, @Nullable GateKindRegistry gateKinds,
+            @Nullable Predicate<String> knownFactors, @Nullable Predicate<String> npcIds) {
 
         List<Finding> out = new ArrayList<>();
 
@@ -112,6 +132,7 @@ public final class BoardValidator {
             if (entry.getValue() != null) {
                 validateBoard(entry.getKey(), entry.getValue(), byBoard, byBoardAndBand, currencies,
                         gateKinds, knownFactors, out);
+                validateText(entry.getKey(), entry.getValue(), npcIds, out);
             }
         }
         for (Map.Entry<String, BountyAsset> entry : bounties.entrySet()) {
@@ -246,6 +267,34 @@ public final class BoardValidator {
         }
         out.addAll(GateValidator.validate(board.getRequires(), DOMAIN, id, "board",
                 gateKinds, knownFactors, null));
+    }
+
+    /**
+     * The board's pill word ({@code Text.PillKey}) against the loaded catalogue, and each {@code Hosts} id
+     * against the character vocabulary, when a caller can answer it. Both are WARNINGs: a key or a character
+     * may come from a mod this server does not run.
+     */
+    private static void validateText(@Nonnull String id, @Nonnull BoardAsset board,
+            @Nullable Predicate<String> npcIds, @Nonnull List<Finding> out) {
+        TextKeyAudit.check(out, DOMAIN, id, "the board's Text.PillKey", board.pillKey(),
+                TextKeyAudit.liveCatalogue(), "its contracts' pill shows the raw key");
+        if (npcIds == null) {
+            return;
+        }
+        for (String host : board.hostIds()) {
+            boolean known;
+            try {
+                known = npcIds.test(host);
+            } catch (Throwable t) {
+                known = true; // cannot tell is not "unknown"
+            }
+            if (!known) {
+                out.add(Finding.warning(DOMAIN, UNKNOWN_HOST,
+                        "Hosts names the character '" + host + "', which no NPC on this server answers to, so "
+                                + "nobody lists this board's work until whichever pack places that character "
+                                + "is installed; check the spelling against the character's NPC id", id));
+            }
+        }
     }
 
     // ==================== contracts ====================

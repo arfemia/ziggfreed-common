@@ -22,6 +22,7 @@ import com.ziggfreed.common.quest.QuestTurnInSite;
 import com.ziggfreed.common.quest.asset.QuestIndicatorSpec;
 import com.ziggfreed.common.quest.asset.QuestSituation;
 import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.world.WhereValidator.LoadedWorld;
 
 /**
  * The ONE availability answer behind both quest-indicator surfaces: which situations a character
@@ -69,21 +70,22 @@ public final class QuestIndicators {
     @Nonnull
     public static List<Reading> situationsAt(@Nonnull QuestEngine engine, @Nonnull Subject subject,
             @Nonnull Set<String> answersTo) {
-        return situationsAt(engine, subject, answersTo, true);
+        return situationsAt(engine, subject, answersTo, null, true);
     }
 
     /**
      * {@link #situationsAt(QuestEngine, Subject, Set)}, a repeating quest reading its situation's
      * {@code Repeatable} state only when {@code repeatLooks}. Only the legacy reads pass false: every
-     * quest read as a one-off, the answer they always gave.
+     * quest read as a one-off, the answer they always gave. A board the character hosts lists its
+     * postings where it is open to {@code viewer} (with none, wherever it is open on this server).
      */
     @Nonnull
     private static List<Reading> situationsAt(@Nonnull QuestEngine engine, @Nonnull Subject subject,
-            @Nonnull Set<String> answersTo, boolean repeatLooks) {
+            @Nonnull Set<String> answersTo, @Nullable LoadedWorld viewer, boolean repeatLooks) {
         if (answersTo.isEmpty()) {
             return List.of();
         }
-        CharacterQuestListing listing = new CharacterQuestListing(engine, subject, answersTo);
+        CharacterQuestListing listing = new CharacterQuestListing(engine, subject, answersTo, viewer);
         List<Reading> out = new ArrayList<>();
         for (Quest quest : listing.questsHere()) {
             QuestSituation situation = situationOf(listing.sectionOf(quest));
@@ -112,14 +114,24 @@ public final class QuestIndicators {
     @Nullable
     public static Reading overheadFor(@Nonnull QuestEngine engine, @Nonnull Subject subject,
             @Nonnull Set<String> answersTo) {
-        return overheadFor(engine, subject, answersTo, true);
+        return overheadFor(engine, subject, answersTo, null, true);
+    }
+
+    /**
+     * {@link #overheadFor(QuestEngine, Subject, Set)} for a player standing in {@code viewer}'s world, so a board
+     * the character hosts counts only where it is open to that player, as on the character's page.
+     */
+    @Nullable
+    public static Reading overheadFor(@Nonnull QuestEngine engine, @Nonnull Subject subject,
+            @Nonnull Set<String> answersTo, @Nullable LoadedWorld viewer) {
+        return overheadFor(engine, subject, answersTo, viewer, true);
     }
 
     /** {@link #overheadFor(QuestEngine, Subject, Set)}, repeat looks as {@link #situationsAt} reads them. */
     @Nullable
     private static Reading overheadFor(@Nonnull QuestEngine engine, @Nonnull Subject subject,
-            @Nonnull Set<String> answersTo, boolean repeatLooks) {
-        for (Reading reading : situationsAt(engine, subject, answersTo, repeatLooks)) {
+            @Nonnull Set<String> answersTo, @Nullable LoadedWorld viewer, boolean repeatLooks) {
+        for (Reading reading : situationsAt(engine, subject, answersTo, viewer, repeatLooks)) {
             if (reading.knob().showsOverhead()) {
                 return reading;
             }
@@ -141,7 +153,7 @@ public final class QuestIndicators {
     public static Reading overheadAt(@Nonnull QuestEngine engine, @Nonnull Subject subject,
             @Nonnull Set<String> answersTo) {
         QuestMarkYield.noteConsumerDraws("QuestIndicators.overheadAt");
-        return overheadFor(engine, subject, answersTo, false);
+        return overheadFor(engine, subject, answersTo, null, false);
     }
 
     /**
@@ -156,7 +168,7 @@ public final class QuestIndicators {
     @Nullable
     public static Reading overheadAt(@Nonnull Subject subject, @Nonnull Set<String> answersTo) {
         QuestMarkYield.noteConsumerDraws("QuestIndicators.overheadAt");
-        return overheadFor(ProgressionRuntime.quests(), subject, answersTo, false);
+        return overheadFor(ProgressionRuntime.quests(), subject, answersTo, null, false);
     }
 
     /**
@@ -211,7 +223,7 @@ public final class QuestIndicators {
             if (out.containsKey(key)) {
                 continue;
             }
-            for (Reading reading : situationsAt(engine, subject, NpcIdentities.answerSetForPrimary(npcId),
+            for (Reading reading : situationsAt(engine, subject, NpcIdentities.answerSetForPrimary(npcId), null,
                     repeatLooks)) {
                 if (reading.knob().showsMap()) {
                     out.put(key, new MapMark(npcId, reading));

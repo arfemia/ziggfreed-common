@@ -17,6 +17,7 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.Message;
 
+import com.ziggfreed.common.board.BoardEngine;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.icon.IconSpec;
 import com.ziggfreed.common.loot.reward.RewardChip;
@@ -24,10 +25,13 @@ import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.objectives.book.BookVerbs;
 import com.ziggfreed.common.objectives.questlist.CharacterQuestListing;
+import com.ziggfreed.common.objectives.questlist.HostedBoards;
+import com.ziggfreed.common.objectives.questlist.NpcQuestSections;
 import com.ziggfreed.common.objectives.render.QuestCadenceBadge;
 import com.ziggfreed.common.progress.CategoryNames;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
+import com.ziggfreed.common.progress.gate.GateRefusal;
 import com.ziggfreed.common.progress.runtime.ProgressionIcons;
 import com.ziggfreed.common.progress.runtime.ProgressionTexts;
 import com.ziggfreed.common.quest.LockReasons;
@@ -174,6 +178,33 @@ public final class QuestReader {
         return QuestSection.of(status(q), acceptable(q));
     }
 
+    /**
+     * The journal section {@code q} reads as at {@code here}: a contract a board the character hosts has posted,
+     * not yet taken, by the board's own rules (Waiting once done this rotation, else Available or Not yet by the
+     * board's accept check); anything else as {@link #sectionOf(Quest)}.
+     */
+    @Nonnull
+    public QuestSection sectionOf(@Nonnull Quest q, @Nullable CharacterQuestListing here) {
+        CharacterQuestListing.Posting posting = postingAt(q, here);
+        if (posting == null || here == null) {
+            return sectionOf(q);
+        }
+        return switch (here.sectionOf(q)) {
+            case COOLDOWN -> QuestSection.WAITING;
+            case LOCKED -> QuestSection.NOT_YET;
+            default -> QuestSection.AVAILABLE;
+        };
+    }
+
+    /** The posting {@code q} is at {@code here} while the player is not carrying it, or null. */
+    @Nullable
+    private CharacterQuestListing.Posting postingAt(@Nonnull Quest q, @Nullable CharacterQuestListing here) {
+        if (here == null || carried(status(q))) {
+            return null;
+        }
+        return here.postingOf(q.id());
+    }
+
     /** Every quest the journal lists, before any filter, in catalogue order. */
     @Nonnull
     public List<Quest> listed() {
@@ -238,9 +269,9 @@ public final class QuestReader {
     @Nonnull
     private LedgerRow read(@Nonnull Quest q, @Nullable CharacterQuestListing here, boolean compact) {
         QuestStatus status = status(q);
-        QuestSection section = sectionOf(q);
+        QuestSection section = sectionOf(q, here);
         QuestEngine.ObjectiveTally tally = carried(status) ? engine.tally(subject, q) : null;
-        Message value = section == QuestSection.WAITING ? waitLine(q)
+        Message value = section == QuestSection.WAITING ? waitLine(q, here)
                 : tally == null ? null : KitText.count(tally.completed(), tally.total());
         Progress progress = tally != null && status == QuestStatus.ACTIVE
                 ? new Progress(tally.completed(), tally.total()) : null;
@@ -279,6 +310,26 @@ public final class QuestReader {
     @Nonnull
     private Message waitLine(@Nonnull Quest q) {
         return LockReasons.waitLine(engine.offerableInMs(subject, q));
+    }
+
+    /**
+     * {@link #waitLine(Quest)} at {@code here}: a posting done this rotation comes back when its BOARD turns over,
+     * never on the quest engine's own repeat (a contract's is none). Null for a posting whose board never turns over.
+     */
+    @Nullable
+    private Message waitLine(@Nonnull Quest q, @Nullable CharacterQuestListing here) {
+        CharacterQuestListing.Posting posting = postingAt(q, here);
+        return posting == null || here == null ? waitLine(q) : newWorkWait(here, posting);
+    }
+
+    /**
+     * How long until {@code posting}'s board posts new work, as a nested line; null when the board has no
+     * {@code Rotation} and so never does, where any clock would be a made-up span.
+     */
+    @Nullable
+    private static Message newWorkWait(@Nonnull CharacterQuestListing here,
+            @Nonnull CharacterQuestListing.Posting posting) {
+        return here.postsNewWork(posting) ? LockReasons.waitLine(here.millisUntilNewWork(posting)) : null;
     }
 
     /**
@@ -336,7 +387,7 @@ public final class QuestReader {
         Message progressLabel = tally == null ? null : text("progress.steps", tally.completed(), tally.total());
 
         List<DetailBlock> blocks = new ArrayList<>();
-        DetailBlock requirements = requirements(q);
+        DetailBlock requirements = requirements(q, here);
         if (requirements != null) {
             blocks.add(requirements);
         }
@@ -393,9 +444,13 @@ public final class QuestReader {
      * can be taken, locked when it cannot. Null for a carried or finished quest, or nothing to say.
      */
     @Nullable
-    private DetailBlock requirements(@Nonnull Quest q) {
+    private DetailBlock requirements(@Nonnull Quest q, @Nullable CharacterQuestListing here) {
         if (status(q) != QuestStatus.NOT_STARTED) {
             return null;
+        }
+        CharacterQuestListing.Posting posting = postingAt(q, here);
+        if (posting != null && here != null) {
+            return postingRequirements(here, posting);
         }
         boolean takeable = acceptable(q);
         List<Message> lines = new ArrayList<>();
@@ -408,7 +463,35 @@ public final class QuestReader {
         if (lines.isEmpty()) {
             return null;
         }
-        Tick tick = takeable ? Tick.DONE : Tick.LOCKED;
+        return requirementsBlock(lines, takeable ? Tick.DONE : Tick.LOCKED);
+    }
+
+    /**
+     * A Locked posting's Requirements: every unmet gate the board's accept asks (the board's, the band's or the
+     * contract's own entry, the contract's own, the slot's) through the shared lock lines; a refusal that is not a
+     * gate (the board switched off) reads its own line. Null when the board would take it, or it comes back with
+     * the board's turnover, which the hint says.
+     */
+    @Nullable
+    private static DetailBlock postingRequirements(@Nonnull CharacterQuestListing here,
+            @Nonnull CharacterQuestListing.Posting posting) {
+        if (here.doneThisRotation(posting)) {
+            return null;
+        }
+        BoardEngine.BoardCheck check = here.acceptCheck(posting);
+        if (check.ok()) {
+            return null;
+        }
+        List<Message> lines = GateRefusal.fromToken(check.reason()) != null
+                ? LockReasons.linesOf(here.gateRefusals(posting)) : List.of();
+        if (lines.isEmpty()) {
+            lines = List.of(HostedBoards.refusalLine(check.reason()));
+        }
+        return requirementsBlock(lines, Tick.LOCKED);
+    }
+
+    @Nonnull
+    private static DetailBlock requirementsBlock(@Nonnull List<Message> lines, @Nonnull Tick tick) {
         List<DetailLine> out = new ArrayList<>();
         for (Message line : lines) {
             out.add(new DetailLine(Picture.NONE, line, null, null, tick, null, false));
@@ -561,12 +644,22 @@ public final class QuestReader {
         }
     }
 
-    /** The action bar's hint for {@code q}; with {@code here}, at that character. Null for none. */
+    /**
+     * The action bar's hint for {@code q}; with {@code here}, at that character. Null for none. A posting done this
+     * rotation says when its board posts new work; a board's contract carried from here says nothing, since it is
+     * handed in and collected right here; any other board-managed quest reads the board's own hint.
+     */
     @Nullable
     public Message hint(@Nonnull Quest q, @Nullable CharacterQuestListing here) {
         QuestStatus status = status(q);
+        CharacterQuestListing.Posting posting = postingAt(q, here);
+        if (posting != null && here != null) {
+            Message wait = here.sectionOf(q) == NpcQuestSections.Section.COOLDOWN ? newWorkWait(here, posting) : null;
+            return wait == null ? null : text("hint.new_work", wait);
+        }
         if (presentation.managed(q) && (status == QuestStatus.NOT_STARTED || status == QuestStatus.ACTIVE)) {
-            return presentation.acceptHint(q);
+            boolean carriedFromHere = here != null && status == QuestStatus.ACTIVE && here.takenHere(q);
+            return carriedFromHere ? null : presentation.acceptHint(q);
         }
         return switch (status) {
             case NOT_STARTED -> here != null ? null : notStartedHint(q);

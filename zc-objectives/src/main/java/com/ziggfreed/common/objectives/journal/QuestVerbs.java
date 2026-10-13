@@ -5,7 +5,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.board.BoardEngine;
+import com.ziggfreed.common.commerce.fold.CommerceEngines;
 import com.ziggfreed.common.loot.reward.RewardGrants;
+import com.ziggfreed.common.objectives.questlist.CharacterQuestListing;
 import com.ziggfreed.common.progress.runtime.ProgressionCallScope;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.quest.Quest;
@@ -66,6 +69,29 @@ public final class QuestVerbs {
             return Boolean.valueOf(accepted);
         }));
         return ok ? new Accepted(true, settled.get()) : Accepted.REFUSED;
+    }
+
+    /**
+     * Take a contract a board this character hosts has posted, through the BOARD's own accept
+     * ({@code BoardEngine.accept} with the posting's slot), so every gate the board itself asks holds here
+     * too: the board's, the band's or the contract's own entry gate, the contract's own, the slot's, the
+     * period lock and whether it is already carried. The board is recorded as where it was taken, so the
+     * contract hands in and collects at the board and at every character hosting it. Nothing is settled
+     * behind it, as at the board.
+     *
+     * <p>{@code nowMs} is the clock reading the posting was read at (the listing's own,
+     * {@link CharacterQuestListing#nowMs}), so a press near a turnover takes the contract against the same
+     * period its draw came from, never the next period's lock.
+     *
+     * @return the board's answer: ok, or the refusal token a surface turns into words
+     */
+    @Nonnull
+    public static BoardEngine.BoardCheck acceptPosting(@Nonnull Subject subject,
+            @Nonnull CharacterQuestListing.Posting posting, long nowMs) {
+        BoardEngine engine = CommerceEngines.boards();
+        BoardEngine.BoardCheck check = ProgressionRuntime.questScope().around(subject,
+                s -> engine.accept(s, posting.board(), posting.contract(), posting.slot(), nowMs));
+        return check == null ? BoardEngine.BoardCheck.refused(BoardEngine.REASON_REFUSED) : check;
     }
 
     /**

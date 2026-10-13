@@ -4,7 +4,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -74,7 +76,22 @@ public final class CommerceAudit {
         }
     };
 
+    /**
+     * The character vocabulary a board's {@code Hosts} is checked against. This module cannot see who an NPC
+     * is (that is zc-dialogue's, which commerce never imports), so the module that sees both installs it at
+     * setup; unfilled, the check is skipped, as every vocabulary this server cannot answer is.
+     */
+    private static final AtomicReference<Supplier<Predicate<String>>> NPC_IDS = new AtomicReference<>();
+
     private CommerceAudit() {
+    }
+
+    /**
+     * Install the answer to "does some character answer to this NPC id, or can that not be told?" that a
+     * board's {@code Hosts} is audited against. Null goes back to skipping the check.
+     */
+    public static void installNpcIds(@Nullable Supplier<Predicate<String>> npcIds) {
+        NPC_IDS.set(npcIds);
     }
 
     /**
@@ -158,7 +175,7 @@ public final class CommerceAudit {
         List<Finding> out = new ArrayList<>(resolved.issues());
         out.addAll(BoardValidator.validate(BoardConfig.getInstance().all(),
                 BoardAssetStore.getInstance().assets(), WALLETS, rewardKinds(),
-                objectiveKinds(), gateKinds(), null));
+                objectiveKinds(), gateKinds(), null, npcIds()));
         return out;
     }
 
@@ -208,6 +225,20 @@ public final class CommerceAudit {
     private static Predicate<String> objectiveKinds() {
         try {
             return ProgressionRuntime.objectiveKinds()::isRegistered;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /** Who a board's {@code Hosts} may name, where the module that knows has installed it. */
+    @Nullable
+    private static Predicate<String> npcIds() {
+        Supplier<Predicate<String>> supplier = NPC_IDS.get();
+        if (supplier == null) {
+            return null;
+        }
+        try {
+            return supplier.get();
         } catch (Throwable t) {
             return null;
         }

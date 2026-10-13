@@ -138,6 +138,10 @@ board.slot.extra = An extra {0} contract
 # either write a Text group beside it in the file that declares it, or ship the same key here in
 # your own lang file.
 
+# The word a board's contracts wear as a pill on a quest page and in a quest log, when the board names
+# none of its own (its Text.PillKey).
+board.pill = Bounty
+
 board.grade.training = Training
 board.grade.easy = Easy
 board.grade.normal = Normal

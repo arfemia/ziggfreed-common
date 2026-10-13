@@ -40,7 +40,8 @@ import com.ziggfreed.common.util.SafeLog;
  *   <li>{@link ExtHandler} - answers an {@code ext} click the book receives.</li>
  *   <li>{@link BoardManagedQuests} - which quests a board manages, and how their rows read: the
  *       plumbing tags are suppressed, the pills say what the board says, accept is replaced by the
- *       at-the-board hint, and abandoning one forces a full repaint.</li>
+ *       at-the-board hint, and abandoning one forces a full repaint. The default is the library's own
+ *       reading of every loaded board's contracts ({@link #BOARD_CONTRACTS}).</li>
  *   <li>{@link RequirementText} - the one-line "Requires: ..." a not-yet-started quest row shows.
  *       The default renders the generic parts of the gate (prerequisite quests); a consumer with
  *       its own factor vocabulary says the rest.</li>
@@ -286,6 +287,14 @@ public final class ObjectiveBookDeps {
 
     /** No board anywhere, so every quest is the log's own. */
     public static final BoardManagedQuests NO_BOARDS = quest -> false;
+
+    /**
+     * The library's own reading of a board's contracts, and the default: a contract any loaded board posts is
+     * board-managed, wears its board's word for its work and its grade in the band's own colour as pills, and
+     * says where it is handed in where Accept would be. A server running nothing but this library reads its
+     * boards' contracts this way.
+     */
+    public static final BoardManagedQuests BOARD_CONTRACTS = BoardContracts.INSTANCE;
 
     /** The generic gate reading: prerequisite quests, and nothing a factor vocabulary must name. */
     public static final RequirementText GENERIC_REQUIREMENTS = ObjectiveBookDeps::genericRequirementLine;
@@ -666,7 +675,7 @@ public final class ObjectiveBookDeps {
     public static final class Builder {
 
         @Nonnull private ExtHandler extHandler = NO_EXT;
-        @Nonnull private BoardManagedQuests boardManaged = NO_BOARDS;
+        @Nonnull private BoardManagedQuests boardManaged = BOARD_CONTRACTS;
         @Nonnull private RequirementText requirementText = GENERIC_REQUIREMENTS;
         @Nonnull private TagLabelSource tagLabels = RAW_TAGS;
         @Nonnull private NpcQuestPageDeps.RewardChipSource rewardChips = GENERIC_CHIPS;
@@ -689,7 +698,7 @@ public final class ObjectiveBookDeps {
 
         @Nonnull
         public Builder boardManaged(@Nullable BoardManagedQuests value) {
-            this.boardManaged = value != null ? value : NO_BOARDS;
+            this.boardManaged = value != null ? value : BOARD_CONTRACTS;
             return this;
         }
 

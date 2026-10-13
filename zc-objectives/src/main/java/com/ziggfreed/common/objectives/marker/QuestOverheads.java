@@ -9,6 +9,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.commerce.asset.WhereAxis;
 import com.ziggfreed.common.entity.overhead.IndicatorAudience;
 import com.ziggfreed.common.entity.overhead.OverheadIndicators;
 import com.ziggfreed.common.npc.NpcIdentities;
@@ -18,6 +19,7 @@ import com.ziggfreed.common.objectives.questlist.NpcQuestPages;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.world.WhereValidator.LoadedWorld;
 
 /**
  * The mark over a placed character's head, per viewer: a scroll for a quest they could take, a gold
@@ -64,13 +66,24 @@ final class QuestOverheads implements QuestMarkerListener {
     private static String stateAt(@Nonnull Store<EntityStore> store, @Nonnull QuestEngine engine,
             @Nonnull Subject subject, @Nonnull Ref<EntityStore> host) {
         String npcId = NpcIdentities.npcIdOfEntity(store, host);
-        return npcId == null ? null : stateFor(engine, subject, NpcQuestPages.resolvedDeps().answerSetOrOwn(npcId));
+        return npcId == null ? null : stateFor(engine, subject, NpcQuestPages.resolvedDeps().answerSetOrOwn(npcId),
+                WhereAxis.viewer(store));
     }
 
     /** The state the character answering to {@code answersTo} floats for {@code subject}, or null for none. */
     @Nullable
     static String stateFor(@Nonnull QuestEngine engine, @Nonnull Subject subject, @Nonnull Set<String> answersTo) {
-        QuestIndicators.Reading reading = QuestIndicators.overheadFor(engine, subject, answersTo);
+        return stateFor(engine, subject, answersTo, null);
+    }
+
+    /**
+     * {@link #stateFor(QuestEngine, Subject, Set)} for a viewer standing in {@code viewer}'s world, so a board the
+     * character hosts counts only where it is open to them, as on the character's page.
+     */
+    @Nullable
+    static String stateFor(@Nonnull QuestEngine engine, @Nonnull Subject subject, @Nonnull Set<String> answersTo,
+            @Nullable LoadedWorld viewer) {
+        QuestIndicators.Reading reading = QuestIndicators.overheadFor(engine, subject, answersTo, viewer);
         return reading == null ? null : reading.knob().state();
     }
 }

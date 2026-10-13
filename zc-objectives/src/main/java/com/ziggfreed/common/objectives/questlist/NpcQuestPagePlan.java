@@ -60,6 +60,12 @@ final class NpcQuestPagePlan {
     /** "Quests: N". */
     static final String COUNT = "#QuestCount";
 
+    /** The wallets the character's boards show, one commerce chip each; hidden when it hosts no board. */
+    static final String WALLETS = "#WalletRow";
+
+    /** A ceiling on the wallet chips, so a wide strip cannot push past the list column. */
+    static final int MAX_WALLETS = 4;
+
     /** The Here segment. */
     static final String SEGMENT_HERE = "#TabHere";
 

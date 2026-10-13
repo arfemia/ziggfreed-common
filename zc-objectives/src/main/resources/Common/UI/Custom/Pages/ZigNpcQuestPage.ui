@@ -49,6 +49,15 @@ $F.@ZigDecoratedFrame {
         Style: $ZX.@ZigCaptionStyle;
       }
 
+      // The wallets the character's boards show (each board's Currencies, each once), one
+      // Pages/ZigCommerceChip.ui per wallet side by side, as a storefront's #BalanceRow does. Hidden on a
+      // character hosting no board.
+      Group #WalletRow {
+        LayoutMode: Left;
+        Anchor: (Height: 30, Bottom: $ZK.@ZigSpace3);
+        Visible: false;
+      }
+
       Group #TabBar {
         LayoutMode: Left;
         Anchor: (Height: $ZK.@ZigControlHeight, Bottom: $ZK.@ZigSpace3);

@@ -63,3 +63,7 @@ state.elsewhere = Elsewhere
 hint.collect_from = Collect it from {0}
 # A finished quest collected at the place it was taken (a notice board): {0} is that place's name.
 hint.collect_at = Collect it at {0}
+# A board's contract the player carries, read away from the board and its hosts.
+hint.board_contract = Hand it in at its board, or to whoever gives out its work, to collect your pay.
+# A board's contract the player already did this rotation, at a character hosting the board: {0} is how long until the board posts new work.
+hint.new_work = New work in {0}

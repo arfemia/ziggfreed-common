@@ -83,7 +83,10 @@ public interface QuestPresentation {
         return List.of();
     }
 
-    /** No consumer at all: nothing is board-managed, tags read tidied, no pre-check, the generic reward reading. */
+    /**
+     * No consumer at all: a board's contracts read as the library reads them
+     * ({@link ObjectiveBookDeps#BOARD_CONTRACTS}), tags read tidied, no pre-check, the generic reward reading.
+     */
     @Nonnull
     static QuestPresentation defaults() {
         return of(ObjectiveBookDeps.DEFAULTS);
@@ -97,7 +100,8 @@ public interface QuestPresentation {
 
     /**
      * The NPC quest page's reading on its own deps: its reward reading and character names, the library's answer
-     * for everything the book's consumer fills (nothing board-managed, no requirements line, tags tidied).
+     * for everything the book's consumer fills (the library's board reading, the generic requirements line, tags
+     * tidied).
      */
     @Nonnull
     static QuestPresentation of(@Nonnull NpcQuestPageDeps deps) {

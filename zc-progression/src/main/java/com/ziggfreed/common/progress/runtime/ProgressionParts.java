@@ -442,6 +442,13 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
         }
 
         @Override
+        public boolean showWhenMet(@Nonnull Subject subject, @Nonnull Quest quest) {
+            // Forwarded like every other question: unforwarded, the interface's permissive default answers on
+            // the live server and a quest's Listing.ShowWhen never hides it.
+            return ProgressionRuntime.parts().questGates().showWhenMet(subject, quest);
+        }
+
+        @Override
         public boolean opensFor(@Nonnull Subject subject, @Nonnull Quest quest,
                                 @Nonnull List<String> reasons) {
             return ProgressionRuntime.parts().questGates().opensFor(subject, quest, reasons);

@@ -33,7 +33,10 @@ import com.ziggfreed.common.ui.kit.DetailAction;
  * <p><b>At a character</b> ({@code here} non-null, the NPC quest page), the place decides: Accept for anything
  * Available there (a giver-bound quest included, since this is where it is taken); Hand in when a step resolves
  * there ({@link CharacterQuestListing#turnInHere}), read as finishing the step when it delivers nothing; Collect only
- * where the quest may be collected (nothing for one parked for another character); Abandon on a carried quest.
+ * where the quest may be collected (nothing for one parked for another character); Abandon on a carried quest. A
+ * board's contract is taken at a character only while a board it hosts has it posted (the press goes through the
+ * board's own accept, {@link QuestVerbs#acceptPosting}), and handed in only at a character answering to where it was
+ * taken.
  *
  * <p>Both places ask one rule for Collect ({@link #collectableHere}), the same one the reader's Elsewhere state word
  * asks, so a row never reads Collect where its page has no Collect button.
@@ -106,7 +109,12 @@ public final class QuestActions {
         return null;
     }
 
-    /** Accept, Hand in or Collect, by state and place; null when there is nothing to press. */
+    /**
+     * Accept, Hand in or Collect, by state and place; null when there is nothing to press. A board-managed quest is
+     * taken only where a board hosting it has it posted ({@link CharacterQuestListing#postingOf}), through the
+     * board's own accept, and handed in only at a character answering to where it was taken
+     * ({@link CharacterQuestListing#takenHere}).
+     */
     @Nullable
     private static DetailAction primary(@Nonnull Quest q, @Nonnull QuestReader r,
             @Nullable CharacterQuestListing here) {
@@ -116,12 +124,13 @@ public final class QuestActions {
                 boolean offered = here != null
                         ? here.sectionOf(q) == NpcQuestSections.Section.AVAILABLE
                         : r.acceptable(q) && !BookVerbs.takenAtGiver(q);
-                yield offered && !managed
+                boolean takeable = !managed || (here != null && here.postingOf(q.id()) != null);
+                yield offered && takeable
                         ? action(ActionSlot.PRIMARY, QuestReader.text("action.accept"), ActionLook.NORMAL, ACCEPT)
                         : null;
             }
             case ACTIVE -> {
-                if (managed) {
+                if (managed && (here == null || !here.takenHere(q))) {
                     yield null;
                 }
                 if (here != null) {

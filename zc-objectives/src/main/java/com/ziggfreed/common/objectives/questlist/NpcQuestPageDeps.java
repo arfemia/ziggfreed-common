@@ -248,22 +248,26 @@ public final class NpcQuestPageDeps {
 
     /**
      * Every id {@code npcId} answers to, guarded: a seam that throws or answers with nothing costs
-     * the alias set rather than the page, and the character still answers to its own id.
+     * the alias set rather than the page, and the character still answers to its own id. Every board
+     * naming one of those ids in its {@code Hosts} joins the set ({@link HostedBoards#answerSet}), so
+     * the page, the mark over the character's head and its conversation all see what the character
+     * hands out on a board's behalf.
      */
     @Nonnull
     public Set<String> answerSetOrOwn(@Nullable String npcId) {
         if (npcId == null || npcId.isBlank()) {
             return Set.of();
         }
+        Set<String> own = Set.of(npcId);
         try {
             Set<String> answers = answerSets.answerSetOf(npcId);
             if (answers != null && !answers.isEmpty()) {
-                return answers;
+                own = answers;
             }
         } catch (Throwable ignored) {
             // A consumer's identity layer failing costs the aliases, never the screen.
         }
-        return Set.of(npcId);
+        return HostedBoards.answerSet(own);
     }
 
     /** What {@code npcId} is called, guarded; null when nothing knows and the id itself is shown. */

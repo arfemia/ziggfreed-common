@@ -53,4 +53,9 @@ dependencies {
     // engines every other moment feeds (ZigReputationProducer). One-way by the same position argument:
     // zc-reputation never imports this module.
     implementation project(':zc-reputation')
+    // The boards, so a character that hosts one (a board's Hosts) lists its postings on its quest page,
+    // takes them through the board's own accept, and the book paints a contract's board and grade pills
+    // with no consumer filling a seam. One-way by the same position argument: zc-commerce sits beside
+    // this module and never imports it.
+    implementation project(':zc-commerce')
 }

@@ -86,6 +86,11 @@ import com.ziggfreed.common.world.WorldSelector;
  * or spends AT THIS BOARD - the one its rewards pay out in, the one its reroll charges - so what
  * they need is visible while they choose. An unlisted wallet simply does not appear.
  *
+ * <p><b>{@code Hosts} names the characters who hand this board's work out</b>, by NPC id. Each one's quest
+ * page lists what the board has posted beside their own quests, takes a posting under the board's own
+ * rules, and hands in and collects what was taken here or at the board, so a player never needs to find
+ * the board itself. {@code Text.PillKey} is the word those postings wear as a pill there.
+ *
  * <p><b>{@code Where} decides which worlds this board exists in at all</b>, in the one
  * world-targeting grammar every file on this server uses. Leave it out and it exists everywhere.
  * It is judged against the world the player looking at it stands in ({@link #isAvailableIn}):
@@ -101,7 +106,8 @@ public final class BoardAsset implements JsonAssetWithMap<String, DefaultAssetMa
     private AssetExtraInfo.Data data;
 
     @Nullable private Boolean enabled;
-    @Nullable private ContentTextAsset text;
+    @Nullable private BoardTextAsset text;
+    @Nullable private String[] hosts;
     @Nullable private String icon;
     @Nullable private Integer order;
     @Nullable private RotationAsset rotation;
@@ -134,9 +140,18 @@ public final class BoardAsset implements JsonAssetWithMap<String, DefaultAssetMa
             .documentation("Whether the board can be opened at all; unauthored means true. Setting false takes it "
                     + "down without deleting the contracts, and a player already carrying one can still finish.")
             .add()
-            .appendInherited(new KeyedCodec<>("Text", ContentTextAsset.CODEC, false),
+            .appendInherited(new KeyedCodec<>("Text", BoardTextAsset.CODEC, false),
                     (a, v) -> a.text = v, a -> a.text, (a, p) -> a.text = p.text)
-            .documentation("What the player reads at the top of the board, as localization keys.")
+            .documentation("What the player reads at the top of the board, as localization keys, and PillKey, "
+                    + "the word its contracts wear as a pill.")
+            .add()
+            .appendInherited(new KeyedCodec<>("Hosts", Codec.STRING_ARRAY, false),
+                    (a, v) -> a.hosts = v, a -> a.hosts, (a, p) -> a.hosts = p.hosts)
+            .documentation("The characters who hand out this board's work, by NPC id (matched however it is "
+                    + "capitalized). Each one's quest page lists what the board has posted beside their own "
+                    + "quests, takes it under the board's own rules, and hands in and collects whatever was taken "
+                    + "here or at the board. Unauthored, only the board itself does. One leaf: authoring it "
+                    + "replaces an inherited list whole.")
             .add()
             .appendInherited(new KeyedCodec<>("Icon", Codec.STRING, false),
                     (a, v) -> a.icon = v, a -> a.icon, (a, p) -> a.icon = p.icon)
@@ -286,6 +301,44 @@ public final class BoardAsset implements JsonAssetWithMap<String, DefaultAssetMa
     @Nullable
     public ContentTextAsset getText() {
         return text;
+    }
+
+    /**
+     * The key of the word every contract this board posts wears as a pill ({@code Text.PillKey}), trimmed, or
+     * null when none is authored and a surface reads its own word for a contract.
+     */
+    @Nullable
+    public String pillKey() {
+        return text == null ? null : text.pillKey();
+    }
+
+    /** The NPC ids that host this board ({@code Hosts}), trimmed, blanks dropped, in authored order. */
+    @Nonnull
+    public List<String> hostIds() {
+        if (hosts == null) {
+            return List.of();
+        }
+        List<String> out = new ArrayList<>(hosts.length);
+        for (String value : hosts) {
+            if (value != null && !value.isBlank()) {
+                out.add(value.trim());
+            }
+        }
+        return out;
+    }
+
+    /** Does the character {@code npcId} host this board? Matched however either was capitalized. */
+    public boolean hostedBy(@Nullable String npcId) {
+        if (npcId == null || npcId.isBlank()) {
+            return false;
+        }
+        String wanted = npcId.trim();
+        for (String host : hostIds()) {
+            if (host.equalsIgnoreCase(wanted)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Nullable

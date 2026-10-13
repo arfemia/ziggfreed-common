@@ -3,6 +3,7 @@ package com.ziggfreed.common.objectives.runtime;
 import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.server.core.plugin.PluginBase;
+import com.ziggfreed.common.commerce.fold.CommerceAudit;
 import com.ziggfreed.common.factor.CounterFactors;
 import com.ziggfreed.common.factor.ModFactors;
 import com.ziggfreed.common.feedback.moment.FeedbackEngine;
@@ -12,6 +13,7 @@ import com.ziggfreed.common.objectives.book.ObjectiveBookInteractions;
 import com.ziggfreed.common.objectives.command.ZigProgressCommand;
 import com.ziggfreed.common.objectives.hud.TrackedQuestFeedback;
 import com.ziggfreed.common.objectives.hud.TrackedQuestHuds;
+import com.ziggfreed.common.objectives.questlist.HostedBoards;
 import com.ziggfreed.common.objectives.questlist.NpcQuestPages;
 import com.ziggfreed.common.objectives.store.ZigProgressComponent;
 import com.ziggfreed.common.progress.runtime.ProgressionFactors;
@@ -137,6 +139,13 @@ public final class ProgressionBootstrap {
             NpcQuestListHosts.register(NpcQuestPages.OWNER, NpcQuestPages.OWNER, NpcQuestPages::open);
         } catch (Throwable t) {
             SafeLog.warn("[questlist] default quest-page host wiring failed", t);
+        }
+        // The quest page lists what a board's Hosts hands out, so the board audit checks those characters
+        // against who an NPC is: commerce cannot see NPC identity, and this module sees both.
+        try {
+            CommerceAudit.installNpcIds(HostedBoards::knownNpcIds);
+        } catch (Throwable t) {
+            SafeLog.warn("[questlist] the board audit's character check could not be wired", t);
         }
     }
 }

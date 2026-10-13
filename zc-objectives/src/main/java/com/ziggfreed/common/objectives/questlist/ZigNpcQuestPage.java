@@ -23,6 +23,11 @@ import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
+import com.ziggfreed.common.board.BoardEngine;
+import com.ziggfreed.common.commerce.asset.WhereAxis;
+import com.ziggfreed.common.commerce.fold.CommerceDefaults;
+import com.ziggfreed.common.commerce.page.CommerceChips;
+import com.ziggfreed.common.commerce.page.CommercePages;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardSpec;
@@ -62,6 +67,7 @@ import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 import com.ziggfreed.common.ui.toast.ToastablePage;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.world.WhereValidator.LoadedWorld;
 
 /**
  * What a character has to offer: a list of their quests on the left, the one being read on the right, and every
@@ -174,6 +180,9 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
     /** The character's answer set, resolved once per build and read by every question after it. */
     private Set<String> answersTo = Set.of();
 
+    /** The world the player reads the page in, read with every build and press: a hosted board lists only there. */
+    @Nullable private LoadedWorld viewer;
+
     private final LedgerBindings ledgerBindings = new LedgerBindings() {
         @Override
         public EventData row(LedgerSection s, LedgerRow r) {
@@ -243,6 +252,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
                 slot -> EventData.of("Action", slotAction(slot)), EventData.of("Action", TOGGLE));
 
         this.answersTo = deps.answerSetOrOwn(npcId);
+        this.viewer = WhereAxis.viewer(store);
         cmd.set(NpcQuestPagePlan.HEADER + ".TextSpans", headerText(store, ref));
 
         QuestEngine engine = ProgressionRuntime.quests();
@@ -264,6 +274,11 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
         // finished daily whose cooldown has elapsed must read as re-acceptable HERE rather than staying stuck on
         // "completed", and a standing-value step is settled in the same pass.
         selfHeal(engine, subject);
+        // Looking at a board is what turns it over: each board this character hosts puts back what was done in a
+        // past rotation and announces a turnover nobody reported yet, as the board itself does when it is opened.
+        // Only the page does this; the mark over the character's head lists without looking.
+        HostedBoards.look(subject, HostedBoards.openAmong(answersTo, viewer), System.currentTimeMillis());
+        paintWallets(cmd, subject);
 
         CharacterQuestListing listing = listing(subject, engine);
         if (!routed) {
@@ -408,7 +423,30 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
      */
     @Nonnull
     private CharacterQuestListing listing(@Nonnull Subject subject, @Nonnull QuestEngine engine) {
-        return new CharacterQuestListing(engine, subject, answersTo);
+        return new CharacterQuestListing(engine, subject, answersTo, viewer);
+    }
+
+    /**
+     * The wallets a character's boards show (each board's {@code Currencies}, each once), under the character's
+     * name, as a board shows them in its own header; hidden on a character hosting no board, and with nobody in
+     * front of the player. Painted with every list, so a payout collected here reads at once.
+     */
+    private void paintWallets(@Nonnull UICommandBuilder cmd, @Nonnull Subject subject) {
+        List<String> wallets = npcId == null ? List.of()
+                : HostedBoards.currencies(HostedBoards.openAmong(answersTo, viewer));
+        if (wallets.isEmpty()) {
+            cmd.set(NpcQuestPagePlan.WALLETS + ".Visible", false);
+            return;
+        }
+        try {
+            CommerceChips.render(cmd, NpcQuestPagePlan.WALLETS, CommerceChips.balances(
+                    CommerceDefaults.currencyEngine(), subject, wallets, CommercePages.resolvedDeps().currencyNames()),
+                    NpcQuestPagePlan.MAX_WALLETS);
+            cmd.set(NpcQuestPagePlan.WALLETS + ".Visible", true);
+        } catch (Throwable t) {
+            SafeLog.warn("[progression] the npc quest page's wallets could not be read", t);
+            cmd.set(NpcQuestPagePlan.WALLETS + ".Visible", false);
+        }
     }
 
     /** How a quest reads here: as the book reads it, with this page's reward reading and character names. */
@@ -519,6 +557,9 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
             reopen(ref, store, player);
             return;
         }
+        // Every press re-asks where the presser stands: a board posting at a character is open only in the world
+        // its board names, so a page left open across a move takes nothing there.
+        this.viewer = WhereAxis.viewer(store);
         CharacterQuestListing listing = listing(subject, engine);
         String verb = verbFor(action, quest, reader(engine, subject), listing);
         if (verb == null) {
@@ -531,7 +572,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
             case QuestActions.HAND_IN -> turnIn(ref, store, player, subject, engine, listing, quest);
             case QuestActions.COLLECT -> claim(ref, store, player, subject, engine, listing, quest);
             case QuestActions.ACCEPT -> {
-                accept(subject, quest);
+                accept(subject, listing, quest);
                 refresh(ref, store, player);
             }
             case QuestActions.ABANDON -> {
@@ -632,6 +673,8 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
         UICommandBuilder cmd = new UICommandBuilder();
         UIEventBuilder events = new UIEventBuilder();
         this.answersTo = deps.answerSetOrOwn(npcId);
+        this.viewer = WhereAxis.viewer(store);
+        paintWallets(cmd, subject);
         paintList(cmd, events, engine, subject, listing(subject, engine), true);
         this.sendUpdate(cmd, events, false);
     }
@@ -660,8 +703,22 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
      * receipt, reputation among it), never the plain "accepted" line: this page's toast is the only place a payout
      * made under a page shows, and the plain line would replace the completion notice drawn into the page a moment
      * earlier.
+     *
+     * <p>A contract a board this character hosts has posted is taken through the BOARD's own accept
+     * ({@link QuestVerbs#acceptPosting}), recording the board as where it was taken, so every gate the board asks
+     * holds here as it does at the board, and a refusal reads the board's own words.
      */
-    private void accept(@Nonnull Subject subject, @Nonnull Quest quest) {
+    private void accept(@Nonnull Subject subject, @Nonnull CharacterQuestListing listing, @Nonnull Quest quest) {
+        CharacterQuestListing.Posting posting = listing.postingOf(quest.id());
+        if (posting != null) {
+            BoardEngine.BoardCheck taken = QuestVerbs.acceptPosting(subject, posting, listing.nowMs());
+            if (taken.ok()) {
+                showToast(ToastKind.SUCCESS, HostedBoards.takenLine());
+            } else {
+                showToast(ToastKind.ERROR, HostedBoards.refusalLine(taken.reason()));
+            }
+            return;
+        }
         QuestVerbs.Accepted accepted = QuestVerbs.acceptAt(subject, quest, npcId);
         List<RewardSpec> paid = RewardGrants.GrantOutcome.receiptOf(accepted.settled());
         if (accepted.accepted() && !paid.isEmpty()) {
