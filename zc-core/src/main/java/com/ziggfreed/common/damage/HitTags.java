@@ -61,7 +61,10 @@ public final class HitTags {
         HitTagIndex.indexKey(tagKey);
     }
 
-    /** The values under {@link #KEY} on the hit's damage node, in authored spelling; empty when untagged or unresolved. */
+    /**
+     * The values under {@link #KEY} on the hit's damage node, in authored spelling; empty when untagged
+     * or unresolved.
+     */
     @Nonnull
     public static List<String> of(@Nonnull Damage d) {
         return values(d, KEY);

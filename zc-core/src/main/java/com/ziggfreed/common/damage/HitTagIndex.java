@@ -133,12 +133,17 @@ final class HitTagIndex {
             markDirty();
             return;
         }
-        Set<String> tagged = snapshot.taggedEffects;
-        for (String id : removed) {
-            if (tagged.contains(id)) {
-                markDirty();
-                return;
+        try {
+            Set<String> tagged = snapshot.taggedEffects;
+            for (String id : removed) {
+                if (tagged.contains(id)) {
+                    markDirty();
+                    return;
+                }
             }
+        } catch (Throwable t) {
+            // A removal set that cannot be read: rebuild rather than risk a stale table.
+            markDirty();
         }
     }
 

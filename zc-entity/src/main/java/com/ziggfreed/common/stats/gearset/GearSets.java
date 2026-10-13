@@ -143,7 +143,8 @@ public final class GearSets {
     /**
      * Run every online player through the bridge again, each on their own world thread. Before the
      * universe exists (the boot-time content load fires this too) there is nobody to run, and that
-     * is not worth a line in the log.
+     * is not worth a line in the log. A player whose world is gone or stopping is skipped alone, so
+     * every player after them still runs.
      */
     public static void recomputeAllOnline() {
         EquipStatBridge installed = bridge;
@@ -153,14 +154,27 @@ public final class GearSets {
         }
         try {
             for (PlayerRef player : universe.getPlayers()) {
-                Ref<EntityStore> ref = player == null ? null : player.getReference();
-                if (ref == null || !ref.isValid()) {
-                    continue;
-                }
-                WorldEvictors.worldOf(ref).execute(() -> recomputeThrough(installed, ref));
+                recomputeOnWorldThread(installed, player);
             }
         } catch (Throwable t) {
             SafeLog.warn("[gearset] could not recompute every online player: " + t.getMessage());
+        }
+    }
+
+    /** Queue one online player's recompute on their world thread; a dead or stopping world costs only them. */
+    private static void recomputeOnWorldThread(@Nonnull EquipStatBridge installed, @Nullable PlayerRef player) {
+        try {
+            Ref<EntityStore> ref = player == null ? null : player.getReference();
+            if (ref == null || !ref.isValid()) {
+                return;
+            }
+            World world = WorldEvictors.worldOf(ref);
+            if (world == null || !world.isAlive()) {
+                return;
+            }
+            world.execute(() -> recomputeThrough(installed, ref));
+        } catch (Throwable t) {
+            SafeLog.warn("[gearset] could not recompute an online player: " + t.getMessage());
         }
     }
 

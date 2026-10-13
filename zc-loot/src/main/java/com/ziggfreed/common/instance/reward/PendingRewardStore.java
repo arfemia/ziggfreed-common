@@ -30,7 +30,9 @@ import com.ziggfreed.common.CommonLog;
  * <p>The file carries a {@code "version"} so a later structural change can tell an old file from
  * a new one; a file with no version reads as version 1, since every file written before the marker
  * existed is a version-1 file. A file declaring a NEWER version than this build reads is left
- * unread with one warning, rather than misread as today's shape.
+ * unread, and unwritten, with one warning, rather than misread as today's shape; so is a file this
+ * build cannot read at all. Either way the queue still answers from memory, and the file on disk
+ * waits for a build that reads it (the latch {@code ClaimStore} and {@code DiminishLedger} keep).
  */
 public final class PendingRewardStore {
 
@@ -41,6 +43,8 @@ public final class PendingRewardStore {
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     private final ConcurrentHashMap<UUID, List<StoredReward>> pending = new ConcurrentHashMap<>();
     @Nullable private volatile Path file;
+    /** True once a newer or unreadable file was found: it is never overwritten by this build. */
+    private volatile boolean refused;
 
     /** Gson-friendly persisted shape of one reward. */
     private static final class StoredReward {
@@ -67,6 +71,7 @@ public final class PendingRewardStore {
             return;
         }
         this.file = dataDir.resolve(fileName);
+        refused = false;
         load();
     }
 
@@ -119,9 +124,10 @@ public final class PendingRewardStore {
         try {
             Dto dto = gson.fromJson(Files.readString(f), Dto.class);
             if (dto != null && dto.version > SCHEMA_VERSION) {
+                refused = true;
                 warn(fileName + " declares version " + dto.version + ", newer than the "
-                        + SCHEMA_VERSION + " this build reads; leaving it unread rather than "
-                        + "misreading it");
+                        + SCHEMA_VERSION + " this build reads; leaving it unread and unwritten rather "
+                        + "than misreading it");
                 return;
             }
             pending.clear();
@@ -138,13 +144,14 @@ public final class PendingRewardStore {
                 }
             }
         } catch (Throwable t) {
-            warn(fileName + " unreadable; starting empty: " + t.getMessage());
+            refused = true;
+            warn(fileName + " unreadable; starting empty and leaving it unwritten: " + t.getMessage());
         }
     }
 
     private void flush() {
         Path f = file;
-        if (f == null) {
+        if (f == null || refused) {
             return;
         }
         try {

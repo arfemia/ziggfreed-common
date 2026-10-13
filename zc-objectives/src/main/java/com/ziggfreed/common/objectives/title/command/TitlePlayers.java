@@ -8,8 +8,7 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.NameMatching;
 import com.hypixel.hytale.server.core.auth.ProfileServiceClient;
-import com.hypixel.hytale.server.core.command.system.ParseResult;
-import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
+import com.hypixel.hytale.server.core.auth.ServerAuthManager;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.ziggfreed.common.entity.title.ActiveTitles;
@@ -21,12 +20,14 @@ import com.ziggfreed.common.util.SafeLog;
  *   <li>an online player with exactly that username (any case);</li>
  *   <li>the player who last connected with it, from the title record ({@link ActiveTitles#idOf});</li>
  *   <li>the text read as a player id (a UUID);</li>
- *   <li>an online player whose username starts with it (any case), the engine's own player argument's match;</li>
- *   <li>the engine's profile lookup ({@code ArgTypes.GAME_PROFILE_LOOKUP_ASYNC}), which asks the
- *       profile service and so needs an authenticated server.</li>
+ *   <li>the profile service's player with exactly that username, which needs an authenticated server;</li>
+ *   <li>last, an online player whose username starts with it (any case), the engine's own player
+ *       argument's match.</li>
  * </ol>
- * The exact and recorded names come before a partial online match, so a name typed for somebody
- * offline never lands on an online player whose name merely starts with it.
+ * Every exact answer comes before the partial match, so a full name typed for somebody offline never
+ * lands on an online player whose name merely starts with it. The profile service is asked directly,
+ * never through the engine's {@code GAME_PROFILE_LOOKUP_ASYNC} argument, which tries an online
+ * starts-with match first: the order {@code /zigclaims}' {@code ClaimTargets} keeps.
  */
 final class TitlePlayers {
 
@@ -41,10 +42,11 @@ final class TitlePlayers {
     @Nonnull
     static CompletableFuture<Named> resolve(@Nonnull String typed) {
         Named known = known(typed);
-        return known != null ? CompletableFuture.completedFuture(known) : lookUp(typed);
+        return known != null ? CompletableFuture.completedFuture(known)
+                : lookUp(typed).thenApply(found -> found != null ? found : partial(typed));
     }
 
-    /** The first four steps, each answered on this server without asking anybody. */
+    /** The first three steps, each an exact answer from this server without asking anybody. */
     @Nullable
     static Named known(@Nonnull String typed) {
         PlayerRef exact = online(typed, NameMatching.EXACT_IGNORE_CASE);
@@ -59,19 +61,30 @@ final class TitlePlayers {
         if (literal != null) {
             return new Named(literal, nameOr(ActiveTitles.usernameOf(literal), typed));
         }
+        return null;
+    }
+
+    /** The last step: an online player whose username starts with {@code typed}, or null. */
+    @Nullable
+    private static Named partial(@Nonnull String typed) {
         PlayerRef partial = online(typed, NameMatching.DEFAULT);
         return partial == null ? null : new Named(partial.getUuid(), partial.getUsername());
     }
 
-    /** The last step: the engine's profile lookup. Null when it is unauthenticated, finds nobody or fails. */
+    /**
+     * The profile service's player with exactly the username {@code typed}, asked off the calling thread. Null
+     * when the server holds no session (an offline-auth server), the service finds nobody, or the call fails.
+     */
     @Nonnull
     private static CompletableFuture<Named> lookUp(@Nonnull String typed) {
         try {
-            CompletableFuture<ProfileServiceClient.PublicGameProfile> profile =
-                    ArgTypes.GAME_PROFILE_LOOKUP_ASYNC.parse(typed, new ParseResult());
-            if (profile == null) {
+            ServerAuthManager auth = ServerAuthManager.getInstance();
+            String token = auth == null ? null : auth.getSessionToken();
+            if (token == null) {
                 return CompletableFuture.completedFuture(null);
             }
+            CompletableFuture<ProfileServiceClient.PublicGameProfile> profile =
+                    auth.getProfileServiceClient().getProfileByUsernameAsync(typed.trim(), token);
             return profile.handle((found, failure) -> found == null || found.getUuid() == null ? null
                     : new Named(found.getUuid(), nameOr(found.getUsername(), typed)));
         } catch (Throwable t) {
