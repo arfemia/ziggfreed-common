@@ -36,8 +36,10 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p>One versioned JSON file, written atomically through the engine's {@code FileUtil} on every change (the
  * {@code PendingRewardStore} shape). A file declaring a newer version than this build reads is left unread,
- * and unwritten, with one warning; a write that fails keeps the Claims in memory, which a plain unit JVM
- * (where the engine's writer cannot load) relies on.
+ * and unwritten, with one warning; so is a file this build cannot read at all (a damaged or cut-short one),
+ * so one bad read never costs a player the Claims on disk. A missing or empty file is a fresh start, not a
+ * refusal. A write that fails keeps the Claims in memory, which a plain unit JVM (where the engine's writer
+ * cannot load) relies on.
  *
  * <p>Thread-safe: every change holds the store's lock, and {@link ClaimAddedEvent} fires inside it.
  */
@@ -57,7 +59,7 @@ public final class ClaimStore {
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     private final ConcurrentHashMap<UUID, List<StoredClaim>> claims = new ConcurrentHashMap<>();
     @Nullable private volatile Path file;
-    /** True once a newer file was found: it is never overwritten by this build. */
+    /** True once a newer or unreadable file was found: it is never overwritten by this build. */
     private volatile boolean refused;
 
     /** Gson-friendly persisted shape of one reward ({@code PendingRewardStore}'s own). */
@@ -111,6 +113,7 @@ public final class ClaimStore {
             return;
         }
         this.file = dataDir.resolve(fileName);
+        refused = false;
         load();
     }
 
@@ -307,7 +310,9 @@ public final class ClaimStore {
                 }
             }
         } catch (Throwable t) {
-            SafeLog.warn("[claims] " + fileName + " unreadable; starting with no Claims: " + t.getMessage());
+            refused = true;
+            SafeLog.warn("[claims] " + fileName + " unreadable; starting with no Claims and leaving it unread and "
+                    + "unwritten: " + t.getMessage());
         }
     }
 

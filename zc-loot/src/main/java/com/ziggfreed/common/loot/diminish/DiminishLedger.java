@@ -27,8 +27,10 @@ import com.ziggfreed.common.util.SafeLog;
  * pays is new, so a second write of one Claim never counts twice.
  *
  * <p>The file carries a {@code "version"}; a file declaring a newer version than this build reads is left
- * unread, and unwritten, with one warning. The atomic write goes through the engine's {@code FileUtil}, as
- * {@code PendingRewardStore}'s does; a write that fails keeps the count in memory.
+ * unread, and unwritten, with one warning, and so is a file this build cannot read at all (a damaged or
+ * cut-short one), so one bad read never wipes the counts on disk. A missing or empty file is a fresh start,
+ * not a refusal. The atomic write goes through the engine's {@code FileUtil}, as {@code PendingRewardStore}'s
+ * does; a write that fails keeps the count in memory.
  */
 public final class DiminishLedger {
 
@@ -41,7 +43,7 @@ public final class DiminishLedger {
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     private final ConcurrentHashMap<UUID, Map<String, Count>> counts = new ConcurrentHashMap<>();
     @Nullable private volatile Path file;
-    /** True once a newer file was found: it is never overwritten by this build. */
+    /** True once a newer or unreadable file was found: it is never overwritten by this build. */
     private volatile boolean refused;
 
     /** Gson-friendly persisted shape of one key's count. */
@@ -72,6 +74,7 @@ public final class DiminishLedger {
             return;
         }
         this.file = dataDir.resolve(fileName);
+        refused = false;
         load(System.currentTimeMillis());
     }
 
@@ -131,7 +134,9 @@ public final class DiminishLedger {
             }
             prune(nowMs);
         } catch (Throwable t) {
-            SafeLog.warn("[claims] " + fileName + " unreadable; starting with no counts: " + t.getMessage());
+            refused = true;
+            SafeLog.warn("[claims] " + fileName + " unreadable; starting with no counts and leaving it unread and "
+                    + "unwritten: " + t.getMessage());
         }
     }
 
