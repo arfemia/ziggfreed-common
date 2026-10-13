@@ -3,7 +3,6 @@ package com.ziggfreed.common.almanac;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,6 +16,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.hypixel.hytale.server.core.HytaleServer;
 import com.hypixel.hytale.server.core.util.io.FileUtil;
+import com.ziggfreed.common.counter.Counters;
 import com.ziggfreed.common.util.DataFileMove;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -113,7 +113,7 @@ public final class ServerTallies {
         if (key == null || key.isBlank()) {
             return 0L;
         }
-        Long total = totals.get(fold(key));
+        Long total = totals.get(Counters.fold(key));
         return total == null ? 0L : total;
     }
 
@@ -122,7 +122,7 @@ public final class ServerTallies {
         if (key == null || key.isBlank() || amount <= 0L || !AlmanacSwitch.isOn()) {
             return;
         }
-        totals.merge(fold(key), amount, Long::sum);
+        totals.merge(Counters.fold(key), amount, Long::sum);
         // Marked after the count lands, so a write that takes the mark also carries the count.
         dirty.set(true);
         scheduleFlush();
@@ -211,14 +211,9 @@ public final class ServerTallies {
         }
         for (Map.Entry<String, Long> entry : dto.totals.entrySet()) {
             if (entry.getKey() != null && !entry.getKey().isBlank() && entry.getValue() != null && entry.getValue() > 0L) {
-                totals.merge(fold(entry.getKey()), entry.getValue(), Long::sum);
+                totals.merge(Counters.fold(entry.getKey()), entry.getValue(), Long::sum);
             }
         }
-    }
-
-    @Nonnull
-    private static String fold(@Nonnull String key) {
-        return key.trim().toLowerCase(Locale.ROOT);
     }
 
     /** The server's scheduler; in a JVM with no server the flush is skipped (the caller resets its flag). */

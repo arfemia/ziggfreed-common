@@ -917,7 +917,7 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
     /** A best time as m:ss, or "-" with no winning time. */
     @Nonnull
     private static Message time(int seconds) {
-        return Message.raw(seconds > 0 ? formatTime(seconds) : "-");
+        return Message.raw(seconds > 0 ? ColumnFormat.TIME.render(seconds) : "-");
     }
 
     /**
@@ -1087,12 +1087,5 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
             }
         }
         return sort;
-    }
-
-    @Nonnull
-    private static String formatTime(int seconds) {
-        int m = seconds / 60;
-        int s = seconds % 60;
-        return m + ":" + (s < 10 ? "0" + s : Integer.toString(s));
     }
 }

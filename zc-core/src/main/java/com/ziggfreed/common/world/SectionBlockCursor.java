@@ -120,14 +120,14 @@ public final class SectionBlockCursor {
     }
 
     /**
-     * The engine's section lookup, each call made directly (never through a method reference) so it
-     * links the same on both server lines.
+     * The engine's section lookup through {@link ChunkSections#at}, each call made directly (never
+     * through a method reference) so it links the same on both server lines.
      */
     @Nonnull
     private static Sections sectionsOf(@Nonnull ChunkStore chunks, @Nonnull Store<ChunkStore> store) {
         return (x, y, z) -> {
-            Ref<ChunkStore> sectionRef = chunks.getChunkSectionReferenceAtBlock(x, y, z);
-            if (sectionRef == null || !sectionRef.isValid()) {
+            Ref<ChunkStore> sectionRef = ChunkSections.at(chunks, x, y, z);
+            if (sectionRef == null) {
                 return null;
             }
             BlockSection blocks = store.getComponent(sectionRef, BlockSection.getComponentType());

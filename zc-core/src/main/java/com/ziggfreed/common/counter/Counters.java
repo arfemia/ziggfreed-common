@@ -1,6 +1,7 @@
 package com.ziggfreed.common.counter;
 
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -110,6 +111,16 @@ public final class Counters {
     }
 
     // ==================== Category keys ====================
+
+    /**
+     * An id as a saved tally key spells it: trimmed, then lower-cased under {@link Locale#ROOT}. The
+     * Almanac's keys and server totals and the stat store's season keys and season-page lines all fold
+     * through here, so their saved keys stay byte-identical: never change what it answers.
+     */
+    @Nonnull
+    public static String fold(@Nonnull String id) {
+        return id.trim().toLowerCase(Locale.ROOT);
+    }
 
     /** The flat key a category and a name resolve to. A blank category yields the bare name. */
     @Nonnull

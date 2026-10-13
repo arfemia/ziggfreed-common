@@ -37,10 +37,10 @@ public final class AlmanacKeys {
     private AlmanacKeys() {
     }
 
-    /** The id as every key spells it: trimmed and lower-cased. */
+    /** The id as every key spells it: trimmed and lower-cased ({@link Counters#fold}). */
     @Nonnull
     public static String normalize(@Nonnull String id) {
-        return id.trim().toLowerCase(Locale.ROOT);
+        return Counters.fold(id);
     }
 
     /** Can {@code id} name a season or a tally without breaking the record's format? */

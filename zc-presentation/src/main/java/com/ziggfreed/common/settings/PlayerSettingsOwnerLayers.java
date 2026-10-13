@@ -1,11 +1,11 @@
 package com.ziggfreed.common.settings;
 
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 import javax.annotation.Nonnull;
 
 import com.ziggfreed.common.asset.OwnerLayerReader;
+import com.ziggfreed.common.util.OwnerFiles;
 
 /**
  * The SERVER OWNER's last word on players' defaults and locks, at
@@ -24,7 +24,7 @@ import com.ziggfreed.common.asset.OwnerLayerReader;
 public final class PlayerSettingsOwnerLayers {
 
     /** Where a server owner's files live. */
-    public static final Path DEFAULT_DIRECTORY = Paths.get("mods", "ziggfreedcommon");
+    public static final Path DEFAULT_DIRECTORY = OwnerFiles.DIRECTORY;
 
     /** The owner file over the record. */
     public static final String FILE = "player-settings.json";

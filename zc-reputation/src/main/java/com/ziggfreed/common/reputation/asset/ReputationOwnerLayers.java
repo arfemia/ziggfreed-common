@@ -1,19 +1,16 @@
 package com.ziggfreed.common.reputation.asset;
 
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.ziggfreed.common.asset.OwnerLayerReader;
 import com.ziggfreed.common.factor.ModGates;
 import com.ziggfreed.common.util.OwnerFiles;
-import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The server owner's word on reputations, at {@code mods/ziggfreedcommon/reputation.json}:
@@ -32,7 +29,7 @@ import com.ziggfreed.common.util.SafeLog;
 public final class ReputationOwnerLayers {
 
     /** Where a server owner's files live. */
-    public static final Path DEFAULT_DIRECTORY = Paths.get("mods", "ziggfreedcommon");
+    public static final Path DEFAULT_DIRECTORY = OwnerFiles.DIRECTORY;
 
     /** The owner file. */
     public static final String FILE = "reputation.json";
@@ -83,22 +80,7 @@ public final class ReputationOwnerLayers {
 
     /** What {@code root} says about the switch: on unless it says false in so many words. */
     static boolean switchIn(@Nullable JsonObject root, @Nonnull Path file) {
-        if (root == null || !OwnerFiles.schemaReadable(root, LOG_TAG, file)) {
-            return true;
-        }
-        JsonElement value = root.get(GLOBAL_SWITCH);
-        if (value == null) {
-            return true;
-        }
-        if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isBoolean()) {
-            SafeLog.warn("[reputation] " + file + ": " + GLOBAL_SWITCH
-                    + " must be true or false, so reputations stay on");
-            return true;
-        }
-        boolean on = value.getAsBoolean();
-        if (!on) {
-            SafeLog.info("[reputation] " + file + " switches every reputation off");
-        }
-        return on;
+        return OwnerFiles.flag(root, GLOBAL_SWITCH, file, LOG_TAG,
+                "must be true or false, so reputations stay on", "switches every reputation off");
     }
 }

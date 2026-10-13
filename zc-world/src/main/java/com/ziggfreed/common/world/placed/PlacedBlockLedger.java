@@ -18,6 +18,7 @@ import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.world.ChunkSections;
 
 /**
  * What a player put there themselves - the record that stops "place it, break it, place it again"
@@ -274,8 +275,8 @@ public final class PlacedBlockLedger {
             if (chunkStore == null) {
                 return false;
             }
-            Ref<ChunkStore> sectionRef = chunkStore.getChunkSectionReferenceAtBlock(x, y, z);
-            if (sectionRef == null || !sectionRef.isValid()) {
+            Ref<ChunkStore> sectionRef = ChunkSections.at(chunkStore, x, y, z);
+            if (sectionRef == null) {
                 return false;
             }
             return work.run(chunkStore.getStore(), sectionRef);

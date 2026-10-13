@@ -6,6 +6,7 @@ import javax.annotation.Nonnull;
 
 import com.ziggfreed.common.asset.OwnerLayerReader;
 import com.ziggfreed.common.asset.PresenceRequiresCodec;
+import com.ziggfreed.common.util.OwnerFiles;
 
 /**
  * The server owner's last word on the library's bonus rows, at
@@ -25,7 +26,7 @@ import com.ziggfreed.common.asset.PresenceRequiresCodec;
 public final class BonusRowOwnerLayers {
 
     /** Where a server owner's files live. */
-    public static final Path DEFAULT_DIRECTORY = Path.of("mods", "ziggfreedcommon");
+    public static final Path DEFAULT_DIRECTORY = OwnerFiles.DIRECTORY;
 
     /** The owner file over the rows. */
     public static final String FILE = "bonus-rows.json";

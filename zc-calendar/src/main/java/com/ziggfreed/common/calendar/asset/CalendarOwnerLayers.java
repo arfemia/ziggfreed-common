@@ -1,16 +1,13 @@
 package com.ziggfreed.common.calendar.asset;
 
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Map;
 
 import javax.annotation.Nonnull;
 
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.ziggfreed.common.asset.OwnerLayerReader;
 import com.ziggfreed.common.util.OwnerFiles;
-import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The server owner's last word on the calendar, at {@code mods/ziggfreedcommon/calendar.json}:
@@ -28,7 +25,7 @@ import com.ziggfreed.common.util.SafeLog;
 public final class CalendarOwnerLayers {
 
     /** Where a server owner's calendar file lives. */
-    public static final Path DEFAULT_DIRECTORY = Paths.get("mods", "ziggfreedcommon");
+    public static final Path DEFAULT_DIRECTORY = OwnerFiles.DIRECTORY;
 
     public static final String FILE = "calendar.json";
 
@@ -72,19 +69,8 @@ public final class CalendarOwnerLayers {
 
     /** {@code $Enabled}: true when absent, and true (with a warning) when it is not a boolean. */
     static boolean globalSwitch(@Nonnull JsonObject root, @Nonnull Path file) {
-        JsonElement value = root.get(GLOBAL_SWITCH);
-        if (value == null) {
-            return true;
-        }
-        if (value.isJsonPrimitive() && value.getAsJsonPrimitive().isBoolean()) {
-            boolean on = value.getAsBoolean();
-            if (!on) {
-                SafeLog.info("[calendar] " + file + " switches every calendar event off");
-            }
-            return on;
-        }
-        SafeLog.warn("[calendar] " + file + ": " + GLOBAL_SWITCH + " is not true or false, so every calendar"
-                + " event stays switched on");
-        return true;
+        return OwnerFiles.flag(root, GLOBAL_SWITCH, file, LOG_TAG,
+                "is not true or false, so every calendar event stays switched on",
+                "switches every calendar event off");
     }
 }

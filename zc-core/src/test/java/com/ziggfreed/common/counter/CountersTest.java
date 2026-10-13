@@ -102,6 +102,15 @@ class CountersTest {
     }
 
     @Test
+    void theSavedKeyFoldIsATrimThenARootLowerCase() {
+        // Saved Almanac and stat-store keys are spelled through this fold: a change here re-keys them.
+        assertEquals("hallows_eve", Counters.fold("  Hallows_Eve\t"));
+        assertEquals("mob_kills/skeleton", Counters.fold("Mob_Kills/SKELETON"));
+        assertEquals("item", Counters.fold("ITEM"), "Locale.ROOT folds I to i under any default locale");
+        assertEquals("", Counters.fold("   "));
+    }
+
+    @Test
     void addAllAppliesABagOfDeltasAndSnapshotMerges() {
         Counters counters = new Counters();
         counters.addAll(ALICE, Map.of("runs", 2L, "broken/stone", 3L));

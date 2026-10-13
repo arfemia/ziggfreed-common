@@ -1,7 +1,5 @@
 package com.ziggfreed.common.playerstats;
 
-import java.util.Locale;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -72,6 +70,6 @@ public final class StatKeys {
      */
     @Nonnull
     public static String season(@Nonnull String eventId, int year, @Nonnull String key) {
-        return Counters.key(eventId.trim().toLowerCase(Locale.ROOT) + YEAR_MARK + year, key);
+        return Counters.key(Counters.fold(eventId) + YEAR_MARK + year, key);
     }
 }

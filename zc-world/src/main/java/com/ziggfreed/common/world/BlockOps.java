@@ -59,11 +59,7 @@ public final class BlockOps {
     @Nullable
     public static String blockItemIdAt(@Nonnull ChunkStore chunkStore, int x, int y, int z) {
         try {
-            Ref<ChunkStore> sectionRef = chunkStore.getChunkSectionReferenceAtBlock(x, y, z);
-            if (sectionRef == null || !sectionRef.isValid()) {
-                return null;
-            }
-            BlockSection blocks = chunkStore.getStore().getComponent(sectionRef, BlockSection.getComponentType());
+            BlockSection blocks = ChunkSections.component(chunkStore, x, y, z, BlockSection.getComponentType());
             if (blocks == null) {
                 return null;
             }
@@ -92,11 +88,7 @@ public final class BlockOps {
     @Nullable
     public static Integer rotationIndexAt(@Nonnull ChunkStore chunkStore, int x, int y, int z) {
         try {
-            Ref<ChunkStore> sectionRef = chunkStore.getChunkSectionReferenceAtBlock(x, y, z);
-            if (sectionRef == null || !sectionRef.isValid()) {
-                return null;
-            }
-            BlockSection blocks = chunkStore.getStore().getComponent(sectionRef, BlockSection.getComponentType());
+            BlockSection blocks = ChunkSections.component(chunkStore, x, y, z, BlockSection.getComponentType());
             if (blocks == null) {
                 return null;
             }
@@ -230,8 +222,8 @@ public final class BlockOps {
                 SafeLog.warn("[block] setBlock: block type '" + blockItemId + "' resolved no asset");
                 return false;
             }
-            Ref<ChunkStore> sectionRef = chunkStore.getChunkSectionReferenceAtBlock(x, y, z);
-            if (sectionRef == null || !sectionRef.isValid()) {
+            Ref<ChunkStore> sectionRef = ChunkSections.at(chunkStore, x, y, z);
+            if (sectionRef == null) {
                 SafeLog.fine("[block] setBlock: section not loaded at (" + x + ", " + y + ", " + z + ")");
                 return false;
             }
@@ -261,8 +253,8 @@ public final class BlockOps {
     public static boolean setInteractionState(@Nonnull ChunkStore chunkStore, int x, int y, int z,
             @Nonnull String state, boolean force) {
         try {
-            Ref<ChunkStore> sectionRef = chunkStore.getChunkSectionReferenceAtBlock(x, y, z);
-            if (sectionRef == null || !sectionRef.isValid()) {
+            Ref<ChunkStore> sectionRef = ChunkSections.at(chunkStore, x, y, z);
+            if (sectionRef == null) {
                 SafeLog.fine("[block] setInteractionState: section not loaded at (" + x + ", " + y + ", " + z + ")");
                 return false;
             }

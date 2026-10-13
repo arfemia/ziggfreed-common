@@ -1,5 +1,8 @@
 package com.ziggfreed.common.util;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -25,6 +28,12 @@ import com.google.gson.JsonPrimitive;
  * reading a future shape as today's is exactly the misread the marker exists to prevent.
  */
 public final class OwnerFiles {
+
+    /**
+     * The folder every owner file sits in, {@code mods/ziggfreedcommon} under the server's working
+     * directory: each reader's {@code DEFAULT_DIRECTORY} points here.
+     */
+    public static final Path DIRECTORY = Paths.get("mods", "ziggfreedcommon");
 
     /** The reserved top-level key naming the schema the file speaks. */
     public static final String SCHEMA_VERSION_KEY = "$SchemaVersion";
@@ -79,5 +88,36 @@ public final class OwnerFiles {
                 + ", newer than the " + SCHEMA_VERSION + " this library reads, so nothing in it is in "
                 + "force; update the library or rewrite the file in the older shape");
         return false;
+    }
+
+    /**
+     * A file-level on/off switch such as {@code $Enabled}: on unless {@code root} says false in so many
+     * words. A missing or newer-schema file ({@link #schemaReadable}) and a missing key read as on; a value
+     * that is not true or false reads as on with one WARNING,
+     * {@code [<logTag>] <file>: <key> <notBoolean>}; false logs {@code [<logTag>] <file> <offLine>} at
+     * INFO, or nothing when {@code offLine} is null. Each reader passes its own wording.
+     *
+     * @param notBoolean what the warning says after the key, e.g. {@code "must be true or false, so the
+     *                   Almanac stays on"}
+     * @param offLine    what the INFO line says after the file when the switch is off, or null for none
+     */
+    public static boolean flag(@Nullable JsonObject root, @Nonnull String key, @Nonnull Object file,
+            @Nonnull String logTag, @Nonnull String notBoolean, @Nullable String offLine) {
+        if (root == null || !schemaReadable(root, logTag, file)) {
+            return true;
+        }
+        JsonElement value = root.get(key);
+        if (value == null) {
+            return true;
+        }
+        if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isBoolean()) {
+            SafeLog.warn("[" + logTag + "] " + file + ": " + key + " " + notBoolean);
+            return true;
+        }
+        boolean on = value.getAsBoolean();
+        if (!on && offLine != null) {
+            SafeLog.info("[" + logTag + "] " + file + " " + offLine);
+        }
+        return on;
     }
 }

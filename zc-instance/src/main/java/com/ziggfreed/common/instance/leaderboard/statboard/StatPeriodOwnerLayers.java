@@ -1,11 +1,11 @@
 package com.ziggfreed.common.instance.leaderboard.statboard;
 
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 import javax.annotation.Nonnull;
 
 import com.ziggfreed.common.asset.OwnerLayerReader;
+import com.ziggfreed.common.util.OwnerFiles;
 
 /**
  * The server owner's word on the stat periods, in {@code mods/ziggfreedcommon/stats.json}: each top-level
@@ -27,7 +27,7 @@ import com.ziggfreed.common.asset.OwnerLayerReader;
 public final class StatPeriodOwnerLayers {
 
     /** Where a server owner's files live. */
-    public static final Path DEFAULT_DIRECTORY = Paths.get("mods", "ziggfreedcommon");
+    public static final Path DEFAULT_DIRECTORY = OwnerFiles.DIRECTORY;
 
     /** The owner file the periods are read from, shared with the stat store. */
     public static final String FILE = "stats.json";

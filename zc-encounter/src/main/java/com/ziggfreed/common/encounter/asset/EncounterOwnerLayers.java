@@ -1,11 +1,11 @@
 package com.ziggfreed.common.encounter.asset;
 
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 import javax.annotation.Nonnull;
 
 import com.ziggfreed.common.asset.OwnerLayerReader;
+import com.ziggfreed.common.util.OwnerFiles;
 
 /**
  * The SERVER OWNER's last word on encounters, at {@code mods/ziggfreedcommon/encounters.json},
@@ -28,7 +28,7 @@ import com.ziggfreed.common.asset.OwnerLayerReader;
 public final class EncounterOwnerLayers {
 
     /** Where a server owner's encounter files live. */
-    public static final Path DEFAULT_DIRECTORY = Paths.get("mods", "ziggfreedcommon");
+    public static final Path DEFAULT_DIRECTORY = OwnerFiles.DIRECTORY;
 
     /** The log prefix every encounter owner-file line carries. */
     private static final String LOG_TAG = "encounter";

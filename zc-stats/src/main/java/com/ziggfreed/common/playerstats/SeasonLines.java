@@ -20,6 +20,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.counter.Counters;
 import com.ziggfreed.common.occurrence.Occurrence;
 import com.ziggfreed.common.occurrence.Occurrences;
 import com.ziggfreed.common.progress.ObjectiveDef;
@@ -63,8 +64,8 @@ public final class SeasonLines {
                        boolean liveOnly, @Nullable String textKey) {
 
         public Line {
-            eventId = fold(eventId);
-            lineId = fold(lineId);
+            eventId = Counters.fold(eventId);
+            lineId = Counters.fold(lineId);
             textKey = textKey == null || textKey.isBlank() ? null : textKey.trim();
         }
 
@@ -86,7 +87,7 @@ public final class SeasonLines {
     public record Page(@Nonnull String eventId, @Nullable String nameKey, int order, @Nonnull List<Line> lines) {
 
         public Page {
-            eventId = fold(eventId);
+            eventId = Counters.fold(eventId);
             nameKey = nameKey == null || nameKey.isBlank() ? null : nameKey.trim();
             lines = List.copyOf(lines);
         }
@@ -206,13 +207,13 @@ public final class SeasonLines {
         /** The line whose every-season key is {@code key}, matched without regard to case, or null. */
         @Nullable
         public Line line(@Nullable String key) {
-            return key == null ? null : byKey.get(fold(key));
+            return key == null ? null : byKey.get(Counters.fold(key));
         }
 
         /** {@code eventId}'s lines in the page's order; empty when no page names it. */
         @Nonnull
         public List<Line> linesOf(@Nullable String eventId) {
-            List<Line> lines = eventId == null ? null : byEvent.get(fold(eventId));
+            List<Line> lines = eventId == null ? null : byEvent.get(Counters.fold(eventId));
             return lines == null ? List.of() : lines;
         }
 
@@ -221,7 +222,7 @@ public final class SeasonLines {
          * ({@code <event>@<year>/<key>})? Then that copy is the line's, never the stat's.
          */
         public boolean owns(@Nonnull String eventId, @Nonnull String key) {
-            return byKey.containsKey(fold(StatKeys.line(eventId, key)));
+            return byKey.containsKey(Counters.fold(StatKeys.line(eventId, key)));
         }
     }
 
@@ -395,10 +396,5 @@ public final class SeasonLines {
                 return null;
             }
         };
-    }
-
-    @Nonnull
-    private static String fold(@Nonnull String id) {
-        return id.trim().toLowerCase(Locale.ROOT);
     }
 }

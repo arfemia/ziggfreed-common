@@ -6,7 +6,6 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.assetstore.map.AssetMapWithIndexes;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.protocol.ComparisonOperator;
 import com.hypixel.hytale.protocol.ValueType;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
@@ -14,6 +13,7 @@ import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.Interaction;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.RootInteraction;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.util.ComparisonOperators;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -251,22 +251,6 @@ public final class NativeInputGate {
         double max = heldStack.getMaxDurability();
         double raw = heldStack.getDurability();
         double value = wear.valueType == ValueType.Absolute ? raw : (max > 0 ? (raw / max) * 100.0 : 0.0);
-        return compare(wear.operator, value, wear.threshold);
-    }
-
-    /**
-     * The engine's comparison of a reading against a condition's threshold: {@code value < threshold} for
-     * {@code LessThan}, and so on for the other five, the arms of the engine's own
-     * {@code ComparisonOperators.compare}.
-     */
-    static boolean compare(@Nonnull ComparisonOperator operator, double value, double threshold) {
-        return switch (operator) {
-            case LessThan -> value < threshold;
-            case LessOrEqual -> value <= threshold;
-            case GreaterThan -> value > threshold;
-            case GreaterOrEqual -> value >= threshold;
-            case Equal -> value == threshold;
-            case NotEqual -> value != threshold;
-        };
+        return ComparisonOperators.compare(wear.operator, value, wear.threshold);
     }
 }

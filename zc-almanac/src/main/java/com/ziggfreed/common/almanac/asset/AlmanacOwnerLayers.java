@@ -1,7 +1,6 @@
 package com.ziggfreed.common.almanac.asset;
 
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -41,7 +40,7 @@ import com.ziggfreed.common.util.SafeLog;
 public final class AlmanacOwnerLayers {
 
     /** Where a server owner's files live. */
-    public static final Path DEFAULT_DIRECTORY = Paths.get("mods", "ziggfreedcommon");
+    public static final Path DEFAULT_DIRECTORY = OwnerFiles.DIRECTORY;
 
     /** The owner file. */
     public static final String FILE = "almanac.json";
@@ -94,19 +93,8 @@ public final class AlmanacOwnerLayers {
 
     /** What {@code root} says about the switch: on unless it says false in so many words. */
     static boolean switchIn(@Nullable JsonObject root, @Nonnull Path file) {
-        if (root == null || !OwnerFiles.schemaReadable(root, LOG_TAG, file)) {
-            return true;
-        }
-        JsonElement value = root.get(ENABLED_KEY);
-        if (value == null) {
-            return true;
-        }
-        if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isBoolean()) {
-            SafeLog.warn("[" + LOG_TAG + "] " + file + ": " + ENABLED_KEY
-                    + " must be true or false, so the Almanac stays on");
-            return true;
-        }
-        return value.getAsBoolean();
+        return OwnerFiles.flag(root, ENABLED_KEY, file, LOG_TAG,
+                "must be true or false, so the Almanac stays on", null);
     }
 
     /** What {@code root} says about the menu tab: each knob its own, a missing or malformed one at its default. */

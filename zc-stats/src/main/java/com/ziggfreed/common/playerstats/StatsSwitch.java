@@ -1,16 +1,13 @@
 package com.ziggfreed.common.playerstats;
 
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.ziggfreed.common.asset.OwnerLayerReader;
 import com.ziggfreed.common.util.OwnerFiles;
-import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Whether the player stat store exists on this server: the {@value #ENABLED_KEY} key of the owner file
@@ -26,7 +23,7 @@ import com.ziggfreed.common.util.SafeLog;
 public final class StatsSwitch {
 
     /** Where a server owner's files live. */
-    public static final Path DEFAULT_DIRECTORY = Paths.get("mods", "ziggfreedcommon");
+    public static final Path DEFAULT_DIRECTORY = OwnerFiles.DIRECTORY;
 
     /** The owner file. */
     public static final String FILE = "stats.json";
@@ -57,19 +54,8 @@ public final class StatsSwitch {
 
     /** What {@code root} says about the switch: on unless it says false in so many words. */
     static boolean switchIn(@Nullable JsonObject root, @Nonnull Path file) {
-        if (root == null || !OwnerFiles.schemaReadable(root, LOG_TAG, file)) {
-            return true;
-        }
-        JsonElement value = root.get(ENABLED_KEY);
-        if (value == null) {
-            return true;
-        }
-        if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isBoolean()) {
-            SafeLog.warn("[" + LOG_TAG + "] " + file + ": " + ENABLED_KEY
-                    + " must be true or false, so the stat store stays on");
-            return true;
-        }
-        return value.getAsBoolean();
+        return OwnerFiles.flag(root, ENABLED_KEY, file, LOG_TAG,
+                "must be true or false, so the stat store stays on", null);
     }
 
     /** Point the owner file at a different directory (a test). */

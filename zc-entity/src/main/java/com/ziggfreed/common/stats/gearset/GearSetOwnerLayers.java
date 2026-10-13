@@ -1,12 +1,12 @@
 package com.ziggfreed.common.stats.gearset;
 
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 import javax.annotation.Nonnull;
 
 import com.ziggfreed.common.asset.OwnerLayerReader;
 import com.ziggfreed.common.asset.PresenceRequiresCodec;
+import com.ziggfreed.common.util.OwnerFiles;
 
 /**
  * The SERVER OWNER's last word on gear sets, at {@code mods/ziggfreedcommon/gear-sets.json}: a bare
@@ -29,7 +29,7 @@ import com.ziggfreed.common.asset.PresenceRequiresCodec;
 public final class GearSetOwnerLayers {
 
     /** Where a server owner's file lives. */
-    public static final Path DEFAULT_DIRECTORY = Paths.get("mods", "ziggfreedcommon");
+    public static final Path DEFAULT_DIRECTORY = OwnerFiles.DIRECTORY;
 
     /** The owner file over the folded sets. */
     public static final String FILE = "gear-sets.json";
