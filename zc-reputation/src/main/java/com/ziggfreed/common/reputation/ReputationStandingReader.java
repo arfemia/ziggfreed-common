@@ -19,8 +19,8 @@ import com.ziggfreed.common.counter.NativeReader;
  * A player's standing with each reputation, read for whoever ranks it (the player stat store's
  * {@value #STAT_ID} stat) through the service, so the engine is asked through this module's one door
  * ({@link ReputationNative}) and never read twice. A line per reputation the player has met, filed under the
- * engine's own spelling of its id and holding the EARNED standing, the engine's own record (gear's share
- * comes and goes with what is worn); no total, since standings with unrelated reputations do not add up.
+ * engine's own spelling of its id and holding the EARNED standing, the engine's own record; no total, since
+ * standings with unrelated reputations do not add up.
  * Every switched-on reputation is a thing it names, by Order then id, each by its own name, so a section can
  * give each reputation its own column. Off (the switch, or the engine's plugin), it reads nothing.
  */

@@ -1,6 +1,5 @@
 package com.ziggfreed.common.reputation.page;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
@@ -13,15 +12,12 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
 import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.protocol.packets.interface_.Page;
-import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.i18n.ContentKeys;
-import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.progress.gate.GatedContent;
 import com.ziggfreed.common.reputation.ReputationBeyond;
 import com.ziggfreed.common.reputation.ReputationDef;
@@ -29,12 +25,6 @@ import com.ziggfreed.common.reputation.ReputationLadder;
 import com.ziggfreed.common.reputation.ReputationRuntime;
 import com.ziggfreed.common.reputation.ReputationService;
 import com.ziggfreed.common.reputation.ReputationText;
-import com.ziggfreed.common.stats.gearset.GearSetAsset;
-import com.ziggfreed.common.stats.gearset.GearSetConfig;
-import com.ziggfreed.common.stats.gearset.GearSetEvents;
-import com.ziggfreed.common.stats.gearset.GearSetIndex;
-import com.ziggfreed.common.stats.gearset.GearSetKeys.TierRef;
-import com.ziggfreed.common.stats.gearset.GearSets;
 import com.ziggfreed.common.ui.kit.ActionSlot;
 import com.ziggfreed.common.ui.kit.DetailBindings;
 import com.ziggfreed.common.ui.kit.DetailBlock;
@@ -158,7 +148,7 @@ public final class ReputationPage extends ToastablePage<ReputationEventData> {
             LedgerPainter.paint(cmd, events, LIST, ReputationView.ledger(rows, ladders), Set.of(), selected, ROWS,
                     RowSize.STANDARD, playerRef);
             DetailPainter.paint(cmd, events, DETAIL,
-                    ReputationView.detail(row, ladders.apply(row.reputation()), gated(), worn(),
+                    ReputationView.detail(row, ladders.apply(row.reputation()), gated(),
                             owed(store, ref, row.reputation())),
                     DETAIL_BINDINGS, playerRef);
         } catch (Throwable t) {
@@ -254,32 +244,6 @@ public final class ReputationPage extends ToastablePage<ReputationEventData> {
             return ReputationView.rows(service.met(store, ref), service::ladderFor);
         } catch (Throwable t) {
             SafeLog.warn("[reputation] the page could not read the player's standing", t);
-            return List.of();
-        }
-    }
-
-    /**
-     * The gear set tiers the player wears right now, by name, each read from its joined set (its layers'
-     * tiers and lines in, so a set another mod joins lists once); a failure costs the block, never the page.
-     */
-    @Nonnull
-    private List<ReputationView.WornSet> worn() {
-        try {
-            List<ReputationView.WornSet> out = new ArrayList<>();
-            GearSetIndex sets = GearSetConfig.getInstance().index();
-            for (TierRef ref : GearSets.activeTiers(playerRef.getUuid())) {
-                GearSetAsset set = sets.set(ref.setId());
-                if (set == null || ref.tierIndex() < 0 || ref.tierIndex() >= set.tiers().size()) {
-                    continue;
-                }
-                GearSetAsset.Tier tier = set.tiers().get(ref.tierIndex());
-                Message name = set.titleKey() == null ? Msg.raw(set.getId()) : ContentKeys.tr(set.titleKey());
-                Message line = GearSetEvents.lines(tier.titleKeys());
-                out.add(new ReputationView.WornSet(name, line, tier.statModifiers().keySet()));
-            }
-            return out;
-        } catch (Throwable t) {
-            SafeLog.warn("[reputation] the page could not read the gear sets worn", t);
             return List.of();
         }
     }

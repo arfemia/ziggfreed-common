@@ -22,7 +22,6 @@ import com.ziggfreed.common.validation.Severity;
 class ReputationValidatorTest {
 
     private static final Predicate<String> NPC_GROUPS = Set.of("Test_Jack_Group", "Test_Raiders")::contains;
-    private static final Predicate<String> STATS = Set.of("Reputation_Test")::contains;
     private static final Predicate<String> ITEMS = Set.of("Test_Icon")::contains;
     private static final List<ReputationNative.Group> GROUPS =
             List.of(new ReputationNative.Group("Test_Old_Jack", 0, List.of("Test_Jack_Group")));
@@ -35,7 +34,7 @@ class ReputationValidatorTest {
 
     private static List<Finding> audit(List<ReputationAsset> companions, List<ReputationNative.Group> groups,
             List<ReputationLadder.Rank> ranks) {
-        return ReputationValidator.audit(companions, groups, ranks, NPC_GROUPS, STATS, ITEMS);
+        return ReputationValidator.audit(companions, groups, ranks, NPC_GROUPS, ITEMS);
     }
 
     private static List<String> codes(List<Finding> findings) {
@@ -45,7 +44,7 @@ class ReputationValidatorTest {
     @Test
     void aSoundSetupSaysNothing() {
         ReputationAsset jack = ReputationFixtures.companion("Test_Old_Jack", """
-                { "Icon": "Test_Icon", "Gear": { "Stat": "Reputation_Test" }, "Cap": 21000,
+                { "Icon": "Test_Icon", "Cap": 21000,
                   "Ranks": { "Friendly": { "Name": "test.jack.rank.regular" } },
                   "Kills": [ { "NPCGroups": [ "Test_Raiders" ], "Amount": 2 } ] }
                 """);
@@ -74,12 +73,12 @@ class ReputationValidatorTest {
     @Test
     void aCompanionsUnknownIdsAreWarningsAndAKillRowWithNoGroupsIsAnError() {
         ReputationAsset nobody = ReputationFixtures.companion("Test_Nobody", """
-                { "Icon": "Nope", "Gear": { "Stat": "Nope" }, "Cap": -40000,
+                { "Icon": "Nope", "Cap": -40000,
                   "Ranks": { "Champion": { "Name": "x" } },
                   "Kills": [ { "Amount": 2 }, { "NPCGroups": [ "Test_Missing" ], "Amount": 1 } ] }
                 """);
         List<Finding> findings = audit(List.of(nobody), GROUPS, ReputationFixtures.LADDER);
-        assertEquals(List.of(ReputationValidator.NO_NATIVE_GROUP, ReputationValidator.UNKNOWN_GEAR_STAT,
+        assertEquals(List.of(ReputationValidator.NO_NATIVE_GROUP,
                 ReputationValidator.UNKNOWN_ICON, ReputationValidator.UNKNOWN_RANK, ReputationValidator.CAP_BELOW_LADDER,
                 ReputationValidator.KILL_WITHOUT_GROUPS, ReputationValidator.UNKNOWN_KILL_GROUP), codes(findings));
         for (Finding finding : findings) {

@@ -158,7 +158,7 @@ class ReputationTiersTest {
         assertEquals("Test_Wayfarer", festival.top().id());
 
         List<Finding> findings = ReputationValidator.audit(List.of(odd), engine.groups(), engine.ranks(),
-                group -> true, stat -> true, item -> true);
+                group -> true, item -> true);
         assertEquals(List.of(ReputationValidator.TIER_OUT_OF_RANGE, ReputationValidator.FROM_ON_SHARED_RANK,
                 ReputationValidator.TIER_SHARES_FLOOR), findings.stream().map(Finding::code).toList());
         for (Finding finding : findings) {
@@ -169,13 +169,13 @@ class ReputationTiersTest {
     @Test
     void theAuditAcceptsAReputationsOwnTiersAndWarnsWhenItsCapLeavesOneOutOfReach() {
         assertEquals(List.of(), ReputationValidator.audit(List.of(ReputationFixtures.companion(FESTIVAL, TIERS)),
-                engine.groups(), engine.ranks(), group -> true, stat -> true, item -> true),
+                engine.groups(), engine.ranks(), group -> true, item -> true),
                 "a name for its own tier is no UNKNOWN_RANK");
         List<Finding> capped = ReputationValidator.audit(List.of(ReputationFixtures.companion(FESTIVAL, """
                         { "Cap": 100000,
                           "Ranks": { "Test_Wayfarer": { "Name": "test.festival.rank.wayfarer", "From": 60000 },
                                      "Test_Luminary": { "Name": "test.festival.rank.luminary", "From": 150000 } } }
-                        """)), engine.groups(), engine.ranks(), group -> true, stat -> true, item -> true);
+                        """)), engine.groups(), engine.ranks(), group -> true, item -> true);
         assertEquals(List.of(ReputationValidator.TIER_ABOVE_CAP), capped.stream().map(Finding::code).toList());
         assertEquals(Severity.WARNING, capped.get(0).severity());
         assertTrue(capped.get(0).message().contains("Test_Luminary"), capped.get(0).message());
@@ -187,7 +187,7 @@ class ReputationTiersTest {
                         { "Ranks": { "Test_Wayfarer": { "Name": "test.festival.rank.wayfarer", "From": 60000 },
                                      "Test_Luminary": { "From": 150000 }, "Test_Low": { "From": 21000 },
                                      "Exalted": { "From": 50000 } } }
-                        """)), engine.groups(), engine.ranks(), group -> true, stat -> true, item -> true);
+                        """)), engine.groups(), engine.ranks(), group -> true, item -> true);
         assertEquals(List.of(ReputationValidator.TIER_OUT_OF_RANGE, ReputationValidator.FROM_ON_SHARED_RANK,
                         ReputationValidator.TIER_WITHOUT_NAME), findings.stream().map(Finding::code).toList(),
                 "only a tier that stands on the ladder needs a name: a refused one already has its ERROR, and a "
@@ -208,7 +208,7 @@ class ReputationTiersTest {
                 "Test_Wayfarer"), ids(service.ladderOf(FESTIVAL)), "ids match without regard to case");
 
         List<Finding> findings = ReputationValidator.audit(List.of(twice), engine.groups(), engine.ranks(),
-                group -> true, stat -> true, item -> true);
+                group -> true, item -> true);
         assertEquals(List.of(ReputationValidator.TIER_SHARES_ID), findings.stream().map(Finding::code).toList());
         assertEquals(Severity.ERROR, findings.get(0).severity());
         assertTrue(findings.get(0).message().contains("'test_wayfarer'"), findings.get(0).message());

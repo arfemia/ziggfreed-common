@@ -27,7 +27,7 @@ import com.hypixel.hytale.codec.schema.config.StringSchema;
 class ReputationEditorSchemaTest {
 
     private static final List<String> LEAVES = List.of(
-            "Enabled", "Text", "Icon", "Order", "Gear", "Cap", "Ranks", "Kills", "Beyond", "Earn");
+            "Enabled", "Text", "Icon", "Order", "Cap", "Ranks", "Kills", "Beyond", "Earn");
 
     @Test
     void theTopLevelLeavesDeclareTheirDefaultsAndSentences() {
@@ -51,12 +51,6 @@ class ReputationEditorSchemaTest {
         ArraySchema groups = (ArraySchema) row.getProperties().get("NPCGroups");
         assertEquals("NPCGroup", ((StringSchema) groups.getItems()).getHytaleAssetRef(),
                 "each entry is one native NPC group, so each entry offers the picker");
-    }
-
-    @Test
-    void theGearStatOffersTheStatPicker() {
-        ObjectSchema gear = ReputationAsset.Gear.CODEC.toSchema(new SchemaContext());
-        assertEquals("EntityStatType", gear.getProperties().get("Stat").getHytaleAssetRef());
     }
 
     @Test

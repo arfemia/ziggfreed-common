@@ -8,9 +8,9 @@ import javax.annotation.Nonnull;
 import com.hypixel.hytale.event.IEvent;
 
 /**
- * A rank check credited a player these ranks with a reputation, by effective standing (earned plus gear),
- * bottom first: the ranks from the reputation's starting rank up to the current one (below the start, only
- * the ranks reached going down). Fired at login, after a change, and after an equip that moved the rank. Fired on that
+ * A rank check credited a player these ranks with a reputation, by earned standing, bottom first: the ranks
+ * from the reputation's starting rank up to the current one (below the start, only the ranks reached going
+ * down). Fired at login, after a change, and after an equip check that found the rank moved. Fired on that
  * player's world thread. zc-objectives turns each rank into a {@code REPUTATION_RANK} moment; a listener
  * must expect repeats, since the same ranks are re-stated at every login.
  */

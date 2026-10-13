@@ -11,8 +11,10 @@ import com.ziggfreed.common.reputation.ReputationLadder;
 
 /**
  * A player's EARNED standing with a reputation changed through zc (a reward, a kill): fired once per
- * change, on that player's world thread, after the engine wrote it. Ranks are by effective standing
- * (earned plus gear) before and after; null when the server has no usable ladder. The admin
+ * change, on that player's world thread, after the engine wrote it, at the amount that actually moved (any
+ * worn reputation gain applied). Ranks are by earned standing before and after; null when the server has
+ * no usable ladder. {@link #effectiveAfter} reads the same as {@link #earnedAfter}, since gear adds no
+ * standing. The admin
  * {@code /reputation} command writes the native value directly and raises none.
  */
 public final class ZigReputationChangedEvent implements IEvent<Void> {

@@ -54,7 +54,7 @@ class ReputationViewTest {
         ReputationFixtures.loadCompanions(Map.of(
                 "test_old_jack", ReputationFixtures.companion(ReputationFixtures.OLD_JACK, """
                         { "Text": { "TitleKey": "test.jack.name", "FlavorKey": "test.jack.desc" },
-                          "Gear": { "Stat": "Reputation_Test" }, "Cap": 21000, "Order": 1,
+                          "Cap": 21000, "Order": 1,
                           "Earn": { "Lines": [ "test.jack.earn.quests", " ", "test.jack.earn.board" ] } }
                         """),
                 "test_hallowed", ReputationFixtures.companion("Test_Hallowed", """
@@ -123,15 +123,9 @@ class ReputationViewTest {
     }
 
     @Test
-    void aRowsMetaSaysWhatComesNextAndWhatGearAdds() {
+    void aRowsMetaSaysWhatComesNext() {
         engine.stored.put("Test_Old_Jack", 1_500);
         assertEquals(PREFIX + "row.next", ReputationView.rowMeta(rows().get(0)).getMessageId());
-        engine.stats.put("Reputation_Test", 100L);
-        assertEquals(PREFIX + "row.gear", ReputationView.rowMeta(rows().get(0)).getMessageId(),
-                "gear wraps the line with how much it adds");
-        engine.stats.put("Reputation_Test", -100L);
-        assertEquals(PREFIX + "row.gear.loss", ReputationView.rowMeta(rows().get(0)).getMessageId());
-        engine.stats.remove("Reputation_Test");
         engine.stored.put("Test_Hallowed", 25_000);
         assertEquals(PREFIX + "row.reward", ReputationView.rowMeta(rows().get(1)).getMessageId());
         engine.stored.put("Test_Old_Jack", 30_000);
@@ -150,9 +144,6 @@ class ReputationViewTest {
                 ReputationView.bar(rows.get(0)), "the way through the rank held, toward the next one");
         assertEquals(new Progress(25_000 - ladder().top().min(), 5_000), ReputationView.bar(rows.get(1)),
                 "past the top, the way toward the next reward");
-        engine.stats.put("Reputation_Test", 100L);
-        assertEquals(1_600 - friendly.min(), ReputationView.bar(rows().get(0)).current(), "gear counts toward the rank");
-        engine.stats.remove("Reputation_Test");
         engine.stored.put("Test_Old_Jack", 30_000);
         assertTrue(ReputationView.bar(rows().get(0)).complete(), "the top with no Beyond is a full bar");
     }
@@ -194,7 +185,6 @@ class ReputationViewTest {
         assertEquals(List.of(ReputationView.BLOCK_EARN, ReputationView.BLOCK_RANKS, ReputationView.BLOCK_STANDING),
                 page.blocks().stream().map(DetailBlock::id).toList(), "no Beyond block without a Beyond reward");
         assertEquals(PREFIX + "detail.rank", page.badges().get(0).label().getMessageId());
-        assertEquals(PREFIX + "hint.gear", page.hint().getMessageId(), "gear that adds is explained at the foot");
         assertTrue(page.actions().isEmpty());
     }
 
@@ -245,14 +235,13 @@ class ReputationViewTest {
     }
 
     @Test
-    void theStandingBlockSaysEarnedGearAndTheCap() {
+    void theStandingBlockSaysEarnedAndTheCap() {
         engine.stored.put("Test_Old_Jack", 1_500);
-        engine.stats.put("Reputation_Test", 100L);
-        assertEquals(List.of(PREFIX + "standing.earned", PREFIX + "standing.gear", PREFIX + "standing.cap"),
+        assertEquals(List.of(PREFIX + "standing.earned", PREFIX + "standing.cap"),
                 words(ReputationView.standingLines(rows().get(0).standing())));
         engine.stored.put("Test_Hallowed", 10);
         assertEquals(List.of(PREFIX + "standing.earned"), words(ReputationView.standingLines(rows().get(1).standing())),
-                "no gear and no cap, only what was earned");
+                "no cap, only what was earned");
     }
 
     @Test

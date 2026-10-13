@@ -18,11 +18,12 @@ import com.ziggfreed.common.stats.EquipStatBridge;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * Where the effective-rank checks come from besides a change: once at login (a silent hydrate), after
- * every equip recompute (a listener on the library's one installed equip bridge, never a second bridge or
- * trigger), and the transient memory dropped at disconnect. Each check runs on a later world task: at
- * login after the player is in, and after an equip so the engine's own armor stat fold (a scheduled
- * recalculation) has had its turn before the gear share is read.
+ * Where the rank checks come from besides a change: once at login (a silent hydrate), after every equip
+ * recompute (a listener on the library's one installed equip bridge, never a second bridge or trigger),
+ * and the transient memory dropped at disconnect. Each check runs on a later world task: at login after
+ * the player is in, and after an equip once the engine's own armor stat fold (a scheduled recalculation)
+ * has had its turn. Worn gear adds no standing, so an equip check only heals a rank something outside zc
+ * moved.
  */
 public final class ReputationRankTriggers {
 
@@ -66,7 +67,7 @@ public final class ReputationRankTriggers {
     public static boolean hangOnBridge(@Nullable EquipStatBridge bridge) {
         if (bridge == null) {
             if (WARNED_NO_BRIDGE.compareAndSet(false, true)) {
-                SafeLog.warn("[reputation] no equip bridge is installed, so gear moves a reputation's rank only "
+                SafeLog.warn("[reputation] no equip bridge is installed, so a reputation's rank is checked only "
                         + "at the player's next change or login");
             }
             return false;

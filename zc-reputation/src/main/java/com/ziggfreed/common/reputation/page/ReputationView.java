@@ -3,9 +3,7 @@ package com.ziggfreed.common.reputation.page;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Function;
 
 import javax.annotation.Nonnull;
@@ -58,17 +56,9 @@ public final class ReputationView {
     static final String BLOCK_RANKS = "ranks";
     static final String BLOCK_BEYOND = "beyond";
     static final String BLOCK_STANDING = "standing";
-    static final String BLOCK_GEAR_SETS = "gear_sets";
 
     /** The page's own id for the Collect press, on the action bar's primary button. */
     public static final String ACTION_COLLECT = "collect";
-
-    /**
-     * A gear set tier the player is wearing: its set's name, the tier's own line (null when it has none) and the
-     * stats it moves, so a reputation's page lists the sets that add to its gear stat.
-     */
-    public record WornSet(@Nonnull Message name, @Nullable Message line, @Nonnull Set<String> stats) {
-    }
 
     /**
      * One met reputation: its standing, the rank above (null at the top) and the next Beyond reward (null
@@ -157,32 +147,24 @@ public final class ReputationView {
                 tone(ladder, def, row.standing().rank()), rank, null, bar(row), Mark.NONE, false);
     }
 
-    /** "415 to Regular", "1,200 to the next reward" or "Top rank reached", with what gear adds or takes. */
+    /** "415 to Regular", "1,200 to the next reward" or "Top rank reached". */
     @Nonnull
     public static Message rowMeta(@Nonnull Row row) {
         ReputationService.Standing standing = row.standing();
         ReputationDef def = standing.reputation();
-        Message line;
         if (row.next() != null) {
-            line = ReputationText.line("row.next", row.next().min() - standing.effective(),
+            return ReputationText.line("row.next", row.next().min() - standing.effective(),
                     ReputationText.rankName(def, row.next()));
-        } else if (row.nextReward() != null) {
-            line = ReputationText.line("row.reward", row.nextReward() - standing.earned());
-        } else {
-            line = ReputationText.line("row.top");
         }
-        if (standing.gear() > 0) {
-            line = ReputationText.line("row.gear", line, standing.gear());
-        } else if (standing.gear() < 0) {
-            line = ReputationText.line("row.gear.loss", line, standing.gear());
+        if (row.nextReward() != null) {
+            return ReputationText.line("row.reward", row.nextReward() - standing.earned());
         }
-        return line;
+        return ReputationText.line("row.top");
     }
 
     /**
-     * The bar: the way through the rank held toward the next one (standing, gear included); past the top, the
-     * way toward the next Beyond reward (earned standing, which is what pays it); full where nothing is left to
-     * count toward.
+     * The bar: the way through the rank held toward the next one; past the top, the way toward the next Beyond
+     * reward; full where nothing is left to count toward.
      */
     @Nonnull
     public static Progress bar(@Nonnull Row row) {
@@ -193,7 +175,7 @@ public final class ReputationView {
         }
         int every = standing.reputation().beyondEvery();
         if (row.nextReward() != null && every > 0) {
-            // Gear can hold the top rank while earned standing is still below its floor: that counts as none yet.
+            // Never under zero, should earned standing ever read below the top's floor.
             return new Progress(Math.max(0L, every - (row.nextReward() - standing.earned())), every);
         }
         return new Progress(1, 1);
@@ -227,17 +209,7 @@ public final class ReputationView {
     @Nonnull
     public static DetailView detail(@Nonnull Row row, @Nonnull ReputationLadder ladder,
             @Nonnull List<GatedContent.Entry> gated) {
-        return detail(row, ladder, gated, List.of());
-    }
-
-    /**
-     * The reading page of {@code row}, with the gear sets the player wears that add to this reputation's gear
-     * stat named under their standing (M557), so the bonus a worn set gives is something the player can see.
-     */
-    @Nonnull
-    public static DetailView detail(@Nonnull Row row, @Nonnull ReputationLadder ladder,
-            @Nonnull List<GatedContent.Entry> gated, @Nonnull List<WornSet> worn) {
-        return detail(row, ladder, gated, worn, 0L);
+        return detail(row, ladder, gated, 0L);
     }
 
     /**
@@ -247,7 +219,7 @@ public final class ReputationView {
      */
     @Nonnull
     public static DetailView detail(@Nonnull Row row, @Nonnull ReputationLadder ladder,
-            @Nonnull List<GatedContent.Entry> gated, @Nonnull List<WornSet> worn, long owed) {
+            @Nonnull List<GatedContent.Entry> gated, long owed) {
         ReputationDef def = row.reputation();
         ReputationService.Standing standing = row.standing();
         Tone tone = tone(ladder, def, standing.rank());
@@ -265,14 +237,9 @@ public final class ReputationView {
         }
         blocks.add(new DetailBlock(BLOCK_STANDING, ReputationText.line("block.standing"), null,
                 standingLines(standing)));
-        List<DetailLine> sets = gearSetLines(def, worn);
-        if (!sets.isEmpty()) {
-            blocks.add(new DetailBlock(BLOCK_GEAR_SETS, ReputationText.line("block.gear_sets"), null, sets));
-        }
-        Message hint = def.gearStat() == null ? null : ReputationText.line("hint.gear");
         List<DetailAction> actions = beyond != null && owed > 0 ? List.of(collectAction()) : List.of();
         return new DetailView(picture(def), ReputationText.name(def), null, null, List.of(rank), null, bar(row),
-                progressLabel(row), ReputationText.description(def), blocks, actions, hint);
+                progressLabel(row), ReputationText.description(def), blocks, actions, null);
     }
 
     /** The gold Collect button that pays the Beyond payouts waiting. */
@@ -280,25 +247,6 @@ public final class ReputationView {
     static DetailAction collectAction() {
         return new DetailAction(ActionSlot.PRIMARY, ReputationText.line("beyond.collect"), ActionLook.COLLECT,
                 ACTION_COLLECT, null, true, null);
-    }
-
-    /** Each worn set tier that moves this reputation's gear stat: "Hallowed Set: what the full set does". */
-    @Nonnull
-    static List<DetailLine> gearSetLines(@Nonnull ReputationDef def, @Nonnull List<WornSet> worn) {
-        String stat = def.gearStat();
-        if (stat == null || worn.isEmpty()) {
-            return List.of();
-        }
-        String wanted = stat.trim().toLowerCase(Locale.ROOT);
-        List<DetailLine> out = new ArrayList<>();
-        for (WornSet set : worn) {
-            boolean moves = set.stats().stream().anyMatch(s -> s != null && s.trim().toLowerCase(Locale.ROOT).equals(wanted));
-            if (moves) {
-                out.add(DetailLine.of(Picture.NONE, set.line() == null ? set.name()
-                        : ReputationText.line("gear_set.line", set.name(), set.line())));
-            }
-        }
-        return out;
     }
 
     /** The words over the detail's bar: "585 / 1,000 toward Regular", toward the next reward, or the top. */
@@ -316,8 +264,8 @@ public final class ReputationView {
     }
 
     /**
-     * How to earn it: the author's own lines; without any, what the library can see (kills that count, gear
-     * that adds), and with nothing at all, the plain fact that helping them out raises it.
+     * How to earn it: the author's own lines; without any, what the library can see (kills that count), and
+     * with nothing at all, the plain fact that helping them out raises it.
      */
     @Nonnull
     static List<DetailLine> earnLines(@Nonnull ReputationDef def) {
@@ -330,9 +278,6 @@ public final class ReputationView {
         }
         if (!def.kills().isEmpty()) {
             out.add(DetailLine.of(Picture.NONE, ReputationText.line("earn.kills")));
-        }
-        if (def.gearStat() != null) {
-            out.add(DetailLine.of(Picture.NONE, ReputationText.line("earn.gear")));
         }
         if (out.isEmpty()) {
             out.add(DetailLine.of(Picture.NONE, ReputationText.line("earn.default")));
@@ -475,16 +420,11 @@ public final class ReputationView {
         }
     }
 
-    /** The numbers behind the standing: earned, what gear adds or takes, and the most earning can reach. */
+    /** The numbers behind the standing: earned, and the most earning can reach. */
     @Nonnull
     static List<DetailLine> standingLines(@Nonnull ReputationService.Standing standing) {
         List<DetailLine> out = new ArrayList<>();
         out.add(count("standing.earned", Msg.num(standing.earned())));
-        if (standing.gear() > 0) {
-            out.add(count("standing.gear", ReputationText.line("standing.gear.count", standing.gear())));
-        } else if (standing.gear() < 0) {
-            out.add(count("standing.gear", Msg.num(standing.gear())));
-        }
         Integer cap = standing.reputation().cap();
         if (cap != null) {
             out.add(count("standing.cap", Msg.num(cap)));

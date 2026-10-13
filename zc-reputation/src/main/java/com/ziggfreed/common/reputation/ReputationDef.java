@@ -36,11 +36,6 @@ public record ReputationDef(@Nonnull String id, int initial, @Nullable Reputatio
     }
 
     @Nullable
-    public String gearStat() {
-        return companion == null ? null : companion.gearStat();
-    }
-
-    @Nullable
     public Integer cap() {
         return companion == null ? null : companion.cap();
     }

@@ -115,7 +115,7 @@ class ShippedReputationsTest {
                 new ReputationNative.Group(JACK, 0, List.of("Hallows_Eve_Old_Jack")),
                 new ReputationNative.Group(HALLOWED, 0, List.of()));
         assertEquals(List.of(), ReputationValidator.audit(List.of(jack, hallowed), groups, engine.ranks(),
-                group -> true, stat -> true, item -> true));
+                group -> true, item -> true));
     }
 
     @Test

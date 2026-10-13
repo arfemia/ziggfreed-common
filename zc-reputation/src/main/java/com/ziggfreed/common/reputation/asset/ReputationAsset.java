@@ -19,7 +19,6 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
-import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.loot.reward.RewardSpec;
@@ -36,7 +35,6 @@ import com.ziggfreed.common.text.ContentTextAsset;
  * { "Text": { "TitleKey": "yourmod.reputation.traders.name", "FlavorKey": "yourmod.reputation.traders.desc" },
  *   "Icon": "Your_Trader_Badge",
  *   "Order": 0,
- *   "Gear": { "Stat": "Reputation_Your_Traders" },
  *   "Cap": 100000,
  *   "Ranks": { "Friendly": { "Name": "yourmod.reputation.traders.rank.friendly" },
  *              "Your_Trusted_Partner": { "Name": "yourmod.reputation.traders.rank.partner", "From": 60000 } },
@@ -45,8 +43,10 @@ import com.ziggfreed.common.text.ContentTextAsset;
  *   "Earn": { "Lines": [ "yourmod.reputation.traders.earn.contracts" ] } }
  * }</pre>
  *
- * <p>A native group with no file here still works: it reads by its id, with no gear, no cap and no
- * kills. {@code Enabled: false} makes the reputation ABSENT (its readings answer nothing, rewards naming it
+ * <p>A native group with no file here still works: it reads by its id, with no cap and no kills. Gear that
+ * speeds a reputation needs no leaf here: an item raises the stat {@code ReputationGain_<Id>} (or the global
+ * {@code ReputationGain}), which the library reads by that name ({@code ReputationGain}).
+ * {@code Enabled: false} makes the reputation ABSENT (its readings answer nothing, rewards naming it
  * are refused, the page hides it); the standing players hold is never touched. Every leaf is nullable and
  * inherited through {@code Parent}: {@code Ranks} merges by rank id, {@code Kills} replaces whole, every
  * group merges leaf by leaf. A {@code Ranks} entry with {@code From} is a rank of this reputation's own
@@ -66,7 +66,6 @@ public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAs
     @Nullable protected ContentTextAsset text;
     @Nullable protected String icon;
     @Nullable protected Integer order;
-    @Nullable protected Gear gear;
     @Nullable protected Integer cap;
     @Nullable protected Map<String, RankName> ranks;
     @Nullable protected Kill[] kills;
@@ -101,15 +100,11 @@ public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAs
             .metadata(EditorSchema.defaultValue(0))
             .documentation("Where the reputation sorts on the page and among the bars: lower first, then by id.")
             .add()
-            .appendInherited(new KeyedCodec<>("Gear", Gear.CODEC, false),
-                    (a, v) -> a.gear = v, a -> a.gear, (a, p) -> a.gear = p.gear)
-            .documentation("The stat equipped gear moves this reputation by. Leave it out for a reputation no "
-                    + "gear touches.").add()
             .appendInherited(new KeyedCodec<>("Cap", Codec.INTEGER, false),
                     (a, v) -> a.cap = v, a -> a.cap, (a, p) -> a.cap = p.cap)
             .documentation("The most standing a player can earn here through rewards and kills: a gain past it "
-                    + "is cut to it, and a loss is never cut. Leave it out to let standing climb the whole "
-                    + "ladder.").add()
+                    + "is cut to it (after any reputation gain the player wears), and a loss is never cut. Leave "
+                    + "it out to let standing climb the whole ladder.").add()
             .appendInherited(new KeyedCodec<>("Ranks", new InheritMapCodec<>(RankName.CODEC), false),
                     (a, v) -> a.ranks = v, a -> a.ranks, (a, p) -> a.ranks = p.ranks)
             .documentation("What this reputation calls each rank, by rank id: the server's shared ranks (Neutral, "
@@ -131,7 +126,7 @@ public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAs
                     (a, v) -> a.earn = v, a -> a.earn, (a, p) -> a.earn = p.earn)
             .documentation("How a player earns this reputation, in your own words, for the Reputation page's "
                     + "How to earn block. Leave it out and the page says only what the library can see "
-                    + "(kills that count, gear that adds).").add()
+                    + "(kills that count).").add()
             .build();
 
     public ReputationAsset() {
@@ -174,12 +169,6 @@ public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAs
     /** Its place on the page and among the bars; 0 unless authored. */
     public int order() {
         return order == null ? 0 : order;
-    }
-
-    /** The stat gear moves it by, or null. */
-    @Nullable
-    public String gearStat() {
-        return gear == null ? null : blankToNull(gear.stat);
     }
 
     /** The most standing zc writes, or null for the ladder's own top. */
@@ -302,24 +291,6 @@ public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAs
     @Nullable
     static String blankToNull(@Nullable String value) {
         return value == null || value.isBlank() ? null : value.trim();
-    }
-
-    /** The Gear group: the stat equipped items move this reputation by. */
-    public static final class Gear {
-
-        @Nullable protected String stat;
-
-        public static final BuilderCodec<Gear> CODEC = BuilderCodec.builder(Gear.class, Gear::new)
-                .appendInherited(new KeyedCodec<>("Stat", Codec.STRING, false),
-                        (o, v) -> o.stat = v, o -> o.stat, (o, p) -> o.stat = p.stat)
-                .metadata(EditorSchema.assetRef(EntityStatType.class))
-                .documentation("An EntityStatType id your pack ships for this reputation, with InitialValue 0, "
-                        + "a low Min and Max 0. Items name it in their StatModifiers, and its folded maximum is "
-                        + "the standing gear adds while worn.").add()
-                .build();
-
-        public Gear() {
-        }
     }
 
     /** One rank's name under this reputation, and for a rank of its own above the server's top, its floor. */

@@ -2,8 +2,9 @@ apply from: "$rootDir/gradle/zc-module.gradle"
 
 // Standing with a faction or with one NPC, on Hytale's own (dormant) reputation system: the one global
 // rank ladder (seven native ReputationRank files), the companion asset zc keeps beside a native
-// ReputationGroup of the same id (names, gear favor, cap, rank names, kill standing, the payout past the
-// top rank), the one writer over the native value, three readings, the Reputation reward kind, the change
+// ReputationGroup of the same id (names, cap, rank names, kill standing, the payout past the top rank), the
+// one writer over the native value (which raises a gain by the worn ReputationGain stats), three readings,
+// the Reputation reward kind, the change
 // event, the World bar (out in the world only: a change made in a page shows in that page's toast), the
 // rank notice, the kill table and the rail tab.
 //
@@ -17,7 +18,8 @@ dependencies {
     // SafeLog, the keyed asset bases and the owner-file reader, the factor vocabulary, the native-event
     // seam, i18n and content keys, the content text group, validation findings, the icon spec.
     implementation project(':zc-core')
-    // StatIndexCache: the gear share is a stat's folded maximum, resolved the way hytale:stat resolves it.
+    // StatIndexCache: the worn reputation gain is a stat's folded maximum, resolved the way hytale:stat
+    // resolves it; the equip bridge the rank check hangs on.
     implementation project(':zc-entity')
     // The reward vocabulary: the Reputation kind, its chip reading, the Beyond payout and its bag-room probe.
     implementation project(':zc-loot')

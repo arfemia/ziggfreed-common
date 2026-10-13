@@ -16,7 +16,6 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.reputation.asset.ReputationAsset;
 import com.ziggfreed.common.reputation.asset.ReputationConfig;
-import com.ziggfreed.common.stats.StatIndexCache;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.validation.Severity;
@@ -35,7 +34,7 @@ import com.ziggfreed.common.validation.Severity;
  *       move a shared rank or can never be reached; ignored), {@link #TIER_SHARES_ID} (a rank of its own written
  *       twice in two cases; the second is ignored);</li>
  *   <li>WARNING {@link #NO_NATIVE_GROUP}, {@link #UNKNOWN_NPC_GROUP}, {@link #UNKNOWN_KILL_GROUP},
- *       {@link #UNKNOWN_GEAR_STAT}, {@link #UNKNOWN_ICON}, {@link #UNKNOWN_RANK}, {@link #CAP_BELOW_LADDER},
+ *       {@link #UNKNOWN_ICON}, {@link #UNKNOWN_RANK}, {@link #CAP_BELOW_LADDER},
  *       {@link #TIER_ABOVE_CAP}, {@link #TIER_WITHOUT_NAME} (a rank of its own with no Name shows its id).</li>
  * </ul>
  */
@@ -49,7 +48,6 @@ public final class ReputationValidator {
     public static final String NO_NATIVE_GROUP = "NO_NATIVE_GROUP";
     public static final String UNKNOWN_NPC_GROUP = "UNKNOWN_NPC_GROUP";
     public static final String UNKNOWN_KILL_GROUP = "UNKNOWN_KILL_GROUP";
-    public static final String UNKNOWN_GEAR_STAT = "UNKNOWN_GEAR_STAT";
     public static final String UNKNOWN_ICON = "UNKNOWN_ICON";
     public static final String UNKNOWN_RANK = "UNKNOWN_RANK";
     public static final String CAP_BELOW_LADDER = "CAP_BELOW_LADDER";
@@ -74,8 +72,7 @@ public final class ReputationValidator {
                 return List.of();
             }
             return audit(ReputationConfig.getInstance().all().values(), engine.groups(), engine.ranks(),
-                    engine::npcGroupExists, id -> StatIndexCache.resolve(id) != StatIndexCache.UNRESOLVED,
-                    id -> Item.getAssetMap().getAsset(id) != null);
+                    engine::npcGroupExists, id -> Item.getAssetMap().getAsset(id) != null);
         } catch (Throwable t) {
             SafeLog.warn("[reputation] the reputation audit failed: " + t.getMessage());
             return List.of();
@@ -86,8 +83,7 @@ public final class ReputationValidator {
     @Nonnull
     public static List<Finding> audit(@Nonnull Collection<ReputationAsset> companions,
             @Nonnull List<ReputationNative.Group> groups, @Nonnull List<ReputationLadder.Rank> ranks,
-            @Nonnull Predicate<String> npcGroupKnown, @Nonnull Predicate<String> statKnown,
-            @Nonnull Predicate<String> itemKnown) {
+            @Nonnull Predicate<String> npcGroupKnown, @Nonnull Predicate<String> itemKnown) {
         List<Finding> out = new ArrayList<>();
         if (ranks.size() < 2) {
             out.add(Finding.error(DOMAIN, TOO_FEW_RANKS, ranks.size() + " ReputationRank file(s) are loaded; the "
@@ -99,7 +95,7 @@ public final class ReputationValidator {
         }
         for (ReputationAsset companion : companions) {
             if (companion != null && companion.isEnabled()) {
-                auditCompanion(companion, groups, ranks, npcGroupKnown, statKnown, itemKnown, out);
+                auditCompanion(companion, groups, ranks, npcGroupKnown, itemKnown, out);
             }
         }
         return out;
@@ -148,17 +144,12 @@ public final class ReputationValidator {
 
     private static void auditCompanion(@Nonnull ReputationAsset companion, @Nonnull List<ReputationNative.Group> groups,
             @Nonnull List<ReputationLadder.Rank> ranks, @Nonnull Predicate<String> npcGroupKnown,
-            @Nonnull Predicate<String> statKnown, @Nonnull Predicate<String> itemKnown, @Nonnull List<Finding> out) {
+            @Nonnull Predicate<String> itemKnown, @Nonnull List<Finding> out) {
         String id = companion.getId() == null ? "" : companion.getId();
         String where = "the reputation file '" + id + "'";
         if (groups.stream().noneMatch(group -> group.id().equalsIgnoreCase(id.trim()))) {
             out.add(Finding.warning(DOMAIN, NO_NATIVE_GROUP, where + " matches no native ReputationGroup "
                     + "(Server/NPC/Reputation/Groups/<Id>.json), so nothing reads it", id));
-        }
-        String stat = companion.gearStat();
-        if (stat != null && !statKnown.test(stat)) {
-            out.add(Finding.warning(DOMAIN, UNKNOWN_GEAR_STAT, where + " names the Gear.Stat '" + stat
-                    + "', which is no registered stat, so gear adds nothing", id));
         }
         String icon = companion.icon();
         if (icon != null && !itemKnown.test(icon)) {

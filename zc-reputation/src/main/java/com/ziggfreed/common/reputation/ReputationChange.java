@@ -6,34 +6,35 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * One write zc made, as it landed: earned before and after (the engine's clamp applied), the gear share
- * at the time, the effective rank before and after, where effective standing now stands inside its rank,
- * the floor of the reputation's top rank its Beyond counts from (null with no usable ladder), and what moved
- * it ({@code quest:<id>}, {@code kill:<role>}). The Beyond steps are read from that floor and the reputation's
+ * One write zc made, as it landed: earned before and after (the worn reputation gain, the Cap and the
+ * engine's clamp all applied), the rank before and after, where standing now stands inside its rank, the
+ * floor of the reputation's top rank its Beyond counts from (null with no usable ladder), and what moved it
+ * ({@code quest:<id>}, {@code kill:<role>}). The Beyond steps are read from that floor and the reputation's
  * Every ({@link ReputationLadder#beyondSteps}).
  */
 public record ReputationChange(@Nonnull UUID playerId,
                                @Nonnull ReputationDef reputation,
                                int earnedBefore,
                                int earnedAfter,
-                               long gear,
                                @Nullable ReputationLadder.Rank rankBefore,
                                @Nullable ReputationLadder.Rank rankAfter,
                                @Nonnull ReputationLadder.Progress progress,
                                @Nullable Integer beyondFloor,
                                @Nonnull String source) {
 
-    /** What the engine actually moved earned standing by. */
+    /** What the engine actually moved earned standing by: the gain as it landed, worn bonus included. */
     public int delta() {
         return earnedAfter - earnedBefore;
     }
 
+    /** The standing the ranks read before the change: what was earned, since gear adds none. */
     public long effectiveBefore() {
-        return earnedBefore + gear;
+        return earnedBefore;
     }
 
+    /** The standing the ranks read after the change: what was earned, since gear adds none. */
     public long effectiveAfter() {
-        return earnedAfter + gear;
+        return earnedAfter;
     }
 
     /** The Beyond step earned standing stood on before the change: 0 below the top or with no Beyond. */

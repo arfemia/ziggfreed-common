@@ -11,7 +11,7 @@ $ZW = "../Common/ZigKit.ui";
 //
 // LEFT (#LeftPanel): the title, a short lead saying what a reputation is, and #ReputationList, where the kit's
 // LedgerPainter appends one section of Pages/ZigLedgerRow.ui rows: a row per met reputation (its picture, its
-// name, what comes next and gear on the meta line, its bar toward the next rank, and its rank in the
+// name, what comes next on the meta line, its bar toward the next rank, and its rank in the
 // standing's colour). Its width is ReputationPageLayout.LIST_WIDTH, a third of MenuFrame.BODY_WIDTH (a document
 // cannot read a Java constant, so ReputationPageDocumentTest holds the two together).
 //

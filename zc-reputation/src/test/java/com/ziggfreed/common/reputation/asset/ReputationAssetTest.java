@@ -20,7 +20,6 @@ class ReputationAssetTest {
               "Text": { "TitleKey": "test.faction.name", "FlavorKey": "test.faction.flavor" },
               "Icon": "Test_Icon",
               "Order": 3,
-              "Gear": { "Stat": "Reputation_Test_Faction" },
               "Cap": 5000,
               "Ranks": { "$Comment": "names this faction gives the ranks",
                          "Friendly": { "Name": "test.faction.rank.friendly" } },
@@ -42,7 +41,6 @@ class ReputationAssetTest {
         assertEquals("test.faction.flavor", rep.flavorKey());
         assertEquals("Test_Icon", rep.icon());
         assertEquals(3, rep.order());
-        assertEquals("Reputation_Test_Faction", rep.gearStat());
         assertEquals(Integer.valueOf(5000), rep.cap());
         assertEquals(Map.of("Friendly", "test.faction.rank.friendly"), rep.rankNames(),
                 "a $Comment inside the map is documentation, not a rank");
@@ -61,7 +59,6 @@ class ReputationAssetTest {
         assertNull(rep.titleKey());
         assertNull(rep.icon());
         assertEquals(0, rep.order());
-        assertNull(rep.gearStat());
         assertNull(rep.cap(), "no cap: standing climbs the whole ladder");
         assertTrue(rep.rankNames().isEmpty());
         assertTrue(rep.kills().isEmpty());
@@ -93,7 +90,6 @@ class ReputationAssetTest {
                 """, parent);
         assertEquals(Integer.valueOf(9000), child.cap());
         assertEquals("test.faction.name", child.titleKey(), "the Text it did not restate is kept");
-        assertEquals("Reputation_Test_Faction", child.gearStat());
         assertEquals("test.faction.rank.friendly", child.rankNameKey("Friendly"), "rank names merge by rank id");
         assertEquals("test.faction.rank.honored", child.rankNameKey("Honored"));
         assertEquals(1, child.kills().size(), "Kills replaces the parent's list whole");

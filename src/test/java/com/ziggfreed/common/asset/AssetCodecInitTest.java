@@ -233,7 +233,6 @@ class AssetCodecInitTest {
         assertNotNull(ReputationAsset.CODEC, "ReputationAsset.CODEC must static-init (PascalCase keys)");
         // The groups are embedded rather than stored, so a lower-case key in one would fail at a pack
         // author's decode instead of at this build.
-        assertNotNull(ReputationAsset.Gear.CODEC, "the Gear group codec must static-init");
         assertNotNull(ReputationAsset.RankName.CODEC, "the rank name codec must static-init");
         assertNotNull(ReputationAsset.Kill.CODEC, "the kill row codec must static-init");
         assertNotNull(ReputationAsset.Beyond.CODEC, "the Beyond group codec must static-init");

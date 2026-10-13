@@ -51,7 +51,10 @@ public interface ReputationNative {
     @Nullable
     Integer add(@Nullable Store<EntityStore> store, @Nullable Ref<EntityStore> ref, @Nonnull String groupId, int delta);
 
-    /** The folded maximum of {@code statId} on the player: what equipped gear adds. 0 for null, unknown or unread. */
+    /**
+     * The folded maximum of {@code statId} on the player, where worn gear's modifiers gather: the reputation
+     * gain stats' reading ({@link ReputationGain}). 0 for null, unknown or unread.
+     */
     long statMax(@Nullable Store<EntityStore> store, @Nullable Ref<EntityStore> ref, @Nullable String statId);
 
     /** Is the NPC role {@code roleName} a member of the native NPCGroup {@code npcGroupId}? */

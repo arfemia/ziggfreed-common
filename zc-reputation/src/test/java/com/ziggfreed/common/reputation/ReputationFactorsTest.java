@@ -24,8 +24,8 @@ import com.ziggfreed.common.factor.FactorContributions;
 import com.ziggfreed.common.reputation.asset.ReputationConfig;
 
 /**
- * The three readings: effective standing, earned standing and a rank reached by effective standing; a
- * known untouched reputation reads its starting value; everything they cannot answer is null.
+ * The three readings: a rank reached by standing; a known untouched reputation reads its starting value;
+ * everything they cannot answer is null; each id is contributed and named.
  */
 class ReputationFactorsTest {
 
@@ -38,7 +38,7 @@ class ReputationFactorsTest {
         engine = ReputationFixtures.engine();
         service = new ReputationService(engine, ReputationFanOut.NONE);
         ReputationFixtures.loadCompanions(Map.of("test_old_jack", ReputationFixtures.companion(
-                ReputationFixtures.OLD_JACK, "{ \"Gear\": { \"Stat\": \"Reputation_Test\" } }")));
+                ReputationFixtures.OLD_JACK, "{}")));
     }
 
     @AfterEach
@@ -51,19 +51,8 @@ class ReputationFactorsTest {
     }
 
     @Test
-    void standingIsEffectiveAndEarnedLeavesGearOut() {
-        engine.stored.put("Test_Old_Jack", 500);
-        engine.stats.put("Reputation_Test", 600L);
-        assertEquals(1_100.0, ReputationFactors.standing(service, ask("Test_Old_Jack")));
-        assertEquals(500.0, ReputationFactors.earned(service, ask("Test_Old_Jack")));
-    }
-
-    @Test
-    void aRankReadsOneAtOrAboveItsFloorByEffectiveStanding() {
+    void aRankReadsOneAtOrAboveItsFloor() {
         engine.stored.put("Test_Old_Jack", 900);
-        engine.stats.put("Reputation_Test", 100L);
-        assertEquals(1.0, ReputationFactors.rank(service, ask("Test_Old_Jack/Friendly")), "900 earned + 100 gear");
-        assertEquals(1.0, ReputationFactors.rank(service, ask("test_old_jack/friendly")), "ids in any case");
         assertEquals(0.0, ReputationFactors.rank(service, ask("Test_Old_Jack/Honored")));
         assertEquals(1.0, ReputationFactors.rank(service, ask("Test_Old_Jack/Neutral")), "a lower rank also holds");
     }

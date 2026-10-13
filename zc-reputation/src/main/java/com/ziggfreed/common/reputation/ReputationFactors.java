@@ -12,9 +12,9 @@ import com.ziggfreed.common.factor.FactorNames;
  * The three reputation readings, contributed to every vocabulary on the server. {@code Param} names the
  * reputation (its native group id, any case), and for the rank reading the rank after a slash:
  * <ul>
- *   <li>{@value #STANDING}: effective standing, gear included;</li>
- *   <li>{@value #EARNED}: earned standing alone;</li>
- *   <li>{@value #RANK} (Param {@code <Id>/<Rank>}): 1 at or above that rank's floor by effective standing, else 0;
+ *   <li>{@value #STANDING}: standing, which is what was earned (gear adds none);</li>
+ *   <li>{@value #EARNED}: earned standing, the same reading;</li>
+ *   <li>{@value #RANK} (Param {@code <Id>/<Rank>}): 1 at or above that rank's floor by standing, else 0;
  *       the rank may be one of the reputation's own above the top.</li>
  * </ul>
  * Null (fail closed) for an unknown, disabled or switched-off reputation, an unknown rank, a ladder of

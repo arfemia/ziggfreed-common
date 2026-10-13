@@ -19,12 +19,12 @@ import com.ziggfreed.common.reputation.asset.ReputationConfig;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * Every reputation reading, the ONE zc writer and the effective-rank checks. A reputation is a native
+ * Every reputation reading, the ONE zc writer and the rank checks. A reputation is a native
  * ReputationGroup, found by its id without regard to case; it is absent (unknown) while the engine's
- * plugin is off, the owner's switch is off or its companion says {@code Enabled: false}. Effective standing
- * is earned standing plus the companion's {@code Gear.Stat} folded maximum. World thread for every
- * per-player call; every {@code store}/{@code ref} is asked of the engine seam first, so no live player
- * means no answer.
+ * plugin is off, the owner's switch is off or its companion says {@code Enabled: false}. Standing is what
+ * the player earned, the engine's own number; worn gear adds nothing to it, and instead raises how much each
+ * gain pays ({@link ReputationGain}). World thread for every per-player call; every {@code store}/{@code ref}
+ * is asked of the engine seam first, so no live player means no answer.
  */
 public final class ReputationService {
 
@@ -41,17 +41,18 @@ public final class ReputationService {
         }
     }
 
-    /** What one player stands at with one reputation, read live. */
-    public record Standing(@Nonnull ReputationDef reputation, int earned, long gear, boolean entry,
+    /** What one player stands at with one reputation, read live; {@code rank} is where earned standing falls. */
+    public record Standing(@Nonnull ReputationDef reputation, int earned, boolean entry,
                            @Nullable ReputationLadder.Rank rank) {
 
+        /** The standing every reading compares: what was earned, since gear adds none. */
         public long effective() {
-            return earned + gear;
+            return earned;
         }
 
         /** Met: the engine holds an entry for them, or their standing is not 0. */
         public boolean met() {
-            return entry || effective() != 0;
+            return entry || earned != 0;
         }
     }
 
@@ -167,8 +168,10 @@ public final class ReputationService {
     }
 
     /**
-     * The one zc writer: refuse an unknown reputation or a zero delta, cut a gain at the Cap, write through
-     * the engine (its clamp applies), tell the fan-out, then check the effective rank. World thread.
+     * The one zc writer: refuse an unknown reputation or a zero delta, raise a gain by the player's worn
+     * reputation gain ({@link ReputationGain}; a loss is never raised), cut it at the Cap, write through the
+     * engine (its clamp applies), tell the fan-out, then check the rank. The change it answers carries what
+     * actually moved. World thread.
      */
     @Nonnull
     public Result change(@Nullable Store<EntityStore> store, @Nullable Ref<EntityStore> ref, @Nullable String id,
@@ -188,7 +191,8 @@ public final class ReputationService {
         if (player == null || before == null) {
             return new Result(Status.NOT_LIVE, null);
         }
-        int applied = capped(before, delta, def.cap());
+        int gained = delta > 0 ? ReputationGain.scale(delta, gainPercent(store, ref, def)) : delta;
+        int applied = capped(before, gained, def.cap());
         if (applied == 0) {
             return new Result(Status.UNCHANGED, null);
         }
@@ -200,11 +204,10 @@ public final class ReputationService {
             return new Result(Status.UNCHANGED, null);
         }
         ReputationLadder ladder = ladderFor(def);
-        long gear = engine.statMax(store, ref, def.gearStat());
         ReputationLadder.Rank top = ladder.top();
-        ReputationChange change = new ReputationChange(player, def, before, after, gear,
-                ladder.rankFor(before + gear), ladder.rankFor(after + gear),
-                ladder.progress(after + gear, def.beyondEvery()), top == null ? null : top.min(), source);
+        ReputationChange change = new ReputationChange(player, def, before, after,
+                ladder.rankFor(before), ladder.rankFor(after),
+                ladder.progress(after, def.beyondEvery()), top == null ? null : top.min(), source);
         try {
             fanOut.changed(store, ref, change);
         } catch (Throwable t) {
@@ -215,7 +218,7 @@ public final class ReputationService {
         return new Result(Status.CHANGED, change);
     }
 
-    /** Check every switched-on reputation's effective rank for the live player at {@code ref}. World thread. */
+    /** Check every switched-on reputation's rank for the live player at {@code ref}. World thread. */
     public void checkAll(@Nullable Store<EntityStore> store, @Nullable Ref<EntityStore> ref,
             @Nonnull ReputationRankWatch.Trigger trigger) {
         if (!isOn() || !engine.live(store, ref)) {
@@ -250,6 +253,16 @@ public final class ReputationService {
         return (int) Math.min(delta, (long) cap - before);
     }
 
+    /**
+     * The player's worn reputation gain for {@code def}, in whole percent points: the global stat plus the
+     * reputation's own, each its folded maximum (0 where the stat is not loaded).
+     */
+    private long gainPercent(@Nullable Store<EntityStore> store, @Nullable Ref<EntityStore> ref,
+            @Nonnull ReputationDef def) {
+        return engine.statMax(store, ref, ReputationGain.GLOBAL_STAT)
+                + engine.statMax(store, ref, ReputationGain.statFor(def.id()));
+    }
+
     private void observe(@Nullable Store<EntityStore> store, @Nullable Ref<EntityStore> ref, @Nonnull UUID player,
             @Nonnull ReputationDef def, long effective, @Nonnull ReputationLadder ladder,
             @Nonnull ReputationRankWatch.Trigger trigger) {
@@ -267,8 +280,7 @@ public final class ReputationService {
         if (earned == null) {
             return null;
         }
-        long gear = engine.statMax(store, ref, def.gearStat());
-        return new Standing(def, earned, gear, engine.hasEntry(store, ref, def.id()), ladder.rankFor(earned + gear));
+        return new Standing(def, earned, engine.hasEntry(store, ref, def.id()), ladder.rankFor(earned));
     }
 
     @Nullable

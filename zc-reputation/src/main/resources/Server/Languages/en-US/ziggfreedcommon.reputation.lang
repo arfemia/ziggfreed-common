@@ -49,9 +49,6 @@ row.next = {0, number} to {1}
 # Past the top rank: {0} how much more earns the next reward.
 row.reward = {0, number} to the next reward
 row.top = Top rank reached
-# With gear: {0} the line so far, {1} what gear adds (or takes, in the .loss line).
-row.gear = {0} (+{1, number} from gear)
-row.gear.loss = {0} ({1, number} from gear)
 
 # The reading page. The pill under the name: {0} the rank held.
 detail.rank = Your rank: {0}
@@ -60,13 +57,10 @@ detail.standing = {0, number} / {1, number} toward {2}
 # Past the top: {0} earned toward the next reward, {1} what each reward takes.
 detail.standing.reward = {0, number} / {1, number} toward the next reward
 detail.standing.top = Top rank reached
-# At the foot of the page, for a reputation gear adds to.
-hint.gear = Gear that adds to this counts toward your rank while you wear it.
 
 # How to earn it, when the reputation says nothing of its own.
 block.earn = How to earn
 earn.kills = Defeating certain creatures earns it.
-earn.gear = Some gear adds to it while you wear it.
 earn.default = Help them out: their quests and requests raise it.
 
 # Every rank, with the standing it takes and what it opens.
@@ -93,14 +87,7 @@ beyond.toast.failed = These rewards could not be paid right now. They are still 
 # The numbers behind the standing.
 block.standing = Your standing
 standing.earned = Earned
-standing.gear = From gear you wear
-# What gear adds: {0} the amount.
-standing.gear.count = +{0, number}
 standing.cap = The most you can earn
-# The gear sets worn that add to this standing: the block, and one line per set, {0} the set and {1} what its
-# worn tier does.
-block.gear_sets = Sets you wear
-gear_set.line = {0}: {1}
 
 # The shared menu's tab.
 menu.tab = Reputation

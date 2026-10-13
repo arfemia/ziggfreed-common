@@ -24,9 +24,8 @@ import com.ziggfreed.common.reputation.ReputationService.Status;
 import com.ziggfreed.common.reputation.asset.ReputationConfig;
 
 /**
- * The service over a stand-in engine: the engine's own spelling of an id, the starting value, effective
- * standing, the cap and the clamp, every refusal, the Beyond count, the fan-out, and the effective-rank
- * checks on change, equip and login.
+ * The service over a stand-in engine: the engine's own spelling of an id, the starting value, the cap and
+ * the clamp, every refusal, the Beyond count, the fan-out, and the rank checks on change, equip and login.
  */
 class ReputationServiceTest {
 
@@ -72,18 +71,6 @@ class ReputationServiceTest {
         assertEquals(500, welcome.earned(), "an untouched reputation reads its InitialReputationValue");
         assertTrue(welcome.met(), "a standing other than 0 counts as met");
         assertEquals("Neutral", welcome.rank().id());
-    }
-
-    @Test
-    void effectiveStandingAddsWhatGearGives() {
-        companion("{ \"Gear\": { \"Stat\": \"Reputation_Test\" } }");
-        engine.stats.put("Reputation_Test", 600L);
-        engine.stored.put("Test_Old_Jack", 500);
-        Standing standing = service.standing(null, null, "Test_Old_Jack");
-        assertEquals(500, standing.earned());
-        assertEquals(600, standing.gear());
-        assertEquals(1_100, standing.effective());
-        assertEquals("Friendly", standing.rank().id(), "the rank shown reads effective standing");
     }
 
     @Test
@@ -227,33 +214,6 @@ class ReputationServiceTest {
         assertEquals("Neutral", down.rankAfter().id());
         assertTrue(fanOut.rises.isEmpty());
         assertEquals(1, fanOut.changes.size(), "the change itself is still told: the event and the bar");
-    }
-
-    @Test
-    void gearAloneRaisingTheRankCreditsItAndAnnouncesItOnce() {
-        companion("{ \"Gear\": { \"Stat\": \"Reputation_Test\" } }");
-        engine.stored.put("Test_Old_Jack", 900);
-        service.checkAll(null, null, Trigger.LOGIN);
-        fanOut.credits.clear();
-        engine.stats.put("Reputation_Test", 200L);
-        service.checkAll(null, null, Trigger.EQUIP);
-        assertEquals(List.of("Test_Old_Jack: Neutral, Friendly"), fanOut.credits);
-        assertEquals(List.of("Test_Old_Jack: Friendly"), fanOut.rises);
-        service.checkAll(null, null, Trigger.EQUIP);
-        assertEquals(1, fanOut.credits.size(), "an equip that moves no rank credits nothing again");
-        assertEquals(1, fanOut.rises.size(), "and announces nothing again");
-        assertTrue(engine.writes.isEmpty(), "gear never writes earned standing");
-        assertTrue(fanOut.changes.isEmpty(), "and raises no change event");
-    }
-
-    @Test
-    void loggingInWithGearAlreadyOnCreditsSilently() {
-        companion("{ \"Gear\": { \"Stat\": \"Reputation_Test\" } }");
-        engine.stored.put("Test_Old_Jack", 900);
-        engine.stats.put("Reputation_Test", 200L);
-        service.checkAll(null, null, Trigger.LOGIN);
-        assertEquals(List.of("Test_Old_Jack: Neutral, Friendly"), fanOut.credits);
-        assertTrue(fanOut.rises.isEmpty());
     }
 
     @Test

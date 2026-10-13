@@ -13,7 +13,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 /**
- * Effective rank, self-healing. A check reads one reputation's effective rank (earned plus gear) for one
+ * Rank, self-healing. A check reads one reputation's rank (where earned standing falls) for one
  * player and credits the ranks from the reputation's starting rank (where its InitialReputationValue lands)
  * up to the current one, so a jump never misses a rank in between and a login re-credits whatever an
  * earlier session left out (an achievement ignores a repeat). A player below the starting rank is credited
@@ -22,8 +22,9 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
  * check after login (nothing remembered yet) is a silent hydrate.
  *
  * <p>Checks come from three places: every change through {@link ReputationService#change}, every equip
- * recompute, and once at login. An equip that moved no rank does nothing at all, since equips are frequent
- * and the ranks it would credit are already credited.
+ * recompute, and once at login. Worn gear adds no standing, so an equip check only heals a rank a write
+ * outside zc moved (the admin {@code /reputation}); one that moved no rank does nothing at all, since equips
+ * are frequent and the ranks it would credit are already credited.
  *
  * <p>The memory is TRANSIENT and single-process: nothing is saved, {@link #forget} drops a player at
  * disconnect, and a restart starts everyone with a hydrate.

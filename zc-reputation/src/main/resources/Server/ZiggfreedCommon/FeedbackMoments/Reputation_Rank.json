@@ -1,8 +1,8 @@
 {
   "$Comment": [
-    "What a player sees and hears when their rank with a reputation rises during play: a reward, a kill or",
-    "a piece of gear lifted their standing (earned plus what their gear adds) into a higher rank. It never",
-    "fires for a fall, nor at login: the first look after login only notes where the player stands.",
+    "What a player sees and hears when their rank with a reputation rises during play: a reward or a kill",
+    "lifted their standing into a higher rank. It never fires for a fall, nor at login: the first look after",
+    "login only notes where the player stands.",
     "",
     "This is the library's own neutral default. A mod that ships a file with this same name in its own pack",
     "replaces it (a pack that lists this library as a dependency loads after it), and a server owner can do",

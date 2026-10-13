@@ -1,5 +1,5 @@
 {
-  "$Comment": "A player's standing with each reputation on the server, read from the game's own record and never counted again: the standing they earned, without what worn gear adds. One line per reputation, filed under its id (Reputation/<id>), and only for a reputation the player has met. A section naming Reputation/* gives each reputation its own column, headed by the reputation's own name.",
+  "$Comment": "A player's standing with each reputation on the server, read from the game's own record and never counted again: the standing they earned. One line per reputation, filed under its id (Reputation/<id>), and only for a reputation the player has met. A section naming Reputation/* gives each reputation its own column, headed by the reputation's own name.",
   "NameKey": "ziggfreedcommon.reputation.stat.standing",
   "Kind": "Native",
   "Format": "Count",
