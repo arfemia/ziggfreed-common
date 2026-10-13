@@ -93,7 +93,11 @@ public final class ToastRenderer {
         // primitive's hex guard is a no-op here).
         UiRetint.retintColor(cmd, "#ZigToast", spec.kind().textColor());
         for (int i = 0; i < MAX_LINES; i++) {
-            setRow(cmd, i, i < lines.size() ? lines.get(i) : null, spec.kind().textColor());
+            if (i < lines.size()) {
+                setRow(cmd, i, lines.get(i), spec.kind().textColor());
+            } else {
+                clearRow(cmd, i);
+            }
         }
     }
 
@@ -103,7 +107,7 @@ public final class ToastRenderer {
         cmd.set("#ZigToastText.TextSpans", Message.empty());
         setHeadIcon(cmd, null);
         for (int i = 0; i < MAX_LINES; i++) {
-            setRow(cmd, i, null, ROW_TEXT_COLOR);
+            clearRow(cmd, i);
         }
     }
 
@@ -123,18 +127,23 @@ public final class ToastRenderer {
     }
 
     /**
-     * Fill + expand one body row, or ({@code line == null}) collapse + clear it. A heading paints
-     * its words bold in {@code headingColor}; every other used row restores the document's own look.
+     * Collapse + clear one unused body row. Its words' colour and weight are left as they are: a
+     * collapsed row paints nothing, and {@link #setRow} writes both whenever it fills the row again.
      */
-    private static void setRow(@Nonnull UICommandBuilder cmd, int index, @Nullable ToastLine line,
+    private static void clearRow(@Nonnull UICommandBuilder cmd, int index) {
+        String sel = "#ZigToastRow" + index;
+        cmd.setObject(sel + ".Anchor", anchor(0, 0));
+        cmd.set(sel + " #RowText.TextSpans", Message.empty());
+        cmd.set(sel + " #RowIcon.Slots", List.<ItemGridSlot>of());
+    }
+
+    /**
+     * Fill + expand one body row. A heading paints its words bold in {@code headingColor}; every
+     * other row restores the document's own look, so a row reused after a heading never keeps it.
+     */
+    private static void setRow(@Nonnull UICommandBuilder cmd, int index, @Nonnull ToastLine line,
             @Nonnull String headingColor) {
         String sel = "#ZigToastRow" + index;
-        if (line == null) {
-            cmd.setObject(sel + ".Anchor", anchor(0, 0));
-            cmd.set(sel + " #RowText.TextSpans", Message.empty());
-            cmd.set(sel + " #RowIcon.Slots", List.<ItemGridSlot>of());
-            return;
-        }
         cmd.setObject(sel + ".Anchor", rowAnchor(index, line.indented()));
         cmd.set(sel + " #RowText.TextSpans", line.text());
         cmd.set(sel + " #RowText.Style.TextColor", line.heading() ? headingColor : ROW_TEXT_COLOR);

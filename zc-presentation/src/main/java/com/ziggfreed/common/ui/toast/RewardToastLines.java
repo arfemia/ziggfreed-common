@@ -31,9 +31,10 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
  * each lootable as a section: one heading row (the lootable reward's own reading: its
  * {@code NameKey} and {@code Icon}, else the {@code Lootable} kind file's) and its rows indented
  * beneath. A lootable that rolled nothing adds no section, and one whose reward nothing can name
- * shows its rows as plain rows. Sections group CONTIGUOUS rows of the same origin, by identity. This
- * is the one sectioning step: a caller with a reading of its own passes it to
- * {@link #linesBy(List, Function, int, IntFunction)}, never a grouping of its own.
+ * shows its rows as plain rows, among those first ones in receipt order. Sections group CONTIGUOUS
+ * rows of the same origin, by identity. This is the one sectioning step: a caller with a reading of
+ * its own passes it to {@link #linesBy(List, Function, int, IntFunction)}, never a grouping of its
+ * own.
  *
  * <p><b>Icons carry quantity one.</b> A chip's own label already says how many ("+500 Mining XP",
  * "x3 Iron Bar"), so a quantity on the icon would say it twice - the same reason the book surfaces
@@ -42,11 +43,15 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
  * <p>The overflow line is the CALLER's because its words belong to the caller's own lang file; a
  * null supplier simply drops the rows past the cap. Each entry point also takes a {@code maxRows}
  * form for a caller with a budget NARROWER than the panel's own (an authored per-moment cap): at
- * most that many rows show, and a longer list folds the rest into the overflow line as one more
- * row, still inside the panel. A heading counts against that budget but never ends the list, and
- * the overflow line counts reward rows only.
+ * most that many rows show, except as below, and a longer list folds the rest into the overflow
+ * line as one more row, still inside the panel. A heading counts against that budget but never ends
+ * the list (a budget that would keep only the opening heading keeps its first row too, one row past
+ * the budget), and the overflow line counts reward rows only.
  */
 public final class RewardToastLines {
+
+    // A section's least showing: its heading and that heading's first row.
+    private static final int SECTION_FLOOR = 2;
 
     private RewardToastLines() {
     }
@@ -125,14 +130,18 @@ public final class RewardToastLines {
 
     /**
      * {@link #cap(List, IntFunction)} under a caller's own budget: at most {@code maxRows} rows show
-     * (never more than the panel's {@link ToastRenderer#MAX_LINES}, and never fewer than one). A list
+     * (never more than the panel's {@link ToastRenderer#MAX_LINES}, and never fewer than one), but for
+     * the one exception below. A list
      * that fits is returned as is; a longer one keeps its first rows and adds
      * {@code overflow.apply(dropped)} as ONE more row - still inside the panel - or simply truncates
      * to the budget when {@code overflow} is null.
      *
      * <p>A {@link ToastLine#heading() heading} counts against the budget like any row, but the kept
-     * rows never END on one: a heading cut from all its rows goes with them. {@code dropped} counts
-     * the reward rows left out, never a heading.
+     * rows never END on one: a heading cut from all its rows goes with them. The one exception is a
+     * cut that would keep nothing at all (a budget of one falling on the list's opening heading):
+     * that heading and its first row stay, so the toast still shows a reward rather than the
+     * overflow line alone (the panel always holds the two of them and that line). {@code dropped}
+     * counts the reward rows left out, never a heading.
      */
     @Nonnull
     public static List<ToastLine> cap(@Nonnull List<ToastLine> lines, int maxRows,
@@ -144,6 +153,10 @@ public final class RewardToastLines {
         int shown = overflow == null ? allowed : Math.min(allowed, ToastRenderer.MAX_LINES - 1);
         while (shown > 0 && lines.get(shown - 1).heading()) {
             shown--;
+        }
+        if (shown == 0 && !lines.get(1).heading()) {
+            // Only the list's opening heading fit: keep it with its first row instead of nothing.
+            shown = SECTION_FLOOR;
         }
         List<ToastLine> capped = new ArrayList<>(lines.subList(0, shown));
         if (overflow != null) {
@@ -200,26 +213,21 @@ public final class RewardToastLines {
             return flat;
         }
         List<ToastLine> out = new ArrayList<>();
+        List<ToastLine> sections = new ArrayList<>();
         for (Run run : runs) {
-            if (run.origin() == null) {
-                out.addAll(run.lines());
-            }
-        }
-        for (Run run : runs) {
-            if (run.origin() == null) {
-                continue;
-            }
-            ToastLine heading = row.apply(run.origin());
+            ToastLine heading = run.origin() == null ? null : row.apply(run.origin());
             if (heading == null) {
-                // A bundle nothing can name: its rows as plain rows, never under a blank heading.
+                // Rows not from a lootable, and a bundle nothing can name (never under a blank
+                // heading): plain rows, together at the top in receipt order.
                 out.addAll(run.lines());
                 continue;
             }
-            out.add(heading.withHeading(true).withIndented(false));
+            sections.add(heading.withHeading(true).withIndented(false));
             for (ToastLine line : run.lines()) {
-                out.add(line.withIndented(true));
+                sections.add(line.withIndented(true));
             }
         }
+        out.addAll(sections);
         return out;
     }
 

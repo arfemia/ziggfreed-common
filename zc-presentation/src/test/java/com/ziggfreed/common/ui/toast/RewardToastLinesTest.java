@@ -156,4 +156,48 @@ class RewardToastLinesTest {
         assertEquals(List.of("100 XP", "Bundle A", "a1", "+2 more"),
                 cutInside.stream().map(RewardToastLinesTest::said).toList());
     }
+
+    /** A reward's "Name" param as a plain row, or null (nothing can name it) when it has none. */
+    private static ToastLine nameRow(RewardSpec spec) {
+        String name = spec.param("Name");
+        return name == null ? null : ToastLine.text(Msg.raw(name));
+    }
+
+    private static Message more(int dropped) {
+        return Msg.raw("+" + dropped + " more");
+    }
+
+    @Test
+    void aBudgetOfOneStillShowsTheOpeningSectionsHeadingWithARow() {
+        RewardSpec bundleA = named("Lootable", "Bundle A");
+        RewardSpec bundleB = named("Lootable", "Bundle B");
+        List<RewardSpec> receipt = List.of(named("Item", "a1").withOrigin(bundleA),
+                named("Item", "a2").withOrigin(bundleA), named("Item", "b1").withOrigin(bundleB));
+
+        List<ToastLine> one = RewardToastLines.linesBy(receipt, RewardToastLinesTest::nameRow, 1,
+                RewardToastLinesTest::more);
+        assertEquals(List.of("Bundle A", "a1", "+2 more"), one.stream().map(RewardToastLinesTest::said).toList(),
+                "never the overflow line alone, and Bundle B's cut heading is not counted as dropped");
+        assertTrue(one.get(0).heading() && one.get(1).indented(), "the heading keeps its section's look");
+
+        List<ToastLine> truncated = RewardToastLines.linesBy(receipt, RewardToastLinesTest::nameRow, 1, null);
+        assertEquals(List.of("Bundle A", "a1"), truncated.stream().map(RewardToastLinesTest::said).toList(),
+                "with no overflow line the cut still keeps a reward, never an empty body");
+    }
+
+    @Test
+    void anUnnamedBundlesRowsJoinThePlainRowsAtTheTop() {
+        RewardSpec bundleA = named("Lootable", "Bundle A");
+        RewardSpec nameless = RewardSpec.of("Lootable");
+        List<RewardSpec> receipt = List.of(named("Item", "a1").withOrigin(bundleA), named("Test_Xp", "100 XP"),
+                named("Item", "c1").withOrigin(nameless), named("Item", "c2").withOrigin(nameless));
+
+        List<ToastLine> lines = RewardToastLines.linesBy(receipt, RewardToastLinesTest::nameRow,
+                RewardToastLinesTest::more);
+        assertEquals(List.of("100 XP", "c1", "c2", "Bundle A", "a1"),
+                lines.stream().map(RewardToastLinesTest::said).toList(),
+                "a bundle nothing can name reads as plain rows in receipt order, before every section");
+        assertTrue(lines.subList(0, 3).stream().noneMatch(l -> l.heading() || l.indented()),
+                "its rows stay plain, never under or beside a heading's look");
+    }
 }
