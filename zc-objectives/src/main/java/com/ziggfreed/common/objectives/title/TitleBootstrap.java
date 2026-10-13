@@ -18,7 +18,7 @@ import com.ziggfreed.common.util.SafeLog;
  * {@code Title} reward kind, its chip reading and the {@code /zigtitle} family, the two
  * title factors ({@link TitleFactors}), the login payout of changes queued for offline players
  * ({@link TitleQueue}) one beat before the login pass that hands over the titles earned achievements
- * owe ({@link TitleBackfill}), the titles' contribution to the display-name seam, so a menu shows a
+ * and collected quests owe ({@link TitleBackfill}), the titles' contribution to the display-name seam, so a menu shows a
  * player's title beside their name, and the chat listener ({@link TitleChat}), which shows it in chat
  * only while a server owner switches that on. This module hosts it because it sees every end being
  * joined (the record, the reward vocabulary, the notice engine). Registration only:
