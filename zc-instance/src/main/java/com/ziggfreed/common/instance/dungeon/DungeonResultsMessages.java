@@ -14,8 +14,8 @@ import com.ziggfreed.common.instance.result.ResultsMessages;
  * provider never knows a locale. Immutable; one instance serves every screen.
  *
  * <p>The page paints most of these on {@code .Text} sinks, which resolve a translation but never fill a parameter,
- * so each is a bare key; the one line that carries a number, the run's length, is joined from a bare key and the
- * time as written, which the page flattens on the server. The two score lines go on {@code TextSpans}.
+ * so each is a bare key; the lines that carry a value, the run's length and the two score lines, go on
+ * {@code TextSpans}, so each is one key with its parameter, filled on the reader's client.
  */
 public final class DungeonResultsMessages implements ResultsMessages {
 
@@ -34,7 +34,7 @@ public final class DungeonResultsMessages implements ResultsMessages {
     @Override
     @Nonnull
     public Message duration(int seconds) {
-        return Msg.join(line("results.time"), Msg.raw(" " + ColumnFormat.TIME.render(seconds)));
+        return Msg.key(DungeonResults.PREFIX + "results.time", ColumnFormat.TIME.render(seconds));
     }
 
     @Override

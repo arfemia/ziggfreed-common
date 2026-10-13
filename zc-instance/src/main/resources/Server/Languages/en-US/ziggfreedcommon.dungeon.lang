@@ -65,11 +65,11 @@ entry.copy_gone = {0} closed just as you got there. Try again.
 entry.unavailable = {0} cannot be entered right now.
 entry.unavailable.unnamed = That dungeon cannot be entered right now.
 
-# The results screen each member sees when their party clears a run. The screen paints these lines where a
-# number cannot be filled in, so only results.team_total carries one.
+# The results screen each member sees when their party clears a run. The screen paints most of these lines where
+# a value cannot be filled in; only results.time (the run's length, m:ss) and results.team_total carry one.
 results.cleared = Dungeon cleared
 results.failed = Run failed
-results.time = Time
+results.time = Time {0}
 results.breakdown = Your run
 results.party = Your party
 results.damage = Damage to bosses
