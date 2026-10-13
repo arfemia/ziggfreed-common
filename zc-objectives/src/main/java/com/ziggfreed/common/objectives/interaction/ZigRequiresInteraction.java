@@ -8,6 +8,7 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.protocol.InteractionType;
 import com.hypixel.hytale.protocol.WaitForDataFrom;
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.InteractionContext;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.CooldownHandler;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.SimpleInstantInteraction;
@@ -102,11 +103,11 @@ public final class ZigRequiresInteraction extends SimpleInstantInteraction {
                         + " takes the Failed branch");
                 return false;
             }
-            if (RequiresCheck.passes(subject, requires)) {
+            Message refusal = RequiresCheck.refusal(subject, requires);
+            if (refusal == null) {
                 return true;
             }
-            InteractionRewards.toPlayer(playerRef)
-                    .accept(ToastSpec.of(ToastKind.ERROR, RequiresCheck.lockLine(subject, requires)));
+            InteractionRewards.toPlayer(playerRef).accept(ToastSpec.of(ToastKind.ERROR, refusal));
             return false;
         });
     }

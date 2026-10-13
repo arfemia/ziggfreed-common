@@ -6,6 +6,7 @@
 - Both halves of a hand-in (`QuestPossessionProbe`, `QuestInventoryConsumer`) and a `ProgressHandle` that answers for `Player` and `PlayerRef` are mandatory: without them hand-ins and rewards silently do nothing while every surface reports success.
 - No test reaches a page: initializing one builds a logger in a static initializer that needs the engine's `HytaleLogManager`, which the default `test` task lacks, and building a page in `engineItemTest` is untried. Assert what a row is named by on the runtime object in zc-progression's `ContentTextArgsTest` instead.
 - There is no reward retry queue here: a reward that fails to grant is logged and lost.
+- `gate/` is `ZigRequires`' read side: `RequiresCheck` (the runtime's subject against a `Requires` block, one walk answering pass or the refusal line), the trigger-volume condition and the every-boot `RequiresVolumeAudit`; the interaction Type that speaks the line sits in `interaction/`.
 - Every surface (the book, the NPC quest page, the tracked HUD) reads the runtime's own subject and wraps each mutating call in the registered `ProgressionCallScope`; a subject built locally reads neutral through another mod's store and drops every write.
 - A claim toast lists the receipt (`tryClaim`'s `GrantOutcome.receipt()`, painted by `render/ClaimToasts`), never the authored reward list.
 - The progression admin page opens only through the static `admin/ProgressionAdminPages.open`, never a registered destination, and its audience defaults to deny.

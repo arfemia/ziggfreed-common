@@ -57,12 +57,14 @@ public final class RequiresCheck {
     }
 
     /**
-     * The line telling {@code subject} why {@code requires} shut: the first requirement they did not meet,
-     * worded by the one mapping every surface reads ({@link LockReasons#line(String)}), so it names the quest
-     * to finish or the factor to raise and never shows a raw token.
+     * Null when {@code subject} meets {@code requires}, else the line telling them why it shut: the first
+     * requirement they did not meet, worded by the one mapping every surface reads
+     * ({@link LockReasons#line(String)}), so it names the quest to finish or the factor to raise and never shows
+     * a raw token. One walk of the block answers both, so a refusal never evaluates it twice.
      */
-    @Nonnull
-    public static Message lockLine(@Nonnull Subject subject, @Nullable GateSpec requires) {
-        return LockReasons.line(ProgressionGates.evaluator().firstFailure(subject, requires));
+    @Nullable
+    public static Message refusal(@Nonnull Subject subject, @Nullable GateSpec requires) {
+        String failure = ProgressionGates.evaluator().firstFailure(subject, requires);
+        return failure == null ? null : LockReasons.line(failure);
     }
 }
