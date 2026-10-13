@@ -115,9 +115,12 @@ public interface LeaderboardScreenMessages {
 
     /**
      * The viewer's own rank + best score in the selected bucket. The page's own strip shows the place and every
-     * figure on its own since the strip replaced the footer, so it no longer paints this line.
+     * figure on its own since the strip replaced the footer, so it no longer paints this line, and an
+     * implementor need not write it: the default is the viewer's place alone ({@link #youPlace}).
      */
-    @Nonnull Message yourRank(int rank, long bestScore);
+    @Nonnull default Message yourRank(int rank, long bestScore) {
+        return youPlace(rank);
+    }
 
     /** The viewer's strip when they have no ranked entry in the selected bucket. */
     @Nonnull Message yourRankNone();

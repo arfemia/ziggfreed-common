@@ -20,19 +20,13 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 /**
- * Every line the boss-records screen says resolves from the module's own English file. Every line
- * {@code /zigleaderboard} says, and every description its help resolves, ships there too. Read from the
- * sources and the shipped file; no server.
+ * Every line {@code /zigleaderboard} says, and every description its help resolves, ships in the module's
+ * own English file. Read from the sources and the shipped file; no server.
  */
 class LeaderboardLangKeysTest {
 
     static final Path ENGLISH = Path.of("src", "main", "resources", "Server", "Languages", "en-US",
             "ziggfreedcommon.leaderboard.lang");
-
-    private static final Path MESSAGES = Path.of("src", "main", "java", "com", "ziggfreed", "common", "instance",
-            "leaderboard", "EncounterLeaderboardMessages.java");
-
-    private static final Pattern LINE = Pattern.compile("line\\(\"([a-z][a-z0-9_.]*)\"");
 
     private static final Path COMMANDS = Path.of("src", "main", "java", "com", "ziggfreed", "common", "instance",
             "leaderboard", "command");
@@ -45,19 +39,6 @@ class LeaderboardLangKeysTest {
     private static final Pattern DESCRIPTION = Pattern.compile("desc\\(\"([a-z][a-z0-9_.]*)\"\\)");
 
     private static final Pattern DESCRIPTION_OF_VERB = Pattern.compile("desc\\(LeaderboardCommandLine\\.([A-Z_]+)\\)");
-
-    @Test
-    void everyLineTheScreenSaysShipsInEnglish() throws IOException {
-        Map<String, String> shipped = shipped();
-        Set<String> said = new TreeSet<>();
-        Matcher m = LINE.matcher(Files.readString(MESSAGES, StandardCharsets.UTF_8));
-        while (m.find()) {
-            said.add(m.group(1));
-        }
-        assertTrue(said.size() >= 20, "the scan found almost nothing, so it is not scanning: " + said);
-        assertEquals(List.of(), said.stream().filter(key -> !shipped.containsKey(key)).toList(),
-                "lines the screen says but " + ENGLISH + " does not ship");
-    }
 
     @Test
     void everyLineTheCommandSaysShipsInEnglish() throws IOException {

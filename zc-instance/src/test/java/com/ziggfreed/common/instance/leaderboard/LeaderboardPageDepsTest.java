@@ -8,6 +8,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.instance.leaderboard.statboard.StatBoardMessages;
+
 /**
  * How a two-axis selection names its bucket: the way every board always has
  * ({@code "<primary>_<secondary>"}), unless the board composes its own. And the rail knob: every
@@ -15,14 +17,12 @@ import org.junit.jupiter.api.Test;
  */
 class LeaderboardPageDepsTest {
 
-    private static final LeaderboardScreenMessages TEXT = new EncounterLeaderboardMessages(null);
+    private static final LeaderboardScreenMessages TEXT = StatBoardMessages.INSTANCE;
 
     @Test
     void aBoardBuiltTheOldWayComposesItsTwoAxesWithAnUnderscore() {
         LeaderboardPageDeps deps = new LeaderboardPageDeps(new Leaderboard("t"), List.of(), List.of(), List.of(), TEXT);
         assertEquals("nightmare_4", deps.bucketKey("nightmare", "4"));
-        LeaderboardPageDeps single = new LeaderboardPageDeps(new Leaderboard("t"), List.of(), TEXT);
-        assertEquals("a_b", single.bucketKey("a", "b"), "the single-axis constructor too");
     }
 
     @Test
@@ -35,7 +35,6 @@ class LeaderboardPageDepsTest {
     @Test
     void everyExistingConstructorLeavesThePageInItsOwnFrame() {
         Leaderboard board = new Leaderboard("t");
-        assertNull(new LeaderboardPageDeps(board, List.of(), TEXT).menuTab());
         assertNull(new LeaderboardPageDeps(board, List.of(), List.of(), List.of(), TEXT).menuTab());
         assertNull(new LeaderboardPageDeps(board, List.of(), List.of(), List.of(), TEXT,
                 LeaderboardPageDeps.UNDERSCORE).menuTab());

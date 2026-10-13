@@ -70,12 +70,6 @@ public final class LeaderboardPageDeps {
     /** Primary tab key -> that tab's own split of its board ({@link #withSplits}); a tab not in it has none. */
     private final Map<String, LeaderboardSplit> splits;
 
-    /** Back-compat: a single-axis, score-only board (no difficulty axis, no stats view). */
-    public LeaderboardPageDeps(@Nonnull Leaderboard board, @Nonnull List<LeaderboardBucketTab> tabs,
-                               @Nonnull LeaderboardScreenMessages text) {
-        this(board, List.of(), tabs, List.of(), text);
-    }
-
     /** Two axes composed {@code "<primary>_<secondary>"} ({@link #UNDERSCORE}). */
     public LeaderboardPageDeps(@Nonnull Leaderboard board, @Nonnull List<LeaderboardBucketTab> primaryTabs,
                                @Nonnull List<LeaderboardBucketTab> tabs, @Nonnull List<StatColumnDef> statColumns,

@@ -23,9 +23,8 @@ import com.ziggfreed.common.ui.hud.card.HudCardLook;
  * panel a row lands on is decided by the mod reporting the movement, by calling that panel's entry
  * point on {@link HudPanels}.
  *
- * <p>Authored at {@code Server/ZiggfreedCommon/HudPanels/<id>.json}. This library ships three:
- * {@code Activity_Ledger.json}, the tall ledger, {@code World_Bars.json}, the wide block, and
- * {@code Center_Bars.json}, the short stack in the middle of the screen. A
+ * <p>Authored at {@code Server/ZiggfreedCommon/HudPanels/<id>.json}. This library ships two:
+ * {@code Activity_Ledger.json}, the tall ledger, and {@code World_Bars.json}, the wide block. A
  * pack or a server owner's {@code mods/ziggfreedcommon/hud-panels.json} restates only the leaves
  * it wants different:
  * <pre>{@code
@@ -54,9 +53,6 @@ public final class HudPanelAsset
 
     /** The id of the World bars, the wide panel (the file is {@code World_Bars.json}). */
     public static final String WORLD_ID = "World_Bars";
-
-    /** The id of the centred panel, for a gain worth stopping the eye on (the file is {@code Center_Bars.json}). */
-    public static final String CENTER_ID = "Center_Bars";
 
     /** Where a panel is listed in the HUD settings when it names no order: after every one that did. */
     public static final int DEFAULT_ORDER = 1000;
