@@ -102,6 +102,7 @@ import com.ziggfreed.common.ui.hud.command.ZigHudCommand;
 import com.ziggfreed.common.ui.menu.command.ZigMenuCommand;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.BootAudit;
+import com.ziggfreed.common.world.BlockRulesBootstrap;
 import com.ziggfreed.common.world.placed.PlacedBlockBootstrap;
 import com.ziggfreed.common.world.stash.BlockStashBootstrap;
 
@@ -120,7 +121,7 @@ import com.ziggfreed.common.world.stash.BlockStashBootstrap;
  * <p>The static primitives register nothing (a consumer calls them directly), and the library's own
  * registrations live in per-module bootstraps this class calls in one authoritative order:
  * {@code EntityBootstrap} (zc-entity), {@code NpcBootstrap} (zc-dialogue),
- * {@code PlacedBlockBootstrap} + {@code BlockStashBootstrap} (zc-world), {@code CalendarBootstrap}
+ * {@code PlacedBlockBootstrap} + {@code BlockStashBootstrap} + {@code BlockRulesBootstrap} (zc-world), {@code CalendarBootstrap}
  * (zc-calendar), {@code ProgressionBootstrap} + {@code DialogueBootstrap} + {@code BonusRowBootstrap}
  * + {@code CalendarSweepBootstrap} + {@code ObjectiveBookBootstrap} (zc-objectives), and
  * {@code AlmanacBootstrap} (zc-almanac), {@code ReputationBootstrap} (zc-reputation) and {@code StatsBootstrap}
@@ -236,6 +237,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         BuffBootstrap.install(this);
         PlacedBlockBootstrap.setupPlacedBlockLedger(this);
         BlockStashBootstrap.registerBlockStash(this);
+        // A gameplay config's ZigBlockRules group (CreativeOnlyBreaking, which zc's dungeon config writes)
+        // registers before any gameplay config decodes, with the systems that enforce it.
+        BlockRulesBootstrap.registerBlockRules(this);
         // The yearly calendar declares its feature switches, its two readings and the occurrence slot
         // here, before the progression runtime is set up over content that gates on them.
         CalendarBootstrap.install(this);

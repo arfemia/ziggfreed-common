@@ -1,8 +1,8 @@
 {
-  "$Comment": "The gameplay of zc's dungeon template: the game's Default_Instance (no world events) with no block placing, breaking or gathering, so nobody builds in a dungeon and every area pastes back clean for the next party; and a player who dies respawns at the world's spawn provider, which puts each player back in their own area. Default_Instance itself sends the dead out of the instance. A World group replaces the parent's whole group rather than adding to it, so all three block switches are written here. A dungeon whose template names another gameplay config keeps that one's rules.",
+  "$Comment": "The gameplay of zc's dungeon template: the game's Default_Instance (no world events) where nobody places or gathers a block and only a creative-mode player breaks one, so every area pastes back clean for the next party; and a player who dies respawns at the world's spawn provider, which puts each player back in their own area. Default_Instance itself sends the dead out of the instance. AllowBlockBreaking is true because the game refuses every break while it is false, creative ones included; Plugin.ZigBlockRules.CreativeOnlyBreaking then refuses every other breaker (survival and adventure players, NPCs, explosions) before the block takes damage, and keeps a block-group cycling tool to creative. Set CreativeOnlyBreaking false to let everybody break, or AllowBlockBreaking false to let nobody. A World group replaces the parent's whole group rather than adding to it, so all three block switches are written here; a Plugin group merges over the parent's. A dungeon whose template names another gameplay config keeps that one's rules, and gets this one by writing the same ZigBlockRules group or by naming this config as its Parent.",
   "Parent": "Default_Instance",
   "World": {
-    "AllowBlockBreaking": false,
+    "AllowBlockBreaking": true,
     "AllowBlockGathering": false,
     "AllowBlockPlacement": false
   },
@@ -12,6 +12,9 @@
     }
   },
   "Plugin": {
-    "WorldEvents": {}
+    "WorldEvents": {},
+    "ZigBlockRules": {
+      "CreativeOnlyBreaking": true
+    }
   }
 }
