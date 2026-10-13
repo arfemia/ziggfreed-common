@@ -1,6 +1,5 @@
 package com.ziggfreed.common.npc.placement.runtime;
 
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
@@ -108,12 +107,6 @@ public final class PlacementKeepAlivePins {
         return false;
     }
 
-    /** How many chunks are pinned in {@code world} (diagnostics, tests). */
-    public static int pinnedChunkCount(@Nonnull World world) {
-        Map<Long, Set<String>> byChunk = PINS.get(world);
-        return byChunk == null ? 0 : byChunk.size();
-    }
-
     /**
      * Drop a world's whole pin table. Registered as a {@link WorldEvictors} evictor, so an
      * instance teardown cannot leak an entry. The engine pins go away with the world's chunks, so
@@ -123,59 +116,6 @@ public final class PlacementKeepAlivePins {
         if (world != null) {
             PINS.remove(world);
         }
-    }
-
-    /** Drop every world's table (tests). */
-    static void clearForTests() {
-        PINS.clear();
-    }
-
-    // ==================== the pure claim core ====================
-
-    /**
-     * Apply one claim to a chunk's holder set and report whether the chunk crossed an edge. PURE
-     * (no engine), so the "pin once, unpin once" arithmetic is unit-testable on its own.
-     *
-     * @return {@link Edge#FIRST} when the set went empty to non-empty, {@link Edge#LAST} when it
-     *         went non-empty to empty, {@link Edge#NONE} otherwise
-     */
-    @Nonnull
-    public static Edge applyClaim(@Nonnull Map<Long, Set<String>> byChunk, long chunkIndex,
-            @Nonnull String placementKey, boolean claim) {
-        Set<String> holders = byChunk.get(chunkIndex);
-        if (claim) {
-            if (holders == null) {
-                holders = new LinkedHashSet<>();
-                byChunk.put(chunkIndex, holders);
-            }
-            boolean wasEmpty = holders.isEmpty();
-            holders.add(placementKey);
-            return wasEmpty ? Edge.FIRST : Edge.NONE;
-        }
-        if (holders == null || !holders.remove(placementKey)) {
-            return Edge.NONE;
-        }
-        if (holders.isEmpty()) {
-            byChunk.remove(chunkIndex);
-            return Edge.LAST;
-        }
-        return Edge.NONE;
-    }
-
-    /** Whether a claim change crossed the pin or unpin edge for a chunk. */
-    public enum Edge {
-        /** The chunk gained its first claimant: pin it. */
-        FIRST,
-        /** The chunk lost its last claimant: unpin it. */
-        LAST,
-        /** The chunk still has claimants and already had some: do nothing. */
-        NONE
-    }
-
-    /** A fresh empty per-world table, for a test driving {@link #applyClaim} directly. */
-    @Nonnull
-    public static Map<Long, Set<String>> newChunkTable() {
-        return new LinkedHashMap<>();
     }
 
     // ==================== engine ====================

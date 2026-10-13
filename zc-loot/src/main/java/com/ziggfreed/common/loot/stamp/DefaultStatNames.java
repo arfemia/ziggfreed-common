@@ -143,16 +143,4 @@ public final class DefaultStatNames {
         }
         return "+" + points;
     }
-
-    /** The key this library would use for {@code statId}, or null when it would print it raw. */
-    @Nullable
-    static String keyFor(@Nonnull String statId) {
-        String id = statId.trim();
-        String clientKey = CLIENT_PREFIX + id;
-        if (LangCatalog.has(clientKey)) {
-            return clientKey;
-        }
-        String backup = BACKUP_KEYS.get(id.toLowerCase(Locale.ROOT));
-        return backup == null ? null : PREFIX + "." + backup;
-    }
 }

@@ -46,11 +46,6 @@ public final class NpcQuestListHosts {
         LEDGER.put(id, owner, host);
     }
 
-    /** Is anything registered at all? The pre-check before a surface bothers to route. */
-    public static boolean hasAny() {
-        return !LEDGER.ids().isEmpty();
-    }
-
     /** Every registered host's owner + failure history, keyed by id (a boot diagnostic, an admin read). */
     @Nonnull
     public static Map<String, RegistryLedger.RegistrationInfo> info() {

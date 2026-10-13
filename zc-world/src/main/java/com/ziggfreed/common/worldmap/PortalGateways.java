@@ -124,11 +124,6 @@ public final class PortalGateways {
         return out;
     }
 
-    /** Test seam: forget that the portals were read, so the next {@link #ensureDerived} reads again. */
-    static synchronized void resetForTests() {
-        derived = false;
-    }
-
     /** Every block type that draws a map marker and has a teleport into an instance among its interactions. */
     @Nonnull
     private static List<PortalBlock> scanBlocks() {

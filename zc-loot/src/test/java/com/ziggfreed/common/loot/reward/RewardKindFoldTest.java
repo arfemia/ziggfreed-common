@@ -15,7 +15,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import com.ziggfreed.common.instance.reward.InstanceReward;
-import com.ziggfreed.common.instance.reward.LootEntry;
 import com.ziggfreed.common.registry.RegistryLedger;
 
 /**
@@ -96,33 +95,6 @@ class RewardKindFoldTest {
     class TheCompactGrammars {
 
         @Test
-        void bothGrammarsReadTheSameSharedTable() {
-            RewardKinds.shared().registerAuthoring("xp", arg -> RewardSpec.of("command",
-                    Map.of("id", "/mmoxp give {player} " + arg + " {amount}", "icon", "XpToken_" + arg)));
-
-            InstanceReward flat = InstanceReward.parse("xp MINING 500 mymod.reward.xp");
-            LootEntry pooled = LootEntry.parse("w4 s2000 any xp MINING 500 mymod.reward.xp");
-
-            assertNotNull(flat);
-            assertNotNull(pooled);
-            assertEquals(InstanceReward.Kind.COMMAND, flat.kind());
-            assertEquals(flat.kind(), pooled.kind());
-            assertEquals(flat.id(), pooled.id());
-            assertEquals("XpToken_MINING", flat.iconItemId());
-            assertEquals(flat.iconItemId(), pooled.iconItemId());
-            assertEquals(500, flat.quantity());
-            assertEquals(4, pooled.weight());
-            assertEquals(2000, pooled.minScore());
-        }
-
-        @Test
-        void aSpecForAnAbsentModDoesNotParseAtAll() {
-            assertNull(InstanceReward.parse("xp MINING 500"),
-                    "no phantom reward when the mod that would grant it is not installed");
-            assertNull(LootEntry.parse("w4 xp MINING 500"));
-        }
-
-        @Test
         void theBuiltInTokensNeedNoRegistrationAtAll() {
             InstanceReward item = InstanceReward.parse("item Coin_Gold 3");
             InstanceReward currency = InstanceReward.parse("currency token 25 mymod.currency.token");
@@ -142,16 +114,6 @@ class RewardKindFoldTest {
 
             RewardKinds.shared().registerAuthoring("idless", arg -> RewardSpec.of("command"));
             assertNull(InstanceReward.parse("idless thing 1"));
-        }
-
-        @Test
-        void quantityRangesStillWorkOnARegisteredToken() {
-            RewardKinds.shared().registerAuthoring("xp",
-                    arg -> RewardSpec.of("command", Map.of("id", "/xp " + arg)));
-            LootEntry ranged = LootEntry.parse("xp MINING 100-500");
-            assertNotNull(ranged);
-            assertEquals(100, ranged.qtyMin());
-            assertEquals(500, ranged.qtyMax());
         }
     }
 

@@ -859,23 +859,6 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
         };
     }
 
-    /** The first non-null answer from {@code sources}, walked in registration order. */
-    @Nullable
-    static <T> T firstAnswer(@Nonnull List<ProgressionTextSource> sources,
-                             @Nonnull Function<ProgressionTextSource, T> ask) {
-        for (ProgressionTextSource source : sources) {
-            try {
-                T answer = ask.apply(source);
-                if (answer != null) {
-                    return answer;
-                }
-            } catch (Throwable t) {
-                SafeLog.warn("[progression] a text source failed: " + t.getMessage());
-            }
-        }
-        return null;
-    }
-
     /** A defensive copy of {@code sources} in registration order. */
     @Nonnull
     static List<ProgressionTextSource> freezeTextSources(@Nonnull List<ProgressionTextSource> sources) {

@@ -294,11 +294,6 @@ public final class NpcPlacementReconciler {
         }
     }
 
-    /** Has {@code world} been swept since the last invalidation? (diagnostics, tests) */
-    public static boolean isLatched(@Nullable World world) {
-        return world != null && SWEPT.contains(world);
-    }
-
     /**
      * Drop a removed world's sweep state, and its ledger rows and cached positions only when the world
      * is deleted with its removal ({@link #isDeleted}).

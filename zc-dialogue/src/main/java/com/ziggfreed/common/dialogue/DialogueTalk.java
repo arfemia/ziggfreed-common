@@ -37,11 +37,6 @@ public final class DialogueTalk {
         INSTALLED.set(sink);
     }
 
-    /** Is anything installed to credit through? */
-    public static boolean installed() {
-        return INSTALLED.get() != null;
-    }
-
     /**
      * Credit {@code npcId}, or answer false when there is nobody to credit, nothing installed, or the
      * sink refused. Guarded whole: a credit failing must not take the rest of the option's actions

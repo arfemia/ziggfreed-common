@@ -22,12 +22,6 @@ import org.junit.jupiter.api.Test;
  * caller that tries again stands a second one beside it (break list X29: the hub NPC on a headless boot).
  * zc-world's {@code world/TickingSections} is the one place that reads and wakes a section.
  *
- * <p><b>The kept column request.</b> {@code NpcPlacementService.isChunkLoaded} and {@code requestChunk} keep
- * their 2.2.0 descriptors for a consumer that links them, and nothing in the library calls them.
- * {@code isChunkLoaded} reads the column's {@code NonTicking} component (Update 7's final release dropped
- * {@code ChunkFlag.TICKING}), so only {@code requestChunk}'s column request still matches, and this test
- * holds that file to exactly that one line.
- *
  * <p>Comments and string literals are blanked first ({@code BlockAccessorHygieneTest}'s blanker), so prose
  * naming the flags passes.
  */
@@ -39,32 +33,16 @@ class SectionTickingHygieneTest {
     /** The one place the library reads and wakes a section (its section request carries SET_TICKING). */
     private static final String SECTIONS = "zc-world/src/main/java/com/ziggfreed/common/world/TickingSections.java";
 
-    /** The 2.2.0 column methods kept for linkage. */
-    private static final String KEPT = "zc-dialogue/src/main/java/com/ziggfreed/common/npc/placement/runtime/NpcPlacementService.java";
-
-    /** {@code requestChunk}'s column request ({@code isChunkLoaded} reads {@code NonTicking}, which never matches). */
-    private static final int KEPT_LINES = 1;
-
     @Test
     void noLibraryMainSourceDecidesAnEntitysStayFromTheColumn() throws IOException {
         List<String> outside = BlockAccessorHygieneTest.mainSourceHits(COLUMN_TICKING).stream()
-                .filter(hit -> !slashed(hit).contains(SECTIONS) && !slashed(hit).contains(KEPT))
+                .filter(hit -> !slashed(hit).contains(SECTIONS))
                 .toList();
         assertTrue(outside.isEmpty(), () -> outside.size() + " column ticking read(s) or request(s). On Update 7"
                 + " an entity stays only in a TICKING chunk section, which a column's flag does not say and a"
                 + " column request does not wake: read and wake the section through zc-world's"
                 + " world/TickingSections (stateAt, ensureTicking, whenTicking, holdTicking).\n"
                 + String.join("\n", outside));
-    }
-
-    @Test
-    void theKeptColumnMethodsHoldExactlyOneLine() throws IOException {
-        List<String> kept = BlockAccessorHygieneTest.mainSourceHits(COLUMN_TICKING).stream()
-                .filter(hit -> slashed(hit).contains(KEPT))
-                .toList();
-        assertEquals(KEPT_LINES, kept.size(), () -> "NpcPlacementService keeps requestChunk's column request for"
-                + " 2.2.0 linkage, and nothing else (isChunkLoaded reads NonTicking, never ChunkFlag.TICKING):\n"
-                + String.join("\n", kept));
     }
 
     @Nonnull

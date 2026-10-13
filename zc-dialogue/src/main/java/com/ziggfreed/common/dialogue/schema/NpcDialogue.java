@@ -422,9 +422,4 @@ public class NpcDialogue {
     public void setChrome(@Nullable DialogueChrome chrome) {
         this.chrome = chrome;
     }
-
-    @Nonnull
-    static Map<String, DialogueNode> emptyNodeMap() {
-        return new LinkedHashMap<>();
-    }
 }

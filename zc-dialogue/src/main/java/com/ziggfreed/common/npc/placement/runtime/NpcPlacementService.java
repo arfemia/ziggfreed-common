@@ -15,7 +15,6 @@ import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.entity.UUIDComponent;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
@@ -27,7 +26,6 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.chunk.section.EntitySection;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
-import com.hypixel.hytale.server.core.universe.world.storage.GetChunkFlags;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.npc.NpcSpawnService;
 import com.ziggfreed.common.npc.placement.anchor.AnchorPosition;
@@ -349,75 +347,6 @@ public final class NpcPlacementService {
     }
 
     // ==================== chunk state ====================
-
-    /**
-     * Is the chunk COLUMN containing {@code (x, z)} resident and ticking?
-     *
-     * <p>Kept for a consumer linking 2.2.0; the library no longer asks it. On Update 7 a column's ticking
-     * state does not say whether an entity added in it stays: a chunk section loads asleep whatever its
-     * column does, and an entity added into a sleeping section is parked on the spot. The reconciler reads
-     * the anchor's own section through zc-world's {@code world/TickingSections.stateAt}.
-     *
-     * <p>A column ticks when its chunk entity carries no {@code NonTicking}, the one record of it on
-     * Update 7's final release, which dropped the column's ticking flag (the pre-release kept the two in
-     * step, so the answer is the same on both).
-     */
-    public static boolean isChunkLoaded(@Nonnull World world, double x, double z) {
-        try {
-            WorldChunk chunk = residentChunk(world, ChunkUtil.indexChunkFromBlock(x, z));
-            if (chunk == null) {
-                return false;
-            }
-            Ref<ChunkStore> chunkRef = chunk.getReference();
-            if (chunkRef == null || !chunkRef.isValid()) {
-                return false;
-            }
-            return world.getChunkStore().getStore()
-                    .getComponent(chunkRef, ChunkStore.REGISTRY.getNonTickingComponentType()) == null;
-        } catch (Throwable t) {
-            SafeLog.fine("[placement] chunk-loaded check failed: " + t.getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * Ask the engine to bring the chunk containing {@code (x, z)} in and start it ticking, running
-     * {@code onLoaded} on the world thread once it is there.
-     *
-     * <p><b>A column, not a section.</b> Kept for a consumer linking 2.2.0; the library no longer calls
-     * it. On Update 7 this starts the column ticking but none of its sections (a section loads asleep,
-     * and only a section request carrying {@code SET_TICKING} or a player's hot sphere wakes one), so an
-     * entity added there is still parked. The reconciler requests the anchor's own section through
-     * zc-world's {@code world/TickingSections.wake}.
-     *
-     * <p>An anchor can resolve a perfectly good position in a chunk NOTHING has any reason to load:
-     * a world spawn point no player has walked to, a structure sighted from a distance. Waiting for
-     * that chunk to wake on its own means waiting forever, and the NPC that belongs there is simply
-     * never placed. So the position itself is treated as the reason to load it - the same way the
-     * first-party portal spawn finder loads its candidate chunks before choosing one.
-     *
-     * <p><b>Nothing is pinned here, deliberately.</b> The request only starts the chunk ticking; it
-     * adds no keep-loaded count, so once the placement has spawned and no player is nearby the
-     * engine's own unload gate lets the chunk go cold and unload again on its ordinary schedule,
-     * carrying the placed NPC with it. That is the steady state the sweep is built around: the
-     * ledger row outlives the chunk, and the NPC comes back with it. A placement that genuinely
-     * needs its chunk held awake says so with {@code Lifecycle.KeepAlive}, which is the ONE knob
-     * that takes a real pin (see {@link PlacementKeepAlivePins}).
-     *
-     * @return true when the request was handed to the engine
-     */
-    public static boolean requestChunk(@Nonnull World world, double x, double z, @Nonnull Runnable onLoaded) {
-        try {
-            long index = ChunkUtil.indexChunkFromBlock(x, z);
-            world.getChunkStore()
-                    .getChunkReferenceAsync(index, GetChunkFlags.SET_TICKING | GetChunkFlags.HIGH_PRIORITY)
-                    .thenAcceptAsync(reference -> onLoaded.run(), world);
-            return true;
-        } catch (Throwable t) {
-            SafeLog.fine("[placement] chunk load request failed: " + t.getMessage());
-            return false;
-        }
-    }
 
     /**
      * The {@code WorldChunk} at {@code index} when it is resident, ticking or not; null when it is not.

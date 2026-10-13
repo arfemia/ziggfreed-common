@@ -397,11 +397,6 @@ public final class SeasonLines {
         };
     }
 
-    /** Every owner's registration gone, for a test starting from nothing. */
-    static void resetForTests() {
-        OWNERS.clear();
-    }
-
     @Nonnull
     private static String fold(@Nonnull String id) {
         return id.trim().toLowerCase(Locale.ROOT);

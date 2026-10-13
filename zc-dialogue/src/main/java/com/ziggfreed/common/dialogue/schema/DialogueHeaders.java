@@ -130,10 +130,4 @@ public final class DialogueHeaders {
             return null;
         }
     }
-
-    /** Forget every source, which is the unregistered state a test starts from. */
-    public static void resetForTests() {
-        LEDGER.clear();
-        WARNED.clear();
-    }
 }

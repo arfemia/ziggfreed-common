@@ -55,11 +55,6 @@ public final class LootCues {
         ACTIVE.set(presenter);
     }
 
-    /** True when something can actually present a cue. */
-    public static boolean isRegistered() {
-        return ACTIVE.get() != null;
-    }
-
     /** Drop the registration (test reset, and the shutdown path). */
     public static void clear() {
         ACTIVE.set(null);

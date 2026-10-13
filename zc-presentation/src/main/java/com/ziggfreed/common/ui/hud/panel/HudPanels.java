@@ -384,14 +384,4 @@ public final class HudPanels {
         LIVE.computeIfAbsent(playerId, id -> new ConcurrentHashMap<>())
                 .put(hud.layout().hudKey(), hud);
     }
-
-    /** Forget {@code playerId}'s panel. */
-    static void unregister(@Nonnull UUID playerId) {
-        LIVE.remove(playerId);
-    }
-
-    /** Whether {@code playerId} has a live panel. */
-    static boolean isLive(@Nonnull UUID playerId) {
-        return LIVE.containsKey(playerId);
-    }
 }

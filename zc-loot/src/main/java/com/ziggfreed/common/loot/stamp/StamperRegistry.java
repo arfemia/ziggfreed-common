@@ -51,11 +51,6 @@ public final class StamperRegistry {
         return ACTIVE.get();
     }
 
-    /** True when something can actually write a stamp. */
-    public static boolean isRegistered() {
-        return ACTIVE.get() != null;
-    }
-
     /** Drop the registration (test reset, and the shutdown path). */
     public static void clear() {
         ACTIVE.set(null);

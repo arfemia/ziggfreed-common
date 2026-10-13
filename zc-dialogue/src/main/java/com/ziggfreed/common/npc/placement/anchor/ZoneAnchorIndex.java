@@ -108,9 +108,4 @@ public final class ZoneAnchorIndex {
             INDEX.remove(world);
         }
     }
-
-    /** Drop every world's discoveries (tests). */
-    static void clearForTests() {
-        INDEX.clear();
-    }
 }

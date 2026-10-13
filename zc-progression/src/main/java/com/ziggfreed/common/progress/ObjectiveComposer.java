@@ -39,11 +39,6 @@ public interface ObjectiveComposer {
     @Nullable
     Message compose(@Nonnull ObjectiveDef objective, @Nullable String authoredKey);
 
-    /** Is a consumer's composer behind the seam yet? */
-    static boolean isInstalled() {
-        return Holder.INSTALLED != null;
-    }
-
     /** Install the consumer's composer. Call once from setup; last install wins. */
     static void install(@Nonnull ObjectiveComposer composer) {
         Holder.INSTALLED = composer;

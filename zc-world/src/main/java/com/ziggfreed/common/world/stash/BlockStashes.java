@@ -48,11 +48,6 @@ public final class BlockStashes {
         handle = BlockRecordSection.register(registry, REGISTRY_ID, BlockStash.CODEC);
     }
 
-    /** Test seam: forget the registration, so a fixture can register against its own registry. */
-    static void resetForTests() {
-        handle = null;
-    }
-
     /** Whether the stash component is registered this boot. */
     public static boolean isRegistered() {
         BlockRecordSection.Handle<BlockStash> h = handle;

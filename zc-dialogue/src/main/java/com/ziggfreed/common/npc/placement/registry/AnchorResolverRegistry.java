@@ -85,12 +85,6 @@ public final class AnchorResolverRegistry {
         return LEDGER.isRegistered(providerId);
     }
 
-    /** Every registered provider id, sorted (diagnostics, an authoring hint). */
-    @Nonnull
-    public static List<String> registeredIds() {
-        return List.copyOf(LEDGER.ids());
-    }
-
     /** Every registered provider id's owner + failure history, keyed by id (an admin channels-list read). */
     @Nonnull
     public static Map<String, PlacementRegistryLedger.RegistrationInfo> info() {

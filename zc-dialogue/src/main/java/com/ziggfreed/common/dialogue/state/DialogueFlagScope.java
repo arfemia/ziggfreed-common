@@ -358,15 +358,6 @@ public final class DialogueFlagScope {
         }
     }
 
-    /**
-     * Forget every warn-once record AND every confirmed-matched selector. Call from a consumer's
-     * config-reload command: worlds come and go, so both verdicts go stale.
-     */
-    public static void resetWarnings() {
-        WARNED_UNMATCHED.clear();
-        VERIFIED_MATCHED.clear();
-    }
-
     // ==================== helpers ====================
 
     /** A selector as one stable, comparable line: what a warn-once key and an equality test need. */

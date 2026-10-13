@@ -76,10 +76,4 @@ public final class StatsSwitch {
     public static void setDirectory(@Nonnull Path dir) {
         directory = dir;
     }
-
-    /** Back to on, for a test starting from nothing. */
-    public static void resetForTests() {
-        on = true;
-        directory = DEFAULT_DIRECTORY;
-    }
 }

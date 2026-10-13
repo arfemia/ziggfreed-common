@@ -46,9 +46,4 @@ public final class PlacementNpcActions {
             SafeLog.warn("[placement] failed to register " + PLACEMENT_INTERACT_TYPE + ": " + t.getMessage());
         }
     }
-
-    /** Has the action been registered this process? (diagnostics) */
-    public static boolean isRegistered() {
-        return registered;
-    }
 }

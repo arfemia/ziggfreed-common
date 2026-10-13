@@ -63,9 +63,4 @@ public final class EncounterSelfTest {
             SafeLog.warn(Encounters.LOG_PREFIX + " the boot self-test itself failed", t);
         }
     }
-
-    /** For a test starting from nothing. */
-    public static void resetForTests() {
-        RAN.set(false);
-    }
 }

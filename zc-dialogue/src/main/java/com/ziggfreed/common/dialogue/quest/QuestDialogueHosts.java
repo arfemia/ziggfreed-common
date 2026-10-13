@@ -54,14 +54,6 @@ public final class QuestDialogueHosts {
         LEDGER.put(id, owner, host);
     }
 
-    /**
-     * Has any mod registered a host of its own? The library's page answers whether or not one has, so
-     * this is a diagnostic read, never a reason to skip routing.
-     */
-    public static boolean hasAny() {
-        return !LEDGER.ids().isEmpty();
-    }
-
     /** Every registered host's owner + failure history, keyed by id (the boot diagnostic + an admin read). */
     @Nonnull
     public static Map<String, RegistryLedger.RegistrationInfo> info() {
