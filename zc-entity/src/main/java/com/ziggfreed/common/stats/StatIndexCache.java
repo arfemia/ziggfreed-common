@@ -8,8 +8,7 @@ import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
 
 /**
  * Resolves a native {@link EntityStatType} id to its engine asset-map index and memoizes the
- * result, mirroring {@code util.DamageCauseCache}'s technique for a different asset type (same
- * repo, different domain). Shared by every class that needs to turn a stat id string into an index
+ * result. Shared by every class that needs to turn a stat id string into an index
  * ({@link EquipStatBridge}, {@link StatMirror}, {@link StatChannelAudit}, and the library's own
  * {@code hytale:stat} factor provider) so the resolution + caching rule exists exactly once.
  *
@@ -18,9 +17,9 @@ import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
  * "not resolved yet" (several engine asset maps reserve slot 0 as a none/clear sentinel), but a
  * custom {@link EntityStatType} can legitimately land at index 0 depending on pack load order -
  * caching only {@code idx > 0} would permanently mis-resolve such a channel as unregistered. The
- * correct rule here is the same one {@code util.DamageCauseCache} uses for its own asset type:
- * cache any {@code idx >= 0} (the engine's real "missing" sentinel is {@code Integer.MIN_VALUE}),
- * never cache a miss so a not-yet-loaded pack channel re-resolves on the next call.
+ * rule here is to cache any {@code idx >= 0} (the engine's real "missing" sentinel is
+ * {@code Integer.MIN_VALUE}) and never cache a miss, so a not-yet-loaded pack channel re-resolves
+ * on the next call.
  */
 public final class StatIndexCache {
 
@@ -57,10 +56,5 @@ public final class StatIndexCache {
             return idx;
         }
         return UNRESOLVED;
-    }
-
-    /** Test hook: drop every cached index so the next {@link #resolve} re-runs the lookup. */
-    static void invalidateAll() {
-        CACHE.clear();
     }
 }

@@ -55,23 +55,6 @@ public final class ZigGearSetTierChangedEvent implements IEvent<Void> {
         this.nextTierTitleKeys = List.copyOf(nextTierTitleKeys);
     }
 
-    /**
-     * The 2.2.0 form, kept so a caller built against it still links. It carries what 2.2.0 knew:
-     * {@link #fullSet()} answers {@code members}, the count a 2.2.0 notice showed, the tier's one
-     * line key is its whole list, and there is no next tier to name.
-     *
-     * @deprecated build the event with
-     *     {@link #ZigGearSetTierChangedEvent(UUID, PlayerRef, String, int, boolean, int, int, int, String, List, List)},
-     *     which carries the full set's count, every line key of the tier and the next tier's
-     */
-    @Deprecated(since = "2.3.0")
-    public ZigGearSetTierChangedEvent(@Nonnull UUID playerId, @Nonnull PlayerRef playerRef, @Nonnull String setId,
-            int tierIndex, boolean active, int pieces, int members, @Nullable String setTitleKey,
-            @Nullable String tierTitleKey) {
-        this(playerId, playerRef, setId, tierIndex, active, pieces, members, members, setTitleKey,
-                tierTitleKey == null ? List.of() : List.of(tierTitleKey), List.of());
-    }
-
     @Nonnull
     public UUID playerId() {
         return playerId;

@@ -125,12 +125,6 @@ public final class GearSets {
         GearSetEffects.fill(apply, remove, has);
     }
 
-    /** The bridge the engine hangs on, or null before {@link #install}. */
-    @Nullable
-    public static EquipStatBridge bridge() {
-        return bridge;
-    }
-
     /**
      * The sets changed under everybody (a load, a re-import, an owner reload): drop the derived
      * index and run every online player through the bridge again, each on their own world thread.
