@@ -108,6 +108,33 @@ class ObjectiveBookDepsTest {
     }
 
     @Test
+    void nullFillsFallBackToDefaults() {
+        ObjectiveBookDeps deps = ObjectiveBookDeps.builder()
+                .extHandler(null)
+                .boardManaged(null)
+                .requirementText(null)
+                .tagLabels(null)
+                .rewardChips(null)
+                .firstClaims(null)
+                .milestones(null)
+                .milestoneClaim(null)
+                .actionFeedback(null)
+                .claimPreCheck(null)
+                .detailBlocks(null)
+                .seen(null)
+                .build();
+        assertSame(DetailBlockSource.NONE, deps.detailBlocks());
+        assertSame(SeenMarks.NONE, deps.seen());
+        assertSame(ObjectiveBookDeps.NO_EXT, deps.extHandler());
+        assertSame(ObjectiveBookDeps.BOARD_CONTRACTS, deps.boardManaged());
+        assertSame(ObjectiveBookDeps.NO_FIRST_CLAIMS, deps.firstClaims());
+        assertSame(ObjectiveBookDeps.NO_MILESTONES, deps.milestones());
+        assertSame(ObjectiveBookDeps.NO_MILESTONE_CLAIM, deps.milestoneClaim());
+        assertSame(ObjectiveBookDeps.NO_FEEDBACK, deps.actionFeedback());
+        assertSame(ObjectiveBookDeps.NO_CLAIM_PRECHECK, deps.claimPreCheck());
+    }
+
+    @Test
     void throwingSeamsCostTheirOwnAnswerOnly() {
         ObjectiveBookDeps deps = ObjectiveBookDeps.builder()
                 .boardManaged(new ObjectiveBookDeps.BoardManagedQuests() {
