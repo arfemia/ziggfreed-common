@@ -589,9 +589,9 @@ public final class ProgressionDefaults {
         }
 
         /**
-         * A quest names its steps by id; an achievement numbers its criteria, so its "objective id"
-         * is the position written out. Either way the answer is whichever key the content carried
-         * for that step, and null when it carried none.
+         * A quest names its steps by id, and an achievement its criteria by the keys its file authored
+         * them under (a legacy file numbered them, so there the id is the position written out). Either
+         * way the answer is whatever the content carried for that step, and null when it carried none.
          */
         @Override
         @Nullable

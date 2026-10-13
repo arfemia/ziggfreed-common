@@ -239,7 +239,7 @@ public final class AchievementBrowse {
             return true;
         }
         for (int i = 0; i < a.criteria().size(); i++) {
-            if (contains(ProgressionTexts.objective(a.id(), Integer.toString(i)), needle)) {
+            if (contains(AchievementReader.criterionText(a, i), needle)) {
                 return true;
             }
         }

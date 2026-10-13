@@ -316,12 +316,22 @@ public final class AchievementReader {
             ObjectiveProgressState state = engine.progressOf(subject, a, i);
             long required = Math.max(1, state.required());
             long current = unlocked ? required : Math.min(required, state.current());
-            Message line = ProgressionTexts.objective(a.id(), Integer.toString(i));
+            Message line = criterionText(a, i);
             lines.add(new DetailLine(objectivePicture(a, i),
                     line != null ? line : text("book.achievements.criterion.untitled"),
                     KitText.count(current, required), null, current >= required ? Tick.DONE : Tick.AHEAD, null, false));
         }
         return new DetailBlock("criteria", text("book.achievements.block.criteria"), null, lines);
+    }
+
+    /**
+     * What criterion {@code index} of {@code a} reads as, or null when no source names it. Asked by the
+     * criterion's own id, the key its file authored it under, which is where every fold files its line; a
+     * legacy file numbered its criteria, so there the id is the position written out.
+     */
+    @Nullable
+    static Message criterionText(@Nonnull Achievement a, int index) {
+        return ProgressionTexts.objective(a.id(), a.criteria().get(index).id());
     }
 
     /**

@@ -26,14 +26,19 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.hypixel.hytale.server.core.Message;
+
 import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.achievement.asset.AchievementCategoryAsset;
+import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.objectives.book.BookActions;
 import com.ziggfreed.common.objectives.book.ObjectiveBookDeps;
 import com.ziggfreed.common.occurrence.Occurrence;
 import com.ziggfreed.common.occurrence.OccurrenceSource;
 import com.ziggfreed.common.progress.ObjectiveDef;
+import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
+import com.ziggfreed.common.progress.runtime.ProgressionTextSource;
 import com.ziggfreed.common.ui.kit.ActionLook;
 import com.ziggfreed.common.ui.kit.ActionSlot;
 import com.ziggfreed.common.ui.kit.DetailAction;
@@ -103,6 +108,47 @@ class AchievementReaderTest {
         assertEquals(List.of(Tick.DONE, Tick.AHEAD, Tick.DONE), ticks(criteria));
         assertEquals("1 / 1", read(criteria.lines().get(0).count()));
         assertEquals("trio step 1", read(criteria.lines().get(1).text()));
+    }
+
+    @Test
+    void aKeyedCriterionReadsItsOwnLineAndSearchFindsIt() {
+        // Every fold files a criterion's line under its authored key, so a source answers by that id alone.
+        ProgressionRuntime.resetForTests();
+        ProgressionRuntime.registrar("keyed").textSource(new ProgressionTextSource() {
+            @Nullable
+            @Override
+            public Message title(@Nonnull String contentId) {
+                String title = f.titles.get(contentId);
+                return title == null ? null : Msg.raw(title);
+            }
+
+            @Nullable
+            @Override
+            public Message flavor(@Nonnull String contentId) {
+                return null;
+            }
+
+            @Nullable
+            @Override
+            public Message objective(@Nonnull String contentId, @Nonnull String objectiveId) {
+                return switch (objectiveId) {
+                    case "kill" -> Msg.raw("Defeat enemies");
+                    case "reach" -> Msg.raw("Reach Archery level 20");
+                    default -> null;
+                };
+            }
+        });
+        Achievement rounded = f.add(Achievement.builder("rounded").category("combat")
+                .criterion(ObjectiveDef.builder("kill", "KILL").amount(5).build())
+                .criterion(ObjectiveDef.builder("reach", "BREAK_BLOCK").amount(1).build()), "Well Rounded");
+
+        AchievementReader reader = f.reader();
+
+        DetailBlock criteria = block(reader.page(rounded), "criteria");
+        assertNotNull(criteria);
+        assertEquals(List.of("Defeat enemies", "Reach Archery level 20"), lineTexts(criteria),
+                "each keyed criterion reads its own line, never the untitled one");
+        assertTrue(AchievementBrowse.matches(reader, rounded, "archery"), "search reads a keyed criterion's words");
     }
 
     @Test
@@ -516,6 +562,15 @@ class AchievementReaderTest {
         List<Tick> out = new ArrayList<>();
         for (DetailLine line : block.lines()) {
             out.add(line.tick());
+        }
+        return out;
+    }
+
+    @Nonnull
+    private static List<String> lineTexts(@Nonnull DetailBlock block) {
+        List<String> out = new ArrayList<>();
+        for (DetailLine line : block.lines()) {
+            out.add(read(line.text()));
         }
         return out;
     }
