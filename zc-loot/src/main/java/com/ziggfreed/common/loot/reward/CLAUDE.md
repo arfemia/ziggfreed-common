@@ -4,6 +4,7 @@
 - Nothing here learns a domain: currency, levels and titles are kinds registered by the mod that owns the concept.
 - A handler throws when a reward went nowhere or cannot name what it pays (a quiet return reports it paid), and writes `retryCommand` whenever the reward is replayable.
 - A handler reports on the receipt only what reached the player, after handing it over. A toast after a payout lists `GrantOutcome.receiptOf(paid)`, never the authored list; only `Quest_Parked` lists the authored rewards.
+- A kind that resolves into other rows (`Lootable`) stamps each with `RewardSpec.withOrigin(spec)`, the outermost overwriting a nested one; a toast sections by that origin only through zc-presentation's `RewardToastLines`, never a per-caller grouping.
 - `canAdd` answers about one reward: check a list with `canAddAll`, never `canAdd` in a loop.
 - Prefer the `Item` kind to a `Command` running `/give` (it is fit-checked and queueable); a `Command` whose line is a give still counts as an item in the fit probe. A kind file whose command hands over an item names it in `Hands` (`Item`, `Count`, default 1), and the probe counts it in the same batch, read off the fold's `CommandRewardKind` on `RewardKinds.shared()`, never a second table.
 - `Droplist` spills on the ground, needs no room and has no `retryCommand`: a replay would roll differently.

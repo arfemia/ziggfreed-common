@@ -453,6 +453,10 @@ public final class LootRewardKinds {
      * (a native drop list's stacks included) plus whatever the table's own {@code Rewards} reported
      * in turn - and nothing at all for a roll that produced nothing. A toast raised after the payout
      * then lists the items the player actually got, and an empty hand adds no row.
+     *
+     * <p>Every row it reports points back at this reward ({@link RewardSpec#withOrigin}), replacing
+     * whatever origin a nested table stamped on it, so a table inside a table folds into the
+     * OUTERMOST lootable's section of a toast.
      */
     private static final class LootableHandler implements RewardHandler {
 
@@ -514,7 +518,7 @@ public final class LootRewardKinds {
             }
             LootCues.presentAll(result.getCues(), subject, tableSource);
             for (RewardSpec landed : handedOver(result)) {
-                receipt.accept(landed);
+                receipt.accept(landed.withOrigin(spec));
             }
         }
     }

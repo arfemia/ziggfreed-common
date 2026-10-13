@@ -102,15 +102,24 @@ public final class ToastDelivery {
     /**
      * What the corner feed shows of {@code spec}: one notice per row, in order, at most {@link #FEED_ROWS}, the
      * last spent on {@code overflow} when more did not fit; a toast with no rows is its headline and picture.
+     *
+     * <p>A sectioned toast ({@link RewardToastLines}) reads flat here, as it always did: a notice is a title with
+     * no rows under it, so a section's heading is dropped, an indented row is a plain notice, and the overflow
+     * count counts reward rows only, never a heading.
      */
     @Nonnull
     static List<ToastLine> feedRows(@Nonnull ToastSpec spec, @Nullable IntFunction<Message> overflow) {
-        List<ToastLine> rows = spec.lines();
+        List<ToastLine> rows = new ArrayList<>(spec.lines().size());
+        for (ToastLine row : spec.lines()) {
+            if (!row.heading()) {
+                rows.add(row.indented() ? row.withIndented(false) : row);
+            }
+        }
         if (rows.isEmpty()) {
             return List.of(new ToastLine(spec.iconItemId(), 1, spec.message()));
         }
         if (rows.size() <= FEED_ROWS) {
-            return rows;
+            return List.copyOf(rows);
         }
         if (overflow == null) {
             return List.copyOf(rows.subList(0, FEED_ROWS));

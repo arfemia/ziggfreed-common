@@ -14,8 +14,18 @@ import com.hypixel.hytale.server.core.Message;
  *
  * <p>{@code quantity} is carried for a future slot-badge variant; the current renderer keeps
  * amounts in the text ("Moonbloom x2") and hides the badge.
+ *
+ * <p>Two orthogonal knobs shape a line inside a sectioned list ({@link RewardToastLines}):
+ * {@code heading} paints it as a section header (bold, in the toast kind's colour) and
+ * {@code indented} insets it under the header above it. A plain line carries neither.
  */
-public record ToastLine(@Nullable String iconItemId, int quantity, @Nonnull Message text) {
+public record ToastLine(@Nullable String iconItemId, int quantity, @Nonnull Message text,
+                        boolean heading, boolean indented) {
+
+    /** A plain line: no heading, no indent. */
+    public ToastLine(@Nullable String iconItemId, int quantity, @Nonnull Message text) {
+        this(iconItemId, quantity, text, false, false);
+    }
 
     /** An icon-less, text-only line (a pre-built {@link Message}). */
     @Nonnull
@@ -33,6 +43,18 @@ public record ToastLine(@Nullable String iconItemId, int quantity, @Nonnull Mess
     @Nonnull
     public static ToastLine item(@Nonnull String iconItemId, int quantity, @Nonnull Message text) {
         return new ToastLine(iconItemId, Math.max(1, quantity), text);
+    }
+
+    /** This line painted as a section header ({@code true}) or as a plain line ({@code false}). */
+    @Nonnull
+    public ToastLine withHeading(boolean heading) {
+        return new ToastLine(iconItemId, quantity, text, heading, indented);
+    }
+
+    /** This line inset under the header above it ({@code true}) or flush ({@code false}). */
+    @Nonnull
+    public ToastLine withIndented(boolean indented) {
+        return new ToastLine(iconItemId, quantity, text, heading, indented);
     }
 
     public boolean hasIcon() {

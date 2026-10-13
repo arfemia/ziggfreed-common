@@ -19,13 +19,27 @@ import javax.annotation.Nullable;
  *
  * <p>Immutable. Parameter keys are matched case-insensitively so an authoring layer using PascalCase
  * keys and a handler reading lower-case ones do not have to agree first.
+ *
+ * <p>A receipt row may also carry its {@link #origin()}: the authored reward it was resolved from (a
+ * rolled table's items point back at the {@code Lootable} that rolled them). It is a provenance
+ * link, not a parameter, so it never shows in {@link #params()}, is never written by a serializer
+ * and never changes what a handler pays; a surface reads it only to tell which rows came out of
+ * which bundle.
  */
 public final class RewardSpec {
 
     private final String kind;
     private final Map<String, String> params;
 
+    /** The authored reward this receipt row was resolved from, or null when it is that reward itself. */
+    @Nullable
+    private final RewardSpec origin;
+
     private RewardSpec(@Nonnull String kind, @Nonnull Map<String, String> params) {
+        this(kind, params, null);
+    }
+
+    private RewardSpec(@Nonnull String kind, @Nonnull Map<String, String> params, @Nullable RewardSpec origin) {
         this.kind = kind.trim();
         Map<String, String> lowered = new LinkedHashMap<>();
         params.forEach((key, value) -> {
@@ -34,6 +48,7 @@ public final class RewardSpec {
             }
         });
         this.params = Map.copyOf(lowered);
+        this.origin = origin;
     }
 
     /** A reward of {@code kind} with no parameters. */
@@ -123,12 +138,31 @@ public final class RewardSpec {
         return value != null ? Boolean.parseBoolean(value.trim()) : fallback;
     }
 
-    /** A copy with one parameter added or replaced. */
+    /** A copy with one parameter added or replaced, keeping its {@link #origin()}. */
     @Nonnull
     public RewardSpec with(@Nonnull String key, @Nonnull String value) {
         Map<String, String> merged = new LinkedHashMap<>(params);
         merged.put(key.trim().toLowerCase(Locale.ROOT), value);
-        return new RewardSpec(kind, merged);
+        return new RewardSpec(kind, merged, origin);
+    }
+
+    /**
+     * The authored reward this receipt row was resolved from, or null when the row is the authored
+     * reward itself. A rolled table's rows point at the {@code Lootable} that rolled them, and a table
+     * nested inside another points at the OUTERMOST one, so a toast folds them into one section.
+     */
+    @Nullable
+    public RewardSpec origin() {
+        return origin;
+    }
+
+    /**
+     * A copy pointing back at {@code origin}, the authored reward it was resolved from, replacing any
+     * origin it already carried. Null clears the link.
+     */
+    @Nonnull
+    public RewardSpec withOrigin(@Nullable RewardSpec origin) {
+        return new RewardSpec(kind, params, origin);
     }
 
     @Override

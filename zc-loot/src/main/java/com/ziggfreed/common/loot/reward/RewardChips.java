@@ -141,23 +141,32 @@ public final class RewardChips {
             if (spec == null) {
                 continue;
             }
-            RewardChip chip = null;
-            if (source != null) {
-                try {
-                    chip = source.chipFor(spec);
-                } catch (Throwable ignored) {
-                    // A consumer's own reading failing costs that chip's styling, never the panel.
-                    chip = null;
-                }
-            }
-            if (chip == null) {
-                chip = chipFor(spec);
-            }
+            RewardChip chip = chipFor(spec, source);
             if (chip != null) {
                 out.add(chip);
             }
         }
         return out;
+    }
+
+    /**
+     * The chip for one reward: {@code source} is asked FIRST and its answer wins outright; a null
+     * answer (or a throwing seam) falls through to the generic {@link #chipFor(RewardSpec)} reading
+     * rather than dropping the reward. Null when nothing on this server can name it. The one reading
+     * {@link #chipsFor} loops over, for a surface that reads its rewards one at a time.
+     */
+    @Nullable
+    public static RewardChip chipFor(@Nonnull RewardSpec spec, @Nullable Source source) {
+        RewardChip chip = null;
+        if (source != null) {
+            try {
+                chip = source.chipFor(spec);
+            } catch (Throwable ignored) {
+                // A consumer's own reading failing costs that chip's styling, never the panel.
+                chip = null;
+            }
+        }
+        return chip != null ? chip : chipFor(spec);
     }
 
     /** The generic reading of one reward, or null when nothing on this server can name it. */

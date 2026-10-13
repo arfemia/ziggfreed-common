@@ -37,6 +37,12 @@ import com.ziggfreed.common.ui.UiRetint;
  * expands its Anchor and fills text + icon slots; an unused row collapses to {@code 0x0} with
  * cleared text/slots so it can never paint. An icon-less line collapses just the row's icon
  * cell (same Anchor trick).
+ *
+ * <p><b>Sections.</b> A {@link ToastLine#heading() heading} row paints its words bold in the
+ * toast kind's colour; every other used row resets them to the document's own, so a row reused
+ * after a heading never keeps its look. An {@link ToastLine#indented() indented} row insets by its
+ * Anchor's {@code Left} (a margin in the inner panel's Top stack), so its picture sits under the
+ * heading's words.
  */
 public final class ToastRenderer {
 
@@ -57,6 +63,11 @@ public final class ToastRenderer {
     private static final int ROW_GAP = 6;
     private static final int ROW_H = 28;
     private static final int ICON_W = 24;
+    // The row's #RowIconGap width, so an indented row's picture lands under a heading's words.
+    private static final int ROW_ICON_GAP = 8;
+    private static final int INDENT = ICON_W + ROW_ICON_GAP;
+    // A row label's own colour in ZigToast.ui (#RowText's Style.TextColor), restored on a plain row.
+    private static final String ROW_TEXT_COLOR = "#eef3fa";
     // The headline's own picture and the gap between it and the words. Both collapse to 0 for a
     // toast carrying no icon, which hands the centered label the full panel width back.
     private static final int HEAD_ICON_W = 24;
@@ -82,7 +93,7 @@ public final class ToastRenderer {
         // primitive's hex guard is a no-op here).
         UiRetint.retintColor(cmd, "#ZigToast", spec.kind().textColor());
         for (int i = 0; i < MAX_LINES; i++) {
-            setRow(cmd, i, i < lines.size() ? lines.get(i) : null);
+            setRow(cmd, i, i < lines.size() ? lines.get(i) : null, spec.kind().textColor());
         }
     }
 
@@ -92,7 +103,7 @@ public final class ToastRenderer {
         cmd.set("#ZigToastText.TextSpans", Message.empty());
         setHeadIcon(cmd, null);
         for (int i = 0; i < MAX_LINES; i++) {
-            setRow(cmd, i, null);
+            setRow(cmd, i, null, ROW_TEXT_COLOR);
         }
     }
 
@@ -111,8 +122,12 @@ public final class ToastRenderer {
                 : List.<ItemGridSlot>of());
     }
 
-    /** Fill + expand one body row, or ({@code line == null}) collapse + clear it. */
-    private static void setRow(@Nonnull UICommandBuilder cmd, int index, @Nullable ToastLine line) {
+    /**
+     * Fill + expand one body row, or ({@code line == null}) collapse + clear it. A heading paints
+     * its words bold in {@code headingColor}; every other used row restores the document's own look.
+     */
+    private static void setRow(@Nonnull UICommandBuilder cmd, int index, @Nullable ToastLine line,
+            @Nonnull String headingColor) {
         String sel = "#ZigToastRow" + index;
         if (line == null) {
             cmd.setObject(sel + ".Anchor", anchor(0, 0));
@@ -120,8 +135,10 @@ public final class ToastRenderer {
             cmd.set(sel + " #RowIcon.Slots", List.<ItemGridSlot>of());
             return;
         }
-        cmd.setObject(sel + ".Anchor", rowAnchor(index));
+        cmd.setObject(sel + ".Anchor", rowAnchor(index, line.indented()));
         cmd.set(sel + " #RowText.TextSpans", line.text());
+        cmd.set(sel + " #RowText.Style.TextColor", line.heading() ? headingColor : ROW_TEXT_COLOR);
+        cmd.set(sel + " #RowText.Style.RenderBold", line.heading());
         if (line.hasIcon()) {
             cmd.setObject(sel + " #RowIcon.Anchor", anchorWh(ICON_W, ICON_W));
             cmd.set(sel + " #RowIcon.Slots", List.of(
@@ -162,12 +179,17 @@ public final class ToastRenderer {
     }
 
     /** Expanded body-row anchor: top gap + fixed height, flexible width. Row 0 uses the larger
-     *  TITLE_GAP so the first reward sits clear of the headline; later rows use ROW_GAP. */
+     *  TITLE_GAP so the first reward sits clear of the headline; later rows use ROW_GAP. An indented
+     *  row also sets Left (a margin in the Top stack) so it sits under a heading's words; set as the
+     *  whole typed object, a plain row's anchor carries no Left and so drops a reused row's inset. */
     @Nonnull
-    private static Anchor rowAnchor(int index) {
+    private static Anchor rowAnchor(int index, boolean indented) {
         Anchor a = new Anchor();
         a.setTop(Value.of(index == 0 ? TITLE_GAP : ROW_GAP));
         a.setHeight(Value.of(ROW_H));
+        if (indented) {
+            a.setLeft(Value.of(INDENT));
+        }
         return a;
     }
 

@@ -7,8 +7,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.function.IntFunction;
 
 import org.junit.jupiter.api.Test;
+
+import com.hypixel.hytale.server.core.Message;
 
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.loot.reward.RewardChip;
@@ -16,8 +20,9 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
 
 /**
  * The chip-to-toast bridge: rows mirror chips, icons carry quantity one (the chip's own label
- * already says how many), and a list past the renderer's row budget spends its last row on the
- * caller's overflow line rather than silently cutting.
+ * already says how many), a list past the renderer's row budget spends its last row on the
+ * caller's overflow line rather than silently cutting, and a lootable's rolled rows form a section
+ * only beside another reward.
  */
 class RewardToastLinesTest {
 
@@ -102,5 +107,53 @@ class RewardToastLinesTest {
                 spec -> RewardChip.text(Msg.raw("five somethings")), null);
         assertEquals(1, lines.size());
         assertEquals("five somethings", lines.get(0).text().getFormattedMessage().rawText);
+    }
+
+    private static RewardSpec named(String kind, String name) {
+        return RewardSpec.of(kind, "Name", name);
+    }
+
+    private static String said(ToastLine line) {
+        return line.text().getFormattedMessage().rawText;
+    }
+
+    @Test
+    void aLootablesRowsFormASectionOnlyBesideAnotherReward() {
+        Function<RewardSpec, ToastLine> row = spec -> ToastLine.text(Msg.raw(spec.paramOr("Name", "?")));
+        IntFunction<Message> more = dropped -> Msg.raw("+" + dropped + " more");
+        RewardSpec bundleA = named("Lootable", "Bundle A");
+        RewardSpec bundleB = named("Lootable", "Bundle B");
+        RewardSpec xp = named("Test_Xp", "100 XP");
+        RewardSpec a1 = named("Item", "a1").withOrigin(bundleA);
+        RewardSpec a2 = named("Item", "a2").withOrigin(bundleA);
+        RewardSpec a3 = named("Item", "a3").withOrigin(bundleA);
+        RewardSpec b1 = named("Item", "b1").withOrigin(bundleB);
+
+        // One lootable alone reads flat, exactly as before.
+        List<ToastLine> alone = RewardToastLines.linesBy(List.of(a1, a2), row, more);
+        assertEquals(List.of("a1", "a2"), alone.stream().map(RewardToastLinesTest::said).toList());
+        assertTrue(alone.stream().noneMatch(l -> l.heading() || l.indented()), "no header, no indent");
+
+        // A lootable beside XP: the static row first, whatever the receipt order, then the section.
+        List<ToastLine> mixed = RewardToastLines.linesBy(List.of(a1, xp), row, more);
+        assertEquals(List.of("100 XP", "Bundle A", "a1"), mixed.stream().map(RewardToastLinesTest::said).toList());
+        assertFalse(mixed.get(0).heading() || mixed.get(0).indented(), "the static row stays plain");
+        assertTrue(mixed.get(1).heading() && !mixed.get(1).indented(), "the bundle's own reading heads it");
+        assertTrue(mixed.get(2).indented() && !mixed.get(2).heading(), "its rolled rows sit beneath");
+
+        // Two lootables: two headed sections.
+        List<ToastLine> two = RewardToastLines.linesBy(List.of(a1, b1), row, more);
+        assertEquals(List.of("Bundle A", "a1", "Bundle B", "b1"),
+                two.stream().map(RewardToastLinesTest::said).toList());
+        assertEquals(2, two.stream().filter(ToastLine::heading).count());
+
+        // A heading counts against the budget but never ends the list, and "+N more" counts rows only.
+        List<RewardSpec> receipt = List.of(xp, a1, a2, a3);
+        List<ToastLine> cut = RewardToastLines.linesBy(receipt, row, 2, more);
+        assertEquals(List.of("100 XP", "+3 more"), cut.stream().map(RewardToastLinesTest::said).toList(),
+                "the heading left without its rows goes too, and is not counted as dropped");
+        List<ToastLine> cutInside = RewardToastLines.linesBy(receipt, row, 3, more);
+        assertEquals(List.of("100 XP", "Bundle A", "a1", "+2 more"),
+                cutInside.stream().map(RewardToastLinesTest::said).toList());
     }
 }
