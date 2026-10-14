@@ -1061,7 +1061,9 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                     .appendInherited(new KeyedCodec<>("Event", Codec.STRING, false),
                             (o, v) -> o.event = v, o -> o.event, (o, p) -> o.event = p.event)
                     .documentation("The calendar event whose runs the quest counts by, by its file name (a "
-                            + "CalendarEvents id). Required: a PerRun naming none is ignored.").add()
+                            + "CalendarEvents id). Required: a PerRun naming none is ignored. Write @run as a "
+                            + "reward parameter's whole value for the run the quest was finished in (its year, "
+                            + "unless the event labels its runs another way), or @year for that run's year.").add()
                     .appendInherited(new KeyedCodec<>("Times", Codec.INTEGER, false),
                             (o, v) -> o.times = v, o -> o.times, (o, p) -> o.times = p.times)
                     .metadata(EditorSchema.defaultValue(1))

@@ -9,11 +9,13 @@ import javax.annotation.Nullable;
 
 import com.ziggfreed.common.occurrence.Occurrence;
 import com.ziggfreed.common.occurrence.OccurrenceSource;
+import com.ziggfreed.common.progress.RunSentinels;
 import com.ziggfreed.common.quest.QuestProgressStore.CompletionRecord;
 
 /**
  * The once-a-run arithmetic behind {@link Quest.Repeat.PerRun}: which run of its calendar event a finish
- * counts for, which runs a completion record has spent, and when a spent quest comes back. It reads the calendar
+ * counts for, which runs a completion record has spent, when a spent quest comes back, and which run its
+ * reward rows pay for ({@code paidRun}). It reads the calendar
  * through zc-core's occurrence seam, so this module never sees the calendar.
  *
  * <p><b>Runs are keyed (event, year, number)</b> ({@link RunKey}): the year a run starts in and the number
@@ -236,6 +238,33 @@ public final class PerRuns {
     /** The finishes {@code record} holds for the run it counts for: its tally, or the one finish of an old record. */
     private static int heldIn(@Nonnull CompletionRecord record) {
         return record.runYear() != null ? record.runCount() : 1;
+    }
+
+    /**
+     * The run a quest under {@code perRun} pays for, whose label and year its reward rows' run sentinels read
+     * ({@link RunSentinels}).
+     *
+     * <p><b>The run the finish being paid counted for</b>, as the player's completion record keeps it
+     * ({@code finished}, read through {@link #runOf}, so an old record counts for its nearest run). A finish is
+     * recorded before anything pays it, so a quest finished in one run and collected after that run is over, or in
+     * the new year, still pays for the run it was finished in, and a finish late in a run that crossed the new year
+     * pays for that run and the year it began in. That is the run the reward commemorates, which the moment of
+     * collecting is not.
+     *
+     * <p><b>Otherwise the run a finish now would count for</b> ({@link #runFor}: the one going on, else the next):
+     * when no finish stands ({@code finished} null, for a surface showing a quest still to be finished), or the
+     * record names no run (a store that keeps no completions, or a finish with no run going on or due). Null when
+     * there is none either (the event absent or out of runs), and the sentinels then stay as written.
+     */
+    @Nullable
+    static RunKey paidRun(@Nonnull Quest.Repeat.PerRun perRun, @Nullable CompletionRecord finished, long nowMs,
+            @Nonnull OccurrenceSource occurrences) {
+        RunKey recorded = finished == null ? null : runOf(finished, perRun, occurrences);
+        if (recorded != null) {
+            return recorded;
+        }
+        Occurrence now = runFor(perRun, nowMs, occurrences);
+        return now == null ? null : RunKey.of(now);
     }
 
     /**

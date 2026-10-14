@@ -431,6 +431,12 @@ public final class Quest {
         return repeat != null;
     }
 
+    /** The once-a-run rule ({@link Repeat#perRun()}), or null for a quest with none or no repeat rules at all. */
+    @Nullable
+    public Repeat.PerRun perRun() {
+        return repeat == null ? null : repeat.perRun();
+    }
+
     @Nonnull
     public Visibility visibility() {
         return visibility;
@@ -510,7 +516,7 @@ public final class Quest {
 
     /** Is a run of this quest's once-a-run event going on? True for a quest with no such rule. */
     public boolean inRun() {
-        Repeat.PerRun perRun = repeat == null ? null : repeat.perRun();
+        Repeat.PerRun perRun = perRun();
         return perRun == null || SeasonGate.live(perRun.event());
     }
 

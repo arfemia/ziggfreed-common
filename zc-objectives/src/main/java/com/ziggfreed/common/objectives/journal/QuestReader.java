@@ -662,15 +662,18 @@ public final class QuestReader {
         return lines;
     }
 
-    /** What the quest pays, through the one shared chip reading; what waits to be collected wears a pill. */
+    /**
+     * What the quest pays, through the one shared chip reading; what waits to be collected wears a pill. The rows
+     * are the ones the payout grants this player ({@link QuestEngine#rewardsFor}), so a row names its run.
+     */
     @Nullable
     private DetailBlock rewards(@Nonnull Quest q) {
         RewardChips.Source chips = presentation.rewardChips();
         List<DetailLine> lines = new ArrayList<>();
-        addRewardLines(lines, q.autoRewards(), chips, null);
+        addRewardLines(lines, engine.rewardsFor(subject, q, q.autoRewards()), chips, null);
         Pill waiting = status(q) == QuestStatus.COMPLETED_UNCLAIMED ? Pill.of(text("reward.waiting"), Tone.COLLECT)
                 : null;
-        addRewardLines(lines, q.claimRewards(), chips, waiting);
+        addRewardLines(lines, engine.rewardsFor(subject, q, q.claimRewards()), chips, waiting);
         return lines.isEmpty() ? null : new DetailBlock(BLOCK_REWARDS, text("block.rewards"), null, lines);
     }
 

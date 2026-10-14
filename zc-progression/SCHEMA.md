@@ -135,7 +135,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 
 | Key | Type | Default | Documentation |
 |---|---|---|---|
-| `Event` | `string` | `null` | The calendar event whose runs the quest counts by, by its file name (a CalendarEvents id). Required: a PerRun naming none is ignored. |
+| `Event` | `string` | `null` | The calendar event whose runs the quest counts by, by its file name (a CalendarEvents id). Required: a PerRun naming none is ignored. Write @run as a reward parameter's whole value for the run the quest was finished in (its year, unless the event labels its runs another way), or @year for that run's year. |
 | `Times` | `integer` | `null` | How many FINISHES fit inside one run of the event. Unauthored means 1. A run whose reward is still waiting to be collected has already spent its slot. |
 | `Carry` | `boolean` | `null` | Whether an unfinished quest carries its progress to the event's next run; unauthored means true, so it comes back where the player left it. False starts it afresh each run, for a quest of a weekly or monthly event. |
 
@@ -505,7 +505,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 
 | Key | Type | Default | Documentation |
 |---|---|---|---|
-| `Event` | `string` | `null` | The calendar event's id (its file name). Write @year in Text.TextArgs, or as a reward parameter's whole value, for the copy's own year. Each year's copy is named by achievement.<this id>_<year>.title when a lang file ships that line, else by the title every copy shares. |
+| `Event` | `string` | `null` | The calendar event's id (its file name). Write @year (or @run, which reads the same on a copy) in Text.TextArgs, or as a reward parameter's whole value, for the copy's own year. Each year's copy is named by achievement.<this id>_<year>.title when a lang file ships that line, else by the title every copy shares. |
 
 <a id="field-achievementasset-metaselector"></a>
 ### AchievementAsset.MetaSelector

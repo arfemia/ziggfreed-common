@@ -28,6 +28,7 @@ import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.asset.NestedAssetId;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.progress.ObjectiveDef;
+import com.ziggfreed.common.progress.RunSentinels;
 import com.ziggfreed.common.progress.asset.ContentListingAsset;
 import com.ziggfreed.common.progress.asset.ContentMeta;
 import com.ziggfreed.common.progress.asset.ContentRewardsAsset;
@@ -559,19 +560,21 @@ public final class AchievementAsset
     public static final class Occurrence {
 
         /**
-         * The sentinel a copy answers with its own year: a {@code Text.TextArgs} entry, or a reward
-         * parameter whose WHOLE value it is. Anywhere else, and in an ordinary achievement, it stays as
+         * The sentinel a copy answers with its own year ({@link RunSentinels#YEAR}; {@link RunSentinels#RUN}
+         * reads the year too, a copy standing for every run of its year): a {@code Text.TextArgs} entry, or a
+         * reward parameter whose WHOLE value it is. Anywhere else, and in an ordinary achievement, it stays as
          * written, like every unanswered sentinel.
          */
-        public static final String ARG_YEAR = "@year";
+        public static final String ARG_YEAR = RunSentinels.YEAR;
 
         @Nullable protected String event;
 
         public static final BuilderCodec<Occurrence> CODEC = BuilderCodec.builder(Occurrence.class, Occurrence::new)
                 .appendInherited(new KeyedCodec<>("Event", Codec.STRING, false),
                         (o, v) -> o.event = v, o -> o.event, (o, p) -> o.event = p.event)
-                .documentation("The calendar event's id (its file name). Write @year in Text.TextArgs, or as a "
-                        + "reward parameter's whole value, for the copy's own year. Each year's copy is named by "
+                .documentation("The calendar event's id (its file name). Write @year (or @run, which reads the same "
+                        + "on a copy) in Text.TextArgs, or as a reward parameter's whole value, for the copy's own "
+                        + "year. Each year's copy is named by "
                         + "achievement.<this id>_<year>.title when a lang file ships that line, else by the title "
                         + "every copy shares.").add()
                 .build();

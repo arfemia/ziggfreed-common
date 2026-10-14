@@ -28,6 +28,7 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.occurrence.Occurrence;
 import com.ziggfreed.common.occurrence.OccurrenceSource;
 import com.ziggfreed.common.occurrence.Occurrences;
+import com.ziggfreed.common.occurrence.RunLabels;
 import com.ziggfreed.common.progress.DispatchOptions;
 import com.ziggfreed.common.progress.ObjectiveArithmetic;
 import com.ziggfreed.common.progress.ObjectiveDef;
@@ -36,6 +37,7 @@ import com.ziggfreed.common.progress.ObjectiveKind;
 import com.ziggfreed.common.progress.ObjectiveKindRegistry;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
 import com.ziggfreed.common.progress.ProgressDispatchTap;
+import com.ziggfreed.common.progress.RunSentinels;
 import com.ziggfreed.common.progress.StatThresholdProbe;
 import com.ziggfreed.common.progress.ZoneRef;
 import com.ziggfreed.common.progress.runtime.ProgressionFeedbackHook;
@@ -1314,6 +1316,27 @@ public final class QuestEngine implements QuestStateReader {
 
     // ==================== Completion, claim, close-out ====================
 
+    /**
+     * {@code rows} (any of {@code quest}'s reward buckets) as they pay {@code subject}, for a surface that shows
+     * them: the rows the payout grants, so what a page lists is what the collect hands over. Only a quest that
+     * comes round once a run of a calendar event changes anything: a parameter whose whole value is {@code @run}
+     * reads as the label of the run it pays for ({@link RunLabels}) and one that is {@code @year} as that run's
+     * year ({@link RunSentinels}). The run is the one the player's finish counted for while that finish stands
+     * (waiting to be collected, or collected and not yet offered again), and before a finish the one a finish now
+     * would count for.
+     */
+    @Nonnull
+    public List<RewardSpec> rewardsFor(@Nonnull Subject subject, @Nonnull Quest quest,
+            @Nonnull List<RewardSpec> rows) {
+        if (quest.perRun() == null || rows.isEmpty()) {
+            return rows;
+        }
+        QuestStatus status = status(subject, quest);
+        boolean finishStands = status == QuestStatus.COMPLETED_UNCLAIMED || status == QuestStatus.ON_COOLDOWN
+                || status == QuestStatus.COMPLETED;
+        return paidRows(subject, quest, rows, finishStands);
+    }
+
     /** {@link #checkCompletion(Subject, Quest, String)} from nowhere in particular. */
     public void checkCompletion(@Nonnull Subject subject, @Nonnull Quest quest) {
         checkCompletion(subject, quest, null);
@@ -2351,7 +2374,7 @@ public final class QuestEngine implements QuestStateReader {
     /** The run a once-a-run quest that does not carry over is taken in, stamped on its progress; null for any other. */
     @Nullable
     private PerRuns.RunKey runToStamp(@Nonnull Quest quest) {
-        Quest.Repeat.PerRun perRun = quest.repeat() == null ? null : quest.repeat().perRun();
+        Quest.Repeat.PerRun perRun = quest.perRun();
         if (perRun == null || perRun.carry()) {
             return null;
         }
@@ -2398,7 +2421,7 @@ public final class QuestEngine implements QuestStateReader {
      * hidden meanwhile as a frozen quest is ({@link Quest#available()} false).
      */
     private boolean runIsOver(@Nonnull Subject subject, @Nonnull Quest quest) {
-        Quest.Repeat.PerRun perRun = quest.repeat() == null ? null : quest.repeat().perRun();
+        Quest.Repeat.PerRun perRun = quest.perRun();
         if (perRun == null || perRun.carry() || store.status(subject, quest.id()) != QuestStatus.ACTIVE) {
             return false;
         }
@@ -2548,10 +2571,43 @@ public final class QuestEngine implements QuestStateReader {
 
     // ==================== Internals ====================
 
+    /**
+     * Pays every row of {@code quest}, as {@link #paidRows} answers it for the finish just recorded: every
+     * route here records the finish first, so the completion record names the run this payout is for.
+     */
     @Nonnull
     private RewardGrants.GrantOutcome grantRewards(@Nonnull Subject subject, @Nonnull Quest quest) {
-        return RewardGrants.grantAll(quest.rewards(), subject, "quest:" + quest.id(), rewardKinds,
-                rewardRetryQueue, warn);
+        return RewardGrants.grantAll(paidRows(subject, quest, quest.rewards(), true), subject,
+                "quest:" + quest.id(), rewardKinds, rewardRetryQueue, warn);
+    }
+
+    /**
+     * {@code rows} with the run sentinels answered for {@code subject} ({@link RunSentinels}): a quest that comes
+     * round once a run of a calendar event ({@link Quest.Repeat.PerRun}) answers a parameter whose whole value is
+     * {@code @run} with the label of the run it pays for ({@link RunLabels}) and one that is {@code @year} with
+     * that run's year. The run is the one the player's recorded finish counted for when {@code finishStands}, else
+     * the one a finish now would count for (the rule and its reasons are {@code PerRuns.paidRun}'s). Every other
+     * quest's rows, and every row while no run can be named, come back as written. A calendar that throws leaves
+     * the rows as written and is reported once per quest, so neither a payout nor a page ever fails on it.
+     */
+    @Nonnull
+    private List<RewardSpec> paidRows(@Nonnull Subject subject, @Nonnull Quest quest, @Nonnull List<RewardSpec> rows,
+            boolean finishStands) {
+        Quest.Repeat.PerRun perRun = quest.perRun();
+        if (perRun == null || rows.isEmpty()) {
+            return rows;
+        }
+        PerRuns.RunKey run;
+        try {
+            run = PerRuns.paidRun(perRun, finishStands ? store.completions(subject, quest.id()) : null, now(),
+                    Occurrences.source());
+        } catch (Throwable t) {
+            warnOnce("reward-run:" + quest.id(), "the calendar could not say which run '" + quest.id()
+                    + "' pays for, so its @run and @year rewards read as written: " + t.getMessage());
+            return rows;
+        }
+        return run == null ? rows : RunSentinels.answerRewards(rows, run.year(),
+                RunLabels.of(perRun.event(), run.year(), run.number()));
     }
 
     /**
@@ -2642,7 +2698,8 @@ public final class QuestEngine implements QuestStateReader {
      * omits it.
      */
     private void fireParked(@Nonnull Quest quest, @Nonnull Subject subject, @Nonnull String reason) {
-        fireCompletion(quest, subject, true, reason, (Supplier<?>) quest::rewards);
+        fireCompletion(quest, subject, true, reason,
+                (Supplier<?>) () -> paidRows(subject, quest, quest.rewards(), true));
     }
 
     /** See {@link #fireParked}: the settled twin, fired AFTER the grant with what it handed over. */

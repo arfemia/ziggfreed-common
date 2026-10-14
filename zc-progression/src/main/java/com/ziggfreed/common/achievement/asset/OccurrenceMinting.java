@@ -9,10 +9,10 @@ import java.util.function.BooleanSupplier;
 import java.util.function.UnaryOperator;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.loot.reward.RewardSpec;
+import com.ziggfreed.common.progress.RunSentinels;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
 
@@ -58,30 +58,19 @@ final class OccurrenceMinting {
             return () -> authoredFeat || !live(calendar, eventId, year);
         }
 
-        /** Text arguments with the year sentinel answered by this copy's year, as raw text. */
+        /**
+         * Text arguments with the run sentinels ({@link RunSentinels}) answered by this copy's year, as raw text: a
+         * copy stands for every run of its year, so {@code @run} reads the year as {@code @year} does.
+         */
         @Nonnull
         List<String> args(@Nonnull List<String> authored) {
-            List<String> out = new ArrayList<>(authored.size());
-            for (String arg : authored) {
-                out.add(isYearSentinel(arg) ? String.valueOf(year) : arg);
-            }
-            return out;
+            return RunSentinels.answerArgs(authored, year);
         }
 
-        /** Rewards with every parameter whose whole value is the year sentinel set to this copy's year. */
+        /** Rewards with every parameter whose whole value is a run sentinel set to this copy's year. */
         @Nonnull
         List<RewardSpec> rewards(@Nonnull List<RewardSpec> authored) {
-            List<RewardSpec> out = new ArrayList<>(authored.size());
-            for (RewardSpec spec : authored) {
-                RewardSpec copy = spec;
-                for (Map.Entry<String, String> param : spec.params().entrySet()) {
-                    if (isYearSentinel(param.getValue())) {
-                        copy = copy.with(param.getKey(), String.valueOf(year));
-                    }
-                }
-                out.add(copy);
-            }
-            return out;
+            return RunSentinels.answerRewards(authored, year);
         }
 
         /** An explicit child id as this copy reads it. */
@@ -193,11 +182,6 @@ final class OccurrenceMinting {
     @Nonnull
     static String mintedId(@Nonnull String baseId, int year) {
         return baseId + "_" + year;
-    }
-
-    /** Is {@code value}, as a whole, the year sentinel (ignoring case and edge spaces)? */
-    static boolean isYearSentinel(@Nullable String value) {
-        return value != null && AchievementAsset.Occurrence.ARG_YEAR.equalsIgnoreCase(value.trim());
     }
 
     /** Is this occurrence live? A calendar that throws reads as not live, reported once per event. */
