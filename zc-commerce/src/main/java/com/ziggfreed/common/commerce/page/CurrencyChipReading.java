@@ -63,11 +63,12 @@ public final class CurrencyChipReading {
         // the bare key as a message id nothing resolves - so the chip paints the key itself.
         // Read at CHIP time rather than captured, so the consumer's deps are in force by then.
         // The REWARD form, never the price form: a payout row reads "+50 Bounty Tokens". The wallet's
-        // Icon is an item borrowed for its picture, so the chip says the wallet's own name on hover
-        // rather than letting an item slot name the borrowed item.
+        // Icon is an item borrowed for its picture, so the chip says the wallet's own hover line (its
+        // name, and what it is for when its file says) rather than letting an item slot name the
+        // borrowed item.
         CurrencyText.Source names = CommercePages.resolvedDeps().currencyNames();
         return RewardChip.picture(CurrencyText.iconOf(def),
                 CommerceChips.rewardAmountAndName(currencies, currencyId, amount, names),
-                CurrencyText.nameOf(def, names));
+                CurrencyText.tooltipOf(def, names));
     }
 }

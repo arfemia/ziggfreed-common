@@ -67,9 +67,10 @@ public final class CommerceChips {
     /**
      * One chip: an optional picture, a composed line, the colour that line reads in, and what hovering
      * it says when the picture only stands for something else. A wallet's {@code Icon} is an item id
-     * borrowed for its picture, so a wallet chip carries the wallet's name here and draws its picture
-     * plain: an item slot would name the borrowed ITEM on hover. Null for an item price, whose item
-     * slot and its own tooltip are the point.
+     * borrowed for its picture, so a wallet chip carries the wallet's own hover line here
+     * ({@link CurrencyText#tooltipOf}: its name, and what it is for when its file says) and draws its
+     * picture plain: an item slot would name the borrowed ITEM on hover. Null for an item price, whose
+     * item slot and its own tooltip are the point.
      */
     public record Chip(@Nullable String iconItemId, @Nonnull Message label, @Nonnull String color,
             @Nullable Message tooltip) {
@@ -105,7 +106,7 @@ public final class CommerceChips {
                 applyIcon(cmd, sel + " #ChipIconSlot", sel + " #ChipIcon", chip.iconItemId());
                 continue;
             }
-            // A wallet: its picture drawn plain, and the chip's box names the wallet on hover.
+            // A wallet: its picture drawn plain, and the chip's box explains the wallet on hover.
             cmd.set(sel + " #ChipIcon.Visible", false);
             cmd.set(sel + " #ChipIconSlot.Visible",
                     IconRenderer.applyPlainIcon(cmd, sel + " #ChipIconSlot", chip.iconItemId(), null));
@@ -116,8 +117,9 @@ public final class CommerceChips {
     /**
      * What the subject is carrying, one chip per wallet a storefront or board authored, in authored
      * order, each reading its wallet's amount line ("7 Hallow Sweets", {@link CurrencyText#amountOf})
-     * with the wallet's name on hover. A wallet no layer defines is skipped rather than drawn as a
-     * zero, since a reading for something that does not exist is worse than no reading.
+     * with the wallet's hover line ({@link CurrencyText#tooltipOf}). A wallet no layer defines is
+     * skipped rather than drawn as a zero, since a reading for something that does not exist is worse
+     * than no reading.
      */
     @Nonnull
     public static List<Chip> balances(@Nonnull CurrencyEngine currencies, @Nonnull Subject subject,
@@ -135,7 +137,7 @@ public final class CommerceChips {
             long balance = currencies.balance(subject, def);
             // A typed numeric param inside the line, so the player's own client decides the digits.
             out.add(new Chip(CurrencyText.iconOf(def), CurrencyText.amountOf(def, balance, names), COLOR_BALANCE,
-                    CurrencyText.nameOf(def, names)));
+                    CurrencyText.tooltipOf(def, names)));
         }
         return out;
     }
@@ -160,7 +162,7 @@ public final class CommerceChips {
             boolean afford = currencies.canAfford(subject, id, amount);
             out.add(new Chip(icon, def == null ? Msg.num(amount) : CurrencyText.amountOf(def, amount, names),
                     afford ? COLOR_AFFORDABLE : COLOR_SHORT,
-                    def == null ? null : CurrencyText.nameOf(def, names)));
+                    def == null ? null : CurrencyText.tooltipOf(def, names)));
         }
         for (ItemCost item : cost.items()) {
             if (item == null || item.isBlank()) {

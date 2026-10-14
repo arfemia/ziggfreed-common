@@ -280,6 +280,10 @@ public final class CommerceFold {
      * own native key. That is the authored leaf's documented ladder, expressed in the one field the
      * engine keeps.
      *
+     * <p><b>The description is an authored {@code Text.FlavorKey} or nothing.</b> No convention key is
+     * probed for it, so a wallet whose file says nothing about what it is for has no description, and
+     * every surface that shows one (a chip's hover, the first-earn notice) stays as it was.
+     *
      * <p>{@code Requires} does NOT cross: it gates whether a player is SHOWN a balance, which is a
      * question for whatever renders the wallet strip, and a balance a player cannot see still has to
      * be correct. A render site reads it off the asset.
@@ -289,6 +293,7 @@ public final class CommerceFold {
         String id = asset.getId() == null ? "" : asset.getId();
         CurrencyDef.Builder builder = CurrencyDef.builder(id)
                 .nameKey(nameKey(asset, id))
+                .descriptionKey(descriptionKey(asset))
                 .backingItem(asset.backingItemId())
                 .iconItem(asset.getIcon())
                 .color(asset.getColor())
@@ -324,6 +329,13 @@ public final class CommerceFold {
             return authored.trim();
         }
         return asset.isItemBacked() ? null : currencyNameKey(id);
+    }
+
+    @Nullable
+    private static String descriptionKey(@Nonnull CurrencyAsset asset) {
+        ContentTextAsset text = asset.getText();
+        String authored = text == null ? null : text.getFlavorKey();
+        return authored == null || authored.isBlank() ? null : authored.trim();
     }
 
     /**

@@ -82,6 +82,15 @@ board.reroll.costs = A reroll costs {0}.
 board.reroll.costs_left = A reroll costs {0}. {1, number} left this rotation.
 board.reroll.free_left = {0, number} free {0, plural, one {reroll} other {rerolls}} left this rotation.
 
+# ==================== a wallet ====================
+#
+# The notice the first time a player earns a wallet whose file says what it is for: {0} is the wallet's
+# name. The row under it names the wallet again ({0}) before its own description from its authoring
+# mod ({1}), since the corner feed shows only the row.
+
+wallet.toast.new = New: {0}
+wallet.toast.new.row = {0}: {1}
+
 # ==================== why something refused ====================
 
 refuse.locked = You cannot do that yet.

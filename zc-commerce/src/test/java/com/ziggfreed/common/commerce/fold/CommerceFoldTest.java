@@ -356,6 +356,17 @@ class CommerceFoldTest {
                     "a counter-backed wallet falls back to the convention key");
             assertNull(CommerceFold.currencyDef(essence).nameKey(),
                     "an item-backed one falls back further, to the backing item's own name");
+            assertNull(CommerceFold.currencyDef(token).descriptionKey(),
+                    "a wallet that says nothing about what it is for has no description, and no key is probed");
+
+            CurrencyAsset described = CommerceFoldFixtures.currencyJson("""
+                    { "Text": { "FlavorKey": "currency.test_sweets.description" }, "Icon": "Test_Basket" }
+                    """, "Test_Sweets");
+            CurrencyDef def = CommerceFold.currencyDef(described);
+            assertEquals("currency.test_sweets.description", def.descriptionKey(),
+                    "an authored FlavorKey crosses as the wallet's description");
+            assertEquals("currency.test_sweets.name", def.nameKey(),
+                    "a Text group with no TitleKey still names the wallet by the convention key");
         }
 
         @Test

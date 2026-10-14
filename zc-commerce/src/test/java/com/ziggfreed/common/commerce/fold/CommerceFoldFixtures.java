@@ -36,6 +36,13 @@ final class CommerceFoldFixtures {
                 new AssetExtraInfo<>(new AssetExtraInfo.Data(CurrencyAsset.class, idOf(path), null)));
     }
 
+    /** A wallet written inline, keyed under {@code id} as the engine would key its file. */
+    @Nonnull
+    static CurrencyAsset currencyJson(@Nonnull String json, @Nonnull String id) throws IOException {
+        return CurrencyAsset.CODEC.decodeAndInheritJsonAsset(RawJsonReader.fromJsonString(json), null,
+                new AssetExtraInfo<>(new AssetExtraInfo.Data(CurrencyAsset.class, id, null)));
+    }
+
     @Nonnull
     static StorefrontAsset shop(@Nonnull String path) throws IOException {
         return StorefrontAsset.CODEC.decodeAndInheritJsonAsset(reader(path), null,

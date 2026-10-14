@@ -1,5 +1,7 @@
 package com.ziggfreed.common.commerce.page;
 
+import java.util.List;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -42,6 +44,10 @@ import com.ziggfreed.common.i18n.Msg;
  * {@code {0}} ("{0, number} {0, plural, one {Hallow Sweet} other {Hallow Sweets}}"), since only a line written
  * per wallet can put a name in its plural in every language. Without one, the amount sits beside the
  * wallet's name ({@code ziggfreedcommon.commerce.price.amount_and_name}).
+ *
+ * <p>What a wallet is FOR is its file's own {@code Text.FlavorKey} ({@link #descriptionOf}), and only
+ * that: no convention key is probed. Hovering a wallet anywhere reads {@link #tooltipOf}, its name and,
+ * when the file authors one, that line under it.
  */
 public final class CurrencyText {
 
@@ -86,6 +92,28 @@ public final class CurrencyText {
             }
         }
         return Msg.raw(def.id());
+    }
+
+    /**
+     * What this wallet is for ("Spend them at Old Jack's stall"), from its authored description key, or
+     * null when its file authors none. An authored key is emitted as written, as {@link #nameOf} does.
+     */
+    @Nullable
+    public static Message descriptionOf(@Nonnull CurrencyDef def) {
+        String key = CommerceText.trimToNull(def.descriptionKey());
+        return key == null ? null : ContentKeys.tr(key);
+    }
+
+    /**
+     * What hovering this wallet says: its name ({@link #nameOf}), and on the next line what it is for
+     * ({@link #descriptionOf}) when its file authors that. Every wallet chip and the wallet reward chip
+     * read this, so a wallet is explained the same way wherever it is shown.
+     */
+    @Nonnull
+    public static Message tooltipOf(@Nonnull CurrencyDef def, @Nullable Source source) {
+        Message name = nameOf(def, source);
+        Message description = descriptionOf(def);
+        return description == null ? name : CommerceChips.stacked(List.of(name, description));
     }
 
     /**

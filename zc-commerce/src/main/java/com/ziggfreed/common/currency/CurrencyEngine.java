@@ -63,6 +63,26 @@ public final class CurrencyEngine {
         return catalog.get(currencyId);
     }
 
+    /**
+     * A copy of this engine whose observer tells this engine's own observer first and then
+     * {@code next} ({@link CurrencyObserver#both}); everything else is the same. This engine is left
+     * as it was. When {@code next} already hears this engine, the answer is this engine itself, so
+     * adding one listener twice never tells it twice.
+     */
+    @Nonnull
+    public CurrencyEngine alsoObservedBy(@Nonnull CurrencyObserver next) {
+        if (ObserverPair.includes(observer, next)) {
+            return this;
+        }
+        return builder()
+                .catalog(catalog)
+                .items(items)
+                .store(store)
+                .observer(CurrencyObserver.both(observer, next))
+                .warn(warn)
+                .build();
+    }
+
     // ==================== Read ====================
 
     /**

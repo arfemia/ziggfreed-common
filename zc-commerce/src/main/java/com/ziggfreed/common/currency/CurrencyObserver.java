@@ -20,12 +20,32 @@ import com.ziggfreed.common.subject.Subject;
  *
  * <p>Every call is guarded by the engine: a throwing observer is reported once and never reaches
  * the transaction that was running.
+ *
+ * <p>An engine has one observer slot; two listeners share it through {@link #both}, which tells the
+ * first and then the second ({@link CurrencyEngine#alsoObservedBy} adds one to an engine already
+ * built).
  */
 public interface CurrencyObserver {
 
     /** Hears nothing. The default, so an engine wired with no observer still runs. */
     CurrencyObserver NONE = new CurrencyObserver() {
     };
+
+    /**
+     * One observer telling {@code first} and then {@code second} about every moment. The second hears
+     * it even when the first throws; the first one's failure is then passed on for the engine's guard
+     * to report. {@link #NONE} on either side, or the same observer twice, answers the other one alone.
+     */
+    @Nonnull
+    static CurrencyObserver both(@Nonnull CurrencyObserver first, @Nonnull CurrencyObserver second) {
+        if (first == NONE || first == second) {
+            return second;
+        }
+        if (second == NONE) {
+            return first;
+        }
+        return new ObserverPair(first, second);
+    }
 
     /** {@code amount} of {@code currencyId} reached {@code subject}, leaving them at {@code balance}. */
     default void earned(@Nonnull Subject subject, @Nonnull CurrencyDef currency, long amount, long balance) {

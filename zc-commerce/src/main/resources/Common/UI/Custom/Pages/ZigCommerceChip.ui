@@ -19,8 +19,8 @@ $ZT = "../Common/ZigType.ui";
 // own tooltip names the item, which is the point. #IcoTex draws a wallet's picture plain (the item's
 // own icon texture, through IconRenderer.applyPlainIcon), because a wallet's Icon is an item borrowed
 // for its picture and an item slot would name that item on hover; the box then carries the wallet's
-// name as its TooltipText, which is why it carries the tooltip style (a TooltipText with no
-// TextTooltipStyle draws nothing).
+// hover line (its name, and what it is for on the next line when its file says) as its tooltip, which
+// is why it carries the tooltip style (a TooltipText with no TextTooltipStyle draws nothing).
 
 Group #ZigCommerceChip {
   LayoutMode: Left;

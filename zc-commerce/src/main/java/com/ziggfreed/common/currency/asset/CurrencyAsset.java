@@ -44,7 +44,9 @@ import com.ziggfreed.common.text.ContentTextAsset;
  * <p><b>What the player reads.</b> Leave {@code Text} out and the name comes from the convention key
  * {@code currency.<id>.name}, or, for an item-backed wallet with no key written, from the backing
  * item's own name in the player's language. Author {@code Text.TitleKey} when the wallet needs a name
- * of its own.
+ * of its own, and {@code Text.FlavorKey} for one short line saying what it is for (where it is spent):
+ * hovering the wallet anywhere shows it under the name, and the first time a player earns the wallet
+ * while it is listed, a notice shows it once. A wallet without one shows its name alone and no notice.
  *
  * <p><b>{@code Cap}, {@code OnDeath} and {@code Decay} are independent economy knobs</b>, each
  * unauthored meaning "no such rule": a wallet with none of them is a permanent balance that only
@@ -104,7 +106,9 @@ public final class CurrencyAsset
             .appendInherited(new KeyedCodec<>("Text", ContentTextAsset.CODEC, false),
                     (a, v) -> a.text = v, a -> a.text, (a, p) -> a.text = p.text)
             .documentation("What the player reads, as localization keys. Leave it out and the name comes from "
-                    + "currency.<id>.name, or from the backing item's own name when there is one.")
+                    + "currency.<id>.name, or from the backing item's own name when there is one. FlavorKey is "
+                    + "one short line saying what the wallet is for: it shows under the name when a player "
+                    + "hovers the wallet, and once in a notice the first time they earn it.")
             .add()
             .appendInherited(new KeyedCodec<>("Backing", Backing.CODEC, false),
                     (a, v) -> a.backing = v, a -> a.backing, (a, p) -> a.backing = p.backing)

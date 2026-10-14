@@ -32,6 +32,7 @@ public final class CurrencyDef {
 
     private final String id;
     @Nullable private final String nameKey;
+    @Nullable private final String descriptionKey;
     @Nullable private final String backingItemId;
     @Nullable private final String iconItemId;
     private final String color;
@@ -43,6 +44,7 @@ public final class CurrencyDef {
     private CurrencyDef(@Nonnull Builder b) {
         this.id = b.id;
         this.nameKey = blankToNull(b.nameKey);
+        this.descriptionKey = blankToNull(b.descriptionKey);
         this.backingItemId = blankToNull(b.backingItemId);
         this.iconItemId = blankToNull(b.iconItemId);
         this.color = b.color != null ? b.color : "#ffffff";
@@ -73,6 +75,16 @@ public final class CurrencyDef {
     @Nullable
     public String nameKey() {
         return nameKey;
+    }
+
+    /**
+     * The localization key saying what this currency is FOR (where it is spent, how it is earned), or
+     * null when nothing was authored. Only an authored key counts: no convention key stands in for
+     * one, so a wallet with none simply has no description.
+     */
+    @Nullable
+    public String descriptionKey() {
+        return descriptionKey;
     }
 
     /** The Hytale item whose inventory count IS this balance, or null when it is counter-backed. */
@@ -182,6 +194,7 @@ public final class CurrencyDef {
 
         private final String id;
         @Nullable private String nameKey;
+        @Nullable private String descriptionKey;
         @Nullable private String backingItemId;
         @Nullable private String iconItemId;
         @Nullable private String color;
@@ -197,6 +210,12 @@ public final class CurrencyDef {
         @Nonnull
         public Builder nameKey(@Nullable String v) {
             this.nameKey = v;
+            return this;
+        }
+
+        @Nonnull
+        public Builder descriptionKey(@Nullable String v) {
+            this.descriptionKey = v;
             return this;
         }
 

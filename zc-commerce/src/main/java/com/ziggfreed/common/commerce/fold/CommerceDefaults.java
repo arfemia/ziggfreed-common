@@ -12,6 +12,7 @@ import com.ziggfreed.common.board.asset.BoardConfig;
 import com.ziggfreed.common.commerce.CommerceStore;
 import com.ziggfreed.common.commerce.CommerceStores;
 import com.ziggfreed.common.commerce.ComponentCommerceStore;
+import com.ziggfreed.common.commerce.page.CurrencyNotice;
 import com.ziggfreed.common.currency.CurrencyEngine;
 import com.ziggfreed.common.progress.gate.GatedContent;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
@@ -115,9 +116,13 @@ public final class CommerceDefaults {
     /**
      * Replace the currency engine every commerce surface reads through. Passing null restores the
      * default one over the authored wallets.
+     *
+     * <p>The library's own listeners ride whichever engine is installed ({@link #withLibraryObservers}):
+     * they hear each earn AFTER the engine's own observer, so a consumer's replacement keeps its own
+     * announcements and the library's notice still speaks on a server running the library alone.
      */
     public static void installCurrencyEngine(@Nullable CurrencyEngine engine) {
-        CURRENCY.set(engine);
+        CURRENCY.set(engine == null ? null : withLibraryObservers(engine));
     }
 
     /**
@@ -137,6 +142,16 @@ public final class CommerceDefaults {
      */
     @Nonnull
     private static CurrencyEngine assetBacked() {
-        return CurrencyEngine.builder().catalog(CommerceCatalogs.currencies()).build();
+        return withLibraryObservers(CurrencyEngine.builder().catalog(CommerceCatalogs.currencies()).build());
+    }
+
+    /**
+     * {@code engine} with what the library itself hears of an earn added after its own observer: the
+     * first-earn notice that tells a player what a wallet is for ({@link CurrencyNotice}). An engine that
+     * already carries it is answered unchanged, so re-installing the engine in force adds nothing twice.
+     */
+    @Nonnull
+    private static CurrencyEngine withLibraryObservers(@Nonnull CurrencyEngine engine) {
+        return engine.alsoObservedBy(CurrencyNotice.OBSERVER);
     }
 }
