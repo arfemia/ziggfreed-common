@@ -222,9 +222,18 @@ public final class LedgerPainter {
     private static void metaGlyph(@Nonnull UICommandBuilder cmd, @Nonnull String row, @Nonnull MetaGlyph glyph) {
         cmd.set(row + " #Kind.Visible", glyph != MetaGlyph.NONE);
         if (glyph != MetaGlyph.NONE) {
-            cmd.set(row + " #Kind #Star.Visible", glyph == MetaGlyph.STAR);
-            cmd.set(row + " #Kind #Scroll.Visible", glyph == MetaGlyph.SCROLL);
-            cmd.set(row + " #Kind #Clock.Visible", glyph == MetaGlyph.CLOCK);
+            for (MetaGlyph each : MetaGlyph.shown()) {
+                cmd.set(row + " #Kind " + each.child() + ".Visible", each == glyph);
+            }
+        }
+    }
+
+    /** The shown meta glyph white on the selected row, else back in its own ink; nothing for a row with none. */
+    private static void metaGlyphInk(@Nonnull UICommandBuilder cmd, @Nonnull String row, @Nullable LedgerRow data,
+            boolean selected, @Nonnull RowSize size) {
+        MetaGlyph glyph = data == null || !size.hasMeta() ? MetaGlyph.NONE : data.metaGlyph();
+        if (glyph != MetaGlyph.NONE) {
+            UiRetint.retintColor(cmd, row + " #Kind " + glyph.child(), selected ? ZigTokens.INK_BRIGHT : glyph.ink());
         }
     }
 
@@ -244,10 +253,10 @@ public final class LedgerPainter {
     }
 
     /**
-     * A row's selected or resting look: the button's style, and its words white on the steel blue or back in their
-     * own inks (the title by its text style, the meta and value by colour, which keeps the one-line shape the
-     * selected styles share with the resting ones). The state pill keeps its look either way. A label the row does
-     * not show is left alone.
+     * A row's selected or resting look: the button's style, and its words and meta glyph white on the steel blue or
+     * back in their own inks (the title by its text style, the meta and value by colour, which keeps the one-line
+     * shape the selected styles share with the resting ones). The state pill keeps its look either way. A label the
+     * row does not show is left alone.
      *
      * <p>A row whose meta wraps to two lines ({@link RowSize#metaWraps()}) turns its meta white by the colour leaf
      * alone, never by {@link ZigStyles.Name#ROW_META_ON_SELECTED}, a one-line style that would clip its second line.
@@ -259,6 +268,7 @@ public final class LedgerPainter {
         ZigStyles.apply(cmd, row + ".Style", selected ? ZigStyles.Name.ROW_SELECTED : ZigStyles.Name.ROW, viewer);
         boolean meta = data != null && size.hasMeta() && data.meta() != null;
         boolean value = data != null && data.value() != null;
+        metaGlyphInk(cmd, row, data, selected, size);
         if (selected) {
             ZigStyles.apply(cmd, row + " #Title.Style", ZigStyles.Name.ROW_TITLE_ON_SELECTED, viewer);
             if (meta && size.metaWraps()) {
