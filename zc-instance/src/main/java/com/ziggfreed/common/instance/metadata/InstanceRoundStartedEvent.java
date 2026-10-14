@@ -16,7 +16,8 @@ import com.hypixel.hytale.event.IEvent;
  *
  * <p><b>Who the start names.</b> The players in the round as it begins. A dungeon run begins at its first
  * arrival and names that player and every player already on the way into the same area; one who walks in
- * later joins the run (and is named when it ends) but is not named here.
+ * later, not yet counted, is named by a start of their own, naming them alone, whose player count is the run's
+ * as it stands. So a dungeon run names each of its players at exactly one start, and at its end.
  *
  * <p><b>Fire it through {@link InstanceRounds#fireStarted}</b>, on the instance world thread where one is
  * at hand; dispatch is synchronous on the calling thread, and a listener that needs a {@code Store} hops

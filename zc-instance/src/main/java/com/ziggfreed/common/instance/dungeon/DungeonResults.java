@@ -24,6 +24,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.instance.claims.ClaimNotices;
 import com.ziggfreed.common.instance.claims.ClaimsView;
 import com.ziggfreed.common.instance.result.MatchResult;
 import com.ziggfreed.common.instance.result.PlayerResultRow;
@@ -61,8 +62,10 @@ import com.ziggfreed.common.util.SafeLog;
  * {@link ResultsPage} built from the library's own {@link DungeonResultsMessages} and a
  * {@link DungeonResultsActions} holding their Claim: its Claim button hands the Claim over through
  * {@code ClaimGrants} (collected, never granted unasked), and whatever they leave, or a full bag keeps, waits on
- * the Claims tab. A member who is offline or dead at the clear gets no screen (the respawn screen is a page of its
- * own, which a results page would replace): their Claim waits on the tab all the same.
+ * the Claims tab. Since the screen offers that Claim itself, the new-Claim toast leaves it out
+ * ({@link ClaimNotices#offeredOnPage}). A member who is offline or dead at the clear gets no screen (the respawn
+ * screen is a page of its own, which a results page would replace): their Claim waits on the tab all the same, and
+ * the toast names it.
  *
  * <p><b>A failure</b> the party could have prevented, its time limit or a wipe under {@code FailOnWipe}, tells each
  * member in the area why, in a toast where they are looking.
@@ -207,6 +210,11 @@ public final class DungeonResults {
     /**
      * Open {@code player}'s results screen on their own world thread: a normal page, never a preview. Nothing for a
      * player who is offline, or dead, whose respawn screen it would replace.
+     *
+     * <p>The page offers {@code written} with its own Claim button, so once it opens the Claim is marked offered
+     * ({@link ClaimNotices#offeredOnPage}) and the new-Claim toast leaves it out. The order holds on the copy's world
+     * thread, where a clear runs: {@link ClaimStore#award} raised the Claim's notice inline, which queued the toast
+     * on the player's world (the copy), and the page opens here inline, before that task runs.
      */
     private static void show(@Nonnull Clear clear, @Nonnull UUID player, @Nullable Claim written) {
         try {
@@ -218,9 +226,10 @@ public final class DungeonResults {
                 return;
             }
             MatchResult result = result(clear, player, written);
+            String offered = written == null ? null : written.id();
             ResultsPageDeps deps = new ResultsPageDeps(DungeonResultsMessages.LIBRARY,
-                    new DungeonResultsActions(written == null ? null : written.id()));
-            Runnable open = () -> open(playerRef, result, deps);
+                    new DungeonResultsActions(offered));
+            Runnable open = () -> open(playerRef, player, result, deps, offered);
             if (world.isInThread()) {
                 open.run();
             } else {
@@ -231,8 +240,12 @@ public final class DungeonResults {
         }
     }
 
-    /** On the player's world thread: open the page, unless they are dead or gone. */
-    private static void open(@Nonnull PlayerRef playerRef, @Nonnull MatchResult result, @Nonnull ResultsPageDeps deps) {
+    /**
+     * On the player's world thread: open the page, unless they are dead or gone, and mark the Claim it offers
+     * ({@code offered}, null for none) as offered on it.
+     */
+    private static void open(@Nonnull PlayerRef playerRef, @Nonnull UUID viewer, @Nonnull MatchResult result,
+            @Nonnull ResultsPageDeps deps, @Nullable String offered) {
         try {
             Ref<EntityStore> ref = playerRef.getReference();
             if (ref == null || !ref.isValid() || !ref.getStore().isInThread()) {
@@ -245,6 +258,9 @@ public final class DungeonResults {
             Player player = store.getComponent(ref, Player.getComponentType());
             if (player != null) {
                 player.getPageManager().openCustomPage(ref, store, new ResultsPage(playerRef, result, deps));
+                if (offered != null) {
+                    ClaimNotices.offeredOnPage(viewer, offered);
+                }
             }
         } catch (Throwable t) {
             SafeLog.warn(LOG + "a dungeon results screen could not open", t);

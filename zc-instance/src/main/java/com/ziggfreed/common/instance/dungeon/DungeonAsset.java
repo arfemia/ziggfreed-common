@@ -39,7 +39,8 @@ import com.ziggfreed.common.season.SeasonGate;
  *   "Copy": { "EmptyCloseSeconds": 60 },
  *   "Difficulty": "",
  *   "Season": "Hallows_Eve",
- *   "Text": { "NameKey": "mypack.dungeon.crypt.name", "DescriptionKey": "mypack.dungeon.crypt.description" }
+ *   "Text": { "NameKey": "mypack.dungeon.crypt.name", "DescriptionKey": "mypack.dungeon.crypt.description",
+ *             "GoalKey": "mypack.dungeon.crypt.goal" }
  * }
  * }</pre>
  *
@@ -145,7 +146,8 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
                     + "under. Unauthored or empty means normal.").add()
             .appendInherited(new KeyedCodec<>("Text", Text.CODEC, false),
                     (a, v) -> a.text = v, a -> a.text, (a, p) -> a.text = p.text)
-            .documentation("What players read the dungeon as, by localization key.").add(),
+            .documentation("What players read the dungeon as, and what they are told to do there, by "
+                    + "localization key.").add(),
                     (a, v) -> a.season = v, a -> a.season)
             .build();
 
@@ -332,6 +334,15 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
     @Nullable
     public String descriptionKey() {
         return blankToNull(text == null ? null : text.descriptionKey);
+    }
+
+    /**
+     * {@code Text.GoalKey}, trimmed, or null when the file names none: then a player arriving reads lines built
+     * from {@code Complete} instead ({@link DungeonGoals}).
+     */
+    @Nullable
+    public String goalKey() {
+        return blankToNull(text == null ? null : text.goalKey);
     }
 
     /** What the router needs of this dungeon, filed under {@code dungeonId} (the fold's lower-cased id). */
@@ -566,11 +577,12 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
 
     // ==================== Text ====================
 
-    /** What players read the dungeon as. */
+    /** What players read the dungeon as, and what they are told to do there. */
     public static final class Text {
 
         @Nullable protected String nameKey;
         @Nullable protected String descriptionKey;
+        @Nullable protected String goalKey;
 
         public static final BuilderCodec<Text> CODEC = BuilderCodec.builder(Text.class, Text::new)
                 .appendInherited(new KeyedCodec<>("NameKey", Codec.STRING, false),
@@ -581,6 +593,13 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
                         (o, v) -> o.descriptionKey = v, o -> o.descriptionKey,
                         (o, p) -> o.descriptionKey = p.descriptionKey)
                 .documentation("The localization key of a line or two saying what the dungeon is.").add()
+                .appendInherited(new KeyedCodec<>("GoalKey", Codec.STRING, false),
+                        (o, v) -> o.goalKey = v, o -> o.goalKey, (o, p) -> o.goalKey = p.goalKey)
+                .documentation("The localization key of a line or two telling a player what to do there, such as "
+                        + "which boss to beat and how. Each player reads it as they arrive in an area while its run "
+                        + "is going, with the run's time limit and wipe rule under it. Unauthored, the line is built "
+                        + "from Complete: defeat the boss (or every boss), finish the task, hold out for the "
+                        + "survive timer.").add()
                 .build();
 
         public Text() {

@@ -74,8 +74,7 @@ public final class DungeonRefusals {
     /** A dungeon's name as its players read it: its {@code Text.NameKey}, or its id when it names none. */
     @Nonnull
     public static Message dungeonName(@Nonnull DungeonAsset dungeon) {
-        String key = dungeon.nameKey();
-        return key == null ? Msg.raw(dungeon.getId()) : ContentKeys.tr(key);
+        return DungeonResults.nameOf(dungeon.getId() == null ? "" : dungeon.getId(), dungeon.nameKey());
     }
 
     /** Switched off, or waiting on its season (named when its calendar event has a name). */

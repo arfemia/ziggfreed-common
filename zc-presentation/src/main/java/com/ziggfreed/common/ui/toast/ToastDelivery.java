@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.IntFunction;
+import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -67,15 +68,39 @@ public final class ToastDelivery {
      */
     public static void deliverWhenSettled(@Nonnull PlayerRef playerRef, @Nonnull ToastSpec spec,
             @Nullable IntFunction<Message> overflow) {
+        deliverWhenSettled(playerRef, () -> spec, overflow);
+    }
+
+    /**
+     * {@link #deliverWhenSettled(PlayerRef, ToastSpec, IntFunction)} with the toast decided as the delivery runs, so
+     * a producer gathering what one moment raised (several notices written in one tick) builds one toast of them
+     * then; {@code spec} answering null shows nothing. It is asked once: on the player's world, or now when there
+     * is no world to hop to or the world refuses the task. A world that closes with the task still queued never
+     * asks it, so a producer whose state the task drains keeps a way to retire that state itself.
+     */
+    public static void deliverWhenSettled(@Nonnull PlayerRef playerRef, @Nonnull Supplier<ToastSpec> spec,
+            @Nullable IntFunction<Message> overflow) {
+        Runnable task = () -> {
+            ToastSpec built;
+            try {
+                built = spec.get();
+            } catch (Throwable t) {
+                SafeLog.fine("[toast] a toast could not be built: " + t.getMessage());
+                return;
+            }
+            if (built != null) {
+                deliver(playerRef, built, overflow);
+            }
+        };
         World world = worldOf(playerRef);
         if (world == null) {
-            deliver(playerRef, spec, overflow);
+            task.run();
             return;
         }
         try {
-            world.execute(() -> deliver(playerRef, spec, overflow));
+            world.execute(task);
         } catch (Throwable t) {
-            deliver(playerRef, spec, overflow);
+            task.run();
         }
     }
 
@@ -129,7 +154,11 @@ public final class ToastDelivery {
         return out;
     }
 
-    /** The player's world, read on the caller's thread: both callers pay on the world thread, and the Store itself is touched only inside the world task. */
+    /**
+     * The player's world, read on the caller's thread (a world thread, or a scheduler thread for a delayed toast
+     * such as a dungeon's goal line): only the reference and the world handle are read here, and the Store itself
+     * is touched only inside the world task.
+     */
     @Nullable
     private static World worldOf(@Nonnull PlayerRef playerRef) {
         try {

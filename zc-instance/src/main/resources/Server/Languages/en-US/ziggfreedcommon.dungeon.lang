@@ -1,7 +1,7 @@
 # zc's dungeons (com.ziggfreed.common.instance.dungeon): /zigdungeon, the admin family, the words its lines
-# nest, what a player is told when a way in refuses them, a run's results screen and failure lines, and the
-# Boss Fights tab of a fight fought in a dungeon. The file name is the key PREFIX: an entry here resolves as
-# ziggfreedcommon.dungeon.<key>.
+# nest, what a player is told when a way in refuses them, what to do once inside, a run's results screen and
+# failure lines, and the Boss Fights tab of a fight fought in a dungeon. The file name is the key PREFIX: an
+# entry here resolves as ziggfreedcommon.dungeon.<key>.
 
 # /zigdungeon. The command.desc.* keys are what the engine's own help resolves a command or an argument through.
 command.desc.family = See this server's dungeons and the copies they have open, or go into one.
@@ -83,6 +83,19 @@ results.records = Records
 results.again = Play Again
 results.close = Close
 results.team_total = Total {0, number}
+
+# What a player reads a moment after they arrive in a dungeon area while its run is going. The dungeon's name
+# heads it; under it, what to do there (the dungeon's own GoalKey line, else the lines below built from what
+# clears a run), then the run's rules. {0} in goal.survive and goal.time_limit is a goal.time.* length.
+goal.boss = Defeat the boss.
+goal.all_bosses = Defeat every boss.
+goal.objective = Finish the dungeon's task.
+goal.survive = Hold out for {0}.
+goal.time_limit = Finish within {0}, or the run fails.
+goal.wipe = If everyone falls at once, the run fails.
+goal.time.seconds = {0, number} {0, plural, one {second} other {seconds}}
+goal.time.minutes = {0, number} {0, plural, one {minute} other {minutes}}
+goal.time.minutes_seconds = {0, number} {0, plural, one {minute} other {minutes}} and {1, number} {1, plural, one {second} other {seconds}}
 
 # What each member still in the area is told when their run fails. {0} is the dungeon's name.
 run.failed.time_limit = Time ran out in {0}. The run failed.

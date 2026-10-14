@@ -46,8 +46,8 @@ import com.ziggfreed.common.util.SafeLog;
  * <p><b>A run's life.</b>
  * <ul>
  *   <li>It <b>begins</b> at its area's first arrival. The start names that player and everyone already on the
- *       way into the area; whoever arrives later joins it. The dungeon's knobs are read once, here, so a reload
- *       mid-run changes the next run, not this one.</li>
+ *       way into the area; whoever arrives later joins it, named by a start of their own. The dungeon's knobs
+ *       are read once, here, so a reload mid-run changes the next run, not this one.</li>
  *   <li>It is <b>cleared</b> when every leaf its {@code Complete} writes holds, the moment the last of them does:
  *       a boss its {@code Bosses} names has fallen (with {@code AllBosses} every one of them), its
  *       {@code Objective} has been met as many times as it asks, and its {@code SurviveTimer} has run out since
@@ -65,16 +65,20 @@ import com.ziggfreed.common.util.SafeLog;
  *       and is pasted afresh.</li>
  * </ul>
  *
- * <p><b>What its members see.</b> At a clear every member in the area earns the dungeon's completion Claim and
- * sees the results screen ({@link DungeonResults}); at a failure its party could have prevented (the time limit,
- * a wipe) every member in the area is told why. A failure because everyone left tells nobody.
+ * <p><b>What its members see.</b> Each player coming into the run while it is going (its first arrivals, a late
+ * joiner, one back after leaving) is told what to do there a moment after they arrive ({@link DungeonGoals}). At a
+ * clear every member in the area earns the dungeon's completion Claim and sees the results screen
+ * ({@link DungeonResults}); at a failure its party could have prevented (the time limit, a wipe) every member in
+ * the area is told why. A failure because everyone left tells nobody.
  *
  * <p><b>The round contract</b> (lead's call): mod id {@value #MOD_ID}, mode the dungeon's {@code Difficulty}
  * label (empty for normal), preset the dungeon id, so a step targets {@code dungeon:} (any difficulty) or
  * {@code dungeon:hard}, qualified by the dungeon. A clear names as winners every member in the area at that
- * moment; a failure names none. Its participants are every player the start names (the first arriver and
- * those already on the way) and every player who arrived later, so each player counted at the start is counted
- * at the end.
+ * moment; a failure names none. The first start names the first arriver and those already on the way; a player
+ * who arrives later, not yet counted, gets a start of their own naming them alone, its player count the run's as
+ * it stands. Its participants at the end are every player a start named, so each player counted at a start is
+ * counted at the end and each player counted at the end was counted at a start, once however often they leave
+ * and come back.
  *
  * <p><b>The run tag.</b> A boss fight inside an area belongs to the area's run (R105): zc-encounter asks
  * {@link #runOf} through its run-tag seam at the defeat, which files the fight's records under
@@ -84,10 +88,10 @@ import com.ziggfreed.common.util.SafeLog;
  * under its own lock and {@link #tick} after it, on its 1 Hz ticker thread; a boss defeat, the run-tag question
  * and an objective's moment arrive on the copy's world thread. This list's lock is a leaf: nothing is called
  * while it is held, every path that needs {@link AreaMembers} asks it before taking this lock, and a round
- * moment is never fired under any lock. Every moment, a clear's payout and a failure's line are queued and
- * posted to the copy's world thread ({@code world.execute}); only a copy no longer taking tasks has its queue
- * run where it is drained, since everything queued hops to each player's own world itself. Nothing here ever
- * waits on a world thread.
+ * moment is never fired under any lock. Every moment, an arrival's goal line, a clear's payout and a failure's
+ * line are queued and posted to the copy's world thread ({@code world.execute}); only a copy no longer taking
+ * tasks has its queue run where it is drained, since everything queued hops to each player's own world itself.
+ * Nothing here ever waits on a world thread.
  */
 public final class DungeonRuns {
 
@@ -124,12 +128,13 @@ public final class DungeonRuns {
     }
 
     /** A dungeon's knobs, read once when a run begins. */
-    private record Knobs(@Nonnull String mode, @Nullable String nameKey, long limitMs, boolean failOnWipe,
-                         @Nonnull Set<String> bosses, boolean allBosses, @Nullable DungeonObjective objective,
-                         long surviveMs, @Nullable String lootable, @Nullable DiminishSpec diminish) {
+    private record Knobs(@Nonnull String mode, @Nullable String nameKey, @Nullable String goalKey, long limitMs,
+                         boolean failOnWipe, @Nonnull Set<String> bosses, boolean allBosses,
+                         @Nullable DungeonObjective objective, long surviveMs, @Nullable String lootable,
+                         @Nullable DiminishSpec diminish) {
 
-        /** A dungeon no longer loaded: no limit, no clear, no reward. */
-        static final Knobs BARE = new Knobs("", null, 0L, false, Set.of(), false, null, 0L, null, null);
+        /** A dungeon no longer loaded: no limit, no clear, no reward, nothing to tell an arrival. */
+        static final Knobs BARE = new Knobs("", null, null, 0L, false, Set.of(), false, null, 0L, null, null);
 
         /** Whether anything can clear the run. */
         boolean canClear() {
@@ -148,8 +153,9 @@ public final class DungeonRuns {
         final Knobs knobs;
         final long startedAtMs;
         /**
-         * Every player the start named (the first arriver and those on the way with them) and every player who
-         * arrived later, in that order, so each player the start counts is counted at the end too.
+         * Every player the first start named (the first arriver and those on the way with them) and every player
+         * who arrived later, each named by a start of their own, in that order: every player a start counts is
+         * counted at the end too, and every player the end counts was counted at a start, once.
          */
         final Set<UUID> participants = new LinkedHashSet<>();
         /** Every player in the area now. */
@@ -185,6 +191,12 @@ public final class DungeonRuns {
             return area.world() + " area " + area.area() + " (" + dungeon + ", "
                     + (knobs.mode.isEmpty() ? "normal" : knobs.mode) + ")";
         }
+
+        /** What a player arriving in the run is told to do there ({@link DungeonGoals}). */
+        DungeonGoals.Goal goal() {
+            return new DungeonGoals.Goal(dungeon, knobs.nameKey, knobs.goalKey, knobs.bosses.size(), knobs.allBosses,
+                    knobs.objective != null, knobs.surviveMs / 1000L, knobs.limitMs / 1000L, knobs.failOnWipe);
+        }
     }
 
     /** What is waiting to be posted to a copy's world thread: a round moment, a clear's payout, a failure's line. */
@@ -210,8 +222,11 @@ public final class DungeonRuns {
 
     /**
      * {@code player} arrived in {@code area} of {@code world}: they join its run, or begin one, named with
-     * {@code onTheWay} (the players already on the way into the same area). Called under {@link AreaMembers}'
-     * lock; the start moment is queued, never fired here.
+     * {@code onTheWay} (the players already on the way into the same area). A player the run has not counted yet
+     * joining it late gets a start of their own, naming them alone; one already counted (named on the way, or
+     * back after leaving) gets none. Whoever comes into a run still going is told what to do there
+     * ({@link DungeonGoals}); an ended run takes nobody and tells nothing. Called under {@link AreaMembers}' lock;
+     * the start moment and the goal line are queued, never fired here.
      */
     void arrived(@Nonnull CopyKey area, @Nonnull World world, @Nonnull UUID player,
             @Nonnull Collection<UUID> onTheWay, long nowMs) {
@@ -229,38 +244,76 @@ public final class DungeonRuns {
                 run = null;
             }
             if (run != null) {
-                if (!run.ended) {
-                    run.participants.add(player);
-                    run.present.add(player);
+                if (run.ended) {
+                    return;
                 }
-                return;
-            }
-            run = begin(area, world, dungeonId, dungeon, nowMs);
-            run.participants.add(player);
-            run.present.add(player);
-            runs.put(area, run);
-            noteObjectives();
+                run.present.add(player);
+                queueGoal(run, player);
+                if (!run.participants.add(player)) {
+                    // Named at the start, or here before: counted once already.
+                    return;
+                }
+                queueStart(run, List.of(player));
+                line = player + " joined the run " + run.runId + " in " + run.where()
+                        + " after it began, and a start of their own counts them";
+            } else {
+                run = begin(area, world, dungeonId, dungeon, nowMs);
+                run.participants.add(player);
+                run.present.add(player);
+                runs.put(area, run);
+                noteObjectives();
 
-            List<UUID> named = new ArrayList<>();
-            named.add(player);
-            for (UUID other : onTheWay) {
-                if (!named.contains(other)) {
-                    named.add(other);
+                List<UUID> named = new ArrayList<>();
+                named.add(player);
+                for (UUID other : onTheWay) {
+                    if (!named.contains(other)) {
+                        named.add(other);
+                    }
                 }
+                run.participants.addAll(named);
+                queueStart(run, named);
+                queueGoal(run, player);
+                line = startLine(run, player, named.size());
             }
-            run.participants.addAll(named);
-            InstanceRoundStartedEvent event = new InstanceRoundStartedEvent(
-                    metadata(run, named.size(), 0L, null), named);
-            outbox.add(new Fire(world, () -> InstanceRounds.fireStarted(event)));
-            line = "a run began in " + run.where() + " with " + player
-                    + (named.size() > 1 ? " and " + (named.size() - 1) + " more on the way" : "")
-                    + (run.knobs.limitMs > 0 ? "; it fails after " + run.knobs.limitMs / 1000L + " s"
-                            : "; it has no time limit")
-                    + "; " + clearWords(run.knobs)
-                    + (run.knobs.failOnWipe ? "; a wipe fails it" : "")
-                    + (run.knobs.lootable == null ? "" : "; a clear pays " + run.knobs.lootable);
         }
         SafeLog.info(LOG + line);
+    }
+
+    /** The log line of a run's first start, by {@code player} with {@code named} named in all. */
+    @Nonnull
+    private static String startLine(@Nonnull Run run, @Nonnull UUID player, int named) {
+        return "a run began in " + run.where() + " with " + player
+                + (named > 1 ? " and " + (named - 1) + " more on the way" : "")
+                + (run.knobs.limitMs > 0 ? "; it fails after " + run.knobs.limitMs / 1000L + " s"
+                        : "; it has no time limit")
+                + "; " + clearWords(run.knobs)
+                + (run.knobs.failOnWipe ? "; a wipe fails it" : "")
+                + (run.knobs.lootable == null ? "" : "; a clear pays " + run.knobs.lootable);
+    }
+
+    /**
+     * Queue the start moment naming {@code named}: the run's first start, or a late joiner's own. Its player count
+     * is the run's as it stands, so a late start reads the size of the run it joined, the joiner included. Under
+     * this list's lock.
+     */
+    private void queueStart(@Nonnull Run run, @Nonnull List<UUID> named) {
+        InstanceRoundStartedEvent event = new InstanceRoundStartedEvent(
+                metadata(run, run.participants.size(), 0L, null), named);
+        outbox.add(new Fire(run.world, () -> InstanceRounds.fireStarted(event)));
+    }
+
+    /** Queue the line telling {@code player}, just come into {@code run}, what to do there. Under this list's lock. */
+    private void queueGoal(@Nonnull Run run, @Nonnull UUID player) {
+        DungeonGoals.Goal goal = run.goal();
+        CopyKey area = run.area;
+        UUID runId = run.runId;
+        outbox.add(new Fire(run.world, () -> DungeonGoals.showSoon(player, area, runId, goal)));
+    }
+
+    /** Is {@code runId} the run of {@code area}, and still going? An arrival's goal line asks before it shows. */
+    synchronized boolean live(@Nonnull CopyKey area, @Nonnull UUID runId) {
+        Run run = runs.get(area);
+        return run != null && !run.ended && run.runId.equals(runId);
     }
 
     /**
@@ -576,9 +629,10 @@ public final class DungeonRuns {
         }
         Integer limit = dungeon.timeLimitSeconds();
         Integer survive = dungeon.surviveTimerSeconds();
-        return new Knobs(dungeon.difficulty(), dungeon.nameKey(), limit == null ? 0L : limit * 1000L,
-                dungeon.failOnWipe(), Set.copyOf(bosses), dungeon.completeAllBosses(), dungeon.completeObjective(),
-                survive == null ? 0L : survive * 1000L, dungeon.rewardsLootable(), dungeon.rewardsDiminish());
+        return new Knobs(dungeon.difficulty(), dungeon.nameKey(), dungeon.goalKey(),
+                limit == null ? 0L : limit * 1000L, dungeon.failOnWipe(), Set.copyOf(bosses),
+                dungeon.completeAllBosses(), dungeon.completeObjective(), survive == null ? 0L : survive * 1000L,
+                dungeon.rewardsLootable(), dungeon.rewardsDiminish());
     }
 
     /**

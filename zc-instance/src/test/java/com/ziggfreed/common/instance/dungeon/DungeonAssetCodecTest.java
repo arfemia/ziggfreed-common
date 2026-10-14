@@ -40,7 +40,8 @@ class DungeonAssetCodecTest {
                             "AllBosses": true },
               "Difficulty": " Hard ",
               "Season": "Hallows_Eve",
-              "Text": { "NameKey": "mypack.dungeon.crypt.name", "DescriptionKey": "mypack.dungeon.crypt.description" }
+              "Text": { "NameKey": "mypack.dungeon.crypt.name", "DescriptionKey": "mypack.dungeon.crypt.description",
+                        "GoalKey": " mypack.dungeon.crypt.goal " }
             }
             """;
 
@@ -74,6 +75,7 @@ class DungeonAssetCodecTest {
         assertNull(bare.getSeason(), "no season is all year");
         assertNull(bare.nameKey());
         assertNull(bare.descriptionKey());
+        assertNull(bare.goalKey(), "no GoalKey: the arrival line is built from Complete");
         assertTrue(bare.completeBosses().isEmpty(), "no Complete names no boss");
         assertFalse(bare.completeAllBosses(), "the first listed boss to fall clears, unless AllBosses says every one");
     }
@@ -120,6 +122,7 @@ class DungeonAssetCodecTest {
         assertEquals("Hallows_Eve", crypt.getSeason());
         assertEquals("mypack.dungeon.crypt.name", crypt.nameKey());
         assertEquals("mypack.dungeon.crypt.description", crypt.descriptionKey());
+        assertEquals("mypack.dungeon.crypt.goal", crypt.goalKey(), "GoalKey reads trimmed");
         assertEquals(List.of("Crypt_Lord_Encounter", "Crypt_Lich_Encounter"), crypt.completeBosses(),
                 "Bosses reads trimmed, blanks and repeats dropped, in order");
         assertTrue(crypt.completeAllBosses());

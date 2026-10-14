@@ -120,10 +120,14 @@ public final class ClaimsView {
     /** A Claim's title: its own key with its arguments, else the tab's word for a reward. */
     @Nonnull
     public static Message title(@Nonnull Claim claim, @Nonnull ClaimsText text) {
-        if (claim.titleKey() == null) {
-            return text.line("untitled");
-        }
-        return ContentKeys.tr(claim.titleKey(), claim.titleArgs().toArray());
+        Message own = ownTitle(claim);
+        return own == null ? text.line("untitled") : own;
+    }
+
+    /** A Claim's own title, its key with its arguments; null when it names none. */
+    @Nullable
+    public static Message ownTitle(@Nonnull Claim claim) {
+        return claim.titleKey() == null ? null : ContentKeys.tr(claim.titleKey(), claim.titleArgs().toArray());
     }
 
     /**

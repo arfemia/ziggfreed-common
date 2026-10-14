@@ -267,6 +267,8 @@ public final class DungeonValidator {
                 "its name shows as the raw key");
         TextKeyAudit.check(out, DOMAIN, id, where + " Text.DescriptionKey", dungeon.descriptionKey(), textShipped,
                 "its description shows as the raw key");
+        TextKeyAudit.check(out, DOMAIN, id, where + " Text.GoalKey", dungeon.goalKey(), textShipped,
+                "the goal a player reads on arriving shows as the raw key");
     }
 
     /**

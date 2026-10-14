@@ -26,7 +26,11 @@ toast.kept = Your bags are full. What did not fit is still waiting here.
 toast.failed = Claimed, but part of it could not be handed over on this server.
 
 # Telling a player something waits: the toast when a Claim arrives, and the notice once a session at login.
+# notice.added is a Claim with no title of its own; notice.added.named one with a title, {0}; notice.added.many
+# heads several Claims that arrived together, each on a row under it.
 notice.added = A reward is waiting for you. Find it under Claims in your menu.
+notice.added.named = {0} is waiting under Claims in your menu.
+notice.added.many = Rewards are waiting under Claims in your menu.
 notice.ready = {0, number} {0, plural, one {reward is} other {rewards are}} waiting for you under Claims in your menu.
 
 # A Claim's title when /zigclaims give wrote it: {0} is the loot table's id.
