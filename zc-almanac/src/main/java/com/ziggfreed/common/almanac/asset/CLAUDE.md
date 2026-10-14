@@ -1,0 +1,4 @@
+# almanac/asset/
+
+- `AlmanacValidator` is the Almanac's content audit (domain `almanac`): a page's own `findings()` plus the cross-checks only the loaded set answers; whether a page's event is loaded (on or off) is asked of the `Occurrences` slot's `currentYear`, and whether its `Keepsake` names an achievement file that folds of the loaded files (`UNKNOWN_KEEPSAKE`, `AlmanacKeepsakeCheck.loaded`); a keepsake the mod gate refused (`AchievementAssetStore.modGateRefused`) is named nowhere.
+- Under `Parent` and in the owner's file, a `Composition` (a `Hero`'s or a `Banner`'s) is one piece (`WholeLeafCodec`) and a malformed one keeps the inherited one; `Links` and `Sections` each replace whole (`AlmanacEntryAsset`). A `Links` destination whose `Type` no installed mod registers is left out, never a failed read (`AlmanacLinkAsset`).

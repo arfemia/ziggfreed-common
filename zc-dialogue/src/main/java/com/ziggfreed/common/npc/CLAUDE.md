@@ -14,7 +14,6 @@
 
 ## Seams and wiring
 
-- The dialogue engine never imports `npc`: it declares seams (`DialogueTalk`, `DialogueQuestView`) that this package fills. Only `DialoguePage` reads `NpcNames` directly, for its header.
 - A consumer calls `NpcActions.register()` (`ZigOpenDialogue`) in its `setup()`, before its NPC role assets load, or a role naming that action fails to parse. The library registers `ZigTalkCredit` itself.
 - The conversation page reads only process-wide state (`DialogueEngine.shared()`, `DialoguePayloads`, `NpcNames`, `ContentKeys`). Never add a per-consumer page registration: it lets one talking mod's namespace hide another mod's lines.
 - `NpcSpawnService` runs on the world thread, inside `world.execute`. Standing an NPC somewhere and keeping only one belongs to `placement/`, which owns idempotency.
@@ -24,6 +23,6 @@
 
 ## A press-F dialogue role
 
-`Type: "Generic"`, with an `InteractionInstruction` whose `HasInteracted` block runs `LockOnInteractionTarget`, `{"Type": "ZigOpenDialogue", "Dialogue": "<id>"}` and `{"Type": "State", "State": "$Interaction"}`, plus the `$Interaction` state instruction that returns the NPC to its normal state (repeat press-F depends on it), and a `NameTranslationKey`, or the nameplate shows the raw role id. Kweebec Nightmare's `KweebecNightmare_Guide.json` role is a working copy.
+The role's shape is the `content-authoring` skill's (`reference.md`, "A character: role and placement"); Kweebec Nightmare's `KweebecNightmare_Guide.json` role is a working copy.
 
-A quest giver needs no body of its own: it is a `Variant` of the library's `Template_Zig_QuestGiver` (zc-dialogue's `Server/NPC/Roles/Passive/`), whose press F runs `ZigPlacementInteract` (`Open: Quests` when nothing placed it). Its `Modify` names only the five parameters (`Appearance`, `NameTranslationKey`, `Weapons`, `OffHand`, `DefaultOffHandSlot`); `Armor` and the `Hint` are literal, so a giver with its own prompt needs a full body. The engine checks a `Variant`'s `Modify` against its immediate `Reference`'s own `Parameters` only, so a consumer's template over this one re-declares each parameter it passes on and forwards it as a same-name `Compute`. `ZigRoleTemplateTest` pins the template.
+A quest giver needs no body of its own: it is a `Variant` of the library's `Template_Zig_QuestGiver` (zc-dialogue's `Server/NPC/Roles/Passive/`), whose press F runs `ZigPlacementInteract` (`Open: Quests` when nothing placed it). Its `Modify` names only the five parameters (`Appearance`, `NameTranslationKey`, `Weapons`, `OffHand`, `DefaultOffHandSlot`). The engine checks a `Variant`'s `Modify` against its immediate `Reference`'s own `Parameters` only, so a consumer's template over this one re-declares each parameter it passes on and forwards it as a same-name `Compute`. `ZigRoleTemplateTest` pins the template.

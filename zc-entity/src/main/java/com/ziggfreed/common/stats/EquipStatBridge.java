@@ -69,21 +69,20 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
  * Utility stats but a utility-slot item's per-stack {@link StackStats} only. Getting this backwards
  * either drops held tool stats or double-counts offhand stats.
  *
- * <p><b>Consumer contract.</b> {@link #install(String)} (optionally with an {@link EntryFilter})
- * returns a bound {@code EquipStatBridge} instance carrying the consumer's namespace. The
- * consumer:
- * <ol>
- *   <li>registers ONE of its own concrete subclasses of {@link ActiveSlotTrigger}, {@link
- *   ContentChangeTrigger}, and {@link UtilityContentChangeTrigger} (each constructed with the
- *   bridge instance) via its own {@code getEntityStoreRegistry().registerSystem(...)} - Hytale's
- *   ECS system registry is CLASS-KEYED (a second {@code registerSystem} call with the same Class
- *   collides), so this package ships only the abstract bases, exactly like {@code
- *   cast.AbstractWorldFrameSystem}; a shared concrete class would collide the moment two different
- *   consumers (or two different namespaces) both instantiated it;</li>
- *   <li>calls {@link #recomputeAll(Store, Ref)} once at {@code PlayerReadyEvent} (inventory
- *   components are ensured/hydrated strictly before that event fires - E6-proven - so a full
- *   recompute there is safe and is the hydrate authority).</li>
- * </ol>
+ * <p><b>Consumer contract.</b> The library owns the ONE bridge. {@code
+ * EntityBootstrap.installEquipStatBridge} calls {@link #install(String)} once, under the library's
+ * namespace {@code ziggfreedcommon}, and registers one concrete subclass each of {@link
+ * ActiveSlotTrigger}, {@link ContentChangeTrigger} and {@link UtilityContentChangeTrigger} (Hytale's
+ * ECS system registry is CLASS-KEYED, which is why this package ships only the abstract bases).
+ * {@code EntityBootstrap.installGearSets} registers {@code GearSets.onPlayerReady}, which runs
+ * {@link #recomputeAll(Store, Ref)} for every player at a LATE {@code PlayerReadyEvent}: inventory
+ * components are hydrated strictly before that event, so a full recompute there is the hydrate
+ * authority. A consumer reaches the installed bridge through {@code
+ * EntityBootstrap.equipStatBridge()} and registers its own work on it as an {@link AppliedListener}
+ * (below). It never installs a bridge of its own (a second namespace would apply every stack's
+ * entries again and double each bonus), never registers its own trigger subclasses (a second set
+ * would recompute the same stacks twice) and adds no ready-time {@link #recomputeAll(Store, Ref)}
+ * of its own.
  *
  * <p>A consumer keeping DERIVED state in step with these channels registers an {@link
  * AppliedListener} via {@link #addAppliedListener} rather than re-deriving the equip triggers: the
@@ -763,16 +762,15 @@ public final class EquipStatBridge {
         SafeLog.fine("EquipStatBridge." + label + " failed: " + t.getMessage());
     }
 
-    // ---- E6 triggers: abstract bases only - the ECS system registry is class-keyed, so each
-    // consumer registers its OWN concrete subclass (mirrors cast.AbstractWorldFrameSystem). ----
+    // ---- E6 triggers: abstract bases only - the ECS system registry is class-keyed, so the library
+    // registers ONE concrete subclass of each (EntityBootstrap.installEquipStatBridge) and a
+    // consumer registers none (mirrors cast.AbstractWorldFrameSystem). ----
 
     /**
      * Mirrors {@code InventorySystems.ActiveSlotChangedEntityEventSystem}: recomputes on every
      * active-slot switch (hotbar OR the utility section, id {@code -5}). Recomputes every source
-     * unconditionally, so a utility active-slot switch is covered here without a section filter. A
-     * consumer registers a small concrete subclass, e.g. {@code new
-     * EquipStatBridge.ActiveSlotTrigger(bridge) {}}, via its own {@code
-     * getEntityStoreRegistry().registerSystem(...)}.
+     * unconditionally, so a utility active-slot switch is covered here without a section filter. The
+     * library registers its one concrete subclass in {@code EntityBootstrap.installEquipStatBridge}.
      */
     public abstract static class ActiveSlotTrigger extends EntityEventSystem<EntityStore, InventorySetActiveSlotEvent> {
 
@@ -803,9 +801,8 @@ public final class EquipStatBridge {
      * slot modified) or any armor slot changes. Filters {@link InventoryChangeEvent} the same
      * way the deprecated {@code LegacyHotbarChangeStatSystem}/{@code LegacyArmorChangeStatSystem}
      * did (read only as precedent - never called/extended, per the repo's no-deprecated-API
-     * edict). A consumer registers a small concrete subclass, e.g. {@code new
-     * EquipStatBridge.ContentChangeTrigger(bridge) {}}, via its own {@code
-     * getEntityStoreRegistry().registerSystem(...)}.
+     * edict). The library registers its one concrete subclass in {@code
+     * EntityBootstrap.installEquipStatBridge}.
      */
     public abstract static class ContentChangeTrigger extends EntityEventSystem<EntityStore, InventoryChangeEvent> {
 
@@ -862,9 +859,8 @@ public final class EquipStatBridge {
      * the {@link InventoryComponent.Utility} component); NEVER the deprecated {@code
      * LegacyUtilityChangeStatSystem}. Paired with {@link ActiveSlotTrigger} (which already covers
      * the utility active-slot switch), this closes the offhand's per-stack {@link StackStats}
-     * path. A consumer registers a small concrete subclass, e.g. {@code new
-     * EquipStatBridge.UtilityContentChangeTrigger(bridge) {}}, via its own {@code
-     * getEntityStoreRegistry().registerSystem(...)}.
+     * path. The library registers its one concrete subclass in {@code
+     * EntityBootstrap.installEquipStatBridge}.
      */
     public abstract static class UtilityContentChangeTrigger
             extends EntityEventSystem<EntityStore, InventoryChangeEvent> {

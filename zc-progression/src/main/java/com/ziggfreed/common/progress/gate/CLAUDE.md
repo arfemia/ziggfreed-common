@@ -1,6 +1,6 @@
 # progress/gate/
 
-- One `GateEvaluator` per server, held by `progress/runtime/ProgressionGates` over the runtime's live factor registry, factor context and gate kinds. `builder()` is only for a test or a genuinely private evaluator, whatever the setup example in `GateEvaluator`'s own javadoc says.
+- The server's one `GateEvaluator` is `progress/runtime/ProgressionGates.evaluator()`, over the runtime's live factor registry, factor context and gate kinds; its class javadoc shows the setup.
 - Every unwired seam refuses; content that authors no requirements needs no wiring.
 - A refusal is an opaque token, never a sentence. A collect-all `factor:` token carries `@<Param>`, and an `AnyOf` contributes exactly one token however many routes it offers.
 - `passes` and `firstFailure` short-circuit, for per-row checks. `allFailures` and `allRefusals` walk every leaf (so they may call a `Custom` kind a short walk skips), and must agree with `firstFailure` on whether a block is shut.

@@ -9,7 +9,7 @@
 - The library installs the ONE bridge (`EntityBootstrap.installEquipStatBridge`, namespace `ziggfreedcommon`) and its three trigger subclasses. ECS systems are class-keyed, so never install a second bridge or register your own triggers: read it through `EntityBootstrap.equipStatBridge()` and hang derived work on `addAppliedListener`, which runs after every recompute (keep it cheap and idempotent).
 - `EquipStatBridge.equippedSnapshot(store, ref)` answers what the entity has on by item id (`EquippedSnapshot`), through the same container reads the stat walkers use, so a listener never re-derives the slot layout.
 - `planUtility` and its `UtilityPlan` / `UtilityPut` / `StatKey` types are public and permanent (2.2.0): the bridge and a gear-set tier share one diff-skip and stale-key core so they agree on what "stale" means.
-- A consumer calls `recomputeAll(store, ref)` once, at `PlayerReadyEvent`.
+- The library recomputes every player through the bridge at a LATE `PlayerReadyEvent` (`GearSets.onPlayerReady`); a consumer adds no ready-time `recomputeAll` of its own.
 - The triggers ride only non-deprecated inventory events, never the `Legacy*ChangeStatSystem` family.
 - Touch an `EntityStatMap` only through keyed `putModifier`/`removeModifier`, never `setStatValue` or `addStatValue`.
 - Resolve a stat index through `StatIndexCache`, not `util.AssetIndexCache`: a custom channel can legitimately sit at index 0, which `AssetIndexCache` answers as unresolved.

@@ -25,20 +25,23 @@ import com.ziggfreed.common.util.SafeLog;
  * <p>ONE evaluator behind every gated thing in this module, so a requirement written on one kind of
  * content means exactly what it means on the next.
  *
- * <p>Everything is wired by the consumer, and every unwired seam REFUSES rather than passing. That
+ * <p>Everything is wired at setup, and every unwired seam REFUSES rather than passing. That
  * is deliberate: a gate that cannot be evaluated must never open, or the first server missing a
  * dependency hands out content the author gated. Content that authors no requirements needs no
  * wiring at all and is open to everyone.
  *
- * <p>Build one at setup and hand it to whichever engine-side gates adapter consults it:
+ * <p>A server has exactly one, {@code ProgressionGates.evaluator()} in {@code progress/runtime}, built over the
+ * shared runtime's live factor vocabulary, factor context and gate kinds. A mod feeds it by registering into the
+ * runtime at setup, never by building a second one:
  * <pre>{@code
- * GateEvaluator gates = GateEvaluator.builder()
+ * ProgressionRuntime.registrar("yourmod")
  *         .factors(myFactorRegistry)
- *         .factorContext(subject -> FactorContext.builder()
- *                 .store(storeOf(subject)).subject(refOf(subject)).build())
- *         .gateKinds(myGateKinds)
- *         .build();
+ *         .questFactorContext(subject -> FactorContext.builder()
+ *                 .store(storeOf(subject)).subject(refOf(subject)).build());
+ * ProgressionRuntime.gateKinds().register("yourmod:reputation", "yourmod", myGateKind);
+ * GateEvaluator gates = ProgressionGates.evaluator();
  * }</pre>
+ * {@link #builder()} is only for a unit test or a genuinely private evaluator.
  *
  * <p><b>A {@code Permission} leaf is a factor bound spelled short</b>, resolved as
  * {@code {"Factor": "hytale:permission", "Param": <node>, "Min": 1}} through the very same registry
