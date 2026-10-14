@@ -149,7 +149,7 @@ public final class ReputationPage extends ToastablePage<ReputationEventData> {
                     RowSize.STANDARD, playerRef);
             DetailPainter.paint(cmd, events, DETAIL,
                     ReputationView.detail(row, ladders.apply(row.reputation()), gated(),
-                            owed(store, ref, row.reputation())),
+                            owed(store, ref, row.reputation()), wornGain(store, ref, row.reputation())),
                     DETAIL_BINDINGS, playerRef);
         } catch (Throwable t) {
             // build() must not throw: a reading that fails leaves the page as far as it got.
@@ -214,6 +214,20 @@ public final class ReputationPage extends ToastablePage<ReputationEventData> {
             return ReputationBeyond.owed(store, ref, reputation);
         } catch (Throwable t) {
             SafeLog.warn("[reputation] the page could not read the rewards waiting for " + reputation.id(), t);
+            return 0L;
+        }
+    }
+
+    /**
+     * How much this player's worn gear moves each gain with {@code reputation}, read on every build, so a
+     * change of gear shows on the next pick; a failed read costs the line, never the page.
+     */
+    private static long wornGain(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+            @Nonnull ReputationDef reputation) {
+        try {
+            return ReputationRuntime.service().wornGain(store, ref, reputation);
+        } catch (Throwable t) {
+            SafeLog.warn("[reputation] the page could not read the worn gain for " + reputation.id(), t);
             return 0L;
         }
     }

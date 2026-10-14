@@ -16,7 +16,8 @@ import javax.annotation.Nonnull;
  * ({@code Server/Entity/Stats/ReputationGain.json}); a pack that wants gear to favour one of its own
  * reputations ships {@code ReputationGain_<Id>.json} in the same shape.
  *
- * <p>{@link #scale} is the one arithmetic, pure so a test reaches it without the engine.
+ * <p>{@link #held} and {@link #scale} are the one arithmetic, pure so a test reaches them without the engine:
+ * the writer scales by the held total and the Reputation page shows it, so both read one rule.
  */
 public final class ReputationGain {
 
@@ -44,16 +45,21 @@ public final class ReputationGain {
         return STAT_PREFIX + reputationId.trim();
     }
 
+    /** The total of {@code percentPoints} that counts: held to [{@link #MIN_PERCENT}, {@link #MAX_PERCENT}]. */
+    public static long held(long percentPoints) {
+        return Math.max(MIN_PERCENT, Math.min(MAX_PERCENT, percentPoints));
+    }
+
     /**
      * {@code delta} with {@code percentPoints} of bonus applied: a gain times {@code 1 + percent / 100},
-     * rounded half up, and never under 1, the total held to [{@link #MIN_PERCENT}, {@link #MAX_PERCENT}]; a
-     * loss or a zero passes unchanged. The Cap is the caller's, applied after this.
+     * rounded half up, and never under 1, the total {@link #held}; a loss or a zero passes unchanged. The Cap
+     * is the caller's, applied after this.
      */
     public static int scale(int delta, long percentPoints) {
         if (delta <= 0) {
             return delta;
         }
-        long percent = Math.max(MIN_PERCENT, Math.min(MAX_PERCENT, percentPoints));
+        long percent = held(percentPoints);
         if (percent == 0L) {
             return delta;
         }

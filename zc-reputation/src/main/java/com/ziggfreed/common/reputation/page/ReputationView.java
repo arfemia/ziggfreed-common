@@ -42,9 +42,9 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * What the Reputation page shows, decided where a test can reach it: one row per met reputation (in the
  * service's page order) with its rank, its bar and what comes next; which row is read; and the reading page of
- * the one picked (its standing on a bar, its description whole, how to earn it, every rank with what each
- * opens, what it pays past the top and how much of that waits to be collected, and the numbers behind the
- * standing). The page paints this and decides nothing.
+ * the one picked (its standing on a bar, its description whole, how to earn it and how much worn gear moves
+ * each gain, every rank with what each opens, what it pays past the top and how much of that waits to be
+ * collected, and the numbers behind the standing). The page paints this and decides nothing.
  */
 public final class ReputationView {
 
@@ -215,17 +215,34 @@ public final class ReputationView {
     /**
      * The reading page of {@code row} for a player with {@code owed} of its Beyond payouts waiting: the Beyond
      * block says how many wait and the action bar carries the gold Collect button ({@link #ACTION_COLLECT}).
-     * Nothing waiting, or no Beyond block, shows neither.
+     * Nothing waiting, or no Beyond block, shows neither. The player's worn gain shows nowhere.
      */
     @Nonnull
     public static DetailView detail(@Nonnull Row row, @Nonnull ReputationLadder ladder,
             @Nonnull List<GatedContent.Entry> gated, long owed) {
+        return detail(row, ladder, gated, owed, 0L);
+    }
+
+    /**
+     * The reading page of {@code row} for a player with {@code owed} of its Beyond payouts waiting (as the
+     * four-argument reading) whose worn gear moves each gain here by {@code gainPercent} whole percent points
+     * ({@link ReputationService#wornGain}): a gain that is not 0 adds one last line to How to earn
+     * ({@link #gearLine}).
+     */
+    @Nonnull
+    public static DetailView detail(@Nonnull Row row, @Nonnull ReputationLadder ladder,
+            @Nonnull List<GatedContent.Entry> gated, long owed, long gainPercent) {
         ReputationDef def = row.reputation();
         ReputationService.Standing standing = row.standing();
         Tone tone = tone(ladder, def, standing.rank());
         Pill rank = Pill.of(ReputationText.line("detail.rank", ReputationText.rankName(def, standing.rank())), tone);
         List<DetailBlock> blocks = new ArrayList<>();
-        blocks.add(new DetailBlock(BLOCK_EARN, ReputationText.line("block.earn"), null, earnLines(def)));
+        List<DetailLine> earn = new ArrayList<>(earnLines(def));
+        DetailLine gear = gearLine(gainPercent);
+        if (gear != null) {
+            earn.add(gear);
+        }
+        blocks.add(new DetailBlock(BLOCK_EARN, ReputationText.line("block.earn"), null, earn));
         List<DetailLine> ranks = rankLines(row, ladder, unlocks(def, ladder, gated));
         if (!ranks.isEmpty()) {
             blocks.add(new DetailBlock(BLOCK_RANKS, ReputationText.line("block.ranks"),
@@ -283,6 +300,19 @@ public final class ReputationView {
             out.add(DetailLine.of(Picture.NONE, ReputationText.line("earn.default")));
         }
         return out;
+    }
+
+    /**
+     * How much the player's worn gear moves each gain, as How to earn's last line: "raises by 10%" for a
+     * positive {@code gainPercent}, "lowers by 10%" for a negative one (the number always its size); null at 0.
+     */
+    @Nullable
+    static DetailLine gearLine(long gainPercent) {
+        if (gainPercent == 0L) {
+            return null;
+        }
+        String key = gainPercent > 0L ? "earn.gear.more" : "earn.gear.less";
+        return DetailLine.of(Picture.NONE, ReputationText.line(key, Math.abs(gainPercent)));
     }
 
     /**

@@ -33,7 +33,7 @@ public final class ReputationText {
             "page.title", "page.lead", "page.empty.title", "page.empty", "page.section",
             "row.next", "row.reward", "row.top",
             "detail.rank", "detail.standing", "detail.standing.reward", "detail.standing.top",
-            "block.earn", "earn.kills", "earn.default",
+            "block.earn", "earn.kills", "earn.default", "earn.gear.more", "earn.gear.less",
             "block.ranks", "block.ranks.meta", "unlock.at", "unlock.open",
             "block.beyond", "block.beyond.meta", "beyond.next", "beyond.waiting", "beyond.collect",
             "beyond.toast.collected", "beyond.toast.no_room", "beyond.toast.failed",

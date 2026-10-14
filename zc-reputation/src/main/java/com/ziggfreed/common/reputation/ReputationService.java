@@ -168,10 +168,25 @@ public final class ReputationService {
     }
 
     /**
+     * The player's worn gain for {@code def}, in whole percent points: the global stat plus the reputation's
+     * own, each its folded maximum, the total held by {@link ReputationGain#held}; 0 where neither stat is
+     * loaded or the player is not live. {@link #change} scales a gain by it and the Reputation page shows it,
+     * so both read one number. World thread.
+     */
+    public long wornGain(@Nullable Store<EntityStore> store, @Nullable Ref<EntityStore> ref,
+            @Nonnull ReputationDef def) {
+        if (!engine.live(store, ref)) {
+            return 0L;
+        }
+        return ReputationGain.held(engine.statMax(store, ref, ReputationGain.GLOBAL_STAT)
+                + engine.statMax(store, ref, ReputationGain.statFor(def.id())));
+    }
+
+    /**
      * The one zc writer: refuse an unknown reputation or a zero delta, raise a gain by the player's worn
-     * reputation gain ({@link ReputationGain}; a loss is never raised), cut it at the Cap, write through the
-     * engine (its clamp applies), tell the fan-out, then check the rank. The change it answers carries what
-     * actually moved. World thread.
+     * reputation gain ({@link #wornGain}, through {@link ReputationGain#scale}; a loss is never raised), cut it
+     * at the Cap, write through the engine (its clamp applies), tell the fan-out, then check the rank. The
+     * change it answers carries what actually moved. World thread.
      */
     @Nonnull
     public Result change(@Nullable Store<EntityStore> store, @Nullable Ref<EntityStore> ref, @Nullable String id,
@@ -191,7 +206,7 @@ public final class ReputationService {
         if (player == null || before == null) {
             return new Result(Status.NOT_LIVE, null);
         }
-        int gained = delta > 0 ? ReputationGain.scale(delta, gainPercent(store, ref, def)) : delta;
+        int gained = delta > 0 ? ReputationGain.scale(delta, wornGain(store, ref, def)) : delta;
         int applied = capped(before, gained, def.cap());
         if (applied == 0) {
             return new Result(Status.UNCHANGED, null);
@@ -251,16 +266,6 @@ public final class ReputationService {
             return 0;
         }
         return (int) Math.min(delta, (long) cap - before);
-    }
-
-    /**
-     * The player's worn reputation gain for {@code def}, in whole percent points: the global stat plus the
-     * reputation's own, each its folded maximum (0 where the stat is not loaded).
-     */
-    private long gainPercent(@Nullable Store<EntityStore> store, @Nullable Ref<EntityStore> ref,
-            @Nonnull ReputationDef def) {
-        return engine.statMax(store, ref, ReputationGain.GLOBAL_STAT)
-                + engine.statMax(store, ref, ReputationGain.statFor(def.id()));
     }
 
     private void observe(@Nullable Store<EntityStore> store, @Nullable Ref<EntityStore> ref, @Nonnull UUID player,

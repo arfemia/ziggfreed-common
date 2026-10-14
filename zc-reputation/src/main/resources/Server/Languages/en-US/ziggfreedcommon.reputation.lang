@@ -62,6 +62,10 @@ detail.standing.top = Top rank reached
 block.earn = How to earn
 earn.kills = Defeating certain creatures earns it.
 earn.default = Help them out: their quests and requests raise it.
+# How to earn's last line, while worn gear moves each gain: {0} by how much, in whole percent (always its size;
+# the key says which way).
+earn.gear.more = Your gear raises what you earn here by {0, number}%.
+earn.gear.less = Your gear lowers what you earn here by {0, number}%.
 
 # Every rank, with the standing it takes and what it opens.
 block.ranks = Ranks
