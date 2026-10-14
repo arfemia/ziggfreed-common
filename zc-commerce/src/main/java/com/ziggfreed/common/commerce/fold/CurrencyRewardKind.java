@@ -6,6 +6,7 @@ import javax.annotation.Nullable;
 import com.ziggfreed.common.commerce.command.CommerceCommandLine;
 import com.ziggfreed.common.currency.CurrencyDef;
 import com.ziggfreed.common.currency.CurrencyEngine;
+import com.ziggfreed.common.instance.reward.InstanceReward;
 import com.ziggfreed.common.loot.reward.RewardHandler;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardSpec;
@@ -122,5 +123,20 @@ public final class CurrencyRewardKind implements RewardHandler {
             return null;
         }
         return CommerceCommandLine.give(subject.name(), currencyId, amount);
+    }
+
+    /**
+     * The same admin line with the amount left as {@code {amount}}, so a Claim scaled before it pays (a
+     * diminished one) credits the share it shows; null for exactly the specs {@link #retryCommand} refuses.
+     */
+    @Override
+    @Nullable
+    public String scalableRetryCommand(@Nonnull RewardSpec spec, @Nonnull Subject subject,
+            @Nonnull String sourceId) {
+        String currencyId = walletOf(spec);
+        if (currencyId.isEmpty() || spec.longParam(PARAM_AMOUNT, 0L) <= 0L) {
+            return null;
+        }
+        return CommerceCommandLine.give(subject.name(), currencyId, InstanceReward.AMOUNT_PLACEHOLDER);
     }
 }

@@ -78,4 +78,21 @@ public interface RewardHandler {
                                 @Nonnull String sourceId) {
         return null;
     }
+
+    /**
+     * The same replay line as {@link #retryCommand}, with the reward's amount written as the literal
+     * {@code {amount}} ({@code InstanceReward.AMOUNT_PLACEHOLDER}) where the amount goes, so a payout scaled
+     * before it runs (a diminished Claim) pays the scaled amount: whatever pays the deferred line fills
+     * {@code {amount}} from the quantity its chip shows. Null, the default, where the kind has no single amount
+     * that scales; the deferral then keeps {@link #retryCommand}, which pays whole or not at all.
+     *
+     * <p>The deferral ({@code DeferredRewards}) keeps this line only where, filled with the reward's own amount
+     * (the {@code Amount}, else {@code Count}, else {@code Quantity} it writes), it reads exactly as
+     * {@link #retryCommand} does, so the two never pay different things at the full amount.
+     */
+    @Nullable
+    default String scalableRetryCommand(@Nonnull RewardSpec spec, @Nonnull Subject subject,
+                                        @Nonnull String sourceId) {
+        return null;
+    }
 }

@@ -22,6 +22,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.command.CommandRunner;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorRegistry;
+import com.ziggfreed.common.instance.reward.InstanceReward;
 import com.ziggfreed.common.inventory.InventoryGrant;
 import com.ziggfreed.common.loot.FactorLookup;
 import com.ziggfreed.common.loot.FactorSnapshot;
@@ -432,6 +433,13 @@ public final class LootRewardKinds {
                 @Nonnull String sourceId) {
             return replayGive(spec, subject);
         }
+
+        @Override
+        @Nullable
+        public String scalableRetryCommand(@Nonnull RewardSpec spec, @Nonnull Subject subject,
+                @Nonnull String sourceId) {
+            return replayGive(spec, subject, InstanceReward.AMOUNT_PLACEHOLDER);
+        }
     }
 
     // ==================== Lootable ====================
@@ -693,6 +701,13 @@ public final class LootRewardKinds {
             // player was told about.
             return replayGive(spec, subject);
         }
+
+        @Override
+        @Nullable
+        public String scalableRetryCommand(@Nonnull RewardSpec spec, @Nonnull Subject subject,
+                @Nonnull String sourceId) {
+            return replayGive(spec, subject, InstanceReward.AMOUNT_PLACEHOLDER);
+        }
     }
 
     /**
@@ -834,6 +849,17 @@ public final class LootRewardKinds {
                 return null;
             }
         }
+
+        @Override
+        @Nullable
+        public String scalableRetryCommand(@Nonnull RewardSpec spec, @Nonnull Subject subject,
+                @Nonnull String sourceId) {
+            try {
+                return resolveScalableCommand(spec, subject, sourceId);
+            } catch (Exception e) {
+                return null;
+            }
+        }
     }
 
     /**
@@ -843,13 +869,46 @@ public final class LootRewardKinds {
     @Nonnull
     private static String resolveCommand(@Nonnull RewardSpec spec, @Nonnull Subject subject,
             @Nonnull String sourceId) {
+        return resolveLine(commandTemplate(spec), commandPlaceholders(spec, subject, sourceId));
+    }
+
+    /**
+     * The same line with the reward's amount left standing as {@code {amount}} for a payout scaled before
+     * it runs ({@link CommandRewardKind#scalablePlaceholders}), null when the line cannot pay a scaled
+     * amount, or a THROW where {@link #resolveCommand} throws.
+     */
+    @Nullable
+    private static String resolveScalableCommand(@Nonnull RewardSpec spec, @Nonnull Subject subject,
+            @Nonnull String sourceId) {
+        String template = commandTemplate(spec);
+        Map<String, String> scaled = CommandRewardKind.scalablePlaceholders(
+                commandPlaceholders(spec, subject, sourceId), template, spec);
+        return scaled == null ? null : resolveLine(template, scaled);
+    }
+
+    /** The reward's own command template, trimmed, or a THROW when it names none. */
+    @Nonnull
+    private static String commandTemplate(@Nonnull RewardSpec spec) {
         String template = spec.paramOr(P_COMMAND, "").trim();
         if (template.isEmpty()) {
             throw new IllegalStateException("a reward of kind '" + KIND_COMMAND
                     + "' named no command - it needs a 'Command' parameter");
         }
+        return template;
+    }
+
+    /** What the template's placeholders stand for: the reward's own parameters, then {@code {source}}. */
+    @Nonnull
+    private static Map<String, String> commandPlaceholders(@Nonnull RewardSpec spec, @Nonnull Subject subject,
+            @Nonnull String sourceId) {
         Map<String, String> placeholders = CommandRewardKind.placeholders(spec, subject);
         placeholders.putIfAbsent(P_SOURCE, sourceId);
+        return placeholders;
+    }
+
+    /** {@code template} resolved against {@code placeholders}, or a THROW when that leaves no line. */
+    @Nonnull
+    private static String resolveLine(@Nonnull String template, @Nonnull Map<String, String> placeholders) {
         List<String> resolved = CommandRunner.resolveAll(List.of(template), placeholders);
         if (resolved.isEmpty()) {
             throw new IllegalStateException("a reward of kind '" + KIND_COMMAND
@@ -964,12 +1023,23 @@ public final class LootRewardKinds {
      */
     @Nullable
     private static String replayGive(@Nonnull RewardSpec spec, @Nonnull Subject subject) {
+        return replayGive(spec, subject, null);
+    }
+
+    /**
+     * {@link #replayGive(RewardSpec, Subject)} with {@code quantity} written where the count goes when it is
+     * given ({@code {amount}} for the scalable line, {@link RewardHandler#scalableRetryCommand}), so the two
+     * lines are one spelling; null exactly where the plain one is.
+     */
+    @Nullable
+    private static String replayGive(@Nonnull RewardSpec spec, @Nonnull Subject subject,
+            @Nullable String quantity) {
         String itemId = itemIdOf(spec);
         int count = countOf(spec);
         if (itemId == null || count <= 0) {
             return null;
         }
-        return "give " + subject.name() + " " + itemId + " --quantity=" + count;
+        return "give " + subject.name() + " " + itemId + " --quantity=" + (quantity == null ? count : quantity);
     }
 
     /** Every parameter key these kinds read, for a validator that wants to warn about a typo. */

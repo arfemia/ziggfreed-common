@@ -122,7 +122,8 @@ public final class ClaimStore {
      * player still holds, answers false and counts nothing, so a payout of nothing never spends a clear. Otherwise
      * one clear of {@code diminishKey} is counted under {@code spec} (none with a null spec),
      * every reward's quantity is scaled by the multiplier that clear pays at (a fraction pays whole through
-     * {@link StochasticCount}, and a reward scaled to nothing is dropped), and a Claim left with no rewards is
+     * {@link StochasticCount}, and a reward scaled to nothing is dropped; a command line with no
+     * {@code {amount}} to fill is kept whole with the multiplier's chance), and a Claim left with no rewards is
      * not written. A written Claim is saved and announced ({@link ClaimAddedEvent}). Every payout that writes
      * a Claim pays through here.
      *
@@ -247,18 +248,31 @@ public final class ClaimStore {
         return false;
     }
 
-    /** {@code rewards} with every quantity scaled by {@code multiplier}, each made whole, none left at zero. */
+    /** {@code rewards} at {@code multiplier} ({@link #scaledQuantity}), none left at zero. */
     @Nonnull
     private List<InstanceReward> scaled(@Nonnull List<InstanceReward> rewards, double multiplier) {
         List<InstanceReward> out = new ArrayList<>(rewards.size());
         for (InstanceReward reward : rewards) {
-            int quantity = StochasticCount.resolve(reward.quantity() * multiplier, sample);
+            int quantity = scaledQuantity(reward, multiplier);
             if (quantity > 0) {
                 out.add(new InstanceReward(reward.kind(), reward.id(), quantity, reward.displayKey(),
                         reward.iconItemId()));
             }
         }
         return out;
+    }
+
+    /**
+     * The quantity {@code reward} is written at under {@code multiplier}, 0 to drop it: the one number its chip
+     * shows and its payout pays. A reward that pays its quantity ({@link InstanceReward#scalesWithQuantity()})
+     * is scaled and made whole; a command line that cannot pay a share is one whole unit, kept as it is with the
+     * multiplier's chance (certain at 1 or more) or dropped. Both go through {@link StochasticCount}.
+     */
+    private int scaledQuantity(@Nonnull InstanceReward reward, double multiplier) {
+        if (reward.scalesWithQuantity()) {
+            return StochasticCount.resolve(reward.quantity() * multiplier, sample);
+        }
+        return StochasticCount.resolve(Math.min(1.0, multiplier), sample) > 0 ? reward.quantity() : 0;
     }
 
     /** Announce a written Claim; nothing listening costs nothing, and a listener that throws costs only itself. */

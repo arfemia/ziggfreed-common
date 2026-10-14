@@ -10,6 +10,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.instance.reward.InstanceReward;
 import com.ziggfreed.common.loot.reward.RewardChip;
 import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardHandler;
@@ -95,6 +96,12 @@ public final class ReputationRewardKind implements RewardHandler {
     /** The engine's own console line moving {@code id} by {@code amount} for {@code player}, without the slash. */
     @Nonnull
     public static String retryLine(@Nonnull String id, int amount, @Nonnull String player) {
+        return line(id, Integer.toString(amount), player);
+    }
+
+    /** The one spelling of that line, {@code amount} written as given (a number, or a placeholder filled later). */
+    @Nonnull
+    private static String line(@Nonnull String id, @Nonnull String amount, @Nonnull String player) {
         return "reputation add " + id + " " + amount + " --player=" + player;
     }
 
@@ -155,6 +162,19 @@ public final class ReputationRewardKind implements RewardHandler {
         ReputationDef def = service.known(reputationOf(spec));
         int amount = amountOf(spec);
         return def == null || amount == 0 ? null : retryLine(def.id(), amount, subject.name());
+    }
+
+    /**
+     * The retry line with the amount left as {@code {amount}}, so a Claim scaled before it pays (a diminished
+     * one) moves standing by the share it shows. A gain only: a loss is null, so it replays whole.
+     */
+    @Override
+    @Nullable
+    public String scalableRetryCommand(@Nonnull RewardSpec spec, @Nonnull Subject subject,
+            @Nonnull String sourceId) {
+        ReputationDef def = service.known(reputationOf(spec));
+        return def == null || amountOf(spec) <= 0 ? null
+                : line(def.id(), InstanceReward.AMOUNT_PLACEHOLDER, subject.name());
     }
 
     /** {@code spec} as it reads on a receipt: unchanged when the whole {@code amount} landed, else at the change's own delta. */

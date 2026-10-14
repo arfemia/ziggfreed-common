@@ -81,6 +81,9 @@ public final class DeferredRewards {
     /** The parameter the chip's quantity is read from first. */
     public static final String PARAM_AMOUNT = "Amount";
 
+    /** The parameters the chip's quantity is read from, in order: the first one written as a number wins. */
+    private static final List<String> QUANTITY_PARAMS = List.of(PARAM_AMOUNT, "Count", "Quantity");
+
     private DeferredRewards() {
     }
 
@@ -147,7 +150,9 @@ public final class DeferredRewards {
 
     /**
      * One registered-kind reward as its replayable console line, or null when it cannot be deferred
-     * (nothing registered the kind, the kind offers no replay, or resolving one threw).
+     * (nothing registered the kind, the kind offers no replay, or resolving one threw). The line is the
+     * kind's scalable one where it has one ({@link #keptLine}), so a payout scaled before it runs pays
+     * the share its chip shows.
      */
     @Nullable
     private static InstanceReward deferSpec(@Nonnull RewardSpec spec, @Nullable RewardKindRegistry kinds,
@@ -169,12 +174,37 @@ public final class DeferredRewards {
                     + "from " + sourceId + ". A payout decided at grant time has to be granted there.");
             return null;
         }
+        int quantity = quantityOf(spec);
         RewardKindAsset authored = authoredKind(handler);
-        return InstanceReward.command(command, quantityOf(spec),
+        return InstanceReward.command(keptLine(handler, spec, subject, sourceId, command, quantity), quantity,
                 firstWritten(spec.param(PARAM_NAME_KEY),
                         authored == null ? null : authored.presentationNameKey(spec)),
                 firstWritten(spec.param(PARAM_ICON),
                         authored == null ? null : authored.presentationIcon(spec)));
+    }
+
+    /**
+     * The line a deferred reward is kept as: the kind's scalable line
+     * ({@link RewardHandler#scalableRetryCommand}), whose {@code {amount}} the payout fills from the
+     * quantity it shows, where that line filled with {@code quantity} reads exactly as {@code retry};
+     * otherwise {@code retry}, its amount written in. The check is what keeps a scaled line honest at
+     * the full amount: a kind whose two lines disagree (a count the quantity does not read, a number
+     * the replay spells otherwise) keeps the line it would replay.
+     */
+    @Nonnull
+    private static String keptLine(@Nonnull RewardHandler handler, @Nonnull RewardSpec spec,
+            @Nonnull Subject subject, @Nonnull String sourceId, @Nonnull String retry, int quantity) {
+        String scalable;
+        try {
+            scalable = handler.scalableRetryCommand(spec, subject, sourceId);
+        } catch (Throwable t) {
+            return retry;
+        }
+        if (scalable == null || !scalable.contains(InstanceReward.AMOUNT_PLACEHOLDER)) {
+            return retry;
+        }
+        String atFull = scalable.replace(InstanceReward.AMOUNT_PLACEHOLDER, Integer.toString(quantity));
+        return atFull.equals(retry) ? scalable : retry;
     }
 
     /**
@@ -198,10 +228,28 @@ public final class DeferredRewards {
         return fromKind != null && !fromKind.isBlank() ? fromKind : null;
     }
 
-    /** The number the chip shows: the reward's own amount, else one. */
+    /**
+     * The parameter the chip's quantity is read from: the first of {@code Amount}, {@code Count} and
+     * {@code Quantity} that {@code spec} writes as a number, or null when it writes none (the chip then
+     * shows one). Public so a kind's scalable line leaves standing exactly the parameter the quantity
+     * reads ({@link RewardHandler#scalableRetryCommand}).
+     */
+    @Nullable
+    public static String quantityParam(@Nonnull RewardSpec spec) {
+        for (String name : QUANTITY_PARAMS) {
+            // A parameter that reads as a number answers the same whatever the fallback; one unset or
+            // unreadable answers the fallback, so the two reads differ.
+            if (spec.longParam(name, 0L) == spec.longParam(name, 1L)) {
+                return name;
+            }
+        }
+        return null;
+    }
+
+    /** The number the chip shows: the reward's own amount ({@link #quantityParam}), else one. */
     private static int quantityOf(@Nonnull RewardSpec spec) {
-        long amount = spec.longParam(PARAM_AMOUNT,
-                spec.longParam("Count", spec.longParam("Quantity", 1L)));
+        String param = quantityParam(spec);
+        long amount = param == null ? 1L : spec.longParam(param, 1L);
         return amount <= 0 ? 1 : (int) Math.min(amount, Integer.MAX_VALUE);
     }
 

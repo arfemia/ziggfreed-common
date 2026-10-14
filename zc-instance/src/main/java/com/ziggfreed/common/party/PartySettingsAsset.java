@@ -12,9 +12,9 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.ziggfreed.common.asset.EditorSchema;
 
 /**
- * A pack-authorable, mod-agnostic party-policy asset, loaded from a consumer's
- * {@code Server/<Mod>/Party/*.json} (the path is supplied by the consumer at register
- * time, so common hard-codes no mod name). It carries the policy knobs of a
+ * A pack-authorable, mod-agnostic party-policy asset, loaded from
+ * {@code Server/ZiggfreedCommon/Party/<Id>.json} (the library registers the store itself,
+ * {@code FrameworkAssetRegistrar}, so any pack ships a file there). It carries the policy knobs of a
  * {@link PartyService} - the previously-hardcoded {@code new PartyConfig(4, 60, false)}
  * Java literal lifted into authorable data, resolved {@code defaults < pack < owner}.
  *

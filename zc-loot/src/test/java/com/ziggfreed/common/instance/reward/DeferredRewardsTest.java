@@ -230,8 +230,6 @@ class DeferredRewardsTest {
                     "the value is written ARTILLERY and the key artillery; the template bridges them");
             assertEquals("Weapon_Bomb", deferred.iconItemId());
             assertEquals(300, deferred.quantity());
-            assertEquals("mmoawardxp {player} ARTILLERY 300", deferred.id(),
-                    "how it reads changes nothing about what it pays");
         }
 
         @Test

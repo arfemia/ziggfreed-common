@@ -59,6 +59,15 @@ public final class CommerceCommandLine {
      */
     @Nonnull
     public static String give(@Nonnull String player, @Nonnull String currencyId, long amount) {
+        return give(player, currencyId, Long.toString(amount));
+    }
+
+    /**
+     * The same line with {@code amount} written as given: a placeholder a payout fills later, such as the
+     * {@code {amount}} a Claim scaled before it pays fills from the share it shows.
+     */
+    @Nonnull
+    public static String give(@Nonnull String player, @Nonnull String currencyId, @Nonnull String amount) {
         return "/" + FAMILY + " " + GIVE + " --player=" + player + " --currency=" + currencyId
                 + " --amount=" + amount;
     }

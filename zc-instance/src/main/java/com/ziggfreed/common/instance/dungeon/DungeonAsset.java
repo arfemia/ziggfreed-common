@@ -49,9 +49,10 @@ import com.ziggfreed.common.season.SeasonGate;
  *
  * <p>Every leaf is nullable: unauthored means the default each getter names, and under native
  * {@code Parent} a child keeps every leaf it does not restate. A server owner retunes a dungeon, or adds
- * one, in {@code mods/ziggfreedcommon/dungeons.json} ({@link DungeonOwnerLayers}). A dungeon is present
- * while it is {@code Enabled} and its {@code Season} runs ({@link #isOpen()}); out of season it is absent,
- * never shown locked. {@link DungeonValidator} checks what a file names once every pack has loaded.
+ * one, in {@code mods/ziggfreedcommon/dungeons.json} ({@link DungeonOwnerLayers}). A dungeon is open while it
+ * is {@code Enabled} and its {@code Season} runs ({@link #isOpen()}); otherwise it still resolves, and its way
+ * in refuses entry with a line saying it is closed, or that it only opens during its season
+ * ({@link DungeonRefusals}). {@link DungeonValidator} checks what a file names once every pack has loaded.
  */
 public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, DungeonAsset>> {
 

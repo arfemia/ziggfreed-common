@@ -12,6 +12,7 @@ import javax.annotation.Nullable;
 
 import com.ziggfreed.common.command.CommandRunner;
 import com.ziggfreed.common.instance.reward.DeferredRewards;
+import com.ziggfreed.common.instance.reward.InstanceReward;
 import com.ziggfreed.common.subject.Subject;
 
 /**
@@ -54,6 +55,9 @@ public final class CommandRewardKind implements RewardHandler {
     @Nonnull
     private final CommandRunner.Dispatcher dispatcher;
 
+    /** The suffixes naming an amount's range ends beside it ({@code AmountMax}, {@code AmountMin}). */
+    private static final List<String> RANGE_ENDS = List.of("Max", "Min");
+
     /** A handler running its command as the server console. */
     public CommandRewardKind(@Nonnull RewardKindAsset kind) {
         this(kind, CommandRunner.CONSOLE);
@@ -88,6 +92,28 @@ public final class CommandRewardKind implements RewardHandler {
             @Nonnull String sourceId) {
         try {
             return resolve(spec, subject);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * The retry line with the reward's amount left as {@code {amount}} ({@link #scalablePlaceholders}), so a
+     * Claim scaled before it pays (a diminished one) pays the share it shows; null where the template cannot
+     * pay a scaled amount, and wherever {@link #retryCommand} is null.
+     */
+    @Override
+    @Nullable
+    public String scalableRetryCommand(@Nonnull RewardSpec spec, @Nonnull Subject subject,
+            @Nonnull String sourceId) {
+        try {
+            Map<String, String> scaled = scalablePlaceholders(payablePlaceholders(spec, subject),
+                    kind.getCommand(), spec);
+            if (scaled == null) {
+                return null;
+            }
+            List<String> resolved = CommandRunner.resolveAll(List.of(kind.getCommand()), scaled);
+            return resolved.isEmpty() ? null : resolved.get(0);
         } catch (Exception e) {
             return null;
         }
@@ -171,6 +197,62 @@ public final class CommandRewardKind implements RewardHandler {
             }
         });
         return out;
+    }
+
+    /**
+     * {@code placeholders} with the reward's amount left standing as {@code {amount}}
+     * ({@link InstanceReward#AMOUNT_PLACEHOLDER}), for the scalable line
+     * ({@link RewardHandler#scalableRetryCommand}); null when {@code template} cannot pay a scaled amount.
+     *
+     * <p>The amount is the parameter the deferred quantity reads ({@link DeferredRewards#quantityParam}),
+     * so the payout fills exactly the number its chip shows, and only a template that writes it scales. A
+     * template that also writes that parameter's range end ({@code AmountMax} or {@code AmountMin} beside
+     * {@code Amount}, such as {@code Mmo_Xp}'s ranged roll) set above zero answers null: a scaled amount can
+     * fall below an end the full one sat above, so scaling one end is not the step's share of the payout,
+     * and the line pays whole or not at all instead.
+     */
+    @Nullable
+    static Map<String, String> scalablePlaceholders(@Nonnull Map<String, String> placeholders,
+            @Nonnull String template, @Nonnull RewardSpec spec) {
+        String amount = keyFor(placeholders, DeferredRewards.quantityParam(spec));
+        if (amount == null || !template.contains("{" + amount + "}")) {
+            return null;
+        }
+        for (String end : RANGE_ENDS) {
+            String key = keyFor(placeholders, amount + end);
+            if (key != null && template.contains("{" + key + "}") && aboveZero(placeholders.get(key))) {
+                return null;
+            }
+        }
+        Map<String, String> out = new LinkedHashMap<>(placeholders);
+        out.put(amount, InstanceReward.AMOUNT_PLACEHOLDER);
+        return out;
+    }
+
+    /** The key {@code placeholders} spells {@code name} under, matched case-insensitively, or null. */
+    @Nullable
+    private static String keyFor(@Nonnull Map<String, String> placeholders, @Nullable String name) {
+        if (name == null) {
+            return null;
+        }
+        for (String key : placeholders.keySet()) {
+            if (key != null && key.equalsIgnoreCase(name)) {
+                return key;
+            }
+        }
+        return null;
+    }
+
+    /** Whether {@code value} reads as a number above zero. */
+    private static boolean aboveZero(@Nullable String value) {
+        if (value == null) {
+            return false;
+        }
+        try {
+            return Double.parseDouble(value.trim()) > 0.0;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     /** The placeholders every command template can use, whoever wrote it. */

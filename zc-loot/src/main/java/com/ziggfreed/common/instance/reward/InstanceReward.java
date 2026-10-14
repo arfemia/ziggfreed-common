@@ -49,6 +49,12 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
 public record InstanceReward(@Nonnull Kind kind, @Nonnull String id, int quantity, @Nullable String displayKey,
                              @Nullable String iconItemId) {
 
+    /**
+     * The literal a {@link Kind#COMMAND} line writes where its amount goes: {@link InstanceRewardGranter} fills it
+     * from the reward's {@link #quantity} before the line runs, so the line pays the number its chip shows.
+     */
+    public static final String AMOUNT_PLACEHOLDER = "{amount}";
+
     public enum Kind {
         /** An item stack: {@code id} = item id, {@code quantity} = count. Subject to the inventory-space guard. */
         ITEM,
@@ -92,6 +98,15 @@ public record InstanceReward(@Nonnull Kind kind, @Nonnull String id, int quantit
     /** True for an {@link Kind#ITEM} reward - the only kind the inventory-space guard applies to. */
     public boolean isItem() {
         return kind == Kind.ITEM;
+    }
+
+    /**
+     * True when what this reward pays follows its {@link #quantity}: an item, a currency, or a command whose line
+     * carries {@link #AMOUNT_PLACEHOLDER}. A command line without it pays what it says whatever the quantity
+     * reads, so a payout scaled before it runs (a diminished Claim) can only keep it whole or drop it.
+     */
+    public boolean scalesWithQuantity() {
+        return kind != Kind.COMMAND || id.contains(AMOUNT_PLACEHOLDER);
     }
 
     /**
