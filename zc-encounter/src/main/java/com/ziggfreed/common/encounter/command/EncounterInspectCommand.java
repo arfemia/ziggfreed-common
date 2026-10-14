@@ -90,6 +90,10 @@ final class EncounterInspectCommand extends AbstractAsyncCommand {
             EncounterAdminMessages.detail(ctx, "inspect.participant", share.playerName(),
                     Math.round(share.damageDealt()), Math.round(share.damageTaken()),
                     Math.round(share.presenceSeconds()), Math.round(share.share() * 100.0));
+            if (share.damageToAdds() > 0.0) {
+                EncounterAdminMessages.detail(ctx, "inspect.participant.adds", share.playerName(),
+                        Math.round(share.damageToAdds()));
+            }
         }
     }
 

@@ -137,6 +137,24 @@ public class EncounterBindingCodecTest {
     }
 
     @Test
+    void theAddsWeightDecodesOnTheRuleAndTheRowAndWeighsNothingWhenNeitherWritesIt() throws IOException {
+        EncounterParticipationAsset rule = rule("{\"DamageToAdds\": 0.5}", "r");
+        assertEquals(0.5, rule.getDamageToAdds().baseOrZero(), 1e-9);
+        EncounterBindingAsset row = binding("{\"Participation\": {\"DamageToAdds\": {\"Base\": 2.5}}}", "row", null);
+        assertEquals(2.5, row.getParticipation().getDamageToAdds().baseOrZero(), 1e-9);
+        assertEquals(2.5, ParticipationSpec.of(rule, row.getParticipation()).weightsFor((f, p) -> null).damageToAdds(),
+                1e-9, "the row's own leaf over the rule's");
+        assertEquals(0.5, ParticipationSpec.of(rule, null).weightsFor((f, p) -> null).damageToAdds(), 1e-9,
+                "the rule's leaf");
+        assertNull(ParticipationSpec.of(null, null).damageToAdds(), "nothing authored the adds' weight");
+        assertEquals(0.0, ParticipationSpec.of(null, null).weightsFor((f, p) -> null).damageToAdds(), 1e-9,
+                "unauthored, damage to the adds weighs nothing");
+        EncounterBindingAsset owner = binding("{\"Participation\": {\"Presence\": 2.0}}", "row", row);
+        assertEquals(2.5, owner.getParticipation().getDamageToAdds().baseOrZero(), 1e-9,
+                "an overlay that says nothing of the adds keeps their weight");
+    }
+
+    @Test
     void theAddsGroupDecodesItsOwnLeavesAndReadsItsDefaults() throws IOException {
         EncounterBindingAsset row = binding("{\"Scale\": {\"HealthPerMember\": 0.35, \"Adds\": {\"HealthPerMember\": 0.2}}}",
                 "row", null);

@@ -13,10 +13,10 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Who did what in a run: three independent counters per {@code (runId, playerUuid)}, damage dealt
- * to the subject, damage taken while a member, and seconds spent as a member, plus whether they
- * died. It is fed by the observing damage system and the encounter tick, and read once at the end
- * of the run to produce {@link ParticipationShares}.
+ * Who did what in a run: four independent counters per {@code (runId, playerUuid)}, damage dealt
+ * to the subject, damage taken while a member, seconds spent as a member and damage dealt to the
+ * fight's adds, plus whether they died. It is fed by the observing damage system and the encounter
+ * tick, and read once at the end of the run to produce {@link ParticipationShares}.
  *
  * <p><b>Keyed by run AND player, never by player alone.</b> A player can stand inside two
  * overlapping encounters at once (the engine's own member tick is non-parallel for exactly that
@@ -34,6 +34,7 @@ public final class ParticipationLedger {
         double damageDealt;
         double damageTaken;
         double presenceSeconds;
+        double damageToAdds;
         boolean died;
 
         Counters(@Nonnull String name) {
@@ -74,6 +75,16 @@ public final class ParticipationLedger {
         }
         Counters c = counters(runId, playerId, playerName);
         c.presenceSeconds += seconds;
+    }
+
+    /** Credit {@code amount} damage dealt by {@code playerId} to one of the adds of {@code runId}. */
+    public void creditDamageToAdds(@Nonnull UUID runId, @Nonnull UUID playerId, @Nullable String playerName,
+            double amount) {
+        if (!(amount > 0.0)) {
+            return;
+        }
+        Counters c = counters(runId, playerId, playerName);
+        c.damageToAdds += amount;
     }
 
     /** Note that {@code playerId} died during {@code runId}; a death alone makes them a participant. */
@@ -122,7 +133,7 @@ public final class ParticipationLedger {
      * only when {@code creditDead}; otherwise it reads 0 and they are listed as attempt-only. A share
      * under {@code minShare}, or a zero score, is attempt-only too.
      *
-     * @param weights the three weights for a given participant, asked once each
+     * @param weights the four weights for a given participant, asked once each
      */
     @Nonnull
     public ParticipationShares shares(@Nonnull UUID runId, double minShare, boolean creditDead,
@@ -145,7 +156,7 @@ public final class ParticipationLedger {
             }
             double score = c.died && !creditDead ? 0.0
                     : c.damageDealt * w.damageDealt() + c.damageTaken * w.damageTaken()
-                            + c.presenceSeconds * w.presence();
+                            + c.presenceSeconds * w.presence() + c.damageToAdds * w.damageToAdds();
             scores[i] = Double.isFinite(score) && score > 0.0 ? score : 0.0;
             top = Math.max(top, scores[i]);
         }
@@ -158,7 +169,7 @@ public final class ParticipationLedger {
             double share = top > 0.0 ? scores[i] / top : 0.0;
             boolean credited = scores[i] > 0.0 && share >= minShare;
             out.add(new ParticipantShare(ids.get(i), c.name, share, credited, c.damageDealt, c.damageTaken,
-                    c.presenceSeconds, c.died));
+                    c.presenceSeconds, c.died, c.damageToAdds));
         }
         out.sort(Comparator.comparingDouble(ParticipantShare::share).reversed()
                 .thenComparing(ParticipantShare::playerName)

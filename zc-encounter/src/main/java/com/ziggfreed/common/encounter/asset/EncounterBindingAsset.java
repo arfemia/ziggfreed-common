@@ -275,6 +275,7 @@ public final class EncounterBindingAsset
         @Nullable protected FactorFormula damageDealt;
         @Nullable protected FactorFormula damageTaken;
         @Nullable protected FactorFormula presence;
+        @Nullable protected FactorFormula damageToAdds;
         @Nullable protected Double minShare;
         @Nullable protected Boolean creditDead;
         @Nullable protected Boolean creditDisconnected;
@@ -298,6 +299,14 @@ public final class EncounterBindingAsset
                                         FactorFormula.numberOrGroup(EditorDataSets.FACTORS), false),
                                 (o, v) -> o.presence = v, o -> o.presence, (o, p) -> o.presence = p.presence)
                         .documentation("The weight of one second spent as a member of the fight.")
+                        .add()
+                        .appendInherited(new KeyedCodec<>("DamageToAdds",
+                                        FactorFormula.numberOrGroup(EditorDataSets.FACTORS), false),
+                                (o, v) -> o.damageToAdds = v, o -> o.damageToAdds,
+                                (o, p) -> o.damageToAdds = p.damageToAdds)
+                        .documentation("The weight of one point of damage dealt to the fight's adds: anything "
+                                + "its own spawners raise, never the subject. Unauthored keeps the matched "
+                                + "rule's, which weighs nothing unless a rule says otherwise.")
                         .add()
                         .appendInherited(new KeyedCodec<>("MinShare", Codec.DOUBLE, false),
                                 (o, v) -> o.minShare = v, o -> o.minShare, (o, p) -> o.minShare = p.minShare)
@@ -333,6 +342,11 @@ public final class EncounterBindingAsset
         @Nullable
         public FactorFormula getPresence() {
             return presence;
+        }
+
+        @Nullable
+        public FactorFormula getDamageToAdds() {
+            return damageToAdds;
         }
 
         @Nullable

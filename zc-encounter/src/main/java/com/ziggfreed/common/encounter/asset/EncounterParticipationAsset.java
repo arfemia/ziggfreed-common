@@ -26,15 +26,17 @@ import com.ziggfreed.common.world.WorldSelector;
  *   "DamageDealt": 1.0,
  *   "DamageTaken": 0.25,
  *   "Presence":    { "Base": 0.1, "Factors": [ { "Factor": "hytale:stat", "Param": "Luck", "Weight": 0.01 } ] },
+ *   "DamageToAdds": 0.5,
  *   "MinShare": 0.05,
  *   "CreditDead": true,
  *   "CreditDisconnected": true
  * }
  * }</pre>
  *
- * <p>Three independent counters are kept per participant while the fight is on: damage they dealt
- * the subject, damage they took while a member, and seconds spent as a member. Each rule weighs the
- * three, and a participant's score is the weighted sum; shares are that score against the top
+ * <p>Four independent counters are kept per participant while the fight is on: damage they dealt
+ * the subject, damage they took while a member, seconds spent as a member, and damage they dealt the
+ * fight's adds (anything carrying the encounter's spawn lineage, never the subject). Each rule weighs
+ * the four, and a participant's score is the weighted sum; shares are that score against the top
  * contributor's, so the player who did most reads 1.0 and everyone else a fraction of it. A share
  * under {@code MinShare} is credited with the attempt and paid nothing.
  *
@@ -58,6 +60,7 @@ public final class EncounterParticipationAsset
     @Nullable private FactorFormula damageDealt;
     @Nullable private FactorFormula damageTaken;
     @Nullable private FactorFormula presence;
+    @Nullable private FactorFormula damageToAdds;
     @Nullable private Double minShare;
     @Nullable private Boolean creditDead;
     @Nullable private Boolean creditDisconnected;
@@ -98,6 +101,13 @@ public final class EncounterParticipationAsset
                     (a, v) -> a.presence = v, a -> a.presence, (a, p) -> a.presence = p.presence)
             .documentation("The weight of one second spent as a member. Presence only accrues on a "
                     + "script whose Player sensor carries the EncounterMembers collector.")
+            .add()
+            .appendInherited(new KeyedCodec<>("DamageToAdds",
+                            FactorFormula.numberOrGroup(EditorDataSets.FACTORS), false),
+                    (a, v) -> a.damageToAdds = v, a -> a.damageToAdds, (a, p) -> a.damageToAdds = p.damageToAdds)
+            .documentation("The weight of one point of damage dealt to the fight's adds: anything its own "
+                    + "spawners raise, and anything those spawn in turn, never the subject. Unauthored weighs "
+                    + "nothing (0), so damage to the adds earns no credit.")
             .add()
             .appendInherited(new KeyedCodec<>("MinShare", Codec.DOUBLE, false),
                     (a, v) -> a.minShare = v, a -> a.minShare, (a, p) -> a.minShare = p.minShare)
@@ -160,6 +170,11 @@ public final class EncounterParticipationAsset
     @Nullable
     public FactorFormula getPresence() {
         return presence;
+    }
+
+    @Nullable
+    public FactorFormula getDamageToAdds() {
+        return damageToAdds;
     }
 
     @Nullable

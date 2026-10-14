@@ -24,14 +24,21 @@ import com.ziggfreed.common.factor.FactorFormula;
  * @param minShare           the share under which a participant is credited but paid nothing
  * @param creditDead         whether a participant who died keeps their share
  * @param creditDisconnected whether a participant offline at the payout keeps their share
+ * @param damageToAdds       the weight of one point of damage dealt to the fight's adds, as a formula
  */
 public record ParticipationSpec(@Nullable FactorFormula damageDealt, @Nullable FactorFormula damageTaken,
                                 @Nullable FactorFormula presence, double minShare, boolean creditDead,
-                                boolean creditDisconnected) {
+                                boolean creditDisconnected, @Nullable FactorFormula damageToAdds) {
 
     /** The posture with nothing authored: dealt counts one for one, nothing else does. */
     public static final ParticipationSpec STRUCTURAL = new ParticipationSpec(
-            FactorFormula.of(1.0, null, null), null, null, 0.0, true, true);
+            FactorFormula.of(1.0, null, null), null, null, 0.0, true, true, null);
+
+    /** A spec whose damage to the adds weighs nothing. */
+    public ParticipationSpec(@Nullable FactorFormula damageDealt, @Nullable FactorFormula damageTaken,
+            @Nullable FactorFormula presence, double minShare, boolean creditDead, boolean creditDisconnected) {
+        this(damageDealt, damageTaken, presence, minShare, creditDead, creditDisconnected, null);
+    }
 
     /** {@code rule} with {@code override} laid over it leaf by leaf; either side may be absent. */
     @Nonnull
@@ -40,6 +47,7 @@ public record ParticipationSpec(@Nullable FactorFormula damageDealt, @Nullable F
         FactorFormula dealt = STRUCTURAL.damageDealt();
         FactorFormula taken = STRUCTURAL.damageTaken();
         FactorFormula presence = STRUCTURAL.presence();
+        FactorFormula toAdds = STRUCTURAL.damageToAdds();
         double minShare = STRUCTURAL.minShare();
         boolean creditDead = STRUCTURAL.creditDead();
         boolean creditDisconnected = STRUCTURAL.creditDisconnected();
@@ -47,6 +55,7 @@ public record ParticipationSpec(@Nullable FactorFormula damageDealt, @Nullable F
             dealt = rule.getDamageDealt() != null ? rule.getDamageDealt() : dealt;
             taken = rule.getDamageTaken() != null ? rule.getDamageTaken() : taken;
             presence = rule.getPresence() != null ? rule.getPresence() : presence;
+            toAdds = rule.getDamageToAdds() != null ? rule.getDamageToAdds() : toAdds;
             minShare = rule.getMinShare() != null ? rule.getMinShare() : minShare;
             creditDead = rule.getCreditDead() != null ? rule.getCreditDead() : creditDead;
             creditDisconnected = rule.getCreditDisconnected() != null
@@ -56,16 +65,18 @@ public record ParticipationSpec(@Nullable FactorFormula damageDealt, @Nullable F
             dealt = override.getDamageDealt() != null ? override.getDamageDealt() : dealt;
             taken = override.getDamageTaken() != null ? override.getDamageTaken() : taken;
             presence = override.getPresence() != null ? override.getPresence() : presence;
+            toAdds = override.getDamageToAdds() != null ? override.getDamageToAdds() : toAdds;
             minShare = override.getMinShare() != null ? override.getMinShare() : minShare;
             creditDead = override.getCreditDead() != null ? override.getCreditDead() : creditDead;
             creditDisconnected = override.getCreditDisconnected() != null
                     ? override.getCreditDisconnected() : creditDisconnected;
         }
-        return new ParticipationSpec(dealt, taken, presence, clamp01(minShare), creditDead, creditDisconnected);
+        return new ParticipationSpec(dealt, taken, presence, clamp01(minShare), creditDead, creditDisconnected,
+                toAdds);
     }
 
     /**
-     * The three weights for one participant, each formula evaluated through {@code lookup}
+     * The four weights for one participant, each formula evaluated through {@code lookup}
      * ({@code (factorId, param) -> value}, null for "cannot answer"); an absent formula weighs
      * zero, and a formula that resolves to a negative number weighs zero too, because a counter
      * cannot subtract credit.
@@ -73,7 +84,7 @@ public record ParticipationSpec(@Nullable FactorFormula damageDealt, @Nullable F
     @Nonnull
     public ParticipationWeights weightsFor(@Nonnull BiFunction<String, String, Double> lookup) {
         return new ParticipationWeights(weight(damageDealt, lookup), weight(damageTaken, lookup),
-                weight(presence, lookup));
+                weight(presence, lookup), weight(damageToAdds, lookup));
     }
 
     /** True when presence can never accrue credit under this spec (a presence formula that reads zero). */

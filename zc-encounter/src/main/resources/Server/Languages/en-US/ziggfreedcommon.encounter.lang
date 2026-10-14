@@ -48,6 +48,7 @@ admin.inspect.rest = rest after a defeat: {0} seconds on the world clock
 admin.inspect.rest.resting = resting: {0} seconds on the world clock to go
 admin.inspect.rest.rested = rested: the site may raise its boss again
 admin.inspect.participant = {0}: dealt {1}, taken {2}, present {3}s, share {4}%
+admin.inspect.participant.adds = {0}: dealt the adds {1}
 admin.inspect.participants.none = Nobody has earned credit yet.
 
 admin.ref.needed = Name an encounter with --ref=<run id prefix or script id>.

@@ -10,7 +10,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 /**
- * The ledger's contract, pure: three independent counters keyed by run AND player, shares against
+ * The ledger's contract, pure: four independent counters keyed by run AND player, shares against
  * the top contributor, the minimum cut, the dead-member rule, and the drop.
  */
 class ParticipationLedgerTest {
@@ -20,6 +20,7 @@ class ParticipationLedgerTest {
     private static final UUID TANK = UUID.randomUUID();
     private static final UUID DPS = UUID.randomUUID();
     private static final UUID BYSTANDER = UUID.randomUUID();
+    private static final UUID CUTTER = UUID.randomUUID();
 
     private static final ParticipationWeights WEIGHTS = new ParticipationWeights(1.0, 0.25, 0.1);
 
@@ -65,6 +66,23 @@ class ParticipationLedgerTest {
         assertFalse(notCredited.participants().get(1).credited());
         assertTrue(notCredited.participants().get(1).died());
         assertEquals(1, ledger.deaths(RUN));
+    }
+
+    @Test
+    void damageToTheAddsIsItsOwnCounterAndCountsOnlyAtItsOwnWeight() {
+        ParticipationLedger ledger = new ParticipationLedger();
+        ledger.creditDamageDealt(RUN, DPS, "dps", 400.0);
+        ledger.creditDamageToAdds(RUN, CUTTER, "cutter", 200.0);
+        ParticipationShares unweighted = ledger.shares(RUN, 0.0, true, id -> WEIGHTS);
+        assertEquals(0.0, unweighted.shares().get(CUTTER), 0.0, "three-channel weights leave the adds out");
+        ParticipantShare cutter = unweighted.participants().get(1);
+        assertEquals(CUTTER, cutter.playerId());
+        assertEquals(200.0, cutter.damageToAdds(), 1e-9);
+        assertEquals(0.0, cutter.damageDealt(), 0.0, "damage to an add is never damage to the subject");
+        ParticipationShares weighted = ledger.shares(RUN, 0.0, true,
+                id -> new ParticipationWeights(1.0, 0.25, 0.1, 1.5));
+        // cutter: 200 to the adds x 1.5 = 300, against the top's 400
+        assertEquals(0.75, weighted.shares().get(CUTTER), 1e-9);
     }
 
     @Test

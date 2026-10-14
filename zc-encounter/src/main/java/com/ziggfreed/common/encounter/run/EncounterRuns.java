@@ -284,6 +284,14 @@ public final class EncounterRuns {
     }
 
     /**
+     * True when some live run's lineage is indexed, so a hit may land on an add: the damage system asks this
+     * before it reads the victim's lineage, which keeps its miss path one look at an empty map.
+     */
+    public static boolean anyLineageIndexed() {
+        return !LINEAGE_INDEX.isEmpty();
+    }
+
+    /**
      * Hold an add the run's encounter just raised until the run's next tick. Noting one already held
      * changes nothing.
      *

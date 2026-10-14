@@ -16,9 +16,17 @@ import javax.annotation.Nonnull;
  * @param damageTaken     raw damage taken while a member
  * @param presenceSeconds seconds spent as a member
  * @param died            whether they died during the run
+ * @param damageToAdds    raw damage dealt to the fight's adds (whatever its spawners raised, never the subject)
  */
 public record ParticipantShare(@Nonnull UUID playerId, @Nonnull String playerName, double share, boolean credited,
-                               double damageDealt, double damageTaken, double presenceSeconds, boolean died) {
+                               double damageDealt, double damageTaken, double presenceSeconds, boolean died,
+                               double damageToAdds) {
+
+    /** A standing with no damage dealt to the adds. */
+    public ParticipantShare(@Nonnull UUID playerId, @Nonnull String playerName, double share, boolean credited,
+            double damageDealt, double damageTaken, double presenceSeconds, boolean died) {
+        this(playerId, playerName, share, credited, damageDealt, damageTaken, presenceSeconds, died, 0.0);
+    }
 
     /** The share loot is rolled at: the credited share, else nothing. */
     public double lootShare() {
