@@ -263,6 +263,7 @@ public final class Quest {
     private final boolean mainLine;
     @Nullable private final QuestIndicatorSpec indicator;
     private final Map<String, QuestIndicatorSpec> stepIndicators;
+    private final Map<String, QuestItemDrop> stepDrops;
 
     private Quest(@Nonnull Builder b) {
         this.id = b.id;
@@ -288,6 +289,7 @@ public final class Quest {
         this.mainLine = b.mainLine;
         this.indicator = b.indicator;
         this.stepIndicators = Map.copyOf(b.stepIndicators);
+        this.stepDrops = Map.copyOf(b.stepDrops);
     }
 
     /**
@@ -321,6 +323,7 @@ public final class Quest {
                 .mainLine(mainLine)
                 .indicator(indicator)
                 .stepIndicators(stepIndicators)
+                .stepDrops(stepDrops)
                 .build();
     }
 
@@ -360,6 +363,7 @@ public final class Quest {
                 .mainLine(mainLine)
                 .indicator(indicator)
                 .stepIndicators(stepIndicators)
+                .stepDrops(stepDrops)
                 .build();
     }
 
@@ -603,6 +607,21 @@ public final class Quest {
         return stepIndicators;
     }
 
+    /**
+     * Where the item one step asks for drops from ({@link QuestItemDrop}), or null when the step
+     * names none. The engine never acts on it; {@link QuestEngine#itemDropsDue} reads it.
+     */
+    @Nullable
+    public QuestItemDrop stepDrop(@Nullable String objectiveId) {
+        return objectiveId == null ? null : stepDrops.get(objectiveId);
+    }
+
+    /** Every step that wrote a {@code Drop} block, by objective id; empty for most quests. */
+    @Nonnull
+    public Map<String, QuestItemDrop> stepDrops() {
+        return stepDrops;
+    }
+
     /** Free classification carried onto the outbound events; the engine never reads their meaning. */
     @Nonnull
     public List<String> tags() {
@@ -688,6 +707,7 @@ public final class Quest {
         private boolean mainLine;
         @Nullable private QuestIndicatorSpec indicator;
         private final Map<String, QuestIndicatorSpec> stepIndicators = new LinkedHashMap<>();
+        private final Map<String, QuestItemDrop> stepDrops = new LinkedHashMap<>();
 
         private Builder(@Nonnull String id) {
             this.id = id;
@@ -737,6 +757,25 @@ public final class Quest {
         public Builder stepIndicators(@Nonnull Map<String, QuestIndicatorSpec> indicators) {
             stepIndicators.clear();
             stepIndicators.putAll(indicators);
+            return this;
+        }
+
+        /** Where one step's item drops from ({@link Quest#stepDrop}); a null drop forgets the step's. */
+        @Nonnull
+        public Builder stepDrop(@Nonnull String objectiveId, @Nullable QuestItemDrop drop) {
+            if (drop == null) {
+                stepDrops.remove(objectiveId);
+            } else {
+                stepDrops.put(objectiveId, drop);
+            }
+            return this;
+        }
+
+        /** Every step's item drop at once, replacing whatever was set. */
+        @Nonnull
+        public Builder stepDrops(@Nonnull Map<String, QuestItemDrop> drops) {
+            stepDrops.clear();
+            stepDrops.putAll(drops);
             return this;
         }
 

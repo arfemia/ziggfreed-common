@@ -34,6 +34,7 @@ import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.factor.HytaleFactors;
 import com.ziggfreed.common.inventory.InventoryUtil;
+import com.ziggfreed.common.objectives.drop.QuestItemDrops;
 import com.ziggfreed.common.objectives.dungeon.DungeonObjectives;
 import com.ziggfreed.common.objectives.hud.TrackedQuestHuds;
 import com.ziggfreed.common.objectives.marker.QuestMarkers;
@@ -199,7 +200,8 @@ public final class ProgressionDefaults {
      * library's talk-credit sink (a conversation is credited by an authored beat through
      * zc-dialogue's {@code TalkCredits}, and this sink always runs, beside any sink a consumer
      * registers), the moment listener that meets a dungeon's {@code Complete.Objective}
-     * ({@link DungeonObjectives}), the achievements a reputation's ranks earn as the Reputation page's gated content
+     * ({@link DungeonObjectives}), the one that hands over a quest step's item drops
+     * ({@link QuestItemDrops}), the achievements a reputation's ranks earn as the Reputation page's gated content
      * ({@link RankAchievementGatedContent}), and the tracked-quest HUD with its six event subscriptions.
      * All of it is unconditional, and so is every dispatch those producers make.
      *
@@ -220,6 +222,8 @@ public final class ProgressionDefaults {
         ZigInstanceRoundProducer.install(plugin);
         // A dungeon's Complete.Objective is met off the same moments, which the instance module cannot see.
         ProgressionRuntime.defaults(OWNER).momentListener(DungeonObjectives.INSTANCE);
+        // A quest step's Drop is met off the kill and boss-win moments, for the player each credits.
+        ProgressionRuntime.defaults(OWNER).momentListener(QuestItemDrops.INSTANCE);
         ZigEncounterProducer.install(plugin);
         ZigCalendarProducer.install(plugin);
         ZigLootReceivedProducer.install(plugin);

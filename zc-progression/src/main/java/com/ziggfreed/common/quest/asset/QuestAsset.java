@@ -496,6 +496,7 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                 objectiveText.put(entry.getKey(), authored.getTextKey());
             }
             quest.stepIndicator(entry.getKey(), authored.getIndicator());
+            quest.stepDrop(entry.getKey(), authored.toDrop());
         }
         if (questTurnIn != null && !handInAuthored) {
             quest.objective(reportBackStep(questTurnIn, lastOrder + 1));

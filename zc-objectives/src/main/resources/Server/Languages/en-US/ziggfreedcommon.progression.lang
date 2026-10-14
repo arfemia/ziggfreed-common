@@ -215,3 +215,10 @@ reputation.rank_achievement = {0} ({1})
 
 # The hover line on the map marker at a character with a quest the player could take; {0} is the quest's title.
 quest.marker.available = Quest on offer: {0}
+
+# The corner notice when an item a quest step asks for drops for the player: {0} is the item's name, and the
+# line under it names the quest it is for ({0} the quest's title). bag_full is said instead when the bag had
+# no room, so nothing was handed over ({0} the item's name).
+quest.drop.received = Quest item: {0}
+quest.drop.for = For {0}
+quest.drop.bag_full = Your bag is full, so you could not take {0}. Make room for it.

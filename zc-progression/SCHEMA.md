@@ -289,6 +289,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Order` | `integer` | `null` | Sequencing group. An objective unlocks once every objective with a strictly lower non-zero Order is done; equal numbers run side by side. 0 or unauthored means no constraint, and a quest that authors none of them can still use Flow.Sequential. |
 | `TurnInNpcId` | `string` | `null` | For a TURN_IN step: the one place it may be handed in at. The literal 'giver' means the quest's own Npc.ViewId, so a moved quest giver needs no objective edit. Unauthored means any hand-in surface will do. |
 | `Indicator` | [QuestIndicatorSpec](#field-questobjective-indicator) | `null` | How the situation THIS step raises at a character shows, narrowing the quest's own Indicator block per leaf: a hand-in step's TurnIn group, a carried step's InProgress group. The quest-level Collect and Available groups are never read from a step. Leave it out to take the quest's word. |
+| `Drop` | [QuestDropAsset](#field-questobjective-drop) | `null` | A quest item drop, on a TURN_IN or PICKUP_ITEM step only: the item this step asks for (its Target, an exact item id) drops from the creatures (Roles) and boss fights (Encounters) named here, at Chance, Count at a time, but only for a player carrying this quest whose step is unlocked and still wants it. A TURN_IN step stops dropping once the bag holds what the step still owes; a PICKUP_ITEM step counts the drop as picked up. It goes into the bag only: with no room, nothing drops and the player is told the bag is full. Leave it out for a step whose item comes from anywhere else. |
 
 <a id="field-questobjective-indicator"></a>
 ### QuestObjective.Indicator
@@ -300,6 +301,16 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `TurnIn` | [Situation](#field-questobjective-indicator-turnin) | `null` | Handing over what the player carries, here, would finish the quest. |
 | `Available` | [Situation](#field-questobjective-indicator-available) | `null` | Not started, and the player could take it here right now. |
 | `InProgress` | [Situation](#field-questobjective-indicator-inprogress) | `null` | Being carried, with this character part of the errand. |
+
+<a id="field-questobjective-drop"></a>
+### QuestObjective.Drop
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Roles` | array of `string` | `null` | NPC role ids whose kill can drop the step's item, for the player credited with the kill. Case is ignored. Name a boss fought as an encounter under Encounters instead, so every fighter it credits can get it. |
+| `Encounters` | array of `string` | `null` | Boss fights whose win can drop the step's item for every participant the fight credits, named as an ENCOUNTER_DEFEATED step names them: the encounter script id (or the role id an encounter rule credits). Case is ignored. Do not name the same boss under Roles too, or its killer rolls twice. |
+| `Chance` | `double` | `null` | The chance from 0 to 1 that the item drops, rolled once per eligible step: for each player, at each kill or win, whose step still wants it. Unauthored means 1, every time. |
+| `Count` | `integer` | `null` | How many one drop hands over. Unauthored means 1. Never more than the step still wants or the bag can take, so a player is never handed more than the quest asks for. |
 
 <a id="field-questobjective-indicator-collect"></a>
 #### QuestObjective.Indicator.Collect

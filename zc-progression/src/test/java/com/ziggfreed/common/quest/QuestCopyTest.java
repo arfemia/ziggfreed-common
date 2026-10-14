@@ -24,6 +24,7 @@ class QuestCopyTest {
     private static final QuestIndicatorSpec QUEST_BLOCK = QuestIndicatorSpec.of(false, null, null, null, null);
     private static final QuestIndicatorSpec STEP_BLOCK = QuestIndicatorSpec.of(null, null,
             QuestIndicatorSpec.Situation.of(null, "Hand_Me_That", null, null), null, null);
+    private static final QuestItemDrop STEP_DROP = QuestItemDrop.of(List.of("Wolf_Grey"), null, 0.5, 1);
 
     private static Quest flagged() {
         return Quest.builder("q_copy")
@@ -35,6 +36,7 @@ class QuestCopyTest {
                 .tags(List.of("tutorial"))
                 .indicator(QUEST_BLOCK)
                 .stepIndicator("step", STEP_BLOCK)
+                .stepDrop("step", STEP_DROP)
                 .build();
     }
 
@@ -47,6 +49,7 @@ class QuestCopyTest {
         assertEquals(1, copy.objectives().size());
         assertSame(QUEST_BLOCK, copy.indicator(), "the quest's Indicator block");
         assertSame(STEP_BLOCK, copy.stepIndicator("step"), "a step's Indicator block");
+        assertSame(STEP_DROP, copy.stepDrop("step"), "a step's Drop block");
     }
 
     @Test

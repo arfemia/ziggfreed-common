@@ -8,6 +8,7 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.asset.ObjectiveLeafAsset;
+import com.ziggfreed.common.quest.QuestItemDrop;
 
 /**
  * One entry of a quest's {@code Objectives} map: the shared objective leaves
@@ -42,6 +43,7 @@ public final class QuestObjectiveAsset extends ObjectiveLeafAsset {
     @Nullable protected Integer order;
     @Nullable protected String turnInNpcId;
     @Nullable protected QuestIndicatorSpec indicator;
+    @Nullable protected QuestDropAsset drop;
 
     public static final BuilderCodec<QuestObjectiveAsset> CODEC =
             appendLeaves(BuilderCodec.builder(QuestObjectiveAsset.class, QuestObjectiveAsset::new))
@@ -61,6 +63,16 @@ public final class QuestObjectiveAsset extends ObjectiveLeafAsset {
                             + "own Indicator block per leaf: a hand-in step's TurnIn group, a carried step's "
                             + "InProgress group. The quest-level Collect and Available groups are never read "
                             + "from a step. Leave it out to take the quest's word.").add()
+                    .appendInherited(new KeyedCodec<>("Drop", QuestDropAsset.CODEC, false),
+                            (o, v) -> o.drop = v, o -> o.drop, (o, p) -> o.drop = p.drop)
+                    .documentation("A quest item drop, on a TURN_IN or PICKUP_ITEM step only: the item this step "
+                            + "asks for (its Target, an exact item id) drops from the creatures (Roles) and boss "
+                            + "fights (Encounters) named here, at Chance, Count at a time, but only for a player "
+                            + "carrying this quest whose step is unlocked and still wants it. A TURN_IN step stops "
+                            + "dropping once the bag holds what the step still owes; a PICKUP_ITEM step counts "
+                            + "the drop as picked up. It goes into the bag only: with no room, nothing drops and "
+                            + "the player is told the bag is full. Leave it out for a step whose item comes from "
+                            + "anywhere else.").add()
                     .build();
 
     public QuestObjectiveAsset() {
@@ -95,6 +107,18 @@ public final class QuestObjectiveAsset extends ObjectiveLeafAsset {
     @Nullable
     public QuestIndicatorSpec getIndicator() {
         return indicator;
+    }
+
+    /** This step's {@code Drop} block, or null when its item drops from nowhere in particular. */
+    @Nullable
+    public QuestDropAsset getDrop() {
+        return drop;
+    }
+
+    /** The engine's form of {@link #getDrop()}, or null when the step wrote none. */
+    @Nullable
+    public QuestItemDrop toDrop() {
+        return drop == null ? null : drop.toDrop();
     }
 
     /** Is {@code turnInNpcId} the "wherever this quest came from" sentinel? */

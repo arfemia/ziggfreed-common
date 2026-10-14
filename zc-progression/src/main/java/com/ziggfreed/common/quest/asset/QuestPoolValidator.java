@@ -16,6 +16,8 @@ import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.progress.gate.GateValidator;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
+import com.ziggfreed.common.quest.QuestEngine.ItemDropDue;
+import com.ziggfreed.common.quest.QuestItemDrop;
 import com.ziggfreed.common.quest.QuestProgressStore;
 import com.ziggfreed.common.quest.QuestTurnInSite;
 import com.ziggfreed.common.season.SeasonGate;
@@ -356,6 +358,35 @@ public final class QuestPoolValidator {
                                 + "; Targets is read only by kinds that count moments, so name one "
                                 + "target in Target", id));
             }
+
+            QuestItemDrop drop = quest.stepDrop(objective.id());
+            if (drop != null) {
+                validateDrop(id, objective, drop, out);
+            }
+        }
+    }
+
+    /**
+     * A step's {@code Drop} block, each way of writing one that never drops anything. Every finding is
+     * a WARNING: the quest still loads and runs, it just never hands the item over.
+     */
+    private static void validateDrop(@Nonnull String id, @Nonnull ObjectiveDef objective,
+            @Nonnull QuestItemDrop drop, @Nonnull List<Finding> out) {
+        if (!drop.namesSource()) {
+            out.add(Finding.warning(DOMAIN, "DROP_NO_SOURCE",
+                    "step '" + objective.id() + "' has a Drop that names no Roles and no Encounters, so its "
+                            + "item never drops; name the creatures or the boss fights it drops from", id));
+        }
+        if (objective.target().isBlank()) {
+            out.add(Finding.warning(DOMAIN, "DROP_NO_ITEM",
+                    "step '" + objective.id() + "' has a Drop but names no item in Target, so nothing can "
+                            + "drop; the item that drops is the step's own Target", id));
+        }
+        if (!ItemDropDue.dropsOn(objective)) {
+            out.add(Finding.warning(DOMAIN, "DROP_ON_NON_ITEM_STEP",
+                    "step '" + objective.id() + "' is a " + objective.kind() + " step, and a Drop drops only "
+                            + "on a TURN_IN or PICKUP_ITEM step, so this one never drops anything; put the Drop "
+                            + "on the TURN_IN or PICKUP_ITEM step that asks for the item", id));
         }
     }
 

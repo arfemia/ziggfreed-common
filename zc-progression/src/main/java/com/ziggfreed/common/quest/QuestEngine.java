@@ -182,6 +182,9 @@ public final class QuestEngine implements QuestStateReader {
     private volatile Map<String, Quest> quests = Map.of();
     private volatile ObjectiveIndex index = ObjectiveIndex.EMPTY;
 
+    /** Every source some step's {@code Drop} names ({@link QuestItemDrop#sourceKey}), for {@link #dropsFrom}. */
+    private volatile Set<String> dropSources = Set.of();
+
     /** Authoring mistakes that would otherwise repeat on every event, reported once per case. */
     private final Set<String> warnedOnce = ConcurrentHashMap.newKeySet();
 
@@ -277,6 +280,7 @@ public final class QuestEngine implements QuestStateReader {
         ObjectiveIndex rebuilt = ObjectiveIndex.of(frozen.values(), Quest::id, Quest::objectives);
         this.quests = frozen;
         this.index = rebuilt;
+        this.dropSources = QuestItemDrop.sourceKeys(frozen.values());
         this.warnedOnce.clear();
         warnUnrecordableRepeats(frozen.values());
     }
@@ -2080,6 +2084,140 @@ public final class QuestEngine implements QuestStateReader {
             store.markDirty(subject);
         }
         return dropped;
+    }
+
+    // ==================== Item drops ====================
+
+    /**
+     * Every quest item this player is owed from one kill or one won fight, before any chance is rolled:
+     * one entry per step whose {@link Quest#stepDrop Drop} names {@code sourceId} under {@code source}
+     * and still wants its item. Nothing here writes; the caller rolls each entry's
+     * {@link QuestItemDrop#chance()} and hands over at most {@link ItemDropDue#upTo()}.
+     *
+     * <p>A step is owed only while all of this holds: the quest system is on for the player, the quest
+     * is ACTIVE and on offer ({@link Quest#available()}, its run not over), the step is a
+     * {@code TURN_IN} or a {@code PICKUP_ITEM} step ({@link ItemDropDue#dropsOn}), it is unlocked
+     * ({@link #objectiveActive}) and unfinished, and it names an item in its {@code Target}. Then how
+     * many it wants depends on how the step counts:
+     * <ul>
+     *   <li>a {@code PICKUP_ITEM} step counts the item ARRIVING ({@link ItemDropDue#countsOnArrival()}),
+     *   so it wants what it still owes; the caller credits what goes into the bag as a pickup, so the
+     *   next drop reads the step's own count;</li>
+     *   <li>a {@code TURN_IN} step, whose hand-in takes the item from the bag, wants what it still owes
+     *   LESS what the bag already holds, read through the {@link QuestPossessionProbe}: a player
+     *   carrying the asked amount gets nothing more.</li>
+     * </ul>
+     * Either way never more than the drop's {@link QuestItemDrop#count()}. The caller hands over only
+     * what the bag takes, so neither count ever meets an item lying on the ground.
+     *
+     * <p>Ask it after the moment has reached the engines, so a step that same kill or win unlocked is
+     * already open.
+     */
+    @Nonnull
+    public List<ItemDropDue> itemDropsDue(@Nonnull Subject subject, @Nonnull QuestItemDrop.Source source,
+            @Nullable String sourceId) {
+        if (!dropsFrom(source, sourceId) || !systemGate.enabled(ProgressionSystem.QUEST, subject)) {
+            return List.of();
+        }
+        List<ItemDropDue> out = new ArrayList<>();
+        for (String questId : store.knownQuestIds(subject)) {
+            Quest quest = quests.get(questId);
+            if (quest == null || quest.stepDrops().isEmpty() || !quest.available()
+                    || store.status(subject, questId) != QuestStatus.ACTIVE || runIsOver(subject, quest)) {
+                continue;
+            }
+            Map<String, ObjectiveProgressState> progress = progressOf(subject, questId);
+            for (Map.Entry<String, QuestItemDrop> entry : quest.stepDrops().entrySet()) {
+                QuestItemDrop drop = entry.getValue();
+                ObjectiveDef step = quest.objective(entry.getKey());
+                if (step == null || step.target().isBlank() || !ItemDropDue.dropsOn(step)
+                        || !drop.dropsFrom(source, sourceId)) {
+                    continue;
+                }
+                ObjectiveProgressState state = progress.get(step.id());
+                if ((state != null && state.isCompleted()) || !objectiveActive(subject, quest, step.id())) {
+                    continue;
+                }
+                int upTo = wantedFromDrop(subject, step, drop, remainingFor(subject, quest, step));
+                if (upTo > 0) {
+                    out.add(new ItemDropDue(quest, step, drop, upTo));
+                }
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Does any step in the catalogue drop its item from {@code sourceId} under {@code source}? One set
+     * lookup, rebuilt with the catalogue, so a kill nothing drops from costs a reaction nothing more.
+     */
+    public boolean dropsFrom(@Nonnull QuestItemDrop.Source source, @Nullable String sourceId) {
+        return sourceId != null && !sourceId.isBlank()
+                && dropSources.contains(QuestItemDrop.sourceKey(source, sourceId));
+    }
+
+    /**
+     * How many of its item a step wants from one drop: never more than the drop's count, and for a
+     * hand-in, never more than the bag still lacks. The probe answers only "holds at
+     * least n", so the bag is read from the top down one unit at a time, at most {@code count} asks.
+     */
+    private int wantedFromDrop(@Nonnull Subject subject, @Nonnull ObjectiveDef step, @Nonnull QuestItemDrop drop,
+            int remaining) {
+        int cap = Math.min(drop.count(), remaining);
+        if (cap <= 0 || ItemDropDue.countsOnArrival(step)) {
+            return Math.max(0, cap);
+        }
+        int wanted = 0;
+        for (int more = 1; more <= cap; more++) {
+            // One more is wanted only while the bag would still hold no more than the step owes.
+            if (possession.holds(subject, step.target(), remaining - more + 1)) {
+                break;
+            }
+            wanted = more;
+        }
+        return wanted;
+    }
+
+    /**
+     * One quest item a player is owed: the quest, the step that asks for it, the step's drop rule and
+     * how many the step wants from this one drop ({@code upTo}, at least 1). The item is the step's
+     * {@code Target}.
+     */
+    public record ItemDropDue(@Nonnull Quest quest, @Nonnull ObjectiveDef step, @Nonnull QuestItemDrop drop,
+                              int upTo) {
+
+        /** The kind whose step counts the item arriving rather than what the bag holds. */
+        public static final String ARRIVAL_KIND = "PICKUP_ITEM";
+
+        /** The kind whose step takes the item from the bag at its hand-in. */
+        public static final String HAND_IN_KIND = "TURN_IN";
+
+        /**
+         * Can a {@code Drop} on {@code step} drop anything? Only on a {@link #HAND_IN_KIND} or an
+         * {@link #ARRIVAL_KIND} step, the two that ask the player for the item itself.
+         */
+        public static boolean dropsOn(@Nonnull ObjectiveDef step) {
+            String kind = step.kind().trim();
+            return HAND_IN_KIND.equalsIgnoreCase(kind) || ARRIVAL_KIND.equalsIgnoreCase(kind);
+        }
+
+        /** The item that drops: the step's own {@code Target}. */
+        @Nonnull
+        public String itemId() {
+            return step.target();
+        }
+
+        /**
+         * Does the step count the item arriving (a {@code PICKUP_ITEM} step), so whoever hands it over
+         * credits it as picked up? False for a hand-in, which reads the bag.
+         */
+        public boolean countsOnArrival() {
+            return countsOnArrival(step);
+        }
+
+        static boolean countsOnArrival(@Nonnull ObjectiveDef step) {
+            return ARRIVAL_KIND.equalsIgnoreCase(step.kind().trim());
+        }
     }
 
     /** How many of this quest's objectives are done. Total is at least 1, so a bar can divide by it. */

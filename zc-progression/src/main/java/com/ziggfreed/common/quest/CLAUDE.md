@@ -17,3 +17,4 @@
 - `LockReasons` is the one token-to-line mapping every locked surface reads.
 - The payout never throws: `RewardGrants` isolates each reward, so read the `GrantOutcome`.
 - Prefer widening an existing seam with a default method over a new builder knob.
+- A step's `Drop` (`Quest.stepDrops`) is read only by the pure `itemDropsDue`; zc-objectives' `drop/QuestItemDrops` rolls and hands it over, into the bag only. A `TURN_IN` step is capped by the bag, a `PICKUP_ITEM` step by its own count, never both.
