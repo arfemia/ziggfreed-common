@@ -58,6 +58,7 @@ import com.ziggfreed.common.loot.command.ZigLootCommand;
 import com.ziggfreed.common.loot.reward.DroplistRewardKind;
 import com.ziggfreed.common.loot.reward.FeetDropOverflow;
 import com.ziggfreed.common.loot.reward.LootRewardKinds;
+import com.ziggfreed.common.loot.reward.LootablePreview;
 import com.ziggfreed.common.loot.reward.MomentItems;
 import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardKinds;
@@ -402,6 +403,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         CostumeRewardKind.registerInto(RewardKinds.shared());
         LootRewardKinds.factors(lootFactorVocabulary());
         LootRewardKinds.overflow(new FeetDropOverflow());
+        // A Lootable reward whose table names itself reads as that table, and lists what it pays on hover
+        // when the table says so; a table saying nothing reads as the kind file's generic bundle.
+        RewardChips.contributeDescriber(LootablePreview.describer());
         StamperRegistry.register(new StackStatsStamper());
         // The stamped points an item carries, as a factor every vocabulary on the server resolves:
         // read through whichever stamper is active, and answered only where a moment carries an item.

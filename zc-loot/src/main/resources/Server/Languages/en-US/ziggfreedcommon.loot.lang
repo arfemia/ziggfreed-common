@@ -9,3 +9,11 @@
 reward.lootable = Loot Bundle
 reward.droplist = Loot Drop
 reward.effect = Temporary Effect
+
+# What hovering a Lootable reward lists when its table opts in (ListContents). Each line ends with the
+# reward's own line ("x3 Lantern Bomb"), after one space: what always comes reads alone, a chance leads
+# with its percent ({0}), and what something else decides leads with "Sometimes:". The last line shows
+# when the table holds something the list cannot name.
+preview.chance = {0, number}%:
+preview.sometimes = Sometimes:
+preview.more = Plus a little more.

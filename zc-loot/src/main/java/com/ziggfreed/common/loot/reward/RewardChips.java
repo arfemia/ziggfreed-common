@@ -49,6 +49,13 @@ import com.ziggfreed.common.instance.reward.DeferredRewards;
  * Java-registered kind whose rewards all read the same way (a wallet kind reading as its wallet's
  * own name) names them without any reward authoring anything.
  *
+ * <p><b>What a reward pays may describe itself</b> ({@link #contributeDescriber}): a kind's owner says
+ * what the thing one reward points at calls itself and what hovering it should show (a named loot
+ * table's own name, a line about it, what it holds). Its name outranks the kind file's default and the
+ * item form, never the reward's own {@code NameKey}; its hover makes the picture one that only stands
+ * for the reward ({@link RewardChip#picture}), the line's name first. A reward nothing describes reads
+ * exactly as it did.
+ *
  * <p>{@link Plan} is the whole decision and touches nothing but strings, so what a chip WILL say is
  * testable with no server; {@link #chipFor} is the half that reaches an item for its name.
  */
@@ -88,7 +95,47 @@ public final class RewardChips {
      */
     private static final CopyOnWriteArrayList<Source> CONTRIBUTED = new CopyOnWriteArrayList<>();
 
+    /**
+     * What the thing one reward pays says about itself, from the kind's OWNER: the reward's
+     * {@link Described}, or null when it says nothing (the common case, and the reward reads as before).
+     */
+    @FunctionalInterface
+    public interface Describer {
+
+        @Nullable
+        Described describe(@Nonnull RewardSpec spec);
+    }
+
+    /**
+     * A reward's own words: {@code name}, which reads in place of the kind file's default label (null
+     * keeps that label), and {@code hover}, the lines hovering its picture shows under the line's name
+     * (empty keeps the picture's own tooltip).
+     */
+    public record Described(@Nullable Message name, @Nonnull List<Message> hover) {
+
+        public Described {
+            hover = List.copyOf(hover);
+        }
+    }
+
+    /** Describers kind owners contributed process-wide, asked in contribution order, first answer wins. */
+    private static final CopyOnWriteArrayList<Describer> DESCRIBERS = new CopyOnWriteArrayList<>();
+
     private RewardChips() {
+    }
+
+    /**
+     * Contribute the description of what a kind this caller OWNS pays, once at setup. It is asked for
+     * every reward the generic reading names (in contribution order, first non-null answer wins), so
+     * it answers null for every reward that is not its own.
+     */
+    public static void contributeDescriber(@Nonnull Describer describer) {
+        DESCRIBERS.add(describer);
+    }
+
+    /** Take a contributed describer back out, answering whether one was there; the undo of {@link #contributeDescriber}. */
+    public static boolean forgetDescriber(@Nonnull Describer describer) {
+        return DESCRIBERS.remove(describer);
     }
 
     /**
@@ -185,14 +232,20 @@ public final class RewardChips {
         if (nameKey != null && !ownKey && !ContentKeys.known(nameKey)) {
             nameKey = null;
         }
+        // What the reward pays may name itself and say more on hover (a table's own name): its name
+        // reads in place of the kind file's default and the item form, never over the reward's own key.
+        Described described = describedOf(spec);
+        if (!ownKey && described != null && described.name() != null) {
+            return withHover(plan.iconItemId(), described.name(), described);
+        }
         if (nameKey != null && !nameKey.isBlank()) {
             // Through ContentKeys, never as written: the engine namespaces a key by the .lang FILENAME
             // it was defined in, while a reward's name key is authored without that namespace, so a key
             // handed over verbatim is one the client cannot resolve and the player reads the key itself.
-            return RewardChip.of(plan.iconItemId(), ContentKeys.tr(nameKey, labelArgs(spec, plan)));
+            return withHover(plan.iconItemId(), ContentKeys.tr(nameKey, labelArgs(spec, plan)), described);
         }
         if (plan.itemId() != null && !plan.itemId().isBlank()) {
-            return RewardChip.of(plan.iconItemId(), itemLabel(plan.itemId(), plan.amount()));
+            return withHover(plan.iconItemId(), itemLabel(plan.itemId(), plan.amount()), described);
         }
         // The reward's OWN authored Icon survives onto the contributed rung too: "a reward's own
         // words and picture win first" holds on every rung, so a boost token (or any other
@@ -274,6 +327,38 @@ public final class RewardChips {
         return value != null && !value.isBlank();
     }
 
+    /** The first contributed describer's answer for {@code spec}, or null; a throwing one costs its own answer. */
+    @Nullable
+    private static Described describedOf(@Nonnull RewardSpec spec) {
+        for (Describer describer : DESCRIBERS) {
+            try {
+                Described described = describer.describe(spec);
+                if (described != null) {
+                    return described;
+                }
+            } catch (Throwable ignored) {
+                // A describer failing costs its own words, never the chip.
+            }
+        }
+        return null;
+    }
+
+    /**
+     * The chip {@code label} reads as, with {@code described}'s hover when it has one: the picture then only
+     * stands for the reward, and hovering it says the line's name, then each hover line under it.
+     */
+    @Nonnull
+    private static RewardChip withHover(@Nullable String icon, @Nonnull Message label,
+            @Nullable Described described) {
+        if (described == null || described.hover().isEmpty()) {
+            return RewardChip.of(icon, label);
+        }
+        List<Message> lines = new ArrayList<>(described.hover().size() + 1);
+        lines.add(label);
+        lines.addAll(described.hover());
+        return RewardChip.picture(icon, label, Msg.lines(lines));
+    }
+
     /**
      * The pure half: which key, which item and which picture one reward resolves to, reading the
      * spec's own parameters first and the authored kind file second.
@@ -349,11 +434,23 @@ public final class RewardChips {
     @Nonnull
     private static Message itemLabel(@Nullable String itemId, long amount) {
         int count = (int) Math.max(1L, Math.min(amount, Integer.MAX_VALUE));
+        return itemLabel(itemId, count, count);
+    }
+
+    /**
+     * {@link #itemLabel(String, long)} for a quantity that may vary from {@code count} to {@code countMax}
+     * ("x1-3 Lantern Bomb"); the same glue, so a listed item reads as a reward line does.
+     */
+    @Nonnull
+    static Message itemLabel(@Nullable String itemId, int count, int countMax) {
         Message name;
         try {
-            name = new ItemStack(itemId, count).getDisplayName();
+            name = new ItemStack(itemId, Math.max(1, count)).getDisplayName();
         } catch (Throwable ignored) {
             name = Msg.raw(itemId);
+        }
+        if (countMax > count) {
+            return Message.join(Msg.raw("x" + count + "-" + countMax + " "), name);
         }
         return count > 1 ? Message.join(Msg.raw("x" + count + " "), name) : name;
     }

@@ -445,6 +445,15 @@ public final class LootRewardKinds {
     // ==================== Lootable ====================
 
     /**
+     * The table a {@code Lootable} reward names ({@code Lootable}, else {@code id}), trimmed; empty when it
+     * names none. The one read of it, shared by the payout and the chip's preview ({@link LootablePreview}).
+     */
+    @Nonnull
+    static String tableIdOf(@Nonnull RewardSpec spec) {
+        return spec.paramOr("lootable", spec.paramOr("id", "")).trim();
+    }
+
+    /**
      * {@code {"Lootable": "<id>"}} - roll a shared table and hand over whatever it produced: its
      * rolls, then its pool's draws ({@link #resolveTable}, {@link #rollTable}), so a table authored
      * as a pool alone pays the same here as at any other site.
@@ -493,7 +502,7 @@ public final class LootRewardKinds {
         @Override
         public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject,
                 @Nonnull String sourceId, @Nonnull Consumer<RewardSpec> receipt) throws Exception {
-            String tableId = spec.paramOr("lootable", spec.paramOr("id", "")).trim();
+            String tableId = tableIdOf(spec);
             if (tableId.isEmpty()) {
                 throw new IllegalStateException("a reward of kind '" + KIND_LOOTABLE
                         + "' named no table - it needs a 'Lootable' parameter");

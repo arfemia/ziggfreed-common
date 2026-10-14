@@ -1,6 +1,7 @@
 package com.ziggfreed.common.loot;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -145,6 +146,24 @@ class LootableAssetCodecTest {
     void anEmptyBodyDecodesToATableThatSimplyGrantsNothing() throws Exception {
         LootableAsset table = decodeRoot("{ }", "empty");
         assertNull(table.getRolls());
+        assertNull(table.getText(), "a table saying nothing reads as the generic bundle");
+        assertFalse(table.listsContents());
+    }
+
+    @Test
+    void howARewardPayingTheTableReadsDecodesAndIsInherited() throws Exception {
+        LootableAsset parent = decodeRoot("""
+                { "Text": { "TitleKey": "lootable.forestfinds.title", "FlavorKey": "lootable.forestfinds.flavor" },
+                  "ListContents": true }
+                """, "forestfinds");
+
+        assertEquals("lootable.forestfinds.title", parent.getText().getTitleKey());
+        assertEquals("lootable.forestfinds.flavor", parent.getText().getFlavorKey());
+        assertTrue(parent.listsContents());
+
+        LootableAsset child = decode("{ }", "variant", "forestfinds", parent);
+        assertEquals("lootable.forestfinds.title", child.getText().getTitleKey());
+        assertTrue(child.listsContents());
     }
 
     // ==================== inheritance ====================

@@ -16,7 +16,9 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.ziggfreed.common.asset.EditorDataSets;
+import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.asset.PresenceRequiresCodec;
+import com.ziggfreed.common.text.ContentTextAsset;
 
 /**
  * A named, reusable loot table: {@code Server/ZiggfreedCommon/Lootables/<Name>.json}, body
@@ -69,6 +71,24 @@ import com.ziggfreed.common.asset.PresenceRequiresCodec;
  * <p>To retune a table someone else shipped, drop a file with the SAME name into your own pack -
  * later packs win by id. Give your own tables distinctive names, because ids are matched on the
  * filename alone across every installed pack.
+ *
+ * <h2>How a reward paying this table reads, when the table says (opt-in)</h2>
+ *
+ * <p>A {@code Lootable} reward reads as the kind file's one generic bundle ("Loot Bundle", a chest)
+ * wherever a payout is shown before it pays. Two independent knobs let a table read as itself
+ * instead, and a table authoring neither reads exactly as before:
+ *
+ * <pre>{@code
+ * "Text": { "TitleKey": "lootable.forestfinds.title", "FlavorKey": "lootable.forestfinds.flavor" },
+ * "ListContents": true
+ * }</pre>
+ *
+ * <p>{@code Text.TitleKey} names the bundle: the reward's line reads it in place of the generic
+ * label, and hovering its picture shows it first. {@code Text.FlavorKey} is one line the hover shows
+ * under the name. {@code ListContents} has the hover list what the table pays, its contributions
+ * included: what always comes first, then each chance with its percent, then what only sometimes
+ * comes. A reward's own {@code NameKey} still names its line. These leaves are read from the table's
+ * own file, never from a file that only contributes to it.
  */
 public final class LootableAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, LootableAsset>> {
 
@@ -83,6 +103,8 @@ public final class LootableAsset implements JsonAssetWithMap<String, DefaultAsse
     @Nullable private LootPool pool;
     @Nullable private String contributesTo;
     @Nullable private PresenceRequiresCodec.Block requires;
+    @Nullable private ContentTextAsset text;
+    @Nullable private Boolean listContents;
 
     public static final AssetBuilderCodec<String, LootableAsset> CODEC = AssetBuilderCodec.builder(
                     LootableAsset.class,
@@ -116,6 +138,20 @@ public final class LootableAsset implements JsonAssetWithMap<String, DefaultAsse
             .appendInherited(new KeyedCodec<>("Requires", PresenceRequiresCodec.CODEC, false),
                     (a, v) -> a.requires = v, a -> a.requires, (a, parent) -> a.requires = parent.requires)
             .documentation(PresenceRequiresCodec.DOCUMENTATION).add()
+            .appendInherited(new KeyedCodec<>("Text", ContentTextAsset.CODEC, false),
+                    (a, v) -> a.text = v, a -> a.text, (a, parent) -> a.text = parent.text)
+            .documentation("What a reward paying this table reads as, where a payout is shown before it pays. "
+                    + "TitleKey names the bundle: the reward's line reads it instead of the generic Loot Bundle, "
+                    + "and hovering its picture shows it first. FlavorKey is one line the hover shows under the "
+                    + "name. Leave it out and the reward reads as the generic bundle. Read from the table's own "
+                    + "file only, never from a file that contributes to it.").add()
+            .appendInherited(new KeyedCodec<>("ListContents", Codec.BOOLEAN, false),
+                    (a, v) -> a.listContents = v, a -> a.listContents,
+                    (a, parent) -> a.listContents = parent.listContents)
+            .metadata(EditorSchema.defaultValue(false))
+            .documentation("When true, hovering a reward that pays this table lists what the table pays, "
+                    + "contributions included: what always comes, then each chance with its percent, then what "
+                    + "only sometimes comes. Works with or without Text. Default false.").add()
             .build();
 
     /**
@@ -178,6 +214,23 @@ public final class LootableAsset implements JsonAssetWithMap<String, DefaultAsse
     @Nullable
     public PresenceRequiresCodec.Block getRequires() {
         return requires;
+    }
+
+    /** What a reward paying this table reads as (its name and hover line), or null when it authors none. */
+    @Nullable
+    public ContentTextAsset getText() {
+        return text;
+    }
+
+    /** The raw authored {@code ListContents} knob; null = the hover lists nothing. */
+    @Nullable
+    public Boolean getListContents() {
+        return listContents;
+    }
+
+    /** Whether hovering a reward that pays this table lists what it pays. Reader-defaulted to false. */
+    public boolean listsContents() {
+        return listContents != null && listContents;
     }
 
     /** This table's rolls as a list, empty when it authors none. */

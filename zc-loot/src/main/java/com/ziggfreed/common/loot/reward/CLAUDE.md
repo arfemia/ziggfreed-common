@@ -17,6 +17,7 @@
 - A moment's stack is copied only through `MomentItems` (the `Moment_Item` kind's collector; its javadoc is the reference) and handed over through `GroundSpillSinks.spill`, never the item sink; `LootableValidator` reads a written Count through `MomentItems.parseCount` / `isPayable`, never its own parse.
 - `RewardChip` is the one chip record: a surface whose payout is not a `RewardSpec` still hands back a `RewardChip`.
 - A kind's owner names Java-kind rewards through `RewardChips.contribute`; an authored `NameKey`, a shipped kind-file `Presentation` or an item form still wins.
+- What a reward pays may describe itself through `RewardChips.contributeDescriber` (`LootablePreview`: a table's opt-in `Text` and `ListContents`): its name outranks the kind file and the item form, never an authored `NameKey`, and its hover makes the chip a `RewardChip.picture`. A reward nothing describes reads as before.
 - `RewardJson` refuses an under-specified reward at load, naming the file, never at payout.
 - `LootReceivedEvent` is announced only through `RewardDeliveries` (its javadoc: once per outermost payout, only what its receipt handed over); read a row's item and count only through `LootRewardKinds.itemIdOf` / `countOf`.
 - `Item`'s `StackNameKey` and `StackNameArg` stamp the stack's engine display name (`StackNames`, the `ItemDisplay` metadata); a replayed give carries no name. `NameKey` stays the reward chip's label and never names a stack.

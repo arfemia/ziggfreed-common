@@ -282,17 +282,7 @@ public final class CommerceChips {
     /** {@code lines}, one under the other, as one message. */
     @Nonnull
     public static Message stacked(@Nonnull List<Message> lines) {
-        if (lines.size() == 1) {
-            return lines.get(0);
-        }
-        List<Message> parts = new ArrayList<>(Math.max(0, lines.size() * 2 - 1));
-        for (Message line : lines) {
-            if (!parts.isEmpty()) {
-                parts.add(Msg.raw("\n"));
-            }
-            parts.add(line);
-        }
-        return Msg.join(parts.toArray(new Message[0]));
+        return Msg.lines(lines);
     }
 
     /**

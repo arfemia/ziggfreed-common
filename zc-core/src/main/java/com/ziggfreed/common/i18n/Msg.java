@@ -1,5 +1,6 @@
 package com.ziggfreed.common.i18n;
 
+import java.util.List;
 import java.util.Map;
 
 import javax.annotation.Nonnull;
@@ -129,6 +130,29 @@ public final class Msg {
      */
     @Nonnull
     public static Message join(@Nonnull Message... parts) {
+        return Message.join(parts);
+    }
+
+    /**
+     * {@code lines}, one under the other, as one message (a tooltip of several lines): a {@link #join}
+     * with a line break between each, so it is placed directly, never nested as a param. One line comes
+     * back unchanged, none as an empty raw message.
+     */
+    @Nonnull
+    public static Message lines(@Nonnull List<Message> lines) {
+        if (lines.isEmpty()) {
+            return Message.raw("");
+        }
+        if (lines.size() == 1) {
+            return lines.get(0);
+        }
+        Message[] parts = new Message[lines.size() * 2 - 1];
+        for (int i = 0; i < lines.size(); i++) {
+            if (i > 0) {
+                parts[i * 2 - 1] = Message.raw("\n");
+            }
+            parts[i * 2] = lines.get(i);
+        }
         return Message.join(parts);
     }
 
