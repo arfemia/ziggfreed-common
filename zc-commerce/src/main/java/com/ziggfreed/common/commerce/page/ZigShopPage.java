@@ -18,6 +18,7 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.ui.DropdownEntryInfo;
 import com.hypixel.hytale.server.core.ui.ItemGridSlot;
+import com.hypixel.hytale.server.core.ui.Value;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
@@ -126,6 +127,12 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
 
     /** The reroll button's words at rest; armed, they turn the short colour. */
     private static final String REROLL_TEXT = "#c6d4e4";
+
+    /** The Buy button's words, as Pages/ZigShopPage.ui authors them. */
+    private static final String BUY_TEXT = "#eef4fb";
+
+    /** The rich buttons' style document, rooted at {@code Common/UI/Custom/} as {@code Value.ref} takes it. */
+    private static final String BUTTON_STYLES = "Common/ZigButtons.ui";
 
     /** What stands between this buyer and an offer, as its tile shows it. */
     private enum Reach {
@@ -605,6 +612,10 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
             // so a stale screen can never silently do nothing.
             paintLocked(cmd, "#BuyBtn");
             renderStatus(cmd, engine, subject, offer, check.reason());
+        } else {
+            // A partial repaint keeps the last offer's grey: put the authored look back.
+            paintUnlocked(cmd, "#BuyBtn", "ZigRichPrimaryBtnStyle");
+            ZigRichButton.color(cmd, "#BuyBtn", BUY_TEXT);
         }
         renderReroll(cmd, engine, subject, offer, now);
     }
@@ -735,6 +746,8 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
                     refusalLine(check.reason()), CommerceChips.COLOR_REFUSAL);
             return;
         }
+        // Its words were set above; its fill may still be the last offer's grey.
+        paintUnlocked(cmd, "#RerollBtn", "ZigRichRowBtnStyle");
         Cost price = shelf.reroll().cost();
         if (!price.isFree()) {
             cmd.set("#RerollCostRow.Visible", true);
@@ -1005,6 +1018,16 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
     private static void paintLocked(@Nonnull UICommandBuilder cmd, @Nonnull String selector) {
         UiRetint.retintButtonStates(cmd, selector, "#2b3240", "#2b3240", "#2b3240");
         ZigRichButton.color(cmd, selector, "#7d8895");
+    }
+
+    /**
+     * Undo {@link #paintLocked}'s fill on a button that will take the press: its authored style sent whole by
+     * reference, as the kit swaps a button style ({@code ZigStyles}). A selection is a partial repaint, so without
+     * this a button greyed for the last offer stays grey on one the player can take. The caller sets the words.
+     */
+    private static void paintUnlocked(@Nonnull UICommandBuilder cmd, @Nonnull String selector,
+            @Nonnull String styleName) {
+        cmd.set(selector + ".Style", Value.<String>ref(BUTTON_STYLES, styleName));
     }
 
     private static void setIcon(@Nonnull UICommandBuilder cmd, @Nonnull String slotSelector,
