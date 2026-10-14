@@ -21,6 +21,7 @@ import com.hypixel.hytale.event.IEventDispatcher;
 import com.hypixel.hytale.server.core.HytaleServer;
 import com.hypixel.hytale.server.core.util.io.FileUtil;
 import com.ziggfreed.common.instance.reward.InstanceReward;
+import com.ziggfreed.common.instance.reward.StoredReward;
 import com.ziggfreed.common.loot.StochasticCount;
 import com.ziggfreed.common.loot.diminish.DiminishLedger;
 import com.ziggfreed.common.loot.diminish.DiminishSpec;
@@ -39,7 +40,8 @@ import com.ziggfreed.common.util.SafeLog;
  * and unwritten, with one warning; so is a file this build cannot read at all (a damaged or cut-short one),
  * so one bad read never costs a player the Claims on disk. A missing or empty file is a fresh start, not a
  * refusal. A write that fails keeps the Claims in memory, which a plain unit JVM (where the engine's writer
- * cannot load) relies on.
+ * cannot load) relies on. A reward's optional spec (what a deferred row reads as, {@code StoredReward}) is an
+ * additive field: a file written before it reads unchanged and the version does not move for it.
  *
  * <p>Thread-safe: every change holds the store's lock, and {@link ClaimAddedEvent} fires inside it.
  */
@@ -62,16 +64,7 @@ public final class ClaimStore {
     /** True once a newer or unreadable file was found: it is never overwritten by this build. */
     private volatile boolean refused;
 
-    /** Gson-friendly persisted shape of one reward ({@code PendingRewardStore}'s own). */
-    private static final class StoredReward {
-        String kind;
-        String id;
-        int quantity;
-        String displayKey;
-        String iconItemId;
-    }
-
-    /** Gson-friendly persisted shape of one Claim. */
+    /** Gson-friendly persisted shape of one Claim; each reward is {@code PendingRewardStore}'s own shape. */
     private static final class StoredClaim {
         String id;
         String source;
@@ -255,8 +248,7 @@ public final class ClaimStore {
         for (InstanceReward reward : rewards) {
             int quantity = scaledQuantity(reward, multiplier);
             if (quantity > 0) {
-                out.add(new InstanceReward(reward.kind(), reward.id(), quantity, reward.displayKey(),
-                        reward.iconItemId()));
+                out.add(reward.withQuantity(quantity));
             }
         }
         return out;
@@ -361,13 +353,7 @@ public final class ClaimStore {
         s.difficulty = claim.difficulty();
         s.rewards = new ArrayList<>(claim.rewards().size());
         for (InstanceReward reward : claim.rewards()) {
-            StoredReward r = new StoredReward();
-            r.kind = reward.kind().name();
-            r.id = reward.id();
-            r.quantity = reward.quantity();
-            r.displayKey = reward.displayKey();
-            r.iconItemId = reward.iconItemId();
-            s.rewards.add(r);
+            s.rewards.add(StoredReward.of(reward));
         }
         s.createdAt = claim.createdAt();
         return s;
@@ -382,7 +368,7 @@ public final class ClaimStore {
         List<InstanceReward> rewards = new ArrayList<>();
         if (s.rewards != null) {
             for (StoredReward r : s.rewards) {
-                InstanceReward reward = r == null ? null : fromStored(r);
+                InstanceReward reward = r == null ? null : r.toReward();
                 if (reward != null) {
                     rewards.add(reward);
                 }
@@ -395,19 +381,6 @@ public final class ClaimStore {
             }
         }
         return new Claim(s.id, s.source, s.titleKey, args, s.difficulty, rewards, s.createdAt);
-    }
-
-    @Nullable
-    private static InstanceReward fromStored(@Nonnull StoredReward s) {
-        if (s.kind == null || s.id == null) {
-            return null;
-        }
-        try {
-            return new InstanceReward(InstanceReward.Kind.valueOf(s.kind), s.id, s.quantity, s.displayKey,
-                    s.iconItemId);
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
     }
 
     @Nullable

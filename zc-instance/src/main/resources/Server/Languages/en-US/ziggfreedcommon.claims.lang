@@ -16,6 +16,9 @@ empty.title = Nothing to claim
 empty.line = Rewards from bosses and events wait here until you take them.
 untitled = Rewards
 
+# A reward chip nothing else could name (a Claim's row, a results screen's): {0} is how many.
+chip.generic = x{0, number} Reward
+
 # What a press says, over the page.
 toast.claimed = Claimed.
 toast.claimed_all = Claimed everything that was waiting.

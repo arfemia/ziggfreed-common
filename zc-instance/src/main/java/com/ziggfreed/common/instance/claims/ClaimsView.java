@@ -126,15 +126,17 @@ public final class ClaimsView {
     }
 
     /**
-     * One reward as the library's reward chip; an id the server cannot name reads as itself. Public so every
-     * surface that shows a Claim's rewards (the Claims tab, a dungeon's results screen) draws them alike.
+     * One reward as the library's reward chip, read through {@link RewardChipRenderer#toChip}: its own label, the
+     * reward it was deferred from at its own (possibly scaled) quantity, an item's name, else the generic line.
+     * Never its id, which for a command row is the console line that pays it. Public so every surface that shows
+     * a Claim's rewards (the Claims tab, a dungeon's results screen) draws them alike.
      */
     @Nonnull
     public static RewardChip chip(@Nonnull InstanceReward reward) {
         try {
             return RewardChipRenderer.toChip(reward, (key, quantity) -> ContentKeys.tr(key, quantity));
         } catch (Throwable t) {
-            return RewardChip.text(Msg.raw(reward.id()));
+            return RewardChip.text(RewardChipRenderer.genericLabel(reward.quantity()));
         }
     }
 

@@ -298,7 +298,7 @@ public final class EncounterClaims {
         return out;
     }
 
-    /** {@code rewards} with each command's {@code placeholders} filled in; every other reward as it was. */
+    /** {@code rewards} with each command's {@code placeholders} filled in, spec kept; every other reward as it was. */
     @Nonnull
     static List<InstanceReward> filled(@Nonnull List<InstanceReward> rewards, @Nonnull Map<String, String> placeholders) {
         if (placeholders.isEmpty()) {
@@ -314,8 +314,7 @@ public final class EncounterClaims {
             for (Map.Entry<String, String> placeholder : placeholders.entrySet()) {
                 command = command.replace("{" + placeholder.getKey() + "}", placeholder.getValue());
             }
-            out.add(new InstanceReward(reward.kind(), command, reward.quantity(), reward.displayKey(),
-                    reward.iconItemId()));
+            out.add(reward.withId(command));
         }
         return out;
     }

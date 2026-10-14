@@ -66,6 +66,11 @@ import com.ziggfreed.common.subject.Subject;
  * layer rather than to any kind's schema - a kind decides what it PAYS, not how somebody else's
  * screen draws it. Both are ignored anywhere a reward is granted outright.
  *
+ * <p>The deferred row also keeps the reward itself ({@link InstanceReward#spec}), so the last rung
+ * has something to read: a chip asks the shared reward reading ({@code RewardChips}) of that spec,
+ * at the row's own quantity, which names a Java-registered kind through what its owner contributed
+ * ("+10 Sweets" for a wallet) rather than painting the line that pays it.
+ *
  * <p>The chip's quantity comes from {@link #PARAM_AMOUNT} (or {@code Count} / {@code Quantity}),
  * which is the number most kinds already carry, so "+500 Mining XP" renders without the loot layer
  * knowing what a skill is.
@@ -152,7 +157,7 @@ public final class DeferredRewards {
      * One registered-kind reward as its replayable console line, or null when it cannot be deferred
      * (nothing registered the kind, the kind offers no replay, or resolving one threw). The line is the
      * kind's scalable one where it has one ({@link #keptLine}), so a payout scaled before it runs pays
-     * the share its chip shows.
+     * the share its chip shows. The row keeps {@code spec} for its chip to read.
      */
     @Nullable
     private static InstanceReward deferSpec(@Nonnull RewardSpec spec, @Nullable RewardKindRegistry kinds,
@@ -180,7 +185,8 @@ public final class DeferredRewards {
                 firstWritten(spec.param(PARAM_NAME_KEY),
                         authored == null ? null : authored.presentationNameKey(spec)),
                 firstWritten(spec.param(PARAM_ICON),
-                        authored == null ? null : authored.presentationIcon(spec)));
+                        authored == null ? null : authored.presentationIcon(spec)),
+                spec);
     }
 
     /**

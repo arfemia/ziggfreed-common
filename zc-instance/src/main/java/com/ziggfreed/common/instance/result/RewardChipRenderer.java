@@ -1,5 +1,6 @@
 package com.ziggfreed.common.instance.result;
 
+import java.util.Map;
 import java.util.function.BiFunction;
 
 import javax.annotation.Nonnull;
@@ -8,8 +9,13 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 
+import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.instance.reward.DeferredRewards;
 import com.ziggfreed.common.instance.reward.InstanceReward;
+import com.ziggfreed.common.loot.reward.LootRewardKinds;
 import com.ziggfreed.common.loot.reward.RewardChip;
+import com.ziggfreed.common.loot.reward.RewardChips;
+import com.ziggfreed.common.loot.reward.RewardSpec;
 
 /**
  * Builds a {@link RewardChip} for an {@link InstanceReward}, AUTO-GENERATING the chip label so a
@@ -17,47 +23,58 @@ import com.ziggfreed.common.loot.reward.RewardChip;
  *
  * <p>The chip it hands back is the shared {@link RewardChip} every payout surface in the library
  * paints - a quest panel, a storefront offer, a board contract, this results strip - so one reward
- * cannot read one way on a spoils screen and another way everywhere else. What is here rather than
- * beside that record is the bit only this shape needs: an {@link InstanceReward} names its payout
- * as an id plus a quantity rather than as a {@code RewardSpec}, so the generic reading has nothing
- * to work from and the label is composed here instead.
+ * cannot read one way on a spoils screen and another way everywhere else. An {@link InstanceReward}
+ * names its payout as an id plus a quantity, so the label is read in this order:
  *
- * <p><b>Mod-agnostic naming.</b> An item's label is the item's own engine-declared display name
- * via {@link ItemStack#getDisplayName()} - a client-resolved {@link Message} that resolves
- * whatever name key the item asset declares (vanilla {@code items.<id>.name} AND a custom item's
- * own {@code TranslationProperties.Name}). Common therefore guesses NO key convention and ships
- * NO {@code .lang}; the client renders the name in its own locale. A currency / command reward
- * (no backing item name) falls back to its id.
- *
- * <p>{@code displayKey} stays an OPTIONAL override: when it is set and a {@code displayKeyResolver}
- * is supplied (the consumer's {@code Lang}, e.g. {@code (key, qty) -> Lang.msg(key).param("0", qty)}),
- * that authored label wins; otherwise the label auto-generates.
+ * <ol>
+ *   <li>the row's own {@code displayKey}, when a {@code displayKeyResolver} is supplied (the
+ *       consumer's {@code Lang}, e.g. {@code (key, qty) -> Lang.msg(key).param("0", qty)});</li>
+ *   <li>the shared reward reading ({@link RewardChips#chipFor(RewardSpec)}) of the reward the row
+ *       stands for: the spec a deferred row kept, its amount at the row's own quantity so a half
+ *       Claim reads half; else, for a currency row, a {@code Currency} reward of its id and quantity;
+ *       else, for a command row, a {@code Command} reward running its line. That reading names an
+ *       item, a kind file's {@code Presentation}, or what a kind's owner contributed (a wallet reads
+ *       "+10 Sweets" with its own icon);</li>
+ *   <li>an item's own engine-declared display name via {@link ItemStack#getDisplayName()}, a
+ *       client-resolved {@link Message} in the player's own locale;</li>
+ *   <li>one generic line ({@link #GENERIC_KEY}, "x10 Reward"), never the row's id: a command row's
+ *       id is the console line that pays it.</li>
+ * </ol>
  */
 public final class RewardChipRenderer {
+
+    /**
+     * The line a reward nothing else names reads as, {@code {0}} its count as a typed number: shipped in
+     * this module's {@code ziggfreedcommon.claims.lang}.
+     */
+    public static final String GENERIC_KEY = "ziggfreedcommon.claims.chip.generic";
+
+    /** The wallet reward kind and its wallet parameter, zc-commerce's {@code CurrencyRewardKind}, out of reach here. */
+    private static final String CURRENCY_KIND = "Currency";
+    private static final String CURRENCY_PARAM = "Currency";
 
     private RewardChipRenderer() {
     }
 
     /**
-     * The chip for {@code reward}: an item-icon chip (icon = the item id) with the auto / authored
-     * label, or an icon-less chip for a currency / command reward.
+     * The chip for {@code reward}, read in the order the class names: its authored label, the reward it
+     * stands for, an item's own name, then the generic line.
      */
     @Nonnull
     public static RewardChip toChip(@Nonnull InstanceReward reward,
                                     @Nullable BiFunction<String, Integer, Message> displayKeyResolver) {
-        Message label = reward.displayKey() != null && displayKeyResolver != null
-                ? displayKeyResolver.apply(reward.displayKey(), reward.quantity())
-                : autoLabel(reward);
-        // An explicit iconItemId (e.g. a registered token's icon) wins; else an item chip uses its own id.
-        String icon = reward.iconItemId() != null ? reward.iconItemId()
-                : (reward.isItem() ? reward.id() : null);
-        return RewardChip.of(icon, label);
+        if (reward.displayKey() != null && displayKeyResolver != null) {
+            return RewardChip.of(iconOf(reward), displayKeyResolver.apply(reward.displayKey(), reward.quantity()));
+        }
+        RewardChip read = readChip(reward);
+        return read != null ? read : RewardChip.of(iconOf(reward), autoLabel(reward));
     }
 
     /**
-     * The auto-generated label: "x{qty} {ItemName}" for an item (qty &gt; 1), the bare item name for
-     * a single item, or "x{qty} {id}" for a currency / command reward. The item name is a
-     * client-resolved {@link Message}; the "x{qty} " prefix is locale-neutral quantity glue.
+     * The label with nothing authored to read: "x{qty} {ItemName}" for an item (qty &gt; 1) or the bare
+     * item name for a single one, else the generic line ({@link #genericLabel}). The item name is a
+     * client-resolved {@link Message}; the "x{qty} " prefix is locale-neutral quantity glue. Never the
+     * reward's id.
      */
     @Nonnull
     public static Message autoLabel(@Nonnull InstanceReward reward) {
@@ -66,6 +83,59 @@ public final class RewardChipRenderer {
             Message name = new ItemStack(reward.id(), Math.max(1, qty)).getDisplayName();
             return qty > 1 ? Message.join(Message.raw("x" + qty + " "), name) : name;
         }
-        return Message.raw("x" + qty + " " + reward.id());
+        return genericLabel(qty);
+    }
+
+    /** The generic line for a reward of {@code quantity}: "x10 Reward", the count bound as a typed number. */
+    @Nonnull
+    public static Message genericLabel(int quantity) {
+        return Msg.key(GENERIC_KEY, Math.max(1, quantity));
+    }
+
+    /** The shared reading of the reward {@code reward} stands for, or null when it names nothing. */
+    @Nullable
+    private static RewardChip readChip(@Nonnull InstanceReward reward) {
+        RewardSpec spec = readingSpec(reward);
+        if (spec == null) {
+            return null;
+        }
+        try {
+            return RewardChips.chipFor(spec);
+        } catch (Throwable t) {
+            // A reading that fails costs this chip its name, never the screen.
+            return null;
+        }
+    }
+
+    /**
+     * The reward {@code reward} stands for, at its own quantity: the spec it was deferred from, else a
+     * {@code Currency} reward for a currency row or a {@code Command} reward for a command row (its
+     * {@code {amount}} filled, as the payout fills it), carrying the row's own icon as its {@code Icon};
+     * null for an item row with no spec, which its own name reads. Only an amount the quantity follows is
+     * replaced: a spec whose amount the row could not show (a loss, deferred at one) keeps its own.
+     */
+    @Nullable
+    private static RewardSpec readingSpec(@Nonnull InstanceReward reward) {
+        String quantity = Integer.toString(reward.quantity());
+        RewardSpec spec = reward.spec();
+        if (spec != null) {
+            String amount = DeferredRewards.quantityParam(spec);
+            return amount == null || spec.longParam(amount, 0L) <= 0L ? spec : spec.with(amount, quantity);
+        }
+        RewardSpec built = switch (reward.kind()) {
+            case CURRENCY -> RewardSpec.of(CURRENCY_KIND,
+                    Map.of(CURRENCY_PARAM, reward.id(), DeferredRewards.PARAM_AMOUNT, quantity));
+            case COMMAND -> RewardSpec.of(LootRewardKinds.KIND_COMMAND, LootRewardKinds.P_COMMAND,
+                    reward.id().replace(InstanceReward.AMOUNT_PLACEHOLDER, quantity));
+            case ITEM -> null;
+        };
+        String icon = reward.iconItemId();
+        return built == null || icon == null || icon.isBlank() ? built : built.with(DeferredRewards.PARAM_ICON, icon);
+    }
+
+    /** An explicit {@code iconItemId} (a registered token's icon) wins; else an item chip uses its own id. */
+    @Nullable
+    private static String iconOf(@Nonnull InstanceReward reward) {
+        return reward.iconItemId() != null ? reward.iconItemId() : (reward.isItem() ? reward.id() : null);
     }
 }

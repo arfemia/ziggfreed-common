@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -45,9 +46,15 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
  * <p>{@link #iconItemId} is an OPTIONAL results-chip icon (an item id). It is null for a plain
  * item/currency spec (an item chip derives its icon from its own id); a registered token supplies
  * it via its icon resolver so a non-item reward (e.g. an XP command) can still show art.
+ *
+ * <p>{@link #spec} is the registered-kind reward a {@link Kind#COMMAND} row was deferred from
+ * ({@link DeferredRewards}), kept so a chip can name the reward it pays ("+10 Sweets") rather than
+ * the console line that pays it; null for every other row and for a row written before it was kept.
+ * It is shown, never paid: the row still pays its {@link #id} line. Two rows are equal when their
+ * specs hold the same kind and parameters.
  */
 public record InstanceReward(@Nonnull Kind kind, @Nonnull String id, int quantity, @Nullable String displayKey,
-                             @Nullable String iconItemId) {
+                             @Nullable String iconItemId, @Nullable RewardSpec spec) {
 
     /**
      * The literal a {@link Kind#COMMAND} line writes where its amount goes: {@link InstanceRewardGranter} fills it
@@ -66,6 +73,12 @@ public record InstanceReward(@Nonnull Kind kind, @Nonnull String id, int quantit
 
     public InstanceReward {
         quantity = Math.max(1, quantity);
+    }
+
+    /** A row with no {@link #spec}: the shape every reward had before a deferred row kept one. */
+    public InstanceReward(@Nonnull Kind kind, @Nonnull String id, int quantity, @Nullable String displayKey,
+                          @Nullable String iconItemId) {
+        this(kind, id, quantity, displayKey, iconItemId, null);
     }
 
     @Nonnull
@@ -93,6 +106,28 @@ public record InstanceReward(@Nonnull Kind kind, @Nonnull String id, int quantit
     public static InstanceReward command(@Nonnull String command, int quantity, @Nullable String displayKey,
                                          @Nullable String iconItemId) {
         return new InstanceReward(Kind.COMMAND, command, quantity, displayKey, iconItemId);
+    }
+
+    /**
+     * The same console-command reward, keeping the registered-kind reward {@code spec} it was deferred from,
+     * so its chip can read that reward ({@link #spec}). The line alone is what pays.
+     */
+    @Nonnull
+    public static InstanceReward command(@Nonnull String command, int quantity, @Nullable String displayKey,
+                                         @Nullable String iconItemId, @Nullable RewardSpec spec) {
+        return new InstanceReward(Kind.COMMAND, command, quantity, displayKey, iconItemId, spec);
+    }
+
+    /** This reward at {@code quantity}, everything else kept (a scaled or merged row). */
+    @Nonnull
+    public InstanceReward withQuantity(int quantity) {
+        return new InstanceReward(kind, id, quantity, displayKey, iconItemId, spec);
+    }
+
+    /** This reward with {@code id} in place of its own, everything else kept (a line with placeholders filled). */
+    @Nonnull
+    public InstanceReward withId(@Nonnull String id) {
+        return new InstanceReward(kind, id, quantity, displayKey, iconItemId, spec);
     }
 
     /** True for an {@link Kind#ITEM} reward - the only kind the inventory-space guard applies to. */
@@ -195,11 +230,34 @@ public record InstanceReward(@Nonnull Kind kind, @Nonnull String id, int quantit
                 out.add(r);
             } else {
                 InstanceReward cur = out.get(at);
-                out.set(at, new InstanceReward(cur.kind, cur.id, cur.quantity + r.quantity, cur.displayKey,
-                        cur.iconItemId));
+                out.set(at, cur.withQuantity(cur.quantity + r.quantity));
             }
         }
         return out;
+    }
+
+    /**
+     * Equal when every component is, the {@link #spec} by its kind and parameters: a spec has no value
+     * equality of its own, and a row read back from a store must equal the row that was written.
+     */
+    @Override
+    public boolean equals(@Nullable Object other) {
+        return other instanceof InstanceReward that && kind == that.kind && id.equals(that.id)
+                && quantity == that.quantity && Objects.equals(displayKey, that.displayKey)
+                && Objects.equals(iconItemId, that.iconItemId) && sameSpec(spec, that.spec);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(kind, id, quantity, displayKey, iconItemId,
+                spec == null ? null : spec.kind(), spec == null ? null : spec.params());
+    }
+
+    private static boolean sameSpec(@Nullable RewardSpec a, @Nullable RewardSpec b) {
+        if (a == null || b == null) {
+            return a == b;
+        }
+        return a.kind().equals(b.kind()) && a.params().equals(b.params());
     }
 
     /** Parse a spec array into a reward list, skipping any malformed entries. */

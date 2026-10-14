@@ -33,6 +33,7 @@ import com.ziggfreed.common.util.SafeLog;
  * unread, and unwritten, with one warning, rather than misread as today's shape; so is a file this
  * build cannot read at all. Either way the queue still answers from memory, and the file on disk
  * waits for a build that reads it (the latch {@code ClaimStore} and {@code DiminishLedger} keep).
+ * Each reward is written as a {@link StoredReward}, whose optional spec is additive and moves no version.
  */
 public final class PendingRewardStore {
 
@@ -45,15 +46,6 @@ public final class PendingRewardStore {
     @Nullable private volatile Path file;
     /** True once a newer or unreadable file was found: it is never overwritten by this build. */
     private volatile boolean refused;
-
-    /** Gson-friendly persisted shape of one reward. */
-    private static final class StoredReward {
-        String kind;
-        String id;
-        int quantity;
-        String displayKey;
-        String iconItemId;
-    }
 
     private static final class Dto {
         /** Absent in a pre-marker file, which Gson leaves at 0; read as version 1. */
@@ -83,7 +75,7 @@ public final class PendingRewardStore {
         pending.compute(uuid, (k, existing) -> {
             List<StoredReward> list = existing != null ? existing : new ArrayList<>();
             for (InstanceReward r : rewards) {
-                list.add(toStored(r));
+                list.add(StoredReward.of(r));
             }
             return list;
         });
@@ -100,7 +92,7 @@ public final class PendingRewardStore {
         flush();
         List<InstanceReward> out = new ArrayList<>(removed.size());
         for (StoredReward s : removed) {
-            InstanceReward r = fromStored(s);
+            InstanceReward r = s == null ? null : s.toReward();
             if (r != null) {
                 out.add(r);
             }
@@ -167,30 +159,6 @@ public final class PendingRewardStore {
             FileUtil.writeStringAtomic(f, gson.toJson(dto), true);
         } catch (Throwable t) {
             warn(fileName + " flush failed: " + t.getMessage());
-        }
-    }
-
-    @Nonnull
-    private static StoredReward toStored(@Nonnull InstanceReward r) {
-        StoredReward s = new StoredReward();
-        s.kind = r.kind().name();
-        s.id = r.id();
-        s.quantity = r.quantity();
-        s.displayKey = r.displayKey();
-        s.iconItemId = r.iconItemId();
-        return s;
-    }
-
-    @Nullable
-    private static InstanceReward fromStored(@Nonnull StoredReward s) {
-        if (s.kind == null || s.id == null) {
-            return null;
-        }
-        try {
-            InstanceReward.Kind kind = InstanceReward.Kind.valueOf(s.kind);
-            return new InstanceReward(kind, s.id, s.quantity, s.displayKey, s.iconItemId);
-        } catch (Throwable t) {
-            return null;
         }
     }
 

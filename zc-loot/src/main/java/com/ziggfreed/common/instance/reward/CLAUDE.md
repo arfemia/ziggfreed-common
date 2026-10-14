@@ -1,6 +1,7 @@
 # instance/reward/
 
 - `DeferredRewards.fromSelection` is the one translation from a `LootEngine.select` decision into rewards shown now and paid later. A registered kind with no replayable line is dropped and reported, never promised.
+- A deferred registered-kind row keeps the spec it came from (`InstanceReward.spec`: shown, never paid), so its chip reads the reward through `RewardChips`, never its console line. Stores write it as `StoredReward`'s optional `spec`, which moves no version; rebuild a row only through `withQuantity`/`withId`, which keep it.
 - Hand `DeferredRewards` a subject named `{player}`, so a deferred command resolves whoever claims it.
 - `InstanceRewardGranter` is block-first: an `ITEM` is granted only if all of it fits, otherwise it is held pending, never partly delivered.
 - Register a consumer's reward-token adapter at `setup()`, before `LoadedAssetsEvent`: preset reward specs parse during the asset fold.
