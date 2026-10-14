@@ -18,6 +18,7 @@ import com.ziggfreed.common.achievement.asset.AchievementAssetStore;
 import com.ziggfreed.common.almanac.AlmanacKeepsakeCheck;
 import com.ziggfreed.common.almanac.AlmanacKeys;
 import com.ziggfreed.common.almanac.AlmanacSwitch;
+import com.ziggfreed.common.almanac.view.AlmanacView;
 import com.ziggfreed.common.inventory.ItemIds;
 import com.ziggfreed.common.occurrence.Occurrences;
 import com.ziggfreed.common.progress.ObjectiveKindRegistry;
@@ -39,10 +40,11 @@ import com.ziggfreed.common.validation.TextKeyAudit;
  * the lang catalogue.
  *
  * <p>A page's own findings ({@link AlmanacEntryAsset#findings()}: {@code COLOUR_NOT_HEX},
- * {@code LINK_LEFT_OUT}, {@code HERO_ITEMS_OVER_CAP}, and over its {@code Sections} {@code SECTION_EMPTY},
- * {@code SECTION_HAS_TWO}, {@code SECTION_REPEATED}, {@code SECTIONS_OVER_CAP}, {@code BANNER_EMPTY},
- * {@code BANNER_ITEMS_OVER_CAP}, {@code COLLECTION_ITEMS_OVER_CAP} and {@code COLLECTION_ITEM_REPEATED},
- * each a warning) are folded in as they are. The codes this audit adds, each a stable machine token a
+ * {@code LINK_LEFT_OUT}, {@code HERO_ITEMS_OVER_CAP}, {@code PICTURE_HAS_TWO} (a hero's or a banner's picture
+ * naming both an {@code Item} and an {@code Npc}: the item is drawn), and over its {@code Sections}
+ * {@code SECTION_EMPTY}, {@code SECTION_HAS_TWO}, {@code SECTION_REPEATED}, {@code SECTIONS_OVER_CAP},
+ * {@code BANNER_EMPTY}, {@code BANNER_ITEMS_OVER_CAP}, {@code COLLECTION_ITEMS_OVER_CAP} and
+ * {@code COLLECTION_ITEM_REPEATED}, each a warning) are folded in as they are. The codes this audit adds, each a stable machine token a
  * consumer may filter on:
  * <ul>
  *   <li>ERROR {@link #PAGE_ID_UNUSABLE} (the page is skipped whole, so nothing more is asked of it),
@@ -53,9 +55,11 @@ import com.ziggfreed.common.validation.TextKeyAudit;
  *       page shows no keepsake shelf), {@link #UNKNOWN_ICON}, {@link #UNKNOWN_HERO_ITEM}, {@link #UNKNOWN_KIND},
  *       {@link #UNKNOWN_COLLECTION_ITEM} (that slot is left out), {@link #COLLECTION_EMPTY} (a collection none
  *       of whose slots the grid reads names an item this server has, so it is left out whole, and nothing it
- *       would show is asked further), {@link #UNKNOWN_BANNER_ITEM} (that picture is left off the banner), and
- *       {@link TextKeyAudit#UNKNOWN_TEXT_KEY} for a key the page shows that no loaded lang file ships, its
- *       sections' keys included;</li>
+ *       would show is asked further), {@link #UNKNOWN_BANNER_ITEM} (that picture is left off the banner),
+ *       {@link #UNKNOWN_HERO_NPC} and {@link #UNKNOWN_BANNER_NPC} (a picture's {@code Npc} names no NPC role this
+ *       server has, so that portrait is left off; asked only of a picture that names no item, and only when the
+ *       roles are in hand), and {@link TextKeyAudit#UNKNOWN_TEXT_KEY} for a key the page shows that no loaded lang
+ *       file ships, its sections' keys included;</li>
  *   <li>and each section Button's destination, asked of its own type (the engine walk asks
  *       {@code Destinations.validate}, so a storefront button that names no storefront reports what the
  *       storefront's own check says).</li>
@@ -84,6 +88,8 @@ public final class AlmanacValidator {
     public static final String UNKNOWN_COLLECTION_ITEM = "UNKNOWN_COLLECTION_ITEM";
     public static final String COLLECTION_EMPTY = "COLLECTION_EMPTY";
     public static final String UNKNOWN_BANNER_ITEM = "UNKNOWN_BANNER_ITEM";
+    public static final String UNKNOWN_HERO_NPC = "UNKNOWN_HERO_NPC";
+    public static final String UNKNOWN_BANNER_NPC = "UNKNOWN_BANNER_NPC";
 
     /** The pure core's destination check when none is asked: nothing to say. */
     private static final BiFunction<Destination, String, List<Finding>> NO_DESTINATION_CHECK =
@@ -110,7 +116,7 @@ public final class AlmanacValidator {
                     // A keepsake the mod gate refused is absent by design and named nowhere.
                     keepsake -> AlmanacKeepsakeCheck.loaded(keepsake, AchievementAssetStore.getInstance().assets())
                             || AchievementAssetStore.getInstance().modGateRefused(keepsake),
-                    Destinations::validate));
+                    Destinations::validate, AlmanacView::roleLoaded));
             out.addAll(AlmanacKeepsakeCheck.findings());
             return out;
         } catch (Throwable t) {
@@ -180,6 +186,23 @@ public final class AlmanacValidator {
             @Nullable ObjectiveKindRegistry kinds, @Nonnull Predicate<String> keyShipped,
             @Nullable Predicate<String> keepsakeKnown,
             @Nonnull BiFunction<Destination, String, List<Finding>> destinationCheck) {
+        return audit(pages, eventLoaded, itemKnown, kinds, keyShipped, keepsakeKnown, destinationCheck, null);
+    }
+
+    /**
+     * The pure core with every check: {@link #audit(Collection, Predicate, Predicate, ObjectiveKindRegistry,
+     * Predicate, Predicate, BiFunction)} that also asks each picture's {@code Npc} (one naming no item) of the
+     * server's NPC roles.
+     *
+     * @param roleKnown whether an NPC role id names a role this server has; null asks nothing
+     */
+    @Nonnull
+    public static List<Finding> audit(@Nonnull Collection<AlmanacEntryAsset> pages,
+            @Nonnull Predicate<String> eventLoaded, @Nonnull Predicate<String> itemKnown,
+            @Nullable ObjectiveKindRegistry kinds, @Nonnull Predicate<String> keyShipped,
+            @Nullable Predicate<String> keepsakeKnown,
+            @Nonnull BiFunction<Destination, String, List<Finding>> destinationCheck,
+            @Nullable Predicate<String> roleKnown) {
         List<AlmanacEntryAsset> ordered = new ArrayList<>();
         for (AlmanacEntryAsset page : pages) {
             if (page != null && page.getId() != null) {
@@ -189,7 +212,8 @@ public final class AlmanacValidator {
         ordered.sort(Comparator.comparing(AlmanacEntryAsset::getId));
         List<Finding> out = new ArrayList<>();
         for (AlmanacEntryAsset page : ordered) {
-            auditPage(page, eventLoaded, itemKnown, kinds, keyShipped, keepsakeKnown, destinationCheck, out);
+            auditPage(page, eventLoaded, itemKnown, kinds, keyShipped, keepsakeKnown, destinationCheck, roleKnown,
+                    out);
         }
         return out;
     }
@@ -197,7 +221,8 @@ public final class AlmanacValidator {
     private static void auditPage(@Nonnull AlmanacEntryAsset page, @Nonnull Predicate<String> eventLoaded,
             @Nonnull Predicate<String> itemKnown, @Nullable ObjectiveKindRegistry kinds,
             @Nonnull Predicate<String> keyShipped, @Nullable Predicate<String> keepsakeKnown,
-            @Nonnull BiFunction<Destination, String, List<Finding>> destinationCheck, @Nonnull List<Finding> out) {
+            @Nonnull BiFunction<Destination, String, List<Finding>> destinationCheck,
+            @Nullable Predicate<String> roleKnown, @Nonnull List<Finding> out) {
         String id = page.getId();
         String where = "the season page '" + id + "'";
         if (!AlmanacKeys.usableId(id)) {
@@ -226,8 +251,8 @@ public final class AlmanacValidator {
         AlmanacHeroAsset.Composition composition = hero == null ? null : hero.composition();
         if (composition != null) {
             for (AlmanacHeroAsset.Placement placement : composition.items()) {
-                checkItem(where + " Hero.Composition.Items", placement.item(), UNKNOWN_HERO_ITEM,
-                        "that picture is left off the top of the page", itemKnown, id, out);
+                checkPicture(where + " Hero.Composition.Items", placement, UNKNOWN_HERO_ITEM, UNKNOWN_HERO_NPC,
+                        "that picture is left off the top of the page", itemKnown, roleKnown, id, out);
             }
         }
         for (Map.Entry<String, AlmanacStatAsset> stat : new TreeMap<>(page.getStats()).entrySet()) {
@@ -249,7 +274,8 @@ public final class AlmanacValidator {
             if (part == null || (AlmanacSectionAsset.BUILT_IN.contains(part) && !placed.add(part))) {
                 continue;
             }
-            auditSection(where + " Sections[" + i + "]", section, itemKnown, keyShipped, destinationCheck, id, out);
+            auditSection(where + " Sections[" + i + "]", section, itemKnown, keyShipped, destinationCheck, roleKnown,
+                    id, out);
         }
     }
 
@@ -260,16 +286,16 @@ public final class AlmanacValidator {
      */
     private static void auditSection(@Nonnull String where, @Nonnull AlmanacSectionAsset section,
             @Nonnull Predicate<String> itemKnown, @Nonnull Predicate<String> keyShipped,
-            @Nonnull BiFunction<Destination, String, List<Finding>> destinationCheck, @Nonnull String id,
-            @Nonnull List<Finding> out) {
+            @Nonnull BiFunction<Destination, String, List<Finding>> destinationCheck,
+            @Nullable Predicate<String> roleKnown, @Nonnull String id, @Nonnull List<Finding> out) {
         AlmanacBannerAsset banner = section.banner();
         if (banner != null) {
             String at = where + ".Banner";
             AlmanacHeroAsset.Composition composition = banner.composition();
             if (composition != null) {
                 for (AlmanacHeroAsset.Placement placement : composition.items()) {
-                    checkItem(at + ".Composition.Items", placement.item(), UNKNOWN_BANNER_ITEM,
-                            "that picture is left off the banner", itemKnown, id, out);
+                    checkPicture(at + ".Composition.Items", placement, UNKNOWN_BANNER_ITEM, UNKNOWN_BANNER_NPC,
+                            "that picture is left off the banner", itemKnown, roleKnown, id, out);
                 }
             }
             TextKeyAudit.check(out, DOMAIN, id, at + ".Text.TitleKey", banner.titleKey(), keyShipped,
@@ -357,6 +383,26 @@ public final class AlmanacValidator {
         checkItem(where + " Icon", stat.getIcon(), UNKNOWN_ICON, "it shows no picture", itemKnown, id, out);
         TextKeyAudit.check(out, DOMAIN, id, where + " TextKey", stat.getTextKey(), keyShipped,
                 "the line shows the raw key");
+    }
+
+    /**
+     * One composed picture: its item asked of the items, else (a picture naming no item) its NPC asked of the roles
+     * when they are in hand. A picture naming both draws its item, so its NPC is never asked here; the page's own
+     * {@code PICTURE_HAS_TWO} says it is ignored.
+     */
+    private static void checkPicture(@Nonnull String where, @Nonnull AlmanacHeroAsset.Placement placement,
+            @Nonnull String itemCode, @Nonnull String npcCode, @Nonnull String cost,
+            @Nonnull Predicate<String> itemKnown, @Nullable Predicate<String> roleKnown, @Nonnull String id,
+            @Nonnull List<Finding> out) {
+        if (placement.item() != null) {
+            checkItem(where, placement.item(), itemCode, cost, itemKnown, id, out);
+            return;
+        }
+        String npc = placement.npc();
+        if (npc != null && roleKnown != null && !roleKnown.test(npc)) {
+            out.add(Finding.warning(DOMAIN, npcCode, where + " names the NPC '" + npc + "', which is no NPC role "
+                    + "this server has, so " + cost, id));
+        }
     }
 
     private static void checkItem(@Nonnull String where, @Nullable String itemId, @Nonnull String code,

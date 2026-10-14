@@ -140,6 +140,31 @@ class AlmanacEntryAssetTest {
     }
 
     @Test
+    void aPictureNamingAnNpcDecodesAndOneNamingBothIsReported() throws Exception {
+        AlmanacEntryAsset page = AlmanacFixtures.page("""
+                { "Hero": { "Composition": { "Items": [
+                    { "Npc": " Test_Rider ", "X": 700, "Y": 20, "Size": 128 },
+                    { "Item": "Test_Lantern", "Npc": "Test_Rider" },
+                    { "Npc": " " } ] } },
+                  "Sections": [ { "Banner": { "Composition": { "Items": [
+                    { "Item": "Test_Bomb", "Npc": "Test_Rider" } ] } } } ] }
+                """, "Test_Season");
+
+        List<AlmanacHeroAsset.Placement> pictures = page.hero().composition().items();
+        assertEquals(2, pictures.size(), "a placement naming neither is no placement");
+        AlmanacHeroAsset.Placement rider = pictures.get(0);
+        assertNull(rider.item());
+        assertEquals("Test_Rider", rider.npc(), "trimmed");
+        assertEquals(700, rider.x());
+        assertEquals(128, rider.size());
+        assertTrue(pictures.get(1).namesBoth());
+        assertFalse(rider.namesBoth());
+        assertEquals(List.of(AlmanacEntryAsset.FINDING_PICTURE_HAS_TWO, AlmanacEntryAsset.FINDING_PICTURE_HAS_TWO),
+                page.findings().stream().map(Finding::code).toList(), "the hero's and the banner's, each a warning");
+        assertTrue(page.findings().stream().allMatch(f -> f.severity() == Severity.WARNING));
+    }
+
+    @Test
     void showArtFalseIsReadAsAuthoredAndKeepsTheArtNamed() throws Exception {
         AlmanacEntryAsset page = AlmanacFixtures.page(
                 "{ \"Hero\": { \"Art\": \"UI/Custom/A.png\", \"ShowArt\": false } }", "Test_Season");

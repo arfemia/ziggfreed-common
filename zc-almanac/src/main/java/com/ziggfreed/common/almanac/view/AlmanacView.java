@@ -27,6 +27,7 @@ import com.google.gson.JsonObject;
 import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.hypixel.hytale.server.core.asset.common.CommonAssetRegistry;
+import com.hypixel.hytale.server.npc.NPCPlugin;
 import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.achievement.AchievementEngine;
 import com.ziggfreed.common.almanac.AlmanacCalendar;
@@ -43,6 +44,8 @@ import com.ziggfreed.common.almanac.asset.AlmanacLinkAsset;
 import com.ziggfreed.common.almanac.asset.AlmanacSectionAsset;
 import com.ziggfreed.common.almanac.asset.AlmanacStatAsset;
 import com.ziggfreed.common.counter.CounterMap;
+import com.ziggfreed.common.icon.IconSpec;
+import com.ziggfreed.common.icon.Portraits;
 import com.ziggfreed.common.inventory.ItemIds;
 import com.ziggfreed.common.occurrence.Occurrence;
 import com.ziggfreed.common.occurrence.Recurrence;
@@ -299,8 +302,22 @@ public final class AlmanacView {
     public record MonthMarks(int month, @Nonnull List<String> eventIds) {
     }
 
-    /** One item picture on a composed hero: its own icon texture, its top-left corner, its side. */
-    public record HeroItem(@Nonnull String itemId, @Nonnull String iconPath, int x, int y, int size) {
+    /**
+     * One picture on a composed hero or banner: an item's own icon texture ({@code itemId} set), or an NPC role's
+     * portrait ({@code npc} set, the still of the model it wears), never both; its top-left corner, its side.
+     */
+    public record HeroItem(@Nullable String itemId, @Nonnull String iconPath, int x, int y, int size,
+                           @Nullable String npc) {
+
+        /** An item's picture. */
+        public HeroItem(@Nonnull String itemId, @Nonnull String iconPath, int x, int y, int size) {
+            this(itemId, iconPath, x, y, size, null);
+        }
+
+        /** Is this an NPC's portrait rather than an item's picture? */
+        public boolean portrait() {
+            return npc != null;
+        }
     }
 
     /** A composed hero's vertical sky: the colour at the plate's top edge (y 0) and at its bottom (y 240). */
@@ -517,7 +534,7 @@ public final class AlmanacView {
             @Nullable Scope requested, @Nonnull AlmanacCalendar calendar, @Nonnull ServerTallies server,
             long nowMs) {
         return page(season, page, tallies, engine, subject, requested, calendar, server, nowMs,
-                AlmanacView::textureShips, ItemIds::iconPath);
+                AlmanacView::textureShips, ItemIds::iconPath, AlmanacView::portraitPath);
     }
 
     /** {@link #page} with the texture and item-picture lookups handed in, for a test with no asset store. */
@@ -526,6 +543,20 @@ public final class AlmanacView {
             @Nullable AchievementEngine engine, @Nullable Subject subject, @Nullable Scope requested,
             @Nonnull AlmanacCalendar calendar, @Nonnull ServerTallies server, long nowMs,
             @Nonnull Predicate<String> textureShips, @Nonnull Function<String, String> iconPaths) {
+        return page(season, page, tallies, engine, subject, requested, calendar, server, nowMs, textureShips,
+                iconPaths, AlmanacView::portraitPath);
+    }
+
+    /**
+     * {@link #page} with the texture, item-picture and NPC-portrait lookups handed in ({@code portraits}: a role id to
+     * its portrait's texture, null for a role the server lacks).
+     */
+    @Nonnull
+    static SeasonPage page(@Nonnull Season season, @Nullable AlmanacEntryAsset page, @Nonnull CounterMap tallies,
+            @Nullable AchievementEngine engine, @Nullable Subject subject, @Nullable Scope requested,
+            @Nonnull AlmanacCalendar calendar, @Nonnull ServerTallies server, long nowMs,
+            @Nonnull Predicate<String> textureShips, @Nonnull Function<String, String> iconPaths,
+            @Nonnull Function<String, String> portraits) {
         String eventId = season.eventId();
         Dates dates = calendar.dates(eventId, nowMs);
         Timing timing = timing(season, dates, nowMs);
@@ -535,9 +566,9 @@ public final class AlmanacView {
         Scope scope = scope(requested, season, timing, years);
         return new SeasonPage(season, timing, years, scope, tookPartIn(scope, years),
                 tallies(page, eventId, tallies, scope, server), keepsakes(page, engine, subject, copies, earned, years),
-                achievements(eventId, page, engine, subject), hero(season, page, textureShips, iconPaths),
+                achievements(eventId, page, engine, subject), hero(season, page, textureShips, iconPaths, portraits),
                 page == null ? null : page.accent(), links(page),
-                sections(eventId, page, tallies, textureShips, iconPaths));
+                sections(eventId, page, tallies, textureShips, iconPaths, portraits));
     }
 
     /** When {@code season} runs, as the calendar knows it at {@code nowMs}: its chip, row line and dates. */
@@ -738,7 +769,7 @@ public final class AlmanacView {
     @Nonnull
     static List<Section> sections(@Nonnull String eventId, @Nullable AlmanacEntryAsset page,
             @Nonnull CounterMap tallies, @Nonnull Predicate<String> textureShips,
-            @Nonnull Function<String, String> iconPaths) {
+            @Nonnull Function<String, String> iconPaths, @Nonnull Function<String, String> portraits) {
         List<AlmanacSectionAsset> authored = page == null ? null : page.sections();
         if (authored == null) {
             return List.of(new TalliesSection(), new KeepsakesSection(), callToAction(eventId, null),
@@ -755,7 +786,7 @@ public final class AlmanacView {
             }
             Section section;
             if (AlmanacSectionAsset.BANNER.equals(part)) {
-                section = banner(entry.banner(), accent, textureShips, iconPaths);
+                section = banner(entry.banner(), accent, textureShips, iconPaths, portraits);
             } else if (AlmanacSectionAsset.COLLECTION.equals(part)) {
                 section = collection(entry.collection(), tallies, iconPaths);
             } else if (!drawn.add(part)) {
@@ -827,7 +858,8 @@ public final class AlmanacView {
      */
     @Nullable
     static BannerSection banner(@Nullable AlmanacBannerAsset authored, @Nullable String accent,
-            @Nonnull Predicate<String> textureShips, @Nonnull Function<String, String> iconPaths) {
+            @Nonnull Predicate<String> textureShips, @Nonnull Function<String, String> iconPaths,
+            @Nonnull Function<String, String> portraits) {
         if (authored == null) {
             return null;
         }
@@ -837,7 +869,7 @@ public final class AlmanacView {
         if (art != null && ships(art, textureShips)) {
             return new BannerSection(art, null, height, authored.titleKey(), authored.flavorKey(), button);
         }
-        HeroComposition composition = composition(authored.composition(), accent, textureShips, iconPaths,
+        HeroComposition composition = composition(authored.composition(), accent, textureShips, iconPaths, portraits,
                 BANNER_WIDTH, height, true);
         if (composition == null && authored.titleKey() == null && authored.flavorKey() == null && button == null) {
             return null;
@@ -973,15 +1005,23 @@ public final class AlmanacView {
         return List.copyOf(out);
     }
 
-    /**
-     * Which top a season's page draws. In order: the {@code Hero.Art} while {@code ShowArt} is true and
-     * the texture ships; else the {@code Hero.Composition} when at least one of its items is one the server
-     * has; else the season's own icon. A composition's items are kept on the plate (side 24 to 128, then
-     * the corner clamped so the whole picture shows), unknown ones skipped, the first twelve drawn.
-     */
+    /** {@link #hero(Season, AlmanacEntryAsset, Predicate, Function, Function)} with the server's NPC portraits. */
     @Nonnull
     static Hero hero(@Nonnull Season season, @Nullable AlmanacEntryAsset page, @Nonnull Predicate<String> textureShips,
             @Nonnull Function<String, String> iconPaths) {
+        return hero(season, page, textureShips, iconPaths, AlmanacView::portraitPath);
+    }
+
+    /**
+     * Which top a season's page draws. In order: the {@code Hero.Art} while {@code ShowArt} is true and
+     * the texture ships; else the {@code Hero.Composition} when at least one of its pictures is one the server
+     * has (an item, or an NPC role's portrait); else the season's own icon. A composition's pictures are kept on
+     * the plate (side 24 to 128, then the corner clamped so the whole picture shows), unknown ones skipped, the
+     * first twelve drawn.
+     */
+    @Nonnull
+    static Hero hero(@Nonnull Season season, @Nullable AlmanacEntryAsset page, @Nonnull Predicate<String> textureShips,
+            @Nonnull Function<String, String> iconPaths, @Nonnull Function<String, String> portraits) {
         String ownIcon = iconPath(season.icon(), iconPaths);
         AlmanacHeroAsset authored = page == null ? null : page.hero();
         if (authored == null) {
@@ -991,27 +1031,23 @@ public final class AlmanacView {
         if (authored.showArt() && art != null && ships(art, textureShips)) {
             return new Hero(art, null, ownIcon);
         }
-        HeroComposition composition = composition(authored.composition(), page.accent(), textureShips, iconPaths);
+        HeroComposition composition = composition(authored.composition(), page.accent(), textureShips, iconPaths,
+                portraits, HERO_WIDTH, HERO_HEIGHT, false);
         return new Hero(null, composition, ownIcon);
     }
 
-    @Nullable
-    private static HeroComposition composition(@Nullable AlmanacHeroAsset.Composition authored,
-            @Nullable String accent, @Nonnull Predicate<String> textureShips,
-            @Nonnull Function<String, String> iconPaths) {
-        return composition(authored, accent, textureShips, iconPaths, HERO_WIDTH, HERO_HEIGHT, false);
-    }
-
     /**
-     * {@code authored} read onto a {@code plateWidth} x {@code plateHeight} plate: each item's side kept to 24
-     * through the smaller of 128 and the plate's height, its corner kept so the whole picture shows, unknown
-     * items skipped, the first twelve drawn. With no item drawn it is null unless {@code keepEmpty} (a banner's
-     * colour band); the hero's top needs at least one.
+     * {@code authored} read onto a {@code plateWidth} x {@code plateHeight} plate: each picture's side kept to 24
+     * through the smaller of 128 and the plate's height, its corner kept so the whole picture shows, unknown items
+     * and roles skipped, the first twelve drawn. A placement naming an item draws that item's picture (an NPC it
+     * also names is ignored); one naming only an NPC draws that role's portrait. With no picture drawn it is null
+     * unless {@code keepEmpty} (a banner's colour band); the hero's top needs at least one.
      */
     @Nullable
     private static HeroComposition composition(@Nullable AlmanacHeroAsset.Composition authored,
             @Nullable String accent, @Nonnull Predicate<String> textureShips,
-            @Nonnull Function<String, String> iconPaths, int plateWidth, int plateHeight, boolean keepEmpty) {
+            @Nonnull Function<String, String> iconPaths, @Nonnull Function<String, String> portraits,
+            int plateWidth, int plateHeight, boolean keepEmpty) {
         if (authored == null) {
             return null;
         }
@@ -1021,13 +1057,15 @@ public final class AlmanacView {
             if (items.size() >= HERO_MAX_ITEMS) {
                 break;
             }
-            String icon = iconPath(placement.item(), iconPaths);
+            String itemId = placement.item();
+            String npc = itemId == null ? placement.npc() : null;
+            String icon = itemId != null ? iconPath(itemId, iconPaths) : iconPath(npc, portraits);
             if (icon == null) {
                 continue;
             }
             int size = clamp(placement.size(), HERO_ITEM_SIZE, HERO_ITEM_MIN, sideMax);
-            items.add(new HeroItem(placement.item(), icon, clamp(placement.x(), 0, 0, plateWidth - size),
-                    clamp(placement.y(), 0, 0, plateHeight - size), size));
+            items.add(new HeroItem(itemId, icon, clamp(placement.x(), 0, 0, plateWidth - size),
+                    clamp(placement.y(), 0, 0, plateHeight - size), size, npc));
         }
         if (items.isEmpty() && !keepEmpty) {
             return null;
@@ -1175,18 +1213,53 @@ public final class AlmanacView {
         return runs.isEmpty() ? null : runs.get(runs.size() - 1);
     }
 
-    /** {@code itemId}'s own picture, or null for no id, an item the server lacks, or a failing lookup. */
+    /**
+     * {@code id}'s picture through {@code lookup} (an item's own icon, or an NPC role's portrait), or null for no id,
+     * one the server lacks, or a failing lookup.
+     */
     @Nullable
-    private static String iconPath(@Nullable String itemId, @Nonnull Function<String, String> iconPaths) {
-        if (itemId == null || itemId.isBlank()) {
+    private static String iconPath(@Nullable String id, @Nonnull Function<String, String> lookup) {
+        if (id == null || id.isBlank()) {
             return null;
         }
         try {
-            String path = iconPaths.apply(itemId.trim());
+            String path = lookup.apply(id.trim());
             return path == null || path.isBlank() ? null : path;
         } catch (Throwable t) {
             return null;
         }
+    }
+
+    /**
+     * Does this server have an NPC role of that id (the role file's name, case included)? False for a blank id; true
+     * when no role registry can be asked (a unit JVM, a call before the NPC plugin is up, a registry that throws),
+     * since cannot tell is not missing.
+     */
+    public static boolean roleLoaded(@Nullable String roleId) {
+        if (roleId == null || roleId.isBlank()) {
+            return false;
+        }
+        try {
+            NPCPlugin npc = NPCPlugin.get();
+            return npc == null || npc.hasRoleName(roleId.trim());
+        } catch (Throwable t) {
+            return true;
+        }
+    }
+
+    /**
+     * The portrait a composition draws for an NPC role: zc-core's {@link Portraits} still of the model the role
+     * wears (through the installed role art, else the id as written), or null for a role this server does not have
+     * ({@link #roleLoaded}). The path is named whether or not a still was rendered for that model, so the page's
+     * portrait slot falls back to {@link Portraits#MISSING_TEXTURE}, as every portrait widget does.
+     */
+    @Nullable
+    static String portraitPath(@Nullable String roleId) {
+        if (!roleLoaded(roleId)) {
+            return null;
+        }
+        IconSpec portrait = Portraits.forRole(roleId);
+        return portrait == null ? null : portrait.texturePath();
     }
 
     /**

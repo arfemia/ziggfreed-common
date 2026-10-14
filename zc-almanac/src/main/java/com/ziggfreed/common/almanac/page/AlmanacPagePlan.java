@@ -87,8 +87,11 @@ record AlmanacPagePlan(@Nonnull LedgerModel seasons, @Nullable String selected, 
     record HeroBox(int x, int y, int width, int height) {
     }
 
-    /** One item picture of a composed hero: its own icon texture, where it sits, how big. */
-    record HeroPicture(@Nonnull String itemId, @Nonnull String iconPath, @Nonnull HeroBox box) {
+    /**
+     * One picture of a composed hero or banner: its texture (an item's own icon, or an NPC's portrait when
+     * {@code portrait}), where it sits, how big; {@code itemId} is null for a portrait.
+     */
+    record HeroPicture(@Nullable String itemId, @Nonnull String iconPath, @Nonnull HeroBox box, boolean portrait) {
     }
 
     /** A composed hero's glow: its tint and its box, fitted onto the plate. */
@@ -564,13 +567,13 @@ record AlmanacPagePlan(@Nonnull LedgerModel seasons, @Nullable String selected, 
                 next, accent);
     }
 
-    /** A composition's item pictures, each placed and sized where the view put it on its plate. */
+    /** A composition's pictures (items and NPC portraits), each placed and sized where the view put it on its plate. */
     @Nonnull
     private static List<HeroPicture> pictures(@Nonnull HeroComposition composition) {
         List<HeroPicture> pictures = new ArrayList<>();
         for (HeroItem item : composition.items()) {
             pictures.add(new HeroPicture(item.itemId(), item.iconPath(),
-                    new HeroBox(item.x(), item.y(), item.size(), item.size())));
+                    new HeroBox(item.x(), item.y(), item.size(), item.size()), item.portrait()));
         }
         return List.copyOf(pictures);
     }

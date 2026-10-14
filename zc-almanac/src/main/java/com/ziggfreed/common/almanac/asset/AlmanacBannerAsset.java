@@ -48,8 +48,8 @@ public final class AlmanacBannerAsset {
                                     false),
                             (b, v) -> b.composition = v, b -> b.composition)
                     .documentation("A banner made from pictures the game has, as the top of the page is: a "
-                            + "colour or a gradient, a glow, a texture and item pictures placed on the 906 x Height "
-                            + "plate. Drawn when the Art is missing. Written badly, it is left out with a "
+                            + "colour or a gradient, a glow, a texture and item or NPC pictures placed on the 906 x "
+                            + "Height plate. Drawn when the Art is missing. Written badly, it is left out with a "
                             + "warning.").add()
                     .append(new KeyedCodec<>("Text", ContentTextAsset.CODEC, false), (b, v) -> b.text = v, b -> b.text)
                     .documentation("The banner's title (TitleKey) and the line under it (FlavorKey), as "

@@ -153,6 +153,28 @@ class AlmanacValidatorTest {
     }
 
     @Test
+    void anNpcPictureNamingNoRoleThisServerHasIsAWarningAskedOnlyWithTheRolesInHand() throws IOException {
+        AlmanacEntryAsset page = AlmanacFixtures.page("""
+                { "Hero": { "Composition": { "Items": [ { "Npc": "Test_Rider" }, { "Npc": "Test_Ridder" },
+                                                       { "Item": "Test_Lantern", "Npc": "Test_Ridder" } ] } },
+                  "Sections": [ { "Banner": { "Composition": { "Items": [ { "Npc": "Test_Ridder" } ] } } } ] }
+                """, "Test_Season");
+
+        List<Finding> findings = AlmanacValidator.audit(List.of(page), ALL_EVENTS, ALL_ITEMS, null, ALL_KEYS, null,
+                (destination, source) -> List.of(), "Test_Rider"::equals);
+
+        assertEquals(List.of(AlmanacEntryAsset.FINDING_PICTURE_HAS_TWO, AlmanacValidator.UNKNOWN_HERO_NPC,
+                AlmanacValidator.UNKNOWN_BANNER_NPC), codes(findings),
+                "a picture naming an item draws the item, so its NPC is never asked");
+        assertTrue(findings.get(1).message().contains("'Test_Ridder'"), findings.get(1).message());
+        for (Finding finding : findings) {
+            assertEquals(Severity.WARNING, finding.severity());
+        }
+        assertEquals(List.of(AlmanacEntryAsset.FINDING_PICTURE_HAS_TWO), codes(audit(page)),
+                "with no roles in hand nothing is asked of them");
+    }
+
+    @Test
     void aTallyLineThatCanNeverCountSaysWhy() throws IOException {
         AlmanacEntryAsset page = AlmanacFixtures.page("""
                 { "Stats": {

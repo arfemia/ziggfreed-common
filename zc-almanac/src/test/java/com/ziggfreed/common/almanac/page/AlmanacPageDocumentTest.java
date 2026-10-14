@@ -70,6 +70,7 @@ import com.ziggfreed.common.almanac.view.AlmanacView.Tally;
 import com.ziggfreed.common.almanac.view.AlmanacView.Timing;
 import com.ziggfreed.common.almanac.view.AlmanacView.YearChip;
 import com.ziggfreed.common.almanac.view.AlmanacView.YearKeepsake;
+import com.ziggfreed.common.icon.Portraits;
 import com.ziggfreed.common.occurrence.Recurrence;
 import com.ziggfreed.common.ui.icon.IconRenderer;
 import com.ziggfreed.common.ui.kit.KeepsakeState;
@@ -273,6 +274,43 @@ class AlmanacPageDocumentTest {
         assertTrue(AlmanacPage.HERO_PICTURE.contains("AssetImage " + IconRenderer.TEXTURE_ICON_ID),
                 "a composed hero's picture is the one plain picture slot: no tooltip, no rarity square");
         assertFalse(AlmanacPage.HERO_PICTURE.contains("ItemGrid") || AlmanacPage.HERO_PICTURE.contains("ItemIcon"));
+    }
+
+    /**
+     * A composed picture that is an NPC's portrait is the same plain slot, falling back to the shared missing-picture
+     * icon; an item's picture keeps its own slot, and both are placed and painted alike.
+     *
+     * <p>Tagged {@code engine-items}: a {@link UICommandBuilder}'s static init reaches the engine's item codec.
+     */
+    @Test
+    @Tag("engine-items")
+    void anNpcsPortraitIsThePlainSlotThatFallsBackToTheMissingPicture() {
+        assertTrue(AlmanacPage.HERO_PORTRAIT.contains("AssetImage " + IconRenderer.TEXTURE_ICON_ID));
+        assertTrue(AlmanacPage.HERO_PORTRAIT.contains("FallbackTexturePath: \"" + Portraits.MISSING_TEXTURE + "\""),
+                AlmanacPage.HERO_PORTRAIT);
+        HeroComposition band = new HeroComposition(null, null, new HeroGradient("#0a0f1e", "#2a1a2c"), null,
+                List.of(new HeroItem("Lantern", "Icons/ItemsGenerated/Lantern.png", 600, 12, 64),
+                        new HeroItem(null, "Icons/ModelsGenerated/Rider.png", 680, 6, 128, "Rider")));
+        UICommandBuilder cmd = new UICommandBuilder();
+        AlmanacPage.paint(cmd, new UIEventBuilder(), fullPlan(composedHero(),
+                List.of(new BannerSection(null, band, 140, "almanac.test.band", null, null))), null);
+
+        String host = AlmanacPage.SECTIONS + "[0] #Plate #PlateItems";
+        List<String> slots = new ArrayList<>();
+        for (CustomUICommand command : cmd.getCommands()) {
+            if (command.type == CustomUICommandType.AppendInline && host.equals(command.selector)) {
+                slots.add(command.text);
+            }
+        }
+        assertEquals(List.of(AlmanacPage.HERO_PICTURE, AlmanacPage.HERO_PORTRAIT), slots);
+        Map<String, String> sent = new HashMap<>();
+        for (CustomUICommand command : cmd.getCommands()) {
+            if (command.selector != null) {
+                sent.put(command.selector, String.valueOf(command.data));
+            }
+        }
+        assertTrue(sent.get(host + "[1] #IcoTex.AssetPath").contains("Icons/ModelsGenerated/Rider.png"),
+                sent.get(host + "[1] #IcoTex.AssetPath"));
     }
 
     // ---- the hero's dates lines ----

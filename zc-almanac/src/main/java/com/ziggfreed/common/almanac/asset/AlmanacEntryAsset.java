@@ -69,6 +69,12 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
     /** How many items a composed hero draws. */
     public static final int HERO_MAX_ITEMS = 12;
 
+    /**
+     * A finding's code: a composition's picture (the hero's or a banner's) naming both an {@code Item} and an
+     * {@code Npc}; the item is drawn and the NPC ignored.
+     */
+    public static final String FINDING_PICTURE_HAS_TWO = "PICTURE_HAS_TWO";
+
     /** A finding's code: a {@code Sections} entry that names no part, so it is skipped. */
     public static final String FINDING_SECTION_EMPTY = "SECTION_EMPTY";
 
@@ -276,10 +282,10 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
 
     /**
      * What is wrong with this page that does not stop it loading, each a warning: a colour that is not
-     * {@code #rrggbb} (read as unauthored), a link left out, more hero items than the hero draws; and in
-     * the {@code Sections} the page draws, an entry naming no part or two, a built-in part placed again,
-     * too many entries, a banner with nothing to show or too many items, a collection repeating an item or
-     * listing too many, and a banner's or a collection's button left out.
+     * {@code #rrggbb} (read as unauthored), a link left out, more hero items than the hero draws, a picture
+     * naming both an item and an NPC; and in the {@code Sections} the page draws, an entry naming no part or
+     * two, a built-in part placed again, too many entries, a banner with nothing to show or too many items, a
+     * collection repeating an item or listing too many, and a banner's or a collection's button left out.
      */
     @Nonnull
     public List<Finding> findings() {
@@ -292,6 +298,7 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
         AlmanacHeroAsset.Composition composition = hero == null ? null : hero.composition();
         if (composition != null) {
             colourFindings(composition, "Hero.Composition", "the composed top", source, out);
+            pictureFindings(composition, "Hero.Composition", source, out);
             if (composition.items().size() > HERO_MAX_ITEMS) {
                 out.add(Finding.warning(DOMAIN, FINDING_HERO_ITEMS, "Hero.Composition.Items names "
                         + composition.items().size() + " items and the hero draws the first " + HERO_MAX_ITEMS,
@@ -325,6 +332,18 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
         if (composition.glowMalformed()) {
             out.add(Finding.warning(DOMAIN, FINDING_COLOUR, where + ".Glow needs a #rrggbb Color, so it is not "
                     + "drawn", source));
+        }
+    }
+
+    /** A composition's pictures that name both an item and an NPC, the hero's and every banner's alike. */
+    private static void pictureFindings(@Nonnull AlmanacHeroAsset.Composition composition, @Nonnull String where,
+            @Nonnull String source, @Nonnull List<Finding> out) {
+        for (AlmanacHeroAsset.Placement placement : composition.items()) {
+            if (placement.namesBoth()) {
+                out.add(Finding.warning(DOMAIN, FINDING_PICTURE_HAS_TWO, where + ".Items names the item '"
+                        + placement.item() + "' and the NPC '" + placement.npc() + "' in one picture; a picture "
+                        + "shows one, so the item is drawn and the NPC is ignored", source));
+            }
         }
     }
 
@@ -377,6 +396,7 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
         AlmanacHeroAsset.Composition composition = banner.composition();
         if (composition != null) {
             colourFindings(composition, where + ".Composition", "the banner", source, out);
+            pictureFindings(composition, where + ".Composition", source, out);
             if (composition.items().size() > HERO_MAX_ITEMS) {
                 out.add(Finding.warning(DOMAIN, FINDING_BANNER_ITEMS, where + ".Composition.Items names "
                         + composition.items().size() + " items and a banner draws the first " + HERO_MAX_ITEMS,

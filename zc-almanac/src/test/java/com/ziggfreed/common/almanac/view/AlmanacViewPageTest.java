@@ -577,6 +577,24 @@ class AlmanacViewPageTest {
     }
 
     @Test
+    void aPictureNamingOnlyAnNpcDrawsItsPortraitAndAnItemBesideAnNpcWins() throws Exception {
+        Function<String, String> portraits = role -> role.equals("Test_Rider")
+                ? "Icons/ModelsGenerated/Test_Rider.png" : null;
+        Hero hero = AlmanacView.hero(live(2026), dressed("""
+                { "Composition": { "Items": [
+                    { "Npc": "Test_Rider", "X": 700, "Y": 20, "Size": 128 },
+                    { "Item": "Test_Lantern", "Npc": "Test_Rider", "X": 600, "Y": 40 },
+                    { "Npc": "No_Such_Role" } ] } }
+                """), SHIPPED, ICONS, portraits);
+
+        assertEquals(List.of(new HeroItem(null, "Icons/ModelsGenerated/Test_Rider.png", 700, 20, 128, "Test_Rider"),
+                new HeroItem("Test_Lantern", "Icons/ItemsGenerated/Test_Lantern.png", 600, 40, 64)),
+                hero.composition().items(), "a role the server lacks is skipped, as an unknown item is");
+        assertTrue(hero.composition().items().get(0).portrait());
+        assertFalse(hero.composition().items().get(1).portrait());
+    }
+
+    @Test
     void aCompositionDrawsAtMostTwelveItems() throws Exception {
         StringBuilder items = new StringBuilder();
         for (int i = 0; i < 14; i++) {

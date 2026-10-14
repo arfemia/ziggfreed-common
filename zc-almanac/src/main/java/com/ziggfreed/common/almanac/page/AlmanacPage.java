@@ -62,6 +62,7 @@ import com.ziggfreed.common.almanac.view.AlmanacView.Season;
 import com.ziggfreed.common.almanac.view.AlmanacView.SeasonPage;
 import com.ziggfreed.common.almanac.view.AlmanacView.Timing;
 import com.ziggfreed.common.counter.CounterMap;
+import com.ziggfreed.common.icon.Portraits;
 import com.ziggfreed.common.inventory.InventoryUtil;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.subject.Subject;
@@ -144,6 +145,14 @@ public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData>
      */
     static final String HERO_PICTURE = "Group { AssetImage #IcoTex { Anchor: (Full: 0); Visible: false; "
             + "FallbackTexturePath: \"UI/Custom/Common/Glyphs/Blank.png\"; } }";
+
+    /**
+     * One composed picture that is an NPC's portrait: the same plain slot as {@link #HERO_PICTURE}, falling back to
+     * the shared missing-picture icon ({@link Portraits#MISSING_TEXTURE}) for a model no still was rendered for, as
+     * every portrait widget does.
+     */
+    static final String HERO_PORTRAIT = "Group { AssetImage #IcoTex { Anchor: (Full: 0); Visible: false; "
+            + "FallbackTexturePath: \"" + Portraits.MISSING_TEXTURE + "\"; } }";
 
     // The hero plate's own layers (Common/ZigKit.ui's @ZigHeroPlate, instanced as #Hero): the kit has no painter
     // for the plate, so the page addresses them here, and AlmanacPageDocumentTest holds each id to the kit.
@@ -493,8 +502,8 @@ public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData>
     /**
      * The hero's layers, each set both ways so nothing the template ships shows by accident: the art layer only for
      * art (or a composition's texture); the flat fill over the plate, the tinted sky, the glow fitted onto the plate
-     * and the item pictures for a composition; the season's own picture otherwise; then the chip, the name, the
-     * dates, the line under them (a monthly or weekly season's next run) and the accent strip.
+     * and the pictures (items and NPC portraits) for a composition; the season's own picture otherwise; then the
+     * chip, the name, the dates, the line under them (a monthly or weekly season's next run) and the accent strip.
      */
     private static void paintHero(@Nonnull UICommandBuilder cmd, @Nonnull HeroPlan hero) {
         String art = hero.artTexture();
@@ -516,14 +525,7 @@ public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData>
             cmd.setObject(HERO_GLOW + ".Anchor", anchor(glow.box()));
             UiRetint.retintColor(cmd, HERO_GLOW, glow.colorHex());
         }
-        List<HeroPicture> pictures = hero.pictures();
-        for (int i = 0; i < pictures.size(); i++) {
-            HeroPicture picture = pictures.get(i);
-            String slot = HERO_ITEMS + "[" + i + "]";
-            cmd.appendInline(HERO_ITEMS, HERO_PICTURE);
-            cmd.setObject(slot + ".Anchor", anchor(picture.box()));
-            IconRenderer.applyPlainIcon(cmd, slot, null, picture.iconPath());
-        }
+        paintPictures(cmd, HERO_ITEMS, hero.pictures());
         String own = hero.pictureTexture();
         cmd.set(HERO_PIC + ".Visible", own != null);
         if (own != null) {
@@ -648,8 +650,8 @@ public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData>
     /**
      * An inline banner (not {@code paintBanner}, the left column's card): its plate's whole Anchor for its height,
      * then its layers, each set both ways as the hero's are: the art layer only for art (or a composition's
-     * texture); the flat fill over the plate, the tinted sky, the glow fitted onto the plate and the item pictures
-     * for a composition; the fade under its words; its title and line; its button.
+     * texture); the flat fill over the plate, the tinted sky, the glow fitted onto the plate and the pictures
+     * (items and NPC portraits) for a composition; the fade under its words; its title and line; its button.
      */
     private static void paintPlate(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
             @Nonnull String root, @Nonnull BannerPlan banner, int index) {
@@ -677,19 +679,27 @@ public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData>
             cmd.setObject(glowLayer + ".Anchor", anchor(glow.box()));
             UiRetint.retintColor(cmd, glowLayer, glow.colorHex());
         }
-        String items = plate + " #PlateItems";
-        List<HeroPicture> pictures = banner.pictures();
-        for (int i = 0; i < pictures.size(); i++) {
-            HeroPicture picture = pictures.get(i);
-            String slot = items + "[" + i + "]";
-            cmd.appendInline(items, HERO_PICTURE);
-            cmd.setObject(slot + ".Anchor", anchor(picture.box()));
-            IconRenderer.applyPlainIcon(cmd, slot, null, picture.iconPath());
-        }
+        paintPictures(cmd, plate + " #PlateItems", banner.pictures());
         cmd.set(root + " #PlateFade.Visible", banner.title() != null || banner.line() != null);
         optional(cmd, root + " #PlateTitle", banner.title());
         optional(cmd, root + " #PlateLine", banner.line());
         sectionButton(cmd, events, root + " #PlateButton", banner.button(), index);
+    }
+
+    /**
+     * A composition's pictures, the hero's and a banner's alike: each a plain slot appended onto {@code host} in
+     * order (an NPC's portrait the slot that falls back to the missing-picture icon), placed by a whole Anchor and
+     * painted through {@code IconRenderer.applyPlainIcon}.
+     */
+    private static void paintPictures(@Nonnull UICommandBuilder cmd, @Nonnull String host,
+            @Nonnull List<HeroPicture> pictures) {
+        for (int i = 0; i < pictures.size(); i++) {
+            HeroPicture picture = pictures.get(i);
+            String slot = host + "[" + i + "]";
+            cmd.appendInline(host, picture.portrait() ? HERO_PORTRAIT : HERO_PICTURE);
+            cmd.setObject(slot + ".Anchor", anchor(picture.box()));
+            IconRenderer.applyPlainIcon(cmd, slot, null, picture.iconPath());
+        }
     }
 
     /** The items grid: its header and count, its bar, its line, a kit item slot per item, and its button. */

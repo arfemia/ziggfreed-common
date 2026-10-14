@@ -27,11 +27,13 @@ import com.ziggfreed.common.ui.UiRetint;
  *   "Composition": {
  *     "Gradient": { "Top": "#1a2a4a", "Bottom": "#0a1119" },
  *     "Glow": { "Color": "#e8a93b", "X": 600, "Y": -60, "Size": 320 },
- *     "Items": [ { "Item": "Spring_Fair_Ribbon", "X": 700, "Y": 60, "Size": 96 } ] } }
+ *     "Items": [ { "Item": "Spring_Fair_Ribbon", "X": 700, "Y": 60, "Size": 96 },
+ *                { "Npc": "Spring_Fair_Host", "X": 820, "Y": 40, "Size": 128 } ] } }
  * }</pre>
  *
  * <p>The page draws, in order: the {@code Art} while {@code ShowArt} is true and the texture ships; else
- * the {@code Composition} when it has at least one item the server knows; else the season's own icon.
+ * the {@code Composition} when it has at least one picture the server knows (an item, or an NPC role's
+ * portrait); else the season's own icon.
  * Inside the group, {@code Art} and {@code ShowArt} inherit one by one, so a server owner's
  * {@code almanac.json} can turn the art off for one season and keep the pack's composition. The
  * {@code Composition} is ONE piece: a layer that writes it (a child page, or the owner) replaces the
@@ -61,8 +63,8 @@ public final class AlmanacHeroAsset {
                                     new WholeLeafCodec<>(Composition.CODEC, "hero's Composition"), false),
                             (h, v) -> h.composition = v, h -> h.composition, (h, p) -> h.composition = p.composition)
                     .documentation("A top for the page made from pictures the game already has: a colour or a "
-                            + "gradient, an optional glow and texture, and item pictures placed on the 962 x 240 "
-                            + "plate. Drawn when the Art is off or missing. One piece: a layer that writes it "
+                            + "gradient, an optional glow and texture, and item or NPC pictures placed on the 962 x "
+                            + "240 plate. Drawn when the Art is off or missing. One piece: a layer that writes it "
                             + "replaces the inherited one whole.").add()
                     .build();
 
@@ -114,8 +116,9 @@ public final class AlmanacHeroAsset {
                         + "corner; the box may hang past the plate's edges, and only the plate shows.").add()
                 .append(new KeyedCodec<>("Items", new ArrayCodec<>(Placement.CODEC, Placement[]::new), false),
                         (c, v) -> c.items = v, c -> c.items)
-                .documentation("Item pictures placed on the plate, drawn in the order written, at most 12. An "
-                        + "item the server does not have is skipped.").add()
+                .documentation("Pictures placed on the plate, each an item's (Item) or an NPC's portrait (Npc), "
+                        + "drawn in the order written, so a later one lies over an earlier one; at most 12. An "
+                        + "item or an NPC role the server does not have is skipped.").add()
                 .build();
 
         public Composition() {
@@ -160,7 +163,10 @@ public final class AlmanacHeroAsset {
             return glow != null && glow.color() == null;
         }
 
-        /** The placements that name an item, in the order written (the reader caps and checks them). */
+        /**
+         * The placements that name an item or an NPC, in the order written (the reader caps and checks them); one
+         * naming both draws its item ({@link Placement#item()} wins).
+         */
         @Nonnull
         public List<Placement> items() {
             if (items == null) {
@@ -168,7 +174,7 @@ public final class AlmanacHeroAsset {
             }
             List<Placement> out = new ArrayList<>();
             for (Placement placement : items) {
-                if (placement != null && placement.item() != null) {
+                if (placement != null && (placement.item() != null || placement.npc() != null)) {
                     out.add(placement);
                 }
             }
@@ -257,10 +263,15 @@ public final class AlmanacHeroAsset {
         }
     }
 
-    /** One item picture on the plate: which item, where its top-left corner sits, and how big it is. */
+    /**
+     * One picture on the plate: what it shows (an item's own picture, or an NPC role's portrait), where its
+     * top-left corner sits, and how big it is. A placement names one of {@code Item} and {@code Npc}; one naming
+     * both draws the item and ignores the NPC, which the page's audit reports.
+     */
     public static final class Placement {
 
         @Nullable private String item;
+        @Nullable private String npc;
         @Nullable private Integer x;
         @Nullable private Integer y;
         @Nullable private Integer size;
@@ -268,7 +279,14 @@ public final class AlmanacHeroAsset {
         static final BuilderCodec<Placement> CODEC = BuilderCodec.builder(Placement.class, Placement::new)
                 .append(new KeyedCodec<>("Item", Codec.STRING, false), (p, v) -> p.item = v, p -> p.item)
                 .metadata(EditorSchema.assetRef(Item.class))
-                .documentation("The item whose own picture is drawn. One the server does not have is skipped.").add()
+                .documentation("The item whose own picture is drawn. One the server does not have is skipped. "
+                        + "Write Item or Npc, not both: with both, the item is drawn and the Npc is ignored.").add()
+                .append(new KeyedCodec<>("Npc", Codec.STRING, false), (p, v) -> p.npc = v, p -> p.npc)
+                .documentation("An NPC role id (the role file's name) whose portrait is drawn in place of an item: "
+                        + "the still of the model the role wears, Icons/ModelsGenerated/<model>.png, the picture "
+                        + "the game's Memories page shows. A role the server does not have is skipped; a role "
+                        + "whose model has no still shows the game's missing-picture icon. Used only when the "
+                        + "placement names no Item: with both, the item is drawn and this is ignored.").add()
                 .append(new KeyedCodec<>("X", Codec.INTEGER, false), (p, v) -> p.x = v, p -> p.x)
                 .metadata(EditorSchema.defaultValue(0L))
                 .documentation("The picture's left edge, in pixels from the plate's left (the plate is 962 "
@@ -279,7 +297,8 @@ public final class AlmanacHeroAsset {
                         + "high); kept on the plate.").add()
                 .append(new KeyedCodec<>("Size", Codec.INTEGER, false), (p, v) -> p.size = v, p -> p.size)
                 .metadata(EditorSchema.defaultValue(64L))
-                .documentation("The picture's side in pixels, 24 to 128; 64 is an item picture's own size.").add()
+                .documentation("The picture's side in pixels, 24 to 128; 64 is an item picture's own size, 128 a "
+                        + "portrait's.").add()
                 .build();
 
         public Placement() {
@@ -289,6 +308,17 @@ public final class AlmanacHeroAsset {
         @Nullable
         public String item() {
             return blankToNull(item);
+        }
+
+        /** The NPC role id, trimmed, or null when blank; drawn only when no item is named. */
+        @Nullable
+        public String npc() {
+            return blankToNull(npc);
+        }
+
+        /** Whether the placement names both an item and an NPC (the item is drawn, the NPC ignored). */
+        public boolean namesBoth() {
+            return item() != null && npc() != null;
         }
 
         /** The left edge as written, or null. */
