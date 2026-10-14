@@ -114,6 +114,7 @@ objective.zone = {0} in {1}
 factor.held_item = Held item
 factor.held_tag = Held item type
 factor.permission = Permission
+factor.mod_installed = Installed mod
 factor.quest_completed = a completed quest
 factor.quest_known = a known quest
 factor.achievement_earned = an earned achievement
