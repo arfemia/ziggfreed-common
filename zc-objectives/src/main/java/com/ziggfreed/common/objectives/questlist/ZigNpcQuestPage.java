@@ -25,9 +25,11 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.board.BoardEngine;
 import com.ziggfreed.common.commerce.asset.WhereAxis;
+import com.ziggfreed.common.commerce.fold.BoardAssetSpec;
 import com.ziggfreed.common.commerce.fold.CommerceDefaults;
 import com.ziggfreed.common.commerce.page.CommerceChips;
 import com.ziggfreed.common.commerce.page.CommercePages;
+import com.ziggfreed.common.commerce.page.ConfirmArm;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardSpec;
@@ -52,6 +54,7 @@ import com.ziggfreed.common.ui.kit.DetailBlock;
 import com.ziggfreed.common.ui.kit.DetailLine;
 import com.ziggfreed.common.ui.kit.DetailPainter;
 import com.ziggfreed.common.ui.kit.DetailToggle;
+import com.ziggfreed.common.ui.kit.DetailView;
 import com.ziggfreed.common.ui.kit.EmptyState;
 import com.ziggfreed.common.ui.kit.EmptyStatePainter;
 import com.ziggfreed.common.ui.kit.LedgerBindings;
@@ -94,6 +97,14 @@ import com.ziggfreed.common.world.WhereValidator.LoadedWorld;
  * answer set) plus anything already being carried whose business is here. The MINE list is everything the player is
  * carrying or has finished but not collected, wherever it came from, so a player who walked away from the giver can
  * still see it. Both are sectioned by what the player can do about each quest ({@link NpcQuestSections}).
+ *
+ * <h2>A board is a host too</h2>
+ *
+ * <p>Opened on a BOARD ({@link #atBoard}, what {@code CommercePages.openBoard} opens), the page stands at the board,
+ * which answers to its own id alone: Here is what the board has posted for the player and what was taken there, Mine
+ * is everything carried, and the buttons are the same. The board adds its header (picture, title, line, wallets and
+ * the clock to its next turnover), Reroll on a contract still on the board, and its Where: the page opens closed
+ * where the board is not open, and a press where the board is not refuses and reopens ({@link BoardHost}).
  *
  * <h2>The routed hand-in</h2>
  *
@@ -146,6 +157,12 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
     private static final String TOGGLE = "toggle";
 
     @Nullable private final String npcId;
+
+    /** The board this page stands at when its host is a board; null at a character and with nobody in front. */
+    @Nullable private final BoardHost board;
+
+    /** Two presses before a paid reroll charges anything. Page-instance state, never persisted. */
+    private final ConfirmArm rerollArm = new ConfirmArm();
 
     @Nonnull private final NpcQuestPageDeps deps;
 
@@ -215,15 +232,45 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
 
     public ZigNpcQuestPage(@Nonnull PlayerRef playerRef, @Nullable String npcId,
             @Nullable String highlightQuestId, @Nonnull NpcQuestPageDeps deps) {
+        this(playerRef, npcId, null, highlightQuestId, deps);
+    }
+
+    private ZigNpcQuestPage(@Nonnull PlayerRef playerRef, @Nullable String npcId, @Nullable String boardId,
+            @Nullable String highlightQuestId, @Nonnull NpcQuestPageDeps deps) {
         super(playerRef, CustomPageLifetime.CanDismissOrCloseThroughInteraction, NpcQuestEventData.CODEC);
-        this.npcId = trimToNull(npcId);
+        String atBoard = trimToNull(boardId);
+        this.board = atBoard == null ? null : new BoardHost(atBoard);
+        this.npcId = atBoard == null ? trimToNull(npcId) : null;
         this.highlightQuestId = trimToNull(highlightQuestId);
         this.deps = deps;
         // With nobody in front of the player there is no "here" to list, so the page opens on what
         // they are carrying rather than on an empty panel with a dead tab in front of it.
-        if (this.npcId == null) {
+        if (hostId() == null) {
             this.activeTab = TAB_MINE;
         }
+    }
+
+    /**
+     * The page with the board {@code boardId} (the id it declares) as its host: what the board has posted, taken,
+     * handed in and collected at the board, with the board's header and Reroll. {@code highlightQuestId} is a
+     * contract to lead with, as a deep link names one.
+     */
+    @Nonnull
+    static ZigNpcQuestPage atBoard(@Nonnull PlayerRef playerRef, @Nonnull String boardId,
+            @Nullable String highlightQuestId, @Nonnull NpcQuestPageDeps deps) {
+        return new ZigNpcQuestPage(playerRef, null, boardId, highlightQuestId, deps);
+    }
+
+    /** The id of the place the page stands at: the board's, else the character's; null with nobody in front. */
+    @Nullable
+    private String hostId() {
+        return board != null ? board.boardId() : npcId;
+    }
+
+    /** What the host answers to: a board its own id alone; a character its whole answer set and its boards. */
+    @Nonnull
+    private Set<String> answerSet() {
+        return board != null ? Set.of(board.boardId()) : deps.answerSetOrOwn(npcId);
     }
 
     // ==================== build ====================
@@ -251,22 +298,33 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
         DetailPainter.bindActionsOnce(events, NpcQuestPagePlan.PAGE,
                 slot -> EventData.of("Action", slotAction(slot)), EventData.of("Action", TOGGLE));
 
-        this.answersTo = deps.answerSetOrOwn(npcId);
-        this.viewer = WhereAxis.viewer(store);
-        cmd.set(NpcQuestPagePlan.HEADER + ".TextSpans", headerText(store, ref));
+        this.answersTo = answerSet();
+        LoadedWorld world = WhereAxis.viewer(store);
+        this.viewer = world;
+        // A board host is open only where its board is (switched on, in season, in this world): anywhere else the
+        // page opens closed, its header standing and nothing listed, as the board itself reads there.
+        Message closed = null;
+        if (board != null) {
+            BoardAssetSpec spec = board.board();
+            closed = BoardHost.closedLine(spec, world);
+            BoardHost.paintHeader(cmd, spec, closed == null, System.currentTimeMillis());
+        } else {
+            cmd.set(NpcQuestPagePlan.HEADER + ".TextSpans", headerText(store, ref));
+        }
 
         QuestEngine engine = ProgressionRuntime.quests();
         // The build argument is the page's ANCHOR, which at a character is that character's own
         // entity, so the player is resolved from the reference this page was built with.
         Subject subject = ProgressionRuntime.subjects().questSubject(store, playerEntityRef(ref));
-        if (subject == null) {
+        if (subject == null || closed != null) {
             // Nothing can be read for this player, so say so once rather than painting an empty list that reads as
-            // "this character has nothing", which is a different sentence.
+            // "this character has nothing", which is a different sentence; a closed board says it is closed.
             this.model = null;
             this.index = null;
             cmd.set(NpcQuestPagePlan.COUNT + ".TextSpans", text("npcquests.count", 0));
+            cmd.set(NpcQuestPagePlan.WALLETS + ".Visible", false);
             paintTabs(cmd);
-            showEmpty(cmd, events, text("npcquests.empty.unavailable"));
+            showEmpty(cmd, events, closed != null ? closed : text("npcquests.empty.unavailable"));
             return;
         }
 
@@ -307,7 +365,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
             @Nonnull Subject subject, @Nonnull CharacterQuestListing listing, boolean partial) {
         List<Quest> quests = NpcQuestPagePlan.quests(activeTab, listing, engine, subject);
         QuestReader reader = reader(engine, subject);
-        CharacterQuestListing here = NpcQuestPagePlan.place(npcId, listing);
+        CharacterQuestListing here = NpcQuestPagePlan.place(hostId(), listing);
         Map<String, Quest> byId = new LinkedHashMap<>();
         for (Quest quest : quests) {
             byId.put(quest.id(), quest);
@@ -330,8 +388,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
             if (partial) {
                 cmd.clear(NpcQuestPagePlan.LIST);
             }
-            showEmpty(cmd, events, text(TAB_MINE.equals(activeTab)
-                    ? "npcquests.empty.mine" : "npcquests.empty.here"));
+            showEmpty(cmd, events, emptyLine());
             return;
         }
         this.openSections = NpcQuestPagePlan.openSections(next, openSections, selectedQuestId);
@@ -345,14 +402,53 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
         }
     }
 
-    /** The selected quest's page: the book's page, with this character's buttons. */
+    /** What an empty list says: nothing carried on Mine; on Here, nothing posted at a board, nothing here elsewhere. */
+    @Nonnull
+    private Message emptyLine() {
+        if (TAB_MINE.equals(activeTab)) {
+            return text("npcquests.empty.mine");
+        }
+        return board != null ? HostedBoards.boardText("board.empty.posted") : text("npcquests.empty.here");
+    }
+
+    /** The selected quest's page: the book's page, with this host's buttons. */
     private void paintPage(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
             @Nonnull QuestReader reader, @Nonnull CharacterQuestListing listing, @Nonnull Quest quest) {
         cmd.set(NpcQuestPagePlan.PAGE_EMPTY + ".Visible", false);
         cmd.set(NpcQuestPagePlan.PAGE + ".Visible", true);
-        DetailPainter.paint(cmd, events, NpcQuestPagePlan.PAGE,
-                NpcQuestPagePlan.page(reader, quest, NpcQuestPagePlan.place(npcId, listing)), detailBindings,
+        DetailPainter.paint(cmd, events, NpcQuestPagePlan.PAGE, pageOf(reader, listing, quest), detailBindings,
                 playerRef);
+    }
+
+    /**
+     * The quest's page at this host: the book's page with the host's buttons, and at a board, Reroll in the
+     * Secondary slot of a contract still on the board, its terms in the hint.
+     */
+    @Nonnull
+    private DetailView pageOf(@Nonnull QuestReader reader, @Nonnull CharacterQuestListing listing,
+            @Nonnull Quest quest) {
+        DetailView view = NpcQuestPagePlan.page(reader, quest, NpcQuestPagePlan.place(hostId(), listing));
+        BoardHost.Reroll offer = rerollOffer(listing, quest, reader.subject());
+        return offer == null ? view
+                : BoardHost.withReroll(view, offer, rerollArm.isArmed(BoardHost.armKey(offer), listing.nowMs()));
+    }
+
+    /**
+     * Reroll's offer for {@code quest} when this page stands at a board, else null. Guarded: a reroll that cannot be
+     * read costs its button, never the page.
+     */
+    @Nullable
+    private BoardHost.Reroll rerollOffer(@Nonnull CharacterQuestListing listing, @Nonnull Quest quest,
+            @Nonnull Subject subject) {
+        if (board == null) {
+            return null;
+        }
+        try {
+            return BoardHost.offer(listing, quest, subject);
+        } catch (Throwable t) {
+            SafeLog.warn("[questlist] a contract's reroll could not be read", t);
+            return null;
+        }
     }
 
     /**
@@ -423,16 +519,19 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
      */
     @Nonnull
     private CharacterQuestListing listing(@Nonnull Subject subject, @Nonnull QuestEngine engine) {
-        return new CharacterQuestListing(engine, subject, answersTo, viewer);
+        // At a board the listing keeps to the board's own work: its postings, what was taken there, and the
+        // contracts it pays out (CharacterQuestListing.atBoard).
+        return board != null ? CharacterQuestListing.atBoard(engine, subject, board.boardId(), viewer)
+                : new CharacterQuestListing(engine, subject, answersTo, viewer);
     }
 
     /**
-     * The wallets a character's boards show (each board's {@code Currencies}, each once), under the character's
-     * name, as a board shows them in its own header; hidden on a character hosting no board, and with nobody in
-     * front of the player. Painted with every list, so a payout collected here reads at once.
+     * The wallets the host's boards show (each board's {@code Currencies}, each once), under the host's name: a
+     * board's own, or a character's boards' together; hidden on a character hosting no board, and with nobody in
+     * front of the player. Painted with every list, so a payout collected or a reroll paid here reads at once.
      */
     private void paintWallets(@Nonnull UICommandBuilder cmd, @Nonnull Subject subject) {
-        List<String> wallets = npcId == null ? List.of()
+        List<String> wallets = hostId() == null ? List.of()
                 : HostedBoards.currencies(HostedBoards.openAmong(answersTo, viewer));
         if (wallets.isEmpty()) {
             cmd.set(NpcQuestPagePlan.WALLETS + ".Visible", false);
@@ -527,10 +626,13 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
                 this.routeSelects = true;
                 this.openSections = new LinkedHashSet<>();
                 this.caps = new HashMap<>();
+                this.rerollArm.reset();
                 reopen(ref, store, player);
                 return;
             }
             case SELECT, LINE -> {
+                // An arm left standing behind another contract would charge for a press that was never about it.
+                this.rerollArm.reset();
                 selectQuest(ref, store, player, data.questId);
                 return;
             }
@@ -559,14 +661,34 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
         }
         // Every press re-asks where the presser stands: a board posting at a character is open only in the world
         // its board names, so a page left open across a move takes nothing there.
-        this.viewer = WhereAxis.viewer(store);
+        LoadedWorld world = WhereAxis.viewer(store);
+        this.viewer = world;
+        if (board != null) {
+            // A page standing at a board acts only where the board is: left open across a move into a world it is
+            // not in, nothing is taken, handed in, collected or rerolled; it refuses as a switched-off board does and
+            // reopens closed.
+            Message refused = board.pressRefusal(world);
+            if (refused != null) {
+                this.rerollArm.reset();
+                showToast(ToastKind.ERROR, refused);
+                reopen(ref, store, player);
+                return;
+            }
+        }
         CharacterQuestListing listing = listing(subject, engine);
         String verb = verbFor(action, quest, reader(engine, subject), listing);
+        if (!BoardHost.REROLL.equals(verb)) {
+            this.rerollArm.reset();
+        }
         if (verb == null) {
             refresh(ref, store, player);
             return;
         }
         switch (verb) {
+            case BoardHost.REROLL -> {
+                reroll(subject, listing, quest);
+                refresh(ref, store, player);
+            }
             // The hand-in and the collect own their own response: a settled quest may hand the screen over to
             // whatever comes next instead of returning to this page.
             case QuestActions.HAND_IN -> turnIn(ref, store, player, subject, engine, listing, quest);
@@ -588,18 +710,22 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
     }
 
     /**
-     * The verb a press means on the quest's state NOW: a slot through {@link QuestActions#dispatch} at this character
-     * (or by the book's rules with nobody in front of the player), the header toggle as Track when the page offers
-     * it. Null for a press that means nothing any more (a stale screen).
+     * The verb a press means on the quest's state NOW: a slot through {@link QuestActions#dispatch} at this host (or
+     * by the book's rules with nobody in front of the player), Secondary as Reroll on a contract still on a board this
+     * page stands at, the header toggle as Track when the page offers it. Null for a press that means nothing any
+     * more (a stale screen).
      */
     @Nullable
     private String verbFor(@Nonnull String action, @Nonnull Quest quest, @Nonnull QuestReader reader,
             @Nonnull CharacterQuestListing listing) {
-        CharacterQuestListing here = NpcQuestPagePlan.place(npcId, listing);
+        CharacterQuestListing here = NpcQuestPagePlan.place(hostId(), listing);
         if (TOGGLE.equals(action)) {
             return NpcQuestPagePlan.page(reader, quest, here).toggle() != null ? QuestActions.TRACK : null;
         }
         ActionSlot slot = slotOf(action);
+        if (slot == ActionSlot.SECONDARY && rerollOffer(listing, quest, reader.subject()) != null) {
+            return BoardHost.REROLL;
+        }
         return slot == null ? null : QuestActions.dispatch(slot, quest, reader, here);
     }
 
@@ -672,8 +798,14 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
         }
         UICommandBuilder cmd = new UICommandBuilder();
         UIEventBuilder events = new UIEventBuilder();
-        this.answersTo = deps.answerSetOrOwn(npcId);
-        this.viewer = WhereAxis.viewer(store);
+        this.answersTo = answerSet();
+        LoadedWorld world = WhereAxis.viewer(store);
+        this.viewer = world;
+        if (board != null) {
+            // The clock to the next turnover moves on while the page stays open, so every repaint repaints it.
+            BoardAssetSpec spec = board.board();
+            BoardHost.paintClock(cmd, spec, BoardHost.closedLine(spec, world) == null, System.currentTimeMillis());
+        }
         paintWallets(cmd, subject);
         paintList(cmd, events, engine, subject, listing(subject, engine), true);
         this.sendUpdate(cmd, events, false);
@@ -719,7 +851,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
             }
             return;
         }
-        QuestVerbs.Accepted accepted = QuestVerbs.acceptAt(subject, quest, npcId);
+        QuestVerbs.Accepted accepted = QuestVerbs.acceptAt(subject, quest, hostId());
         List<RewardSpec> paid = RewardGrants.GrantOutcome.receiptOf(accepted.settled());
         if (accepted.accepted() && !paid.isEmpty()) {
             showToast(ClaimToasts.rewardToast(
@@ -730,6 +862,27 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
         boolean ok = accepted.accepted();
         showToast(ok ? ToastKind.SUCCESS : ToastKind.WARNING,
                 text(ok ? "book.toast.accepted" : "book.toast.accept_failed"));
+    }
+
+    /**
+     * Swap a contract still on the board this page stands at for another from its slot, through the board's own
+     * reroll ({@link BoardHost#reroll}, inside the progression call scope like every other press here): probed
+     * before anything is charged, two presses when it costs anything, and the page then looks at what took its
+     * place. The reroll keeps to the board's own (board, period, position) state, as at the board.
+     */
+    private void reroll(@Nonnull Subject subject, @Nonnull CharacterQuestListing listing, @Nonnull Quest quest) {
+        BoardHost.Reroll offer = rerollOffer(listing, quest, subject);
+        if (offer == null) {
+            return;
+        }
+        BoardHost.Rerolled rerolled = BoardHost.reroll(subject, playerRef.getUuid(), offer, rerollArm,
+                listing.nowMs());
+        if (rerolled.kind() != null && rerolled.line() != null) {
+            showToast(rerolled.kind(), rerolled.line());
+        }
+        if (rerolled.newId() != null) {
+            this.selectedQuestId = rerolled.newId();
+        }
     }
 
     /**
@@ -862,6 +1015,8 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
     private boolean handOff(@Nonnull Quest quest, @Nonnull Store<EntityStore> store,
             @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
         try {
+            // The character in front of the player, never a board: a board speaks no closing conversation, so a
+            // contract settled at one hands off to nobody and the page keeps the screen.
             return deps.completion().handOff(quest.id(), npcId, store, ref, player);
         } catch (Throwable t) {
             SafeLog.warn("[progression] a quest completion hand-off failed", t);

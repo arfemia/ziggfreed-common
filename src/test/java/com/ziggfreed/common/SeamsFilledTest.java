@@ -18,6 +18,8 @@ import com.ziggfreed.common.achievement.FirstClaims;
 import com.ziggfreed.common.board.asset.BoardAssetStore;
 import com.ziggfreed.common.board.asset.BountyAsset;
 import com.ziggfreed.common.commerce.fold.CommerceDefaults;
+import com.ziggfreed.common.commerce.page.CommercePages;
+import com.ziggfreed.common.objectives.runtime.ProgressionBootstrap;
 import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
 import com.ziggfreed.common.progress.runtime.ProgressionGates;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
@@ -62,6 +64,7 @@ class SeamsFilledTest {
         ProgressionDefaults.reset();
         ProgressionGates.resetForTests();
         FirstClaims.resetForTests();
+        CommercePages.boardPage(null);
     }
 
     @AfterEach
@@ -71,6 +74,7 @@ class SeamsFilledTest {
         ProgressionDefaults.reset();
         ProgressionGates.resetForTests();
         FirstClaims.resetForTests();
+        CommercePages.boardPage(null);
     }
 
     /**
@@ -133,6 +137,20 @@ class SeamsFilledTest {
                 "and a second claimant must be refused, or everybody who finishes it wins it");
         assertTrue(FirstClaims.store().tryClaim("the_one_off", first, "first"),
                 "the winner asking again is still the winner, so a re-check cannot burn the claim");
+    }
+
+    /**
+     * A board opens on the library's quest page, with the board as its host: commerce declares the opener, since it
+     * cannot see the page, and the objectives module's setup fills it. Unfilled, every block, NPC, conversation line,
+     * command and deep link that opens a board opens nothing.
+     */
+    @Test
+    void aBoardOpensOnTheQuestPage() {
+        assertFalse(CommercePages.hasBoardPage(), "nothing opens a board before setup fills it");
+
+        ProgressionBootstrap.registerBoardPage();
+
+        assertTrue(CommercePages.hasBoardPage(), "the library's setup gives every board a page to open on");
     }
 
     /** Player state has somewhere to live, or every write on a bare server is dropped. */

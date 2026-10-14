@@ -43,47 +43,14 @@ shop.toast.more = +{0} altri
 shop.toast.reroll_confirm = Rigenerare per {0}? Premi di nuovo per confermare.
 
 board.title = Bacheca
-board.count = {0} contratti
 board.refresh_in = Nuovi contratti tra {0}
-board.tab.posted = Affissi
-board.tab.mine = I miei
 board.empty.unknown = Qui non esiste una bacheca del genere.
-board.empty.unavailable = Non è stato possibile leggere il tuo profilo in questo momento.
 board.empty.closed = Questa bacheca è chiusa.
 board.empty.posted = Al momento non c'è nulla affisso.
-board.empty.mine = Non porti con te nulla di questa bacheca.
-board.bounty.untitled = Contratto senza nome
-board.step.untitled = Passo senza nome
-board.progress = {0}/{1}
 
-board.header.objectives = Obiettivi
-board.header.rewards = Ricompensa
-
-board.section.ready = Pronto da ritirare
-board.section.turn_in = Da consegnare qui
-board.section.active = In corso
-board.section.available = Disponibile
-board.section.locked = Bloccato
-board.section.spent = Fatto in questo turno
-board.section.done = Completato
-board.status.spent_detail = L'hai già finito. Torna quando la bacheca cambia.
-board.status.parked = La ricompensa ti aspetta alla bacheca da cui l'hai preso.
-
-board.action.accept = Accetta
-board.action.turn_in = Consegna
-board.action.report = Fai rapporto
-board.action.claim = Ritira
-board.action.abandon = Abbandona
 board.action.reroll = Rigenera
 
 board.toast.accepted = Contratto accettato.
-board.toast.claim_failed = Al momento non c'è nulla da ritirare.
-board.toast.abandoned = Contratto abbandonato.
-board.toast.turned_in = Consegnato.
-board.toast.turn_in_failed = Non è stato possibile consegnarlo.
-board.toast.turn_in_short = Ne hai {0} su {1}.
-board.toast.completed = Contratto completato.
-board.toast.more = +{0} altri
 board.toast.reroll_confirm = Rigenerare per {0}? Premi di nuovo per confermare.
 
 refuse.locked = Non puoi ancora farlo.

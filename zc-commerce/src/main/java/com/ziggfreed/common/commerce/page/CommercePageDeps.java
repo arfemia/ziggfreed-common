@@ -56,6 +56,12 @@ import com.ziggfreed.common.ui.toast.ToastSpec;
  *       wiring root fills this and the page merely hosts the beat.</li>
  * </ul>
  *
+ * <p>A board opens on the library's quest page since 2.4.0 ({@link CommercePages#openBoard}), which reads
+ * this record's {@link #currencyNames} and {@link #titleArgs} for a board's wallets, title and grade
+ * words and takes its theme, toasts and hand-off from the quest page's own deps. So
+ * {@link #completionToast}, {@link #completion}, {@link #handInToast} and {@link #resolveCompletionToast}
+ * have no reader in the library today; they are kept until the maintainer decides their fate.
+ *
  * <p>Immutable; build one at setup and hand the same instance back on every open.
  */
 public final class CommercePageDeps {

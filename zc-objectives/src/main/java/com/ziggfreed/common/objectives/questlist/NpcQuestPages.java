@@ -116,4 +116,32 @@ public final class NpcQuestPages {
             return false;
         }
     }
+
+    /**
+     * Open the board {@code boardId}'s quest page: the same page with the BOARD as its host
+     * ({@link ZigNpcQuestPage#atBoard}), with {@code highlightBountyId} pinned to the top and open on the right
+     * when the board lists it.
+     *
+     * <p>This is the shape commerce's board opener expects ({@code CommercePages.BoardPageOpener}), and
+     * {@code ProgressionBootstrap.registerBoardPage()} installs it at library setup, so every way a board is opened
+     * (a block, an NPC's role, a conversation's {@code Open}, a command, a deep link) lands here. True means the
+     * screen was taken.
+     */
+    public static boolean openBoard(@Nonnull String boardId, @Nullable String highlightBountyId,
+            @Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
+        // The player's own reference, never the anchor's: at a press-F the anchor is the board keeper.
+        PlayerRef playerRef = PlayerAccess.playerRef(player);
+        if (playerRef == null) {
+            SafeLog.fine("[questlist] a board was asked for by an entity that is not a player");
+            return false;
+        }
+        try {
+            player.getPageManager().openCustomPage(ref, store, ZigNpcQuestPage.atBoard(playerRef,
+                    BoardHost.declaredId(boardId), BoardHost.contractId(highlightBountyId), resolvedDeps()));
+            return true;
+        } catch (Throwable t) {
+            SafeLog.warn("[questlist] a board's quest page failed to open", t);
+            return false;
+        }
+    }
 }

@@ -24,6 +24,7 @@ import com.ziggfreed.common.board.event.BoardEvents;
 import com.ziggfreed.common.commerce.fold.BoardAssetSpec;
 import com.ziggfreed.common.commerce.fold.CommerceCatalogs;
 import com.ziggfreed.common.commerce.fold.CommerceEngines;
+import com.ziggfreed.common.commerce.fold.CommerceFold;
 import com.ziggfreed.common.commerce.page.CommerceRefusals;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.npc.NpcIdentities;
@@ -198,13 +199,27 @@ public final class HostedBoards {
     @Nonnull
     public static Message refusalLine(@Nullable String reason) {
         CommerceRefusals.Refusal refusal = CommerceRefusals.of(reason);
-        return refusal.line() != null ? refusal.line() : Msg.tr(LIBRARY_PREFIX, COMMERCE_DOMAIN + refusal.key());
+        return refusal.line() != null ? refusal.line() : boardText(refusal.key());
     }
 
     /** The line a contract taken off a board reads with, the board's own. */
     @Nonnull
     public static Message takenLine() {
-        return Msg.tr(LIBRARY_PREFIX, COMMERCE_DOMAIN + "board.toast.accepted");
+        return boardText("board.toast.accepted");
+    }
+
+    /** A key of the commerce chrome ({@code ziggfreedcommon.commerce.lang}), the words a board reads with. */
+    @Nonnull
+    static Message boardText(@Nonnull String key, @Nonnull Object... args) {
+        return Msg.tr(LIBRARY_PREFIX, COMMERCE_DOMAIN + key, args);
+    }
+
+    /**
+     * Whether {@code board} ever turns over: one with no {@code Rotation} keeps the same postings for good, so it has
+     * no clock to show.
+     */
+    static boolean turnsOver(@Nonnull BoardAssetSpec board) {
+        return board.rotation().periodLengthMs() != CommerceFold.NEVER.periodLengthMs();
     }
 
     // ==================== the character vocabulary ====================

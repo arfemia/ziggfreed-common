@@ -54,8 +54,17 @@ final class NpcQuestPagePlan {
     /** The bordered list panel a consumer's theme repaints. */
     static final String FRAME_PANEL = "#LeftPanel";
 
-    /** The character's name. */
+    /** The host's name: the character's, or the board's title. */
     static final String HEADER = "#NpcHeader";
+
+    /** A board host's picture beside its name (an {@code @ZigPicture}); hidden at a character. */
+    static final String HOST_PICTURE = "#HostPic";
+
+    /** A board host's line under its name; hidden at a character and on a board with none. */
+    static final String HOST_LINE = "#HostLine";
+
+    /** A board host's clock to its next turnover; hidden at a character and on a board that never turns over. */
+    static final String HOST_CLOCK = "#HostClock";
 
     /** "Quests: N". */
     static final String COUNT = "#QuestCount";
@@ -261,12 +270,13 @@ final class NpcQuestPagePlan {
     // ==================== the page ====================
 
     /**
-     * Where the page's buttons are read: at the character the page was opened on, or, with nobody in front of the
-     * player (the page opened as their own list), by the book's own rules, since there is no place to read them at.
+     * Where the page's buttons are read: at the host the page was opened on (a character or a board), or, with
+     * nobody in front of the player (the page opened as their own list), by the book's own rules, since there is no
+     * place to read them at.
      */
     @Nullable
-    static CharacterQuestListing place(@Nullable String npcId, @Nonnull CharacterQuestListing listing) {
-        return npcId == null ? null : listing;
+    static CharacterQuestListing place(@Nullable String hostId, @Nonnull CharacterQuestListing listing) {
+        return hostId == null ? null : listing;
     }
 
     /**

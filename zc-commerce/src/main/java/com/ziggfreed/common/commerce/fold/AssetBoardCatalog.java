@@ -26,8 +26,8 @@ import com.ziggfreed.common.world.WhereValidator.LoadedWorld;
  * a reload lands on the next question and there is nothing to invalidate. A skeleton is never in the
  * pool: it exists to be inherited from, never to be posted.
  *
- * <p>Both folds are memoised against the ASSET INSTANCE they came from, because a board page asks for
- * the pool once per open and a rotation walks it per slot. Every layer merge replaces the asset
+ * <p>Both folds are memoised against the ASSET INSTANCE they came from, because the quest page a board
+ * opens on asks for the pool once per open and a rotation walks it per slot. Every layer merge replaces the asset
  * objects wholesale, so identity is what says the memo is stale.
  */
 public final class AssetBoardCatalog {

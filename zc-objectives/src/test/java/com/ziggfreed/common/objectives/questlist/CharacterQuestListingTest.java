@@ -170,6 +170,36 @@ class CharacterQuestListingTest {
         assertEquals(List.of(quest), atGuide.questsHere());
     }
 
+    /**
+     * A board's list keeps to its own work: a finished quest that names no collection site stays off the board's
+     * Here list, while one taken at the board lists there. What the player carries reads and collects at a board as
+     * at any character, so the first still collects at the board from their own list, and a character is unchanged.
+     */
+    @Test
+    void aBoardListsOnlyItsOwnWorkButCollectsWhatACharacterWould() {
+        Quest elsewhere = gather("q_gather");
+        Quest takenThere = gather("q_board_work");
+        engine.setQuests(List.of(elsewhere, takenThere));
+        assertTrue(engine.accept(player, elsewhere, GUIDE));
+        assertTrue(engine.accept(player, takenThere, "Test_Board"));
+        engine.markUnclaimed(player, elsewhere);
+        engine.markUnclaimed(player, takenThere);
+
+        CharacterQuestListing atBoard = CharacterQuestListing.atBoard(engine, player, "Test_Board", null);
+        assertEquals(List.of(takenThere), atBoard.questsHere(),
+                "only what was taken at the board lists there, never a quest merely collectable anywhere");
+        assertEquals("Test_Board", atBoard.collectionSite(takenThere), "what was taken there is paid there");
+        assertEquals("Test_Board", atBoard.collectionSite(elsewhere),
+                "carried, a quest that names no site still collects at the board, as at a character");
+        assertTrue(atBoard.canCollectHere(elsewhere));
+        assertEquals(Section.READY, atBoard.sectionOf(elsewhere), "so it reads Ready to collect, never Elsewhere");
+
+        CharacterQuestListing atStranger = new CharacterQuestListing(engine, player, Set.of("stranger"));
+        assertEquals("stranger", atStranger.collectionSite(elsewhere),
+                "a character collects a quest that names no site, as before");
+        assertTrue(atStranger.questsHere().contains(elsewhere), "and lists it, as before");
+    }
+
     @Test
     void anAliasTheCharacterAnswersToCountsAsTheCharacter() {
         Quest quest = reportBack("q_report");

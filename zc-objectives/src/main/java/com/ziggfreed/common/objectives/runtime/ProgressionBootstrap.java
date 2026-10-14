@@ -4,6 +4,7 @@ import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.ziggfreed.common.commerce.fold.CommerceAudit;
+import com.ziggfreed.common.commerce.page.CommercePages;
 import com.ziggfreed.common.factor.CounterFactors;
 import com.ziggfreed.common.factor.ModFactors;
 import com.ziggfreed.common.feedback.moment.FeedbackEngine;
@@ -132,7 +133,8 @@ public final class ProgressionBootstrap {
     /**
      * The library's own NPC quest page is the DEFAULT target the Quests destination opens - a bare
      * server gets a working quest list from this jar alone. A consumer wanting a different screen
-     * registers its own host under its own id; the walk tries hosts in sorted id order.
+     * registers its own host under its own id; the walk tries hosts in sorted id order. The same page
+     * is what every board opens ({@link #registerBoardPage}).
      */
     public static void registerQuestListHost() {
         try {
@@ -146,6 +148,20 @@ public final class ProgressionBootstrap {
             CommerceAudit.installNpcIds(HostedBoards::knownNpcIds);
         } catch (Throwable t) {
             SafeLog.warn("[questlist] the board audit's character check could not be wired", t);
+        }
+        registerBoardPage();
+    }
+
+    /**
+     * A board opens on the library's quest page with the board as its host: commerce declares the opener
+     * ({@code CommercePages.BoardPageOpener}), since it cannot see this module, and this fills it, so every way a
+     * board is opened lands on the one quest page. Unfilled, a board opens nothing and commerce says so once.
+     */
+    public static void registerBoardPage() {
+        try {
+            CommercePages.boardPage(NpcQuestPages::openBoard);
+        } catch (Throwable t) {
+            SafeLog.warn("[questlist] the board page could not be wired, so a board opens nothing", t);
         }
     }
 }

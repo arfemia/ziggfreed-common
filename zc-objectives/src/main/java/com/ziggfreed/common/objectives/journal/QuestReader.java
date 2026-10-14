@@ -647,7 +647,8 @@ public final class QuestReader {
     /**
      * The action bar's hint for {@code q}; with {@code here}, at that character. Null for none. A posting done this
      * rotation says when its board posts new work; a board's contract carried from here says nothing, since it is
-     * handed in and collected right here; any other board-managed quest reads the board's own hint.
+     * handed in and collected right here; any other carried board-managed quest reads the board's own hint (where it
+     * is handed in), and one not taken says nothing, since there is nothing of it to hand in yet.
      */
     @Nullable
     public Message hint(@Nonnull Quest q, @Nullable CharacterQuestListing here) {
@@ -657,8 +658,11 @@ public final class QuestReader {
             Message wait = here.sectionOf(q) == NpcQuestSections.Section.COOLDOWN ? newWorkWait(here, posting) : null;
             return wait == null ? null : text("hint.new_work", wait);
         }
-        if (presentation.managed(q) && (status == QuestStatus.NOT_STARTED || status == QuestStatus.ACTIVE)) {
-            boolean carriedFromHere = here != null && status == QuestStatus.ACTIVE && here.takenHere(q);
+        if (presentation.managed(q) && status == QuestStatus.NOT_STARTED) {
+            return null;
+        }
+        if (presentation.managed(q) && status == QuestStatus.ACTIVE) {
+            boolean carriedFromHere = here != null && here.takenHere(q);
             return carriedFromHere ? null : presentation.acceptHint(q);
         }
         return switch (status) {

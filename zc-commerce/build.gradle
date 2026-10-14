@@ -14,8 +14,9 @@ apply from: "$rootDir/gradle/zc-module.gradle"
 // from below. Commerce may never import zc-dialogue either: a conversation opens a shop through the
 // Destination registry in zc-presentation, which is exactly what that registry exists for.
 //
-// Ships .ui (the shop + board pages), so it needs zc-presentation at RUNTIME as well as at compile
-// time - see the modules table's last column in the root router.
+// Ships .ui (the shop page and its commerce chip), so it needs zc-presentation at RUNTIME as well as
+// at compile time - see the modules table's last column in the root router. A board has no page here:
+// it opens zc-objectives' quest page through the CommercePages.BoardPageOpener seam.
 
 dependencies {
     // SafeLog, Subject, the counter + inventory primitives, the factor model, validation, registry.

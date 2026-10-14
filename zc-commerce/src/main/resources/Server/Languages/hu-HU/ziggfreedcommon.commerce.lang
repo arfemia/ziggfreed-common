@@ -43,47 +43,14 @@ shop.toast.more = +{0} további
 shop.toast.reroll_confirm = Csere ennyiért: {0}? Nyomd meg újra a megerősítéshez.
 
 board.title = Hirdetőtábla
-board.count = {0} megbízás
 board.refresh_in = Új megbízások {0} múlva
-board.tab.posted = Kitéve
-board.tab.mine = Enyémek
 board.empty.unknown = Ilyen tábla itt nincs.
-board.empty.unavailable = A fiókodat most nem sikerült beolvasni.
 board.empty.closed = Ez a tábla zárva van.
 board.empty.posted = Most nincs kitéve semmi.
-board.empty.mine = Nincs nálad semmi erről a tábláról.
-board.bounty.untitled = Névtelen megbízás
-board.step.untitled = Névtelen lépés
-board.progress = {0}/{1}
 
-board.header.objectives = Célok
-board.header.rewards = Jutalom
-
-board.section.ready = Átvehető
-board.section.turn_in = Itt add le
-board.section.active = Folyamatban
-board.section.available = Elérhető
-board.section.locked = Zárolva
-board.section.spent = Ebben a körben kész
-board.section.done = Befejezve
-board.status.spent_detail = Ezt már teljesítetted. Akkor jön vissza, amikor a tábla cserélődik.
-board.status.parked = A jutalma azon a táblán vár, ahonnan elvitted.
-
-board.action.accept = Elvállalom
-board.action.turn_in = Leadás
-board.action.report = Jelentés
-board.action.claim = Átvétel
-board.action.abandon = Feladás
 board.action.reroll = Csere
 
 board.toast.accepted = Megbízás elvállalva.
-board.toast.claim_failed = Most nincs mit átvenni.
-board.toast.abandoned = Megbízás feladva.
-board.toast.turned_in = Leadva.
-board.toast.turn_in_failed = Ezt nem sikerült leadni.
-board.toast.turn_in_short = {1} darabból {0} van meg.
-board.toast.completed = Megbízás teljesítve.
-board.toast.more = +{0} további
 board.toast.reroll_confirm = Csere ennyiért: {0}? Nyomd meg újra a megerősítéshez.
 
 refuse.locked = Ezt még nem teheted meg.

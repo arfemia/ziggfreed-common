@@ -8,7 +8,10 @@ $ZW = "../Common/ZigKit.ui";
 // as a list on the left and the quest being read on the right, built from the same kit pieces as the Objective
 // Book's Quests tab, so a quest reads the same at its giver and in the book.
 //
-// LEFT, #LeftPanel (450 wide; a consumer's theme retints its patch): the character's name, the count, the Here /
+// The page's host is a character or a board (CommercePages.openBoard opens it on a board): a board adds its picture,
+// its line and its clock to the header, and its wallets to #WalletRow.
+//
+// LEFT, #LeftPanel (450 wide; a consumer's theme retints its patch): the host's name, the count, the Here /
 // Mine segments (#TabHere, #TabMine), and #QuestList, where com.ziggfreed.common.ui.kit.LedgerPainter appends one
 // Pages/ZigLedgerSection.ui per section and a Pages/ZigLedgerRow.ui per quest. The segments stay on screen when a
 // list is empty, so there is always a way to the other list. At 450 a row's title reads on one line with its pin,
@@ -37,10 +40,42 @@ $F.@ZigDecoratedFrame {
       LayoutMode: Top;
       Padding: (Full: $ZK.@ZigSpace4);
 
-      Label #NpcHeader {
+      // The host's name: the character's, or a board's own title beside its picture (#HostPic, hidden at a
+      // character). Under it a board's line (#HostLine) and its clock to the next turnover (#HostClock), both
+      // hidden at a character and on a board that says nothing.
+      Group #HeaderRow {
+        LayoutMode: Left;
+        Anchor: (Bottom: $ZK.@ZigSpace1);
+
+        $ZW.@ZigPicture #HostPic {
+          @Size = $ZK.@ZigPicRow;
+          @Anchor = (Right: $ZK.@ZigSpace2);
+          Visible: false;
+        }
+
+        Group #HeaderText {
+          FlexWeight: 1;
+          LayoutMode: Top;
+
+          Label #NpcHeader {
+            Text: "";
+            Style: $ZX.@ZigTitleStyle;
+          }
+        }
+      }
+
+      Label #HostLine {
         Anchor: (Bottom: $ZK.@ZigSpace1);
         Text: "";
-        Style: $ZX.@ZigTitleStyle;
+        Visible: false;
+        Style: (...$ZX.@ZigCaptionStyle, Wrap: true);
+      }
+
+      Label #HostClock {
+        Anchor: (Height: 18, Bottom: $ZK.@ZigSpace1);
+        Text: "";
+        Visible: false;
+        Style: $ZX.@ZigCaptionStyle;
       }
 
       Label #QuestCount {

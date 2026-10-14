@@ -43,47 +43,14 @@ shop.toast.more = +{0} de plus
 shop.toast.reroll_confirm = Relancer pour {0} ? Appuie encore pour confirmer.
 
 board.title = Tableau
-board.count = {0} contrats
 board.refresh_in = Nouveaux contrats dans {0}
-board.tab.posted = Affichés
-board.tab.mine = Les miens
 board.empty.unknown = Ce tableau n'existe pas ici.
-board.empty.unavailable = Ton compte n'a pas pu être lu pour le moment.
 board.empty.closed = Ce tableau est fermé.
 board.empty.posted = Rien n'est affiché pour le moment.
-board.empty.mine = Tu ne portes rien qui vienne de ce tableau.
-board.bounty.untitled = Contrat sans nom
-board.step.untitled = Étape sans nom
-board.progress = {0}/{1}
 
-board.header.objectives = Objectifs
-board.header.rewards = Récompense
-
-board.section.ready = Prêt à récupérer
-board.section.turn_in = À rendre ici
-board.section.active = En cours
-board.section.available = Disponible
-board.section.locked = Verrouillé
-board.section.spent = Fini pour ce cycle
-board.section.done = Terminé
-board.status.spent_detail = Tu l'as déjà terminé. Il revient au prochain changement du tableau.
-board.status.parked = Sa récompense t'attend au tableau où tu l'as pris.
-
-board.action.accept = Accepter
-board.action.turn_in = Rendre
-board.action.report = Faire son rapport
-board.action.claim = Récupérer
-board.action.abandon = Abandonner
 board.action.reroll = Relancer
 
 board.toast.accepted = Contrat accepté.
-board.toast.claim_failed = Il n'y a rien à récupérer pour le moment.
-board.toast.abandoned = Contrat abandonné.
-board.toast.turned_in = Rendu.
-board.toast.turn_in_failed = Impossible de rendre ça.
-board.toast.turn_in_short = Tu en as {0} sur {1}.
-board.toast.completed = Contrat terminé.
-board.toast.more = +{0} de plus
 board.toast.reroll_confirm = Relancer pour {0} ? Appuie encore pour confirmer.
 
 refuse.locked = Tu ne peux pas encore faire ça.

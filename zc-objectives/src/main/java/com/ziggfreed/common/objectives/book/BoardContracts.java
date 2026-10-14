@@ -25,8 +25,8 @@ import com.ziggfreed.common.ui.kit.ZigTokens;
  * quest surface reads, so a server running nothing but this library shows what a board says about its work: a
  * contract is board-managed, its pills are its board's word for its work (the board's {@code Text.PillKey}, else
  * the library's word for a contract) and its grade in the band's own colour (the board's {@code Grades} entry,
- * clamped to read on a row; a band with none reads on the plain pill), and where Accept would be it says where the
- * contract is handed in.
+ * clamped to read on a row; a band with none reads on the plain pill), and on a contract the player carries it says
+ * where the contract is handed in ({@code QuestReader.hint} asks it of a carried contract only).
  *
  * <p>The board a contract reads by is the first board it names that this server declares, as every surface naming
  * exactly one board means it. Every read is guarded: a catalogue not up yet reads as no contract at all.

@@ -12,8 +12,8 @@ $ZW = "../Common/ZigKit.ui";
 // three places to fix a spacing change. Appended into a panel's list container and addressed via
 // the INDEXED PARENT ("#MyList[0] #LineText").
 //
-// It lives in this module because more than one module appends it - the NPC quest page, the
-// objective book's quest and achievement tabs, the storefront and board pages, and a mod built on
+// It lives in this module because more than one module appends it - the NPC quest page (a board's
+// too), the objective book's quest and achievement tabs, the storefront page, and a mod built on
 // this library all do - and a second copy beside one of those callers would ship at the same asset
 // path as this one, so only one of the two would ever reach a client. That is also why the size is
 // set here and nowhere else: the row height, the icon rung and the font below are the one place to

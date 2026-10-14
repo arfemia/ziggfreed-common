@@ -16,7 +16,6 @@ import com.ziggfreed.common.board.BountyRef;
 import com.ziggfreed.common.commerce.fold.BoardAssetSpec;
 import com.ziggfreed.common.commerce.fold.CommerceCatalogs;
 import com.ziggfreed.common.commerce.fold.CommerceEngines;
-import com.ziggfreed.common.commerce.fold.CommerceFold;
 import com.ziggfreed.common.objectives.questlist.NpcQuestSections.Section;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
@@ -72,10 +71,11 @@ public final class CharacterQuestListing {
 
     /**
      * One contract a board this character hosts has posted for the player right now: the board, the contract as
-     * the board engine sees it, and the slot that posted it (its own gate applies to the accept), null on a board
-     * that draws without slots.
+     * the board engine sees it, the slot that posted it (its own gate applies to the accept), null on a board
+     * that draws without slots, and its position in the board's draw (what a reroll of it names).
      */
-    public record Posting(@Nonnull BoardAssetSpec board, @Nonnull BountyRef contract, @Nullable PoolSlot slot) {
+    public record Posting(@Nonnull BoardAssetSpec board, @Nonnull BountyRef contract, @Nullable PoolSlot slot,
+            int position) {
     }
 
     @Nonnull private final QuestEngine engine;
@@ -83,6 +83,9 @@ public final class CharacterQuestListing {
     @Nonnull private final Set<String> answersTo;
     @Nullable private final LoadedWorld viewer;
     private final long nowMs;
+
+    /** Whether this listing stands at a board ({@link #atBoard}), which lists and pays out only its own work. */
+    private final boolean atBoard;
 
     /** The postings, read once on first ask: contract id lower-cased to its posting. */
     @Nullable private Map<String, Posting> postings;
@@ -98,11 +101,30 @@ public final class CharacterQuestListing {
      */
     public CharacterQuestListing(@Nonnull QuestEngine engine, @Nonnull Subject subject,
             @Nonnull Set<String> answersTo, @Nullable LoadedWorld viewer) {
+        this(engine, subject, answersTo, viewer, false);
+    }
+
+    private CharacterQuestListing(@Nonnull QuestEngine engine, @Nonnull Subject subject,
+            @Nonnull Set<String> answersTo, @Nullable LoadedWorld viewer, boolean atBoard) {
         this.engine = engine;
         this.subject = subject;
         this.answersTo = Set.copyOf(answersTo);
         this.viewer = viewer;
         this.nowMs = System.currentTimeMillis();
+        this.atBoard = atBoard;
+    }
+
+    /**
+     * A listing AT a board (the quest page a board opens): it answers to the board's own id alone, and its list keeps
+     * to the board's own work: the board's postings, what was taken there, and a finished quest only when it was
+     * taken there or is a contract. A finished quest that names no collection site stays off the board's list, though
+     * it still collects at the board as at any character once the player finds it among what they carry
+     * ({@link #collectionSite} is a character's rule here too).
+     */
+    @Nonnull
+    public static CharacterQuestListing atBoard(@Nonnull QuestEngine engine, @Nonnull Subject subject,
+            @Nonnull String boardId, @Nullable LoadedWorld viewer) {
+        return new CharacterQuestListing(engine, subject, Set.of(boardId), viewer, true);
     }
 
     /** Every id the character answers to, as this listing was built with. */
@@ -147,7 +169,7 @@ public final class CharacterQuestListing {
                 continue;
             }
             if (NpcQuestSections.belongsHere(engine.status(subject, quest), readyHere(quest), takenHere(quest),
-                    collectionSite(quest) != null)) {
+                    listsAsCollectableHere(quest))) {
                 out.put(quest.id(), quest);
             }
         }
@@ -196,7 +218,7 @@ public final class CharacterQuestListing {
      * so a contract done on it has no clock to wait on (it still reads under Comes back).
      */
     public boolean postsNewWork(@Nonnull Posting posting) {
-        return posting.board().rotation().periodLengthMs() != CommerceFold.NEVER.periodLengthMs();
+        return HostedBoards.turnsOver(posting.board());
     }
 
     /** How long until {@code posting}'s board turns over and posts new work; ask {@link #postsNewWork} first. */
@@ -237,7 +259,7 @@ public final class CharacterQuestListing {
             List<Posting> posted = new ArrayList<>(shown.size());
             for (int position = 0; position < shown.size(); position++) {
                 posted.add(new Posting(spec, shown.get(position),
-                        position < draw.size() ? draw.slotAt(position) : null));
+                        position < draw.size() ? draw.slotAt(position) : null, position));
             }
             byBoard.put(spec, posted);
         }
@@ -360,7 +382,8 @@ public final class CharacterQuestListing {
      * The id, out of this character's answer set, this quest may be collected under - the one the
      * claim itself must be made at, the id it was taken under asked first. Null when none of them
      * answers, and null when there is nobody in front of the player at all, which is exactly what a
-     * claim from nowhere passes.
+     * claim from nowhere passes. The same rule at a board as at a character: a quest the player
+     * carries reads and collects alike wherever it is shown.
      */
     @Nullable
     public String collectionSite(@Nonnull Quest quest) {
@@ -370,6 +393,30 @@ public final class CharacterQuestListing {
             }
         }
         return null;
+    }
+
+    /**
+     * Whether a finished quest waiting to be collected here earns a place on this list ({@link #questsHere}): wherever
+     * it may be collected here, at a character; at a board ({@link #atBoard}), only when it was taken there or is a
+     * contract, so the board's list keeps to its own work and a quest merely collectable anywhere stays off it.
+     */
+    private boolean listsAsCollectableHere(@Nonnull Quest quest) {
+        if (atBoard && !takenHere(quest) && !isContract(quest)) {
+            return false;
+        }
+        return collectionSite(quest) != null;
+    }
+
+    /**
+     * Whether a postable bounty asset has {@code quest}'s id (the board catalogue's own reading of a contract); a
+     * catalogue not up yet reads as no.
+     */
+    private static boolean isContract(@Nonnull Quest quest) {
+        try {
+            return CommerceCatalogs.boards().bounty(quest.id()) != null;
+        } catch (Throwable notLoadedYet) {
+            return false;
+        }
     }
 
     /** The answer set with the id the quest was taken under (when it is one of them) first. */

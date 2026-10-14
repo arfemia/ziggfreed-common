@@ -1,4 +1,4 @@
-# The storefront page and the board page.
+# The storefront page, and what a board adds to the quest page it opens on.
 # The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.commerce.<key>.
 #
 # CHROME ONLY. A shop's own name and every offer or contract title are CONTENT keys: they belong to
@@ -61,50 +61,26 @@ shop.toast.more = +{0} more
 shop.toast.reroll_confirm = Reroll for {0}? Press again to confirm.
 
 # ==================== the board ====================
+#
+# A board opens on the quest page with the board as its host: these are what the board adds there, its
+# header, its closed and empty lines, Reroll and the words it takes a contract with.
 
 board.title = Board
-board.count = {0} contracts
 board.refresh_in = New contracts in {0}
-board.tab.posted = Posted
-board.tab.mine = Mine
 board.empty.unknown = No such board exists here.
-board.empty.unavailable = Your account could not be read just now.
 board.empty.closed = This board is closed.
 board.empty.posted = Nothing is posted right now.
-board.empty.mine = You are not carrying anything from this board.
-board.bounty.untitled = Unnamed contract
-board.step.untitled = Unnamed step
-board.progress = {0}/{1}
 
-board.header.objectives = Objectives
-board.header.rewards = Reward
-
-board.section.ready = Ready to collect
-board.section.turn_in = Hand in here
-board.section.active = In progress
-board.section.available = Available
-board.section.locked = Locked
-board.section.spent = Done this rotation
-board.section.done = Completed
-board.status.spent_detail = You have finished this one. It comes back when the board turns over.
-board.status.parked = Its reward is waiting at the board you took it from.
-
-board.action.accept = Take it
-board.action.turn_in = Hand in
-board.action.report = Report back
-board.action.claim = Collect
-board.action.abandon = Abandon
 board.action.reroll = Reroll
 
 board.toast.accepted = Contract taken.
-board.toast.claim_failed = There is nothing to collect right now.
-board.toast.abandoned = Contract abandoned.
-board.toast.turned_in = Handed in.
-board.toast.turn_in_failed = That could not be handed in.
-board.toast.turn_in_short = You have {0} of {1}.
-board.toast.completed = Contract complete.
-board.toast.more = +{0} more
 board.toast.reroll_confirm = Reroll for {0}? Press again to confirm.
+
+# Reroll on a contract still on the board, its terms in the line beside the buttons: {0} the price, {1} the
+# rerolls left until the board turns over (a board with no cap says none).
+board.reroll.costs = A reroll costs {0}.
+board.reroll.costs_left = A reroll costs {0}. {1, number} left this rotation.
+board.reroll.free_left = {0, number} free {0, plural, one {reroll} other {rerolls}} left this rotation.
 
 # ==================== why something refused ====================
 

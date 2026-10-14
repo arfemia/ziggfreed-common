@@ -43,47 +43,14 @@ shop.toast.more = +{0} ещё
 shop.toast.reroll_confirm = Заменить за {0}? Нажмите ещё раз для подтверждения.
 
 board.title = Доска
-board.count = Контрактов: {0}
 board.refresh_in = Новые контракты через {0}
-board.tab.posted = На доске
-board.tab.mine = Мои
 board.empty.unknown = Такой доски здесь нет.
-board.empty.unavailable = Сейчас не удалось прочитать ваши данные.
 board.empty.closed = Эта доска закрыта.
 board.empty.posted = Сейчас на доске ничего нет.
-board.empty.mine = У вас нет ничего с этой доски.
-board.bounty.untitled = Безымянный контракт
-board.step.untitled = Безымянный шаг
-board.progress = {0}/{1}
 
-board.header.objectives = Цели
-board.header.rewards = Награда
-
-board.section.ready = Можно забрать
-board.section.turn_in = Сдать здесь
-board.section.active = В работе
-board.section.available = Доступно
-board.section.locked = Закрыто
-board.section.spent = Сделано в этот раз
-board.section.done = Завершено
-board.status.spent_detail = Вы его уже выполнили. Он вернётся, когда доска обновится.
-board.status.parked = Награда ждёт на той доске, где вы взяли контракт.
-
-board.action.accept = Взять
-board.action.turn_in = Сдать
-board.action.report = Доложить
-board.action.claim = Забрать
-board.action.abandon = Отказаться
 board.action.reroll = Заменить
 
 board.toast.accepted = Контракт взят.
-board.toast.claim_failed = Сейчас нечего забирать.
-board.toast.abandoned = Вы отказались от контракта.
-board.toast.turned_in = Сдано.
-board.toast.turn_in_failed = Это не удалось сдать.
-board.toast.turn_in_short = У вас {0} из {1}.
-board.toast.completed = Контракт выполнен.
-board.toast.more = +{0} ещё
 board.toast.reroll_confirm = Заменить за {0}? Нажмите ещё раз для подтверждения.
 
 refuse.locked = Вам это пока недоступно.

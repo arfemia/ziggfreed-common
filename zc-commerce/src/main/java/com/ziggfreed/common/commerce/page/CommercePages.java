@@ -1,5 +1,6 @@
 package com.ziggfreed.common.commerce.page;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
@@ -20,17 +21,23 @@ import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.world.WhereValidator.LoadedWorld;
 
 /**
- * The way in to both commerce screens: two calls that open one, and one place a consumer says what
+ * The way in to the commerce screens: two calls that open one, and one place a consumer says what
  * those screens should know.
  *
  * <p>{@link #openShop} and {@link #openBoard} are the whole of what the destination handlers do, so
  * routing a storefront or a board is a one-line delegation wherever a block, an NPC, a conversation
  * line or a command wants one.
  *
+ * <p><b>A board opens on the quest page.</b> A board is a HOST: it opens the library's quest page
+ * with the board as the place the page stands at, so its contracts read, are taken, handed in and
+ * collected exactly as a character's quests are. That page lives above this module, so this module
+ * declares the opener ({@link BoardPageOpener}) and the library's objectives module fills it at setup
+ * ({@link #boardPage}); unfilled, an open answers false and says so once.
+ *
  * <p><b>Deps are resolved LAZILY, at open time.</b> A consumer's naming, theme and routing are built
  * long after this module's setup runs, so a supplier is registered once and asked on each open; a
  * consumer that registers nothing gets {@link CommercePageDeps#DEFAULTS}, which is a fully working
- * pair of pages.
+ * storefront.
  *
  * <p><b>An unnamed target means "whichever one this server has".</b> A destination may leave the id
  * out, and the honest answer is the first storefront or board the content declares in its own order
@@ -46,12 +53,45 @@ import com.ziggfreed.common.world.WhereValidator.LoadedWorld;
  */
 public final class CommercePages {
 
+    /**
+     * What opens a board: the quest page with the board as its host, which this module cannot see, so
+     * the module that owns that page fills this at setup. True means the screen was taken.
+     */
+    @FunctionalInterface
+    public interface BoardPageOpener {
+
+        /**
+         * Open the board {@code boardId} (an id this server declares) for {@code player} on the anchor
+         * {@code ref}, with {@code highlightBountyId} singled out when it is on the board.
+         */
+        boolean open(@Nonnull String boardId, @Nullable String highlightBountyId,
+                @Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref, @Nonnull Player player);
+    }
+
     /** Who this module's page registrations are attributed to. */
     public static final String OWNER = "ziggfreedcommon";
 
     private static final AtomicReference<Supplier<CommercePageDeps>> DEPS = new AtomicReference<>();
 
+    private static final AtomicReference<BoardPageOpener> BOARD_PAGE = new AtomicReference<>();
+
+    /** Whether an open with no board page installed has been reported; once is enough. */
+    private static final AtomicBoolean WARNED_NO_BOARD_PAGE = new AtomicBoolean();
+
     private CommercePages() {
+    }
+
+    /**
+     * Install what opens a board ({@link BoardPageOpener}). The library's objectives module fills it at
+     * setup with its quest page; pass null to clear it.
+     */
+    public static void boardPage(@Nullable BoardPageOpener opener) {
+        BOARD_PAGE.set(opener);
+    }
+
+    /** Whether something opens a board on this server, which is what a board opener needs to land anywhere. */
+    public static boolean hasBoardPage() {
+        return BOARD_PAGE.get() != null;
     }
 
     /**
@@ -119,8 +159,10 @@ public final class CommercePages {
     }
 
     /**
-     * Open the board {@code boardId} on {@code ref} with {@code openAtBountyId} already showing in
-     * the detail panel, or the first board this server declares when the id is left out.
+     * Open the board {@code boardId} on {@code ref} with {@code openAtBountyId} singled out, or the
+     * first board this server declares when the id is left out. The board opens as the host of the
+     * library's quest page ({@link BoardPageOpener}), its contract leading the list and open on the
+     * right.
      *
      * <p>The second argument is what a deep link passes: a surface that already knows which contract
      * the player pressed opens the board looking at it rather than at whichever row happened to sort
@@ -133,21 +175,32 @@ public final class CommercePages {
             SafeLog.fine("[commerce] a board was asked for but this server declares none");
             return false;
         }
-        // Read the reference off the PLAYER, never off {@code ref}: this seam's ref is the ANCHOR
-        // the page is opened on, which is the board keeper's own entity at a press-F.
-        PlayerRef playerRef = PlayerAccess.playerRef(player);
-        if (playerRef == null) {
-            SafeLog.fine("[commerce] a board was asked for by an entity that is not a player");
+        BoardPageOpener opener = boardPageOrWarn();
+        if (opener == null) {
             return false;
         }
         try {
-            player.getPageManager().openCustomPage(ref, store,
-                    new ZigBoardPage(playerRef, id, openAtBountyId, resolvedDeps()));
-            return true;
+            return opener.open(id, openAtBountyId, store, ref, player);
         } catch (Throwable t) {
             SafeLog.warn("[commerce] the board page failed to open", t);
             return false;
         }
+    }
+
+    /**
+     * The installed board opener, or null having REPORTED, once, that there is none: every board, its
+     * blocks, its NPCs, its conversation lines and its deep links would open nothing, and nothing else is
+     * in a position to notice.
+     */
+    @Nullable
+    static BoardPageOpener boardPageOrWarn() {
+        BoardPageOpener opener = BOARD_PAGE.get();
+        if (opener == null && WARNED_NO_BOARD_PAGE.compareAndSet(false, true)) {
+            SafeLog.warn("[commerce] no board page is installed, so a board opens nothing. The library's"
+                    + " objectives module installs its quest page at setup (CommercePages.boardPage); a server"
+                    + " that left that setup out shows no board.");
+        }
+        return opener;
     }
 
     // ==================== defaults ====================

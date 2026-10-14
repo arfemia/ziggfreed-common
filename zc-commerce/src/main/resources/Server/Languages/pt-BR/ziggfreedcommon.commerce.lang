@@ -40,47 +40,14 @@ shop.toast.more = +{0} a mais
 shop.toast.reroll_confirm = Trocar por {0}? Aperte de novo para confirmar.
 
 board.title = Mural
-board.count = {0} contratos
 board.refresh_in = Novos contratos em {0}
-board.tab.posted = Afixados
-board.tab.mine = Meus
 board.empty.unknown = Esse mural não existe aqui.
-board.empty.unavailable = Não foi possível ler sua conta agora.
 board.empty.closed = Este mural está fechado.
 board.empty.posted = Nada está afixado agora.
-board.empty.mine = Você não está levando nada deste mural.
-board.bounty.untitled = Contrato sem nome
-board.step.untitled = Etapa sem nome
-board.progress = {0}/{1}
 
-board.header.objectives = Objetivos
-board.header.rewards = Recompensa
-
-board.section.ready = Pronto para receber
-board.section.turn_in = Entregar aqui
-board.section.active = Em andamento
-board.section.available = Disponível
-board.section.locked = Bloqueado
-board.section.spent = Feito nesta rodada
-board.section.done = Concluído
-board.status.spent_detail = Você já terminou esse. Ele volta quando o mural mudar.
-board.status.parked = A recompensa espera no mural onde você pegou o contrato.
-
-board.action.accept = Aceitar
-board.action.turn_in = Entregar
-board.action.report = Prestar contas
-board.action.claim = Receber
-board.action.abandon = Abandonar
 board.action.reroll = Trocar
 
 board.toast.accepted = Contrato aceito.
-board.toast.claim_failed = Não há nada para receber agora.
-board.toast.abandoned = Contrato abandonado.
-board.toast.turned_in = Entregue.
-board.toast.turn_in_failed = Não foi possível entregar isso.
-board.toast.turn_in_short = Você tem {0} de {1}.
-board.toast.completed = Contrato concluído.
-board.toast.more = +{0} a mais
 board.toast.reroll_confirm = Trocar por {0}? Aperte de novo para confirmar.
 
 refuse.locked = Você ainda não pode fazer isso.
