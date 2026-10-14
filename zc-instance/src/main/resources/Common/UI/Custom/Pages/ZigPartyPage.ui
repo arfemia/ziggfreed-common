@@ -23,12 +23,23 @@ $F.@ZigDecoratedFrame {
       Style: (FontSize: $ZT.@ZigFontTitle, TextColor: #ffd97a, RenderBold: true);
     }
 
-    // Tab bar (active tab tinted from Java).
+    // Tab bar (active tab tinted from Java, its #Label turned white and bold). Every button on this page
+    // is a Button holding a Label #Label whose words go on .TextSpans (ZigRichButton).
     Group #TabBar {
       LayoutMode: Left;
       Anchor: (Height: 34, Bottom: 8);
-      TextButton #TabParty  { FlexWeight: 1; Anchor: (Height: 34); Style: $M.@ZigTabBtnStyle; }
-      TextButton #TabInvite { FlexWeight: 1; Anchor: (Height: 34, Left: 6); Style: $M.@ZigTabBtnStyle; }
+      Button #TabParty {
+        FlexWeight: 1;
+        Anchor: (Height: 34);
+        Style: $M.@ZigRichTabBtnStyle;
+        Label #Label { FlexWeight: 1; Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #b6c9de, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center); }
+      }
+      Button #TabInvite {
+        FlexWeight: 1;
+        Anchor: (Height: 34, Left: 6);
+        Style: $M.@ZigRichTabBtnStyle;
+        Label #Label { FlexWeight: 1; Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #b6c9de, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center); }
+      }
     }
 
     Label #MemberCount {
@@ -69,10 +80,34 @@ $F.@ZigDecoratedFrame {
       LayoutMode: Left;
       Anchor: (Height: 36, Top: 8);
       Visible: false;
-      TextButton #QueueBtn   { FlexWeight: 1; Anchor: (Height: 36); Style: $M.@ZigOptionBtnStyle; Visible: false; }
-      TextButton #PrivacyBtn { FlexWeight: 1; Anchor: (Height: 36, Left: 6); Style: $M.@ZigTabBtnStyle; Visible: false; }
-      TextButton #DisbandBtn { FlexWeight: 1; Anchor: (Height: 36, Left: 6); Style: $M.@ZigOptionBtnStyle; Visible: false; }
-      TextButton #LeaveBtn   { FlexWeight: 1; Anchor: (Height: 36, Left: 6); Style: $M.@ZigOptionBtnStyle; Visible: false; }
+      Button #QueueBtn {
+        FlexWeight: 1;
+        Anchor: (Height: 36);
+        Style: $M.@ZigRichOptionBtnStyle;
+        Visible: false;
+        Label #Label { FlexWeight: 1; Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, RenderBold: false, HorizontalAlignment: Start, VerticalAlignment: Center); }
+      }
+      Button #PrivacyBtn {
+        FlexWeight: 1;
+        Anchor: (Height: 36, Left: 6);
+        Style: $M.@ZigRichTabBtnStyle;
+        Visible: false;
+        Label #Label { FlexWeight: 1; Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #b6c9de, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center); }
+      }
+      Button #DisbandBtn {
+        FlexWeight: 1;
+        Anchor: (Height: 36, Left: 6);
+        Style: $M.@ZigRichOptionBtnStyle;
+        Visible: false;
+        Label #Label { FlexWeight: 1; Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, RenderBold: false, HorizontalAlignment: Start, VerticalAlignment: Center); }
+      }
+      Button #LeaveBtn {
+        FlexWeight: 1;
+        Anchor: (Height: 36, Left: 6);
+        Style: $M.@ZigRichOptionBtnStyle;
+        Visible: false;
+        Label #Label { FlexWeight: 1; Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, RenderBold: false, HorizontalAlignment: Start, VerticalAlignment: Center); }
+      }
     }
   }
 }

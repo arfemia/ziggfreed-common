@@ -22,6 +22,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.loot.reward.RewardChip;
 import com.ziggfreed.common.ui.UiText;
+import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.name.PlayerDisplayNames;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastSpec;
@@ -80,7 +81,7 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton", EventData.of("Action", "close"));
 
         // Every label goes on its .TextSpans, the sink that fills a consumer line's parameters (a .Text prints
-        // "{0}" as written); only the TextButtons below keep .Text, the one sink they have.
+        // "{0}" as written), and so does every button's #Label below: each button is a ZigRichButton.
         cmd.set("#OutcomeTitle.TextSpans", t.outcomeTitle(result.kind()));
         cmd.set("#OutcomeTitle.Style.TextColor", outcomeColor(result.kind()));
         cmd.set("#Duration.TextSpans", t.duration(result.durationSeconds()));
@@ -167,17 +168,17 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
         ResultsActions actions = deps.actions();
         if (rewardsPreviewNote == null && actions != null && !claimed && !chips.isEmpty()) {
             cmd.set("#ClaimBtn.Visible", true);
-            UiText.setText(cmd, "#ClaimBtn.Text", t.claimButton());
+            ZigRichButton.text(cmd, "#ClaimBtn", t.claimButton());
             events.addEventBinding(CustomUIEventBindingType.Activating, "#ClaimBtn", EventData.of("Action", "claim"));
         }
         if (actions != null && result.leaderboardBucket() != null) {
             cmd.set("#ViewLbBtn.Visible", true);
-            UiText.setText(cmd, "#ViewLbBtn.Text", t.viewLeaderboardButton());
+            ZigRichButton.text(cmd, "#ViewLbBtn", t.viewLeaderboardButton());
             events.addEventBinding(CustomUIEventBindingType.Activating, "#ViewLbBtn", EventData.of("Action", "leaderboard"));
         }
         if (actions != null && actions.offersPlayAgain()) {
             cmd.set("#PlayAgainBtn.Visible", true);
-            UiText.setText(cmd, "#PlayAgainBtn.Text", t.playAgainButton());
+            ZigRichButton.text(cmd, "#PlayAgainBtn", t.playAgainButton());
             events.addEventBinding(CustomUIEventBindingType.Activating, "#PlayAgainBtn", EventData.of("Action", "again"));
         }
 

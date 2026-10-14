@@ -36,7 +36,7 @@ import com.ziggfreed.common.party.PartyInvite;
 import com.ziggfreed.common.party.PartyService;
 import com.ziggfreed.common.party.PartySnapshot;
 import com.ziggfreed.common.ui.UiRetint;
-import com.ziggfreed.common.ui.UiText;
+import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.ZigSearchRow;
 import com.ziggfreed.common.ui.name.PlayerDisplayNames;
 import com.ziggfreed.common.ui.toast.ToastKind;
@@ -163,11 +163,12 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
         PartyScreenMessages t = deps.text();
         cmd.append(PAGE_TEMPLATE);
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton", EventData.of("Action", "close"));
-        // Labels take TextSpans (the viewer's locale, params filled); the TextButtons stay on UiText.
+        // Labels take TextSpans (the viewer's locale, params filled), and so does every button's #Label:
+        // each button is a ZigRichButton.
         cmd.set("#Title.TextSpans", t.title());
 
-        UiText.setText(cmd, "#TabParty.Text", t.tabParty());
-        UiText.setText(cmd, "#TabInvite.Text", t.tabInvite());
+        ZigRichButton.text(cmd, "#TabParty", t.tabParty());
+        ZigRichButton.text(cmd, "#TabInvite", t.tabInvite());
         events.addEventBinding(CustomUIEventBindingType.Activating, "#TabParty",
                 EventData.of("Action", "tab").append("Target", TAB_PARTY), false);
         events.addEventBinding(CustomUIEventBindingType.Activating, "#TabInvite",
@@ -183,10 +184,11 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
         renderToastInto(cmd); // LAST: the toast overlay draws on top of the page content.
     }
 
+    /** The chosen tab: its backgrounds in the active tint, and its #Label white and bold. */
     private void paintActiveTab(@Nonnull UICommandBuilder cmd, @Nonnull String sel) {
         UiRetint.retintButtonStates(cmd, sel, TAB_ACTIVE, TAB_ACTIVE, TAB_ACTIVE);
-        cmd.set(sel + ".Style.Default.LabelStyle.TextColor", "#ffffff");
-        cmd.set(sel + ".Style.Default.LabelStyle.RenderBold", true);
+        ZigRichButton.color(cmd, sel, "#ffffff");
+        cmd.set(sel + " " + ZigRichButton.LABEL + ".Style.RenderBold", true);
     }
 
     // ==================== Party tab ====================
@@ -237,7 +239,7 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
             cmd.set("#FooterRow.Visible", true);
             if (viewerOwns && deps.queueHandler() != null) {
                 cmd.set("#QueueBtn.Visible", true);
-                UiText.setText(cmd, "#QueueBtn.Text", t.queueButton());
+                ZigRichButton.text(cmd, "#QueueBtn", t.queueButton());
                 events.addEventBinding(CustomUIEventBindingType.Activating, "#QueueBtn", EventData.of("Action", "queue"));
             }
             if (viewerOwns) {
@@ -245,17 +247,17 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
                 // how the party queues, so with no queue handler there is nothing for it to change.
                 if (deps.queueHandler() != null) {
                     cmd.set("#PrivacyBtn.Visible", true);
-                    UiText.setText(cmd, "#PrivacyBtn.Text",
+                    ZigRichButton.text(cmd, "#PrivacyBtn",
                             snap.privateLobby() ? t.privacyPrivate() : t.privacyPublic());
                     events.addEventBinding(CustomUIEventBindingType.Activating, "#PrivacyBtn",
                             EventData.of("Action", "privacy"));
                 }
                 cmd.set("#DisbandBtn.Visible", true);
-                UiText.setText(cmd, "#DisbandBtn.Text", t.disbandButton());
+                ZigRichButton.text(cmd, "#DisbandBtn", t.disbandButton());
                 events.addEventBinding(CustomUIEventBindingType.Activating, "#DisbandBtn", EventData.of("Action", "disband"));
             } else {
                 cmd.set("#LeaveBtn.Visible", true);
-                UiText.setText(cmd, "#LeaveBtn.Text", t.leaveButton());
+                ZigRichButton.text(cmd, "#LeaveBtn", t.leaveButton());
                 events.addEventBinding(CustomUIEventBindingType.Activating, "#LeaveBtn", EventData.of("Action", "leave"));
             }
         }
@@ -334,7 +336,7 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
     private void bindRowButton(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events, @Nonnull String sel,
                                @Nonnull String btnId, @Nonnull Message label, @Nonnull EventData data) {
         cmd.set(sel + " " + btnId + ".Visible", true);
-        UiText.setText(cmd, sel + " " + btnId + ".Text", label);
+        ZigRichButton.text(cmd, sel + " " + btnId, label);
         events.addEventBinding(CustomUIEventBindingType.Activating, sel + " " + btnId, data, false);
     }
 

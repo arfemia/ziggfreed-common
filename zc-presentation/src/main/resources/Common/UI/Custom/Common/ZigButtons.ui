@@ -116,6 +116,18 @@ $ZT = "ZigType.ui";
   Sounds: $C.@ButtonSounds
 );
 
+// The Button twin of @ZigOptionBtnStyle, for a conversation's answer row and the party page's action
+// buttons, whose words go on a Label's .TextSpans so a number, a plural or a nested name reads right. A
+// `ButtonStyle` (the same patch and per-state tints, Sounds, NO LabelStyle) for a `Button` wrapping a
+// `Label #Label` (ZigRichButton); the label's text style lives on that Label, and the dialogue page retints
+// each row's backgrounds from Java exactly as it did the TextButton rows.
+@ZigRichOptionBtnStyle = ButtonStyle(
+  Default: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary.png", Border: 12, Color: #6f8398)),
+  Hovered: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Hovered.png", Border: 12, Color: #9fb3c8)),
+  Pressed: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Pressed.png", Border: 12, Color: #5a6e82)),
+  Sounds: $C.@ButtonSounds
+);
+
 // ── ziggfreed-common shared segmented tab / filter button ─────────────────────
 // Imported per page as:  $M = "../Common/ZigButtons.ui";  then  Style: $M.@ZigTabBtnStyle;
 //

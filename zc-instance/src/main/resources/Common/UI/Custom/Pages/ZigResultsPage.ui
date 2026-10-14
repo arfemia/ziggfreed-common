@@ -86,18 +86,35 @@ $F.@ZigDecoratedFrame {
       Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #e0a030);
     }
 
-    // Claim button (full-width, the primary action) + footer CTAs.
-    TextButton #ClaimBtn {
-      Text: "";
+    // Claim button (full-width, the primary action) + footer CTAs. Each is a Button holding a Label #Label
+    // whose words go on .TextSpans (ZigRichButton).
+    Button #ClaimBtn {
       Anchor: (Height: 40, Top: 4, Bottom: 8);
-      Style: $M.@ZigPrimaryBtnStyle;
+      Style: $M.@ZigRichPrimaryBtnStyle;
       Visible: false;
+      Label #Label {
+        FlexWeight: 1;
+        Text: "";
+        Style: (FontSize: $ZT.@ZigFontBody, TextColor: #eef4fb, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center);
+      }
     }
     Group #FooterRow {
       LayoutMode: Left;
       Anchor: (Height: 36);
-      TextButton #ViewLbBtn    { FlexWeight: 1; Anchor: (Height: 36); Style: $M.@ZigPrimaryBtnStyle; Visible: false; }
-      TextButton #PlayAgainBtn { FlexWeight: 1; Anchor: (Height: 36, Left: 6); Style: $M.@ZigPrimaryBtnStyle; Visible: false; }
+      Button #ViewLbBtn {
+        FlexWeight: 1;
+        Anchor: (Height: 36);
+        Style: $M.@ZigRichPrimaryBtnStyle;
+        Visible: false;
+        Label #Label { FlexWeight: 1; Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #eef4fb, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center); }
+      }
+      Button #PlayAgainBtn {
+        FlexWeight: 1;
+        Anchor: (Height: 36, Left: 6);
+        Style: $M.@ZigRichPrimaryBtnStyle;
+        Visible: false;
+        Label #Label { FlexWeight: 1; Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #eef4fb, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center); }
+      }
     }
   }
 }

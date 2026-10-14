@@ -64,7 +64,7 @@ public final class UiText {
      * authored. A {@code Label} takes {@code .TextSpans} instead (see the class note).
      *
      * @param selector the FULL property selector, ending in {@code .Text}
-     *                 (e.g. {@code "#OptionsList[0] #OptionBtn.Text"})
+     *                 (e.g. {@code "#Rows[0] #ActionBtn.Text"})
      */
     public static void setText(@Nonnull UICommandBuilder cmd, @Nonnull String selector,
             @Nullable Message value) {

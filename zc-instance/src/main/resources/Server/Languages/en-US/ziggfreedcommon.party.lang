@@ -1,7 +1,7 @@
 # The library's own party: the party screen, its notices and /zigparty, so a party works on a server running
 # nothing else. The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.party.<key>.
-# The screen's tab and button words are painted on TextButtons, where a parameter is never substituted; its
-# Labels (title, count, badge, the empty lines) and the notices and command lines fill theirs in the viewer's locale.
+# The screen's words (its tabs, buttons, title, count, badge and empty lines) go on Labels' TextSpans, and they,
+# the notices and the command lines fill their parameters in the viewer's locale.
 
 title = Party
 tab.party = Party

@@ -44,10 +44,15 @@ Group #ZigPlayModeCard {
     }
   }
 
-  TextButton #CardBtn {
+  // The name button: a Button holding a Label #Label whose words go on .TextSpans (ZigRichButton).
+  Button #CardBtn {
     Anchor: (Height: 36, Bottom: 8);
-    Text: "";
-    Style: $M.@ZigTabBtnStyle;
+    Style: $M.@ZigRichTabBtnStyle;
+    Label #Label {
+      FlexWeight: 1;
+      Text: "";
+      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #b6c9de, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center);
+    }
   }
 
   Label #CardSub {

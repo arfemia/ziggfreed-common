@@ -8,7 +8,8 @@ $ZT = "../Common/ZigType.ui";
 //   invite tab  -> #RowBtnPrimary = Invite
 //   party member-> #RowBtnPrimary = Kick (owner viewing others)
 //   incoming inv-> #RowBtnPrimary = Accept, #RowBtnSecondary = Decline
-// The two buttons default hidden; Java sets Visible + Text + the event binding.
+// The two buttons default hidden; Java sets Visible, the words (on the Button's #Label .TextSpans, through
+// ZigRichButton) and the event binding.
 
 Group #ZigPartyRow {
   LayoutMode: Left;
@@ -28,17 +29,27 @@ Group #ZigPartyRow {
     Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #ffd97a, VerticalAlignment: Center, HorizontalAlignment: Center, RenderBold: true);
   }
 
-  TextButton #RowBtnPrimary {
+  Button #RowBtnPrimary {
     Visible: false;
     Anchor: (Width: 96, Height: 32, Top: 4, Left: 6);
     Padding: (Horizontal: 8);
-    Style: $M.@ZigOptionBtnStyle;
+    Style: $M.@ZigRichOptionBtnStyle;
+    Label #Label {
+      FlexWeight: 1;
+      Text: "";
+      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, RenderBold: false, HorizontalAlignment: Start, VerticalAlignment: Center);
+    }
   }
 
-  TextButton #RowBtnSecondary {
+  Button #RowBtnSecondary {
     Visible: false;
     Anchor: (Width: 96, Height: 32, Top: 4, Left: 6);
     Padding: (Horizontal: 8);
-    Style: $M.@ZigOptionBtnStyle;
+    Style: $M.@ZigRichOptionBtnStyle;
+    Label #Label {
+      FlexWeight: 1;
+      Text: "";
+      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, RenderBold: false, HorizontalAlignment: Start, VerticalAlignment: Center);
+    }
   }
 }

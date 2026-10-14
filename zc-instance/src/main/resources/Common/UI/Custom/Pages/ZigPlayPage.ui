@@ -35,12 +35,17 @@ $F.@ZigDecoratedFrame {
       Anchor: (Height: 200, Bottom: 4);
     }
 
-    // Optional "Claim Rewards" button (chooser only); Java reveals it when spoils are pending.
-    TextButton #ClaimBtn {
-      Text: "";
+    // Optional "Claim Rewards" button (chooser only); Java reveals it when spoils are pending. Both buttons on
+    // this page are a Button holding a Label #Label whose words go on .TextSpans (ZigRichButton).
+    Button #ClaimBtn {
       Anchor: (Height: 38, Top: 6);
-      Style: $M.@ZigPrimaryBtnStyle;
+      Style: $M.@ZigRichPrimaryBtnStyle;
       Visible: false;
+      Label #Label {
+        FlexWeight: 1;
+        Text: "";
+        Style: (FontSize: $ZT.@ZigFontBody, TextColor: #eef4fb, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center);
+      }
     }
 
     // ----- roster / ready: shown once the player is queued -----
@@ -75,9 +80,19 @@ $F.@ZigDecoratedFrame {
       Group #FooterRow {
         LayoutMode: Left;
         Anchor: (Height: 36, Top: 8);
-        // Footer CTA -> the shared center-aligned primary style (NOT the left-aligned dialogue-row
-        // @ZigOptionBtnStyle), so "Leave the Gathering" centers in the full-width button.
-        TextButton #LeaveBtn { FlexWeight: 1; Anchor: (Height: 36); Style: $M.@ZigPrimaryBtnStyle; Visible: false; }
+        // Footer CTA -> the shared center-aligned primary look (NOT the left-aligned dialogue-row
+        // option look), so "Leave the Gathering" centers in the full-width button.
+        Button #LeaveBtn {
+          FlexWeight: 1;
+          Anchor: (Height: 36);
+          Style: $M.@ZigRichPrimaryBtnStyle;
+          Visible: false;
+          Label #Label {
+            FlexWeight: 1;
+            Text: "";
+            Style: (FontSize: $ZT.@ZigFontBody, TextColor: #eef4fb, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center);
+          }
+        }
       }
     }
   }

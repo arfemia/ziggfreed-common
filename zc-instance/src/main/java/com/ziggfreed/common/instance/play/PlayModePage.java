@@ -32,7 +32,7 @@ import com.ziggfreed.common.lobby.QueueKey;
 import com.ziggfreed.common.lobby.QueueListener;
 import com.ziggfreed.common.lobby.QueueSnapshot;
 import com.ziggfreed.common.lobby.QueueState;
-import com.ziggfreed.common.ui.UiText;
+import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.name.PlayerDisplayNames;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastSpec;
@@ -93,7 +93,8 @@ public class PlayModePage extends ToastablePage<PlayEventData> {
         PlayScreenMessages t = deps.text();
         cmd.append(PAGE_TEMPLATE);
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton", EventData.of("Action", "close"));
-        // Labels take TextSpans (the viewer's locale, params filled); the TextButtons stay on UiText.
+        // Labels take TextSpans (the viewer's locale, params filled), and so does every button's #Label:
+        // each button is a ZigRichButton.
         cmd.set("#Title.TextSpans", t.title());
 
         MatchmakingQueue queue = deps.lobby().currentQueueOf(playerRef.getUuid());
@@ -133,7 +134,7 @@ public class PlayModePage extends ToastablePage<PlayEventData> {
             } else {
                 cmd.set(sel + " #CardIcon.Visible", false);
             }
-            UiText.setText(cmd, sel + " #CardBtn.Text", labelFor(e, t));
+            ZigRichButton.text(cmd, sel + " #CardBtn", labelFor(e, t));
             cmd.set(sel + " #CardSub.TextSpans", t.modeDesc(e.mode()));
             events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #CardBtn",
                     EventData.of("Action", "pick").append("Mode", e.mode().wire()), false);
@@ -144,7 +145,7 @@ public class PlayModePage extends ToastablePage<PlayEventData> {
         PlayRewardClaim claim = deps.claim();
         if (claim != null && claim.hasPending(playerRef.getUuid())) {
             cmd.set("#ClaimBtn.Visible", true);
-            UiText.setText(cmd, "#ClaimBtn.Text", t.claimButton());
+            ZigRichButton.text(cmd, "#ClaimBtn", t.claimButton());
             events.addEventBinding(CustomUIEventBindingType.Activating, "#ClaimBtn", EventData.of("Action", "claim"));
         }
     }
@@ -187,7 +188,7 @@ public class PlayModePage extends ToastablePage<PlayEventData> {
         }
 
         cmd.set("#LeaveBtn.Visible", true);
-        UiText.setText(cmd, "#LeaveBtn.Text", t.leaveButton());
+        ZigRichButton.text(cmd, "#LeaveBtn", t.leaveButton());
         events.addEventBinding(CustomUIEventBindingType.Activating, "#LeaveBtn", EventData.of("Action", "leave"));
 
         if (!queuedToastPrimed) {

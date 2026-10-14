@@ -41,7 +41,7 @@ import com.ziggfreed.common.dialogue.asset.DialogueAssetStore;
 import com.ziggfreed.common.dialogue.i18n.DialogueMessages;
 import com.ziggfreed.common.npc.NpcNames;
 import com.ziggfreed.common.ui.UiRetint;
-import com.ziggfreed.common.ui.UiText;
+import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.icon.IconRenderer;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.ui.route.DestinationContext;
@@ -203,8 +203,8 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
             // that resolves a translation and nothing else, so a raw or composed Message there fails
             // the set command ("couldn't set value. Selector: #NpcName.Text") and disconnects the
             // player. TextSpans takes a whole message tree and has none of that. The option rows
-            // below have no TextSpans to use, so they go through UiText, which enforces the same
-            // rule the other way round. Matches #NodeText.TextSpans; see hytale-rich-text-textspans.
+            // below are rich buttons whose #Label takes TextSpans too (ZigRichButton). Matches
+            // #NodeText.TextSpans; see hytale-rich-text-textspans.
             commandBuilder.set("#NpcName.TextSpans", name);
         }
         NpcDialogue dialogue = DialogueAssetStore.getInstance().dialogue(dialogueId);
@@ -266,7 +266,7 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
             }
             commandBuilder.append("#OptionsList", OPTION_ROW_TEMPLATE);
             String sel = "#OptionsList[" + row + "]";
-            UiText.setText(commandBuilder, sel + " #OptionBtn.Text",
+            ZigRichButton.text(commandBuilder, sel + " #OptionBtn",
                     resolveOptionLabel(dialogue, nodeId, i, option));
             DialogueOptionStyle style = engine.classifyOption(option);
             applyOptionLook(commandBuilder, sel, style, themeFor(style), option.getPresentation(),
@@ -295,7 +295,7 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
                                    @Nullable NpcDialogue dialogue, int row, @Nullable String nodeId) {
         cmd.append("#OptionsList", OPTION_ROW_TEMPLATE);
         String sel = "#OptionsList[" + row + "]";
-        UiText.setText(cmd, sel + " #OptionBtn.Text", farewellText(dialogue));
+        ZigRichButton.text(cmd, sel + " #OptionBtn", farewellText(dialogue));
         DialogueOptionTheme theme = themeFor(DialogueOptionStyle.FAREWELL);
         applyOptionLook(cmd, sel, DialogueOptionStyle.FAREWELL, theme, null,
                 DialogueOptionGlyphs.resolve(DialogueOptionStyle.FAREWELL, null, theme, null));
@@ -430,8 +430,9 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
      * translation may carry Hytale's native inline markup ({@code <color is="#hex">},
      * {@code <b>}, {@code <i>}), which the client parses PER-LOCALE on a Label's
      * {@code TextSpans} - the same mechanism vanilla item descriptions / customUI strings
-     * use. Plain (markup-free) text renders unchanged. Option rows are {@code TextButton}s
-     * (no {@code TextSpans}), so their colour comes from {@link DialogueOptionStyle}, not markup.
+     * use. Plain (markup-free) text renders unchanged. An option row's words go on its
+     * {@code #OptionBtn #Label}'s {@code TextSpans} too ({@code ZigRichButton}); the row's own
+     * colour comes from {@link DialogueOptionStyle} or its {@code Presentation}, never markup.
      */
     private static void setNodeText(@Nonnull UICommandBuilder cmd,
                                     @Nonnull NpcDialogue dialogue, @Nonnull String nodeId, @Nonnull DialogueNode node) {

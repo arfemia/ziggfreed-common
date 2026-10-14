@@ -1,9 +1,11 @@
 $C = "../Common.ui";
 $M = "../Common/ZigButtons.ui";
+$ZT = "../Common/ZigType.ui";
 $ZW = "../Common/ZigKit.ui";
 
-// One answer line, appended into #OptionsList (see DialoguePage). Its button tint is overwritten
-// from Java (the answer's DialogueOptionStyle theme, or its Presentation.Color). The picture at its
+// One answer line, appended into #OptionsList (see DialoguePage). Its words go on #OptionBtn #Label's
+// .TextSpans (ZigRichButton), so a number, a plural or a nested name in an answer reads right. Its button
+// tint is overwritten from Java (the answer's DialogueOptionStyle theme, or its Presentation.Color). The picture at its
 // start says what the answer DOES (DialogueOptionGlyphs): Java reveals exactly ONE of the hidden
 // #Ico* glyphs, because a texture path lives in markup (a "../Common/..." path set from Java does not
 // resolve and renders a red X).
@@ -41,10 +43,15 @@ Group #DialogueOptionRow {
     }
   }
 
-  TextButton #OptionBtn {
+  Button #OptionBtn {
     FlexWeight: 1;
     Anchor: (Height: 40);
     Padding: (Left: 16);
-    Style: $M.@ZigOptionBtnStyle;
+    Style: $M.@ZigRichOptionBtnStyle;
+    Label #Label {
+      FlexWeight: 1;
+      Text: "";
+      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, RenderBold: false, HorizontalAlignment: Start, VerticalAlignment: Center);
+    }
   }
 }
