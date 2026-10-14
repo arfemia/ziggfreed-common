@@ -279,9 +279,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // the other framework stores.
         AlmanacBootstrap.install(this);
         // Reputation: the per-player record of Beyond rewards waiting and its connect hook, the owner's switch,
-        // the three readings, the Reputation reward kind, the kill table on the shared moment stream, the rank
-        // checks at login and on every equip (after the equip bridge above is installed), and the once-at-boot
-        // log of broken reputation files. Its companion store is registered with the other framework stores.
+        // the two readings, the Reputation reward kind, the kill table on the shared moment stream, the rank
+        // check at login, and the once-at-boot log of broken reputation files. Its companion store is
+        // registered with the other framework stores.
         ReputationBootstrap.install(this);
         // The player stat store: the per-player record, registered before any world loads so it reads
         // off entities saved carrying it, and its connect hook; the owner's switch, the moment counter,

@@ -15,7 +15,7 @@ import com.ziggfreed.common.ui.menu.ZigMenu;
 import com.ziggfreed.common.ui.route.Destinations;
 
 /**
- * The plugin-free phases of the module's setup: the three readings, the reward kind and the kill table, then
+ * The plugin-free phases of the module's setup: the two readings, the reward kind and the kill table, then
  * the Reputation destination and its tab in the shared menu.
  */
 class ReputationBootstrapTest {
@@ -33,7 +33,6 @@ class ReputationBootstrapTest {
     void theVocabularyPhaseClaimsTheReadingsTheRewardKindAndTheKillTable() {
         ReputationBootstrap.registerVocabulary();
         assertTrue(FactorContributions.isContributed(ReputationFactors.STANDING));
-        assertTrue(FactorContributions.isContributed(ReputationFactors.EARNED));
         assertTrue(FactorContributions.isContributed(ReputationFactors.RANK));
         assertTrue(RewardKinds.shared().isRegistered(ReputationRewardKind.KIND));
         assertTrue(ProgressionRuntime.momentListenerOwners().contains(ReputationBootstrap.OWNER),

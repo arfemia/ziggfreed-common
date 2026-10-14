@@ -25,7 +25,7 @@ import com.ziggfreed.common.reputation.asset.ReputationConfig;
 
 /**
  * The service over a stand-in engine: the engine's own spelling of an id, the starting value, the cap and
- * the clamp, every refusal, the Beyond count, the fan-out, and the rank checks on change, equip and login.
+ * the clamp, every refusal, the Beyond count, the fan-out, and the rank checks on change and login.
  */
 class ReputationServiceTest {
 
@@ -222,7 +222,7 @@ class ReputationServiceTest {
         service.checkAll(null, null, Trigger.LOGIN);
         service.forget(engine.player);
         engine.stored.put("Test_Old_Jack", 1_500);
-        service.checkAll(null, null, Trigger.EQUIP);
+        service.checkAll(null, null, Trigger.CHANGE);
         assertTrue(fanOut.rises.isEmpty(), "with nothing remembered, the first check is a hydrate again");
         assertEquals(2, fanOut.credits.size());
         assertTrue(fanOut.credits.get(1).endsWith("Friendly"));

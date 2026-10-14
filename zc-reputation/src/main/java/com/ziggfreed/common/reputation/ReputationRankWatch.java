@@ -21,10 +21,8 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
  * PLAY raises the notice: the last rank seen per player and reputation is remembered here, and the first
  * check after login (nothing remembered yet) is a silent hydrate.
  *
- * <p>Checks come from three places: every change through {@link ReputationService#change}, every equip
- * recompute, and once at login. Worn gear adds no standing, so an equip check only heals a rank a write
- * outside zc moved (the admin {@code /reputation}); one that moved no rank does nothing at all, since equips
- * are frequent and the ranks it would credit are already credited.
+ * <p>Checks come from two places: every change through {@link ReputationService#change}, and once at login.
+ * A rank a write outside zc moved (the admin {@code /reputation}) heals at the player's next change or login.
  *
  * <p>The memory is TRANSIENT and single-process: nothing is saved, {@link #forget} drops a player at
  * disconnect, and a restart starts everyone with a hydrate.
@@ -33,7 +31,7 @@ public final class ReputationRankWatch {
 
     /** Where a check came from. */
     public enum Trigger {
-        LOGIN, CHANGE, EQUIP
+        LOGIN, CHANGE
     }
 
     /** What one check does: credit the ranks held, and whether to announce a rise. */
@@ -49,8 +47,7 @@ public final class ReputationRankWatch {
         if (trigger == Trigger.LOGIN || previous == null) {
             return new Decision(true, false);
         }
-        boolean moved = previous.intValue() != index;
-        return new Decision(trigger == Trigger.CHANGE || moved, index > previous);
+        return new Decision(true, index > previous);
     }
 
     /** Check one reputation for one player at {@code effective} standing, and act on the decision. */

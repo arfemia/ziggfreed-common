@@ -1,36 +1,25 @@
 package com.ziggfreed.common.reputation;
 
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
-import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.stats.EquipStatBridge;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * Where the rank checks come from besides a change: once at login (a silent hydrate), after every equip
- * recompute (a listener on the library's one installed equip bridge, never a second bridge or trigger),
- * and the transient memory dropped at disconnect. Each check runs on a later world task: at login after
- * the player is in, and after an equip once the engine's own armor stat fold (a scheduled recalculation)
- * has had its turn. Worn gear adds no standing, so an equip check only heals a rank something outside zc
- * moved.
+ * Where the rank checks come from besides a change: once at login (a silent hydrate, run on a later world
+ * task once the player is in), and the transient memory dropped at disconnect. Worn gear adds no standing,
+ * so nothing is checked on an equip: a rank a write outside zc moved (the admin {@code /reputation}) heals
+ * at the player's next change or login.
  */
 public final class ReputationRankTriggers {
-
-    /** The one equip listener; one instance, so the bridge's identity dedupe keeps it single. */
-    static final EquipStatBridge.AppliedListener ON_EQUIP = ReputationRankTriggers::onEquipApplied;
-
-    private static final AtomicBoolean WARNED_NO_BRIDGE = new AtomicBoolean();
 
     private ReputationRankTriggers() {
     }
@@ -60,31 +49,6 @@ public final class ReputationRankTriggers {
             }
         } catch (Throwable t) {
             SafeLog.warn("[reputation] forgetting a leaving player's ranks failed: " + t.getMessage());
-        }
-    }
-
-    /** Hang the equip check on {@code bridge}; false (said once) when no bridge is installed. */
-    public static boolean hangOnBridge(@Nullable EquipStatBridge bridge) {
-        if (bridge == null) {
-            if (WARNED_NO_BRIDGE.compareAndSet(false, true)) {
-                SafeLog.warn("[reputation] no equip bridge is installed, so a reputation's rank is checked only "
-                        + "at the player's next change or login");
-            }
-            return false;
-        }
-        bridge.addAppliedListener(ON_EQUIP);
-        return true;
-    }
-
-    /** After a recompute: a player only, and only while the module is on; the check itself runs later. */
-    static void onEquipApplied(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
-        try {
-            if (!ReputationRuntime.service().isOn() || store.getComponent(ref, Player.getComponentType()) == null) {
-                return;
-            }
-            store.getExternalData().getWorld().execute(() -> check(ref, ReputationRankWatch.Trigger.EQUIP));
-        } catch (Throwable t) {
-            SafeLog.warn("[reputation] the equip rank check could not be queued: " + t.getMessage());
         }
     }
 

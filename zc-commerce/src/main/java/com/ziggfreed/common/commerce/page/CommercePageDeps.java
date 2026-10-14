@@ -1,24 +1,13 @@
 package com.ziggfreed.common.commerce.page;
 
-import java.util.List;
-import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.hypixel.hytale.component.Ref;
-import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.server.core.Message;
-import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
-import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.loot.reward.RewardChips;
-import com.ziggfreed.common.loot.reward.RewardGrants;
-import com.ziggfreed.common.loot.reward.RewardSpec;
-import com.ziggfreed.common.ui.toast.RewardToastLines;
-import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastSounds;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 
@@ -48,19 +37,13 @@ import com.ziggfreed.common.ui.toast.ToastSpec;
  *   <li>{@link RewardChips.Source} - how ONE reward reads, when a mod knows something about its own
  *       kind the generic reading cannot recover. The generic reading is tried when this returns
  *       null, never instead of it.</li>
- *   <li>{@link PurchaseToast} / {@link CompletionToast} - the toast a consumer floats when something
- *       is bought or a contract settles, so an action taken here reads exactly like the same action
- *       taken in that mod's own menu.</li>
- *   <li>{@link CompletionHandOff} - what FOLLOWS a contract settled at a board. The routing policy
- *       belongs to the dialogue layer, which sits beside this module rather than under it, so the
- *       wiring root fills this and the page merely hosts the beat.</li>
+ *   <li>{@link PurchaseToast} - the toast a consumer floats when something is bought, so a purchase
+ *       made here reads exactly like the same purchase made in that mod's own menu.</li>
  * </ul>
  *
  * <p>A board opens on the library's quest page since 2.4.0 ({@link CommercePages#openBoard}), which reads
  * this record's {@link #currencyNames} and {@link #titleArgs} for a board's wallets, title and grade
- * words and takes its theme, toasts and hand-off from the quest page's own deps. So
- * {@link #completionToast}, {@link #completion}, {@link #handInToast} and {@link #resolveCompletionToast}
- * have no reader in the library today; they are kept until the maintainer decides their fate.
+ * words and takes its theme, toasts and hand-off from the quest page's own deps.
  *
  * <p>Immutable; build one at setup and hand the same instance back on every open.
  */
@@ -86,74 +69,20 @@ public final class CommercePageDeps {
         ToastSpec forPurchase(@Nonnull String offerId);
     }
 
-    /**
-     * The toast a consumer floats when a contract settles; null for the library's own line. The
-     * board asks {@link #forCompleted(String, List)} with the rows the toast should list; its
-     * default hands off to the one-argument form, so a fill that composes its own rows keeps
-     * working.
-     */
-    @FunctionalInterface
-    public interface CompletionToast {
-
-        @Nullable
-        ToastSpec forCompleted(@Nonnull String bountyId);
-
-        /**
-         * The same toast, handed what it should list: what the collect or hand-in actually handed
-         * over when the contract paid out at this board (a rolled table as the items it produced),
-         * and nothing at all when it parked for collecting, because nothing has been paid. A fill
-         * that paints rows paints these rather than reading the contract's own list.
-         */
-        @Nullable
-        default ToastSpec forCompleted(@Nonnull String bountyId, @Nonnull List<RewardSpec> rewards) {
-            return forCompleted(bountyId);
-        }
-    }
-
-    /**
-     * What follows a contract that settled at a board: a conversation, a screen of the consumer's
-     * own, or nothing.
-     *
-     * <p>Return true ONLY when something else took the screen, in which case the page stops
-     * refreshing itself - the player is looking at whatever replaced it.
-     */
-    @FunctionalInterface
-    public interface CompletionHandOff {
-
-        boolean handOff(@Nonnull String bountyId, @Nullable String boardId,
-                @Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref, @Nonnull Player player);
-    }
-
     /** Append and nothing else: the honest default for a server shipping no theme. */
     public static final PageTheme PLAIN_THEME = (cmd, template, frameSelector) -> cmd.append(template);
 
     /** No consumer toast, so the page floats its own line. */
     public static final PurchaseToast NO_PURCHASE_TOAST = offerId -> null;
 
-    /** No consumer toast, so the page floats its own line. */
-    public static final CompletionToast NO_COMPLETION_TOAST = bountyId -> null;
-
-    /** Nothing follows a settled contract, so the page keeps the screen and refreshes itself. */
-    public static final CompletionHandOff NO_HAND_OFF =
-            (bountyId, boardId, store, ref, player) -> false;
-
     /** Everything at its library default: two pages that work on a server running nothing else. */
     public static final CommercePageDeps DEFAULTS = builder().build();
-
-    /**
-     * The in-page rank of a contract's completion toast, the rank the library's {@code Quest_Completed},
-     * {@code Quest_Parked} and claim moments ship with, so a step's progress notice fired in the same
-     * moment never replaces it ({@code ToastSpec.withPriority}).
-     */
-    private static final int CLAIM_PRIORITY = 3;
 
     @Nonnull private final PageTheme theme;
     @Nonnull private final CurrencyText.Source currencyNames;
     @Nonnull private final CommerceText.ArgResolver titleArgs;
     @Nonnull private final RewardChips.Source rewardChips;
     @Nonnull private final PurchaseToast purchaseToast;
-    @Nonnull private final CompletionToast completionToast;
-    @Nonnull private final CompletionHandOff completion;
 
     private CommercePageDeps(@Nonnull Builder builder) {
         this.theme = builder.theme;
@@ -161,8 +90,6 @@ public final class CommercePageDeps {
         this.titleArgs = builder.titleArgs;
         this.rewardChips = builder.rewardChips;
         this.purchaseToast = builder.purchaseToast;
-        this.completionToast = builder.completionToast;
-        this.completion = builder.completion;
     }
 
     @Nonnull
@@ -195,16 +122,6 @@ public final class CommercePageDeps {
         return purchaseToast;
     }
 
-    @Nonnull
-    public CompletionToast completionToast() {
-        return completionToast;
-    }
-
-    @Nonnull
-    public CompletionHandOff completion() {
-        return completion;
-    }
-
     /**
      * The toast for a purchase of {@code offerId}, guarded: the consumer's own when it answers one, else
      * {@code libraryLine}'s. Either way it plays {@link ToastSounds#PURCHASE} unless it names a sound of its
@@ -222,53 +139,6 @@ public final class CommercePageDeps {
         return ToastSounds.orDefault(spec != null ? spec : libraryLine.get(), ToastSounds.PURCHASE);
     }
 
-    /**
-     * The toast for a hand-in that finished a contract at a board, split by what {@code paid} says
-     * happened. PAID here ({@code paid} non-null): the gold line under {@code paidHeadline} with
-     * the payout's receipt as its rows, through {@link #resolveCompletionToast(String, List,
-     * Message, IntFunction)}. PARKED ({@code paid} null, the contract waiting to be collected):
-     * the plain success line {@code parkedHeadline} and no rows at all, because gold is the payout
-     * colour and nothing has been paid yet. That line is silent: the engine's {@code Quest_Parked}
-     * moment for the same press plays the sound, as {@code Quest_Completed} does for a payout here.
-     */
-    @Nonnull
-    public ToastSpec handInToast(@Nonnull String bountyId, @Nullable RewardGrants.GrantOutcome paid,
-            @Nonnull Message paidHeadline, @Nonnull Message parkedHeadline,
-            @Nullable IntFunction<Message> overflow) {
-        if (paid == null) {
-            // Silent: the engine's Quest_Parked moment for the same press owns the sound.
-            return ToastSpec.of(ToastKind.SUCCESS, parkedHeadline).silent().withPriority(CLAIM_PRIORITY);
-        }
-        return resolveCompletionToast(bountyId, paid.receipt(), paidHeadline, overflow);
-    }
-
-    /**
-     * The toast for a contract that just settled at a board, guarded: the consumer's own when it
-     * answers one (asked with {@code rewards}, so a fill that paints rows paints these), else the
-     * library's gold line under {@code headline} with one row per entry of {@code rewards} through
-     * the consumer chip reading, capped on the caller's {@code overflow} line. A consumer toast that
-     * throws costs its own line, never the collect or hand-in that earned it.
-     *
-     * <p>{@code rewards} is what the toast lists: what was actually handed over, which is the
-     * payout's receipt. A hand-in that may have parked the contract instead goes through
-     * {@link #handInToast}, which decides whether there was a payout to list at all.
-     */
-    @Nonnull
-    public ToastSpec resolveCompletionToast(@Nonnull String bountyId, @Nonnull List<RewardSpec> rewards,
-            @Nonnull Message headline, @Nullable IntFunction<Message> overflow) {
-        try {
-            ToastSpec spec = completionToast.forCompleted(bountyId, rewards);
-            if (spec != null) {
-                return spec;
-            }
-        } catch (Throwable ignored) {
-            // A consumer's toast failing costs its own line, never the hand-in that earned it.
-        }
-        return ToastSpec.of(ToastKind.REWARD, headline)
-                .withLines(RewardToastLines.lines(rewards, rewardChips, overflow))
-                .withPriority(CLAIM_PRIORITY);
-    }
-
     /** Immutable-by-copy assembly; every knob defaults to the library's own answer. */
     public static final class Builder {
 
@@ -277,8 +147,6 @@ public final class CommercePageDeps {
         @Nonnull private CommerceText.ArgResolver titleArgs = CommerceText.RAW_ARGS;
         @Nonnull private RewardChips.Source rewardChips = RewardChips.GENERIC;
         @Nonnull private PurchaseToast purchaseToast = NO_PURCHASE_TOAST;
-        @Nonnull private CompletionToast completionToast = NO_COMPLETION_TOAST;
-        @Nonnull private CompletionHandOff completion = NO_HAND_OFF;
 
         private Builder() {
         }
@@ -310,18 +178,6 @@ public final class CommercePageDeps {
         @Nonnull
         public Builder purchaseToast(@Nullable PurchaseToast value) {
             this.purchaseToast = value != null ? value : NO_PURCHASE_TOAST;
-            return this;
-        }
-
-        @Nonnull
-        public Builder completionToast(@Nullable CompletionToast value) {
-            this.completionToast = value != null ? value : NO_COMPLETION_TOAST;
-            return this;
-        }
-
-        @Nonnull
-        public Builder completion(@Nullable CompletionHandOff value) {
-            this.completion = value != null ? value : NO_HAND_OFF;
             return this;
         }
 

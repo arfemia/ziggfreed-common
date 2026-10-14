@@ -24,7 +24,7 @@ import com.ziggfreed.common.factor.FactorContributions;
 import com.ziggfreed.common.reputation.asset.ReputationConfig;
 
 /**
- * The three readings: a rank reached by standing; a known untouched reputation reads its starting value;
+ * The two readings: a rank reached by standing; a known untouched reputation reads its starting value;
  * everything they cannot answer is null; each id is contributed and named.
  */
 class ReputationFactorsTest {
@@ -76,7 +76,7 @@ class ReputationFactorsTest {
         assertNull(ReputationFactors.standing(service, ask("Test_Old_Jack")), "no live player");
         engine.live = true;
         ReputationConfig.getInstance().setGlobalEnabled(false);
-        assertNull(ReputationFactors.earned(service, ask("Test_Old_Jack")), "the module switched off");
+        assertNull(ReputationFactors.standing(service, ask("Test_Old_Jack")), "the module switched off");
         ReputationConfig.getInstance().setGlobalEnabled(true);
         ReputationFixtures.loadCompanions(Map.of("test_old_jack", ReputationFixtures.companion(
                 ReputationFixtures.OLD_JACK, "{ \"Enabled\": false }")));
@@ -89,10 +89,9 @@ class ReputationFactorsTest {
     }
 
     @Test
-    void theThreeIdsAreContributedProcessWide() {
+    void theTwoIdsAreContributedProcessWide() {
         ReputationFactors.contribute(service);
         assertTrue(FactorContributions.isContributed(ReputationFactors.STANDING));
-        assertTrue(FactorContributions.isContributed(ReputationFactors.EARNED));
         assertTrue(FactorContributions.isContributed(ReputationFactors.RANK));
     }
 
@@ -108,7 +107,6 @@ class ReputationFactorsTest {
                 assertTrue(json.getAsJsonObject("Text").has("TitleKey"), file + " names its factor");
             }
         }
-        assertEquals(new TreeSet<>(Set.of(ReputationFactors.STANDING, ReputationFactors.EARNED, ReputationFactors.RANK)),
-                named);
+        assertEquals(new TreeSet<>(Set.of(ReputationFactors.STANDING, ReputationFactors.RANK)), named);
     }
 }

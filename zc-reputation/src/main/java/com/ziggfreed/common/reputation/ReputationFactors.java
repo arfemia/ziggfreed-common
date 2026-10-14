@@ -9,11 +9,10 @@ import com.ziggfreed.common.factor.FactorContributions;
 import com.ziggfreed.common.factor.FactorNames;
 
 /**
- * The three reputation readings, contributed to every vocabulary on the server. {@code Param} names the
+ * The two reputation readings, contributed to every vocabulary on the server. {@code Param} names the
  * reputation (its native group id, any case), and for the rank reading the rank after a slash:
  * <ul>
  *   <li>{@value #STANDING}: standing, which is what was earned (gear adds none);</li>
- *   <li>{@value #EARNED}: earned standing, the same reading;</li>
  *   <li>{@value #RANK} (Param {@code <Id>/<Rank>}): 1 at or above that rank's floor by standing, else 0;
  *       the rank may be one of the reputation's own above the top.</li>
  * </ul>
@@ -27,17 +26,14 @@ public final class ReputationFactors {
 
     public static final String STANDING = "ziggfreedcommon:reputation";
 
-    public static final String EARNED = "ziggfreedcommon:reputation_earned";
-
     public static final String RANK = "ziggfreedcommon:reputation_rank";
 
     private ReputationFactors() {
     }
 
-    /** Claim the three ids process-wide, and name a rank gate's lock line. Once, at library setup. */
+    /** Claim the two ids process-wide, and name a rank gate's lock line. Once, at library setup. */
     public static void contribute(@Nonnull ReputationService service) {
         FactorContributions.register(STANDING, OWNER, ctx -> standing(service, ctx));
-        FactorContributions.register(EARNED, OWNER, ctx -> earned(service, ctx));
         FactorContributions.register(RANK, OWNER, ctx -> rank(service, ctx));
         FactorNames.registerParamNamer(RANK, param -> rankLockName(service, param));
     }
@@ -46,12 +42,6 @@ public final class ReputationFactors {
     static Double standing(@Nonnull ReputationService service, @Nonnull FactorContext ctx) {
         ReputationService.Standing standing = service.standing(ctx.store(), ctx.subject(), ctx.param());
         return standing == null ? null : (double) standing.effective();
-    }
-
-    @Nullable
-    static Double earned(@Nonnull ReputationService service, @Nonnull FactorContext ctx) {
-        ReputationService.Standing standing = service.standing(ctx.store(), ctx.subject(), ctx.param());
-        return standing == null ? null : (double) standing.earned();
     }
 
     @Nullable

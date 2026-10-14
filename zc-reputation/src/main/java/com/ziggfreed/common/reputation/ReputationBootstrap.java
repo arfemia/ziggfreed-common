@@ -7,7 +7,6 @@ import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.ziggfreed.common.counter.NativeReaders;
-import com.ziggfreed.common.entity.EntityBootstrap;
 import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
@@ -19,12 +18,12 @@ import com.ziggfreed.common.ui.menu.ZigMenu;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * Registers the reputation module at library setup, called once from the wiring root's {@code setup()}
- * (after the equip bridge is installed): the owner's switch, the per-player record and the connect hook that
- * attaches it, the three readings, the Reputation reward kind
+ * Registers the reputation module at library setup, called once from the wiring root's {@code setup()}:
+ * the owner's switch, the per-player record and the connect hook that attaches it, the two readings, the
+ * Reputation reward kind
  * and how it reads, the kill table on the shared moment stream, the standing reader the stat board ranks,
  * the Reputation destination and its tab in
- * the shared menu, the effective-rank checks at login, on every equip and their memory dropped at
+ * the shared menu, the rank check at login and its memory dropped at
  * disconnect, and the once-at-boot log of broken reputation files.
  * The companion store is registered with the other framework stores. Registration only
  * ({@code RootRegistrationOnlyTest}).
@@ -88,7 +87,6 @@ public final class ReputationBootstrap {
         try {
             plugin.getEventRegistry().registerGlobal(PlayerReadyEvent.class, ReputationRankTriggers::onPlayerReady);
             plugin.getEventRegistry().register(PlayerDisconnectEvent.class, ReputationRankTriggers::onPlayerDisconnect);
-            ReputationRankTriggers.hangOnBridge(EntityBootstrap.equipStatBridge());
         } catch (Throwable t) {
             SafeLog.warn("[reputation] could not hang the reputation rank checks", t);
         }
