@@ -11,6 +11,7 @@ import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.achievement.AchievementEngine;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.i18n.NativeNames;
+import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.npc.NpcNames;
@@ -98,16 +99,33 @@ public final class BookVerbs {
         }
         if (!ctx.deps().announcesActions()) {
             // A filled feedback seam owns the announcement; two toasts for one accept would double-report it.
-            // One that paid on the spot lists what it handed over (reputation among it) under the gold line a
-            // Collect raises: the book's toast is the one place a payout made under a page shows.
-            List<RewardSpec> paid = RewardGrants.GrantOutcome.receiptOf(accepted.settled());
-            if (paid.isEmpty()) {
-                toast(ToastKind.SUCCESS, ctx.text("book.toast.accepted"));
-            } else {
-                rewardToast(ctx.text("book.toast.quest_complete", questName(quest)), paid);
-            }
+            ctx.toast(acceptedToast(quest, accepted.settled(), ctx.deps().rewardChips()));
         }
         return true;
+    }
+
+    /**
+     * The library's own word for an accept no consumer announces ({@link ObjectiveBookDeps#announcesActions}
+     * false): the plain "accepted" line, or, when the settle right behind the accept paid on the spot, the gold
+     * line a Collect raises listing what it handed over ({@code settled}'s receipt, reputation among it), since a
+     * toast under a page is the one place a payout made there shows. {@code chips} is the consumer's own chip
+     * reading. The book's accept and a conversation's accept both raise it.
+     */
+    @Nonnull
+    public static ToastSpec acceptedToast(@Nonnull Quest quest, @Nullable RewardGrants.GrantOutcome settled,
+            @Nullable RewardChips.Source chips) {
+        List<RewardSpec> paid = RewardGrants.GrantOutcome.receiptOf(settled);
+        if (paid.isEmpty()) {
+            return ToastSpec.of(ToastKind.SUCCESS, BookContext.libraryText("book.toast.accepted"));
+        }
+        return ClaimToasts.rewardToast(BookContext.libraryText("book.toast.quest_complete", questName(quest)), paid,
+                chips, BookVerbs::more);
+    }
+
+    /** "+N more", the book's own overflow line. */
+    @Nonnull
+    public static Message more(int dropped) {
+        return BookContext.libraryText("book.more", dropped);
     }
 
     /**

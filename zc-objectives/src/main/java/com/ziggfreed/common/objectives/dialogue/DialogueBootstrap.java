@@ -5,6 +5,7 @@ import java.util.UUID;
 import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
+import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.ziggfreed.common.LibraryOwner;
@@ -20,8 +21,9 @@ import com.ziggfreed.common.util.SafeLog;
  * Fills the dialogue engine's declared seams at plugin {@code setup()}: the factor vocabulary its
  * {@code Factor} conditions resolve against, the {@code Grant} action that pays a line's rewards, the
  * library's own quest binding beneath the consumer's quest slot, the persistent memory store, and
- * the active-objective header note. Three ordered phases, each called once from
- * {@code ZiggfreedCommonPlugin.setup()}, which stays the one authority on call ORDER.
+ * the active-objective header note, then hangs the library's conversation audit on the first player
+ * ready. Four ordered phases, each called once from {@code ZiggfreedCommonPlugin.setup()}, which stays
+ * the one authority on call ORDER.
  *
  * <p>The dialogue module declares each of these seams and structurally cannot fill them itself:
  * the {@code hytale:} factor standard library lives in the entity module it cannot see, the
@@ -85,6 +87,20 @@ public final class DialogueBootstrap {
             DialogueEngine.registerShared(LibraryOwner.NAME, GrantDialogueAction.type());
         } catch (Throwable t) {
             SafeLog.warn("[dialogue] could not register the Grant dialogue action", t);
+        }
+    }
+
+    /**
+     * The library's audit of the server's conversations ({@link DialogueAudit}), once per boot at the first
+     * player ready: only by then has every store folded and every mod's {@code setup()} registered what a
+     * line is judged against. It runs once and stands down where a consumer claimed it, both decided by
+     * {@link DialogueAudit#runLateAudit()}; zc's boot audit takes the same one run at the boot event.
+     */
+    public static void registerDialogueAudit(@Nonnull PluginBase plugin) {
+        try {
+            plugin.getEventRegistry().registerGlobal(PlayerReadyEvent.class, event -> DialogueAudit.runLateAudit());
+        } catch (Throwable t) {
+            SafeLog.warn("[dialogue] could not wire the dialogue audit", t);
         }
     }
 

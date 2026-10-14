@@ -12,8 +12,7 @@ import com.hypixel.hytale.server.core.asset.type.item.config.Item;
  * Native-namespace item display-name resolution, shared by any consumer mod that must show a
  * VANILLA (or another mod's) item name without owning a per-player locale seam of its own - the
  * two-tier {@code server.items.<id>.name} (vanilla/base-game) then {@code items.<id>.name}
- * (mod/pack-shipped {@code items.lang}) probe-then-fallback shape the MMO Skill Tree's own {@code
- * content.objective.TargetNameResolver#itemNameMsg}/{@code i18n.LocalizationConfig#canonicalItemName}
+ * (mod/pack-shipped {@code items.lang}) probe-then-fallback shape a consumer's own name lookup
  * pioneered, lifted here (out of the RPG Stations extraction) so a second consumer does not
  * re-derive it minus the existence-check/raw-fallback safety net that first consumer already
  * proved necessary - a bare {@link Msg#key} with no existence probe hands the client an

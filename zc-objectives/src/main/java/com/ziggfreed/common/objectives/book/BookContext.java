@@ -272,6 +272,12 @@ public final class BookContext {
     /** A key of the book's own lang file ({@code ziggfreedcommon.progression.lang}), without its prefix. */
     @Nonnull
     public Message text(@Nonnull String key, @Nonnull Object... args) {
+        return libraryText(key, args);
+    }
+
+    /** {@link #text}, for a verb raised with no book open (a conversation's accept). */
+    @Nonnull
+    static Message libraryText(@Nonnull String key, @Nonnull Object... args) {
         return Msg.tr(PREFIX, DOMAIN + key, args);
     }
 

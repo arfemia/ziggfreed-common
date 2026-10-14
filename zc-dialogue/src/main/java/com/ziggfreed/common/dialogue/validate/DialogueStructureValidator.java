@@ -173,7 +173,7 @@ public final class DialogueStructureValidator {
                 for (DialogueAction action : option.getActions()) {
                     checkActionKnown(action, where, id, out, engine);
                     checkQuestAction(action, where, id, out);
-                    checkOpen(action, id, out);
+                    checkOpen(action, where, id, out);
                     if (action instanceof DialogueAction.Goto go) {
                         String target = go.getNode();
                         if (target == null || target.isBlank()) {
@@ -676,13 +676,22 @@ public final class DialogueStructureValidator {
     /**
      * What an {@code Open} line opens is audited by whichever mod REGISTERED that destination type -
      * only its owner knows whether the skill, the shop or the board it names exists. A type with no
-     * audit of its own reports nothing, which is the honest answer rather than a guess.
+     * audit of its own reports nothing, which is the honest answer rather than a guess. An
+     * {@code Open} that names no destination at all still decodes and opens nothing when chosen, so
+     * it is reported here ({@code OPENPAGE_MISSING_TARGET}, a WARNING).
      */
-    private static void checkOpen(@Nonnull DialogueAction action, @Nonnull String id,
+    private static void checkOpen(@Nonnull DialogueAction action, @Nonnull String where, @Nonnull String id,
                                   @Nonnull List<Finding> out) {
-        if (action instanceof DialogueAction.OpenPage open) {
-            out.addAll(Destinations.validate(open.getTarget(), id));
+        if (!(action instanceof DialogueAction.OpenPage open)) {
+            return;
         }
+        if (open.getTarget() == null) {
+            out.add(warning("OPENPAGE_MISSING_TARGET",
+                    "Dialogue '" + id + "' " + where + " Open has no destination, so choosing that line"
+                            + " opens nothing", id));
+            return;
+        }
+        out.addAll(Destinations.validate(open.getTarget(), id));
     }
 
     /** An accept / hand-in line with no quest id does nothing at all when it is chosen. */
@@ -1132,7 +1141,7 @@ public final class DialogueStructureValidator {
             for (DialogueAction action : line.getActions()) {
                 checkActionKnown(action, where, id, out, engine);
                 checkQuestAction(action, where, id, out);
-                checkOpen(action, id, out);
+                checkOpen(action, where, id, out);
                 if (action instanceof DialogueAction.Goto) {
                     out.add(error("EXTENSION_GOTO",
                             "Dialogue extension '" + id + "' line " + i + " jumps with Goto, but it lands in"

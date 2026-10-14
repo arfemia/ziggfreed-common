@@ -72,6 +72,7 @@ import com.ziggfreed.common.npc.placement.registry.PlacementFactorRegistry;
 import com.ziggfreed.common.objectives.bonus.BonusRowBootstrap;
 import com.ziggfreed.common.objectives.book.ObjectiveBookBootstrap;
 import com.ziggfreed.common.objectives.calendar.CalendarSweepBootstrap;
+import com.ziggfreed.common.objectives.dialogue.DialogueAudit;
 import com.ziggfreed.common.objectives.dialogue.DialogueBootstrap;
 import com.ziggfreed.common.objectives.flair.FlairBootstrap;
 import com.ziggfreed.common.objectives.interaction.ProgressInteractionsBootstrap;
@@ -250,6 +251,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         BonusRowBootstrap.registerReactions();
         DialogueBootstrap.registerDialogueVocabulary();
         DialogueBootstrap.registerDialogueMemories(this);
+        DialogueBootstrap.registerDialogueAudit(this);
         ProgressionBootstrap.registerQuestListHost();
         ObjectiveBookBootstrap.registerMenu();
         ObjectivesSettingsBootstrap.registerSections();
@@ -583,7 +585,8 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
      * loot, gear sets, calendar events and their spawns, titles (the walk that builds the progression
      * runtime first, so no Title reward goes unchecked), Almanac pages, stats and the board sections that
      * name them, derived factors, NPC identities,
-     * NPC placements (claiming the first join's once-per-boot run, as commerce does) and dungeons; and, always,
+     * NPC placements (claiming the first join's once-per-boot run, as commerce does), dungeons and the
+     * conversations (claiming the first join's run too, as placements do); and, always,
      * the once-per-boot warning for a loaded pack whose ziggfreed-common range this version fails
      * ({@code PackRangeAudit}). Whether to run the audits is {@code BootAudit}'s to decide; this only
      * wires the event. Pinned here because no module sees commerce, loot, the gear-set validator and the
@@ -604,7 +607,8 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
                     new BootAudit.Pass(NpcIdentityConfig.LOG_LABEL, () -> NpcIdentityConfig.getInstance().audit()),
                     new BootAudit.Pass(NpcPlacementConfig.LOG_LABEL,
                             () -> NpcPlacementConfig.getInstance().claimLateFindings()),
-                    new BootAudit.Pass(DungeonValidator.LOG_LABEL, DungeonValidator::audit))));
+                    new BootAudit.Pass(DungeonValidator.LOG_LABEL, DungeonValidator::audit),
+                    new BootAudit.Pass(DialogueAudit.LOG_LABEL, DialogueAudit::claimLateFindings))));
         } catch (Throwable t) {
             SafeLog.warn("[boot] the boot checks could not be registered", t);
         }
