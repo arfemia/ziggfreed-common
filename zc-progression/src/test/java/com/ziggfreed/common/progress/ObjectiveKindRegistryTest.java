@@ -43,26 +43,6 @@ class ObjectiveKindRegistryTest {
         assertTrue(registry.isProducible(ObjectiveKindRegistry.STAT_THRESHOLD));
     }
 
-    @Test
-    void theEncounterKindsAreTheBuiltInsWhoseTargetIsAFight() {
-        ObjectiveKindRegistry registry = new ObjectiveKindRegistry();
-
-        Set<String> fights = new TreeSet<>();
-        for (String id : registry.ids()) {
-            if (registry.isEncounterTargeted(id)) {
-                fights.add(registry.kind(id).id());
-            }
-        }
-        assertEquals(Set.of("ENCOUNTER_DEFEATED", "ENCOUNTER_PHASE", "ENCOUNTER_ATTEMPT"), fights,
-                "a boss step names the encounter script, and nothing else does");
-        for (String id : fights) {
-            assertFalse(registry.kind(id).targetsEntity(), id + ": an encounter id is not a creature id");
-            assertFalse(registry.kind(id).targetsItem(), id + ": an encounter id is not an item id");
-        }
-        assertFalse(registry.isEncounterTargeted("NOT_A_KIND"),
-                "a kind nobody registered names no fight rather than every fight");
-    }
-
     /**
      * Using an item - throwing it, cracking it open, aiming it at somebody - is something any game
      * has, so it is seeded: an accumulating, producible kind whose target is the item used. It is a

@@ -37,6 +37,7 @@ public final class EncounterDefeatedEvent implements IEvent<Void> {
     @Nullable private final String difficulty;
     @Nullable private final UUID lastHitter;
     @Nullable private final RunTag runTag;
+    private final List<String> feats;
 
     /** A defeat filed under no zc run. */
     public EncounterDefeatedEvent(@Nonnull UUID runId, @Nonnull String encounterId, @Nullable UUID worldUuid,
@@ -56,7 +57,22 @@ public final class EncounterDefeatedEvent implements IEvent<Void> {
                                   @Nonnull Map<UUID, Double> shares, @Nonnull Map<UUID, Double> damageDealt,
                                   double elapsedSeconds, int memberDeaths, @Nullable String difficulty,
                                   @Nullable UUID lastHitter, @Nullable RunTag runTag) {
+        this(runId, encounterId, worldUuid, subjectUuid, subjectMobId, participantShares, participants, shares,
+                damageDealt, elapsedSeconds, memberDeaths, difficulty, lastHitter, runTag, List.of());
+    }
+
+    /**
+     * @param runTag the zc run the fight belongs to (a dungeon area's), or null for none
+     * @param feats  the names of the binding row's feats the fight held at the defeat, as authored
+     */
+    public EncounterDefeatedEvent(@Nonnull UUID runId, @Nonnull String encounterId, @Nullable UUID worldUuid,
+                                  @Nullable UUID subjectUuid, @Nullable String subjectMobId,
+                                  @Nonnull List<ParticipantShare> participantShares, @Nonnull List<UUID> participants,
+                                  @Nonnull Map<UUID, Double> shares, @Nonnull Map<UUID, Double> damageDealt,
+                                  double elapsedSeconds, int memberDeaths, @Nullable String difficulty,
+                                  @Nullable UUID lastHitter, @Nullable RunTag runTag, @Nonnull List<String> feats) {
         this.runTag = runTag;
+        this.feats = List.copyOf(feats);
         this.runId = runId;
         this.encounterId = encounterId;
         this.worldUuid = worldUuid;
@@ -148,5 +164,15 @@ public final class EncounterDefeatedEvent implements IEvent<Void> {
     @Nullable
     public RunTag runTag() {
         return runTag;
+    }
+
+    /**
+     * The feats the fight held when the boss fell ({@code Progression.Feats} on its binding row), by their
+     * authored names: each one every credited participant earns. Empty when the row names none, or the
+     * fight broke or never met them.
+     */
+    @Nonnull
+    public List<String> feats() {
+        return feats;
     }
 }

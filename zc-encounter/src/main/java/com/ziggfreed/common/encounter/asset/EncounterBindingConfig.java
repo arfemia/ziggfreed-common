@@ -1,6 +1,7 @@
 package com.ziggfreed.common.encounter.asset;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -8,6 +9,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
+import com.ziggfreed.common.encounter.ledger.EncounterFeat;
 
 /**
  * The folded binding rows ({@code defaults < pack < owner}), keyed by the row's own id, plus the one
@@ -57,6 +59,14 @@ public final class EncounterBindingConfig extends AbstractKeyedAssetConfig<Encou
             return null;
         }
         return index().get(encounterId.trim().toLowerCase(Locale.ROOT));
+    }
+
+    /** The feats the row bound to {@code encounterId} names ({@code Progression.Feats}); empty for none. */
+    @Nonnull
+    public List<EncounterFeat> featsFor(@Nullable String encounterId) {
+        EncounterBindingAsset row = forEncounter(encounterId);
+        EncounterBindingAsset.Progression progression = row == null ? null : row.getProgression();
+        return progression == null ? List.of() : progression.feats();
     }
 
     /** The bound, ENABLED row for {@code encounterId}, or null when there is none or it is off. */

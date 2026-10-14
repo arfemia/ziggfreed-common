@@ -2,6 +2,7 @@ package com.ziggfreed.common.encounter.asset;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -18,6 +19,7 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.codec.InheritMapCodec;
+import com.ziggfreed.common.encounter.ledger.EncounterFeat;
 import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.loot.LootRef;
 
@@ -41,7 +43,8 @@ import com.ziggfreed.common.loot.LootRef;
  *   "Timing":        { "WipeGraceSeconds": 15, "Rest": "P1D" },
  *   "Loot":          { "OnDefeat": { "Rolls": [ ... ] } },
  *   "Feedback":      { "Defeated": "Encounter_Defeated" },
- *   "Discovery":     { "MapMarker": true }
+ *   "Discovery":     { "MapMarker": true },
+ *   "Progression":   { "Feats": { "Bombs_Only": { "Subject": { "OnlyHitTags": [ "yourmod_Bomb" ] } } } }
  * }
  * }</pre>
  *
@@ -720,6 +723,9 @@ public final class EncounterBindingAsset
     public static final class Progression {
 
         @Nullable protected String difficulty;
+        @Nullable protected Map<String, Feat> feats;
+        /** {@link #feats} read as the run's rules, built once per decoded row. */
+        @Nullable private volatile List<EncounterFeat> featRules;
 
         public static final BuilderCodec<Progression> CODEC =
                 BuilderCodec.builder(Progression.class, Progression::new)
@@ -729,6 +735,15 @@ public final class EncounterBindingAsset
                         .documentation("The difficulty label a run carries when the spawn call names "
                                 + "none; a step's qualifier matches against it.")
                         .add()
+                        .appendInherited(new KeyedCodec<>("Feats", new InheritMapCodec<>(Feat.CODEC), false),
+                                (o, v) -> o.feats = v, o -> o.feats, (o, p) -> o.feats = p.feats)
+                        .documentation("Named feats this fight can be won with, keyed by the name an "
+                                + "ENCOUNTER_FEAT step names as its Qualifier: each a condition over the "
+                                + "fight's own hits, held or broken by everyone in it together. When the "
+                                + "boss falls, every participant the win credits earns each feat the fight "
+                                + "still holds. A child row or an owner overlay adds or retunes one feat by "
+                                + "name and keeps the rest.")
+                        .add()
                         .build();
 
         public Progression() {
@@ -737,6 +752,95 @@ public final class EncounterBindingAsset
         @Nullable
         public String getDifficulty() {
             return difficulty == null || difficulty.isBlank() ? null : difficulty;
+        }
+
+        /** The feats as authored, by name, or null when the row authors none. */
+        @Nullable
+        public Map<String, Feat> getFeats() {
+            return feats;
+        }
+
+        /** The feats as a run keeps them, in authored order; empty when none is authored. */
+        @Nonnull
+        public List<EncounterFeat> feats() {
+            List<EncounterFeat> rules = featRules;
+            if (rules == null) {
+                List<EncounterFeat> built = new ArrayList<>();
+                if (feats != null) {
+                    for (Map.Entry<String, Feat> entry : feats.entrySet()) {
+                        if (entry.getKey() != null && !entry.getKey().isBlank() && entry.getValue() != null) {
+                            built.add(entry.getValue().toFeat(entry.getKey()));
+                        }
+                    }
+                }
+                rules = List.copyOf(built);
+                featRules = rules;
+            }
+            return rules;
+        }
+    }
+
+    // ==================== Feat ====================
+
+    /**
+     * One named feat: the conditions a won fight must still hold to pay it, each a nullable group. A
+     * feat that writes no condition is never held.
+     */
+    public static final class Feat {
+
+        @Nullable protected FeatHits subject;
+
+        public static final BuilderCodec<Feat> CODEC = BuilderCodec.builder(Feat.class, Feat::new)
+                .appendInherited(new KeyedCodec<>("Subject", FeatHits.CODEC, false),
+                        (o, v) -> o.subject = v, o -> o.subject, (o, p) -> o.subject = p.subject)
+                .documentation("A condition on every hit a player lands on the boss this row binds (the "
+                        + "subject, in any of its forms), never on the fight's adds, which may be hit with "
+                        + "anything. A hit counts when the library credits it to a player, the way damage "
+                        + "dealt is credited: a player's own hit, their projectile's, their pet's, and each "
+                        + "tick of a damage-over-time effect they applied.")
+                .add()
+                .build();
+
+        public Feat() {
+        }
+
+        @Nullable
+        public FeatHits getSubject() {
+            return subject;
+        }
+
+        /** This feat as a run keeps it, under {@code name}. */
+        @Nonnull
+        public EncounterFeat toFeat(@Nonnull String name) {
+            String[] tags = subject == null ? null : subject.onlyHitTags;
+            return EncounterFeat.of(name, tags == null ? null : Arrays.asList(tags));
+        }
+    }
+
+    /** A condition on a set of hits, read from the native {@code Tags.Hit} of whatever dealt each one. */
+    public static final class FeatHits {
+
+        @Nullable protected String[] onlyHitTags;
+
+        public static final BuilderCodec<FeatHits> CODEC = BuilderCodec.builder(FeatHits.class, FeatHits::new)
+                .appendInherited(new KeyedCodec<>("OnlyHitTags", Codec.STRING_ARRAY, false),
+                        (o, v) -> o.onlyHitTags = v, o -> o.onlyHitTags, (o, p) -> o.onlyHitTags = p.onlyHitTags)
+                .documentation("Every such hit must come from an interaction or entity effect whose "
+                        + "\"Tags\": {\"Hit\": [...]} carries one of these values (case is ignored): one hit "
+                        + "without breaks the feat for the whole fight, and the feat needs at least one hit "
+                        + "with. A damage-over-time effect's ticks carry the effect's own Hit tags, so give a "
+                        + "tagged effect its own DamageCalculator, and keep a tagged damage node to one damage "
+                        + "type: a hit split by type reads untagged after its first part.")
+                .add()
+                .build();
+
+        public FeatHits() {
+        }
+
+        /** The tags as authored, or null when none are. */
+        @Nullable
+        public String[] getOnlyHitTags() {
+            return onlyHitTags == null ? null : onlyHitTags.clone();
         }
     }
 

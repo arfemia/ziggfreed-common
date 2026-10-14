@@ -15,9 +15,10 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Turns a boss fight's beats into quest and achievement progress: {@code ENCOUNTER_DEFEATED} for
- * every CREDITED participant when the boss falls, {@code ENCOUNTER_ATTEMPT} for every participant
- * when a fight settles either way, {@code ENCOUNTER_PHASE} for every live member on each phase
- * beat.
+ * every CREDITED participant when the boss falls, with one {@code ENCOUNTER_FEAT} after it for each
+ * feat the fight held (the binding row's {@code Progression.Feats}, qualified by the feat's name),
+ * {@code ENCOUNTER_ATTEMPT} for every participant when a fight settles either way,
+ * {@code ENCOUNTER_PHASE} for every live member on each phase beat.
  *
  * <p>An EVENT-BUS listener like {@link ZigInstanceRoundProducer}, for the same reason: a fight's
  * beat is announced about a group of players rather than happening to one entity, so it arrives as
@@ -64,6 +65,13 @@ public final class ZigEncounterProducer {
     /** Fired once per live MEMBER on every phase beat, the phase's state name as the qualifier. */
     public static final String KIND_PHASE = "ENCOUNTER_PHASE";
 
+    /**
+     * Fired once per CREDITED participant for each feat the fight held when the boss fell
+     * ({@code EncounterDefeatedEvent.feats()}), targeted at the script id, the feat's own name as the
+     * qualifier, after that participant's {@link #KIND_DEFEATED}.
+     */
+    public static final String KIND_FEAT = "ENCOUNTER_FEAT";
+
     /** One beat is one moment for each player it names. */
     private static final long AMOUNT = 1L;
 
@@ -91,7 +99,9 @@ public final class ZigEncounterProducer {
             int fired = fanOutDefeated(event, ZigEncounterProducer::dispatch);
             SafeLog.info("[progression] " + KIND_DEFEATED + " dispatched for " + fired
                     + " credited participant(s) of " + event.encounterId() + " (run "
-                    + EncounterRun.shortId(event.runId()) + ", " + event.participants().size() + " in the fight)");
+                    + EncounterRun.shortId(event.runId()) + ", " + event.participants().size() + " in the fight"
+                    + (event.feats().isEmpty() || fired == 0 ? ""
+                            : ", " + KIND_FEAT + " " + String.join(",", event.feats())) + ")");
         } catch (Throwable t) {
             SafeLog.warn("[progression] encounter defeat progress failed", t);
         }
@@ -130,7 +140,8 @@ public final class ZigEncounterProducer {
     }
 
     /**
-     * A defeat: ATTEMPT for everybody the ledger saw, then DEFEATED for the credited.
+     * A defeat: ATTEMPT for everybody the ledger saw, then DEFEATED for the credited, each followed by
+     * one FEAT per feat the fight held.
      *
      * @return how many DEFEATED moments went out
      */
@@ -146,7 +157,14 @@ public final class ZigEncounterProducer {
                 continue;
             }
             credited++;
-            sink.accept(share.playerId(), KIND_DEFEATED, target, qualifier, payload(event, share));
+            EncounterPayload payload = payload(event, share);
+            sink.accept(share.playerId(), KIND_DEFEATED, target, qualifier, payload);
+            for (String feat : event.feats()) {
+                String name = qualifier(feat);
+                if (name != null) {
+                    sink.accept(share.playerId(), KIND_FEAT, target, name, payload);
+                }
+            }
         }
         return credited;
     }

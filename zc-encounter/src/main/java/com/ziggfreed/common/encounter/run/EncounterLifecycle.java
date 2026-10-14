@@ -157,15 +157,17 @@ public final class EncounterLifecycle {
         // A fight inside a dungeon area is filed under the area's run (R105), asked before anyone hears the
         // defeat, since a listener may end that run.
         RunTag runTag = EncounterSeams.runTagFor(run.worldUuid(), shares.participantIds());
+        List<String> feats = run.feats().held(EncounterBindingConfig.getInstance().featsFor(encounterId));
         SafeLog.info(Encounters.LOG_PREFIX + " defeated run=" + EncounterRun.shortId(run.runId()) + " encounter="
                 + encounterId + " after " + Math.round(elapsedSeconds) + "s, participants=" + shares.size()
                 + " credited=" + shares.credited().size() + " deaths=" + run.memberDeaths() + " by=" + how
-                + (runTag == null ? "" : " in=" + runTag.source()));
+                + (runTag == null ? "" : " in=" + runTag.source())
+                + (feats.isEmpty() ? "" : " feats=" + String.join(",", feats)));
         String difficulty = difficultyOf(run, row);
         Encounters.fireDefeated(() -> new EncounterDefeatedEvent(run.runId(), encounterId, run.worldUuid(),
                 run.subjectUuid(), run.subjectMobId(), shares.participants(), shares.participantIds(),
                 shares.shares(), shares.damageDealt(), elapsedSeconds, run.memberDeaths(), difficulty,
-                run.lastHitter(), runTag));
+                run.lastHitter(), runTag, feats));
         EncounterRest.stamp(store, commandBuffer, encounterRef, run, encounterId, row);
         // Paid before it is announced, and each participant's own receipt rides into their moment:
         // a player whose roll wrote them a Claim reads one row saying it waits on the Claims tab,

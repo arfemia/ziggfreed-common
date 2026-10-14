@@ -24,13 +24,13 @@ import com.ziggfreed.common.util.SafeLog;
  * that reads it, so there is no registration race and one consumer's vocabulary never leaks into
  * another's.
  *
- * <p><b>Thirty engine-generic kinds are PRE-SEEDED</b> (see {@link #seedBuiltIns}) - the ones
+ * <p><b>Thirty-one engine-generic kinds are PRE-SEEDED</b> (see {@link #seedBuiltIns}) - the ones
  * whose meaning does not depend on any particular game's systems: breaking a block, killing an
  * entity, talking to somebody, handing something in, using an item, standing at some measured
- * value, fighting a boss, playing a round. All thirty seed as producible, all but {@link #STAT_THRESHOLD}
+ * value, fighting a boss, playing a round. All of them seed as producible, all but {@link #STAT_THRESHOLD}
  * accumulate, none reads a ceiling, two of them ({@code TALK_TO_NPC}, {@code REACH_LOCATION}) seed
- * as place-targeted and three ({@code ENCOUNTER_DEFEATED}, {@code ENCOUNTER_PHASE},
- * {@code ENCOUNTER_ATTEMPT}) as encounter-targeted; a consumer that has no producer for one can
+ * as place-targeted and four ({@code ENCOUNTER_DEFEATED}, {@code ENCOUNTER_PHASE},
+ * {@code ENCOUNTER_ATTEMPT}, {@code ENCOUNTER_FEAT}) as encounter-targeted; a consumer that has no producer for one can
  * re-register it unproducible so its validator says so. Domain kinds (anything tied to a consumer's
  * own progression, economy, or classes) are the consumer's to add - registering one is a single
  * call and overrides a built-in of the same id.
@@ -50,14 +50,16 @@ import com.ziggfreed.common.util.SafeLog;
  * {@code INSTANCE_ROUND_LOST} fires once per PARTICIPANT and only when nobody won - so "play ten
  * rounds", "win ten rounds" and "fail ten runs" are different objectives rather than one with a flag.
  *
- * <p><b>Three describe a BOSS FIGHT</b> run by the engine's own encounter scripts, and share one
+ * <p><b>Four describe a BOSS FIGHT</b> run by the engine's own encounter scripts, and share one
  * contract: {@code Target} is the encounter SCRIPT id (never the boss creature's id, which an
  * in-place role swap changes mid-fight), so a step naming a boss survives every phase. {@code
  * ENCOUNTER_DEFEATED} fires once per CREDITED participant when the boss falls, {@code Qualifier}
  * the run's difficulty label; {@code ENCOUNTER_ATTEMPT} fires once per participant when a fight
  * settles either way, won or wiped, same qualifier, so "fight it ten times" and "beat it ten
  * times" are two objectives; {@code ENCOUNTER_PHASE} fires once per member on every phase beat,
- * {@code Qualifier} the phase's own state name. {@code Amount} is 1 per fire. A fight with no run
+ * {@code Qualifier} the phase's own state name; {@code ENCOUNTER_FEAT} fires once per CREDITED
+ * participant for each feat the won fight held (a condition its binding row names, such as every
+ * hit on the boss coming from one weapon), {@code Qualifier} the feat's name. {@code Amount} is 1 per fire. A fight with no run
  * (no boss bar, no binding) counts through an encounter rule instead: a kill of the role the rule
  * names fires {@code ENCOUNTER_ATTEMPT} then {@code ENCOUNTER_DEFEATED} for the killer, and there
  * {@code Target} is that ROLE id with no qualifier. So a fight's target is a script id for a run and
@@ -150,7 +152,7 @@ public final class ObjectiveKindRegistry {
             "BREED_ANIMAL", "FEED_ANIMAL", "HARVEST_ANIMAL", "COMPANION_COMBAT",
             "REACH_LOCATION", "CONSUME_ITEM", "USE_ITEM", "LOOT_RECEIVED",
             "INSTANCE_ROUND_WON", "INSTANCE_ROUND_ENDED", "INSTANCE_ROUND_STARTED", "INSTANCE_ROUND_LOST",
-            "ENCOUNTER_DEFEATED", "ENCOUNTER_PHASE", "ENCOUNTER_ATTEMPT");
+            "ENCOUNTER_DEFEATED", "ENCOUNTER_PHASE", "ENCOUNTER_ATTEMPT", "ENCOUNTER_FEAT");
 
     /**
      * The pre-seeded kinds whose producers fire a CURRENT value rather than an increment, so a
@@ -204,7 +206,7 @@ public final class ObjectiveKindRegistry {
      * encounters - the same division a wallet has.
      */
     private static final Set<String> BUILT_IN_ENCOUNTER_TARGETED = Set.of(
-            "ENCOUNTER_DEFEATED", "ENCOUNTER_PHASE", "ENCOUNTER_ATTEMPT");
+            "ENCOUNTER_DEFEATED", "ENCOUNTER_PHASE", "ENCOUNTER_ATTEMPT", "ENCOUNTER_FEAT");
 
     /** The owner name the pre-seeded kinds are attributed to in the ledger. */
     public static final String BUILT_IN_OWNER = "built-in";
@@ -234,7 +236,7 @@ public final class ObjectiveKindRegistry {
         seedBuiltIns();
     }
 
-    /** Register the thirty engine-generic kinds, all producible, each with its own arithmetic. */
+    /** Register the engine-generic kinds, all producible, each with its own arithmetic. */
     private void seedBuiltIns() {
         for (String id : BUILT_IN_ACCUMULATING) {
             ledger.put(id, BUILT_IN_OWNER, new ObjectiveKind(id, false, true,
@@ -254,7 +256,7 @@ public final class ObjectiveKindRegistry {
     }
 
     /**
-     * Is {@code kindId} one of the thirty this class seeds? A consumer registering its own
+     * Is {@code kindId} one of the kinds this class seeds? A consumer registering its own
      * vocabulary asks this to add only what it ADDS, leaving the built-ins stated once, here, with
      * every flag they carry - including any this class learns to seed later.
      */

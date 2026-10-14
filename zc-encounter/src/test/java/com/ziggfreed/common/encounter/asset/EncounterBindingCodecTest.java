@@ -8,11 +8,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.List;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.ziggfreed.common.encounter.ledger.EncounterFeat;
 
 /**
  * The two encounter types' decode contract: what an absent leaf reads as, that {@code Enabled}
@@ -152,6 +155,31 @@ public class EncounterBindingCodecTest {
         EncounterBindingAsset owner = binding("{\"Participation\": {\"Presence\": 2.0}}", "row", row);
         assertEquals(2.5, owner.getParticipation().getDamageToAdds().baseOrZero(), 1e-9,
                 "an overlay that says nothing of the adds keeps their weight");
+    }
+
+    @Test
+    void featsDecodeByNameAndAnOverlayRetunesOneFeatAndKeepsTheRest() throws IOException {
+        EncounterBindingAsset pack = binding("{\"Progression\": {\"Difficulty\": \"hard\", \"Feats\": {"
+                + "\"Bombs_Only\": {\"Subject\": {\"OnlyHitTags\": [\"yourmod_Bomb\", \"yourmod_Bomb_Burn\"]}},"
+                + "\"Blank\": {}}}}", "row", null);
+        List<EncounterFeat> feats = pack.getProgression().feats();
+        assertEquals(List.of("Bombs_Only", "Blank"), feats.stream().map(EncounterFeat::name).toList(),
+                "every feat, in authored order");
+        assertEquals(Set.of("yourmod_bomb", "yourmod_bomb_burn"), feats.get(0).subjectHitTags(),
+                "the tags, folded so a hit's own spelling never matters");
+        assertFalse(feats.get(1).hasCondition(), "a feat that writes no condition sets none");
+        assertNull(binding("{}", "bare", null).getProgression(), "nothing authored, no feats");
+
+        EncounterBindingAsset owner = binding("{\"Progression\": {\"Feats\": {"
+                + "\"Bombs_Only\": {\"Subject\": {\"OnlyHitTags\": [\"yourmod_Big_Bomb\"]}},"
+                + "\"Swift\": {\"Subject\": {\"OnlyHitTags\": [\"yourmod_Arrow\"]}}}}}", "row", pack);
+        List<String> names = owner.getProgression().feats().stream().map(EncounterFeat::name).toList();
+        assertTrue(names.containsAll(List.of("Bombs_Only", "Blank", "Swift")) && names.size() == 3,
+                "an overlay adds a feat by name and keeps the ones it did not mention: " + names);
+        assertEquals(Set.of("yourmod_big_bomb"), owner.getProgression().feats().stream()
+                .filter(f -> f.name().equals("Bombs_Only")).findFirst().orElseThrow().subjectHitTags(),
+                "the mentioned feat's tag list replaces the parent's whole");
+        assertEquals("hard", owner.getProgression().getDifficulty(), "the sibling leaf survived");
     }
 
     @Test

@@ -14,6 +14,8 @@ import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncCommand;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.encounter.ledger.EncounterFeat;
+import com.ziggfreed.common.encounter.ledger.FeatTally;
 import com.ziggfreed.common.encounter.ledger.ParticipantShare;
 import com.ziggfreed.common.encounter.ledger.ParticipationShares;
 import com.ziggfreed.common.encounter.run.EncounterLifecycle;
@@ -80,6 +82,7 @@ final class EncounterInspectCommand extends AbstractAsyncCommand {
         }
         EncounterBindingAsset row = EncounterBindingConfig.getInstance().forEncounter(live.encounterId());
         rest(ctx, store, live, row);
+        feats(ctx, live);
         ParticipationSpec spec = EncounterLifecycle.specFor(store, live.run(), row);
         ParticipationShares shares = EncounterLifecycle.settle(store, live.run(), spec);
         if (shares.isEmpty()) {
@@ -93,6 +96,18 @@ final class EncounterInspectCommand extends AbstractAsyncCommand {
             if (share.damageToAdds() > 0.0) {
                 EncounterAdminMessages.detail(ctx, "inspect.participant.adds", share.playerName(),
                         Math.round(share.damageToAdds()));
+            }
+        }
+    }
+
+    /** Where the run stands on each feat its row names: waiting, held so far (and by how many hits), or broken. */
+    private static void feats(@Nonnull CommandContext ctx, @Nonnull EncounterRuns.Live live) {
+        FeatTally tally = live.run().feats();
+        for (EncounterFeat feat : EncounterBindingConfig.getInstance().featsFor(live.encounterId())) {
+            switch (tally.standing(feat)) {
+                case HELD -> EncounterAdminMessages.detail(ctx, "inspect.feat.held", feat.name(), tally.counted(feat));
+                case BROKEN -> EncounterAdminMessages.detail(ctx, "inspect.feat.broken", feat.name());
+                case WAITING -> EncounterAdminMessages.detail(ctx, "inspect.feat.waiting", feat.name());
             }
         }
     }

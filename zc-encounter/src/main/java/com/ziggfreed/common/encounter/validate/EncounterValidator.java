@@ -21,6 +21,7 @@ import com.hypixel.hytale.codec.ExtraInfo;
 import com.ziggfreed.common.encounter.asset.EncounterBindingAsset;
 import com.ziggfreed.common.encounter.asset.EncounterParticipationAsset;
 import com.ziggfreed.common.encounter.asset.ParticipationSpec;
+import com.ziggfreed.common.encounter.ledger.EncounterFeat;
 import com.ziggfreed.common.encounter.signal.EncounterSignal;
 import com.ziggfreed.common.encounter.types.BuilderActionZigGrant;
 import com.ziggfreed.common.factor.FactorFormula;
@@ -69,6 +70,8 @@ public final class EncounterValidator {
     public static final String SUBJECT_SLOT_UNKNOWN = "ENCOUNTER_SUBJECT_SLOT_UNKNOWN";
     public static final String UNKNOWN_LOOTABLE = "ENCOUNTER_UNKNOWN_LOOTABLE";
     public static final String PRESENCE_WITHOUT_COLLECTOR = "ENCOUNTER_PRESENCE_WITHOUT_COLLECTOR";
+    /** A binding's {@code Progression.Feats} entry that sets no condition, so no fight ever holds it. */
+    public static final String FEAT_NO_CONDITION = "ENCOUNTER_FEAT_NO_CONDITION";
     public static final String RULE_MIN_SHARE_OUT_OF_RANGE = "ENCOUNTER_RULE_MIN_SHARE_OUT_OF_RANGE";
     public static final String RULE_BAD_MATCH = "ENCOUNTER_RULE_BAD_MATCH";
     public static final String ONCE_BLOCKS_LIST = "ENCOUNTER_ONCE_BLOCKS_LIST";
@@ -315,6 +318,16 @@ public final class EncounterValidator {
             if (onPhase != null) {
                 for (Map.Entry<String, LootRef> entry : onPhase.entrySet()) {
                     checkLoot(findings, id, "Loot.OnPhase." + entry.getKey(), entry.getValue(), lootableExists, loot);
+                }
+            }
+        }
+        EncounterBindingAsset.Progression progression = row.getProgression();
+        if (progression != null) {
+            for (EncounterFeat feat : progression.feats()) {
+                if (!feat.hasCondition()) {
+                    findings.add(Finding.warning(DOMAIN, FEAT_NO_CONDITION, "Progression.Feats." + feat.name()
+                            + " sets no condition, so no fight ever holds it and no step naming it can be "
+                            + "met; give it one, such as Subject.OnlyHitTags.", id));
                 }
             }
         }

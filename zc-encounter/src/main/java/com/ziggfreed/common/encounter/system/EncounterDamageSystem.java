@@ -1,5 +1,6 @@
 package com.ziggfreed.common.encounter.system;
 
+import java.util.List;
 import java.util.UUID;
 
 import javax.annotation.Nonnull;
@@ -17,7 +18,11 @@ import com.hypixel.hytale.server.core.modules.entity.damage.DamageModule;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.spawning.SpawnLineage;
+import com.ziggfreed.common.damage.HitTags;
+import com.ziggfreed.common.encounter.asset.EncounterBindingConfig;
 import com.ziggfreed.common.encounter.event.Encounters;
+import com.ziggfreed.common.encounter.ledger.EncounterFeat;
+import com.ziggfreed.common.encounter.ledger.FeatTally;
 import com.ziggfreed.common.encounter.run.EncounterRuns;
 import com.ziggfreed.common.encounter.run.EncounterSubjects;
 import com.ziggfreed.common.util.SafeLog;
@@ -28,7 +33,9 @@ import com.ziggfreed.common.util.SafeLog;
  * the damage. A hit on a bound subject credits the attacker's player (a non-player attacker through
  * the attribution seam); a hit on a member credits damage taken; a hit on one of a live run's adds
  * (an NPC carrying the encounter's native spawn lineage, which the engine copies onto whatever the
- * script's spawners and Spawn actions raise) credits the attacker's player damage to the adds.
+ * script's spawners and Spawn actions raise) credits the attacker's player damage to the adds. Either
+ * player-credited hit also reaches the run's feat tally ({@code FeatTally}) with its native Hit tags,
+ * read only when the run's binding row names feats.
  *
  * <p>The miss path, which is every hit on a server with no fight on, is three looks at three empty
  * maps and allocates nothing; the victim's lineage is read only while some run's lineage is indexed.
@@ -94,6 +101,19 @@ public final class EncounterDamageSystem extends DamageEventSystem {
         if (live != null) {
             live.run().noteHitter(playerId);
             live.run().noteMember(playerId, name);
+            noteFeats(live, FeatTally.Struck.SUBJECT, damage);
+        }
+    }
+
+    /**
+     * Hand a player-credited hit to the run's feat tally, with the hit's own Hit tags, only when the
+     * run's binding row names feats: a fight with none reads no tag.
+     */
+    private static void noteFeats(@Nonnull EncounterRuns.Live live, @Nonnull FeatTally.Struck struck,
+            @Nonnull Damage damage) {
+        List<EncounterFeat> feats = EncounterBindingConfig.getInstance().featsFor(live.encounterId());
+        if (!feats.isEmpty()) {
+            live.run().feats().noteHit(feats, struck, HitTags.of(damage));
         }
     }
 
@@ -117,6 +137,7 @@ public final class EncounterDamageSystem extends DamageEventSystem {
         }
         EncounterRuns.LEDGER.creditDamageToAdds(runId, player.getUuid(), player.getUsername(), amount);
         live.run().noteMember(player.getUuid(), player.getUsername());
+        noteFeats(live, FeatTally.Struck.ADD, damage);
     }
 
     private static void creditTaken(@Nonnull Store<EntityStore> store, @Nonnull UUID runId,

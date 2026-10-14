@@ -253,7 +253,8 @@ public final class ProgressionDefaults {
                 ZigInstanceRoundProducer.KIND_STARTED, ZigInstanceRoundProducer.KIND_ENDED,
                 ZigInstanceRoundProducer.KIND_WON, ZigInstanceRoundProducer.KIND_LOST,
                 ZigEncounterProducer.KIND_ATTEMPT, ZigEncounterProducer.KIND_DEFEATED,
-                ZigEncounterProducer.KIND_PHASE, ZigCalendarProducer.KIND, ZigLootReceivedProducer.KIND,
+                ZigEncounterProducer.KIND_PHASE, ZigEncounterProducer.KIND_FEAT, ZigCalendarProducer.KIND,
+                ZigLootReceivedProducer.KIND,
                 ZigQuestCompletionProducer.KIND, ZigReputationProducer.KIND, ZigTalkProducer.KIND);
     }
 

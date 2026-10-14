@@ -131,6 +131,27 @@ class ZigEncounterProducerTest {
     }
 
     @Test
+    void eachHeldFeatFollowsTheWinForTheCreditedOnlyQualifiedByItsName() {
+        List<ParticipantShare> list = List.of(share(ALICE, 1.0, true), share(CAROL, 0.02, false));
+        EncounterDefeatedEvent event = new EncounterDefeatedEvent(RUN, "Kweebec_Warden", null, null, "Warden",
+                list, list.stream().map(ParticipantShare::playerId).toList(), Map.of(), Map.of(), 240.0, 0,
+                "hard", ALICE, null, List.of("Bombs_Only", "Swift"));
+
+        List<Fired> fired = record(sink -> ZigEncounterProducer.fanOutDefeated(event, sink));
+
+        assertEquals(List.of(ZigEncounterProducer.KIND_ATTEMPT, ZigEncounterProducer.KIND_ATTEMPT,
+                        ZigEncounterProducer.KIND_DEFEATED, ZigEncounterProducer.KIND_FEAT,
+                        ZigEncounterProducer.KIND_FEAT),
+                fired.stream().map(Fired::kind).toList(), "a feat is earned with the win, after it");
+        List<Fired> feats = of(fired, ZigEncounterProducer.KIND_FEAT);
+        assertTrue(feats.stream().allMatch(f -> f.playerId().equals(ALICE)),
+                "an attempt-only participant earns no feat");
+        assertEquals(List.of("Bombs_Only", "Swift"), feats.stream().map(Fired::qualifier).toList(),
+                "the feat's own name is the qualifier, never the difficulty");
+        assertTrue(feats.stream().allMatch(f -> f.target().equals("Kweebec_Warden")), "the SCRIPT id");
+    }
+
+    @Test
     void aDefeatNobodyWasCreditedForStillReportsItself() {
         int credited = ZigEncounterProducer.fanOutDefeated(defeat(null), (a, b, c, d, e) -> { });
 

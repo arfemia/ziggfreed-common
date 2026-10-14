@@ -1,0 +1,13 @@
+{
+  "$Comment": "Beating a boss fight a particular way: a feat its binding row names under Progression.Feats (Server/ZiggfreedCommon/Encounters), such as every hit on the boss coming from one kind of weapon. Target is the encounter SCRIPT id (the file name under Server/EncounterManager), as ENCOUNTER_DEFEATED names it; Qualifier is the feat's own name as the row writes it. Fires once per credited participant for each feat the fight still held when the boss fell, right after that participant's ENCOUNTER_DEFEATED, so the whole party earns it together; Amount is 1 per fight. A step reads {\"Kind\": \"ENCOUNTER_FEAT\", \"Target\": \"Zc_Encounter_Example\", \"MatchMode\": \"EXACT\", \"Qualifier\": \"Bombs_Only\", \"Amount\": 1}. Leave Qualifier out to count any feat of that fight, and Target empty to count any boss. A fight with no binding row, or one counted by an encounter rule, never fires it.",
+  "ValueBased": false,
+  "Producible": true,
+  "TargetNames": {
+    "Encounter": true
+  },
+  "Presentation": {
+    "Icon": {
+      "ItemId": "Deco_Bone_Skulls_Feran_Large"
+    }
+  }
+}

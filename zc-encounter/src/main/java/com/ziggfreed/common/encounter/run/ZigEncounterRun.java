@@ -17,6 +17,7 @@ import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.encounter.event.Encounters;
+import com.ziggfreed.common.encounter.ledger.FeatTally;
 import com.ziggfreed.common.encounter.ledger.ParticipationShares;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -71,6 +72,7 @@ public final class ZigEncounterRun implements Component<EntityStore> {
     private boolean ended;
     @Nullable private UUID lastHitter;
     @Nonnull private ParticipationShares settledShares = ParticipationShares.EMPTY;
+    private final FeatTally feats = new FeatTally();
 
     // members
     private final Set<UUID> knownMembers = new LinkedHashSet<>();
@@ -303,6 +305,15 @@ public final class ZigEncounterRun implements Component<EntityStore> {
         settledShares = shares;
     }
 
+    /**
+     * How this run stands on the feats its binding row names ({@code Progression.Feats}): fed by the
+     * damage system on every player-credited hit on the subject or an add, read at the defeat.
+     */
+    @Nonnull
+    public FeatTally feats() {
+        return feats;
+    }
+
     // ==================== members ====================
 
     /** Every player seen as a member during this run, in first-seen order. */
@@ -417,6 +428,7 @@ public final class ZigEncounterRun implements Component<EntityStore> {
         defeated = false;
         lastHitter = null;
         settledShares = ParticipationShares.EMPTY;
+        feats.clear();
         knownMembers.clear();
         memberNames.clear();
         deadMembers.clear();
