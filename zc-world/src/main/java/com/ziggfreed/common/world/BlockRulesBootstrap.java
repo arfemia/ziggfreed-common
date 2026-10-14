@@ -17,9 +17,10 @@ public final class BlockRulesBootstrap {
 
     /**
      * Register {@link BlockRules} as a gameplay config plugin group ({@code Plugin.ZigBlockRules}), before
-     * any gameplay config decodes, and the systems that enforce it ({@link BlockRuleSystems}). The two
-     * halves are guarded separately, and each warning names what a world writing the rule then lets
-     * through (the engine keeps an unregistered group unread, so the config itself still loads).
+     * any gameplay config decodes, and the systems that enforce it ({@link BlockRuleSystems}), with the
+     * placement refusal ({@link BlockRuleSystems.RefusedPlacement}) every world that refuses placing gets.
+     * Each part is guarded separately, and each warning names what a world then lets through (the engine
+     * keeps an unregistered group unread, so the config itself still loads).
      */
     public static void registerBlockRules(@Nonnull PluginBase plugin) {
         try {
@@ -36,6 +37,12 @@ public final class BlockRulesBootstrap {
         } catch (Throwable t) {
             SafeLog.warn("[build] the block rules' systems could not be registered: a world with"
                     + " CreativeOnlyBreaking lets every breaker through this boot", t);
+        }
+        try {
+            plugin.getEntityStoreRegistry().registerSystem(new BlockRuleSystems.RefusedPlacement());
+        } catch (Throwable t) {
+            SafeLog.warn("[build] the placement refusal could not be registered: a block that pastes a prefab"
+                    + " still builds it this boot in a world that refuses placing", t);
         }
     }
 }

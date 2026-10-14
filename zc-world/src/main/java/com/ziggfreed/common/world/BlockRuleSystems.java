@@ -1,6 +1,7 @@
 package com.ziggfreed.common.world;
 
 import java.util.Set;
+import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -15,8 +16,10 @@ import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.EntityEventSystem;
 import com.hypixel.hytale.component.system.WorldEventSystem;
 import com.hypixel.hytale.protocol.GameMode;
+import com.hypixel.hytale.server.core.asset.type.gameplay.GameplayConfig;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.event.events.ecs.DamageBlockEvent;
+import com.hypixel.hytale.server.core.event.events.ecs.PlaceBlockEvent;
 import com.hypixel.hytale.server.core.modules.interaction.event.InteractionChainStartEvent;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.RootInteraction;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.client.CycleBlockGroupInteraction;
@@ -45,9 +48,13 @@ import com.ziggfreed.common.util.SafeLog;
  * (an explosive barrel, a boomshroom, some traps) into that state before the damage event fires, so in
  * such a world those blocks react to an explosion while every other block holds.
  *
+ * <p><b>Placing.</b> In any world whose gameplay config refuses placing ({@code World.AllowBlockPlacement}
+ * false), {@link RefusedPlacement} refuses every placer but a creative-mode player at the place-block event,
+ * which is the engine's own answer given before a prefab block can paste (its javadoc).
+ *
  * <p><b>Cannot tell reads as allowed</b>, as {@link BuildPermission} reads it: an unresolved world or a
  * throw leaves the answer to the engine. Each system is ordered first among its event's listeners, so a
- * refused damage never reaches a later one.
+ * refused damage or placement never reaches a later one.
  */
 public final class BlockRuleSystems {
 
@@ -56,11 +63,26 @@ public final class BlockRuleSystems {
 
     /** Whether the world this store belongs to lets only a creative-mode player break; false when it cannot be told. */
     static boolean creativeOnlyBreaking(@Nonnull Store<EntityStore> store) {
+        return worldRule(store, BlockRules::creativeOnlyBreaking, "block rules");
+    }
+
+    /**
+     * Whether the world this store belongs to refuses placing ({@code World.AllowBlockPlacement} false); false
+     * when it cannot be told.
+     */
+    static boolean placementRefused(@Nonnull Store<EntityStore> store) {
+        return worldRule(store, config -> config != null && !config.getWorldConfig().isBlockPlacementAllowed(),
+                "placement switch");
+    }
+
+    /** {@code rule} of the gameplay config the world this store belongs to runs; false when it cannot be told. */
+    private static boolean worldRule(@Nonnull Store<EntityStore> store, @Nonnull Predicate<GameplayConfig> rule,
+            @Nonnull String what) {
         try {
             World world = store.getExternalData().getWorld();
-            return world != null && BlockRules.creativeOnlyBreaking(world.getGameplayConfig());
+            return world != null && rule.test(world.getGameplayConfig());
         } catch (Throwable t) {
-            SafeLog.fine("[build] could not read the world's block rules; leaving the break to the engine: "
+            SafeLog.fine("[build] could not read the world's " + what + "; leaving it to the engine: "
                     + t.getMessage());
             return false;
         }
@@ -145,6 +167,43 @@ public final class BlockRuleSystems {
         public void handle(@Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer,
                 @Nonnull DamageBlockEvent event) {
             if (creativeOnlyBreaking(store)) {
+                event.setCancelled(true);
+            }
+        }
+    }
+
+    /**
+     * A placement in a world that refuses placing, by any placer but a creative-mode player. The engine
+     * refuses it too, but only after a block whose {@code BlockType} names a {@code PrefabListAssetId} has
+     * queued its prefab's paste ({@code BlockPlaceUtils.placeBlock}), so the block itself is refused while
+     * the structure still builds. Refused at the event, before anything is queued or written, every other
+     * block reads exactly as the engine would answer it and the item stays in the hand. A creative player's
+     * placement goes on to the engine as before (its prefab block still pastes), and a {@code SpawnPrefab}
+     * interaction, which pastes as a scripted effect and fires no place event, is not gated.
+     */
+    public static final class RefusedPlacement extends EntityEventSystem<EntityStore, PlaceBlockEvent> {
+
+        public RefusedPlacement() {
+            super(PlaceBlockEvent.class);
+        }
+
+        @Nonnull
+        @Override
+        public Query<EntityStore> getQuery() {
+            return Archetype.empty();
+        }
+
+        @Nonnull
+        @Override
+        public Set<Dependency<EntityStore>> getDependencies() {
+            return RootDependency.firstSet();
+        }
+
+        @Override
+        public void handle(int index, @Nonnull ArchetypeChunk<EntityStore> archetypeChunk,
+                @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer,
+                @Nonnull PlaceBlockEvent event) {
+            if (placementRefused(store) && gameModeAt(index, archetypeChunk) != GameMode.Creative) {
                 event.setCancelled(true);
             }
         }
