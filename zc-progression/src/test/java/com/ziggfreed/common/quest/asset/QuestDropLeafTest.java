@@ -132,4 +132,38 @@ class QuestDropLeafTest {
         engine.dispatch(player, "PICKUP_ITEM", "Wolf_Pelt", null, 3L);
         assertTrue(engine.itemDropsDue(player, Source.ROLE, "Wolf_Grey").isEmpty(), "a finished step gets nothing");
     }
+
+    @Test
+    void whatWaitsUncollectedCountsAsHeld() throws Exception {
+        Quest quest = decodeRoot(QUEST, "ogre_trouble").toDefinition(null).quest();
+        Map<String, Integer> bag = new HashMap<>();
+        Map<String, Integer> claimed = new HashMap<>();
+        QuestEngine engine = QuestEngine.builder()
+                .store(new InMemoryQuestProgressStore())
+                .possessionProbe((subject, itemId, count) -> bag.getOrDefault(itemId, 0) >= count)
+                .nativeEvents(false)
+                .warn(message -> { })
+                .build();
+        engine.setQuests(List.of(quest));
+        Subject player = Subject.of(UUID.randomUUID(), "tester");
+        QuestEngine.ItemsWaiting waiting = (q, step) -> claimed.getOrDefault(step.id(), 0);
+        assertTrue(engine.accept(player, quest));
+        engine.dispatch(player, "ENCOUNTER_DEFEATED", "yourmod_Ogre_King", null, 1L);
+
+        claimed.put("bring_crest", 1);
+        assertEquals(1, engine.itemDropsDue(player, Source.ENCOUNTER, "yourmod_Ogre_King", waiting).get(0).upTo(),
+                "one of the two waiting leaves one owed");
+        bag.put("Ogre_Crest", 1);
+        assertTrue(engine.itemDropsDue(player, Source.ENCOUNTER, "yourmod_Ogre_King", waiting).isEmpty(),
+                "a hand-in counts the bag and what waits together");
+        assertEquals(1, engine.itemDropsDue(player, Source.ENCOUNTER, "yourmod_Ogre_King").get(0).upTo(),
+                "the form with nothing waiting reads the bag alone");
+
+        claimed.put("pelts", 2);
+        assertEquals(1, engine.itemDropsDue(player, Source.ROLE, "Wolf_Grey", waiting).get(0).upTo(),
+                "a pickup step owing three with two waiting still wants one");
+        claimed.put("pelts", 3);
+        assertTrue(engine.itemDropsDue(player, Source.ROLE, "Wolf_Grey", waiting).isEmpty(),
+                "a pickup step whose whole count waits gets nothing more");
+    }
 }

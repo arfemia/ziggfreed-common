@@ -56,8 +56,8 @@ public final class QuestDropAsset {
                             (o, v) -> o.count = v, o -> o.count, (o, p) -> o.count = p.count)
                     .metadata(EditorSchema.defaultValue(QuestItemDrop.DEFAULT_COUNT))
                     .documentation("How many one drop hands over. Unauthored means 1. Never more than the step "
-                            + "still wants or the bag can take, so a player is never handed more than the quest "
-                            + "asks for.").add()
+                            + "still wants, less what already waits in its Claim (and, for a TURN_IN step, what "
+                            + "the bag holds), so a player is never handed more than the quest asks for.").add()
                     .build();
 
     public QuestDropAsset() {

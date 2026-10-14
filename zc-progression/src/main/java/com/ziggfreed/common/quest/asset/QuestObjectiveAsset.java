@@ -68,11 +68,13 @@ public final class QuestObjectiveAsset extends ObjectiveLeafAsset {
                     .documentation("A quest item drop, on a TURN_IN or PICKUP_ITEM step only: the item this step "
                             + "asks for (its Target, an exact item id) drops from the creatures (Roles) and boss "
                             + "fights (Encounters) named here, at Chance, Count at a time, but only for a player "
-                            + "carrying this quest whose step is unlocked and still wants it. A TURN_IN step stops "
-                            + "dropping once the bag holds what the step still owes; a PICKUP_ITEM step counts "
-                            + "the drop as picked up. It goes into the bag only: with no room, nothing drops and "
-                            + "the player is told the bag is full. Leave it out for a step whose item comes from "
-                            + "anywhere else.").add()
+                            + "carrying this quest whose step is unlocked and still wants it. A kill's drop goes "
+                            + "into the bag like a pickup, and what the bag cannot take waits under Claims; a "
+                            + "boss fight's always waits under Claims, collected with the rest of its loot. A "
+                            + "step has one Claim, which a later drop adds to. A TURN_IN step stops dropping once "
+                            + "the bag and its Claim hold what the step still owes; a PICKUP_ITEM step counts the "
+                            + "item as picked up when it reaches the bag, from the drop or the Claim. Never on the "
+                            + "ground. Leave it out for a step whose item comes from anywhere else.").add()
                     .build();
 
     public QuestObjectiveAsset() {

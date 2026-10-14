@@ -124,10 +124,13 @@ public final class ClaimsView {
         return own == null ? text.line("untitled") : own;
     }
 
-    /** A Claim's own title, its key with its arguments; null when it names none. */
+    /**
+     * A Claim's own title, its key with its arguments ({@link Claim#titleParams}: a key or an item argument read in
+     * the reader's own language); null when it names none.
+     */
     @Nullable
     public static Message ownTitle(@Nonnull Claim claim) {
-        return claim.titleKey() == null ? null : ContentKeys.tr(claim.titleKey(), claim.titleArgs().toArray());
+        return claim.titleKey() == null ? null : ContentKeys.tr(claim.titleKey(), claim.titleParams());
     }
 
     /**

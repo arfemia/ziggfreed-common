@@ -39,7 +39,8 @@ import com.ziggfreed.common.util.SafeLog;
  * Both work on a server running nothing but this library.
  *
  * <p><b>One toast a burst.</b> The Claims written for a player before their toast goes out (a boss's payouts and a
- * dungeon's completion Claim, written in one tick) are one burst, and the toast is raised once, a task later on
+ * dungeon's completion Claim, written in one tick) are one burst, a Claim topped up within it keeping its one row
+ * ({@link ClaimStore#awardOrTopUp}), and the toast is raised once, a task later on
  * their world, when the burst is drained: a lone Claim reads as its own title waiting under Claims (an untitled one
  * keeps the plain line), several read as one line with a row each. On a page the rows are the titles under that
  * line; in the corner, which shows a toast's rows without its headline, each row says where its Claim waits. The
@@ -68,10 +69,21 @@ public final class ClaimNotices {
      */
     private record Burst(@Nonnull List<Claim> claims, @Nonnull Set<String> offered, long sinceMs) {
 
+        /** This burst with {@code claim} in it: a top-up of a Claim already here takes that one's row. */
         @Nonnull
         Burst adding(@Nonnull Claim claim, long nowMs) {
             List<Claim> more = new ArrayList<>(claims);
-            more.add(claim);
+            int at = -1;
+            for (int i = 0; i < more.size() && at < 0; i++) {
+                if (more.get(i).is(claim.id())) {
+                    at = i;
+                }
+            }
+            if (at >= 0) {
+                more.set(at, claim);
+            } else {
+                more.add(claim);
+            }
             return new Burst(List.copyOf(more), offered, nowMs);
         }
 

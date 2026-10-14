@@ -23,8 +23,9 @@ import com.ziggfreed.common.util.SafeLog;
  * earlier window reads as none, and the file keeps only current windows (it is pruned on load and on
  * every write).
  *
- * <p>Read and written only through {@code ClaimStore.award}, which counts a clear only when the Claim it
- * pays is new, so a second write of one Claim never counts twice.
+ * <p>Read and written only through {@code ClaimStore.award} and {@code awardOrTopUp}, which count a clear only
+ * when a payout is written (a new Claim, or a top-up of a held one), so a second write {@code award} refuses
+ * never counts.
  *
  * <p>The file carries a {@code "version"}; a file declaring a newer version than this build reads is left
  * unread, and unwritten, with one warning, and so is a file this build cannot read at all (a damaged or

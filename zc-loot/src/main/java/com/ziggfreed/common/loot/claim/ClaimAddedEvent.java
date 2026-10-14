@@ -7,9 +7,10 @@ import javax.annotation.Nonnull;
 import com.hypixel.hytale.event.IEvent;
 
 /**
- * A new Claim is waiting for a player: {@link ClaimStore#award} wrote it. Fired once per Claim written, never
- * for a second write of a Claim the player still holds, a payout diminished to nothing, or one put back
- * because it did not fit. The player may be offline.
+ * A new Claim is waiting for a player: {@link ClaimStore#award} wrote it, or {@link ClaimStore#awardOrTopUp} wrote
+ * or topped it up. Fired once per Claim written and once per top-up (carrying the Claim as it now stands, which a
+ * listener tells apart by its id), never for a second write {@code award} refused, a payout diminished to nothing,
+ * or one put back because it did not fit. The player may be offline.
  *
  * <p>Dispatched synchronously on the thread that awarded the Claim, inside the store's lock, so a listener
  * that needs the player's world hops there itself and never blocks.
@@ -30,7 +31,7 @@ public final class ClaimAddedEvent implements IEvent<Void> {
         return player;
     }
 
-    /** The Claim as it was written (its rewards already diminished). */
+    /** The Claim as it was written or topped up (its rewards already diminished). */
     @Nonnull
     public Claim claim() {
         return claim;

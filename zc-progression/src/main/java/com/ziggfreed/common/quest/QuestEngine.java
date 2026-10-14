@@ -2101,14 +2101,17 @@ public final class QuestEngine implements QuestStateReader {
      * many it wants depends on how the step counts:
      * <ul>
      *   <li>a {@code PICKUP_ITEM} step counts the item ARRIVING ({@link ItemDropDue#countsOnArrival()}),
-     *   so it wants what it still owes; the caller credits what goes into the bag as a pickup, so the
+     *   so it wants what it still owes; the caller credits what reaches the bag as a pickup, so the
      *   next drop reads the step's own count;</li>
      *   <li>a {@code TURN_IN} step, whose hand-in takes the item from the bag, wants what it still owes
      *   LESS what the bag already holds, read through the {@link QuestPossessionProbe}: a player
      *   carrying the asked amount gets nothing more.</li>
      * </ul>
      * Either way never more than the drop's {@link QuestItemDrop#count()}. The caller hands over only
-     * what the bag takes, so neither count ever meets an item lying on the ground.
+     * what the bag takes and what it keeps for the player to collect, so neither count ever meets an
+     * item lying on the ground. This form counts nothing as waiting; the caller that keeps some of the
+     * item for the player passes how much through {@link #itemDropsDue(Subject, QuestItemDrop.Source,
+     * String, ItemsWaiting)}.
      *
      * <p>Ask it after the moment has reached the engines, so a step that same kill or win unlocked is
      * already open.
@@ -2116,6 +2119,19 @@ public final class QuestEngine implements QuestStateReader {
     @Nonnull
     public List<ItemDropDue> itemDropsDue(@Nonnull Subject subject, @Nonnull QuestItemDrop.Source source,
             @Nullable String sourceId) {
+        return itemDropsDue(subject, source, sourceId, ItemsWaiting.NONE);
+    }
+
+    /**
+     * {@link #itemDropsDue(Subject, QuestItemDrop.Source, String)}, counting what already waits for the
+     * player as held: each step's item kept for them and not collected yet ({@code waiting}, such as a
+     * Claim the caller wrote for that step), which has not reached the bag or the step's count. So a step
+     * wants what it still owes less what waits, and a hand-in less what the bag holds too: a drop never
+     * hands over more than the quest asks for while some of it waits.
+     */
+    @Nonnull
+    public List<ItemDropDue> itemDropsDue(@Nonnull Subject subject, @Nonnull QuestItemDrop.Source source,
+            @Nullable String sourceId, @Nonnull ItemsWaiting waiting) {
         if (!dropsFrom(source, sourceId) || !systemGate.enabled(ProgressionSystem.QUEST, subject)) {
             return List.of();
         }
@@ -2138,7 +2154,8 @@ public final class QuestEngine implements QuestStateReader {
                 if ((state != null && state.isCompleted()) || !objectiveActive(subject, quest, step.id())) {
                     continue;
                 }
-                int upTo = wantedFromDrop(subject, step, drop, remainingFor(subject, quest, step));
+                int owed = remainingFor(subject, quest, step) - Math.max(0, waiting.count(quest, step));
+                int upTo = wantedFromDrop(subject, step, drop, owed);
                 if (upTo > 0) {
                     out.add(new ItemDropDue(quest, step, drop, upTo));
                 }
@@ -2157,9 +2174,10 @@ public final class QuestEngine implements QuestStateReader {
     }
 
     /**
-     * How many of its item a step wants from one drop: never more than the drop's count, and for a
-     * hand-in, never more than the bag still lacks. The probe answers only "holds at
-     * least n", so the bag is read from the top down one unit at a time, at most {@code count} asks.
+     * How many of its item a step wants from one drop, {@code remaining} being what it still owes less
+     * what waits for the player: never more than the drop's count, and for a hand-in, never more than the
+     * bag still lacks. The probe answers only "holds at least n", so the bag is read from the top down
+     * one unit at a time, at most {@code count} asks.
      */
     private int wantedFromDrop(@Nonnull Subject subject, @Nonnull ObjectiveDef step, @Nonnull QuestItemDrop drop,
             int remaining) {
@@ -2176,6 +2194,20 @@ public final class QuestEngine implements QuestStateReader {
             wanted = more;
         }
         return wanted;
+    }
+
+    /**
+     * How many of a step's item already wait for the player, kept for them and not collected yet, so
+     * {@link #itemDropsDue(Subject, QuestItemDrop.Source, String, ItemsWaiting)} counts them as held.
+     */
+    @FunctionalInterface
+    public interface ItemsWaiting {
+
+        /** Nothing waits anywhere. */
+        ItemsWaiting NONE = (quest, step) -> 0;
+
+        /** How many of {@code step}'s item (its {@code Target}) wait for the player; 0 for none. */
+        int count(@Nonnull Quest quest, @Nonnull ObjectiveDef step);
     }
 
     /**
@@ -2215,7 +2247,8 @@ public final class QuestEngine implements QuestStateReader {
             return countsOnArrival(step);
         }
 
-        static boolean countsOnArrival(@Nonnull ObjectiveDef step) {
+        /** Does {@code step} count its item arriving (a {@code PICKUP_ITEM} step)? */
+        public static boolean countsOnArrival(@Nonnull ObjectiveDef step) {
             return ARRIVAL_KIND.equalsIgnoreCase(step.kind().trim());
         }
     }

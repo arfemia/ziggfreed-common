@@ -2,6 +2,7 @@ package com.ziggfreed.common.instance.reward;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -55,6 +56,17 @@ public final class InstanceRewardGranter {
     public static GrantOutcome grantAll(@Nonnull List<InstanceReward> rewards,
                                         @Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
                                         @Nullable Sink sink) {
+        return grantAll(rewards, ref, store, sink, granted -> { });
+    }
+
+    /**
+     * {@link #grantAll(List, Ref, Store, Sink)}, telling {@code onGranted} each reward as it is handed over (an
+     * item that fit, a currency paid, a command run), so a caller knows exactly what reached the player.
+     */
+    @Nonnull
+    public static GrantOutcome grantAll(@Nonnull List<InstanceReward> rewards,
+                                        @Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
+                                        @Nullable Sink sink, @Nonnull Consumer<InstanceReward> onGranted) {
         int granted = 0;
         int blocked = 0;
         int failed = 0;
@@ -73,11 +85,13 @@ public final class InstanceRewardGranter {
                             pending.add(r);
                         } else {
                             granted++;
+                            onGranted.accept(r);
                         }
                     }
                     case CURRENCY -> {
                         if (sink != null && sink.grantCurrency(r.id(), r.quantity(), ref, store)) {
                             granted++;
+                            onGranted.accept(r);
                         } else {
                             failed++;
                         }
@@ -88,6 +102,7 @@ public final class InstanceRewardGranter {
                         String command = r.id().replace("{amount}", Integer.toString(r.quantity()));
                         if (sink != null && sink.runCommand(command, ref, store)) {
                             granted++;
+                            onGranted.accept(r);
                         } else {
                             failed++;
                         }

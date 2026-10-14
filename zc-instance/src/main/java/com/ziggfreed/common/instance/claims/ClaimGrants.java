@@ -1,5 +1,6 @@
 package com.ziggfreed.common.instance.claims;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -8,9 +9,12 @@ import javax.annotation.Nonnull;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.event.NativeEventSeam;
 import com.ziggfreed.common.instance.reward.GrantOutcome;
+import com.ziggfreed.common.instance.reward.InstanceReward;
 import com.ziggfreed.common.instance.reward.InstanceRewardGranter;
 import com.ziggfreed.common.loot.claim.Claim;
+import com.ziggfreed.common.loot.claim.ClaimCollectedEvent;
 import com.ziggfreed.common.loot.claim.ClaimStore;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -18,11 +22,14 @@ import com.ziggfreed.common.util.SafeLog;
  * A Claim press, lifted from Kweebec Nightmare's {@code claimPending}: take the Claim out of the store, hand its
  * rewards over through {@link InstanceRewardGranter#grantAll} with the bag guard (an item goes only when all of
  * it fits), and put back what did not fit, so a full bag keeps the rest waiting. A reward the sink could not pay
- * (a currency on a server with none) is not put back, as Kweebec's never was; it is logged.
+ * (a currency on a server with none) is not put back, as Kweebec's never was; it is logged. What a press handed
+ * over is announced, Claim by Claim, as a {@link ClaimCollectedEvent} once the rest is back in the store.
  *
  * <p>World thread only (the grant touches the player's inventory).
  */
 public final class ClaimGrants {
+
+    private static final NativeEventSeam EVENTS = new NativeEventSeam("[claims]");
 
     /**
      * What a press did: how many Claims it took, how many of those it emptied, and how many rewards it handed
@@ -73,13 +80,17 @@ public final class ClaimGrants {
         return total;
     }
 
-    /** Hand one taken Claim over, putting back what did not fit; a throw puts the whole Claim back. */
+    /**
+     * Hand one taken Claim over, putting back what did not fit, then announce what it delivered; a throw puts the
+     * whole Claim back.
+     */
     @Nonnull
     private static Result grant(@Nonnull ClaimStore claims, @Nonnull UUID player, @Nonnull Claim claim,
             @Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull InstanceRewardGranter.Sink sink) {
         GrantOutcome outcome;
+        List<InstanceReward> delivered = new ArrayList<>();
         try {
-            outcome = InstanceRewardGranter.grantAll(claim.rewards(), ref, store, sink);
+            outcome = InstanceRewardGranter.grantAll(claim.rewards(), ref, store, sink, delivered::add);
         } catch (Throwable t) {
             claims.putBack(player, claim);
             SafeLog.warn("[claims] the Claim '" + claim.id() + "' could not be handed over, so it waits", t);
@@ -91,6 +102,10 @@ public final class ClaimGrants {
         if (outcome.failed() > 0) {
             SafeLog.warn("[claims] " + outcome.failed() + " reward(s) of the Claim '" + claim.id()
                     + "' could not be paid on this server and were dropped");
+        }
+        if (!delivered.isEmpty()) {
+            EVENTS.fire("ClaimCollected", ClaimCollectedEvent.class,
+                    () -> new ClaimCollectedEvent(player, ref, claim, delivered));
         }
         return new Result(1, outcome.pending().isEmpty() ? 1 : 0, outcome.granted(), outcome.blocked(),
                 outcome.failed());

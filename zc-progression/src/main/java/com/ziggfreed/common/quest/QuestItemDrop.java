@@ -19,8 +19,10 @@ import javax.annotation.Nullable;
  * whoever hands the item over rolls {@link #chance()} once per owed step and gives at most
  * {@link #count()}.
  *
- * <p>It is an OBJECTIVE item rather than a reward: it is what the step asks the player to bring, so it
- * lands as the drop happens and is never parked to be collected.
+ * <p>It is an OBJECTIVE item, what the step asks the player to bring. Whoever hands it over decides
+ * where it goes (zc-objectives' {@code drop/QuestItemDrops}: a kill's into the bag like a pickup, a won
+ * fight's kept for the player to collect with the rest of its loot), and tells the engine how much of it
+ * waits uncollected, which counts as held ({@link QuestEngine.ItemsWaiting}).
  *
  * <p>Two sources, told apart by what the player did, so one kill never rolls twice:
  * <ul>

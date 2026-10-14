@@ -34,6 +34,7 @@ import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.factor.HytaleFactors;
 import com.ziggfreed.common.inventory.InventoryUtil;
+import com.ziggfreed.common.loot.claim.ClaimCollectedEvent;
 import com.ziggfreed.common.objectives.drop.QuestItemDrops;
 import com.ziggfreed.common.objectives.dungeon.DungeonObjectives;
 import com.ziggfreed.common.objectives.hud.TrackedQuestHuds;
@@ -201,7 +202,8 @@ public final class ProgressionDefaults {
      * zc-dialogue's {@code TalkCredits}, and this sink always runs, beside any sink a consumer
      * registers), the moment listener that meets a dungeon's {@code Complete.Objective}
      * ({@link DungeonObjectives}), the one that hands over a quest step's item drops
-     * ({@link QuestItemDrops}), the achievements a reputation's ranks earn as the Reputation page's gated content
+     * ({@link QuestItemDrops}, which also hears a step's Claim collected), the achievements a reputation's ranks
+     * earn as the Reputation page's gated content
      * ({@link RankAchievementGatedContent}), and the tracked-quest HUD with its six event subscriptions.
      * All of it is unconditional, and so is every dispatch those producers make.
      *
@@ -222,8 +224,10 @@ public final class ProgressionDefaults {
         ZigInstanceRoundProducer.install(plugin);
         // A dungeon's Complete.Objective is met off the same moments, which the instance module cannot see.
         ProgressionRuntime.defaults(OWNER).momentListener(DungeonObjectives.INSTANCE);
-        // A quest step's Drop is met off the kill and boss-win moments, for the player each credits.
+        // A quest step's Drop is met off the kill and boss-win moments, for the player each credits, and a
+        // pickup step is credited when the step's Claim is collected.
         ProgressionRuntime.defaults(OWNER).momentListener(QuestItemDrops.INSTANCE);
+        plugin.getEventRegistry().registerGlobal(ClaimCollectedEvent.class, QuestItemDrops::onCollected);
         ZigEncounterProducer.install(plugin);
         ZigCalendarProducer.install(plugin);
         ZigLootReceivedProducer.install(plugin);

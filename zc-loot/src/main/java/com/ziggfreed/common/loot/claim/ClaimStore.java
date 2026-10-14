@@ -29,8 +29,9 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Every player's Claims: what they have earned and not taken yet, kept across a restart until they press
- * Claim (M428). Every payout that writes a Claim goes through {@link #award}, which is the one place a
- * Claim is counted against its diminishing returns, scaled, and announced ({@link ClaimAddedEvent}).
+ * Claim (M428). Every payout that writes a Claim goes through {@link #award}, or {@link #awardOrTopUp} to add
+ * to one the player still holds, which share the one place a Claim is counted against its diminishing returns,
+ * scaled, and announced ({@link ClaimAddedEvent}).
  *
  * <p>It sits beside {@code PendingRewardStore}, which stays the retry queue: a Claim is a payout the player
  * collects on purpose, a pending reward one that could not be delivered. A Claim never expires (lead's call).
@@ -124,19 +125,22 @@ public final class ClaimStore {
      */
     public synchronized boolean award(@Nonnull UUID player, @Nonnull Claim claim, @Nullable DiminishSpec spec,
             @Nonnull String diminishKey, long nowMs) {
-        if (claim.rewards().isEmpty() || holds(player, claim.id())) {
-            return false;
-        }
-        double multiplier = spec == null ? 1.0 : ledger.count(player, diminishKey, spec, nowMs);
-        List<InstanceReward> scaled = scaled(claim.rewards(), multiplier);
-        if (scaled.isEmpty()) {
-            return false;
-        }
-        Claim written = claim.withRewards(scaled);
-        claims.computeIfAbsent(player, k -> new ArrayList<>()).add(toStored(written));
-        flush();
-        fireAdded(player, written);
-        return true;
+        return write(player, claim, spec, diminishKey, nowMs, false);
+    }
+
+    /**
+     * {@link #award}, except that a Claim {@code player} still holds by {@code claim}'s id takes the new rewards
+     * beside its own (a top-up) instead of refusing them: one Claim per payout that keeps coming, such as a quest
+     * step's item. A top-up is counted, scaled and announced exactly as a first write is ({@link ClaimAddedEvent},
+     * carrying the Claim as it now stands); the held Claim keeps its title and its place by age, and a reward the
+     * same as one it holds adds to that one's quantity ({@link InstanceReward#merge}). Whatever caps the payout is
+     * the caller's: this adds what it is given.
+     *
+     * @return true when a Claim was written or topped up
+     */
+    public synchronized boolean awardOrTopUp(@Nonnull UUID player, @Nonnull Claim claim, @Nullable DiminishSpec spec,
+            @Nonnull String diminishKey, long nowMs) {
+        return write(player, claim, spec, diminishKey, nowMs, true);
     }
 
     /** Every Claim {@code player} has waiting, oldest first. */
@@ -202,43 +206,80 @@ public final class ClaimStore {
     /**
      * Put {@code claim} back, in its place by age: what a Claim press could not hand over (a full bag). No
      * clear is counted and nothing is announced. A Claim with no rewards is not put back; one the player
-     * holds again by the same id takes these rewards beside its own.
+     * holds again by the same id takes these rewards beside its own, as a top-up joins them.
      */
     public synchronized void putBack(@Nonnull UUID player, @Nonnull Claim claim) {
         if (claim.rewards().isEmpty()) {
             return;
         }
         List<StoredClaim> held = claims.computeIfAbsent(player, k -> new ArrayList<>());
-        for (int i = 0; i < held.size(); i++) {
-            Claim same = fromStored(held.get(i));
-            if (same != null && same.is(claim.id())) {
-                List<InstanceReward> joined = new ArrayList<>(same.rewards());
-                joined.addAll(claim.rewards());
-                held.set(i, toStored(new Claim(same.id(), same.source(), same.titleKey(), same.titleArgs(),
-                        same.difficulty(), joined, Math.min(same.createdAt(), claim.createdAt()))));
-                held.sort(BY_AGE);
-                flush();
-                return;
-            }
+        int at = indexOf(held, claim.id());
+        if (at >= 0) {
+            held.set(at, toStored(joined(fromStored(held.get(at)), claim)));
+        } else {
+            held.add(toStored(claim));
         }
-        held.add(toStored(claim));
         held.sort(BY_AGE);
         flush();
     }
 
     // ==================== the award's pieces ====================
 
-    private boolean holds(@Nonnull UUID player, @Nonnull String id) {
+    /**
+     * The one write behind {@link #award} and {@link #awardOrTopUp}: a Claim with no rewards, or one the player
+     * still holds unless {@code topUp}, counts nothing; otherwise one clear is counted, the rewards are scaled,
+     * and what is left is written (or joined into the held Claim), saved and announced.
+     */
+    private boolean write(@Nonnull UUID player, @Nonnull Claim claim, @Nullable DiminishSpec spec,
+            @Nonnull String diminishKey, long nowMs, boolean topUp) {
         List<StoredClaim> held = claims.get(player);
-        if (held == null) {
+        int at = held == null ? -1 : indexOf(held, claim.id());
+        if (claim.rewards().isEmpty() || (at >= 0 && !topUp)) {
             return false;
         }
-        for (StoredClaim stored : held) {
-            if (stored.id != null && stored.id.equalsIgnoreCase(id)) {
-                return true;
+        double multiplier = spec == null ? 1.0 : ledger.count(player, diminishKey, spec, nowMs);
+        List<InstanceReward> scaled = scaled(claim.rewards(), multiplier);
+        if (scaled.isEmpty()) {
+            return false;
+        }
+        Claim written;
+        if (at >= 0) {
+            written = joined(fromStored(held.get(at)), claim.withRewards(scaled));
+            held.set(at, toStored(written));
+        } else {
+            written = claim.withRewards(scaled);
+            claims.computeIfAbsent(player, k -> new ArrayList<>()).add(toStored(written));
+        }
+        flush();
+        fireAdded(player, written);
+        return true;
+    }
+
+    /** Where the Claim {@code id} (any case) sits in {@code held}, or -1 when it is not there. */
+    private static int indexOf(@Nonnull List<StoredClaim> held, @Nonnull String id) {
+        for (int i = 0; i < held.size(); i++) {
+            String storedId = held.get(i).id;
+            if (storedId != null && storedId.equalsIgnoreCase(id.trim())) {
+                return i;
             }
         }
-        return false;
+        return -1;
+    }
+
+    /**
+     * {@code held} taking {@code more}'s rewards beside its own, a reward the same as one it holds adding to that
+     * one's quantity; its title, source and difficulty kept, its age the older of the two. A held row too damaged
+     * to read gives way to {@code more}.
+     */
+    @Nonnull
+    private static Claim joined(@Nullable Claim held, @Nonnull Claim more) {
+        if (held == null) {
+            return more;
+        }
+        List<InstanceReward> rewards = new ArrayList<>(held.rewards());
+        rewards.addAll(more.rewards());
+        return new Claim(held.id(), held.source(), held.titleKey(), held.titleArgs(), held.difficulty(),
+                InstanceReward.merge(rewards), Math.min(held.createdAt(), more.createdAt()));
     }
 
     /** {@code rewards} at {@code multiplier} ({@link #scaledQuantity}), none left at zero. */
