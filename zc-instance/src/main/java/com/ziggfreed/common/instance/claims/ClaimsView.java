@@ -30,8 +30,9 @@ import com.ziggfreed.common.ui.kit.Tone;
 
 /**
  * What the Claims page shows, decided where the page only paints it: the newest Claim first, one row each (its
- * title, how many rewards it holds, its first item's picture), the one being read (its rewards as the library's
- * reward chips, its difficulty, Claim and Claim All), and what an empty tab says. Nothing here touches a store.
+ * title, how many rewards it holds, its first item's picture or a wallet-only Claim's wallet), the one being read
+ * (its rewards as the library's reward chips, its difficulty, Claim and Claim All), and what an empty tab says.
+ * Nothing here touches a store.
  */
 public final class ClaimsView {
 
@@ -140,11 +141,21 @@ public final class ClaimsView {
         }
     }
 
-    /** The first item reward's own picture, else the tab's chest. */
+    /**
+     * The first item reward's own picture; for a Claim of wallets alone, its first chip's (the wallet's own, as
+     * the reading page draws it); else the tab's chest.
+     */
     @Nonnull
     static Picture picture(@Nonnull Claim claim) {
-        for (InstanceReward reward : claim.rewards()) {
+        List<InstanceReward> rewards = claim.rewards();
+        for (InstanceReward reward : rewards) {
             String icon = reward.iconItemId() != null ? reward.iconItemId() : reward.isItem() ? reward.id() : null;
+            if (icon != null && !icon.isBlank()) {
+                return Picture.item(icon);
+            }
+        }
+        if (!rewards.isEmpty() && rewards.stream().allMatch(RewardChipRenderer::isWallet)) {
+            String icon = chip(rewards.get(0)).iconItemId();
             if (icon != null && !icon.isBlank()) {
                 return Picture.item(icon);
             }

@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import javax.annotation.Nullable;
 
@@ -17,13 +18,16 @@ import org.junit.jupiter.api.Test;
 import com.hypixel.hytale.protocol.FormattedMessage;
 import com.hypixel.hytale.protocol.ParamValue;
 import com.hypixel.hytale.protocol.StringParamValue;
+import com.ziggfreed.common.i18n.LangCatalog;
 import com.ziggfreed.common.instance.result.RewardChipRenderer;
 import com.ziggfreed.common.instance.reward.InstanceReward;
+import com.ziggfreed.common.loot.reward.RewardSpec;
 
 /**
  * A Claim's chip never prints the console line that pays it. A command row with no label of its own and no
  * reward kept behind it (a Claim written before rows kept one, a table's raw {@code Commands} leaf) reads as the
- * library's generic line, which this module's English file ships. No server: what the chip says is its message.
+ * library's generic line, which this module's English file ships, and a label key nothing ships paints only when
+ * the reward wrote it itself. No server: what the chip says is its message.
  */
 class ClaimChipTest {
 
@@ -46,6 +50,25 @@ class ClaimChipTest {
         assertTrue(Files.readAllLines(ENGLISH, StandardCharsets.UTF_8).stream()
                         .anyMatch(entry -> entry.startsWith(key + " =")),
                 "the generic line ships in " + ENGLISH);
+    }
+
+    @Test
+    void aDisplayKeyNothingShipsFallsThroughUnlessTheRewardWroteIt() {
+        String line = "zigcommerce give --player={player} --currency=Test_Sweets --amount={amount}";
+        RewardSpec wallet = RewardSpec.of("Currency", Map.of("Currency", "Test_Sweets", "Amount", "10"));
+        LangCatalog.overrideForTests(Map.of());
+        try {
+            FormattedMessage fell = ClaimsView.chip(InstanceReward.command(line, 10, "test.kind.unshipped", null,
+                    wallet)).label().getFormattedMessage();
+            assertEquals(RewardChipRenderer.GENERIC_KEY, fell.messageId,
+                    "a kind file's key nothing ships falls through to the reading below it");
+
+            FormattedMessage kept = ClaimsView.chip(InstanceReward.command(line, 10, "test.own.typo", null,
+                    wallet.with("NameKey", "test.own.typo"))).label().getFormattedMessage();
+            assertEquals("test.own.typo", kept.messageId, "the reward's own NameKey stays as written");
+        } finally {
+            LangCatalog.overrideForTests(null);
+        }
     }
 
     /** Every text a message carries: its raw text, its key, its text params, its children and nested params. */

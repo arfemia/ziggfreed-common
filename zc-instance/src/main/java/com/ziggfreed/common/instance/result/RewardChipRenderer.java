@@ -9,6 +9,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 
+import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.instance.reward.DeferredRewards;
 import com.ziggfreed.common.instance.reward.InstanceReward;
@@ -28,7 +29,8 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
  *
  * <ol>
  *   <li>the row's own {@code displayKey}, when a {@code displayKeyResolver} is supplied (the
- *       consumer's {@code Lang}, e.g. {@code (key, qty) -> Lang.msg(key).param("0", qty)});</li>
+ *       consumer's {@code Lang}, e.g. {@code (key, qty) -> Lang.msg(key).param("0", qty)}) and the key
+ *       is the reward's own {@code NameKey} or one something on this server ships;</li>
  *   <li>the shared reward reading ({@link RewardChips#chipFor(RewardSpec)}) of the reward the row
  *       stands for: the spec a deferred row kept, its amount at the row's own quantity so a half
  *       Claim reads half; else, for a currency row, a {@code Currency} reward of its id and quantity;
@@ -63,11 +65,38 @@ public final class RewardChipRenderer {
     @Nonnull
     public static RewardChip toChip(@Nonnull InstanceReward reward,
                                     @Nullable BiFunction<String, Integer, Message> displayKeyResolver) {
-        if (reward.displayKey() != null && displayKeyResolver != null) {
+        if (displayKeyResolver != null && paintsDisplayKey(reward)) {
             return RewardChip.of(iconOf(reward), displayKeyResolver.apply(reward.displayKey(), reward.quantity()));
         }
         RewardChip read = readChip(reward);
         return read != null ? read : RewardChip.of(iconOf(reward), autoLabel(reward));
+    }
+
+    /**
+     * Whether {@code reward}'s {@code displayKey} is the label to paint: the reward's own {@code NameKey} as
+     * written (an author's word stays even when nothing ships it, so a typo shows as a key the author can
+     * trace), else only a key something on this server ships. A key a kind file's {@code Presentation}
+     * template filled for a value no file names is a default pointing at nothing, so it falls through to the
+     * reading below it, as {@link RewardChips#chipFor(RewardSpec)} treats the same key.
+     */
+    private static boolean paintsDisplayKey(@Nonnull InstanceReward reward) {
+        String key = reward.displayKey();
+        if (key == null || key.isBlank()) {
+            return false;
+        }
+        RewardSpec spec = reward.spec();
+        return spec != null && key.equals(spec.param(DeferredRewards.PARAM_NAME_KEY)) || ContentKeys.known(key);
+    }
+
+    /**
+     * True when {@code reward} pays into a wallet: a currency row, or a row deferred from a {@code Currency}
+     * reward (its kind matched in any case). A Claim of wallets alone has no item to picture, so it wears its
+     * first chip's picture, the wallet's own.
+     */
+    public static boolean isWallet(@Nonnull InstanceReward reward) {
+        RewardSpec spec = reward.spec();
+        return reward.kind() == InstanceReward.Kind.CURRENCY
+                || spec != null && CURRENCY_KIND.equalsIgnoreCase(spec.kind());
     }
 
     /**
