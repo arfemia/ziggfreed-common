@@ -1,7 +1,6 @@
 package com.ziggfreed.common.commerce.fold;
 
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.function.Function;
 
 import javax.annotation.Nonnull;
@@ -63,7 +62,7 @@ import com.ziggfreed.common.util.OwnerFiles;
 public final class CommerceOwnerLayers {
 
     /** Where a server owner's commerce files live. */
-    public static final Path DEFAULT_DIRECTORY = Paths.get("mods", "ziggfreedcommon");
+    public static final Path DEFAULT_DIRECTORY = OwnerFiles.DIRECTORY;
 
     /** The log prefix every commerce owner-file line carries. */
     private static final String LOG_TAG = "commerce";

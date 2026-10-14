@@ -28,7 +28,6 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.cast.WorldEvictors;
 import com.ziggfreed.common.npc.placement.runtime.PlacedNpcComponent;
-import com.ziggfreed.common.objectives.indicator.QuestMarkYield;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.quest.event.QuestAbandonedEvent;
 import com.ziggfreed.common.quest.event.QuestAcceptedEvent;
@@ -79,12 +78,11 @@ public final class QuestMarkers {
      * Add the overhead surface, subscribe the refresh to the six quest events, player ready and
      * disconnect, and register the two delayed systems and the per-world eviction. Call once from
      * setup; guarded and loud, since a subscription that failed is a mark that lags the sweep. The
-     * surface and the stand-down's refresh sit outside the subscriptions' guard, so a failed
-     * subscription never costs the overheads themselves.
+     * surface sits outside the subscriptions' guard, so a failed subscription never costs the overheads
+     * themselves.
      */
     public static void install(@Nonnull PluginBase plugin) {
         addListener("overheads", QuestOverheads.INSTANCE);
-        QuestMarkYield.onConsumerDraws(QuestMarkers::refreshAll);
         try {
             var events = plugin.getEventRegistry();
             events.registerGlobal(QuestTrackedEvent.class, event -> refresh(event.playerId()));
@@ -145,20 +143,6 @@ public final class QuestMarkers {
             });
         } catch (Throwable t) {
             SafeLog.warn("[progression] a quest-mark refresh could not reach the player: " + t.getMessage());
-        }
-    }
-
-    /** {@link #refresh} every online player: a consumer has just been seen drawing its own marks. */
-    public static void refreshAll() {
-        try {
-            for (PlayerRef player : Universe.get().getPlayers()) {
-                UUID uuid = player == null ? null : player.getUuid();
-                if (uuid != null) {
-                    refresh(uuid);
-                }
-            }
-        } catch (Throwable t) {
-            SafeLog.warn("[progression] the quest marks could not be refreshed for everyone: " + t.getMessage());
         }
     }
 

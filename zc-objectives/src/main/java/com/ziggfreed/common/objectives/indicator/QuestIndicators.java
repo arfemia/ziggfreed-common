@@ -41,9 +41,7 @@ import com.ziggfreed.common.world.WhereValidator.LoadedWorld;
  * situations a STEP raises, that step's block. Which step: the hand-in step the character would
  * credit for a turn-in, and the step the player is on for in-progress.
  *
- * <p>The library's own marks read {@link #overheadFor} and {@link #mapMarks}; the two older names are
- * legacy reads that tell the library a consumer draws its own ({@link QuestMarkYield}) and answer as
- * they always did, every quest read as a one-off.
+ * <p>The library's own marks read {@link #overheadFor} and {@link #mapMarks}.
  *
  * <p>Reads only; world thread, since every engine read is.
  */
@@ -70,18 +68,16 @@ public final class QuestIndicators {
     @Nonnull
     public static List<Reading> situationsAt(@Nonnull QuestEngine engine, @Nonnull Subject subject,
             @Nonnull Set<String> answersTo) {
-        return situationsAt(engine, subject, answersTo, null, true);
+        return situationsAt(engine, subject, answersTo, null);
     }
 
     /**
-     * {@link #situationsAt(QuestEngine, Subject, Set)}, a repeating quest reading its situation's
-     * {@code Repeatable} state only when {@code repeatLooks}. Only the legacy reads pass false: every
-     * quest read as a one-off, the answer they always gave. A board the character hosts lists its
+     * {@link #situationsAt(QuestEngine, Subject, Set)}, where a board the character hosts lists its
      * postings where it is open to {@code viewer} (with none, wherever it is open on this server).
      */
     @Nonnull
     private static List<Reading> situationsAt(@Nonnull QuestEngine engine, @Nonnull Subject subject,
-            @Nonnull Set<String> answersTo, @Nullable LoadedWorld viewer, boolean repeatLooks) {
+            @Nonnull Set<String> answersTo, @Nullable LoadedWorld viewer) {
         if (answersTo.isEmpty()) {
             return List.of();
         }
@@ -92,8 +88,7 @@ public final class QuestIndicators {
             if (situation == null) {
                 continue;
             }
-            out.add(new Reading(situation, quest, knobFor(situation, quest, stepFor(situation, listing, quest),
-                    repeatLooks && quest.repeatable())));
+            out.add(new Reading(situation, quest, knobFor(situation, quest, stepFor(situation, listing, quest))));
         }
         out.sort(Comparator.comparingInt((Reading r) -> r.situation().ordinal())
                 .thenComparingInt(r -> r.quest().listOrder())
@@ -114,7 +109,7 @@ public final class QuestIndicators {
     @Nullable
     public static Reading overheadFor(@Nonnull QuestEngine engine, @Nonnull Subject subject,
             @Nonnull Set<String> answersTo) {
-        return overheadFor(engine, subject, answersTo, null, true);
+        return overheadFor(engine, subject, answersTo, null);
     }
 
     /**
@@ -124,82 +119,12 @@ public final class QuestIndicators {
     @Nullable
     public static Reading overheadFor(@Nonnull QuestEngine engine, @Nonnull Subject subject,
             @Nonnull Set<String> answersTo, @Nullable LoadedWorld viewer) {
-        return overheadFor(engine, subject, answersTo, viewer, true);
-    }
-
-    /** {@link #overheadFor(QuestEngine, Subject, Set)}, repeat looks as {@link #situationsAt} reads them. */
-    @Nullable
-    private static Reading overheadFor(@Nonnull QuestEngine engine, @Nonnull Subject subject,
-            @Nonnull Set<String> answersTo, @Nullable LoadedWorld viewer, boolean repeatLooks) {
-        for (Reading reading : situationsAt(engine, subject, answersTo, viewer, repeatLooks)) {
+        for (Reading reading : situationsAt(engine, subject, answersTo, viewer)) {
             if (reading.knob().showsOverhead()) {
                 return reading;
             }
         }
         return null;
-    }
-
-    /**
-     * The overhead reading, for a consumer that draws its own marks. It answers as it always did:
-     * every quest reads as a one-off, so a repeating quest shows its situation's own state, never the
-     * {@code Repeatable} one the library's own marks show.
-     *
-     * @deprecated the library draws every quest mark itself; read {@link #overheadFor}. A consumer still
-     * calling this is taken to draw its own marks, and the library's stand down for the rest of the boot
-     * ({@link QuestMarkYield}).
-     */
-    @Deprecated
-    @Nullable
-    public static Reading overheadAt(@Nonnull QuestEngine engine, @Nonnull Subject subject,
-            @Nonnull Set<String> answersTo) {
-        QuestMarkYield.noteConsumerDraws("QuestIndicators.overheadAt");
-        return overheadFor(engine, subject, answersTo, null, false);
-    }
-
-    /**
-     * The overhead reading over the shared runtime's engine, for a consumer that draws its own marks.
-     * It answers as it always did: every quest reads as a one-off.
-     *
-     * @deprecated the library draws every quest mark itself; read {@link #overheadFor}. A consumer still
-     * calling this is taken to draw its own marks, and the library's stand down for the rest of the boot
-     * ({@link QuestMarkYield}).
-     */
-    @Deprecated
-    @Nullable
-    public static Reading overheadAt(@Nonnull Subject subject, @Nonnull Set<String> answersTo) {
-        QuestMarkYield.noteConsumerDraws("QuestIndicators.overheadAt");
-        return overheadFor(ProgressionRuntime.quests(), subject, answersTo, null, false);
-    }
-
-    /**
-     * The map marks, for a consumer that draws its own. It answers as it always did: every quest reads
-     * as a one-off, so a repeating quest shows its situation's own state, never the {@code Repeatable}
-     * one the library's own marks show.
-     *
-     * @deprecated the library draws every quest mark itself; read {@link #mapMarks}. A consumer still
-     * calling this is taken to draw its own marks, and the library's stand down for the rest of the boot
-     * ({@link QuestMarkYield}).
-     */
-    @Deprecated
-    @Nonnull
-    public static List<MapMark> mapMarksFor(@Nonnull QuestEngine engine, @Nonnull Subject subject) {
-        QuestMarkYield.noteConsumerDraws("QuestIndicators.mapMarksFor");
-        return mapMarks(engine, subject, false);
-    }
-
-    /**
-     * The map marks over the shared runtime's engine, for a consumer that draws its own. It answers as
-     * it always did: every quest reads as a one-off.
-     *
-     * @deprecated the library draws every quest mark itself; read {@link #mapMarks}. A consumer still
-     * calling this is taken to draw its own marks, and the library's stand down for the rest of the boot
-     * ({@link QuestMarkYield}).
-     */
-    @Deprecated
-    @Nonnull
-    public static List<MapMark> mapMarksFor(@Nonnull Subject subject) {
-        QuestMarkYield.noteConsumerDraws("QuestIndicators.mapMarksFor");
-        return mapMarks(ProgressionRuntime.quests(), subject, false);
     }
 
     /**
@@ -210,21 +135,13 @@ public final class QuestIndicators {
      */
     @Nonnull
     public static List<MapMark> mapMarks(@Nonnull QuestEngine engine, @Nonnull Subject subject) {
-        return mapMarks(engine, subject, true);
-    }
-
-    /** {@link #mapMarks(QuestEngine, Subject)}, repeat looks as {@link #situationsAt} reads them. */
-    @Nonnull
-    private static List<MapMark> mapMarks(@Nonnull QuestEngine engine, @Nonnull Subject subject,
-            boolean repeatLooks) {
         Map<String, MapMark> out = new LinkedHashMap<>();
         for (String npcId : candidateCharacters(engine, subject)) {
             String key = npcId.toLowerCase(Locale.ROOT);
             if (out.containsKey(key)) {
                 continue;
             }
-            for (Reading reading : situationsAt(engine, subject, NpcIdentities.answerSetForPrimary(npcId), null,
-                    repeatLooks)) {
+            for (Reading reading : situationsAt(engine, subject, NpcIdentities.answerSetForPrimary(npcId), null)) {
                 if (reading.knob().showsMap()) {
                     out.put(key, new MapMark(npcId, reading));
                     break;
@@ -243,17 +160,10 @@ public final class QuestIndicators {
     @Nonnull
     public static QuestIndicatorSpec.Resolved knobFor(@Nonnull QuestSituation situation, @Nonnull Quest quest,
             @Nullable String stepId) {
-        return knobFor(situation, quest, stepId, quest.repeatable());
-    }
-
-    /** {@link #knobFor(QuestSituation, Quest, String)}, the {@code Repeatable} state read only when {@code repeats}. */
-    @Nonnull
-    private static QuestIndicatorSpec.Resolved knobFor(@Nonnull QuestSituation situation, @Nonnull Quest quest,
-            @Nullable String stepId, boolean repeats) {
         QuestIndicatorSpec merged = QuestIndicatorSpec.merge(QuestIndicatorConfig.getInstance().global(),
                 quest.indicator());
         merged = QuestIndicatorSpec.merge(merged, quest.stepIndicator(stepId));
-        return merged.resolve(situation, repeats);
+        return merged.resolve(situation, quest.repeatable());
     }
 
     /** The situation a page section announces, or null for a section no marker speaks for. */

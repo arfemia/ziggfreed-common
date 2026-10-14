@@ -1,7 +1,6 @@
 package com.ziggfreed.common.objectives.title;
 
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -38,7 +37,7 @@ import com.ziggfreed.common.util.SafeLog;
 public final class TitleOwnerLayers {
 
     /** Where a server owner's files live. */
-    public static final Path DEFAULT_DIRECTORY = Paths.get("mods", "ziggfreedcommon");
+    public static final Path DEFAULT_DIRECTORY = OwnerFiles.DIRECTORY;
 
     /** The owner file over the titles. */
     public static final String TITLES_FILE = "titles.json";
@@ -97,30 +96,23 @@ public final class TitleOwnerLayers {
      * {@value #AUTO_SHOW_KEY}: on unless it says false in so many words.
      */
     static boolean autoShowIn(@Nullable JsonObject root, @Nonnull Path file) {
-        return switchIn(root, file, AUTO_SHOW_KEY, true, "so a new title still shows itself");
+        return OwnerFiles.flag(root, AUTO_SHOW_KEY, file, LOG_TAG,
+                "must be true or false, so a new title still shows itself", null);
     }
 
     /**
      * What {@code root} (a file of a schema this library reads, or null) says about {@value #CHAT_KEY}:
-     * off unless it says true in so many words.
+     * off unless it says true in so many words, and off with one warning when it is not a boolean.
      */
     static boolean chatIn(@Nullable JsonObject root, @Nonnull Path file) {
-        return switchIn(root, file, CHAT_KEY, false, "so chat names players without their titles");
-    }
-
-    /** A file-level true-or-false key: {@code fallback} when absent, and with one warning when not a boolean. */
-    private static boolean switchIn(@Nullable JsonObject root, @Nonnull Path file, @Nonnull String key,
-            boolean fallback, @Nonnull String whenBad) {
-        if (root == null) {
-            return fallback;
-        }
-        JsonElement value = root.get(key);
+        JsonElement value = root == null ? null : root.get(CHAT_KEY);
         if (value == null) {
-            return fallback;
+            return false;
         }
         if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isBoolean()) {
-            SafeLog.warn("[" + LOG_TAG + "] " + file + ": " + key + " must be true or false, " + whenBad);
-            return fallback;
+            SafeLog.warn("[" + LOG_TAG + "] " + file + ": " + CHAT_KEY
+                    + " must be true or false, so chat names players without their titles");
+            return false;
         }
         return value.getAsBoolean();
     }

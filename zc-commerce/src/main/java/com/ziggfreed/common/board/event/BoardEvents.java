@@ -75,11 +75,6 @@ public final class BoardEvents {
                         newBountyId));
     }
 
-    /** Forget every board's last seen period. For a test, and for nothing else. */
-    public static void resetForTests() {
-        LAST_SEEN_PERIOD.clear();
-    }
-
     /**
      * The one dispatch body every fire shares. The event is BUILT lazily, after the listener check,
      * so a server nobody is listening on never allocates one.

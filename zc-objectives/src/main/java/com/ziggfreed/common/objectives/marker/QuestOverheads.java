@@ -14,7 +14,6 @@ import com.ziggfreed.common.entity.overhead.IndicatorAudience;
 import com.ziggfreed.common.entity.overhead.OverheadIndicators;
 import com.ziggfreed.common.npc.NpcIdentities;
 import com.ziggfreed.common.objectives.indicator.QuestIndicators;
-import com.ziggfreed.common.objectives.indicator.QuestMarkYield;
 import com.ziggfreed.common.objectives.questlist.NpcQuestPages;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.quest.QuestEngine;
@@ -26,9 +25,6 @@ import com.ziggfreed.common.world.WhereValidator.LoadedWorld;
  * bar for an errand they can hand in, coins for a reward waiting, as the looks say. The answer is
  * {@link QuestIndicators}' over the same alias set the NPC quest page asks
  * ({@link NpcQuestPages#resolvedDeps}), so the mark and the page always agree.
- *
- * <p>Stands down whole while a consumer draws its own marks ({@link QuestMarkYield}): it shows
- * nothing and hides nothing, since that consumer's sweep owns those entries now.
  */
 final class QuestOverheads implements QuestMarkerListener {
 
@@ -39,9 +35,6 @@ final class QuestOverheads implements QuestMarkerListener {
 
     @Override
     public void evaluate(@Nonnull QuestMarkerScope scope) {
-        if (QuestMarkYield.consumerDraws()) {
-            return;
-        }
         QuestEngine engine = ProgressionRuntime.quests();
         IndicatorAudience viewer = IndicatorAudience.of(scope.viewerId());
         for (Ref<EntityStore> host : scope.hosts()) {

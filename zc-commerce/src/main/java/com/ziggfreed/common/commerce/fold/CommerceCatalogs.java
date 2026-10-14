@@ -52,7 +52,7 @@ public final class CommerceCatalogs {
      * The quest-layer SLICE the authored contracts publish under. {@code OWNER} also publishes the
      * shared quest store's own fold ({@code ProgressionDefaults.publishAssetContent}) under the
      * default slice, so contracts need their own slice or one fold's reload would wipe the other's
-     * entries out. See {@link com.ziggfreed.common.progress.runtime.ProgressionRuntime#publishQuests(String, String, java.util.Collection)}.
+     * entries out. See {@link ProgressionRuntime#publishQuests(String, String, java.util.Collection)}.
      */
     public static final String CONTRACTS_SLICE = "contracts";
 

@@ -65,7 +65,6 @@ class QuestIndicatorsTest {
     void clear() {
         NpcOfferProviders.clear();
         QuestIndicatorConfig.getInstance().mergePackLayer(Map.of());
-        QuestMarkYield.resetForTests();
     }
 
     private static boolean containsIgnoreCase(Collection<String> ids, String wanted) {
@@ -252,7 +251,7 @@ class QuestIndicatorsTest {
                 "the library's own default marks nothing; the shipped Default.json is what turns Available on");
     }
 
-    // ==================== a repeating quest, and the legacy reads ====================
+    // ==================== a repeating quest ====================
 
     @Test
     void aRepeatingQuestOnOfferReadsTheRepeatableState() {
@@ -272,7 +271,7 @@ class QuestIndicatorsTest {
     }
 
     @Test
-    void theLegacyReadsAnswerAsTheyAlwaysDidAndTellTheLibraryAConsumerDrawsItsOwnMarks() {
+    void theMapMarksShowARepeatingQuestsRepeatableLook() {
         global(QuestIndicatorSpec.of(null, null, null,
                 QuestIndicatorSpec.Situation.of(null, null, null, QuestIndicatorSpec.MapMark.of(true, "Coordinate.png"),
                         QuestIndicatorSpec.Repeatable.of("Quest_Available_Repeatable")), null));
@@ -285,18 +284,6 @@ class QuestIndicatorsTest {
         assertEquals(Set.of(GUIDE, "other"), library.keySet());
         assertEquals("Quest_Available_Repeatable", library.get(GUIDE).state(),
                 "the library's own marks show a daily's look");
-        assertFalse(QuestMarkYield.consumerDraws());
-
-        // DEPRECATION-KEPT: pins what an older consumer's legacy read answers, and the stand-down it triggers
-        List<QuestIndicators.MapMark> legacyMarks = QuestIndicators.mapMarksFor(engine, player);
-        Map<String, QuestIndicatorSpec.Resolved> legacy = knobsByCharacter(legacyMarks);
-
-        assertEquals(Set.of(GUIDE, "other"), legacy.keySet());
-        assertEquals(library.get("other"), legacy.get(GUIDE),
-                "the legacy read shows a daily on offer exactly as the library shows a one-off, as it always did");
-        assertEquals(library.get("other"), legacy.get("other"), "and a one-off exactly as the library does");
-        assertTrue(QuestMarkYield.consumerDraws());
-        assertEquals("QuestIndicators.mapMarksFor", QuestMarkYield.via());
     }
 
     private static Map<String, QuestIndicatorSpec.Resolved> knobsByCharacter(List<QuestIndicators.MapMark> marks) {

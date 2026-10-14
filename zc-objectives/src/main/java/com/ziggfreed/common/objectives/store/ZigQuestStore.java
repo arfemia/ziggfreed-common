@@ -52,16 +52,6 @@ public final class ZigQuestStore implements QuestProgressStore {
     private ZigQuestStore() {
     }
 
-    @Nullable
-    private static ZigProgressComponent componentOf(@Nonnull Subject subject) {
-        ZigProgressComponent direct = subject.handleAs(ZigProgressComponent.class);
-        if (direct != null) {
-            return direct;
-        }
-        ProgressHandle handle = subject.handleAs(ProgressHandle.class);
-        return handle == null ? null : handle.component();
-    }
-
     private static void dropped(@Nonnull Subject subject, @Nonnull String what) {
         SafeLog.fine("[progression] dropped a quest " + what + " for '" + subject.name()
                 + "': no progress component");
@@ -82,14 +72,14 @@ public final class ZigQuestStore implements QuestProgressStore {
     @Nonnull
     @Override
     public QuestStatus status(@Nonnull Subject subject, @Nonnull String questId) {
-        ZigProgressComponent component = componentOf(subject);
+        ZigProgressComponent component = ZigProgressComponent.of(subject);
         return component == null ? QuestStatus.NOT_STARTED : component.questStatus(questId);
     }
 
     @Override
     public void setStatus(@Nonnull Subject subject, @Nonnull String questId,
             @Nonnull QuestStatus status) {
-        ZigProgressComponent component = componentOf(subject);
+        ZigProgressComponent component = ZigProgressComponent.of(subject);
         if (component == null) {
             dropped(subject, "status");
             return;
@@ -100,14 +90,14 @@ public final class ZigQuestStore implements QuestProgressStore {
     @Nullable
     @Override
     public String progressPayload(@Nonnull Subject subject, @Nonnull String questId) {
-        ZigProgressComponent component = componentOf(subject);
+        ZigProgressComponent component = ZigProgressComponent.of(subject);
         return component == null ? null : component.questPayload(questId);
     }
 
     @Override
     public void putProgressPayload(@Nonnull Subject subject, @Nonnull String questId,
             @Nonnull String payload) {
-        ZigProgressComponent component = componentOf(subject);
+        ZigProgressComponent component = ZigProgressComponent.of(subject);
         if (component == null) {
             dropped(subject, "progress payload");
             return;
@@ -117,13 +107,13 @@ public final class ZigQuestStore implements QuestProgressStore {
 
     @Override
     public long cooldownStamp(@Nonnull Subject subject, @Nonnull String questId) {
-        ZigProgressComponent component = componentOf(subject);
+        ZigProgressComponent component = ZigProgressComponent.of(subject);
         return component == null ? 0L : component.questCooldown(questId);
     }
 
     @Override
     public void setCooldownStamp(@Nonnull Subject subject, @Nonnull String questId, long epochMs) {
-        ZigProgressComponent component = componentOf(subject);
+        ZigProgressComponent component = ZigProgressComponent.of(subject);
         if (component == null) {
             dropped(subject, "cooldown stamp");
             return;
@@ -134,14 +124,14 @@ public final class ZigQuestStore implements QuestProgressStore {
     @Nonnull
     @Override
     public CompletionRecord completions(@Nonnull Subject subject, @Nonnull String questId) {
-        ZigProgressComponent component = componentOf(subject);
+        ZigProgressComponent component = ZigProgressComponent.of(subject);
         return component == null ? CompletionRecord.NONE : component.questCompletions(questId);
     }
 
     @Override
     public void setCompletions(@Nonnull Subject subject, @Nonnull String questId,
             @Nonnull CompletionRecord record) {
-        ZigProgressComponent component = componentOf(subject);
+        ZigProgressComponent component = ZigProgressComponent.of(subject);
         if (component == null) {
             dropped(subject, "completion record");
             return;
@@ -157,13 +147,13 @@ public final class ZigQuestStore implements QuestProgressStore {
     @Nonnull
     @Override
     public Set<String> knownQuestIds(@Nonnull Subject subject) {
-        ZigProgressComponent component = componentOf(subject);
+        ZigProgressComponent component = ZigProgressComponent.of(subject);
         return component == null ? Set.of() : component.knownQuestIds();
     }
 
     @Override
     public void clearQuest(@Nonnull Subject subject, @Nonnull String questId) {
-        ZigProgressComponent component = componentOf(subject);
+        ZigProgressComponent component = ZigProgressComponent.of(subject);
         if (component == null) {
             dropped(subject, "clear");
             return;
@@ -174,13 +164,13 @@ public final class ZigQuestStore implements QuestProgressStore {
     @Nonnull
     @Override
     public Map<String, Long> trackedPins(@Nonnull Subject subject) {
-        ZigProgressComponent component = componentOf(subject);
+        ZigProgressComponent component = ZigProgressComponent.of(subject);
         return component == null ? Map.of() : component.trackedPins();
     }
 
     @Override
     public void setTrackedPin(@Nonnull Subject subject, @Nonnull String questId, long pinnedAtMs) {
-        ZigProgressComponent component = componentOf(subject);
+        ZigProgressComponent component = ZigProgressComponent.of(subject);
         if (component == null) {
             dropped(subject, "pin");
             return;
@@ -190,7 +180,7 @@ public final class ZigQuestStore implements QuestProgressStore {
 
     @Override
     public boolean clearTrackedPin(@Nonnull Subject subject, @Nonnull String questId) {
-        ZigProgressComponent component = componentOf(subject);
+        ZigProgressComponent component = ZigProgressComponent.of(subject);
         if (component == null) {
             dropped(subject, "unpin");
             return false;

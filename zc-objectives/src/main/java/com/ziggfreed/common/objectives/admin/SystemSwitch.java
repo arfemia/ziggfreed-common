@@ -9,6 +9,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.server.core.Message;
 
 import com.ziggfreed.common.progress.runtime.ProgressionSystem;
+import com.ziggfreed.common.progress.runtime.ProgressionSystemGate;
 
 /**
  * One SERVER-WIDE progression-system switch a consumer registers so the admin page can show and
@@ -18,7 +19,7 @@ import com.ziggfreed.common.progress.runtime.ProgressionSystem;
  * <p>The library owns no consumer namespace, so the {@code label} (and the optional {@code hint})
  * arrive as pre-built, client-resolved {@link Message}s the consumer keyed in its own lang family.
  * The {@code read} answers the server-wide value, never a per-player one - a per-player refusal is
- * a {@link com.ziggfreed.common.progress.runtime.ProgressionSystemGate} contribution, and this
+ * a {@link ProgressionSystemGate} contribution, and this
  * switch is typically what such a gate reads.
  *
  * <p>A switch with a null {@link #write} is a READ-ONLY row: the page shows its label and live

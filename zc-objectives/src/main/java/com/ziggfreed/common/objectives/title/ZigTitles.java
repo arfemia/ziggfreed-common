@@ -1,6 +1,5 @@
 package com.ziggfreed.common.objectives.title;
 
-import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -12,7 +11,6 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
-import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.entity.title.ActiveTitles;
@@ -20,13 +18,12 @@ import com.ziggfreed.common.entity.title.PendingTitles;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.inventory.PlayerAccess;
 import com.ziggfreed.common.objectives.title.TitleUnlocks.Outcome;
-import com.ziggfreed.common.objectives.title.page.TitlePickerPages;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Titles for another mod, in one place: grant and revoke by player id from any thread, online or not;
- * read what a player has earned and shows from any thread, online or not; read the catalogue; name a
- * title or a player with it; and open the picker. Listen for changes with {@link ZigTitleChangedEvent}.
+ * read what a player has earned from any thread, online or not; and name a title or a player with it.
+ * Listen for changes with {@link ZigTitleChangedEvent}.
  *
  * <p><b>Writes.</b> {@link #grant} and {@link #revoke} reach an online player by a hop to their world
  * thread and write through {@link TitleUnlocks}, answering what it did. A player who is not online
@@ -83,22 +80,6 @@ public final class ZigTitles {
         return ActiveTitles.earned(playerId);
     }
 
-    /**
-     * The lower-cased id of the title {@code playerId} shows, online or not, or null for none. It may
-     * name a title since switched off; {@link #display(UUID, String)} shows only one on offer.
-     */
-    @Nullable
-    public static String shown(@Nullable UUID playerId) {
-        return ActiveTitles.of(playerId);
-    }
-
-    /** Every title on offer on this server, in picker order ({@code Order}, then id). */
-    @Nonnull
-    public static List<String> onOffer() {
-        TitleConfig titles = TitleConfig.getInstance();
-        return titles.listing(titles.ids());
-    }
-
     /** What {@code titleId} is called, as a client-resolved {@link Message}. */
     @Nonnull
     public static Message nameOf(@Nonnull String titleId) {
@@ -119,12 +100,6 @@ public final class ZigTitles {
     @Nonnull
     public static Message display(@Nonnull String titleId, @Nonnull String playerName) {
         return TitleText.display(titleId, TitleConfig.getInstance().resolve(titleId), playerName);
-    }
-
-    /** Open the title picker for {@code player}. World thread. True when the screen was taken. */
-    public static boolean openPicker(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
-            @Nonnull Player player) {
-        return TitlePickerPages.open(store, ref, player);
     }
 
     // ==================== the writes ====================

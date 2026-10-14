@@ -132,19 +132,6 @@ public final class ShopSections {
     }
 
     /**
-     * Every offer id the page will draw, in the order the sections put them - which is the list a
-     * selection is validated against and the order a default selection reads from.
-     */
-    @Nonnull
-    public static List<String> orderedIds(@Nonnull List<Section> sections) {
-        List<String> out = new ArrayList<>();
-        for (Section section : sections) {
-            out.addAll(section.offerIds());
-        }
-        return out;
-    }
-
-    /**
      * Which offer the detail panel opens on: whatever was already selected while it is still on the
      * page, else the first row, else nothing at all.
      *

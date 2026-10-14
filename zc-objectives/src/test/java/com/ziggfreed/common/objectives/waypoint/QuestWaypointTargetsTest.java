@@ -175,11 +175,4 @@ class QuestWaypointTargetsTest {
         assertEquals("Guide", targets.get(0).positionKey());
         assertEquals("Coordinate.png", targets.get(0).icon());
     }
-
-    @Test
-    void whileAConsumerDrawsItsOwnOnlyThePointersThroughAGatewayStay() {
-        List<WaypointTarget> kept = QuestWaypointTargets.whileConsumerDraws(List.of(
-                WaypointTarget.of("Old_Jack", null), WaypointTarget.of(TEMPLE_KEY, null)));
-        assertEquals(List.of(TEMPLE_KEY), kept.stream().map(WaypointTarget::positionKey).toList());
-    }
 }

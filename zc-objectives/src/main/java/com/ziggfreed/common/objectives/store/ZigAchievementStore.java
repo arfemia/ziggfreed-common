@@ -40,16 +40,6 @@ public final class ZigAchievementStore implements AchievementProgressStore {
     private ZigAchievementStore() {
     }
 
-    @Nullable
-    private static ZigProgressComponent componentOf(@Nonnull Subject subject) {
-        ZigProgressComponent direct = subject.handleAs(ZigProgressComponent.class);
-        if (direct != null) {
-            return direct;
-        }
-        ProgressHandle handle = subject.handleAs(ProgressHandle.class);
-        return handle == null ? null : handle.component();
-    }
-
     private static void dropped(@Nonnull Subject subject, @Nonnull String what) {
         SafeLog.fine("[progression] dropped an achievement " + what + " for '" + subject.name()
                 + "': no progress component");
@@ -69,13 +59,13 @@ public final class ZigAchievementStore implements AchievementProgressStore {
 
     @Override
     public long progress(@Nonnull Subject subject, @Nonnull String key) {
-        ZigProgressComponent component = componentOf(subject);
+        ZigProgressComponent component = ZigProgressComponent.of(subject);
         return component == null ? 0L : component.achievementProgress(key);
     }
 
     @Override
     public void putProgress(@Nonnull Subject subject, @Nonnull String key, long value) {
-        ZigProgressComponent component = componentOf(subject);
+        ZigProgressComponent component = ZigProgressComponent.of(subject);
         if (component == null) {
             dropped(subject, "tally");
             return;
@@ -86,21 +76,21 @@ public final class ZigAchievementStore implements AchievementProgressStore {
     @Nonnull
     @Override
     public Set<String> progressKeys(@Nonnull Subject subject) {
-        ZigProgressComponent component = componentOf(subject);
+        ZigProgressComponent component = ZigProgressComponent.of(subject);
         return component == null ? Set.of() : component.achievementProgressKeys();
     }
 
     @Nonnull
     @Override
     public AchievementStatus status(@Nonnull Subject subject, @Nonnull String achievementId) {
-        ZigProgressComponent component = componentOf(subject);
+        ZigProgressComponent component = ZigProgressComponent.of(subject);
         return component == null ? AchievementStatus.LOCKED : component.achievementStatus(achievementId);
     }
 
     @Override
     public void setStatus(@Nonnull Subject subject, @Nonnull String achievementId,
             @Nonnull AchievementStatus status) {
-        ZigProgressComponent component = componentOf(subject);
+        ZigProgressComponent component = ZigProgressComponent.of(subject);
         if (component == null) {
             dropped(subject, "status");
             return;
@@ -111,19 +101,19 @@ public final class ZigAchievementStore implements AchievementProgressStore {
     @Nonnull
     @Override
     public Set<String> knownAchievementIds(@Nonnull Subject subject) {
-        ZigProgressComponent component = componentOf(subject);
+        ZigProgressComponent component = ZigProgressComponent.of(subject);
         return component == null ? Set.of() : component.knownAchievementIds();
     }
 
     @Override
     public long unlockedAt(@Nonnull Subject subject, @Nonnull String achievementId) {
-        ZigProgressComponent component = componentOf(subject);
+        ZigProgressComponent component = ZigProgressComponent.of(subject);
         return component == null ? 0L : component.achievementUnlockedAt(achievementId);
     }
 
     @Override
     public void setUnlockedAt(@Nonnull Subject subject, @Nonnull String achievementId, long epochMs) {
-        ZigProgressComponent component = componentOf(subject);
+        ZigProgressComponent component = ZigProgressComponent.of(subject);
         if (component == null) {
             dropped(subject, "unlock instant");
             return;
@@ -134,14 +124,14 @@ public final class ZigAchievementStore implements AchievementProgressStore {
     @Nonnull
     @Override
     public AchievementStatus milestoneStatus(@Nonnull Subject subject, int threshold) {
-        ZigProgressComponent component = componentOf(subject);
+        ZigProgressComponent component = ZigProgressComponent.of(subject);
         return component == null ? AchievementStatus.LOCKED : component.milestoneStatus(threshold);
     }
 
     @Override
     public void setMilestoneStatus(@Nonnull Subject subject, int threshold,
             @Nonnull AchievementStatus status) {
-        ZigProgressComponent component = componentOf(subject);
+        ZigProgressComponent component = ZigProgressComponent.of(subject);
         if (component == null) {
             dropped(subject, "milestone status");
             return;
@@ -152,20 +142,20 @@ public final class ZigAchievementStore implements AchievementProgressStore {
     @Nonnull
     @Override
     public Set<Integer> knownMilestones(@Nonnull Subject subject) {
-        ZigProgressComponent component = componentOf(subject);
+        ZigProgressComponent component = ZigProgressComponent.of(subject);
         return component == null ? Set.of() : component.knownMilestones();
     }
 
     @Nonnull
     @Override
     public Map<String, Long> pins(@Nonnull Subject subject) {
-        ZigProgressComponent component = componentOf(subject);
+        ZigProgressComponent component = ZigProgressComponent.of(subject);
         return component == null ? Map.of() : component.achievementPins();
     }
 
     @Override
     public void setPin(@Nonnull Subject subject, @Nonnull String achievementId, long pinnedAtMs) {
-        ZigProgressComponent component = componentOf(subject);
+        ZigProgressComponent component = ZigProgressComponent.of(subject);
         if (component == null) {
             dropped(subject, "pin");
             return;
@@ -175,7 +165,7 @@ public final class ZigAchievementStore implements AchievementProgressStore {
 
     @Override
     public boolean clearPin(@Nonnull Subject subject, @Nonnull String achievementId) {
-        ZigProgressComponent component = componentOf(subject);
+        ZigProgressComponent component = ZigProgressComponent.of(subject);
         if (component == null) {
             dropped(subject, "unpin");
             return false;
@@ -186,14 +176,14 @@ public final class ZigAchievementStore implements AchievementProgressStore {
     @Nullable
     @Override
     public List<String> claimRowsSettled(@Nonnull Subject subject, @Nonnull String achievementId) {
-        ZigProgressComponent component = componentOf(subject);
+        ZigProgressComponent component = ZigProgressComponent.of(subject);
         return component == null ? null : component.achievementClaimRows(achievementId);
     }
 
     @Override
     public void setClaimRowsSettled(@Nonnull Subject subject, @Nonnull String achievementId,
             @Nullable List<String> fingerprints) {
-        ZigProgressComponent component = componentOf(subject);
+        ZigProgressComponent component = ZigProgressComponent.of(subject);
         if (component == null) {
             dropped(subject, "claim note");
             return;

@@ -12,7 +12,6 @@ import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.npc.placement.runtime.PlacementWorlds;
 import com.ziggfreed.common.objectives.indicator.QuestIndicatorConfig;
 import com.ziggfreed.common.objectives.indicator.QuestIndicators;
-import com.ziggfreed.common.objectives.indicator.QuestMarkYield;
 import com.ziggfreed.common.objectives.marker.QuestMarkerListener;
 import com.ziggfreed.common.objectives.marker.QuestMarkerScope;
 import com.ziggfreed.common.objectives.marker.QuestMarkers;
@@ -32,9 +31,6 @@ import com.ziggfreed.common.worldmap.WaypointTarget;
  * <p>A surface of {@link QuestMarkers}, so it refreshes on the quest engine's six events, at player
  * ready and on the slow sweep, never a tick. The nearest gateway still follows the player, because
  * the resolver reads where they stand on every map update.
- *
- * <p>While a consumer still draws its own quest marks ({@link QuestMarkYield}) only the pointers
- * through a gateway stay, which such a consumer never draws, so nothing is drawn twice.
  */
 public final class QuestWaypoints implements QuestMarkerListener {
 
@@ -92,14 +88,9 @@ public final class QuestWaypoints implements QuestMarkerListener {
                 world.getWorldConfig().getGameplayConfig(), ProgressionRuntime.objectiveKinds()::isPlaceTargeted,
                 PlacementWorlds::wheresOf, Gateways.all(), quest -> ProgressionTexts.titleOrUntitled(quest.id()),
                 QuestIndicatorConfig.getInstance().pointerIcon());
-        List<WaypointTarget> available;
-        if (QuestMarkYield.consumerDraws()) {
-            tracked = QuestWaypointTargets.whileConsumerDraws(tracked);
-            available = List.of();
-        } else {
-            available = QuestWaypointTargets.available(QuestIndicators.mapMarks(engine, scope.subject()),
-                    quest -> Msg.key(AVAILABLE_TITLE_KEY, ProgressionTexts.titleOrUntitled(quest.id())));
-        }
+        List<WaypointTarget> available = QuestWaypointTargets.available(
+                QuestIndicators.mapMarks(engine, scope.subject()),
+                quest -> Msg.key(AVAILABLE_TITLE_KEY, ProgressionTexts.titleOrUntitled(quest.id())));
         if (tracked.stream().anyMatch(t -> QuestWaypointTargets.isGatewayKey(t.positionKey()))) {
             // At most once per world per sweep period, never once per viewer: the rest of the sweep's
             // viewers, and any refresh before the period is out, read the same index.

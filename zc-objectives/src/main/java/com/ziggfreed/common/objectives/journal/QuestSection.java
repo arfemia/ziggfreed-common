@@ -123,18 +123,4 @@ public enum QuestSection {
             default -> STATUS_ALL;
         };
     }
-
-    /** The section whose {@link #id} this is, or null. */
-    @Nullable
-    public static QuestSection byId(@Nullable String id) {
-        if (id == null) {
-            return null;
-        }
-        for (QuestSection section : values()) {
-            if (section.id.equalsIgnoreCase(id.trim())) {
-                return section;
-            }
-        }
-        return null;
-    }
 }

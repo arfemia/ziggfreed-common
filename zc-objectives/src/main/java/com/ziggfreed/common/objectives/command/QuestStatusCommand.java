@@ -16,6 +16,7 @@ import com.ziggfreed.common.progress.runtime.ProgressionTexts;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
+import com.ziggfreed.common.quest.LockReasons;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.quest.QuestLifecycle;
@@ -84,8 +85,7 @@ final class QuestStatusCommand extends TargetPlayerSubCommand {
         }
         if (effective == QuestStatus.ON_COOLDOWN) {
             long wait = QuestLifecycle.offerableInMs(quest, subject, engine.store(), engine.now());
-            extras.add(ProgressAdminMessages.piece("quest.status.back_in",
-                    QuestLifecycle.formatCooldown(wait)));
+            extras.add(ProgressAdminMessages.piece("quest.status.back_in", LockReasons.waitLine(wait)));
         }
         ProgressAdminMessages.detail(ctx, "quest.status.row", questId,
                 ProgressAdminMessages.questName(quest), ProgressAdminMessages.questStatus(effective),

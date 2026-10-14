@@ -118,18 +118,6 @@ public final class QuestWaypointTargets {
         return out;
     }
 
-    /** What the library still draws while a consumer draws its own marks: only the pointers through a gateway. */
-    @Nonnull
-    public static List<WaypointTarget> whileConsumerDraws(@Nonnull List<WaypointTarget> targets) {
-        List<WaypointTarget> out = new ArrayList<>();
-        for (WaypointTarget target : targets) {
-            if (isGatewayKey(target.positionKey())) {
-                out.add(target);
-            }
-        }
-        return out;
-    }
-
     /** Does {@code positionKey} name a gateway rather than a character? */
     static boolean isGatewayKey(@Nonnull String positionKey) {
         return positionKey.startsWith(GATEWAY_PREFIX);

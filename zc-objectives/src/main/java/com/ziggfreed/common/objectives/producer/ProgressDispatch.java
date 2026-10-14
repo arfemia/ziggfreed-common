@@ -10,6 +10,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.achievement.AchievementEngine;
 import com.ziggfreed.common.achievement.FirstClaims;
 import com.ziggfreed.common.progress.DispatchOptions;
+import com.ziggfreed.common.progress.ProgressDispatchTap;
 import com.ziggfreed.common.progress.ZoneLocator;
 import com.ziggfreed.common.progress.ZoneRef;
 import com.ziggfreed.common.progress.runtime.Moment;
@@ -38,7 +39,7 @@ import com.ziggfreed.common.util.SafeLog;
  * switched quests off has said nothing about mining. So the fan-out sits ahead of the one early
  * return in this class and ahead of every gate the engines are asked; nothing a listener does can
  * refuse the moment or stand a producer down (see {@link MomentListener} for what a listener is
- * not, and {@link com.ziggfreed.common.progress.ProgressDispatchTap} for the tap it is not).
+ * not, and {@link ProgressDispatchTap} for the tap it is not).
  *
  * <p>Three things travel with the moment that a producer knows nothing about, and all three are
  * resolved here so no producer ever has to remember them:

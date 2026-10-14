@@ -24,6 +24,7 @@ import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.achievement.AchievementProgressStore;
 import com.ziggfreed.common.achievement.AchievementStatus;
+import com.ziggfreed.common.quest.QuestProgressStore;
 import com.ziggfreed.common.quest.QuestProgressStore.CompletionRecord;
 import com.ziggfreed.common.quest.QuestStatus;
 import com.ziggfreed.common.subject.Subject;
@@ -59,7 +60,7 @@ import com.ziggfreed.common.util.SafeLog;
  * spelling it was saved under. The achievement maps are untouched by this; their ids never moved.
  *
  * <p><b>The maps live here; the two store adapters are thin.</b>
- * {@link com.ziggfreed.common.quest.QuestProgressStore} and {@link AchievementProgressStore}
+ * {@link QuestProgressStore} and {@link AchievementProgressStore}
  * declare methods with the same erasure and different return types, so one class cannot implement
  * both. Two adapters resolve the component and delegate to the methods below, which keeps the real
  * logic in one place and unit-testable with no server anywhere near it.

@@ -38,16 +38,7 @@ public final class TitleDisplay {
         return TitleDisplay::wrap;
     }
 
-    /**
-     * The same reading as a decorator over the plain name, kept so a 2.2.x caller still links. The bootstrap
-     * already adds {@link #contribution()}, so filling this into the seam's default slot as well shows the title
-     * twice: fill it only where the bootstrap's contribution is withdrawn.
-     */
-    @Nonnull
-    public static PlayerDisplayNames.Decorator decorator() {
-        return TitleDisplay::decorate;
-    }
-
+    /** {@link #wrap} over the plain name. */
     @Nullable
     static Message decorate(@Nonnull UUID playerId, @Nonnull String plainName) {
         return wrap(playerId, Msg.raw(plainName));

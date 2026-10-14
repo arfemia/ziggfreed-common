@@ -92,24 +92,6 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
         this(playerRef, BookState.of(TAB_QUESTS));
     }
 
-    /** Open the book on {@code tab} (quests when null or unknown). */
-    public ObjectiveBookPage(@Nonnull PlayerRef playerRef, @Nullable String tab) {
-        this(playerRef, BookState.of(tab));
-    }
-
-    /** The pre-redesign filter form; null filters mean "off". Kept so a consumer built against it still links. */
-    public ObjectiveBookPage(@Nonnull PlayerRef playerRef, @Nullable String tab,
-                             @Nullable String filterCategory, @Nullable String filterStatus,
-                             @Nullable String searchText, @Nullable String filterTag) {
-        this(playerRef, BookState.of(tab).withFilters(blankIfNull(filterCategory), blankIfNull(filterStatus), null,
-                blankIfNull(searchText), blankIfNull(filterTag)));
-    }
-
-    @Nonnull
-    private static String blankIfNull(@Nullable String value) {
-        return value == null ? "" : value;
-    }
-
     /** The tab {@code id} names; the shell holds one instance per page, so a tab may keep what its last build drew. */
     @Nonnull
     static BookTab tabFor(@Nonnull String id) {

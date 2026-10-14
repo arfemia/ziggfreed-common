@@ -97,14 +97,6 @@ public final class CostAsset {
         return c;
     }
 
-    /** A single-wallet price, the commonest shape. */
-    @Nonnull
-    public static CostAsset ofCurrency(@Nonnull String currencyId, long amount) {
-        Map<String, Long> one = new LinkedHashMap<>();
-        one.put(currencyId, amount);
-        return of(one, null, null);
-    }
-
     /** The authored wallet amounts, ids lower-cased, blanks and non-positive amounts dropped. */
     @Nonnull
     public Map<String, Long> currencyAmounts() {

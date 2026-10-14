@@ -26,8 +26,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.achievement.AchievementEngine;
 import com.ziggfreed.common.achievement.asset.AchievementAssetStore;
-import com.ziggfreed.common.achievement.asset.AchievementCategoryAsset;
-import com.ziggfreed.common.achievement.asset.AchievementCategoryConfig;
 import com.ziggfreed.common.achievement.asset.AchievementDefinition;
 import com.ziggfreed.common.achievement.asset.AchievementMilestoneConfig;
 import com.ziggfreed.common.achievement.asset.AchievementPool;
@@ -529,16 +527,6 @@ public final class ProgressionDefaults {
         AchievementDefinition definition = pool == null ? null : pool.definition(achievementId);
         String category = definition == null ? null : definition.category();
         return category == null || category.isBlank() ? null : category.trim().toLowerCase(Locale.ROOT);
-    }
-
-    /**
-     * Where a category reads among the others, from the folded taxonomy. A category nothing
-     * describes, and content belonging to no category at all, sort AFTER every described one rather
-     * than jumping to the front of a list.
-     */
-    public static int categoryRank(@Nullable String category) {
-        AchievementCategoryAsset presentation = AchievementCategoryConfig.getInstance().category(category);
-        return presentation == null ? Integer.MAX_VALUE : presentation.orderOrLast();
     }
 
     private static void report(@Nonnull List<Finding> findings, @Nonnull String what) {
