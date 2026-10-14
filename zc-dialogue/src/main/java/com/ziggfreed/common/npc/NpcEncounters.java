@@ -27,7 +27,14 @@ import com.ziggfreed.common.subject.Subject;
  * because the questions an NPC panel asks about quests are the same ones a conversation asks - there
  * is no second seam to fill and no way for the two surfaces to disagree about what a player may hand
  * in.
+ *
+ * @deprecated never adopted: no surface builds an encounter, and it goes in a later release. A
+ *     conversation asks its {@link DialogueQuests} seam (its {@code reader()}, {@code answersTo} and
+ *     {@code turnIn}) and {@link QuestCompletionRouting} for the hand-off; a page at a character reads
+ *     zc-objectives' {@code CharacterQuestListing}, as the library's NPC quest page does; talk credit
+ *     is {@link TalkCredits}.
  */
+@Deprecated(since = "2.4.0")
 public final class NpcEncounters {
 
     private NpcEncounters() {

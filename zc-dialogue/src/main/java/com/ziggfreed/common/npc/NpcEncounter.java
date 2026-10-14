@@ -23,7 +23,14 @@ import com.ziggfreed.common.quest.NpcOffer;
  * those say whether anything actually happened rather than assuming it did.
  *
  * <p>World thread.
+ *
+ * @deprecated never adopted: no surface builds an encounter, and it goes in a later release. A
+ *     conversation asks its {@code DialogueQuests} seam (its {@code reader()}, {@code answersTo} and
+ *     {@code turnIn}) and {@code QuestCompletionRouting} for the hand-off; a page at a character reads
+ *     zc-objectives' {@code CharacterQuestListing}, as the library's NPC quest page does; talk credit
+ *     is {@link TalkCredits}.
  */
+@Deprecated(since = "2.4.0")
 public interface NpcEncounter {
 
     /** The character's PRIMARY id: what they are, not merely what they respond to. */
