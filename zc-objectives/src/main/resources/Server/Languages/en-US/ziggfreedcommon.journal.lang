@@ -19,6 +19,11 @@ state.waiting = Waiting
 state.back_in = Back in {0}
 state.done = Done
 
+# The word a row's line under the title opens with, after its glyph (a gold star, a scroll), for a quest that
+# neither a board posts nor comes round again: those open with the board's own words or how often it comes round.
+kind.main = Main quest
+kind.side = Side quest
+
 # The header's three numbers and the line under the title.
 stat.progress = In progress
 stat.collect = To collect

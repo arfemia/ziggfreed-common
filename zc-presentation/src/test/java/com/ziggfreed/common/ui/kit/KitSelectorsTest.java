@@ -312,8 +312,10 @@ class KitSelectorsTest {
 
     @Nonnull
     private static LedgerRow full(@Nonnull String id, @Nonnull Mark mark) {
+        // A meta glyph walks every #Kind child; the featured accent paints the bar.
         return new LedgerRow(id, Message.raw(id), Message.raw("meta"), Picture.texture(TEXTURE), Tone.ACTIVE,
-                Message.raw("In progress"), Message.raw("10"), new Progress(1, 4), mark, true);
+                Message.raw("In progress"), Message.raw("10"), new Progress(1, 4), mark, true, MetaGlyph.CLOCK,
+                RowAccent.FEATURED);
     }
 
     @Nonnull

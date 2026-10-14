@@ -5,20 +5,22 @@ $ZW = "../Common/ZigKit.ui";
 
 // One row of a kit list (a quest, an achievement, a season, a skill's tier), appended by
 // com.ziggfreed.common.ui.kit.LedgerPainter into a section's #Rows and addressed by index as
-// "#Rows[i] #Select", so a page never spells these ids. It fills its parent's width and grows to fit its title:
-// 56 high with a one-line title, taller when the title runs onto a second line.
+// "#Rows[i] #Select", so a page never spells these ids. It fills its parent's width and grows to fit its title
+// and its meta: 56 high with one line of each, taller when either runs onto a second line.
 //
 // Vanilla's World Event list row (Pages/WorldEvent/WorldEventListRow.ui): one Button, #Select, holds the whole
 // row, so a click anywhere on it selects it, and it swaps between ZigRowStyle and ZigRowSelectedStyle by
 // reference (Common/ZigStyles.ui). Inside it, left to right:
 //   #RowStrut an empty, zero-wide Group 56 high: the row's least height (below)
-//   #Accent   a 4px bar in the row's tone (its one colour; a tone's fill is pushed onto its Background)
+//   #Accent   a 4px bar: the row's tone, the gold accent of a featured row, or hidden (RowAccent)
 //   #Pic      the 32px picture slot, painted through IconRenderer.applyPlainIcon (no tooltip, no rarity square)
 //   #Title    the name, up to two lines, a longer one ending its second line with "..."; #Mark after it shows #Pinned or #Tracked
-//   #Meta     one line under the title ("3 / 10 ghouls", "Tier 3 of 5")
+//   #MetaLine under the title: #Kind, a 14px glyph saying what kind of row it is (#Star, #Scroll or #Clock, each
+//             in its own ink; MetaGlyph), then #Meta ("3 / 10 ghouls", "Bounty - Day"), up to two lines
 //   #BarTrack a 4px progress bar under the meta, hidden without progress
-//   #Trail    92 wide at the end: #Value (points, a count, how long until a quest comes back) over #State (the
-//             tone's state word: one or two words, never a sentence, so it reads whole at 92)
+//   #Trail    92 wide at the end: #Value (points, a count, how long until a quest comes back) over #StatePill, the
+//             tone's state word (#State, one or two words, never a sentence) centred on a rounded pill tinted to
+//             the tone (Common/Kit/Pill.png, a white patch the painter tints)
 // No other button and no tooltip in a row: a label with a tooltip would swallow the row's click.
 //
 // The row fixes no height. The root and #Select are Left rows with no Height, so each is as tall as its tallest
@@ -29,9 +31,10 @@ $ZW = "../Common/ZigKit.ui";
 // Interface/MainMenu/TopBar/TopBar.ui spells one, so a one-line title draws 56 high.
 // #TitleLine grows the same way over its own 22px strut, #TitleStrut: #Title is a FlexWeight Label with no Height
 // that wraps, as the client's report hint is (Interface/InGame/Overlays/OnlinePlaySettings.ui, #ReportHint), so
-// a second line pushes #Meta down and the row with it. #Pic, #Mark and #Trail keep their places: each is anchored
-// to the top (a Top anchor, or a Top stack's padding), so on a taller row the picture, the pin and the state word
-// stay level with the title's first line while #Accent and the button's fill run the row's whole height.
+// a second line pushes #MetaLine down and the row with it. #MetaLine grows the same way over its 18px #MetaStrut.
+// #Pic, #Mark, #Kind and #Trail keep their places: each is anchored to the top (a Top anchor, or a Top stack's
+// padding), so on a taller row the picture, the pin and the state pill stay level with the title's first line
+// while #Accent and the button's fill run the row's whole height.
 
 Group #ZigLedgerRow {
   LayoutMode: Left;
@@ -94,10 +97,42 @@ Group #ZigLedgerRow {
         }
       }
 
-      Label #Meta {
-        Anchor: (Height: 18);
-        Text: "";
-        Style: (...$ZX.@ZigCaptionStyle, Wrap: true, WrapMaxLines: 1);
+      Group #MetaLine {
+        LayoutMode: Left;
+
+        Group #MetaStrut {
+          Anchor: (Width: 0, Height: 18);
+        }
+
+        Group #Kind {
+          Anchor: (Width: 14, Height: 14, Top: 2, Right: 5);
+          LayoutMode: Full;
+          Visible: false;
+
+          Group #Star {
+            Anchor: (Full: 0);
+            Background: (TexturePath: "../Common/Glyphs/Star.png", Color: $ZK.@ZigAccent);
+            Visible: false;
+          }
+
+          Group #Scroll {
+            Anchor: (Full: 0);
+            Background: (TexturePath: "../Common/Glyphs/Quest.png", Color: $ZK.@ZigInkMuted);
+            Visible: false;
+          }
+
+          Group #Clock {
+            Anchor: (Full: 0);
+            Background: (TexturePath: "../Common/Glyphs/Clock.png", Color: $ZK.@ZigInkSection);
+            Visible: false;
+          }
+        }
+
+        Label #Meta {
+          FlexWeight: 1;
+          Text: "";
+          Style: (...$ZX.@ZigCaptionStyle, VerticalAlignment: Start, Wrap: true, WrapMaxLines: 2);
+        }
       }
 
       $ZW.@ZigProgressBar #BarTrack {
@@ -118,10 +153,19 @@ Group #ZigLedgerRow {
         Style: $ZX.@ZigCountStyle;
       }
 
-      Label #State {
-        Anchor: (Height: 19);
-        Text: "";
-        Style: $ZS.@ZigStateStyle;
+      Group #StatePill {
+        Anchor: (Height: 20, Top: 1);
+        LayoutMode: Left;
+        Padding: (Horizontal: 4);
+        Background: (TexturePath: "../Common/Kit/Pill.png", Border: 8, Color: $ZK.@ZigSurfaceScrim);
+        Visible: false;
+
+        Label #State {
+          FlexWeight: 1;
+          Anchor: (Height: 20);
+          Text: "";
+          Style: (...$ZS.@ZigStateStyle, HorizontalAlignment: Center);
+        }
       }
     }
   }

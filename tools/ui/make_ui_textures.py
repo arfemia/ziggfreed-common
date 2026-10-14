@@ -9,8 +9,10 @@ Writes under zc-presentation/src/main/resources/Common/UI/Custom/Common/:
   Glyphs/<Name>.png (20 x 20) and Glyphs/<Name>@2x.png (40 x 40) for Pin, PinFilled, Lock, ChevronRight,
       ChevronDown, Dot, Star, Blank, and the kinds of screen a conversation's answer can open: Talk (a speech
       bubble), Quest (a scroll), Bag (a shop), Board (a notice board), Book (an open book) and Trophy (a cup);
-      Star stands for standing. White on transparent, so a PatchStyle Color tints a glyph to any tone (a tint
-      multiplies). Blank is fully transparent: the fallback an AssetImage shows for a missing picture.
+      Star stands for standing, and in a list row's meta line for a main quest, Quest for a side quest and Clock
+      (a clock face) for a quest that comes round again. White on transparent, so a PatchStyle Color tints a
+      glyph to any tone (a tint multiplies). Blank is fully transparent: the fallback an AssetImage shows for a
+      missing picture.
   ZigHeroFade.png (962 x 140) and @2x: a vertical ramp of #0a1119 from transparent at the top to 0.85 at the
       bottom, laid over hero art so the season's name reads on any picture.
   ZigHeroPlate.png (962 x 240) and @2x: the hero's plate when a season has no art, #101925 with a faint vignette.
@@ -18,6 +20,8 @@ Writes under zc-presentation/src/main/resources/Common/UI/Custom/Common/:
       a hero and tinted by its PatchStyle Color, it lays a season's colour down from the top of the plate.
   Kit/HeroGlow.png (256 x 256) and @2x: a soft white radial glow, opaque at the centre to transparent at the
       edge; tinted the same way, it lights the space behind a hero's picture.
+  Kit/Pill.png (24 x 24) and @2x: a white rounded rectangle, radius 8; a list row's state pill stretches it as a
+      patch (Border 8) and tints it to its tone.
 
 Each image is drawn at twice its output size and downsampled (Lanczos), so edges stay smooth at 1x and 2x.
 The output is deterministic: the same script writes the same bytes.
@@ -45,6 +49,9 @@ VIGNETTE = 0.28  # how much darker the corners are than the middle
 
 GRADIENT = (4, 240)
 GLOW = 256
+
+PILL = 24
+PILL_RADIUS = 8  # the patch's Border: a pill 16 or more high keeps whole round corners
 
 
 def canvas(px):
@@ -181,6 +188,12 @@ def trophy(draw, big):
     draw.rounded_rectangle(box(big, 0.26, 0.76, 0.74, 0.92), radius=0.04 * big, fill=WHITE)
 
 
+def clock(draw, big):
+    """A clock face: a ring, and its two hands from the centre to twelve and to four."""
+    draw.ellipse(box(big, 0.07, 0.07, 0.93, 0.93), outline=WHITE, width=max(1, round(0.11 * big)))
+    stroke(draw, big, [(0.50, 0.25), (0.50, 0.52), (0.69, 0.63)], 0.10)
+
+
 GLYPHS = {
     "Pin": lambda d, b: pin(d, b, filled=False),
     "PinFilled": lambda d, b: pin(d, b, filled=True),
@@ -196,6 +209,7 @@ GLYPHS = {
     "Board": board,
     "Book": book,
     "Trophy": trophy,
+    "Clock": clock,
 }
 
 
@@ -253,6 +267,16 @@ def glow(scale):
     return image
 
 
+def pill(scale):
+    """White, a rounded rectangle filling its square: a patch a pill stretches (Border PILL_RADIUS) and tints."""
+    px = PILL * scale
+    big = px * SUPERSAMPLE
+    image = Image.new("RGBA", (big, big), CLEAR)
+    ImageDraw.Draw(image).rounded_rectangle((0, 0, big - 1, big - 1), radius=PILL_RADIUS * scale * SUPERSAMPLE,
+                                            fill=WHITE)
+    return image.resize((px, px), Image.LANCZOS)
+
+
 def save(image, *parts):
     path = os.path.join(OUT, *parts)
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -275,6 +299,8 @@ def main():
     written.append(save(gradient(2), "Kit", "HeroGradient@2x.png"))
     written.append(save(glow(1), "Kit", "HeroGlow.png"))
     written.append(save(glow(2), "Kit", "HeroGlow@2x.png"))
+    written.append(save(pill(1), "Kit", "Pill.png"))
+    written.append(save(pill(2), "Kit", "Pill@2x.png"))
     for path in written:
         print(path)
 

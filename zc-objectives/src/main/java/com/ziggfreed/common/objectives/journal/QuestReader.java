@@ -260,11 +260,13 @@ public final class QuestReader {
     }
 
     /**
-     * A row: its section's tone and state word, except that a finished quest that cannot be collected where the
-     * player stands reads Elsewhere in the neutral tone, since there is nothing to press here and nothing refuses it,
-     * and its line under the title says where it is collected (M555: "Collect it at Old Jack's Board").
-     * The trail's figure is the step tally for a quest being carried, and how long until it comes back for one that
-     * waits ("23h 59m" over WAITING, as "0 / 2" sits over IN PROGRESS), so the narrow trail never holds a sentence.
+     * A row: its section's tone and state word on the state pill, except that a finished quest that cannot be
+     * collected where the player stands reads Elsewhere in the neutral tone, since there is nothing to press here and
+     * nothing refuses it, and its line under the title says where it is collected (M555: "Collect it at Old Jack's
+     * Board"). Otherwise the line under the title opens with the quest's kind ({@link #kindOf}: its glyph and
+     * {@link #rowMeta}), and a main quest wears the gold bar. The trail's figure is the step tally for a quest being
+     * carried, and how long until it comes back for one that waits ("23h 59m" over WAITING, as "0 / 2" sits over IN
+     * PROGRESS), so the narrow trail never holds a sentence.
      */
     @Nonnull
     private LedgerRow read(@Nonnull Quest q, @Nullable CharacterQuestListing here, boolean compact) {
@@ -276,11 +278,53 @@ public final class QuestReader {
         Progress progress = tally != null && status == QuestStatus.ACTIVE
                 ? new Progress(tally.completed(), tally.total()) : null;
         boolean elsewhere = collectsElsewhere(q, here);
-        Message under = compact ? null : elsewhere ? whereToCollect(q) : meta(q);
+        QuestKind kind = kindOf(q);
+        Message under = compact ? null : elsewhere ? whereToCollect(q) : rowMeta(q, kind);
         return new LedgerRow(q.id(), title(q), under, picture(q),
                 elsewhere ? Tone.NEUTRAL : section.tone(),
                 elsewhere ? text("state.elsewhere") : stateWord(q, section), value, progress,
-                tracked(q) ? Mark.TRACKED : Mark.NONE, section == QuestSection.COMPLETED);
+                tracked(q) ? Mark.TRACKED : Mark.NONE, section == QuestSection.COMPLETED, kind.glyph(),
+                kind.accent());
+    }
+
+    /** {@code q}'s kind as its row reads it: a board's contract, a quest that comes round, a main or side quest. */
+    @Nonnull
+    public QuestKind kindOf(@Nonnull Quest q) {
+        return QuestKind.of(q, presentation.managed(q));
+    }
+
+    /**
+     * The row's line under the title: the kind's own words, then who it is for. A board's contract reads its board's
+     * pills ("Bounty - Day"); a quest that comes round reads how often ("Daily - Old Jack"); any other reads Main
+     * quest or Side quest, then its giver. The category and the cadence of a contract stay off the row (its page and
+     * the book's filters still say them), so no word repeats. It wraps to a second line rather than end in "...".
+     * Null when there is nothing to say.
+     */
+    @Nullable
+    private Message rowMeta(@Nonnull Quest q, @Nonnull QuestKind kind) {
+        List<Message> parts = new ArrayList<>();
+        switch (kind) {
+            case BOUNTY -> {
+                for (Pill pill : presentation.pills(q)) {
+                    parts.add(pill.label());
+                }
+            }
+            case REPEATABLE -> {
+                Message cadence = QuestCadenceBadge.label(q.repeat());
+                if (cadence != null) {
+                    parts.add(cadence);
+                }
+            }
+            case MAIN -> parts.add(text("kind.main"));
+            case SIDE -> parts.add(text("kind.side"));
+        }
+        if (kind != QuestKind.BOUNTY) {
+            Message giver = presentation.npcName(q.npcViewId());
+            if (giver != null) {
+                parts.add(giver);
+            }
+        }
+        return parts.isEmpty() ? null : joined(parts);
     }
 
     /**
@@ -357,9 +401,12 @@ public final class QuestReader {
                 parts.add(giver);
             }
         }
-        if (parts.isEmpty()) {
-            return null;
-        }
+        return parts.isEmpty() ? null : joined(parts);
+    }
+
+    /** {@code parts} as one line, " - " between them. */
+    @Nonnull
+    private static Message joined(@Nonnull List<Message> parts) {
         List<Message> joined = new ArrayList<>();
         for (Message part : parts) {
             if (!joined.isEmpty()) {
@@ -751,7 +798,8 @@ public final class QuestReader {
             for (Quest quest : members) {
                 names.put(quest.id(), flat(title(quest)));
             }
-            members.sort(Comparator.comparingInt(Quest::listOrder)
+            members.sort(Comparator.comparing((Quest quest) -> QuestKind.listsFirst(quest) ? 0 : 1)
+                    .thenComparingInt(Quest::listOrder)
                     .thenComparing((Quest quest) -> names.getOrDefault(quest.id(), ""), String.CASE_INSENSITIVE_ORDER)
                     .thenComparing(Quest::id));
             List<LedgerRow> rows = new ArrayList<>();

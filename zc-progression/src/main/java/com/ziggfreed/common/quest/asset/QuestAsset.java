@@ -470,6 +470,7 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                                 listing.getShowWhen()))
                 .turnInAt(turnInSite(giverId))
                 .tags(listing == null ? List.of() : listing.tagList())
+                .mainLine(listing != null && listing.isMainLine())
                 .indicator(indicator);
         String seasonId = getSeason();
         if (FeatureLift.isLive(seasonId, lifted)) {
@@ -553,6 +554,7 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
     public static final class Listing extends ContentListingAsset {
 
         @Nullable protected GateSpec showWhen;
+        @Nullable protected Boolean mainLine;
 
         public static final BuilderCodec<Listing> CODEC =
                 appendLeaves(BuilderCodec.builder(Listing.class, Listing::new))
@@ -565,6 +567,14 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                                 + "already holding the quest always sees it. Taking the quest is decided by "
                                 + "Requires alone; this block is never consulted on accept. Unauthored means "
                                 + "nothing holds it back beyond Hidden and RequirePrerequisites.")
+                        .add()
+                        .appendInherited(new KeyedCodec<>("MainLine", Codec.BOOLEAN, false),
+                                (o, v) -> o.mainLine = v, o -> o.mainLine, (o, p) -> o.mainLine = p.mainLine)
+                        .metadata(EditorSchema.defaultValue(false))
+                        .documentation("A main quest: a list shows it first in its section, with a gold bar and "
+                                + "the main-quest mark. Pure presentation; the engine never reads it. A quest a "
+                                + "board posts reads as the board's contract, and one with a Repeat rule as a "
+                                + "quest that comes round again, whatever this says. Unauthored means a side quest.")
                         .add()
                         .build();
 
@@ -584,6 +594,11 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
         @Nullable
         public GateSpec getShowWhen() {
             return showWhen;
+        }
+
+        /** A main quest? Unauthored means a side quest. */
+        public boolean isMainLine() {
+            return mainLine != null && mainLine;
         }
     }
 

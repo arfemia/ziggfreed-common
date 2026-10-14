@@ -260,6 +260,7 @@ public final class Quest {
     private final int listOrder;
     @Nullable private final String category;
     @Nullable private final String icon;
+    private final boolean mainLine;
     @Nullable private final QuestIndicatorSpec indicator;
     private final Map<String, QuestIndicatorSpec> stepIndicators;
 
@@ -284,6 +285,7 @@ public final class Quest {
         this.listOrder = b.listOrder;
         this.category = b.category;
         this.icon = b.icon;
+        this.mainLine = b.mainLine;
         this.indicator = b.indicator;
         this.stepIndicators = Map.copyOf(b.stepIndicators);
     }
@@ -316,6 +318,7 @@ public final class Quest {
                 .listOrder(listOrder)
                 .category(category)
                 .icon(icon)
+                .mainLine(mainLine)
                 .indicator(indicator)
                 .stepIndicators(stepIndicators)
                 .build();
@@ -354,6 +357,7 @@ public final class Quest {
                 .listOrder(listOrder)
                 .category(category)
                 .icon(icon)
+                .mainLine(mainLine)
                 .indicator(indicator)
                 .stepIndicators(stepIndicators)
                 .build();
@@ -565,6 +569,15 @@ public final class Quest {
     }
 
     /**
+     * Whether the author marked this a main quest ({@code Listing.MainLine}); false for a side quest.
+     * Stamped by whoever folded the catalogue; the engine never reads it. A listing shows a main
+     * quest first, marked as one, unless a board posts it or it repeats.
+     */
+    public boolean mainLine() {
+        return mainLine;
+    }
+
+    /**
      * The quest's own word on whether, and how, each situation it puts a character in shows over
      * that character's head or on the map ({@link QuestIndicatorSpec}); null when the file said
      * nothing and the global default alone decides. Stamped by whichever layer folded the
@@ -672,11 +685,19 @@ public final class Quest {
         private int listOrder;
         @Nullable private String category;
         @Nullable private String icon;
+        private boolean mainLine;
         @Nullable private QuestIndicatorSpec indicator;
         private final Map<String, QuestIndicatorSpec> stepIndicators = new LinkedHashMap<>();
 
         private Builder(@Nonnull String id) {
             this.id = id;
+        }
+
+        /** A main quest ({@link Quest#mainLine()}); false (the default) means a side quest. */
+        @Nonnull
+        public Builder mainLine(boolean mainLine) {
+            this.mainLine = mainLine;
+            return this;
         }
 
         /** The listing category ({@link Quest#category()}); null (the default) means none. */

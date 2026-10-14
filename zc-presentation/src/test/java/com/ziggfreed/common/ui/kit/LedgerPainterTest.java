@@ -84,8 +84,6 @@ class LedgerPainterTest {
         assertTrue(p.set(ROW0 + " #Accent.Background").contains(ZigTokens.TONE_ACTIVE_FILL), "the tone's accent");
         assertTrue(p.shown(ROW0 + " #Accent.Visible"));
         assertTrue(p.set(ROW0 + " #State.TextSpans").contains("In progress"));
-        assertTrue(p.references(ROW0 + " #State.Style", ZigStyles.DOCUMENT, "ZigStateActiveStyle"),
-                "the state word takes its tone's named style");
         assertTrue(p.set(ROW0 + " #Value.TextSpans").contains("10 pts"));
         assertTrue(p.shown(ROW0 + " #BarTrack.Visible"));
         assertTrue(p.set(ROW0 + " #Bar.Value").contains("0.2"), "10 of 50 fills a fifth of the bar");
@@ -105,7 +103,6 @@ class LedgerPainterTest {
         assertFalse(p.shown(ROW1 + " #Accent.Visible"), "no tone, no accent");
         assertFalse(p.has(ROW1 + " #Accent.Background"));
         assertFalse(p.shown(ROW1 + " #Meta.Visible"));
-        assertFalse(p.shown(ROW1 + " #State.Visible"));
         assertFalse(p.has(ROW1 + " #State.Style"));
         assertFalse(p.shown(ROW1 + " #Value.Visible"));
         assertFalse(p.shown(ROW1 + " #BarTrack.Visible"));
@@ -114,24 +111,11 @@ class LedgerPainterTest {
     }
 
     @Test
-    void aFinishedRowsMetaReadsFaint() {
-        LedgerRow done = new LedgerRow("d", Message.raw("Done one"), Message.raw("Earned 2026-10-01"), Picture.NONE,
-                Tone.DONE, Message.raw("Done"), null, null, Mark.NONE, true);
-        Run run = paint(new LedgerModel(List.of(new LedgerSection("s", Message.raw("S"), List.of(done), true)), "d"),
-                Set.of(), null, RowSize.STANDARD);
-        assertTrue(run.p.references(ROW0 + " #Meta.Style", ZigStyles.TEXT_DOCUMENT, "ZigFaintStyle"));
-        assertTrue(run.p.references(ROW0 + " #State.Style", ZigStyles.DOCUMENT, "ZigStateDoneStyle"));
-    }
-
-    @Test
     void theSelectedRowIsSwappedToItsNamedStylesAndOnlyIt() {
         Run run = paint(model(), Set.of(), "r1", RowSize.STANDARD);
         assertTrue(run.p.references(ROW0 + ".Style", ZigStyles.DOCUMENT, "ZigRowSelectedStyle"));
         assertTrue(run.p.references(ROW0 + " #Title.Style", ZigStyles.DOCUMENT, "ZigRowTitleOnSelectedStyle"));
-        assertTrue(run.p.references(ROW0 + " #Meta.Style", ZigStyles.DOCUMENT, "ZigRowMetaOnSelectedStyle"));
         assertTrue(run.p.references(ROW0 + " #Value.Style", ZigStyles.DOCUMENT, "ZigRowValueOnSelectedStyle"));
-        assertTrue(run.p.references(ROW0 + " #State.Style", ZigStyles.DOCUMENT, "ZigStateOnSelectedStyle"),
-                "the selected row's words are white, the tone's colour given way (the last write wins)");
         assertFalse(run.p.has(ROW1 + ".Style"), "a fresh row keeps its authored resting style");
         assertFalse(run.p.has(ROW1 + " #Title.Style"));
         assertEquals("r1", run.index.selectedRowId());
@@ -297,8 +281,6 @@ class LedgerPainterTest {
         assertTrue(p.references(ROW0 + " #Title.Style", ZigStyles.TEXT_DOCUMENT, "ZigLedgerTitleStyle"));
         assertTrue(p.set(ROW0 + " #Meta.Style.TextColor").contains(ZigTokens.INK_MUTED), "the meta back in its ink");
         assertTrue(p.set(ROW0 + " #Value.Style.TextColor").contains(ZigTokens.INK_BODY));
-        assertTrue(p.references(ROW0 + " #State.Style", ZigStyles.DOCUMENT, "ZigStateActiveStyle"),
-                "the state word back in its tone");
         assertTrue(p.references(ROW1 + ".Style", ZigStyles.DOCUMENT, "ZigRowSelectedStyle"));
         assertFalse(p.has(ROW1 + " #Meta.Style"), "a row with no meta line is not restyled there");
         assertFalse(p.has(ROW1 + " #State.Style"));

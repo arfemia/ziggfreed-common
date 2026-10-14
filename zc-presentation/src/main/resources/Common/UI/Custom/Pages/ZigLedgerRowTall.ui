@@ -4,18 +4,19 @@ $ZS = "../Common/ZigStyles.ui";
 $ZW = "../Common/ZigKit.ui";
 
 // The kit's tall row (a list whose meta line runs long: the Almanac's seasons, "On now - 27 days left"), 74 high
-// with a one-line title: Pages/ZigLedgerRow.ui with its #Meta let onto a second line, the row grown by exactly that
-// line. Appended by com.ziggfreed.common.ui.kit.LedgerPainter and addressed by index as "#Rows[i] #Select", like
-// the standard row; a painter treats the two alike, so every id here matches that row's. The kit's named meta
-// styles are one line, so the painter recolours this #Meta by its colour leaf alone (RowSize.metaWraps) and never
-// swaps its style.
+// with a one-line title: Pages/ZigLedgerRow.ui with its #Meta always keeping room for a second line, so every row
+// of a list is the same height. Appended by com.ziggfreed.common.ui.kit.LedgerPainter and addressed by index as
+// "#Rows[i] #Select", like the standard row; a painter treats the two alike, so every id here matches that row's.
+// The kit's named meta styles are one line, so the painter recolours this #Meta by its colour leaf alone
+// (RowSize.metaWraps) and never swaps its style.
 //   #RowStrut an empty, zero-wide Group 74 high: the row's least height
-//   #Accent   a 4px bar in the row's tone
+//   #Accent   a 4px bar: the row's tone, the gold accent of a featured row, or hidden (RowAccent)
 //   #Pic      the 32px picture slot, painted through IconRenderer.applyPlainIcon
 //   #Title    the name, up to two lines, a longer one ending its second line with "..."; #Mark after it shows #Pinned or #Tracked
-//   #Meta     up to two lines under the title, a longer one ending its second line with "..."
+//   #MetaLine #Kind (the 14px glyph: #Star, #Scroll or #Clock), then #Meta, two lines high under the title, a
+//             longer one ending its second line with "..."
 //   #BarTrack a 4px progress bar under the meta, hidden without progress
-//   #Trail    92 wide at the end: #Value over #State
+//   #Trail    92 wide at the end: #Value over #StatePill, the state word #State on its tone's pill
 // No other button and no tooltip in a row: a label with a tooltip would swallow the row's click.
 // Like the standard row it fixes no height and grows to fit a title on two lines, over #RowStrut and the
 // title line's #TitleStrut; Pages/ZigLedgerRow.ui says how, and which client and vanilla documents each shape
@@ -82,10 +83,43 @@ Group #ZigLedgerRowTall {
         }
       }
 
-      Label #Meta {
-        Anchor: (Height: 36);
-        Text: "";
-        Style: (...$ZX.@ZigCaptionStyle, VerticalAlignment: Start, Wrap: true, WrapMaxLines: 2);
+      Group #MetaLine {
+        LayoutMode: Left;
+
+        Group #MetaStrut {
+          Anchor: (Width: 0, Height: 18);
+        }
+
+        Group #Kind {
+          Anchor: (Width: 14, Height: 14, Top: 2, Right: 5);
+          LayoutMode: Full;
+          Visible: false;
+
+          Group #Star {
+            Anchor: (Full: 0);
+            Background: (TexturePath: "../Common/Glyphs/Star.png", Color: $ZK.@ZigAccent);
+            Visible: false;
+          }
+
+          Group #Scroll {
+            Anchor: (Full: 0);
+            Background: (TexturePath: "../Common/Glyphs/Quest.png", Color: $ZK.@ZigInkMuted);
+            Visible: false;
+          }
+
+          Group #Clock {
+            Anchor: (Full: 0);
+            Background: (TexturePath: "../Common/Glyphs/Clock.png", Color: $ZK.@ZigInkSection);
+            Visible: false;
+          }
+        }
+
+        Label #Meta {
+          FlexWeight: 1;
+          Anchor: (Height: 36);
+          Text: "";
+          Style: (...$ZX.@ZigCaptionStyle, VerticalAlignment: Start, Wrap: true, WrapMaxLines: 2);
+        }
       }
 
       $ZW.@ZigProgressBar #BarTrack {
@@ -106,10 +140,19 @@ Group #ZigLedgerRowTall {
         Style: $ZX.@ZigCountStyle;
       }
 
-      Label #State {
-        Anchor: (Height: 19);
-        Text: "";
-        Style: $ZS.@ZigStateStyle;
+      Group #StatePill {
+        Anchor: (Height: 20, Top: 1);
+        LayoutMode: Left;
+        Padding: (Horizontal: 4);
+        Background: (TexturePath: "../Common/Kit/Pill.png", Border: 8, Color: $ZK.@ZigSurfaceScrim);
+        Visible: false;
+
+        Label #State {
+          FlexWeight: 1;
+          Anchor: (Height: 20);
+          Text: "";
+          Style: (...$ZS.@ZigStateStyle, HorizontalAlignment: Center);
+        }
       }
     }
   }

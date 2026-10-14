@@ -12,8 +12,9 @@ $ZW = "../Common/ZigKit.ui";
 // a zero-wide Group 44 high, and #Title is a FlexWeight Label with no Height that wraps to two lines, the second
 // ended with "...". A one-line title sits centred in the 44 row as it always did; a second line grows the row only
 // if the client draws the two lines taller than 44. #Pic, #Mark and #BarTrack keep their
-// Top anchors and #Trail stacks from the top, so they stay where they were. Pages/ZigLedgerRow.ui names the
-// client's and vanilla's documents each shape comes from.
+// Top anchors and #Trail stacks from the top, so they stay where they were: #Value over #StatePill, the state
+// word on its tone's pill as in the standard row. Pages/ZigLedgerRow.ui names the client's and vanilla's
+// documents each shape comes from.
 
 Group #ZigLedgerRowCompact {
   LayoutMode: Left;
@@ -80,10 +81,19 @@ Group #ZigLedgerRowCompact {
         Style: $ZX.@ZigCountStyle;
       }
 
-      Label #State {
-        Anchor: (Height: 19);
-        Text: "";
-        Style: $ZS.@ZigStateStyle;
+      Group #StatePill {
+        Anchor: (Height: 20, Top: 1);
+        LayoutMode: Left;
+        Padding: (Horizontal: 4);
+        Background: (TexturePath: "../Common/Kit/Pill.png", Border: 8, Color: $ZK.@ZigSurfaceScrim);
+        Visible: false;
+
+        Label #State {
+          FlexWeight: 1;
+          Anchor: (Height: 20);
+          Text: "";
+          Style: (...$ZS.@ZigStateStyle, HorizontalAlignment: Center);
+        }
       }
     }
   }

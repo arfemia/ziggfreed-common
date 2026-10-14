@@ -16,6 +16,7 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.Message;
 
+import com.ziggfreed.common.objectives.journal.QuestKind;
 import com.ziggfreed.common.objectives.journal.QuestReader;
 import com.ziggfreed.common.objectives.questlist.NpcQuestSections.Entry;
 import com.ziggfreed.common.objectives.questlist.NpcQuestSections.Section;
@@ -124,13 +125,17 @@ final class NpcQuestPagePlan {
         return TAB_MINE.equals(tab) ? engine.activeAndUnclaimed(subject) : listing.questsHere();
     }
 
-    /** Each quest with the section it sits in at this character, the routed one marked, in the list's order. */
+    /**
+     * Each quest with the section it sits in at this character, the routed one marked, a main quest ordered before
+     * the rest of its section ({@link QuestKind#listsFirst}), in the list's order.
+     */
     @Nonnull
     static List<Entry> entries(@Nonnull List<Quest> quests, @Nonnull Function<Quest, Section> sectionOf,
             @Nullable String highlight) {
         List<Entry> entries = new ArrayList<>();
         for (Quest quest : quests) {
-            entries.add(Entry.of(quest.id(), sectionOf.apply(quest), quest.id().equals(highlight)));
+            entries.add(new Entry(quest.id(), sectionOf.apply(quest), quest.id().equals(highlight),
+                    QuestKind.listsFirst(quest) ? 0 : 1));
         }
         return sort(entries);
     }

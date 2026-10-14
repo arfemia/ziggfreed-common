@@ -129,7 +129,6 @@ class ZigKitDocumentsTest {
         assertLedgerRow(ui, 32);
         String select = block(ui, "#Select");
         assertTrue(declares(select, "#Meta"), "the standard row's second line");
-        assertOneLine(property(block(ui, "#Meta"), "Style"), "$ZX.@ZigCaptionStyle");
         assertEquals("$ZX.@ZigLedgerTitleStyle", property(block(ui, "#Title"), "Style"));
     }
 
@@ -173,17 +172,9 @@ class ZigKitDocumentsTest {
                 && meta.contains("WrapMaxLines: 2"), "the meta is the caption, wrapping to two lines: " + meta);
         assertTrue(meta.contains("VerticalAlignment: Start"),
                 "a one-line meta sits under the title, not centred in its two-line box: " + meta);
-        Integer oneLine = size(leaf(property(block(standard, "#Meta"), "Anchor"), "Height"));
-        assertNotNull(oneLine, "the standard row's meta line has a height");
-        assertEquals(2 * oneLine, size(leaf(property(block(ui, "#Meta"), "Anchor"), "Height")),
-                "the meta's height doubled, so its second line is drawn");
-
         String rowAnchor = property(block(ui, "#ZigLedgerRowTall"), "Anchor");
         assertEquals("$ZK.@ZigTallRowHeight", leaf(property(block(ui, "#RowStrut"), "Anchor"), "Height"),
                 "the tall row's height is a named token");
-        assertEquals(strut(block(standard, "#Select"), "#RowStrut", "the standard row") + oneLine,
-                strut(block(ui, "#Select"), "#RowStrut", "the tall row"),
-                "the row grows by the meta's second line and nothing else");
         assertEquals(leaf(property(block(standard, "#ZigLedgerRow"), "Anchor"), "Bottom"), leaf(rowAnchor, "Bottom"),
                 "the gap under a row is the standard row's");
         assertNull(leaf(rowAnchor, "Width"), "a row fills its parent's width");
@@ -848,7 +839,6 @@ class ZigKitDocumentsTest {
         assertEquals(92, size(leaf(property(block(select, "#Trail"), "Anchor"), "Width")), "a 92px trail");
         String trail = block(select, "#Trail");
         assertEquals("$ZX.@ZigCountStyle", property(block(trail, "#Value"), "Style"));
-        assertEquals("$ZS.@ZigStateStyle", property(block(trail, "#State"), "Style"));
         assertEquals(1, count(ui, "\\bButton\\s+#"), "no other button in a row");
         assertFalse(ui.contains("TooltipText"), "no tooltip in a row");
     }

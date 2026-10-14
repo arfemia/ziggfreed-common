@@ -8,6 +8,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
@@ -20,8 +21,9 @@ import com.ziggfreed.common.ui.UiRetint;
  * Paints a {@link LedgerModel} into a list: one {@code Pages/ZigLedgerSection.ui} per section (head with label,
  * count and chevron; rows in its {@code #Rows}), one row template per row up to the section's cap, then a
  * {@code Pages/ZigShowMoreRow.ui}. A row's look is its named styles ({@link ZigStyles}): the row and selected-row
- * button styles, the tone's state word, the selected title; its accent bar is the tone's fill. A closed section
- * appends its rows only when first opened ({@link #openSection}).
+ * button styles and the selected title; its state word sits on a pill tinted to its tone, its accent bar is what
+ * the row asks for ({@link RowAccent}: the tone's fill by default), and its meta line may open with a glyph
+ * ({@link MetaGlyph}). A closed section appends its rows only when first opened ({@link #openSection}).
  *
  * <p><b>Selectors</b> (every appended template is a {@code Group} root named after its file, the 2.8 ids inside):
  * section {@code list[s] #Section}, head {@code list[s] #Head}, rows host {@code list[s] #Rows}, a row's button
@@ -166,6 +168,7 @@ public final class LedgerPainter {
         KitPaint.text(cmd, row + " #Title", data.title());
         if (size.hasMeta()) {
             KitPaint.optional(cmd, row + " #Meta", data.meta());
+            cmd.set(row + " #MetaLine.Visible", data.meta() != null);
             if (data.faint() && data.meta() != null) {
                 if (size.metaWraps()) {
                     // The faint style is one line: a meta that wraps keeps its own style and takes the ink alone.
@@ -174,20 +177,18 @@ public final class LedgerPainter {
                     ZigStyles.applyText(cmd, row + " #Meta.Style", ZigStyles.Text.FAINT);
                 }
             }
+            metaGlyph(cmd, row, data.metaGlyph());
         }
         KitPaint.picture(cmd, row + " #Pic", data.picture());
 
-        String fill = data.tone().fillHex();
+        String fill = accentFill(data);
         if (fill != null) {
             UiRetint.fill(cmd, row + " #Accent", fill);
         }
         cmd.set(row + " #Accent.Visible", fill != null);
 
         KitPaint.optional(cmd, row + " #Value", data.value());
-        KitPaint.optional(cmd, row + " #State", data.state());
-        if (data.state() != null) {
-            ZigStyles.apply(cmd, row + " #State.Style", data.tone().stateStyle(), viewer);
-        }
+        statePill(cmd, row, data);
 
         Progress progress = data.progress();
         cmd.set(row + " #BarTrack.Visible", progress != null);
@@ -202,29 +203,62 @@ public final class LedgerPainter {
             cmd.set(row + " #Mark #Tracked.Visible", mark == Mark.TRACKED);
         }
         if (selected) {
-            // A fresh row carries its authored resting styles; only the selected one is swapped, last, so its
-            // white words win over the tone's state style above.
+            // A fresh row carries its authored resting styles; only the selected one is swapped, last.
             rowState(cmd, row, data, true, size, viewer);
+        }
+    }
+
+    /** The accent bar's fill as the row asks for it ({@link RowAccent}), or null for no bar. */
+    @Nullable
+    private static String accentFill(@Nonnull LedgerRow data) {
+        return switch (data.accent()) {
+            case TONE -> data.tone().fillHex();
+            case FEATURED -> ZigTokens.ACCENT;
+            case NONE -> null;
+        };
+    }
+
+    /** The glyph the meta line opens with: one of {@code #Kind}'s children shown, or the slot hidden. */
+    private static void metaGlyph(@Nonnull UICommandBuilder cmd, @Nonnull String row, @Nonnull MetaGlyph glyph) {
+        cmd.set(row + " #Kind.Visible", glyph != MetaGlyph.NONE);
+        if (glyph != MetaGlyph.NONE) {
+            cmd.set(row + " #Kind #Star.Visible", glyph == MetaGlyph.STAR);
+            cmd.set(row + " #Kind #Scroll.Visible", glyph == MetaGlyph.SCROLL);
+            cmd.set(row + " #Kind #Clock.Visible", glyph == MetaGlyph.CLOCK);
+        }
+    }
+
+    /**
+     * The state word in its pill: the pill tinted to the tone ({@link Tone#pillHex()}) and the word in the tone's
+     * own ink, which reads on that pill whether the row rests or is selected, so selecting a row never touches it.
+     * The word is coloured by its leaf, keeping the template's centred style; a theme cannot restyle it (none ships).
+     */
+    private static void statePill(@Nonnull UICommandBuilder cmd, @Nonnull String row, @Nonnull LedgerRow data) {
+        Message state = data.state();
+        cmd.set(row + " #StatePill.Visible", state != null);
+        if (state != null) {
+            KitPaint.text(cmd, row + " #State", state);
+            UiRetint.retintColor(cmd, row + " #StatePill", data.tone().pillHex());
+            cmd.set(row + " #State.Style.TextColor", data.tone().textHex());
         }
     }
 
     /**
      * A row's selected or resting look: the button's style, and its words white on the steel blue or back in their
-     * own inks (the title by its text style, the state word by its tone's style, the meta and value by colour, which
-     * keeps the one-line shape the selected styles share with the resting ones). A label the row does not show is
-     * left alone.
+     * own inks (the title by its text style, the meta and value by colour, which keeps the one-line shape the
+     * selected styles share with the resting ones). The state pill keeps its look either way. A label the row does
+     * not show is left alone.
      *
-     * <p>A row whose meta wraps to two lines ({@link RowSize#TALL}) turns its meta white by the colour leaf alone,
-     * never by {@link ZigStyles.Name#ROW_META_ON_SELECTED}, a one-line style that would clip its second line. The
-     * trade-off: a theme document cannot restyle a tall row's selected meta (no theme ships, and the white is that
-     * style's own fallback leaf).
+     * <p>A row whose meta wraps to two lines ({@link RowSize#metaWraps()}) turns its meta white by the colour leaf
+     * alone, never by {@link ZigStyles.Name#ROW_META_ON_SELECTED}, a one-line style that would clip its second line.
+     * The trade-off: a theme document cannot restyle such a row's selected meta (no theme ships, and the white is
+     * that style's own fallback leaf).
      */
     private static void rowState(@Nonnull UICommandBuilder cmd, @Nonnull String row, @Nullable LedgerRow data,
             boolean selected, @Nonnull RowSize size, @Nullable PlayerRef viewer) {
         ZigStyles.apply(cmd, row + ".Style", selected ? ZigStyles.Name.ROW_SELECTED : ZigStyles.Name.ROW, viewer);
         boolean meta = data != null && size.hasMeta() && data.meta() != null;
         boolean value = data != null && data.value() != null;
-        boolean state = data != null && data.state() != null;
         if (selected) {
             ZigStyles.apply(cmd, row + " #Title.Style", ZigStyles.Name.ROW_TITLE_ON_SELECTED, viewer);
             if (meta && size.metaWraps()) {
@@ -235,9 +269,6 @@ public final class LedgerPainter {
             if (value) {
                 ZigStyles.apply(cmd, row + " #Value.Style", ZigStyles.Name.ROW_VALUE_ON_SELECTED, viewer);
             }
-            if (state) {
-                ZigStyles.apply(cmd, row + " #State.Style", ZigStyles.Name.STATE_ON_SELECTED, viewer);
-            }
             return;
         }
         ZigStyles.applyText(cmd, row + " #Title.Style", ZigStyles.Text.ROW_TITLE);
@@ -246,9 +277,6 @@ public final class LedgerPainter {
         }
         if (value) {
             cmd.set(row + " #Value.Style.TextColor", ZigTokens.INK_BODY);
-        }
-        if (state) {
-            ZigStyles.apply(cmd, row + " #State.Style", data.tone().stateStyle(), viewer);
         }
     }
 

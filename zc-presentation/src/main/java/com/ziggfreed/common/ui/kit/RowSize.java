@@ -4,16 +4,20 @@ import javax.annotation.Nonnull;
 
 /**
  * Which ledger row template a list paints: the standard two-line row, the compact one-line row, or the tall row
- * whose meta line wraps to two.
+ * whose meta line always keeps room for two.
  *
  * <p>In every size a long title wraps onto a second line instead of ending in "...", a title longer still ends
  * its second line with "...", and the row grows to fit it: a template fixes no height, only its least one (a strut,
- * {@code #RowStrut}). So {@link #height()} is what a row takes with a one-line title, the least a list can count on
- * per row, never its exact height; size a list host to scroll, not to a count of rows.
+ * {@code #RowStrut}). The standard row's meta line grows the same way, onto a second line. So {@link #height()} is
+ * what a row takes with a one-line title and meta, the least a list can count on per row, never its exact height;
+ * size a list host to scroll, not to a count of rows.
  */
 public enum RowSize {
-    /** {@code Pages/ZigLedgerRow.ui}: title and meta, 56 high with a one-line title. */
-    STANDARD("Pages/ZigLedgerRow.ui", ZigTokens.ROW_HEIGHT, true, false),
+    /**
+     * {@code Pages/ZigLedgerRow.ui}: title and meta, 56 high with a one-line title and meta; a meta running past one
+     * line wraps onto a second and grows the row.
+     */
+    STANDARD("Pages/ZigLedgerRow.ui", ZigTokens.ROW_HEIGHT, true, true),
     /**
      * {@code Pages/ZigLedgerRowCompact.ui}: title and bar on one line, no meta, 44 high; a title on two lines grows it
      * only if the client draws the two lines taller than that.
@@ -57,8 +61,9 @@ public enum RowSize {
     }
 
     /**
-     * Whether the template's {@code #Meta} wraps to a second line. The kit's named meta styles are one line, so a
-     * painter recolours such a meta by its colour leaf alone and never swaps its whole style.
+     * Whether the template's {@code #Meta} wraps to a second line (the standard and tall rows). The kit's named meta
+     * styles are one line, so a painter recolours such a meta by its colour leaf alone and never swaps its whole
+     * style.
      */
     boolean metaWraps() {
         return metaWraps;

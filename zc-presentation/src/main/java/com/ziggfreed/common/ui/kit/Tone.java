@@ -29,14 +29,33 @@ public enum Tone {
     /** Abandon, refused. */
     DANGER(ZigTokens.TONE_DANGER_FILL, ZigTokens.TONE_DANGER_TEXT, ZigStyles.Name.STATE_DANGER);
 
+    /** How much of the tone's fill a state pill shows over the dark ink ({@code #rrggbbaa}'s last two digits). */
+    private static final String PILL_ALPHA = "4d";
+
+    /** How much body ink a neutral state pill shows over the dark ink. */
+    private static final String NEUTRAL_PILL_ALPHA = "26";
+
     private final String fillHex;
     private final String textHex;
     private final ZigStyles.Name stateStyle;
+    private final String pillHex;
 
     Tone(@Nullable String fillHex, @Nonnull String textHex, @Nonnull ZigStyles.Name stateStyle) {
         this.fillHex = fillHex;
         this.textHex = textHex;
         this.stateStyle = stateStyle;
+        this.pillHex = ZigTokens.seenOver(fillHex != null ? fillHex + PILL_ALPHA : ZigTokens.INK_BODY
+                + NEUTRAL_PILL_ALPHA, ZigTokens.INK_DARK);
+    }
+
+    /**
+     * A list row's state pill ({@code #rrggbb}, opaque): the tone's fill laid thinly over the dark ink, so the state
+     * word in {@link #textHex()} reads on it whether its row rests or is selected (the selected row is the active
+     * tone's own fill, so a pill in a bare fill would vanish on it).
+     */
+    @Nonnull
+    public String pillHex() {
+        return pillHex;
     }
 
     /** The accent fill ({@code #rrggbb}), or null for {@link #NEUTRAL}, which has no accent. */
