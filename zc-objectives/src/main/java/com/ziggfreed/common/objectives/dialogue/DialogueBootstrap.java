@@ -20,10 +20,10 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * Fills the dialogue engine's declared seams at plugin {@code setup()}: the factor vocabulary its
  * {@code Factor} conditions resolve against, the {@code Grant} action that pays a line's rewards, the
- * library's own quest binding beneath the consumer's quest slot, the persistent memory store, and
- * the active-objective header note, then hangs the library's conversation audit on the first player
- * ready. Four ordered phases, each called once from {@code ZiggfreedCommonPlugin.setup()}, which stays
- * the one authority on call ORDER.
+ * {@code Requires} and {@code HasActiveBounties} conditions, the library's own quest binding beneath
+ * the consumer's quest slot, the persistent memory store, and the active-objective header note,
+ * then hangs the library's conversation audit on the first player ready. Four ordered phases, each
+ * called once from {@code ZiggfreedCommonPlugin.setup()}, which stays the one authority on call ORDER.
  *
  * <p>The dialogue module declares each of these seams and structurally cannot fill them itself:
  * the {@code hytale:} factor standard library lives in the entity module it cannot see, the
@@ -65,6 +65,12 @@ public final class DialogueBootstrap {
      * entry shape a quest pays in, through the one payout core outside a quest. The dialogue module
      * cannot see that core or the reward vocabulary, and this module sees both.
      *
+     * <p>The condition half: {@code Requires} ({@link RequiresDialogueCondition}, with {@code Gate} as its
+     * deprecated spelling) reads a line's {@code Requires} block through the server's one evaluator, and
+     * {@code HasActiveBounties} ({@link HasActiveBountiesDialogueCondition}) asks the boards whether the
+     * player has work posted. The dialogue module sees neither the runtime's subject nor the boards, and this
+     * module sees both, so a pack gates a line on either with this library alone.
+     *
      * <p>The quest half: {@link RuntimeDialogueQuests}, the quest lines read and acted through the
      * shared quest engine, installed into the dialogue engine's DEFAULT quest slot. That slot sits
      * beneath the one a consumer installs into, so a server running no quest mod of its own still
@@ -87,6 +93,17 @@ public final class DialogueBootstrap {
             DialogueEngine.registerShared(LibraryOwner.NAME, GrantDialogueAction.type());
         } catch (Throwable t) {
             SafeLog.warn("[dialogue] could not register the Grant dialogue action", t);
+        }
+        try {
+            DialogueEngine.registerShared(LibraryOwner.NAME, RequiresDialogueCondition.type());
+            DialogueEngine.registerShared(LibraryOwner.NAME, RequiresDialogueCondition.gateType());
+        } catch (Throwable t) {
+            SafeLog.warn("[dialogue] could not register the Requires dialogue condition", t);
+        }
+        try {
+            DialogueEngine.registerShared(LibraryOwner.NAME, HasActiveBountiesDialogueCondition.type());
+        } catch (Throwable t) {
+            SafeLog.warn("[dialogue] could not register the HasActiveBounties dialogue condition", t);
         }
     }
 

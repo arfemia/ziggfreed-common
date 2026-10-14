@@ -24,8 +24,10 @@ import com.ziggfreed.common.dialogue.schema.NpcDialogue;
 import com.ziggfreed.common.dialogue.type.DialogueAction;
 import com.ziggfreed.common.dialogue.type.DialogueCondition;
 import com.ziggfreed.common.dialogue.validate.DialogueStructureValidator;
+import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.objectives.book.BookVerbs;
 import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
+import com.ziggfreed.common.progress.gate.GateValidator;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.quest.asset.QuestAssetStore;
 import com.ziggfreed.common.quest.asset.QuestPool;
@@ -44,6 +46,12 @@ import com.ziggfreed.common.validation.ValidationReport;
  * ({@link QuestCompletionDialogueValidator}, filed under the quest family). A quest the shared store's mod
  * gate refused is absent by design and is never reported unknown.
  *
+ * <p>A {@code Requires} condition's block ({@link RequiresDialogueCondition}) goes through the shared gate
+ * audit every domain carrying a {@code Requires} block uses ({@link GateValidator}: the same codes and
+ * wording, located by the line), and each use of its deprecated {@code Gate} spelling is reported
+ * ({@value #GATE_CONDITION_DEPRECATED}, a WARNING naming {@code Requires}). The block is read on a line the
+ * caller holds shut too; only its quest prerequisites are skipped there, as the line's quest ids are.
+ *
  * <p><b>Once per boot, at the first player ready</b> ({@link #runLateAudit()}): only by then has every
  * store folded and every mod's {@code setup()} registered the vocabulary a line is judged against. zc's
  * boot audit takes that same one run at the boot event ({@link #claimLateFindings()}). A consumer that
@@ -58,6 +66,12 @@ public final class DialogueAudit {
 
     /** A conversation names a quest no quest answers to (a WARNING). */
     public static final String UNKNOWN_QUEST_ID = "UNKNOWN_QUEST_ID";
+
+    /** A conversation gates on the deprecated {@code Gate} spelling of {@code Requires} (a WARNING). */
+    public static final String GATE_CONDITION_DEPRECATED = "GATE_CONDITION_DEPRECATED";
+
+    /** What a {@code Requires} block's findings call the content it gates. */
+    private static final String GATED_NOUN = "content";
 
     /** Whether the late audit has had its one run this boot. */
     private static final AtomicBoolean LATE_AUDITED = new AtomicBoolean();
@@ -99,7 +113,8 @@ public final class DialogueAudit {
      *
      * <p>{@code heldShut} names the lines a caller knows cannot render on this server (a consumer's own gate
      * on a feature it has switched off): their conditions' and actions' quest ids are not this server's
-     * content, so they are not checked. The library holds no line shut itself.
+     * content, so they are not checked, while their {@code Requires} blocks still are. The library holds no
+     * line shut itself.
      */
     @Nonnull
     public static List<Finding> auditConversations(@Nonnull Collection<NpcDialogue> dialogues,
@@ -259,6 +274,9 @@ public final class DialogueAudit {
             @Nonnull Predicate<String> resolves, @Nonnull Predicate<DialogueOption> heldShut,
             @Nonnull List<Finding> out) {
         if (heldShut(option, heldShut)) {
+            // Its quest ids are not this server's content, but its own Requires block is still read, so a
+            // mistake in the block that holds it shut is still reported.
+            checkConditions(option.getConditions(), where, id, null, out);
             return;
         }
         checkConditions(option.getConditions(), where, id, resolves, out);
@@ -274,18 +292,47 @@ public final class DialogueAudit {
         }
     }
 
-    /** Every quest line in {@code conditions}, through the boolean combinators. */
+    /**
+     * Every quest line and {@code Requires} block in {@code conditions}, through the boolean combinators. A
+     * null {@code resolves} is a line held shut: no quest id or prerequisite in it is checked.
+     */
     private static void checkConditions(@Nullable List<DialogueCondition> conditions, @Nonnull String where,
-            @Nonnull String id, @Nonnull Predicate<String> resolves, @Nonnull List<Finding> out) {
+            @Nonnull String id, @Nullable Predicate<String> resolves, @Nonnull List<Finding> out) {
         if (conditions == null) {
             return;
         }
         for (DialogueCondition condition : conditions) {
             if (condition instanceof DialogueCondition.Combinator combinator) {
                 checkConditions(combinator.getChildren(), where, id, resolves, out);
-            } else if (condition instanceof QuestDialogueConditions.QuestRef ref) {
+            } else if (condition instanceof RequiresDialogueCondition.Block block) {
+                checkRequires(block, where, id, resolves, out);
+            } else if (resolves != null && condition instanceof QuestDialogueConditions.QuestRef ref) {
                 checkQuestId(ref.getQuest(), where, id, resolves, out);
             }
+        }
+    }
+
+    /**
+     * A {@code Requires} condition: the deprecated {@code Gate} spelling, then its block through the shared
+     * gate audit, against the server's gate kinds and the factor vocabulary the block is answered with, its
+     * {@code Quests} against {@code resolves} (skipped when null, a line held shut). Each finding keeps the
+     * gate audit's code and words, located by the line.
+     */
+    private static void checkRequires(@Nonnull RequiresDialogueCondition.Block block, @Nonnull String where,
+            @Nonnull String id, @Nullable Predicate<String> resolves, @Nonnull List<Finding> out) {
+        if (block instanceof RequiresDialogueCondition.Gate) {
+            out.add(Finding.warning(DialogueStructureValidator.DOMAIN, GATE_CONDITION_DEPRECATED,
+                    where + " gates on the Gate condition, which is deprecated and will be removed: write"
+                            + " {\"Type\": \"Requires\", \"Requires\": {...}} with the same block instead, which"
+                            + " reads the same", id));
+        }
+        FactorRegistry factors = ProgressionRuntime.factors();
+        Predicate<String> knownFactors = factors == null ? null : factors::isRegistered;
+        Predicate<String> knownContent = resolves == null ? null : questId -> resolves(questId, resolves);
+        for (Finding finding : GateValidator.validate(block.getRequires(), DialogueStructureValidator.DOMAIN, id,
+                GATED_NOUN, ProgressionRuntime.gateKinds(), knownFactors, knownContent)) {
+            out.add(new Finding(finding.severity(), finding.code(), where + ": " + finding.message(),
+                    finding.sourceId(), finding.domain()));
         }
     }
 
