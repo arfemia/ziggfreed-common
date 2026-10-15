@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashMap;
@@ -20,14 +21,15 @@ import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.quest.QuestEngine.ItemDropDue;
 import com.ziggfreed.common.quest.QuestItemDrop;
+import com.ziggfreed.common.quest.QuestItemDrop.Delivery;
 import com.ziggfreed.common.quest.QuestItemDrop.Source;
 import com.ziggfreed.common.quest.QuestPossessionProbe;
 import com.ziggfreed.common.subject.Subject;
 
 /**
- * A step's {@code Drop} leaf: it decodes onto the runtime quest with its defaults, and the engine owes
- * its item only to a player carrying the quest whose step is unlocked and still wants it, from the
- * source it names, never more than the step still asks for.
+ * A step's {@code Drop} leaf: it decodes onto the runtime quest with its defaults (its {@code Delivery} word,
+ * unauthored reading each source's own), and the engine owes its item only to a player carrying the quest whose
+ * step is unlocked and still wants it, from the source it names, never more than the step still asks for.
  */
 class QuestDropLeafTest {
 
@@ -81,6 +83,41 @@ class QuestDropLeafTest {
         assertEquals(List.of("Ogre_Brute"), drop.roles(), "a sibling leaf of the block it touched survives");
         assertEquals(List.of("yourmod_Ogre_King"), drop.encounters());
         assertEquals(2, drop.count());
+    }
+
+    @Test
+    void theDeliveryLeafReadsItsWordAndAnUnauthoredOneReadsEachSourcesDefault() throws Exception {
+        QuestItemDrop crest = decodeRoot(QUEST, "ogre_trouble").toDefinition(null).quest().stepDrop("bring_crest");
+        assertNotNull(crest);
+        assertNull(crest.delivery(), "an unauthored delivery stays unset");
+        assertEquals(Delivery.SPOILS, crest.deliveryFor(Source.ENCOUNTER), "a won fight's drop waits in its spoils");
+        assertEquals(Delivery.BAG_THEN_CLAIM, crest.deliveryFor(Source.ROLE), "a kill's goes into the bag first");
+
+        QuestAsset parent = decodeRoot("""
+                { "Objectives": { "bring": { "Kind": "TURN_IN", "Target": "Ogre_Crest", "Amount": 2,
+                    "Drop": { "Roles": ["Ogre_Brute"], "Encounters": ["yourmod_Ogre_King"], "Delivery": "ground" } } } }
+                """, "ogre_base");
+        QuestItemDrop ground = parent.toDefinition(null).quest().stepDrop("bring");
+        assertNotNull(ground);
+        assertEquals(Delivery.GROUND, ground.delivery(), "the word reads in any case");
+        assertEquals(Delivery.GROUND, ground.deliveryFor(Source.ENCOUNTER), "an authored delivery holds for both sources");
+
+        QuestAsset kept = decode("""
+                { "Objectives": { "bring": { "Drop": { "Chance": 0.5 } } } }
+                """, "ogre_child", "ogre_base", parent);
+        assertEquals(Delivery.GROUND, kept.toDefinition(null).quest().stepDrop("bring").delivery(),
+                "a child retuning another leaf keeps the parent's delivery");
+        QuestAsset own = decode("""
+                { "Objectives": { "bring": { "Drop": { "Delivery": "Bag" } } } }
+                """, "ogre_bag", "ogre_base", parent);
+        assertEquals(Delivery.BAG, own.toDefinition(null).quest().stepDrop("bring").delivery(),
+                "a child's own delivery wins");
+
+        for (Delivery each : Delivery.values()) {
+            assertEquals(each, QuestDropAsset.delivery(each.word()), "each written word reads back");
+        }
+        assertThrows(IllegalArgumentException.class, () -> QuestDropAsset.delivery("Spoil"),
+                "any other word fails the read");
     }
 
     @Test

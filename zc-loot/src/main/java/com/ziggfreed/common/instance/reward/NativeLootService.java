@@ -247,14 +247,14 @@ public final class NativeLootService {
                 warnLost(items, new IllegalStateException("the dropping entity's ref is no longer valid"));
                 return false;
             }
-            TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
-            if (transform == null) {
+            Vector3d at = dropPointOf(store, ref);
+            if (at == null) {
                 warnLost(items, new IllegalStateException("the dropping entity has no readable position"));
                 return false;
             }
             HeadRotation head = store.getComponent(ref, HeadRotation.getComponentType());
             Rotation3f facing = new Rotation3f(head == null ? Rotation3f.IDENTITY : head.getRotation());
-            return spawnInWorld(store, commandBuffer, lifted(transform.getPosition()), facing, items);
+            return spawnInWorld(store, commandBuffer, at, facing, items);
         } catch (Throwable t) {
             warnLost(items, t);
             return false;
@@ -262,11 +262,32 @@ public final class NativeLootService {
     }
 
     /**
-     * {@code position} lifted {@value #FEET_DROP_LIFT} block, as a NEW vector: the engine hands back
-     * an entity's live position, and adding to it in place would teleport whoever stands on it.
+     * Where the engine drops a dying entity's items: {@code ref}'s position read through {@code accessor} (its
+     * store outside a tick, the tick's buffer inside one), lifted as {@link #lifted} lifts it, a new vector. The
+     * corpse ground's point for a site that spills later, outside the tick it read it in (the one-accessor
+     * {@link #spawnInWorld(ComponentAccessor, Vector3d, Rotation3fc, List)} drops there). Null when the ref is
+     * dead or has no position. Never throws.
+     */
+    @Nullable
+    public static Vector3d dropPointOf(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref) {
+        try {
+            if (!ref.isValid()) {
+                return null;
+            }
+            TransformComponent transform = accessor.getComponent(ref, TransformComponent.getComponentType());
+            return transform == null ? null : lifted(transform.getPosition());
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /**
+     * {@code position} lifted {@value #FEET_DROP_LIFT} block, as a NEW vector: where the engine drops the items
+     * of something standing at {@code position} (an entity's live position, which adding to in place would
+     * teleport whoever stands on it, or a place read earlier, such as where a boss fell).
      */
     @Nonnull
-    static Vector3d lifted(@Nonnull Vector3d position) {
+    public static Vector3d lifted(@Nonnull Vector3d position) {
         return new Vector3d(position).add(0.0, FEET_DROP_LIFT, 0.0);
     }
 

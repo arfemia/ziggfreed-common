@@ -322,13 +322,19 @@ public final class SpoilsChests {
     }
 
     /**
-     * Whether {@code claim} is in a spoils chest: its fight left one that has not run out. What a notice says of
-     * where the Claim waits.
+     * Whether {@code claim} is in a spoils chest: its fight's chest stands, or is on its way up, and has not run
+     * out. A chest that could not be stood (no ticking section, a failed spawn) or has been taken down holds nothing,
+     * so its Claims read as waiting under Claims alone. What a notice says of where the Claim waits.
      */
     public static boolean inChest(@Nonnull Claim claim) {
         String fight = claim.fight();
         Spoils spoils = fight == null ? null : FIGHTS.get(key(fight));
-        return spoils != null && System.currentTimeMillis() < spoils.expiresAt;
+        if (spoils == null || System.currentTimeMillis() >= spoils.expiresAt) {
+            return false;
+        }
+        synchronized (spoils) {
+            return spoils.chest != null || spoils.raising;
+        }
     }
 
     // ==================== the pure pieces ====================

@@ -89,12 +89,25 @@ public final class ZigOpenSpoilsInteraction extends SimpleInstantInteraction {
         });
     }
 
-    /** On the world thread, outside every system: open the spoils for the player behind {@code owner}, still here. */
+    /**
+     * On the world thread, outside every system: open the spoils for the player behind {@code owner}, still here
+     * and still in this world (a transfer since the Use leaves them to open it again where it stands). Only the
+     * player's read is guarded here; {@link SpoilsView#open} guards itself.
+     */
     private static void openFor(@Nonnull Ref<EntityStore> owner, @Nonnull String fight) {
-        if (!owner.isValid()) {
+        Store<EntityStore> store;
+        Player player;
+        try {
+            if (!owner.isValid() || !owner.getStore().isInThread()) {
+                return;
+            }
+            store = owner.getStore();
+            player = store.getComponent(owner, Player.getComponentType());
+        } catch (Throwable t) {
+            SafeLog.fine("[interaction] " + TYPE_NAME + ": the player who used the chest could not be read: "
+                    + t.getMessage());
             return;
         }
-        Store<EntityStore> store = owner.getStore();
-        SpoilsView.open(store, owner, store.getComponent(owner, Player.getComponentType()), fight);
+        SpoilsView.open(store, owner, player, fight);
     }
 }

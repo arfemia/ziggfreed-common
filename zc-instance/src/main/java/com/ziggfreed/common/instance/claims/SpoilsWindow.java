@@ -40,8 +40,11 @@ import com.ziggfreed.common.util.SafeLog;
  * <p><b>The rules it keeps.</b> Items only go out ({@code ALLOW_OUTPUT_ONLY}), into the bag: a drop from the window
  * to the ground is refused ({@link SpoilsChestSystems.NoDrop}), so nothing it holds can end up owner-less. What left
  * is read by item and amount after every change, never by slot (the window's sort moves slots), and taken out of the
- * fight's Claims through the store's own take and put-back, oldest Claim first. One window per player at a time; a
- * second use of a chest while one is open does nothing. A disconnect closes the window like a close does.
+ * fight's Claims through the store's own take and put-back, oldest Claim first. What left is announced as collected
+ * from each Claim it came out of ({@link ClaimGrants#announceCollected}, a {@code ClaimCollectedEvent}, so a step
+ * counting the item's arrival counts it), once: an item that comes back and leaves again is not announced twice. One
+ * window per player at a time; a second use of a chest while one is open does nothing. A disconnect closes the
+ * window like a close does.
  *
  * <p>World thread: the window is built and opened there, and the engine changes the container and closes the window
  * there too.
@@ -60,7 +63,13 @@ final class SpoilsWindow {
     /** The item ids (lower-cased) already warned about as unknown here, one warning each. */
     private static final Set<String> WARNED_ITEMS = ConcurrentHashMap.newKeySet();
 
+    /** One item amount taken out of one Claim: what the Claim held when it was taken, and the amount. */
+    record Taken(@Nonnull Claim claim, @Nonnull InstanceReward reward) {
+    }
+
     @Nonnull private final UUID player;
+    /** The player who opened the window, in the chest's world: who a collection is announced for. */
+    @Nonnull private final Ref<EntityStore> ref;
     @Nonnull private final String fight;
     @Nonnull private final ClaimStore claims;
     @Nonnull private final ItemContainer container;
@@ -73,13 +82,16 @@ final class SpoilsWindow {
     @Nonnull private final Map<String, InstanceReward> templates;
     /** The Claim each item was last taken out of, where an item coming back goes. */
     @Nonnull private final Map<String, Claim> homes = new LinkedHashMap<>();
+    /** How much of each item came back after its leaving was announced: its next leaving is not announced again. */
+    @Nonnull private final Map<String, Integer> returned = new LinkedHashMap<>();
     @Nullable private EventRegistration<?, ?> change;
     private boolean closed;
 
-    private SpoilsWindow(@Nonnull UUID player, @Nonnull String fight, @Nonnull ClaimStore claims,
-            @Nonnull ItemContainer container, @Nonnull Map<String, Integer> given,
+    private SpoilsWindow(@Nonnull UUID player, @Nonnull Ref<EntityStore> ref, @Nonnull String fight,
+            @Nonnull ClaimStore claims, @Nonnull ItemContainer container, @Nonnull Map<String, Integer> given,
             @Nonnull Map<String, InstanceReward> templates) {
         this.player = player;
+        this.ref = ref;
         this.fight = fight;
         this.claims = claims;
         this.container = container;
@@ -130,7 +142,7 @@ final class SpoilsWindow {
             container.setItemStackForSlot((short) slot, stacks.get(slot));
         }
         container.setGlobalFilter(FilterType.ALLOW_OUTPUT_ONLY);
-        SpoilsWindow session = new SpoilsWindow(player, fight, claims, container, given, templates);
+        SpoilsWindow session = new SpoilsWindow(player, ref, fight, claims, container, given, templates);
         session.change = container.registerChangeEvent(event -> session.reconcile());
         session.window.registerCloseEvent(event -> session.onClose());
         OPEN.put(player, session);
@@ -152,9 +164,10 @@ final class SpoilsWindow {
     // ==================== the write-back ====================
 
     /**
-     * Square the Claims with the window, item by item: what left since the last look comes out of the Claims, what
-     * came back goes back into the Claim it left. Never more than the window was given counts, so an item that
-     * found its way in some other way is never written to a Claim. Never throws.
+     * Square the Claims with the window, item by item: what left since the last look comes out of the Claims and is
+     * announced as collected from each Claim it came out of, what came back goes back into the Claim it left. Never
+     * more than the window was given counts, so an item that found its way in some other way is never written to a
+     * Claim. Never throws.
      */
     private void reconcile() {
         try {
@@ -164,13 +177,19 @@ final class SpoilsWindow {
                 int held = Math.min(now.getOrDefault(item, 0), given.getOrDefault(item, 0));
                 int counted = entry.getValue();
                 if (held < counted) {
-                    int missing = takeItems(claims, player, fight, item, counted - held, homes);
+                    List<Taken> taken = new ArrayList<>();
+                    int missing = takeItems(claims, player, fight, item, counted - held, homes, taken);
                     if (missing > 0) {
                         SafeLog.warn(SpoilsChests.LOG + "the window of run=" + fight + " gave out " + missing + " "
                                 + item + " more than its Claims held");
                     }
-                } else if (held > counted) {
-                    putBack(item, held - counted);
+                    int again = Math.min(counted - held, returned.getOrDefault(item, 0));
+                    if (again > 0) {
+                        returned.merge(item, -again, Integer::sum);
+                    }
+                    announce(taken, again);
+                } else if (held > counted && putBack(item, held - counted)) {
+                    returned.merge(item, held - counted, Integer::sum);
                 }
                 entry.setValue(held);
             }
@@ -179,16 +198,36 @@ final class SpoilsWindow {
         }
     }
 
-    /** Return {@code quantity} of {@code item}, back in the window, to the Claim it was last taken out of. */
-    private void putBack(@Nonnull String item, int quantity) {
+    /**
+     * Announce {@code taken} as collected, Claim by Claim in the order it came out, leaving out its first
+     * {@code already} (an amount that came back after its leaving was announced, leaving again).
+     */
+    private void announce(@Nonnull List<Taken> taken, int already) {
+        int skip = already;
+        for (Taken each : taken) {
+            int quantity = each.reward().quantity();
+            int fresh = quantity - Math.min(skip, quantity);
+            skip -= quantity - fresh;
+            if (fresh > 0) {
+                ClaimGrants.announceCollected(player, ref, each.claim(), List.of(each.reward().withQuantity(fresh)));
+            }
+        }
+    }
+
+    /**
+     * Return {@code quantity} of {@code item}, back in the window, to the Claim it was last taken out of; whether it
+     * went back (false for an item the window never gave out).
+     */
+    private boolean putBack(@Nonnull String item, int quantity) {
         Claim home = homes.get(item);
         InstanceReward template = templates.get(item);
         if (home == null || template == null) {
             SafeLog.warn(SpoilsChests.LOG + "the window of run=" + fight + " got back " + quantity + " " + item
                     + " it never gave out");
-            return;
+            return false;
         }
         claims.putBack(player, home.withRewards(List.of(template.withQuantity(quantity))));
+        return true;
     }
 
     /** The window closed (by the player, a disconnect, a world change): square what is left, then let go. */
@@ -275,10 +314,11 @@ final class SpoilsWindow {
     /**
      * Take {@code quantity} of the item {@code itemId} out of the Claims {@code fight} paid {@code player}, oldest
      * first, each through the store's own take and put-back (a Claim left with nothing is not put back), noting in
-     * {@code homes} the Claim the item last came out of. Answers how much could not be found.
+     * {@code homes} the Claim the item last came out of and in {@code taken} each amount taken, by the Claim it came
+     * out of. Answers how much could not be found.
      */
     static int takeItems(@Nonnull ClaimStore claims, @Nonnull UUID player, @Nonnull String fight,
-            @Nonnull String itemId, int quantity, @Nonnull Map<String, Claim> homes) {
+            @Nonnull String itemId, int quantity, @Nonnull Map<String, Claim> homes, @Nonnull List<Taken> taken) {
         int left = quantity;
         for (Claim listed : claims.list(player)) {
             if (left <= 0) {
@@ -297,6 +337,9 @@ final class SpoilsWindow {
                 if (left > 0 && reward.isItem() && reward.id().equalsIgnoreCase(itemId)) {
                     int used = Math.min(left, reward.quantity());
                     left -= used;
+                    if (used > 0) {
+                        taken.add(new Taken(claim, reward.withQuantity(used)));
+                    }
                     if (reward.quantity() > used) {
                         kept.add(reward.withQuantity(reward.quantity() - used));
                     }

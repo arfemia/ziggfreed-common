@@ -217,8 +217,9 @@ reputation.rank_achievement = {0} ({1})
 quest.marker.available = Quest on offer: {0}
 
 # The corner notice when an item a quest step asks for drops into the player's bag: {0} is the item's name, and
-# the line under it names the quest it is for ({0} the quest's title). bag_full is no longer said: what the bag
-# cannot take waits under Claims instead.
+# the line under it names the quest it is for ({0} the quest's title). bag_full is said only for a step whose Drop
+# writes Delivery Bag, when the bag has no room ({0} the item's name): the item is not handed over, and a later drop
+# tries again. Every other delivery keeps what the bag cannot take under Claims.
 quest.drop.received = Quest item: {0}
 quest.drop.for = For {0}
 quest.drop.bag_full = Your bag is full, so you could not take {0}. Make room for it.

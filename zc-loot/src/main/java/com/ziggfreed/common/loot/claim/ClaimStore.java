@@ -136,8 +136,10 @@ public final class ClaimStore {
      * beside its own (a top-up) instead of refusing them: one Claim per payout that keeps coming, such as a quest
      * step's item. A top-up is counted, scaled and announced exactly as a first write is ({@link ClaimAddedEvent},
      * carrying the Claim as it now stands); the held Claim keeps its title and its place by age, and a reward the
-     * same as one it holds adds to that one's quantity ({@link InstanceReward#merge}). Whatever caps the payout is
-     * the caller's: this adds what it is given.
+     * same as one it holds adds to that one's quantity ({@link InstanceReward#merge}). A top-up that names a fight
+     * ({@link Claim#fight()}) moves the whole Claim to that fight, so the chest the newest fight leaves offers it;
+     * one that names none keeps the held Claim's. Whatever caps the payout is the caller's: this adds what it is
+     * given.
      *
      * @return true when a Claim was written or topped up
      */
@@ -247,7 +249,7 @@ public final class ClaimStore {
         }
         Claim written;
         if (at >= 0) {
-            written = joined(fromStored(held.get(at)), claim.withRewards(scaled));
+            written = inFight(joined(fromStored(held.get(at)), claim.withRewards(scaled)), claim.fight());
             held.set(at, toStored(written));
         } else {
             written = claim.withRewards(scaled);
@@ -283,6 +285,16 @@ public final class ClaimStore {
         rewards.addAll(more.rewards());
         return new Claim(held.id(), held.source(), held.titleKey(), held.titleArgs(), held.difficulty(),
                 InstanceReward.merge(rewards), Math.min(held.createdAt(), more.createdAt()), held.fight());
+    }
+
+    /** {@code claim} paid for {@code fight} instead, everything else kept; unchanged for a null fight. */
+    @Nonnull
+    private static Claim inFight(@Nonnull Claim claim, @Nullable String fight) {
+        if (fight == null || claim.fromFight(fight)) {
+            return claim;
+        }
+        return new Claim(claim.id(), claim.source(), claim.titleKey(), claim.titleArgs(), claim.difficulty(),
+                claim.rewards(), claim.createdAt(), fight);
     }
 
     /** {@code rewards} at {@code multiplier} ({@link #scaledQuantity}), none left at zero. */

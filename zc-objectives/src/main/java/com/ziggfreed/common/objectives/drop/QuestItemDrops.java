@@ -1,5 +1,6 @@
 package com.ziggfreed.common.objectives.drop;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -11,22 +12,32 @@ import java.util.function.DoubleSupplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import org.joml.Vector3d;
+
+import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.encounter.event.EncounterDefeatedEvent;
+import com.ziggfreed.common.encounter.payout.EncounterClaims;
 import com.ziggfreed.common.feedback.Notify;
 import com.ziggfreed.common.feedback.PickupMimic;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.i18n.NativeNames;
 import com.ziggfreed.common.instance.reward.InstanceReward;
+import com.ziggfreed.common.instance.reward.NativeLootService;
 import com.ziggfreed.common.inventory.ItemIds;
 import com.ziggfreed.common.inventory.PlayerAccess;
 import com.ziggfreed.common.loot.GroundSpillSinks;
 import com.ziggfreed.common.loot.claim.Claim;
 import com.ziggfreed.common.loot.claim.ClaimCollectedEvent;
 import com.ziggfreed.common.loot.claim.ClaimStore;
+import com.ziggfreed.common.objectives.producer.EncounterPayload;
+import com.ziggfreed.common.objectives.producer.EncounterRulePayload;
+import com.ziggfreed.common.objectives.producer.MobKillPayload;
 import com.ziggfreed.common.objectives.producer.ProgressDispatch;
 import com.ziggfreed.common.objectives.producer.ZigEncounterProducer;
 import com.ziggfreed.common.objectives.producer.ZigMobKillProducer;
@@ -39,6 +50,7 @@ import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.quest.QuestEngine.ItemDropDue;
 import com.ziggfreed.common.quest.QuestItemDrop;
+import com.ziggfreed.common.quest.QuestItemDrop.Delivery;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -51,14 +63,29 @@ import com.ziggfreed.common.util.SafeLog;
  * whose steps ask for nothing from it gets nothing, and one already holding what a step owes gets no
  * more.
  *
- * <p><b>Where it goes.</b> One method decides, {@link #bagFirst}: a kill's drop goes straight into the bag,
- * the way the engine gives a picked-up item (the container the player's pickup settings choose, partial
- * stacks topped up first, {@link GroundSpillSinks#pickupRouted}), and whatever the bag cannot take waits in
- * the step's Claim; a won fight's drop always waits in the step's Claim, whether the bag has room or not,
- * since a boss's loot is collected, never handed over unasked (M428), and the quest item is collected with
- * the rest of it. It NEVER goes onto the ground: a ground drop at the corpse would need a pickup filter the
- * engine does not have (a dropped item carries no owner), so in a group fight another player could take it,
- * and a pile spilled at a full bag's feet is out of every count.
+ * <p><b>Where it goes.</b> The step's {@code Delivery} says ({@link QuestItemDrop#deliveryFor}), and one method
+ * turns it into a route, {@link #route}:
+ * <ul>
+ *   <li>{@code Spoils} (a won fight's default) waits in the step's Claim, paid for the fight
+ *   ({@link Claim#fight()}: the run id the defeat's {@link EncounterPayload} carries, the id the fight's spoils
+ *   chest is keyed by, {@link EncounterClaims#fightOf}), so the chest that fight leaves where the boss fell offers
+ *   it with the rest of its loot, and it waits under Claims where no chest stands (one switched off, a fight no
+ *   binding row names, a rule's credit, a kill), never handed over unasked (M428);</li>
+ *   <li>{@code BagThenClaim} (a kill's default) goes into the bag the way the engine gives a picked-up item (the
+ *   container the player's pickup settings choose, partial stacks topped up first,
+ *   {@link GroundSpillSinks#pickupRouted}), and whatever the bag cannot take waits in the step's Claim;</li>
+ *   <li>{@code Bag} goes into the bag the same way, and what the bag cannot take is not handed over: the player is
+ *   told their bag is full, and the step still wants it, so a later drop tries again;</li>
+ *   <li>{@code Ground} spills one stack for this player where the creature or the boss fell (the corpse read as
+ *   the moment arrives, while it still stands, lifted as the engine lifts a death drop, or the defeat's
+ *   {@link EncounterDefeatedEvent#deathPosition}), owned by nobody, as the base game drops a kill's loot, so
+ *   anyone nearby can pick it up; with no such place in the player's own world, or a spawn that failed, it waits in
+ *   the step's Claim instead.</li>
+ * </ul>
+ * A Claim a won fight writes names that fight whatever the delivery, a top-up included
+ * ({@link ClaimStore#awardOrTopUp} moves the step's Claim to the newest fight), so it raises or joins that fight's
+ * chest: the chest goes up at the fight's first Claim and lists a fight's Claims as it opens, and this hand-out runs
+ * a task after the defeat, which the chest notes as it is announced.
  *
  * <p><b>The step's Claim.</b> A player holds at most one Claim per quest and step, {@code
  * quest-drop:<quest>:<step>:<player>} from the source {@code quest-drop:<quest>}, titled with the item's
@@ -66,17 +93,17 @@ import com.ziggfreed.common.util.SafeLog;
  * while it waits adds to it ({@link ClaimStore#awardOrTopUp}), never a second Claim, and what waits counts as
  * held when the engine reads what a step still wants ({@link QuestEngine.ItemsWaiting}), so the bag and the
  * Claim together never hold more than the step asks for. The player hears of it through the Claims tab's own
- * toast, which names it; collecting it takes room in the bag, and the Claims tab says so when there is none.
- * Like every Claim it never expires, and it still pays its item when the quest was finished or abandoned
- * before it was collected: a stray quest item is harmless.
+ * toast, which names it (and the chest, when it stands in one); collecting it takes room in the bag, and the
+ * Claims tab says so when there is none. Like every Claim it never expires, and it still pays its item when the
+ * quest was finished or abandoned before it was collected: a stray quest item is harmless.
  *
  * <p>It is an OBJECTIVE item, what the step asks the player to bring, not a reward: the quest's hand-in takes
  * it back. A step that counts the item ARRIVING ({@code PICKUP_ITEM}) is credited with what reaches the bag,
- * a kill's at once and a Claim's when it is collected ({@link #onCollected}, on the
- * {@link ClaimCollectedEvent} a Claim press raises), fed to the engines alone
+ * a drop's at once, a Claim's when it is collected or taken out of a spoils chest ({@link #onCollected}, on the
+ * {@link ClaimCollectedEvent} either raises), fed to the engines alone
  * ({@link DispatchOptions#OBJECTIVES_ONLY}: no listener and no tap sees a pickup that never happened), since
- * a granted item fires no native pickup. What lands in the bag raises a corner notice naming the item and
- * the quest it is for ("Quest item: ..."), with the pickup sound.
+ * a granted item fires no native pickup; a ground stack counts through the engine's own pickup. What lands in the
+ * bag raises a corner notice naming the item and the quest it is for ("Quest item: ..."), with the pickup sound.
  *
  * <p><b>When.</b> The decision runs on a LATER task of the player's world, never inside the death
  * system that fired the kill, and by then the same moment has reached the quest engine, so a step that
@@ -105,6 +132,9 @@ public final class QuestItemDrops implements MomentListener {
 
     /** The notice's second line: "For {0}", {0} the quest's name. */
     static final String FOR_KEY = "ziggfreedcommon.progression.quest.drop.for";
+
+    /** A {@code Bag} drop the bag had no room for, {0} the item's name: nothing more was handed over. */
+    static final String BAG_FULL_KEY = "ziggfreedcommon.progression.quest.drop.bag_full";
 
     /** A step's Claim's title: "{0} for {1}", the item's name and the quest's. */
     static final String CLAIM_TITLE_KEY = "ziggfreedcommon.progression.quest.drop.claim";
@@ -136,7 +166,9 @@ public final class QuestItemDrops implements MomentListener {
                 return;
             }
             Ref<EntityStore> ref = moment.ref();
-            later.run(moment, () -> handOut(ref, source, sourceId));
+            // Read now: the corpse stands while its death system runs, and the run id rides only on the moment.
+            Origin origin = originOf(moment);
+            later.run(moment, () -> handOut(ref, source, sourceId, origin));
         } catch (Throwable t) {
             SafeLog.warn("[quest-drop] a quest item drop for '" + sourceId + "' could not be scheduled", t);
         }
@@ -154,18 +186,122 @@ public final class QuestItemDrops implements MomentListener {
         return null;
     }
 
-    /**
-     * Where an owed drop goes, the one place it is chosen: true for a kill's, into the bag first like a
-     * pickup; false for a won fight's, which waits in the step's Claim with the rest of the fight's loot.
-     * Whatever the bag does not take waits in the Claim either way.
-     */
-    static boolean bagFirst(@Nonnull QuestItemDrop.Source source) {
-        return source == QuestItemDrop.Source.ROLE;
+    // ==================== the route ====================
+
+    /** Where what the bag does not take goes (all of it, when the bag is not offered it). */
+    enum Rest {
+        /** The step's Claim, paid for the fight when a fight paid it. */
+        CLAIM,
+        /** One owner-less stack on the ground where the creature or the boss fell. */
+        GROUND,
+        /** Nowhere: it is not handed over, and the player is told their bag is full. */
+        NOTHING
     }
+
+    /**
+     * One owed drop's way, decided before anything moves.
+     *
+     * @param bagFirst whether the bag is offered the drop first, the way a picked-up item goes in
+     * @param rest     where what the bag does not take goes
+     */
+    record Route(boolean bagFirst, @Nonnull Rest rest) {
+    }
+
+    /**
+     * Where an owed drop goes, the one place it is chosen: {@code delivery} (the step's own, else its source's
+     * default) as a route, {@code groundSpot} whether a place to spill it stands in the player's world. A ground
+     * drop with nowhere to land waits in the Claim, so a delivery that cannot be made never loses the item.
+     */
+    @Nonnull
+    static Route route(@Nonnull Delivery delivery, boolean groundSpot) {
+        return switch (delivery) {
+            case SPOILS -> new Route(false, Rest.CLAIM);
+            case BAG_THEN_CLAIM -> new Route(true, Rest.CLAIM);
+            case BAG -> new Route(true, Rest.NOTHING);
+            case GROUND -> new Route(false, groundSpot ? Rest.GROUND : Rest.CLAIM);
+        };
+    }
+
+    // ==================== where a drop comes from ====================
+
+    /**
+     * What a moment says of where its drops come from, read as it arrives.
+     *
+     * @param fight    the won fight that pays them ({@link EncounterClaims#fightOf} its run id), or null for a kill
+     *                 or a rule's credit
+     * @param world    the world {@code groundAt} lies in, or null
+     * @param groundAt where a ground spill lands, already lifted (the corpse, or where the boss fell), or null when
+     *                 neither could be read
+     */
+    record Origin(@Nullable String fight, @Nullable UUID world, @Nullable Vector3d groundAt) {
+
+        static final Origin NONE = new Origin(null, null, null);
+
+        /** Where a ground spill lands for a player in {@code worldUuid} (a copy): null when nowhere, or elsewhere. */
+        @Nullable
+        Vector3d groundIn(@Nullable UUID worldUuid) {
+            return groundAt == null || world == null || !world.equals(worldUuid) ? null : new Vector3d(groundAt);
+        }
+    }
+
+    /**
+     * Where {@code moment}'s drops come from: a won run's fight and where its boss fell ({@link EncounterPayload}), or
+     * the corpse of a kill or a rule's credited kill ({@link MobKillPayload}, {@link EncounterRulePayload}), read
+     * through the death system's buffer while the corpse stands. Never throws: anything unreadable is none.
+     */
+    @Nonnull
+    static Origin originOf(@Nonnull Moment moment) {
+        try {
+            EncounterPayload won = moment.payload(EncounterPayload.class);
+            if (won != null) {
+                EncounterDefeatedEvent defeat = won.defeated();
+                Vector3d fell = defeat == null ? null : defeat.deathPosition();
+                return new Origin(EncounterClaims.fightOf(won.runId()), defeat == null ? null : defeat.worldUuid(),
+                        fell == null ? null : NativeLootService.lifted(fell));
+            }
+            Ref<EntityStore> corpse = corpseOf(moment);
+            if (corpse == null) {
+                return Origin.NONE;
+            }
+            ComponentAccessor<EntityStore> accessor;
+            if (moment.commandBuffer() != null) {
+                accessor = moment.commandBuffer();
+            } else {
+                accessor = moment.store();
+            }
+            return new Origin(null, worldOf(moment.store()), NativeLootService.dropPointOf(accessor, corpse));
+        } catch (Throwable t) {
+            SafeLog.fine("[quest-drop] where a drop came from could not be read: " + t.getMessage());
+            return Origin.NONE;
+        }
+    }
+
+    /** The creature a kill moment or a rule's credited kill names, or null. */
+    @Nullable
+    private static Ref<EntityStore> corpseOf(@Nonnull Moment moment) {
+        MobKillPayload kill = moment.payload(MobKillPayload.class);
+        if (kill != null) {
+            return kill.victimRef();
+        }
+        EncounterRulePayload rule = moment.payload(EncounterRulePayload.class);
+        return rule == null ? null : rule.victimRef();
+    }
+
+    /** The uuid of the world {@code store} belongs to, or null when it cannot be read. */
+    @Nullable
+    private static UUID worldOf(@Nonnull Store<EntityStore> store) {
+        try {
+            return store.getExternalData().getWorld().getWorldConfig().getUuid();
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    // ==================== the hand-out ====================
 
     /** On the player's world thread: what their steps are owed from this source, rolled and handed over. */
     private void handOut(@Nonnull Ref<EntityStore> ref, @Nonnull QuestItemDrop.Source source,
-            @Nonnull String sourceId) {
+            @Nonnull String sourceId, @Nonnull Origin origin) {
         try {
             if (!ref.isValid()) {
                 return;
@@ -185,10 +321,11 @@ public final class QuestItemDrops implements MomentListener {
             List<Claim> held = ClaimStore.shared().list(player);
             List<ItemDropDue> due = ProgressionRuntime.quests().itemDropsDue(subject, source, sourceId,
                     (quest, step) -> waiting(held, claimId(quest.id(), step.id(), player), step.target()));
+            UUID world = origin.groundAt() == null ? null : worldOf(store);
             for (ItemDropDue drop : due) {
                 // One roll per owed step.
                 if (drop.drop().lands(roll.getAsDouble())) {
-                    give(store, ref, player, source, drop);
+                    give(store, ref, player, source, origin.fight(), origin.groundIn(world), drop);
                 }
             }
         } catch (Throwable t) {
@@ -196,9 +333,13 @@ public final class QuestItemDrops implements MomentListener {
         }
     }
 
-    /** Hand one owed drop over: into the bag as far as {@link #bagFirst} says and it takes, the rest kept. */
+    /**
+     * Hand one owed drop over along its {@link #route}: into the bag first when the route says so, the rest to the
+     * step's Claim (paid for {@code fight}), to the ground at {@code groundAt}, or nowhere with a word to the player.
+     */
     private static void give(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref, @Nonnull UUID player,
-            @Nonnull QuestItemDrop.Source source, @Nonnull ItemDropDue due) {
+            @Nonnull QuestItemDrop.Source source, @Nullable String fight, @Nullable Vector3d groundAt,
+            @Nonnull ItemDropDue due) {
         String itemId = due.itemId();
         if (!ItemIds.exists(itemId)) {
             if (WARNED_ITEMS.add(itemId.toLowerCase(Locale.ROOT))) {
@@ -207,7 +348,8 @@ public final class QuestItemDrops implements MomentListener {
             }
             return;
         }
-        int bagged = bagFirst(source) ? intoBag(store, ref, due) : 0;
+        Route route = route(due.drop().deliveryFor(source), groundAt != null);
+        int bagged = route.bagFirst() ? intoBag(store, ref, due) : 0;
         if (bagged > 0) {
             if (due.countsOnArrival()) {
                 ProgressDispatch.fire(store, ref, ItemDropDue.ARRIVAL_KIND, itemId, null, bagged,
@@ -215,8 +357,18 @@ public final class QuestItemDrops implements MomentListener {
             }
             notice(store, ref, due, bagged);
         }
-        if (due.upTo() > bagged) {
-            keep(player, due, due.upTo() - bagged);
+        int rest = due.upTo() - bagged;
+        if (rest <= 0) {
+            return;
+        }
+        switch (route.rest()) {
+            case GROUND -> {
+                if (!spill(store, itemId, rest, groundAt)) {
+                    keep(player, due, rest, fight);
+                }
+            }
+            case NOTHING -> bagFull(store, ref, itemId);
+            case CLAIM -> keep(player, due, rest, fight);
         }
     }
 
@@ -235,23 +387,44 @@ public final class QuestItemDrops implements MomentListener {
         return Math.max(0, Math.min(offered, rest.getQuantity()));
     }
 
-    /** Keep {@code count} of the step's item for {@code player} in the step's Claim, written or topped up. */
-    private static void keep(@Nonnull UUID player, @Nonnull ItemDropDue due, int count) {
+    /**
+     * Spill {@code count} of {@code itemId} as one owner-less stack at {@code at}, outside any tick (the engine's own
+     * drop, through the one-accessor spawn); whether it landed or was queued to land.
+     */
+    private static boolean spill(@Nonnull Store<EntityStore> store, @Nonnull String itemId, int count,
+            @Nullable Vector3d at) {
+        if (at == null) {
+            return false;
+        }
+        List<ItemStack> stack = new ArrayList<>(1);
+        stack.add(new ItemStack(itemId, count));
+        return NativeLootService.spawnInWorld(store, at, Rotation3f.IDENTITY, stack);
+    }
+
+    /**
+     * Keep {@code count} of the step's item for {@code player} in the step's Claim, written or topped up, paid for
+     * {@code fight} (null for none).
+     */
+    private static void keep(@Nonnull UUID player, @Nonnull ItemDropDue due, int count, @Nullable String fight) {
         long now = System.currentTimeMillis();
-        Claim claim = claimOf(due, player, count, now);
+        Claim claim = claimOf(due, player, count, now, fight);
         if (!ClaimStore.shared().awardOrTopUp(player, claim, null, claim.source(), now)) {
             SafeLog.warn("[quest-drop] " + count + " '" + due.itemId() + "' for quest '" + due.quest().id()
                     + "' step '" + due.step().id() + "' could not be kept in a Claim");
         }
     }
 
-    /** The step's Claim holding {@code count} of its item: one per player, quest and step. */
+    /**
+     * The step's Claim holding {@code count} of its item, paid for {@code fight} (a won run's, so that fight's spoils
+     * chest offers it; null for none): one per player, quest and step.
+     */
     @Nonnull
-    static Claim claimOf(@Nonnull ItemDropDue due, @Nonnull UUID player, int count, long nowMs) {
+    static Claim claimOf(@Nonnull ItemDropDue due, @Nonnull UUID player, int count, long nowMs,
+            @Nullable String fight) {
         Quest quest = due.quest();
         return new Claim(claimId(quest.id(), due.step().id(), player), CLAIM_PREFIX + quest.id(), CLAIM_TITLE_KEY,
                 List.of(Claim.itemArg(due.itemId()), questName(quest)), null,
-                List.of(InstanceReward.item(due.itemId(), count, null)), nowMs);
+                List.of(InstanceReward.item(due.itemId(), count, null)), nowMs, fight);
     }
 
     /** {@code quest-drop:<quest>:<step>:<player>}: a step's Claim's id. */
@@ -292,10 +465,10 @@ public final class QuestItemDrops implements MomentListener {
     }
 
     /**
-     * A Claim was collected: when it was a step's Claim and the step counts its item arriving, what reached the bag
-     * is credited to it as picked up, on a later task of the player's world (the press is still running). A quest
-     * finished, abandoned or gone credits nothing, and the item stays the player's. Registered by
-     * {@code ProgressionDefaults.install}; never throws.
+     * A Claim was collected, by a press or out of a spoils chest's window: when it was a step's Claim and the step
+     * counts its item arriving, what reached the bag is credited to it as picked up, on a later task of the player's
+     * world (the press or the window's change is still running). A quest finished, abandoned or gone credits nothing,
+     * and the item stays the player's. Registered by {@code ProgressionDefaults.install}; never throws.
      */
     public static void onCollected(@Nonnull ClaimCollectedEvent event) {
         try {
@@ -360,5 +533,14 @@ public final class QuestItemDrops implements MomentListener {
         Notify.itemKeyed(playerRef, Msg.key(RECEIVED_KEY, NativeNames.itemNameMsg(due.itemId())),
                 Msg.key(FOR_KEY, due.quest().text().titleOr(due.quest().id())), due.itemId(), bagged);
         PickupMimic.playPickupSfx(ref, store, null);
+    }
+
+    /** A {@code Bag} drop the bag had no room for: say so, so the player makes room before the next drop. */
+    private static void bagFull(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+            @Nonnull String itemId) {
+        PlayerRef playerRef = PlayerAccess.playerRef(store, ref);
+        if (playerRef != null) {
+            Notify.warning(playerRef, Msg.key(BAG_FULL_KEY, NativeNames.itemNameMsg(itemId)));
+        }
     }
 }

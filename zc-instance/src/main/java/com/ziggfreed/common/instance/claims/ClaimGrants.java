@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
@@ -99,7 +100,7 @@ public final class ClaimGrants {
 
     /**
      * What a spoils chest pays as it opens ({@link #claimFightExceptItems}): the press's tally of it, and every
-     * reward it handed over, in the order the Claims held them.
+     * reward it really handed over, in the order the Claims held them (never one that went back to wait).
      */
     public record Paid(@Nonnull Result result, @Nonnull List<InstanceReward> rewards) {
 
@@ -111,7 +112,8 @@ public final class ClaimGrants {
      * A spoils chest opening: for every Claim the fight {@code fight} paid {@code player}, hand over at once what is
      * not an item (a currency, a command line such as an experience or reputation token) through the same grant a
      * press makes, and put the Claim back holding its items alone, which the chest's window then offers. A Claim of
-     * items alone is not touched. What a non-item could not pay is dropped and logged, as a press drops it.
+     * items alone is not touched. What a non-item could not pay is dropped and logged, as a press drops it; what a
+     * throw put back waits in its Claim, and only what was handed over is listed as paid.
      */
     @Nonnull
     public static Paid claimFightExceptItems(@Nonnull ClaimStore claims, @Nonnull UUID player, @Nonnull String fight,
@@ -131,20 +133,27 @@ public final class ClaimGrants {
             for (InstanceReward reward : claim.rewards()) {
                 (reward.isItem() ? items : others).add(reward);
             }
-            total = total.plus(grant(claims, player, claim.withRewards(others), ref, store, sink));
-            paid.addAll(others);
+            total = total.plus(grant(claims, player, claim.withRewards(others), ref, store, sink, paid));
             claims.putBack(player, claim.withRewards(items));
         }
         return new Paid(total, List.copyOf(paid));
     }
 
-    /**
-     * Hand one taken Claim over, putting back what did not fit, then announce what it delivered; a throw puts the
-     * whole Claim back.
-     */
+    /** {@link #grant(ClaimStore, UUID, Claim, Ref, Store, InstanceRewardGranter.Sink, List)}, keeping no list. */
     @Nonnull
     private static Result grant(@Nonnull ClaimStore claims, @Nonnull UUID player, @Nonnull Claim claim,
             @Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull InstanceRewardGranter.Sink sink) {
+        return grant(claims, player, claim, ref, store, sink, null);
+    }
+
+    /**
+     * Hand one taken Claim over, putting back what did not fit, then announce what it delivered, which
+     * {@code handedOver} (when given) also receives; a throw puts the whole Claim back and hands nothing over.
+     */
+    @Nonnull
+    private static Result grant(@Nonnull ClaimStore claims, @Nonnull UUID player, @Nonnull Claim claim,
+            @Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull InstanceRewardGranter.Sink sink,
+            @Nullable List<InstanceReward> handedOver) {
         GrantOutcome outcome;
         List<InstanceReward> delivered = new ArrayList<>();
         try {
@@ -161,11 +170,23 @@ public final class ClaimGrants {
             SafeLog.warn("[claims] " + outcome.failed() + " reward(s) of the Claim '" + claim.id()
                     + "' could not be paid on this server and were dropped");
         }
+        if (handedOver != null) {
+            handedOver.addAll(delivered);
+        }
+        announceCollected(player, ref, claim, delivered);
+        return new Result(1, outcome.pending().isEmpty() ? 1 : 0, outcome.granted(), outcome.blocked(),
+                outcome.failed());
+    }
+
+    /**
+     * Announce that {@code player} collected {@code delivered} of {@code claim} ({@link ClaimCollectedEvent}): the
+     * one place a press and a spoils chest's window both announce it. Nothing for an empty delivery; never throws.
+     */
+    static void announceCollected(@Nonnull UUID player, @Nonnull Ref<EntityStore> ref, @Nonnull Claim claim,
+            @Nonnull List<InstanceReward> delivered) {
         if (!delivered.isEmpty()) {
             EVENTS.fire("ClaimCollected", ClaimCollectedEvent.class,
                     () -> new ClaimCollectedEvent(player, ref, claim, delivered));
         }
-        return new Result(1, outcome.pending().isEmpty() ? 1 : 0, outcome.granted(), outcome.blocked(),
-                outcome.failed());
     }
 }

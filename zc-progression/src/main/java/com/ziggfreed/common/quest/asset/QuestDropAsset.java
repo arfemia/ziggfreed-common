@@ -21,6 +21,8 @@ import com.ziggfreed.common.quest.QuestItemDrop;
  *                  "Drop": { "Roles": ["Wolf_Grey", "Wolf_Black"], "Chance": 0.5, "Count": 1 } }
  * "bring_crest": { "Kind": "TURN_IN", "Target": "yourmod_Ogre_Crest", "Amount": 1,
  *                  "Drop": { "Encounters": ["yourmod_Ogre_King"] } }
+ * "bring_horns": { "Kind": "TURN_IN", "Target": "yourmod_Ogre_Horn", "Amount": 2,
+ *                  "Drop": { "Roles": ["Ogre_Brute"], "Delivery": "Ground" } }
  * }</pre>
  *
  * <p>Every leaf is {@code appendInherited}, so a child quest retunes one number and keeps the rest; a
@@ -32,6 +34,7 @@ public final class QuestDropAsset {
     @Nullable protected String[] encounters;
     @Nullable protected Double chance;
     @Nullable protected Integer count;
+    @Nullable protected QuestItemDrop.Delivery delivery;
 
     public static final BuilderCodec<QuestDropAsset> CODEC =
             BuilderCodec.builder(QuestDropAsset.class, QuestDropAsset::new)
@@ -58,20 +61,50 @@ public final class QuestDropAsset {
                     .documentation("How many one drop hands over. Unauthored means 1. Never more than the step "
                             + "still wants, less what already waits in its Claim (and, for a TURN_IN step, what "
                             + "the bag holds), so a player is never handed more than the quest asks for.").add()
+                    .appendInherited(new KeyedCodec<>("Delivery", Codec.STRING, false),
+                            (o, v) -> o.delivery = delivery(v), o -> o.delivery == null ? null : o.delivery.word(),
+                            (o, p) -> o.delivery = p.delivery)
+                    .metadata(EditorSchema.oneOfDocumented(
+                            QuestItemDrop.Delivery.SPOILS.word(), "Waits in the step's Claim, paid for the fight: "
+                                    + "a won boss fight's spoils chest offers it. The default for Encounters.",
+                            QuestItemDrop.Delivery.BAG_THEN_CLAIM.word(), "Into the bag like a pickup; what the bag "
+                                    + "cannot take waits in the step's Claim. The default for Roles.",
+                            QuestItemDrop.Delivery.BAG.word(), "Into the bag like a pickup; with no room it is not "
+                                    + "handed over, and the player is told.",
+                            QuestItemDrop.Delivery.GROUND.word(), "Spilled on the ground where the creature or the "
+                                    + "boss fell, one stack for each player owed it, which anyone nearby can pick up."))
+                    .documentation("How the item reaches a player owed it: Spoils, BagThenClaim, Bag or Ground. "
+                            + "Unauthored reads Spoils for a boss fight's win (Encounters) and BagThenClaim for a "
+                            + "kill (Roles). Spoils waits in the step's Claim, paid for the fight, so the spoils "
+                            + "chest a won fight leaves offers it, and under Claims where no chest stands. "
+                            + "BagThenClaim goes into the bag like a pickup and what the bag cannot take waits in "
+                            + "the step's Claim. Bag goes into the bag and, with no room, is not handed over (the "
+                            + "player is told, and a later drop tries again). Ground spills one stack for each "
+                            + "player owed it where the creature or the boss fell, owned by nobody, so anyone "
+                            + "nearby can pick it up; with no place to spill it, it waits in the step's Claim. A "
+                            + "step has one Claim, which a later drop adds to. Any other word fails the read.").add()
                     .build();
 
     public QuestDropAsset() {
     }
 
-    /** Java-side factory; sets the same fields the codec fills. */
+    /** Java-side factory, its delivery the source's default; sets the same fields the codec fills. */
     @Nonnull
     public static QuestDropAsset of(@Nullable String[] roles, @Nullable String[] encounters,
             @Nullable Double chance, @Nullable Integer count) {
+        return of(roles, encounters, chance, count, null);
+    }
+
+    /** Java-side factory; sets the same fields the codec fills. */
+    @Nonnull
+    public static QuestDropAsset of(@Nullable String[] roles, @Nullable String[] encounters,
+            @Nullable Double chance, @Nullable Integer count, @Nullable QuestItemDrop.Delivery delivery) {
         QuestDropAsset drop = new QuestDropAsset();
         drop.roles = roles == null ? null : roles.clone();
         drop.encounters = encounters == null ? null : encounters.clone();
         drop.chance = chance;
         drop.count = count;
+        drop.delivery = delivery;
         return drop;
     }
 
@@ -79,6 +112,21 @@ public final class QuestDropAsset {
     @Nonnull
     public QuestItemDrop toDrop() {
         return QuestItemDrop.of(roles == null ? null : Arrays.asList(roles),
-                encounters == null ? null : Arrays.asList(encounters), chance, count);
+                encounters == null ? null : Arrays.asList(encounters), chance, count, delivery);
+    }
+
+    /** The word as a {@link QuestItemDrop.Delivery}; null stays null (unauthored), any other word fails the read. */
+    @Nullable
+    static QuestItemDrop.Delivery delivery(@Nullable String word) {
+        if (word == null) {
+            return null;
+        }
+        QuestItemDrop.Delivery delivery = QuestItemDrop.Delivery.byWord(word);
+        if (delivery == null) {
+            throw new IllegalArgumentException("Delivery must be one of " + QuestItemDrop.Delivery.SPOILS.word()
+                    + " / " + QuestItemDrop.Delivery.BAG_THEN_CLAIM.word() + " / " + QuestItemDrop.Delivery.BAG.word()
+                    + " / " + QuestItemDrop.Delivery.GROUND.word() + ", not '" + word + "'");
+        }
+        return delivery;
     }
 }
