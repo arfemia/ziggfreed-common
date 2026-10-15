@@ -1,6 +1,9 @@
 package com.ziggfreed.common.health;
 
+import java.util.Map;
+
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
@@ -9,6 +12,7 @@ import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatsModule;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntityStatTypes;
+import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
 import com.hypixel.hytale.server.core.modules.entitystats.modifier.Modifier;
 import com.hypixel.hytale.server.core.modules.entitystats.modifier.StaticModifier;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -94,7 +98,8 @@ public final class HealthUtil {
      *
      * <p>World thread only; fully try-guarded (any engine throw degrades to {@code false}).
      *
-     * @param factor multiplicative scale on the post-balance max (e.g. {@code 2.0} = double max HP)
+     * @param factor multiplicative scale on the post-balance max (e.g. {@code 2.0} = double max HP), nudged so
+     *               the scaled max lands on a whole point
      * @param key    unique, mod-prefixed modifier key (the idempotency handle; avoid engine stat keys)
      * @return {@code true} if the scale was newly applied this call; {@code false} otherwise
      */
@@ -112,8 +117,7 @@ public final class HealthUtil {
             if (stats.get(hp) == null || stats.getModifier(hp, key) != null) {
                 return false; // stat not ready (balancing pending), or already scaled (per-entity)
             }
-            stats.putModifier(hp, key, new StaticModifier(
-                    Modifier.ModifierTarget.MAX, StaticModifier.CalculationType.MULTIPLICATIVE, (float) factor));
+            stats.putModifier(hp, key, maxModifier(wholeMaxFactor(stats.get(hp), key, factor)));
             stats.maximizeStatValue(hp); // heal to the new full max (once, on first application)
             return true;
         } catch (Throwable t) {
@@ -134,7 +138,8 @@ public final class HealthUtil {
      * done), or {@code factor == 1.0}. Fully try-guarded (any engine throw degrades to {@code false}).
      *
      * @param holder the pre-add entity holder (must carry an {@link EntityStatMap})
-     * @param factor multiplicative scale on the post-balance max (e.g. {@code 2.0} = double max HP)
+     * @param factor multiplicative scale on the post-balance max (e.g. {@code 2.0} = double max HP), nudged so
+     *               the scaled max lands on a whole point
      * @param key    unique, mod-prefixed modifier key (the idempotency handle; avoid engine stat keys)
      * @return {@code true} if the scale was newly applied this call; {@code false} otherwise
      */
@@ -151,8 +156,7 @@ public final class HealthUtil {
             if (stats.get(hp) == null || stats.getModifier(hp, key) != null) {
                 return false; // stat not ready (balancing pending), or already scaled (per-holder)
             }
-            stats.putModifier(hp, key, new StaticModifier(
-                    Modifier.ModifierTarget.MAX, StaticModifier.CalculationType.MULTIPLICATIVE, (float) factor));
+            stats.putModifier(hp, key, maxModifier(wholeMaxFactor(stats.get(hp), key, factor)));
             stats.maximizeStatValue(hp); // heal to the new full max (once, on first application)
             return true;
         } catch (Throwable t) {
@@ -182,7 +186,8 @@ public final class HealthUtil {
      * try-guarded (any engine throw degrades to {@code false}).
      *
      * @param holder the pre-add entity holder (must carry an {@link EntityStatMap})
-     * @param factor multiplicative scale on the post-balance max ({@code 1.0} = no scale / remove any prior)
+     * @param factor multiplicative scale on the post-balance max ({@code 1.0} = no scale / remove any prior), nudged
+     *               so the scaled max lands on a whole point
      * @param key    unique, mod-prefixed modifier key (the reconcile handle; avoid engine stat keys)
      * @return {@code true} if the modifier state changed this call (put / replaced / removed); {@code false} otherwise
      */
@@ -221,7 +226,7 @@ public final class HealthUtil {
     // ---------------------------------------------------------------------
 
     /** Shared reconcile over a resolved {@link EntityStatMap} (Holder + Ref forms delegate here). */
-    private static boolean reconcileOnMap(@javax.annotation.Nullable EntityStatMap stats, double factor,
+    private static boolean reconcileOnMap(@Nullable EntityStatMap stats, double factor,
                                           @Nonnull String key) {
         if (stats == null) {
             return false;
@@ -238,16 +243,68 @@ public final class HealthUtil {
             stats.removeModifier(hp, key); // recalculate clamps current HP to the un-scaled max
             return true;
         }
-        if (existing instanceof StaticModifier sm && Math.abs(sm.getAmount() - (float) factor) < 1.0e-4f) {
+        float amount = wholeMaxFactor(stats.get(hp), key, factor);
+        if (existing instanceof StaticModifier sm && Math.abs(sm.getAmount() - amount) < 1.0e-4f) {
             return false; // already at the wanted amount
         }
         boolean firstApply = existing == null;
-        stats.putModifier(hp, key, new StaticModifier(
-                Modifier.ModifierTarget.MAX, StaticModifier.CalculationType.MULTIPLICATIVE, (float) factor));
+        stats.putModifier(hp, key, maxModifier(amount));
         if (firstApply) {
             stats.maximizeStatValue(hp); // heal to the new full max ONLY on first apply; a replace/shrink clamps
         }
         return true;
+    }
+
+    /** The multiplicative Health-MAX modifier every scale seam puts under its key. */
+    private static StaticModifier maxModifier(float amount) {
+        return new StaticModifier(Modifier.ModifierTarget.MAX, StaticModifier.CalculationType.MULTIPLICATIVE, amount);
+    }
+
+    /**
+     * The multiplier nearest {@code factor} whose scaled Health max lands on a whole point. Damage lands in
+     * whole points, so a fractional max (36 x 4.8 = 172.8) leaves a living mob on a fraction of a point that a
+     * rounded readout shows as 0. Worked over the max without {@code key}'s own modifier (the stat's asset max
+     * plus every other additive MAX modifier, as the engine's {@code EntityStatValue.computeModifiers} folds
+     * them), and nudged down until the engine's float product is not above the whole target, so the last
+     * fraction is never a sliver above zero. Returned unchanged when another multiplicative MAX modifier
+     * shares the stat (the engine sums multipliers, so no single amount fixes it) or the base is not positive.
+     */
+    private static float wholeMaxFactor(@Nullable EntityStatValue health, @Nonnull String key, double factor) {
+        float asked = (float) factor;
+        if (health == null) {
+            return asked;
+        }
+        EntityStatType type = EntityStatType.getAssetMap().getAsset(health.getIndex());
+        if (type == null) {
+            return asked;
+        }
+        boolean hasAdditive = false;
+        float additive = 0f;
+        Map<String, Modifier> modifiers = health.getModifiers();
+        if (modifiers != null) {
+            for (Map.Entry<String, Modifier> entry : modifiers.entrySet()) {
+                if (key.equals(entry.getKey()) || !(entry.getValue() instanceof StaticModifier sm)
+                        || sm.getTarget() != Modifier.ModifierTarget.MAX) {
+                    continue;
+                }
+                if (sm.getCalculationType() == StaticModifier.CalculationType.MULTIPLICATIVE) {
+                    return asked; // the engine sums multipliers: another one leaves no single whole amount
+                }
+                hasAdditive = true;
+                additive += sm.getAmount();
+            }
+        }
+        // Summed first, then added once, in the engine's own order, so the float base matches its fold.
+        float base = hasAdditive ? type.getMax() + additive : type.getMax();
+        if (!(base > 0f)) {
+            return asked;
+        }
+        float target = Math.max(1f, Math.round(base * factor));
+        float amount = target / base;
+        while (base * amount > target) {
+            amount = Math.nextDown(amount);
+        }
+        return amount;
     }
 
     /** Raise a single stat (by its {@link DefaultEntityStatTypes} index) to its max; try-guarded to a no-op. */
