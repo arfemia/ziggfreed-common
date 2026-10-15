@@ -969,13 +969,14 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
     }
 
     /**
-     * A stat cell's words: "-" for a low-wins best with no value (no record, as a missing time reads), a
-     * playtime or a moment in the reader's words when the board words one ("12h 30m", "3 days ago"), a count as a
-     * typed number the client groups, else the column's own format. Every cell and the viewer's strip read it.
+     * A stat cell's words: "-" for no value where 0 cannot be a reading (a low-wins best, as a missing time reads, or
+     * a moment, whichever way its column sorts), a playtime or a moment in the reader's words when the board words one
+     * ("12h 30m", "3 days ago"), a count as a typed number the client groups, else the column's own format. Every cell
+     * and the viewer's strip read it.
      */
     @Nonnull
     private static Message cell(@Nonnull StatColumnDef def, long value, @Nonnull LeaderboardScreenMessages t) {
-        if (def.ascending() && value <= 0) {
+        if (value <= 0 && (def.ascending() || def.format() == ColumnFormat.SINCE)) {
             return Message.raw("-");
         }
         Message words = switch (def.format()) {

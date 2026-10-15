@@ -4,7 +4,6 @@ import java.util.List;
 
 import javax.annotation.Nonnull;
 
-import com.hypixel.hytale.server.core.event.events.player.AddPlayerToWorldEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.event.events.player.RemovedPlayerFromWorldEvent;
@@ -243,13 +242,13 @@ public final class InstanceBootstrap {
 
     /**
      * The game's own portal dungeons counted as dungeon runs ({@code PortalDungeonRuns}): its ears for a player
-     * added to or removed from a world, a boss defeat and a world's removal. Their store registers with the other
+     * ready in or removed from a world, a boss defeat and a world's removal. Their store registers with the other
      * framework stores. Registration only.
      */
     public static void registerPortalDungeons(@Nonnull JavaPlugin plugin) {
         try {
             PortalDungeonRuns runs = PortalDungeonRuns.shared();
-            plugin.getEventRegistry().registerGlobal(AddPlayerToWorldEvent.class, runs::onPlayerAdded);
+            plugin.getEventRegistry().registerGlobal(PlayerReadyEvent.class, runs::onPlayerReady);
             plugin.getEventRegistry().registerGlobal(RemovedPlayerFromWorldEvent.class, runs::onPlayerRemoved);
             plugin.getEventRegistry().registerGlobal(EncounterDefeatedEvent.class, runs::onDefeated);
             WorldEvictors.registerEvictor(runs::onWorldRemoved);

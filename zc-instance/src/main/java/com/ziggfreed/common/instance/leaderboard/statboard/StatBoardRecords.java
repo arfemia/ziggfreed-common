@@ -68,9 +68,40 @@ public final class StatBoardRecords implements RecordsBoard {
     private StatBoardRecords() {
     }
 
+    /**
+     * Whether Records has anything to open: the board is on, some section has a column, and the period row holds a
+     * tab. Asked on every paint of the menu's rail, so it resolves no split and scans no recorded line, as
+     * {@link #deps} does for the open; it answers what {@code deps() != null} would.
+     */
     @Override
     public boolean shows() {
-        return deps() != null;
+        Leaderboard board = StatBoard.board();
+        StatBoardSource source = StatBoard.source();
+        if (board == null || !source.enabled()) {
+            return false;
+        }
+        boolean column = false;
+        for (StatSection section : StatSectionConfig.getInstance().sections()) {
+            if (!columnsOf(section, source).isEmpty()) {
+                column = true;
+                break;
+            }
+        }
+        return column && hasPeriodTab(board);
+    }
+
+    /**
+     * Whether the period row holds a tab now: a period reading a window (All Time always does), else a season run the
+     * row shows ({@link #periodTabs}, which asks the calendar only when no plain period answers).
+     */
+    private static boolean hasPeriodTab(@Nonnull Leaderboard board) {
+        Instant now = StatClock.now();
+        for (StatPeriod period : StatPeriodConfig.getInstance().periods()) {
+            if (period.kind() != PeriodKind.SEASON_RUN && period.readKey(now) != null) {
+                return true;
+            }
+        }
+        return !periodTabs(board).isEmpty();
     }
 
     /** The opener's native readings go on the board first ({@link StatBoard#refresh}). */

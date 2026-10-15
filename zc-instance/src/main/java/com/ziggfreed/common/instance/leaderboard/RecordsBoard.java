@@ -13,7 +13,10 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
  */
 public interface RecordsBoard {
 
-    /** Whether the board has anything to show now. */
+    /**
+     * Whether the board has anything to show now. Asked on every paint of the menu's rail, so it answers cheaply and
+     * builds no page; {@link #deps} does that work when the tab opens.
+     */
     boolean shows();
 
     /** The page to open now, or null when there is nothing to open. */
