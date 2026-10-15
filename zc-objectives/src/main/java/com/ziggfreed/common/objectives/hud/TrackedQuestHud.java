@@ -21,6 +21,7 @@ import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.hud.HudPosition;
 import com.ziggfreed.common.ui.hud.KeyedCustomHud;
+import com.ziggfreed.common.ui.hud.PortalPanel;
 import com.ziggfreed.common.ui.hud.RepaintCoalescer;
 import com.ziggfreed.common.ui.hud.card.HudCardConfig;
 import com.ziggfreed.common.ui.hud.card.HudCardLook;
@@ -119,12 +120,18 @@ public final class TrackedQuestHud extends KeyedCustomHud implements TrackedQues
         return 0L;
     }
 
-    /** Where THIS player's tracker sits: their offered pick over the server's position. World thread. */
+    /**
+     * Where THIS player's tracker sits: their offered pick over the server's position, stepped down below
+     * the game's own Portal panel while that shows at the top right (a portal world such as the Deepworks).
+     * Asked at build, which the ready event of every world they enter re-runs, and at each reposition.
+     * World thread.
+     */
     @Nonnull
     @Override
     protected HudPosition configuredPosition() {
-        return TrackedQuestSpot.position(TrackedQuestHuds.resolvedDeps().position(),
+        HudPosition position = TrackedQuestSpot.position(TrackedQuestHuds.resolvedDeps().position(),
                 PlayerSettings.spot(getPlayerRef(), PlayerSettings.QUEST_TRACKER), HudSpotConfig.getInstance());
+        return PortalPanel.below(position, PortalPanel.clearanceFor(getPlayerRef()));
     }
 
     /**
