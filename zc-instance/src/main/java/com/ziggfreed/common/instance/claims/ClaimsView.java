@@ -92,6 +92,15 @@ public final class ClaimsView {
      */
     @Nonnull
     public static DetailView detail(@Nonnull Claim claim, @Nonnull ClaimsText text) {
+        return detail(claim, text, false);
+    }
+
+    /**
+     * {@link #detail(Claim, ClaimsText)}, or on a spoils chest ({@code spoils}) the same page whose secondary button
+     * is Take All, taking only the fight's Claims, and whose lines say a Claim left behind waits under Claims.
+     */
+    @Nonnull
+    public static DetailView detail(@Nonnull Claim claim, @Nonnull ClaimsText text, boolean spoils) {
         List<DetailLine> lines = new ArrayList<>(claim.rewards().size());
         for (InstanceReward reward : claim.rewards()) {
             lines.add(DetailLine.reward(chip(reward), null));
@@ -101,13 +110,13 @@ public final class ClaimsView {
         List<DetailAction> actions = List.of(
                 new DetailAction(ActionSlot.PRIMARY, text.line("action.claim"), ActionLook.COLLECT, ACTION_CLAIM,
                         null, true, null),
-                new DetailAction(ActionSlot.SECONDARY, text.line("action.claim_all"), ActionLook.NORMAL,
-                        ACTION_CLAIM_ALL, null, true, null));
+                new DetailAction(ActionSlot.SECONDARY, text.line(spoils ? "spoils.action.take_all" : "action.claim_all"),
+                        ActionLook.NORMAL, ACTION_CLAIM_ALL, null, true, null));
         return new DetailView(picture(claim), title(claim, text), null, null, badges, null, null, null,
-                text.line("detail.lead"),
+                text.line(spoils ? "spoils.detail.lead" : "detail.lead"),
                 List.of(new DetailBlock(BLOCK_REWARDS, text.line("detail.rewards"),
                         text.line("row.rewards", claim.rewards().size()), lines)),
-                actions, text.line("detail.hint"));
+                actions, text.line(spoils ? "spoils.detail.hint" : "detail.hint"));
     }
 
     /** What the tab shows with nothing waiting. */
@@ -115,6 +124,12 @@ public final class ClaimsView {
     public static EmptyState empty(@Nonnull ClaimsText text) {
         return new EmptyState(Picture.item(ClaimsDestinations.ICON), text.line("empty.title"), text.line("empty.line"),
                 null);
+    }
+
+    /** What a spoils chest shows a player with nothing from its fight waiting: one line saying so. */
+    @Nonnull
+    public static EmptyState spoilsEmpty(@Nonnull ClaimsText text) {
+        return new EmptyState(Picture.item(ClaimsDestinations.ICON), text.line("spoils.empty"), null, null);
     }
 
     /** A Claim's title: its own key with its arguments, else the tab's word for a reward. */

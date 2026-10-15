@@ -58,6 +58,9 @@ import com.ziggfreed.common.util.SafeLog;
  * same boss on the same difficulty shares the count. A reward with no returns authored pays the first each
  * day in full and nothing after ({@link #FIRST_EACH_DAY}). A reward granted to a player in no run at all is
  * keyed {@code reward:<id>} instead.
+ *
+ * <p>A fight's Claim carries the run's id as its {@link Claim#fight()}, so the chest a won fight leaves where
+ * the boss fell can offer each player their own Claims from it; a Claim paid outside any run carries none.
  */
 public final class EncounterClaims {
 
@@ -82,9 +85,10 @@ public final class EncounterClaims {
     private EncounterClaims() {
     }
 
-    /** How one Claim is named, titled and counted. */
+    /** How one Claim is named, titled and counted, and the fight it is paid for (null for none). */
     record ClaimShape(@Nonnull String id, @Nonnull String source, @Nullable String titleKey,
-                      @Nullable String difficulty, @Nonnull DiminishSpec diminish, @Nonnull String diminishKey) {
+                      @Nullable String difficulty, @Nonnull DiminishSpec diminish, @Nonnull String diminishKey,
+                      @Nullable String fight) {
     }
 
     /** What one player's payout did, for its log line. */
@@ -172,7 +176,7 @@ public final class EncounterClaims {
         long now = System.currentTimeMillis();
         String source = REWARD_PREFIX + rewardId;
         ClaimShape shape = new ClaimShape(worldClaimId(rewardId, player, now), source, reward.titleKey(), null,
-                reward.diminishOrDefault(), source);
+                reward.diminishOrDefault(), source, null);
         Outcome outcome = award(ref.getStore(), ref, player, resolve(lootable, rewardId), 1.0, shape, Map.of());
         SafeLog.info(head + " share=" + shareText(1.0) + " " + outcome.describe());
     }
@@ -219,7 +223,8 @@ public final class EncounterClaims {
                 message -> SafeLog.warn(Encounters.LOG_PREFIX + " " + message))), placeholders);
         long now = System.currentTimeMillis();
         boolean written = !rewards.isEmpty() && ClaimStore.shared().award(player,
-                new Claim(shape.id(), shape.source(), shape.titleKey(), List.of(), shape.difficulty(), rewards, now),
+                new Claim(shape.id(), shape.source(), shape.titleKey(), List.of(), shape.difficulty(), rewards, now,
+                        shape.fight()),
                 shape.diminish(), shape.diminishKey(), now);
         if (written && here) {
             presentCues(store, ref, kept, shape.source());
@@ -247,13 +252,25 @@ public final class EncounterClaims {
 
     // ==================== the pure pieces ====================
 
-    /** A fight's Claim: its id, its source and its returns key, all from the fight, the run and the reward. */
+    /**
+     * A fight's Claim: its id, its source and its returns key, all from the fight, the run and the reward, and
+     * the run as the fight it is paid for ({@link #fightOf}).
+     */
     @Nonnull
     static ClaimShape bossClaim(@Nonnull String encounterId, @Nonnull UUID runId, @Nonnull String reward,
             @Nonnull UUID player, @Nullable String titleKey, @Nullable String difficulty,
             @Nonnull DiminishSpec diminish) {
         return new ClaimShape(claimId(encounterId, runId, reward, player), BOSS_PREFIX + encounterId, titleKey,
-                difficulty, diminish, diminishKey(encounterId, reward, difficulty));
+                difficulty, diminish, diminishKey(encounterId, reward, difficulty), fightOf(runId));
+    }
+
+    /**
+     * The fight a run's Claims carry ({@link Claim#fight()}): the run id as text, the same id
+     * {@code EncounterDefeatedEvent.runId()} names, so a listener matches a Claim to the defeat that paid it.
+     */
+    @Nonnull
+    public static String fightOf(@Nonnull UUID runId) {
+        return runId.toString();
     }
 
     /** {@code boss:<script>:<run>:<reward>:<player>}: one Claim per reward, per run, per player. */

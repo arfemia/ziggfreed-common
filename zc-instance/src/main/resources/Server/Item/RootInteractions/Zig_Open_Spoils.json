@@ -1,0 +1,9 @@
+{
+  "$Comment": "What a boss's spoils chest runs when a player uses it (the Use its Interactions name): the ZigOpenSpoils step, which shows that player their own rewards from the fight. The library stands the chest itself (instance/claims/SpoilsChests), so nothing else names this file.",
+  "RequireNewClick": true,
+  "Interactions": [
+    {
+      "Type": "ZigOpenSpoils"
+    }
+  ]
+}

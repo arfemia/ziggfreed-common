@@ -41,8 +41,9 @@ import com.ziggfreed.common.util.SafeLog;
  * and unwritten, with one warning; so is a file this build cannot read at all (a damaged or cut-short one),
  * so one bad read never costs a player the Claims on disk. A missing or empty file is a fresh start, not a
  * refusal. A write that fails keeps the Claims in memory, which a plain unit JVM (where the engine's writer
- * cannot load) relies on. A reward's optional spec (what a deferred row reads as, {@code StoredReward}) is an
- * additive field: a file written before it reads unchanged and the version does not move for it.
+ * cannot load) relies on. A reward's optional spec (what a deferred row reads as, {@code StoredReward}) and a
+ * Claim's optional fight ({@link Claim#fight()}) are additive fields: a file written before either reads
+ * unchanged (a row with no fight is a Claim no fight paid) and the version does not move for them.
  *
  * <p>Thread-safe: every change holds the store's lock, and {@link ClaimAddedEvent} fires inside it.
  */
@@ -74,6 +75,8 @@ public final class ClaimStore {
         String difficulty;
         List<StoredReward> rewards;
         long createdAt;
+        /** Appended: absent from a row written before it, which reads as a Claim no fight paid. */
+        String fight;
     }
 
     private static final class Dto {
@@ -279,7 +282,7 @@ public final class ClaimStore {
         List<InstanceReward> rewards = new ArrayList<>(held.rewards());
         rewards.addAll(more.rewards());
         return new Claim(held.id(), held.source(), held.titleKey(), held.titleArgs(), held.difficulty(),
-                InstanceReward.merge(rewards), Math.min(held.createdAt(), more.createdAt()));
+                InstanceReward.merge(rewards), Math.min(held.createdAt(), more.createdAt()), held.fight());
     }
 
     /** {@code rewards} at {@code multiplier} ({@link #scaledQuantity}), none left at zero. */
@@ -397,6 +400,7 @@ public final class ClaimStore {
             s.rewards.add(StoredReward.of(reward));
         }
         s.createdAt = claim.createdAt();
+        s.fight = claim.fight();
         return s;
     }
 
@@ -421,7 +425,7 @@ public final class ClaimStore {
                 args.add(arg == null ? "" : arg);
             }
         }
-        return new Claim(s.id, s.source, s.titleKey, args, s.difficulty, rewards, s.createdAt);
+        return new Claim(s.id, s.source, s.titleKey, args, s.difficulty, rewards, s.createdAt, s.fight);
     }
 
     @Nullable

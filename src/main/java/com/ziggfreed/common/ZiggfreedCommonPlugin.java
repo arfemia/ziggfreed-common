@@ -262,6 +262,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         InstanceBootstrap.registerRecords();
         InstanceBootstrap.installStatBoard();
         InstanceBootstrap.installClaims(this);
+        InstanceBootstrap.installSpoils(this);
         InstanceBootstrap.registerParty(this);
         InstanceBootstrap.registerDungeons(this);
         // The shared progress-bar panels on every player: a row is created by the mod that reports

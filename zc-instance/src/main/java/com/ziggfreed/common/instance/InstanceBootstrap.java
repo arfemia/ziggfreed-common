@@ -8,11 +8,16 @@ import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.universe.world.spawn.ISpawnProvider;
+import com.ziggfreed.common.cast.WorldEvictors;
 import com.ziggfreed.common.encounter.asset.EncounterOwnerLayers;
 import com.ziggfreed.common.encounter.event.EncounterDefeatedEvent;
 import com.ziggfreed.common.encounter.seam.EncounterSeams;
 import com.ziggfreed.common.instance.claims.ClaimNotices;
 import com.ziggfreed.common.instance.claims.ClaimsDestinations;
+import com.ziggfreed.common.instance.claims.SpoilsChest;
+import com.ziggfreed.common.instance.claims.SpoilsChestSystems;
+import com.ziggfreed.common.instance.claims.SpoilsChests;
+import com.ziggfreed.common.instance.claims.ZigOpenSpoilsInteraction;
 import com.ziggfreed.common.instance.claims.command.ZigClaimsCommand;
 import com.ziggfreed.common.instance.dungeon.AreaMembers;
 import com.ziggfreed.common.instance.dungeon.AreaSpawnProvider;
@@ -125,6 +130,40 @@ public final class InstanceBootstrap {
             plugin.getCommandRegistry().registerCommand(new ZigClaimsCommand());
         } catch (Throwable t) {
             SafeLog.warn("[claims] /zigclaims could not be registered", t);
+        }
+    }
+
+    /**
+     * The spoils chest a won boss fight leaves where the boss fell ({@code SpoilsChests}): its saved mark, before any
+     * world loads; the upkeep that takes a chest down, the sweep that removes one a restart left behind, and the
+     * guard that keeps an open spoils window's items off the ground; the {@code ZigOpenSpoils} interaction Type a
+     * chest's Use runs, beside {@code ZigEnterDungeon} and like it before any asset decodes (the shipped root
+     * interaction names it); the ears for a boss defeat (where the chest will stand) and a new Claim (the first of a
+     * fight's raises it); and the world-closing eviction. Each guarded on its own. Registration only.
+     */
+    public static void installSpoils(@Nonnull JavaPlugin plugin) {
+        try {
+            SpoilsChest.register(plugin.getEntityStoreRegistry());
+        } catch (Throwable t) {
+            SafeLog.warn("[spoils] the spoils chest's mark could not be registered", t);
+        }
+        try {
+            SpoilsChestSystems.register(plugin.getEntityStoreRegistry());
+        } catch (Throwable t) {
+            SafeLog.warn("[spoils] the spoils chests' systems could not be registered", t);
+        }
+        try {
+            InteractionTypes.registerAll(plugin, List.of(InteractionTypeSpec.of(ZigOpenSpoilsInteraction.TYPE_NAME,
+                    ZigOpenSpoilsInteraction.class, ZigOpenSpoilsInteraction::codec)));
+        } catch (Throwable t) {
+            SafeLog.warn("[spoils] the ZigOpenSpoils interaction Type could not be registered", t);
+        }
+        try {
+            plugin.getEventRegistry().registerGlobal(EncounterDefeatedEvent.class, SpoilsChests::onDefeated);
+            plugin.getEventRegistry().registerGlobal(ClaimAddedEvent.class, SpoilsChests::onClaimAdded);
+            WorldEvictors.registerEvictor(SpoilsChests::forgetWorld);
+        } catch (Throwable t) {
+            SafeLog.warn("[spoils] the spoils chests could not listen for boss defeats and new Claims", t);
         }
     }
 

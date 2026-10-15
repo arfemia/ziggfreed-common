@@ -49,6 +49,10 @@ import com.ziggfreed.common.util.SafeLog;
  * a toast saying how it went. Picking a row reopens the page, so every build is a full one. It sits in the shared
  * menu frame with the Claims tab selected on the rail. Every {@code handleDataEvent} exit opens a page, closes
  * this one, or sends an empty answer, so the client is never left waiting.
+ *
+ * <p><b>Spoils.</b> Built with a fight ({@link SpoilsView}), it is that fight's spoils chest: only the player's Claims
+ * the fight paid, under the spoils' own words, and Take All taking just those ({@link ClaimGrants#claimFight}). With
+ * none left it says so in one line.
  */
 public final class ClaimsPage extends ToastablePage<ClaimsEventData> {
 
@@ -90,6 +94,9 @@ public final class ClaimsPage extends ToastablePage<ClaimsEventData> {
 
     @Nonnull private final ClaimsPageDeps deps;
 
+    /** The fight whose spoils this page shows, or null for every Claim waiting. */
+    @Nullable private final String fight;
+
     @Nullable
     private String selected;
 
@@ -97,9 +104,16 @@ public final class ClaimsPage extends ToastablePage<ClaimsEventData> {
     @Nonnull private MenuRail rail = MenuRail.EMPTY;
 
     public ClaimsPage(@Nonnull PlayerRef playerRef, @Nonnull ClaimsPageDeps deps, @Nullable String selectedId) {
+        this(playerRef, deps, selectedId, null);
+    }
+
+    /** @param fight the fight whose spoils to show alone, or null for every Claim waiting */
+    public ClaimsPage(@Nonnull PlayerRef playerRef, @Nonnull ClaimsPageDeps deps, @Nullable String selectedId,
+            @Nullable String fight) {
         super(playerRef, CustomPageLifetime.CanDismissOrCloseThroughInteraction, ClaimsEventData.CODEC);
         this.deps = deps;
         this.selected = selectedId;
+        this.fight = fight == null || fight.isBlank() ? null : fight.trim();
     }
 
     @Override
@@ -122,8 +136,8 @@ public final class ClaimsPage extends ToastablePage<ClaimsEventData> {
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton", EventData.of("Action", "close"));
         // The action bar's buttons are live elements, bound once per build.
         DetailPainter.bindActionsOnce(events, DETAIL, ClaimsPage::actionFor, null);
-        cmd.set("#ClaimsTitle.TextSpans", text.line("page.title"));
-        cmd.set("#ClaimsLead.TextSpans", text.line("page.lead"));
+        cmd.set("#ClaimsTitle.TextSpans", text.line(fight == null ? "page.title" : "spoils.title"));
+        cmd.set("#ClaimsLead.TextSpans", text.line(fight == null ? "page.lead" : "spoils.lead"));
         // The shared menu's rail, the Claims tab selected; painted before the empty-list early return.
         rail = ZigMenu.paint(cmd, events, store, ref, store.getComponent(ref, Player.getComponentType()),
                 MenuSlot.CLAIMS.id(), false);
@@ -133,14 +147,16 @@ public final class ClaimsPage extends ToastablePage<ClaimsEventData> {
         if (claim == null) {
             cmd.set(DETAIL + ".Visible", false);
             cmd.set(EMPTY + ".Visible", true);
-            EmptyStatePainter.paint(cmd, events, EMPTY, ClaimsView.empty(text), null);
+            EmptyStatePainter.paint(cmd, events, EMPTY,
+                    fight == null ? ClaimsView.empty(text) : ClaimsView.spoilsEmpty(text), null);
             return;
         }
         selected = claim.id();
         try {
             LedgerPainter.paint(cmd, events, LIST, ClaimsView.ledger(claims, text), Set.of(), selected, ROWS,
                     RowSize.STANDARD, playerRef);
-            DetailPainter.paint(cmd, events, DETAIL, ClaimsView.detail(claim, text), DETAIL_BINDINGS, playerRef);
+            DetailPainter.paint(cmd, events, DETAIL, ClaimsView.detail(claim, text, fight != null), DETAIL_BINDINGS,
+                    playerRef);
         } catch (Throwable t) {
             // build() must not throw: a reading that fails leaves the page as far as it got.
             SafeLog.warn("[claims] the page could not paint the Claim " + claim.id(), t);
@@ -193,9 +209,14 @@ public final class ClaimsPage extends ToastablePage<ClaimsEventData> {
             return;
         }
         try {
-            ClaimGrants.Result result = all
-                    ? ClaimGrants.claimAll(deps.claims(), player, ref, store, deps.sink())
-                    : ClaimGrants.claim(deps.claims(), player, claimId, ref, store, deps.sink());
+            ClaimGrants.Result result;
+            if (!all) {
+                result = ClaimGrants.claim(deps.claims(), player, claimId, ref, store, deps.sink());
+            } else if (fight == null) {
+                result = ClaimGrants.claimAll(deps.claims(), player, ref, store, deps.sink());
+            } else {
+                result = ClaimGrants.claimFight(deps.claims(), player, fight, ref, store, deps.sink());
+            }
             ClaimsText text = deps.text();
             if (result.nothing()) {
                 return;
@@ -213,12 +234,13 @@ public final class ClaimsPage extends ToastablePage<ClaimsEventData> {
         }
     }
 
-    /** The Claims waiting for this player; a failed read shows none. */
+    /** The Claims waiting for this player, the fight's alone on its spoils; a failed read shows none. */
     @Nonnull
     private List<Claim> waiting() {
         try {
             UUID player = playerRef.getUuid();
-            return player == null ? List.of() : deps.claims().list(player);
+            List<Claim> all = player == null ? List.of() : deps.claims().list(player);
+            return fight == null ? all : all.stream().filter(claim -> claim.fromFight(fight)).toList();
         } catch (Throwable t) {
             SafeLog.warn("[claims] the page could not read the Claims waiting", t);
             return List.of();

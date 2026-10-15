@@ -81,6 +81,64 @@ public final class ClaimGrants {
     }
 
     /**
+     * Take every Claim the fight {@code fight} paid {@code player} ({@link Claim#fromFight}), oldest first, and hand
+     * each over in turn: a spoils chest's Take All. Every other Claim stays where it waits.
+     */
+    @Nonnull
+    public static Result claimFight(@Nonnull ClaimStore claims, @Nonnull UUID player, @Nonnull String fight,
+            @Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull InstanceRewardGranter.Sink sink) {
+        Result total = Result.NOTHING;
+        for (Claim listed : claims.list(player)) {
+            Claim claim = listed.fromFight(fight) ? claims.take(player, listed.id()) : null;
+            if (claim != null) {
+                total = total.plus(grant(claims, player, claim, ref, store, sink));
+            }
+        }
+        return total;
+    }
+
+    /**
+     * What a spoils chest pays as it opens ({@link #claimFightExceptItems}): the press's tally of it, and every
+     * reward it handed over, in the order the Claims held them.
+     */
+    public record Paid(@Nonnull Result result, @Nonnull List<InstanceReward> rewards) {
+
+        /** Nothing paid. */
+        public static final Paid NOTHING = new Paid(Result.NOTHING, List.of());
+    }
+
+    /**
+     * A spoils chest opening: for every Claim the fight {@code fight} paid {@code player}, hand over at once what is
+     * not an item (a currency, a command line such as an experience or reputation token) through the same grant a
+     * press makes, and put the Claim back holding its items alone, which the chest's window then offers. A Claim of
+     * items alone is not touched. What a non-item could not pay is dropped and logged, as a press drops it.
+     */
+    @Nonnull
+    public static Paid claimFightExceptItems(@Nonnull ClaimStore claims, @Nonnull UUID player, @Nonnull String fight,
+            @Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull InstanceRewardGranter.Sink sink) {
+        Result total = Result.NOTHING;
+        List<InstanceReward> paid = new ArrayList<>();
+        for (Claim listed : claims.list(player)) {
+            if (!listed.fromFight(fight) || listed.rewards().stream().allMatch(InstanceReward::isItem)) {
+                continue;
+            }
+            Claim claim = claims.take(player, listed.id());
+            if (claim == null) {
+                continue;
+            }
+            List<InstanceReward> items = new ArrayList<>();
+            List<InstanceReward> others = new ArrayList<>();
+            for (InstanceReward reward : claim.rewards()) {
+                (reward.isItem() ? items : others).add(reward);
+            }
+            total = total.plus(grant(claims, player, claim.withRewards(others), ref, store, sink));
+            paid.addAll(others);
+            claims.putBack(player, claim.withRewards(items));
+        }
+        return new Paid(total, List.copyOf(paid));
+    }
+
+    /**
      * Hand one taken Claim over, putting back what did not fit, then announce what it delivered; a throw puts the
      * whole Claim back.
      */

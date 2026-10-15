@@ -28,10 +28,19 @@ import com.ziggfreed.common.instance.reward.InstanceReward;
  * @param difficulty the difficulty it was earned on, a lang key or a plain label; null for none
  * @param rewards    what pressing Claim hands over, block-first through the bag guard
  * @param createdAt  when it was written, epoch milliseconds
+ * @param fight      the fight it was paid for (a boss fight's run id, as text), so the chest that fight leaves
+ *                   can offer it; null for a Claim no fight paid; matched without regard to case
  */
 public record Claim(@Nonnull String id, @Nonnull String source, @Nullable String titleKey,
                     @Nonnull List<String> titleArgs, @Nullable String difficulty,
-                    @Nonnull List<InstanceReward> rewards, long createdAt) {
+                    @Nonnull List<InstanceReward> rewards, long createdAt, @Nullable String fight) {
+
+    /** A Claim no fight paid. */
+    public Claim(@Nonnull String id, @Nonnull String source, @Nullable String titleKey,
+            @Nonnull List<String> titleArgs, @Nullable String difficulty, @Nonnull List<InstanceReward> rewards,
+            long createdAt) {
+        this(id, source, titleKey, titleArgs, difficulty, rewards, createdAt, null);
+    }
 
     /** What starts a title argument that reads as a lang key's own line ({@link #keyArg}). */
     public static final String KEY_ARG = "@key:";
@@ -52,12 +61,13 @@ public record Claim(@Nonnull String id, @Nonnull String source, @Nullable String
         titleArgs = titleArgs == null ? List.of() : List.copyOf(titleArgs);
         difficulty = difficulty == null || difficulty.isBlank() ? null : difficulty.trim();
         rewards = rewards == null ? List.of() : List.copyOf(rewards);
+        fight = fight == null || fight.isBlank() ? null : fight.trim();
     }
 
     /** This Claim paying {@code rewards} instead, everything else kept (what did not fit, put back). */
     @Nonnull
     public Claim withRewards(@Nonnull List<InstanceReward> rewards) {
-        return new Claim(id, source, titleKey, titleArgs, difficulty, rewards, createdAt);
+        return new Claim(id, source, titleKey, titleArgs, difficulty, rewards, createdAt, fight);
     }
 
     /** Whether this Claim is {@code otherId}, without regard to case. */
@@ -98,5 +108,10 @@ public record Claim(@Nonnull String id, @Nonnull String source, @Nullable String
             }
         }
         return out;
+    }
+
+    /** Whether the fight {@code fightId} paid this Claim, without regard to case; never for a Claim no fight paid. */
+    public boolean fromFight(@Nullable String fightId) {
+        return fight != null && fightId != null && fight.equalsIgnoreCase(fightId.trim());
     }
 }

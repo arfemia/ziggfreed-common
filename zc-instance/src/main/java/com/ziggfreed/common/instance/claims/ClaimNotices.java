@@ -226,7 +226,8 @@ public final class ClaimNotices {
         if (claims.size() == 1) {
             headline = waiting(claims.get(0), text);
         } else {
-            headline = text.line("notice.added.many");
+            headline = text.line(claims.stream().allMatch(SpoilsChests::inChest) ? "notice.added.spoils"
+                    : "notice.added.many");
             for (Claim claim : claims) {
                 rows.add(onPage ? ToastLine.text(ClaimsView.title(claim, text))
                         : ToastLine.item(ClaimsDestinations.ICON, 1, waiting(claim, text)));
@@ -238,10 +239,16 @@ public final class ClaimNotices {
                 .withPriority(ToastSpec.PRIORITY_CLAIM);
     }
 
-    /** One Claim waiting: its own title under Claims in the menu, or the plain line when it names none. */
+    /**
+     * One Claim waiting: its own title under Claims in the menu, or the plain line when it names none; a Claim whose
+     * fight left a spoils chest ({@link SpoilsChests#inChest}) says it waits in the chest where the boss fell too.
+     */
     @Nonnull
     private static Message waiting(@Nonnull Claim claim, @Nonnull ClaimsText text) {
         Message title = ClaimsView.ownTitle(claim);
+        if (SpoilsChests.inChest(claim)) {
+            return title == null ? text.line("notice.added.spoils") : text.line("notice.added.spoils.named", title);
+        }
         return title == null ? text.line("notice.added") : text.line("notice.added.named", title);
     }
 

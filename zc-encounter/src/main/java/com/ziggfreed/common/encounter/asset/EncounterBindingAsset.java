@@ -16,6 +16,7 @@ import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.codec.InheritMapCodec;
@@ -87,6 +88,7 @@ public final class EncounterBindingAsset
     @Nullable private Progression progression;
     @Nullable private Feedback feedback;
     @Nullable private Discovery discovery;
+    @Nullable private Spoils spoils;
 
     public static final AssetBuilderCodec<String, EncounterBindingAsset> CODEC = AssetBuilderCodec.builder(
                     EncounterBindingAsset.class,
@@ -157,6 +159,12 @@ public final class EncounterBindingAsset
                     (a, v) -> a.discovery = v, a -> a.discovery, (a, p) -> a.discovery = p.discovery)
             .documentation("A world-map marker over the subject while the fight is on.")
             .add()
+            .appendInherited(new KeyedCodec<>("Spoils", Spoils.CODEC, false),
+                    (a, v) -> a.spoils = v, a -> a.spoils, (a, p) -> a.spoils = p.spoils)
+            .documentation("The chest a won fight leaves where the boss fell, in which each player finds their "
+                    + "own Claims from that fight. On for every bound fight unless this says otherwise; a fight "
+                    + "that pays no Claim leaves no chest.")
+            .add()
             .build();
 
     public EncounterBindingAsset() {
@@ -226,6 +234,18 @@ public final class EncounterBindingAsset
     @Nullable
     public Discovery getDiscovery() {
         return discovery;
+    }
+
+    /** The spoils chest as authored, or null when the row writes none (the chest then takes its defaults). */
+    @Nullable
+    public Spoils getSpoils() {
+        return spoils;
+    }
+
+    /** The spoils chest this fight leaves: as authored, else every leaf at its default. */
+    @Nonnull
+    public Spoils spoilsOrDefault() {
+        return spoils == null ? new Spoils() : spoils;
     }
 
     // ==================== Subject ====================
@@ -962,6 +982,66 @@ public final class EncounterBindingAsset
 
         public boolean compassUpdating() {
             return compassUpdating == null || compassUpdating;
+        }
+    }
+
+    // ==================== Spoils ====================
+
+    /**
+     * The chest a won fight leaves where the boss fell: one prop every credited player can use, in which each
+     * finds only their own unclaimed Claims from that fight. It stands until each of them has emptied theirs, its
+     * world closes, or its lifetime runs out; whatever is left waits under Claims.
+     */
+    public static final class Spoils {
+
+        /** The chest's look when a row names none: the base game's small dungeon chest. */
+        public static final String DEFAULT_PROP = "Furniture_Dungeon_Chest_Epic";
+        /** How long the chest stands when a row names no lifetime: five minutes. */
+        public static final int DEFAULT_LIFETIME_SECONDS = 300;
+
+        @Nullable protected Boolean enabled;
+        @Nullable protected String prop;
+        @Nullable protected Integer lifetime;
+
+        public static final BuilderCodec<Spoils> CODEC = BuilderCodec.builder(Spoils.class, Spoils::new)
+                .appendInherited(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false),
+                        (o, v) -> o.enabled = v, o -> o.enabled, (o, p) -> o.enabled = p.enabled)
+                .metadata(EditorSchema.defaultValue(true))
+                .documentation("Set false and a won fight leaves no chest: its Claims wait under Claims alone, "
+                        + "for a fight that hands out its rewards its own way.")
+                .add()
+                .appendInherited(new KeyedCodec<>("Prop", Codec.STRING, false),
+                        (o, v) -> o.prop = v, o -> o.prop, (o, p) -> o.prop = p.prop)
+                .metadata(EditorSchema.assetRef(Item.class))
+                .metadata(EditorSchema.defaultValue(DEFAULT_PROP))
+                .documentation("The block item whose look the chest takes, by id: any chest block works. An id "
+                        + "that names no block item on this server falls back to the default, with a warning.")
+                .add()
+                .appendInherited(new KeyedCodec<>("Lifetime", Codec.INTEGER, false),
+                        (o, v) -> o.lifetime = v, o -> o.lifetime, (o, p) -> o.lifetime = p.lifetime)
+                .metadata(EditorSchema.defaultValue(DEFAULT_LIFETIME_SECONDS))
+                .documentation("How many seconds the chest stands at most before it goes; anything left in it "
+                        + "still waits under Claims. Zero or less reads as the default.")
+                .add()
+                .build();
+
+        public Spoils() {
+        }
+
+        /** Whether a won fight leaves its chest; unauthored means yes. */
+        public boolean enabled() {
+            return enabled == null || enabled;
+        }
+
+        /** The block item the chest looks like: as authored, else {@link #DEFAULT_PROP}. */
+        @Nonnull
+        public String prop() {
+            return orDefault(prop, DEFAULT_PROP);
+        }
+
+        /** How many seconds the chest stands at most: as authored when positive, else {@link #DEFAULT_LIFETIME_SECONDS}. */
+        public int lifetimeSeconds() {
+            return lifetime == null || lifetime <= 0 ? DEFAULT_LIFETIME_SECONDS : lifetime;
         }
     }
 

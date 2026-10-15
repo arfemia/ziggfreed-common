@@ -183,6 +183,29 @@ public class EncounterBindingCodecTest {
     }
 
     @Test
+    void theSpoilsGroupDecodesReadsItsDefaultsAndAnOverlayKeepsWhatItDidNotMention() throws IOException {
+        EncounterBindingAsset bare = binding("{}", "bare", null);
+        assertNull(bare.getSpoils());
+        assertTrue(bare.spoilsOrDefault().enabled(), "every bound fight leaves a chest unless its row says not");
+        assertEquals(EncounterBindingAsset.Spoils.DEFAULT_PROP, bare.spoilsOrDefault().prop());
+        assertEquals(EncounterBindingAsset.Spoils.DEFAULT_LIFETIME_SECONDS, bare.spoilsOrDefault().lifetimeSeconds());
+
+        EncounterBindingAsset pack = binding("{\"Spoils\": {\"Prop\": \"Furniture_Ancient_Chest_Small\","
+                + " \"Lifetime\": 120}}", "row", null);
+        assertTrue(pack.getSpoils().enabled());
+        assertEquals("Furniture_Ancient_Chest_Small", pack.getSpoils().prop());
+        assertEquals(120, pack.getSpoils().lifetimeSeconds());
+        assertEquals(EncounterBindingAsset.Spoils.DEFAULT_LIFETIME_SECONDS,
+                binding("{\"Spoils\": {\"Lifetime\": 0}}", "zero", null).getSpoils().lifetimeSeconds(),
+                "a lifetime of nothing reads as the default");
+
+        EncounterBindingAsset owner = binding("{\"Spoils\": {\"Enabled\": false}}", "row", pack);
+        assertFalse(owner.getSpoils().enabled(), "the mentioned leaf changed");
+        assertEquals("Furniture_Ancient_Chest_Small", owner.getSpoils().prop(), "the unmentioned sibling survived");
+        assertEquals(120, owner.getSpoils().lifetimeSeconds());
+    }
+
+    @Test
     void theAddsGroupDecodesItsOwnLeavesAndReadsItsDefaults() throws IOException {
         EncounterBindingAsset row = binding("{\"Scale\": {\"HealthPerMember\": 0.35, \"Adds\": {\"HealthPerMember\": 0.2}}}",
                 "row", null);

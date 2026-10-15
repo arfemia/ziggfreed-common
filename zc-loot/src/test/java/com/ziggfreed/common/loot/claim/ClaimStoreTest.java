@@ -2,6 +2,7 @@ package com.ziggfreed.common.loot.claim;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -9,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -66,6 +68,38 @@ class ClaimStoreTest {
         ClaimStore restarted = new ClaimStore("claims", new DiminishLedger("claims-diminish"));
         restarted.init(dir);
         assertEquals(List.of(claim), restarted.list(OWED), "the Claim reads back exactly as it was written");
+    }
+
+    /**
+     * A fight's Claim keeps the fight that paid it across a restart, and a row written before the leaf existed
+     * (no {@code fight} key) reads whole as a Claim no fight paid, under the same version.
+     */
+    @Tag("engine-items")
+    @Test
+    void aClaimKeepsItsFightAndARowWithoutOneReadsAsNoFight(@TempDir Path dir) throws IOException {
+        String run = "4b1d0c6e-0000-0000-0000-00000000f1a7";
+        Claim claim = new Claim("test:boss:" + run + ":OnDefeat:" + OWED, "test:boss", null, List.of(), null,
+                List.of(InstanceReward.item("Ingredient_Bar_Iron", 2, null)), 1_760_000_000_000L, run);
+        ClaimStore store = new ClaimStore("claims", new DiminishLedger("claims-diminish"));
+        store.init(dir);
+        assertTrue(store.award(OWED, claim, null, "test:boss", 1_760_000_000_000L));
+
+        ClaimStore restarted = new ClaimStore("claims", new DiminishLedger("claims-diminish"));
+        restarted.init(dir);
+        Claim read = restarted.list(OWED).get(0);
+        assertEquals(claim, read, "the Claim reads back with its fight");
+        assertTrue(read.fromFight(run.toUpperCase(Locale.ROOT)), "a fight matches without regard to case");
+
+        Path older = dir.resolve("older");
+        Files.createDirectories(older);
+        Files.writeString(older.resolve("claims.json"), "{\"version\": 1, \"players\": {\"" + OWED + "\": [{"
+                + "\"id\": \"test:old:1\", \"source\": \"test:old\", \"titleArgs\": [], \"rewards\": [],"
+                + " \"createdAt\": 1760000000000}]}}");
+        ClaimStore old = new ClaimStore("claims", new DiminishLedger("claims-diminish"));
+        old.init(older);
+        assertEquals(1, old.list(OWED).size(), "a row from before the leaf still loads");
+        assertNull(old.list(OWED).get(0).fight(), "and no fight paid it");
+        assertFalse(old.list(OWED).get(0).fromFight(run));
     }
 
     /** Half pay, the step a repeat clear under {@code "Diminish": {"Steps": [1, 0.5]}} earns. */
