@@ -17,6 +17,8 @@ import org.junit.jupiter.api.Test;
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.schema.SchemaContext;
+import com.hypixel.hytale.codec.schema.config.ArraySchema;
+import com.hypixel.hytale.codec.schema.config.StringSchema;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 
 /**
@@ -136,6 +138,35 @@ class DungeonAssetCodecTest {
         assertFalse(child.entryCostConfirm(), "an unrestated Confirm is inherited too");
         assertNotNull(DungeonAsset.CODEC.toSchema(new SchemaContext()).getProperties().get("EntryCost"),
                 "the schema the Asset Editor loads declares the group");
+    }
+
+    @Test
+    void entryCostKeysReadTrimmedWrittenBackAndReplacedWholeUnderParent() throws IOException {
+        assertTrue(decode("Bare", "{}", null).entryCostKeys().isEmpty(), "no Keys: only Items pays the way in");
+
+        DungeonAsset keyed = decode("MyPack_Crypt", """
+                { "EntryCost": { "Items": [ { "Item": "MyPack_Crypt_Key" } ],
+                                 "Keys": [ " MyPack_Master_Key ", "", "MyPack_Master_Key", "MyPack_Skeleton_Key" ] } }
+                """, null);
+        List<String> expected = List.of("MyPack_Master_Key", "MyPack_Skeleton_Key");
+        assertEquals(expected, keyed.entryCostKeys(), "ids read trimmed, blanks and repeats dropped, in order");
+
+        DungeonAsset again = decode("MyPack_Crypt", DungeonAsset.CODEC.encode(keyed, new ExtraInfo()).toJson(), null);
+        assertEquals(expected, again.entryCostKeys(), "the leaf is written back and reads the same");
+
+        DungeonAsset child = decode("MyPack_Crypt_Hard", """
+                { "EntryCost": { "Items": [ { "Item": "MyPack_Bone" } ] } }
+                """, keyed);
+        assertEquals(expected, child.entryCostKeys(), "an unrestated Keys leaf is inherited");
+        DungeonAsset unkeyed = decode("MyPack_Crypt_Hard", """
+                { "EntryCost": { "Keys": [] } }
+                """, keyed);
+        assertTrue(unkeyed.entryCostKeys().isEmpty(), "a restated Keys replaces the inherited list whole");
+
+        ArraySchema keys = (ArraySchema) DungeonAsset.EntryCost.CODEC.toSchema(new SchemaContext()).getProperties()
+                .get("Keys");
+        assertEquals("Item", ((StringSchema) keys.getItems()).getHytaleAssetRef(),
+                "each key offers the Asset Editor's item picker");
     }
 
     private static void assertCrypt(@Nonnull DungeonAsset crypt) {

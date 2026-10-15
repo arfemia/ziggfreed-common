@@ -38,13 +38,15 @@ import com.ziggfreed.common.util.SafeLog;
  *   <li>the dungeon is loaded and open (switched on, in season), its prefab is shipped, and its audit finds no
  *       ERROR ({@link DungeonValidator#entryErrors});</li>
  *   <li>the player is in no area and on the way into none;</li>
- *   <li>a player who would open an area for their party can pay the dungeon's {@code EntryCost}
- *       ({@link DungeonEntryCost#lacking}); one following into the area their party holds is not asked. With the
+ *   <li>a player who would open an area for their party holds one of the cost's keys
+ *       ({@link DungeonEntryCost#heldKey}), which pays it with nothing spent, or can pay the dungeon's
+ *       {@code EntryCost} ({@link DungeonEntryCost#lacking}); one following into the area their party holds is not
+ *       asked. With the
  *       cost's {@code Confirm} on, that player gets its confirm screen instead ({@link DungeonEntryPrompt},
  *       {@link Result#PROMPTED}), and the screen's button runs these steps again with no second screen;</li>
  *   <li>the router reserves a place, filed with {@link AreaMembers} as one step; a place in the area the party
  *       already holds ({@link CopyRouter.Kind#HELD}) is free, any other is the party's new area and must be paid
- *       for, so a party that lost its area since the first check is asked again here;</li>
+ *       for (or opened with a key), so a party that lost its area since the first check is asked again here;</li>
  *   <li>a new copy is spawned through {@code InstanceWorlds.spawn}, its config step setting the area-aware
  *       spawn provider over the copy's {@link AreaLayout}; or the copy is joined, live or still spawning;</li>
  *   <li>the cost is spent ({@link DungeonEntryCost#spend}), the last step before the teleport, so every refusal
@@ -223,14 +225,16 @@ public final class DungeonEntry {
             return new Outcome(Result.INSIDE, dungeon, prefabId, null);
         }
         // The cost, asked up front of a player who would open an area for their party, so one who cannot pay is
-        // refused with nothing reserved; with the dungeon's confirm screen on, the screen asks instead, and its
-        // button comes back through here with no second screen. A member following into the area the party holds
-        // is not asked.
+        // refused with nothing reserved; a key they hold pays it with nothing spent. With the dungeon's confirm
+        // screen on, the screen asks instead (showing the key when one pays), and its button comes back through here
+        // with no second screen. A member following into the area the party holds is not asked.
         List<DungeonEntryCost.Item> cost = charge ? dungeon.entryCostItems() : List.of();
+        List<String> keys = cost.isEmpty() ? List.of() : dungeon.entryCostKeys();
         if (!cost.isEmpty() && !CopyRouter.shared().holdsOpenArea(partyKey, id, PROBE)) {
-            DungeonEntryCost.Item unpaid = DungeonEntryCost.lacking(store, ref, cost);
+            String key = DungeonEntryCost.heldKey(store, ref, keys);
+            DungeonEntryCost.Item unpaid = key != null ? null : DungeonEntryCost.lacking(store, ref, cost);
             if (confirmScreen && dungeon.entryCostConfirm()) {
-                DungeonEntryPrompt.open(ref, store, player, from, dungeon, id, cost);
+                DungeonEntryPrompt.open(ref, store, player, from, dungeon, id, cost, key);
                 return new Outcome(Result.PROMPTED, dungeon, prefabId, null, unpaid);
             }
             if (unpaid != null) {
@@ -254,9 +258,12 @@ public final class DungeonEntry {
             return new Outcome(Result.FULL, dungeon, prefabId, null);
         }
         // The router's answer is the one that counts: a place in the area the party holds is free, any other is the
-        // party's new area, paid for by this player. A party whose area freed since the check above is asked here,
-        // and a player who cannot pay gives the place straight back (the ticker settles it).
-        boolean pays = !cost.isEmpty() && placement.kind() != CopyRouter.Kind.HELD;
+        // party's new area, paid for by this player unless they hold a key, which opens it with nothing spent. A
+        // party whose area freed since the check above is asked here, and a player who cannot pay gives the place
+        // straight back (the ticker settles it).
+        boolean opens = !cost.isEmpty() && placement.kind() != CopyRouter.Kind.HELD;
+        String key = opens ? DungeonEntryCost.heldKey(store, ref, keys) : null;
+        boolean pays = opens && key == null;
         if (pays) {
             DungeonEntryCost.Item unpaid = DungeonEntryCost.lacking(store, ref, cost);
             if (unpaid != null) {
@@ -328,6 +335,9 @@ public final class DungeonEntry {
         if (pays) {
             SafeLog.info(LOG + uuid + " paid the entry cost " + cost + " to open " + area.world() + " area "
                     + area.area() + " for their party");
+        } else if (key != null) {
+            SafeLog.info(LOG + uuid + " opened " + area.world() + " area " + area.area() + " for their party with"
+                    + " the key " + key + ", which they keep");
         }
         return new Outcome(Result.SENT, dungeon, prefabId, area);
     }

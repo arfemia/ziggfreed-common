@@ -12,8 +12,9 @@ $ZS = "../Common/ZigStyles.ui";
 //   #Title          the thing being paid for, uppercase, the summon screen's heading
 //   #TitleRule      the rule under it
 //   #Description    what it is (hidden when the caller gives none)
-//   #CostList       one Pages/ZigItemCostRow.ui slot per item it takes, centred in a row
-//   #Uses           what the button takes from the player's bag
+//   #CostList       one Pages/ZigItemCostRow.ui slot per item it takes, centred in a row; with a key (an item the
+//                   player holds that pays it all), that key's slot alone
+//   #Uses           what the button takes from the player's bag, or with a key, that the key is not used up
 //   #Hint           where the items are found, shown only while the player holds too few
 //   #Actions        Close, and the button (#ConfirmAction), greyed while the player holds too few
 //

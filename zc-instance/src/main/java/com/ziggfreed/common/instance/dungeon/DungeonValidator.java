@@ -56,7 +56,8 @@ import com.ziggfreed.common.validation.TextKeyAudit;
  *       {@link #NO_DUNGEON_PREFAB}, {@link #UNKNOWN_DUNGEON_BOSS}, {@link #UNKNOWN_DUNGEON_LOOTABLE} and
  *       {@link #UNKNOWN_DUNGEON_COST_ITEM} (an id may belong to a pack this server does not run; an
  *       {@code EntryCost} item no loaded item answers to is one nobody can pay, so the dungeon refuses everyone who
- *       would open an area), {@link #NO_DUNGEON_CLEAR} (nothing in {@code Complete} can
+ *       would open an area, and such a key in {@code EntryCost.Keys} one nobody can hold),
+ *       {@link #NO_DUNGEON_CLEAR} (nothing in {@code Complete} can
  *       clear a run, or its survive timer outlasts its time limit, so every run ends failed), and the shared
  *       {@code UNKNOWN_SEASON} and {@code UNKNOWN_TEXT_KEY}.</li>
  * </ul>
@@ -282,6 +283,14 @@ public final class DungeonValidator {
                         + "' on the way in (EntryCost.Items), which no loaded item answers to (write the id exactly as "
                         + "the item's file is named; its pack may not be installed here), so nobody can pay it and "
                         + "every player who would open an area is refused", id));
+            }
+        }
+        for (String key : dungeon.entryCostKeys()) {
+            if (!asks(itemKnown, key)) {
+                out.add(Finding.warning(DOMAIN, UNKNOWN_DUNGEON_COST_ITEM, where + " opens for nothing to a player "
+                        + "holding the item '" + key + "' (EntryCost.Keys), which no loaded item answers to (write the id "
+                        + "exactly as the item's file is named; its pack may not be installed here), so nobody can "
+                        + "hold that key and the way in takes EntryCost.Items from everyone", id));
             }
         }
 

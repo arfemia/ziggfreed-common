@@ -39,7 +39,9 @@ import com.ziggfreed.common.util.SafeLog;
  * library's words: the title, a rule, the description, then each item it takes in a slot with its picture, its own
  * name and how many the player holds over how many it needs (green when they hold enough, red when not), a line
  * saying what the button uses from their bag, and the button beside Close. While the player holds too few the button
- * is off and the caller's hint shows under it (where the items are found).
+ * is off and the caller's hint shows under it (where the items are found). When the caller hands over a key (an item
+ * the player holds that pays it all), the page shows that key's slot alone, held one of one, and a line saying it is
+ * not used up, in place of the item slots and the bag line, with the button on.
  *
  * <p><b>What it shows comes in, what it does goes out.</b> The caller hands over an {@link ItemCostConfirm} (plain
  * values: the caller counts what the player holds) and an {@link OnConfirm}, run on the player's world thread when
@@ -121,13 +123,20 @@ public final class ItemCostConfirmPage extends ToastablePage<ItemCostConfirmEven
             cmd.set("#Description.Visible", false);
         }
 
-        List<ItemCostConfirm.Row> rows = spec.rows();
-        for (int i = 0; i < rows.size(); i++) {
-            paintRow(cmd, i, rows.get(i));
+        String key = spec.key();
+        if (key != null) {
+            // A key pays it all and is kept: its slot alone, held one of one, and the line saying so.
+            paintRow(cmd, 0, new ItemCostConfirm.Row(key, 1, 1));
+            cmd.set("#Uses.TextSpans", Msg.key(PREFIX + "key", NativeNames.itemNameMsg(key)));
+        } else {
+            List<ItemCostConfirm.Row> rows = spec.rows();
+            for (int i = 0; i < rows.size(); i++) {
+                paintRow(cmd, i, rows.get(i));
+            }
+            cmd.set("#Uses.TextSpans", rows.size() == 1
+                    ? Msg.key(PREFIX + "uses.one", NativeNames.itemNameMsg(rows.get(0).itemId()), rows.get(0).needed())
+                    : Msg.key(PREFIX + "uses.many"));
         }
-        cmd.set("#Uses.TextSpans", rows.size() == 1
-                ? Msg.key(PREFIX + "uses.one", NativeNames.itemNameMsg(rows.get(0).itemId()), rows.get(0).needed())
-                : Msg.key(PREFIX + "uses.many"));
 
         boolean affordable = spec.affordable();
         Message hint = spec.hint();

@@ -24,10 +24,12 @@ import com.ziggfreed.common.util.SafeLog;
  * library's item-cost confirm page ({@link ItemCostConfirmPage}) with the dungeon's name as its title, its
  * {@code Text.DescriptionKey} as its description, a slot per item the cost takes (how many the player holds, how many
  * it needs), the cost's {@code HintKey} line while they hold too few, and the cost's {@code ConfirmKey} on the button.
+ * A player holding one of the cost's keys ({@link DungeonEntryCost#heldKey}) sees that key in place of the items, kept.
  * The button runs the entry again with no second screen ({@link DungeonEntry#enterConfirmed}), which spends the cost
- * and sends the player in with their party, then the page plays the game's portal sound ({@link #OPEN_SOUND}) and
- * sparkle ({@link #OPEN_PARTICLE}) where they stood; a refusal by then reads as the usual line on the page, and
- * closing it spends nothing.
+ * (or nothing, for a key) and sends the player in with their party, then the page plays the game's portal sound
+ * ({@link #OPEN_SOUND}) and sparkle ({@link #OPEN_PARTICLE}) where they stood; a refusal by then reads as the usual
+ * line on the page, and closing it spends nothing. A screen that showed a key never spends the items: a player who
+ * no longer holds the key by the button is refused, naming the key, and asks again for the screen with the items.
  */
 public final class DungeonEntryPrompt {
 
@@ -43,14 +45,14 @@ public final class DungeonEntryPrompt {
     }
 
     /**
-     * Show {@code player} the confirm screen for {@code dungeon}, priced {@code cost}. Called on their world thread
-     * ({@code accessor} is their store, or their interaction chain's command buffer, read here for what they hold);
-     * the page opens on a world task of its own, since a page opens through the store, which refuses that while one
-     * of its systems runs.
+     * Show {@code player} the confirm screen for {@code dungeon}, priced {@code cost}, or opened by {@code key} (the
+     * cost's key they hold, null for none). Called on their world thread ({@code accessor} is their store, or their
+     * interaction chain's command buffer, read here for what they hold); the page opens on a world task of its own,
+     * since a page opens through the store, which refuses that while one of its systems runs.
      */
     static void open(@Nonnull Ref<EntityStore> ref, @Nonnull ComponentAccessor<EntityStore> accessor,
             @Nonnull PlayerRef player, @Nonnull World world, @Nonnull DungeonAsset dungeon, @Nonnull String dungeonId,
-            @Nonnull List<DungeonEntryCost.Item> cost) {
+            @Nonnull List<DungeonEntryCost.Item> cost, @Nullable String key) {
         List<ItemCostConfirm.Row> rows = new ArrayList<>(cost.size());
         for (DungeonEntryCost.Item item : cost) {
             rows.add(new ItemCostConfirm.Row(item.itemId(),
@@ -59,12 +61,12 @@ public final class DungeonEntryPrompt {
         }
         ItemCostConfirm spec = new ItemCostConfirm(DungeonRefusals.dungeonName(dungeon),
                 text(dungeon.descriptionKey()), rows, text(dungeon.entryCostHintKey()),
-                dungeon.entryCostConfirmKey(), OPEN_SOUND, OPEN_PARTICLE);
+                dungeon.entryCostConfirmKey(), OPEN_SOUND, OPEN_PARTICLE, key);
         world.execute(() -> {
             try {
                 if (ref.isValid()) {
                     ItemCostConfirmPage.open(ref, ref.getStore(), player, spec,
-                            (r, store, who) -> confirmed(r, store, who, dungeonId));
+                            (r, store, who) -> confirmed(r, store, who, dungeon, dungeonId, key));
                 }
             } catch (Throwable t) {
                 SafeLog.warn(LOG + "the confirm screen of '" + dungeonId + "' could not open for "
@@ -73,9 +75,19 @@ public final class DungeonEntryPrompt {
         });
     }
 
-    /** The button: enter, spending the cost; a refusal tells the player why. Answers whether they were sent. */
+    /**
+     * The button: enter, spending the cost (or nothing, for a key); a refusal tells the player why. A screen that
+     * showed {@code key} never spends the items: with no key held by now, the player is refused, naming the key.
+     * Answers whether they were sent.
+     */
     private static boolean confirmed(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
-            @Nonnull PlayerRef player, @Nonnull String dungeonId) {
+            @Nonnull PlayerRef player, @Nonnull DungeonAsset dungeon, @Nonnull String dungeonId,
+            @Nullable String key) {
+        if (key != null && DungeonEntryCost.heldKey(store, ref, dungeon.entryCostKeys()) == null) {
+            DungeonRefusals.tell(player, dungeonId, new DungeonEntry.Outcome(DungeonEntry.Result.CANNOT_PAY, dungeon,
+                    null, null, new DungeonEntryCost.Item(key, 1)));
+            return false;
+        }
         World world = store.getExternalData().getWorld();
         DungeonEntry.Outcome outcome = DungeonEntry.enterConfirmed(ref, store, player, world, dungeonId);
         if (outcome.result() == DungeonEntry.Result.SENT) {

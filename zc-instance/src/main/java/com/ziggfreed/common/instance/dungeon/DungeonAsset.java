@@ -41,7 +41,8 @@ import com.ziggfreed.common.season.SeasonGate;
  *                 "Objective": { "Kind": "PICKUP_ITEM", "Target": "MyPack_Crypt_Relic", "Amount": 3 },
  *                 "SurviveTimer": 300 },
  *   "Rewards": { "Lootable": "MyPack_Crypt_Clear", "Diminish": { "Steps": [1, 0.5], "Window": "Daily" } },
- *   "EntryCost": { "Items": [ { "Item": "MyPack_Crypt_Key", "Count": 1 } ], "HintKey": "mypack.dungeon.crypt.key_hint" },
+ *   "EntryCost": { "Items": [ { "Item": "MyPack_Crypt_Key", "Count": 1 } ], "Keys": ["MyPack_Crypt_Master_Key"],
+ *                  "HintKey": "mypack.dungeon.crypt.key_hint" },
  *   "Copy": { "EmptyCloseSeconds": 60 },
  *   "Difficulty": "",
  *   "Season": "Hallows_Eve",
@@ -63,7 +64,7 @@ import com.ziggfreed.common.season.SeasonGate;
  *
  * <p>{@code EntryCost} prices the way in ({@link DungeonEntryCost}): the player who opens an area for their party
  * pays it, a partymate who follows into that area pays nothing, a refused entry spends nothing, and the admin's
- * {@code /zigdungeon enter} never pays.
+ * {@code /zigdungeon enter} never pays. A key ({@code EntryCost.Keys}) the opener holds pays it without being spent.
  */
 public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, DungeonAsset>> {
 
@@ -152,8 +153,8 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
             .documentation("What going in costs: items taken from the player who opens an area for their party, "
                     + "on every way in a player takes (a block, a character, a conversation). A partymate who "
                     + "follows into the area the party already holds pays nothing, a player who cannot pay is "
-                    + "refused and keeps everything, and the admin's /zigdungeon enter never pays. Unauthored, "
-                    + "going in is free.").add()
+                    + "refused and keeps everything, and the admin's /zigdungeon enter never pays. A player "
+                    + "holding one of its Keys pays nothing and keeps the key. Unauthored, going in is free.").add()
             .appendInherited(new KeyedCodec<>("Copy", Copy.CODEC, false),
                     (a, v) -> a.copy = v, a -> a.copy, (a, p) -> a.copy = p.copy)
             .documentation("How long a copy stays open.").add()
@@ -350,6 +351,27 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
         }
         List<DungeonEntryCost.Item> out = new ArrayList<>(counts.size());
         counts.forEach((item, count) -> out.add(new DungeonEntryCost.Item(item, count)));
+        return List.copyOf(out);
+    }
+
+    /**
+     * {@code EntryCost.Keys}: the item ids any one of which, held, opens an area without anything being spent
+     * ({@link DungeonEntryCost#heldKey}), each trimmed, blanks and repeats dropped, in the order written; empty when
+     * the file names none. Read only where {@link #entryCostItems()} is not empty: a free way in needs no key.
+     */
+    @Nonnull
+    public List<String> entryCostKeys() {
+        String[] raw = entryCost == null ? null : entryCost.keys;
+        if (raw == null || raw.length == 0) {
+            return List.of();
+        }
+        Set<String> out = new LinkedHashSet<>();
+        for (String key : raw) {
+            String id = blankToNull(key);
+            if (id != null) {
+                out.add(id);
+            }
+        }
         return List.copyOf(out);
     }
 
@@ -619,10 +641,11 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
 
     // ==================== EntryCost ====================
 
-    /** What going in costs, and the line a player who cannot pay reads under the refusal. */
+    /** What going in costs, the keys that open it for nothing, and the line a player who cannot pay reads. */
     public static final class EntryCost {
 
         @Nullable protected EntryItem[] items;
+        @Nullable protected String[] keys;
         @Nullable protected String hintKey;
         @Nullable protected Boolean confirm;
         @Nullable protected String confirmKey;
@@ -635,6 +658,16 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
                         + "too few of any is refused, with a line naming the item and the count, and keeps all of "
                         + "them. This is ONE leaf: authoring it replaces an inherited list whole. Unauthored or empty, "
                         + "going in is free.").add()
+                .appendInherited(new KeyedCodec<>("Keys", Codec.STRING_ARRAY, false),
+                        (o, v) -> o.keys = v, o -> o.keys, (o, p) -> o.keys = p.keys)
+                .metadata(EditorSchema.assetRef(Item.class))
+                .documentation("Items that open the way without being spent, by item id, written exactly as each "
+                        + "item's file is named: a player who opens an area for their party while holding any one of "
+                        + "them in the bag, storage or hotbar (never what is worn) goes in, keeps the key, and pays "
+                        + "nothing from Items, even holding those too. The confirm screen then shows the key and says "
+                        + "it is not used up. Keys only waive Items: with Items unauthored or empty, going in is free "
+                        + "and Keys do nothing. This is ONE leaf: authoring it replaces an inherited list whole. "
+                        + "Unauthored or empty, only Items pays the way in.").add()
                 .appendInherited(new KeyedCodec<>("HintKey", Codec.STRING, false),
                         (o, v) -> o.hintKey = v, o -> o.hintKey, (o, p) -> o.hintKey = p.hintKey)
                 .documentation("The localization key of a line saying where the items are found, such as where "
@@ -646,7 +679,8 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
                 .metadata(EditorSchema.defaultValue(true))
                 .documentation("Whether a player who would pay first sees a confirm screen, built like the game's "
                         + "portal summon screen: the dungeon's name and description, each item it takes with how "
-                        + "many they hold and how many it needs, and a button that spends the cost and sends them in "
+                        + "many they hold and how many it needs (or, holding one of Keys, that key alone, kept), and "
+                        + "a button that spends the cost and sends them in "
                         + "with their party, with the game's portal sound and sparkle; closing it spends nothing. "
                         + "With too few, the button is off and the HintKey line shows. Unauthored means true; false "
                         + "takes the cost on the way in with no screen.").add()
