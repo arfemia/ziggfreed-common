@@ -10,6 +10,8 @@ import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import org.joml.Vector3d;
+
 import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
@@ -164,10 +166,11 @@ public final class EncounterLifecycle {
                 + (runTag == null ? "" : " in=" + runTag.source())
                 + (feats.isEmpty() ? "" : " feats=" + String.join(",", feats)));
         String difficulty = difficultyOf(run, row);
+        Vector3d fellAt = deathPosition(store, encounterRef, run, subjectRef);
         Encounters.fireDefeated(() -> new EncounterDefeatedEvent(run.runId(), encounterId, run.worldUuid(),
                 run.subjectUuid(), run.subjectMobId(), shares.participants(), shares.participantIds(),
                 shares.shares(), shares.damageDealt(), elapsedSeconds, run.memberDeaths(), difficulty,
-                run.lastHitter(), runTag, feats));
+                run.lastHitter(), runTag, feats, fellAt));
         EncounterRest.stamp(store, commandBuffer, encounterRef, run, encounterId, row);
         // Paid before it is announced, and each participant's own receipt rides into their moment:
         // a player whose roll wrote them a Claim reads one row saying it waits on the Claims tab,
@@ -352,6 +355,27 @@ public final class EncounterLifecycle {
         try {
             return world == null ? null : world.getWorldConfig().getUuid();
         } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /**
+     * Where the boss fell, as a copy: the subject the death system handed over, else the run's subject found by
+     * its uuid (a defeat beat has already released the script's slot), through {@link #anchorOf}; null when
+     * nothing can be read. Never throws: a failed read names no position.
+     */
+    @Nullable
+    static Vector3d deathPosition(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> encounterRef,
+            @Nonnull ZigEncounterRun run, @Nullable Ref<EntityStore> subjectRef) {
+        try {
+            Ref<EntityStore> subject = subjectRef;
+            if ((subject == null || !subject.isValid()) && run.subjectUuid() != null) {
+                subject = store.getExternalData().getRefFromUUID(run.subjectUuid());
+            }
+            TransformComponent at = anchorOf(store, encounterRef, subject);
+            return at == null || at.getPosition() == null ? null : new Vector3d(at.getPosition());
+        } catch (Throwable t) {
+            SafeLog.fine(Encounters.LOG_PREFIX + " the defeat could not read where the boss fell: " + t.getMessage());
             return null;
         }
     }
