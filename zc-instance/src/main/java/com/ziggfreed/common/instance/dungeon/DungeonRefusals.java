@@ -1,5 +1,6 @@
 package com.ziggfreed.common.instance.dungeon;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -11,9 +12,11 @@ import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.i18n.NativeNames;
 import com.ziggfreed.common.occurrence.Occurrences;
 import com.ziggfreed.common.ui.toast.ToastDelivery;
 import com.ziggfreed.common.ui.toast.ToastKind;
+import com.ziggfreed.common.ui.toast.ToastLine;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -26,7 +29,9 @@ import com.ziggfreed.common.util.SafeLog;
  * <p>A player never reads a pack author's mistake: a dungeon no loaded file defines, a missing or absent prefab,
  * an audit ERROR and a copy that failed to open all read "cannot be entered right now", and the log says why (the
  * entry and the audit log their own; an unknown id is logged here, once per id). A dungeon that is closed says
- * whether it is switched off or waiting on its season, naming the season when its calendar event has a name.
+ * whether it is switched off or waiting on its season, naming the season when its calendar event has a name. A
+ * player who cannot pay a dungeon's {@code EntryCost} reads which item and how many (the item's own name, the count
+ * a number their client writes), then the dungeon's {@code EntryCost.HintKey} line under it when it names one.
  */
 public final class DungeonRefusals {
 
@@ -52,15 +57,35 @@ public final class DungeonRefusals {
         if (line == null) {
             return;
         }
-        ToastDelivery.deliverWhenSettled(player, ToastSpec.of(ToastKind.ERROR, line), null);
+        ToastSpec spec = ToastSpec.of(ToastKind.ERROR, line);
+        Message hint = hint(outcome);
+        if (hint != null) {
+            spec = spec.withLines(List.of(ToastLine.text(hint)));
+        }
+        ToastDelivery.deliverWhenSettled(player, spec, null);
     }
 
-    /** The line for {@code outcome}, or null when the player was sent. */
+    /**
+     * The line read under {@code outcome}'s refusal, or null when it has none: for
+     * {@link DungeonEntry.Result#CANNOT_PAY}, the dungeon's {@code EntryCost.HintKey} (where the items are found),
+     * when it names one.
+     */
+    @Nullable
+    public static Message hint(@Nonnull DungeonEntry.Outcome outcome) {
+        DungeonAsset dungeon = outcome.dungeon();
+        if (outcome.result() != DungeonEntry.Result.CANNOT_PAY || dungeon == null) {
+            return null;
+        }
+        String key = dungeon.entryCostHintKey();
+        return key == null ? null : ContentKeys.tr(key);
+    }
+
+    /** The line for {@code outcome}, or null when the player was sent or is looking at the confirm screen. */
     @Nullable
     public static Message line(@Nullable String dungeonId, @Nonnull DungeonEntry.Outcome outcome) {
         DungeonAsset dungeon = outcome.dungeon();
         return switch (outcome.result()) {
-            case SENT -> null;
+            case SENT, PROMPTED -> null;
             case UNKNOWN -> unknown(dungeonId);
             case CLOSED -> dungeon == null ? key("entry.unavailable.unnamed") : closed(dungeon);
             case ON_THE_WAY -> key("entry.on_the_way");
@@ -68,7 +93,17 @@ public final class DungeonRefusals {
             case FULL -> named("entry.full", dungeon);
             case COPY_GONE -> named("entry.copy_gone", dungeon);
             case NO_PREFAB, MISSING_PREFAB, AUDIT_ERROR, FAILED -> named("entry.unavailable", dungeon);
+            case CANNOT_PAY -> cannotPay(dungeon, outcome.unpaid());
         };
+    }
+
+    /** The item the player holds too few of, by its own name, and how many the dungeon asks for. */
+    @Nonnull
+    private static Message cannotPay(@Nullable DungeonAsset dungeon, @Nullable DungeonEntryCost.Item unpaid) {
+        if (dungeon == null || unpaid == null) {
+            return key("entry.unavailable.unnamed");
+        }
+        return key("entry.cost", dungeonName(dungeon), NativeNames.itemNameMsg(unpaid.itemId()), unpaid.count());
     }
 
     /** A dungeon's name as its players read it: its {@code Text.NameKey}, or its id when it names none. */

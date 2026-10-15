@@ -1,8 +1,11 @@
 package com.ziggfreed.common.instance.dungeon;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 import javax.annotation.Nonnull;
@@ -15,6 +18,8 @@ import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
+import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.asset.SeasonLeaf;
 import com.ziggfreed.common.codec.Vec3;
@@ -36,6 +41,7 @@ import com.ziggfreed.common.season.SeasonGate;
  *                 "Objective": { "Kind": "PICKUP_ITEM", "Target": "MyPack_Crypt_Relic", "Amount": 3 },
  *                 "SurviveTimer": 300 },
  *   "Rewards": { "Lootable": "MyPack_Crypt_Clear", "Diminish": { "Steps": [1, 0.5], "Window": "Daily" } },
+ *   "EntryCost": { "Items": [ { "Item": "MyPack_Crypt_Key", "Count": 1 } ], "HintKey": "mypack.dungeon.crypt.key_hint" },
  *   "Copy": { "EmptyCloseSeconds": 60 },
  *   "Difficulty": "",
  *   "Season": "Hallows_Eve",
@@ -54,6 +60,10 @@ import com.ziggfreed.common.season.SeasonGate;
  * is {@code Enabled} and its {@code Season} runs ({@link #isOpen()}); otherwise it still resolves, and its way
  * in refuses entry with a line saying it is closed, or that it only opens during its season
  * ({@link DungeonRefusals}). {@link DungeonValidator} checks what a file names once every pack has loaded.
+ *
+ * <p>{@code EntryCost} prices the way in ({@link DungeonEntryCost}): the player who opens an area for their party
+ * pays it, a partymate who follows into that area pays nothing, a refused entry spends nothing, and the admin's
+ * {@code /zigdungeon enter} never pays.
  */
 public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, DungeonAsset>> {
 
@@ -91,6 +101,7 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
     @Nullable private Run run;
     @Nullable private Complete complete;
     @Nullable private Rewards rewards;
+    @Nullable private EntryCost entryCost;
     @Nullable private Copy copy;
     @Nullable private String difficulty;
     @Nullable private String season;
@@ -136,6 +147,13 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
                     (a, v) -> a.rewards = v, a -> a.rewards, (a, p) -> a.rewards = p.rewards)
             .documentation("What each member present at a clear earns: one Claim they collect on the results "
                     + "screen, or later on the Claims tab. Unauthored, a clear pays nothing.").add()
+            .appendInherited(new KeyedCodec<>("EntryCost", EntryCost.CODEC, false),
+                    (a, v) -> a.entryCost = v, a -> a.entryCost, (a, p) -> a.entryCost = p.entryCost)
+            .documentation("What going in costs: items taken from the player who opens an area for their party, "
+                    + "on every way in a player takes (a block, a character, a conversation). A partymate who "
+                    + "follows into the area the party already holds pays nothing, a player who cannot pay is "
+                    + "refused and keeps everything, and the admin's /zigdungeon enter never pays. Unauthored, "
+                    + "going in is free.").add()
             .appendInherited(new KeyedCodec<>("Copy", Copy.CODEC, false),
                     (a, v) -> a.copy = v, a -> a.copy, (a, p) -> a.copy = p.copy)
             .documentation("How long a copy stays open.").add()
@@ -310,6 +328,50 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
     @Nullable
     public DiminishSpec rewardsDiminish() {
         return rewards == null ? null : rewards.diminish;
+    }
+
+    /**
+     * {@code EntryCost.Items}: what opening an area costs, each item id trimmed with its count (unauthored or less
+     * than 1 means 1), an entry naming no item dropped and repeats of one id added together, in the order written;
+     * empty when going in is free.
+     */
+    @Nonnull
+    public List<DungeonEntryCost.Item> entryCostItems() {
+        EntryItem[] raw = entryCost == null ? null : entryCost.items;
+        if (raw == null || raw.length == 0) {
+            return List.of();
+        }
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        for (EntryItem entry : raw) {
+            String item = entry == null ? null : blankToNull(entry.item);
+            if (item != null) {
+                counts.merge(item, entry.countOrOne(), Integer::sum);
+            }
+        }
+        List<DungeonEntryCost.Item> out = new ArrayList<>(counts.size());
+        counts.forEach((item, count) -> out.add(new DungeonEntryCost.Item(item, count)));
+        return List.copyOf(out);
+    }
+
+    /** {@code EntryCost.HintKey}, trimmed, or null when the file names none. */
+    @Nullable
+    public String entryCostHintKey() {
+        return blankToNull(entryCost == null ? null : entryCost.hintKey);
+    }
+
+    /**
+     * {@code EntryCost.Confirm}, unauthored true: a player who would pay the cost first sees the confirm screen
+     * ({@link DungeonEntryPrompt}). Read only where a cost is set.
+     */
+    public boolean entryCostConfirm() {
+        Boolean v = entryCost == null ? null : entryCost.confirm;
+        return v == null || v;
+    }
+
+    /** {@code EntryCost.ConfirmKey}, trimmed, or null: the confirm screen's button then reads the library's Confirm. */
+    @Nullable
+    public String entryCostConfirmKey() {
+        return blankToNull(entryCost == null ? null : entryCost.confirmKey);
     }
 
     /** {@code Copy.EmptyCloseSeconds}: how long an emptied copy stands before it closes, zero or more. */
@@ -552,6 +614,76 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
                 .build();
 
         public Rewards() {
+        }
+    }
+
+    // ==================== EntryCost ====================
+
+    /** What going in costs, and the line a player who cannot pay reads under the refusal. */
+    public static final class EntryCost {
+
+        @Nullable protected EntryItem[] items;
+        @Nullable protected String hintKey;
+        @Nullable protected Boolean confirm;
+        @Nullable protected String confirmKey;
+
+        public static final BuilderCodec<EntryCost> CODEC = BuilderCodec.builder(EntryCost.class, EntryCost::new)
+                .appendInherited(new KeyedCodec<>("Items", new ArrayCodec<>(EntryItem.CODEC, EntryItem[]::new), false),
+                        (o, v) -> o.items = v, o -> o.items, (o, p) -> o.items = p.items)
+                .documentation("The items taken on the way in, each with its count, from the bag, storage and "
+                        + "hotbar (never what is worn) of the player who opens an area for their party; one who holds "
+                        + "too few of any is refused, with a line naming the item and the count, and keeps all of "
+                        + "them. This is ONE leaf: authoring it replaces an inherited list whole. Unauthored or empty, "
+                        + "going in is free.").add()
+                .appendInherited(new KeyedCodec<>("HintKey", Codec.STRING, false),
+                        (o, v) -> o.hintKey = v, o -> o.hintKey, (o, p) -> o.hintKey = p.hintKey)
+                .documentation("The localization key of a line saying where the items are found, such as where "
+                        + "they are sold: the confirm screen shows it to a player who holds too few, and a refusal "
+                        + "line shows it under the item and the count. Unauthored, they name the item and the count "
+                        + "alone.").add()
+                .appendInherited(new KeyedCodec<>("Confirm", Codec.BOOLEAN, false),
+                        (o, v) -> o.confirm = v, o -> o.confirm, (o, p) -> o.confirm = p.confirm)
+                .metadata(EditorSchema.defaultValue(true))
+                .documentation("Whether a player who would pay first sees a confirm screen, built like the game's "
+                        + "portal summon screen: the dungeon's name and description, each item it takes with how "
+                        + "many they hold and how many it needs, and a button that spends the cost and sends them in "
+                        + "with their party, with the game's portal sound and sparkle; closing it spends nothing. "
+                        + "With too few, the button is off and the HintKey line shows. Unauthored means true; false "
+                        + "takes the cost on the way in with no screen.").add()
+                .appendInherited(new KeyedCodec<>("ConfirmKey", Codec.STRING, false),
+                        (o, v) -> o.confirmKey = v, o -> o.confirmKey, (o, p) -> o.confirmKey = p.confirmKey)
+                .documentation("The localization key of the words on the confirm screen's button, such as \"Light "
+                        + "the Candle\". Unauthored, the button reads Confirm.").add()
+                .build();
+
+        public EntryCost() {
+        }
+    }
+
+    /** One item the way in takes, and how many. */
+    public static final class EntryItem {
+
+        @Nullable protected String item;
+        @Nullable protected Integer count;
+
+        public static final BuilderCodec<EntryItem> CODEC = BuilderCodec.builder(EntryItem.class, EntryItem::new)
+                .appendInherited(new KeyedCodec<>("Item", Codec.STRING, false),
+                        (o, v) -> o.item = v, o -> o.item, (o, p) -> o.item = p.item)
+                .metadata(EditorSchema.assetRef(Item.class))
+                .documentation("The item id taken, written exactly as the item's file is named. An id no loaded "
+                        + "item answers to is reported, and nobody could pay it.").add()
+                .appendInherited(new KeyedCodec<>("Count", Codec.INTEGER, false),
+                        (o, v) -> o.count = v, o -> o.count, (o, p) -> o.count = p.count)
+                .metadata(EditorSchema.defaultValue(1L))
+                .documentation("How many. Unauthored, or less than 1, means 1.").add()
+                .build();
+
+        public EntryItem() {
+        }
+
+        /** {@code Count}, at least 1. */
+        int countOrOne() {
+            return count == null || count < 1 ? 1 : count;
         }
     }
 

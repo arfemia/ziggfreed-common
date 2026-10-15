@@ -30,7 +30,8 @@ import com.ziggfreed.common.util.SafeLog;
  * inside the character's own system, where the store refuses the components the teleport writes. So opening takes
  * over no screen there and then and answers false, as the {@link Destinations} contract asks, and a conversation
  * carries on until the entry answers: a player sent in has any page they have open closed as the loading screen
- * takes them, and a refused one hears why where they are looking.
+ * takes them, a refused one hears why where they are looking, and for one asked to pay first the dungeon's confirm
+ * screen ({@link DungeonEntryPrompt}) takes the conversation's place.
  */
 public final class DungeonDestinations {
 
@@ -98,7 +99,9 @@ public final class DungeonDestinations {
                         (d, v) -> d.dungeon = v, d -> d.dungeon)
                 .documentation("The dungeon to send the player into, by its id (the file name under "
                         + "Server/ZiggfreedCommon/Dungeons/). The player goes in with their party, or alone when "
-                        + "they have none; a dungeon that is closed, out of season or full tells them why.").add()
+                        + "they have none, paying the dungeon's EntryCost when they open an area for their party; "
+                        + "a dungeon that is closed, out of season or full, or whose cost they cannot pay, tells "
+                        + "them why.").add()
                 .build();
 
         public Dungeon() {

@@ -25,6 +25,7 @@ import com.hypixel.hytale.builtin.instances.InstancesPlugin;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.HytaleServer;
 import com.hypixel.hytale.server.core.asset.type.gameplay.GameplayConfig;
+import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.hypixel.hytale.server.core.asset.type.portalworld.PortalType;
 import com.hypixel.hytale.server.core.prefab.PrefabStore;
 import com.ziggfreed.common.encounter.validate.EncounterScriptScan;
@@ -52,8 +53,10 @@ import com.ziggfreed.common.validation.TextKeyAudit;
  *       {@link #PACKED_WORLD_EVENTS} (a portal's timer and world events belong to the whole world, so a copy
  *       shared by several parties would share them);</li>
  *   <li>WARNING {@link #UNKNOWN_DUNGEON_TEMPLATE}, {@link #UNKNOWN_DUNGEON_PREFAB},
- *       {@link #NO_DUNGEON_PREFAB}, {@link #UNKNOWN_DUNGEON_BOSS} and {@link #UNKNOWN_DUNGEON_LOOTABLE} (an id may
- *       belong to a pack this server does not run), {@link #NO_DUNGEON_CLEAR} (nothing in {@code Complete} can
+ *       {@link #NO_DUNGEON_PREFAB}, {@link #UNKNOWN_DUNGEON_BOSS}, {@link #UNKNOWN_DUNGEON_LOOTABLE} and
+ *       {@link #UNKNOWN_DUNGEON_COST_ITEM} (an id may belong to a pack this server does not run; an
+ *       {@code EntryCost} item no loaded item answers to is one nobody can pay, so the dungeon refuses everyone who
+ *       would open an area), {@link #NO_DUNGEON_CLEAR} (nothing in {@code Complete} can
  *       clear a run, or its survive timer outlasts its time limit, so every run ends failed), and the shared
  *       {@code UNKNOWN_SEASON} and {@code UNKNOWN_TEXT_KEY}.</li>
  * </ul>
@@ -75,6 +78,7 @@ public final class DungeonValidator {
     public static final String NO_DUNGEON_CLEAR = "NO_DUNGEON_CLEAR";
     public static final String UNKNOWN_DUNGEON_BOSS = "UNKNOWN_DUNGEON_BOSS";
     public static final String UNKNOWN_DUNGEON_LOOTABLE = "UNKNOWN_DUNGEON_LOOTABLE";
+    public static final String UNKNOWN_DUNGEON_COST_ITEM = "UNKNOWN_DUNGEON_COST_ITEM";
 
     /** The template's config file, inside its folder under {@code Server/Instances/}. */
     static final String TEMPLATE_CONFIG = "instance.bson";
@@ -145,6 +149,7 @@ public final class DungeonValidator {
                     DungeonValidator::prefabKnown,
                     loadedScripts(),
                     DungeonValidator::lootableKnown,
+                    DungeonValidator::itemKnown,
                     minimumSpacing(),
                     TextKeyAudit.liveCatalogue());
         } catch (Throwable t) {
@@ -169,21 +174,36 @@ public final class DungeonValidator {
             @Nonnull Predicate<String> templateKnown, @Nonnull Function<String, TemplateFacts> templateFacts,
             @Nonnull Predicate<String> prefabKnown, @Nonnull Predicate<String> scriptKnown,
             @Nonnull Predicate<String> lootableKnown, int minimumSpacing, @Nonnull Predicate<String> textShipped) {
+        return audit(dungeons, templateKnown, templateFacts, prefabKnown, scriptKnown, lootableKnown, item -> true,
+                minimumSpacing, textShipped);
+    }
+
+    /**
+     * The pure core, with {@code itemKnown} answering whether an id names a loaded item (an {@code EntryCost}
+     * item); the form without it reads every item as known.
+     */
+    @Nonnull
+    public static List<Finding> audit(@Nonnull Collection<DungeonAsset> dungeons,
+            @Nonnull Predicate<String> templateKnown, @Nonnull Function<String, TemplateFacts> templateFacts,
+            @Nonnull Predicate<String> prefabKnown, @Nonnull Predicate<String> scriptKnown,
+            @Nonnull Predicate<String> lootableKnown, @Nonnull Predicate<String> itemKnown, int minimumSpacing,
+            @Nonnull Predicate<String> textShipped) {
         List<Finding> out = new ArrayList<>();
         for (DungeonAsset dungeon : dungeons) {
             if (dungeon == null || dungeon.getId() == null || !dungeon.isEnabled()) {
                 continue;
             }
-            auditOne(dungeon, templateKnown, templateFacts, prefabKnown, scriptKnown, lootableKnown, minimumSpacing,
-                    textShipped, out);
+            auditOne(dungeon, templateKnown, templateFacts, prefabKnown, scriptKnown, lootableKnown, itemKnown,
+                    minimumSpacing, textShipped, out);
         }
         return out;
     }
 
     private static void auditOne(@Nonnull DungeonAsset dungeon, @Nonnull Predicate<String> templateKnown,
             @Nonnull Function<String, TemplateFacts> templateFacts, @Nonnull Predicate<String> prefabKnown,
-            @Nonnull Predicate<String> scriptKnown, @Nonnull Predicate<String> lootableKnown, int minimumSpacing,
-            @Nonnull Predicate<String> textShipped, @Nonnull List<Finding> out) {
+            @Nonnull Predicate<String> scriptKnown, @Nonnull Predicate<String> lootableKnown,
+            @Nonnull Predicate<String> itemKnown, int minimumSpacing, @Nonnull Predicate<String> textShipped,
+            @Nonnull List<Finding> out) {
         String id = dungeon.getId();
         String where = "dungeon '" + id + "'";
         boolean shared = dungeon.areasPerCopy() > 1;
@@ -256,6 +276,15 @@ public final class DungeonValidator {
                     + "nothing", id));
         }
 
+        for (DungeonEntryCost.Item item : dungeon.entryCostItems()) {
+            if (!asks(itemKnown, item.itemId())) {
+                out.add(Finding.warning(DOMAIN, UNKNOWN_DUNGEON_COST_ITEM, where + " takes the item '" + item.itemId()
+                        + "' on the way in (EntryCost.Items), which no loaded item answers to (write the id exactly as "
+                        + "the item's file is named; its pack may not be installed here), so nobody can pay it and "
+                        + "every player who would open an area is refused", id));
+            }
+        }
+
         if (shared && dungeon.spacing() < minimumSpacing) {
             out.add(Finding.error(DOMAIN, SPACING_TOO_SMALL, where + " sets Area.Spacing " + dungeon.spacing()
                     + ", under the " + minimumSpacing + " blocks this server's view distance needs (twice it), so "
@@ -269,6 +298,10 @@ public final class DungeonValidator {
                 "its description shows as the raw key");
         TextKeyAudit.check(out, DOMAIN, id, where + " Text.GoalKey", dungeon.goalKey(), textShipped,
                 "the goal a player reads on arriving shows as the raw key");
+        TextKeyAudit.check(out, DOMAIN, id, where + " EntryCost.HintKey", dungeon.entryCostHintKey(), textShipped,
+                "the line saying where the items are found shows as the raw key");
+        TextKeyAudit.check(out, DOMAIN, id, where + " EntryCost.ConfirmKey", dungeon.entryCostConfirmKey(),
+                textShipped, "the confirm screen's button shows the raw key");
     }
 
     /**
@@ -403,6 +436,18 @@ public final class DungeonValidator {
     private static boolean lootableKnown(@Nonnull String id) {
         try {
             return LootableConfig.getInstance().resolve(id) != null;
+        } catch (Throwable t) {
+            return true; // cannot tell is not "missing"
+        }
+    }
+
+    /**
+     * Does a loaded item answer to this exact id (the spelling the spend matches)? One that cannot be asked reads as
+     * known.
+     */
+    private static boolean itemKnown(@Nonnull String id) {
+        try {
+            return Item.getAssetMap().getAsset(id) != null;
         } catch (Throwable t) {
             return true; // cannot tell is not "missing"
         }

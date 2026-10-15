@@ -101,6 +101,43 @@ class DungeonAssetCodecTest {
                 "Complete merges leaf by leaf too");
     }
 
+    @Test
+    void entryCostReadsWrittenBackAndInheritsLeafByLeaf() throws IOException {
+        DungeonAsset bare = decode("Bare", "{}", null);
+        assertTrue(bare.entryCostItems().isEmpty(), "no EntryCost is free");
+        assertNull(bare.entryCostHintKey());
+        assertTrue(bare.entryCostConfirm(), "the confirm screen is on unless a file turns it off");
+        assertNull(bare.entryCostConfirmKey(), "no ConfirmKey: the button reads the library's Confirm");
+
+        DungeonAsset priced = decode("MyPack_Crypt", """
+                { "EntryCost": { "Items": [ { "Item": " MyPack_Crypt_Key " }, { "Item": "" },
+                                            { "Item": "MyPack_Bone", "Count": 3 }, { "Item": "MyPack_Crypt_Key", "Count": 0 } ],
+                                 "HintKey": " mypack.dungeon.crypt.key_hint ", "Confirm": false,
+                                 "ConfirmKey": " mypack.dungeon.crypt.unlock " } }
+                """, null);
+        List<DungeonEntryCost.Item> expected = List.of(new DungeonEntryCost.Item("MyPack_Crypt_Key", 2),
+                new DungeonEntryCost.Item("MyPack_Bone", 3));
+        assertEquals(expected, priced.entryCostItems(),
+                "ids read trimmed, a blank entry is dropped, a missing or low Count is 1, and repeats add up");
+        assertEquals("mypack.dungeon.crypt.key_hint", priced.entryCostHintKey());
+        assertFalse(priced.entryCostConfirm());
+        assertEquals("mypack.dungeon.crypt.unlock", priced.entryCostConfirmKey());
+
+        DungeonAsset again = decode("MyPack_Crypt", DungeonAsset.CODEC.encode(priced, new ExtraInfo()).toJson(), null);
+        assertEquals(expected, again.entryCostItems(), "the group is written back and reads the same");
+        assertFalse(again.entryCostConfirm());
+        assertEquals("mypack.dungeon.crypt.unlock", again.entryCostConfirmKey());
+
+        DungeonAsset child = decode("MyPack_Crypt_Hard", """
+                { "EntryCost": { "HintKey": "mypack.dungeon.crypt_hard.key_hint" } }
+                """, priced);
+        assertEquals(expected, child.entryCostItems(), "an unrestated Items leaf is inherited");
+        assertEquals("mypack.dungeon.crypt_hard.key_hint", child.entryCostHintKey());
+        assertFalse(child.entryCostConfirm(), "an unrestated Confirm is inherited too");
+        assertNotNull(DungeonAsset.CODEC.toSchema(new SchemaContext()).getProperties().get("EntryCost"),
+                "the schema the Asset Editor loads declares the group");
+    }
+
     private static void assertCrypt(@Nonnull DungeonAsset crypt) {
         assertEquals("MyPack_Crypt", crypt.getId());
         assertEquals("MyPack_Crypt", crypt.templateId());

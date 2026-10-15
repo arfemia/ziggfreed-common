@@ -11,6 +11,10 @@ apply from: "$rootDir/gradle/zc-module.gradle"
 dependencies {
     implementation project(':zc-core')
     implementation project(':zc-loot')
+    // ModelParticleService only: the item-cost confirm page (ui/confirm) plays its caller's sparkle where the
+    // player stands when they confirm, through the one guarded particle seam. One-way: zc-cast depends on zc-core
+    // alone and never imports this module.
+    implementation project(':zc-cast')
 }
 
 // UiDocumentSyntaxTest reads every zc module's Custom UI documents as one merged tree (the way the client loads

@@ -245,6 +245,21 @@ public final class CopyRouter {
     }
 
     /**
+     * Would {@link #reserve} put a member of {@code partyKey} into the area the party already holds in
+     * {@code dungeon} ({@link Kind#HELD}), rather than give the party a new one? True while the party holds an area
+     * of a copy that is neither closing nor stopping, a full one included (the reservation then refuses it). A read
+     * for a caller deciding up front, such as whether a way in is to be paid for; {@link #reserve}'s own answer is
+     * the one that counts, since the area may free before it.
+     */
+    public synchronized boolean holdsOpenArea(@Nonnull String partyKey, @Nonnull String dungeon,
+            @Nonnull WorldProbe probe) {
+        prune(probe);
+        CopyKey holding = areaOf(partyKey, dungeon);
+        Copy copy = holding == null ? null : copies.get(holding.world());
+        return copy != null && !copy.closing && !stopping(copy, probe);
+    }
+
+    /**
      * Reserve a place for {@code player}, of party {@code partyKey}, in {@code rules}' dungeon. Call it before
      * the asynchronous teleport; then {@link #arrived} when the player lands, or {@link #failed} when the
      * teleport (or the spawn of an {@link Kind#OPENED} copy) does not.

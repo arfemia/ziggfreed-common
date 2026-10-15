@@ -43,3 +43,11 @@ kit.nothing_matches_line = Nothing here fits these filters. Clear them to see ev
 kit.clear_filters = Clear filters
 kit.count = {0, number} / {1, number}
 kit.percent = {0, number}%
+
+# The item-cost confirm page (ui/confirm/ItemCostConfirmPage), shown before something takes a player's items: its
+# button's default words, its close button, and the line saying what the button takes. In uses.one, {0} is the
+# item's own name and {1} how many; uses.many stands for a price of several items.
+confirm.button = Confirm
+confirm.close = Close
+confirm.uses.one = Uses {0} x{1, number} from your bag.
+confirm.uses.many = Uses the items above from your bag.

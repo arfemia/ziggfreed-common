@@ -5,7 +5,8 @@ apply from: "$rootDir/gradle/zc-module.gradle"
 //
 // It depends on zc-core alone. Three library modules depend on it, each over a one-way edge, for
 // custom interaction Types: zc-objectives (the objective book, ZigCreditProgress, ZigGrantReward),
-// zc-effects (ZigCostume) and zc-instance (ZigEnterDungeon). The one piece of it every domain does need, the per-world eviction
+// zc-effects (ZigCostume) and zc-instance (ZigEnterDungeon); zc-presentation uses ModelParticleService
+// alone, for the item-cost confirm page's sparkle. The one piece of it every domain does need, the per-world eviction
 // fan-out (cast.WorldEvictors), lives in zc-core as a split-package file.
 
 dependencies {

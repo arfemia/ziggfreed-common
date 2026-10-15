@@ -1,0 +1,93 @@
+$C = "../Common.ui";
+$F = "../Common/ZigFrames.ui";
+$ZT = "../Common/ZigType.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
+
+// The item-cost confirm page (com.ziggfreed.common.ui.confirm.ItemCostConfirmPage): what something that spends a
+// player's items is, what it takes, and the button that spends them. A copy of the game's own portal summon screen
+// (the client's Portals/PortalSummonPanel.xaml), in the library's words: a centred column on the decorated frame.
+//
+//   #Title          the thing being paid for, uppercase, the summon screen's heading
+//   #TitleRule      the rule under it
+//   #Description    what it is (hidden when the caller gives none)
+//   #CostList       one Pages/ZigItemCostRow.ui slot per item it takes, centred in a row
+//   #Uses           what the button takes from the player's bag
+//   #Hint           where the items are found, shown only while the player holds too few
+//   #Actions        Close, and the button (#ConfirmAction), greyed while the player holds too few
+//
+// Every word is set from Java on .TextSpans (each button is a Button holding Label #Label), so nothing here is a
+// literal. Shipped once in ziggfreed-common; neutral Zig* ids. Smoke-test in game.
+
+$C.@PageOverlay {}
+$F.@ZigDecoratedFrame {
+  @CloseButton = true;
+  Anchor: (Width: 560, Height: 580);
+
+  #Content {
+    Label #Title {
+      Anchor: (Bottom: $ZK.@ZigSpace2);
+      Text: "";
+      Style: (...$ZX.@ZigTitleStyle, HorizontalAlignment: Center, RenderUppercase: true);
+    }
+
+    Group #TitleRule {
+      Anchor: (Height: 1, Bottom: $ZK.@ZigSpace4);
+      Background: (Color: $ZK.@ZigDivider);
+    }
+
+    Label #Description {
+      Anchor: (Bottom: $ZK.@ZigSpace3);
+      Text: "";
+      Style: (...$ZX.@ZigLeadStyle, HorizontalAlignment: Center);
+    }
+
+    Group #Spacer {
+      FlexWeight: 1;
+    }
+
+    Group #CostList {
+      LayoutMode: Center;
+      Anchor: (Height: 150, Bottom: $ZK.@ZigSpace2);
+    }
+
+    Label #Uses {
+      Anchor: (Bottom: $ZK.@ZigSpace2);
+      Text: "";
+      Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: Center, Wrap: true);
+    }
+
+    Label #Hint {
+      Anchor: (Bottom: $ZK.@ZigSpace2);
+      Text: "";
+      Visible: false;
+      Style: (FontSize: $ZT.@ZigFontBody, TextColor: $ZK.@ZigToneAvailableText, HorizontalAlignment: Center, VerticalAlignment: Center, Wrap: true);
+    }
+
+    Group #Actions {
+      LayoutMode: Center;
+      Anchor: (Height: $ZK.@ZigActionHeight, Top: $ZK.@ZigSpace2);
+
+      Button #CloseAction {
+        Anchor: (Width: 160, Height: $ZK.@ZigActionHeight, Right: $ZK.@ZigSpace3);
+        Style: $ZS.@ZigButtonSecondaryStyle;
+        Label #Label {
+          FlexWeight: 1;
+          Text: "";
+          Style: $ZX.@ZigButtonLabelStyle;
+        }
+      }
+
+      Button #ConfirmAction {
+        Anchor: (Width: 240, Height: $ZK.@ZigActionHeight);
+        Style: $ZS.@ZigButtonPrimaryStyle;
+        Label #Label {
+          FlexWeight: 1;
+          Text: "";
+          Style: $ZX.@ZigButtonLabelStyle;
+        }
+      }
+    }
+  }
+}

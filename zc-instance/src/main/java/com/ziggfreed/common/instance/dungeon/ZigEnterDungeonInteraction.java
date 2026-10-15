@@ -42,7 +42,9 @@ import com.ziggfreed.common.util.SafeLog;
  * in. A refusal tells the player why ({@link DungeonRefusals}) and takes the {@code Failed} branch; so does a chain
  * no player owns, and, silently, a player who is dead, still arriving from a teleport (so a walk-in trigger they
  * come back onto does not send them straight back in) or already being teleported, as the engine's own instance
- * teleporter declines them. Deciding needs the server, hence {@link WaitForDataFrom#Server}.
+ * teleporter declines them. A dungeon whose entry cost opens its confirm screen ({@link DungeonEntryPrompt}) takes
+ * {@code Failed} too, with no line: the player has not gone yet, and the screen's button sends them. Deciding needs
+ * the server, hence {@link WaitForDataFrom#Server}.
  *
  * <p>The teleport writes components, so the entry gets the chain's command buffer, never the store, which refuses
  * a write while the interaction system runs.
@@ -64,8 +66,9 @@ public final class ZigEnterDungeonInteraction extends SimpleInstantInteraction {
                         (i, v) -> i.dungeon = v, i -> i.dungeon, (i, p) -> i.dungeon = p.dungeon)
                 .documentation("The dungeon to send the player into, by its id (the file name under "
                         + "Server/ZiggfreedCommon/Dungeons/). The player goes in with their party, or alone when "
-                        + "they have none. A dungeon that is closed, out of season or full tells the player why, "
-                        + "and the chain takes its Failed branch.")
+                        + "they have none, paying the dungeon's EntryCost when they open an area for their party. "
+                        + "A dungeon that is closed, out of season or full, or whose cost the player cannot pay, "
+                        + "tells the player why, and the chain takes its Failed branch.")
                 .add()
                 .build();
     }

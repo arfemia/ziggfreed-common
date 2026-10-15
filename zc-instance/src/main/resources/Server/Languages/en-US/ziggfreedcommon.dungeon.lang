@@ -54,7 +54,8 @@ status.empty = Empty, closes in {0, number} {0, plural, one {second} other {seco
 status.closing = Closing
 
 # What a player is told when a way in (a block, a character, a conversation) cannot send them into a dungeon.
-# {0} is the dungeon's name, {1} its season's.
+# {0} is the dungeon's name, {1} its season's. In entry.cost, {1} is the item the dungeon takes on the way in and
+# {2} how many; the dungeon's own hint line, when it names one, shows under it.
 entry.off = {0} is closed for now.
 entry.out_of_season = {0} only opens during {1}.
 entry.out_of_season.unnamed = {0} only opens in its season.
@@ -64,6 +65,7 @@ entry.inside = You are already in a dungeon. Leave it first.
 entry.copy_gone = {0} closed just as you got there. Try again.
 entry.unavailable = {0} cannot be entered right now.
 entry.unavailable.unnamed = That dungeon cannot be entered right now.
+entry.cost = You need {1} x{2, number} to go into {0}.
 
 # The results screen each member sees when their party clears a run. The screen paints most of these lines where
 # a value cannot be filled in; only results.time (the run's length, m:ss) and results.team_total carry one.

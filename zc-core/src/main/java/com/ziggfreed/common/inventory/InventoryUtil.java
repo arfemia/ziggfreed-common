@@ -4,6 +4,7 @@ import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
 
+import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
@@ -32,6 +33,11 @@ import com.ziggfreed.common.util.SafeLog;
  * body, and a balance that includes their armor is not a balance they can spend. A caller that
  * cares names the sections itself with {@link #spendableSections()} (or its own set) and gets the
  * same behaviour narrowed to them.
+ *
+ * <p><b>The section-scoped forms also take any {@link ComponentAccessor}</b>: a store, or the command buffer of
+ * the system the caller runs inside (an interaction chain's), where the engine's own interactions read and spend
+ * an inventory ({@code InventoryComponent.getCombined} takes either). A {@link Store} argument still picks the
+ * store form, which reads exactly the same.
  */
 public final class InventoryUtil {
 
@@ -68,11 +74,20 @@ public final class InventoryUtil {
     public static int count(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
                             @Nonnull String itemId,
                             @Nonnull ComponentType<EntityStore, ? extends InventoryComponent>... sections) {
+        ComponentAccessor<EntityStore> accessor = store;
+        return count(accessor, ref, itemId, sections);
+    }
+
+    /** {@link #count} narrowed to {@code sections}, through any accessor (a store or a command buffer). */
+    @SafeVarargs
+    public static int count(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
+                            @Nonnull String itemId,
+                            @Nonnull ComponentType<EntityStore, ? extends InventoryComponent>... sections) {
         if (!ref.isValid()) {
             return 0;
         }
         try {
-            CombinedItemContainer inv = InventoryComponent.getCombined(store, ref, sections);
+            CombinedItemContainer inv = InventoryComponent.getCombined(accessor, ref, sections);
             if (inv == null) {
                 return 0;
             }
@@ -96,7 +111,16 @@ public final class InventoryUtil {
     public static boolean has(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
                               @Nonnull String itemId, int n,
                               @Nonnull ComponentType<EntityStore, ? extends InventoryComponent>... sections) {
-        return n <= 0 || count(store, ref, itemId, sections) >= n;
+        ComponentAccessor<EntityStore> accessor = store;
+        return has(accessor, ref, itemId, n, sections);
+    }
+
+    /** {@link #has} narrowed to {@code sections}, through any accessor (a store or a command buffer). */
+    @SafeVarargs
+    public static boolean has(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
+                              @Nonnull String itemId, int n,
+                              @Nonnull ComponentType<EntityStore, ? extends InventoryComponent>... sections) {
+        return n <= 0 || count(accessor, ref, itemId, sections) >= n;
     }
 
     /**
@@ -153,6 +177,33 @@ public final class InventoryUtil {
     }
 
     /**
+     * {@link #give} narrowed to {@code sections}, through any accessor (a store or a command buffer): what a
+     * {@link #spend} from the same sections took goes back where it came from.
+     *
+     * @return how many did NOT fit (0 = all delivered); also 0 on a no-op path, all of them on an error
+     */
+    @SafeVarargs
+    public static int give(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
+                           @Nonnull String itemId, int n,
+                           @Nonnull ComponentType<EntityStore, ? extends InventoryComponent>... sections) {
+        if (!ref.isValid() || n <= 0) {
+            return 0;
+        }
+        try {
+            CombinedItemContainer inv = InventoryComponent.getCombined(accessor, ref, sections);
+            if (inv == null) {
+                return n;
+            }
+            ItemStackTransaction txn = inv.addItemStack(new ItemStack(itemId, n));
+            ItemStack remainder = txn == null ? null : txn.getRemainder();
+            return remainder == null ? 0 : Math.max(0, remainder.getQuantity());
+        } catch (Throwable t) {
+            warn("give", itemId, t);
+            return n;
+        }
+    }
+
+    /**
      * Take (remove) up to {@code n} of {@code itemId} from the entity.
      *
      * @return how many were ACTUALLY removed (0 if none held / error); never more than {@code n}
@@ -167,11 +218,20 @@ public final class InventoryUtil {
     public static int take(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
                            @Nonnull String itemId, int n,
                            @Nonnull ComponentType<EntityStore, ? extends InventoryComponent>... sections) {
+        ComponentAccessor<EntityStore> accessor = store;
+        return take(accessor, ref, itemId, n, sections);
+    }
+
+    /** {@link #take} narrowed to {@code sections}, through any accessor (a store or a command buffer). */
+    @SafeVarargs
+    public static int take(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
+                           @Nonnull String itemId, int n,
+                           @Nonnull ComponentType<EntityStore, ? extends InventoryComponent>... sections) {
         if (!ref.isValid() || n <= 0) {
             return 0;
         }
         try {
-            CombinedItemContainer inv = InventoryComponent.getCombined(store, ref, sections);
+            CombinedItemContainer inv = InventoryComponent.getCombined(accessor, ref, sections);
             if (inv == null) {
                 return 0;
             }
@@ -205,13 +265,22 @@ public final class InventoryUtil {
     public static boolean spend(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
                                 @Nonnull String itemId, int n,
                                 @Nonnull ComponentType<EntityStore, ? extends InventoryComponent>... sections) {
+        ComponentAccessor<EntityStore> accessor = store;
+        return spend(accessor, ref, itemId, n, sections);
+    }
+
+    /** {@link #spend} narrowed to {@code sections}, through any accessor (a store or a command buffer). */
+    @SafeVarargs
+    public static boolean spend(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
+                                @Nonnull String itemId, int n,
+                                @Nonnull ComponentType<EntityStore, ? extends InventoryComponent>... sections) {
         if (n <= 0) {
             return true;
         }
-        if (!has(store, ref, itemId, n, sections)) {
+        if (!has(accessor, ref, itemId, n, sections)) {
             return false;
         }
-        return take(store, ref, itemId, n, sections) >= n;
+        return take(accessor, ref, itemId, n, sections) >= n;
     }
 
     private static CombinedItemContainer combined(@Nonnull Store<EntityStore> store,
