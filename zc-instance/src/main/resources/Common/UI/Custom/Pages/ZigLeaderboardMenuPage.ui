@@ -7,8 +7,8 @@ $ZW = "../Common/ZigKit.ui";
 
 // The generic leaderboard page (com.ziggfreed.common.instance.leaderboard.LeaderboardPage) on the shared
 // menu's rail: the page builds from this document instead of Pages/ZigLeaderboardPage.ui when its deps
-// name a rail tab (LeaderboardPageDeps.menuTab), as Records and its Boss Fights do. A board with no tab
-// keeps the standalone document and its own 860 x 700 frame.
+// name a rail tab (LeaderboardPageDeps.menuTab), as Records does. A board with no tab keeps the standalone
+// document and its own 860 x 700 frame.
 //
 // The frame's rail comes first (ui/menu/ZigMenu paints it, with the deps' tab selected), then #Board, the
 // one column holding exactly the standalone document's body: the same elements, the same ids, the same
@@ -17,16 +17,18 @@ $ZW = "../Common/ZigKit.ui";
 // button; every colour is a Common/ZigTokens.ui token and every size a Common/ZigType.ui step.
 //
 // TOP: #Title and #Lead, the board's one line on how to read it (hidden when the board has none).
-// #GroupRow: the first row of tabs. A row whose tabs each bring their own columns (Records' sections, the
-// boss fights) is the kit's view tabs (Pages/ZigViewTab.ui, ViewTabPainter) over a thin rule (#GroupRule);
+// #GroupRow: the first row of tabs. A row whose tabs each bring their own columns (Records' sections) is the
+// kit's view tabs (Pages/ZigViewTab.ui, ViewTabPainter) over a thin rule (#GroupRule);
 // any other row is the kit's two-line segments (Pages/ZigSegmentTwoLine.ui, SegmentPainter.appendTwoLine), as
 // #TabRow, the periods, always is, so a long name wraps inside its segment rather than ending in an ellipsis.
 // Both rows wrap onto a second line rather than run off the edge, and each has an optional
 // section label above it. #SplitRow shows only on a tab with a split (LeaderboardSplit): its
 // choices as two-line segments in #SplitBar, one row of them, then #Pick, the vanilla dropdown the
 // achievements page uses, for one thing alone; the menu frame's width holds about six choices beside it, and
-// the 860 frame carries no split. #ControlBar shows only on a board with a Rankings view: the sort and the
-// view, as segments.
+// the 860 frame carries no split. #VariantRow shows only while the picked thing has variants (a boss's party
+// sizes, LeaderboardSplit.Variant): the thing's own columns first, then each variant, as two-line segments in
+// #VariantBar, wrapping like #TabRow, each label on .TextSpans so a typed number fills. #ControlBar shows only
+// on a board with a Rankings view: the sort and the view, as segments.
 //
 // #YouStrip: the viewer's place on this board and their own number in each column (the kit's @ZigStat,
 // StatPainter), or, with no place yet, the line saying how to get on it. Hidden while the board is empty.
@@ -141,6 +143,16 @@ $F.@ZigMenuFrame {
 
         $C.@DropdownBox #Pick {
           Anchor: (Width: 240, Height: 32, Top: 6);
+        }
+      }
+
+      Group #VariantRow {
+        LayoutMode: Top;
+        Anchor: (Top: 8);
+        Visible: false;
+
+        Group #VariantBar {
+          LayoutMode: LeftWrap;
         }
       }
 

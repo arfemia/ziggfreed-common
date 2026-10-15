@@ -692,12 +692,13 @@ public final class EncounterBindingAsset
 
     // ==================== Leaderboard ====================
 
-    /** Which leaderboard bucket a defeat writes, and how the bucket is split. */
+    /** Which leaderboard bucket a defeat writes, how the bucket is split, and which group Records files it under. */
     public static final class Leaderboard {
 
         @Nullable protected String bucket;
         @Nullable protected Boolean byPartySize;
         @Nullable protected Boolean byDifficulty;
+        @Nullable protected String group;
 
         public static final BuilderCodec<Leaderboard> CODEC =
                 BuilderCodec.builder(Leaderboard.class, Leaderboard::new)
@@ -718,6 +719,13 @@ public final class EncounterBindingAsset
                         .metadata(EditorSchema.defaultValue(false))
                         .documentation("Split the bucket by the run's difficulty label.")
                         .add()
+                        .appendInherited(new KeyedCodec<>("Group", Codec.STRING, false),
+                                (o, v) -> o.group = v, o -> o.group, (o, p) -> o.group = p.group)
+                        .documentation("The group Records' Bosses tab files this fight under: the id of a "
+                                + "RecordGroups file (Server/ZiggfreedCommon/RecordGroups/<Id>.json), such as "
+                                + "Seasonal, Dungeon, World or Minigame, matched without regard to case. Omit it, "
+                                + "or name a group no file defines, and the fight shows under All bosses alone.")
+                        .add()
                         .build();
 
         public Leaderboard() {
@@ -726,6 +734,12 @@ public final class EncounterBindingAsset
         @Nullable
         public String getBucket() {
             return bucket == null || bucket.isBlank() ? null : bucket;
+        }
+
+        /** The RecordGroups id Records files this fight under, trimmed, or null when the row names none. */
+        @Nullable
+        public String getGroup() {
+            return group == null || group.isBlank() ? null : group.trim();
         }
 
         public boolean byPartySize() {

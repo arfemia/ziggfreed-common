@@ -1,0 +1,8 @@
+{
+  "$Comment": "Every instance round a player finishes, won or lost, with one line per mode beside the total. Its lines are keyed the way Rounds_Won's are, so a mode's plays and wins sit on the same line of each stat.",
+  "NameKey": "ziggfreedcommon.stats.rounds_played",
+  "Kind": "Sum",
+  "Format": "Count",
+  "From": [ { "Kind": "INSTANCE_ROUND_ENDED" } ],
+  "Breakdown": "Target"
+}

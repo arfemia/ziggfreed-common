@@ -1,0 +1,8 @@
+{
+  "$Comment": "Run records for the game's own goblin dungeon, the Deepworks, which the game opens through its portal (the PortalType The_Deepworks, this file's name). The library never runs it: it counts each visit as a dungeon run from the first player in, cleared when the Gobliterator falls in either of its modes, failed when the last player leaves first. Every run counts on Records' Dungeons tab and in any quest or achievement step that counts dungeon runs (Target dungeon:, Qualifier The_Deepworks). It takes the game's own name for the dungeon; write NameKey to name it otherwise. Set Enabled false to keep no records of it.",
+  "Enabled": true,
+  "Icon": "PortalKey_The_Deepworks",
+  "Complete": {
+    "Encounters": [ "Goblin_Gobliterator_Encounter", "Goblin_Gobliterator_Encounter_Hard" ]
+  }
+}

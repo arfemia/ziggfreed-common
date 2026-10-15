@@ -87,6 +87,8 @@ public final class EncounterValidator {
     public static final String GRANT_INLINE_TABLE = "ENCOUNTER_GRANT_INLINE_TABLE";
     /** A pack prefab's spawner block with no per-block state; the check itself is {@link EncounterPrefabAudit}. */
     public static final String PREFAB_SPAWNER_WITHOUT_STATE = "ENCOUNTER_PREFAB_SPAWNER_WITHOUT_STATE";
+    /** A binding's {@code Leaderboard.Group} names a records group no loaded file defines. */
+    public static final String UNKNOWN_RECORD_GROUP = "ENCOUNTER_UNKNOWN_RECORD_GROUP";
 
     /** The naming convention that keeps a script's id off every role's: a trailing suffix. */
     public static final String SCRIPT_ID_SUFFIX = "_Encounter";
@@ -226,6 +228,28 @@ public final class EncounterValidator {
         }
         for (EncounterParticipationAsset rule : rules) {
             findings.addAll(auditRule(rule));
+        }
+        return findings;
+    }
+
+    /**
+     * Each binding whose {@code Leaderboard.Group} names a records group {@code groupExists} does not know: a WARNING,
+     * since the pack that ships the group may simply not be installed here, and the fight still keeps its records,
+     * shown under the first choice alone.
+     */
+    @Nonnull
+    public static List<Finding> recordGroupFindings(@Nonnull Collection<EncounterBindingAsset> bindings,
+            @Nonnull Predicate<String> groupExists) {
+        List<Finding> findings = new ArrayList<>();
+        for (EncounterBindingAsset row : bindings) {
+            EncounterBindingAsset.Leaderboard leaderboard = row == null ? null : row.getLeaderboard();
+            String group = leaderboard == null ? null : leaderboard.getGroup();
+            if (group != null && !groupExists.test(group)) {
+                findings.add(Finding.warning(DOMAIN, UNKNOWN_RECORD_GROUP, "Leaderboard.Group names '" + group
+                        + "', but no RecordGroups file defines it, so Records shows this fight under its first choice "
+                        + "alone. That is expected when the pack shipping the group is not installed; check the "
+                        + "spelling otherwise.", row.getId()));
+            }
         }
         return findings;
     }

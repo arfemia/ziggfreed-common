@@ -4,14 +4,17 @@ import java.util.List;
 
 import javax.annotation.Nonnull;
 
+import com.hypixel.hytale.server.core.event.events.player.AddPlayerToWorldEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
+import com.hypixel.hytale.server.core.event.events.player.RemovedPlayerFromWorldEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.universe.world.spawn.ISpawnProvider;
 import com.ziggfreed.common.cast.WorldEvictors;
 import com.ziggfreed.common.encounter.asset.EncounterOwnerLayers;
 import com.ziggfreed.common.encounter.event.EncounterDefeatedEvent;
 import com.ziggfreed.common.encounter.seam.EncounterSeams;
+import com.ziggfreed.common.encounter.validate.EncounterAudit;
 import com.ziggfreed.common.instance.claims.ClaimNotices;
 import com.ziggfreed.common.instance.claims.ClaimsDestinations;
 import com.ziggfreed.common.instance.claims.SpoilsChest;
@@ -28,9 +31,14 @@ import com.ziggfreed.common.instance.dungeon.command.ZigDungeonCommand;
 import com.ziggfreed.common.instance.leaderboard.EncounterLeaderboardListener;
 import com.ziggfreed.common.instance.leaderboard.RecordsDestinations;
 import com.ziggfreed.common.instance.leaderboard.command.ZigLeaderboardCommand;
+import com.ziggfreed.common.instance.leaderboard.statboard.RecordGroupConfig;
 import com.ziggfreed.common.instance.leaderboard.statboard.StatBoard;
+import com.ziggfreed.common.instance.leaderboard.statboard.StatBoardBossFights;
+import com.ziggfreed.common.instance.leaderboard.statboard.StatBoardDungeons;
 import com.ziggfreed.common.instance.leaderboard.statboard.StatBoardRecords;
 import com.ziggfreed.common.instance.leaderboard.statboard.StatPeriodOwnerLayers;
+import com.ziggfreed.common.instance.leaderboard.statboard.StatSectionConfig;
+import com.ziggfreed.common.instance.portal.PortalDungeonRuns;
 import com.ziggfreed.common.instance.world.InstanceWorlds;
 import com.ziggfreed.common.interaction.type.InteractionTypeSpec;
 import com.ziggfreed.common.interaction.type.InteractionTypes;
@@ -56,7 +64,7 @@ public final class InstanceBootstrap {
      * Open the frozen encounter leaderboard beside the library's owner files ({@code mods/ziggfreedcommon/},
      * the encounter owner files' folder), which nothing writes any more: the stat store imports its rows
      * once and keeps a fight's records on the stat board; and register {@code /zigleaderboard}, which opens
-     * Records' Boss Fights for any player. Each guarded on its own.
+     * Records' Bosses tab for any player. Each guarded on its own.
      */
     public static void installEncounterLeaderboard(@Nonnull JavaPlugin plugin) {
         try {
@@ -76,7 +84,8 @@ public final class InstanceBootstrap {
     /**
      * Open the stat board ({@code stats-board.json}) beside the library's owner files and put it on
      * Records. It shows nothing until the store that keeps the stats fills its source
-     * ({@code StatBoard.setSource}), so until then Records shows no tab.
+     * ({@code StatBoard.setSource}), so until then Records shows no tab. Split the Bosses and Dungeons sections
+     * into their bosses and dungeons, and hand the encounter audit the records groups a binding row may name.
      */
     public static void installStatBoard() {
         try {
@@ -84,6 +93,13 @@ public final class InstanceBootstrap {
             RecordsDestinations.setBoard(StatBoardRecords.INSTANCE);
         } catch (Throwable t) {
             SafeLog.warn("[statboard] the stat board could not be opened", t);
+        }
+        try {
+            StatSectionConfig.getInstance().split(StatBoardBossFights.SECTION, StatBoardBossFights.split());
+            StatSectionConfig.getInstance().split(StatBoardDungeons.SECTION, StatBoardDungeons.split());
+            EncounterAudit.recordGroups(RecordGroupConfig.getInstance()::has);
+        } catch (Throwable t) {
+            SafeLog.warn("[statboard] the Bosses and Dungeons tabs could not be split", t);
         }
     }
 
@@ -222,6 +238,23 @@ public final class InstanceBootstrap {
         } catch (Throwable t) {
             SafeLog.warn("[dungeon] the encounter run-tag seam could not be filled, so a fight inside a dungeon is "
                     + "filed under no run", t);
+        }
+    }
+
+    /**
+     * The game's own portal dungeons counted as dungeon runs ({@code PortalDungeonRuns}): its ears for a player
+     * added to or removed from a world, a boss defeat and a world's removal. Their store registers with the other
+     * framework stores. Registration only.
+     */
+    public static void registerPortalDungeons(@Nonnull JavaPlugin plugin) {
+        try {
+            PortalDungeonRuns runs = PortalDungeonRuns.shared();
+            plugin.getEventRegistry().registerGlobal(AddPlayerToWorldEvent.class, runs::onPlayerAdded);
+            plugin.getEventRegistry().registerGlobal(RemovedPlayerFromWorldEvent.class, runs::onPlayerRemoved);
+            plugin.getEventRegistry().registerGlobal(EncounterDefeatedEvent.class, runs::onDefeated);
+            WorldEvictors.registerEvictor(runs::onWorldRemoved);
+        } catch (Throwable t) {
+            SafeLog.warn("[portal] the portal dungeon runs could not be registered", t);
         }
     }
 

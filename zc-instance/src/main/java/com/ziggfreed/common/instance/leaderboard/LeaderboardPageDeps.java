@@ -44,7 +44,7 @@ public final class LeaderboardPageDeps {
 
     /**
      * A tab at the end of the primary row that opens another board's page instead of selecting a bucket
-     * (Records' boss fights beside the stat board's sections). {@code opens} is asked each time the row is
+     * (a board of another kind beside a stat board's sections). {@code opens} is asked each time the row is
      * painted and again on the click: null hides the tab, or answers the click with nothing opened.
      */
     public record PageLink(@Nonnull String key, @Nonnull Message label,
@@ -239,7 +239,7 @@ public final class LeaderboardPageDeps {
 
     /**
      * Whether the primary tabs each bring their own columns ({@link #withColumnsByPrimary}), as a stat board's
-     * sections and its boss fights do: the page then draws that row as view tabs, since each tab is a different
+     * sections do: the page then draws that row as view tabs, since each tab is a different
      * board, and any other row (a difficulty that filters the same columns) as segments.
      */
     public boolean primaryTabsCarryColumns() {

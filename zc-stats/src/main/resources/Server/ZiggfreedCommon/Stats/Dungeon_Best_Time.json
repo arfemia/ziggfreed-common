@@ -1,0 +1,7 @@
+{
+  "$Comment": "A player's fastest cleared dungeon run, in seconds, with one line per difficulty and dungeon (dungeon:<difficulty>@<dungeon id>, an empty difficulty for normal), the same lines the other Dungeon_Runs stats keep; the total is their fastest clear of any dungeon. Lower is better. A run counts for every member standing in it at the clear, timed from its first arrival. The library counts it itself off each won dungeon round, so it lists no From; Breakdown names the line it files under.",
+  "NameKey": "ziggfreedcommon.stats.dungeon_best_time",
+  "Kind": "Min",
+  "Format": "Time",
+  "Breakdown": "TargetAtQualifier"
+}

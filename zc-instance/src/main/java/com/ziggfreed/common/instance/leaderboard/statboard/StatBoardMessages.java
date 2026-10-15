@@ -122,4 +122,17 @@ public final class StatBoardMessages implements LeaderboardScreenMessages {
         long minutes = (s % 3600L) / 60L;
         return hours > 0L ? line("duration.hours", hours, minutes) : line("duration.minutes", minutes);
     }
+
+    /**
+     * A moment as how long ago it was on the board's own clock ({@link StatClock}, so a trial offset reads it as
+     * that much later): "Today" under a whole day, else the whole days since ("3 days ago"), the count a typed
+     * number the lang value writes the plural of. A moment past the board's now reads as today.
+     */
+    @Override @Nonnull public Message since(long epochSeconds) {
+        long days = (StatClock.now().getEpochSecond() - epochSeconds) / SECONDS_PER_DAY;
+        return days <= 0L ? line("since.today") : line("since.days", days);
+    }
+
+    /** The seconds in a day, the step a moment's age is counted in. */
+    private static final long SECONDS_PER_DAY = 86_400L;
 }

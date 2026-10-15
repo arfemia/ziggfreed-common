@@ -2,8 +2,8 @@
   "$Comment": [
     "The binding row for the game's own Feastmaster fight, the boss of the goblin Deepworks",
     "(Dungeon_Feastmaster_Encounter). The script shows a boss bar, so the library already runs and",
-    "credits the fight without a row; this row only names it and keeps its records (wins, fastest",
-    "win, best share, damage) on Records' Boss Fights under the bucket dungeon_feastmaster.",
+    "credits the fight without a row; this row only names it and keeps its records under the bucket",
+    "dungeon_feastmaster, which Records' Bosses tab shows in the Deepworks group (Leaderboard Group).",
     "",
     "Subject.TargetSlot names the script's own slot for the boss (Feastmaster), so the library binds",
     "the boss it credits; a row left at the default Boss would bind nothing. Beyond that it writes",
@@ -19,6 +19,7 @@
     "TargetSlot": "Feastmaster"
   },
   "Leaderboard": {
-    "Bucket": "dungeon_feastmaster"
+    "Bucket": "dungeon_feastmaster",
+    "Group": "Deepworks"
   }
 }

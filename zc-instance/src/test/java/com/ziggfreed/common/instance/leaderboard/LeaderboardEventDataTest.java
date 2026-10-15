@@ -14,7 +14,7 @@ import com.hypixel.hytale.codec.util.RawJsonReader;
 /**
  * The records page's event codec hears a split's state: the segment's {@code Split}, and the picker's value under
  * both {@code Pick} and the {@code @Pick} key the client echoes it back under (a page declaring only one spelling
- * reads a dropdown as snapping back to its first entry).
+ * reads a dropdown as snapping back to its first entry), and a variant segment's {@code Variant}.
  */
 class LeaderboardEventDataTest {
 
@@ -42,5 +42,14 @@ class LeaderboardEventDataTest {
     @Test
     void theBareSpellingIsThePickToo() throws IOException {
         assertEquals("WOLF", decode("{\"Pick\":\"WOLF\"}").pick);
+    }
+
+    @Test
+    void aVariantSegmentCarriesItsVariantBesideThePick() throws IOException {
+        LeaderboardEventData data = decode("{\"Action\":\"variant\",\"Split\":\"Seasonal\",\"Pick\":\"Horseman\","
+                + "\"Variant\":\"2\"}");
+        assertEquals("2", data.variant);
+        assertEquals("Horseman", data.pick);
+        assertEquals("Seasonal", data.split);
     }
 }

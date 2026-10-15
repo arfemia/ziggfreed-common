@@ -9,8 +9,8 @@ $ZW = "../Common/ZigKit.ui";
 // 860 x 700 frame, for a board whose deps name no rail tab (Kweebec's). Its body is exactly the menu
 // document's (Pages/ZigLeaderboardMenuPage.ui): the same elements, the same ids, the same order, held one for
 // one by LeaderboardMenuDocumentTest, so change the two together. That document's header comment describes
-// every part. Only #Board's padding differs, since this frame pads its own content. Shipped once in
-// ziggfreed-common; neutral Zig* ids.
+// every part, #SplitRow and the picked thing's #VariantRow under it included. Only #Board's padding differs,
+// since this frame pads its own content. Shipped once in ziggfreed-common; neutral Zig* ids.
 
 // A column header's words: the view tab's name, wrapping onto a second line rather than cut off, in a 44px header.
 // Every header column is at least a figure column's share of the row, far wider than the one ellipsis under which
@@ -116,6 +116,16 @@ $F.@ZigDecoratedFrame {
 
         $C.@DropdownBox #Pick {
           Anchor: (Width: 240, Height: 32, Top: 6);
+        }
+      }
+
+      Group #VariantRow {
+        LayoutMode: Top;
+        Anchor: (Top: 8);
+        Visible: false;
+
+        Group #VariantBar {
+          LayoutMode: LeftWrap;
         }
       }
 

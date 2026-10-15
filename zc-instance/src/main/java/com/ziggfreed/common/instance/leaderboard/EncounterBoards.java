@@ -22,8 +22,9 @@ import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.instance.dungeon.DungeonRuns;
 
 /**
- * Boss fights as Records names them: which binding row a recorded fight key belongs to, and the tab it
- * reads under. A fight's records are keyed by the bucket string {@link EncounterLeaderboardListener#bucketFor}
+ * Boss fights as Records reads them: which binding row a recorded fight key belongs to ({@link #holds}, the Bosses
+ * tab's question) and which split of it ({@link #splits}, its party size). A fight's records are keyed by the bucket
+ * string {@link EncounterLeaderboardListener#bucketFor}
  * composes from its binding row ({@code Leaderboard.Bucket}, suffixed with the party size and the run's
  * difficulty when the row splits by them), the key the stat store's encounter stats file each line under;
  * the row says how its bucket is split, the recorded keys which of those splits hold records, and a
@@ -82,7 +83,11 @@ public final class EncounterBoards {
      * ({@link EncounterLeaderboardListener#fightInRun}), its label the fight's name, followed by the run's
      * dungeon when it has one. A key no row claims is left out, and a key two rows share shows once, under the
      * first.
+     *
+     * @deprecated Records no longer shows a tab per fight: its Bosses tab picks a boss, folding every key its row
+     *     holds ({@link #holds}), with its party sizes as variants ({@link #splits}).
      */
+    @Deprecated(since = "2.4.0")
     @Nonnull
     public static List<LeaderboardBucketTab> fightTabs(@Nonnull Collection<String> recorded,
             @Nonnull Collection<EncounterBindingAsset> rows) {

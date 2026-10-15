@@ -9,8 +9,11 @@ import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.ziggfreed.common.counter.NativeReaders;
 import com.ziggfreed.common.encounter.event.EncounterDefeatedEvent;
+import com.ziggfreed.common.encounter.event.EncounterWipedEvent;
 import com.ziggfreed.common.factor.CounterFactors;
+import com.ziggfreed.common.instance.dungeon.DungeonRuns;
 import com.ziggfreed.common.instance.leaderboard.statboard.StatBoard;
+import com.ziggfreed.common.instance.metadata.InstanceRoundCompletedEvent;
 import com.ziggfreed.common.playerstats.asset.StatValidator;
 import com.ziggfreed.common.playerstats.board.StatBoardRankFeed;
 import com.ziggfreed.common.playerstats.board.StatsBoardSource;
@@ -18,6 +21,7 @@ import com.ziggfreed.common.playerstats.command.ZigStatsCommand;
 import com.ziggfreed.common.playerstats.encounter.EncounterBoardImport;
 import com.ziggfreed.common.playerstats.encounter.EncounterStats;
 import com.ziggfreed.common.playerstats.reader.ObjectiveCompletionsReader;
+import com.ziggfreed.common.playerstats.round.RoundBestTimes;
 import com.ziggfreed.common.playerstats.system.PlayerDeathStatSystem;
 import com.ziggfreed.common.playerstats.system.PlaytimeStatSystem;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
@@ -29,8 +33,8 @@ import com.ziggfreed.common.util.SafeLog;
  * type registered later cannot be read off entities saved carrying it); the owner's switch; the moment
  * counter at the library-default rank; the death and playtime systems and the playtime commit at
  * logout; the ready re-sync of the board; the library's default {@code ziggfreedcommon:counter}
- * source; the stat board's feed and source; the encounter stats' defeat listener and the boot import of
- * the frozen encounter board; and the {@code /zigstats} family. The stat file store itself is registered
+ * source; the stat board's feed and source; the encounter stats' defeat and wipe listeners and the boot import of
+ * the frozen encounter board; the round best times (dungeon runs' fastest clears); and the {@code /zigstats} family. The stat file store itself is registered
  * with the other framework stores. Registration only ({@code RootRegistrationOnlyTest}).
  */
 public final class StatsBootstrap {
@@ -59,12 +63,20 @@ public final class StatsBootstrap {
             SafeLog.warn("[stats] the stat systems could not be registered", t);
         }
         try {
-            // A boss defeat counts into the encounter stats; the frozen encounter board's rows rank once at
-            // boot, when every stat and section file has folded.
+            // A boss defeat and a wipe count into the encounter stats; the frozen encounter board's rows rank
+            // once at boot, when every stat and section file has folded.
             plugin.getEventRegistry().registerGlobal(EncounterDefeatedEvent.class, EncounterStats::onDefeated);
+            plugin.getEventRegistry().registerGlobal(EncounterWipedEvent.class, EncounterStats::onWiped);
             plugin.getEventRegistry().register(BootEvent.class, event -> EncounterBoardImport.intoBoard());
         } catch (Throwable t) {
             SafeLog.warn("[stats] the encounter stats could not be registered", t);
+        }
+        try {
+            // A won round's length is a best time in each stat that times its mod: the library times dungeon runs.
+            RoundBestTimes.track(ZcStats.DUNGEON_BEST_TIME, DungeonRuns.MOD_ID);
+            plugin.getEventRegistry().registerGlobal(InstanceRoundCompletedEvent.class, RoundBestTimes::onCompleted);
+        } catch (Throwable t) {
+            SafeLog.warn("[stats] the round best times could not be registered", t);
         }
         try {
             plugin.getCommandRegistry().registerCommand(new ZigStatsCommand());

@@ -8,9 +8,11 @@ dependencies {
     implementation project(':zc-presentation')
     implementation project(':zc-loot')
     // The boss framework's folded binding rows: the bucket a row names keys a fight's records, and
-    // EncounterBoards, Records' Boss Fights and /zigleaderboard read the rows to name and find them. It
-    // only reads; nothing here reaches into a fight, and the presets stay boss-unaware. One-way:
-    // zc-encounter never imports this module (EncounterEdgeTest fails its build if it tries).
+    // EncounterBoards, Records' Bosses tab and /zigleaderboard read the rows to name, group and find them;
+    // the encounter audit is handed the records groups a row may name, and the dungeon and portal dungeon
+    // runs hear a boss defeat. It only reads; nothing here reaches into a fight, and the presets stay
+    // boss-unaware. One-way: zc-encounter never imports this module (EncounterEdgeTest fails its build if it
+    // tries).
     implementation project(':zc-encounter')
     // TickingSections only: a dungeon area's paste wakes every chunk section its prefab covers (wake), so the
     // pasted entities stay in the world and a used area's parked ones come back to be cleared, and a spoils chest

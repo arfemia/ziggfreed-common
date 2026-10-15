@@ -35,7 +35,8 @@ import com.ziggfreed.common.util.SafeLog;
  * the moment it starts; a season shows one tab per run, while it is live and after it ends for as long as
  * the board keeps it. The page shows the Stats view alone, with no "All" tab on either row, since
  * neither sections nor periods add up. A section split in code ({@link StatSplit}) adds its row of groups and
- * its picker of single things under its tab.
+ * its picker of single things under its tab, and a picked thing's row of variants under that (the Bosses tab's,
+ * {@link StatBoardBossFights}: groups of bosses, a boss per pick, its party sizes as variants).
  *
  * <p>A tab reads the period's window at the board's own time ({@link StatClock}) each time the page
  * builds, so a page left open across a turnover reads the new window at its next click. As Records opens,
@@ -57,6 +58,12 @@ public final class StatBoardRecords implements RecordsBoard {
 
     /** What separates a split stat from its group in a group's sum key ({@code Kills+BEASTS}). */
     private static final String SUM = "+";
+
+    /**
+     * What separates a split stat from a thing of several lines in its fold's key, and the thing from its variant
+     * ({@code Encounters_Won~Horseman~2}), so a fold's key is never a group's or a stored line's.
+     */
+    private static final String FOLD = "~";
 
     private StatBoardRecords() {
     }
@@ -122,9 +129,12 @@ public final class StatBoardRecords implements RecordsBoard {
     }
 
     /**
-     * A section's split as Records shows it ({@link StatSplit}): each group a choice whose columns sum its things'
-     * lines, each thing a pick with its own lines, a line the source gives no column left out, and a group or a
-     * thing left with none hidden. A split naming periodic stats ({@link StatSplit#offAllTime}) ranks them on every
+     * A section's split as Records shows it ({@link StatSplit}): each group a choice whose columns fold its things'
+     * lines ({@link StatSplit#groupColumns}), each thing a pick whose columns fold its own lines, each of its variants
+     * one folding the variant's lines, a line the source gives no column left out, and a group, a thing or a variant
+     * left with none hidden; the things of a group with a blank id are offered under the first choice alone. A fold
+     * reads each stat's lines its own way ({@link StatBoardSource#combineOf}), and a thing or a variant of one line
+     * reads that line as it is. A split naming periodic stats ({@link StatSplit#offAllTime}) ranks them on every
      * period but {@code allTime}, read the same way: on the first choice their totals and then the section's own
      * columns ({@code own}) that count into a window, beside each name the meta figure from All Time. Otherwise it is
      * pinned to {@code allTime} when every split stat holds all-time numbers alone (a gauge), so a week never reads
@@ -146,29 +156,32 @@ public final class StatBoardRecords implements RecordsBoard {
         StatSplit.Meta meta = split.meta();
         boolean periodic = false;
         List<LeaderboardSplit.Choice> choices = new ArrayList<>();
+        List<LeaderboardSplit.Pick> ungrouped = new ArrayList<>();
         for (StatSplit.Group group : groups) {
-            if (group == null || group.id().isBlank()) {
+            if (group == null) {
                 continue;
             }
             List<LeaderboardSplit.Pick> picks = new ArrayList<>();
             for (StatSplit.Thing thing : group.things()) {
-                List<StatColumnDef> lines = thingColumns(split.columns(), thing, source);
-                if (!lines.isEmpty()) {
-                    List<StatColumnDef> windowed = thingColumns(split.periodic(), thing, source);
-                    periodic |= !windowed.isEmpty();
-                    picks.add(new LeaderboardSplit.Pick(thing.id(), thing.label(), lines,
-                            new LeaderboardSplit.Periodic(windowed,
-                                    meta == null ? null : columnOf(lineOf(meta.stat(), thing.id()), source))));
+                LeaderboardSplit.Pick pick = thing == null ? null : pickOf(split, thing, source);
+                if (pick != null) {
+                    picks.add(pick);
+                    periodic |= !pick.periodic().columns().isEmpty();
                 }
             }
-            List<StatColumnDef> sums = groupSums(split.columns(), group, source);
+            if (group.id().isBlank()) {
+                // A group with no id has no segment: its things show under the first choice alone.
+                ungrouped.addAll(picks);
+                continue;
+            }
+            List<StatColumnDef> sums = groupSums(split.groupColumns(), group, source);
             if (!picks.isEmpty() && !sums.isEmpty()) {
                 choices.add(new LeaderboardSplit.Choice(group.id(), group.label(), sums, picks,
                         new LeaderboardSplit.Periodic(groupSums(split.periodic(), group, source),
                                 meta == null ? null : groupSum(meta.stat(), null, meta.partsOver(), group, source))));
             }
         }
-        if (choices.isEmpty()) {
+        if (choices.isEmpty() && ungrouped.isEmpty()) {
             return null;
         }
         List<StatColumnDef> first = firstPeriodic(split.periodic(), own, source);
@@ -176,14 +189,54 @@ public final class StatBoardRecords implements RecordsBoard {
             LeaderboardSplit.Periodic firstView = new LeaderboardSplit.Periodic(first,
                     meta == null ? null : columnOf(meta.stat(), source));
             return new LeaderboardSplit(split.allLabel(), split.pickAllLabel(), choices, split.shows(), null,
-                    new LeaderboardSplit.Periods(allTime, firstView, meta == null ? null : meta.words()));
+                    new LeaderboardSplit.Periods(allTime, firstView, meta == null ? null : meta.words()), ungrouped,
+                    split.variantAllLabel());
         }
         boolean allTimeOnly = true;
         for (StatSplit.Column column : split.columns()) {
             allTimeOnly &= allTimeOnly(column.stat(), source);
         }
+        for (StatSplit.Column column : split.groupColumns()) {
+            allTimeOnly &= allTimeOnly(column.stat(), source);
+        }
         return new LeaderboardSplit(split.allLabel(), split.pickAllLabel(), choices, split.shows(),
-                allTimeOnly ? allTime : null);
+                allTimeOnly ? allTime : null, null, ungrouped, split.variantAllLabel());
+    }
+
+    /**
+     * {@code thing} as a pick: its columns over its lines, what it shows off All Time over the same lines, and each
+     * variant the source gives a column folding the variant's own lines; null when none of its columns has one.
+     */
+    @Nullable
+    private static LeaderboardSplit.Pick pickOf(@Nonnull StatSplit split, @Nonnull StatSplit.Thing thing,
+                                                @Nonnull StatBoardSource source) {
+        List<StatColumnDef> lines = thingColumns(split.columns(), thing.id(), thing.lines(), source);
+        if (lines.isEmpty()) {
+            return null;
+        }
+        List<LeaderboardSplit.Variant> variants = new ArrayList<>();
+        for (StatSplit.Variant variant : thing.variants()) {
+            if (variant == null || variant.id().isBlank()) {
+                continue;
+            }
+            String name = thing.id() + FOLD + variant.id();
+            List<StatColumnDef> own = thingColumns(split.columns(), name, variant.lines(), source);
+            if (!own.isEmpty()) {
+                variants.add(new LeaderboardSplit.Variant(variant.id(), variant.label(), own,
+                        periodicOf(split, name, variant.lines(), source)));
+            }
+        }
+        return new LeaderboardSplit.Pick(thing.id(), thing.label(), lines,
+                periodicOf(split, thing.id(), thing.lines(), source), variants);
+    }
+
+    /** What a thing or a variant named {@code name} shows off All Time: its periodic columns and its meta, over {@code lines}. */
+    @Nonnull
+    private static LeaderboardSplit.Periodic periodicOf(@Nonnull StatSplit split, @Nonnull String name,
+                                                        @Nonnull List<String> lines, @Nonnull StatBoardSource source) {
+        StatSplit.Meta meta = split.meta();
+        return new LeaderboardSplit.Periodic(thingColumns(split.periodic(), name, lines, source),
+                meta == null ? null : fold(meta.stat(), null, meta.partsOver(), name, lines, source));
     }
 
     /**
@@ -225,21 +278,53 @@ public final class StatBoardRecords implements RecordsBoard {
         return false;
     }
 
-    /** A thing's own columns: each stat's line for {@code thing} the source gives a column, under the split's label. */
+    /**
+     * The columns of a thing or a variant named {@code name}: each stat's {@code lines} the source gives a column,
+     * folded ({@link #fold}), under the split's label.
+     */
     @Nonnull
-    private static List<StatColumnDef> thingColumns(@Nonnull List<StatSplit.Column> stats,
-                                                    @Nonnull StatSplit.Thing thing, @Nonnull StatBoardSource source) {
+    private static List<StatColumnDef> thingColumns(@Nonnull List<StatSplit.Column> stats, @Nonnull String name,
+                                                    @Nonnull List<String> lines, @Nonnull StatBoardSource source) {
         List<StatColumnDef> out = new ArrayList<>();
         for (StatSplit.Column column : stats) {
-            StatColumnDef line = columnOf(lineOf(column.stat(), thing.id()), source);
-            if (line != null) {
-                out.add(relabelled(line, column.label()));
+            StatColumnDef folded = fold(column.stat(), column.label(), column.partsOver(), name, lines, source);
+            if (folded != null) {
+                out.add(folded);
             }
         }
         return out;
     }
 
-    /** A group's columns: each stat's lines over the group's things summed, a stat with none left out. */
+    /**
+     * Stat {@code stat}'s {@code lines} that the source gives a column, as one column under {@code label} (the lines'
+     * own when null): a single line as it is, several folded past {@code partsOver} as the page builds, the stat's own
+     * way ({@link #combineOf}), named by the stat and {@code name}; null when none has one.
+     */
+    @Nullable
+    private static StatColumnDef fold(@Nonnull String stat, @Nullable Message label, long partsOver,
+                                      @Nonnull String name, @Nonnull List<String> lines,
+                                      @Nonnull StatBoardSource source) {
+        List<String> parts = new ArrayList<>();
+        StatColumnDef format = null;
+        for (String line : lines) {
+            StatColumnDef column = columnOf(lineOf(stat, line), source);
+            if (column != null) {
+                parts.add(column.statKey());
+                format = column;
+            }
+        }
+        if (format == null) {
+            return null;
+        }
+        if (parts.size() == 1) {
+            return label == null ? format : relabelled(format, label);
+        }
+        // Named by the stat and the thing, a key no stored line can be (no '/' before the thing).
+        return StatColumnDef.folding(stat + FOLD + name, label != null ? label : format.label(), format.format(),
+                format.ascending(), parts, partsOver, combineOf(stat, source));
+    }
+
+    /** A group's columns: each stat's lines over the group's things folded, a stat with none left out. */
     @Nonnull
     private static List<StatColumnDef> groupSums(@Nonnull List<StatSplit.Column> stats, @Nonnull StatSplit.Group group,
                                                  @Nonnull StatBoardSource source) {
@@ -254,8 +339,9 @@ public final class StatBoardRecords implements RecordsBoard {
     }
 
     /**
-     * Stat {@code stat}'s lines over {@code group}'s things that the source gives a column, summed past
-     * {@code partsOver} as the page builds, under {@code label} (the lines' own when null); null when none has one.
+     * Stat {@code stat}'s lines over every line of {@code group}'s things that the source gives a column, folded past
+     * {@code partsOver} as the page builds, the stat's own way ({@link #combineOf}: a count's lines summed), under
+     * {@code label} (the lines' own when null); null when none has one.
      */
     @Nullable
     private static StatColumnDef groupSum(@Nonnull String stat, @Nullable Message label, long partsOver,
@@ -263,15 +349,32 @@ public final class StatBoardRecords implements RecordsBoard {
         List<String> parts = new ArrayList<>();
         StatColumnDef format = null;
         for (StatSplit.Thing thing : group.things()) {
-            StatColumnDef line = columnOf(lineOf(stat, thing.id()), source);
-            if (line != null) {
-                parts.add(line.statKey());
-                format = line;
+            if (thing == null) {
+                continue;
+            }
+            for (String line : thing.lines()) {
+                StatColumnDef column = columnOf(lineOf(stat, line), source);
+                if (column != null) {
+                    parts.add(column.statKey());
+                    format = column;
+                }
             }
         }
         // Named by the stat and the group, a key no stored line can be (no '/' before the group).
-        return format == null ? null : StatColumnDef.summing(stat + SUM + group.id(),
-                label != null ? label : format.label(), format.format(), parts, partsOver);
+        return format == null ? null : StatColumnDef.folding(stat + SUM + group.id(),
+                label != null ? label : format.label(), format.format(), format.ascending(), parts, partsOver,
+                combineOf(stat, source));
+    }
+
+    /** How {@code stat}'s lines fold, as the source says; a source that throws adds them up. */
+    @Nonnull
+    private static StatColumnDef.Combine combineOf(@Nonnull String stat, @Nonnull StatBoardSource source) {
+        try {
+            StatColumnDef.Combine combine = source.combineOf(stat);
+            return combine == null ? StatColumnDef.Combine.SUM : combine;
+        } catch (RuntimeException e) {
+            return StatColumnDef.Combine.SUM;
+        }
     }
 
     /** Stat {@code stat}'s line for {@code thing}. */
@@ -390,7 +493,7 @@ public final class StatBoardRecords implements RecordsBoard {
     /**
      * The period row: one tab per period that reads a window now, keyed by the period's id so a page left
      * open across a turnover reads the new window, and one per run a season shows, keyed by that run's own
-     * bucket, which never moves. The sections and Records' Boss Fights share it.
+     * bucket, which never moves. Every section shares it.
      */
     @Nonnull
     static List<LeaderboardBucketTab> periodTabs(@Nonnull Leaderboard board) {

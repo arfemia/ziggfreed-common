@@ -16,7 +16,9 @@ public enum StatFormat {
     /** Metres, read as a distance. */
     DISTANCE("Distance"),
     /** A share out of 100. */
-    PERCENT("Percent");
+    PERCENT("Percent"),
+    /** Seconds since the epoch (a moment, such as a first win), read as how long ago it was. */
+    SINCE("Since");
 
     private final String authored;
 

@@ -15,8 +15,9 @@
     "a Claim on their Claims tab (the first defeat each day pays, later ones that day pay nothing);",
     "Loot.OnPhase, keyed by the script's state name, drops on the ground at the boss. Feedback names",
     "the FeedbackMoment fired at each beat. Discovery puts a world-map marker over the boss while the",
-    "fight is on. Leaderboard.Bucket keeps the fight's records (wins, fastest win, best share, damage)",
-    "on Records' Boss Fights under that key; leave it out and the fight keeps none.",
+    "fight is on. Leaderboard.Bucket keeps the fight's records (wins, fastest win, deathless wins, first",
+    "win, damage) as a boss on Records' Bosses tab under that key; leave it out and the fight keeps none.",
+    "Leaderboard.Group, a RecordGroups id such as World, files the boss under that group there.",
     "",
     "Switch the whole binding off with Enabled false, or from mods/ziggfreedcommon/encounters.json",
     "under the key zc_encounter_example, and the library neither binds, scales nor pays this script."

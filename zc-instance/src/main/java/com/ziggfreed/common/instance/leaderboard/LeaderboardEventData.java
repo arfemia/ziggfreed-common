@@ -13,9 +13,9 @@ import com.ziggfreed.common.ui.menu.ZigMenu;
  * {@code view} (rankings/stats, value in {@code view}), or {@code close}. The Rankings sort
  * ({@code sort}) and the Stats sort ({@code statSort}) are carried independently on every
  * binding so both views' sort states survive a round-trip. On a tab with a split ({@link LeaderboardSplit}),
- * {@code split} (a choice's segment, value in {@code split}) and {@code pick} (the picker, value in {@code pick})
- * carry the split's state on every binding too. On the shared menu's rail, a rail click carries {@code menu}
- * and no action.
+ * {@code split} (a choice's segment, value in {@code split}), {@code pick} (the picker, value in {@code pick}) and
+ * {@code variant} (a picked thing's variant segment, value in {@code variant}) carry the split's state on every
+ * binding too. On the shared menu's rail, a rail click carries {@code menu} and no action.
  */
 public class LeaderboardEventData {
 
@@ -29,6 +29,8 @@ public class LeaderboardEventData {
     public String split;
     /** The split's picked thing; empty or null for none. */
     public String pick;
+    /** The picked thing's variant; empty or null for none, the thing's own columns. */
+    public String variant;
     /** The rail row a click came from ({@code ZigMenu.EVENT_KEY}); null for every event of the page's own. */
     public String menu;
 
@@ -72,6 +74,10 @@ public class LeaderboardEventData {
                     .append(new KeyedCodec<>(LeaderboardPage.PICK_ECHO, Codec.STRING),
                             (data, value, info) -> data.pick = value,
                             (data, info) -> data.pick)
+                    .add()
+                    .append(new KeyedCodec<>("Variant", Codec.STRING),
+                            (data, value, info) -> data.variant = value,
+                            (data, info) -> data.variant)
                     .add()
                     .append(new KeyedCodec<>(ZigMenu.EVENT_KEY, Codec.STRING),
                             (data, value, info) -> data.menu = value,

@@ -1,0 +1,6 @@
+{
+  "$Comment": "Boss fights a player took part in and lost (everyone in the fight down or gone), one line per fight beside the total, for every fight whose binding row names a Leaderboard Bucket. A lost fight is never filed under the dungeon run it was fought in, so its line is the fight's own. The library counts it itself, so it lists no From.",
+  "NameKey": "ziggfreedcommon.stats.encounter_wipes",
+  "Kind": "Sum",
+  "Format": "Count"
+}

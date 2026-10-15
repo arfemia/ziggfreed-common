@@ -64,6 +64,9 @@ import com.ziggfreed.common.validation.ValidationReport;
  * <p>Every loot payout a fight makes (a binding's {@code Loot.OnDefeat} and {@code Loot.OnPhase}
  * states, each script's {@code ZigGrant} loot) is read by the loot core's rules against the shared
  * reward vocabulary ({@link RewardKinds#shared()}).
+ *
+ * <p>A binding's {@code Leaderboard.Group} is read against the records groups whoever owns them registered
+ * ({@link #recordGroups}); with none registered it is not checked.
  */
 public final class EncounterAudit {
 
@@ -75,7 +78,20 @@ public final class EncounterAudit {
     private static final Map<String, Supplier<Map<String, ? extends Collection<String>>>> ROLE_NAME_SOURCES =
             new ConcurrentHashMap<>();
 
+    /** Which records group ids a binding's {@code Leaderboard.Group} may name; null checks none. */
+    @Nullable private static volatile Predicate<String> recordGroups;
+
     private EncounterAudit() {
+    }
+
+    /**
+     * Register what knows the records groups ({@code RecordGroups}, a store this module may not import), so the audit
+     * can tell a binding's {@code Leaderboard.Group} that names none of them ({@link EncounterValidator#recordGroupFindings}).
+     * Read fresh on every audit; null, or never registered, checks none. One call, at setup, from the module that owns
+     * the groups.
+     */
+    public static void recordGroups(@Nullable Predicate<String> groupExists) {
+        recordGroups = groupExists;
     }
 
     /**
@@ -114,6 +130,11 @@ public final class EncounterAudit {
                     EncounterParticipationConfig.getInstance().all().values(), lootables(),
                     roleReferences(), EncounterScripts.roleExists(), grantLoots(grantFindings), kinds));
             out.addAll(grantFindings);
+            Predicate<String> groups = recordGroups;
+            if (groups != null) {
+                out.addAll(EncounterValidator.recordGroupFindings(EncounterBindingConfig.getInstance().all().values(),
+                        groups));
+            }
         } catch (Throwable t) {
             SafeLog.warn(Encounters.LOG_PREFIX + " the encounter content could not be audited", t);
         }

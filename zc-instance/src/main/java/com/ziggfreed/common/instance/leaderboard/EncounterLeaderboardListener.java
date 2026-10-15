@@ -25,7 +25,7 @@ import com.ziggfreed.common.encounter.asset.EncounterBindingAsset;
  * {@code :} the way an instance round names its mode, so a fight fought by four on hard is
  * {@code <bucket>:4:hard}. A row naming no bucket keeps no records. A fight fought inside a zc run (a dungeon
  * area's; zc-encounter's run tag) is filed under that run's source as well, {@code <bucket>@dungeon:<id>}
- * ({@link #fightInRun}), so Boss Fights shows it under its dungeon.
+ * ({@link #fightInRun}); Records' Bosses tab folds every key a binding row holds, runs included, into its boss.
  */
 public final class EncounterLeaderboardListener {
 

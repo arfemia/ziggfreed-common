@@ -132,4 +132,13 @@ public interface LeaderboardScreenMessages {
     @Nullable default Message duration(long seconds) {
         return null;
     }
+
+    /**
+     * A {@code SINCE} stat cell's words for the moment {@code epochSeconds} (seconds since the epoch, a first win),
+     * read as how long ago it was against the board's own clock ("Today", "3 days ago"), painted on the cell's
+     * {@code TextSpans}, so a count binds as a typed number. Null (the default) paints the format's own date.
+     */
+    @Nullable default Message since(long epochSeconds) {
+        return null;
+    }
 }

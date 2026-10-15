@@ -1,5 +1,7 @@
 package com.ziggfreed.common.instance.result;
 
+import java.time.LocalDate;
+
 import com.ziggfreed.common.util.NumberFormatter;
 
 /**
@@ -24,7 +26,13 @@ public enum ColumnFormat {
      * ({@code LeaderboardScreenMessages.duration}, "12h 30m") paints those words; anywhere else it reads
      * as h:mm, which needs no words.
      */
-    DURATION;
+    DURATION,
+    /**
+     * A moment, in seconds since the epoch (a first win), read as how long ago it was. A page whose messages
+     * provider words it ({@code LeaderboardScreenMessages.since}, "Today", "3 days ago", against its board's own
+     * clock) paints those words; anywhere else it reads as the day it fell on in UTC, written {@code 2026-10-15}.
+     */
+    SINCE;
 
     /** Render {@code value} per this format to a display string. */
     public String render(long value) {
@@ -35,8 +43,12 @@ public enum ColumnFormat {
             case PERCENT -> value + "%";
             case RAW -> Long.toString(value);
             case DURATION -> hoursMinutes(value);
+            case SINCE -> LocalDate.ofEpochDay(Math.floorDiv(value, SECONDS_PER_DAY)).toString();
         };
     }
+
+    /** The seconds in a day, the step a moment's day is read in. */
+    private static final long SECONDS_PER_DAY = 86_400L;
 
     private static String hoursMinutes(long seconds) {
         long s = Math.max(0, seconds);

@@ -29,10 +29,11 @@ import com.ziggfreed.common.instance.leaderboard.StatColumnDef;
  * <p>A line is a stat id, {@code Stat/Thing} for one line of a stat's breakdown
  * ({@code Mob_Kills/Trork_Warrior}), or {@code Stat/*} for every line of a stat: on the sections row one
  * column per line the stat's source names now ({@code Reputation/*}, each reputation on the server), and in
- * the {@code boss_fights} section one column per stat read a fight per tab ({@code Encounters_Won/*}). A
- * line no store on this server counts shows no column, and a section left with none shows no tab, so a
- * section can name a stat a mod adds and still read right on a server without that mod. Only a line some
- * section names is ranked at all.
+ * a section whose split takes its columns from it (the {@code boss_fights} and {@code dungeons} sections) one
+ * column per stat read one picked thing at a time ({@code Encounters_Won/*}), its plain stat ids then the first
+ * choice's and each group's columns. A line no store on this server counts shows no column, and a section left
+ * with none shows no tab, so a section can name a stat a mod adds and still read right on a server without that
+ * mod. Only a line some section names is ranked at all.
  */
 public final class StatSectionAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, StatSectionAsset>> {
 
@@ -69,8 +70,10 @@ public final class StatSectionAsset implements JsonAssetWithMap<String, DefaultA
             .documentation("The stats the section ranks, one column each, at most four: a stat id such as "
                     + "Mob_Kills, Stat/Thing for one line of its breakdown, such as Mob_Kills/Trork_Warrior, or "
                     + "Stat/* for every line of a stat: a column per line a read stat names, such as Reputation/* "
-                    + "for each reputation on the server, or in the Boss_Fights section a column per stat with a "
-                    + "tab per fight. A stat nothing on this server counts shows no column.").add()
+                    + "for each reputation on the server. In a section split into things that takes its columns "
+                    + "from here (Boss_Fights, Dungeons), the stat ids are the columns of the first choice and of "
+                    + "each group, and the Stat/* lines a picked thing's, at most four of each. A stat nothing on "
+                    + "this server counts shows no column.").add()
             .appendInherited(new KeyedCodec<>("Icon", Codec.STRING, false),
                     (a, v) -> a.icon = v, a -> a.icon, (a, parent) -> a.icon = parent.icon)
             .metadata(EditorSchema.assetRef(Item.class))

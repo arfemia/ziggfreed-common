@@ -1,0 +1,6 @@
+{
+  "$Comment": "A group on Records' Bosses tab: the bosses fought inside a dungeon. A boss joins it by naming Dungeon as its binding row's Leaderboard Group, and the segment shows once one of them has a record. A pack whose dungeon wants a segment of its own ships a group of its own beside this one. Order places the segment among the others, lowest first; Icon is the item that pictures the group.",
+  "NameKey": "ziggfreedcommon.statboard.group.dungeon",
+  "Order": 20,
+  "Icon": "Furniture_Dungeon_Chest_Epic"
+}

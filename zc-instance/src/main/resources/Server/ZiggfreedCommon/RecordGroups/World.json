@@ -1,0 +1,6 @@
+{
+  "$Comment": "A group on Records' Bosses tab: the bosses fought out in the open world. A boss joins it by naming World as its binding row's Leaderboard Group, and the segment shows once one of them has a record. Order places the segment among the others, lowest first; Icon is the item that pictures the group.",
+  "NameKey": "ziggfreedcommon.statboard.group.world",
+  "Order": 30,
+  "Icon": "Tool_Map"
+}

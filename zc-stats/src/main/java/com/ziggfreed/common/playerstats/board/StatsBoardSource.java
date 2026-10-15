@@ -33,7 +33,8 @@ import com.ziggfreed.common.playerstats.asset.StatConfig;
 
 /**
  * What the stat board asks of the store, answered from the stat files: the board runs while the store
- * is switched on, and a section line's column is its stat's own name, number format and direction.
+ * is switched on, a section line's column is its stat's own name, number format and direction, and a column
+ * that folds several lines of a stat folds them its {@code Kind}'s way ({@link #combineOf}).
  *
  * <p>A line no stat file defines gets no column, so a zc-only server shows no column for a stat only a
  * consumer counts. A {@code Stat/Thing} line is headed by its stat's name, since a column header is a
@@ -152,6 +153,21 @@ public final class StatsBoardSource implements StatBoardSource {
         return slash < 0 ? StatKeys.total(statId) : StatKeys.line(statId, line.substring(slash + 1));
     }
 
+    /**
+     * How a column folds stat {@code statId}'s lines into one figure, from the stat's {@code Kind}: a best that grows
+     * keeps the highest, a best that shrinks the lowest, anything else adds up.
+     */
+    @Override
+    @Nonnull
+    public StatColumnDef.Combine combineOf(@Nonnull String statId) {
+        StatAsset stat = StatConfig.getInstance().index().stat(statId);
+        StatKind kind = stat == null ? null : stat.kind();
+        if (kind == StatKind.MAX) {
+            return StatColumnDef.Combine.MAX;
+        }
+        return kind == StatKind.MIN ? StatColumnDef.Combine.MIN : StatColumnDef.Combine.SUM;
+    }
+
     /** How a stat's format reads in a column: Distance has no format of its own, so it reads as a count. */
     @Nonnull
     static ColumnFormat columnFormat(@Nonnull StatFormat format) {
@@ -159,6 +175,7 @@ public final class StatsBoardSource implements StatBoardSource {
             case TIME -> ColumnFormat.TIME;
             case DURATION -> ColumnFormat.DURATION;
             case PERCENT -> ColumnFormat.PERCENT;
+            case SINCE -> ColumnFormat.SINCE;
             case COUNT, DISTANCE -> ColumnFormat.GROUPED;
         };
     }

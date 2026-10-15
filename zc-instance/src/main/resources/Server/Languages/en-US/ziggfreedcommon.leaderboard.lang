@@ -34,11 +34,11 @@ you.players = Players on this board: {0, number}
 # A column you can click to rank by, when the column says nothing of its own.
 tip.sort = Click to rank everyone by this.
 
-# /zigleaderboard, the command that opens Records' Boss Fights. The command.desc.* keys are what the
+# /zigleaderboard, the command that opens Records' Bosses tab. The command.desc.* keys are what the
 # engine's own help resolves a command or an argument through.
 command.desc.family = See the records of this server's boss fights.
 command.desc.encounter = Open a boss fight's records.
-command.desc.arg.encounter = The fight's encounter script id. Leave it out to open the first fight on record.
+command.desc.arg.encounter = The fight's encounter script id. Leave it out to see every boss.
 command.open.needs_player = Only a player can open the records screen.
 command.open.failed = The records screen could not open. Try again in a moment.
 command.encounter.unranked = '{0}' keeps no records on this server.
@@ -53,7 +53,7 @@ command.clock.shifted = While the clock is shifted, stats count only toward All 
 command.clock.window = {0} reads {1}
 command.clock.window.none = {0} has not started yet
 
-# The shared menu's tab for the records this server keeps (the stat board and its boss fights).
+# The shared menu's tab for the records this server keeps (the stat board, its bosses among its sections).
 menu.records = Records
-# The tab on the stat board's first row that opens the boss fights' records, and that section's name.
+# Not shown: the bosses are a section of the stat board, named by ziggfreedcommon.statboard.section.bosses.
 records.boss_fights = Boss Fights

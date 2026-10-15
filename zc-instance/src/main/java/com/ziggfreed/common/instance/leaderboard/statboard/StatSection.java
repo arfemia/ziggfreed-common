@@ -10,9 +10,10 @@ import javax.annotation.Nullable;
  * file names them.
  *
  * <p>A {@code Stat/*} line ranks every line of the stat. On the sections row it stands for one column per
- * thing the stat's source names now (a native stat's reader: each reputation); the {@code boss_fights}
- * section's are Records' Boss Fights, where each such stat is one column and each fight one tab
- * ({@link StatBoardBossFights}).
+ * thing the stat's source names now (a native stat's reader: each reputation); in a section split into things
+ * whose split names no columns of its own (the Bosses and Dungeons tabs, {@link StatBoardBossFights},
+ * {@link StatBoardDungeons}), each such stat is one column of a picked thing, and each plain stat id one column of
+ * the first choice and of a group ({@link StatSplit#fromSection}).
  *
  * @param id      the section's file id, lower-cased
  * @param nameKey the tab's name, a translation key; null names it by {@code event}'s title, else shows the id

@@ -38,11 +38,15 @@ import com.ziggfreed.common.instance.effect.BandedEffectAsset;
 import com.ziggfreed.common.instance.effect.BandedEffectConfig;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardLayoutAsset;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardLayoutConfig;
+import com.ziggfreed.common.instance.leaderboard.statboard.RecordGroupAsset;
+import com.ziggfreed.common.instance.leaderboard.statboard.RecordGroupConfig;
 import com.ziggfreed.common.instance.leaderboard.statboard.StatPeriodAsset;
 import com.ziggfreed.common.instance.leaderboard.statboard.StatPeriodConfig;
 import com.ziggfreed.common.instance.leaderboard.statboard.StatPeriodOwnerLayers;
 import com.ziggfreed.common.instance.leaderboard.statboard.StatSectionAsset;
 import com.ziggfreed.common.instance.leaderboard.statboard.StatSectionConfig;
+import com.ziggfreed.common.instance.portal.PortalDungeonAsset;
+import com.ziggfreed.common.instance.portal.PortalDungeonConfig;
 import com.ziggfreed.common.instance.preset.InstancePresetAsset;
 import com.ziggfreed.common.instance.preset.InstancePresetConfig;
 import com.ziggfreed.common.loot.LootableAsset;
@@ -400,6 +404,25 @@ public final class FrameworkAssetRegistrar {
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, StatSectionAsset.class,
                 (LoadedAssetsEvent<String, StatSectionAsset, DefaultAssetMap<String, StatSectionAsset>> ev) ->
                         StatSectionConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
+
+        // --- Records groups (Pattern A) - the segments a Records split sorts its things into (the Bosses tab's
+        //     Seasonal, Dungeon, World, Minigame and Deepworks, zc-instance's resources); a pack adds one by
+        //     shipping a file, and a same-id file wins by pack order. ---
+        AssetStoreRegistrar.registerStore(RecordGroupAsset.class,
+                new DefaultAssetMap<String, RecordGroupAsset>(), RecordGroupAsset.TYPE_ROOT,
+                RecordGroupAsset::getId, RecordGroupAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, RecordGroupAsset.class,
+                (LoadedAssetsEvent<String, RecordGroupAsset, DefaultAssetMap<String, RecordGroupAsset>> ev) ->
+                        RecordGroupConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
+
+        // --- Portal dungeons (Pattern A) - the game's own portal dungeons whose visits count as dungeon runs
+        //     (zc-instance's The_Deepworks); a same-id file wins by pack order. ---
+        AssetStoreRegistrar.registerStore(PortalDungeonAsset.class,
+                new DefaultAssetMap<String, PortalDungeonAsset>(), PortalDungeonAsset.TYPE_ROOT,
+                PortalDungeonAsset::getId, PortalDungeonAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, PortalDungeonAsset.class,
+                (LoadedAssetsEvent<String, PortalDungeonAsset, DefaultAssetMap<String, PortalDungeonAsset>> ev) ->
+                        PortalDungeonConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
 
         // --- Arena definitions (Pattern A) - spatial layout (team spawns / objectives / pickups). ---
         AssetStoreRegistrar.registerStore(ArenaDefinitionAsset.class,

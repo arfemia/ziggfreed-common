@@ -1,0 +1,6 @@
+{
+  "$Comment": "A group on Records' Bosses tab: the bosses of a minigame. A boss joins it by naming Minigame as its binding row's Leaderboard Group, and the segment shows once one of them has a record. Order places the segment among the others, lowest first; Icon is the item that pictures the group.",
+  "NameKey": "ziggfreedcommon.statboard.group.minigame",
+  "Order": 40,
+  "Icon": "Deco_Trophy_Harvest"
+}

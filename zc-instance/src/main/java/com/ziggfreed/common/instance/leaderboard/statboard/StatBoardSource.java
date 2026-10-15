@@ -41,7 +41,7 @@ public interface StatBoardSource {
 
     /**
      * The column for one section line (a stat id, or {@code Stat/Thing}: one written, one a {@code Stat/*}
-     * line stands for, or one fight's line the Boss Fights page asks for), or null when nothing on this
+     * line stands for, or one line of a split's thing, such as a boss's), or null when nothing on this
      * server counts it, which leaves it out. Its {@link StatColumnDef#statKey()} is the line as the board
      * stores it; its label is a bare translation, since a column header is painted on a {@code .Text} sink
      * that never substitutes a parameter; {@link StatColumnDef#ascending()} ranks a best that shrinks
@@ -54,11 +54,22 @@ public interface StatBoardSource {
      * Every line a section's {@code Stat/*} line stands for, each written {@code Stat/Thing}, in the order
      * their columns show: the things the stat's source can name now (the server's reputations, say). None,
      * the default, leaves the line without a column on the sections row; that is the answer for a stat whose
-     * things are tabs instead (the Boss Fights stats, a fight per tab, {@link StatBoardBossFights}).
+     * things a split picks one at a time instead (the bosses' stats, a boss per pick, {@link StatBoardBossFights}).
      */
     @Nonnull
     default List<String> everyLine(@Nonnull String statId) {
         return List.of();
+    }
+
+    /**
+     * How a column that folds several lines of stat {@code statId} into one figure folds them (a boss's lines across
+     * its party sizes, a group's lines across its things): {@link StatColumnDef.Combine#SUM}, the default, adds them
+     * up; a best that grows keeps the highest and a best that shrinks the lowest. The store that knows the stat's
+     * kind answers; this module never sees it.
+     */
+    @Nonnull
+    default StatColumnDef.Combine combineOf(@Nonnull String statId) {
+        return StatColumnDef.Combine.SUM;
     }
 
     /**

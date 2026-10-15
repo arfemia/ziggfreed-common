@@ -1,0 +1,6 @@
+{
+  "$Comment": "When a player first helped win each boss fight, as seconds since 1970 on the server's clock, kept lowest, one line per fight; the total is their first win of any fight. Lower is earlier, so the board ranks the first players to beat a boss on top and reads each as how long ago it was. The library counts it itself, so it lists no From.",
+  "NameKey": "ziggfreedcommon.stats.encounter_first_win",
+  "Kind": "Min",
+  "Format": "Since"
+}

@@ -19,12 +19,15 @@ import com.ziggfreed.common.encounter.asset.EncounterBindingAsset;
 import com.ziggfreed.common.encounter.asset.EncounterBindingConfig;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardPage;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardPageDeps;
+import com.ziggfreed.common.instance.leaderboard.LeaderboardSplit;
 import com.ziggfreed.common.instance.leaderboard.statboard.StatBoard;
 import com.ziggfreed.common.instance.leaderboard.statboard.StatBoardBossFights;
+import com.ziggfreed.common.instance.leaderboard.statboard.StatBoardRecords;
 
 /**
- * Open Records' Boss Fights for the caller, a fight per tab: at the fight named with {@code --encounter}
- * (its script id, or its binding row's id), or at the first fight on record when none is named.
+ * Open Records' Bosses tab for the caller: with {@code --encounter} (its script id, or its binding row's id) that
+ * boss picked under the choice that offers it, else All bosses. The caller's own native readings are brought up to
+ * date first, as Records' own tab does.
  */
 final class EncounterLeaderboardCommand extends AbstractAsyncCommand {
 
@@ -49,26 +52,16 @@ final class EncounterLeaderboardCommand extends AbstractAsyncCommand {
             LeaderboardCommandMessages.refused(ctx, "encounter.off");
             return CompletableFuture.completedFuture(null);
         }
-        LeaderboardPageDeps deps = StatBoardBossFights.deps();
         String named = encounterArg.provided(ctx) ? encounterArg.get(ctx) : null;
-        String tab = null;
-        if (named != null && !named.isBlank()) {
-            String id = named.trim();
-            EncounterBindingAsset row = rowNamed(id);
-            tab = row == null || deps == null ? null : StatBoardBossFights.tabOf(deps, row);
-            if (tab == null) {
-                LeaderboardCommandMessages.refused(ctx, "encounter.unranked", id);
-                return CompletableFuture.completedFuture(null);
-            }
-        }
-        if (deps == null) {
-            LeaderboardCommandMessages.refused(ctx, "encounter.none");
+        String id = named == null || named.isBlank() ? null : named.trim();
+        EncounterBindingAsset row = id == null ? null : rowNamed(id);
+        if (id != null && row == null) {
+            LeaderboardCommandMessages.refused(ctx, "encounter.unranked", id);
             return CompletableFuture.completedFuture(null);
         }
         Store<EntityStore> store = ref.getStore();
         World world = store.getExternalData().getWorld();
-        String selected = tab;
-        return runAsync(ctx, () -> open(ctx, store, ref, deps, selected), world);
+        return runAsync(ctx, () -> open(ctx, store, ref, row, id), world);
     }
 
     /** The binding row {@code id} names, as a script id or a row id, or null when none does. */
@@ -79,15 +72,32 @@ final class EncounterLeaderboardCommand extends AbstractAsyncCommand {
         return row != null ? row : rows.resolve(id);
     }
 
-    /** On the world thread: open the page at {@code tab} (null for the first fight), or say it could not. */
+    /**
+     * On the world thread: bring the caller's readings up to date, then open Records on the Bosses tab, {@code row}'s
+     * boss picked under the choice that offers it (null for All bosses), or say why it could not.
+     */
     private static void open(@Nonnull CommandContext ctx, @Nonnull Store<EntityStore> store,
-            @Nonnull Ref<EntityStore> ref, @Nonnull LeaderboardPageDeps deps, @Nullable String tab) {
+            @Nonnull Ref<EntityStore> ref, @Nullable EncounterBindingAsset row, @Nullable String named) {
         Player player = store.getComponent(ref, Player.getComponentType());
         PlayerRef viewer = store.getComponent(ref, PlayerRef.getComponentType());
         if (player == null || viewer == null) {
             LeaderboardCommandMessages.refused(ctx, "open.failed");
             return;
         }
-        player.getPageManager().openCustomPage(ref, store, new LeaderboardPage(viewer, deps, tab, null, null, null, true));
+        StatBoardRecords.INSTANCE.opening(store, ref);
+        LeaderboardPageDeps deps = StatBoardRecords.INSTANCE.deps();
+        LeaderboardSplit bosses = deps == null ? null : deps.split(StatBoardBossFights.SECTION);
+        if (bosses == null) {
+            LeaderboardCommandMessages.refused(ctx, "encounter.none");
+            return;
+        }
+        String pick = row == null ? null : StatBoardBossFights.pickOf(row);
+        String choice = pick == null ? "" : bosses.choiceOf(pick);
+        if (choice == null) {
+            LeaderboardCommandMessages.refused(ctx, "encounter.unranked", named);
+            return;
+        }
+        player.getPageManager().openCustomPage(ref, store, new LeaderboardPage(viewer, deps,
+                StatBoardBossFights.SECTION, null, null, null, true, choice, pick));
     }
 }

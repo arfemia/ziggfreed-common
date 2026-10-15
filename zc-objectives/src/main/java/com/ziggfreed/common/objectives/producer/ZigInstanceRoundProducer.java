@@ -8,6 +8,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.ziggfreed.common.instance.metadata.InstanceRoundCompletedEvent;
 import com.ziggfreed.common.instance.metadata.InstanceRoundStartedEvent;
+import com.ziggfreed.common.instance.metadata.RoundKeys;
 import com.ziggfreed.common.instance.metadata.RoundMetadata;
 import com.ziggfreed.common.progress.runtime.MomentPayload;
 import com.ziggfreed.common.util.SafeLog;
@@ -153,24 +154,19 @@ public final class ZigInstanceRoundProducer {
     }
 
     /**
-     * {@code <modId>:<modeId>}. The colon is always written, so a round with no mode is still matched
-     * by the {@code <modId>:} prefix an author writes to mean "any mode of that mod".
+     * {@code <modId>:<modeId>}, as {@link RoundKeys#target} spells it for every reader of a round (a stat's line
+     * included). The colon is always written, so a round with no mode is still matched by the {@code <modId>:}
+     * prefix an author writes to mean "any mode of that mod".
      */
     @Nonnull
     static String target(@Nonnull RoundMetadata metadata) {
-        String modeId = metadata.modeId();
-        return metadata.modId() + ":" + (modeId == null ? "" : modeId.trim());
+        return RoundKeys.target(metadata);
     }
 
-    /** The preset id, or null when the round named none (a qualifier is optional everywhere). */
+    /** The preset id, or null when the round named none ({@link RoundKeys#qualifier}). */
     @Nullable
     static String qualifier(@Nonnull RoundMetadata metadata) {
-        String presetId = metadata.presetId();
-        if (presetId == null) {
-            return null;
-        }
-        String trimmed = presetId.trim();
-        return trimmed.isEmpty() ? null : trimmed;
+        return RoundKeys.qualifier(metadata);
     }
 
     // ==================== the engine half ====================

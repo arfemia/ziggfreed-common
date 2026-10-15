@@ -2,10 +2,10 @@
   "$Comment": [
     "The binding row for the game's own Gobliterator fight in the goblin Deepworks, its standard",
     "mode (Goblin_Gobliterator_Encounter). The script shows a boss bar, so the library already runs",
-    "and credits the fight without a row; this row names it and keeps its records (wins, fastest",
-    "win, best share, damage) on Records' Boss Fights under the bucket goblin_gobliterator. Its hard",
-    "mode is a script of its own, Goblin_Gobliterator_Encounter_Hard, whose row keeps a tab of its",
-    "own under the game's hard-mode name.",
+    "and credits the fight without a row; this row names it and keeps its records under the bucket",
+    "goblin_gobliterator, which Records' Bosses tab shows in the Deepworks group (Leaderboard Group).",
+    "Its hard mode is a script of its own, Goblin_Gobliterator_Encounter_Hard, whose row keeps a boss",
+    "of its own there under the game's hard-mode name.",
     "",
     "Subject.TargetSlot names the script's own slot for the machine (Gobliterator), so the library",
     "binds the boss it credits through every phase; a row left at the default Boss would bind",
@@ -20,6 +20,7 @@
     "TargetSlot": "Gobliterator"
   },
   "Leaderboard": {
-    "Bucket": "goblin_gobliterator"
+    "Bucket": "goblin_gobliterator",
+    "Group": "Deepworks"
   }
 }

@@ -1,6 +1,16 @@
 {
-  "$Comment": "Records' Dungeons tab and its columns, at most four: every dungeon run a player began, cleared and failed, over every dungeon. Each stat also keeps one line per difficulty and dungeon, Stat/dungeon:<difficulty>@<dungeon id> (dungeon:@My_Crypt for a normal run), which a column here may name one at a time. A stat nothing on this server counts shows no column.",
+  "$Comment": "Records' Dungeons tab. The plain stat ids are the columns of its first choice, All dungeons: every dungeon run a player began, cleared and failed, over every dungeon. Each Stat/* entry is one column of a single dungeon picked from the list, read over its own runs (a dungeon's line is dungeon:<difficulty>@<dungeon id>, dungeon:@My_Crypt for a normal run); a dungeon run at more than one difficulty also shows each difficulty on its own. At most four of each. The game's own portal dungeons count here too once a PortalDungeons file follows them, as the Deepworks does. A stat nothing on this server counts shows no column. Icon pictures the tab; HintKey is the line a player with no place on the board reads.",
   "NameKey": "ziggfreedcommon.statboard.section.dungeons",
   "Order": 35,
-  "Stats": ["Dungeon_Runs_Started", "Dungeon_Runs_Completed", "Dungeon_Runs_Failed"]
+  "Icon": "Furniture_Dungeon_Chest_Epic",
+  "HintKey": "ziggfreedcommon.statboard.section.dungeons.hint",
+  "Stats": [
+    "Dungeon_Runs_Started",
+    "Dungeon_Runs_Completed",
+    "Dungeon_Runs_Failed",
+    "Dungeon_Runs_Started/*",
+    "Dungeon_Runs_Completed/*",
+    "Dungeon_Runs_Failed/*",
+    "Dungeon_Best_Time/*"
+  ]
 }

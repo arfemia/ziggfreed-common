@@ -1,0 +1,6 @@
+{
+  "$Comment": "Boss fights a player helped win without dying once in the fight, one line per fight beside the total, for every fight whose binding row names a Leaderboard Bucket. The library counts it itself, so it lists no From.",
+  "NameKey": "ziggfreedcommon.stats.encounter_deathless_wins",
+  "Kind": "Sum",
+  "Format": "Count"
+}

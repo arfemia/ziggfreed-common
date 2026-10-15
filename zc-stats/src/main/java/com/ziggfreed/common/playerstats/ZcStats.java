@@ -25,6 +25,27 @@ public final class ZcStats {
     /** Raw damage dealt to a fight's boss on its wins, one line per fight, a Sum. */
     public static final String ENCOUNTER_DAMAGE_DEALT = "Encounter_Damage_Dealt";
 
+    /** Boss fights won without dying in the fight, one line per fight, a Sum. */
+    public static final String ENCOUNTER_DEATHLESS_WINS = "Encounter_Deathless_Wins";
+
+    /** Boss fights won with the player landing the boss's last hit, one line per fight, a Sum. */
+    public static final String ENCOUNTER_KILLING_BLOWS = "Encounter_Killing_Blows";
+
+    /**
+     * When a fight was first won, in seconds since the epoch on the server's clock, one line per fight, a Min:
+     * the total is the first win of any fight.
+     */
+    public static final String ENCOUNTER_FIRST_WIN = "Encounter_First_Win";
+
+    /** Boss fights lost (a wipe), one line per fight, a Sum. */
+    public static final String ENCOUNTER_WIPES = "Encounter_Wipes";
+
+    /**
+     * A dungeon run's fastest clear in whole seconds, one line per difficulty and dungeon
+     * ({@code dungeon:<difficulty>@<dungeon id>}), a Min, timed off each won dungeon round.
+     */
+    public static final String DUNGEON_BEST_TIME = "Dungeon_Best_Time";
+
     private ZcStats() {
     }
 }

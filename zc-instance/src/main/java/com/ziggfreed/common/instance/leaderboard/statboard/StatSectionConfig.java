@@ -21,8 +21,10 @@ import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
  * of the same id wins), and resolved once per change: the sections in tab order, and the set of lines any
  * of them names (with the stats one names as {@code Stat/*}, every line of which counts as named), which
  * is what decides whether a stat is ranked at all. A section's tab may also be split in code ({@link #split},
- * {@link StatSplit}), and every line of a stat a split names is ranked too, with the total of a stat it ranks off
- * All Time ({@link StatSplit#periodic}) or reads beside a name there ({@link StatSplit#meta}).
+ * {@link StatSplit}), and every line of a stat a split names is ranked too (its things' columns and its groups'),
+ * with the total of a stat it ranks off All Time ({@link StatSplit#periodic}) or reads beside a name there
+ * ({@link StatSplit#meta}). A split naming no columns of its own reads them from its section's lines as they fold
+ * ({@link StatSplit#fromSection}), so a section file names the columns a split shows.
  */
 public final class StatSectionConfig extends AbstractKeyedAssetConfig<StatSectionAsset> {
 
@@ -100,7 +102,10 @@ public final class StatSectionConfig extends AbstractKeyedAssetConfig<StatSectio
         rebuild();
     }
 
-    /** How section {@code sectionId}'s tab splits, or null when nothing splits it ({@link #split}). */
+    /**
+     * How section {@code sectionId}'s tab splits, or null when nothing splits it ({@link #split}): a split naming no
+     * columns of its own answers with its section's ({@link StatSplit#fromSection}).
+     */
     @Nullable
     public StatSplit splitOf(@Nonnull String sectionId) {
         return splits.get(sectionId.toLowerCase(Locale.ROOT));
@@ -192,10 +197,20 @@ public final class StatSectionConfig extends AbstractKeyedAssetConfig<StatSectio
         }
         Set<String> lines = new HashSet<>();
         Set<String> stats = new HashSet<>();
-        // A split stat's lines are each ranked, as a Stat/* line's are: a group's sum and a thing's columns read them.
+        // A split naming no columns of its own takes its section's (StatSplit.fromSection), read from the section as
+        // it folds now.
+        Map<String, StatSplit> effective = new LinkedHashMap<>();
+        for (Map.Entry<String, StatSplit> e : splitting.entrySet()) {
+            StatSection section = sectionOf(out, e.getKey());
+            effective.put(e.getKey(), section == null ? e.getValue() : e.getValue().fromSection(section.lines()));
+        }
+        // A split stat's lines are each ranked, as a Stat/* line's are: a group's fold and a thing's columns read them.
         // A periodic stat's and the meta's total is ranked too, since the first choice reads it off All Time.
-        for (StatSplit split : splitting.values()) {
+        for (StatSplit split : effective.values()) {
             for (StatSplit.Column column : split.columns()) {
+                stats.add(column.stat().toLowerCase(Locale.ROOT));
+            }
+            for (StatSplit.Column column : split.groupColumns()) {
                 stats.add(column.stat().toLowerCase(Locale.ROOT));
             }
             for (StatSplit.Column column : split.periodic()) {
@@ -207,7 +222,7 @@ public final class StatSectionConfig extends AbstractKeyedAssetConfig<StatSectio
                 lines.add(split.meta().stat().toLowerCase(Locale.ROOT));
             }
         }
-        splits = Map.copyOf(splitting);
+        splits = Map.copyOf(effective);
         for (StatSection section : out) {
             for (String line : section.lines()) {
                 String stat = StatSection.everyLineOf(line);
@@ -224,5 +239,16 @@ public final class StatSectionConfig extends AbstractKeyedAssetConfig<StatSectio
         sections = List.copyOf(out);
         named = Set.copyOf(lines);
         everyLine = Set.copyOf(stats);
+    }
+
+    /** The section of {@code sections} whose id is {@code sectionId}, matched without regard to case, or null. */
+    @Nullable
+    private static StatSection sectionOf(@Nonnull List<StatSection> sections, @Nonnull String sectionId) {
+        for (StatSection section : sections) {
+            if (section.id().equalsIgnoreCase(sectionId)) {
+                return section;
+            }
+        }
+        return null;
     }
 }

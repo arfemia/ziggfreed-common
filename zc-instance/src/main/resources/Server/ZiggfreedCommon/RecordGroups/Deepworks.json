@@ -1,0 +1,6 @@
+{
+  "$Comment": "A group on Records' Bosses tab: the bosses of the game's own goblin dungeon, the Deepworks (the Feastmaster and the Gobliterator in both its modes). Its name is the game's own name for the dungeon. A boss joins it by naming Deepworks as its binding row's Leaderboard Group, and the segment shows once one of them has a record. Order places the segment among the others, lowest first; Icon is the item that pictures the group.",
+  "NameKey": "server.portals.theDeepworks",
+  "Order": 15,
+  "Icon": "PortalKey_The_Deepworks"
+}

@@ -15,6 +15,9 @@ your_rank.none = You are not on this board yet.
 # A playtime cell: hours and minutes, or minutes alone under an hour.
 duration.hours = {0, number}h {1, number}m
 duration.minutes = {0, number}m
+# A moment cell, such as a first win: today, or how many whole days ago.
+since.today = Today
+since.days = {0, number} {0, plural, one {day} other {days}} ago
 
 # The period tabs (Server/ZiggfreedCommon/StatPeriods).
 period.all_time = All Time
@@ -30,8 +33,30 @@ section.gathering = Gathering
 section.adventure = Adventure
 section.dungeons = Dungeons
 section.renown = Renown
+section.bosses = Bosses
 section.combat.hint = Defeat mobs or take on a boss to get on this board. Your deaths count here too.
 section.gathering.hint = Break or place blocks, craft items by hand or pick things up to get on this board.
 section.adventure.hint = Finish quests, talk to characters, win rounds or just play to get on this board.
 section.renown.hint = Complete the game's objectives or earn standing with a reputation to get on this board. Renown counts toward All Time only.
 section.boss_fights.hint = Help defeat this boss to get on its board.
+section.bosses.hint = Help defeat a boss to get on this board.
+section.dungeons.hint = Start, clear or fail a dungeon run to get on this board.
+
+# The Bosses tab's split: its first choice, the groups a boss sits in (Server/ZiggfreedCommon/RecordGroups),
+# and a boss's party sizes. bosses.all is also the first entry of the list of bosses.
+bosses.all = All bosses
+bosses.sizes.all = All sizes
+bosses.size.solo = Solo
+bosses.size.players = {0, number} players
+group.seasonal = Seasonal
+group.dungeon = Dungeon
+group.world = World
+group.minigame = Minigame
+
+# The Dungeons tab's split: its first choice (also the first entry of the list of dungeons), and a
+# dungeon's difficulties. A difficulty label a dungeon writes shows as difficulty.<label> when that key
+# is here, else as written.
+dungeons.all = All dungeons
+dungeons.difficulties.all = All difficulties
+difficulty.normal = Normal
+difficulty.hard = Hard

@@ -1,8 +1,17 @@
 {
-  "$Comment": "Records' Boss Fights tab: a page of its own with one tab per boss fight on record, its periods under them, and these columns, at most four. Each entry is Stat/*, every line of a stat's breakdown, read one fight at a time. A fight keeps records once its binding row names a Leaderboard Bucket. A stat nothing on this server counts shows no column. Icon pictures the Boss Fights tab and every fight's tab; HintKey is the line a player with no place on a fight's board reads.",
-  "NameKey": "ziggfreedcommon.leaderboard.records.boss_fights",
+  "$Comment": "Records' Bosses tab. The plain stat ids are the columns of its first choice, All bosses (every player's boss totals), and of each group (Seasonal, Dungeon, World and the rest under RecordGroups), which adds them up over its own bosses. Each Stat/* entry is one column of a single boss picked from the list, read over every line its fight keeps; a boss whose records split by party size also shows each size on its own. At most four of each. A fight keeps records once its binding row names a Leaderboard Bucket, and sits in a group its Leaderboard Group names. A stat nothing on this server counts shows no column. Icon pictures the tab; HintKey is the line a player with no place on the board reads.",
+  "NameKey": "ziggfreedcommon.statboard.section.bosses",
   "Order": 40,
   "Icon": "Deco_Bone_Skulls",
-  "HintKey": "ziggfreedcommon.statboard.section.boss_fights.hint",
-  "Stats": ["Encounters_Won/*", "Encounter_Best_Time/*", "Encounter_Best_Share/*", "Encounter_Damage_Dealt/*"]
+  "HintKey": "ziggfreedcommon.statboard.section.bosses.hint",
+  "Stats": [
+    "Encounters_Won",
+    "Encounter_Deathless_Wins",
+    "Encounter_Killing_Blows",
+    "Encounter_Damage_Dealt",
+    "Encounters_Won/*",
+    "Encounter_Best_Time/*",
+    "Encounter_Deathless_Wins/*",
+    "Encounter_First_Win/*"
+  ]
 }
