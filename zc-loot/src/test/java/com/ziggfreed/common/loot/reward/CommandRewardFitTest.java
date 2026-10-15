@@ -30,7 +30,8 @@ import com.ziggfreed.common.testing.EngineAssetStores;
  * floor because nothing ever asked about it. What is pinned here is the part that decides WHETHER a
  * command needs room at all, which is settled from the line alone - a spec with nothing to hand over
  * answers null and is skipped, exactly like a rolling kind. Whether a stack that DOES need room
- * fits is {@code InventoryGrant}'s answer about a live player, and lands with the in-game pass.
+ * fits is {@code GroundSpillSinks.pickupFits}' answer about a live player, and lands with the
+ * in-game pass.
  */
 class CommandRewardFitTest {
 

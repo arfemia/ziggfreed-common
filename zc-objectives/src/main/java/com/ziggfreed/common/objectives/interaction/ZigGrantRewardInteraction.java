@@ -40,7 +40,8 @@ import com.ziggfreed.common.util.SafeLog;
  * kinds through the same grant pass, retry queue and subject a quest payout uses
  * ({@link InteractionRewards}), so a kind another mod registers pays here the day it is installed.
  * The player is then shown what the use handed over ({@link InteractionRewards#payAndShow}): a rolled
- * table as what it actually paid, in the page they have open or else the corner feed.
+ * table as what it actually paid, in the page they have open or else the corner feed, where its items
+ * already arrived with the game's own pickup notices and only the rest of the receipt shows.
  *
  * <p><b>Always resolves Finished.</b> Nothing authored, a lost roll and a chain no player owns are
  * skips: a crack still uses up what it cracked.

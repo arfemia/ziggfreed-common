@@ -2,11 +2,13 @@ package com.ziggfreed.common.loot.reward;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
@@ -23,7 +25,6 @@ import com.ziggfreed.common.command.CommandRunner;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.instance.reward.InstanceReward;
-import com.ziggfreed.common.inventory.InventoryGrant;
 import com.ziggfreed.common.loot.FactorLookup;
 import com.ziggfreed.common.loot.FactorSnapshot;
 import com.ziggfreed.common.loot.GroundSpillSinks;
@@ -69,23 +70,33 @@ import com.ziggfreed.common.util.SafeLog;
  * a title - belongs to the mod that owns the concept; the framework knowing about them would just be
  * the framework guessing.
  *
- * <h2>A full inventory does not eat a reward</h2>
+ * <h2>Every item lands the one way, and a full inventory does not eat it</h2>
  *
- * <p>An item that does not fit goes to the {@link #overflow(Overflow) overflow sink}. The library
- * installs a default sink at boot ({@link FeetDropOverflow}: the stack lands on the ground at the
- * player's feet, through the same tick-safe spawn seam every ground drop uses), so out of the box a
- * full bag means a pickup. A consumer replaces the policy with its own {@link #overflow(Overflow)}
- * call, or clears it with null - and with no sink, or a sink that could not land the stack, the
- * grant FAILS rather than pretending. Failing is the useful outcome: the payout layer then asks for
- * a replayable command and parks it for the player's next connect, so a reward earned with a full
- * bag arrives later instead of vanishing quietly.
+ * <p>Every item a reward hands straight to a player, an {@code Item}, a {@code Stamped_Item} or
+ * whatever a {@code Lootable} rolled, goes through ONE delivery, {@link #handToPlayer}: the way a
+ * picked-up item lands ({@link GroundSpillSinks.Builder#pickedUpFirst}), where the player's own
+ * pickup settings route it, with the game's own pickup notice and sound for what went in, and
+ * whatever does not fit to the {@link #overflow(Overflow) overflow policy}. Its receipt rows are
+ * {@link RewardSpec#pickupNoticed() pickup-noticed}, so the corner feed does not repeat them.
  *
- * <p>A {@code Lootable}'s contents follow the same policy through the ground-spill preset: every
- * stack the rolled table hands over tries the bag first, and whatever does not fit goes to the
- * policy as ONE pile per hand-over ({@link Overflow#handleAll}), so a drop list that overflows
- * lands together. Those contents cannot be parked, though: a rolled table has no replayable form,
- * since a replay would roll differently. So with no policy, or a pile the policy could not land,
- * they are LOST and the loss is warned, naming the table and the stacks, never dropped silently.
+ * <p>The library installs a default policy at boot ({@link FeetDropOverflow}: the rest lands on the
+ * ground at the player's feet, through the same tick-safe spawn seam every ground drop uses), so out
+ * of the box a full bag means a pickup. A consumer replaces the policy with its own
+ * {@link #overflow(Overflow)} call, or clears it with null. With no policy, an {@code Item} or
+ * {@code Stamped_Item} that does not fit WHOLE is not handed over at all and the grant FAILS, as it
+ * does when the policy could not land any of it. Failing is the useful outcome: the payout layer then
+ * asks for a replayable command and parks it for the player's next connect, so a reward earned with
+ * a full bag arrives later instead of vanishing quietly. A part the bag took is never parked again
+ * (a replay would pay it twice): if the policy refuses only the rest, that rest is warned as lost.
+ *
+ * <p>A {@code Lootable}'s rest goes to the policy as ONE pile per hand-over
+ * ({@link Overflow#handleAll}), so a drop list that overflows lands together. Those contents cannot
+ * be parked: a rolled table has no replayable form, since a replay would roll differently. So with no
+ * policy, or a pile the policy could not land, they are LOST and the loss is warned, naming the table
+ * and the stacks, never dropped silently.
+ *
+ * <p>The room probes ({@link #canAdd}, {@link #canAddAll}) ask the question that delivery answers
+ * ({@link GroundSpillSinks#pickupFits}), for a payout that refuses rather than spills.
  *
  * <h2>A reward that cannot name what it pays FAILS</h2>
  *
@@ -221,7 +232,8 @@ public final class LootRewardKinds {
      * {@code Lootable} rolls its contents at grant time, and a kind another mod registered is that
      * mod's business, unless it is a kind FILE whose {@code Hands} names the item its command hands
      * over ({@link RewardKindAsset.Hands}). So a false answer always means a specific, named item
-     * that specifically will not fit - never a guess.
+     * that specifically will not fit - never a guess. The room is the delivery's own
+     * ({@link #fits}): what the player's pickup routing could take.
      */
     public static boolean canAdd(@Nonnull RewardSpec spec, @Nonnull Subject subject) {
         Handover handover = roomFor(spec);
@@ -230,14 +242,7 @@ public final class LootRewardKinds {
             return true;
         }
         Player player = playerOf(subject);
-        if (player == null || stack == null) {
-            return false;
-        }
-        try {
-            return InventoryGrant.canAdd(player, stack);
-        } catch (Throwable t) {
-            return false;
-        }
+        return player != null && stack != null && fits(player, List.of(stack));
     }
 
     /**
@@ -249,8 +254,9 @@ public final class LootRewardKinds {
      * asks each of them about the same last free slot, so three item rewards each answer yes and
      * the third still lands on the floor - after the price was charged, which is the exact moment
      * this exists to prevent. Every stack the payout would hand over is collected through
-     * {@link #stackFor} and asked of {@link InventoryGrant#canAddAll} as one batch, so the answer
-     * is what the payout will actually do.
+     * {@link #stackFor} and asked as one batch of the room the delivery fills
+     * ({@link GroundSpillSinks#pickupFits}, each stack seeing what the ones before it left), so the
+     * answer is what the payout will actually do.
      *
      * <p>Rewards that need no room are skipped rather than refused, exactly as {@link #canAdd}
      * skips them: a {@code Lootable} rolls its contents at grant time and another mod's kind is
@@ -303,14 +309,18 @@ public final class LootRewardKinds {
      */
     private static boolean bagTakes(@Nonnull Subject subject, @Nonnull List<ItemStack> incoming) {
         Player player = playerOf(subject);
-        if (player == null) {
-            return true;
-        }
-        try {
-            return InventoryGrant.canAddAll(player, incoming);
-        } catch (Throwable t) {
-            return false;
-        }
+        return player == null || fits(player, incoming);
+    }
+
+    /**
+     * Would {@code player}'s pickup routing take every one of {@code stacks} together, granting
+     * nothing ({@link GroundSpillSinks#pickupFits})? The one room question the probes and the
+     * no-policy delivery ask, so a "yes" means the delivery puts it all in the bag. False for a player
+     * with no live reference, or when the bag cannot be asked.
+     */
+    private static boolean fits(@Nonnull Player player, @Nonnull List<ItemStack> stacks) {
+        Ref<EntityStore> ref = player.getReference();
+        return ref != null && GroundSpillSinks.pickupFits(ref, ref.getStore(), stacks);
     }
 
     /** What an item-shaped reward would hand over, or null when it needs no inventory room. */
@@ -351,8 +361,8 @@ public final class LootRewardKinds {
      *
      * <p>For a caller checking SEVERAL rewards at once. Asking {@link #canAdd} per reward asks each
      * one about the same empty slot, so three rewards each answer yes and the third still lands on
-     * the floor; collecting the stacks and asking {@link InventoryGrant#canAddAll} about them as ONE
-     * batch is the only form that answers what the payout will actually do. Reading the id and count
+     * the floor; collecting the stacks and asking {@link GroundSpillSinks#pickupFits} about them as
+     * ONE batch is the only form that answers what the payout will actually do. Reading the id and count
      * here rather than at the caller keeps the batch and the grant reading the authored fields the
      * same way.
      */
@@ -415,16 +425,24 @@ public final class LootRewardKinds {
     // ==================== Item ====================
 
     /**
-     * {@code {"Item": "<id>", "Count": "<n>"}} - the plain, exact payout. {@code StackNameKey} and
-     * {@code StackNameArg} name the stack ({@link StackNames}).
+     * {@code {"Item": "<id>", "Count": "<n>"}} - the plain, exact payout, handed over through the one
+     * delivery ({@link #deliver}). {@code StackNameKey} and {@code StackNameArg} name the stack
+     * ({@link StackNames}).
      */
     private static final class ItemHandler implements RewardHandler {
 
         @Override
         public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject) throws Exception {
+            grant(spec, subject, "", row -> { });
+        }
+
+        @Override
+        public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject, @Nonnull String sourceId,
+                @Nonnull Consumer<RewardSpec> receipt) throws Exception {
             int count = countOf(spec);
             String itemId = requirePayable(KIND_ITEM, itemIdOf(spec), count);
-            deliver(subject, StackNames.stamp(new ItemStack(itemId, count), spec));
+            int landed = deliver(subject, StackNames.stamp(new ItemStack(itemId, count), spec), sourceId);
+            receipt.accept(landedRow(spec, landed));
         }
 
         @Override
@@ -459,7 +477,8 @@ public final class LootRewardKinds {
      * as a pool alone pays the same here as at any other site.
      *
      * <p>The whole grants vocabulary pays here, exactly as it does at a station: {@code Items} land
-     * in the inventory, {@code DropLists} roll their native tables into it, {@code Commands} run as
+     * as a pickup (the player's pickup routing, the game's own notice), {@code DropLists} roll their
+     * native tables and land the same way, {@code Commands} run as
      * the console with the same placeholders a {@code Command} reward reads, and {@code Rewards}
      * pay through the registry this handler was registered into - so a table pays the same whether
      * a station, a mob drop or a quest reward rolled it. The pass's EARNED cues are forwarded to
@@ -469,7 +488,8 @@ public final class LootRewardKinds {
      * learns what it pays while paying it, so it reports one {@code Item} spec per item that landed
      * (a native drop list's stacks included) plus whatever the table's own {@code Rewards} reported
      * in turn - and nothing at all for a roll that produced nothing. A toast raised after the payout
-     * then lists the items the player actually got, and an empty hand adds no row.
+     * then lists the items the player actually got, and an empty hand adds no row. Those item rows
+     * are {@link RewardSpec#pickupNoticed() pickup-noticed}, since the game's own notice said them.
      *
      * <p>Every row it reports points back at this reward ({@link RewardSpec#withOrigin}), replacing
      * whatever origin a nested table stamped on it, so a table inside a table folds into the
@@ -575,7 +595,12 @@ public final class LootRewardKinds {
      * {@code Item} per item that landed ({@link LootEngine.Result#getItems()}, native drop-list
      * stacks already merged in), then whatever the table's own {@code Rewards} reported in turn
      * ({@link LootEngine.Result#getRewardReceipt()}). Empty for a roll that produced nothing.
-     * Package-private so the fold is pinned with no server behind it.
+     *
+     * <p>Each item row is {@link RewardSpec#asPickupNoticed() pickup-noticed}: the pass's items
+     * landed as a pickup ({@link #lootableSinks}), so the game's own notice already said them, or
+     * will when the player picks up a part that dropped at their feet. A row a nested reward
+     * reported keeps whatever its own handler said. Package-private so the fold is pinned with no
+     * server behind it.
      */
     @Nonnull
     static List<RewardSpec> handedOver(@Nonnull LootEngine.Result result) {
@@ -586,16 +611,16 @@ public final class LootRewardKinds {
             }
             out.add(RewardSpec.of(KIND_ITEM, Map.of(
                     "Item", entry.getKey(),
-                    "Count", Integer.toString(entry.getValue()))));
+                    "Count", Integer.toString(entry.getValue()))).asPickupNoticed());
         }
         out.addAll(result.getRewardReceipt());
         return out;
     }
 
     /**
-     * Every sink a rolled table can pay through, wired to what the reward path already has: the
-     * ground-spill preset for items and drop lists (the bag first, in the order the item kinds use,
-     * then the installed overflow policy as its ground), the console dispatcher with the same
+     * Every sink a rolled table can pay through, wired to what the reward path already has: the one
+     * delivery for items and drop lists ({@link #handToPlayer}: the bag first, the way a picked-up
+     * item lands, then the installed overflow policy as its ground), the console dispatcher with the same
      * placeholder vocabulary a {@code Command} reward reads ({@code {player}}, {@code {uuid}},
      * {@code {source}}, and the reward's own parameters), and the registry the {@code Lootable}
      * kind itself lives in. Package-private so a test can prove the wiring without a live server
@@ -622,9 +647,7 @@ public final class LootRewardKinds {
             @Nonnull RewardKindRegistry kinds, @Nonnull String sourceId, @Nonnull Consumer<String> warn) {
         Map<String, String> placeholders = CommandRewardKind.placeholders(spec, subject);
         placeholders.putIfAbsent(P_SOURCE, sourceId);
-        return GroundSpillSinks.at(overflowGround(subject, sourceId, warn))
-                .inventoryFirst(playerOf(subject))
-                .warn(warn)
+        return handToPlayer(subject, sourceId, warn)
                 .build()
                 .into(LootEngine.Sinks.builder())
                 .commands(CommandRunner.CONSOLE, placeholders)
@@ -632,6 +655,27 @@ public final class LootRewardKinds {
                 .sourceId(sourceId)
                 .warn(warn)
                 .build();
+    }
+
+    /**
+     * THE one way the library hands items straight to a player, as a ground-spill preset: each
+     * stack goes where the player's own pickup settings route it, with the game's own pickup notice
+     * and sound for what went in ({@link GroundSpillSinks.Builder#pickedUpFirst}), and whatever does
+     * not fit goes to the installed overflow policy as one pile (by default the ground at their feet,
+     * where picking it up notices it the normal way). The {@code Item} and {@code Stamped_Item} kinds
+     * ({@link #deliver}), a {@code Lootable}'s roll ({@link #lootableSinks}) and a harvest's bonus
+     * (the bonus table's harvest landing) all hand over through it, so there is no second way.
+     *
+     * <p>{@code sourceId} names the payout in the line a lost pile leaves on {@code warn}, which also
+     * hears a stack the hand-over could not place. A subject with no live player gets no bag step,
+     * so everything goes to the policy, which answers for a player it cannot find.
+     */
+    @Nonnull
+    public static GroundSpillSinks.Builder handToPlayer(@Nonnull Subject subject, @Nonnull String sourceId,
+            @Nonnull Consumer<String> warn) {
+        return GroundSpillSinks.at(overflowGround(subject, sourceId, warn))
+                .pickedUpFirst(playerOf(subject))
+                .warn(warn);
     }
 
     /** The installed overflow policy as a ground-spill ground, warning about a pile it lost. */
@@ -684,12 +728,19 @@ public final class LootRewardKinds {
      * <p>Both routes write through whatever {@link Stamper} the server registered, so a stamped
      * reward carries the same format - and counts against the same budgets - as one earned at an
      * anvil. With no stamper registered the item is still handed over, just bare: an unstamped
-     * reward is a smaller disappointment than no reward.
+     * reward is a smaller disappointment than no reward. Either way it goes through the one
+     * delivery ({@link #deliver}).
      */
     private static final class StampedItemHandler implements RewardHandler {
 
         @Override
         public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject) throws Exception {
+            grant(spec, subject, "", row -> { });
+        }
+
+        @Override
+        public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject, @Nonnull String sourceId,
+                @Nonnull Consumer<RewardSpec> receipt) throws Exception {
             int count = countOf(spec);
             String itemId = requirePayable(KIND_STAMPED_ITEM, itemIdOf(spec), count);
             ItemStack stack = new ItemStack(itemId, count);
@@ -698,7 +749,7 @@ public final class LootRewardKinds {
             if (stamper != null && !rolls.isEmpty()) {
                 stack = stamper.apply(stack, rolls, identityFor(spec));
             }
-            deliver(subject, stack);
+            receipt.accept(landedRow(spec, deliver(subject, stack, sourceId)));
         }
 
         @Override
@@ -1006,22 +1057,47 @@ public final class LootRewardKinds {
     }
 
     /**
-     * Hand {@code stack} over, or THROW when it went nowhere. Throwing is the point: the payout layer
-     * catches it, asks for a replayable command, and parks the reward for the player's next connect.
+     * Hand {@code stack} over through the one delivery ({@link #handToPlayer}), answering how many
+     * landed, or THROW when none did. Throwing is the point: the payout layer catches it, asks for a
+     * replayable command, and parks the reward for the player's next connect.
+     *
+     * <p>With no overflow policy installed, a stack the bag would not take WHOLE ({@link #fits}) is not
+     * handed over at all and throws, so the park replays all of it rather than part of it twice. With
+     * a policy, a part the bag took stays taken: should the policy refuse only the rest, that rest is
+     * warned as lost and the answer counts what landed, never parked again.
      */
-    private static void deliver(@Nonnull Subject subject, @Nonnull ItemStack stack) throws Exception {
+    private static int deliver(@Nonnull Subject subject, @Nonnull ItemStack stack, @Nonnull String sourceId)
+            throws Exception {
         Player player = playerOf(subject);
         if (player == null) {
             throw new IllegalStateException("no player to grant '" + stack.getItemId() + "' to");
         }
-        boolean[] overflowed = {false};
-        InventoryGrant.Landed landed = InventoryGrant.grant(player, stack, leftover -> {
-            Overflow sink = OVERFLOW.get();
-            overflowed[0] = sink != null && sink.handle(subject, leftover);
-        });
-        if (landed == InventoryGrant.Landed.FALLBACK && !overflowed[0]) {
+        if (installedOverflow() == null && !fits(player, List.of(stack))) {
+            throw new IllegalStateException("'" + stack.getItemId() + "' did not fit and no overflow policy is"
+                    + " installed");
+        }
+        // A pile that went nowhere is parked, not lost, so its warning is kept back unless part landed.
+        List<String> notes = new ArrayList<>();
+        int landed = 0;
+        for (int quantity : handToPlayer(subject, sourceId, notes::add).build().spill(List.of(stack)).values()) {
+            landed += quantity;
+        }
+        if (landed <= 0) {
             throw new IllegalStateException("'" + stack.getItemId() + "' did not fit and nowhere to put it");
         }
+        notes.forEach(SafeLog::warn);
+        return landed;
+    }
+
+    /**
+     * The receipt row for an item reward of which {@code landed} reached the player: the reward itself,
+     * {@link RewardSpec#asPickupNoticed() pickup-noticed} since it landed through the one delivery, its
+     * {@code Count} cut to what landed when the rest was lost.
+     */
+    @Nonnull
+    private static RewardSpec landedRow(@Nonnull RewardSpec spec, int landed) {
+        RewardSpec row = landed < countOf(spec) ? spec.with("Count", Integer.toString(landed)) : spec;
+        return row.asPickupNoticed();
     }
 
     /**
@@ -1049,6 +1125,51 @@ public final class LootRewardKinds {
             return null;
         }
         return "give " + subject.name() + " " + itemId + " --quantity=" + (quantity == null ? count : quantity);
+    }
+
+    /**
+     * Replay one parked reward line for {@code subject}, who is back in a world: the drain of a retry
+     * queue a consumer keeps. A plain give line naming them, the {@code give <player> <item>
+     * --quantity=<n>} a parked {@code Item} or {@code Stamped_Item} reward is written as, pays as that
+     * {@code Item} reward through the shared grant pass ({@link RewardGrants#grantAll}), so it lands
+     * through the one delivery ({@link #handToPlayer}) with the game's own pickup notice, is announced
+     * as received, and parks again through {@code retryQueue} on exactly the terms a live grant parks
+     * (no live player, or no overflow policy and no room). A parked {@code Command} reward whose line
+     * is such a plain give pays the same way, since the queue keeps only the line. Any other line (a
+     * kind file's, a {@code Command} reward's, a give carrying more than a count) runs as the console,
+     * as a replay always did, and is warned about when it does not run.
+     *
+     * <p>World thread, since an item replay touches the player's inventory.
+     *
+     * @return true when the line was handed over or ran; false when it parked again or failed
+     */
+    public static boolean replayParked(@Nonnull String line, @Nonnull Subject subject, @Nonnull String sourceId,
+            @Nullable BiConsumer<Subject, String> retryQueue, @Nonnull Consumer<String> warn) {
+        RewardSpec item = parkedItem(line, subject);
+        if (item == null) {
+            return CommandRunner.run(line, null, warn);
+        }
+        return RewardGrants.grantAll(List.of(item), subject, sourceId, RewardKinds.shared(), retryQueue, warn)
+                .granted() > 0;
+    }
+
+    /**
+     * The {@code Item} reward a parked line hands over, or null when the line is anything but the plain
+     * give a parked item reward is written as ({@link #replayGive}): the verb, {@code subject}'s own
+     * name, an item and at most a {@code --quantity=<n>} over zero. The count is read through
+     * {@link CommandRunner#readGive}, the one reading of a give line.
+     */
+    @Nullable
+    private static RewardSpec parkedItem(@Nonnull String line, @Nonnull Subject subject) {
+        CommandRunner.Give give = CommandRunner.readGive(line);
+        if (give == null || give.quantity() <= 0 || !give.target().equalsIgnoreCase(subject.name())) {
+            return null;
+        }
+        String[] parts = line.trim().split("\\s+");
+        boolean plain = parts.length == 3
+                || (parts.length == 4 && parts[3].toLowerCase(Locale.ROOT).startsWith("--quantity="));
+        return plain ? RewardSpec.of(KIND_ITEM, Map.of("Item", give.itemId(),
+                "Count", Integer.toString(give.quantity()))) : null;
     }
 
     /** Every parameter key these kinds read, for a validator that wants to warn about a typo. */

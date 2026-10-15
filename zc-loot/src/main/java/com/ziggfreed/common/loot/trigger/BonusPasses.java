@@ -25,9 +25,11 @@ import com.ziggfreed.common.instance.reward.NativeLootService;
 import com.ziggfreed.common.loot.FactorLookup;
 import com.ziggfreed.common.loot.GroundSpillSinks;
 import com.ziggfreed.common.loot.LootEngine;
+import com.ziggfreed.common.loot.reward.LootRewardKinds;
 import com.ziggfreed.common.loot.reward.MomentItems;
 import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * A bonus row's pass, once its chance has fired: where each moment's loot lands and the one roll and
@@ -36,8 +38,9 @@ import com.ziggfreed.common.subject.Subject;
  * <p>The landings are fixed per moment. A broken block's bonus drops just above the block's centre,
  * and every stack it spills counts as found ({@link #atBlock}). A kill's drops at the corpse, as the
  * engine drops a dying entity's own loot, counting only what landed ({@link #atCorpse}). A harvest's
- * goes where the player's own pickup settings route it, partial stacks filled, and only the rest
- * lands as one pile at their feet ({@link #atHarvester}).
+ * is handed to the player as any loot is ({@link #atHarvester}): where their own pickup settings
+ * route it, partial stacks filled, with the game's own pickup notice and sound, and only the rest
+ * lands as one pile at their feet.
  *
  * <p>A harvest's pass runs LATER than the pickup that earned it: the engine fires its pickup event
  * before it gives the harvested stack, so the pass waits for one world task ({@link #afterHarvest})
@@ -49,6 +52,9 @@ public final class BonusPasses {
 
     /** A broken block's spill counts as found whatever the ground answered: the released lucky-break rule. */
     static final boolean BLOCK_COUNTS_EVERY_SPILL = true;
+
+    /** What a harvest's hand-over is called in the line a pile the overflow policy lost leaves. */
+    static final String HARVEST_SOURCE = "bonus:harvest";
 
     private BonusPasses() {
     }
@@ -87,10 +93,19 @@ public final class BonusPasses {
         return GroundSpillSinks.atEntity(store, buffer, victim);
     }
 
-    /** A harvest's landing: the player's own pickup routing, the rest one pile at their feet. */
+    /**
+     * A harvest's landing: handed to the player the one way the library hands any loot straight to a
+     * player ({@link LootRewardKinds#handToPlayer}): where their own pickup settings route it, with the
+     * game's own pickup notice and sound, and only the rest to the overflow policy at their feet. With
+     * no live player behind {@code player}, everything lands at {@code ref}'s feet.
+     */
     @Nonnull
     public static GroundSpillSinks.Builder atHarvester(@Nonnull Ref<EntityStore> ref, @Nullable Player player) {
-        return GroundSpillSinks.at(stacks -> NativeLootService.spawnAtFeet(ref, stacks)).pickupRoutedFirst(player);
+        Subject harvester = Subject.of(player);
+        if (harvester == null) {
+            return GroundSpillSinks.at(stacks -> NativeLootService.spawnAtFeet(ref, stacks));
+        }
+        return LootRewardKinds.handToPlayer(harvester, HARVEST_SOURCE, SafeLog::warn);
     }
 
     // ==================== the pass ====================

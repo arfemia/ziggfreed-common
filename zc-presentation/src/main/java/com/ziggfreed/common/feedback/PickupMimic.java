@@ -11,12 +11,12 @@ import com.hypixel.hytale.protocol.SoundCategory;
 import com.hypixel.hytale.protocol.packets.interface_.NotificationStyle;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.asset.type.soundevent.config.SoundEvent;
-import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.SoundUtil;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.util.NotificationUtil;
+import com.ziggfreed.common.loot.GroundSpillSinks;
 import com.ziggfreed.common.util.AssetIndexCache;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -93,17 +93,15 @@ public final class PickupMimic {
     }
 
     /**
-     * Byte-exact native-pickup mimicry: delegates straight to {@code Player#notifyPickupItem}
-     * (message + item-icon Notification + SFX, all gated exactly like a genuine pickup) - zero
-     * re-derivation of the native message text, so it can never drift. Never throws.
+     * Byte-exact native-pickup mimicry: the engine's own {@code Player#notifyPickupItem} (message +
+     * item-icon Notification + SFX, all gated exactly like a genuine pickup) through zc-loot's
+     * {@link GroundSpillSinks#noticeLikePickup}, the one caller of it, which a loot hand-over that
+     * lands as a pickup uses too - zero re-derivation of the native message text, so it can never
+     * drift. Never throws.
      */
     public static void notifyLikeNativePickup(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
             @Nonnull ItemStack itemStack, @Nullable Vector3d position) {
-        try {
-            Player.notifyPickupItem(ref, itemStack, position, store);
-        } catch (Throwable t) {
-            warn("notifyLikeNativePickup", t);
-        }
+        GroundSpillSinks.noticeLikePickup(ref, itemStack, position, store);
     }
 
     /**

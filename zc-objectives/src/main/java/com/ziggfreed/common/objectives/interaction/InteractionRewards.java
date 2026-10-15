@@ -42,6 +42,11 @@ import com.ziggfreed.common.util.SafeLog;
  * table reads as the currency, items, costume or favor it actually paid and never as its own name. Both
  * payout sites outside a quest pay through here, a conversation's {@code Grant} and a used item's
  * {@code ZigGrantReward}, so neither keeps a toast of its own.
+ *
+ * <p>Every item a payout hands over (an item reward, a rolled table's items) lands as a pickup, each
+ * with the game's own pickup notice, so with no page open the corner shows only the rest of the
+ * receipt (currency, reputation, a consumer's own kinds), and nothing more for a payout of items
+ * alone; a page still lists every row. {@link ToastDelivery} holds that rule for every producer.
  */
 public final class InteractionRewards {
 
@@ -161,7 +166,7 @@ public final class InteractionRewards {
     /**
      * Where a receipt toast goes in play: to {@code playerRef}, where they are looking once the line or the use
      * that paid has settled ({@link ToastDelivery#deliverWhenSettled}): into the page they have open, else the
-     * corner feed.
+     * corner feed, less the rows the game's own pickup notices already said.
      */
     @Nonnull
     public static Consumer<ToastSpec> toPlayer(@Nonnull PlayerRef playerRef) {

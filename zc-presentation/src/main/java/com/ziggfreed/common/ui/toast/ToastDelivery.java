@@ -26,6 +26,11 @@ import com.ziggfreed.common.util.SafeLog;
  * row, since a feed notice is a title with no rows. It is the rule a feedback moment's toast follows, as one
  * helper for a producer that composes its own {@link ToastSpec}.
  *
+ * <p>The corner never repeats the game's own pickup notices: a row marked {@link ToastLine#pickupNoticed()} (an
+ * item that landed as a pickup, whose notice already sits in that feed) is left out there, and a toast whose
+ * every row was so marked shows nothing in the corner and plays no sound, the pickup's own having played. A
+ * page still draws every row. This is the one place that rule lives, for every producer.
+ *
  * <p>The toast's sound ({@link ToastSpec#effectiveSoundId}) plays once wherever it is shown: the page plays it
  * as it draws the toast, and the corner plays it once for the whole toast, however many notices its rows
  * become ({@link ToastSounds#play}).
@@ -107,7 +112,7 @@ public final class ToastDelivery {
     /**
      * The decision, with no server behind it: the whole toast to {@code page} while one is showing (the page
      * plays its sound as it draws it), else each of {@link #feedRows} to {@code corner} and the toast's sound,
-     * when it has one, to {@code sound} once.
+     * when it has one, to {@code sound} once; with no feed row left (every row pickup-noticed), nothing at all.
      */
     static void route(boolean pageShowing, @Nonnull ToastSpec spec, @Nullable IntFunction<Message> overflow,
             @Nonnull Consumer<ToastSpec> page, @Nonnull Consumer<ToastLine> corner, @Nonnull Consumer<String> sound) {
@@ -115,7 +120,11 @@ public final class ToastDelivery {
             page.accept(spec);
             return;
         }
-        for (ToastLine row : feedRows(spec, overflow)) {
+        List<ToastLine> rows = feedRows(spec, overflow);
+        if (rows.isEmpty()) {
+            return;
+        }
+        for (ToastLine row : rows) {
             corner.accept(row);
         }
         String soundId = spec.effectiveSoundId();
@@ -127,6 +136,8 @@ public final class ToastDelivery {
     /**
      * What the corner feed shows of {@code spec}: one notice per row, in order, at most {@link #FEED_ROWS}, the
      * last spent on {@code overflow} when more did not fit; a toast with no rows is its headline and picture.
+     * A {@link ToastLine#pickupNoticed() pickup-noticed} row is left out, since the game's own notice for it is
+     * already in the feed, and a toast whose every row was is empty here: it shows nothing, not its headline.
      *
      * <p>A sectioned toast ({@link RewardToastLines}) reads flat here, as it always did: a notice is a title with
      * no rows under it, so a section's heading is dropped, an indented row is a plain notice, and the overflow
@@ -135,13 +146,16 @@ public final class ToastDelivery {
     @Nonnull
     static List<ToastLine> feedRows(@Nonnull ToastSpec spec, @Nullable IntFunction<Message> overflow) {
         List<ToastLine> rows = new ArrayList<>(spec.lines().size());
+        boolean noticed = false;
         for (ToastLine row : spec.lines()) {
-            if (!row.heading()) {
+            if (row.pickupNoticed()) {
+                noticed = true;
+            } else if (!row.heading()) {
                 rows.add(row.indented() ? row.withIndented(false) : row);
             }
         }
         if (rows.isEmpty()) {
-            return List.of(new ToastLine(spec.iconItemId(), 1, spec.message()));
+            return noticed ? List.of() : List.of(new ToastLine(spec.iconItemId(), 1, spec.message()));
         }
         if (rows.size() <= FEED_ROWS) {
             return List.copyOf(rows);

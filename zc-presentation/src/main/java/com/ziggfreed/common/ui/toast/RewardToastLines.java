@@ -40,6 +40,12 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
  * "x3 Iron Bar"), so a quantity on the icon would say it twice - the same reason the book surfaces
  * paint every chip's icon as a single item.
  *
+ * <p><b>A pickup-noticed row says so.</b> A receipt row whose item landed as a pickup
+ * ({@link RewardSpec#pickupNoticed()}: an item reward or a rolled table's items, each with the
+ * game's own pickup notice)
+ * becomes a line marked {@link ToastLine#pickupNoticed()}, so a page still lists it and the corner
+ * feed, which already holds that notice, leaves it out ({@link ToastDelivery}).
+ *
  * <p>The overflow line is the CALLER's because its words belong to the caller's own lang file; a
  * null supplier simply drops the rows past the cap. Each entry point also takes a {@code maxRows}
  * form for a caller with a budget NARROWER than the panel's own (an authored per-moment cap): at
@@ -235,7 +241,8 @@ public final class RewardToastLines {
      * {@code rewards} read through {@code row} and grouped into contiguous runs of the same origin
      * (by identity), in receipt order. A row that reads as nothing is left out, so a lootable that
      * rolled nothing readable adds no run, and the readable rows on either side of an unreadable one
-     * stay one run.
+     * stay one run. A row whose reward was {@link RewardSpec#pickupNoticed() pickup-noticed} is marked
+     * so on its line ({@link ToastLine#withPickupNoticed}), whoever's reading built it.
      */
     @Nonnull
     private static List<Run> runsOf(@Nonnull List<RewardSpec> rewards,
@@ -248,6 +255,9 @@ public final class RewardToastLines {
             ToastLine line = row.apply(spec);
             if (line == null) {
                 continue;
+            }
+            if (spec.pickupNoticed()) {
+                line = line.withPickupNoticed(true);
             }
             Run last = runs.isEmpty() ? null : runs.get(runs.size() - 1);
             if (last == null || last.origin() != spec.origin()) {

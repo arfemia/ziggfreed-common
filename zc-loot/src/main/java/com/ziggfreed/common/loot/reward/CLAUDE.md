@@ -2,13 +2,13 @@
 
 - The framework's own kind ids are unprefixed (`Item`, `Stamped_Item`, `Droplist`); a consumer's carry its mod prefix (`Mmo_Xp`).
 - Nothing here learns a domain: currency, levels and titles are kinds registered by the mod that owns the concept.
-- A handler throws when a reward went nowhere or cannot name what it pays (a quiet return reports it paid), and writes `retryCommand` whenever the reward is replayable.
-- A handler reports on the receipt only what reached the player, after handing it over. A toast after a payout lists `GrantOutcome.receiptOf(paid)`, never the authored list; only `Quest_Parked` lists the authored rewards.
+- A handler throws when a reward went nowhere or cannot name what it pays (a quiet return reports it paid), and writes `retryCommand` whenever the reward is replayable; a queue's drain replays a line through `LootRewardKinds.replayParked` (a plain give pays as an `Item`).
+- A handler reports on the receipt only what reached the player, after handing it over. A toast after a payout lists `GrantOutcome.receiptOf(paid)`, never the authored list; only `Quest_Parked` lists the authored rewards. A row whose item landed as a pickup is marked `asPickupNoticed` (the corner skips it), kept by `with` and `withOrigin`.
 - A kind that resolves into other rows (`Lootable`) stamps each with `RewardSpec.withOrigin(spec)`, the outermost overwriting a nested one; a toast sections by that origin only through zc-presentation's `RewardToastLines`, never a per-caller grouping.
-- `canAdd` answers about one reward: check a list with `canAddAll`, never `canAdd` in a loop.
+- `canAdd` answers about one reward: check a list with `canAddAll`, never `canAdd` in a loop. Both ask `GroundSpillSinks.pickupFits`, the room `handToPlayer` fills.
 - Prefer the `Item` kind to a `Command` running `/give` (it is fit-checked and queueable); a `Command` whose line is a give still counts as an item in the fit probe. A kind file whose command hands over an item names it in `Hands` (`Item`, `Count`, default 1), and the probe counts it in the same batch, read off the fold's `CommandRewardKind` on `RewardKinds.shared()`, never a second table.
 - `Droplist` spills on the ground, needs no room and has no `retryCommand`: a replay would roll differently.
-- The overflow policy answers a pile through `Overflow.handleAll`, all or nothing, since the ground-spill preset counts a pile whole (the default loops `handle`; a policy that lands a pile in one go overrides it). A top-level `Item` or `Stamped_Item` that lands nowhere throws and parks; a rolled table's pile has no replayable form, so with the policy cleared or refusing it is lost and warned.
+- The overflow policy answers a pile through `Overflow.handleAll`, all or nothing, since the ground-spill preset counts a pile whole (the default loops `handle`; a policy that lands a pile in one go overrides it). A top-level `Item` or `Stamped_Item` that lands nowhere (with no policy, one the bag would not take whole) throws and parks; a rolled table's pile has no replayable form, so with the policy cleared or refusing it is lost and warned.
 - `RewardKindFold.foldInto` runs last, so an authored kind file overrides a Java kind with one warning per shadow; never move it earlier to hide the warning.
 - A command-less kind file whose id a Java kind answers is presentation-only decoration; with no Java kind behind it, it is a `NO_COMMAND` error.
 - A kind file's declared `Params` are the whole surface its `Command` line can substitute.
