@@ -14,7 +14,7 @@ The shared library behind Ziggfreed's Hytale mods. It runs their menus, quests, 
 - A Claims tab where the rewards you earn wait until you take them, so a full bag never costs you one. Boss rewards land there too, and nothing on it runs out.
 - Dungeons, when a mod or pack adds one, such as the Horseman's Graveyard in [Seasons of Orbis](https://www.curseforge.com/hytale/mods/seasons-of-orbis). Go in through a block, a character or a line in a conversation, and your party gets an area of its own. Clear it and a results screen shows your time, with a reward to claim.
 - Parties. Type `/zigparty` to start one and invite up to four players who are online. It works with CommonLib alone.
-- Records ranks every player by numbers like Mobs Defeated, Blocks Broken and Playtime, for this week, this month, each season and all time. Boss Fights keeps every fight's wins and best times. The Dungeons tab ranks the runs you start, clear and fail.
+- Records ranks every player by numbers like Mobs Defeated, Blocks Broken and Playtime, for this week, this month, each season and all time. On the Bosses tab, pick a boss to see its wins and fastest times, and who beat it first. The Dungeons tab ranks the runs you start, clear and fail, and each dungeon's fastest clear. The game's own Deepworks counts too.
 - Titles. Earn them from quests and achievements, then pick one in Settings, under Title, to show beside your name.
 - Reputation with characters and factions, from Hated to Exalted. A bar fills as you earn it, and a notice marks each new rank. Gear can make you earn it faster.
 - The shop, bounty board and conversation screens that open when you press F on a trader, a board or a character.

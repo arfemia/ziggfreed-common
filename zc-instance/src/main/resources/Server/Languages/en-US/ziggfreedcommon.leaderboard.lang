@@ -1,5 +1,5 @@
 # The library's own words for a records screen (the column, sort and view words every records page
-# shares, Records' Boss Fights included), so they read on a server running nothing else.
+# shares, Records' Bosses tab included), so they read on a server running nothing else.
 # The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.leaderboard.<key>.
 # The screen paints every line on a label's TextSpans, so a line may take a parameter, except a
 # tooltip (tip.*), which prints one as written. A fight names its own screen through its binding
