@@ -574,8 +574,10 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                         .metadata(EditorSchema.defaultValue(false))
                         .documentation("A main quest: a list shows it first in its section, with a gold bar and "
                                 + "the main-quest mark. Pure presentation; the engine never reads it. A quest a "
-                                + "board posts reads as the board's contract, and one with a Repeat rule as a "
-                                + "quest that comes round again, whatever this says. Unauthored means a side quest.")
+                                + "board posts reads as the board's contract, and one whose Repeat has a "
+                                + "periodic Reset or a Cooldown as a quest that comes round again, whatever this "
+                                + "says. A main quest that repeats only once per event run (PerRun) stays a main "
+                                + "quest. Unauthored means a side quest.")
                         .add()
                         .build();
 

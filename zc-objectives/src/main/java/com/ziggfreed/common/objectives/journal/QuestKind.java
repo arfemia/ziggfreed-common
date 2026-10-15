@@ -9,7 +9,10 @@ import com.ziggfreed.common.ui.kit.RowAccent;
 /**
  * What kind of quest a list row says it is, from what the library already knows and the one fact an author writes:
  * a contract a board posts is a bounty, a quest with a {@code Repeat} rule comes round again, a quest marked
- * {@code Listing.MainLine} is a main quest, and anything else is a side quest, in that order. The kind picks the
+ * {@code Listing.MainLine} is a main quest, and anything else is a side quest, in that order. One exception: a main
+ * quest whose only repeat is once per run of a calendar event ({@link Quest.Repeat#oncePerRunOnly}, a yearly story)
+ * is still a main quest, since the story is the point and the event brings it round; a main quest with a rolling
+ * wait or a periodic reset (a daily) stays repeatable. The kind picks the
  * glyph the row's meta line opens with, and a main quest wears the gold bar and lists first in its section; every
  * other kind leaves the bar off, since the row's state pill already carries its tone.
  */
@@ -36,7 +39,8 @@ public enum QuestKind {
         if (boardManaged) {
             return BOUNTY;
         }
-        if (q.repeat() != null) {
+        Quest.Repeat repeat = q.repeat();
+        if (repeat != null && !(q.mainLine() && repeat.oncePerRunOnly())) {
             return REPEATABLE;
         }
         return q.mainLine() ? MAIN : SIDE;

@@ -184,6 +184,16 @@ public final class Quest {
         }
 
         /**
+         * Whether the only thing that brings this quest round is a calendar event's next run: a
+         * {@link PerRun} allowance with no rolling wait and no {@link Reset} window beside it. A
+         * lifetime {@link #maxCompletions()} cap only limits, it does not bring the quest round, so it
+         * does not count against this.
+         */
+        public boolean oncePerRunOnly() {
+            return perRun != null && reset == null && cooldownMs == 0L;
+        }
+
+        /**
          * How often this quest comes round, in the ONE vocabulary every surface classifies with
          * ({@link QuestCadence#of}): a once-a-run allowance reads {@link QuestCadence#SEASONAL} whatever
          * else is authored, and otherwise the longer of the rolling wait and the calendar window decides.
@@ -581,7 +591,7 @@ public final class Quest {
     /**
      * Whether the author marked this a main quest ({@code Listing.MainLine}); false for a side quest.
      * Stamped by whoever folded the catalogue; the engine never reads it. A listing shows a main
-     * quest first, marked as one, unless a board posts it or it repeats.
+     * quest first, marked as one, unless a board posts it or it repeats on a clock (a once-a-run quest still lists as main).
      */
     public boolean mainLine() {
         return mainLine;
