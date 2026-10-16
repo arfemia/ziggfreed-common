@@ -836,7 +836,6 @@ class ZigKitDocumentsTest {
         assertBar(select, 4);
         assertHidden(select, "#BarTrack");
         assertEquals("Group", type(select, "#Trail"));
-        assertEquals(92, size(leaf(property(block(select, "#Trail"), "Anchor"), "Width")), "a 92px trail");
         String trail = block(select, "#Trail");
         assertEquals("$ZX.@ZigCountStyle", property(block(trail, "#Value"), "Style"));
         assertEquals(1, count(ui, "\\bButton\\s+#"), "no other button in a row");

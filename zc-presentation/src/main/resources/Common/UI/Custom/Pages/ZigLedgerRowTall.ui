@@ -16,7 +16,8 @@ $ZW = "../Common/ZigKit.ui";
 //   #MetaLine #Kind (the 14px glyph: #Star, #Scroll or #Clock), then #Meta, two lines high under the title, a
 //             longer one ending its second line with "..."
 //   #BarTrack a 4px progress bar under the meta, hidden without progress
-//   #Trail    92 wide at the end: #Value over #StatePill, the state word #State on its tone's pill
+//   #Trail    92 wide at the end: #Value over #StatePill, the state word #State on its tone's pill (narrower
+//             than the standard row's 120, since the Almanac, its one host, paints no state pill)
 // No other button and no tooltip in a row: a label with a tooltip would swallow the row's click.
 // Like the standard row it fixes no height and grows to fit a title on two lines, over #RowStrut and the
 // title line's #TitleStrut; Pages/ZigLedgerRow.ui says how, and which client and vanilla documents each shape

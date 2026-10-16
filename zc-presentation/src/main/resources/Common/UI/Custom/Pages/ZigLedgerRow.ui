@@ -18,7 +18,7 @@ $ZW = "../Common/ZigKit.ui";
 //   #MetaLine under the title: #Kind, a 14px glyph saying what kind of row it is (#Star, #Scroll or #Clock, each
 //             in its own ink; MetaGlyph), then #Meta ("3 / 10 ghouls", "Bounty - Day"), up to two lines
 //   #BarTrack a 4px progress bar under the meta, hidden without progress
-//   #Trail    92 wide at the end: #Value (points, a count, how long until a quest comes back) over #StatePill, the
+//   #Trail    120 wide at the end: #Value (points, a count, how long until a quest comes back) over #StatePill, the
 //             tone's state word (#State, one or two words, never a sentence) centred on a rounded pill tinted to
 //             the tone (Common/Kit/Pill.png, a white patch the painter tints)
 // No other button and no tooltip in a row: a label with a tooltip would swallow the row's click.
@@ -143,7 +143,7 @@ Group #ZigLedgerRow {
     }
 
     Group #Trail {
-      Anchor: (Width: 92, Left: $ZK.@ZigSpace2);
+      Anchor: (Width: 120, Left: $ZK.@ZigSpace2);
       LayoutMode: Top;
       Padding: (Top: 9);
 

@@ -86,7 +86,7 @@ class ZigNpcQuestPageDocumentTest {
 
     /**
      * The list column is 450, wide enough that a row's title reads on one line beside its pin and its meta line
-     * reads whole beside the trail; the frame grew by the same 110, so the reading page on the right keeps the
+     * fits beside the trail in at most two lines; the frame grew by the same 110, so the reading page on the right keeps the
      * 710 it is laid out for.
      */
     @Test

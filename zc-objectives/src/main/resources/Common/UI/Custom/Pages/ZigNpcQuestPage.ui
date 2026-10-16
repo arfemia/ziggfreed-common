@@ -15,7 +15,7 @@ $ZW = "../Common/ZigKit.ui";
 // Mine segments (#TabHere, #TabMine), and #QuestList, where com.ziggfreed.common.ui.kit.LedgerPainter appends one
 // Pages/ZigLedgerSection.ui per section and a Pages/ZigLedgerRow.ui per quest. The segments stay on screen when a
 // list is empty, so there is always a way to the other list. At 450 a row's title reads on one line with its pin,
-// and its meta line ("Hallow's Eve - Daily - Old Jack") reads whole beside the trail's 92.
+// and its meta line ("Hallow's Eve - Daily - Old Jack") sits beside the trail's 120, a long one taking its second line.
 //
 // RIGHT, #RightPanel (710 wide, padded to a 640 page): #Page, the kit's reading page (@ZigDetailPage: the header
 // with the Track toggle, progress, the quest's text, its blocks, and the action bar), painted by

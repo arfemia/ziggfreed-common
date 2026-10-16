@@ -71,7 +71,7 @@ Group #ZigLedgerRowCompact {
     }
 
     Group #Trail {
-      Anchor: (Width: 92, Left: $ZK.@ZigSpace2);
+      Anchor: (Width: 120, Left: $ZK.@ZigSpace2);
       LayoutMode: Top;
       Padding: (Top: 3);
 
