@@ -35,7 +35,8 @@ import com.ziggfreed.common.season.SeasonGate;
  * {
  *   "Instance": "ZiggfreedCommon_Dungeon_Void",
  *   "Share": { "PartyLocked": true, "MaxPlayers": 5, "AreasPerCopy": 4 },
- *   "Area": { "Prefab": "MyPack/Crypt/Crypt_Main.prefab.json", "Spacing": 2048, "EntryOffset": { "Y": 1 }, "EntryYaw": 180 },
+ *   "Area": { "Prefab": "MyPack/Crypt/Crypt_Main.prefab.json", "Spacing": 2048, "EntryOffset": { "Y": 1 }, "EntryYaw": 180,
+ *             "IntroCamera": "MyPack_Crypt_Intro" },
  *   "Run": { "TimeLimitSeconds": 900, "FailOnWipe": false },
  *   "Complete": { "Bosses": ["MyPack_Crypt_Lich"], "AllBosses": false,
  *                 "Objective": { "Kind": "PICKUP_ITEM", "Target": "MyPack_Crypt_Relic", "Amount": 3 },
@@ -255,6 +256,13 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
     public float entryYaw() {
         Float v = area == null ? null : area.entryYaw;
         return v == null ? 0f : v;
+    }
+
+    /** {@code Area.IntroCamera}: the camera sequence an arriving player watches, or null for none. */
+    @Nullable
+    public String introCamera() {
+        String v = area == null ? null : area.introCamera;
+        return v == null || v.isBlank() ? null : v.trim();
     }
 
     /** {@code Run.TimeLimitSeconds}, or null when the run has no time limit (unauthored, zero or less). */
@@ -489,6 +497,7 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
         @Nullable protected Integer spacing;
         @Nullable protected Vec3 entryOffset;
         @Nullable protected Float entryYaw;
+        @Nullable protected String introCamera;
 
         public static final BuilderCodec<Area> CODEC = BuilderCodec.builder(Area.class, Area::new)
                 .appendInherited(new KeyedCodec<>("Prefab", Codec.STRING, false),
@@ -512,6 +521,12 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
                 .documentation("Which way an arriving player faces, in degrees: 0 faces north (toward negative Z), "
                         + "90 faces west (negative X), 180 faces south (positive Z) and 270 faces east. Pitch is "
                         + "always level. Unauthored means 0, how a player arrives with no facing written.").add()
+                .appendInherited(new KeyedCodec<>("IntroCamera", Codec.STRING, false),
+                        (o, v) -> o.introCamera = v, o -> o.introCamera, (o, p) -> o.introCamera = p.introCamera)
+                .documentation("A camera sequence (Server/ZiggfreedCommon/CameraSequences/<Id>.json) each player "
+                        + "watches as they arrive, its positions measured from the spot the prefab is pasted at. "
+                        + "Their movement is held while it plays and the view returns to them at its end. "
+                        + "Unauthored means no intro.").add()
                 .build();
 
         public Area() {

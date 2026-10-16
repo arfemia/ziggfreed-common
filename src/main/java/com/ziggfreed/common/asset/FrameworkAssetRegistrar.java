@@ -13,6 +13,7 @@ import com.hypixel.hytale.server.core.event.events.BootEvent;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.Interaction;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.camera.CameraSequenceAsset;
 import com.ziggfreed.common.damage.HitTags;
 import com.ziggfreed.common.dialogue.style.DialogueOptionThemeConfig;
 import com.ziggfreed.common.dialogue.asset.DialogueAssetStore;
@@ -454,6 +455,13 @@ public final class FrameworkAssetRegistrar {
                     DungeonConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
                     DungeonOwnerLayers.reload();
                 });
+
+        // --- Camera sequences - a short camera move per file (keyframes from an origin the caller gives),
+        //     played through the engine's native camera sequence by camera/CameraSequences; a dungeon's
+        //     Area.IntroCamera names one. Read straight from the store, so no fold and no owner layer. ---
+        AssetStoreRegistrar.registerStore(CameraSequenceAsset.class,
+                new DefaultAssetMap<String, CameraSequenceAsset>(), CameraSequenceAsset.TYPE_ROOT,
+                CameraSequenceAsset::getId, CameraSequenceAsset.CODEC, null);
 
         // --- Dialogue option theme (Pattern A) - the data-driven look per option style kind. Common
         //     ships the neutral defaults as its own pack (DialogueOptionTheme/*.json); a consumer pack

@@ -78,7 +78,9 @@ final class DungeonGoals {
      */
     static void showSoon(@Nonnull UUID player, @Nonnull CopyKey area, @Nonnull UUID runId, @Nonnull Goal goal) {
         try {
-            HytaleServer.SCHEDULED_EXECUTOR.schedule(() -> showIfStillThere(player, area, runId, goal), DELAY_MS,
+            // A dungeon with a camera intro shows its goal once the intro has played (DungeonIntro).
+            long delayMs = DungeonIntro.goalDelayMs(goal.dungeonId());
+            HytaleServer.SCHEDULED_EXECUTOR.schedule(() -> showIfStillThere(player, area, runId, goal), delayMs,
                     TimeUnit.MILLISECONDS);
         } catch (Throwable t) {
             SafeLog.warn(LOG + "the goal of " + goal.dungeonId() + " could not be queued for " + player, t);

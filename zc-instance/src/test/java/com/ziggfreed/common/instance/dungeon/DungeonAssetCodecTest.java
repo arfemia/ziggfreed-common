@@ -35,7 +35,8 @@ class DungeonAssetCodecTest {
               "Enabled": false,
               "Share": { "PartyLocked": false, "MaxPlayers": 3, "AreasPerCopy": 2 },
               "Area": { "Prefab": "Server/Prefabs/MyPack/Crypt/Crypt_Main.prefab.json", "Spacing": 4096,
-                        "EntryOffset": { "X": 1.5, "Y": 2, "Z": -3 }, "EntryYaw": 180 },
+                        "EntryOffset": { "X": 1.5, "Y": 2, "Z": -3 }, "EntryYaw": 180,
+                        "IntroCamera": " MyPack_Crypt_Intro " },
               "Run": { "TimeLimitSeconds": 900, "FailOnWipe": true },
               "Copy": { "EmptyCloseSeconds": 30 },
               "Complete": { "Bosses": [" Crypt_Lord_Encounter ", "", "Crypt_Lord_Encounter", "Crypt_Lich_Encounter"],
@@ -71,6 +72,7 @@ class DungeonAssetCodecTest {
         assertEquals(DungeonAsset.DEFAULT_SPACING, bare.spacing());
         assertEquals(0.0, bare.entryOffset().effectiveY());
         assertEquals(0f, bare.entryYaw(), "no EntryYaw arrives facing north, as before");
+        assertNull(bare.introCamera(), "no IntroCamera plays no intro");
         assertNull(bare.timeLimitSeconds(), "no time limit unless one is written");
         assertFalse(bare.failOnWipe());
         assertEquals(DungeonAsset.DEFAULT_EMPTY_CLOSE_SECONDS, bare.emptyCloseSeconds());
@@ -98,6 +100,7 @@ class DungeonAssetCodecTest {
         assertNull(child.timeLimitSeconds(), "zero is no time limit");
         assertTrue(child.failOnWipe());
         assertEquals("MyPack/Crypt/Crypt_Main.prefab.json", child.prefabPath(), "an unrestated group is inherited");
+        assertEquals("MyPack_Crypt_Intro", child.introCamera(), "the intro is inherited with its group");
         assertEquals("Hallows_Eve", child.getSeason());
         assertFalse(child.completeAllBosses(), "the restated leaf is the child's");
         assertEquals(List.of("Crypt_Lord_Encounter", "Crypt_Lich_Encounter"), child.completeBosses(),
@@ -185,6 +188,7 @@ class DungeonAssetCodecTest {
         assertEquals(2.0, crypt.entryOffset().effectiveY());
         assertEquals(-3.0, crypt.entryOffset().effectiveZ());
         assertEquals(180f, crypt.entryYaw());
+        assertEquals("MyPack_Crypt_Intro", crypt.introCamera(), "IntroCamera reads trimmed");
         assertEquals(Integer.valueOf(900), crypt.timeLimitSeconds());
         assertTrue(crypt.failOnWipe());
         assertEquals(30, crypt.emptyCloseSeconds());

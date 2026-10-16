@@ -279,6 +279,7 @@ public final class AreaMembers {
             return;
         }
         String line;
+        AreaLayout arrivedIn = null;
         synchronized (this) {
             if (members.get(member.player) != member) {
                 return;
@@ -290,6 +291,7 @@ public final class AreaMembers {
                 member.world = world;
                 member.worldId = world.getWorldConfig().getUuid();
                 member.layout = layoutOf(world);
+                arrivedIn = member.layout;
                 CopyRouter.shared().arrived(member.player);
                 DungeonRuns.shared().arrived(member.area, world, member.player, onTheWayInto(member.area), now);
                 Vector3d at = player == null ? null : player.getTransform().getPosition();
@@ -316,6 +318,12 @@ public final class AreaMembers {
             }
         }
         SafeLog.info(LOG + line);
+        // The area's camera intro, outside the lock: played on arrival, its view handed back on any way out.
+        if (verdict == Verdict.ARRIVED) {
+            DungeonIntro.playSoon(member.player, member.area, arrivedIn);
+        } else {
+            DungeonIntro.stop(member.player);
+        }
     }
 
     /** The copy {@code member} arrived in, else the one their teleport was waiting on, else null. */
