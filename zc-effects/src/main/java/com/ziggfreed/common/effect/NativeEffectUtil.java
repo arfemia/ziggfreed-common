@@ -29,7 +29,8 @@ import it.unimi.dsi.fastutil.objects.ObjectOpenCustomHashSet;
  *       ASSET-AUTHORITATIVE 3-arg engine overload ({@code addEffect(ref, entityEffect,
  *       accessor)}): duration, {@code OverlapBehavior}, and the infinite flag all come from the
  *       effect ASSET itself. Use this when the asset already authors the right lifetime (a
- *       one-shot on-hit effect, an authored-infinite aura).</li>
+ *       one-shot on-hit effect, an authored-infinite aura). An infinite effect the entity already
+ *       wears is not added again ({@link EffectAdds}), so a repeat never restarts its visuals.</li>
  *   <li>{@link #applyFor(Store, Ref, String, float, OverlapBehavior)} /
  *       {@link #applyFor(ComponentAccessor, Ref, String, float, OverlapBehavior)} - the
  *       DURATION-OVERRIDE 5-arg engine overload ({@code addEffect(ref, entityEffect, duration,
@@ -41,7 +42,8 @@ import it.unimi.dsi.fastutil.objects.ObjectOpenCustomHashSet;
  *       accessor)}): the effect stays on until removed, whatever its asset authors. For an entity
  *       with no {@code EntityStatMap} (a puppet, a prop), where the engine's effect timer never
  *       runs and a timed apply would never end; pair it with {@code remove} on the caller's own
- *       clock.</li>
+ *       clock. A repeat while it is already on with no expiry is not added again
+ *       ({@link EffectAdds}).</li>
  *   <li>{@link #remove(Store, Ref, String)} / {@link #remove(ComponentAccessor, Ref, String)} -
  *       resolves {@code effectId} to its current engine index and calls
  *       {@code EffectControllerComponent.removeEffect}. Safe to call for an effect that is not
@@ -100,7 +102,8 @@ public final class NativeEffectUtil {
             return false;
         }
         try {
-            EntityEffect fx = resolveAsset(effectId);
+            int idx = EntityEffect.getAssetMap().getIndex(effectId);
+            EntityEffect fx = idx == Integer.MIN_VALUE ? null : EntityEffect.getAssetMap().getAsset(idx);
             if (fx == null) {
                 warnUnresolvedOnce("apply", effectId);
                 return false;
@@ -110,7 +113,7 @@ public final class NativeEffectUtil {
                 fine("apply: entity has no EffectControllerComponent - skipping " + effectId);
                 return false;
             }
-            return ctrl.addEffect(ref, fx, accessor);
+            return EffectAdds.asAuthored(ctrl, ref, idx, fx, accessor);
         } catch (Throwable t) {
             warn("apply: '" + effectId + "' failed: " + t.getMessage());
             return false;
@@ -203,7 +206,7 @@ public final class NativeEffectUtil {
                 fine("applyInfinite: entity has no EffectControllerComponent - skipping " + effectId);
                 return false;
             }
-            return ctrl.addInfiniteEffect(ref, idx, fx, accessor);
+            return EffectAdds.infinite(ctrl, ref, idx, fx, accessor);
         } catch (Throwable t) {
             warn("applyInfinite: '" + effectId + "' failed: " + t.getMessage());
             return false;

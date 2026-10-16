@@ -27,6 +27,7 @@ import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.asset.AssetStoreWriter;
+import com.ziggfreed.common.effect.EffectAdds;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -312,7 +313,10 @@ public final class RuntimeEffectGrid {
         reconcile(accessor, ref, List.of(), null);
     }
 
-    /** Apply {@code bucket} with no expiry (see {@link Outcome}). World thread only; never throws. */
+    /**
+     * Apply {@code bucket} with no expiry (see {@link Outcome}); a bucket already on the entity with no expiry is
+     * not added again ({@link EffectAdds}) and answers {@link Outcome#APPLIED}. World thread only; never throws.
+     */
     @Nonnull
     public Outcome applyInfinite(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
             @Nonnull Bucket bucket, @Nullable Runnable onLanded) {
@@ -407,7 +411,7 @@ public final class RuntimeEffectGrid {
         if (effect == null) {
             return Outcome.FAILED;
         }
-        return ctrl.addInfiniteEffect(ref, idx, effect, accessor) ? Outcome.APPLIED : Outcome.FAILED;
+        return EffectAdds.infinite(ctrl, ref, idx, effect, accessor) ? Outcome.APPLIED : Outcome.FAILED;
     }
 
     @Nullable

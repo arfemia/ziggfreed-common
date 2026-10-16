@@ -20,6 +20,7 @@ import com.hypixel.hytale.assetstore.map.IndexedLookupTableAssetMap;
 import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.event.EventBus;
 import com.hypixel.hytale.event.IEventBus;
+import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.hypixel.hytale.server.core.asset.type.item.config.ItemQuality;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
@@ -27,10 +28,11 @@ import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
 /**
  * Swaps an engine asset store in a unit JVM, the way the engine's own tests do it: a store with no
  * event listeners and no file monitoring, swapped into the asset class's private static
- * {@code ASSET_STORE} slot for the length of one test and put back on {@link Swap#close()}. So the
- * LIVE read paths ({@code Item.getAssetMap()}, {@code ItemQuality.getAssetMap()},
- * {@code EntityStatType.getAssetMap()}) answer from values the test itself authored, with no server
- * and nothing registered process-wide.
+ * store slot ({@code ASSET_STORE}, {@code STORE} for the effect class) for the length of one test and
+ * put back on {@link Swap#close()}. So the LIVE read paths ({@code Item.getAssetMap()},
+ * {@code ItemQuality.getAssetMap()}, {@code EntityStatType.getAssetMap()},
+ * {@code EntityEffect.getAssetMap()}) answer from values the test itself authored, with no server and
+ * nothing registered process-wide.
  *
  * <p>A module's tests reach it through {@code testImplementation(testFixtures(project(':zc-core')))}.
  * It is the one store swap in the library's tests: a test that needs another engine store seeded adds
@@ -97,10 +99,30 @@ public final class EngineAssetStores {
                 new SeededMap<>(EntityStatType[]::new, ids, byIndex), "TestSeeded").build());
     }
 
+    /**
+     * Effect {@code byIndex[i]} sits at index {@code i}, resolved by its id too, so a real
+     * {@code EffectControllerComponent} keys and reloads its active effects as on a server. The effect
+     * class keeps its store in {@code STORE}, not {@code ASSET_STORE}.
+     */
+    @Nonnull
+    public static Swap effects(@Nonnull EntityEffect... byIndex) {
+        String[] ids = new String[byIndex.length];
+        for (int i = 0; i < byIndex.length; i++) {
+            ids[i] = byIndex[i].getId();
+        }
+        return install(EntityEffect.class, "STORE", new NoOpStore.Builder<>(EntityEffect.class,
+                new SeededMap<>(EntityEffect[]::new, ids, byIndex), "TestSeeded").build());
+    }
+
     @Nonnull
     private static Swap install(@Nonnull Class<?> assetClass, @Nonnull Object store) {
+        return install(assetClass, "ASSET_STORE", store);
+    }
+
+    @Nonnull
+    private static Swap install(@Nonnull Class<?> assetClass, @Nonnull String slotName, @Nonnull Object store) {
         try {
-            Field slot = assetClass.getDeclaredField("ASSET_STORE");
+            Field slot = assetClass.getDeclaredField(slotName);
             slot.setAccessible(true);
             Object original = slot.get(null);
             slot.set(null, store);

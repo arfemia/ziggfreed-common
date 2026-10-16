@@ -10,6 +10,7 @@ import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffec
 import com.hypixel.hytale.server.core.asset.type.entityeffect.config.OverlapBehavior;
 import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.effect.EffectAdds;
 
 /**
  * Generic, mod-agnostic applier for Hytale {@link EntityEffect}s on an entity. Lifts the
@@ -115,10 +116,13 @@ public final class EntityEffectService {
      * {@link CommandBuffer}. Routes through the engine's index-aware {@code addEffect}, which auto-dispatches
      * to the infinite path when the asset authors {@code Infinite:true} - so this ONE call serves both an
      * infinite aura/stat effect AND a duration-authored on-hit effect, and a mis-authored {@code Infinite}
-     * flag can never pin a timed effect forever. World-thread only; best-effort.
+     * flag can never pin a timed effect forever. An {@code Infinite} effect the entity already wears is not
+     * added again ({@link EffectAdds}): the engine would send its viewers a fresh Add, and the client would
+     * start a second set of its particles. A timed effect goes to the engine on every call, which refreshes
+     * or extends it. World-thread only; best-effort.
      *
-     * @return true if the effect resolved and was added, false on any miss (unregistered id, bad ref, no
-     *         controller, or an engine throw)
+     * @return true if the effect resolved and was added (or is an infinite one already worn whose
+     *         conditions hold), false on any miss (unregistered id, bad ref, no controller, or an engine throw)
      */
     public static boolean apply(@Nonnull Ref<EntityStore> ref, @Nonnull String effectId,
                                 @Nonnull CommandBuffer<EntityStore> cb) {
@@ -133,8 +137,9 @@ public final class EntityEffectService {
 
     /**
      * Shared asset-authoritative apply over the common {@link ComponentAccessor} supertype. Resolves the effect
-     * index + asset and calls {@code ctrl.addEffect(ref, idx, fx, accessor)} (the engine overload that reads the
-     * asset's Duration/OverlapBehavior/Infinite and dispatches accordingly). Best-effort, try-guarded.
+     * index + asset and hands them to {@link EffectAdds#asAuthored} (the engine's {@code addEffect(ref, idx, fx,
+     * accessor)}, which reads the asset's Duration/OverlapBehavior/Infinite and dispatches accordingly, minus
+     * the repeat of a worn infinite effect). Best-effort, try-guarded.
      */
     private static boolean applyAssetInternal(@Nonnull Ref<EntityStore> ref, @Nonnull String effectId,
                                               @Nonnull ComponentAccessor<EntityStore> accessor) {
@@ -155,7 +160,7 @@ public final class EntityEffectService {
             if (ctrl == null) {
                 return false;
             }
-            return ctrl.addEffect(ref, idx, fx, accessor);
+            return EffectAdds.asAuthored(ctrl, ref, idx, fx, accessor);
         } catch (Throwable ignored) {
             // unregistered effect / bad ref / engine throw -> no-op
             return false;
@@ -225,7 +230,7 @@ public final class EntityEffectService {
             if (fx == null) {
                 return NONE;
             }
-            boolean added = ctrl.addEffect(ref, fx, store);
+            boolean added = EffectAdds.asAuthored(ctrl, ref, newIndex, fx, store);
             return added ? newIndex : NONE;
         } catch (Throwable ignored) {
             return NONE;

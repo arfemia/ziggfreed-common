@@ -18,4 +18,6 @@ dependencies {
     // entity, through stats/damage/DamageResistances and StatIndexCache). One-way: zc-entity depends on
     // zc-core alone and never sees the native-effect primitive (its gear-set seam stays root-filled).
     implementation project(':zc-entity')
+    // The engine asset-store swap the effect-controller tests seed effects with.
+    testImplementation(testFixtures(project(':zc-core')))
 }

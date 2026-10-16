@@ -16,6 +16,7 @@ import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffec
 import com.hypixel.hytale.server.core.asset.type.entityeffect.config.RemovalBehavior;
 import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.effect.EffectAdds;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -51,7 +52,8 @@ public final class Costumes {
             return DressOutcome.CANNOT_WEAR;
         }
         String id = effectId.trim();
-        EntityEffect wanted = effect(id);
+        int index = EntityEffect.getAssetMap().getIndex(id);
+        EntityEffect wanted = index == AssetMapWithIndexes.NOT_FOUND ? null : EntityEffect.getAssetMap().getAsset(index);
         if (wanted == null) {
             reportOnce(id, "is not a loaded effect, so nobody can be dressed in it");
             return DressOutcome.UNKNOWN_EFFECT;
@@ -69,7 +71,7 @@ public final class Costumes {
             case LOCKED -> DressOutcome.LOCKED;
             case WEARING_ANOTHER -> DressOutcome.WEARING_ANOTHER;
             case ALREADY_WORN -> DressOutcome.ALREADY_WEARING;
-            case DRESS -> controller.addEffect(wearer, wanted, accessor)
+            case DRESS -> EffectAdds.asAuthored(controller, wearer, index, wanted, accessor)
                     ? DressOutcome.DRESSED : DressOutcome.CANNOT_WEAR;
         };
     }
@@ -98,12 +100,6 @@ public final class Costumes {
             }
         }
         return removed;
-    }
-
-    @Nullable
-    private static EntityEffect effect(@Nonnull String id) {
-        int index = EntityEffect.getAssetMap().getIndex(id);
-        return index == AssetMapWithIndexes.NOT_FOUND ? null : EntityEffect.getAssetMap().getAsset(index);
     }
 
     @Nonnull
