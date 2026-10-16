@@ -345,6 +345,11 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
         return rewards == null ? null : rewards.diminish;
     }
 
+    /** {@code Rewards.InChest}: whether a clear's Claim goes into the clearing fight's chest; false unauthored. */
+    public boolean rewardsInChest() {
+        return rewards != null && Boolean.TRUE.equals(rewards.inChest);
+    }
+
     /**
      * {@code EntryCost.Items}: what opening an area costs, each item id trimmed with its count (unauthored or less
      * than 1 means 1), an entry naming no item dropped and repeats of one id added together, in the order written;
@@ -441,6 +446,15 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
     @Nullable
     public String goalKey() {
         return blankToNull(text == null ? null : text.goalKey);
+    }
+
+    /**
+     * {@code Text.ChestKey}, trimmed, or null when the file names none: then the banner of a clear whose Claim went
+     * into the chest ({@code Rewards.InChest}) reads the library's own line.
+     */
+    @Nullable
+    public String chestKey() {
+        return blankToNull(text == null ? null : text.chestKey);
     }
 
     /** What the router needs of this dungeon, filed under {@code dungeonId} (the fold's lower-cased id). */
@@ -648,6 +662,7 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
 
         @Nullable protected String lootable;
         @Nullable protected DiminishSpec diminish;
+        @Nullable protected Boolean inChest;
 
         public static final BuilderCodec<Rewards> CODEC = BuilderCodec.builder(Rewards.class, Rewards::new)
                 .appendInherited(new KeyedCodec<>("Lootable", Codec.STRING, false),
@@ -661,6 +676,14 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
                 .documentation("How much a repeat clear earns in one window, counted per player for this dungeon "
                         + "and difficulty: Steps [1, 0.5] with Window Daily pays half for every clear after the "
                         + "first that day. Unauthored, every clear pays in full.").add()
+                .appendInherited(new KeyedCodec<>("InChest", Codec.BOOLEAN, false),
+                        (o, v) -> o.inChest = v, o -> o.inChest, (o, p) -> o.inChest = p.inChest)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("Whether a clear won by a boss fight that leaves a spoils chest puts each credited "
+                        + "member's Claim in that chest: no results screen opens, the member sees a banner naming "
+                        + "the clear with Text.ChestKey's line under it, and opening the chest offers the Claim with "
+                        + "the fight's own. Unauthored means false: the results screen offers it. A member the "
+                        + "fight's chest does not hold a share for sees the results screen either way.").add()
                 .build();
 
         public Rewards() {
@@ -777,6 +800,7 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
         @Nullable protected String nameKey;
         @Nullable protected String descriptionKey;
         @Nullable protected String goalKey;
+        @Nullable protected String chestKey;
 
         public static final BuilderCodec<Text> CODEC = BuilderCodec.builder(Text.class, Text::new)
                 .appendInherited(new KeyedCodec<>("NameKey", Codec.STRING, false),
@@ -794,6 +818,11 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
                         + "is going, with the run's time limit and wipe rule under it. Unauthored, the line is built "
                         + "from Complete: defeat the boss (or every boss), finish the task, hold out for the "
                         + "survive timer.").add()
+                .appendInherited(new KeyedCodec<>("ChestKey", Codec.STRING, false),
+                        (o, v) -> o.chestKey = v, o -> o.chestKey, (o, p) -> o.chestKey = p.chestKey)
+                .documentation("The localization key of the line under a clear's banner when Rewards.InChest puts "
+                        + "the Claim in the boss's chest, saying where it waits. Unauthored, it reads the library's "
+                        + "own line: the reward waits in the chest where the boss fell.").add()
                 .build();
 
         public Text() {

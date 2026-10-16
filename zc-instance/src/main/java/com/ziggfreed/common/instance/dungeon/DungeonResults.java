@@ -26,6 +26,7 @@ import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.instance.claims.ClaimNotices;
 import com.ziggfreed.common.instance.claims.ClaimsView;
+import com.ziggfreed.common.instance.claims.SpoilsChests;
 import com.ziggfreed.common.instance.result.MatchResult;
 import com.ziggfreed.common.instance.result.PlayerResultRow;
 import com.ziggfreed.common.instance.result.ResultKind;
@@ -67,6 +68,13 @@ import com.ziggfreed.common.util.SafeLog;
  * screen is a page of its own, which a results page would replace): their Claim waits on the tab all the same, and
  * the toast names it.
  *
+ * <p><b>Into the chest.</b> With {@code Rewards.InChest}, a run cleared by a boss fight whose chest holds a share for
+ * a member ({@link SpoilsChests#takes}) files that member's Claim under the fight, so the chest offers it with the
+ * fight's own (and stands for it alone on a later clear the fight paid nothing for); no results screen opens, and the
+ * member sees the chest's banner instead ({@link SpoilsChests#tellInChest}): the dungeon's name cleared over its
+ * {@code Text.ChestKey} line. A member the chest holds no share for, or whose roll wrote nothing, sees the results
+ * screen as before.
+ *
  * <p><b>A failure</b> the party could have prevented, its time limit or a wipe under {@code FailOnWipe}, tells each
  * member in the area why, in a toast where they are looking.
  *
@@ -99,10 +107,14 @@ public final class DungeonResults {
      * @param winners        every member in the area at the clear
      * @param damage         the damage each member dealt the bosses that fell during the run
      * @param bossesDefeated how many boss fights were won in the area during the run
+     * @param chestFight     with {@code Rewards.InChest}, the boss fight whose fall cleared the run, whose chest takes
+     *                       each member's Claim it holds a share for; null for the results screen alone
+     * @param chestKey       its {@code Text.ChestKey}, or null for the library's line
      */
     record Clear(@Nonnull String dungeonId, @Nonnull String runId, @Nonnull String difficulty,
                  @Nullable String nameKey, @Nullable String lootable, @Nullable DiminishSpec diminish, long seconds,
-                 @Nonnull List<UUID> winners, @Nonnull Map<UUID, Long> damage, int bossesDefeated) {
+                 @Nonnull List<UUID> winners, @Nonnull Map<UUID, Long> damage, int bossesDefeated,
+                 @Nullable String chestFight, @Nullable String chestKey) {
     }
 
     /**
@@ -128,8 +140,9 @@ public final class DungeonResults {
             int paid = 0;
             for (UUID player : clear.winners()) {
                 Claim written = null;
+                String fight = SpoilsChests.takes(clear.chestFight(), player) ? clear.chestFight() : null;
                 try {
-                    written = award(clear, table, player, now);
+                    written = award(clear, table, player, now, fight);
                     if (written != null) {
                         paid++;
                     }
@@ -137,7 +150,11 @@ public final class DungeonResults {
                     SafeLog.warn(LOG + "the completion Claim of " + clear.dungeonId() + " could not be written for "
                             + player, t);
                 }
-                show(clear, player, written);
+                if (fight != null && written != null) {
+                    tellInChest(clear, player);
+                } else {
+                    show(clear, player, written);
+                }
             }
             SafeLog.info(LOG + "the clear of " + clear.dungeonId() + " (run " + clear.runId() + ") wrote "
                     + paid + " of " + clear.winners().size() + " member(s) a Claim"
@@ -163,11 +180,13 @@ public final class DungeonResults {
     }
 
     /**
-     * Roll {@code table} for {@code player} and award what it lands as their completion Claim; the Claim as written
-     * (scaled by its returns), or null when nothing was written.
+     * Roll {@code table} for {@code player} and award what it lands as their completion Claim, filed under
+     * {@code fight} when a chest takes it (null: the Claims tab alone); the Claim as written (scaled by its returns),
+     * or null when nothing was written.
      */
     @Nullable
-    private static Claim award(@Nonnull Clear clear, @Nullable LootableAsset table, @Nonnull UUID player, long now) {
+    private static Claim award(@Nonnull Clear clear, @Nullable LootableAsset table, @Nonnull UUID player, long now,
+            @Nullable String fight) {
         if (table == null) {
             return null;
         }
@@ -182,7 +201,7 @@ public final class DungeonResults {
         }
         String claimId = claimId(clear.dungeonId(), clear.runId(), player);
         Claim claim = new Claim(claimId, source, clear.nameKey(), List.of(),
-                clear.difficulty().isBlank() ? null : clear.difficulty(), rewards, now);
+                clear.difficulty().isBlank() ? null : clear.difficulty(), rewards, now, fight);
         if (!ClaimStore.shared().award(player, claim, clear.diminish(),
                 diminishKey(clear.dungeonId(), clear.difficulty()), now)) {
             return null;
@@ -205,6 +224,19 @@ public final class DungeonResults {
     @Nonnull
     static String diminishKey(@Nonnull String dungeonId, @Nonnull String difficulty) {
         return DungeonRuns.SOURCE_PREFIX + dungeonId + ":" + difficulty.trim();
+    }
+
+    /**
+     * Tell {@code player} their completion Claim went into the boss's chest: the chest's banner, the dungeon's name
+     * cleared over its {@code Text.ChestKey} line. No results screen opens; the chest offers the Claim.
+     */
+    private static void tellInChest(@Nonnull Clear clear, @Nonnull UUID player) {
+        Universe universe = Universe.get();
+        PlayerRef playerRef = universe == null ? null : universe.getPlayer(player);
+        if (playerRef != null) {
+            SpoilsChests.tellInChest(playerRef,
+                    Msg.key(PREFIX + "clear.banner", nameOf(clear.dungeonId(), clear.nameKey())), clear.chestKey());
+        }
     }
 
     /**

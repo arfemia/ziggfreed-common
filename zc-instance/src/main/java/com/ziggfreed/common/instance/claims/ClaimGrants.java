@@ -99,8 +99,8 @@ public final class ClaimGrants {
     }
 
     /**
-     * What a spoils chest pays as it opens ({@link #claimFightExceptItems}): the press's tally of it, and every
-     * reward it really handed over, in the order the Claims held them (never one that went back to wait).
+     * What a spoils chest's page paid ({@link #claimFightExceptItems}): the press's tally of it, and every reward it
+     * really handed over, in the order the Claims held them (never one that went back to wait).
      */
     public record Paid(@Nonnull Result result, @Nonnull List<InstanceReward> rewards) {
 
@@ -109,7 +109,7 @@ public final class ClaimGrants {
     }
 
     /**
-     * A spoils chest opening: for every Claim the fight {@code fight} paid {@code player}, hand over at once what is
+     * A spoils chest page's Take All: for every Claim the fight {@code fight} paid {@code player}, hand over what is
      * not an item (a currency, a command line such as an experience or reputation token) through the same grant a
      * press makes, and put the Claim back holding its items alone, which the chest's window then offers. A Claim of
      * items alone is not touched. What a non-item could not pay is dropped and logged, as a press drops it; what a
@@ -121,22 +121,57 @@ public final class ClaimGrants {
         Result total = Result.NOTHING;
         List<InstanceReward> paid = new ArrayList<>();
         for (Claim listed : claims.list(player)) {
-            if (!listed.fromFight(fight) || listed.rewards().stream().allMatch(InstanceReward::isItem)) {
-                continue;
+            if (listed.fromFight(fight)) {
+                total = total.plus(payExceptItems(claims, player, listed.id(), ref, store, sink, paid));
             }
-            Claim claim = claims.take(player, listed.id());
-            if (claim == null) {
-                continue;
-            }
-            List<InstanceReward> items = new ArrayList<>();
-            List<InstanceReward> others = new ArrayList<>();
-            for (InstanceReward reward : claim.rewards()) {
-                (reward.isItem() ? items : others).add(reward);
-            }
-            total = total.plus(grant(claims, player, claim.withRewards(others), ref, store, sink, paid));
-            claims.putBack(player, claim.withRewards(items));
         }
         return new Paid(total, List.copyOf(paid));
+    }
+
+    /**
+     * A spoils chest page's Claim: {@link #claimFightExceptItems} for {@code player}'s one Claim {@code claimId},
+     * handing over what is not an item and putting its items back for the chest's window.
+     */
+    @Nonnull
+    public static Result claimExceptItems(@Nonnull ClaimStore claims, @Nonnull UUID player, @Nonnull String claimId,
+            @Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull InstanceRewardGranter.Sink sink) {
+        return payExceptItems(claims, player, claimId, ref, store, sink, null);
+    }
+
+    /** Hand over what of the Claim {@code claimId} is not an item, its items put back; nothing for items alone. */
+    @Nonnull
+    private static Result payExceptItems(@Nonnull ClaimStore claims, @Nonnull UUID player, @Nonnull String claimId,
+            @Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull InstanceRewardGranter.Sink sink,
+            @Nullable List<InstanceReward> paid) {
+        Claim listed = null;
+        for (Claim held : claims.list(player)) {
+            if (held.is(claimId)) {
+                listed = held;
+                break;
+            }
+        }
+        if (listed == null || !hasNonItem(listed)) {
+            return Result.NOTHING;
+        }
+        Claim claim = claims.take(player, listed.id());
+        if (claim == null) {
+            return Result.NOTHING;
+        }
+        List<InstanceReward> items = new ArrayList<>();
+        List<InstanceReward> others = new ArrayList<>();
+        for (InstanceReward reward : claim.rewards()) {
+            (reward.isItem() ? items : others).add(reward);
+        }
+        Result result = grant(claims, player, claim.withRewards(others), ref, store, sink, paid);
+        if (!items.isEmpty()) {
+            claims.putBack(player, claim.withRewards(items));
+        }
+        return result;
+    }
+
+    /** Whether {@code claim} holds a reward that is not an item (a currency, an experience or reputation token). */
+    public static boolean hasNonItem(@Nonnull Claim claim) {
+        return claim.rewards().stream().anyMatch(reward -> !reward.isItem());
     }
 
     /** {@link #grant(ClaimStore, UUID, Claim, Ref, Store, InstanceRewardGranter.Sink, List)}, keeping no list. */

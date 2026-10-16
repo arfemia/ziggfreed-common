@@ -14,17 +14,20 @@ import org.joml.Vector3d;
 
 import com.hypixel.hytale.component.AddReason;
 import com.hypixel.hytale.component.Holder;
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.protocol.InteractionType;
 import com.hypixel.hytale.server.core.asset.type.blockhitbox.BlockBoundingBoxes;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.hypixel.hytale.server.core.entity.UUIDComponent;
 import com.hypixel.hytale.server.core.entity.entities.BlockEntity;
 import com.hypixel.hytale.server.core.modules.entity.component.Interactable;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.interaction.Interactions;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -34,6 +37,9 @@ import com.ziggfreed.common.encounter.event.EncounterDefeatedEvent;
 import com.ziggfreed.common.encounter.ledger.ParticipantShare;
 import com.ziggfreed.common.encounter.payout.EncounterClaims;
 import com.ziggfreed.common.encounter.run.EncounterRun;
+import com.ziggfreed.common.feedback.EventTitles;
+import com.ziggfreed.common.i18n.ContentKeys;
+import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.loot.claim.Claim;
 import com.ziggfreed.common.loot.claim.ClaimAddedEvent;
 import com.ziggfreed.common.loot.claim.ClaimStore;
@@ -75,6 +81,9 @@ public final class SpoilsChests {
 
     /** The prompt a player looking at a chest reads, in {@code ziggfreedcommon.claims.lang}. */
     public static final String HINT_KEY = ClaimsText.PREFIX + "spoils.hint";
+
+    /** The library's line under the banner {@link #tellInChest} raises, in {@code ziggfreedcommon.claims.lang}. */
+    public static final String BANNER_KEY = ClaimsText.PREFIX + "spoils.banner";
 
     /** How often a standing chest asks whether it should go. */
     static final long CHECK_EVERY_MS = 1_000L;
@@ -334,6 +343,47 @@ public final class SpoilsChests {
         }
         synchronized (spoils) {
             return spoils.chest != null || spoils.raising;
+        }
+    }
+
+    // ==================== a later payout's way into the chest ====================
+
+    /**
+     * Whether a reward {@code player} earns after {@code fight} goes into that fight's chest: the fight's spoils are
+     * noted (a won fight whose row leaves a chest), have not run out, and credited the player. A source that pays
+     * once the fight is over (a dungeon's clear) asks this, and when it answers true files its Claim under the fight
+     * ({@link Claim#fight}), so the chest offers it with the fight's own Claims (and stands for it, when the fight
+     * itself paid nothing) and nothing else needs to show it. Never throws.
+     */
+    public static boolean takes(@Nullable String fight, @Nullable UUID player) {
+        if (fight == null || fight.isBlank() || player == null) {
+            return false;
+        }
+        Spoils spoils = FIGHTS.get(key(fight));
+        return spoils != null && System.currentTimeMillis() < spoils.expiresAt && spoils.credited.contains(player);
+    }
+
+    /**
+     * Tell {@code playerRef} that their reward went into a chest ({@link #takes}): the game's banner, {@code headline}
+     * over the line {@code lineKey} names (the source's own, which a pack authors), else the library's
+     * ({@link #BANNER_KEY}). On the player's own world thread; nothing for a player who is gone. Never throws.
+     */
+    public static void tellInChest(@Nonnull PlayerRef playerRef, @Nonnull Message headline, @Nullable String lineKey) {
+        try {
+            Ref<EntityStore> ref = playerRef.getReference();
+            World world = ref == null || !ref.isValid() ? null : ref.getStore().getExternalData().getWorld();
+            if (world == null || !world.isAlive()) {
+                return;
+            }
+            Message line = lineKey == null || lineKey.isBlank() ? Msg.key(BANNER_KEY) : ContentKeys.tr(lineKey.trim());
+            Runnable show = () -> EventTitles.show(playerRef, headline, line, true);
+            if (world.isInThread()) {
+                show.run();
+            } else {
+                world.execute(show);
+            }
+        } catch (Throwable t) {
+            SafeLog.warn(LOG + "a player could not be told their reward is in the chest", t);
         }
     }
 

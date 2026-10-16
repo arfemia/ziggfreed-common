@@ -46,6 +46,9 @@ public final class ClaimsView {
     public static final String ACTION_CLAIM = "claim";
     public static final String ACTION_CLAIM_ALL = "claim_all";
 
+    /** The chest's first screen's one button once only items are left: open the chest's item window. */
+    public static final String ACTION_ITEMS = "items";
+
     private ClaimsView() {
     }
 
@@ -130,6 +133,17 @@ public final class ClaimsView {
     @Nonnull
     public static EmptyState spoilsEmpty(@Nonnull ClaimsText text) {
         return new EmptyState(Picture.item(ClaimsDestinations.ICON), text.line("spoils.empty"), null, null);
+    }
+
+    /**
+     * What a chest's first screen shows once only items are left: a line saying the rest is in the chest, and the
+     * button that opens its item window ({@link #ACTION_ITEMS}).
+     */
+    @Nonnull
+    public static EmptyState spoilsItemsLeft(@Nonnull ClaimsText text) {
+        return new EmptyState(Picture.item(ClaimsDestinations.ICON), text.line("spoils.items_left"), null,
+                new DetailAction(ActionSlot.PRIMARY, text.line("spoils.action.items"), ActionLook.COLLECT,
+                        ACTION_ITEMS, null, true, null));
     }
 
     /** A Claim's title: its own key with its arguments, else the tab's word for a reward. */

@@ -26,6 +26,7 @@ import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.encounter.event.EncounterDefeatedEvent;
+import com.ziggfreed.common.encounter.payout.EncounterClaims;
 import com.ziggfreed.common.encounter.seam.RunTag;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.instance.metadata.InstanceRoundCompletedEvent;
@@ -131,10 +132,11 @@ public final class DungeonRuns {
     private record Knobs(@Nonnull String mode, @Nullable String nameKey, @Nullable String goalKey, long limitMs,
                          boolean failOnWipe, @Nonnull Set<String> bosses, boolean allBosses,
                          @Nullable DungeonObjective objective, long surviveMs, @Nullable String lootable,
-                         @Nullable DiminishSpec diminish) {
+                         @Nullable DiminishSpec diminish, boolean inChest, @Nullable String chestKey) {
 
         /** A dungeon no longer loaded: no limit, no clear, no reward, nothing to tell an arrival. */
-        static final Knobs BARE = new Knobs("", null, null, 0L, false, Set.of(), false, null, 0L, null, null);
+        static final Knobs BARE = new Knobs("", null, null, 0L, false, Set.of(), false, null, 0L, null, null, false,
+                null);
 
         /** Whether anything can clear the run. */
         boolean canClear() {
@@ -168,6 +170,8 @@ public final class DungeonRuns {
         int bossesDefeated;
         /** The damage each member dealt the bosses that fell in the area during the run. */
         final Map<UUID, Double> damage = new HashMap<>();
+        /** The boss fight whose fall cleared the run (its fight id, as its Claims carry it), or null. */
+        @Nullable String clearedBy;
         boolean ended;
         /** A wipe check is queued on the world thread and has not run yet. */
         boolean wipeCheckQueued;
@@ -455,7 +459,7 @@ public final class DungeonRuns {
     public static void onEncounterDefeated(@Nonnull EncounterDefeatedEvent event) {
         try {
             SHARED.defeated(event.encounterId(), event.worldUuid(), event.participants(), event.damageDealt(),
-                    System.currentTimeMillis());
+                    event.runId() == null ? null : EncounterClaims.fightOf(event.runId()), System.currentTimeMillis());
         } catch (Throwable t) {
             SafeLog.warn(LOG + "a boss defeat could not be counted for its dungeon run", t);
         }
@@ -463,11 +467,11 @@ public final class DungeonRuns {
 
     /**
      * Boss {@code encounterId} fell in world {@code worldId} with {@code participants}, who dealt it
-     * {@code damage}: count it for each of their areas' runs, which it may clear. AreaMembers is asked first,
-     * before this list's lock is taken.
+     * {@code damage}, in the fight {@code fight} (its id, as its Claims carry it, or null): count it for each of their
+     * areas' runs, which it may clear. AreaMembers is asked first, before this list's lock is taken.
      */
     void defeated(@Nullable String encounterId, @Nullable UUID worldId, @Nonnull List<UUID> participants,
-            @Nonnull Map<UUID, Double> damage, long nowMs) {
+            @Nonnull Map<UUID, Double> damage, @Nullable String fight, long nowMs) {
         if (encounterId == null || encounterId.isBlank() || participants.isEmpty()) {
             return;
         }
@@ -498,6 +502,7 @@ public final class DungeonRuns {
                 if (run.knobs.bosses.contains(boss)) {
                     run.fallen.add(boss);
                     if (holds(run, nowMs)) {
+                        run.clearedBy = fight;
                         end(run, Ending.CLEARED, nowMs, encounterId.trim() + " fell");
                     }
                 }
@@ -632,7 +637,7 @@ public final class DungeonRuns {
         return new Knobs(dungeon.difficulty(), dungeon.nameKey(), dungeon.goalKey(),
                 limit == null ? 0L : limit * 1000L, dungeon.failOnWipe(), Set.copyOf(bosses),
                 dungeon.completeAllBosses(), dungeon.completeObjective(), survive == null ? 0L : survive * 1000L,
-                dungeon.rewardsLootable(), dungeon.rewardsDiminish());
+                dungeon.rewardsLootable(), dungeon.rewardsDiminish(), dungeon.rewardsInChest(), dungeon.chestKey());
     }
 
     /**
@@ -706,7 +711,7 @@ public final class DungeonRuns {
             }
             DungeonResults.Clear clear = new DungeonResults.Clear(run.dungeon, run.runId.toString(), run.knobs.mode,
                     run.knobs.nameKey, run.knobs.lootable, run.knobs.diminish, seconds, winners, Map.copyOf(dealt),
-                    run.bossesDefeated);
+                    run.bossesDefeated, run.knobs.inChest ? run.clearedBy : null, run.knobs.chestKey);
             outbox.add(new Fire(run.world, () -> DungeonResults.cleared(clear)));
         } else if (ending.lineKey != null && !run.present.isEmpty()) {
             DungeonResults.Failure failure = new DungeonResults.Failure(run.dungeon, run.knobs.nameKey,

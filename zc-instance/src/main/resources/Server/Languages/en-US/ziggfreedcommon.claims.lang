@@ -38,10 +38,12 @@ notice.added.spoils = Your share is waiting in the chest where the boss fell, an
 notice.added.spoils.named = {0} is waiting in the chest where the boss fell, and under Claims in your menu.
 
 # A boss's chest: what a won fight leaves where the boss fell, holding each player's own rewards from that fight.
-# spoils.hint is the prompt over the chest; the game fills {key} with the button to press. Opening it hands over
-# what is not an item at once (spoils.paid heads the list of it) and shows the items in the game's own chest
-# window; spoils.empty is the line for a player with nothing in it. The spoils.title to spoils.action.take_all lines
-# are the Claims page's, which the chest can show instead (the library's SpoilsView switch).
+# spoils.hint is the prompt over the chest; the game fills {key} with the button to press. Opening it first shows
+# the Claims page (spoils.title to spoils.action.take_all) for what is not an item, then the items in the game's own
+# chest window: spoils.items_left is that page's line once only items are left, over the spoils.action.items button
+# that opens the window. spoils.empty is the line for a player with nothing in it. spoils.paid is no longer shown.
+# spoils.banner is the line under a banner telling a player their reward went into the chest, when the source's own
+# file names no line of its own.
 spoils.hint = Press [{key}] to open
 spoils.paid = From the chest:
 spoils.title = Your share
@@ -50,6 +52,9 @@ spoils.detail.lead = Claim takes these. Take All takes everything here that is y
 spoils.detail.hint = Items need room in your bags. Whatever does not fit waits under Claims.
 spoils.action.take_all = Take All
 spoils.empty = Nothing in here is waiting for you.
+spoils.items_left = The rest of your share is in the chest.
+spoils.action.items = Open the Chest
+spoils.banner = Your reward waits in the chest where the boss fell.
 
 # A Claim's title when /zigclaims give wrote it: {0} is the loot table's id.
 title.admin = Loot from {0}
