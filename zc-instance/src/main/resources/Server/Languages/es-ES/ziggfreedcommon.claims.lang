@@ -50,6 +50,9 @@ spoils.detail.lead = Reclamar coge estas. Coger todo coge todo lo que aquí es t
 spoils.detail.hint = Los objetos necesitan sitio en tus bolsas. Lo que no quepa espera en Pendientes.
 spoils.action.take_all = Coger todo
 spoils.empty = Aquí no hay nada esperándote.
+spoils.items_left = El resto de tu parte está en el cofre.
+spoils.action.items = Abrir el Cofre
+spoils.banner = Tu recompensa te espera en el cofre donde cayó el jefe.
 
 # A Claim's title when /zigclaims give wrote it: {0} is the loot table's id.
 title.admin = Botín de {0}

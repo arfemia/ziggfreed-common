@@ -85,6 +85,7 @@ results.records = Rekordok
 results.again = Játssz újra
 results.close = Bezárás
 results.team_total = Összesen: {0, number}
+clear.banner = {0} teljesítve
 
 # What a player reads a moment after they arrive in a dungeon area while its run is going. The dungeon's name
 # heads it; under it, what to do there (the dungeon's own GoalKey line, else the lines below built from what

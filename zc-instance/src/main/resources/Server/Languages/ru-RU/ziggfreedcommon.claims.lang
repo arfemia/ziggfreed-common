@@ -50,6 +50,9 @@ spoils.detail.lead = «Забрать» берёт эти награды. «Вз
 spoils.detail.hint = Для предметов нужно место в сумках. Что не поместится, ждёт в разделе «Награды».
 spoils.action.take_all = Взять всё
 spoils.empty = Здесь для вас ничего нет.
+spoils.items_left = Остальная часть вашей доли лежит в сундуке.
+spoils.action.items = Открыть сундук
+spoils.banner = Ваша награда ждёт в сундуке, где пал босс.
 
 # A Claim's title when /zigclaims give wrote it: {0} is the loot table's id.
 title.admin = Добыча из {0}

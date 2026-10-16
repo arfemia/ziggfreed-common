@@ -50,6 +50,9 @@ spoils.detail.lead = Resgatar pega estes. Pegar Tudo pega tudo o que aqui é seu
 spoils.detail.hint = Os itens precisam de espaço no seu inventário. O que não couber espera em Resgates.
 spoils.action.take_all = Pegar Tudo
 spoils.empty = Nada aqui está esperando por você.
+spoils.items_left = O resto da sua parte está no baú.
+spoils.action.items = Abrir o Baú
+spoils.banner = Sua recompensa espera no baú onde o chefe caiu.
 
 # A Claim's title when /zigclaims give wrote it: {0} is the loot table's id.
 title.admin = Espólio de {0}

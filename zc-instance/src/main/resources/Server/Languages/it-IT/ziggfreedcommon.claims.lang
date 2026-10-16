@@ -50,6 +50,9 @@ spoils.detail.lead = Ritira prende queste. Prendi Tutto prende tutto ciò che qu
 spoils.detail.hint = Gli oggetti hanno bisogno di spazio nelle borse. Quello che non entra aspetta sotto Ricompense.
 spoils.action.take_all = Prendi Tutto
 spoils.empty = Qui dentro non c'è niente che ti aspetti.
+spoils.items_left = Il resto della tua parte è nel forziere.
+spoils.action.items = Apri il Forziere
+spoils.banner = La tua ricompensa ti aspetta nel forziere dove è caduto il boss.
 
 # A Claim's title when /zigclaims give wrote it: {0} is the loot table's id.
 title.admin = Bottino da {0}

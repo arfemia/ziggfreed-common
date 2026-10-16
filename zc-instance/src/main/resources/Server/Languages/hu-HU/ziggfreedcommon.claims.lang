@@ -50,6 +50,9 @@ spoils.detail.lead = Az Átvétel ezeket veszi át. Az Összes elvétele mindent
 spoils.detail.hint = A tárgyaknak hely kell a zsákodban. Ami nem fér el, az Átvehetők alatt vár.
 spoils.action.take_all = Összes elvétele
 spoils.empty = Nincs itt semmi, ami rád várna.
+spoils.items_left = A részed többi része a ládában van.
+spoils.action.items = Láda megnyitása
+spoils.banner = A jutalmad abban a ládában vár, ahol a főellenség elesett.
 
 # A Claim's title when /zigclaims give wrote it: {0} is the loot table's id.
 title.admin = Zsákmány: {0}

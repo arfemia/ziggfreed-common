@@ -50,6 +50,9 @@ spoils.detail.lead = Teslim Al bunları alır. Hepsini Al, buradaki senin olan h
 spoils.detail.hint = Eşyalar için çantanda yer olmalı. Sığmayanlar Alınacaklar sekmesinde bekler.
 spoils.action.take_all = Hepsini Al
 spoils.empty = Burada seni bekleyen bir şey yok.
+spoils.items_left = Payının kalanı sandıkta.
+spoils.action.items = Sandığı Aç
+spoils.banner = Ödülün, patronun düştüğü yerdeki sandıkta seni bekliyor.
 
 # A Claim's title when /zigclaims give wrote it: {0} is the loot table's id.
 title.admin = {0} ganimeti

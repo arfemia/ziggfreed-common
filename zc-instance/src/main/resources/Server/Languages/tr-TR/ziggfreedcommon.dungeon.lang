@@ -86,6 +86,8 @@ results.again = Tekrar Oyna
 results.close = Kapat
 results.team_total = Toplam {0, number}
 
+clear.banner = {0} temizlendi
+
 # What a player reads a moment after they arrive in a dungeon area while its run is going. The dungeon's name
 # heads it; under it, what to do there (the dungeon's own GoalKey line, else the lines below built from what
 # clears a run), then the run's rules. {0} in goal.survive and goal.time_limit is a goal.time.* length.

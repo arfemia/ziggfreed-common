@@ -85,6 +85,7 @@ results.records = Recordes
 results.again = Jogar de Novo
 results.close = Fechar
 results.team_total = Total {0, number}
+clear.banner = Concluído: {0}
 
 # What a player reads a moment after they arrive in a dungeon area while its run is going. The dungeon's name
 # heads it; under it, what to do there (the dungeon's own GoalKey line, else the lines below built from what

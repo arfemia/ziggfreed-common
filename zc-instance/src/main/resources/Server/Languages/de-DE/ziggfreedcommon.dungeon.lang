@@ -85,6 +85,9 @@ results.records = Rekorde
 results.again = Nochmal spielen
 results.close = Schließen
 results.team_total = Gesamt {0, number}
+# The banner in place of that screen when the dungeon's Rewards.InChest puts the reward in the boss's chest: {0} is
+# the dungeon's name; the line under it is the dungeon's Text.ChestKey, else the Claims tab's spoils.banner.
+clear.banner = {0} abgeschlossen
 
 # What a player reads a moment after they arrive in a dungeon area while its run is going. The dungeon's name
 # heads it; under it, what to do there (the dungeon's own GoalKey line, else the lines below built from what

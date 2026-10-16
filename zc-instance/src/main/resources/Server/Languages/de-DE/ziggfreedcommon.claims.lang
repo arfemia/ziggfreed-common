@@ -50,6 +50,9 @@ spoils.detail.lead = Abholen nimmt diese. Alles nehmen nimmt alles hier, was dir
 spoils.detail.hint = Gegenstände brauchen Platz in deinen Taschen. Was nicht hineinpasst, wartet unter Abholungen.
 spoils.action.take_all = Alles nehmen
 spoils.empty = Hier wartet nichts auf dich.
+spoils.items_left = Der Rest deines Anteils liegt in der Truhe.
+spoils.action.items = Truhe öffnen
+spoils.banner = Deine Belohnung wartet in der Truhe, wo der Boss gefallen ist.
 
 # A Claim's title when /zigclaims give wrote it: {0} is the loot table's id.
 title.admin = Beute von {0}
