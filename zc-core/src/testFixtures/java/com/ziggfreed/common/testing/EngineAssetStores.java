@@ -82,6 +82,21 @@ public final class EngineAssetStores {
                 new SeededMap<>(EntityStatType[]::new, idsByIndex, new EntityStatType[0]), "TestSeeded").build());
     }
 
+    /**
+     * Stat type {@code byIndex[i]} sits at index {@code i}, resolved by its id too, so a fresh
+     * {@code EntityStatMap}'s {@code update()} builds one value per type and its update queue reads each
+     * type's {@code isShared()}, as on a server.
+     */
+    @Nonnull
+    public static Swap statTypes(@Nonnull EntityStatType... byIndex) {
+        String[] ids = new String[byIndex.length];
+        for (int i = 0; i < byIndex.length; i++) {
+            ids[i] = byIndex[i].getId();
+        }
+        return install(EntityStatType.class, new NoOpStore.Builder<>(EntityStatType.class,
+                new SeededMap<>(EntityStatType[]::new, ids, byIndex), "TestSeeded").build());
+    }
+
     @Nonnull
     private static Swap install(@Nonnull Class<?> assetClass, @Nonnull Object store) {
         try {
@@ -130,6 +145,12 @@ public final class EngineAssetStores {
         @Override
         public T getAsset(int index) {
             return index < 0 || index >= assets.length ? null : assets[index];
+        }
+
+        /** One past the last seeded asset, the bound a stat map's {@code update()} walks to. */
+        @Override
+        public int getNextIndex() {
+            return assets.length;
         }
     }
 

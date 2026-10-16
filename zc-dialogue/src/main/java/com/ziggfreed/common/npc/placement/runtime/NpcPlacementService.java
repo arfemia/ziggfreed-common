@@ -27,6 +27,7 @@ import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.chunk.section.EntitySection;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.health.HealthUtil;
 import com.ziggfreed.common.npc.NpcSpawnService;
 import com.ziggfreed.common.npc.placement.anchor.AnchorPosition;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementAsset;
@@ -251,7 +252,7 @@ public final class NpcPlacementService {
                 new StaticModifier(Modifier.ModifierTarget.MAX,
                         StaticModifier.CalculationType.ADDITIVE, (float) bonus));
         if (fillsPool(freshSpawn, before != null)) {
-            stats.maximizeStatValue(healthIndex);
+            HealthUtil.fillToMax(stats, healthIndex); // an Add, so viewers still receive the Fortify modifier
         }
     }
 

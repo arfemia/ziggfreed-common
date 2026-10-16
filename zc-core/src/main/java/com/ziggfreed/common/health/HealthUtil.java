@@ -118,7 +118,7 @@ public final class HealthUtil {
                 return false; // stat not ready (balancing pending), or already scaled (per-entity)
             }
             stats.putModifier(hp, key, maxModifier(wholeMaxFactor(stats.get(hp), key, factor)));
-            stats.maximizeStatValue(hp); // heal to the new full max (once, on first application)
+            fillToMax(stats, hp); // heal to the new full max (once, on first application)
             return true;
         } catch (Throwable t) {
             warn("scaleMaxHealth", t);
@@ -157,7 +157,7 @@ public final class HealthUtil {
                 return false; // stat not ready (balancing pending), or already scaled (per-holder)
             }
             stats.putModifier(hp, key, maxModifier(wholeMaxFactor(stats.get(hp), key, factor)));
-            stats.maximizeStatValue(hp); // heal to the new full max (once, on first application)
+            fillToMax(stats, hp); // heal to the new full max (once, on first application)
             return true;
         } catch (Throwable t) {
             warn("scaleMaxHealth(holder)", t);
@@ -172,12 +172,12 @@ public final class HealthUtil {
      * so a re-derived scale on chunk reload never strands a stale value:
      *
      * <ul>
-     *   <li>key ABSENT + {@code factor != 1.0} -> put the multiplicative MAX modifier + {@code maximize} (the
+     *   <li>key ABSENT + {@code factor != 1.0} -> put the multiplicative MAX modifier + {@link #fillToMax} (the
      *       first-apply heal, identical to {@link #scaleMaxHealth}).</li>
      *   <li>key PRESENT + {@code factor == 1.0} -> {@code removeModifier} (the roll no longer scales HP; the
      *       engine recalculate clamps current HP down to the un-scaled max).</li>
-     *   <li>key PRESENT + a DIFFERENT amount -> {@code putModifier} replace WITHOUT maximize (a shrink
-     *       auto-clamps current HP via the recalculate; a re-maximize here would full-heal on every retune).</li>
+     *   <li>key PRESENT + a DIFFERENT amount -> {@code putModifier} replace WITHOUT a heal (a shrink
+     *       auto-clamps current HP via the recalculate; a re-fill here would full-heal on every retune).</li>
      *   <li>key PRESENT + the SAME amount, or {@code factor == 1.0} with no key -> no-op.</li>
      * </ul>
      *
@@ -221,6 +221,35 @@ public final class HealthUtil {
         }
     }
 
+    /**
+     * Fill the stat at {@code statIndex} to its max by adding the gap: the one way to heal after a modifier
+     * write. Never {@link EntityStatMap#maximizeStatValue} there. On a shared stat such as {@code Health} the
+     * engine folds a Maximize into the update queued just before it and rewrites that update's op
+     * ({@code EntityStatMap.tryMergeUpdate}), so a {@code PutModifier} queued this tick never reaches the
+     * entity's viewers: their max stays at the base, their bar empties while the entity still has health,
+     * and its model stops animating. An Add folds only into an Init, Add or Set, so the {@code PutModifier}
+     * goes out intact. Every heal in this class goes through here.
+     *
+     * <p>World thread only (or a pre-add {@link Holder}'s map); the caller try-guards.
+     *
+     * @return {@code true} if the stat was raised; {@code false} when it is missing or already full
+     */
+    public static boolean fillToMax(@Nonnull EntityStatMap stats, int statIndex) {
+        if (statIndex < 0) {
+            return false;
+        }
+        EntityStatValue stat = stats.get(statIndex);
+        if (stat == null) {
+            return false;
+        }
+        float gap = stat.getMax() - stat.get();
+        if (!(gap > 0f)) {
+            return false;
+        }
+        stats.addStatValue(statIndex, gap);
+        return true;
+    }
+
     // ---------------------------------------------------------------------
     // internals
     // ---------------------------------------------------------------------
@@ -250,7 +279,7 @@ public final class HealthUtil {
         boolean firstApply = existing == null;
         stats.putModifier(hp, key, maxModifier(amount));
         if (firstApply) {
-            stats.maximizeStatValue(hp); // heal to the new full max ONLY on first apply; a replace/shrink clamps
+            fillToMax(stats, hp); // heal to the new full max ONLY on first apply; a replace/shrink clamps
         }
         return true;
     }
@@ -315,20 +344,7 @@ public final class HealthUtil {
         }
         try {
             EntityStatMap stats = statMap(store, ref);
-            if (stats == null) {
-                return false;
-            }
-            EntityStatValue stat = stats.get(statIndex);
-            if (stat == null) {
-                return false;
-            }
-            float current = stat.get();
-            float max = stat.getMax();
-            if (current >= max) {
-                return false;
-            }
-            stats.addStatValue(statIndex, max - current);
-            return true;
+            return stats != null && fillToMax(stats, statIndex);
         } catch (Throwable t) {
             warn(label, t);
             return false;
