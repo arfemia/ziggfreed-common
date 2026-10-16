@@ -11,7 +11,7 @@ The shared library behind Ziggfreed's Hytale mods. It runs their menus, quests, 
 ## What you see in game
 
 - The Objective Book, your menu for quests, achievements, the Almanac, Records, reputation and Claims. Craft it by hand from leather and plant fiber, or type `/ziggui`.
-- A Claims tab where the rewards you earn wait until you take them, so a full bag never costs you one. Boss rewards land there too, and nothing on it runs out.
+- A Claims tab where the rewards you earn wait until you take them, so a full bag never costs you one, and nothing on it runs out. A boss you beat leaves a chest where it fell with your share in it, and whatever you leave there waits on the tab.
 - Dungeons, when a mod or pack adds one, such as the Horseman's Graveyard in [Seasons of Orbis](https://www.curseforge.com/hytale/mods/seasons-of-orbis). Go in through a block, a character or a line in a conversation, and your party gets an area of its own. Clear it and a results screen shows your time, with a reward to claim.
 - Parties. Type `/zigparty` to start one and invite up to four players who are online. It works with CommonLib alone.
 - Records ranks every player by numbers like Mobs Defeated, Blocks Broken and Playtime, for this week, this month, each season and all time. On the Bosses tab, pick a boss to see its wins and fastest times, and who beat it first. The Dungeons tab ranks the runs you start, clear and fail, and each dungeon's fastest clear. The game's own Deepworks counts too.
@@ -19,9 +19,12 @@ The shared library behind Ziggfreed's Hytale mods. It runs their menus, quests, 
 - Reputation with characters and factions, from Hated to Exalted. A bar fills as you earn it, and a notice marks each new rank. Gear can make you earn it faster.
 - The shop, bounty board and conversation screens that open when you press F on a trader, a board or a character.
 - A bounty board opens on the same quest page as the characters who give out work, with its wallets and a countdown to new contracts.
+- Quest lists that show what kind each quest is, with the main quests first, and quest items that drop only for you while you're on that step.
 - Your boosts on the buff bar, each with a ring that runs down. A gear set's bonus shows there too while you wear it.
+- Damage resistance for gear from the mods and packs that use it: Fire Resistance, Ice Resistance and the rest each cut the damage you take of their type, up to 80%.
 - An Almanac page for each seasonal event, with your keepsakes and tallies.
 - A Settings tab to hide or move the quest tracker and pick how many notices you see. `/zighud hide` hides them all at once.
+- Every screen in nine languages: English, German, Spanish, French, Hungarian, Italian, Brazilian Portuguese, Russian and Turkish.
 
 ## Install
 
