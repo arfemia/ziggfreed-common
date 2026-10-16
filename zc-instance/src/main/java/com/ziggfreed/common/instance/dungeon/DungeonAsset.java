@@ -35,7 +35,7 @@ import com.ziggfreed.common.season.SeasonGate;
  * {
  *   "Instance": "ZiggfreedCommon_Dungeon_Void",
  *   "Share": { "PartyLocked": true, "MaxPlayers": 5, "AreasPerCopy": 4 },
- *   "Area": { "Prefab": "MyPack/Crypt/Crypt_Main.prefab.json", "Spacing": 2048, "EntryOffset": { "Y": 1 } },
+ *   "Area": { "Prefab": "MyPack/Crypt/Crypt_Main.prefab.json", "Spacing": 2048, "EntryOffset": { "Y": 1 }, "EntryYaw": 180 },
  *   "Run": { "TimeLimitSeconds": 900, "FailOnWipe": false },
  *   "Complete": { "Bosses": ["MyPack_Crypt_Lich"], "AllBosses": false,
  *                 "Objective": { "Kind": "PICKUP_ITEM", "Target": "MyPack_Crypt_Relic", "Amount": 3 },
@@ -249,6 +249,12 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
     public Vec3 entryOffset() {
         Vec3 v = area == null ? null : area.entryOffset;
         return v == null ? Vec3.of(null, null, null) : v;
+    }
+
+    /** {@code Area.EntryYaw}: which way an arriving player faces, in degrees (0 faces north); 0 unauthored. */
+    public float entryYaw() {
+        Float v = area == null ? null : area.entryYaw;
+        return v == null ? 0f : v;
     }
 
     /** {@code Run.TimeLimitSeconds}, or null when the run has no time limit (unauthored, zero or less). */
@@ -482,6 +488,7 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
         @Nullable protected String prefab;
         @Nullable protected Integer spacing;
         @Nullable protected Vec3 entryOffset;
+        @Nullable protected Float entryYaw;
 
         public static final BuilderCodec<Area> CODEC = BuilderCodec.builder(Area.class, Area::new)
                 .appendInherited(new KeyedCodec<>("Prefab", Codec.STRING, false),
@@ -499,6 +506,12 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
                         (o, v) -> o.entryOffset = v, o -> o.entryOffset, (o, p) -> o.entryOffset = p.entryOffset)
                 .documentation("Where an arriving player lands, in blocks from the spot the prefab is pasted "
                         + "at. Unauthored means that spot itself.").add()
+                .appendInherited(new KeyedCodec<>("EntryYaw", Codec.FLOAT, false),
+                        (o, v) -> o.entryYaw = v, o -> o.entryYaw, (o, p) -> o.entryYaw = p.entryYaw)
+                .metadata(EditorSchema.defaultValue(0.0))
+                .documentation("Which way an arriving player faces, in degrees: 0 faces north (toward negative Z), "
+                        + "90 faces west (negative X), 180 faces south (positive Z) and 270 faces east. Pitch is "
+                        + "always level. Unauthored means 0, how a player arrives with no facing written.").add()
                 .build();
 
         public Area() {

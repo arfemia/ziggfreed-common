@@ -40,6 +40,7 @@ public final class AreaSpawnProvider implements ISpawnProvider {
     @Nullable private Integer areas;
     @Nullable private Integer spacing;
     @Nullable private Vec3 entryOffset;
+    @Nullable private Float entryYaw;
     @Nullable private ISpawnProvider fallback;
 
     /** The layout the fields say, built on first use. */
@@ -64,6 +65,10 @@ public final class AreaSpawnProvider implements ISpawnProvider {
                     (o, v) -> o.entryOffset = v, o -> o.entryOffset)
             .documentation("Where a player lands in their area, in blocks from the spot its prefab is pasted at. "
                     + "Unauthored means that spot itself.").add()
+            .append(new KeyedCodec<>("EntryYaw", Codec.FLOAT, false),
+                    (o, v) -> o.entryYaw = v, o -> o.entryYaw)
+            .documentation("Which way a player faces in their area, in degrees, fixed when the copy opened: 0 faces "
+                    + "north (toward negative Z), 180 south. Unauthored means 0.").add()
             .append(new KeyedCodec<>("Fallback", ISpawnProvider.CODEC, false),
                     (o, v) -> o.fallback = v, o -> o.fallback)
             .documentation("The template's own spawn provider, which answers a player who holds no area in the "
@@ -78,6 +83,7 @@ public final class AreaSpawnProvider implements ISpawnProvider {
         this.areas = layout.areas();
         this.spacing = layout.spacing();
         this.entryOffset = Vec3.of(layout.entryX(), layout.entryY(), layout.entryZ());
+        this.entryYaw = layout.entryYaw();
         this.fallback = fallback;
         this.layout = layout;
     }
@@ -100,7 +106,7 @@ public final class AreaSpawnProvider implements ISpawnProvider {
             known = new AreaLayout(dungeon == null ? "" : dungeon, areas == null ? 1 : areas,
                     spacing == null ? DungeonAsset.DEFAULT_SPACING : spacing,
                     entry == null ? 0.0 : entry.effectiveX(), entry == null ? 0.0 : entry.effectiveY(),
-                    entry == null ? 0.0 : entry.effectiveZ());
+                    entry == null ? 0.0 : entry.effectiveZ(), entryYaw == null ? 0f : entryYaw);
             layout = known;
         }
         return known;

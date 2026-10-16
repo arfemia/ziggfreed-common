@@ -35,7 +35,7 @@ class DungeonAssetCodecTest {
               "Enabled": false,
               "Share": { "PartyLocked": false, "MaxPlayers": 3, "AreasPerCopy": 2 },
               "Area": { "Prefab": "Server/Prefabs/MyPack/Crypt/Crypt_Main.prefab.json", "Spacing": 4096,
-                        "EntryOffset": { "X": 1.5, "Y": 2, "Z": -3 } },
+                        "EntryOffset": { "X": 1.5, "Y": 2, "Z": -3 }, "EntryYaw": 180 },
               "Run": { "TimeLimitSeconds": 900, "FailOnWipe": true },
               "Copy": { "EmptyCloseSeconds": 30 },
               "Complete": { "Bosses": [" Crypt_Lord_Encounter ", "", "Crypt_Lord_Encounter", "Crypt_Lich_Encounter"],
@@ -70,6 +70,7 @@ class DungeonAssetCodecTest {
         assertNull(bare.prefabPath());
         assertEquals(DungeonAsset.DEFAULT_SPACING, bare.spacing());
         assertEquals(0.0, bare.entryOffset().effectiveY());
+        assertEquals(0f, bare.entryYaw(), "no EntryYaw arrives facing north, as before");
         assertNull(bare.timeLimitSeconds(), "no time limit unless one is written");
         assertFalse(bare.failOnWipe());
         assertEquals(DungeonAsset.DEFAULT_EMPTY_CLOSE_SECONDS, bare.emptyCloseSeconds());
@@ -183,6 +184,7 @@ class DungeonAssetCodecTest {
         assertEquals(1.5, crypt.entryOffset().effectiveX());
         assertEquals(2.0, crypt.entryOffset().effectiveY());
         assertEquals(-3.0, crypt.entryOffset().effectiveZ());
+        assertEquals(180f, crypt.entryYaw());
         assertEquals(Integer.valueOf(900), crypt.timeLimitSeconds());
         assertTrue(crypt.failOnWipe());
         assertEquals(30, crypt.emptyCloseSeconds());

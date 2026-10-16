@@ -20,6 +20,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.NPCPlugin;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.world.Facing;
 import com.ziggfreed.common.world.TickingSections;
 
 /**
@@ -134,13 +135,13 @@ public final class NpcSpawnService {
      * engine reads a {@link Rotation3f} in. The engine's own {@code SpawnNpcEffect} converts the same way.
      */
     public static float yawRadians(float degrees) {
-        return (float) Math.toRadians(degrees);
+        return Facing.yawRadians(degrees);
     }
 
     /** Pure: the spawn rotation for an authored yaw in degrees (pitch and roll 0). */
     @Nonnull
     public static Rotation3f spawnRotation(float yawDegrees) {
-        return new Rotation3f(0.0f, yawRadians(yawDegrees), 0.0f);
+        return Facing.rotation(yawDegrees);
     }
 
     /**

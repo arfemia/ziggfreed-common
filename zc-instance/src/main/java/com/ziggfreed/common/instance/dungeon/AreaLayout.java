@@ -10,6 +10,7 @@ import org.joml.Vector3i;
 
 import com.hypixel.hytale.math.vector.Transform;
 import com.ziggfreed.common.codec.Vec3;
+import com.ziggfreed.common.world.Facing;
 
 /**
  * Where the areas of one dungeon copy sit, fixed the moment the copy opens, so a dungeon file retuned while a
@@ -26,10 +27,10 @@ import com.ziggfreed.common.codec.Vec3;
  * next cell has left. A copy with one area has one cell, the whole world.
  *
  * <p><b>Arrival</b> is the anchor plus {@code Area.EntryOffset}, at the anchor block's centre on X and Z (so an
- * unauthored offset lands on the middle of the anchor block, not its corner), facing the default way.
+ * unauthored offset lands on the middle of the anchor block, not its corner), facing {@code Area.EntryYaw} degrees (unauthored: north, yaw 0), level.
  */
 public record AreaLayout(@Nonnull String dungeon, int areas, int spacing, double entryX, double entryY,
-        double entryZ) {
+        double entryZ, float entryYaw) {
 
     /** The height every area's prefab anchor sits at (lead's call, vetoable): 64 rows of room below it. */
     public static final int AREA_Y = 64;
@@ -54,7 +55,7 @@ public record AreaLayout(@Nonnull String dungeon, int areas, int spacing, double
     public static AreaLayout of(@Nonnull String dungeonId, @Nonnull DungeonAsset dungeon) {
         Vec3 entry = dungeon.entryOffset();
         return new AreaLayout(dungeonId, dungeon.areasPerCopy(), dungeon.spacing(), entry.effectiveX(),
-                entry.effectiveY(), entry.effectiveZ());
+                entry.effectiveY(), entry.effectiveZ(), dungeon.entryYaw());
     }
 
     /** Several parties share the copy, so each area is a cell of it rather than the whole world. */
@@ -78,7 +79,8 @@ public record AreaLayout(@Nonnull String dungeon, int areas, int spacing, double
     @Nonnull
     public Transform arrival(int area) {
         Vector3i origin = origin(area);
-        return new Transform(origin.x + 0.5 + entryX, origin.y + entryY, origin.z + 0.5 + entryZ, 0f, 0f, 0f);
+        return new Transform(new Vector3d(origin.x + 0.5 + entryX, origin.y + entryY, origin.z + 0.5 + entryZ),
+                Facing.rotation(entryYaw));
     }
 
     /** Is the spot {@code (x, z)} inside {@code area}'s cell? Always, in a copy with one area. */

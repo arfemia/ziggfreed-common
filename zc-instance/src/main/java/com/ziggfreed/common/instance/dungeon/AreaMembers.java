@@ -356,7 +356,7 @@ public final class AreaMembers {
         if (provider instanceof AreaSpawnProvider areas) {
             return areas.layout();
         }
-        return new AreaLayout(Areas.nameOf(world), 1, DungeonAsset.DEFAULT_SPACING, 0.0, 0.0, 0.0);
+        return new AreaLayout(Areas.nameOf(world), 1, DungeonAsset.DEFAULT_SPACING, 0.0, 0.0, 0.0, 0f);
     }
 
     /** Why a player on the way never arrived, for the log. */
