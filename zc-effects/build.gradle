@@ -14,4 +14,8 @@ dependencies {
     // The custom interaction-Type toolkit, for the ZigCostume Type (effect/costume). One-way: zc-cast
     // depends on zc-core alone and never reaches back.
     implementation project(':zc-cast')
+    // The per-type resistance stats (effect/resist reads DamageResist_<Type> and its ceiling off the
+    // entity, through stats/damage/DamageResistances and StatIndexCache). One-way: zc-entity depends on
+    // zc-core alone and never sees the native-effect primitive (its gear-set seam stays root-filled).
+    implementation project(':zc-entity')
 }

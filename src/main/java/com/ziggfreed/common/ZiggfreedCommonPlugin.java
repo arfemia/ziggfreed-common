@@ -38,6 +38,7 @@ import com.ziggfreed.common.currency.asset.CurrencyConfig;
 import com.ziggfreed.common.effect.NativeEffectUtil;
 import com.ziggfreed.common.effect.buff.BuffBootstrap;
 import com.ziggfreed.common.effect.costume.CostumeBootstrap;
+import com.ziggfreed.common.effect.resist.ResistBootstrap;
 import com.ziggfreed.common.encounter.EncounterBootstrap;
 import com.ziggfreed.common.encounter.seam.EncounterSeams;
 import com.ziggfreed.common.encounter.validate.EncounterAudit;
@@ -237,6 +238,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // Timed buffs on the native buff bar: the per-player slot record (unconditional, so a saved one
         // always reads back) and the ready and respawn refreshes, inert until a consumer registers a source.
         BuffBootstrap.install(this);
+        // Per-type damage resistance: gear raising DamageResist_<Type> stats takes less of that type,
+        // through a hidden native resistance effect kept in step with the stat every tick.
+        ResistBootstrap.install(this);
         PlacedBlockBootstrap.setupPlacedBlockLedger(this);
         BlockStashBootstrap.registerBlockStash(this);
         // A gameplay config's ZigBlockRules group (CreativeOnlyBreaking, which zc's dungeon config writes)

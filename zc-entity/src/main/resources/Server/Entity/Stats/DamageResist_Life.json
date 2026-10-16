@@ -1,0 +1,8 @@
+{
+  "$Comment": "Resistance to Life damage the carrier takes, in whole percent points (10 resists a tenth of each hit). Any item's StatModifiers raise it like any stat (Additive on the Max), and two items carrying it add up. The game reads resistance only from worn armor and active effects, so ziggfreed-common keeps a hidden always-on effect on the player carrying this much DamageResistance on Life and every cause filed under it, and the game sums it with worn armor's own. Held to DamageResistMax, so it stops short of immunity. Base 0; Min is a generous negative so a subtractive modifier never clamps, and a total below 0 resists nothing rather than raising the damage.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

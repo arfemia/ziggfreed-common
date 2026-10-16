@@ -1,0 +1,8 @@
+{
+  "$Comment": "The most of any one damage type's hits the carrier can resist through the DamageResist_<Type> stats, in whole percent points (80 resists at most four fifths of a hit, so no resistance reaches immunity). This file's Max is the ceiling every player starts with: a server retunes it by shipping a same-id file, and an item's StatModifiers raise or lower it for its wearer like any stat. It bounds each type on its own, never the sum of two types, and worn armor's own resistance is not counted against it. A mod may answer the ceiling with a rule of its own instead (ziggfreed-common's DamageResistances.installCeiling).",
+  "InitialValue": 80.0,
+  "Min": -1000.0,
+  "Max": 80.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

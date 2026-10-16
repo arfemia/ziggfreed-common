@@ -53,7 +53,8 @@ public final class TypedDamageBonuses {
 
     /**
      * The damage types the library ships a stat pair for: the game's own top-level and elemental types,
-     * and the three this library adds beside them. Disjoint, so no hit matches two of them.
+     * and the three this library adds beside them. Disjoint, so no hit matches two of them. The
+     * resistance stats ({@link DamageResistances}) cover the same types.
      */
     public static final List<String> TYPE_IDS = List.of("Physical", "Projectile", "Fire", "Ice", "Lightning",
             "Water", "Wind", "Earth", "Poison", "Arcane", "Void", "Life");
@@ -190,7 +191,8 @@ public final class TypedDamageBonuses {
         return new Sums(percent, flat);
     }
 
-    private static double readMax(@Nonnull EntityStatMap stats, @Nonnull String statId) {
+    /** A stat's current maximum, where native modifiers accumulate; 0 when unregistered or not finite. */
+    static double readMax(@Nonnull EntityStatMap stats, @Nonnull String statId) {
         int idx = StatIndexCache.resolve(statId);
         if (idx < 0) {
             return 0.0;
