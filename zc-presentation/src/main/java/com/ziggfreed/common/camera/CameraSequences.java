@@ -183,7 +183,8 @@ public final class CameraSequences {
                 return;
             }
             View view = viewOf(ref, ref.getStore());
-            if (!PLAYING.remove(player, token) || view == null) {
+            // Without a view to cut back to, keep the entry so the watchdog tries again.
+            if (view == null || !PLAYING.remove(player, token)) {
                 return;
             }
             new CameraSequenceBuilder()
