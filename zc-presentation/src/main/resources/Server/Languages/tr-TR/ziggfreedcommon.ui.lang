@@ -36,3 +36,9 @@ kit.nothing_matches_line = Burada bu filtrelere uyan bir şey yok. Her şeyi yen
 kit.clear_filters = Filtreleri temizle
 kit.count = {0, number} / {1, number}
 kit.percent = %{0, number}
+
+confirm.button = Onayla
+confirm.close = Kapat
+confirm.uses.one = Çantandan {0} x{1, number} harcar.
+confirm.uses.many = Çantandan yukarıdaki eşyaları harcar.
+confirm.key = {0} eşyan tükenmez.

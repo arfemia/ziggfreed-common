@@ -30,7 +30,7 @@ tip.sort = Clique para ordenar todos por isto.
 # ajuda do motor usa para resolver um comando ou um argumento.
 command.desc.family = Veja os recordes das lutas de chefe deste servidor.
 command.desc.encounter = Abre os recordes de uma luta de chefe.
-command.desc.arg.encounter = O id do roteiro de encontro da luta. Deixe de fora para abrir a primeira luta com recorde.
+command.desc.arg.encounter = O id do roteiro de encontro da luta. Deixe de fora para ver todos os chefes.
 command.open.needs_player = Só um jogador pode abrir a tela de recordes.
 command.open.failed = A tela de recordes não abriu. Tente de novo daqui a pouco.
 command.encounter.unranked = '{0}' não guarda recordes neste servidor.

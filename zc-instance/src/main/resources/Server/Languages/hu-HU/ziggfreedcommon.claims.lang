@@ -1,0 +1,69 @@
+# The Claims tab (com.ziggfreed.common.instance.claims): the rewards a player has earned and not taken
+# yet, waiting until they press Claim. The file name is the key PREFIX: an entry here resolves as
+# ziggfreedcommon.claims.<key>. menu.tab is a rail label: 20 characters at most once uppercased.
+
+menu.tab = Átvehetők
+page.title = Átvehetők
+page.lead = A megszerzett jutalmak itt várnak, amíg át nem veszed őket.
+page.section = Várakozik
+row.rewards = {0, number} {0, plural, one {jutalom} other {jutalom}}
+detail.rewards = Jutalmak
+detail.lead = Az Átvétel ezeket veszi át. Az Összes átvétele mindent, ami vár.
+detail.hint = A tárgyaknak hely kell a zsákodban. Ami nem fér el, itt marad későbbre.
+action.claim = Átvétel
+action.claim_all = Összes átvétele
+empty.title = Nincs mit átvenni
+empty.line = A főellenségek és az események jutalmai itt várnak, amíg át nem veszed őket.
+untitled = Jutalmak
+
+# A reward chip nothing else could name (a Claim's row, a results screen's): {0} is how many.
+chip.generic = {0, number}x jutalom
+
+# What a press says, over the page.
+toast.claimed = Átvéve.
+toast.claimed_all = Mindent átvettél, ami várt.
+toast.kept = Tele van a zsákod. Ami nem fért el, még itt vár.
+toast.failed = Átvetted, de egy részét nem lehetett átadni ezen a szerveren.
+
+# Telling a player something waits: the toast when a Claim arrives, and the notice once a session at login.
+# notice.added is a Claim with no title of its own; notice.added.named one with a title, {0}; notice.added.many
+# heads several Claims that arrived together, each on a row under it.
+notice.added = Egy jutalom vár rád. A menüben az Átvehetők alatt találod.
+notice.added.named = {0} vár a menüben, az Átvehetők alatt.
+notice.added.many = Jutalmak várnak a menüben, az Átvehetők alatt.
+notice.ready = {0, number} {0, plural, one {jutalom vár} other {jutalom vár}} rád a menüben, az Átvehetők alatt.
+# A reward from a boss that left a chest where it fell: it waits in the chest and under Claims alike. notice.added.spoils
+# is a Claim with no title of its own, or the line over several; notice.added.spoils.named one with a title, {0}.
+notice.added.spoils = A részed ott vár a ládában, ahol a főellenség elesett, és a menüben az Átvehetők alatt.
+notice.added.spoils.named = {0} ott vár a ládában, ahol a főellenség elesett, és a menüben az Átvehetők alatt.
+
+# A boss's chest: what a won fight leaves where the boss fell, holding each player's own rewards from that fight.
+# spoils.hint is the prompt over the chest; the game fills {key} with the button to press. Opening it hands over
+# what is not an item at once (spoils.paid heads the list of it) and shows the items in the game's own chest
+# window; spoils.empty is the line for a player with nothing in it. The spoils.title to spoils.action.take_all lines
+# are the Claims page's, which the chest can show instead (the library's SpoilsView switch).
+spoils.hint = Nyomd meg: [{key}] a megnyitáshoz
+spoils.paid = A ládából:
+spoils.title = A részed
+spoils.lead = Ezt hagyta neked ez a főellenség. Ami itt marad, az az Átvehetők alatt vár rád.
+spoils.detail.lead = Az Átvétel ezeket veszi át. Az Összes elvétele mindent, ami itt a tiéd.
+spoils.detail.hint = A tárgyaknak hely kell a zsákodban. Ami nem fér el, az Átvehetők alatt vár.
+spoils.action.take_all = Összes elvétele
+spoils.empty = Nincs itt semmi, ami rád várna.
+
+# A Claim's title when /zigclaims give wrote it: {0} is the loot table's id.
+title.admin = Zsákmány: {0}
+
+# /zigclaims, the admin family. The command.desc.* keys are what the engine's own help resolves a command
+# or an argument through.
+command.desc.family = Jutalmak betétele a játékosok Átvehetők közé.
+command.desc.give = Dobás egy zsákmánytáblán, és ami kijön, annak betétele egy játékos Átvehetők közé.
+command.desc.arg.player = A játékos, fenn van vagy sem: név vagy játékosazonosító. Alapértelmezés: te.
+command.desc.arg.lootable = A zsákmánytábla azonosítója, amin dobni kell.
+command.player.needed = Add meg a játékost így: --player=<name>.
+command.player.offline = Ez a játékos most nincs világban. Próbáld újra egy pillanat múlva.
+command.player.unknown = Nem találok '{0}' nevű játékost. A játékosazonosítója is jó.
+command.lootable.needed = Add meg a zsákmánytáblát így: --lootable=<id>.
+command.lootable.unknown = Nincs betöltve '{0}' nevű zsákmánytábla.
+command.give.done = {2, number} {2, plural, one {jutalom} other {jutalom}} betéve innen: {0}, ide: {1} Átvehetők.
+command.give.nothing = {0} semmit sem adott {1} számára, ezért nem készült átvehető jutalom.

@@ -53,6 +53,13 @@ board.action.reroll = Relancer
 board.toast.accepted = Contrat accepté.
 board.toast.reroll_confirm = Relancer pour {0} ? Appuie encore pour confirmer.
 
+board.reroll.costs = Une relance coûte {0}.
+board.reroll.costs_left = Une relance coûte {0}. Il en reste {1, number} pour cette rotation.
+board.reroll.free_left = {0, number} {0, plural, one {relance gratuite restante} other {relances gratuites restantes}} pour cette rotation.
+
+wallet.toast.new = Nouveau : {0}
+wallet.toast.new.row = {0} : {1}
+
 refuse.locked = Tu ne peux pas encore faire ça.
 refuse.disabled = Ce n'est pas disponible.
 refuse.unknown_offer = Ce n'est plus en vente.
@@ -72,6 +79,8 @@ refuse.reroll_cap = Tu as utilisé toutes tes relances de ce cycle.
 refuse.reroll_no_alternative = Il n'y a rien d'autre à mettre à la place.
 refuse.reroll_cannot_pay = Tu n'as pas les moyens de relancer.
 board.slot.extra = Un contrat supplémentaire : {0}
+
+board.pill = Prime
 
 board.grade.training = Entraînement
 board.grade.easy = Facile

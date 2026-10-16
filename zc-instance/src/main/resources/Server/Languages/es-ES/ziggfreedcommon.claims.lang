@@ -1,0 +1,69 @@
+# The Claims tab (com.ziggfreed.common.instance.claims): the rewards a player has earned and not taken
+# yet, waiting until they press Claim. The file name is the key PREFIX: an entry here resolves as
+# ziggfreedcommon.claims.<key>. menu.tab is a rail label: 20 characters at most once uppercased.
+
+menu.tab = Pendientes
+page.title = Pendientes
+page.lead = Las recompensas que has ganado esperan aquí hasta que las cojas.
+page.section = En espera
+row.rewards = {0, number} {0, plural, one {recompensa} other {recompensas}}
+detail.rewards = Recompensas
+detail.lead = Reclamar coge estas. Reclamar todo coge todo lo que espera.
+detail.hint = Los objetos necesitan sitio en tus bolsas. Lo que no quepa se queda aquí para más tarde.
+action.claim = Reclamar
+action.claim_all = Reclamar todo
+empty.title = Nada que reclamar
+empty.line = Las recompensas de jefes y eventos esperan aquí hasta que las cojas.
+untitled = Recompensas
+
+# A reward chip nothing else could name (a Claim's row, a results screen's): {0} is how many.
+chip.generic = x{0, number} Recompensa
+
+# What a press says, over the page.
+toast.claimed = Reclamado.
+toast.claimed_all = Has reclamado todo lo que esperaba.
+toast.kept = Tus bolsas están llenas. Lo que no cupo sigue esperando aquí.
+toast.failed = Reclamado, pero una parte no se pudo entregar en este servidor.
+
+# Telling a player something waits: the toast when a Claim arrives, and the notice once a session at login.
+# notice.added is a Claim with no title of its own; notice.added.named one with a title, {0}; notice.added.many
+# heads several Claims that arrived together, each on a row under it.
+notice.added = Una recompensa te espera. La encontrarás en Pendientes, en tu menú.
+notice.added.named = {0} te espera en Pendientes, en tu menú.
+notice.added.many = Hay recompensas esperando en Pendientes, en tu menú.
+notice.ready = {0, number} {0, plural, one {recompensa te espera} other {recompensas te esperan}} en Pendientes, en tu menú.
+# A reward from a boss that left a chest where it fell: it waits in the chest and under Claims alike. notice.added.spoils
+# is a Claim with no title of its own, or the line over several; notice.added.spoils.named one with a title, {0}.
+notice.added.spoils = Tu parte te espera en el cofre donde cayó el jefe, y en Pendientes, en tu menú.
+notice.added.spoils.named = {0} te espera en el cofre donde cayó el jefe, y en Pendientes, en tu menú.
+
+# A boss's chest: what a won fight leaves where the boss fell, holding each player's own rewards from that fight.
+# spoils.hint is the prompt over the chest; the game fills {key} with the button to press. Opening it hands over
+# what is not an item at once (spoils.paid heads the list of it) and shows the items in the game's own chest
+# window; spoils.empty is the line for a player with nothing in it. The spoils.title to spoils.action.take_all lines
+# are the Claims page's, which the chest can show instead (the library's SpoilsView switch).
+spoils.hint = Pulsa [{key}] para abrir
+spoils.paid = Del cofre:
+spoils.title = Tu parte
+spoils.lead = Lo que este jefe dejó para ti. Lo que dejes aquí te espera en Pendientes.
+spoils.detail.lead = Reclamar coge estas. Coger todo coge todo lo que aquí es tuyo.
+spoils.detail.hint = Los objetos necesitan sitio en tus bolsas. Lo que no quepa espera en Pendientes.
+spoils.action.take_all = Coger todo
+spoils.empty = Aquí no hay nada esperándote.
+
+# A Claim's title when /zigclaims give wrote it: {0} is the loot table's id.
+title.admin = Botín de {0}
+
+# /zigclaims, the admin family. The command.desc.* keys are what the engine's own help resolves a command
+# or an argument through.
+command.desc.family = Pone recompensas en los Pendientes de los jugadores.
+command.desc.give = Tira una tabla de botín y pone lo que sale en los Pendientes de un jugador.
+command.desc.arg.player = El jugador, conectado o no: un nombre o un id de jugador. Por defecto, tú.
+command.desc.arg.lootable = La tabla de botín que tirar, por su id.
+command.player.needed = Indica un jugador con --player=<nombre>.
+command.player.offline = Ese jugador no está en un mundo ahora mismo. Inténtalo de nuevo en un momento.
+command.player.unknown = No se encontró a ningún jugador llamado '{0}'. Su id de jugador también sirve.
+command.lootable.needed = Indica una tabla de botín con --lootable=<id>.
+command.lootable.unknown = No hay cargada ninguna tabla de botín llamada '{0}'.
+command.give.done = Se pusieron {2, number} {2, plural, one {recompensa} other {recompensas}} de {0} en los Pendientes de {1}.
+command.give.nothing = {0} no dio nada a {1}, así que no se escribió ningún pendiente.

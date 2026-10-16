@@ -18,6 +18,9 @@ state.waiting = En espera
 state.back_in = Vuelve en {0}
 state.done = Hecha
 
+kind.main = Misión principal
+kind.side = Misión secundaria
+
 # The header's three numbers and the line under the title.
 stat.progress = En curso
 stat.collect = Por recoger
@@ -61,3 +64,5 @@ search.placeholder = Buscar misiones...
 state.elsewhere = Otro sitio
 hint.collect_from = Recógela con {0}
 hint.collect_at = Recógela en: {0}
+hint.board_contract = Entrégalo en su tablón, o a quien reparte su trabajo, para cobrar tu paga.
+hint.new_work = Trabajo nuevo en {0}

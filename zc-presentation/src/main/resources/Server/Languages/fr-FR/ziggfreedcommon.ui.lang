@@ -37,3 +37,13 @@ kit.nothing_matches_line = Rien ici ne correspond à ces filtres. Effacez-les po
 kit.clear_filters = Effacer les filtres
 kit.count = {0, number} / {1, number}
 kit.percent = {0, number} %
+
+# The item-cost confirm page (ui/confirm/ItemCostConfirmPage), shown before something takes a player's items: its
+# button's default words, its close button, and the line saying what the button takes. In uses.one, {0} is the
+# item's own name and {1} how many; uses.many stands for a price of several items. key replaces that line when an
+# item the player holds pays it all and stays theirs, {0} its own name.
+confirm.button = Confirmer
+confirm.close = Fermer
+confirm.uses.one = Utilise {0} x{1, number} de votre sac.
+confirm.uses.many = Utilise les objets ci-dessus de votre sac.
+confirm.key = Votre {0} n'est pas consommé.

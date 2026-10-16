@@ -53,6 +53,13 @@ board.action.reroll = Rigenera
 board.toast.accepted = Contratto accettato.
 board.toast.reroll_confirm = Rigenerare per {0}? Premi di nuovo per confermare.
 
+board.reroll.costs = Una rigenerazione costa {0}.
+board.reroll.costs_left = Una rigenerazione costa {0}. Ne restano {1, number} in questo turno.
+board.reroll.free_left = {0, plural, one {Resta} other {Restano}} {0, number} {0, plural, one {rigenerazione gratuita} other {rigenerazioni gratuite}} in questo turno.
+
+wallet.toast.new = Novità: {0}
+wallet.toast.new.row = {0}: {1}
+
 refuse.locked = Non puoi ancora farlo.
 refuse.disabled = Non è disponibile.
 refuse.unknown_offer = Non è più in vendita.
@@ -72,6 +79,8 @@ refuse.reroll_cap = Hai usato tutte le rigenerazioni di questo turno.
 refuse.reroll_no_alternative = Non c'è nulla di diverso da mettere al suo posto.
 refuse.reroll_cannot_pay = Non puoi permetterti una rigenerazione.
 board.slot.extra = Un contratto in più: {0}
+
+board.pill = Taglia
 
 board.grade.training = Allenamento
 board.grade.easy = Facile

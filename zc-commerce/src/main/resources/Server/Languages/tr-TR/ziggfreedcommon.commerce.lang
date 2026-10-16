@@ -53,6 +53,13 @@ board.action.reroll = Değiştir
 board.toast.accepted = Sözleşme kabul edildi.
 board.toast.reroll_confirm = {0} karşılığında değiştirilsin mi? Onaylamak için tekrar bas.
 
+board.reroll.costs = Bir değişim {0} tutar.
+board.reroll.costs_left = Bir değişim {0} tutar. Bu turda {1, number} hak kaldı.
+board.reroll.free_left = Bu turda {0, number} ücretsiz {0, plural, one {değişim} other {değişim}} hakkı kaldı.
+
+wallet.toast.new = Yeni: {0}
+wallet.toast.new.row = {0}: {1}
+
 refuse.locked = Bunu henüz yapamazsın.
 refuse.disabled = Bu kullanılamıyor.
 refuse.unknown_offer = Bu artık satılmıyor.
@@ -72,6 +79,8 @@ refuse.reroll_cap = Bu turdaki bütün değişim hakkını kullandın.
 refuse.reroll_no_alternative = Yerine koyacak farklı bir şey yok.
 refuse.reroll_cannot_pay = Bir değişime gücün yetmiyor.
 board.slot.extra = Fazladan bir {0} sözleşmesi
+
+board.pill = Ödül Avı
 
 board.grade.training = Eğitim
 board.grade.easy = Kolay

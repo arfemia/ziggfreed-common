@@ -30,7 +30,7 @@ tip.sort = Haz clic para ordenar a todos por esto.
 # ayuda del motor usa para un comando o un argumento.
 command.desc.family = Consulta los récords de los combates contra jefes de este servidor.
 command.desc.encounter = Abre los récords de un combate contra un jefe.
-command.desc.arg.encounter = El id del guion del combate. Omítelo para abrir el primer combate con récords.
+command.desc.arg.encounter = El id del guion del combate. Omítelo para ver todos los jefes.
 command.open.needs_player = Solo un jugador puede abrir la pantalla de récords.
 command.open.failed = No se pudo abrir la pantalla de récords. Inténtalo de nuevo en un momento.
 command.encounter.unranked = '{0}' no guarda récords en este servidor.

@@ -16,6 +16,8 @@ your_rank.none = Te még nem vagy ezen a táblán.
 # A playtime cell: hours and minutes, or minutes alone under an hour.
 duration.hours = {0, number}h {1, number}m
 duration.minutes = {0, number}m
+since.today = Ma
+since.days = {0, number} {0, plural, one {napja} other {napja}}
 
 # The period tabs (Server/ZiggfreedCommon/StatPeriods).
 period.all_time = Mindenkori
@@ -29,8 +31,26 @@ period.season = {0} {1}
 section.combat = Harc
 section.gathering = Gyűjtögetés
 section.adventure = Kaland
+section.dungeons = Kazamaták
 section.renown = Hírnév
+section.bosses = Főellenségek
 section.combat.hint = Győzz le mobokat, vagy szállj szembe egy főellenséggel, hogy felkerülj erre a táblára. A halálaid itt is számítanak.
 section.gathering.hint = Törj vagy helyezz le blokkokat, készíts tárgyakat kézzel, vagy vegyél fel dolgokat, hogy felkerülj erre a táblára.
 section.adventure.hint = Teljesíts küldetéseket, beszélj karakterekkel, nyerj meg köröket, vagy egyszerűen játssz, hogy felkerülj erre a táblára.
 section.renown.hint = Teljesítsd a játék céljait, vagy növeld egy hírnév állását, hogy felkerülj erre a táblára. A Hírnév csak a Mindenkori fülbe számít.
+section.bosses.hint = Segíts legyőzni egy főellenséget, hogy felkerülj erre a táblára.
+section.dungeons.hint = Kezdj el, teljesíts vagy bukj el egy kazamatafutást, hogy felkerülj erre a táblára.
+
+bosses.all = Minden főellenség
+bosses.sizes.all = Minden méret
+bosses.size.solo = Egyedül
+bosses.size.players = {0, number} játékos
+group.seasonal = Szezonális
+group.dungeon = Kazamata
+group.world = Világ
+group.minigame = Minijáték
+
+dungeons.all = Minden kazamata
+dungeons.difficulties.all = Minden nehézség
+difficulty.normal = Normál
+difficulty.hard = Nehéz

@@ -1,3 +1,8 @@
 reward.lootable = Pacchetto di Bottino
 reward.droplist = Bottino Rilasciato
 reward.effect = Effetto Temporaneo
+
+preview.chance = {0, number}%:
+preview.sometimes = A volte:
+preview.more = E un altro po'.
+preview.hidden = E qualche altro raro ritrovamento.

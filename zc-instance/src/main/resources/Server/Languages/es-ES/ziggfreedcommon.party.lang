@@ -1,0 +1,57 @@
+# The library's own party: the party screen, its notices and /zigparty, so a party works on a server running
+# nothing else. The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.party.<key>.
+# The screen's words (its tabs, buttons, title, count, badge and empty lines) go on Labels' TextSpans, and they,
+# the notices and the command lines fill their parameters in the viewer's locale.
+
+title = Grupo
+tab.party = Grupo
+tab.invite = Invitar
+empty.invite = No hay nadie conectado a quien invitar ahora mismo.
+empty.party = No estás en un grupo. Invita a alguien desde la pestaña Invitar para crear uno.
+btn.invite = Invitar
+btn.kick = Expulsar
+btn.leave = Salir del grupo
+btn.disband = Disolver
+btn.queue = Entrar en cola
+btn.accept = Aceptar
+btn.decline = Rechazar
+owner_badge = Líder
+count = {0}/{1}
+privacy.public = Grupo abierto
+privacy.private = Grupo privado
+toast.invite_failed = Ese jugador no puede unirse a tu grupo ahora mismo.
+
+msg.invited = {0} te ha invitado a su grupo ({1, number}/{2, number}).
+msg.banner = {0} te ha invitado a su grupo
+msg.banner.sub = Escribe /zigparty accept para unirte
+msg.sent = Invitación enviada a {0}.
+msg.declined = {0} ha rechazado tu invitación.
+msg.expired = Tu invitación de grupo ha caducado.
+msg.joined = {0} se ha unido al grupo ({1, number}/{2, number}).
+msg.left = {0} ha salido del grupo.
+msg.kicked = Te han expulsado del grupo.
+msg.kicked_member = {0} ha sido expulsado del grupo.
+msg.disbanded = El grupo se ha disuelto.
+msg.owner = {0} lidera ahora el grupo.
+
+command.desc.family = Abre tu grupo, o invita, acepta o sal
+command.desc.invite = Invita a un jugador conectado a tu grupo
+command.desc.accept = Únete al grupo que te invitó
+command.desc.leave = Sal de tu grupo
+command.desc.arg.player = El jugador al que invitar
+command.needs_player = Solo un jugador puede usar esto.
+command.open.failed = No se pudo abrir tu grupo. Inténtalo de nuevo en un momento.
+command.player.needed = Indica el jugador al que invitar, como /zigparty invite --player=Steve
+command.player.offline = Ese jugador no está conectado.
+command.invite.self = Indica el jugador al que invitar, como /zigparty invite --player=Steve
+command.invite.not_owner = Solo el líder del grupo puede invitar a jugadores.
+command.invite.full = Tu grupo está lleno.
+command.invite.in_party = {0} ya está en un grupo.
+command.invite.already = {0} ya tiene tu invitación.
+command.accept.none = No tienes ninguna invitación de grupo.
+command.accept.several = Tienes más de una invitación de grupo. Escribe /zigparty para elegir una.
+command.accept.expired = Esa invitación ha caducado. Pide una nueva.
+command.accept.full = Ese grupo ya está lleno.
+command.accept.in_party = Ya estás en un grupo. Escribe primero /zigparty leave.
+command.leave.done = Has salido del grupo.
+command.leave.none = No estás en un grupo.

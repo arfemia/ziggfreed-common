@@ -1,0 +1,107 @@
+# zc's dungeons (com.ziggfreed.common.instance.dungeon): /zigdungeon, the admin family, the words its lines
+# nest, what a player is told when a way in refuses them, what to do once inside, a run's results screen and
+# failure lines, and the Boss Fights tab of a fight fought in a dungeon. The file name is the key PREFIX: an
+# entry here resolves as ziggfreedcommon.dungeon.<key>.
+
+# /zigdungeon. The command.desc.* keys are what the engine's own help resolves a command or an argument through.
+command.desc.family = Mira las mazmorras de este servidor y las copias que tienen abiertas, o entra en una.
+command.desc.list = Lista todas las mazmorras y cómo están configuradas.
+command.desc.status = Lista las copias de mazmorra abiertas ahora mismo.
+command.desc.close = Cierra una copia de mazmorra ahora. Todos los de dentro vuelven por donde entraron.
+command.desc.enter = Entra tú mismo en una mazmorra, en una zona vacía.
+command.desc.arg.copy = La copia que cerrar, por el nombre de su mundo, como crypt-1.
+command.desc.arg.dungeon = La mazmorra en la que entrar, por su id, como crypt.
+command.list.none = No hay mazmorras cargadas.
+command.list.header = {0, number} {0, plural, one {mazmorra} other {mazmorras}}:
+command.list.dungeon = {0} ({1}): {2}. Dificultad {3}, temporada {4}.
+command.list.place = Plantilla {0}, prefab {1}.
+command.list.share = {0, number} {0, plural, one {zona} other {zonas}} por copia, {1, number} {1, plural, one {bloque} other {bloques}} de separación, {2, number} {2, plural, one {jugador} other {jugadores}} por zona, {3}.
+command.list.run = Los jugadores aparecen en {0, number}, {1, number}, {2, number} de su zona. {3}. Una derrota total {4}. Una copia se cierra {5, number} {5, plural, one {segundo} other {segundos}} después de vaciarse.
+command.status.none = No hay copias de mazmorra abiertas.
+command.status.header = {0, number} {0, plural, one {copia} other {copias}} de mazmorra {0, plural, one {abierta} other {abiertas}}:
+command.status.copy = {0} ({1}): {2, number} de {3, number} {3, plural, one {zona} other {zonas}} en uso, {4, number} {4, plural, one {jugador} other {jugadores}} dentro, {5, number} de camino. {6}. {7}.
+command.close.done = Cerrando {0}. Todos los de dentro vuelven por donde entraron.
+command.close.unknown = No hay abierta ninguna copia de mazmorra llamada {0}. /zigdungeon status lista las que lo están.
+command.enter.sent = Te envío a {0}, zona {1, number} de {2}.
+command.enter.unknown = No hay cargada ninguna mazmorra llamada {0}. /zigdungeon list muestra las que lo están.
+command.enter.closed = No se puede entrar en {0} ahora mismo: {1}.
+command.enter.no_prefab = {0} no nombra ningún prefab, así que sus zonas serían vacío puro.
+command.enter.missing_prefab = {0} nombra el prefab {1}, que ningún paquete cargado incluye.
+command.enter.audit_error = No se puede entrar en {0}: su archivo de mazmorra tiene un error. El registro del servidor dice qué arreglar.
+command.enter.on_the_way = Ya vas de camino a una mazmorra.
+command.enter.inside = Ya estás en una zona de mazmorra. Sal primero.
+command.enter.full = Esa zona está llena.
+command.enter.copy_gone = Esa copia de mazmorra acaba de cerrarse. Inténtalo de nuevo.
+command.enter.failed = No se pudo abrir la copia de mazmorra, o se rechazó el teletransporte. El registro del servidor dice por qué.
+
+# Words the lines above nest.
+state.open = abierta
+state.off = desactivada
+state.out_of_season = cerrada hasta que llegue su temporada
+difficulty.normal = normal
+season.all_year = todo el año
+prefab.none = sin definir
+share.locked = un grupo por zona
+share.open = los grupos comparten zona mientras haya sitio
+run.limit = Las partidas terminan a los {0, number} {0, plural, one {segundo} other {segundos}}
+run.no_limit = Sin límite de tiempo
+wipe.fails = termina la partida
+wipe.ignored = no termina la partida
+status.tick = Tick de {0, number} ms de media
+status.tick.unknown = Tiempo de tick aún desconocido
+status.taking = Acepta grupos
+status.empty = Vacía, se cierra en {0, number} {0, plural, one {segundo} other {segundos}}
+status.closing = Cerrándose
+
+# What a player is told when a way in (a block, a character, a conversation) cannot send them into a dungeon.
+# {0} is the dungeon's name, {1} its season's. In entry.cost, {1} is the item the dungeon takes on the way in and
+# {2} how many; the dungeon's own hint line, when it names one, shows under it.
+entry.off = {0} no abre por ahora.
+entry.out_of_season = {0} solo abre durante {1}.
+entry.out_of_season.unnamed = {0} solo abre en su temporada.
+entry.full = No queda sitio para tu grupo en {0}.
+entry.on_the_way = Ya vas de camino a una mazmorra.
+entry.inside = Ya estás en una mazmorra. Sal primero.
+entry.copy_gone = {0} se cerró justo cuando llegabas. Inténtalo de nuevo.
+entry.unavailable = No se puede entrar en {0} ahora mismo.
+entry.unavailable.unnamed = No se puede entrar en esa mazmorra ahora mismo.
+entry.cost = Necesitas {1} x{2, number} para entrar en {0}.
+
+# The results screen each member sees when their party clears a run. The screen paints most of these lines where
+# a value cannot be filled in; only results.time (the run's length, m:ss) and results.team_total carry one.
+results.cleared = Mazmorra superada
+results.failed = Partida fallida
+results.time = Tiempo {0}
+results.breakdown = Tu partida
+results.party = Tu grupo
+results.damage = Daño a jefes
+results.bosses = Jefes derrotados
+results.rewards = Recompensa de finalización
+results.no_rewards = Sin recompensa de finalización esta vez.
+results.pending = Tus bolsas están llenas. El resto te espera en Pendientes, en tu menú.
+results.claim = Reclamar
+results.claimed = Reclamado.
+results.records = Récords
+results.again = Jugar de nuevo
+results.close = Cerrar
+results.team_total = Total {0, number}
+
+# What a player reads a moment after they arrive in a dungeon area while its run is going. The dungeon's name
+# heads it; under it, what to do there (the dungeon's own GoalKey line, else the lines below built from what
+# clears a run), then the run's rules. {0} in goal.survive and goal.time_limit is a goal.time.* length.
+goal.boss = Derrota al jefe.
+goal.all_bosses = Derrota a todos los jefes.
+goal.objective = Termina la tarea de la mazmorra.
+goal.survive = Aguanta {0}.
+goal.time_limit = Termina en {0}, o la partida fallará.
+goal.wipe = Si todos caéis a la vez, la partida falla.
+goal.time.seconds = {0, number} {0, plural, one {segundo} other {segundos}}
+goal.time.minutes = {0, number} {0, plural, one {minuto} other {minutos}}
+goal.time.minutes_seconds = {0, number} {0, plural, one {minuto} other {minutos}} y {1, number} {1, plural, one {segundo} other {segundos}}
+
+# What each member still in the area is told when their run fails. {0} is the dungeon's name.
+run.failed.time_limit = Se acabó el tiempo en {0}. La partida ha fallado.
+run.failed.wipe = Todo tu grupo cayó en {0}. La partida ha fallado.
+
+# Records' Boss Fights, for a fight fought inside a dungeon. {0} is the fight's name, {1} the dungeon's.
+records.fight = {0} en {1}

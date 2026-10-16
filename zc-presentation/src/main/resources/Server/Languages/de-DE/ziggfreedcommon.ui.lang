@@ -37,3 +37,10 @@ kit.nothing_matches_line = Hier passt nichts zu diesen Filtern. Setze sie zurüc
 kit.clear_filters = Filter zurücksetzen
 kit.count = {0, number} / {1, number}
 kit.percent = {0, number}%
+
+# Die Bestätigungsseite für Gegenstandskosten (ui/confirm/ItemCostConfirmPage), bevor etwas die Gegenstände eines Spielers nimmt.
+confirm.button = Bestätigen
+confirm.close = Schließen
+confirm.uses.one = Verbraucht {0} x{1, number} aus deiner Tasche.
+confirm.uses.many = Verbraucht die Gegenstände oben aus deiner Tasche.
+confirm.key = {0} wird nicht verbraucht.

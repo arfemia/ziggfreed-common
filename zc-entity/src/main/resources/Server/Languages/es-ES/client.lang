@@ -22,3 +22,4 @@ itemTooltip.stats.DamageBonus_Void = Daño del Vacío: {value}%
 itemTooltip.stats.DamageBonusFlat_Void = Daño del Vacío Plano: {value}
 itemTooltip.stats.DamageBonus_Life = Daño de Vida: {value}%
 itemTooltip.stats.DamageBonusFlat_Life = Daño de Vida Plano: {value}
+itemTooltip.stats.ReputationGain = Reputación ganada: {value}%

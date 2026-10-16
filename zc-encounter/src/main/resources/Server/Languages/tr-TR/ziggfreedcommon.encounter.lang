@@ -5,6 +5,8 @@
 bar.default = Patron
 example.name = Örnek Karşılaşma
 
+claim.waits = Ödülün menündeki Alınacaklar sekmesinde bekliyor.
+
 admin.desc.family = Bu sunucunun karşılaşmalarını incele ve yönet.
 admin.desc.list = Süren her karşılaşmayı, koşusu ve durumuyla listele.
 admin.desc.inspect = Bir karşılaşmanın koşusunu göster: hedefi, üyeleri ve kimin ne kazandığı.
@@ -41,7 +43,11 @@ admin.inspect.concluded = sonuçlandı: {0}
 admin.inspect.rest = zaferden sonra dinlenme: dünya saatinde {0} saniye
 admin.inspect.rest.resting = dinleniyor: dünya saatinde {0} saniye kaldı
 admin.inspect.rest.rested = dinlendi: mekan patronunu yeniden çıkarabilir
+admin.inspect.feat.held = başarı {0}: şimdiye dek korundu, {1} vuruş şartı sağladı
+admin.inspect.feat.broken = başarı {0}: bozuldu, patrona bir vuruş şartı sağlamadı
+admin.inspect.feat.waiting = başarı {0}: patrona henüz hiçbir vuruş şartı sağlamadı
 admin.inspect.participant = {0}: {1} verildi, {2} alındı, {3} sn mevcut, pay %{4}
+admin.inspect.participant.adds = {0}: ek düşmanlara {1} verdi
 admin.inspect.participants.none = Henüz kimse pay kazanmadı.
 
 admin.ref.needed = Bir karşılaşma belirt: --ref=<koşu kimliğinin başı ya da betik kimliği>.

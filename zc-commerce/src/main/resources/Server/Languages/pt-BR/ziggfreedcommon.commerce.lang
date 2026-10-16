@@ -50,6 +50,14 @@ board.action.reroll = Trocar
 board.toast.accepted = Contrato aceito.
 board.toast.reroll_confirm = Trocar por {0}? Aperte de novo para confirmar.
 
+# Reroll on a contract still on the board, its terms in the line beside the buttons.
+board.reroll.costs = Uma troca custa {0}.
+board.reroll.costs_left = Uma troca custa {0}. Restam {1, number} nesta rodada.
+board.reroll.free_left = {0, number} {0, plural, one {troca grátis restante} other {trocas grátis restantes}} nesta rodada.
+
+wallet.toast.new = Novo: {0}
+wallet.toast.new.row = {0}: {1}
+
 refuse.locked = Você ainda não pode fazer isso.
 refuse.disabled = Isso não está disponível.
 refuse.unknown_offer = Isso não está mais à venda.
@@ -80,3 +88,5 @@ shop.category.items = Itens
 shop.category.boosts = Boosts
 shop.category.conversion = Conversão
 shop.category.featured = Destaques
+
+board.pill = Recompensa

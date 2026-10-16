@@ -1,3 +1,8 @@
 reward.lootable = Набор Добычи
 reward.droplist = Выпавшая Добыча
 reward.effect = Временный Эффект
+
+preview.chance = {0, number}%:
+preview.sometimes = Иногда:
+preview.more = И ещё немного.
+preview.hidden = И несколько редких находок.

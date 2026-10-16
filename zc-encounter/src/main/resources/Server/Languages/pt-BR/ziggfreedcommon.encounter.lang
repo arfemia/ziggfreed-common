@@ -5,6 +5,9 @@
 bar.default = Chefe
 example.name = Encontro de exemplo
 
+# The row a fight's defeat notice shows a player its payout wrote a Claim for.
+claim.waits = Sua recompensa está esperando em Resgates no seu menu.
+
 admin.desc.family = Inspecionar e conduzir os encontros deste servidor.
 admin.desc.list = Listar cada encontro em andamento, com sua execução e seu estado.
 admin.desc.inspect = Mostrar a execução de um encontro: seu alvo, seus membros e quem ganhou o quê.
@@ -41,7 +44,11 @@ admin.inspect.concluded = resolvido: {0}
 admin.inspect.rest = descanso após uma vitória: {0} segundos no relógio do mundo
 admin.inspect.rest.resting = descansando: faltam {0} segundos no relógio do mundo
 admin.inspect.rest.rested = descansado: o local pode erguer seu chefe de novo
+admin.inspect.feat.held = façanha {0}: mantida até agora, {1} golpes a cumpriram
+admin.inspect.feat.broken = façanha {0}: quebrada, um golpe no chefe não a cumpriu
+admin.inspect.feat.waiting = façanha {0}: nenhum golpe no chefe a cumpriu ainda
 admin.inspect.participant = {0}: {1} causado, {2} sofrido, {3}s presente, cota {4}%
+admin.inspect.participant.adds = {0}: causou aos adds {1}
 admin.inspect.participants.none = Ninguém ganhou crédito ainda.
 
 admin.ref.needed = Indique um encontro com --ref=<prefixo do id de execução ou id do script>.

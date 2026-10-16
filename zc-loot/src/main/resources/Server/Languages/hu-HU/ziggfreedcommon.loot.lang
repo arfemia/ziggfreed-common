@@ -1,3 +1,8 @@
 reward.lootable = Zsákmánycsomag
 reward.droplist = Ejtett Zsákmány
 reward.effect = Ideiglenes Hatás
+
+preview.chance = {0, number}%:
+preview.sometimes = Néha:
+preview.more = Meg egy kevés más.
+preview.hidden = És néhány ritka lelet még.

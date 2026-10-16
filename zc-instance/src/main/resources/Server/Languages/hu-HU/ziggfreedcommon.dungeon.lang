@@ -1,0 +1,107 @@
+# zc's dungeons (com.ziggfreed.common.instance.dungeon): /zigdungeon, the admin family, the words its lines
+# nest, what a player is told when a way in refuses them, what to do once inside, a run's results screen and
+# failure lines, and the Boss Fights tab of a fight fought in a dungeon. The file name is the key PREFIX: an
+# entry here resolves as ziggfreedcommon.dungeon.<key>.
+
+# /zigdungeon. The command.desc.* keys are what the engine's own help resolves a command or an argument through.
+command.desc.family = A szerver kazamatáinak és a nyitott példányaiknak megtekintése, vagy belépés egybe.
+command.desc.list = Felsorol minden kazamatát, és hogy hogyan van beállítva.
+command.desc.status = Felsorolja a most nyitott kazamatapéldányokat.
+command.desc.close = Bezár egy kazamatapéldányt. Mindenki, aki bent van, visszakerül, ahonnan belépett.
+command.desc.enter = Belépés egy kazamatába, egy üres területre.
+command.desc.arg.copy = A bezárandó példány a világ nevével, például crypt-1.
+command.desc.arg.dungeon = A kazamata, amibe be akarsz lépni, az azonosítójával, például crypt.
+command.list.none = Nincs betöltve kazamata.
+command.list.header = {0, number} {0, plural, one {kazamata} other {kazamata}}:
+command.list.dungeon = {0} ({1}): {2}. Nehézség: {3}, évad: {4}.
+command.list.place = Sablon: {0}, prefab: {1}.
+command.list.share = Példányonként {0, number} {0, plural, one {terület} other {terület}}, {1, number} {1, plural, one {blokk} other {blokk}} távolságra egymástól, területenként {2, number} {2, plural, one {játékos} other {játékos}}, {3}.
+command.list.run = A játékosok a területükön itt érkeznek: {0, number}, {1, number}, {2, number}. {3}. Ha mindenki elesik, {4}. A példány {5, number} {5, plural, one {másodperccel} other {másodperccel}} azután zár be, hogy kiürül.
+command.status.none = Nincs nyitott kazamatapéldány.
+command.status.header = {0, number} nyitott kazamatapéldány:
+command.status.copy = {0} ({1}): {3, number} {3, plural, one {területből} other {területből}} {2, number} használatban, {4, number} {4, plural, one {játékos} other {játékos}} bent, {5, number} úton. {6}. {7}.
+command.close.done = {0} bezárása. Mindenki, aki bent van, visszakerül, ahonnan belépett.
+command.close.unknown = Nincs nyitott kazamatapéldány {0} néven. A /zigdungeon status felsorolja a nyitottakat.
+command.enter.sent = Belépsz ide: {0}, {2} területből a(z) {1, number}.
+command.enter.unknown = Nincs betöltve kazamata {0} néven. A /zigdungeon list megmutatja a betöltötteket.
+command.enter.closed = {0} most nem léphető be: {1}.
+command.enter.no_prefab = {0} nem nevez meg prefabot, így a területei üres semmik lennének.
+command.enter.missing_prefab = {0} a(z) {1} prefabot nevezi meg, de egyetlen betöltött csomag sem szállítja.
+command.enter.audit_error = {0} nem léphető be: a kazamatafájlja hibás. A szerver naplója megmondja, mit kell javítani.
+command.enter.on_the_way = Már úton vagy egy kazamatába.
+command.enter.inside = Már egy kazamataterületen vagy. Előbb lépj ki.
+command.enter.full = Ez a terület tele van.
+command.enter.copy_gone = Ez a kazamatapéldány éppen bezárt. Próbáld újra.
+command.enter.failed = A kazamatapéldányt nem lehetett megnyitni, vagy a teleportot elutasították. A szerver naplója megmondja, miért.
+
+# Words the lines above nest.
+state.open = nyitva
+state.off = kikapcsolva
+state.out_of_season = zárva, amíg el nem jön az évada
+difficulty.normal = normál
+season.all_year = egész évben
+prefab.none = nincs megadva
+share.locked = egy terület egy csapaté
+share.open = a csapatok osztoznak egy területen, amíg van benne hely
+run.limit = A futás {0, number} {0, plural, one {másodperc} other {másodperc}} után véget ér
+run.no_limit = Nincs időkorlát
+wipe.fails = a futás véget ér
+wipe.ignored = a futás nem ér véget
+status.tick = Átlagosan {0, number} ms a tick
+status.tick.unknown = A tick ideje még nem ismert
+status.taking = Csapatokat fogad
+status.empty = Üres, {0, number} {0, plural, one {másodperc} other {másodperc}} múlva bezár
+status.closing = Bezárás
+
+# What a player is told when a way in (a block, a character, a conversation) cannot send them into a dungeon.
+# {0} is the dungeon's name, {1} its season's. In entry.cost, {1} is the item the dungeon takes on the way in and
+# {2} how many; the dungeon's own hint line, when it names one, shows under it.
+entry.off = {0} egyelőre zárva van.
+entry.out_of_season = {0} csak ekkor nyílik meg: {1}.
+entry.out_of_season.unnamed = {0} csak az évadában nyílik meg.
+entry.full = Nincs több hely a csapatodnak itt: {0}.
+entry.on_the_way = Már úton vagy egy kazamatába.
+entry.inside = Már egy kazamatában vagy. Előbb lépj ki.
+entry.copy_gone = {0} éppen bezárt, mire odaértél. Próbáld újra.
+entry.unavailable = {0} most nem léphető be.
+entry.unavailable.unnamed = Ez a kazamata most nem léphető be.
+entry.cost = {1} x{2, number} kell ahhoz, hogy belépj ide: {0}.
+
+# The results screen each member sees when their party clears a run. The screen paints most of these lines where
+# a value cannot be filled in; only results.time (the run's length, m:ss) and results.team_total carry one.
+results.cleared = Kazamata teljesítve
+results.failed = A futás sikertelen
+results.time = Idő: {0}
+results.breakdown = A futásod
+results.party = A csapatod
+results.damage = Sebzés a főellenségeknek
+results.bosses = Legyőzött főellenségek
+results.rewards = Teljesítési jutalom
+results.no_rewards = Most nincs teljesítési jutalom.
+results.pending = Tele van a zsákod. A többi a menüben az Átvehetők alatt vár.
+results.claim = Átvétel
+results.claimed = Átvéve.
+results.records = Rekordok
+results.again = Játssz újra
+results.close = Bezárás
+results.team_total = Összesen: {0, number}
+
+# What a player reads a moment after they arrive in a dungeon area while its run is going. The dungeon's name
+# heads it; under it, what to do there (the dungeon's own GoalKey line, else the lines below built from what
+# clears a run), then the run's rules. {0} in goal.survive and goal.time_limit is a goal.time.* length.
+goal.boss = Győzd le a főellenséget.
+goal.all_bosses = Győzd le az összes főellenséget.
+goal.objective = Végezd el a kazamata feladatát.
+goal.survive = Tarts ki ennyi ideig: {0}.
+goal.time_limit = Fejezd be ennyi időn belül: {0}, különben a futás sikertelen.
+goal.wipe = Ha mindenki egyszerre elesik, a futás sikertelen.
+goal.time.seconds = {0, number} {0, plural, one {másodperc} other {másodperc}}
+goal.time.minutes = {0, number} {0, plural, one {perc} other {perc}}
+goal.time.minutes_seconds = {0, number} {0, plural, one {perc} other {perc}} és {1, number} {1, plural, one {másodperc} other {másodperc}}
+
+# What each member still in the area is told when their run fails. {0} is the dungeon's name.
+run.failed.time_limit = Letelt az idő itt: {0}. A futás sikertelen.
+run.failed.wipe = Az egész csapatod elesett itt: {0}. A futás sikertelen.
+
+# Records' Boss Fights, for a fight fought inside a dungeon. {0} is the fight's name, {1} the dungeon's.
+records.fight = {0} itt: {1}

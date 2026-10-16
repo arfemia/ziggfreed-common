@@ -1,3 +1,8 @@
 reward.lootable = Lot de Butin
 reward.droplist = Butin Lâché
 reward.effect = Effet Temporaire
+
+preview.chance = {0, number} % :
+preview.sometimes = Parfois :
+preview.more = Et un peu plus.
+preview.hidden = Et quelques autres trouvailles rares.

@@ -23,6 +23,8 @@ stat.progress = Folyamatban
 stat.collect = Átvehető
 stat.tracking = Követett
 subtitle = {0, number} folyamatban, {1, number} átvehető
+kind.main = Főküldetés
+kind.side = Mellékküldetés
 
 # The toolbar.
 status.all = Mind
@@ -61,3 +63,5 @@ search.placeholder = Küldetések keresése...
 state.elsewhere = Máshol
 hint.collect_from = Átvétel helye: {0}
 hint.collect_at = Átvétel helye: {0}
+hint.board_contract = Add le a tábláján, vagy annál, aki a munkáját kiadja, hogy átvedd a béredet.
+hint.new_work = Új munka ennyi idő múlva: {0}

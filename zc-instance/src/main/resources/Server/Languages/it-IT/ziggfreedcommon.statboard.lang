@@ -16,6 +16,9 @@ your_rank.none = Non sei ancora in questa classifica.
 # A playtime cell: hours and minutes, or minutes alone under an hour.
 duration.hours = {0, number}h {1, number}m
 duration.minutes = {0, number}m
+# A moment cell, such as a first win: today, or how many whole days ago.
+since.today = Oggi
+since.days = {0, number} {0, plural, one {giorno} other {giorni}} fa
 
 # The period tabs (Server/ZiggfreedCommon/StatPeriods).
 period.all_time = Di sempre
@@ -29,8 +32,31 @@ period.season = {0} {1}
 section.combat = Combattimento
 section.gathering = Raccolta
 section.adventure = Avventura
+section.dungeons = Dungeon
 section.renown = Fama
+section.bosses = Boss
 section.combat.hint = Sconfiggi dei mob o affronta un boss per entrare in questa classifica. Anche le tue morti contano qui.
 section.gathering.hint = Rompi o piazza blocchi, fabbrica oggetti a mano o raccogli cose per entrare in questa classifica.
 section.adventure.hint = Completa missioni, parla con i personaggi, vinci round o semplicemente gioca per entrare in questa classifica.
 section.renown.hint = Completa gli obiettivi del gioco o guadagna stima con una reputazione per entrare in questa classifica. La Fama conta solo per Di sempre.
+section.bosses.hint = Aiuta a sconfiggere un boss per entrare in questa classifica.
+section.dungeons.hint = Inizia, completa o fallisci una partita di dungeon per entrare in questa classifica.
+
+# The Bosses tab's split: its first choice, the groups a boss sits in (Server/ZiggfreedCommon/RecordGroups),
+# and a boss's party sizes. bosses.all is also the first entry of the list of bosses.
+bosses.all = Tutti i boss
+bosses.sizes.all = Tutte le dimensioni
+bosses.size.solo = Da solo
+bosses.size.players = {0, number} giocatori
+group.seasonal = Stagionale
+group.dungeon = Dungeon
+group.world = Mondo
+group.minigame = Minigioco
+
+# The Dungeons tab's split: its first choice (also the first entry of the list of dungeons), and a
+# dungeon's difficulties. A difficulty label a dungeon writes shows as difficulty.<label> when that key
+# is here, else as written.
+dungeons.all = Tutti i dungeon
+dungeons.difficulties.all = Tutte le difficoltà
+difficulty.normal = Normale
+difficulty.hard = Difficile

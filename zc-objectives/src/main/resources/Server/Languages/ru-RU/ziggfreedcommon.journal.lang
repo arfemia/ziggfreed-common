@@ -18,6 +18,11 @@ state.waiting = Ожидает
 state.back_in = Вернётся через {0}
 state.done = Выполнено
 
+# The word a row's line under the title opens with, after its glyph (a gold star, a scroll), for a quest that
+# neither a board posts nor comes round again.
+kind.main = Основной квест
+kind.side = Побочный квест
+
 # The header's three numbers and the line under the title.
 stat.progress = В процессе
 stat.collect = К получению
@@ -60,3 +65,5 @@ search.placeholder = Поиск квестов...
 state.elsewhere = Не здесь
 hint.collect_from = Награду выдаёт {0}
 hint.collect_at = Место получения награды: {0}
+hint.board_contract = Сдайте его на его доске или тому, кто выдаёт эту работу, чтобы получить плату.
+hint.new_work = Новая работа через {0}

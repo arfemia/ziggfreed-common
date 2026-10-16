@@ -1,3 +1,7 @@
 reward.lootable = Beutepaket
 reward.droplist = Beuteabwurf
 reward.effect = Temporärer Effekt
+preview.chance = {0, number}%:
+preview.sometimes = Manchmal:
+preview.more = Dazu noch ein wenig mehr.
+preview.hidden = Und ein paar weitere seltene Funde.

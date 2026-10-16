@@ -1,2 +1,6 @@
 # The name a worn gear set's tile shows on the buff bar when the set names no badge of its own.
 default.name = Set Bonusu
+
+# A quest step or achievement criterion of the GEAR_SET_TIER kind: {0} is how many pieces, {1} the set.
+objective.gear_set_tier = {1} setinden {0} parça tak
+objective.gear_set_tier.any = Bir ekipman setinden {0} parça tak

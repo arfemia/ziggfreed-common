@@ -5,13 +5,17 @@ book.empty.quests = Aucune quête n'est encore disponible pour toi.
 book.empty.achievements = Aucun succès n'est encore disponible pour toi.
 book.more = +{0} de plus
 
+quest.drop.received = Objet de quête : {0}
+quest.drop.for = Pour {0}
+quest.drop.bag_full = Votre sac est plein, vous n'avez donc pas pu prendre {0}. Faites-lui de la place.
+quest.drop.claim = {0} pour {1}
+
 # How often a quest comes round, badged on every list that shows quests. Derived from the
 # quest's own repeat rule, so nothing is authored on a quest to make it appear.
 quest.cadence.repeatable = Répétable
 quest.cadence.daily = Quotidienne
 quest.cadence.weekly = Hebdomadaire
 quest.cadence.seasonal = Saisonnière
-
 
 book.achievements.category.uncategorised = Autres
 book.achievements.criterion.untitled = Étape sans nom
@@ -48,7 +52,6 @@ npcquests.section.parked = À récupérer ailleurs
 npcquests.section.cooldown = Revient
 npcquests.section.locked = Verrouillées
 npcquests.section.done = Terminées
-
 
 npcquests.action.complete = Terminer
 

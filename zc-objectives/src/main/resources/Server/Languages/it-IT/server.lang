@@ -1,0 +1,8 @@
+# Ziggfreed Common, additions to Hytale's own "server" language namespace, en-US.
+# This file's basename ("server") targets the engine's built-in namespace, not the library's
+# "ziggfreedcommon" one. Server-shipped .lang files merge per key into a namespace, so this file
+# adds only new keys and never overrides one the engine owns.
+#
+# The in-game trigger-volume inspector names a condition type by
+# customUI.triggerVolumeEffectEditor.conditionType.<TypeId>.
+customUI.triggerVolumeEffectEditor.conditionType.ZigRequires = Richiede

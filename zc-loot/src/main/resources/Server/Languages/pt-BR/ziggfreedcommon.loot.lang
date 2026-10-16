@@ -1,3 +1,9 @@
 reward.lootable = Pacote de Espólio
 reward.droplist = Espólio Caído
 reward.effect = Efeito Temporário
+
+# What hovering a Lootable reward lists (unless its table sets ListContents false).
+preview.chance = {0, number}%:
+preview.sometimes = Às vezes:
+preview.more = E mais um pouco.
+preview.hidden = E alguns outros achados raros.

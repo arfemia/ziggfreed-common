@@ -22,3 +22,4 @@ itemTooltip.stats.DamageBonus_Void = Leere-Schaden: {value}%
 itemTooltip.stats.DamageBonusFlat_Void = Flacher Leere-Schaden: {value}
 itemTooltip.stats.DamageBonus_Life = Leben-Schaden: {value}%
 itemTooltip.stats.DamageBonusFlat_Life = Flacher Leben-Schaden: {value}
+itemTooltip.stats.ReputationGain = Ruf-Gewinn: {value}%

@@ -18,6 +18,11 @@ state.waiting = In attesa
 state.back_in = Torna tra {0}
 state.done = Completata
 
+# The word a row's line under the title opens with, after its glyph (a gold star, a scroll), for a quest that
+# neither a board posts nor comes round again: those open with the board's own words or how often it comes round.
+kind.main = Missione principale
+kind.side = Missione secondaria
+
 # The header's three numbers and the line under the title.
 stat.progress = In corso
 stat.collect = Da riscuotere
@@ -60,3 +65,7 @@ search.placeholder = Cerca missioni...
 state.elsewhere = Altrove
 hint.collect_from = Riscuotila da {0}
 hint.collect_at = Riscuotila presso {0}
+# A board's contract the player carries, read away from the board and its hosts.
+hint.board_contract = Consegnalo alla sua bacheca, o a chi assegna il suo lavoro, per riscuotere la paga.
+# A board's contract the player already did this rotation, at a character hosting the board: {0} is how long until the board posts new work.
+hint.new_work = Nuovo lavoro tra {0}

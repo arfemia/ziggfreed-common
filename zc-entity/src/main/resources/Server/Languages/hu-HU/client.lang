@@ -22,3 +22,4 @@ itemTooltip.stats.DamageBonus_Void = Üresség Sebzés: {value}%
 itemTooltip.stats.DamageBonusFlat_Void = Egyenes Üresség Sebzés: {value}
 itemTooltip.stats.DamageBonus_Life = Élet Sebzés: {value}%
 itemTooltip.stats.DamageBonusFlat_Life = Egyenes Élet Sebzés: {value}
+itemTooltip.stats.ReputationGain = Hírnévszerzés: {value}%

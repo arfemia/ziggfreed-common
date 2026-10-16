@@ -5,6 +5,8 @@
 bar.default = Boss
 example.name = Beispielbegegnung
 
+claim.waits = Deine Belohnung wartet unter Abholungen in deinem Menü.
+
 admin.desc.family = Die Begegnungen dieses Servers ansehen und steuern.
 admin.desc.list = Jede laufende Begegnung mit ihrem Durchlauf und Zustand auflisten.
 admin.desc.inspect = Den Durchlauf einer Begegnung zeigen: Ziel, Mitglieder und wer sich was verdient hat.
@@ -41,7 +43,11 @@ admin.inspect.concluded = abgeschlossen: {0}
 admin.inspect.rest = Ruhe nach einem Sieg: {0} Sekunden auf der Weltuhr
 admin.inspect.rest.resting = ruht: noch {0} Sekunden auf der Weltuhr
 admin.inspect.rest.rested = ausgeruht: der Ort kann seinen Boss wieder erwecken
+admin.inspect.feat.held = Leistung {0}: bisher gehalten, {1} Treffer haben sie erfüllt
+admin.inspect.feat.broken = Leistung {0}: gebrochen, ein Treffer auf den Boss hat sie nicht erfüllt
+admin.inspect.feat.waiting = Leistung {0}: noch kein Treffer auf den Boss hat sie erfüllt
 admin.inspect.participant = {0}: {1} ausgeteilt, {2} eingesteckt, {3}s anwesend, Anteil {4}%
+admin.inspect.participant.adds = {0}: an den Adds {1} ausgeteilt
 admin.inspect.participants.none = Niemand hat sich bisher etwas verdient.
 
 admin.ref.needed = Nenne eine Begegnung mit --ref=<Anfang der Durchlauf-ID oder Skript-ID>.

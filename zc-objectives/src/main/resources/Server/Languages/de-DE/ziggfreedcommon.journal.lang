@@ -18,6 +18,10 @@ state.waiting = Wartend
 state.back_in = Wieder in {0}
 state.done = Erledigt
 
+# Das Wort, mit dem die Zeile unter dem Titel beginnt, für eine Quest, die weder ein Brett aushängt noch wiederkehrt.
+kind.main = Hauptquest
+kind.side = Nebenquest
+
 # The header's three numbers and the line under the title.
 stat.progress = In Arbeit
 stat.collect = Abzuholen
@@ -61,3 +65,5 @@ search.placeholder = Quests suchen...
 state.elsewhere = Anderswo
 hint.collect_from = Hol sie bei {0} ab
 hint.collect_at = Hol sie dort ab: {0}
+hint.board_contract = Gib ihn an seinem Brett ab, oder bei dem, der seine Arbeit vergibt, um deinen Lohn abzuholen.
+hint.new_work = Neue Arbeit in {0}

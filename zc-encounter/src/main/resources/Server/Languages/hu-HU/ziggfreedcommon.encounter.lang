@@ -5,6 +5,8 @@
 bar.default = Főellenség
 example.name = Példatalálkozás
 
+claim.waits = A jutalmad a menüben vár, az Átvehetők alatt.
+
 admin.desc.family = A szerver találkozásainak megtekintése és irányítása.
 admin.desc.list = Minden futó találkozás felsorolása a menetével és az állapotával.
 admin.desc.inspect = Egy találkozás menetének megjelenítése: a célpont, a tagok és hogy ki mit szerzett.
@@ -41,7 +43,11 @@ admin.inspect.concluded = lezárva: {0}
 admin.inspect.rest = pihenő egy győzelem után: {0} másodperc a világ óráján
 admin.inspect.rest.resting = pihen: még {0} másodperc a világ óráján
 admin.inspect.rest.rested = kipihent: a hely újra felkeltheti a főellenségét
+admin.inspect.feat.held = erőpróba {0}: eddig megvan, {1} találat teljesítette
+admin.inspect.feat.broken = erőpróba {0}: elbukott, a főellenségre mért egy találat nem teljesítette
+admin.inspect.feat.waiting = erőpróba {0}: a főellenségre mért egyetlen találat sem teljesítette még
 admin.inspect.participant = {0}: {1} kiosztva, {2} elszenvedve, {3} mp jelen, részesedés {4}%
+admin.inspect.participant.adds = {0}: {1} sebzést okozott a kísérőknek
 admin.inspect.participants.none = Még senki sem szerzett jóváírást.
 
 admin.ref.needed = Nevezz meg egy találkozást: --ref=<a menetazonosító eleje vagy a szkript azonosítója>.

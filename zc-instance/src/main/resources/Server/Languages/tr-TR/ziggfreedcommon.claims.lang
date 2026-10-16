@@ -1,0 +1,69 @@
+# The Claims tab (com.ziggfreed.common.instance.claims): the rewards a player has earned and not taken
+# yet, waiting until they press Claim. The file name is the key PREFIX: an entry here resolves as
+# ziggfreedcommon.claims.<key>. menu.tab is a rail label: 20 characters at most once uppercased.
+
+menu.tab = Alınacaklar
+page.title = Alınacaklar
+page.lead = Kazandığın ödüller, sen alana kadar burada bekler.
+page.section = Bekleyenler
+row.rewards = {0, number} {0, plural, one {ödül} other {ödül}}
+detail.rewards = Ödüller
+detail.lead = Teslim Al bunları alır. Hepsini Al, bekleyen her şeyi alır.
+detail.hint = Eşyalar için çantanda yer olmalı. Sığmayanlar sonra için burada kalır.
+action.claim = Teslim Al
+action.claim_all = Hepsini Al
+empty.title = Alınacak bir şey yok
+empty.line = Patronlardan ve etkinliklerden gelen ödüller, sen alana kadar burada bekler.
+untitled = Ödüller
+
+# A reward chip nothing else could name (a Claim's row, a results screen's): {0} is how many.
+chip.generic = x{0, number} Ödül
+
+# What a press says, over the page.
+toast.claimed = Teslim alındı.
+toast.claimed_all = Bekleyen her şey teslim alındı.
+toast.kept = Çantaların dolu. Sığmayanlar hâlâ burada bekliyor.
+toast.failed = Teslim alındı, ama bir kısmı bu sunucuda verilemedi.
+
+# Telling a player something waits: the toast when a Claim arrives, and the notice once a session at login.
+# notice.added is a Claim with no title of its own; notice.added.named one with a title, {0}; notice.added.many
+# heads several Claims that arrived together, each on a row under it.
+notice.added = Seni bir ödül bekliyor. Menündeki Alınacaklar sekmesinde bulursun.
+notice.added.named = {0}, menündeki Alınacaklar sekmesinde bekliyor.
+notice.added.many = Ödüller, menündeki Alınacaklar sekmesinde bekliyor.
+notice.ready = Seni menündeki Alınacaklar sekmesinde {0, number} {0, plural, one {ödül} other {ödül}} bekliyor.
+# A reward from a boss that left a chest where it fell: it waits in the chest and under Claims alike. notice.added.spoils
+# is a Claim with no title of its own, or the line over several; notice.added.spoils.named one with a title, {0}.
+notice.added.spoils = Payın, patronun düştüğü yerdeki sandıkta ve menündeki Alınacaklar sekmesinde bekliyor.
+notice.added.spoils.named = {0}, patronun düştüğü yerdeki sandıkta ve menündeki Alınacaklar sekmesinde bekliyor.
+
+# A boss's chest: what a won fight leaves where the boss fell, holding each player's own rewards from that fight.
+# spoils.hint is the prompt over the chest; the game fills {key} with the button to press. Opening it hands over
+# what is not an item at once (spoils.paid heads the list of it) and shows the items in the game's own chest
+# window; spoils.empty is the line for a player with nothing in it. The spoils.title to spoils.action.take_all lines
+# are the Claims page's, which the chest can show instead (the library's SpoilsView switch).
+spoils.hint = Açmak için [{key}] tuşuna bas
+spoils.paid = Sandıktan:
+spoils.title = Payın
+spoils.lead = Bu patronun senin için bıraktıkları. Burada bıraktığın her şey Alınacaklar sekmesinde seni bekler.
+spoils.detail.lead = Teslim Al bunları alır. Hepsini Al, buradaki senin olan her şeyi alır.
+spoils.detail.hint = Eşyalar için çantanda yer olmalı. Sığmayanlar Alınacaklar sekmesinde bekler.
+spoils.action.take_all = Hepsini Al
+spoils.empty = Burada seni bekleyen bir şey yok.
+
+# A Claim's title when /zigclaims give wrote it: {0} is the loot table's id.
+title.admin = {0} ganimeti
+
+# /zigclaims, the admin family. The command.desc.* keys are what the engine's own help resolves a command
+# or an argument through.
+command.desc.family = Ödülleri oyuncuların Alınacaklar sekmesine koyar.
+command.desc.give = Bir ganimet tablosunu çevirir, çıkanı bir oyuncunun Alınacaklar sekmesine koyar.
+command.desc.arg.player = Oyuncu, çevrimiçi olsun olmasın: bir ad ya da oyuncu kimliği. Varsayılan sensin.
+command.desc.arg.lootable = Çevrilecek ganimet tablosu, kimliğiyle.
+command.player.needed = --player=<ad> ile bir oyuncu belirt.
+command.player.offline = Bu oyuncu şu an bir dünyada değil. Biraz sonra tekrar dene.
+command.player.unknown = '{0}' adında bir oyuncu bulunamadı. Oyuncu kimliği de olur.
+command.lootable.needed = --lootable=<id> ile bir ganimet tablosu belirt.
+command.lootable.unknown = '{0}' adında yüklü bir ganimet tablosu yok.
+command.give.done = {0} tablosundan {2, number} {2, plural, one {ödül} other {ödül}}, {1} oyuncusunun Alınacaklar sekmesine konuldu.
+command.give.nothing = {0}, {1} için hiçbir şey çıkarmadı, bu yüzden bir kayıt yazılmadı.

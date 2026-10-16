@@ -28,7 +28,7 @@ tip.sort = Clicca per ordinare tutti in base a questo.
 
 command.desc.family = Vedi i record degli scontri con i boss di questo server.
 command.desc.encounter = Apri i record di uno scontro con un boss.
-command.desc.arg.encounter = L'id dello script dello scontro. Omettilo per aprire il primo scontro registrato.
+command.desc.arg.encounter = L'id dello script dello scontro. Omettilo per vedere ogni boss.
 command.open.needs_player = Solo un giocatore può aprire la schermata dei record.
 command.open.failed = Non è stato possibile aprire la schermata dei record. Riprova tra un attimo.
 command.encounter.unranked = '{0}' non tiene record su questo server.

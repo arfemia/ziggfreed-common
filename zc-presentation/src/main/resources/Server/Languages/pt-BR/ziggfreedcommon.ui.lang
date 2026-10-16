@@ -36,3 +36,10 @@ kit.nothing_matches_line = Nada aqui corresponde a esses filtros. Limpe-os para 
 kit.clear_filters = Limpar filtros
 kit.count = {0, number} / {1, number}
 kit.percent = {0, number}%
+
+# The item-cost confirm page: its button's default words, its close button, and the line saying what the button takes.
+confirm.button = Confirmar
+confirm.close = Fechar
+confirm.uses.one = Usa {0} x{1, number} do seu inventário.
+confirm.uses.many = Usa os itens acima do seu inventário.
+confirm.key = Seu {0} não é consumido.

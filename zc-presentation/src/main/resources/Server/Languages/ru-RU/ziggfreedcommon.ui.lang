@@ -36,3 +36,9 @@ kit.nothing_matches_line = Здесь ничего не подходит под 
 kit.clear_filters = Сбросить фильтры
 kit.count = {0, number} / {1, number}
 kit.percent = {0, number}%
+
+confirm.button = Подтвердить
+confirm.close = Закрыть
+confirm.uses.one = Забирает {0} x{1, number} из вашей сумки.
+confirm.uses.many = Забирает перечисленные выше предметы из вашей сумки.
+confirm.key = Ваш предмет «{0}» не расходуется.

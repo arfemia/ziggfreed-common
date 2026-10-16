@@ -1,2 +1,4 @@
 # The name a worn gear set's tile shows on the buff bar when the set names no badge of its own.
 default.name = Bonificación de Conjunto
+objective.gear_set_tier = Lleva {0} piezas de {1}
+objective.gear_set_tier.any = Lleva {0} piezas de un conjunto de equipo

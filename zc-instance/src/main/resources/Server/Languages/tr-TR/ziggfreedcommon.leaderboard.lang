@@ -28,7 +28,7 @@ tip.sort = Herkesi buna göre sıralamak için tıkla.
 
 command.desc.family = Bu sunucudaki patron dövüşlerinin rekorlarını gör.
 command.desc.encounter = Bir patron dövüşünün rekorlarını aç.
-command.desc.arg.encounter = Dövüşün karşılaşma betiği kimliği. Vermezsen kayıtlı ilk dövüş açılır.
+command.desc.arg.encounter = Dövüşün karşılaşma betiği kimliği. Vermezsen her patron gösterilir.
 command.open.needs_player = Rekor ekranını yalnızca bir oyuncu açabilir.
 command.open.failed = Rekor ekranı açılamadı. Birazdan yine dene.
 command.encounter.unranked = '{0}' bu sunucuda rekor tutmuyor.

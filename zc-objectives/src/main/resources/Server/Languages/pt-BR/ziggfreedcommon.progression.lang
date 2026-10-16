@@ -12,7 +12,6 @@ quest.cadence.daily = Diária
 quest.cadence.weekly = Semanal
 quest.cadence.seasonal = Sazonal
 
-
 book.achievements.category.uncategorised = Outros
 book.achievements.criterion.untitled = Etapa sem nome
 
@@ -48,7 +47,6 @@ npcquests.section.parked = Receber em outro lugar
 npcquests.section.cooldown = Volta
 npcquests.section.locked = Bloqueadas
 npcquests.section.done = Concluídas
-
 
 npcquests.action.complete = Concluir
 
@@ -159,3 +157,11 @@ reputation.rank_achievement = {0} ({1})
 
 # The hover line on the map marker at a character with a quest the player could take; {0} is the quest's title.
 quest.marker.available = Missão disponível: {0}
+
+# The corner notice when an item a quest step asks for drops into the player's bag.
+quest.drop.received = Item de missão: {0}
+quest.drop.for = Para {0}
+quest.drop.bag_full = Seu inventário está cheio, então você não pôde pegar {0}. Abra espaço para ele.
+
+# The title of the Claim a quest item waits in.
+quest.drop.claim = {0} para {1}

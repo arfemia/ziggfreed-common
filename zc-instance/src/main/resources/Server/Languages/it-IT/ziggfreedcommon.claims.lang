@@ -1,0 +1,69 @@
+# The Claims tab (com.ziggfreed.common.instance.claims): the rewards a player has earned and not taken
+# yet, waiting until they press Claim. The file name is the key PREFIX: an entry here resolves as
+# ziggfreedcommon.claims.<key>. menu.tab is a rail label: 20 characters at most once uppercased.
+
+menu.tab = Ricompense
+page.title = Ricompense
+page.lead = Le ricompense che hai guadagnato aspettano qui finché non le ritiri.
+page.section = In attesa
+row.rewards = {0, number} {0, plural, one {ricompensa} other {ricompense}}
+detail.rewards = Ricompense
+detail.lead = Ritira prende queste. Ritira Tutto prende tutto ciò che è in attesa.
+detail.hint = Gli oggetti hanno bisogno di spazio nelle borse. Quello che non entra resta qui per dopo.
+action.claim = Ritira
+action.claim_all = Ritira Tutto
+empty.title = Niente da ritirare
+empty.line = Le ricompense di boss ed eventi aspettano qui finché non le ritiri.
+untitled = Ricompense
+
+# A reward chip nothing else could name (a Claim's row, a results screen's): {0} is how many.
+chip.generic = x{0, number} Ricompensa
+
+# What a press says, over the page.
+toast.claimed = Ritirato.
+toast.claimed_all = Ritirato tutto ciò che era in attesa.
+toast.kept = Le tue borse sono piene. Quello che non è entrato aspetta ancora qui.
+toast.failed = Ritirato, ma una parte non ha potuto essere consegnata su questo server.
+
+# Telling a player something waits: the toast when a Claim arrives, and the notice once a session at login.
+# notice.added is a Claim with no title of its own; notice.added.named one with a title, {0}; notice.added.many
+# heads several Claims that arrived together, each on a row under it.
+notice.added = Una ricompensa ti aspetta. La trovi sotto Ricompense nel tuo menu.
+notice.added.named = {0} ti aspetta sotto Ricompense nel tuo menu.
+notice.added.many = Delle ricompense ti aspettano sotto Ricompense nel tuo menu.
+notice.ready = {0, number} {0, plural, one {ricompensa ti aspetta} other {ricompense ti aspettano}} sotto Ricompense nel tuo menu.
+# A reward from a boss that left a chest where it fell: it waits in the chest and under Claims alike. notice.added.spoils
+# is a Claim with no title of its own, or the line over several; notice.added.spoils.named one with a title, {0}.
+notice.added.spoils = La tua parte ti aspetta nel forziere dove è caduto il boss, e sotto Ricompense nel tuo menu.
+notice.added.spoils.named = {0} ti aspetta nel forziere dove è caduto il boss, e sotto Ricompense nel tuo menu.
+
+# A boss's chest: what a won fight leaves where the boss fell, holding each player's own rewards from that fight.
+# spoils.hint is the prompt over the chest; the game fills {key} with the button to press. Opening it hands over
+# what is not an item at once (spoils.paid heads the list of it) and shows the items in the game's own chest
+# window; spoils.empty is the line for a player with nothing in it. The spoils.title to spoils.action.take_all lines
+# are the Claims page's, which the chest can show instead (the library's SpoilsView switch).
+spoils.hint = Premi [{key}] per aprire
+spoils.paid = Dal forziere:
+spoils.title = La tua parte
+spoils.lead = Quello che questo boss ha lasciato per te. Quello che lasci qui ti aspetta sotto Ricompense.
+spoils.detail.lead = Ritira prende queste. Prendi Tutto prende tutto ciò che qui è tuo.
+spoils.detail.hint = Gli oggetti hanno bisogno di spazio nelle borse. Quello che non entra aspetta sotto Ricompense.
+spoils.action.take_all = Prendi Tutto
+spoils.empty = Qui dentro non c'è niente che ti aspetti.
+
+# A Claim's title when /zigclaims give wrote it: {0} is the loot table's id.
+title.admin = Bottino da {0}
+
+# /zigclaims, the admin family. The command.desc.* keys are what the engine's own help resolves a command
+# or an argument through.
+command.desc.family = Mette ricompense nelle Ricompense dei giocatori.
+command.desc.give = Tira una tabella di bottino e mette ciò che esce nelle Ricompense di un giocatore.
+command.desc.arg.player = Il giocatore, online o no: un nome o un id giocatore. Predefinito: tu.
+command.desc.arg.lootable = La tabella di bottino da tirare, con il suo id.
+command.player.needed = Indica un giocatore con --player=<name>.
+command.player.offline = Quel giocatore non è in un mondo in questo momento. Riprova tra un attimo.
+command.player.unknown = Nessun giocatore si chiama '{0}'. Funziona anche il suo id giocatore.
+command.lootable.needed = Indica una tabella di bottino con --lootable=<id>.
+command.lootable.unknown = Nessuna tabella di bottino si chiama '{0}'.
+command.give.done = Messe {2, number} {2, plural, one {ricompensa} other {ricompense}} da {0} nelle Ricompense di {1}.
+command.give.nothing = {0} non ha dato nulla a {1}, quindi non è stata scritta nessuna ricompensa.

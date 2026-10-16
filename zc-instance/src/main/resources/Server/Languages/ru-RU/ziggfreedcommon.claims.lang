@@ -1,0 +1,69 @@
+# The Claims tab (com.ziggfreed.common.instance.claims): the rewards a player has earned and not taken
+# yet, waiting until they press Claim. The file name is the key PREFIX: an entry here resolves as
+# ziggfreedcommon.claims.<key>. menu.tab is a rail label: 20 characters at most once uppercased.
+
+menu.tab = Награды
+page.title = Награды
+page.lead = Заработанные награды ждут здесь, пока вы их не заберёте.
+page.section = Ожидают
+row.rewards = {0, number} {0, plural, one {награда} few {награды} many {наград} other {награды}}
+detail.rewards = Награды
+detail.lead = «Забрать» берёт эти награды. «Забрать всё» берёт всё, что ждёт.
+detail.hint = Для предметов нужно место в сумках. Что не поместится, останется здесь до следующего раза.
+action.claim = Забрать
+action.claim_all = Забрать всё
+empty.title = Нечего забирать
+empty.line = Награды за боссов и события ждут здесь, пока вы их не заберёте.
+untitled = Награды
+
+# A reward chip nothing else could name (a Claim's row, a results screen's): {0} is how many.
+chip.generic = Награда x{0, number}
+
+# What a press says, over the page.
+toast.claimed = Забрано.
+toast.claimed_all = Забрано всё, что ждало.
+toast.kept = Ваши сумки полны. То, что не поместилось, всё ещё ждёт здесь.
+toast.failed = Забрано, но часть нельзя было выдать на этом сервере.
+
+# Telling a player something waits: the toast when a Claim arrives, and the notice once a session at login.
+# notice.added is a Claim with no title of its own; notice.added.named one with a title, {0}; notice.added.many
+# heads several Claims that arrived together, each on a row under it.
+notice.added = Для вас есть награда. Найдите её в разделе «Награды» вашего меню.
+notice.added.named = {0} ждёт в разделе «Награды» вашего меню.
+notice.added.many = Награды ждут в разделе «Награды» вашего меню.
+notice.ready = {0, number} {0, plural, one {награда ждёт} few {награды ждут} many {наград ждут} other {награды ждут}} вас в разделе «Награды» вашего меню.
+# A reward from a boss that left a chest where it fell: it waits in the chest and under Claims alike. notice.added.spoils
+# is a Claim with no title of its own, or the line over several; notice.added.spoils.named one with a title, {0}.
+notice.added.spoils = Ваша доля ждёт в сундуке там, где упал босс, и в разделе «Награды» вашего меню.
+notice.added.spoils.named = {0} ждёт в сундуке там, где упал босс, и в разделе «Награды» вашего меню.
+
+# A boss's chest: what a won fight leaves where the boss fell, holding each player's own rewards from that fight.
+# spoils.hint is the prompt over the chest; the game fills {key} with the button to press. Opening it hands over
+# what is not an item at once (spoils.paid heads the list of it) and shows the items in the game's own chest
+# window; spoils.empty is the line for a player with nothing in it. The spoils.title to spoils.action.take_all lines
+# are the Claims page's, which the chest can show instead (the library's SpoilsView switch).
+spoils.hint = Нажмите [{key}], чтобы открыть
+spoils.paid = Из сундука:
+spoils.title = Ваша доля
+spoils.lead = Что оставил для вас этот босс. Что вы оставите здесь, будет ждать вас в разделе «Награды».
+spoils.detail.lead = «Забрать» берёт эти награды. «Взять всё» берёт всё, что здесь ваше.
+spoils.detail.hint = Для предметов нужно место в сумках. Что не поместится, ждёт в разделе «Награды».
+spoils.action.take_all = Взять всё
+spoils.empty = Здесь для вас ничего нет.
+
+# A Claim's title when /zigclaims give wrote it: {0} is the loot table's id.
+title.admin = Добыча из {0}
+
+# /zigclaims, the admin family. The command.desc.* keys are what the engine's own help resolves a command
+# or an argument through.
+command.desc.family = Положить награды игрокам в раздел «Награды».
+command.desc.give = Бросить кости по таблице добычи и положить выпавшее в раздел «Награды» игрока.
+command.desc.arg.player = Игрок, в сети или нет: имя или id игрока. По умолчанию вы.
+command.desc.arg.lootable = Таблица добычи, по её id.
+command.player.needed = Укажите игрока через --player=<name>.
+command.player.offline = Этого игрока сейчас нет ни в одном мире. Повторите через минуту.
+command.player.unknown = Не удалось найти игрока по имени '{0}'. Подойдёт и его id игрока.
+command.lootable.needed = Укажите таблицу добычи через --lootable=<id>.
+command.lootable.unknown = Таблица добычи '{0}' не загружена.
+command.give.done = Положено {2, number} {2, plural, one {награда} few {награды} many {наград} other {награды}} из {0} в раздел «Награды» игрока {1}.
+command.give.nothing = {0} ничего не выпало для {1}, поэтому запись не создана.

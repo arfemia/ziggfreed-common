@@ -23,6 +23,8 @@ stat.progress = Devam eden
 stat.collect = Alınacak
 stat.tracking = Takipte
 subtitle = {0, number} devam ediyor, {1, number} alınmaya hazır
+kind.main = Ana görev
+kind.side = Yan görev
 
 # The toolbar.
 status.all = Tümü
@@ -60,3 +62,7 @@ search.placeholder = Görev ara...
 state.elsewhere = Başka yerde
 hint.collect_from = Teslim yeri: {0}
 hint.collect_at = Şuradan al: {0}
+# A board's contract the player carries, read away from the board and its hosts.
+hint.board_contract = Ödülünü almak için panosuna ya da işi veren kişiye teslim et.
+# A board's contract the player already did this rotation, at a character hosting the board: {0} is how long until the board posts new work.
+hint.new_work = {0} sonra yeni iş

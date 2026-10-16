@@ -12,7 +12,6 @@ quest.cadence.daily = Ежедневное
 quest.cadence.weekly = Еженедельное
 quest.cadence.seasonal = Сезонное
 
-
 book.achievements.category.uncategorised = Прочее
 book.achievements.criterion.untitled = Безымянный шаг
 
@@ -48,7 +47,6 @@ npcquests.section.parked = Получить в другом месте
 npcquests.section.cooldown = Вернётся
 npcquests.section.locked = Закрытые
 npcquests.section.done = Завершённые
-
 
 npcquests.action.complete = Завершить
 
@@ -158,6 +156,11 @@ book.tooltip.unpin = Открепить это достижение
 
 # The hover line on the map marker at a character with a quest the player could take; {0} is the quest's title.
 quest.marker.available = Предложен квест: {0}
+
+quest.drop.received = Квестовый предмет: {0}
+quest.drop.for = Для задания: {0}
+quest.drop.bag_full = Ваша сумка полна, поэтому {0} взять не удалось. Освободите для него место.
+quest.drop.claim = {0} для задания «{1}»
 
 # {0} is the achievement's name and {1} what it pays.
 reputation.rank_achievement = {0} ({1})

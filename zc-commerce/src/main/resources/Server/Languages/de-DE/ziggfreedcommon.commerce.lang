@@ -53,6 +53,13 @@ board.action.reroll = Neu würfeln
 board.toast.accepted = Auftrag angenommen.
 board.toast.reroll_confirm = Für {0} neu würfeln? Zum Bestätigen erneut drücken.
 
+board.reroll.costs = Ein Neuwurf kostet {0}.
+board.reroll.costs_left = Ein Neuwurf kostet {0}. Noch {1, number} in dieser Runde.
+board.reroll.free_left = Noch {0, number} {0, plural, one {freier Neuwurf} other {freie Neuwürfe}} in dieser Runde.
+
+wallet.toast.new = Neu: {0}
+wallet.toast.new.row = {0}: {1}
+
 refuse.locked = Das kannst du noch nicht.
 refuse.disabled = Das ist nicht verfügbar.
 refuse.unknown_offer = Das wird nicht mehr verkauft.
@@ -72,6 +79,8 @@ refuse.reroll_cap = Du hast alle Neuwürfe dieser Runde verbraucht.
 refuse.reroll_no_alternative = Es gibt nichts anderes zum Tauschen.
 refuse.reroll_cannot_pay = Einen Neuwurf kannst du dir nicht leisten.
 board.slot.extra = Ein zusätzlicher Auftrag: {0}
+
+board.pill = Kopfgeld
 
 board.grade.training = Training
 board.grade.easy = Leicht

@@ -30,7 +30,7 @@ tip.sort = Kattints, hogy mindenkit e szerint rangsorolj.
 # oldja fel a játék saját súgója a parancsot és az argumentumokat.
 command.desc.family = A szerver főellenség-harcainak rekordjai.
 command.desc.encounter = Megnyitja egy főellenség-harc rekordjait.
-command.desc.arg.encounter = A harc összecsapás-szkriptjének azonosítója. Hagyd el, hogy az első rögzített harc nyíljon meg.
+command.desc.arg.encounter = A harc összecsapás-szkriptjének azonosítója. Hagyd el, hogy minden főellenség látszódjon.
 command.open.needs_player = A rekordok képernyőjét csak játékos nyithatja meg.
 command.open.failed = A rekordok képernyőjét nem sikerült megnyitni. Próbáld újra egy pillanat múlva.
 command.encounter.unranked = A(z) '{0}' nem tart rekordokat ezen a szerveren.

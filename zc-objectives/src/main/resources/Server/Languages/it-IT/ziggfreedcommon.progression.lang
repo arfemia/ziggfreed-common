@@ -12,7 +12,6 @@ quest.cadence.daily = Giornaliera
 quest.cadence.weekly = Settimanale
 quest.cadence.seasonal = Stagionale
 
-
 book.achievements.category.uncategorised = Altri
 book.achievements.criterion.untitled = Passo senza nome
 
@@ -48,7 +47,6 @@ npcquests.section.parked = Da riscuotere altrove
 npcquests.section.cooldown = Torna
 npcquests.section.locked = Bloccate
 npcquests.section.done = Completate
-
 
 npcquests.action.complete = Completa
 
@@ -160,3 +158,11 @@ quest.marker.available = Missione disponibile: {0}
 
 # An achievement earned by holding a rank with a reputation, listed under that rank on the reputation's page.
 reputation.rank_achievement = {0} ({1})
+
+# A quest step that hands the player an item, shown on the item.
+quest.drop.received = Oggetto di missione: {0}
+quest.drop.for = Per {0}
+quest.drop.bag_full = La tua borsa è piena, quindi non hai potuto prendere {0}. Fai spazio.
+
+# The title of the Claim a quest item waits in.
+quest.drop.claim = {0} per {1}

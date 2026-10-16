@@ -36,3 +36,9 @@ kit.nothing_matches_line = Qui niente corrisponde a questi filtri. Cancellali pe
 kit.clear_filters = Cancella filtri
 kit.count = {0, number} / {1, number}
 kit.percent = {0, number}%
+
+confirm.button = Conferma
+confirm.close = Chiudi
+confirm.uses.one = Usa {0} x{1, number} dalla tua borsa.
+confirm.uses.many = Usa gli oggetti qui sopra dalla tua borsa.
+confirm.key = Il tuo {0} non si consuma.

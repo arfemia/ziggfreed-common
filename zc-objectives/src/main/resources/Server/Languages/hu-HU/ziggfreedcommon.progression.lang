@@ -12,7 +12,6 @@ quest.cadence.daily = Napi
 quest.cadence.weekly = Heti
 quest.cadence.seasonal = Szezonális
 
-
 book.achievements.category.uncategorised = Egyéb
 book.achievements.criterion.untitled = Névtelen lépés
 
@@ -48,7 +47,6 @@ npcquests.section.parked = Máshol átvehető
 npcquests.section.cooldown = Visszatér
 npcquests.section.locked = Zárolt
 npcquests.section.done = Befejezve
-
 
 npcquests.action.complete = Befejezés
 
@@ -157,6 +155,11 @@ book.tooltip.unpin = Teljesítmény kitűzésének megszüntetése
 
 # The hover line on the map marker at a character with a quest the player could take; {0} is the quest's title.
 quest.marker.available = Elérhető küldetés: {0}
+
+quest.drop.received = Küldetéstárgy: {0}
+quest.drop.for = Ehhez: {0}
+quest.drop.bag_full = Tele van a zsákod, ezért nem tudtad felvenni: {0}. Csinálj helyet neki.
+quest.drop.claim = {0} ehhez: {1}
 
 # Egy hírnévnél tartott rangért járó teljesítmény; {0} a neve, {1} amit fizet.
 reputation.rank_achievement = {0} ({1})

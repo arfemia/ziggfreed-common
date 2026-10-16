@@ -16,6 +16,8 @@ your_rank.none = Du stehst noch nicht auf dieser Tafel.
 # A playtime cell: hours and minutes, or minutes alone under an hour.
 duration.hours = {0, number} Std. {1, number} Min.
 duration.minutes = {0, number} Min.
+since.today = Heute
+since.days = Vor {0, number} {0, plural, one {Tag} other {Tagen}}
 
 # The period tabs (Server/ZiggfreedCommon/StatPeriods).
 period.all_time = Gesamt
@@ -29,8 +31,28 @@ period.season = {0} {1}
 section.combat = Kampf
 section.gathering = Sammeln
 section.adventure = Abenteuer
+section.dungeons = Dungeons
 section.renown = Ansehen
+section.bosses = Bosse
 section.combat.hint = Besiege Mobs oder fordere einen Boss heraus, um auf diese Tafel zu kommen. Deine Tode zählen hier auch.
 section.gathering.hint = Baue Blöcke ab oder platziere sie, stelle Gegenstände von Hand her oder sammle Dinge auf, um auf diese Tafel zu kommen.
 section.adventure.hint = Schließe Quests ab, sprich mit Figuren, gewinne Runden oder spiel einfach, um auf diese Tafel zu kommen.
 section.renown.hint = Schließe die Ziele des Spiels ab oder verdiene dir Ruf bei einer Fraktion, um auf diese Tafel zu kommen. Ansehen zählt nur für Gesamt.
+section.bosses.hint = Hilf, einen Boss zu besiegen, um auf diese Tafel zu kommen.
+section.dungeons.hint = Beginne, schließe ab oder scheitere an einem Dungeon-Lauf, um auf diese Tafel zu kommen.
+
+# Die Aufteilung der Boss-Tafel: ihre erste Wahl, die Gruppen, in denen ein Boss steht, und die Gruppengrößen eines Bosses.
+bosses.all = Alle Bosse
+bosses.sizes.all = Alle Größen
+bosses.size.solo = Solo
+bosses.size.players = {0, number} Spieler
+group.seasonal = Saisonal
+group.dungeon = Dungeon
+group.world = Welt
+group.minigame = Minispiel
+
+# Die Aufteilung der Dungeon-Tafel: ihre erste Wahl und die Schwierigkeiten eines Dungeons.
+dungeons.all = Alle Dungeons
+dungeons.difficulties.all = Alle Schwierigkeiten
+difficulty.normal = Normal
+difficulty.hard = Schwer

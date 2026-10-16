@@ -37,3 +37,9 @@ kit.nothing_matches_line = Itt semmi sem felel meg ezeknek a szűrőknek. Törö
 kit.clear_filters = Szűrők törlése
 kit.count = {0, number} / {1, number}
 kit.percent = {0, number}%
+
+confirm.button = Megerősítés
+confirm.close = Bezárás
+confirm.uses.one = Elvesz a zsákodból: {0} x{1, number}.
+confirm.uses.many = Elveszi a fenti tárgyakat a zsákodból.
+confirm.key = A(z) {0} nem fogy el.

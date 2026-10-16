@@ -19,7 +19,6 @@ quest.cadence.daily = Daily
 quest.cadence.weekly = Weekly
 quest.cadence.seasonal = Seasonal
 
-
 book.achievements.category.uncategorised = Other
 book.achievements.criterion.untitled = Unnamed step
 
@@ -61,7 +60,6 @@ npcquests.section.parked = Collect elsewhere
 npcquests.section.cooldown = Comes back
 npcquests.section.locked = Locked
 npcquests.section.done = Completed
-
 
 npcquests.action.complete = Complete
 

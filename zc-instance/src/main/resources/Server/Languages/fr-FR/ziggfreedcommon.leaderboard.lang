@@ -30,7 +30,7 @@ tip.sort = Cliquez pour classer tout le monde selon ceci.
 # l'aide du moteur résout une commande ou un argument.
 command.desc.family = Consultez les records des combats de boss de ce serveur.
 command.desc.encounter = Ouvre les records d'un combat de boss.
-command.desc.arg.encounter = L'identifiant du script de rencontre du combat. Omettez-le pour ouvrir le premier combat enregistré.
+command.desc.arg.encounter = L'identifiant du script de rencontre du combat. Omettez-le pour voir chaque boss.
 command.open.needs_player = Seul un joueur peut ouvrir l'écran des records.
 command.open.failed = L'écran des records n'a pas pu s'ouvrir. Réessayez dans un instant.
 command.encounter.unranked = '{0}' ne garde aucun record sur ce serveur.

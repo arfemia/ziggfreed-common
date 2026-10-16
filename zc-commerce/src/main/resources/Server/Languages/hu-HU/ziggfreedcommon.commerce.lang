@@ -53,6 +53,13 @@ board.action.reroll = Csere
 board.toast.accepted = Megbízás elvállalva.
 board.toast.reroll_confirm = Csere ennyiért: {0}? Nyomd meg újra a megerősítéshez.
 
+board.reroll.costs = Egy csere ennyibe kerül: {0}.
+board.reroll.costs_left = Egy csere ennyibe kerül: {0}. Ebben a körben még {1, number} van hátra.
+board.reroll.free_left = Ebben a körben még {0, number} ingyenes {0, plural, one {csere} other {csere}} van hátra.
+
+wallet.toast.new = Új: {0}
+wallet.toast.new.row = {0}: {1}
+
 refuse.locked = Ezt még nem teheted meg.
 refuse.disabled = Ez nem elérhető.
 refuse.unknown_offer = Ezt már nem árulják.
@@ -72,6 +79,8 @@ refuse.reroll_cap = Elhasználtad a kör összes cseréjét.
 refuse.reroll_no_alternative = Nincs más, amit a helyére lehetne tenni.
 refuse.reroll_cannot_pay = Egy cserét nem engedhetsz meg magadnak.
 board.slot.extra = Egy további megbízás ({0})
+
+board.pill = Bounty
 
 board.grade.training = Edzés
 board.grade.easy = Könnyű

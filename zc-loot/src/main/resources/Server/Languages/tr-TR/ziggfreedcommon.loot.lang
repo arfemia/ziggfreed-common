@@ -1,3 +1,8 @@
 reward.lootable = Ganimet Paketi
 reward.droplist = Düşen Ganimet
 reward.effect = Geçici Etki
+
+preview.chance = %{0, number}:
+preview.sometimes = Bazen:
+preview.more = Bir de biraz daha.
+preview.hidden = Ve birkaç nadir buluntu daha.

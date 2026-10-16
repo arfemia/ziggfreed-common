@@ -22,3 +22,4 @@ itemTooltip.stats.DamageBonus_Void = Урон Пустоты: {value}%
 itemTooltip.stats.DamageBonusFlat_Void = Фиксированный Урон Пустоты: {value}
 itemTooltip.stats.DamageBonus_Life = Урон Жизни: {value}%
 itemTooltip.stats.DamageBonusFlat_Life = Фиксированный Урон Жизни: {value}
+itemTooltip.stats.ReputationGain = Прирост Репутации: {value}%

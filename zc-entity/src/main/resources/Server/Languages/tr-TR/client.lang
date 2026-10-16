@@ -22,3 +22,4 @@ itemTooltip.stats.DamageBonus_Void = Boşluk Hasarı: {value}%
 itemTooltip.stats.DamageBonusFlat_Void = Sabit Boşluk Hasarı: {value}
 itemTooltip.stats.DamageBonus_Life = Hayat Hasarı: {value}%
 itemTooltip.stats.DamageBonusFlat_Life = Sabit Hayat Hasarı: {value}
+itemTooltip.stats.ReputationGain = İtibar Kazancı: {value}%

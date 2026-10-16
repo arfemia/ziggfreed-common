@@ -5,6 +5,8 @@
 bar.default = Jefe
 example.name = Encuentro de ejemplo
 
+claim.waits = Tu recompensa te espera en Pendientes, en tu menú.
+
 admin.desc.family = Inspeccionar y dirigir los encuentros de este servidor.
 admin.desc.list = Listar cada encuentro en curso, con su ejecución y su estado.
 admin.desc.inspect = Mostrar la ejecución de un encuentro: su objetivo, sus miembros y quién ha ganado qué.
@@ -41,7 +43,11 @@ admin.inspect.concluded = resuelto: {0}
 admin.inspect.rest = descanso tras una victoria: {0} segundos en el reloj del mundo
 admin.inspect.rest.resting = descansando: faltan {0} segundos en el reloj del mundo
 admin.inspect.rest.rested = descansado: el lugar puede alzar a su jefe de nuevo
+admin.inspect.feat.held = hazaña {0}: cumplida hasta ahora, {1} golpes la cumplieron
+admin.inspect.feat.broken = hazaña {0}: rota, un golpe al jefe no la cumplió
+admin.inspect.feat.waiting = hazaña {0}: ningún golpe al jefe la ha cumplido aún
 admin.inspect.participant = {0}: {1} infligido, {2} recibido, {3}s presente, cuota {4}%
+admin.inspect.participant.adds = {0}: infligió {1} a los esbirros
 admin.inspect.participants.none = Nadie ha ganado crédito todavía.
 
 admin.ref.needed = Indica un encuentro con --ref=<prefijo del id de ejecución o id de guion>.

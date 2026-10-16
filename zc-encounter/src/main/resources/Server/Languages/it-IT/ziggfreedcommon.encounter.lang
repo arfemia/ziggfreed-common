@@ -5,6 +5,8 @@
 bar.default = Boss
 example.name = Incontro di esempio
 
+claim.waits = La tua ricompensa ti aspetta sotto Ricompense nel tuo menu.
+
 admin.desc.family = Ispezionare e guidare gli incontri di questo server.
 admin.desc.list = Elencare ogni incontro in corso, con la sua esecuzione e il suo stato.
 admin.desc.inspect = Mostrare l'esecuzione di un incontro: il bersaglio, i membri e chi ha guadagnato cosa.
@@ -41,7 +43,11 @@ admin.inspect.concluded = concluso: {0}
 admin.inspect.rest = riposo dopo una vittoria: {0} secondi sull'orologio del mondo
 admin.inspect.rest.resting = a riposo: mancano {0} secondi sull'orologio del mondo
 admin.inspect.rest.rested = riposato: il sito può rialzare il suo boss
+admin.inspect.feat.held = impresa {0}: rispettata finora, {1} colpi l'hanno soddisfatta
+admin.inspect.feat.broken = impresa {0}: fallita, un colpo al boss non l'ha soddisfatta
+admin.inspect.feat.waiting = impresa {0}: nessun colpo al boss l'ha ancora soddisfatta
 admin.inspect.participant = {0}: {1} inflitti, {2} subiti, {3}s di presenza, quota {4}%
+admin.inspect.participant.adds = {0}: ha inflitto ai rinforzi {1}
 admin.inspect.participants.none = Nessuno ha ancora guadagnato credito.
 
 admin.ref.needed = Indica un incontro con --ref=<prefisso dell'id di esecuzione o id dello script>.

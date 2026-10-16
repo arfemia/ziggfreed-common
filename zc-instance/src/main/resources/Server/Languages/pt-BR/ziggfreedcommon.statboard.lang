@@ -16,6 +16,9 @@ your_rank.none = Você ainda não está neste quadro.
 # A playtime cell: hours and minutes, or minutes alone under an hour.
 duration.hours = {0, number}h {1, number}m
 duration.minutes = {0, number}m
+# A moment cell, such as a first win: today, or how many whole days ago.
+since.today = Hoje
+since.days = há {0, number} {0, plural, one {dia} other {dias}}
 
 # The period tabs (Server/ZiggfreedCommon/StatPeriods).
 period.all_time = Desde Sempre
@@ -29,8 +32,31 @@ period.season = {0} {1}
 section.combat = Combate
 section.gathering = Coleta
 section.adventure = Aventura
+section.dungeons = Masmorras
 section.renown = Renome
+section.bosses = Chefes
 section.combat.hint = Derrote mobs ou enfrente um chefe para entrar neste quadro. Suas mortes contam aqui também.
 section.gathering.hint = Quebre ou coloque blocos, fabrique itens à mão ou colete coisas para entrar neste quadro.
 section.adventure.hint = Conclua missões, converse com personagens, vença rodadas ou apenas jogue para entrar neste quadro.
 section.renown.hint = Cumpra os objetivos do jogo ou conquiste prestígio com uma reputação para entrar neste quadro. O Renome conta só para Desde Sempre.
+section.bosses.hint = Ajude a derrotar um chefe para entrar neste quadro.
+section.dungeons.hint = Comece, conclua ou fracasse em uma partida de masmorra para entrar neste quadro.
+
+# The Bosses tab's split: its first choice, the groups a boss sits in (Server/ZiggfreedCommon/RecordGroups),
+# and a boss's party sizes. bosses.all is also the first entry of the list of bosses.
+bosses.all = Todos os chefes
+bosses.sizes.all = Todos os tamanhos
+bosses.size.solo = Solo
+bosses.size.players = {0, number} jogadores
+group.seasonal = Sazonal
+group.dungeon = Masmorra
+group.world = Mundo
+group.minigame = Minijogo
+
+# The Dungeons tab's split: its first choice (also the first entry of the list of dungeons), and a
+# dungeon's difficulties. A difficulty label a dungeon writes shows as difficulty.<label> when that key
+# is here, else as written.
+dungeons.all = Todas as masmorras
+dungeons.difficulties.all = Todas as dificuldades
+difficulty.normal = Normal
+difficulty.hard = Difícil

@@ -28,7 +28,7 @@ tip.sort = Klicke, um alle danach zu ordnen.
 
 command.desc.family = Sieh dir die Rekorde der Bosskämpfe dieses Servers an.
 command.desc.encounter = Öffne die Rekorde eines Bosskampfs.
-command.desc.arg.encounter = Die Skript-ID der Begegnung des Kampfs. Lässt du sie weg, öffnet sich der erste aufgezeichnete Kampf.
+command.desc.arg.encounter = Die Skript-ID der Begegnung des Kampfs. Lässt du sie weg, siehst du alle Bosse.
 command.open.needs_player = Nur ein Spieler kann den Rekordbildschirm öffnen.
 command.open.failed = Der Rekordbildschirm konnte nicht geöffnet werden. Versuche es gleich noch einmal.
 command.encounter.unranked = '{0}' führt auf diesem Server keine Rekorde.

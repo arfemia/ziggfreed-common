@@ -1,0 +1,69 @@
+# The Claims tab (com.ziggfreed.common.instance.claims): the rewards a player has earned and not taken
+# yet, waiting until they press Claim. The file name is the key PREFIX: an entry here resolves as
+# ziggfreedcommon.claims.<key>. menu.tab is a rail label: 20 characters at most once uppercased.
+
+menu.tab = Abholungen
+page.title = Abholungen
+page.lead = Verdiente Belohnungen warten hier, bis du sie abholst.
+page.section = Wartend
+row.rewards = {0, number} {0, plural, one {Belohnung} other {Belohnungen}}
+detail.rewards = Belohnungen
+detail.lead = Abholen nimmt diese. Alles abholen nimmt alles, was wartet.
+detail.hint = Gegenstände brauchen Platz in deinen Taschen. Was nicht hineinpasst, bleibt hier für später.
+action.claim = Abholen
+action.claim_all = Alles abholen
+empty.title = Nichts abzuholen
+empty.line = Belohnungen von Bossen und Ereignissen warten hier, bis du sie abholst.
+untitled = Belohnungen
+
+# A reward chip nothing else could name (a Claim's row, a results screen's): {0} is how many.
+chip.generic = x{0, number} Belohnung
+
+# What a press says, over the page.
+toast.claimed = Abgeholt.
+toast.claimed_all = Alles abgeholt, was gewartet hat.
+toast.kept = Deine Taschen sind voll. Was nicht hineinpasste, wartet weiterhin hier.
+toast.failed = Abgeholt, aber ein Teil konnte auf diesem Server nicht übergeben werden.
+
+# Telling a player something waits: the toast when a Claim arrives, and the notice once a session at login.
+# notice.added is a Claim with no title of its own; notice.added.named one with a title, {0}; notice.added.many
+# heads several Claims that arrived together, each on a row under it.
+notice.added = Eine Belohnung wartet auf dich. Du findest sie unter Abholungen in deinem Menü.
+notice.added.named = {0} wartet unter Abholungen in deinem Menü.
+notice.added.many = Belohnungen warten unter Abholungen in deinem Menü.
+notice.ready = {0, number} {0, plural, one {Belohnung wartet} other {Belohnungen warten}} unter Abholungen in deinem Menü auf dich.
+# A reward from a boss that left a chest where it fell: it waits in the chest and under Claims alike. notice.added.spoils
+# is a Claim with no title of its own, or the line over several; notice.added.spoils.named one with a title, {0}.
+notice.added.spoils = Dein Anteil wartet in der Truhe, wo der Boss gefallen ist, und unter Abholungen in deinem Menü.
+notice.added.spoils.named = {0} wartet in der Truhe, wo der Boss gefallen ist, und unter Abholungen in deinem Menü.
+
+# A boss's chest: what a won fight leaves where the boss fell, holding each player's own rewards from that fight.
+# spoils.hint is the prompt over the chest; the game fills {key} with the button to press. Opening it hands over
+# what is not an item at once (spoils.paid heads the list of it) and shows the items in the game's own chest
+# window; spoils.empty is the line for a player with nothing in it. The spoils.title to spoils.action.take_all lines
+# are the Claims page's, which the chest can show instead (the library's SpoilsView switch).
+spoils.hint = Drücke [{key}] zum Öffnen
+spoils.paid = Aus der Truhe:
+spoils.title = Dein Anteil
+spoils.lead = Was dieser Boss für dich hinterlassen hat. Was du hier liegen lässt, wartet unter Abholungen auf dich.
+spoils.detail.lead = Abholen nimmt diese. Alles nehmen nimmt alles hier, was dir gehört.
+spoils.detail.hint = Gegenstände brauchen Platz in deinen Taschen. Was nicht hineinpasst, wartet unter Abholungen.
+spoils.action.take_all = Alles nehmen
+spoils.empty = Hier wartet nichts auf dich.
+
+# A Claim's title when /zigclaims give wrote it: {0} is the loot table's id.
+title.admin = Beute von {0}
+
+# /zigclaims, the admin family. The command.desc.* keys are what the engine's own help resolves a command
+# or an argument through.
+command.desc.family = Belohnungen in die Abholungen von Spielern legen.
+command.desc.give = Eine Beutetabelle auswürfeln und das Ergebnis in die Abholungen eines Spielers legen.
+command.desc.arg.player = Der Spieler, online oder nicht: ein Name oder eine Spieler-ID. Standard bist du.
+command.desc.arg.lootable = Die Beutetabelle zum Auswürfeln, per ID.
+command.player.needed = Nenne einen Spieler mit --player=<name>.
+command.player.offline = Dieser Spieler ist gerade in keiner Welt. Versuche es gleich noch einmal.
+command.player.unknown = Ein Spieler namens '{0}' wurde nicht gefunden. Seine Spieler-ID geht auch.
+command.lootable.needed = Nenne eine Beutetabelle mit --lootable=<id>.
+command.lootable.unknown = Keine Beutetabelle namens '{0}' ist geladen.
+command.give.done = {2, number} {2, plural, one {Belohnung} other {Belohnungen}} aus {0} in die Abholungen von {1} gelegt.
+command.give.nothing = {0} hat für {1} nichts ergeben, also wurde keine Abholung geschrieben.

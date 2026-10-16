@@ -1,0 +1,69 @@
+# The Claims tab (com.ziggfreed.common.instance.claims): the rewards a player has earned and not taken
+# yet, waiting until they press Claim. The file name is the key PREFIX: an entry here resolves as
+# ziggfreedcommon.claims.<key>. menu.tab is a rail label: 20 characters at most once uppercased.
+
+menu.tab = À réclamer
+page.title = À réclamer
+page.lead = Les récompenses que vous avez gagnées attendent ici que vous les preniez.
+page.section = En attente
+row.rewards = {0, number} {0, plural, one {récompense} other {récompenses}}
+detail.rewards = Récompenses
+detail.lead = Réclamer prend celles-ci. Tout réclamer prend tout ce qui attend.
+detail.hint = Les objets ont besoin de place dans vos sacs. Ce qui ne rentre pas reste ici pour plus tard.
+action.claim = Réclamer
+action.claim_all = Tout réclamer
+empty.title = Rien à réclamer
+empty.line = Les récompenses des boss et des événements attendent ici que vous les preniez.
+untitled = Récompenses
+
+# A reward chip nothing else could name (a Claim's row, a results screen's): {0} is how many.
+chip.generic = x{0, number} Récompense
+
+# What a press says, over the page.
+toast.claimed = Réclamé.
+toast.claimed_all = Tout ce qui attendait a été réclamé.
+toast.kept = Vos sacs sont pleins. Ce qui ne rentrait pas attend toujours ici.
+toast.failed = Réclamé, mais une partie n'a pas pu être remise sur ce serveur.
+
+# Telling a player something waits: the toast when a Claim arrives, and the notice once a session at login.
+# notice.added is a Claim with no title of its own; notice.added.named one with a title, {0}; notice.added.many
+# heads several Claims that arrived together, each on a row under it.
+notice.added = Une récompense vous attend. Retrouvez-la sous « À réclamer » dans votre menu.
+notice.added.named = {0} vous attend sous « À réclamer » dans votre menu.
+notice.added.many = Des récompenses vous attendent sous « À réclamer » dans votre menu.
+notice.ready = {0, number} {0, plural, one {récompense vous attend} other {récompenses vous attendent}} sous « À réclamer » dans votre menu.
+# A reward from a boss that left a chest where it fell: it waits in the chest and under Claims alike. notice.added.spoils
+# is a Claim with no title of its own, or the line over several; notice.added.spoils.named one with a title, {0}.
+notice.added.spoils = Votre part vous attend dans le coffre où le boss est tombé, et sous « À réclamer » dans votre menu.
+notice.added.spoils.named = {0} vous attend dans le coffre où le boss est tombé, et sous « À réclamer » dans votre menu.
+
+# A boss's chest: what a won fight leaves where the boss fell, holding each player's own rewards from that fight.
+# spoils.hint is the prompt over the chest; the game fills {key} with the button to press. Opening it hands over
+# what is not an item at once (spoils.paid heads the list of it) and shows the items in the game's own chest
+# window; spoils.empty is the line for a player with nothing in it. The spoils.title to spoils.action.take_all lines
+# are the Claims page's, which the chest can show instead (the library's SpoilsView switch).
+spoils.hint = Appuyez sur [{key}] pour ouvrir
+spoils.paid = Du coffre :
+spoils.title = Votre part
+spoils.lead = Ce que ce boss a laissé pour vous. Ce que vous laissez ici vous attend sous « À réclamer ».
+spoils.detail.lead = Réclamer prend celles-ci. Tout prendre prend tout ce qui est à vous ici.
+spoils.detail.hint = Les objets ont besoin de place dans vos sacs. Ce qui ne rentre pas attend sous « À réclamer ».
+spoils.action.take_all = Tout prendre
+spoils.empty = Rien ici ne vous attend.
+
+# A Claim's title when /zigclaims give wrote it: {0} is the loot table's id.
+title.admin = Butin de {0}
+
+# /zigclaims, the admin family. The command.desc.* keys are what the engine's own help resolves a command
+# or an argument through.
+command.desc.family = Met des récompenses sous « À réclamer » chez les joueurs.
+command.desc.give = Tire une table de butin et met le résultat sous « À réclamer » chez un joueur.
+command.desc.arg.player = Le joueur, en ligne ou non : un nom ou un identifiant de joueur. Vous par défaut.
+command.desc.arg.lootable = La table de butin à tirer, par son identifiant.
+command.player.needed = Nommez un joueur avec --player=<nom>.
+command.player.offline = Ce joueur n'est dans aucun monde pour le moment. Réessayez dans un instant.
+command.player.unknown = Aucun joueur nommé '{0}' n'a été trouvé. Son identifiant de joueur marche aussi.
+command.lootable.needed = Nommez une table de butin avec --lootable=<id>.
+command.lootable.unknown = Aucune table de butin nommée '{0}' n'est chargée.
+command.give.done = Sous « À réclamer » chez {1} : {2, number} {2, plural, one {récompense} other {récompenses}} de {0}.
+command.give.nothing = {0} n'a rien donné à {1}, donc rien n'a été ajouté sous « À réclamer ».

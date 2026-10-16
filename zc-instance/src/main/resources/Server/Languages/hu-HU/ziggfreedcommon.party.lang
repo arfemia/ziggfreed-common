@@ -1,0 +1,57 @@
+# The library's own party: the party screen, its notices and /zigparty, so a party works on a server running
+# nothing else. The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.party.<key>.
+# The screen's words (its tabs, buttons, title, count, badge and empty lines) go on Labels' TextSpans, and they,
+# the notices and the command lines fill their parameters in the viewer's locale.
+
+title = Csapat
+tab.party = Csapat
+tab.invite = Meghívás
+empty.invite = Most senki sem hívható meg a fennlévők közül.
+empty.party = Nem vagy csapatban. Hívj meg valakit a Meghívás fülön, és kezdj egyet.
+btn.invite = Meghívás
+btn.kick = Eltávolítás
+btn.leave = Kilépés
+btn.disband = Feloszlatás
+btn.queue = Sorba állás
+btn.accept = Elfogadás
+btn.decline = Elutasítás
+owner_badge = Vezető
+count = {0}/{1}
+privacy.public = Nyitott csapat
+privacy.private = Zárt csapat
+toast.invite_failed = Ez a játékos most nem csatlakozhat a csapatodhoz.
+
+msg.invited = {0} meghívott a csapatába ({1, number}/{2, number}).
+msg.banner = {0} meghívott a csapatába
+msg.banner.sub = Írd be: /zigparty accept, és csatlakozol
+msg.sent = Meghívó elküldve neki: {0}.
+msg.declined = {0} elutasította a meghívódat.
+msg.expired = A csapatmeghívód lejárt.
+msg.joined = {0} csatlakozott a csapathoz ({1, number}/{2, number}).
+msg.left = {0} kilépett a csapatból.
+msg.kicked = Eltávolítottak a csapatból.
+msg.kicked_member = {0} el lett távolítva a csapatból.
+msg.disbanded = A csapat feloszlott.
+msg.owner = {0} vezeti most a csapatot.
+
+command.desc.family = Nyisd meg a csapatodat, vagy hívj meg, fogadj el, lépj ki
+command.desc.invite = Egy fennlévő játékos meghívása a csapatodba
+command.desc.accept = Csatlakozás ahhoz a csapathoz, amely meghívott
+command.desc.leave = Kilépés a csapatodból
+command.desc.arg.player = A meghívandó játékos
+command.needs_player = Ezt csak játékos használhatja.
+command.open.failed = A csapatodat nem sikerült megnyitni. Próbáld újra egy pillanat múlva.
+command.player.needed = Add meg a meghívandó játékost, például: /zigparty invite --player=Steve
+command.player.offline = Ez a játékos nincs fenn.
+command.invite.self = Add meg a meghívandó játékost, például: /zigparty invite --player=Steve
+command.invite.not_owner = Csak a csapat vezetője hívhat meg játékosokat.
+command.invite.full = A csapatod tele van.
+command.invite.in_party = {0} már csapatban van.
+command.invite.already = {0} már megkapta a meghívódat.
+command.accept.none = Nincs csapatmeghívód.
+command.accept.several = Több csapatmeghívód is van. Írd be: /zigparty, és válassz egyet.
+command.accept.expired = Ez a meghívó lejárt. Kérj újat.
+command.accept.full = Ez a csapat már tele van.
+command.accept.in_party = Már csapatban vagy. Előbb írd be: /zigparty leave
+command.leave.done = Kiléptél a csapatból.
+command.leave.none = Nem vagy csapatban.

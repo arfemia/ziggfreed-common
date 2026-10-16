@@ -1,0 +1,57 @@
+# The library's own party: the party screen, its notices and /zigparty, so a party works on a server running
+# nothing else. The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.party.<key>.
+# The screen's words (its tabs, buttons, title, count, badge and empty lines) go on Labels' TextSpans, and they,
+# the notices and the command lines fill their parameters in the viewer's locale.
+
+title = Parti
+tab.party = Parti
+tab.invite = Davet
+empty.invite = Şu an davet edebileceğin çevrimiçi kimse yok.
+empty.party = Bir partide değilsin. Başlatmak için Davet sekmesinden birini davet et.
+btn.invite = Davet Et
+btn.kick = Çıkar
+btn.leave = Partiden Ayrıl
+btn.disband = Dağıt
+btn.queue = Sıraya Gir
+btn.accept = Kabul Et
+btn.decline = Reddet
+owner_badge = Lider
+count = {0}/{1}
+privacy.public = Açık Parti
+privacy.private = Özel Parti
+toast.invite_failed = Bu oyuncu şu an partine katılamaz.
+
+msg.invited = {0} seni partisine davet etti ({1, number}/{2, number}).
+msg.banner = {0} seni partisine davet etti
+msg.banner.sub = Katılmak için /zigparty accept yaz
+msg.sent = Davet {0} oyuncusuna gönderildi.
+msg.declined = {0} davetini reddetti.
+msg.expired = Parti davetinin süresi doldu.
+msg.joined = {0} partiye katıldı ({1, number}/{2, number}).
+msg.left = {0} partiden ayrıldı.
+msg.kicked = Partiden çıkarıldın.
+msg.kicked_member = {0} partiden çıkarıldı.
+msg.disbanded = Parti dağıtıldı.
+msg.owner = Artık partiyi {0} yönetiyor.
+
+command.desc.family = Partini aç, ya da davet et, kabul et veya ayrıl
+command.desc.invite = Çevrimiçi bir oyuncuyu partine davet et
+command.desc.accept = Seni davet eden partiye katıl
+command.desc.leave = Partinden ayrıl
+command.desc.arg.player = Davet edilecek oyuncu
+command.needs_player = Bunu yalnızca bir oyuncu kullanabilir.
+command.open.failed = Partin açılamadı. Birazdan tekrar dene.
+command.player.needed = Davet edilecek oyuncuyu belirt, şöyle: /zigparty invite --player=Steve
+command.player.offline = Bu oyuncu çevrimiçi değil.
+command.invite.self = Davet edilecek oyuncuyu belirt, şöyle: /zigparty invite --player=Steve
+command.invite.not_owner = Yalnızca parti lideri oyuncu davet edebilir.
+command.invite.full = Partin dolu.
+command.invite.in_party = {0} zaten bir partide.
+command.invite.already = {0} davetini zaten aldı.
+command.accept.none = Bir parti davetin yok.
+command.accept.several = Birden fazla parti davetin var. Birini seçmek için /zigparty yaz.
+command.accept.expired = O davetin süresi doldu. Yenisini iste.
+command.accept.full = O parti artık dolu.
+command.accept.in_party = Zaten bir partidesin. Önce /zigparty leave yaz.
+command.leave.done = Partiden ayrıldın.
+command.leave.none = Bir partide değilsin.

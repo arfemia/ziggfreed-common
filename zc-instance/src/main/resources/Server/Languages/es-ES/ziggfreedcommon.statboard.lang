@@ -16,6 +16,9 @@ your_rank.none = Aún no estás en este tablero.
 # A playtime cell: hours and minutes, or minutes alone under an hour.
 duration.hours = {0, number}h {1, number}m
 duration.minutes = {0, number}m
+# A moment cell, such as a first win: today, or how many whole days ago.
+since.today = Hoy
+since.days = Hace {0, number} {0, plural, one {día} other {días}}
 
 # The period tabs (Server/ZiggfreedCommon/StatPeriods).
 period.all_time = Todo el Tiempo
@@ -29,8 +32,31 @@ period.season = {0} {1}
 section.combat = Combate
 section.gathering = Recolección
 section.adventure = Aventura
+section.dungeons = Mazmorras
 section.renown = Renombre
+section.bosses = Jefes
 section.combat.hint = Derrota mobs o enfréntate a un jefe para entrar en este tablero. Tus muertes también cuentan aquí.
 section.gathering.hint = Rompe o coloca bloques, fabrica objetos a mano o recoge cosas para entrar en este tablero.
 section.adventure.hint = Termina misiones, habla con personajes, gana rondas o simplemente juega para entrar en este tablero.
 section.renown.hint = Completa los objetivos del juego o gana prestigio con una reputación para entrar en este tablero. El Renombre cuenta solo para Todo el Tiempo.
+section.bosses.hint = Ayuda a derrotar a un jefe para entrar en este tablero.
+section.dungeons.hint = Empieza, supera o falla una partida de mazmorra para entrar en este tablero.
+
+# The Bosses tab's split: its first choice, the groups a boss sits in (Server/ZiggfreedCommon/RecordGroups),
+# and a boss's party sizes. bosses.all is also the first entry of the list of bosses.
+bosses.all = Todos los jefes
+bosses.sizes.all = Todos los tamaños
+bosses.size.solo = En solitario
+bosses.size.players = {0, number} jugadores
+group.seasonal = De temporada
+group.dungeon = Mazmorra
+group.world = Mundo
+group.minigame = Minijuego
+
+# The Dungeons tab's split: its first choice (also the first entry of the list of dungeons), and a
+# dungeon's difficulties. A difficulty label a dungeon writes shows as difficulty.<label> when that key
+# is here, else as written.
+dungeons.all = Todas las mazmorras
+dungeons.difficulties.all = Todas las dificultades
+difficulty.normal = Normal
+difficulty.hard = Difícil

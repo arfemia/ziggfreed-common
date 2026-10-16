@@ -18,6 +18,10 @@ state.waiting = Aguardando
 state.back_in = Volta em {0}
 state.done = Concluída
 
+# The word a row's line under the title opens with, after its glyph.
+kind.main = Missão principal
+kind.side = Missão secundária
+
 # The header's three numbers and the line under the title.
 stat.progress = Em andamento
 stat.collect = Para receber
@@ -61,3 +65,5 @@ search.placeholder = Buscar missões...
 state.elsewhere = Outro local
 hint.collect_from = Receba com {0}
 hint.collect_at = Receba em: {0}
+hint.board_contract = Entregue no quadro dela, ou a quem passa o serviço, para receber seu pagamento.
+hint.new_work = Serviço novo em {0}

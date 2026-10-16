@@ -5,6 +5,8 @@
 bar.default = Boss
 example.name = Rencontre d'exemple
 
+claim.waits = Votre récompense vous attend sous « À réclamer » dans votre menu.
+
 admin.desc.family = Inspecter et piloter les rencontres de ce serveur.
 admin.desc.list = Lister chaque rencontre en cours, avec son déroulement et son état.
 admin.desc.inspect = Afficher le déroulement d'une rencontre : sa cible, ses membres et ce que chacun a gagné.
@@ -41,7 +43,11 @@ admin.inspect.concluded = réglée : {0}
 admin.inspect.rest = repos après une victoire : {0} secondes sur l'horloge du monde
 admin.inspect.rest.resting = en repos : encore {0} secondes sur l'horloge du monde
 admin.inspect.rest.rested = reposé : le site peut relever son boss
+admin.inspect.feat.held = exploit {0} : tenu jusqu'ici, {1} coups l'ont respecté
+admin.inspect.feat.broken = exploit {0} : brisé, un coup sur le boss ne l'a pas respecté
+admin.inspect.feat.waiting = exploit {0} : aucun coup sur le boss ne l'a encore respecté
 admin.inspect.participant = {0} : {1} infligés, {2} subis, {3}s de présence, part {4}%
+admin.inspect.participant.adds = {0} : {1} infligés aux renforts
 admin.inspect.participants.none = Personne n'a encore gagné de crédit.
 
 admin.ref.needed = Nommez une rencontre avec --ref=<préfixe de l'identifiant de déroulement ou identifiant du script>.
