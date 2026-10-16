@@ -86,8 +86,8 @@ public final class Sound3D {
 
     /**
      * Play a 3D sound at explicit coordinates, with a category and a per-listener
-     * predicate (e.g. a self-only predicate for a private heartbeat). This is the
-     * single underlying implementation; the other overloads delegate here.
+     * predicate (e.g. a self-only predicate for a private heartbeat), as the sound event
+     * authors it.
      *
      * @param soundEventId  the {@code SoundEvent} asset id; null/missing = no-op
      * @param shouldHear    per-candidate filter; only listeners it passes get the packet
@@ -96,6 +96,27 @@ public final class Sound3D {
     public static void play(@Nullable String soundEventId,
                             @Nonnull SoundCategory category,
                             double x, double y, double z,
+                            @Nonnull Predicate<Ref<EntityStore>> shouldHear,
+                            @Nonnull Store<EntityStore> store,
+                            @Nonnull String contextLabel,
+                            boolean warnOnMissing) {
+        play(soundEventId, category, x, y, z, 1f, 1f, shouldHear, store, contextLabel, warnOnMissing);
+    }
+
+    /**
+     * Play a 3D sound at explicit coordinates with a category, the packet's volume and pitch
+     * modifiers and a per-listener predicate. This is the single underlying implementation; the
+     * other overloads delegate here. {@code volumeModifier} and {@code pitchModifier} are linear
+     * multipliers over the sound event's authored values; {@code 1f} each plays it as authored.
+     *
+     * @param soundEventId  the {@code SoundEvent} asset id; null/missing = no-op
+     * @param shouldHear    per-candidate filter; only listeners it passes get the packet
+     * @param warnOnMissing WARNING vs FINE for a missing/unresolved asset
+     */
+    public static void play(@Nullable String soundEventId,
+                            @Nonnull SoundCategory category,
+                            double x, double y, double z,
+                            float volumeModifier, float pitchModifier,
                             @Nonnull Predicate<Ref<EntityStore>> shouldHear,
                             @Nonnull Store<EntityStore> store,
                             @Nonnull String contextLabel,
@@ -114,7 +135,7 @@ public final class Sound3D {
                 }
                 return;
             }
-            SoundUtil.playSoundEvent3d(idx, category, x, y, z, shouldHear, store);
+            SoundUtil.playSoundEvent3d(idx, category, x, y, z, volumeModifier, pitchModifier, shouldHear, store);
         } catch (Throwable t) {
             String msg = contextLabel + " sound (" + soundEventId + ") failed: " + t.getMessage();
             if (warnOnMissing) {
@@ -154,6 +175,35 @@ public final class Sound3D {
                               @Nonnull Store<EntityStore> store,
                               @Nonnull String contextLabel,
                               boolean warnOnMissing) {
+        playAt(soundEventId, category, entityRef, 1f, 1f, shouldHear, store, contextLabel, warnOnMissing);
+    }
+
+    /**
+     * Play a 3D sound at an entity's current position to all listeners in range, at
+     * {@code volumeModifier} and {@code pitchModifier} over the sound event's authored values
+     * ({@code 1f} each plays it as authored), as {@link #play(String, SoundCategory, double, double,
+     * double, float, float, Predicate, Store, String, boolean)} reads them.
+     */
+    public static void playAt(@Nullable String soundEventId,
+                              @Nonnull SoundCategory category,
+                              @Nonnull Ref<EntityStore> entityRef,
+                              float volumeModifier, float pitchModifier,
+                              @Nonnull Store<EntityStore> store,
+                              @Nonnull String contextLabel,
+                              boolean warnOnMissing) {
+        playAt(soundEventId, category, entityRef, volumeModifier, pitchModifier, ALL_LISTENERS, store,
+                contextLabel, warnOnMissing);
+    }
+
+    /** {@link #playAt(String, SoundCategory, Ref, Predicate, Store, String, boolean)} with the packet's two modifiers. */
+    private static void playAt(@Nullable String soundEventId,
+                               @Nonnull SoundCategory category,
+                               @Nonnull Ref<EntityStore> entityRef,
+                               float volumeModifier, float pitchModifier,
+                               @Nonnull Predicate<Ref<EntityStore>> shouldHear,
+                               @Nonnull Store<EntityStore> store,
+                               @Nonnull String contextLabel,
+                               boolean warnOnMissing) {
         if (entityRef == null || !entityRef.isValid()) {
             return;
         }
@@ -162,7 +212,8 @@ public final class Sound3D {
             return;
         }
         Vector3d pos = tc.getPosition();
-        play(soundEventId, category, pos.x(), pos.y(), pos.z(), shouldHear, store, contextLabel, warnOnMissing);
+        play(soundEventId, category, pos.x(), pos.y(), pos.z(), volumeModifier, pitchModifier, shouldHear, store,
+                contextLabel, warnOnMissing);
     }
 
     // ---------------------------------------------------------------------

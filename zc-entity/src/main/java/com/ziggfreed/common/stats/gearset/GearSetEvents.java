@@ -53,7 +53,7 @@ public final class GearSetEvents {
             GearSetAsset.Tier tier = tierIndex >= 0 && tierIndex < set.tiers().size() ? set.tiers().get(tierIndex) : null;
             int full = GearSetDecision.fullCount(set);
             return new ZigGearSetTierChangedEvent(playerId, liveRef(playerRef, set.getId()),
-                    GearSetKeys.setId(set.getId()), tierIndex, active,
+                    GearSetKeys.setId(set.getId()), tierIndex, tier == null ? 0 : GearSetDecision.size(tier), active,
                     GearSetDecision.shownPieces(GearSetDecision.progress(set, counts), full),
                     set.memberIds().size(), full,
                     set.titleKey(), tier == null ? List.of() : tier.titleKeys(), nextTierTitleKeys(set, counts));

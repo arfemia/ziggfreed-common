@@ -379,7 +379,7 @@ public final class FeedbackEngine {
             if (ref == null) {
                 return;
             }
-            Sound3D.playAt(spec.getId(), Sound3D.DEFAULT_CATEGORY, ref, ref.getStore(),
+            Sound3D.playAt(spec.getId(), Sound3D.DEFAULT_CATEGORY, ref, spec.getVolume(), 1f, ref.getStore(),
                     SOUND_CONTEXT, false);
         } catch (Throwable t) {
             SafeLog.fine("moment sound failed: " + t.getMessage());

@@ -22,7 +22,8 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
  * <p>A listener drawing a notice reads {@link #setName()} and {@link #tierLine()} (the authored keys
  * resolved through the loaded lang catalogue, the id as plain text when the set names none) with
  * {@link #pieces()} of {@link #fullSet()}, and {@link #nextTierLine()} for the tier still to earn; a
- * listener keeping other state reads the ids. Both get the live {@link PlayerRef}, so neither looks
+ * listener keeping other state reads the ids and {@link #tierSize()} (zc-objectives' gear-set
+ * producer counts a tier coming on as progress that way). Both get the live {@link PlayerRef}, so neither looks
  * the player up again on a thread it may not be on.
  */
 public final class ZigGearSetTierChangedEvent implements IEvent<Void> {
@@ -31,6 +32,7 @@ public final class ZigGearSetTierChangedEvent implements IEvent<Void> {
     private final PlayerRef playerRef;
     private final String setId;
     private final int tierIndex;
+    private final int tierSize;
     private final boolean active;
     private final int pieces;
     private final int members;
@@ -39,13 +41,27 @@ public final class ZigGearSetTierChangedEvent implements IEvent<Void> {
     private final List<String> tierTitleKeys;
     private final List<String> nextTierTitleKeys;
 
+    /**
+     * The 2.3.0 form, which carries no tier size: {@link #tierSize()} reads 0 on an event built with it.
+     *
+     * @deprecated use the constructor taking the tier's size after its position.
+     */
+    @Deprecated(since = "2.4.0")
     public ZigGearSetTierChangedEvent(@Nonnull UUID playerId, @Nonnull PlayerRef playerRef, @Nonnull String setId,
             int tierIndex, boolean active, int pieces, int members, int fullSet, @Nullable String setTitleKey,
             @Nonnull List<String> tierTitleKeys, @Nonnull List<String> nextTierTitleKeys) {
+        this(playerId, playerRef, setId, tierIndex, 0, active, pieces, members, fullSet, setTitleKey, tierTitleKeys,
+                nextTierTitleKeys);
+    }
+
+    public ZigGearSetTierChangedEvent(@Nonnull UUID playerId, @Nonnull PlayerRef playerRef, @Nonnull String setId,
+            int tierIndex, int tierSize, boolean active, int pieces, int members, int fullSet,
+            @Nullable String setTitleKey, @Nonnull List<String> tierTitleKeys, @Nonnull List<String> nextTierTitleKeys) {
         this.playerId = playerId;
         this.playerRef = playerRef;
         this.setId = setId;
         this.tierIndex = tierIndex;
+        this.tierSize = tierSize;
         this.active = active;
         this.pieces = pieces;
         this.members = members;
@@ -75,6 +91,15 @@ public final class ZigGearSetTierChangedEvent implements IEvent<Void> {
     /** The tier's position in the set's {@code Bonuses} list. */
     public int tierIndex() {
         return tierIndex;
+    }
+
+    /**
+     * How many pieces the tier takes, the larger of its {@code Pieces} and its {@code Armor + Held +
+     * Utility}: the count its notice shows while it holds ("4/5" for a four-piece tier of a five-piece
+     * set). 0 for a tier with no count, or an event built through the deprecated constructor.
+     */
+    public int tierSize() {
+        return tierSize;
     }
 
     /** True when the tier just came on, false when it just went off. */

@@ -163,8 +163,12 @@ public final class GearSetDecision {
         return minimum == null || count >= minimum;
     }
 
-    /** How many pieces {@code tier} takes: {@code max(Pieces, Armor + Held + Utility)}, unauthored reading 0. */
-    private static int size(@Nonnull GearSetAsset.Tier tier) {
+    /**
+     * How many pieces {@code tier} takes: {@code max(Pieces, Armor + Held + Utility)}, unauthored reading 0.
+     * The count a notice shows while that tier holds, and what {@link ZigGearSetTierChangedEvent#tierSize()}
+     * carries.
+     */
+    static int size(@Nonnull GearSetAsset.Tier tier) {
         return Math.max(orZero(tier.getPieces()), slots(tier));
     }
 

@@ -660,13 +660,24 @@ public final class FeedbackMomentAsset
     /** The jingle, played at the player's own position so anyone nearby hears it too. */
     public static final class Sound {
 
+        /** The loudness an unauthored {@code Volume} plays at: the sound event as it is authored. */
+        public static final float DEFAULT_VOLUME = 1.0f;
+
         @Nullable protected String id;
+        @Nullable protected Double volume;
 
         public static final BuilderCodec<Sound> CODEC = BuilderCodec.builder(Sound.class, Sound::new)
                 .appendInherited(new KeyedCodec<>("Id", Codec.STRING, false),
                         (o, v) -> o.id = v, o -> o.id, (o, p) -> o.id = p.id)
                 .documentation("A SoundEvent asset id. An id no pack ships is skipped quietly, so a jingle "
                         + "borrowed from content that is not installed costs nothing.")
+                .add()
+                .appendInherited(new KeyedCodec<>("Volume", Codec.DOUBLE, false),
+                        (o, v) -> o.volume = v, o -> o.volume, (o, p) -> o.volume = p.volume)
+                .metadata(EditorSchema.defaultValue((double) DEFAULT_VOLUME))
+                .documentation("How loud to play it, as a share of the sound event's own volume: 1 plays it "
+                        + "as the sound authors it, 0.5 at half, 2 at double. A value of 0 or less, or one "
+                        + "left out, plays it at 1.")
                 .add()
                 .build();
 
@@ -677,6 +688,14 @@ public final class FeedbackMomentAsset
         @Nullable
         public String getId() {
             return id == null || id.isBlank() ? null : id.trim();
+        }
+
+        /**
+         * The share of the sound event's own volume to play it at: the authored {@code Volume} when it
+         * is above 0, otherwise {@link #DEFAULT_VOLUME}.
+         */
+        public float getVolume() {
+            return volume == null || !(volume > 0.0) || volume.isInfinite() ? DEFAULT_VOLUME : volume.floatValue();
         }
     }
 

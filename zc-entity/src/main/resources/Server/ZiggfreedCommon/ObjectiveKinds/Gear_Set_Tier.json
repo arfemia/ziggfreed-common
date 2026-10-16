@@ -1,0 +1,8 @@
+{
+  "$Comment": "Wearing enough of a gear set for one of its bonus tiers to come on. Target is the set id (its file name under Server/ZiggfreedCommon/GearSets); the moment fires when a tier comes on as the player puts gear on, never when one goes off, and never at login or a world change, when nothing was put on. The amount it carries is how many pieces that tier takes, the count the set's notice shows while it holds, and the step keeps the largest it has seen, so Amount 4 is met by a four-piece tier or a bigger one, and a step shows how far along the player is. A step reads {\"Kind\": \"GEAR_SET_TIER\", \"Target\": \"Your_Set\", \"Amount\": 4}.",
+  "ValueBased": true,
+  "Producible": true,
+  "Presentation": {
+    "TextKey": "ziggfreedcommon.gearset.objective.gear_set_tier"
+  }
+}

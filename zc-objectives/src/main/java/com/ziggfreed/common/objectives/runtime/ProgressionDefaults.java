@@ -45,6 +45,7 @@ import com.ziggfreed.common.objectives.producer.ZigBlockBreakProducer;
 import com.ziggfreed.common.objectives.producer.ZigCalendarProducer;
 import com.ziggfreed.common.objectives.producer.ZigCraftProducer;
 import com.ziggfreed.common.objectives.producer.ZigEncounterProducer;
+import com.ziggfreed.common.objectives.producer.ZigGearSetProducer;
 import com.ziggfreed.common.objectives.producer.ZigInstanceRoundProducer;
 import com.ziggfreed.common.objectives.producer.ZigLootReceivedProducer;
 import com.ziggfreed.common.objectives.producer.ZigMobKillProducer;
@@ -194,10 +195,11 @@ public final class ProgressionDefaults {
 
     /**
      * Register everything that has to exist whoever ends up owning the runtime: the player lifecycle
-     * listeners, the five producer systems plus the six producers that are event-bus listeners
+     * listeners, the five producer systems plus the seven producers that are event-bus listeners
      * (a finished instance round, a boss fight's beat, a calendar attendance, the items a reward
-     * payout handed over, a collected quest and the ranks a reputation check credited are announced
-     * about players rather than happening to an entity, so each arrives on the shared bus), the
+     * payout handed over, a collected quest, the ranks a reputation check credited and a gear-set
+     * tier coming on are announced about players rather than happening to an entity, so each
+     * arrives on the shared bus), the
      * library's talk-credit sink (a conversation is credited by an authored beat through
      * zc-dialogue's {@code TalkCredits}, and this sink always runs, beside any sink a consumer
      * registers), the moment listener that meets a dungeon's {@code Complete.Objective}
@@ -233,6 +235,7 @@ public final class ProgressionDefaults {
         ZigLootReceivedProducer.install(plugin);
         ZigQuestCompletionProducer.install(plugin);
         ZigReputationProducer.install(plugin);
+        ZigGearSetProducer.install(plugin);
         GatedContent.register(RankAchievementGatedContent.ID, RankAchievementGatedContent::entries);
         ZigTalkProducer.install(plugin);
         SafeLog.info("[progression] producers always-on: " + producedKinds()
@@ -259,7 +262,8 @@ public final class ProgressionDefaults {
                 ZigEncounterProducer.KIND_ATTEMPT, ZigEncounterProducer.KIND_DEFEATED,
                 ZigEncounterProducer.KIND_PHASE, ZigEncounterProducer.KIND_FEAT, ZigCalendarProducer.KIND,
                 ZigLootReceivedProducer.KIND,
-                ZigQuestCompletionProducer.KIND, ZigReputationProducer.KIND, ZigTalkProducer.KIND);
+                ZigQuestCompletionProducer.KIND, ZigReputationProducer.KIND, ZigGearSetProducer.KIND,
+                ZigTalkProducer.KIND);
     }
 
     // ==================== persistence notifications ====================

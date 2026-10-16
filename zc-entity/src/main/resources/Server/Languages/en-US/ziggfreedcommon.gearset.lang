@@ -1,2 +1,6 @@
 # The name a worn gear set's tile shows on the buff bar when the set names no badge of its own.
 default.name = Set Bonus
+
+# A quest step or achievement criterion of the GEAR_SET_TIER kind: {0} is how many pieces, {1} the set.
+objective.gear_set_tier = Wear {0} pieces of {1}
+objective.gear_set_tier.any = Wear {0} pieces of a gear set

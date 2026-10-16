@@ -21,9 +21,11 @@
     "went off). 'player' is always the name of who wears it.",
     "",
     "Key is a line from a .lang file; Args names which of those values fill its blanks, in order.",
-    "Sound is any SoundEvent id, played at the player's own position. Delete either group in your",
-    "override to drop that half; add a Broadcast group to tell the whole server. Tone colours the",
-    "whole notification: gold Reward for a bonus coming on, plain Info for one going off, which is",
+    "Sound is any SoundEvent id, played at the player's own position, and its Volume a share of that",
+    "sound's own loudness (1 as the sound authors it). A bonus comes on whenever a player gears back",
+    "up, so it gets the game's soft memory chime at half its volume, never a fanfare. Delete either",
+    "group in your override to drop that half; add a Broadcast group to tell the whole server. Tone",
+    "colours the whole notification: gold Reward for a bonus coming on, plain Info for one going off, which is",
     "what the first Variants entry says for the 'active: false' case. The second entry is a tier",
     "coming on with another still ahead: its smaller line names this tier's bonus and the next one,",
     "so a player learns what the set holds next without opening a page."
@@ -40,7 +42,8 @@
     "Tone": "Reward"
   },
   "Sound": {
-    "Id": "SFX_Discovery_Z2_Short"
+    "Id": "SFX_MemoryMote",
+    "Volume": 0.5
   },
   "Variants": [
     {
