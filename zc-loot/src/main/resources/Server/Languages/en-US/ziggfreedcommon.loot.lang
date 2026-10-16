@@ -2,7 +2,8 @@
 # The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.loot.<key>.
 #
 # These are the labels the shipped Lootable / Droplist / Effect kind files point their NameKey at:
-# none of the three can promise a specific item ahead of time, so each reads as one generic line.
+# none of the three can promise a specific item ahead of time, so each reads as one generic line (a
+# Lootable only when its table is set to PlainBundle; otherwise it reads as its table's own name).
 # A reward that writes its own NameKey outranks these; a mod shipping the same key in its own lang
 # file outranks this library's copy.
 
@@ -10,10 +11,12 @@ reward.lootable = Loot Bundle
 reward.droplist = Loot Drop
 reward.effect = Temporary Effect
 
-# What hovering a Lootable reward lists when its table opts in (ListContents). Each line ends with the
+# What hovering a Lootable reward lists (unless its table sets ListContents false). Each line ends with the
 # reward's own line ("x3 Lantern Bomb"), after one space: what always comes reads alone, a chance leads
-# with its percent ({0}), and what something else decides leads with "Sometimes:". The last line shows
-# when the table holds something the list cannot name.
+# with its percent ({0}, at most one decimal), and what something else decides leads with "Sometimes:".
+# Two closing lines may follow, in this order: preview.more when the table holds something the list
+# cannot name, and preview.hidden when the table keeps a roll out of the list on purpose (HideInPreview).
 preview.chance = {0, number}%:
 preview.sometimes = Sometimes:
 preview.more = Plus a little more.
+preview.hidden = And a few more rare finds.

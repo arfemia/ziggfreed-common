@@ -143,11 +143,31 @@ class LootableAssetCodecTest {
     }
 
     @Test
-    void anEmptyBodyDecodesToATableThatSimplyGrantsNothing() throws Exception {
-        LootableAsset table = decodeRoot("{ }", "empty");
-        assertNull(table.getRolls());
-        assertNull(table.getText(), "a table saying nothing reads as the generic bundle");
-        assertFalse(table.listsContents());
+    void aTableReadsAsItselfUntilItAsksForThePlainBundle() throws Exception {
+        LootableAsset silent = decodeRoot("{ }", "silent");
+        assertTrue(silent.listsContents(), "a table that writes nothing lists what it pays");
+        assertFalse(silent.readsAsPlainBundle(), "a table that writes nothing reads as itself");
+
+        LootableAsset parent = decodeRoot("{ \"PlainBundle\": true, \"ListContents\": false }", "plain");
+        assertTrue(parent.readsAsPlainBundle());
+        assertFalse(parent.listsContents());
+
+        LootableAsset child = decode("{ }", "plain_variant", "plain", parent);
+        assertTrue(child.readsAsPlainBundle(), "PlainBundle is inherited");
+        assertFalse(child.listsContents(), "ListContents is inherited");
+    }
+
+    @Test
+    void aRollShowsInThePreviewUnlessItHidesItself() throws Exception {
+        LootableAsset table = decodeRoot("""
+                { "Rolls": [ { "Grants": { "Items": [ { "Item": "Coin_Gold" } ] } },
+                             { "Chance": { "Base": 1 }, "HideInPreview": true,
+                               "Grants": { "Items": [ { "Item": "Gem_Ruby" } ] } } ] }
+                """, "rare_finds");
+
+        assertFalse(table.getRolls()[0].hidesInPreview(), "a roll that writes nothing shows in the preview");
+        assertNull(table.getRolls()[0].getHideInPreview());
+        assertTrue(table.getRolls()[1].hidesInPreview());
     }
 
     @Test

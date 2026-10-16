@@ -83,6 +83,7 @@ public final class Roll {
     @Nullable protected LootGrants grants;
     @Nullable protected String cue;
     @Nullable protected Boolean expected;
+    @Nullable protected Boolean hideInPreview;
 
     /** The plain codec: a factor id stays a free text field. */
     public static final BuilderCodec<Roll> CODEC = codec(null);
@@ -131,6 +132,14 @@ public final class Roll {
                         + "shows an expected item as ordinary output and a find as a windfall. It changes nothing "
                         + "about what the roll pays or when; a Chance or a Ladder still applies. Default false, so "
                         + "every roll reads as a find unless it says otherwise.").add()
+                .appendInherited(new KeyedCodec<>("HideInPreview", Codec.BOOLEAN, false),
+                        (o, v) -> o.hideInPreview = v, o -> o.hideInPreview,
+                        (o, p) -> o.hideInPreview = p.hideInPreview)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("True keeps this roll, its ladder included, out of the list a table shows of what "
+                        + "it pays (hovering a reward that pays the table): the list ends with one line saying a "
+                        + "few more rare finds are left unsaid. It changes nothing about what the roll pays or "
+                        + "when. Default false.").add()
                 .build();
     }
 
@@ -204,6 +213,21 @@ public final class Roll {
     public Roll withExpected(@Nullable Boolean expected) {
         this.expected = expected;
         return this;
+    }
+
+    /** The raw authored {@code HideInPreview} knob; null = the roll shows in a preview of its table. */
+    @Nullable
+    public Boolean getHideInPreview() {
+        return hideInPreview;
+    }
+
+    /**
+     * Whether a preview of what this roll's table pays leaves the roll out, and says instead that a few
+     * more rare finds are left unsaid. Presentation only: the roll pays exactly the same either way.
+     * Reader-defaulted to {@code false}.
+     */
+    public boolean hidesInPreview() {
+        return hideInPreview != null && hideInPreview;
     }
 
     /** {@link #getTrigger()}, reader-defaulted to {@link #DEFAULT_TRIGGER} when absent or blank. */

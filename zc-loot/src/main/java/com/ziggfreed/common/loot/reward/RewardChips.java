@@ -50,11 +50,11 @@ import com.ziggfreed.common.instance.reward.DeferredRewards;
  * own name) names them without any reward authoring anything.
  *
  * <p><b>What a reward pays may describe itself</b> ({@link #contributeDescriber}): a kind's owner says
- * what the thing one reward points at calls itself and what hovering it should show (a named loot
- * table's own name, a line about it, what it holds). Its name outranks the kind file's default and the
- * item form, never the reward's own {@code NameKey}; its hover makes the picture one that only stands
- * for the reward ({@link RewardChip#picture}), the line's name first. A reward nothing describes reads
- * exactly as it did.
+ * what the thing one reward points at calls itself and what hovering it should show (a loot table's own
+ * name, a line about it, what it holds). Its name outranks the kind file's default and the item form,
+ * never the reward's own {@code NameKey}; a described reward's picture only stands for the reward
+ * ({@link RewardChip#picture}), and hovering it says the line's name first, then its hover lines. A
+ * reward nothing describes reads exactly as it did.
  *
  * <p>{@link Plan} is the whole decision and touches nothing but strings, so what a chip WILL say is
  * testable with no server; {@link #chipFor} is the half that reaches an item for its name.
@@ -109,7 +109,7 @@ public final class RewardChips {
     /**
      * A reward's own words: {@code name}, which reads in place of the kind file's default label (null
      * keeps that label), and {@code hover}, the lines hovering its picture shows under the line's name
-     * (empty keeps the picture's own tooltip).
+     * (empty shows the name alone). A described reward's picture never shows the borrowed item's tooltip.
      */
     public record Described(@Nullable Message name, @Nonnull List<Message> hover) {
 
@@ -344,13 +344,14 @@ public final class RewardChips {
     }
 
     /**
-     * The chip {@code label} reads as, with {@code described}'s hover when it has one: the picture then only
-     * stands for the reward, and hovering it says the line's name, then each hover line under it.
+     * The chip {@code label} reads as, with {@code described}'s hover when the reward is described: the picture
+     * then only stands for the reward, and hovering it says the line's name, then each hover line under it (the
+     * name alone when there are none), never the tooltip of the item the picture borrows.
      */
     @Nonnull
     private static RewardChip withHover(@Nullable String icon, @Nonnull Message label,
             @Nullable Described described) {
-        if (described == null || described.hover().isEmpty()) {
+        if (described == null) {
             return RewardChip.of(icon, label);
         }
         List<Message> lines = new ArrayList<>(described.hover().size() + 1);

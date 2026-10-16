@@ -29,10 +29,10 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
  * them). A receipt that is one lootable's rows alone, or that carries no such rows, reads flat, as
  * it always did. Anything else lists every row not from a lootable first, in receipt order, then
  * each lootable as a section: one heading row (the lootable reward's own reading: its
- * {@code NameKey} and {@code Icon}, else the {@code Lootable} kind file's) and its rows indented
- * beneath. A lootable that rolled nothing adds no section, and one whose reward nothing can name
- * shows its rows as plain rows, among those first ones in receipt order. Sections group CONTIGUOUS
- * rows of the same origin, by identity. This is the one sectioning step: a caller with a reading of
+ * {@code NameKey} and {@code Icon}, else its table's own name, else the {@code Lootable} kind file's)
+ * and its rows indented beneath. A lootable that rolled nothing adds no section, and one whose
+ * reward nothing can name shows its rows as plain rows, among those first ones in receipt order.
+ * Sections group CONTIGUOUS rows of the same origin, by identity. This is the one sectioning step: a caller with a reading of
  * its own passes it to {@link #linesBy(List, Function, int, IntFunction)}, never a grouping of its
  * own.
  *

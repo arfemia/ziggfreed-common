@@ -405,8 +405,8 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         CostumeRewardKind.registerInto(RewardKinds.shared());
         LootRewardKinds.factors(lootFactorVocabulary());
         LootRewardKinds.overflow(new FeetDropOverflow());
-        // A Lootable reward whose table names itself reads as that table, and lists what it pays on hover
-        // when the table says so; a table saying nothing reads as the kind file's generic bundle.
+        // A Lootable reward reads as its table (named by its id when it authors no name) and lists what it
+        // pays on hover, unless the table sets PlainBundle; an unknown table reads as the generic bundle.
         RewardChips.contributeDescriber(LootablePreview.describer());
         StamperRegistry.register(new StackStatsStamper());
         // The stamped points an item carries, as a factor every vocabulary on the server resolves:
