@@ -10,7 +10,6 @@ rank.revered = Riverito
 rank.exalted = Osannato
 rank.none = Senza rango
 factor.reputation = un punteggio di reputazione
-factor.reputation_earned = un punteggio di reputazione guadagnato
 factor.reputation_rank = un rango di reputazione
 factor.rank_with = {0} presso {1}
 stat.standing = Reputazione

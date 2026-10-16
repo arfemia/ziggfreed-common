@@ -11,7 +11,6 @@ spot.bottom_left = Unten links
 # Die beiden Panels, wie die Picker und die Antworten sie nennen.
 panel.activity_ledger = Herstellungsfortschritt
 panel.world_bars = XP- und Ruf-Gewinne
-panel.center_bars = Ruf-Änderungen in Menüs
 
 # Die HUD-Einstellungsseite.
 settings.title = HUD-Leisten

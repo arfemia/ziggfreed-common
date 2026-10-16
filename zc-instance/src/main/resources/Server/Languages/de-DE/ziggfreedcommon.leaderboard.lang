@@ -5,26 +5,18 @@
 # nimmt nur your_rank einen. Ein Kampf benennt seinen Bildschirm über den NameKey seiner Bindungszeile;
 # title ist der Ersatz.
 
-title = Boss-Rekorde
-axis.difficulty = Schwierigkeit
-axis.players = Spieler
-axis.sort = Sortierung
-axis.view = Ansicht
 col.rank = Rang
 col.player = Spieler
 col.score = Bester Anteil
 col.total = Gesamt
 col.time = Schnellste
 col.plays = Kämpfe
-empty = Hier hat noch niemand einen Rekord für diesen Kampf.
 sort.score = Bester Anteil
 sort.total = Gesamtpunkte
 sort.time = Schnellste
 view.rankings = Rangliste
 view.stats = Statistik
 filter.all = Alle
-your_rank = Dein Bestwert: #{0, number} ({1, number})
-your_rank.none = Du hast hier noch keinen Rekord für diesen Kampf.
 
 # The strip over the list: your place on the board and your own numbers.
 you.heading = Dein Stand
@@ -51,5 +43,4 @@ command.clock.shifted = Solange die Uhr verschoben ist, zählen Statistiken nur 
 command.clock.window = {0} liest {1}
 command.clock.window.none = {0} hat noch nicht begonnen
 menu.records = Rekorde
-records.boss_fights = Bosskämpfe
 

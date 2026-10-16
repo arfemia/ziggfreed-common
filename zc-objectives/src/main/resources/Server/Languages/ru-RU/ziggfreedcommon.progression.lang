@@ -3,7 +3,6 @@ book.tab.quests = Квесты
 book.tab.achievements = Достижения
 book.empty.quests = Пока нет доступных вам квестов.
 book.empty.achievements = Пока нет доступных вам достижений.
-book.progress = {0}/{1}
 book.more = +{0} ещё
 
 # How often a quest comes round, badged on every list that shows quests. Derived from the
@@ -13,30 +12,13 @@ quest.cadence.daily = Ежедневное
 quest.cadence.weekly = Еженедельное
 quest.cadence.seasonal = Сезонное
 
-book.quests.section.active = В процессе
-book.quests.section.ready = Готово к получению
-book.quests.section.available = Доступные
-book.quests.section.locked = Закрытые
-book.quests.untitled = Безымянный квест
-book.quests.step.untitled = Безымянный шаг
 
 book.achievements.category.uncategorised = Прочее
 book.achievements.criterion.untitled = Безымянный шаг
 
-book.action.accept = Принять
-book.action.claim = Получить
-book.action.turn_in = Сдать
-book.quests.filter.all = Все
-book.quests.filter.all_tags = Все метки
-book.quests.filter.none = Ничего не подходит под эти фильтры.
-book.quests.filter.status.active = В процессе
-book.quests.filter.status.available = Доступные
-book.quests.filter.status.completed = Завершённые
 book.quests.category.main = Основные
 book.quests.category.daily = Ежедневные
 book.quests.category.misc = Прочие
-book.quests.section.done = Завершённые
-book.action.abandon = ✕
 book.toast.abandoned = Задание брошено.
 book.toast.abandon_failed = Это задание нельзя бросить.
 
@@ -67,14 +49,8 @@ npcquests.section.cooldown = Вернётся
 npcquests.section.locked = Закрытые
 npcquests.section.done = Завершённые
 
-npcquests.header.objectives = ЦЕЛИ
-npcquests.header.rewards = НАГРАДЫ
-npcquests.header.required = ТРЕБУЕТСЯ
 
 npcquests.action.complete = Завершить
-npcquests.action.abandon = Отказаться
-npcquests.action.track = Отслеживать
-npcquests.action.untrack = Не отслеживать
 
 npcquests.toast.abandoned = Квест отменён.
 npcquests.toast.tracked = Квест отслеживается.
@@ -83,28 +59,12 @@ npcquests.toast.track_full = Вы уже отслеживаете максиму
 npcquests.toast.turn_in_short = Пока недостаточно: {0}/{1}.
 
 # The lifted quest-log surface (categories, statuses, row actions, objectives, requirements).
-book.quests.count = {0} Квестов
-book.quests.active_count = {0} Активных
-book.quests.active_header = Активные задания ({0})
-book.quests.status.available = Доступно
-book.quests.status.locked = Заблокировано
-book.quests.status.active = В процессе
-book.quests.status.unclaimed = Готово к получению
-book.quests.status.completed = Завершено
-book.quests.status.cooldown = Вернётся через {0}
-book.quests.btn.accept = Принять
-book.quests.btn.claim = Получить
-book.quests.btn.abandon = Отказаться
-book.quests.btn.turn_in = Сдать
-book.quests.max_note = Макс квестов достигнут ({0})
 book.quests.requires = Требуется: {0}
 book.quests.req.quest = Завершить "{0}"
 book.quests.req.permission = Разрешение: {0}
 book.quests.objectives.sequential = Выполнить по порядку:
 book.quests.objectives.any_order = Выполнить в любом порядке:
 book.quests.objectives.mixed = Выполняйте каждый этап по порядку:
-book.quests.objectives.step = Этап {0}
-book.quests.filter.searchPlaceholder = Поиск заданий...
 book.quests.track_cap = Можно отслеживать не более {0} квестов одновременно.
 book.quests.turn_in_fail = Недостаточно {0} ({1}/{2})
 book.quests.claim_at_site = Этот квест сдаётся в определённом месте - получите награду там.

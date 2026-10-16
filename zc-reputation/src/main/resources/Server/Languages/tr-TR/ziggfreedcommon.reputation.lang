@@ -11,7 +11,6 @@ rank.exalted = Yüce
 rank.none = Rütbesiz
 
 factor.reputation = bir itibardaki puan
-factor.reputation_earned = bir itibarda kazanılmış puan
 factor.reputation_rank = bir itibarda bir rütbe
 factor.rank_with = {1} nezdinde {0}
 

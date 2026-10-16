@@ -11,7 +11,6 @@ spot.bottom_left = Нижний левый
 # The two panels, as the pickers and the answers name them.
 panel.activity_ledger = Ход крафта
 panel.world_bars = Прирост опыта и репутации
-panel.center_bars = Изменения репутации в меню
 
 # The HUD settings page.
 settings.title = Панели HUD

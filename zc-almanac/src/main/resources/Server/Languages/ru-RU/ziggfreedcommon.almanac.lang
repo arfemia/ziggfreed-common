@@ -3,23 +3,8 @@
 # для команды и её аргументов.
 
 title = Альманах
-seasons.empty = На этом сервере пока нет сезонных событий.
 status.live = Идёт сейчас
-status.between = Между сезонами
-section.season = Этот сезон ({0})
-section.last = Прошлый сезон ({0})
-section.lifetime = Все сезоны
-section.keepsakes = Памятные вещи
-section.achievements = Достижения
-attended.yes = Вы участвовали.
-attended.count = Сезонов с вашим участием: {0, number}
-stat.line = {0}: {1, number}
-stat.none = Пока ничего не засчитано.
-keepsake.line = {0}: {1}
-keepsake.none = Памятных вещей пока нет.
 achievements.count = Получено {0, number} из {1, number}
-banner.line = {0}: {1, number} из {2, number}
-banner.earned = {0}: получено
 
 desc.family = Альманах: все сезонные события этого сервера и что вы сделали в каждом.
 desc.open = Открыть Альманах.

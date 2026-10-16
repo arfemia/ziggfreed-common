@@ -3,23 +3,8 @@
 # la ayuda del motor usa para un comando o un argumento.
 
 title = Almanaque
-seasons.empty = Aún no hay eventos de temporada en este servidor.
 status.live = En curso
-status.between = Entre temporadas
-section.season = Esta temporada ({0})
-section.last = Temporada pasada ({0})
-section.lifetime = Todas las temporadas
-section.keepsakes = Recuerdos
-section.achievements = Logros
-attended.yes = Participaste.
-attended.count = Temporadas en las que participaste: {0, number}
-stat.line = {0}: {1, number}
-stat.none = Aún no se ha contado nada.
-keepsake.line = {0}: {1}
-keepsake.none = Aún no tienes recuerdos.
 achievements.count = {0, number} de {1, number} conseguidos
-banner.line = {0}: {1, number} de {2, number}
-banner.earned = {0}: conseguido
 
 desc.family = El Almanaque: todos los eventos de temporada de este servidor y lo que hiciste en cada uno.
 desc.open = Abre el Almanaque.

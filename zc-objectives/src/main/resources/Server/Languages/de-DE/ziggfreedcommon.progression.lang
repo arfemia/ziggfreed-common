@@ -3,7 +3,6 @@ book.tab.quests = Quests
 book.tab.achievements = Errungenschaften
 book.empty.quests = Für dich sind noch keine Quests verfügbar.
 book.empty.achievements = Für dich sind noch keine Errungenschaften verfügbar.
-book.progress = {0}/{1}
 book.more = +{0} weitere
 
 # How often a quest comes round, badged on every list that shows quests. Derived from the
@@ -13,30 +12,13 @@ quest.cadence.daily = Täglich
 quest.cadence.weekly = Wöchentlich
 quest.cadence.seasonal = Saisonal
 
-book.quests.section.active = In Arbeit
-book.quests.section.ready = Abholbereit
-book.quests.section.available = Verfügbar
-book.quests.section.locked = Gesperrt
-book.quests.untitled = Unbenannte Quest
-book.quests.step.untitled = Unbenannter Schritt
 
 book.achievements.category.uncategorised = Sonstige
 book.achievements.criterion.untitled = Unbenannter Schritt
 
-book.action.accept = Annehmen
-book.action.claim = Abholen
-book.action.turn_in = Abgeben
-book.quests.filter.all = Alle
-book.quests.filter.all_tags = Alle Schlagwörter
-book.quests.filter.none = Nichts passt zu diesen Filtern.
-book.quests.filter.status.active = In Arbeit
-book.quests.filter.status.available = Verfügbar
-book.quests.filter.status.completed = Abgeschlossen
 book.quests.category.main = Haupt
 book.quests.category.daily = Täglich
 book.quests.category.misc = Sonstiges
-book.quests.section.done = Abgeschlossen
-book.action.abandon = ✕
 book.toast.abandoned = Quest abgebrochen.
 book.toast.abandon_failed = Diese Quest kann nicht abgebrochen werden.
 
@@ -67,14 +49,8 @@ npcquests.section.cooldown = Kommt wieder
 npcquests.section.locked = Gesperrt
 npcquests.section.done = Abgeschlossen
 
-npcquests.header.objectives = ZIELE
-npcquests.header.rewards = BELOHNUNGEN
-npcquests.header.required = ERFORDERLICH
 
 npcquests.action.complete = Abschließen
-npcquests.action.abandon = Aufgeben
-npcquests.action.track = Verfolgen
-npcquests.action.untrack = Nicht mehr verfolgen
 
 npcquests.toast.abandoned = Quest aufgegeben.
 npcquests.toast.tracked = Quest wird verfolgt.
@@ -83,28 +59,12 @@ npcquests.toast.track_full = Du verfolgst bereits so viele Quests wie möglich.
 npcquests.toast.turn_in_short = Noch nicht genug: {0}/{1}.
 
 # The lifted quest-log surface (categories, statuses, row actions, objectives, requirements).
-book.quests.count = {0} Quests
-book.quests.active_count = {0} Aktiv
-book.quests.active_header = Aktive Quests ({0})
-book.quests.status.available = Verfügbar
-book.quests.status.locked = Gesperrt
-book.quests.status.active = In Bearbeitung
-book.quests.status.unclaimed = Bereit zum Abholen
-book.quests.status.completed = Abgeschlossen
-book.quests.status.cooldown = Kommt in {0} wieder
-book.quests.btn.accept = Annehmen
-book.quests.btn.claim = Abholen
-book.quests.btn.abandon = Abbrechen
-book.quests.btn.turn_in = Abgeben
-book.quests.max_note = Max Quests erreicht ({0})
 book.quests.requires = Erfordert: {0}
 book.quests.req.quest = "{0}" abschließen
 book.quests.req.permission = Berechtigung: {0}
 book.quests.objectives.sequential = Der Reihe nach abschließen:
 book.quests.objectives.any_order = In beliebiger Reihenfolge abschließen:
 book.quests.objectives.mixed = Schließe jeden Schritt der Reihe nach ab:
-book.quests.objectives.step = Schritt {0}
-book.quests.filter.searchPlaceholder = Quests suchen...
 book.quests.track_cap = Du kannst nur {0} Quests gleichzeitig verfolgen.
 book.quests.turn_in_fail = Nicht genug {0} ({1}/{2})
 book.quests.claim_at_site = Diese Quest wird an einem bestimmten Ort abgegeben - hol deine Belohnung dort ab.

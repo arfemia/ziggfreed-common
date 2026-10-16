@@ -13,7 +13,6 @@ rank.none = Ohne Rang
 
 # Wie eine Bedingung auf einen Rufwert heißt, wenn kein Paket seinen Ruf selbst benennt; steht hinter "Benötigt" in der Sperrzeile.
 factor.reputation = Ruf bei einer Fraktion
-factor.reputation_earned = verdienten Ruf bei einer Fraktion
 factor.reputation_rank = einen Rang bei einer Fraktion
 factor.rank_with = {0} bei {1}
 

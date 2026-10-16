@@ -11,7 +11,6 @@ spot.bottom_left = Sol altta
 # İki panel, seçicilerin ve yanıtların adlandırdıkları şekilde.
 panel.activity_ledger = Üretim ilerlemesi
 panel.world_bars = XP ve itibar kazançları
-panel.center_bars = Menülerdeki itibar değişiklikleri
 
 # HUD ayarları sayfası.
 settings.title = HUD çubukları

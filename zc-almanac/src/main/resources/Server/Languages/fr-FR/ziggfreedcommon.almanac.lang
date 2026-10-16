@@ -3,23 +3,8 @@
 # du moteur résout une commande ou un argument.
 
 title = Almanach
-seasons.empty = Aucun événement saisonnier n'a lieu sur ce serveur pour le moment.
 status.live = En cours
-status.between = Entre deux saisons
-section.season = Cette saison ({0})
-section.last = Saison précédente ({0})
-section.lifetime = Toutes les saisons
-section.keepsakes = Souvenirs
-section.achievements = Succès
-attended.yes = Vous avez participé.
-attended.count = Saisons auxquelles vous avez participé : {0, number}
-stat.line = {0} : {1, number}
-stat.none = Rien de comptabilisé pour le moment.
-keepsake.line = {0} : {1}
-keepsake.none = Aucun souvenir pour le moment.
 achievements.count = {0, number} sur {1, number} obtenus
-banner.line = {0} : {1, number} sur {2, number}
-banner.earned = {0} : obtenu
 
 desc.family = L'Almanach : tous les événements saisonniers de ce serveur et ce que vous avez fait dans chacun.
 desc.open = Ouvre l'Almanach.

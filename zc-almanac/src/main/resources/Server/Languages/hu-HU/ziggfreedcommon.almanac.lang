@@ -3,23 +3,8 @@
 # saját súgója a parancsokat és argumentumokat.
 
 title = Almanach
-seasons.empty = Ezen a szerveren még nem fut szezonális esemény.
 status.live = Most tart
-status.between = Szezonok között
-section.season = Ez a szezon ({0})
-section.last = Előző szezon ({0})
-section.lifetime = Minden szezon
-section.keepsakes = Emléktárgyak
-section.achievements = Eredmények
-attended.yes = Részt vettél.
-attended.count = Szezonok, amelyeken részt vettél: {0, number}
-stat.line = {0}: {1, number}
-stat.none = Még nincs mit számolni.
-keepsake.line = {0}: {1}
-keepsake.none = Még nincs emléktárgyad.
 achievements.count = {0, number} / {1, number} megszerezve
-banner.line = {0}: {1, number} / {2, number}
-banner.earned = {0}: megszerezve
 
 desc.family = Az Almanach: a szerver minden szezonális eseménye, és hogy mit tettél bennük.
 desc.open = Megnyitja az Almanachot.

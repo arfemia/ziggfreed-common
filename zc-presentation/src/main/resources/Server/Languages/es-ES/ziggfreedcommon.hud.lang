@@ -11,7 +11,6 @@ spot.bottom_left = Abajo izquierda
 # Los dos paneles, como los selectores y las respuestas los nombran.
 panel.activity_ledger = Progreso de fabricación
 panel.world_bars = Ganancias de XP y reputación
-panel.center_bars = Cambios de reputación en menús
 
 # La página de configuración de HUD.
 settings.title = Barras HUD

@@ -6,7 +6,6 @@ book.tab.quests = Quests
 book.tab.achievements = Achievements
 book.empty.quests = No quests are available to you yet.
 book.empty.achievements = No achievements are available to you yet.
-book.progress = {0}/{1}
 book.more = +{0} more
 
 # What the book's two picture-only buttons say when hovered.
@@ -20,30 +19,13 @@ quest.cadence.daily = Daily
 quest.cadence.weekly = Weekly
 quest.cadence.seasonal = Seasonal
 
-book.quests.section.active = In progress
-book.quests.section.ready = Ready to collect
-book.quests.section.available = Available
-book.quests.section.locked = Locked
-book.quests.untitled = Unnamed quest
-book.quests.step.untitled = Unnamed step
 
 book.achievements.category.uncategorised = Other
 book.achievements.criterion.untitled = Unnamed step
 
-book.action.accept = Accept
-book.action.claim = Collect
-book.action.turn_in = Hand in
-book.quests.filter.all = All
-book.quests.filter.all_tags = All tags
-book.quests.filter.none = Nothing matches these filters.
-book.quests.filter.status.active = In progress
-book.quests.filter.status.available = Available
-book.quests.filter.status.completed = Completed
 book.quests.category.main = Main
 book.quests.category.daily = Daily
 book.quests.category.misc = Miscellaneous
-book.quests.section.done = Completed
-book.action.abandon = ✕
 book.toast.abandoned = Quest abandoned.
 book.toast.abandon_failed = That quest cannot be abandoned.
 
@@ -80,14 +62,8 @@ npcquests.section.cooldown = Comes back
 npcquests.section.locked = Locked
 npcquests.section.done = Completed
 
-npcquests.header.objectives = OBJECTIVES
-npcquests.header.rewards = REWARDS
-npcquests.header.required = REQUIRED
 
 npcquests.action.complete = Complete
-npcquests.action.abandon = Abandon
-npcquests.action.track = Track
-npcquests.action.untrack = Untrack
 
 npcquests.toast.abandoned = Quest abandoned.
 npcquests.toast.tracked = Quest tracked.
@@ -96,28 +72,12 @@ npcquests.toast.track_full = You are already tracking as many quests as you can.
 npcquests.toast.turn_in_short = Not enough yet: {0}/{1}.
 
 # The lifted quest-log surface (categories, statuses, row actions, objectives, requirements).
-book.quests.count = {0} Quests
-book.quests.active_count = {0} Active
-book.quests.active_header = Active Quests ({0})
-book.quests.status.available = Available
-book.quests.status.locked = Locked
-book.quests.status.active = In Progress
-book.quests.status.unclaimed = Ready to collect
-book.quests.status.completed = Completed
-book.quests.status.cooldown = Comes back in {0}
-book.quests.btn.accept = Accept
-book.quests.btn.claim = Collect
-book.quests.btn.abandon = Abandon
-book.quests.btn.turn_in = Hand in
-book.quests.max_note = Max quests reached ({0})
 book.quests.requires = Requires: {0}
 book.quests.req.quest = Complete "{0}"
 book.quests.req.permission = Permission: {0}
 book.quests.objectives.sequential = Complete in order:
 book.quests.objectives.any_order = Complete in any order:
 book.quests.objectives.mixed = Complete each step in order:
-book.quests.objectives.step = Step {0}
-book.quests.filter.searchPlaceholder = Search quests...
 book.quests.track_cap = You can only track {0} quests at a time.
 book.quests.turn_in_fail = Not enough {0} ({1}/{2})
 book.quests.claim_at_site = This quest is handed in at a specific place - collect the reward there.

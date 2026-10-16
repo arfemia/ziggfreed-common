@@ -3,7 +3,6 @@ book.tab.quests = Görevler
 book.tab.achievements = Başarımlar
 book.empty.quests = Henüz sana açık bir görev yok.
 book.empty.achievements = Henüz sana açık bir başarım yok.
-book.progress = {0}/{1}
 book.more = +{0} tane daha
 
 # How often a quest comes round, badged on every list that shows quests. Derived from the
@@ -13,30 +12,13 @@ quest.cadence.daily = Günlük
 quest.cadence.weekly = Haftalık
 quest.cadence.seasonal = Sezonluk
 
-book.quests.section.active = Devam ediyor
-book.quests.section.ready = Alınmayı bekliyor
-book.quests.section.available = Mevcut
-book.quests.section.locked = Kilitli
-book.quests.untitled = İsimsiz görev
-book.quests.step.untitled = İsimsiz adım
 
 book.achievements.category.uncategorised = Diğer
 book.achievements.criterion.untitled = İsimsiz adım
 
-book.action.accept = Kabul et
-book.action.claim = Al
-book.action.turn_in = Teslim et
-book.quests.filter.all = Tümü
-book.quests.filter.all_tags = Tüm etiketler
-book.quests.filter.none = Bu filtrelere uyan bir şey yok.
-book.quests.filter.status.active = Devam eden
-book.quests.filter.status.available = Açık
-book.quests.filter.status.completed = Tamamlanan
 book.quests.category.main = Ana
 book.quests.category.daily = Günlük
 book.quests.category.misc = Çeşitli
-book.quests.section.done = Tamamlanan
-book.action.abandon = ✕
 book.toast.abandoned = Görev bırakıldı.
 book.toast.abandon_failed = Bu görev bırakılamaz.
 
@@ -67,14 +49,8 @@ npcquests.section.cooldown = Geri gelir
 npcquests.section.locked = Kilitli
 npcquests.section.done = Tamamlandı
 
-npcquests.header.objectives = HEDEFLER
-npcquests.header.rewards = ÖDÜLLER
-npcquests.header.required = GEREKENLER
 
 npcquests.action.complete = Tamamla
-npcquests.action.abandon = Bırak
-npcquests.action.track = Takip et
-npcquests.action.untrack = Takibi bırak
 
 npcquests.toast.abandoned = Görev bırakıldı.
 npcquests.toast.tracked = Görev takip ediliyor.
@@ -83,28 +59,12 @@ npcquests.toast.track_full = Zaten takip edebileceğin kadar görev takip ediyor
 npcquests.toast.turn_in_short = Henüz yeterli değil: {0}/{1}.
 
 # The lifted quest-log surface (categories, statuses, row actions, objectives, requirements).
-book.quests.count = {0} Görev
-book.quests.active_count = {0} Aktif
-book.quests.active_header = Aktif Görevler ({0})
-book.quests.status.available = Mevcut
-book.quests.status.locked = Kilitli
-book.quests.status.active = Devam ediyor
-book.quests.status.unclaimed = Alınmaya hazır
-book.quests.status.completed = Tamamlandı
-book.quests.status.cooldown = {0} sonra geri gelir
-book.quests.btn.accept = Kabul et
-book.quests.btn.claim = Al
-book.quests.btn.abandon = Bırak
-book.quests.btn.turn_in = Teslim Et
-book.quests.max_note = Maks görev sınırına ulaşıldı ({0})
 book.quests.requires = Gerekli: {0}
 book.quests.req.quest = "{0}" tamamla
 book.quests.req.permission = İzin: {0}
 book.quests.objectives.sequential = Sırayla tamamla:
 book.quests.objectives.any_order = Herhangi bir sırayla tamamla:
 book.quests.objectives.mixed = Her adımı sırasıyla tamamla:
-book.quests.objectives.step = Adım {0}
-book.quests.filter.searchPlaceholder = Görev ara...
 book.quests.track_cap = Aynı anda en fazla {0} görev takip edebilirsin.
 book.quests.turn_in_fail = Yeterli {0} yok ({1}/{2})
 book.quests.claim_at_site = Bu görev belirli bir yerde teslim edilir - ödülünü orada al.

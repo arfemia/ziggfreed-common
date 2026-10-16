@@ -9,7 +9,6 @@ rank.revered = Nagyra becsült
 rank.exalted = Magasztalt
 rank.none = Rang nélkül
 factor.reputation = egy hírnév állása
-factor.reputation_earned = egy hírnév megszerzett állása
 factor.reputation_rank = egy hírnév rangja
 factor.rank_with = {0} rang: {1}
 reward.gain = +{0, number} {1}

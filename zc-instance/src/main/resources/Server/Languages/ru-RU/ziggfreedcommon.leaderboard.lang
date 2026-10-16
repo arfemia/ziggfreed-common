@@ -5,26 +5,18 @@
 # параметры принимает только your_rank. Бой называет свой экран через NameKey строки привязки;
 # title - запасной вариант.
 
-title = Рекорды боссов
-axis.difficulty = Сложность
-axis.players = Игроки
-axis.sort = Порядок
-axis.view = Вид
 col.rank = Место
 col.player = Игрок
 col.score = Лучшая доля
 col.total = Итого
 col.time = Быстрее всех
 col.plays = Бои
-empty = Рекордов в этом бою здесь пока ни у кого нет.
 sort.score = Лучшая доля
 sort.total = Всего очков
 sort.time = Быстрее всех
 view.rankings = Рейтинг
 view.stats = Статистика
 filter.all = Все
-your_rank = Ваш лучший: №{0, number} ({1, number})
-your_rank.none = У вас пока нет рекорда в этом бою здесь.
 
 # The strip over the list: your place on the board and your own numbers.
 you.heading = Ваше место
@@ -54,5 +46,4 @@ command.clock.window = {0}: {1}
 command.clock.window.none = {0} ещё не начался
 
 menu.records = Рекорды
-records.boss_fights = Бои с боссами
 

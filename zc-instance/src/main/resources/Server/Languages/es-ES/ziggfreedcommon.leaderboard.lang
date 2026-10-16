@@ -5,26 +5,18 @@
 # your_rank admite uno. Un combate nombra su propia pantalla mediante el NameKey de su fila de enlace; title es el
 # valor de reserva.
 
-title = Récords de jefes
-axis.difficulty = Dificultad
-axis.players = Jugadores
-axis.sort = Orden
-axis.view = Vista
 col.rank = Puesto
 col.player = Jugador
 col.score = Mejor parte
 col.total = Total
 col.time = Más rápido
 col.plays = Combates
-empty = Nadie tiene aún un récord de este combate aquí.
 sort.score = Mejor parte
 sort.total = Puntos totales
 sort.time = Más rápido
 view.rankings = Clasificación
 view.stats = Estadísticas
 filter.all = Todos
-your_rank = Tu mejor: n.º {0, number} ({1, number})
-your_rank.none = Aún no tienes ningún récord de este combate aquí.
 
 # The strip over the list: your place on the board and your own numbers.
 you.heading = Tu posición
@@ -56,5 +48,4 @@ command.clock.window.none = {0} aún no ha empezado
 # La pestaña del menú compartido para los récords que guarda este servidor (el tablero de estadísticas y sus combates contra jefes).
 menu.records = Récords
 # La pestaña de la primera fila del tablero que abre los récords de los combates contra jefes, y el nombre de esa sección.
-records.boss_fights = Combates contra Jefes
 

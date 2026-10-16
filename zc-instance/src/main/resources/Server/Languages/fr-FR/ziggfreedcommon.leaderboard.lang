@@ -5,26 +5,18 @@
 # seule your_rank en prend un. Un combat nomme son propre écran par le NameKey de sa ligne de liaison ;
 # title sert de repli.
 
-title = Records des boss
-axis.difficulty = Difficulté
-axis.players = Joueurs
-axis.sort = Tri
-axis.view = Vue
 col.rank = Rang
 col.player = Joueur
 col.score = Meilleure part
 col.total = Total
 col.time = Plus rapide
 col.plays = Combats
-empty = Personne n'a encore de record pour ce combat ici.
 sort.score = Meilleure part
 sort.total = Total de points
 sort.time = Plus rapide
 view.rankings = Classements
 view.stats = Statistiques
 filter.all = Tous
-your_rank = Votre meilleur : n° {0, number} ({1, number})
-your_rank.none = Vous n'avez pas encore de record pour ce combat ici.
 
 # The strip over the list: your place on the board and your own numbers.
 you.heading = Votre position
@@ -55,5 +47,4 @@ command.clock.window.none = {0} n'a pas encore commencé
 
 menu.records = Records
 # The tab on the stat board's first row that opens the boss fights' records, and that section's name.
-records.boss_fights = Combats de boss
 

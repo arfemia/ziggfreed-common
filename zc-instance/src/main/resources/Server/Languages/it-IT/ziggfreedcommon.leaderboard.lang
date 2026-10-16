@@ -5,26 +5,18 @@
 # your_rank ne accetta uno. Uno scontro dà il nome alla propria schermata tramite il NameKey della sua riga di
 # collegamento; title è il ripiego.
 
-title = Record dei boss
-axis.difficulty = Difficoltà
-axis.players = Giocatori
-axis.sort = Ordine
-axis.view = Vista
 col.rank = Posizione
 col.player = Giocatore
 col.score = Miglior quota
 col.total = Totale
 col.time = Più veloce
 col.plays = Scontri
-empty = Qui nessuno ha ancora un record per questo scontro.
 sort.score = Miglior quota
 sort.total = Punti totali
 sort.time = Più veloce
 view.rankings = Classifiche
 view.stats = Statistiche
 filter.all = Tutti
-your_rank = Il tuo migliore: #{0, number} ({1, number})
-your_rank.none = Qui non hai ancora un record per questo scontro.
 
 # The strip over the list: your place on the board and your own numbers.
 you.heading = La tua posizione
@@ -52,5 +44,4 @@ command.clock.window = {0} segna {1}
 command.clock.window.none = {0} non è ancora iniziato
 
 menu.records = Record
-records.boss_fights = Scontri con i boss
 

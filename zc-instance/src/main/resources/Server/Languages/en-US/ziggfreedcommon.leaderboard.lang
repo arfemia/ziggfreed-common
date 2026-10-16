@@ -5,26 +5,18 @@
 # tooltip (tip.*), which prints one as written. A fight names its own screen through its binding
 # row's NameKey; title is the fallback.
 
-title = Boss Records
-axis.difficulty = Difficulty
-axis.players = Players
-axis.sort = Sort
-axis.view = View
 col.rank = Rank
 col.player = Player
 col.score = Best Share
 col.total = Total
 col.time = Fastest
 col.plays = Fights
-empty = Nobody has a record for this fight here yet.
 sort.score = Best Share
 sort.total = Total Points
 sort.time = Fastest
 view.rankings = Rankings
 view.stats = Stats
 filter.all = All
-your_rank = Your best: #{0, number} ({1, number})
-your_rank.none = You have no record for this fight here yet.
 
 # The strip over the list: your place on the board and your own numbers.
 you.heading = Your standing
@@ -55,5 +47,3 @@ command.clock.window.none = {0} has not started yet
 
 # The shared menu's tab for the records this server keeps (the stat board, its bosses among its sections).
 menu.records = Records
-# Not shown: the bosses are a section of the stat board, named by ziggfreedcommon.statboard.section.bosses.
-records.boss_fights = Boss Fights

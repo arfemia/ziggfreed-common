@@ -10,7 +10,6 @@ spot.bottom_left = Bal lent
 # A két panel, ahogyan a választók és a válaszok nevezik őket.
 panel.activity_ledger = Barkácsolás haladása
 panel.world_bars = XP és hírnév szerzés
-panel.center_bars = Hírnévváltozások a menükben
 
 # A HUD beállítások oldal.
 settings.title = HUD sávok

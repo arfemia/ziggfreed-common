@@ -5,26 +5,18 @@
 # behelyettesítve, ezért csak a your_rank vesz fel egyet. A harc a kötősora NameKey-én át nevezi meg a
 # saját képernyőjét; a title a tartalék.
 
-title = Főellenség-rekordok
-axis.difficulty = Nehézség
-axis.players = Játékosok
-axis.sort = Rendezés
-axis.view = Nézet
 col.rank = Helyezés
 col.player = Játékos
 col.score = Legjobb részesedés
 col.total = Összesen
 col.time = Leggyorsabb
 col.plays = Harcok
-empty = Ehhez a harchoz itt még senkinek nincs rekordja.
 sort.score = Legjobb részesedés
 sort.total = Összpontszám
 sort.time = Leggyorsabb
 view.rankings = Ranglista
 view.stats = Statisztika
 filter.all = Mind
-your_rank = A legjobbad: #{0, number} ({1, number})
-your_rank.none = Ehhez a harchoz itt még nincs rekordod.
 
 # The strip over the list: your place on the board and your own numbers.
 you.heading = A helyezésed
@@ -53,5 +45,4 @@ command.clock.shifted = Amíg az óra el van tolva, a statisztikák csak a Minde
 command.clock.window = {0} értéke: {1}
 command.clock.window.none = {0} még nem kezdődött el
 menu.records = Rekordok
-records.boss_fights = Főellenség-harcok
 

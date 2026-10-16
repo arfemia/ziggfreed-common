@@ -3,7 +3,6 @@ book.tab.quests = Küldetések
 book.tab.achievements = Teljesítmények
 book.empty.quests = Még nincs elérhető küldetésed.
 book.empty.achievements = Még nincs elérhető teljesítményed.
-book.progress = {0}/{1}
 book.more = +{0} további
 
 # How often a quest comes round, badged on every list that shows quests. Derived from the
@@ -13,30 +12,13 @@ quest.cadence.daily = Napi
 quest.cadence.weekly = Heti
 quest.cadence.seasonal = Szezonális
 
-book.quests.section.active = Folyamatban
-book.quests.section.ready = Átvehető
-book.quests.section.available = Elérhető
-book.quests.section.locked = Zárolt
-book.quests.untitled = Névtelen küldetés
-book.quests.step.untitled = Névtelen lépés
 
 book.achievements.category.uncategorised = Egyéb
 book.achievements.criterion.untitled = Névtelen lépés
 
-book.action.accept = Elvállalás
-book.action.claim = Átvétel
-book.action.turn_in = Leadás
-book.quests.filter.all = Mind
-book.quests.filter.all_tags = Minden címke
-book.quests.filter.none = Semmi sem felel meg ezeknek a szűrőknek.
-book.quests.filter.status.active = Folyamatban
-book.quests.filter.status.available = Elérhető
-book.quests.filter.status.completed = Befejezett
 book.quests.category.main = Fő
 book.quests.category.daily = Napi
 book.quests.category.misc = Egyéb
-book.quests.section.done = Befejezett
-book.action.abandon = ✕
 book.toast.abandoned = Küldetés elhagyva.
 book.toast.abandon_failed = Ezt a küldetést nem lehet elhagyni.
 
@@ -67,14 +49,8 @@ npcquests.section.cooldown = Visszatér
 npcquests.section.locked = Zárolt
 npcquests.section.done = Befejezve
 
-npcquests.header.objectives = CÉLOK
-npcquests.header.rewards = JUTALMAK
-npcquests.header.required = SZÜKSÉGES
 
 npcquests.action.complete = Befejezés
-npcquests.action.abandon = Feladás
-npcquests.action.track = Követés
-npcquests.action.untrack = Követés leállítása
 
 npcquests.toast.abandoned = Küldetés feladva.
 npcquests.toast.tracked = Küldetés követése bekapcsolva.
@@ -83,28 +59,12 @@ npcquests.toast.track_full = Már annyi küldetést követsz, amennyit csak lehe
 npcquests.toast.turn_in_short = Még nem elég: {0}/{1}.
 
 # The lifted quest-log surface (categories, statuses, row actions, objectives, requirements).
-book.quests.count = {0} Küldetés
-book.quests.active_count = {0} Aktív
-book.quests.active_header = Aktív küldetések ({0})
-book.quests.status.available = Elérhető
-book.quests.status.locked = Zárolt
-book.quests.status.active = Folyamatban
-book.quests.status.unclaimed = Átvehető
-book.quests.status.completed = Teljesítve
-book.quests.status.cooldown = {0} múlva visszatér
-book.quests.btn.accept = Elfogadás
-book.quests.btn.claim = Átvétel
-book.quests.btn.abandon = Feladás
-book.quests.btn.turn_in = Leadás
-book.quests.max_note = Max küldetés elérve ({0})
 book.quests.requires = Szükséges: {0}
 book.quests.req.quest = "{0}" teljesítése
 book.quests.req.permission = Jogosultság: {0}
 book.quests.objectives.sequential = Sorrendben teljesítsd:
 book.quests.objectives.any_order = Bármilyen sorrendben teljesítsd:
 book.quests.objectives.mixed = Teljesítsd az egyes lépéseket sorrendben:
-book.quests.objectives.step = {0}. lépés
-book.quests.filter.searchPlaceholder = Küldetések keresése...
 book.quests.track_cap = Egyszerre csak {0} küldetést követhetsz.
 book.quests.turn_in_fail = Nincs elég {0} ({1}/{2})
 book.quests.claim_at_site = Ezt a küldetést egy adott helyen kell leadni - ott vedd át a jutalmat.

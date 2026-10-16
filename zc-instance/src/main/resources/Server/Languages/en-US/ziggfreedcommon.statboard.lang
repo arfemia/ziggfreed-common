@@ -38,7 +38,6 @@ section.combat.hint = Defeat mobs or take on a boss to get on this board. Your d
 section.gathering.hint = Break or place blocks, craft items by hand or pick things up to get on this board.
 section.adventure.hint = Finish quests, talk to characters, win rounds or just play to get on this board.
 section.renown.hint = Complete the game's objectives or earn standing with a reputation to get on this board. Renown counts toward All Time only.
-section.boss_fights.hint = Help defeat this boss to get on its board.
 section.bosses.hint = Help defeat a boss to get on this board.
 section.dungeons.hint = Start, clear or fail a dungeon run to get on this board.
 

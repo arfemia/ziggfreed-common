@@ -3,23 +3,8 @@
 # a command or an argument through.
 
 title = Almanac
-seasons.empty = No seasonal events run on this server yet.
 status.live = On now
-status.between = Between seasons
-section.season = This season ({0})
-section.last = Last season ({0})
-section.lifetime = Every season
-section.keepsakes = Keepsakes
-section.achievements = Achievements
-attended.yes = You took part.
-attended.count = Seasons you took part in: {0, number}
-stat.line = {0}: {1, number}
-stat.none = Nothing counted yet.
-keepsake.line = {0}: {1}
-keepsake.none = No keepsakes yet.
 achievements.count = {0, number} of {1, number} earned
-banner.line = {0}: {1, number} of {2, number}
-banner.earned = {0}: earned
 
 desc.family = The Almanac: every seasonal event on this server and what you did in each.
 desc.open = Open the Almanac.

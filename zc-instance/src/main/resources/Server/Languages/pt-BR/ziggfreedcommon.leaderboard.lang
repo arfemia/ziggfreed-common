@@ -5,26 +5,18 @@
 # your_rank recebe um. Uma luta nomeia sua própria tela pela NameKey da linha de ligação; title é o
 # reserva.
 
-title = Recordes de Chefes
-axis.difficulty = Dificuldade
-axis.players = Jogadores
-axis.sort = Ordem
-axis.view = Visão
 col.rank = Posição
 col.player = Jogador
 col.score = Melhor Parte
 col.total = Total
 col.time = Mais Rápido
 col.plays = Lutas
-empty = Ninguém tem um recorde desta luta aqui ainda.
 sort.score = Melhor Parte
 sort.total = Total de Pontos
 sort.time = Mais Rápido
 view.rankings = Classificação
 view.stats = Estatísticas
 filter.all = Todos
-your_rank = Seu melhor: #{0, number} ({1, number})
-your_rank.none = Você não tem recorde desta luta aqui ainda.
 
 # The strip over the list: your place on the board and your own numbers.
 you.heading = Sua posição
@@ -54,5 +46,4 @@ command.clock.window = {0} marca {1}
 command.clock.window.none = {0} ainda não começou
 
 menu.records = Recordes
-records.boss_fights = Lutas de Chefe
 

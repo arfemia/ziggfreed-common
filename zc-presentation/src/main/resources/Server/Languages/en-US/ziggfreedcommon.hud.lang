@@ -8,12 +8,9 @@ spot.top_left = Top left
 spot.top_right = Top right
 spot.bottom_left = Bottom left
 
-# The three panels, as the pickers and the answers name them.
+# The two panels, as the pickers and the answers name them.
 panel.activity_ledger = Crafting progress
 panel.world_bars = XP and reputation gains
-# The short stack in the middle of the screen (Center_Bars): a reputation change made while a menu,
-# a shop, a board or a conversation was open, shown once it closes.
-panel.center_bars = Reputation changes in menus
 
 # The HUD settings page.
 settings.title = HUD bars

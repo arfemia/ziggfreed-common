@@ -10,7 +10,6 @@ rank.revered = Почтение
 rank.exalted = Превознесение
 rank.none = Без ранга
 factor.reputation = репутация
-factor.reputation_earned = заработанная репутация
 factor.reputation_rank = ранг репутации
 factor.rank_with = {0} у {1}
 reward.gain = {1}: +{0, number}
