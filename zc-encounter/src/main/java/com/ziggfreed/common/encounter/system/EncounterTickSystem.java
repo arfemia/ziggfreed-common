@@ -127,8 +127,10 @@ public final class EncounterTickSystem extends EntityTickingSystem<EntityStore> 
         }
         EncounterRuns.indexSubject(run.runId(), subject);
 
-        // The members: the engine's roster, plus whoever the spawn call seeded.
+        // The members: the engine's roster, plus whoever the spawn call seeded, plus, once the run is won, every
+        // player its defeat credited, so a GrantReward after the defeat pays them wherever they stand.
         EncounterMembership.stampSeeded(store, ref, run);
+        EncounterMembership.stampCredited(store, ref, run);
         List<Ref<EntityStore>> memberRefs = EncounterRuns.memberRefs(store, ref);
         int alive = 0;
         boolean counting = run.isEngaged() && !run.isConcluded();
