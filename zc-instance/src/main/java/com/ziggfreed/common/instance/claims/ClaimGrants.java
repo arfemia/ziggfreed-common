@@ -192,7 +192,8 @@ public final class ClaimGrants {
         GrantOutcome outcome;
         List<InstanceReward> delivered = new ArrayList<>();
         try {
-            outcome = InstanceRewardGranter.grantAll(claim.rewards(), ref, store, sink, delivered::add);
+            outcome = InstanceRewardGranter.grantAll(claim.rewards(), ref, store, sink, claim.source(),
+                    delivered::add);
         } catch (Throwable t) {
             claims.putBack(player, claim);
             SafeLog.warn("[claims] the Claim '" + claim.id() + "' could not be handed over, so it waits", t);

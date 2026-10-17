@@ -1035,8 +1035,12 @@ public final class LootRewardKinds {
         return count <= 0 ? 0 : (int) Math.min(count, Integer.MAX_VALUE);
     }
 
-    /** Is {@code kind} one of the two kinds that hand over the item they name? */
-    private static boolean isItemKind(@Nonnull String kind) {
+    /**
+     * Is {@code kind} one of the two kinds that hand over the item they name? Their handler lands it through the
+     * pickup delivery ({@link #handToPlayer}), which a Claim never pays through, so a Claim's deferred row of
+     * either kind keeps paying as its line ({@code InstanceRewardGranter}).
+     */
+    public static boolean isItemKind(@Nonnull String kind) {
         return KIND_ITEM.equalsIgnoreCase(kind) || KIND_STAMPED_ITEM.equalsIgnoreCase(kind);
     }
 

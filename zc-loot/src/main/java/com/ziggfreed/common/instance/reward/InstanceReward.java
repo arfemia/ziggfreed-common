@@ -50,8 +50,9 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
  * <p>{@link #spec} is the registered-kind reward a {@link Kind#COMMAND} row was deferred from
  * ({@link DeferredRewards}), kept so a chip can name the reward it pays ("+10 Sweets") rather than
  * the console line that pays it; null for every other row and for a row written before it was kept.
- * It is shown, never paid: the row still pays its {@link #id} line. Two rows are equal when their
- * specs hold the same kind and parameters.
+ * At the press {@link InstanceRewardGranter} pays it through its kind, at the row's own quantity, and the
+ * {@link #id} line pays only where the kind cannot ({@code DeferredRewards.payableSpec}). Two rows are equal
+ * when their specs hold the same kind and parameters.
  */
 public record InstanceReward(@Nonnull Kind kind, @Nonnull String id, int quantity, @Nullable String displayKey,
                              @Nullable String iconItemId, @Nullable RewardSpec spec) {
@@ -110,7 +111,8 @@ public record InstanceReward(@Nonnull Kind kind, @Nonnull String id, int quantit
 
     /**
      * The same console-command reward, keeping the registered-kind reward {@code spec} it was deferred from,
-     * so its chip can read that reward ({@link #spec}). The line alone is what pays.
+     * so its chip can read that reward and its kind can pay it at the press ({@link #spec}); the line pays
+     * where the kind cannot.
      */
     @Nonnull
     public static InstanceReward command(@Nonnull String command, int quantity, @Nullable String displayKey,

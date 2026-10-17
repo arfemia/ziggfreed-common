@@ -304,4 +304,56 @@ class DeferredRewardsTest {
             throw new IllegalStateException("sink blew up");
         }).stream().findFirst().orElse(null));
     }
+
+    // ==================== paying a deferred reward at the press ====================
+
+    /**
+     * A Claim's reputation paid its console line, so the kind's own handling (the worn gain, the Cap, the bar,
+     * the rank notice) never ran (B151). The press pays the reward through its kind, at the share the Claim
+     * shows: a repeat clear's half reaches the handler, never the authored whole. A line a site rewrote after
+     * the deferral no longer reads as the kind's own, so it keeps paying as the line.
+     */
+    @Test
+    void aClaimPaysADeferredRewardThroughItsKindAtTheShareItShows() {
+        List<RewardSpec> paid = new ArrayList<>();
+        RewardKindRegistry kinds = new RewardKindRegistry("test");
+        kinds.register("Favor", "testmod", new RewardHandler() {
+            @Override
+            public void grant(RewardSpec spec, Subject subject) {
+                paid.add(spec);
+            }
+
+            @Override
+            public String retryCommand(RewardSpec spec, Subject subject, String sourceId) {
+                return line(spec.param("Amount"), subject);
+            }
+
+            @Override
+            public String scalableRetryCommand(RewardSpec spec, Subject subject, String sourceId) {
+                return line(InstanceReward.AMOUNT_PLACEHOLDER, subject);
+            }
+
+            private String line(String amount, Subject subject) {
+                return "favor add Old_Jack " + amount + " --player=" + subject.name();
+            }
+        });
+        UUID player = UUID.randomUUID();
+        LootGrants grants = LootGrants.of(null, null, null, new LootGrants.Reward[] {
+                LootGrants.Reward.of("Favor", Map.of("Reputation", "Old_Jack", "Amount", "50"))});
+        InstanceReward deferred = DeferredRewards.from(grants, kinds, Subject.of(player, DeferredRewards.CLAIMANT),
+                "test:graveyard", null).get(0);
+        // A repeat clear's half step, as the Claim writes it: ClaimStore scales the row's quantity alone.
+        InstanceReward half = deferred.withQuantity(25);
+        String line = half.id().replace(InstanceReward.AMOUNT_PLACEHOLDER, "25");
+        Subject jack = Subject.of(player, "Jack");
+
+        assertTrue(InstanceRewardGranter.payThroughKind(half, line, kinds, jack, "test:graveyard"));
+        assertEquals(1, paid.size(), "the kind paid it, so its line never ran");
+        assertEquals(25L, paid.get(0).longParam("Amount", 0L), "at the half the Claim shows, not the fifty authored");
+        assertEquals("Old_Jack", paid.get(0).param("Reputation"));
+
+        assertFalse(InstanceRewardGranter.payThroughKind(half, line + " --run=r1", kinds, jack, "test:graveyard"),
+                "a line rewritten after the deferral is not the kind's own, so the line pays it");
+        assertEquals(1, paid.size());
+    }
 }

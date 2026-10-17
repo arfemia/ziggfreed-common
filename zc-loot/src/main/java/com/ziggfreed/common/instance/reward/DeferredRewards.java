@@ -2,6 +2,7 @@ package com.ziggfreed.common.instance.reward;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 import javax.annotation.Nonnull;
@@ -11,6 +12,7 @@ import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.ziggfreed.common.loot.LootEngine;
 import com.ziggfreed.common.loot.LootGrants;
 import com.ziggfreed.common.loot.reward.CommandRewardKind;
+import com.ziggfreed.common.loot.reward.LootRewardKinds;
 import com.ziggfreed.common.loot.reward.RewardHandler;
 import com.ziggfreed.common.loot.reward.RewardKindAsset;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
@@ -45,6 +47,15 @@ import com.ziggfreed.common.subject.Subject;
  *       at grant time, so replaying it would hand over something different) is dropped and reported,
  *       because a payout that cannot be deferred must not be silently promised.</li>
  * </ul>
+ *
+ * <h2>How a deferred reward pays</h2>
+ *
+ * <p>A row deferred from a registered kind keeps the reward itself ({@link InstanceReward#spec}), and at the
+ * press {@link InstanceRewardGranter} pays that reward through its kind's own handler
+ * ({@code payableSpec}), at the share the row shows, so whatever the kind does beside the line (a
+ * reputation's worn gain, its Cap, its bar and rank notice) happens at the press. The line is what pays when
+ * the kind cannot: no live claimer, a handler that throws, a line a site rewrote after the deferral, or an
+ * item kind, whose handover a Claim keeps on its own guard.
  *
  * <h2>How a chip gets its label and its art</h2>
  *
@@ -88,6 +99,12 @@ public final class DeferredRewards {
 
     /** The parameters the chip's quantity is read from, in order: the first one written as a number wins. */
     private static final List<String> QUANTITY_PARAMS = List.of(PARAM_AMOUNT, "Count", "Quantity");
+
+    /**
+     * The name a deferred line is resolved for ({@link #fromSelection}'s {@code subject}), which the claiming
+     * site fills with the claimer's own; {@link #payableSpec} resolves the kind's line the same way.
+     */
+    static final String CLAIMANT = "{player}";
 
     private DeferredRewards() {
     }
@@ -157,7 +174,8 @@ public final class DeferredRewards {
      * One registered-kind reward as its replayable console line, or null when it cannot be deferred
      * (nothing registered the kind, the kind offers no replay, or resolving one threw). The line is the
      * kind's scalable one where it has one ({@link #keptLine}), so a payout scaled before it runs pays
-     * the share its chip shows. The row keeps {@code spec} for its chip to read.
+     * the share its chip shows. The row keeps {@code spec} for its chip to read and its kind to pay
+     * ({@link #payableSpec}).
      */
     @Nullable
     private static InstanceReward deferSpec(@Nonnull RewardSpec spec, @Nullable RewardKindRegistry kinds,
@@ -211,6 +229,42 @@ public final class DeferredRewards {
         }
         String atFull = scalable.replace(InstanceReward.AMOUNT_PLACEHOLDER, Integer.toString(quantity));
         return atFull.equals(retry) ? scalable : retry;
+    }
+
+    /**
+     * The reward a deferred row pays through {@code handler}, its kind's, at the press, or null when the row's
+     * line must pay instead. It is the row's kept {@link InstanceReward#spec}, its amount
+     * ({@link #quantityParam}) set to the row's own quantity where the line fills {@code {amount}} from it, so
+     * a diminished Claim's share reaches the kind as it reaches the line; a line that pays whole keeps the
+     * spec as it was.
+     *
+     * <p>It answers only where the kind's own line for that reward ({@link RewardHandler#retryCommand},
+     * resolved for {@link #CLAIMANT} as the deferral resolved it) reads exactly as {@code line}, the row's line
+     * as it would run: the kind then pays the very reward the line would. A line a site rewrote after the
+     * deferral (a fight's {@code {encounter}} filled in), or one the kind now spells otherwise, keeps paying
+     * as the line, and so does an item kind's ({@link LootRewardKinds#isItemKind}): a Claim hands an item
+     * over through the bag guard, never the pickup delivery that kind's handler uses.
+     *
+     * @param claimant who pays it (their id fills a kind's {@code {uuid}} as the deferral's did)
+     * @param sourceId what paid it, as the deferral named it
+     * @param line     the row's line with its {@code {amount}} filled, {@code {player}} still standing
+     */
+    @Nullable
+    static RewardSpec payableSpec(@Nonnull InstanceReward row, @Nonnull RewardHandler handler,
+            @Nonnull UUID claimant, @Nonnull String sourceId, @Nonnull String line) {
+        RewardSpec spec = row.spec();
+        if (spec == null || row.kind() != InstanceReward.Kind.COMMAND || LootRewardKinds.isItemKind(spec.kind())) {
+            return null;
+        }
+        String amount = row.scalesWithQuantity() ? quantityParam(spec) : null;
+        RewardSpec payable = amount == null ? spec : spec.with(amount, Integer.toString(row.quantity()));
+        String own;
+        try {
+            own = handler.retryCommand(payable, Subject.of(claimant, CLAIMANT), sourceId);
+        } catch (Throwable t) {
+            return null;
+        }
+        return line.equals(own) ? payable : null;
     }
 
     /**

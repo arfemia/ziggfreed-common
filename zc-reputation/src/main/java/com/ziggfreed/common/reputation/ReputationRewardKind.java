@@ -30,7 +30,9 @@ import com.ziggfreed.common.subject.Subject;
  * it fails, and {@link #retryCommand} answers the engine's own {@code /reputation add} line for a consumer's
  * retry queue; that replay writes the native value directly, so it skips the Cap, the event, the bar and the
  * Beyond payout. The line is null for exactly the rewards that could never pay (no id, no Amount, a
- * reputation this server does not have switched on).
+ * reputation this server does not have switched on). A Claim keeps that line beside the reward and pays the
+ * reward through this kind when it is collected ({@code InstanceRewardGranter}), at the Claim's share, so the
+ * line runs only where this kind could not pay.
  */
 public final class ReputationRewardKind implements RewardHandler {
 

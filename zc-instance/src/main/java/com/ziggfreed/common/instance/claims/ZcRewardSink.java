@@ -21,7 +21,9 @@ import com.ziggfreed.common.util.SafeLog;
  * <p>A command reward runs as the server console with {@code {player}} filled from the claiming player's
  * username, read at claim time. It is authored content (a loot table's {@code Commands}, a reward kind's
  * replayable line), so it goes through zc-core's {@code CommandRunner}, which also fixes a {@code give} line's
- * count; the granter has already filled {@code {amount}}.
+ * count; the granter has already filled {@code {amount}}. A reward kind's row reaches here when its kind could not
+ * pay it at the press, when it is an item kind, or when a site rewrote its line after deferral
+ * ({@code InstanceRewardGranter}).
  */
 public final class ZcRewardSink implements InstanceRewardGranter.Sink {
 
