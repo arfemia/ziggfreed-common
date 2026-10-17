@@ -6,6 +6,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.plugin.PluginBase;
+import com.ziggfreed.common.progress.ObjectiveTargetNames;
+import com.ziggfreed.common.stats.gearset.GearSetEvents;
 import com.ziggfreed.common.stats.gearset.ZigGearSetTierChangedEvent;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -33,9 +35,14 @@ public final class ZigGearSetProducer {
     private ZigGearSetProducer() {
     }
 
-    /** Listen for tier flips on the shared bus. Registration only, from {@code ProgressionDefaults.install}. */
+    /**
+     * Listen for tier flips on the shared bus, and name the set a step of this kind targets by the
+     * set's own title ({@link GearSetEvents#nameOf}), so a step with no line of its own reads the set's
+     * name, not its id. Registration only, from {@code ProgressionDefaults.install}.
+     */
     public static void install(@Nonnull PluginBase plugin) {
         plugin.getEventRegistry().registerGlobal(ZigGearSetTierChangedEvent.class, ZigGearSetProducer::onTierChanged);
+        ObjectiveTargetNames.register(KIND, GearSetEvents::nameOf);
     }
 
     /** Where one player's moment goes. A seam purely so the fan-out needs no server to test. */

@@ -82,6 +82,19 @@ public final class GearSetEvents {
     }
 
     /**
+     * The set's name for a surface that knows it only by id (a quest step's target): the folded set's
+     * title key resolved as its notice resolves it ({@link #setName}), matched without regard to case.
+     * Null when no set answers to the id, the set names no title, or no loaded lang file ships that
+     * title, so the caller keeps its own fallback rather than painting a raw id or key.
+     */
+    @Nullable
+    public static Message nameOf(@Nullable String setId) {
+        GearSetAsset set = setId == null || setId.isBlank() ? null : GearSetConfig.getInstance().index().set(setId);
+        String titleKey = set == null ? null : set.titleKey();
+        return titleKey == null || !ContentKeys.known(titleKey) ? null : setName(titleKey, set.getId());
+    }
+
+    /**
      * A tier's line keys ({@link GearSetAsset.Tier#titleKeys()}) resolved as one line for a notice or
      * a page: each in turn, a space between, so a tier a layer joined reads its own line then the
      * layer's; one key reads as that key alone. Null when there is none.

@@ -48,8 +48,9 @@ import com.ziggfreed.common.util.NumberFormatter;
  * name catalogues ({@link NativeNames#targetNameMsg}); a value-threshold step's target is a stat
  * CHANNEL, so it is asked of the factor naming assets first ({@link FactorNames}, the
  * {@code hytale:stat} overlay), which is how a channel named once for gate lines reads the same in
- * a step. Nothing here ever prints a bare asset id at a player - the last fallback is the
- * prettified id.
+ * a step; a kind whose target is an id in one module's own registry (a gear set) is named by the
+ * namer that module registered for it ({@link ObjectiveTargetNames}). Nothing here ever prints a
+ * bare asset id at a player - the last fallback is the prettified id.
  */
 final class NeutralObjectiveComposer implements ObjectiveComposer {
 
@@ -176,7 +177,8 @@ final class NeutralObjectiveComposer implements ObjectiveComposer {
 
     /**
      * What the step's target is called, as a nested client-resolved {@link Message}: the factor
-     * naming assets for a value-threshold's channel, then the engine's shipped name catalogues,
+     * naming assets for a value-threshold's channel, then the namer the module owning the kind's
+     * targets registered ({@link ObjectiveTargetNames}), then the engine's shipped name catalogues,
      * then the prettified id.
      */
     @Nonnull
@@ -186,6 +188,10 @@ final class NeutralObjectiveComposer implements ObjectiveComposer {
             if (channel != null) {
                 return channel;
             }
+        }
+        Message owned = ObjectiveTargetNames.nameOf(authoredKind, target);
+        if (owned != null) {
+            return owned;
         }
         return NativeNames.targetNameMsg(target, keyExists);
     }
