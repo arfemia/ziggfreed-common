@@ -353,9 +353,12 @@ public final class DungeonResults {
         }
     }
 
-    /** A dungeon's name as its players read it: {@code nameKey}, or its id when it names none. */
+    /**
+     * A dungeon's name as its players read it: {@code nameKey}, or its id when it names none. The one helper every
+     * surface naming a dungeon reads, a portal dungeon's included.
+     */
     @Nonnull
-    static Message nameOf(@Nonnull String dungeonId, @Nullable String nameKey) {
+    public static Message nameOf(@Nonnull String dungeonId, @Nullable String nameKey) {
         return nameKey == null || nameKey.isBlank() ? Msg.raw(dungeonId) : ContentKeys.tr(nameKey.trim());
     }
 }

@@ -24,6 +24,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.encounter.event.EncounterDefeatedEvent;
 import com.ziggfreed.common.instance.dungeon.DungeonRuns;
+import com.ziggfreed.common.instance.dungeon.RunMembers;
 import com.ziggfreed.common.instance.metadata.InstanceRoundCompletedEvent;
 import com.ziggfreed.common.instance.metadata.InstanceRoundStartedEvent;
 import com.ziggfreed.common.instance.metadata.InstanceRounds;
@@ -87,10 +88,11 @@ public final class PortalDungeonRuns {
         final String portalType;
         final List<String> clearedBy;
         final long startedAtMs;
-        /** Every player a start named, in order: each is named at the end too. */
-        final Set<UUID> participants = new LinkedHashSet<>();
-        /** Every player in the world now, as its arrivals and departures say. */
-        final Set<UUID> present = new LinkedHashSet<>();
+        /**
+         * Its participants, every player a start named, in order: each is named at the end too. Its present, every
+         * player in the world now, as its arrivals and departures say.
+         */
+        final RunMembers members = new RunMembers();
         boolean ended;
 
         Run(@Nonnull World world, @Nonnull UUID worldId, @Nonnull String portalType, @Nonnull List<String> clearedBy,
@@ -216,16 +218,14 @@ public final class PortalDungeonRuns {
                 if (run == null) {
                     run = new Run(world, worldId, portalType, dungeon.completeEncounters(), nowMs);
                     runs.put(worldId, run);
-                    run.participants.add(player);
-                    run.present.add(player);
+                    run.members.arrive(player);
                     queueStart(run, List.of(player));
                     line = "a run began in " + run.where() + " with " + player + "; "
                             + (run.clearedBy.isEmpty() ? "nothing clears it" : "it clears on " + run.clearedBy);
                 } else if (run.ended) {
                     return;
                 } else {
-                    run.present.add(player);
-                    if (!run.participants.add(player)) {
+                    if (!run.members.arrive(player)) {
                         return;
                     }
                     queueStart(run, List.of(player));
@@ -251,9 +251,9 @@ public final class PortalDungeonRuns {
             if (run == null) {
                 return;
             }
-            run.present.remove(player);
-            run.present.retainAll(playersIn(run.world));
-            if (!run.present.isEmpty()) {
+            run.members.leave(player);
+            run.members.keepPresent(playersIn(run.world));
+            if (run.members.anyPresent()) {
                 return;
             }
             if (!run.ended) {
@@ -296,21 +296,20 @@ public final class PortalDungeonRuns {
                 }
                 run = new Run(world, worldId, portalType, clearedBy, nowMs);
                 runs.put(worldId, run);
-                run.participants.addAll(inWorld);
+                run.members.countAll(inWorld);
                 queueStart(run, List.copyOf(inWorld));
                 // Logged before the clear's own line (end), so the log reads in order.
                 SafeLog.info(LOG + "a run began in " + run.where() + " at its clear, with the " + inWorld.size()
                         + " player(s) in it, none of whom was counted as they arrived");
             } else {
                 for (UUID player : inWorld) {
-                    if (run.participants.add(player)) {
+                    if (run.members.count(player)) {
                         queueStart(run, List.of(player));
                     }
                 }
             }
             // The winners are exactly the players the world holds now.
-            run.present.clear();
-            run.present.addAll(inWorld);
+            run.members.presentExactly(inWorld);
             end(run, true, nowMs, encounterId + " fell");
         }
         drain();
@@ -319,7 +318,7 @@ public final class PortalDungeonRuns {
     /** Queue the start naming {@code named}, its player count the run's as it stands. Under this list's lock. */
     private void queueStart(@Nonnull Run run, @Nonnull List<UUID> named) {
         InstanceRoundStartedEvent event = new InstanceRoundStartedEvent(
-                metadata(run, run.participants.size(), 0L, null), named);
+                metadata(run, run.members.participantCount(), 0L, null), named);
         outbox.add(new Fire(run.world, () -> InstanceRounds.fireStarted(event)));
     }
 
@@ -330,8 +329,8 @@ public final class PortalDungeonRuns {
     private void end(@Nonnull Run run, boolean cleared, long nowMs, @Nonnull String why) {
         run.ended = true;
         long seconds = Math.max(0L, nowMs - run.startedAtMs) / 1000L;
-        List<UUID> participants = List.copyOf(run.participants);
-        List<UUID> winners = cleared ? List.copyOf(run.present) : List.of();
+        List<UUID> participants = run.members.participants();
+        List<UUID> winners = run.members.winners(cleared);
         InstanceRoundCompletedEvent event = new InstanceRoundCompletedEvent(
                 metadata(run, participants.size(), seconds, cleared ? ResultKind.WIN : ResultKind.LOSS),
                 participants, winners);

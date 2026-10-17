@@ -155,13 +155,12 @@ public final class DungeonRuns {
         final Knobs knobs;
         final long startedAtMs;
         /**
-         * Every player the first start named (the first arriver and those on the way with them) and every player
-         * who arrived later, each named by a start of their own, in that order: every player a start counts is
-         * counted at the end too, and every player the end counts was counted at a start, once.
+         * Its participants, every player the first start named (the first arriver and those on the way with them)
+         * and every player who arrived later, each named by a start of their own, in that order: every player a
+         * start counts is counted at the end too, and every player the end counts was counted at a start, once.
+         * Its present, every player in the area now.
          */
-        final Set<UUID> participants = new LinkedHashSet<>();
-        /** Every player in the area now. */
-        final Set<UUID> present = new LinkedHashSet<>();
+        final RunMembers members = new RunMembers();
         /** The bosses of {@code knobs.bosses} that have fallen in the run, lower-cased. */
         final Set<String> fallen = new HashSet<>();
         /** How many times the run's objective has been met, by every member together. */
@@ -251,9 +250,9 @@ public final class DungeonRuns {
                 if (run.ended) {
                     return;
                 }
-                run.present.add(player);
+                boolean fresh = run.members.arrive(player);
                 queueGoal(run, player);
-                if (!run.participants.add(player)) {
+                if (!fresh) {
                     // Named at the start, or here before: counted once already.
                     return;
                 }
@@ -262,8 +261,7 @@ public final class DungeonRuns {
                         + " after it began, and a start of their own counts them";
             } else {
                 run = begin(area, world, dungeonId, dungeon, nowMs);
-                run.participants.add(player);
-                run.present.add(player);
+                run.members.arrive(player);
                 runs.put(area, run);
                 noteObjectives();
 
@@ -274,7 +272,7 @@ public final class DungeonRuns {
                         named.add(other);
                     }
                 }
-                run.participants.addAll(named);
+                run.members.countAll(named);
                 queueStart(run, named);
                 queueGoal(run, player);
                 line = startLine(run, player, named.size());
@@ -302,7 +300,7 @@ public final class DungeonRuns {
      */
     private void queueStart(@Nonnull Run run, @Nonnull List<UUID> named) {
         InstanceRoundStartedEvent event = new InstanceRoundStartedEvent(
-                metadata(run, run.participants.size(), 0L, null), named);
+                metadata(run, run.members.participantCount(), 0L, null), named);
         outbox.add(new Fire(run.world, () -> InstanceRounds.fireStarted(event)));
     }
 
@@ -327,7 +325,7 @@ public final class DungeonRuns {
     synchronized void left(@Nonnull CopyKey area, @Nonnull UUID player) {
         Run run = runs.get(area);
         if (run != null) {
-            run.present.remove(player);
+            run.members.leave(player);
         }
     }
 
@@ -338,7 +336,7 @@ public final class DungeonRuns {
     synchronized void freed(@Nonnull CopyKey area, long nowMs) {
         Run run = runs.remove(area);
         if (run != null && !run.ended) {
-            run.present.clear();
+            run.members.clearPresent();
             end(run, Ending.ALL_LEFT, nowMs, null);
         }
     }
@@ -360,7 +358,7 @@ public final class DungeonRuns {
                         continue;
                     }
                     // A timer clears a run only for a party standing in it when it runs out.
-                    if (run.knobs.surviveMs > 0 && !run.present.isEmpty() && holds(run, nowMs)) {
+                    if (run.knobs.surviveMs > 0 && run.members.anyPresent() && holds(run, nowMs)) {
                         end(run, Ending.CLEARED, nowMs, "its party lasted " + run.knobs.surviveMs / 1000L + " s");
                         continue;
                     }
@@ -368,7 +366,7 @@ public final class DungeonRuns {
                         end(run, Ending.TIME_LIMIT, nowMs, null);
                         continue;
                     }
-                    if (run.knobs.failOnWipe && !run.wipeCheckQueued && !run.present.isEmpty()
+                    if (run.knobs.failOnWipe && !run.wipeCheckQueued && run.members.anyPresent()
                             && run.world.isAlive()) {
                         run.wipeCheckQueued = true;
                         wipeChecks.add(run);
@@ -399,7 +397,7 @@ public final class DungeonRuns {
                 if (run.ended || runs.get(run.area) != run) {
                     return;
                 }
-                members = List.copyOf(run.present);
+                members = run.members.present();
             }
             if (members.isEmpty() || !allDead(run.world, members)) {
                 return;
@@ -698,8 +696,8 @@ public final class DungeonRuns {
         noteObjectives();
         boolean cleared = ending == Ending.CLEARED;
         long seconds = Math.max(0L, nowMs - run.startedAtMs) / 1000L;
-        List<UUID> participants = List.copyOf(run.participants);
-        List<UUID> winners = cleared ? List.copyOf(run.present) : List.of();
+        List<UUID> participants = run.members.participants();
+        List<UUID> winners = run.members.winners(cleared);
         InstanceRoundCompletedEvent event = new InstanceRoundCompletedEvent(
                 metadata(run, participants.size(), seconds, cleared ? ResultKind.WIN : ResultKind.LOSS),
                 participants, winners);
@@ -713,9 +711,9 @@ public final class DungeonRuns {
                     run.knobs.nameKey, run.knobs.lootable, run.knobs.diminish, seconds, winners, Map.copyOf(dealt),
                     run.bossesDefeated, run.knobs.inChest ? run.clearedBy : null, run.knobs.chestKey);
             outbox.add(new Fire(run.world, () -> DungeonResults.cleared(clear)));
-        } else if (ending.lineKey != null && !run.present.isEmpty()) {
+        } else if (ending.lineKey != null && run.members.anyPresent()) {
             DungeonResults.Failure failure = new DungeonResults.Failure(run.dungeon, run.knobs.nameKey,
-                    ending.lineKey, List.copyOf(run.present));
+                    ending.lineKey, run.members.present());
             outbox.add(new Fire(run.world, () -> DungeonResults.failed(failure)));
         }
         SafeLog.info(LOG + "the run " + run.runId + " in " + run.where() + " " + ending.words

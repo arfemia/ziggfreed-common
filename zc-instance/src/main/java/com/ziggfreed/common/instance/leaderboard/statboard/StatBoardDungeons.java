@@ -8,10 +8,10 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.Message;
-import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.LangCatalog;
 import com.ziggfreed.common.instance.dungeon.DungeonAsset;
 import com.ziggfreed.common.instance.dungeon.DungeonConfig;
+import com.ziggfreed.common.instance.dungeon.DungeonResults;
 import com.ziggfreed.common.instance.dungeon.DungeonRuns;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardSplit;
 import com.ziggfreed.common.instance.portal.PortalDungeonConfig;
@@ -78,7 +78,7 @@ public final class StatBoardDungeons {
 
         /**
          * A portal dungeon by its file's (or the game's) name, a walk-in dungeon by its file's {@code NameKey}, as the
-         * client resolves it; else its id.
+         * client resolves it; else its id ({@link DungeonResults#nameOf}).
          */
         @Override
         @Nonnull
@@ -88,7 +88,7 @@ public final class StatBoardDungeons {
                 DungeonAsset dungeon = DungeonConfig.getInstance().resolve(thing);
                 key = dungeon == null ? null : dungeon.nameKey();
             }
-            return key == null || key.isBlank() ? Message.raw(thing) : Message.translation(ContentKeys.resolved(key.trim()));
+            return DungeonResults.nameOf(thing, key);
         }
 
         /** A label the board's words name ({@code difficulty.<label>}, Normal and Hard among them) by them, else as written. */

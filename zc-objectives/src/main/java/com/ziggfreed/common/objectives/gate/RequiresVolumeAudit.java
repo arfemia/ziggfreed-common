@@ -44,7 +44,8 @@ import com.ziggfreed.common.validation.ValidationReport;
  * {@code ZigRequires}, or none, logs nothing.
  *
  * <p>Prefab-carried volumes and a world's own volume data are not read here. Total and fail-soft: a file or
- * a pack that cannot be read costs one WARNING line and the walk goes on; nothing escapes {@link #run}.
+ * a pack that cannot be read costs one WARNING line and the walk goes on; nothing escapes {@link #run}. The
+ * same walk answers its findings through {@link #auditAll}, which a consumer's content audit reports.
  */
 public final class RequiresVolumeAudit {
 
@@ -77,22 +78,41 @@ public final class RequiresVolumeAudit {
     private RequiresVolumeAudit() {
     }
 
-    /** Walk every loaded pack's effect files and log each finding as one ERROR line. Never throws. */
+    /** Walk every loaded pack's effect files ({@link #auditAll}) and log each finding as one ERROR line. Never throws. */
     public static void run() {
+        try {
+            for (Finding finding : auditAll()) {
+                SafeLog.severe(ValidationReport.format(LOG_LABEL, finding));
+            }
+        } catch (Throwable t) {
+            SafeLog.warn(LOG_LABEL + ": the trigger-volume effect findings could not be logged: " + cause(t));
+        }
+    }
+
+    /**
+     * Every loaded pack's effect files walked, and every finding they hold, in pack, file and element order: what
+     * {@link #run} logs at boot, for a consumer's own audit to report beside its other domains (domain
+     * {@value #DOMAIN}). A file or a pack that cannot be read costs one WARNING line as it is walked, and the walk
+     * goes on. Never throws.
+     */
+    @Nonnull
+    public static List<Finding> auditAll() {
+        List<Finding> out = new ArrayList<>();
         try {
             AssetModule assets = AssetModule.get();
             if (assets == null) {
-                return;
+                return out;
             }
             for (AssetPack pack : new ArrayList<>(assets.getAssetPacks())) {
-                auditPack(pack);
+                auditPack(pack, out);
             }
         } catch (Throwable t) {
             SafeLog.warn(LOG_LABEL + ": the trigger-volume effect files could not be walked: " + cause(t));
         }
+        return out;
     }
 
-    private static void auditPack(@Nullable AssetPack pack) {
+    private static void auditPack(@Nullable AssetPack pack, @Nonnull List<Finding> out) {
         if (pack == null) {
             return;
         }
@@ -111,7 +131,7 @@ public final class RequiresVolumeAudit {
                         .toList();
             }
             for (Path file : files) {
-                auditFile(name, root.relativize(file).toString().replace('\\', '/'), file);
+                auditFile(name, root.relativize(file).toString().replace('\\', '/'), file, out);
             }
         } catch (Throwable t) {
             SafeLog.warn(LOG_LABEL + ": the trigger-volume effect files of pack '" + name + "' could not be read: "
@@ -119,12 +139,11 @@ public final class RequiresVolumeAudit {
         }
     }
 
-    private static void auditFile(@Nonnull String pack, @Nonnull String path, @Nonnull Path file) {
+    private static void auditFile(@Nonnull String pack, @Nonnull String path, @Nonnull Path file,
+            @Nonnull List<Finding> out) {
         try {
             BsonDocument root = BsonDocument.parse(Files.readString(file, StandardCharsets.UTF_8));
-            for (Finding finding : audit(pack, path, root)) {
-                SafeLog.severe(ValidationReport.format(LOG_LABEL, finding));
-            }
+            out.addAll(audit(pack, path, root));
         } catch (Throwable t) {
             SafeLog.warn(LOG_LABEL + ": '" + path + "' in pack '" + pack + "' could not be read: " + cause(t));
         }
