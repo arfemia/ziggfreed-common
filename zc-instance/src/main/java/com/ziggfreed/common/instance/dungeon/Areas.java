@@ -17,6 +17,8 @@ import javax.annotation.Nullable;
 
 import org.joml.Vector3i;
 
+import com.hypixel.hytale.component.ComponentType;
+import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
@@ -24,6 +26,9 @@ import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.Rotation;
 import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.inventory.container.SimpleItemContainer;
+import com.hypixel.hytale.server.core.modules.block.BlockModule;
+import com.hypixel.hytale.server.core.modules.block.components.ItemContainerBlock;
 import com.hypixel.hytale.server.core.modules.entity.component.Intangible;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.prefab.PrefabRotation;
@@ -31,6 +36,8 @@ import com.hypixel.hytale.server.core.prefab.selection.buffer.PrefabBufferUtil;
 import com.hypixel.hytale.server.core.prefab.selection.buffer.impl.IPrefabBuffer;
 import com.hypixel.hytale.server.core.universe.world.SetBlockSettings;
 import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockComponentSection;
+import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.GetChunkFlags;
 import com.hypixel.hytale.server.core.util.PrefabUtil;
@@ -38,6 +45,8 @@ import com.hypixel.hytale.server.core.util.TargetUtil;
 import com.ziggfreed.common.instance.world.CopyKey;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.world.TickingSections;
+
+import it.unimi.dsi.fastutil.shorts.Short2ObjectMap;
 
 /**
  * Each dungeon area's prefab: pasted when a party is given the area, while its first player sits on the loading
@@ -60,13 +69,22 @@ import com.ziggfreed.common.world.TickingSections;
  * lists, so a used area pastes back clean because no player changes a block there: zc's dungeon gameplay
  * config refuses placing, breaking and gathering. A template naming another gameplay config owns that rule.
  *
+ * <p><b>Its containers start empty.</b> The re-paste replaces each block entity the prefab lists, and the engine
+ * moves the old one's items into its replacement ({@code ItemContainerSystems.OnReplaced} on the
+ * {@code BlockReplaceEvent} that {@code BlockEntity.setBlockEntity} fires), so what one party left in a chest
+ * would wait in the next party's, and a leftover in a slot the chest's drop list rolls into makes that roll
+ * fail ({@code StashPlugin.stash}, as the new block entity lands). So the clear also empties every container
+ * block inside the prefab's box, the live ones and any parked in a section that has fallen asleep, before the
+ * paste: the move then carries nothing, and the drop list fills a clean chest. Every dungeon gets this; no
+ * field keeps a container's leftovers.
+ *
  * <p><b>Measured.</b> Every paste logs one INFO line under {@code [dungeon]}: its two stalls of the world
  * thread (the wake task, and the clear and paste task), each against the {@link #PASTE_BUDGET_MS} budget past
  * which a paste is to be sliced across ticks; how many entities and block states it placed; how many chunk
  * columns and sections its region holds and whether it loaded whole; and, for a used area, how many entities
- * the clear removed through the spatial query and how many intangible ones only the sweep found, and whether
- * its region was still in memory since the last paste (the source says a pasted chunk never unloads before its
- * world closes while the world saves nothing).
+ * the clear removed through the spatial query and how many intangible ones only the sweep found, how many
+ * containers it emptied, and whether its region was still in memory since the last paste (the source says a
+ * pasted chunk never unloads before its world closes while the world saves nothing).
  *
  * <p>Threading: {@link #prepare} and {@link #released} may be called from any thread; every world read and
  * write here runs on the copy's own thread. Nothing here blocks or joins.
@@ -118,9 +136,26 @@ public final class Areas {
         double clearMs;
         int removedTangible;
         int removedIntangible;
+        int containersEmptied;
         double pasteMs;
         final AtomicInteger entitiesPlaced = new AtomicInteger();
         final AtomicInteger blockStatesPlaced = new AtomicInteger();
+    }
+
+    /** The blocks a prefab pasted unrotated with its anchor at an origin covers, both corners included. */
+    private record Bounds(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+
+        @Nonnull
+        static Bounds of(@Nonnull IPrefabBuffer buffer, @Nonnull Vector3i origin) {
+            PrefabRotation rotation = PrefabRotation.ROTATION_0;
+            return new Bounds(origin.x + buffer.getMinX(rotation), origin.y + buffer.getMinY(),
+                    origin.z + buffer.getMinZ(rotation), origin.x + buffer.getMaxX(rotation),
+                    origin.y + buffer.getMaxY(), origin.z + buffer.getMaxZ(rotation));
+        }
+
+        boolean contains(int x, int y, int z) {
+            return x >= minX && x <= maxX && y >= minY && y <= maxY && z >= minZ && z <= maxZ;
+        }
     }
 
     /** Each area's current paste. Guarded by {@code this}. */
@@ -217,7 +252,8 @@ public final class Areas {
     private static CompletableFuture<Void> wake(@Nonnull IPrefabBuffer buffer, @Nonnull World world,
             @Nonnull Vector3i origin, @Nonnull Measure measure, @Nonnull String prefabId) {
         long start = System.nanoTime();
-        int lowest = origin.y + buffer.getMinY();
+        Bounds bounds = Bounds.of(buffer, origin);
+        int lowest = bounds.minY();
         if (lowest < ChunkUtil.MIN_Y && CUT_PREFABS.add(prefabId.toLowerCase(Locale.ROOT))) {
             SafeLog.warn(LOG + "the prefab " + prefabId + " reaches down to row " + lowest + " once its anchor sits"
                     + " at Y " + origin.y + ", so its rows below Y " + ChunkUtil.MIN_Y + " are not pasted:"
@@ -227,14 +263,13 @@ public final class Areas {
             measure.stillInMemory = PrefabUtil.loadPasteRegionIfInMemory(buffer, world, origin,
                     PrefabRotation.ROTATION_0).isFullyLoaded();
         }
-        PrefabRotation rotation = PrefabRotation.ROTATION_0;
-        int minX = ChunkUtil.chunkCoordinate(origin.x + buffer.getMinX(rotation));
-        int maxX = ChunkUtil.chunkCoordinate(origin.x + buffer.getMaxX(rotation));
-        int minZ = ChunkUtil.chunkCoordinate(origin.z + buffer.getMinZ(rotation));
-        int maxZ = ChunkUtil.chunkCoordinate(origin.z + buffer.getMaxZ(rotation));
+        int minX = ChunkUtil.chunkCoordinate(bounds.minX());
+        int maxX = ChunkUtil.chunkCoordinate(bounds.maxX());
+        int minZ = ChunkUtil.chunkCoordinate(bounds.minZ());
+        int maxZ = ChunkUtil.chunkCoordinate(bounds.maxZ());
         // A section above the world's top answers no reference, and its wake is counted as one that could not be.
-        int minY = Math.max(ChunkUtil.MIN_SECTION, ChunkUtil.chunkCoordinate(origin.y + buffer.getMinY()));
-        int maxY = ChunkUtil.chunkCoordinate(origin.y + buffer.getMaxY());
+        int minY = Math.max(ChunkUtil.MIN_SECTION, ChunkUtil.chunkCoordinate(bounds.minY()));
+        int maxY = ChunkUtil.chunkCoordinate(bounds.maxY());
         List<CompletableFuture<Void>> wakes = new ArrayList<>();
         AtomicInteger notWoken = new AtomicInteger();
         for (int cx = minX; cx <= maxX; cx++) {
@@ -270,6 +305,9 @@ public final class Areas {
         Store<EntityStore> store = world.getEntityStore().getStore();
         if (measure.reused) {
             clear(store, layout, area.area(), measure);
+            // Before the paste, never after: the paste's replace carries a container's items into the new block
+            // entity, and its drop list rolls the moment that block entity lands.
+            measure.containersEmptied = emptyContainers(world, Bounds.of(buffer, origin), region);
         }
         long cleared = System.nanoTime();
         PrefabUtil.paste(buffer, world, new Vector3i(origin), Rotation.None, new Random(), PrefabUtil.Flags.FORCE,
@@ -317,6 +355,74 @@ public final class Areas {
         return removed;
     }
 
+    /**
+     * Empty every container block inside {@code bounds}: each live one the chunk store holds, then each parked in
+     * a section of {@code region} that is asleep (a wake that failed, or any section that is asleep at the paste),
+     * whose replace moves its items the same way. The items go nowhere: emptied, not dropped.
+     * Answers how many held something. World thread only, before the paste.
+     */
+    private static int emptyContainers(@Nonnull World world, @Nonnull Bounds bounds,
+            @Nonnull PrefabUtil.PasteRegion region) {
+        Store<ChunkStore> chunks = world.getChunkStore().getStore();
+        ComponentType<ChunkStore, ItemContainerBlock> containerType = ItemContainerBlock.getComponentType();
+        ComponentType<ChunkStore, BlockModule.BlockStateInfo> stateType = BlockModule.BlockStateInfo.getComponentType();
+        List<Ref<ChunkStore>> live = new ArrayList<>();
+        chunks.forEachChunk(Query.and(containerType, stateType), (chunk, commands) -> {
+            for (int i = 0; i < chunk.size(); i++) {
+                live.add(chunk.getReferenceTo(i));
+            }
+        });
+        int emptied = 0;
+        Vector3i at = new Vector3i();
+        for (Ref<ChunkStore> ref : live) {
+            if (ref == null || !ref.isValid()) {
+                continue;
+            }
+            BlockModule.BlockStateInfo state = chunks.getComponent(ref, stateType);
+            if (state != null && state.fillWorldPos(chunks, at) && bounds.contains(at.x, at.y, at.z)) {
+                emptied += empty(chunks.getComponent(ref, containerType));
+            }
+        }
+        for (int cx = ChunkUtil.chunkCoordinate(bounds.minX()); cx <= ChunkUtil.chunkCoordinate(bounds.maxX()); cx++) {
+            for (int cz = ChunkUtil.chunkCoordinate(bounds.minZ()); cz <= ChunkUtil.chunkCoordinate(bounds.maxZ());
+                    cz++) {
+                for (int cy = ChunkUtil.chunkCoordinate(bounds.minY()); cy <= ChunkUtil.chunkCoordinate(bounds.maxY());
+                        cy++) {
+                    if (!region.containsSection(cx, cy, cz)) {
+                        continue;
+                    }
+                    BlockComponentSection blocks = region.getSection(cx, cy, cz).blockComponents();
+                    if (blocks == null) {
+                        continue;
+                    }
+                    for (Short2ObjectMap.Entry<Holder<ChunkStore>> parked
+                            : blocks.getBlockHolders().short2ObjectEntrySet()) {
+                        int index = parked.getShortKey();
+                        if (bounds.contains(ChunkUtil.worldCoordFromLocalCoord(cx, ChunkUtil.xFromIndex(index)),
+                                ChunkUtil.worldCoordFromLocalCoord(cy, ChunkUtil.yFromIndex(index)),
+                                ChunkUtil.worldCoordFromLocalCoord(cz, ChunkUtil.zFromIndex(index)))) {
+                            emptied += empty(parked.getValue().getComponent(containerType));
+                        }
+                    }
+                }
+            }
+        }
+        return emptied;
+    }
+
+    /** Empty one container block; answers 1 when it held something. */
+    private static int empty(@Nullable ItemContainerBlock block) {
+        if (block == null) {
+            return 0;
+        }
+        SimpleItemContainer items = block.getItemContainer();
+        if (items.isEmpty()) {
+            return 0;
+        }
+        items.clear();
+        return 1;
+    }
+
     private static void log(@Nonnull World world, @Nonnull CopyKey area, @Nonnull Vector3i origin,
             @Nonnull String prefabId, @Nonnull Measure measure) {
         double held = measure.clearMs + measure.pasteMs;
@@ -333,8 +439,9 @@ public final class Areas {
                 measure.loadMs));
         if (measure.reused) {
             line.append(String.format(Locale.ROOT, "; a used area: cleared %d entities the spatial query lists and"
-                    + " %d intangible ones it does not, and its region was %s", measure.removedTangible,
-                    measure.removedIntangible, Boolean.TRUE.equals(measure.stillInMemory)
+                    + " %d intangible ones it does not, emptied %d containers that held something, and its region"
+                    + " was %s", measure.removedTangible, measure.removedIntangible, measure.containersEmptied,
+                    Boolean.TRUE.equals(measure.stillInMemory)
                             ? "still all in memory since its last paste"
                             : "NOT all in memory since its last paste"));
         } else {
