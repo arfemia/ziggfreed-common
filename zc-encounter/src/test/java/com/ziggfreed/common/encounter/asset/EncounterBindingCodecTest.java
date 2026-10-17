@@ -219,6 +219,32 @@ public class EncounterBindingCodecTest {
     }
 
     @Test
+    void theCompanionGroupDecodesBothSwitchesOffUnlessWrittenAndAnOverlayKeepsWhatItDidNotMention()
+            throws IOException {
+        assertNull(binding("{\"Scale\": {\"HealthPerMember\": 0.35}}", "bare", null).getScale().getCompanion(),
+                "a row that writes no Companion group lets a companion scale nothing");
+        EncounterBindingAsset.Companion empty = binding("{\"Scale\": {\"Companion\": {}}}", "empty", null)
+                .getScale().getCompanion();
+        assertNotNull(empty);
+        assertFalse(empty.health(), "Health is off unless written");
+        assertFalse(empty.damage(), "Damage is off unless written");
+        assertFalse(empty.any());
+
+        EncounterBindingAsset pack = binding("{\"Scale\": {\"Companion\": {\"Health\": true, \"Damage\": true}}}",
+                "row", null);
+        assertTrue(pack.getScale().getCompanion().health());
+        assertTrue(pack.getScale().getCompanion().damage());
+        assertFalse(pack.getScale().growsSubject(), "a Companion-only Scale grows the subject by none of its own terms");
+
+        EncounterBindingAsset owner = binding("{\"Scale\": {\"Companion\": {\"Damage\": false}}}", "row", pack);
+        assertFalse(owner.getScale().getCompanion().damage(), "the mentioned leaf changed");
+        assertTrue(owner.getScale().getCompanion().health(), "the unmentioned sibling survived");
+        EncounterBindingAsset quiet = binding("{\"Scale\": {\"HealthPerMember\": 0.4}}", "row", pack);
+        assertTrue(quiet.getScale().getCompanion().health(), "an overlay that says nothing of the companion keeps it");
+        assertTrue(quiet.getScale().growsSubject(), "and its own per-member term now grows the subject too");
+    }
+
+    @Test
     void aRowWithoutAddsScalesNoAddAndAnOverlayKeepsTheAddsLeavesItDidNotMention() throws IOException {
         assertNull(binding("{\"Scale\": {\"HealthPerMember\": 0.35}}", "bare", null).getScale().getAdds());
         EncounterBindingAsset pack = binding("{\"Scale\": {\"Adds\": {\"HealthPerMember\": 0.2, \"MaxHealthMultiplier\": 3.0}}}",

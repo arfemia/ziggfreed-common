@@ -130,8 +130,9 @@ public final class EncounterBindingAsset
             .add()
             .appendInherited(new KeyedCodec<>("Scale", Scale.CODEC, false),
                     (a, v) -> a.scale = v, a -> a.scale, (a, p) -> a.scale = p.scale)
-            .documentation("How the subject's maximum health grows with the party and the region, and under "
-                    + "Adds how every add the fight's own spawners raise grows.")
+            .documentation("How the subject's maximum health grows with the party and the region, under "
+                    + "Adds how every add the fight's own spawners raise grows, and under Companion what a "
+                    + "companion mod may scale on the boss himself.")
             .add()
             .appendInherited(new KeyedCodec<>("Timing", Timing.CODEC, false),
                     (a, v) -> a.timing = v, a -> a.timing, (a, p) -> a.timing = p.timing)
@@ -390,7 +391,10 @@ public final class EncounterBindingAsset
 
     // ==================== Scale ====================
 
-    /** How the subject's maximum health grows: one multiplicative modifier, keyed, applied once; {@code Adds} grows each add the same way. */
+    /**
+     * How the subject's maximum health grows: one multiplicative modifier, keyed, applied once; {@code Adds} grows
+     * each add the same way, and {@code Companion} says what a companion mod may scale on the subject itself.
+     */
     public static final class Scale {
 
         public static final double DEFAULT_HEALTH_PER_MEMBER = 0.0;
@@ -404,6 +408,7 @@ public final class EncounterBindingAsset
         @Nullable protected Double maxHealthMultiplier;
         @Nullable protected Boolean reconcileOnPhase;
         @Nullable protected AddScale adds;
+        @Nullable protected Companion companion;
 
         public static final BuilderCodec<Scale> CODEC = BuilderCodec.builder(Scale.class, Scale::new)
                 .appendInherited(new KeyedCodec<>("HealthPerMember", Codec.DOUBLE, false),
@@ -446,9 +451,31 @@ public final class EncounterBindingAsset
                         + "raise, and anything those spawn in turn, never the boss. Leave it out and every add "
                         + "keeps the health its role gives it.")
                 .add()
+                .appendInherited(new KeyedCodec<>("Companion", Companion.CODEC, false),
+                        (o, v) -> o.companion = v, o -> o.companion, (o, p) -> o.companion = p.companion)
+                .documentation("What a companion mod running on this server may scale on the boss itself, on "
+                        + "top of everything above: a mob-scaling mod, say, growing him with the level it gives "
+                        + "the mobs around him. Both switches are off unless written. The library scales nothing "
+                        + "through this group; it only says what the row allows.")
+                .add()
                 .build();
 
         public Scale() {
+        }
+
+        /**
+         * Whether this group's own terms grow the subject: a per-member step, a flat multiplier or a
+         * per-power step away from its default. What a companion's health scale would stack with.
+         */
+        public boolean growsSubject() {
+            return healthPerMember() != DEFAULT_HEALTH_PER_MEMBER || healthMultiplier() != DEFAULT_HEALTH_MULTIPLIER
+                    || healthPerPowerPoint() != DEFAULT_HEALTH_PER_POWER_POINT;
+        }
+
+        /** What a companion mod may scale on the subject, or null when the row writes no Companion group. */
+        @Nullable
+        public Companion getCompanion() {
+            return companion;
         }
 
         public double healthPerMember() {
@@ -544,6 +571,58 @@ public final class EncounterBindingAsset
 
         public double maxHealthMultiplier() {
             return maxHealthMultiplier == null ? DEFAULT_MAX_HEALTH_MULTIPLIER : maxHealthMultiplier;
+        }
+    }
+
+    // ==================== Companion ====================
+
+    /**
+     * What a companion mod may scale on the subject itself: its maximum health, and the damage it deals.
+     * The library reads neither switch; a companion asks for them per run through
+     * {@code EncounterRuntime.companionScale}, so a server running the library alone is unchanged by them.
+     *
+     * <p>The engine sums every multiplying modifier on a stat rather than multiplying them, so a companion's
+     * health multiplier beside this row's own {@code Scale} terms would count the party (or the power) twice;
+     * the validator warns when {@code Health} is on and the group's own terms grow the subject too.
+     */
+    public static final class Companion {
+
+        @Nullable protected Boolean health;
+        @Nullable protected Boolean damage;
+
+        public static final BuilderCodec<Companion> CODEC = BuilderCodec.builder(Companion.class, Companion::new)
+                .appendInherited(new KeyedCodec<>("Health", Codec.BOOLEAN, false),
+                        (o, v) -> o.health = v, o -> o.health, (o, p) -> o.health = p.health)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("Set true to let a companion mod grow the boss's maximum health, as one "
+                        + "multiplier over everything his role and his fight already give him. Leave this "
+                        + "group's other terms at their defaults when it is on: the game adds two multipliers "
+                        + "together, so both would count.")
+                .add()
+                .appendInherited(new KeyedCodec<>("Damage", Codec.BOOLEAN, false),
+                        (o, v) -> o.damage = v, o -> o.damage, (o, p) -> o.damage = p.damage)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("Set true to let a companion mod make the boss's own hits harder, beside "
+                        + "whatever his own effects already add.")
+                .add()
+                .build();
+
+        public Companion() {
+        }
+
+        /** Whether a companion may scale the subject's maximum health; unauthored means no. */
+        public boolean health() {
+            return health != null && health;
+        }
+
+        /** Whether a companion may scale the damage the subject deals; unauthored means no. */
+        public boolean damage() {
+            return damage != null && damage;
+        }
+
+        /** Whether either switch is on. */
+        public boolean any() {
+            return health() || damage();
         }
     }
 

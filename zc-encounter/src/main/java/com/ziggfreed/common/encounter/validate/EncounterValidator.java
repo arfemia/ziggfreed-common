@@ -89,6 +89,11 @@ public final class EncounterValidator {
     public static final String PREFAB_SPAWNER_WITHOUT_STATE = "ENCOUNTER_PREFAB_SPAWNER_WITHOUT_STATE";
     /** A binding's {@code Leaderboard.Group} names a records group no loaded file defines. */
     public static final String UNKNOWN_RECORD_GROUP = "ENCOUNTER_UNKNOWN_RECORD_GROUP";
+    /**
+     * A binding lets a companion grow its boss's health ({@code Scale.Companion.Health}) while its own
+     * {@code Scale} terms grow it too: the engine sums multiplying modifiers on a stat, so both count.
+     */
+    public static final String COMPANION_HEALTH_STACKS = "ENCOUNTER_COMPANION_HEALTH_STACKS";
 
     /** The naming convention that keeps a script's id off every role's: a trailing suffix. */
     public static final String SCRIPT_ID_SUFFIX = "_Encounter";
@@ -360,6 +365,15 @@ public final class EncounterValidator {
                 && (override.getMinShare() < 0.0 || override.getMinShare() > 1.0)) {
             findings.add(Finding.error(DOMAIN, RULE_MIN_SHARE_OUT_OF_RANGE, "Participation.MinShare must be between 0 "
                     + "and 1; it is " + override.getMinShare() + ".", id));
+        }
+        EncounterBindingAsset.Scale scale = row.getScale();
+        EncounterBindingAsset.Companion companion = scale == null ? null : scale.getCompanion();
+        if (companion != null && companion.health() && scale.growsSubject()) {
+            findings.add(Finding.warning(DOMAIN, COMPANION_HEALTH_STACKS, "Scale.Companion.Health lets a companion "
+                    + "mod grow the boss's health, and this row's own Scale grows it too (HealthPerMember, "
+                    + "HealthMultiplier or HealthPerPowerPoint). The game adds two health multipliers together "
+                    + "instead of multiplying them, so both count in full. Leave those terms at their defaults "
+                    + "and let the script add the party's steps, or switch Companion.Health off.", id));
         }
         return findings;
     }
