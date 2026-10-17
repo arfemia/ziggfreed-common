@@ -1,0 +1,506 @@
+{
+  "$Comment": [
+    "A chain of waves players clear one after another, each raised by Zc_Wave_Rise. Run it in a",
+    "state's Instructions (or hand it to a base script's slot, such as a guard wave the boss waits",
+    "on); while it runs it holds PendingFlag, so a boss gated on that flag rises only once the chain",
+    "is done:",
+    "",
+    "  { \"Reference\": \"Zc_Wave_Chain\",",
+    "    \"Modify\": { \"Role\": \"Skeleton_Fighter\", \"FarRole\": \"Skeleton_Archer\", \"Waves\": 3,",
+    "                \"Groups\": [ \"Skeleton\" ], \"PendingFlag\": \"My_Boss_Waits\" } }",
+    "",
+    "In order. A player comes within PlayerRange of the script's entity and Delay starts (long enough",
+    "for an arrival's intro camera to end). The first wave rises (Zc_Wave_Rise: the near and far",
+    "rows, Signal, and Moment with the wave count). Once one of them is seen and none of Groups is",
+    "left alive within Range, the wave is cleared; if none is ever seen (every spot blocked), it counts",
+    "as cleared after WatchSeconds, so a failed spawn never holds the chain. Gap seconds after a",
+    "clear the next wave rises, until the run has counted Waves wave beats; then DoneFlag goes up and",
+    "PendingFlag comes down. Players who fall mid-wave come back to the same wave: nothing here",
+    "resets on a death.",
+    "",
+    "The count is the library's own reading of the run (ziggfreedcommon:encounter_waves, every",
+    "zc:wave beat the run has heard), so run the chain as the fight's first waves, before any other",
+    "wave beat, and keep Signal a wave beat. It fails open rather than looping: a script the library",
+    "keeps no run for, or a count that never moved off zero, ends the chain after its first wave, so",
+    "a fight the library does not follow still lets its boss rise.",
+    "",
+    "Every flag and timer is named in the Parameters, so give each chain in a script its own names.",
+    "To raise the chain again (after a fight's reset, say), clear DoneFlag, WaitingFlag, UpFlag,",
+    "SeenFlag and ClearedFlag; a DoneFlag nothing clears keeps the chain beaten for as long as the",
+    "script's entity stands, through every reset of its fight."
+  ],
+  "Class": "Instruction",
+  "Type": "Component",
+  "Interface": "Hytale.Instruction.Encounter.Phase.Behavior",
+  "Parameters": {
+    "Role": {
+      "Value": "Skeleton_Fighter",
+      "Description": "The creature each wave's near row raises."
+    },
+    "FarRole": {
+      "Value": "Skeleton_Archer",
+      "Description": "The creature each wave's far row raises. Give it Role for waves of one kind."
+    },
+    "Waves": {
+      "Value": 3,
+      "Description": "How many waves rise, 1 or more: the chain ends once the run has counted this many wave beats."
+    },
+    "NearCount": {
+      "Value": [ 2, 2 ],
+      "Description": "How many rise in each near row, as a [min, max] range of 1 or more."
+    },
+    "NearAngle": {
+      "Value": 60,
+      "Description": "Degrees the near row spreads across, centred on the way the script's entity faces."
+    },
+    "NearDistance": {
+      "Value": [ 6, 6 ],
+      "Description": "Blocks from the script's entity to the near row."
+    },
+    "FarCount": {
+      "Value": [ 1, 1 ],
+      "Description": "How many rise in each far row, as a [min, max] range of 1 or more."
+    },
+    "FarAngle": {
+      "Value": 30,
+      "Description": "Degrees the far row spreads across, centred on the way the script's entity faces."
+    },
+    "FarDistance": {
+      "Value": [ 12, 12 ],
+      "Description": "Blocks from the script's entity to the far row."
+    },
+    "Groups": {
+      "Value": [ "Skeleton" ],
+      "TypeHint": "String",
+      "Description": "NPC groups holding Role and FarRole: while one of them lives within Range, the wave is not cleared. Sweep them when the fight resets."
+    },
+    "Range": {
+      "Value": 40,
+      "Description": "How far from the script's entity a living creature of Groups keeps its wave going. Cover the whole arena."
+    },
+    "PlayerRange": {
+      "Value": 40,
+      "Description": "How close to the script's entity a player must come to start the chain."
+    },
+    "Delay": {
+      "Value": [ 3, 3 ],
+      "Description": "Seconds from the first player in PlayerRange to the first wave."
+    },
+    "Gap": {
+      "Value": [ 4, 4 ],
+      "Description": "Seconds from a wave's last creature falling to the next wave."
+    },
+    "WatchSeconds": {
+      "Value": [ 3, 3 ],
+      "Description": "Seconds a wave waits to see one of its creatures before it counts as cleared anyway."
+    },
+    "Signal": {
+      "Value": "zc:wave",
+      "Description": "The beat sent as each wave rises: zc:wave, or zc:wave:<label>. Either counts toward Waves."
+    },
+    "Moment": {
+      "Value": "",
+      "Description": "The FeedbackMoment each member is shown as a wave rises, carrying the wave count as wave. Empty shows nothing."
+    },
+    "PendingFlag": {
+      "Value": "Zc_Wave_Chain_Pending",
+      "Description": "Set while the chain runs and lowered when it is done: gate a boss's rise on it being unset."
+    },
+    "DoneFlag": {
+      "Value": "Zc_Wave_Chain_Done",
+      "Description": "Set once the last wave is cleared. While it is set the chain does nothing."
+    },
+    "WaitingFlag": {
+      "Value": "Zc_Wave_Chain_Waiting",
+      "Description": "Set once a player has come within PlayerRange."
+    },
+    "UpFlag": {
+      "Value": "Zc_Wave_Chain_Up",
+      "Description": "Set while a wave stands."
+    },
+    "SeenFlag": {
+      "Value": "Zc_Wave_Chain_Seen",
+      "Description": "Set once one of the standing wave's creatures is seen."
+    },
+    "ClearedFlag": {
+      "Value": "Zc_Wave_Chain_Cleared",
+      "Description": "Set from a wave's clear until the next wave rises."
+    },
+    "DelayTimer": {
+      "Value": "Zc_Wave_Chain_Delay",
+      "Description": "The timer behind Delay."
+    },
+    "WatchTimer": {
+      "Value": "Zc_Wave_Chain_Watch",
+      "Description": "The timer behind WatchSeconds."
+    },
+    "GapTimer": {
+      "Value": "Zc_Wave_Chain_Gap",
+      "Description": "The timer behind Gap."
+    }
+  },
+  "Content": {
+    "Continue": true,
+    "Sensor": {
+      "Type": "Any"
+    },
+    "Instructions": [
+      {
+        "$Comment": "Until the chain is done it holds PendingFlag: claimed before anything rises.",
+        "Continue": true,
+        "Sensor": {
+          "Type": "Flag",
+          "Name": { "Compute": "DoneFlag" },
+          "Set": false
+        },
+        "Actions": [
+          {
+            "Type": "SetFlag",
+            "Name": { "Compute": "PendingFlag" }
+          }
+        ]
+      },
+      {
+        "$Comment": "A player arrives: the wait before the first wave starts.",
+        "Continue": true,
+        "Sensor": {
+          "Type": "And",
+          "Sensors": [
+            {
+              "Type": "Flag",
+              "Name": { "Compute": "DoneFlag" },
+              "Set": false
+            },
+            {
+              "Type": "Flag",
+              "Name": { "Compute": "WaitingFlag" },
+              "Set": false
+            },
+            {
+              "Type": "Player",
+              "Range": { "Compute": "PlayerRange" }
+            }
+          ]
+        },
+        "Actions": [
+          {
+            "Type": "SetFlag",
+            "Name": { "Compute": "WaitingFlag" }
+          },
+          {
+            "$Comment": "A timer starts only once in the script's life, so it is re-armed with TimerRestart.",
+            "Type": "TimerStart",
+            "Name": { "Compute": "DelayTimer" },
+            "StartValueRange": { "Compute": "Delay" },
+            "RestartValueRange": { "Compute": "Delay" },
+            "Repeating": false
+          },
+          {
+            "Type": "TimerRestart",
+            "Name": { "Compute": "DelayTimer" }
+          }
+        ]
+      },
+      {
+        "$Comment": "A wave rises: the first once Delay runs out, each next once Gap runs out after a clear. The watch for it starts.",
+        "Continue": true,
+        "Sensor": {
+          "Type": "And",
+          "Sensors": [
+            {
+              "Type": "Flag",
+              "Name": { "Compute": "DoneFlag" },
+              "Set": false
+            },
+            {
+              "Type": "Flag",
+              "Name": { "Compute": "WaitingFlag" }
+            },
+            {
+              "Type": "Flag",
+              "Name": { "Compute": "UpFlag" },
+              "Set": false
+            },
+            {
+              "Type": "Or",
+              "Sensors": [
+                {
+                  "Type": "And",
+                  "Sensors": [
+                    {
+                      "Type": "Flag",
+                      "Name": { "Compute": "ClearedFlag" },
+                      "Set": false
+                    },
+                    {
+                      "Type": "Timer",
+                      "Name": { "Compute": "DelayTimer" },
+                      "State": "Stopped"
+                    }
+                  ]
+                },
+                {
+                  "Type": "And",
+                  "Sensors": [
+                    {
+                      "Type": "Flag",
+                      "Name": { "Compute": "ClearedFlag" }
+                    },
+                    {
+                      "Type": "Timer",
+                      "Name": { "Compute": "GapTimer" },
+                      "State": "Stopped"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "Instructions": [
+          {
+            "Continue": true,
+            "Reference": "Zc_Wave_Rise",
+            "Modify": {
+              "Role": { "Compute": "Role" },
+              "FarRole": { "Compute": "FarRole" },
+              "NearCount": { "Compute": "NearCount" },
+              "NearAngle": { "Compute": "NearAngle" },
+              "NearDistance": { "Compute": "NearDistance" },
+              "FarCount": { "Compute": "FarCount" },
+              "FarAngle": { "Compute": "FarAngle" },
+              "FarDistance": { "Compute": "FarDistance" },
+              "Signal": { "Compute": "Signal" },
+              "Moment": { "Compute": "Moment" }
+            }
+          },
+          {
+            "Sensor": {
+              "Type": "Any"
+            },
+            "Actions": [
+              {
+                "Type": "SetFlag",
+                "Name": { "Compute": "UpFlag" }
+              },
+              {
+                "Type": "SetFlag",
+                "Name": { "Compute": "SeenFlag" },
+                "SetTo": false
+              },
+              {
+                "Type": "SetFlag",
+                "Name": { "Compute": "ClearedFlag" },
+                "SetTo": false
+              },
+              {
+                "Type": "TimerStart",
+                "Name": { "Compute": "WatchTimer" },
+                "StartValueRange": { "Compute": "WatchSeconds" },
+                "RestartValueRange": { "Compute": "WatchSeconds" },
+                "Repeating": false
+              },
+              {
+                "Type": "TimerRestart",
+                "Name": { "Compute": "WatchTimer" }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "$Comment": "One of the standing wave is seen.",
+        "Continue": true,
+        "Sensor": {
+          "Type": "And",
+          "Sensors": [
+            {
+              "Type": "Flag",
+              "Name": { "Compute": "DoneFlag" },
+              "Set": false
+            },
+            {
+              "Type": "Flag",
+              "Name": { "Compute": "UpFlag" }
+            },
+            {
+              "Type": "Flag",
+              "Name": { "Compute": "SeenFlag" },
+              "Set": false
+            },
+            {
+              "Type": "Mob",
+              "Range": { "Compute": "Range" },
+              "Filters": [
+                {
+                  "Type": "NPCGroup",
+                  "IncludeGroups": { "Compute": "Groups" }
+                }
+              ]
+            }
+          ]
+        },
+        "Actions": [
+          {
+            "Type": "SetFlag",
+            "Name": { "Compute": "SeenFlag" }
+          }
+        ]
+      },
+      {
+        "$Comment": "The wave is cleared (none left alive, or none ever seen once the watch runs out) and the run's count says more are to come: the Gap starts. More are to come while the count reads at least 1 and below Waves.",
+        "Continue": true,
+        "Sensor": {
+          "Type": "And",
+          "Sensors": [
+            {
+              "Type": "Flag",
+              "Name": { "Compute": "DoneFlag" },
+              "Set": false
+            },
+            {
+              "Type": "Flag",
+              "Name": { "Compute": "UpFlag" }
+            },
+            {
+              "Type": "Or",
+              "Sensors": [
+                {
+                  "Type": "Flag",
+                  "Name": { "Compute": "SeenFlag" }
+                },
+                {
+                  "Type": "Timer",
+                  "Name": { "Compute": "WatchTimer" },
+                  "State": "Stopped"
+                }
+              ]
+            },
+            {
+              "Type": "Not",
+              "Sensor": {
+                "Type": "Mob",
+                "Range": { "Compute": "Range" },
+                "Filters": [
+                  {
+                    "Type": "NPCGroup",
+                    "IncludeGroups": { "Compute": "Groups" }
+                  }
+                ]
+              }
+            },
+            {
+              "Type": "ZigFactor",
+              "Factor": "ziggfreedcommon:encounter_waves",
+              "Value": [ 1, 1000000 ]
+            },
+            {
+              "Type": "Not",
+              "Sensor": {
+                "Type": "ZigFactor",
+                "Factor": "ziggfreedcommon:encounter_waves",
+                "Value": { "Compute": "[Waves, 1000000]" }
+              }
+            }
+          ]
+        },
+        "Actions": [
+          {
+            "Type": "SetFlag",
+            "Name": { "Compute": "UpFlag" },
+            "SetTo": false
+          },
+          {
+            "Type": "SetFlag",
+            "Name": { "Compute": "ClearedFlag" }
+          },
+          {
+            "Type": "TimerStart",
+            "Name": { "Compute": "GapTimer" },
+            "StartValueRange": { "Compute": "Gap" },
+            "RestartValueRange": { "Compute": "Gap" },
+            "Repeating": false
+          },
+          {
+            "Type": "TimerRestart",
+            "Name": { "Compute": "GapTimer" }
+          }
+        ]
+      },
+      {
+        "$Comment": "The wave is cleared and no more are to come (the count reached Waves, or there is no count to read): the chain is done and lets go of PendingFlag.",
+        "Continue": true,
+        "Sensor": {
+          "Type": "And",
+          "Sensors": [
+            {
+              "Type": "Flag",
+              "Name": { "Compute": "DoneFlag" },
+              "Set": false
+            },
+            {
+              "Type": "Flag",
+              "Name": { "Compute": "UpFlag" }
+            },
+            {
+              "Type": "Or",
+              "Sensors": [
+                {
+                  "Type": "Flag",
+                  "Name": { "Compute": "SeenFlag" }
+                },
+                {
+                  "Type": "Timer",
+                  "Name": { "Compute": "WatchTimer" },
+                  "State": "Stopped"
+                }
+              ]
+            },
+            {
+              "Type": "Not",
+              "Sensor": {
+                "Type": "Mob",
+                "Range": { "Compute": "Range" },
+                "Filters": [
+                  {
+                    "Type": "NPCGroup",
+                    "IncludeGroups": { "Compute": "Groups" }
+                  }
+                ]
+              }
+            },
+            {
+              "Type": "Or",
+              "Sensors": [
+                {
+                  "Type": "Not",
+                  "Sensor": {
+                    "Type": "ZigFactor",
+                    "Factor": "ziggfreedcommon:encounter_waves",
+                    "Value": [ 1, 1000000 ]
+                  }
+                },
+                {
+                  "Type": "ZigFactor",
+                  "Factor": "ziggfreedcommon:encounter_waves",
+                  "Value": { "Compute": "[Waves, 1000000]" }
+                }
+              ]
+            }
+          ]
+        },
+        "Actions": [
+          {
+            "Type": "SetFlag",
+            "Name": { "Compute": "DoneFlag" }
+          },
+          {
+            "Type": "SetFlag",
+            "Name": { "Compute": "PendingFlag" },
+            "SetTo": false
+          }
+        ]
+      }
+    ]
+  }
+}

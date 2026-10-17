@@ -1,6 +1,5 @@
 package com.ziggfreed.common.encounter.run;
 
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -424,14 +423,7 @@ public final class EncounterLifecycle {
     @Nonnull
     private static Map<String, Object> baseArgs(@Nonnull ZigEncounterRun run, @Nonnull String encounterId,
             @Nullable EncounterBindingAsset row, int members, long now) {
-        Map<String, Object> args = new LinkedHashMap<>();
-        args.put(EncounterFeedback.ENCOUNTER_ARG, encounterId);
-        args.put(EncounterFeedback.TITLE_ARG, titleOf(encounterId, row));
-        args.put(EncounterFeedback.MEMBERS_ARG, members);
-        args.put(EncounterFeedback.SECONDS_ARG, run.elapsedMs(now) / 1000L);
-        if (run.phase() != null) {
-            args.put(EncounterFeedback.PHASE_ARG, run.phase());
-        }
-        return args;
+        return EncounterFeedback.beatArgs(encounterId, titleOf(encounterId, row), members, run.elapsedMs(now) / 1000L,
+                run.phase(), run.waves());
     }
 }

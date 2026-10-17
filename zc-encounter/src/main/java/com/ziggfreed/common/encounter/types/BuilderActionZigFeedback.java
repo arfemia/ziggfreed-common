@@ -39,7 +39,7 @@ public class BuilderActionZigFeedback extends ZigBuilderActionBase {
         return "Fires the FeedbackMoment named by Moment (a Server/ZiggfreedCommon/FeedbackMoments file) to each "
                 + "member, or to every player in the world with ToWorld, behind each player's own notification "
                 + "preference. Args adds named values the moment's lines can fill; the encounter id, its title, "
-                + "the phase, the member count and the elapsed seconds are always carried.";
+                + "the phase, the member count, the elapsed seconds and the wave count are always carried.";
     }
 
     @Nonnull

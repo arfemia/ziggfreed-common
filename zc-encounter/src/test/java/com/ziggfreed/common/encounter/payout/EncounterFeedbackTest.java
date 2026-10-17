@@ -11,6 +11,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
+import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.feedback.moment.FeedbackEngine;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 
@@ -53,6 +54,17 @@ class EncounterFeedbackTest {
         Map<String, Object> own = EncounterFeedback.ownArgs(shared(), 0.7, 1, List.of());
         assertFalse(own.containsKey(FeedbackEngine.REWARDS_ARG),
                 "an empty roll shows the headline alone rather than a generic row");
+    }
+
+    @Test
+    void everyBeatCarriesTheRunsWaveCount() {
+        Map<String, Object> beat = EncounterFeedback.beatArgs("Demo_Boss", Message.raw("Demo Boss"), 2, 30L, null, 3);
+        assertEquals(3, beat.get(EncounterFeedback.WAVE_ARG),
+                "a moment line written Args [\"wave\"] reads the run's wave count; a missing argument drops the line");
+        assertEquals("Demo_Boss", beat.get(EncounterFeedback.ENCOUNTER_ARG));
+        assertFalse(beat.containsKey(EncounterFeedback.PHASE_ARG), "no phase yet carries no phase argument");
+        assertEquals(0, EncounterFeedback.beatArgs("Demo_Boss", Message.raw("Demo Boss"), 0, 0L, "Phase_1", 0)
+                .get(EncounterFeedback.WAVE_ARG), "a run with no wave yet still carries the argument, as 0");
     }
 
     @Test

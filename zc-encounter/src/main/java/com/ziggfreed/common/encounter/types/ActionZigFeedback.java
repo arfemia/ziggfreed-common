@@ -82,14 +82,8 @@ public class ActionZigFeedback extends ActionBase {
             }
             EncounterBindingAsset row = EncounterBindingConfig.getInstance().forEncounter(encounterId);
             long now = System.currentTimeMillis();
-            Map<String, Object> args = new LinkedHashMap<>();
-            args.put(EncounterFeedback.ENCOUNTER_ARG, encounterId);
-            args.put(EncounterFeedback.TITLE_ARG, EncounterLifecycle.titleOf(encounterId, row));
-            args.put(EncounterFeedback.MEMBERS_ARG, audience.size());
-            args.put(EncounterFeedback.SECONDS_ARG, run.elapsedMs(now) / 1000L);
-            if (run.phase() != null) {
-                args.put(EncounterFeedback.PHASE_ARG, run.phase());
-            }
+            Map<String, Object> args = EncounterFeedback.beatArgs(encounterId, EncounterLifecycle.titleOf(encounterId, row),
+                    audience.size(), run.elapsedMs(now) / 1000L, run.phase(), run.waves());
             args.putAll(authoredArgs);
             EncounterTypes.executed(EncounterTypes.FEEDBACK, "run=" + EncounterRun.shortId(run.runId()) + " encounter="
                     + encounterId + " moment=" + moment + " audience=" + audience.size());

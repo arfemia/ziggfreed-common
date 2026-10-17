@@ -11,6 +11,7 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -29,8 +30,10 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p>The arguments a moment can name: {@code encounter} (the script id), {@code title} (the fight's
  * name, a nested message the reader's client resolves), {@code phase}, {@code members},
- * {@code seconds}, and at a settlement {@code share} (the reader's own, as whole percent points of
- * the top contributor's, a typed number), {@code rank} (their place, 1 for the top contributor) and,
+ * {@code seconds}, {@code wave} (the wave beats the run has heard so far, so a moment drawn as a
+ * wave rises reads that wave's number), and at a settlement {@code share} (the reader's own, as
+ * whole percent points of the top contributor's, a typed number), {@code rank} (their place, 1 for
+ * the top contributor) and,
  * at a defeat that paid them, {@code rewards} (one row saying THIS reader's reward waits under Claims,
  * which the in-page toast lists under its headline; a reader whose roll wrote no Claim carries none,
  * and nobody is ever told of another player's). Two more ride for an authored
@@ -46,10 +49,33 @@ public final class EncounterFeedback {
     public static final String PHASE_ARG = "phase";
     public static final String MEMBERS_ARG = "members";
     public static final String SECONDS_ARG = "seconds";
+    public static final String WAVE_ARG = "wave";
     public static final String SHARE_ARG = "share";
     public static final String RANK_ARG = "rank";
 
     private EncounterFeedback() {
+    }
+
+    /**
+     * The arguments every beat of a run carries, whoever draws it (the library's own beats and a
+     * script's {@code ZigFeedback}): the script id, the fight's title, the member count, the
+     * seconds since the engage, the phase when there is one, and the wave count. A moment's line
+     * that names an argument the beat did not carry is dropped whole, so every beat carries all of
+     * them. The map is the caller's to add to.
+     */
+    @Nonnull
+    public static Map<String, Object> beatArgs(@Nonnull String encounterId, @Nonnull Message title, int members,
+            long seconds, @Nullable String phase, int waves) {
+        Map<String, Object> args = new LinkedHashMap<>();
+        args.put(ENCOUNTER_ARG, encounterId);
+        args.put(TITLE_ARG, title);
+        args.put(MEMBERS_ARG, members);
+        args.put(SECONDS_ARG, seconds);
+        if (phase != null) {
+            args.put(PHASE_ARG, phase);
+        }
+        args.put(WAVE_ARG, waves);
+        return args;
     }
 
     /** Fire {@code momentId} to every online player in {@code playerIds} standing in {@code store}. */

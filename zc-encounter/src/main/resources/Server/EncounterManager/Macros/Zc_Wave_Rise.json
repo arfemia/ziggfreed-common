@@ -1,0 +1,105 @@
+{
+  "$Comment": [
+    "Raise one wave of adds now, with the game's own Spawn action, and tell the library a wave went",
+    "out. Reference it inside an instruction whose sensor decides when (Zc_Wave_Chain does, once per",
+    "wave), or hand it to a base script's behavior slot under a sensor of your own:",
+    "",
+    "  { \"Reference\": \"Zc_Wave_Rise\",",
+    "    \"Modify\": { \"Role\": \"Skeleton_Fighter\", \"FarRole\": \"Skeleton_Archer\", \"Moment\": \"My_Wave_Moment\" } }",
+    "",
+    "Two rows rise, measured from the script's entity toward the way it faces (north for an entity",
+    "placed unturned): NearCount of Role spread evenly across NearAngle degrees NearDistance blocks",
+    "out, and FarCount of FarRole across FarAngle degrees FarDistance blocks out. A spot that is not",
+    "open floor is skipped, so check each spot in the arena. Both rows always rise: give FarRole the",
+    "near row's role for a wave of one kind. Since they come from the Spawn action rather than a spawn",
+    "marker, a mod that scales spawned creatures scales them too.",
+    "",
+    "Then Signal goes out (zc:wave, or zc:wave:<label>; the library counts it as the run's wave and",
+    "fires its signal event), and, when Moment names a FeedbackMoment, each member is shown it, with",
+    "the run's wave count so far as its wave argument (a line written Args [\"wave\"] reads it as {0})."
+  ],
+  "Class": "Instruction",
+  "Type": "Component",
+  "Interface": "Hytale.Instruction.Encounter.Phase.Behavior",
+  "Parameters": {
+    "Role": {
+      "Value": "Skeleton_Fighter",
+      "Description": "The creature the near row raises."
+    },
+    "FarRole": {
+      "Value": "Skeleton_Archer",
+      "Description": "The creature the far row raises. Give it Role for a wave of one kind."
+    },
+    "NearCount": {
+      "Value": [ 2, 2 ],
+      "Description": "How many rise in the near row, as a [min, max] range of 1 or more."
+    },
+    "NearAngle": {
+      "Value": 60,
+      "Description": "Degrees the near row spreads across, centred on the way the script's entity faces."
+    },
+    "NearDistance": {
+      "Value": [ 6, 6 ],
+      "Description": "Blocks from the script's entity to the near row."
+    },
+    "FarCount": {
+      "Value": [ 1, 1 ],
+      "Description": "How many rise in the far row, as a [min, max] range of 1 or more."
+    },
+    "FarAngle": {
+      "Value": 30,
+      "Description": "Degrees the far row spreads across, centred on the way the script's entity faces."
+    },
+    "FarDistance": {
+      "Value": [ 12, 12 ],
+      "Description": "Blocks from the script's entity to the far row."
+    },
+    "Signal": {
+      "Value": "zc:wave",
+      "Description": "The beat sent as the wave rises: zc:wave, or zc:wave:<label>."
+    },
+    "Moment": {
+      "Value": "",
+      "Description": "The FeedbackMoment each member is shown as the wave rises, carrying the run's wave count as wave. Empty shows nothing."
+    }
+  },
+  "Content": {
+    "Continue": true,
+    "Sensor": {
+      "Type": "Any"
+    },
+    "Actions": [
+      {
+        "Type": "Spawn",
+        "Kind": { "Compute": "Role" },
+        "SpawnDirection": 0,
+        "SpawnAngle": { "Compute": "NearAngle" },
+        "FanOut": true,
+        "DistanceRange": { "Compute": "NearDistance" },
+        "CountRange": { "Compute": "NearCount" },
+        "DelayRange": [ 0, 0 ]
+      },
+      {
+        "Type": "Spawn",
+        "Kind": { "Compute": "FarRole" },
+        "SpawnDirection": 0,
+        "SpawnAngle": { "Compute": "FarAngle" },
+        "FanOut": true,
+        "DistanceRange": { "Compute": "FarDistance" },
+        "CountRange": { "Compute": "FarCount" },
+        "DelayRange": [ 0, 0 ]
+      },
+      {
+        "Type": "SignalWorldEvent",
+        "SignalId": { "Compute": "Signal" }
+      },
+      {
+        "$Comment": "After the signal, so the wave count it carries already counts this wave.",
+        "Enabled": { "Compute": "!isEmpty(Moment)" },
+        "Type": "ZigFeedback",
+        "Moment": { "Compute": "Moment" },
+        "ToMembers": true
+      }
+    ]
+  }
+}
