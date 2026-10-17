@@ -1,7 +1,9 @@
 package com.ziggfreed.common.instance.claims;
 
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -11,8 +13,11 @@ import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.instance.result.RewardChipRenderer;
 import com.ziggfreed.common.instance.reward.InstanceReward;
+import com.ziggfreed.common.instance.reward.InstanceRewardGranter;
 import com.ziggfreed.common.loot.claim.Claim;
 import com.ziggfreed.common.loot.reward.RewardChip;
+import com.ziggfreed.common.loot.reward.RewardChips;
+import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.ui.kit.ActionLook;
 import com.ziggfreed.common.ui.kit.ActionSlot;
 import com.ziggfreed.common.ui.kit.DetailAction;
@@ -27,12 +32,14 @@ import com.ziggfreed.common.ui.kit.Mark;
 import com.ziggfreed.common.ui.kit.Picture;
 import com.ziggfreed.common.ui.kit.Pill;
 import com.ziggfreed.common.ui.kit.Tone;
+import com.ziggfreed.common.ui.toast.RewardToastLines;
+import com.ziggfreed.common.ui.toast.ToastLine;
 
 /**
  * What the Claims page shows, decided where the page only paints it: the newest Claim first, one row each (its
  * title, how many rewards it holds, its first item's picture or a wallet-only Claim's wallet), the one being read
- * (its rewards as the library's reward chips, its difficulty, Claim and Claim All), and what an empty tab says.
- * Nothing here touches a store.
+ * (its rewards as the library's reward chips, its difficulty, Claim and Claim All), what an empty tab says, and the
+ * rows of a press's toast ({@link #landedLines}). Nothing here touches a store.
  */
 public final class ClaimsView {
 
@@ -48,6 +55,15 @@ public final class ClaimsView {
 
     /** The chest's first screen's one button once only items are left: open the chest's item window. */
     public static final String ACTION_ITEMS = "items";
+
+    /**
+     * The kind a press's toast files its own entries under ({@link #landedLines}): a Claim's heading and a row that
+     * paid by itself. Never paid and never read as a reward; only its place in the list counts.
+     */
+    private static final String TOAST_ENTRY = "Claims_Toast_Entry";
+
+    /** The last row of a toast whose rewards ran past its rows, {@code {0}} how many more: zc-presentation's line. */
+    private static final String TOAST_MORE_KEY = "ziggfreedcommon.feedback.rewards.more";
 
     private ClaimsView() {
     }
@@ -175,6 +191,71 @@ public final class ClaimsView {
         } catch (Throwable t) {
             return RewardChip.text(RewardChipRenderer.genericLabel(reward.quantity()));
         }
+    }
+
+    // ==================== a press's toast ====================
+
+    /**
+     * The rows of a press's toast: every reward it handed over, at what really landed. A row its kind paid reads that
+     * kind's receipt through the shared reward reading ({@link RewardChips#chipFor(RewardSpec)}), so a reputation
+     * shows the gain that moved after the worn gear and the Cap ("+60 Old Jack's Favor" for an authored 50), and a
+     * receipt listing nothing (a gain the Cap cut to nothing) adds no row. A row that paid by itself (an item into
+     * the bag, a currency through the sink, a line run) reads as its chip on the page did ({@link #chip}), at its own
+     * quantity. Several Claims each take a section under their own title through {@link RewardToastLines}' one
+     * sectioning step, a Claim alone reads flat, and a Claim with no title of its own lists its rows plain among the
+     * first; past the toast's rows the last one says how many more.
+     */
+    @Nonnull
+    public static List<ToastLine> landedLines(@Nonnull List<ClaimGrants.Collected> collected) {
+        List<RewardSpec> rows = new ArrayList<>();
+        Map<RewardSpec, ToastLine> own = new IdentityHashMap<>();
+        for (ClaimGrants.Collected each : collected) {
+            RewardSpec heading = heading(each.claim(), own);
+            for (InstanceRewardGranter.Landed landed : each.landed()) {
+                if (landed.receipted()) {
+                    for (RewardSpec spec : landed.receipt()) {
+                        rows.add(spec.withOrigin(heading));
+                    }
+                } else {
+                    RewardSpec entry = RewardSpec.of(TOAST_ENTRY).withOrigin(heading);
+                    own.put(entry, RewardToastLines.row(chip(landed.row())));
+                    rows.add(entry);
+                }
+            }
+        }
+        return RewardToastLines.linesBy(rows, spec -> own.containsKey(spec) ? own.get(spec) : receiptRow(spec),
+                dropped -> Msg.key(TOAST_MORE_KEY, dropped));
+    }
+
+    /** The section heading entry for {@code claim}, its own title, or null when it has none (its rows read plain). */
+    @Nullable
+    private static RewardSpec heading(@Nonnull Claim claim, @Nonnull Map<RewardSpec, ToastLine> own) {
+        Message title = ownTitle(claim);
+        if (title == null) {
+            return null;
+        }
+        RewardSpec heading = RewardSpec.of(TOAST_ENTRY);
+        own.put(heading, ToastLine.text(title));
+        return heading;
+    }
+
+    /**
+     * One receipt row as a toast row: the shared reading at what landed, else the generic line at that amount, so a
+     * reward that landed always shows.
+     */
+    @Nonnull
+    private static ToastLine receiptRow(@Nonnull RewardSpec spec) {
+        RewardChip chip;
+        try {
+            chip = RewardChips.chipFor(spec);
+        } catch (Throwable t) {
+            chip = null;
+        }
+        if (chip != null) {
+            return RewardToastLines.row(chip);
+        }
+        return ToastLine.text(RewardChipRenderer.genericLabel((int) Math.min(RewardChips.amountOf(spec),
+                Integer.MAX_VALUE)));
     }
 
     /**

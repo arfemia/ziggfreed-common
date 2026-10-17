@@ -36,6 +36,7 @@ import com.ziggfreed.common.ui.menu.MenuRail;
 import com.ziggfreed.common.ui.menu.MenuSlot;
 import com.ziggfreed.common.ui.menu.ZigMenu;
 import com.ziggfreed.common.ui.toast.ToastKind;
+import com.ziggfreed.common.ui.toast.ToastLine;
 import com.ziggfreed.common.ui.toast.ToastSounds;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 import com.ziggfreed.common.ui.toast.ToastablePage;
@@ -46,9 +47,9 @@ import com.ziggfreed.common.util.SafeLog;
  * one being read on the right (the kit's reading page, its rewards as the library's reward chips). It paints
  * {@link ClaimsView} and decides nothing. Claim (gold) and Claim All are the action bar's rich buttons; a press
  * hands the rewards over through {@link ClaimGrants}, a full bag keeping the rest here, and reopens the page with
- * a toast saying how it went. Picking a row reopens the page, so every build is a full one. It sits in the shared
- * menu frame with the Claims tab selected on the rail. Every {@code handleDataEvent} exit opens a page, closes
- * this one, or sends an empty answer, so the client is never left waiting.
+ * a toast saying how it went and naming what landed. Picking a row reopens the page, so every build is a full one.
+ * It sits in the shared menu frame with the Claims tab selected on the rail. Every {@code handleDataEvent} exit
+ * opens a page, closes this one, or sends an empty answer, so the client is never left waiting.
  *
  * <p><b>Spoils.</b> Built with a fight ({@link SpoilsView}), it is that fight's spoils chest: only the player's Claims
  * the fight paid, under the spoils' own words, and Take All taking just those ({@link ClaimGrants#claimFight}). With
@@ -238,9 +239,13 @@ public final class ClaimsPage extends ToastablePage<ClaimsEventData> {
     }
 
     /**
-     * One Claim or Claim All press, told as a toast: everything handed over, a full bag keeping the rest here, or
-     * part of it not payable on this server. A press with nothing to take (a stale page) says nothing; the reopen
-     * shows the truth.
+     * One Claim or Claim All press, told as one toast: everything handed over, a full bag keeping the rest here, or
+     * part of it not payable on this server, over a row for each reward it handed over at what really landed
+     * ({@link ClaimsView#landedLines}), since the action that paid names what it paid in its own toast: a reputation
+     * moved under a page moves no World bar (R290). Unranked, as the page's own answer to the click, so it always
+     * shows and a ranked notice the press raised first (a quest the collect completed, a Claim it arrived with) waits
+     * to come back after it, where an equal rank would replace that notice for good. A press with nothing to take (a
+     * stale page) says nothing; the reopen shows the truth.
      */
     private void press(boolean all, @Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store) {
         UUID player = playerRef.getUuid();
@@ -265,14 +270,16 @@ public final class ClaimsPage extends ToastablePage<ClaimsEventData> {
             if (result.nothing()) {
                 return;
             }
+            List<ToastLine> landed = ClaimsView.landedLines(result.collected());
             if (result.anyKept()) {
-                showToast(ToastKind.WARNING, text.line("toast.kept"));
+                showToast(ToastSpec.of(ToastKind.WARNING, text.line("toast.kept")).withLines(landed));
             } else if (result.failed() > 0) {
-                showToast(ToastKind.WARNING, text.line("toast.failed"));
+                showToast(ToastSpec.of(ToastKind.WARNING, text.line("toast.failed")).withLines(landed));
             } else {
                 // On the chest's first screen the items stay for the window, so even Take All just says Claimed.
                 showToast(ToastSpec.of(ToastKind.REWARD,
                         text.line(all && !itemsInWindow ? "toast.claimed_all" : "toast.claimed"))
+                        .withLines(landed)
                         .withSound(ToastSounds.RECEIPT));
             }
         } catch (Throwable t) {

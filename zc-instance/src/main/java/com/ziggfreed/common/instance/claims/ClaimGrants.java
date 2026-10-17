@@ -21,10 +21,12 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * A Claim press, lifted from Kweebec Nightmare's {@code claimPending}: take the Claim out of the store, hand its
- * rewards over through {@link InstanceRewardGranter#grantAll} with the bag guard (an item goes only when all of
+ * rewards over through {@link InstanceRewardGranter#grantAllLanded} with the bag guard (an item goes only when all of
  * it fits), and put back what did not fit, so a full bag keeps the rest waiting. A reward the sink could not pay
  * (a currency on a server with none) is not put back, as Kweebec's never was; it is logged. What a press handed
- * over is announced, Claim by Claim, as a {@link ClaimCollectedEvent} once the rest is back in the store.
+ * over is announced, Claim by Claim, as a {@link ClaimCollectedEvent} once the rest is back in the store, and
+ * listed on the press's {@link Result} with what each reward landed as ({@link Collected}), which the page's
+ * toast names.
  *
  * <p>World thread only (the grant touches the player's inventory).
  */
@@ -33,13 +35,36 @@ public final class ClaimGrants {
     private static final NativeEventSeam EVENTS = new NativeEventSeam("[claims]");
 
     /**
-     * What a press did: how many Claims it took, how many of those it emptied, and how many rewards it handed
-     * over, kept back for a full bag, or could not pay.
+     * What one Claim of a press handed over: the Claim, and each reward it handed over with what that landed as
+     * ({@link InstanceRewardGranter.Landed}: the receipt of the kind that paid it, or none for a row that paid by
+     * itself), in the order the Claim held them. Never a reward that went back to wait.
      */
-    public record Result(int taken, int emptied, int granted, int kept, int failed) {
+    public record Collected(@Nonnull Claim claim, @Nonnull List<InstanceRewardGranter.Landed> landed) {
+
+        public Collected {
+            landed = List.copyOf(landed);
+        }
+    }
+
+    /**
+     * What a press did: how many Claims it took, how many of those it emptied, how many rewards it handed over,
+     * kept back for a full bag, or could not pay, and what each Claim it took handed over ({@code collected}, a
+     * Claim that handed nothing over left out), in the order it took them.
+     */
+    public record Result(int taken, int emptied, int granted, int kept, int failed,
+            @Nonnull List<Collected> collected) {
 
         /** Nothing was there to take (a stale page, a second press). */
         public static final Result NOTHING = new Result(0, 0, 0, 0, 0);
+
+        public Result {
+            collected = List.copyOf(collected);
+        }
+
+        /** A tally that lists nothing handed over. */
+        public Result(int taken, int emptied, int granted, int kept, int failed) {
+            this(taken, emptied, granted, kept, failed, List.of());
+        }
 
         /** True when the press found nothing to take. */
         public boolean nothing() {
@@ -53,8 +78,10 @@ public final class ClaimGrants {
 
         @Nonnull
         Result plus(@Nonnull Result other) {
+            List<Collected> both = new ArrayList<>(collected);
+            both.addAll(other.collected);
             return new Result(taken + other.taken, emptied + other.emptied, granted + other.granted,
-                    kept + other.kept, failed + other.failed);
+                    kept + other.kept, failed + other.failed, both);
         }
     }
 
@@ -190,10 +217,10 @@ public final class ClaimGrants {
             @Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull InstanceRewardGranter.Sink sink,
             @Nullable List<InstanceReward> handedOver) {
         GrantOutcome outcome;
-        List<InstanceReward> delivered = new ArrayList<>();
+        List<InstanceRewardGranter.Landed> landed = new ArrayList<>();
         try {
-            outcome = InstanceRewardGranter.grantAll(claim.rewards(), ref, store, sink, claim.source(),
-                    delivered::add);
+            outcome = InstanceRewardGranter.grantAllLanded(claim.rewards(), ref, store, sink, claim.source(),
+                    landed::add);
         } catch (Throwable t) {
             claims.putBack(player, claim);
             SafeLog.warn("[claims] the Claim '" + claim.id() + "' could not be handed over, so it waits", t);
@@ -206,12 +233,16 @@ public final class ClaimGrants {
             SafeLog.warn("[claims] " + outcome.failed() + " reward(s) of the Claim '" + claim.id()
                     + "' could not be paid on this server and were dropped");
         }
+        List<InstanceReward> delivered = new ArrayList<>(landed.size());
+        for (InstanceRewardGranter.Landed each : landed) {
+            delivered.add(each.row());
+        }
         if (handedOver != null) {
             handedOver.addAll(delivered);
         }
         announceCollected(player, ref, claim, delivered);
         return new Result(1, outcome.pending().isEmpty() ? 1 : 0, outcome.granted(), outcome.blocked(),
-                outcome.failed());
+                outcome.failed(), landed.isEmpty() ? List.of() : List.of(new Collected(claim, landed)));
     }
 
     /**

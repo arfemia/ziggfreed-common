@@ -36,7 +36,9 @@ import com.ziggfreed.common.util.SafeLog;
  * shows ({@code DeferredRewards.payableSpec}), so it does everything the kind does beside its line (a
  * reputation's worn gain, Cap, bar and rank notice). Its line runs through the sink only when the kind
  * cannot pay it: no live claimer, a handler that throws, or a row the kind does not pay
- * ({@code payableSpec} answers null). Nothing registers for it.
+ * ({@code payableSpec} answers null). Nothing registers for it. What the kind reports handing over (its
+ * receipt: a reputation's gain after the worn gear and the Cap) reaches the caller of
+ * {@link #grantAllLanded} beside the row, so a toast raised after the press says what really landed.
  *
  * <p><b>World thread only</b> (item grants touch the {@link Store}). Each reward is
  * guarded; one failing reward never aborts the rest.
@@ -62,6 +64,25 @@ public final class InstanceRewardGranter {
          */
         boolean runCommand(@Nonnull String command,
                            @Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store);
+    }
+
+    /**
+     * One reward a grant handed over, and what it landed as. {@code receipt} is what the reward kind that paid
+     * the row reported handing over ({@link RewardHandler#grant(RewardSpec, Subject, String, Consumer)}): a
+     * reputation's gain after the worn gear and the Cap, and empty when the kind moved nothing (a gain the Cap cut
+     * to nothing). It is null when the row paid by itself (an item into the bag, a currency through the sink, a
+     * line run), which then landed as the row reads, at its own quantity.
+     */
+    public record Landed(@Nonnull InstanceReward row, @Nullable List<RewardSpec> receipt) {
+
+        public Landed {
+            receipt = receipt == null ? null : List.copyOf(receipt);
+        }
+
+        /** True when the row's kind paid it, so {@link #receipt} says what landed. */
+        public boolean receipted() {
+            return receipt != null;
+        }
     }
 
     private InstanceRewardGranter() {
@@ -102,6 +123,20 @@ public final class InstanceRewardGranter {
                                         @Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
                                         @Nullable Sink sink, @Nonnull String sourceId,
                                         @Nonnull Consumer<InstanceReward> onGranted) {
+        return grantAllLanded(rewards, ref, store, sink, sourceId, landed -> onGranted.accept(landed.row()));
+    }
+
+    /**
+     * {@link #grantAll(List, Ref, Store, Sink, String, Consumer)}, telling {@code onLanded} each reward as it is
+     * handed over together with what it landed as ({@link Landed}): the receipt of the kind that paid a deferred
+     * row, so a press's toast names the amount that really landed (a reputation's worn gain, its Cap) rather than
+     * the row's.
+     */
+    @Nonnull
+    public static GrantOutcome grantAllLanded(@Nonnull List<InstanceReward> rewards,
+                                              @Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
+                                              @Nullable Sink sink, @Nonnull String sourceId,
+                                              @Nonnull Consumer<Landed> onLanded) {
         int granted = 0;
         int blocked = 0;
         int failed = 0;
@@ -120,13 +155,13 @@ public final class InstanceRewardGranter {
                             pending.add(r);
                         } else {
                             granted++;
-                            onGranted.accept(r);
+                            onLanded.accept(new Landed(r, null));
                         }
                     }
                     case CURRENCY -> {
                         if (sink != null && sink.grantCurrency(r.id(), r.quantity(), ref, store)) {
                             granted++;
-                            onGranted.accept(r);
+                            onLanded.accept(new Landed(r, null));
                         } else {
                             failed++;
                         }
@@ -136,10 +171,10 @@ public final class InstanceRewardGranter {
                         // runs; the consumer's sink substitutes {player}. Common stays currency/XP-agnostic.
                         String command = r.id().replace(InstanceReward.AMOUNT_PLACEHOLDER,
                                 Integer.toString(r.quantity()));
-                        if (paidThroughKind(r, command, ref, store, sourceId)
-                                || (sink != null && sink.runCommand(command, ref, store))) {
+                        List<RewardSpec> receipt = paidThroughKind(r, command, ref, store, sourceId);
+                        if (receipt != null || (sink != null && sink.runCommand(command, ref, store))) {
                             granted++;
-                            onGranted.accept(r);
+                            onLanded.accept(new Landed(r, receipt));
                         } else {
                             failed++;
                         }
@@ -153,24 +188,40 @@ public final class InstanceRewardGranter {
         return new GrantOutcome(granted, blocked, failed, pending);
     }
 
-    /** Whether the deferred row {@code r} was paid through its kind for the live player at {@code ref}. */
-    private static boolean paidThroughKind(@Nonnull InstanceReward r, @Nonnull String line,
+    /**
+     * What the deferred row {@code r} landed as when it was paid through its kind for the live player at
+     * {@code ref} (the kind's receipt, empty when it moved nothing), or null when the kind did not pay it.
+     */
+    @Nullable
+    private static List<RewardSpec> paidThroughKind(@Nonnull InstanceReward r, @Nonnull String line,
             @Nullable Ref<EntityStore> ref, @Nullable Store<EntityStore> store, @Nonnull String sourceId) {
         if (r.spec() == null || ref == null || store == null) {
-            return false;
+            return null;
         }
         Subject claimant = claimant(ref, store);
-        return claimant != null && payThroughKind(r, line, RewardKinds.shared(), claimant, sourceId);
+        if (claimant == null) {
+            return null;
+        }
+        List<RewardSpec> receipt = new ArrayList<>();
+        return payThroughKind(r, line, RewardKinds.shared(), claimant, sourceId, receipt::add) ? receipt : null;
+    }
+
+    /** {@link #payThroughKind(InstanceReward, String, RewardKindRegistry, Subject, String, Consumer)}, keeping no receipt. */
+    static boolean payThroughKind(@Nonnull InstanceReward r, @Nonnull String line, @Nonnull RewardKindRegistry kinds,
+            @Nonnull Subject claimant, @Nonnull String sourceId) {
+        return payThroughKind(r, line, kinds, claimant, sourceId, landed -> { });
     }
 
     /**
      * Pay {@code r} through its kind's handler in {@code kinds}, at the share it shows
-     * ({@link DeferredRewards#payableSpec}); true when the handler paid it. False, and the row's {@code line}
-     * then runs, when no handler is registered, the kind does not pay the row, or the handler threw (a reward
-     * it could not hand over, so the line still has it to pay).
+     * ({@link DeferredRewards#payableSpec}); true when the handler paid it, and then {@code receipt} hears what it
+     * reported handing over, once it returned (a handler that throws has its receipt discarded, as
+     * {@link RewardHandler} says). False, and the row's {@code line} then runs, when no handler is registered, the
+     * kind does not pay the row, or the handler threw (a reward it could not hand over, so the line still has it to
+     * pay).
      */
     static boolean payThroughKind(@Nonnull InstanceReward r, @Nonnull String line, @Nonnull RewardKindRegistry kinds,
-            @Nonnull Subject claimant, @Nonnull String sourceId) {
+            @Nonnull Subject claimant, @Nonnull String sourceId, @Nonnull Consumer<RewardSpec> receipt) {
         RewardSpec spec = r.spec();
         RewardHandler handler = spec == null ? null : kinds.handler(spec.kind());
         RewardSpec payable = handler == null ? null
@@ -178,14 +229,20 @@ public final class InstanceRewardGranter {
         if (payable == null) {
             return false;
         }
+        List<RewardSpec> landed = new ArrayList<>();
         try {
-            handler.grant(payable, claimant, sourceId, landed -> { });
-            return true;
+            handler.grant(payable, claimant, sourceId, each -> {
+                if (each != null) {
+                    landed.add(each);
+                }
+            });
         } catch (Throwable t) {
             SafeLog.warn("[claims] a '" + payable.kind() + "' reward from " + sourceId
                     + " could not be paid through its kind, so its line runs instead: " + t.getMessage());
             return false;
         }
+        landed.forEach(receipt);
+        return true;
     }
 
     /**

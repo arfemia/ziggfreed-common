@@ -185,15 +185,21 @@ public final class RewardToastLines {
         return count;
     }
 
-    /** A chip as a toast row: its icon at quantity one when it has one, else text only. Null for none. */
-    @Nullable
-    private static ToastLine rowOf(@Nullable RewardChip chip) {
-        if (chip == null) {
-            return null;
-        }
+    /**
+     * A chip as a toast row: its icon at quantity one when it has one, else text only. Public so a caller's own
+     * reading for {@link #linesBy(List, Function, IntFunction)} draws a chip exactly as the chip forms here do.
+     */
+    @Nonnull
+    public static ToastLine row(@Nonnull RewardChip chip) {
         return chip.hasIcon()
                 ? ToastLine.item(chip.iconItemId(), 1, chip.label())
                 : ToastLine.text(chip.label());
+    }
+
+    /** {@link #row(RewardChip)}, null for none. */
+    @Nullable
+    private static ToastLine rowOf(@Nullable RewardChip chip) {
+        return chip == null ? null : row(chip);
     }
 
     /**
