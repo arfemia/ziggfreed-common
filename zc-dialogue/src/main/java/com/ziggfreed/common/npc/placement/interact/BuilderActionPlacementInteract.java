@@ -10,8 +10,8 @@ import com.hypixel.hytale.server.npc.asset.builder.BuilderDescriptorState;
 import com.hypixel.hytale.server.npc.asset.builder.BuilderSupport;
 import com.hypixel.hytale.server.npc.asset.builder.InstructionType;
 import com.hypixel.hytale.server.npc.asset.builder.holder.StringHolder;
-import com.hypixel.hytale.server.npc.corecomponents.builders.BuilderActionBase;
 import com.hypixel.hytale.server.npc.instructions.Action;
+import com.ziggfreed.common.npcbuilder.ZigBuilderActionBase;
 
 /**
  * Builder for {@link ActionPlacementInteract}.
@@ -37,7 +37,7 @@ import com.hypixel.hytale.server.npc.instructions.Action;
  *
  * <p>Restricted to {@code InteractionInstruction} context, like every other press-F action.
  */
-public class BuilderActionPlacementInteract extends BuilderActionBase {
+public class BuilderActionPlacementInteract extends ZigBuilderActionBase {
 
     /** The conversation a stamp-less NPC of this role opens. Computable, so a Variant can bind it. */
     protected final StringHolder dialogue = new StringHolder();
@@ -82,9 +82,9 @@ public class BuilderActionPlacementInteract extends BuilderActionBase {
         getString(data, "Dialogue", this.dialogue, null, null, BuilderDescriptorState.Stable,
                 "The conversation an NPC of this role opens when nothing placed it. A placement's own"
                         + " Interact still wins wherever there is one.", null);
-        // Read through the helper rather than off the object directly: it registers the key as one
-        // this builder asked for, so authoring Open is not reported as an unexpected field.
-        this.open = getOptionalJsonElement(data, "Open");
+        this.open = getOptionalRawJson(data, "Open",
+                "Any destination a mod on this server registered, opened when nothing placed this NPC."
+                        + " With Dialogue too, this one runs.");
         return this;
     }
 

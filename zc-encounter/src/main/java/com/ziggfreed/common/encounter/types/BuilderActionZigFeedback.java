@@ -13,14 +13,14 @@ import com.hypixel.hytale.server.npc.asset.builder.InstructionType;
 import com.hypixel.hytale.server.npc.asset.builder.holder.BooleanHolder;
 import com.hypixel.hytale.server.npc.asset.builder.holder.StringHolder;
 import com.hypixel.hytale.server.npc.asset.builder.validators.StringNotEmptyValidator;
-import com.hypixel.hytale.server.npc.corecomponents.builders.BuilderActionBase;
 import com.hypixel.hytale.server.npc.instructions.Action;
+import com.ziggfreed.common.npcbuilder.ZigBuilderActionBase;
 
 /**
  * Builds {@link ActionZigFeedback}: {@code {"Type": "ZigFeedback", "Moment": "Encounter_Phase_Changed",
  * "ToMembers": true, "ToWorld": false, "Args": {"phase": "Enraged"}}}.
  */
-public class BuilderActionZigFeedback extends BuilderActionBase {
+public class BuilderActionZigFeedback extends ZigBuilderActionBase {
 
     protected final StringHolder moment = new StringHolder();
     protected final BooleanHolder toMembers = new BooleanHolder();
@@ -63,7 +63,7 @@ public class BuilderActionZigFeedback extends BuilderActionBase {
                 "Draw it for each member of the encounter", null);
         getBoolean(data, "ToWorld", toWorld, false, BuilderDescriptorState.Stable,
                 "Draw it for every player in the encounter's world", null);
-        this.args = getOptionalJsonElement(data, "Args");
+        this.args = getOptionalRawJson(data, "Args", "Named values the moment's lines can fill");
         requireInstructionType(EnumSet.of(InstructionType.Encounter, InstructionType.EncounterStateTransitions));
         return this;
     }

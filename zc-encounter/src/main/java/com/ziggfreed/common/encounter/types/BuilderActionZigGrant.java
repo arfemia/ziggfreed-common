@@ -15,10 +15,10 @@ import com.hypixel.hytale.server.npc.asset.builder.BuilderDescriptorState;
 import com.hypixel.hytale.server.npc.asset.builder.BuilderSupport;
 import com.hypixel.hytale.server.npc.asset.builder.InstructionType;
 import com.hypixel.hytale.server.npc.asset.builder.holder.BooleanHolder;
-import com.hypixel.hytale.server.npc.corecomponents.builders.BuilderActionBase;
 import com.hypixel.hytale.server.npc.instructions.Action;
 import com.ziggfreed.common.encounter.event.Encounters;
 import com.ziggfreed.common.loot.LootRef;
+import com.ziggfreed.common.npcbuilder.ZigBuilderActionBase;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -33,7 +33,7 @@ import com.ziggfreed.common.util.SafeLog;
  * script exactly as one written in a binding row's {@code Loot} loads with the row. A Loot that
  * cannot be read is warned about once at load, naming the script, and the grant pays nothing.
  */
-public class BuilderActionZigGrant extends BuilderActionBase {
+public class BuilderActionZigGrant extends ZigBuilderActionBase {
 
     /** The key the loot group sits under. */
     private static final String LOOT = "Loot";
@@ -82,8 +82,8 @@ public class BuilderActionZigGrant extends BuilderActionBase {
                 "Ignored: the killer is paid the share they earned", null);
         getBoolean(data, "QueueIfOffline", queueIfOffline, true, BuilderDescriptorState.Stable,
                 "Ignored: a Claim always waits for a participant who is offline", null);
-        // Read through the helper so the key counts as one this builder asked for.
-        this.loot = getOptionalJsonElement(data, LOOT);
+        this.loot = getOptionalRawJson(data, LOOT,
+                "The loot reference group: Lootables by id and/or inline Rolls");
         readLoot();
         requireInstructionType(EnumSet.of(InstructionType.Encounter, InstructionType.EncounterStateTransitions));
         return this;
