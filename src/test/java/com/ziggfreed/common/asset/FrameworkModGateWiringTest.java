@@ -48,7 +48,7 @@ import com.ziggfreed.common.stats.gearset.GearSetConfig;
  * QuestGenerators and ShopEntryGenerators (a family follows its {@code Base}); DialogueFragments,
  * DialogueExtensions and Dialogues (a line gates on its own {@code Conditions}); Instances, RollPools,
  * StatDisplays, ObjectiveKinds, OverheadIndicators, QuestIndicators, RewardKinds, BandedEffects,
- * PrefabPlacements, Leaderboard, Arenas, Party, Dungeons, DialogueOptionTheme, NpcIdentities, Factors,
+ * PrefabPlacements, Leaderboard, Arenas, Party, Dungeons, RewardChests, DialogueOptionTheme, NpcIdentities, Factors,
  * FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, PlayerSettings, AchievementCategories,
  * QuestCategories, AchievementMilestones, Almanac, ShopPools, EncounterBindings,
  * EncounterParticipation, EncounterRules, CalendarEvents, CalendarSpawns, Titles, Reputations and Gateways. A

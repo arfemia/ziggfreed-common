@@ -1,0 +1,26 @@
+{
+  "$Comment": "The library's neutral reward chest: what a Reward_Chest reward stands when it names no chest of its own, where the mob died or the block broke, for the player the kill or the break credited. It holds nothing of its own until a chest takes it as its Parent and names a Contents.Lootable, rolled once for that player as it goes up, and a chest with nothing in it never goes up. Its banner names what left it. It stands five minutes at most, or until the player has taken everything, and whatever is left waits under Claims.",
+  "Look": {
+    "Prop": "Furniture_Dungeon_Chest_Epic",
+    "HintKey": "ziggfreedcommon.claims.spoils.hint"
+  },
+  "Open": {
+    "Credited": true
+  },
+  "View": {
+    "ItemsWindow": true
+  },
+  "Banner": {
+    "TitleKey": "ziggfreedcommon.claims.chest.banner.title",
+    "SubtitleKey": "ziggfreedcommon.claims.chest.banner",
+    "Major": false
+  },
+  "Text": {
+    "LeadKey": "ziggfreedcommon.claims.chest.lead",
+    "NoticeKey": "ziggfreedcommon.claims.notice.added.chest"
+  },
+  "Despawn": {
+    "Lifetime": 300,
+    "WhenEmptied": true
+  }
+}

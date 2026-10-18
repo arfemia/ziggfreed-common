@@ -56,6 +56,16 @@ spoils.items_left = The rest of your share is in the chest.
 spoils.action.items = Open the Chest
 spoils.banner = Your reward waits in the chest where the boss fell.
 
+# A reward chest that is not a boss's: one a rare kill, a rare break or another source leaves, holding each player's
+# own share. chest.lead is the line on its page. notice.added.chest is the toast when a reward lands in it, and
+# notice.added.chest.named the same for a reward with a title of its own, {0}. chest.banner.title is the banner as it
+# goes up, {0} what left it (a creature, a block), over chest.banner.
+chest.lead = What was left for you. Whatever you leave here waits for you under Claims.
+chest.banner.title = {0} left a chest
+chest.banner = Open it to take your share. Whatever you leave waits under Claims.
+notice.added.chest = Your share is waiting in the chest nearby, and under Claims in your menu.
+notice.added.chest.named = {0} is waiting in the chest nearby, and under Claims in your menu.
+
 # A Claim's title when /zigclaims give wrote it: {0} is the loot table's id.
 title.admin = Loot from {0}
 
@@ -64,6 +74,7 @@ title.admin = Loot from {0}
 command.desc.family = Put rewards in players' Claims.
 command.desc.give = Roll a loot table and put what it lands in a player's Claims.
 command.desc.arg.player = The player, online or not: a name or a player id. Defaults to you.
+command.desc.arg.player.online = The player, who has to be online: a name or a player id. Defaults to you.
 command.desc.arg.lootable = The loot table to roll, by its id.
 command.player.needed = Name a player with --player=<name>.
 command.player.offline = That player is not in a world right now. Try again in a moment.
@@ -72,3 +83,11 @@ command.lootable.needed = Name a loot table with --lootable=<id>.
 command.lootable.unknown = No loot table called '{0}' is loaded.
 command.give.done = Put {2, number} {2, plural, one {reward} other {rewards}} from {0} in {1}'s Claims.
 command.give.nothing = {0} landed nothing for {1}, so no Claim was written.
+# /zigclaims chest. In command.chest.done {0} is the chest's id, {1} the player and {2} the loot table's id; in
+# command.chest.nothing {0} is the loot table's id and {1} the player.
+command.desc.chest = Stand a reward chest next to a player, holding a loot table's roll for them.
+command.desc.arg.chest = The reward chest to stand, by its id. Defaults to Zc_Reward_Chest.
+command.chest.unknown = No reward chest called '{0}' is loaded.
+command.chest.done = Stood {0} next to {1}, holding what {2} landed for them.
+command.chest.nothing = {0} landed nothing for {1}, so no chest went up.
+command.chest.failed = The chest could not be stood. The server log says why.

@@ -32,6 +32,9 @@ import com.ziggfreed.common.factor.DerivedFactorAsset;
 import com.ziggfreed.common.factor.DerivedFactorConfig;
 import com.ziggfreed.common.instance.arena.ArenaDefinitionAsset;
 import com.ziggfreed.common.instance.arena.ArenaDefinitionConfig;
+import com.ziggfreed.common.instance.claims.RewardChestAsset;
+import com.ziggfreed.common.instance.claims.RewardChestConfig;
+import com.ziggfreed.common.instance.claims.RewardChestOwnerLayers;
 import com.ziggfreed.common.instance.dungeon.DungeonAsset;
 import com.ziggfreed.common.instance.dungeon.DungeonConfig;
 import com.ziggfreed.common.instance.dungeon.DungeonOwnerLayers;
@@ -454,6 +457,21 @@ public final class FrameworkAssetRegistrar {
                 (LoadedAssetsEvent<String, DungeonAsset, DefaultAssetMap<String, DungeonAsset>> ev) -> {
                     DungeonConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
                     DungeonOwnerLayers.reload();
+                });
+
+        // --- Reward chests (Pattern A) - what a chest a reward source stands is: its look, who opens it, what it
+        //     holds of its own, how it shows it, its banner, its words and when it goes. The library ships
+        //     Zc_Spoils_Chest (the boss chest a binding row's Spoils names by default) and Zc_Reward_Chest (the
+        //     neutral chest a Reward_Chest reward stands), zc-instance's resources. Owner layer
+        //     mods/ziggfreedcommon/reward-chests.json, read here once the packs have landed. No top-level
+        //     Requires. ---
+        AssetStoreRegistrar.registerStore(RewardChestAsset.class,
+                new DefaultAssetMap<String, RewardChestAsset>(), RewardChestAsset.TYPE_ROOT,
+                RewardChestAsset::getId, RewardChestAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, RewardChestAsset.class,
+                (LoadedAssetsEvent<String, RewardChestAsset, DefaultAssetMap<String, RewardChestAsset>> ev) -> {
+                    RewardChestConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    RewardChestOwnerLayers.reload();
                 });
 
         // --- Camera sequences - a short camera move per file (keyframes from an origin the caller gives),
@@ -990,6 +1008,7 @@ public final class FrameworkAssetRegistrar {
                         + "Lootables, RollPools, BonusRows (owner file mods/ziggfreedcommon/bonus-rows.json), "
                         + "StatDisplays, RewardKinds, BandedEffects, PrefabPlacements, Gateways, Leaderboard, "
                         + "Arenas, Party, Dungeons (owner file mods/ziggfreedcommon/dungeons.json), "
+                        + "RewardChests (owner file mods/ziggfreedcommon/reward-chests.json), "
                         + "NpcPlacements, NpcIdentities, Factors, FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, "
                         + "PlayerSettings (owner file mods/ziggfreedcommon/player-settings.json), "
                         + "Quests (owner folder mods/ziggfreedcommon/quests/), QuestGenerators, QuestCategories, "

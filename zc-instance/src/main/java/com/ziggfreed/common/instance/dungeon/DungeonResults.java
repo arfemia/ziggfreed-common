@@ -8,7 +8,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ThreadLocalRandom;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -25,6 +24,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.instance.claims.ClaimNotices;
+import com.ziggfreed.common.instance.claims.ClaimRolls;
 import com.ziggfreed.common.instance.claims.ClaimsView;
 import com.ziggfreed.common.instance.claims.SpoilsChests;
 import com.ziggfreed.common.instance.result.MatchResult;
@@ -34,18 +34,13 @@ import com.ziggfreed.common.instance.result.ResultsPage;
 import com.ziggfreed.common.instance.result.ResultsPageDeps;
 import com.ziggfreed.common.instance.result.ScoreColumn;
 import com.ziggfreed.common.instance.result.TeamResult;
-import com.ziggfreed.common.instance.reward.DeferredRewards;
 import com.ziggfreed.common.instance.reward.InstanceReward;
-import com.ziggfreed.common.loot.LootEngine;
-import com.ziggfreed.common.loot.LootFactors;
 import com.ziggfreed.common.loot.LootableAsset;
 import com.ziggfreed.common.loot.LootableConfig;
 import com.ziggfreed.common.loot.claim.Claim;
 import com.ziggfreed.common.loot.claim.ClaimStore;
 import com.ziggfreed.common.loot.diminish.DiminishSpec;
 import com.ziggfreed.common.loot.reward.RewardChip;
-import com.ziggfreed.common.loot.reward.RewardKinds;
-import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.toast.ToastDelivery;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastSpec;
@@ -55,8 +50,8 @@ import com.ziggfreed.common.util.SafeLog;
  * What a dungeon run's end shows its members, handed over by {@link DungeonRuns} once the run's lock is let go.
  *
  * <p><b>A clear.</b> Each member in the area at the clear earns the dungeon's completion Claim: its
- * {@code Rewards.Lootable} rolled once for them ({@link LootEngine#select}, as a won round with no score), kept as
- * rewards to hand over later ({@link DeferredRewards}), and written through {@link ClaimStore#award}, which counts
+ * {@code Rewards.Lootable} rolled once for them ({@link ClaimRolls#roll}, as a won round with no score), kept as
+ * rewards to hand over later, and written through {@link ClaimStore#award}, which counts
  * it against {@code Rewards.Diminish} (absent, every clear pays in full) and writes nothing a second time or for a
  * roll that landed nothing. The Claim's id is {@code dungeon:<id>:<run>:<player>}, its source {@code dungeon:<id>}
  * and its returns key {@code dungeon:<id>:<difficulty>}. Then the member's results screen opens, a normal
@@ -87,9 +82,6 @@ public final class DungeonResults {
     static final String PREFIX = DungeonRefusals.PREFIX;
 
     private static final String LOG = "[dungeon] ";
-
-    /** The name a deferred command keeps for whoever presses Claim. */
-    private static final String CLAIMER = "{player}";
 
     /** Loot tables a dungeon names that no loaded file defines, already logged. */
     private static final Set<String> WARNED_TABLES = ConcurrentHashMap.newKeySet();
@@ -191,11 +183,7 @@ public final class DungeonResults {
             return null;
         }
         String source = DungeonRuns.SOURCE_PREFIX + clear.dungeonId();
-        ThreadLocalRandom random = ThreadLocalRandom.current();
-        List<LootEngine.Selected> decided = LootEngine.select(table.rollsOrEmpty(), table.poolOrEmpty(), null,
-                LootFactors.lookupFor(0, true), random::nextDouble);
-        List<InstanceReward> rewards = InstanceReward.merge(DeferredRewards.fromSelection(decided,
-                RewardKinds.shared(), Subject.of(player, CLAIMER), source, message -> SafeLog.warn(LOG + message)));
+        List<InstanceReward> rewards = ClaimRolls.roll(table, player, source, message -> SafeLog.warn(LOG + message));
         if (rewards.isEmpty()) {
             return null;
         }
@@ -234,7 +222,8 @@ public final class DungeonResults {
         Universe universe = Universe.get();
         PlayerRef playerRef = universe == null ? null : universe.getPlayer(player);
         if (playerRef != null) {
-            SpoilsChests.tellInChest(playerRef,
+            // Naming the fight marks this banner as the chest's for the player, so the chest's own never follows.
+            SpoilsChests.tellInChest(playerRef, clear.chestFight(),
                     Msg.key(PREFIX + "clear.banner", nameOf(clear.dungeonId(), clear.nameKey())), clear.chestKey());
         }
     }

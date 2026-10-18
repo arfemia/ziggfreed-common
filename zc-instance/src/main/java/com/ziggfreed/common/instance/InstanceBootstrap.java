@@ -16,6 +16,7 @@ import com.ziggfreed.common.encounter.seam.EncounterSeams;
 import com.ziggfreed.common.encounter.validate.EncounterAudit;
 import com.ziggfreed.common.instance.claims.ClaimNotices;
 import com.ziggfreed.common.instance.claims.ClaimsDestinations;
+import com.ziggfreed.common.instance.claims.RewardChestConfig;
 import com.ziggfreed.common.instance.claims.SpoilsChest;
 import com.ziggfreed.common.instance.claims.SpoilsChestSystems;
 import com.ziggfreed.common.instance.claims.SpoilsChests;
@@ -154,7 +155,9 @@ public final class InstanceBootstrap {
      * guard that keeps an open spoils window's items off the ground; the {@code ZigOpenSpoils} interaction Type a
      * chest's Use runs, beside {@code ZigEnterDungeon} and like it before any asset decodes (the shipped root
      * interaction names it); the ears for a boss defeat (where the chest will stand) and a new Claim (the first of a
-     * fight's raises it); and the world-closing eviction. Each guarded on its own. Registration only.
+     * fight's raises it); the world-closing eviction; and the encounter audit handed the reward chests a binding row's
+     * {@code Spoils.Chest} may name. Each guarded on its own. The chest files' store registers with the other
+     * framework stores. Registration only.
      */
     public static void installSpoils(@Nonnull JavaPlugin plugin) {
         try {
@@ -179,6 +182,11 @@ public final class InstanceBootstrap {
             WorldEvictors.registerEvictor(SpoilsChests::forgetWorld);
         } catch (Throwable t) {
             SafeLog.warn("[spoils] the spoils chests could not listen for boss defeats and new Claims", t);
+        }
+        try {
+            EncounterAudit.rewardChests(RewardChestConfig.getInstance()::has);
+        } catch (Throwable t) {
+            SafeLog.warn("[spoils] the encounter audit could not be handed the reward chests", t);
         }
     }
 

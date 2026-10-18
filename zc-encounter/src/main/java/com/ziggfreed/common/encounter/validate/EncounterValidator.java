@@ -89,6 +89,8 @@ public final class EncounterValidator {
     public static final String PREFAB_SPAWNER_WITHOUT_STATE = "ENCOUNTER_PREFAB_SPAWNER_WITHOUT_STATE";
     /** A binding's {@code Leaderboard.Group} names a records group no loaded file defines. */
     public static final String UNKNOWN_RECORD_GROUP = "ENCOUNTER_UNKNOWN_RECORD_GROUP";
+    /** A binding's {@code Spoils.Chest} names a reward chest no loaded file defines. */
+    public static final String UNKNOWN_REWARD_CHEST = "ENCOUNTER_UNKNOWN_REWARD_CHEST";
     /**
      * A binding lets a companion grow its boss's health ({@code Scale.Companion.Health}) while its own
      * {@code Scale} terms grow it too: the engine sums multiplying modifiers on a stat, so both count.
@@ -253,6 +255,28 @@ public final class EncounterValidator {
                 findings.add(Finding.warning(DOMAIN, UNKNOWN_RECORD_GROUP, "Leaderboard.Group names '" + group
                         + "', but no RecordGroups file defines it, so Records shows this fight under its first choice "
                         + "alone. That is expected when the pack shipping the group is not installed; check the "
+                        + "spelling otherwise.", row.getId()));
+            }
+        }
+        return findings;
+    }
+
+    /**
+     * Each binding whose {@code Spoils.Chest} names a reward chest {@code chestExists} does not know: a WARNING, since
+     * the pack that ships the chest may simply not be installed here, and the fight still leaves the library's boss
+     * chest. A row that leaves no chest ({@code Spoils.Enabled} false) or names none is not read.
+     */
+    @Nonnull
+    public static List<Finding> rewardChestFindings(@Nonnull Collection<EncounterBindingAsset> bindings,
+            @Nonnull Predicate<String> chestExists) {
+        List<Finding> findings = new ArrayList<>();
+        for (EncounterBindingAsset row : bindings) {
+            EncounterBindingAsset.Spoils spoils = row == null ? null : row.getSpoils();
+            String chest = spoils == null || !spoils.enabled() ? null : spoils.getChest();
+            if (chest != null && !chestExists.test(chest)) {
+                findings.add(Finding.warning(DOMAIN, UNKNOWN_REWARD_CHEST, "Spoils.Chest names '" + chest
+                        + "', but no RewardChests file defines it, so this fight leaves the library's boss chest "
+                        + "instead. That is expected when the pack shipping the chest is not installed; check the "
                         + "spelling otherwise.", row.getId()));
             }
         }

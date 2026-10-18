@@ -66,7 +66,8 @@ import com.ziggfreed.common.validation.ValidationReport;
  * reward vocabulary ({@link RewardKinds#shared()}).
  *
  * <p>A binding's {@code Leaderboard.Group} is read against the records groups whoever owns them registered
- * ({@link #recordGroups}); with none registered it is not checked.
+ * ({@link #recordGroups}), and its {@code Spoils.Chest} against the reward chests ({@link #rewardChests}); with none
+ * registered it is not checked.
  */
 public final class EncounterAudit {
 
@@ -81,7 +82,20 @@ public final class EncounterAudit {
     /** Which records group ids a binding's {@code Leaderboard.Group} may name; null checks none. */
     @Nullable private static volatile Predicate<String> recordGroups;
 
+    /** Which reward chest ids a binding's {@code Spoils.Chest} may name; null checks none. */
+    @Nullable private static volatile Predicate<String> rewardChests;
+
     private EncounterAudit() {
+    }
+
+    /**
+     * Register what knows the reward chests ({@code RewardChests}, a store this module may not import), so the audit
+     * can tell a binding's {@code Spoils.Chest} that names none of them ({@link EncounterValidator#rewardChestFindings}).
+     * Read fresh on every audit; null, or never registered, checks none. One call, at setup, from the module that owns
+     * the chests.
+     */
+    public static void rewardChests(@Nullable Predicate<String> chestExists) {
+        rewardChests = chestExists;
     }
 
     /**
@@ -134,6 +148,11 @@ public final class EncounterAudit {
             if (groups != null) {
                 out.addAll(EncounterValidator.recordGroupFindings(EncounterBindingConfig.getInstance().all().values(),
                         groups));
+            }
+            Predicate<String> chests = rewardChests;
+            if (chests != null) {
+                out.addAll(EncounterValidator.rewardChestFindings(EncounterBindingConfig.getInstance().all().values(),
+                        chests));
             }
         } catch (Throwable t) {
             SafeLog.warn(Encounters.LOG_PREFIX + " the encounter content could not be audited", t);

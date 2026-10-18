@@ -19,9 +19,10 @@ import com.ziggfreed.common.ui.toast.ToastSpec;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * What a player sees when they open a spoils chest: their own unclaimed Claims from its fight, and nothing of
+ * What a player sees when they open a reward chest: their own unclaimed Claims filed under it, and nothing of
  * anyone else's. The one place the chest decides its view, so the chest's Use ({@link ZigOpenSpoilsInteraction}) never
- * names one, and {@link #VANILLA_WINDOW} is the one switch between the two views.
+ * names one, and the chest's file's {@code View.ItemsWindow} ({@link SpoilsChests#itemsWindow}) is the one switch
+ * between the two views.
  *
  * <p><b>The game's chest window</b> (the default). What is not an item (a currency, an experience or reputation
  * token) is collected first, on the Claims page filtered to the fight with its items left out ({@link ClaimsPage}'s
@@ -34,13 +35,10 @@ import com.ziggfreed.common.util.SafeLog;
  * does nothing. A window the engine will not open falls back to the Claims page below, so the items are never out of
  * reach.
  *
- * <p><b>The Claims page</b> (the switch off): the Claims page filtered to the fight ({@link ClaimsPage}'s spoils mode:
- * only those Claims, Claim and Take All, one line when nothing waits).
+ * <p><b>The Claims page</b> ({@code View.ItemsWindow} false): the Claims page filtered to the fight
+ * ({@link ClaimsPage}'s spoils mode: only those Claims, Claim and Take All, one line when nothing waits).
  */
 public final class SpoilsView {
-
-    /** True opens the game's chest window; false the Claims page filtered to the fight. */
-    static final boolean VANILLA_WINDOW = true;
 
     private SpoilsView() {
     }
@@ -60,7 +58,7 @@ public final class SpoilsView {
             return false;
         }
         try {
-            return VANILLA_WINDOW ? openWindow(store, ref, player, playerRef, uuid, fight)
+            return SpoilsChests.itemsWindow(fight) ? openWindow(store, ref, player, playerRef, uuid, fight)
                     : openClaimsPage(store, ref, player, playerRef, fight);
         } catch (Throwable t) {
             SafeLog.warn(SpoilsChests.LOG + "the spoils of run=" + fight + " could not open; they wait under Claims", t);

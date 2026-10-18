@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
 import javax.annotation.Nonnull;
@@ -55,22 +57,39 @@ public final class BonusRowAudit {
     /**
      * The library's own rows, against the given vocabularies; a null one skips its own check. Every
      * enabled row is read whatever its {@code Season}, and a season no calendar event declares is named.
+     * Their inline rolls are judged against what the library's own pass carries
+     * ({@link BonusMoment#libraryCarries}), so a {@code Reward_Chest} in a kill or a break row is fine here.
      */
     @Nonnull
     public static List<Finding> auditAll(@Nullable RewardKindRegistry kinds, @Nullable FactorRegistry factors) {
         BonusRowConfig config = BonusRowConfig.getInstance();
         // Every enabled row whatever its season, so a row out of season today is still checked.
         List<Finding> findings = audit(config.authoredTable(), config.momentlessRows(), CODES, kinds, factors,
-                UnaryOperator.identity());
+                UnaryOperator.identity(), BonusMoment::libraryCarries);
         config.seasonsByRow().forEach((id, season) -> SeasonGate.checkKnown(findings, DOMAIN, season, id));
         return findings;
     }
 
-    /** Any table, stamped with {@code codes}; its loot findings pass through {@code lootFold}. */
+    /**
+     * Any table, stamped with {@code codes}; its loot findings pass through {@code lootFold}. Its inline rolls are
+     * judged against what {@link BonusPasses#run} alone carries for each moment ({@link BonusMoment#carries}).
+     */
     @Nonnull
     public static <E extends BonusEntry> List<Finding> audit(@Nonnull BonusTable<E> table,
             @Nonnull Map<String, String> momentless, @Nonnull Codes codes, @Nullable RewardKindRegistry kinds,
             @Nullable FactorRegistry factors, @Nonnull UnaryOperator<List<Finding>> lootFold) {
+        return audit(table, momentless, codes, kinds, factors, lootFold, BonusMoment::carries);
+    }
+
+    /**
+     * Any table, stamped with {@code codes}, its loot findings passing through {@code lootFold}, its inline rolls
+     * judged against {@code carried}: the collector types the table's own pass layers for each moment.
+     */
+    @Nonnull
+    public static <E extends BonusEntry> List<Finding> audit(@Nonnull BonusTable<E> table,
+            @Nonnull Map<String, String> momentless, @Nonnull Codes codes, @Nullable RewardKindRegistry kinds,
+            @Nullable FactorRegistry factors, @Nonnull UnaryOperator<List<Finding>> lootFold,
+            @Nonnull Function<BonusMoment, Set<Class<?>>> carried) {
         List<Finding> findings = new ArrayList<>();
         for (Map.Entry<String, String> silent : momentless.entrySet()) {
             String named = silent.getValue();
@@ -83,7 +102,8 @@ public final class BonusRowAudit {
                     silent.getKey()));
         }
         for (BonusMoment moment : BonusMoment.values()) {
-            auditMoment(moment, table.patterned(moment), codes, kinds, factors, lootFold, findings);
+            auditMoment(moment, table.patterned(moment), codes, kinds, factors, lootFold, carried.apply(moment),
+                    findings);
         }
         return findings;
     }
@@ -91,7 +111,8 @@ public final class BonusRowAudit {
     private static <E extends BonusEntry> void auditMoment(@Nonnull BonusMoment moment,
             @Nonnull List<Map.Entry<NamePattern, E>> rows, @Nonnull Codes codes,
             @Nullable RewardKindRegistry kinds, @Nullable FactorRegistry factors,
-            @Nonnull UnaryOperator<List<Finding>> lootFold, @Nonnull List<Finding> findings) {
+            @Nonnull UnaryOperator<List<Finding>> lootFold, @Nonnull Set<Class<?>> carried,
+            @Nonnull List<Finding> findings) {
         // Two rows pinning down the same run of characters both apply somewhere, and each wins where
         // it is the more specific; worth seeing even though neither is wrong.
         Map<String, String> firstByCore = new LinkedHashMap<>();
@@ -122,10 +143,10 @@ public final class BonusRowAudit {
                                 + "broader pattern take over again.", id));
                 continue;
             }
-            // The moment says which collectors its pass carries, so a collecting kind written inline
-            // pays only where that pass carries its collector. A named table stays on the silent
-            // table path: the same table is rolled at other sites.
-            findings.addAll(lootFold.apply(LootableValidator.auditRef(entry.loot(), id, kinds, moment.carries())));
+            // The table's pass says which collectors it carries for this moment, so a collecting kind
+            // written inline pays only where that pass carries its collector. A named table stays on the
+            // silent table path: the same table is rolled at other sites.
+            findings.addAll(lootFold.apply(LootableValidator.auditRef(entry.loot(), id, kinds, carried)));
         }
     }
 

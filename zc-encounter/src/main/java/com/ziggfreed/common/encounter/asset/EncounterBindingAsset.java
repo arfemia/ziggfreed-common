@@ -1083,7 +1083,9 @@ public final class EncounterBindingAsset
     /**
      * The chest a won fight leaves where the boss fell: one prop every credited player can use, in which each
      * finds only their own unclaimed Claims from that fight. It stands until each of them has emptied theirs, its
-     * world closes, or its lifetime runs out; whatever is left waits under Claims.
+     * world closes, or its lifetime runs out; whatever is left waits under Claims. What the chest is (its look, its
+     * words, who opens it, what it holds of its own, when it goes) is the reward chest file {@code Chest} names, a
+     * file zc-instance reads; {@code Prop} and {@code Lifetime} here, when written, still win over that file's.
      */
     public static final class Spoils {
 
@@ -1091,10 +1093,13 @@ public final class EncounterBindingAsset
         public static final String DEFAULT_PROP = "Furniture_Dungeon_Chest_Epic";
         /** How long the chest stands when a row names no lifetime: five minutes. */
         public static final int DEFAULT_LIFETIME_SECONDS = 300;
+        /** The reward chest file a row's chest is when it names none: the library's boss chest. */
+        public static final String DEFAULT_CHEST = "Zc_Spoils_Chest";
 
         @Nullable protected Boolean enabled;
         @Nullable protected String prop;
         @Nullable protected Integer lifetime;
+        @Nullable protected String chest;
 
         public static final BuilderCodec<Spoils> CODEC = BuilderCodec.builder(Spoils.class, Spoils::new)
                 .appendInherited(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false),
@@ -1108,13 +1113,24 @@ public final class EncounterBindingAsset
                 .metadata(EditorSchema.assetRef(Item.class))
                 .metadata(EditorSchema.defaultValue(DEFAULT_PROP))
                 .documentation("The block item whose look the chest takes, by id: any chest block works. An id "
-                        + "that names no block item on this server falls back to the default, with a warning.")
+                        + "that names no block item on this server falls back to the default, with a warning. "
+                        + "Unauthored, the chest takes the look its Chest file names.")
                 .add()
                 .appendInherited(new KeyedCodec<>("Lifetime", Codec.INTEGER, false),
                         (o, v) -> o.lifetime = v, o -> o.lifetime, (o, p) -> o.lifetime = p.lifetime)
                 .metadata(EditorSchema.defaultValue(DEFAULT_LIFETIME_SECONDS))
                 .documentation("How many seconds the chest stands at most before it goes; anything left in it "
-                        + "still waits under Claims. Zero or less reads as the default.")
+                        + "still waits under Claims. Zero or less reads as the default. Unauthored, the chest "
+                        + "stands as long as its Chest file says.")
+                .add()
+                .appendInherited(new KeyedCodec<>("Chest", Codec.STRING, false),
+                        (o, v) -> o.chest = v, o -> o.chest, (o, p) -> o.chest = p.chest)
+                .metadata(EditorSchema.defaultValue(DEFAULT_CHEST))
+                .documentation("The reward chest file the chest is, by id (a file under "
+                        + "Server/ZiggfreedCommon/RewardChests/): its look, its words, who opens it, what it holds "
+                        + "of its own and when it goes. Prop and Lifetime above, when written, win over the file's. "
+                        + "Unauthored, Zc_Spoils_Chest, the library's boss chest. An id no loaded file defines takes "
+                        + "the library's boss chest too, with a warning.")
                 .add()
                 .build();
 
@@ -1135,6 +1151,30 @@ public final class EncounterBindingAsset
         /** How many seconds the chest stands at most: as authored when positive, else {@link #DEFAULT_LIFETIME_SECONDS}. */
         public int lifetimeSeconds() {
             return lifetime == null || lifetime <= 0 ? DEFAULT_LIFETIME_SECONDS : lifetime;
+        }
+
+        /** {@code Prop} as authored, trimmed, or null when the row writes none (the chest file's look then). */
+        @Nullable
+        public String getProp() {
+            return prop == null || prop.isBlank() ? null : prop.trim();
+        }
+
+        /** {@code Lifetime} as authored when positive, or null (the chest file's lifetime then). */
+        @Nullable
+        public Integer getLifetime() {
+            return lifetime == null || lifetime <= 0 ? null : lifetime;
+        }
+
+        /** {@code Chest} as authored, trimmed, or null when the row writes none. */
+        @Nullable
+        public String getChest() {
+            return chest == null || chest.isBlank() ? null : chest.trim();
+        }
+
+        /** The reward chest file this fight's chest is: as authored, else {@link #DEFAULT_CHEST}. */
+        @Nonnull
+        public String chest() {
+            return orDefault(chest, DEFAULT_CHEST);
         }
     }
 

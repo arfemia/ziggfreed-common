@@ -2,25 +2,36 @@ package com.ziggfreed.common.objectives.bonus;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import org.joml.Vector3d;
+import org.joml.Vector3i;
+
 import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.event.events.ecs.InteractivelyPickupItemEvent;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
+import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.command.CommandRunner;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorRegistry;
+import com.ziggfreed.common.i18n.NativeNames;
+import com.ziggfreed.common.instance.claims.SpoilsChests;
 import com.ziggfreed.common.inventory.PlayerAccess;
 import com.ziggfreed.common.loot.FactorSnapshot;
 import com.ziggfreed.common.loot.LootCues;
+import com.ziggfreed.common.loot.reward.ChestSite;
 import com.ziggfreed.common.loot.reward.LootRewardKinds;
 import com.ziggfreed.common.loot.trigger.BonusChance;
 import com.ziggfreed.common.loot.trigger.BonusMoment;
@@ -49,6 +60,11 @@ import com.ziggfreed.common.util.SafeLog;
  * pass pays through the moment's own quest subject (the runtime's, so a consumer's notification
  * preferences reach a cue toast), or a subject over the player reference when the runtime has none.
  * A harvest's pass waits for one world task past the engine's own give and re-reads the event there.
+ *
+ * <p>A kill's and a break's pass carries a {@link ChestSite} ({@code BonusMoment.libraryCarries}): a
+ * {@code Reward_Chest} reward it rolls stands that reward chest where the corpse lay or the block was, for the
+ * player the moment credited alone ({@link SpoilsChests#stand}, under a fresh key), and the chest holds what its
+ * own file's {@code Contents} rolls for them. Collected, never handed over (M428).
  */
 public final class BonusRowReactions implements MomentListener {
 
@@ -136,11 +152,15 @@ public final class BonusRowReactions implements MomentListener {
         }
         Subject subject = subjectOf(moment);
         String sourceId = SOURCE_PREFIX + row.sourceId();
-        BonusPasses.Outcome pass = BonusPasses.run(BonusPasses.atBlock(store, buffer, payload.event().getTargetBlock()),
+        Vector3i block = payload.event().getTargetBlock();
+        ChestSite chests = new ChestSite();
+        BonusPasses.Outcome pass = BonusPasses.run(BonusPasses.atBlock(store, buffer, block),
                 BonusRowConfig.getInstance().rolls().resolved(row), new FactorSnapshot(factors(), about),
-                ThreadLocalRandom.current()::nextDouble, null, subject, CommandRunner.CONSOLE,
+                ThreadLocalRandom.current()::nextDouble, null, subject.withFacets(chests), CommandRunner.CONSOLE,
                 placeholders(subject, "block", moment.target()), sourceId, SafeLog::warn);
         LootCues.presentAll(pass.result().getCues(), subject, sourceId);
+        standChest(chests, store, moment.ref(), new Vector3d(block.x + 0.5, block.y, block.z + 0.5),
+                NativeNames.targetNameMsg(moment.target()), "block=" + moment.target(), sourceId);
     }
 
     private static void onKill(@Nonnull Moment moment, @Nonnull BonusRow row, @Nonnull MobKillPayload payload) {
@@ -156,11 +176,70 @@ public final class BonusRowReactions implements MomentListener {
         }
         Subject subject = subjectOf(moment);
         String sourceId = SOURCE_PREFIX + row.sourceId();
+        // Where the corpse lies, read before the pass hands anything over.
+        Vector3d corpse = positionOf(store, victim);
+        ChestSite chests = new ChestSite();
         BonusPasses.Outcome pass = BonusPasses.run(BonusPasses.atCorpse(store, buffer, victim),
                 BonusRowConfig.getInstance().rolls().resolved(row), new FactorSnapshot(factors(), about),
-                ThreadLocalRandom.current()::nextDouble, null, subject, CommandRunner.CONSOLE,
+                ThreadLocalRandom.current()::nextDouble, null, subject.withFacets(chests), CommandRunner.CONSOLE,
                 placeholders(subject, "mob", moment.target()), sourceId, SafeLog::warn);
         LootCues.presentAll(pass.result().getCues(), subject, sourceId);
+        if (corpse != null) {
+            standChest(chests, store, moment.ref(), corpse, NativeNames.entityNameMsg(moment.target()),
+                    "mob=" + moment.target(), sourceId);
+        } else if (chests.first() != null) {
+            SafeLog.warn("Bonus row '" + row.sourceId() + "' paid a reward chest, but the kill left no place to stand "
+                    + "it, so none goes up");
+        }
+    }
+
+    // ==================== a reward chest the pass collected ====================
+
+    /**
+     * Stand the reward chest a kill's or a break's pass collected ({@code Reward_Chest}, the first file it named) at
+     * {@code at}, credited to the player the moment credited alone, under a fresh key: zc-instance's
+     * {@link SpoilsChests#stand}, which rolls the chest file's own contents for them and raises it at that Claim. A
+     * second file the pass collected is left out, with a line. Nothing for a pass that collected none.
+     */
+    private static void standChest(@Nonnull ChestSite chests, @Nonnull Store<EntityStore> store,
+            @Nullable Ref<EntityStore> player, @Nonnull Vector3d at, @Nonnull Message sourceName,
+            @Nonnull String source, @Nonnull String sourceId) {
+        String chest = chests.first();
+        if (chest == null) {
+            return;
+        }
+        try {
+            if (chests.chests().size() > 1) {
+                SafeLog.info("Bonus row '" + sourceId + "' collected " + chests.chests().size() + " reward chests in "
+                        + "one pass; one pass stands one, so only '" + chest + "' goes up");
+            }
+            PlayerRef playerRef = player == null ? null : PlayerAccess.playerRef(store, player);
+            UUID credited = playerRef == null ? null : playerRef.getUuid();
+            World world = store.getExternalData().getWorld();
+            if (credited == null || world == null) {
+                SafeLog.warn("Bonus row '" + sourceId + "' paid the reward chest '" + chest + "', but no player or "
+                        + "world could be read, so none goes up");
+                return;
+            }
+            SpoilsChests.stand(SpoilsChests.Stand.of(chest, SpoilsChests.newKey(), world.getWorldConfig().getUuid(),
+                    at, Set.of(credited), sourceName, source));
+        } catch (Throwable t) {
+            SafeLog.warn("Bonus row '" + sourceId + "' could not stand the reward chest '" + chest + "'", t);
+        }
+    }
+
+    /** Where {@code entity} stands, copied; null when it cannot be read. */
+    @Nullable
+    private static Vector3d positionOf(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> entity) {
+        try {
+            if (!entity.isValid()) {
+                return null;
+            }
+            TransformComponent transform = store.getComponent(entity, TransformComponent.getComponentType());
+            return transform == null ? null : new Vector3d(transform.getPosition());
+        } catch (Throwable t) {
+            return null;
+        }
     }
 
     private static void onPickup(@Nonnull Moment moment, @Nonnull BonusRow row, @Nonnull PickupPayload payload) {

@@ -60,6 +60,7 @@ import com.ziggfreed.common.loot.reward.DroplistRewardKind;
 import com.ziggfreed.common.loot.reward.FeetDropOverflow;
 import com.ziggfreed.common.loot.reward.LootRewardKinds;
 import com.ziggfreed.common.loot.reward.LootablePreview;
+import com.ziggfreed.common.loot.reward.ChestSite;
 import com.ziggfreed.common.loot.reward.MomentItems;
 import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardKinds;
@@ -381,7 +382,8 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
     /**
      * The loot vocabulary a bare server starts with: the three framework reward kinds, the droplist
      * kind (a native drop table rolled onto the ground), the moment-item kind (another of the stack a
-     * pass is about, collected by that pass), the effect and costume kinds (registered from up here
+     * pass is about, collected by that pass), the reward-chest kind (a reward chest the pass stands where
+     * its kill or break happened, collected by that pass), the effect and costume kinds (registered from up here
      * because the loot layer must never see the effect module), the stack-metadata stamper every
      * stamp writes through until a richer mod replaces it, and the default overflow policy - an item
      * reward that does not fit the bag drops on the ground at the player's feet through the one
@@ -405,6 +407,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         LootRewardKinds.registerInto(RewardKinds.shared());
         DroplistRewardKind.registerInto(RewardKinds.shared());
         MomentItems.registerInto(RewardKinds.shared());
+        ChestSite.registerInto(RewardKinds.shared());
         EffectRewardKind.registerInto(RewardKinds.shared());
         CostumeRewardKind.registerInto(RewardKinds.shared());
         LootRewardKinds.factors(lootFactorVocabulary());

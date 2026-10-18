@@ -159,7 +159,8 @@ public final class ClaimsPage extends ToastablePage<ClaimsEventData> {
         // The action bar's buttons are live elements, bound once per build.
         DetailPainter.bindActionsOnce(events, DETAIL, ClaimsPage::actionFor, null);
         cmd.set("#ClaimsTitle.TextSpans", text.line(fight == null ? "page.title" : "spoils.title"));
-        cmd.set("#ClaimsLead.TextSpans", text.line(fight == null ? "page.lead" : "spoils.lead"));
+        // A chest's page reads its own file's line (Text.LeadKey), the boss chest's spoils.lead by default.
+        cmd.set("#ClaimsLead.TextSpans", fight == null ? text.line("page.lead") : SpoilsChests.leadOf(fight));
         // The shared menu's rail, the Claims tab selected; painted before the empty-list early return.
         rail = ZigMenu.paint(cmd, events, store, ref, store.getComponent(ref, Player.getComponentType()),
                 MenuSlot.CLAIMS.id(), false);
