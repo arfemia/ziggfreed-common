@@ -1,9 +1,6 @@
 package com.ziggfreed.common.loot.trigger;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.EnumMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -11,7 +8,7 @@ import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.ziggfreed.common.match.NameMatchRank;
+import com.ziggfreed.common.match.MomentTable;
 import com.ziggfreed.common.match.NamePattern;
 
 /**
@@ -22,7 +19,8 @@ import com.ziggfreed.common.match.NamePattern;
  * answer: the later row in fold order wins it and takes the earlier one's place. Matching is the
  * shared name grammar scored by the shared specificity ladder: an exact pattern first, then the
  * pattern pinning down the longest run of characters, then the bare {@code "*"} catch-all; two
- * equally specific patterns keep the one folded first.
+ * equally specific patterns keep the one folded first. All of it is zc-core's {@link MomentTable}, keyed
+ * by each moment's objective kind id ({@link BonusMoment#kindId()}), which also keeps each answer per name.
  *
  * @param <E> the table's own row type
  */
@@ -41,25 +39,22 @@ public final class BonusTable<E extends BonusEntry> {
         }
     }
 
-    private final Map<BonusMoment, List<Row<E>>> rows;
+    @Nonnull
+    private final MomentTable<Row<E>> table;
 
-    private BonusTable(@Nonnull Map<BonusMoment, List<Row<E>>> rows) {
-        this.rows = rows;
+    private BonusTable(@Nonnull MomentTable<Row<E>> table) {
+        this.table = table;
     }
 
     /** The table {@code inFoldOrder} folds to. */
     @Nonnull
     public static <E extends BonusEntry> BonusTable<E> fold(@Nonnull List<Row<E>> inFoldOrder) {
-        Map<BonusMoment, Map<String, Row<E>>> folded = new EnumMap<>(BonusMoment.class);
+        List<MomentTable.Row<Row<E>>> rows = new ArrayList<>(inFoldOrder.size());
         for (Row<E> row : inFoldOrder) {
-            folded.computeIfAbsent(row.entry().moment(), moment -> new LinkedHashMap<>())
-                    .put(row.patternKey(), row);
+            rows.add(new MomentTable.Row<>(row.entry().moment().kindId(), row.pattern(), null, row.patternKey(),
+                    row));
         }
-        Map<BonusMoment, List<Row<E>>> built = new EnumMap<>(BonusMoment.class);
-        for (Map.Entry<BonusMoment, Map<String, Row<E>>> e : folded.entrySet()) {
-            built.put(e.getKey(), List.copyOf(e.getValue().values()));
-        }
-        return new BonusTable<>(Collections.unmodifiableMap(built));
+        return new BonusTable<>(MomentTable.fold(rows));
     }
 
     /**
@@ -68,36 +63,17 @@ public final class BonusTable<E extends BonusEntry> {
      */
     @Nullable
     public E bestFor(@Nonnull BonusMoment moment, @Nullable String name) {
-        if (name == null || name.isEmpty()) {
-            return null;
-        }
-        List<Row<E>> candidates = rows.get(moment);
-        if (candidates == null || candidates.isEmpty()) {
-            return null;
-        }
-        String candidate = name.toLowerCase(Locale.ROOT);
-        E best = null;
-        NameMatchRank bestRank = null;
-        for (Row<E> row : candidates) {
-            if (!row.pattern().matches(candidate)) {
-                continue;
-            }
-            NameMatchRank rank = NameMatchRank.ofPattern(row.pattern());
-            if (rank.isMoreSpecificThan(bestRank)) {
-                bestRank = rank;
-                best = row.entry();
-            }
-        }
-        return best;
+        Row<E> row = table.bestFor(moment.kindId(), name, null);
+        return row == null ? null : row.entry();
     }
 
     /** Every folded row: the moments in declaration order, each in fold order. */
     @Nonnull
     public List<E> entries() {
         List<E> out = new ArrayList<>();
-        for (List<Row<E>> moment : rows.values()) {
-            for (Row<E> row : moment) {
-                out.add(row.entry());
+        for (BonusMoment moment : BonusMoment.values()) {
+            for (MomentTable.Row<Row<E>> row : table.rows(moment.kindId())) {
+                out.add(row.entry().entry());
             }
         }
         return out;
@@ -107,21 +83,14 @@ public final class BonusTable<E extends BonusEntry> {
     @Nonnull
     public List<Map.Entry<NamePattern, E>> patterned(@Nonnull BonusMoment moment) {
         List<Map.Entry<NamePattern, E>> out = new ArrayList<>();
-        List<Row<E>> list = rows.get(moment);
-        if (list != null) {
-            for (Row<E> row : list) {
-                out.add(Map.entry(row.pattern(), row.entry()));
-            }
+        for (MomentTable.Row<Row<E>> row : table.rows(moment.kindId())) {
+            out.add(Map.entry(row.entry().pattern(), row.entry().entry()));
         }
         return out;
     }
 
     /** How many rows the table holds across every moment. */
     public int size() {
-        int total = 0;
-        for (List<Row<E>> moment : rows.values()) {
-            total += moment.size();
-        }
-        return total;
+        return table.size();
     }
 }

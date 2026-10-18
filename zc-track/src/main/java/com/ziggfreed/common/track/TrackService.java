@@ -24,6 +24,8 @@ import com.ziggfreed.common.track.asset.TrackConfig;
 import com.ziggfreed.common.track.curve.CurveTable;
 import com.ziggfreed.common.track.curve.TrackCurves;
 import com.ziggfreed.common.track.event.TrackEvents;
+import com.ziggfreed.common.track.gain.GainPipeline;
+import com.ziggfreed.common.track.gain.RestedFactor;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -32,13 +34,18 @@ import com.ziggfreed.common.util.SafeLog;
  * {@link #load} (anyone, from any thread). All of them go through the {@link TrackStore} the key's subject kind
  * has ({@link TrackStores}).
  *
- * <p><b>A committed move</b> keeps the record with the marks of the unlock Claims it now owes, then writes those
- * Claims ({@link TrackUnlocks}: marks saved first, a Claim that cannot be written put back and saved again) and
- * fires {@code ZigTrackChangedEvent}. When a reading moved (the level, the best level or the prestige count;
- * {@link TrackChange#readingsMoved}) it also writes the level onto the track's {@code Mirror} stat and moves the
- * player's gate epoch, since the track readings are {@code Player}-volatile and a verdict kept over them must be
- * read again; a move inside one level (the value or its fraction alone) leaves both alone, which keeps a stream
- * of small gains off the gate's hot path. A move that changes nothing does none of it.
+ * <p><b>A gain</b> runs through the gain seam first ({@link TrackGain}, the library's {@code gain.GainPipeline}:
+ * the track's named factors, compiled once per player and track); {@link #explain} is the same write saying what
+ * each factor did.
+ *
+ * <p><b>A committed move</b> keeps the new record first. When a reading moved (the level, the best level or the
+ * prestige count; {@link TrackChange#readingsMoved}) it then writes the level onto the track's {@code Mirror} stat
+ * and moves the player's gate epoch, since the track readings are {@code Player}-volatile and a verdict kept over
+ * them must be read again; a move inside one level (the value or its fraction alone) leaves both alone, which
+ * keeps a stream of small gains off the gate's hot path. Only then are the unlock Claims it owes worked out, so a
+ * reward gated on the track's own reading reads the move that pays it, and written ({@link TrackUnlocks}: marks
+ * saved first, a Claim that cannot be written put back and saved again), and {@code ZigTrackChangedEvent} fires.
+ * A move that changes nothing does none of it.
  *
  * <p><b>The value</b> is kept whole, with the fraction a gain left over carried into the next one, so
  * fractional gains add up exactly. A gain stops at the start of the track's {@code Cap} level (the fraction
@@ -70,22 +77,31 @@ public final class TrackService {
         NOT_READY
     }
 
-    /** What a write did, and the move when one was committed. */
-    public record Result(@Nonnull Status status, @Nullable TrackChange change) {
+    /**
+     * What a write did, the move when one was committed, and what each gain factor did when {@link #explain} asked
+     * (null otherwise).
+     */
+    public record Result(@Nonnull Status status, @Nullable TrackChange change, @Nullable GainBreakdown breakdown) {
 
         static Result of(@Nonnull Status status) {
-            return new Result(status, null);
+            return new Result(status, null, null);
         }
 
         /** Did the climb move? */
         public boolean moved() {
             return status == Status.CHANGED;
         }
+
+        /** This result with {@code explained} as its breakdown. */
+        @Nonnull
+        Result explained(@Nullable GainBreakdown explained) {
+            return explained == null ? this : new Result(status, change, explained);
+        }
     }
 
-    /** The gain seam ({@link TrackGain}); the library's default lands every gain as asked. */
+    /** The gain seam ({@link TrackGain}); the library's default is the gain pipeline. */
     @Nonnull
-    private static volatile TrackGain gain = TrackGain.AS_ASKED;
+    private static volatile TrackGain gain = GainPipeline.INSTANCE;
 
     private TrackService() {
     }
@@ -93,11 +109,12 @@ public final class TrackService {
     // ==================== the seam ====================
 
     /**
-     * Put {@code pipeline} in front of every {@link #add}; null restores the library's default, which lands every
-     * gain as asked. One pipeline per server: a second install replaces the first.
+     * Put {@code pipeline} in front of every {@link #add} in place of the library's gain pipeline; null restores
+     * the pipeline. One seam per server: a second install replaces the first. A consumer adding one factor
+     * registers it ({@code gain.GainFactors}) instead.
      */
     public static void gain(@Nullable TrackGain pipeline) {
-        gain = pipeline == null ? TrackGain.AS_ASKED : pipeline;
+        gain = pipeline == null ? GainPipeline.INSTANCE : pipeline;
     }
 
     /** The gain seam in force. */
@@ -168,6 +185,20 @@ public final class TrackService {
      */
     @Nonnull
     public static Result add(@Nonnull TrackKey key, double amount, @Nonnull String source) {
+        return add(key, amount, source, false);
+    }
+
+    /**
+     * {@link #add}, saying what each gain factor did ({@link Result#breakdown()}): the breakdown is built only on
+     * this path, never on an ordinary gain.
+     */
+    @Nonnull
+    public static Result explain(@Nonnull TrackKey key, double amount, @Nonnull String source) {
+        return add(key, amount, source, true);
+    }
+
+    @Nonnull
+    private static Result add(@Nonnull TrackKey key, double amount, @Nonnull String source, boolean explain) {
         TrackDef def = def(key.track());
         if (def == null) {
             return Result.of(Status.UNKNOWN);
@@ -186,22 +217,32 @@ public final class TrackService {
                 && !StoreGates.passes(requires, GateQuery.of(FactorContext.about(ref.getStore(), ref)))) {
             return Result.of(Status.LOCKED);
         }
+        GainCall call = new GainCall(key, def, before, ref, amount, source, explain);
         double landed;
         try {
-            landed = gain.apply(key, def.asset(), amount, source);
+            landed = gain.apply(call);
         } catch (Throwable t) {
             SafeLog.warn("[track] the gain seam failed on '" + key.track() + "', so the gain lands as asked: "
                     + t.getMessage());
+            call.record(before);
             landed = amount;
         }
-        if (!Double.isFinite(landed) || landed == 0.0) {
-            return Result.of(Status.UNCHANGED);
+        if (!Double.isFinite(landed)) {
+            landed = 0.0;
         }
-        TrackRecord after = moved(def, before, landed);
+        TrackRecord base = call.record();
+        TrackRecord after = landed == 0.0 ? base : moved(def, base, landed);
         if (after.equals(before)) {
-            return Result.of(Status.UNCHANGED);
+            return Result.of(Status.UNCHANGED).explained(explain ? breakdown(call, landed, before, after) : null);
         }
-        return commit(store, key, def, before, after, source, ref);
+        Result result = commit(store, key, def, before, after, source, ref);
+        return result.explained(explain ? breakdown(call, landed, before, after) : null);
+    }
+
+    @Nonnull
+    private static GainBreakdown breakdown(@Nonnull GainCall call, double landed, @Nonnull TrackRecord before,
+            @Nonnull TrackRecord after) {
+        return new GainBreakdown(call.key(), call.asked(), landed, after.value() - before.value(), call.explained());
     }
 
     /**
@@ -276,12 +317,22 @@ public final class TrackService {
         if (ref == null) {
             return;
         }
+        // How long the player was away, asked once per login: a world change counts none.
+        TrackComponent held = PlayerTrackStore.live(ref.getStore(), ref);
+        long awayMs = held == null ? 0L : held.takeAwayMs(System.currentTimeMillis());
         for (TrackDef def : defs()) {
             TrackKey key = TrackKey.player(playerId, def.asset().getId());
             TrackStore store = TrackStores.forKey(key);
             TrackRecord record = store == null ? null : store.get(key);
             if (record == null) {
                 continue;
+            }
+            TrackAsset.Rested rested = def.asset().rested();
+            if (rested != null && awayMs > 0L) {
+                TrackRecord filled = record.withRested(RestedFactor.fillFor(def, record, rested, awayMs));
+                if (filled != record && store.put(key, filled)) {
+                    record = filled;
+                }
             }
             mirror(ref, def, record);
             if (!def.asset().unlocks().isEmpty()) {
@@ -325,40 +376,48 @@ public final class TrackService {
             }
         }
         TrackRecord moved = before.withValue(value, fraction);
-        return moved.withBest(def.table().levelOf(value));
+        // The best the record holds READS as its level when nothing is on record, so it is kept as read: a loss
+        // never lowers it.
+        return moved.withBest(Math.max(def.best(before), def.table().levelOf(value)));
     }
 
     /**
-     * Keep a move and announce it: the record and the Claims it owes, then, when a reading moved, the mirror and
-     * the epoch; the event always.
+     * Keep a move and announce it: the move itself first, and, when a reading moved, the mirror and the epoch, so
+     * the unlock pass after it reads the new climb (a reward gated on this track's own level sees the level that
+     * pays it); then the Claims it owes, marks saved before Claims; the event always.
      */
     @Nonnull
     private static Result commit(@Nonnull TrackStore store, @Nonnull TrackKey key, @Nonnull TrackDef def,
             @Nonnull TrackRecord before, @Nonnull TrackRecord after, @Nonnull String source,
             @Nullable Ref<EntityStore> ref) {
         UUID playerId = key.playerId();
-        TrackRecord kept = after;
-        int claims = 0;
-        if (playerId != null && key.isDefault() && !def.asset().unlocks().isEmpty()) {
-            TrackUnlocks.Parked parked = keepPaying(store, key, def, before, after, playerId,
-                    ref == null ? null : queryOf(ref));
-            if (parked == null) {
-                return Result.of(Status.NOT_LIVE);
-            }
-            kept = parked.record();
-            claims = parked.claims();
-        } else if (!store.put(key, kept)) {
+        if (!store.put(key, after)) {
             return Result.of(Status.NOT_LIVE);
         }
-        TrackChange change = new TrackChange(key, def, before, kept, source, claims);
-        if (change.readingsMoved()) {
+        // A move of the value is what any reading reads; a move of the rested pool alone (a gain the cap stopped
+        // after the pool paid) is kept and announced the same way.
+        TrackChange moved = new TrackChange(key, def, before, after, source, 0);
+        if (moved.readingsMoved()) {
             if (ref != null && key.isDefault()) {
-                mirror(ref, def, kept);
+                mirror(ref, def, after);
             }
             GateEpochs.bumpPlayer(playerId);
         }
+        TrackRecord kept = after;
+        int claims = 0;
+        if (playerId != null && key.isDefault() && !def.asset().unlocks().isEmpty()) {
+            // A refused save of the marks writes no Claim; the settle at the next login pays what is owed.
+            TrackUnlocks.Parked parked = keepPaying(store, key, def, after, after, playerId,
+                    ref == null ? null : queryOf(ref));
+            if (parked != null) {
+                kept = parked.record();
+                claims = parked.claims();
+            }
+        }
+        TrackChange change = claims == 0 && kept == after ? moved
+                : new TrackChange(key, def, before, kept, source, claims);
         TrackEvents.fireChanged(change);
-        return new Result(Status.CHANGED, change);
+        return new Result(Status.CHANGED, change, null);
     }
 
     /**

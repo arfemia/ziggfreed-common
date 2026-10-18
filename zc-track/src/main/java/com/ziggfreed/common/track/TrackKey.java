@@ -76,7 +76,7 @@ public record TrackKey(@Nonnull Subject subject, @Nonnull String namespace, @Non
 
     /** A key part as every key holds it: trimmed and lower-cased, {@code ""} for none. */
     @Nonnull
-    static String normalize(@Nullable String value) {
+    public static String normalize(@Nullable String value) {
         return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
     }
 }

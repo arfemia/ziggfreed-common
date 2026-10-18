@@ -44,6 +44,7 @@ import com.ziggfreed.common.objectives.producer.RankAchievementGatedContent;
 import com.ziggfreed.common.objectives.producer.ZigBlockBreakProducer;
 import com.ziggfreed.common.objectives.producer.ZigCalendarProducer;
 import com.ziggfreed.common.objectives.producer.ZigCraftProducer;
+import com.ziggfreed.common.objectives.producer.ZigDamageProducer;
 import com.ziggfreed.common.objectives.producer.ZigEncounterProducer;
 import com.ziggfreed.common.objectives.producer.ZigGearSetProducer;
 import com.ziggfreed.common.objectives.producer.ZigInstanceRoundProducer;
@@ -225,6 +226,8 @@ public final class ProgressionDefaults {
         plugin.getEventRegistry().registerGlobal(PlayerReadyEvent.class, ProgressionDefaults::onPlayerReady);
         plugin.getEntityStoreRegistry().registerSystem(new ZigBlockBreakProducer());
         plugin.getEntityStoreRegistry().registerSystem(new ZigMobKillProducer());
+        // DEAL_DAMAGE, to the reactions only and only while a track source listens (the MMO feeds the engines).
+        ZigDamageProducer.install(plugin);
         plugin.getEntityStoreRegistry().registerSystem(new ZigCraftProducer());
         plugin.getEntityStoreRegistry().registerSystem(new ZigPickupProducer());
         plugin.getEntityStoreRegistry().registerSystem(new ZigPlaceBlockProducer());
@@ -269,7 +272,8 @@ public final class ProgressionDefaults {
                 ZigEncounterProducer.KIND_PHASE, ZigEncounterProducer.KIND_FEAT, ZigCalendarProducer.KIND,
                 ZigLootReceivedProducer.KIND,
                 ZigQuestCompletionProducer.KIND, ZigReputationProducer.KIND, ZigGearSetProducer.KIND,
-                TrackObjectives.LEVEL, TrackObjectives.TIER, ZigTalkProducer.KIND);
+                TrackObjectives.LEVEL, TrackObjectives.TIER, ZigTalkProducer.KIND,
+                ZigDamageProducer.KIND + " (reactions only, while a track source listens)");
     }
 
     // ==================== persistence notifications ====================

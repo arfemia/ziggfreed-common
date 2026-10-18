@@ -34,7 +34,6 @@ class BonusMomentTest {
         assertNull(BonusMoment.parse(""));
         assertNull(BonusMoment.parse("  _ "));
         assertNull(BonusMoment.parse("Sneeze"));
-        assertNull(BonusMoment.parse("KILL_ENTITY"), "the objective kind id is not a bonus moment's spelling");
     }
 
     @Test

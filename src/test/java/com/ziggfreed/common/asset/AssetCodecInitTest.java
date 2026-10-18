@@ -104,6 +104,11 @@ import com.ziggfreed.common.track.ZigTrackReward;
 import com.ziggfreed.common.track.asset.TrackAsset;
 import com.ziggfreed.common.track.asset.TrackCategoryAsset;
 import com.ziggfreed.common.track.asset.TrackCurveAsset;
+import com.ziggfreed.common.track.source.SourceRow;
+import com.ziggfreed.common.track.source.TrackSourceAsset;
+import com.ziggfreed.common.track.world.TrackRules;
+import com.ziggfreed.common.track.world.TrackWorldRuleAsset;
+import com.ziggfreed.common.match.When;
 import com.ziggfreed.common.ui.hud.panel.HudPanelAsset;
 import com.ziggfreed.common.ui.hud.panel.HudRowAsset;
 import com.ziggfreed.common.ui.hud.panel.HudSpotAsset;
@@ -226,6 +231,16 @@ class AssetCodecInitTest {
         // The native reward Type registers into the engine's own reward codec, so a lower-case key in it
         // would fail inside an owner's Server/Rewards file instead of at this build.
         assertNotNull(ZigTrackReward.CODEC, "ZigTrackReward.CODEC must static-init (PascalCase keys)");
+        assertNotNull(TrackAsset.Gain.CODEC, "the Gain group codec must static-init");
+        assertNotNull(TrackAsset.Rested.CODEC, "the Rested group codec must static-init");
+        assertNotNull(When.CODEC, "the shared When group codec must static-init (PascalCase keys)");
+        assertNotNull(TrackSourceAsset.CODEC, "TrackSourceAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(SourceRow.CODEC, "the source row codec must static-init");
+        assertNotNull(TrackWorldRuleAsset.CODEC, "TrackWorldRuleAsset.CODEC must static-init (PascalCase keys)");
+        // The native gameplay config group registers into the engine's own Plugin codec, so a lower-case key in
+        // it would fail inside a world's gameplay config instead of at this build.
+        assertNotNull(TrackRules.CODEC, "TrackRules.CODEC must static-init (PascalCase keys)");
+        assertNotNull(TrackRules.GainRules.CODEC, "the Gain rules group codec must static-init");
     }
 
     @Test

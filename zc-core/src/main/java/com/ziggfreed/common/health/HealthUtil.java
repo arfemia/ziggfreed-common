@@ -355,6 +355,20 @@ public final class HealthUtil {
         return store.getComponent(ref, EntityStatsModule.get().getEntityStatMapComponentType());
     }
 
+    /**
+     * The entity's {@code Health} right now, or NaN when it has none or it cannot be read. What a damage producer
+     * reads before the engine applies a hit (in the Filter group, which never moves health), so the hit can be
+     * capped at what the target had left.
+     */
+    public static float current(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
+        try {
+            EntityStatValue health = ref.isValid() ? healthStat(store, ref) : null;
+            return health == null ? Float.NaN : health.get();
+        } catch (Throwable t) {
+            return Float.NaN;
+        }
+    }
+
     private static EntityStatValue healthStat(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
         EntityStatMap stats = statMap(store, ref);
         return stats == null ? null : stats.get(DefaultEntityStatTypes.getHealth());

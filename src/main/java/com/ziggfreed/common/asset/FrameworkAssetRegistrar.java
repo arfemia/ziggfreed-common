@@ -143,6 +143,11 @@ import com.ziggfreed.common.track.asset.TrackConfig;
 import com.ziggfreed.common.track.asset.TrackCurveAsset;
 import com.ziggfreed.common.track.asset.TrackCurveConfig;
 import com.ziggfreed.common.track.asset.TrackOwnerLayers;
+import com.ziggfreed.common.track.source.TrackSourceAsset;
+import com.ziggfreed.common.track.source.TrackSourceConfig;
+import com.ziggfreed.common.track.source.TrackSourceOwnerLayers;
+import com.ziggfreed.common.track.world.TrackWorldRuleAsset;
+import com.ziggfreed.common.track.world.TrackWorldRuleConfig;
 import com.ziggfreed.common.ui.hud.panel.HudOwnerLayers;
 import com.ziggfreed.common.ui.hud.panel.HudPanelAsset;
 import com.ziggfreed.common.ui.hud.panel.HudPanelConfig;
@@ -994,6 +999,34 @@ public final class FrameworkAssetRegistrar {
                     TrackOwnerLayers.reload();
                 });
 
+        // --- Track sources (Pattern A, gated) - what a moment pays onto a track: a track id, a When (an objective
+        //     kind, a target pattern, a qualifier) and Rows by name pattern, any pack adding rows to anyone's
+        //     track. A file may gate on a mod through its top-level Requires. The library ships none. Owner file
+        //     mods/ziggfreedcommon/track-sources.json, re-read on this same event. No loadsAfter: a source names
+        //     its track by id and the index folds at first ask. ---
+        AssetStoreRegistrar.registerStore(TrackSourceAsset.class,
+                new DefaultAssetMap<String, TrackSourceAsset>(), TrackSourceAsset.TYPE_ROOT,
+                TrackSourceAsset::getId, TrackSourceAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, TrackSourceAsset.class,
+                (LoadedAssetsEvent<String, TrackSourceAsset, DefaultAssetMap<String, TrackSourceAsset>> ev) -> {
+                    TrackSourceConfig.getInstance().mergePackLayer(AssetMergeAdapter.gate(
+                            TrackSourceConfig.MOD_GATE_STORE, ev.getAssetMap(), s -> GateSpec.missingMod(s.requires())));
+                    TrackSourceOwnerLayers.reload();
+                });
+
+        // --- Track world rules (Pattern A) - track rules for the worlds a pattern names (Where), for what a
+        //     world's own gameplay config (Plugin.ZigTrackRules, the native home, which wins where both apply)
+        //     cannot say. The library ships none. Owner file mods/ziggfreedcommon/track-world-rules.json, re-read
+        //     on this same event. ---
+        AssetStoreRegistrar.registerStore(TrackWorldRuleAsset.class,
+                new DefaultAssetMap<String, TrackWorldRuleAsset>(), TrackWorldRuleAsset.TYPE_ROOT,
+                TrackWorldRuleAsset::getId, TrackWorldRuleAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, TrackWorldRuleAsset.class,
+                (LoadedAssetsEvent<String, TrackWorldRuleAsset, DefaultAssetMap<String, TrackWorldRuleAsset>> ev) -> {
+                    TrackWorldRuleConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    TrackWorldRuleConfig.reloadOwnerLayer();
+                });
+
         // --- Stats (Pattern A) - one stat the player stat store keeps per file, keyed by the file name
         //     (the tally key every player's record files it under): its name, what its number means, how
         //     it reads, the moments it counts and its breakdown. The library ships its own (Mob_Kills,
@@ -1062,6 +1095,8 @@ public final class FrameworkAssetRegistrar {
                         + "GearSets (owner file mods/ziggfreedcommon/gear-sets.json), Titles (owner file mods/ziggfreedcommon/titles.json), "
                         + "Reputations (owner file mods/ziggfreedcommon/reputation.json), TrackCurves, TrackCategories, "
                         + "Tracks (owner file mods/ziggfreedcommon/tracks.json), "
+                        + "TrackSources (owner file mods/ziggfreedcommon/track-sources.json), "
+                        + "TrackWorldRules (owner file mods/ziggfreedcommon/track-world-rules.json), "
                         + "Stats (owner file mods/ziggfreedcommon/stats.json)).");
     }
 }

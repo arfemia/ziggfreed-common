@@ -3,6 +3,8 @@ package com.ziggfreed.common.track.docs;
 import javax.annotation.Nonnull;
 
 import com.ziggfreed.common.factor.FactorCondition;
+import com.ziggfreed.common.loot.diminish.DiminishSpec;
+import com.ziggfreed.common.match.When;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.progress.docs.SchemaDocWriter;
 import com.ziggfreed.common.progress.gate.GateClause;
@@ -12,6 +14,11 @@ import com.ziggfreed.common.track.ZigTrackReward;
 import com.ziggfreed.common.track.asset.TrackAsset;
 import com.ziggfreed.common.track.asset.TrackCategoryAsset;
 import com.ziggfreed.common.track.asset.TrackCurveAsset;
+import com.ziggfreed.common.track.source.SourceRow;
+import com.ziggfreed.common.track.source.TrackSourceAsset;
+import com.ziggfreed.common.track.world.TrackRules;
+import com.ziggfreed.common.track.world.TrackWorldRuleAsset;
+import com.ziggfreed.common.world.WorldSelector;
 
 /**
  * This module's authoring reference, {@code zc-track/SCHEMA.md}: the track, curve and category files and the
@@ -28,17 +35,30 @@ public final class TrackSchemaDocs {
                     + "changing a track, curve or category codec.\n\n"
                     + "One track is one file under `Server/ZiggfreedCommon/Tracks/` (subfolders are the author's "
                     + "own grouping), one curve one file under `Server/ZiggfreedCommon/TrackCurves/`, one category "
-                    + "one file under `Server/ZiggfreedCommon/TrackCategories/`, and in each the FILE NAME is the "
-                    + "id; a track id may not contain `@`. A file may carry `\"Parent\": \"<id>\"` to start from "
-                    + "another one, every leaf inheriting on omission. The server owner retunes a track in "
-                    + "`mods/ziggfreedcommon/tracks.json`. A `ZigTrack` reward is a native reward file under "
-                    + "`Server/Rewards/`, which an encounter script's `GrantReward` pays as a Claim.\n\n"
+                    + "one file under `Server/ZiggfreedCommon/TrackCategories/`, one source (what a moment pays onto "
+                    + "a track) one file under `Server/ZiggfreedCommon/TrackSources/`, one world rule file (track "
+                    + "rules for the worlds a pattern names) one file under "
+                    + "`Server/ZiggfreedCommon/TrackWorldRules/`, and in each the FILE NAME is the id; a track id "
+                    + "may not contain `@`. A file may carry `\"Parent\": \"<id>\"` to start from another one, "
+                    + "every leaf inheriting on omission. The server owner retunes a track in "
+                    + "`mods/ziggfreedcommon/tracks.json`, a source in `track-sources.json` and a world rule file "
+                    + "in `track-world-rules.json`. A world's own gameplay config sets its track rules in its "
+                    + "`Plugin` group as `ZigTrackRules` (the `TrackRules` shape), which wins over a rule file for "
+                    + "that world. A `ZigTrack` reward is a native reward file under `Server/Rewards/`, which an "
+                    + "encounter script's `GrantReward` pays as a Claim.\n\n"
                     + "Every field is optional and defaults to `null` unless its Default column reads "
                     + "*(required)*.\n\n")
             .register("TrackAsset", TrackAsset.CODEC)
             .register("TrackCurveAsset", TrackCurveAsset.CODEC)
             .register("TrackCategoryAsset", TrackCategoryAsset.CODEC)
+            .register("TrackSourceAsset", TrackSourceAsset.CODEC)
+            .register("TrackWorldRuleAsset", TrackWorldRuleAsset.CODEC)
+            .register("TrackRules", TrackRules.CODEC)
             .register("ZigTrackReward", ZigTrackReward.CODEC)
+            .register("When", When.CODEC)
+            .register("SourceRow", SourceRow.CODEC)
+            .register("Where", WorldSelector.CODEC)
+            .register("Diminish", DiminishSpec.CODEC)
             .register("ContentText", ContentTextAsset.CODEC)
             .register("RewardEntry", RewardEntryAsset.CODEC)
             .register("Requires", GateSpec.CODEC)

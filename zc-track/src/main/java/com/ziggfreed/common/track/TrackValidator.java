@@ -22,8 +22,17 @@ import com.ziggfreed.common.track.asset.TrackConfig;
 import com.ziggfreed.common.track.asset.TrackCurveAsset;
 import com.ziggfreed.common.track.asset.TrackCurveConfig;
 import com.ziggfreed.common.track.curve.CurveTable;
+import com.ziggfreed.common.track.gain.GainFactors;
+import com.ziggfreed.common.track.source.SourceRow;
+import com.ziggfreed.common.track.source.TrackSourceAsset;
+import com.ziggfreed.common.track.source.TrackSourceConfig;
+import com.ziggfreed.common.track.world.TrackRules;
+import com.ziggfreed.common.track.world.TrackWorldRuleAsset;
+import com.ziggfreed.common.track.world.TrackWorldRuleConfig;
+import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.BootAudit;
+import com.ziggfreed.common.world.WhereValidator;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.validation.Severity;
 
@@ -43,7 +52,11 @@ import com.ziggfreed.common.validation.Severity;
  *       server does not run), {@link #UNLOCK_WITHOUT_LEVEL}, {@link #UNLOCK_WITHOUT_REWARDS},
  *       {@link #DUPLICATE_UNLOCK_KEY} (two rows of one track known by one key: they share one record),
  *       {@link #PRESTIGE_OUT_OF_REACH}, {@link #CAP_PAST_CURVE}, {@link #TIER_PAST_TOP}, and the gate audit's
- *       findings over a track's {@code Requires}.</li>
+ *       findings over a track's {@code Requires};</li>
+ *   <li>WARNING, for growth ({@link #auditGrowth}): {@link #UNKNOWN_GAIN_FACTOR}, {@link #SOURCE_WITHOUT_TRACK},
+ *       {@link #UNKNOWN_SOURCE_TRACK}, {@link #SOURCE_WITHOUT_KIND}, {@link #UNKNOWN_SOURCE_KIND},
+ *       {@link #SOURCE_PAYS_NOTHING}, {@link #RULE_WITHOUT_WHERE}, {@link #UNKNOWN_RULE_TRACK}, the gate audit
+ *       over a source's {@code Requires} and the {@code Where} audit over a world rule file's.</li>
  * </ul>
  */
 public final class TrackValidator {
@@ -69,6 +82,14 @@ public final class TrackValidator {
     public static final String TOO_MANY_LEVELS = "TOO_MANY_LEVELS";
     public static final String TIER_PAST_TOP = "TIER_PAST_TOP";
     public static final String DUPLICATE_UNLOCK_KEY = "DUPLICATE_UNLOCK_KEY";
+    public static final String UNKNOWN_GAIN_FACTOR = "UNKNOWN_GAIN_FACTOR";
+    public static final String SOURCE_WITHOUT_TRACK = "SOURCE_WITHOUT_TRACK";
+    public static final String UNKNOWN_SOURCE_TRACK = "UNKNOWN_SOURCE_TRACK";
+    public static final String SOURCE_WITHOUT_KIND = "SOURCE_WITHOUT_KIND";
+    public static final String UNKNOWN_SOURCE_KIND = "UNKNOWN_SOURCE_KIND";
+    public static final String SOURCE_PAYS_NOTHING = "SOURCE_PAYS_NOTHING";
+    public static final String RULE_WITHOUT_WHERE = "RULE_WITHOUT_WHERE";
+    public static final String UNKNOWN_RULE_TRACK = "UNKNOWN_RULE_TRACK";
 
     private static final AtomicBoolean LOGGED = new AtomicBoolean();
 
@@ -88,6 +109,23 @@ public final class TrackValidator {
                 if (entry.getValue().isEnabled()) {
                     out.addAll(GateValidator.validate(entry.getValue().requires(), DOMAIN, entry.getKey(), "track",
                             GateRuntime.kinds(), GateRuntime.vocabulary()::isRegistered, null));
+                }
+            }
+            Predicate<String> trackKnown = id -> TrackConfig.getInstance().live(id) != null;
+            Predicate<String> categoryKnown = id -> TrackCategoryConfig.getInstance().category(id) != null;
+            out.addAll(auditGrowth(TrackConfig.getInstance().all().values(),
+                    TrackSourceConfig.getInstance().all().values(), TrackWorldRuleConfig.getInstance().all().values(),
+                    trackKnown, categoryKnown, ProgressionRuntime.objectiveKinds()::isRegistered,
+                    GainFactors::isRegistered));
+            for (Map.Entry<String, TrackSourceAsset> entry : TrackSourceConfig.getInstance().all().entrySet()) {
+                if (entry.getValue().isEnabled()) {
+                    out.addAll(GateValidator.validate(entry.getValue().requires(), DOMAIN, entry.getKey(),
+                            "track source", GateRuntime.kinds(), GateRuntime.vocabulary()::isRegistered, null));
+                }
+            }
+            for (Map.Entry<String, TrackWorldRuleAsset> entry : TrackWorldRuleConfig.getInstance().all().entrySet()) {
+                if (entry.getValue().isEnabled()) {
+                    out.addAll(WhereValidator.validateSelector(entry.getValue().where(), entry.getKey() + ".Where"));
                 }
             }
             return out;
@@ -206,6 +244,99 @@ public final class TrackValidator {
                             + kind.trim() + "', which nothing registered here, so that reward is left out of "
                             + "its Claims", id));
                 }
+            }
+        }
+    }
+
+    /**
+     * The pure core of growth's audit: each track's own gain factors, each enabled source and each enabled world
+     * rule file. Every finding is a WARNING: an unknown id may belong to a mod that registers later or does not
+     * run here.
+     *
+     * @param trackKnown    whether an id names a switched-on track
+     * @param categoryKnown whether an id names a loaded category
+     * @param kindKnown     whether an objective kind id is registered
+     * @param factorKnown   whether a gain factor id is registered
+     */
+    @Nonnull
+    public static List<Finding> auditGrowth(@Nonnull Collection<TrackAsset> tracks,
+            @Nonnull Collection<TrackSourceAsset> sources, @Nonnull Collection<TrackWorldRuleAsset> rules,
+            @Nonnull Predicate<String> trackKnown, @Nonnull Predicate<String> categoryKnown,
+            @Nonnull Predicate<String> kindKnown, @Nonnull Predicate<String> factorKnown) {
+        List<Finding> out = new ArrayList<>();
+        for (TrackAsset track : tracks) {
+            if (track == null || !track.isEnabled() || !track.writesGainFactors()) {
+                continue;
+            }
+            for (String factor : track.gainFactors()) {
+                if (!factorKnown.test(factor)) {
+                    out.add(Finding.warning(DOMAIN, UNKNOWN_GAIN_FACTOR, "track '" + track.getId() + "' runs the "
+                            + "gain factor '" + factor + "', which nothing registered here, so it changes nothing",
+                            track.getId()));
+                }
+            }
+        }
+        for (TrackSourceAsset source : sources) {
+            if (source != null && source.getId() != null && source.isEnabled()) {
+                auditSource(source, trackKnown, kindKnown, out);
+            }
+        }
+        for (TrackWorldRuleAsset rule : rules) {
+            if (rule != null && rule.getId() != null && rule.isEnabled()) {
+                auditRule(rule, trackKnown, categoryKnown, out);
+            }
+        }
+        return out;
+    }
+
+    private static void auditSource(@Nonnull TrackSourceAsset source, @Nonnull Predicate<String> trackKnown,
+            @Nonnull Predicate<String> kindKnown, @Nonnull List<Finding> out) {
+        String id = source.getId();
+        String where = "track source '" + id + "'";
+        String track = source.trackId();
+        if (track == null) {
+            out.add(Finding.warning(DOMAIN, SOURCE_WITHOUT_TRACK, where + " names no Track, so it pays nothing", id));
+        } else if (!trackKnown.test(track)) {
+            out.add(Finding.warning(DOMAIN, UNKNOWN_SOURCE_TRACK, where + " pays onto the track '" + track
+                    + "', which is not switched on here, so it pays nothing", id));
+        }
+        String kind = source.when() == null ? null : source.when().kindId();
+        if (kind == null) {
+            out.add(Finding.warning(DOMAIN, SOURCE_WITHOUT_KIND, where + " names no When.Kind, so no moment pays",
+                    id));
+        } else if (!kindKnown.test(kind)) {
+            out.add(Finding.warning(DOMAIN, UNKNOWN_SOURCE_KIND, where + " answers the moment '" + kind
+                    + "', which no objective kind registered here is, so it pays nothing until one is", id));
+        }
+        boolean pays = source.baseRow() != null && source.baseRow().pays();
+        for (SourceRow row : source.rows().values()) {
+            pays |= row != null && row.pays();
+        }
+        if (!pays) {
+            out.add(Finding.warning(DOMAIN, SOURCE_PAYS_NOTHING, where + " writes no Xp or PerAmount above 0, "
+                    + "so it pays nothing (a row of 0 only stops a broader pattern)", id));
+        }
+    }
+
+    private static void auditRule(@Nonnull TrackWorldRuleAsset rule, @Nonnull Predicate<String> trackKnown,
+            @Nonnull Predicate<String> categoryKnown, @Nonnull List<Finding> out) {
+        String id = rule.getId();
+        if (rule.where() == null || rule.where().hasNoPositiveAxis()) {
+            out.add(Finding.warning(DOMAIN, RULE_WITHOUT_WHERE, "track world rule '" + id + "' names no world in "
+                    + "its Where, so it applies nowhere", id));
+        }
+        TrackRules rules = rule.rules();
+        TrackRules.GainRules gain = rules == null ? null : rules.gain();
+        if (gain == null) {
+            return;
+        }
+        List<String> named = new ArrayList<>(List.of(gain.enabledTracks()));
+        named.addAll(List.of(gain.disabledTracks()));
+        named.addAll(gain.tracks().keySet());
+        for (String name : named) {
+            if (name != null && !name.isBlank() && !trackKnown.test(name.trim()) && !categoryKnown.test(name.trim())) {
+                out.add(Finding.warning(DOMAIN, UNKNOWN_RULE_TRACK, "track world rule '" + id + "' names '"
+                        + name.trim() + "', which is neither a switched-on track nor a category here", id));
             }
         }
     }

@@ -23,6 +23,9 @@ dependencies {
     implementation project(':zc-progression')
     // StatMirror, the one writer of a level onto a native stat channel.
     implementation project(':zc-entity')
+    // WorldSelector and MatchRank, the one "which worlds?" a world's track rules file names (Where). One-way:
+    // zc-world sits on zc-core and zc-entity alone and never reaches up here.
+    implementation project(':zc-world')
 }
 
 // Regenerate this module's SCHEMA.md (the authoring reference for tracks, track curves and track
@@ -38,6 +41,8 @@ tasks.register('generateSchemaDocs', JavaExec) {
     mainClass = 'com.ziggfreed.common.track.docs.TrackSchemaDocs'
     args schemaDocOutput.absolutePath
     inputs.files(fileTree('src/main/java/com/ziggfreed/common/track/asset') { include '**/*.java' })
+    inputs.files(fileTree('src/main/java/com/ziggfreed/common/track/source') { include '**/*.java' })
+    inputs.files(fileTree('src/main/java/com/ziggfreed/common/track/world') { include '**/*.java' })
     inputs.file('src/main/java/com/ziggfreed/common/track/docs/TrackSchemaDocs.java')
     outputs.file(schemaDocOutput)
 }

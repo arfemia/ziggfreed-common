@@ -52,13 +52,31 @@ public final class TrackComponent implements Component<EntityStore> {
             .append(new KeyedCodec<>("Tracks", new ArrayCodec<>(Entry.CODEC, Entry[]::new), false),
                     (c, v, info) -> c.load(v), (c, info) -> c.save())
             .add()
+            // When this record was last saved: at a login, how long the player was away (a rested pool fills
+            // over it). Written with every save, so the last one before a logout is the logout.
+            .append(new KeyedCodec<>("SavedAt", Codec.LONG, false),
+                    (c, v) -> c.savedAtMs = v == null ? 0L : v, c -> System.currentTimeMillis())
+            .add()
             .build();
 
     /** Every climb on record, by {@link #storageKey}, sorted so a save is stable. */
     @Nonnull
     private final TreeMap<String, Held> climbs = new TreeMap<>();
 
+    /** When the record read at load was saved (0 when it carries none, or once it has been asked). */
+    private long savedAtMs;
+
     public TrackComponent() {
+    }
+
+    /**
+     * How long ago the record read at load was saved, asked once: the time a player was away at login (0 when
+     * the record carries no save time, or it was asked already, so a world change counts no time away).
+     */
+    public long takeAwayMs(long nowMs) {
+        long saved = savedAtMs;
+        savedAtMs = 0L;
+        return saved <= 0L ? 0L : Math.max(0L, nowMs - saved);
     }
 
     /** One climb on record: where it is filed, and what it holds. */
@@ -130,7 +148,7 @@ public final class TrackComponent implements Component<EntityStore> {
             }
             TrackRecord record = new TrackRecord(entry.value == null ? 0L : entry.value,
                     entry.fraction == null ? 0.0 : entry.fraction, entry.best == null ? 0 : entry.best,
-                    entry.prestige == null ? 0 : entry.prestige, paid);
+                    entry.prestige == null ? 0 : entry.prestige, paid, entry.rested == null ? 0L : entry.rested);
             keep(TrackKey.normalize(entry.namespace), TrackKey.normalize(entry.track),
                     TrackKey.normalize(entry.run), record);
         }
@@ -179,6 +197,7 @@ public final class TrackComponent implements Component<EntityStore> {
     public TrackComponent clone() {
         TrackComponent copy = new TrackComponent();
         copy.climbs.putAll(climbs);
+        copy.savedAtMs = savedAtMs;
         return copy;
     }
 
@@ -193,6 +212,7 @@ public final class TrackComponent implements Component<EntityStore> {
         @Nullable Integer best;
         @Nullable Integer prestige;
         @Nullable Map<String, Integer> paidThrough;
+        @Nullable Long rested;
 
         static final BuilderCodec<Entry> CODEC = BuilderCodec.builder(Entry.class, Entry::new)
                 .append(new KeyedCodec<>("Track", Codec.STRING, false), (o, v) -> o.track = v, o -> o.track)
@@ -215,6 +235,8 @@ public final class TrackComponent implements Component<EntityStore> {
                 .append(new KeyedCodec<>("PaidThrough", new MapCodec<>(Codec.INTEGER, LinkedHashMap::new, false),
                                 false), (o, v) -> o.paidThrough = v, o -> o.paidThrough)
                 .add()
+                .append(new KeyedCodec<>("Rested", Codec.LONG, false), (o, v) -> o.rested = v, o -> o.rested)
+                .add()
                 .build();
 
         Entry() {
@@ -232,6 +254,7 @@ public final class TrackComponent implements Component<EntityStore> {
             e.fraction = record.fraction() == 0.0 ? null : record.fraction();
             e.best = record.best() == 0 ? null : record.best();
             e.prestige = record.prestige() == 0 ? null : record.prestige();
+            e.rested = record.rested() == 0L ? null : record.rested();
             if (!record.paid().isEmpty()) {
                 // Sorted, so a save is stable.
                 e.paidThrough = new LinkedHashMap<>(new TreeMap<>(record.paid()));

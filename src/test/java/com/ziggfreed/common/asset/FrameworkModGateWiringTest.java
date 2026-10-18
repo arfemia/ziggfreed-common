@@ -33,6 +33,7 @@ import com.ziggfreed.common.shop.asset.ShopAssetStore;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.stats.gearset.GearSetConfig;
 import com.ziggfreed.common.track.asset.TrackConfig;
+import com.ziggfreed.common.track.source.TrackSourceConfig;
 
 /**
  * Every store whose files carry a top-level {@code Requires} folds its load event through the reporting
@@ -53,7 +54,7 @@ import com.ziggfreed.common.track.asset.TrackConfig;
  * FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, PlayerSettings, AchievementCategories,
  * QuestCategories, AchievementMilestones, Almanac, ShopPools, EncounterBindings,
  * EncounterParticipation, EncounterRules, CalendarEvents, CalendarSpawns, Titles, Reputations, TrackCurves,
- * TrackCategories and Gateways. A
+ * TrackCategories, TrackWorldRules and Gateways. A
  * store that gains a
  * top-level {@code Requires} moves from this paragraph into {@code GATED}, and into {@code OWNER_READERS}
  * or {@code NO_OWNER_FILE}.
@@ -91,6 +92,7 @@ class FrameworkModGateWiringTest {
         GATED.put("BountyAsset", new Gated("Bounties", "BoardAssetStore", BoardAssetStore.MOD_GATE_STORE));
         GATED.put("GearSetAsset", new Gated("GearSets", "GearSetConfig", GearSetConfig.MOD_GATE_STORE));
         GATED.put("TrackAsset", new Gated("Tracks", "TrackConfig", TrackConfig.MOD_GATE_STORE));
+        GATED.put("TrackSourceAsset", new Gated("TrackSources", "TrackSourceConfig", TrackSourceConfig.MOD_GATE_STORE));
     }
 
     /**
@@ -119,6 +121,9 @@ class FrameworkModGateWiringTest {
                     "public static void reload()", "GateSpec.missingMod("),
             new OwnerReader("TrackAsset", "TrackOwnerLayers.reload();",
                     module("zc-track", "track", "asset", "TrackOwnerLayers.java"),
+                    "public static void reload()", "GateSpec.missingMod("),
+            new OwnerReader("TrackSourceAsset", "TrackSourceOwnerLayers.reload();",
+                    module("zc-track", "track", "source", "TrackSourceOwnerLayers.java"),
                     "public static void reload()", "GateSpec.missingMod("),
             new OwnerReader("NpcPlacementAsset", "NpcPlacementOverrides.getInstance().applyOwnerLayer();",
                     module("zc-dialogue", "npc", "placement", "asset", "NpcPlacementOverrides.java"),
@@ -218,6 +223,7 @@ class FrameworkModGateWiringTest {
         assertEquals("Boards", BoardConfig.getInstance().modGateStore());
         assertEquals("GearSets", GearSetConfig.getInstance().modGateStore());
         assertEquals("Tracks", TrackConfig.getInstance().modGateStore());
+        assertEquals("TrackSources", TrackSourceConfig.getInstance().modGateStore());
     }
 
     @Test

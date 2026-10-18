@@ -121,6 +121,25 @@ public final class ProgressDispatch {
     }
 
     /**
+     * Feed one moment to the REACTIONS ONLY, never to the engines: for a moment a consumer still dispatches into
+     * the engines itself, so an engine half here would count it twice. {@code DEAL_DAMAGE} is the one today (the
+     * MMO fires it into the shared engines from its own damage system), produced here only for the track sources
+     * that pay on it ({@code ZigDamageProducer}). The moment carries no subjects and no zone, which only the
+     * engines read, so a hit costs neither lookup.
+     */
+    public static void react(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+            @Nullable CommandBuffer<EntityStore> commandBuffer, @Nonnull String kindId,
+            @Nonnull String target, @Nullable String qualifier, long amount,
+            @Nullable MomentPayload payload) {
+        try {
+            ProgressionRuntime.momentListener().react(new Moment(kindId, target, qualifier, amount, null, store, ref,
+                    commandBuffer, null, null, payload));
+        } catch (Throwable t) {
+            SafeLog.warn("[progression] reacting to '" + kindId + "' failed", t);
+        }
+    }
+
+    /**
      * Feed one moment to the ENGINES ONLY, with the given options, and to no listener.
      *
      * <p>For an ALIAS: the same action a listener already reacted to, re-dispatched under a second

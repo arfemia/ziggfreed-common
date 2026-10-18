@@ -8,6 +8,7 @@ import javax.annotation.Nullable;
 
 import com.ziggfreed.common.loot.reward.ChestSite;
 import com.ziggfreed.common.loot.reward.MomentItems;
+import com.ziggfreed.common.match.When;
 
 /**
  * The three moments a bonus row can hang off: a block a player broke, a mob a player killed, an
@@ -24,24 +25,27 @@ import com.ziggfreed.common.loot.reward.MomentItems;
 public enum BonusMoment {
 
     /** A player broke a block they did not place; a row's {@code Match} reads the block id. */
-    BREAK_BLOCK("BreakBlock", Set.of(), Set.of(ChestSite.class)),
+    BREAK_BLOCK("BreakBlock", "BREAK_BLOCK", Set.of(), Set.of(ChestSite.class)),
 
     /** A kill credited to a player; a row's {@code Match} reads the mob's id. */
-    KILL_MOB("KillMob", Set.of(), Set.of(ChestSite.class)),
+    KILL_MOB("KillMob", "KILL_ENTITY", Set.of(), Set.of(ChestSite.class)),
 
     /**
      * A player harvested an item by hand; a row's {@code Match} reads the item id, and the pass
      * runs after the harvest itself lands. Its pass carries a {@link MomentItems}, so a
      * {@code Moment_Item} reward hands over another of the harvested stack.
      */
-    PICKUP_ITEM("PickupItem", Set.of(MomentItems.class), Set.of());
+    PICKUP_ITEM("PickupItem", "PICKUP_ITEM", Set.of(MomentItems.class), Set.of());
 
     private final String token;
+    private final String kindId;
     private final Set<Class<?>> carries;
     private final Set<Class<?>> libraryCarries;
 
-    BonusMoment(@Nonnull String token, @Nonnull Set<Class<?>> carries, @Nonnull Set<Class<?>> libraryAdds) {
+    BonusMoment(@Nonnull String token, @Nonnull String kindId, @Nonnull Set<Class<?>> carries,
+            @Nonnull Set<Class<?>> libraryAdds) {
         this.token = token;
+        this.kindId = kindId;
         this.carries = carries;
         Set<Class<?>> library = new LinkedHashSet<>(carries);
         library.addAll(libraryAdds);
@@ -52,6 +56,30 @@ public enum BonusMoment {
     @Nonnull
     public String token() {
         return token;
+    }
+
+    /**
+     * The objective kind id this moment is ({@code BREAK_BLOCK}, {@code KILL_ENTITY}, {@code PICKUP_ITEM}): what
+     * its producer fires, and what a row may write instead of {@link #token()} (zc-core's {@code match.When}).
+     */
+    @Nonnull
+    public String kindId() {
+        return kindId;
+    }
+
+    /** The moment the objective kind {@code kindId} is (any spelling {@code When} reads), or null for none. */
+    @Nullable
+    public static BonusMoment byKind(@Nullable String kindId) {
+        String kind = When.normalizeKind(kindId);
+        if (kind == null) {
+            return null;
+        }
+        for (BonusMoment moment : values()) {
+            if (moment.kindId.equals(kind)) {
+                return moment;
+            }
+        }
+        return null;
     }
 
     /**
@@ -75,7 +103,10 @@ public enum BonusMoment {
         return libraryCarries;
     }
 
-    /** The moment {@code raw} names, or null when it names none. Case and underscores forgiven. */
+    /**
+     * The moment {@code raw} names, or null when it names none: its token ({@code BreakBlock}) or its objective
+     * kind id ({@code KILL_ENTITY}), case and underscores forgiven.
+     */
     @Nullable
     public static BonusMoment parse(@Nullable String raw) {
         if (raw == null) {
@@ -90,7 +121,7 @@ public enum BonusMoment {
                 return moment;
             }
         }
-        return null;
+        return byKind(raw);
     }
 
     /** Every spelling, comma separated, for a message that has to list them. */

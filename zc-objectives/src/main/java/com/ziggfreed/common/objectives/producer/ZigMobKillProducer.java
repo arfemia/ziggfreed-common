@@ -88,10 +88,7 @@ public final class ZigMobKillProducer extends DeathSystems.OnDeathSystem {
             // An unreadable id still credits a kill: content authored as "kill anything" matches
             // on a blank target, so returning here would quietly cost the player that objective
             // rather than merely naming the victim vaguely.
-            String victimId = EntityIdentifierUtil.getMobId(store, victimRef);
-            if (victimId == null || victimId.isBlank()) {
-                victimId = UNKNOWN_VICTIM;
-            }
+            String victimId = victimId(store, victimRef);
             // The composed ask is guarded per contribution, so a throwing qualifier costs its own
             // answer and never the kill: the moment still fires, unqualified.
             String qualifier = ProgressionRuntime.killQualifier().qualifierFor(store, victimRef);
@@ -104,14 +101,22 @@ public final class ZigMobKillProducer extends DeathSystems.OnDeathSystem {
         }
     }
 
+    /** The victim's id, or {@value #UNKNOWN_VICTIM} when it will not resolve (shared with the damage producer). */
+    @Nonnull
+    static String victimId(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> victimRef) {
+        String victimId = EntityIdentifierUtil.getMobId(store, victimRef);
+        return victimId == null || victimId.isBlank() ? UNKNOWN_VICTIM : victimId;
+    }
+
     /**
      * Who this kill is credited to: the attacker itself when it is a player; otherwise whoever the
      * composed attribution says the attacker acts for, provided THAT is a player; otherwise nobody.
      * The answered entity is checked rather than trusted, because a contribution's "acts for" is
-     * an opinion about ownership and the producer's promise is a PLAYER's ref.
+     * an opinion about ownership and the producer's promise is a PLAYER's ref. The damage producer
+     * credits a hit the same way.
      */
     @Nullable
-    private static Ref<EntityStore> creditedPlayer(@Nonnull Store<EntityStore> store,
+    static Ref<EntityStore> creditedPlayer(@Nonnull Store<EntityStore> store,
             @Nonnull Ref<EntityStore> attackerRef) {
         if (PlayerAccess.playerRef(store, attackerRef) != null) {
             return attackerRef;
@@ -130,7 +135,7 @@ public final class ZigMobKillProducer extends DeathSystems.OnDeathSystem {
      * nobody.
      */
     @Nullable
-    private static Ref<EntityStore> resolveAttackerRef(@Nonnull Damage damage) {
+    static Ref<EntityStore> resolveAttackerRef(@Nonnull Damage damage) {
         Damage.Source source = damage.getSource();
         return source instanceof Damage.EntitySource entitySource ? entitySource.getRef() : null;
     }

@@ -61,7 +61,12 @@ public final class BonusRowAsset implements JsonAssetWithMap<String, DefaultAsse
     /** The live part of {@link #requires}, lifted once per instance ({@link StoreGates#live}). */
     @Nullable private volatile GateSpec[] live;
 
-    /** WHEN the row fires: the moment, and which block, mob or item within it. */
+    /**
+     * WHEN the row fires: the moment, and which block, mob or item within it. The bonus rows' dialect of zc-core's
+     * {@code match.When}: its {@code Kind} reads as an objective kind id ({@link #kindId()}), so a row may write
+     * {@code BREAK_BLOCK}, {@code KILL_ENTITY} or {@code PICKUP_ITEM} as well as its first spellings, and the
+     * table matches it through the shared {@code MomentTable}.
+     */
     public static final class When {
 
         @Nullable protected String kind;
@@ -73,10 +78,14 @@ public final class BonusRowAsset implements JsonAssetWithMap<String, DefaultAsse
                 .metadata(EditorSchema.oneOfDocumented(
                         "BreakBlock", "Fires when a player breaks a matching block they did not place",
                         "KillMob", "Fires when a player is credited with killing a matching mob",
-                        "PickupItem", "Fires when a player harvests a matching item by hand, after the harvest lands"))
+                        "PickupItem", "Fires when a player harvests a matching item by hand, after the harvest lands",
+                        "BREAK_BLOCK", "The same moment as BreakBlock, by its objective kind id",
+                        "KILL_ENTITY", "The same moment as KillMob, by its objective kind id",
+                        "PICKUP_ITEM", "The same moment as PickupItem, by its objective kind id"))
                 .documentation("Which moment this row answers for: \"BreakBlock\", \"KillMob\" or "
-                        + "\"PickupItem\". Each fires with no other gate. A row naming no moment never "
-                        + "fires, and /zigloot validate names it.").add()
+                        + "\"PickupItem\", or the same three by their objective kind ids, \"BREAK_BLOCK\", "
+                        + "\"KILL_ENTITY\" and \"PICKUP_ITEM\". Each fires with no other gate. A row naming no "
+                        + "moment never fires, and /zigloot validate names it.").add()
                 .appendInherited(new KeyedCodec<>("Match", Codec.STRING, false),
                         (o, v) -> o.match = v, o -> o.match, (o, p) -> o.match = p.match)
                 .documentation("Which block, mob or item, as a name pattern: \"Rock_Stone\" exactly, "
@@ -102,6 +111,22 @@ public final class BonusRowAsset implements JsonAssetWithMap<String, DefaultAsse
         @Nullable
         public BonusMoment moment() {
             return BonusMoment.parse(kind);
+        }
+
+        /**
+         * The objective kind id the row answers for ({@code BREAK_BLOCK}, {@code KILL_ENTITY},
+         * {@code PICKUP_ITEM}), or null when it names no bonus moment.
+         */
+        @Nullable
+        public String kindId() {
+            BonusMoment moment = moment();
+            return moment == null ? null : moment.kindId();
+        }
+
+        /** This group as zc-core's shared matcher (its kind as the kind id), for a reader of {@code When}. */
+        @Nonnull
+        public com.ziggfreed.common.match.When toWhen() { // FQN-OK: this nested class is also named When
+            return com.ziggfreed.common.match.When.of(kindId(), match, null); // FQN-OK: as above
         }
 
         /** The moment exactly as authored, for a message that has to quote an unknown one. */

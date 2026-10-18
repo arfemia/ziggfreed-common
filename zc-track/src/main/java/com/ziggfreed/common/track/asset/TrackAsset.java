@@ -25,6 +25,7 @@ import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.progress.gate.StoreGates;
 import com.ziggfreed.common.text.ContentTextAsset;
+import com.ziggfreed.common.track.gain.GainFactors;
 
 /**
  * One track, at {@code Server/ZiggfreedCommon/Tracks/<Owner>/<Id>.json}: a named value a player climbs, read
@@ -86,6 +87,7 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
     @Nullable protected Mirror mirror;
     @Nullable protected Prestige prestige;
     @Nullable protected Unlock[] unlocks;
+    @Nullable protected Gain gain;
 
     /** The live part of the {@code Requires} block, lifted once per instance ({@link StoreGates#live}). */
     @Nullable private volatile GateSpec[] live;
@@ -157,6 +159,11 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
                     + "player. A player's record knows each row by its Id (or, unauthored, by its levels), never "
                     + "by its place, so the rows can be reordered freely. Under Parent this list replaces the "
                     + "parent's whole.").add()
+            .appendInherited(new KeyedCodec<>("Gain", Gain.CODEC, false),
+                    (a, v) -> a.gain = v, a -> a.gain, (a, p) -> a.gain = p.gain)
+            .documentation("How a gain on this track is worked out before it lands: the named factors it runs, "
+                    + "in order, and the rested pool. Leave it out for the usual order (Class, World, Bonus, "
+                    + "Boost, Rested) and no rested pool.").add()
             .build();
 
     public TrackAsset() {
@@ -324,6 +331,37 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
         return false;
     }
 
+    /**
+     * The gain factors this track runs, in order, as written ({@code Gain.Factors}, blank ids left out), or the
+     * usual order ({@link GainFactors#DEFAULT_ORDER}) when it names none.
+     */
+    @Nonnull
+    public List<String> gainFactors() {
+        String[] written = gain == null ? null : gain.factors;
+        if (written == null) {
+            return GainFactors.DEFAULT_ORDER;
+        }
+        List<String> out = new ArrayList<>(written.length);
+        for (String id : written) {
+            if (id != null && !id.isBlank()) {
+                out.add(id.trim());
+            }
+        }
+        return List.copyOf(out);
+    }
+
+    /** Does this track write its own {@code Gain.Factors} list (rather than the usual order)? */
+    public boolean writesGainFactors() {
+        return gain != null && gain.factors != null;
+    }
+
+    /** The rested pool's settings when this track turns one on, else null: off unless written (R572). */
+    @Nullable
+    public Rested rested() {
+        Rested rested = gain == null ? null : gain.rested;
+        return rested == null || !rested.isEnabled() ? null : rested;
+    }
+
     /** Is {@code trackId} usable as a track id: not blank, and free of the run separator? */
     public static boolean usableId(@Nullable String trackId) {
         return trackId != null && !trackId.isBlank() && trackId.indexOf(RUN_SEPARATOR) < 0;
@@ -410,6 +448,132 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
         }
     }
 
+    /** The Gain group: the factors a gain runs through, and the rested pool. */
+    public static final class Gain {
+
+        @Nullable protected String[] factors;
+        @Nullable protected Rested rested;
+
+        public static final BuilderCodec<Gain> CODEC = BuilderCodec.builder(Gain.class, Gain::new)
+                .appendInherited(new KeyedCodec<>("Factors", Codec.STRING_ARRAY, false),
+                        (o, v) -> o.factors = v, o -> o.factors, (o, p) -> o.factors = p.factors)
+                .documentation("The named factors every gain on this track runs through, in this order: World "
+                        + "(the world's track rules), Boost (timed boosts), Rested (the rested pool below), and "
+                        + "any a mod registers, such as Class and Bonus. A name nothing registered changes "
+                        + "nothing. Leave it out for Class, World, Bonus, Boost, Rested. A loss is never "
+                        + "changed.").add()
+                .appendInherited(new KeyedCodec<>("Rested", Rested.CODEC, false),
+                        (o, v) -> o.rested = v, o -> o.rested, (o, p) -> o.rested = p.rested)
+                .documentation("A rested pool for this track: while a player is away it fills, and gains pay "
+                        + "extra until it is spent. Leave it out for none; no track has one unless it is "
+                        + "written.").add()
+                .build();
+
+        public Gain() {
+        }
+    }
+
+    /**
+     * The Rested group: how a track's rested pool fills while a player is away and how fast gains spend it. Off
+     * unless written; each leaf has a default, and the pool fills from {@code PerHour} and {@code PercentPerHour}
+     * together.
+     */
+    public static final class Rested {
+
+        /** What a gain pays while the pool lasts, unauthored. */
+        public static final double DEFAULT_MULTIPLIER = 2.0;
+        /** The shortest time away that fills anything, unauthored. */
+        public static final int DEFAULT_MIN_OFFLINE_MINUTES = 30;
+        /** The longest time away that counts, unauthored. */
+        public static final int DEFAULT_MAX_OFFLINE_HOURS = 168;
+
+        @Nullable protected Boolean enabled;
+        @Nullable protected Double multiplier;
+        @Nullable protected Double perHour;
+        @Nullable protected Double percentPerHour;
+        @Nullable protected Long maxPool;
+        @Nullable protected Integer minOfflineMinutes;
+        @Nullable protected Integer maxOfflineHours;
+
+        public static final BuilderCodec<Rested> CODEC = BuilderCodec.builder(Rested.class, Rested::new)
+                .appendInherited(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false),
+                        (o, v) -> o.enabled = v, o -> o.enabled, (o, p) -> o.enabled = p.enabled)
+                .metadata(EditorSchema.defaultValue(true))
+                .documentation("Whether the pool is on. Unauthored means true once this group is written; false "
+                        + "turns it off (a server owner's way to switch off a pool a pack wrote).").add()
+                .appendInherited(new KeyedCodec<>("Multiplier", Codec.DOUBLE, false),
+                        (o, v) -> o.multiplier = v, o -> o.multiplier, (o, p) -> o.multiplier = p.multiplier)
+                .metadata(EditorSchema.defaultValue(DEFAULT_MULTIPLIER))
+                .documentation("What a gain pays while the pool lasts: 2 doubles it, the extra taken from the "
+                        + "pool. 2 when unauthored; 1 or less pays nothing extra.").add()
+                .appendInherited(new KeyedCodec<>("PerHour", Codec.DOUBLE, false),
+                        (o, v) -> o.perHour = v, o -> o.perHour, (o, p) -> o.perHour = p.perHour)
+                .metadata(EditorSchema.defaultValue(0.0))
+                .documentation("How much the pool fills for each hour away. 0 when unauthored.").add()
+                .appendInherited(new KeyedCodec<>("PercentPerHour", Codec.DOUBLE, false),
+                        (o, v) -> o.percentPerHour = v, o -> o.percentPerHour,
+                        (o, p) -> o.percentPerHour = p.percentPerHour)
+                .metadata(EditorSchema.defaultValue(0.0))
+                .documentation("How much the pool fills for each hour away as a percent of the player's next "
+                        + "level (5 is five percent of what that level takes), on top of PerHour. 0 when "
+                        + "unauthored.").add()
+                .appendInherited(new KeyedCodec<>("MaxPool", Codec.LONG, false),
+                        (o, v) -> o.maxPool = v, o -> o.maxPool, (o, p) -> o.maxPool = p.maxPool)
+                .metadata(EditorSchema.defaultValue(0L))
+                .documentation("The most the pool holds. 0, or unauthored, sets no limit.").add()
+                .appendInherited(new KeyedCodec<>("MinOfflineMinutes", Codec.INTEGER, false),
+                        (o, v) -> o.minOfflineMinutes = v, o -> o.minOfflineMinutes,
+                        (o, p) -> o.minOfflineMinutes = p.minOfflineMinutes)
+                .metadata(EditorSchema.defaultValue((long) DEFAULT_MIN_OFFLINE_MINUTES))
+                .documentation("The shortest time away, in minutes, that fills the pool at all; at or past it the "
+                        + "whole time away counts. 30 when unauthored.").add()
+                .appendInherited(new KeyedCodec<>("MaxOfflineHours", Codec.INTEGER, false),
+                        (o, v) -> o.maxOfflineHours = v, o -> o.maxOfflineHours,
+                        (o, p) -> o.maxOfflineHours = p.maxOfflineHours)
+                .metadata(EditorSchema.defaultValue((long) DEFAULT_MAX_OFFLINE_HOURS))
+                .documentation("The longest time away, in hours, that counts. 168 (a week) when unauthored.").add()
+                .build();
+
+        public Rested() {
+        }
+
+        /** Is the pool on (the group written, and not switched off)? */
+        public boolean isEnabled() {
+            return enabled == null || enabled;
+        }
+
+        /** What a gain pays while the pool lasts, at least 1. */
+        public double multiplier() {
+            double m = multiplier == null || !Double.isFinite(multiplier) ? DEFAULT_MULTIPLIER : multiplier;
+            return Math.max(1.0, m);
+        }
+
+        /** How much the pool fills an hour away, 0 or more. */
+        public double perHour() {
+            return perHour == null || !Double.isFinite(perHour) ? 0.0 : Math.max(0.0, perHour);
+        }
+
+        /** How much the pool fills an hour away, as a percent of the next level, 0 or more. */
+        public double percentPerHour() {
+            return percentPerHour == null || !Double.isFinite(percentPerHour) ? 0.0 : Math.max(0.0, percentPerHour);
+        }
+
+        /** The most the pool holds; {@link Long#MAX_VALUE} for no limit. */
+        public long maxPool() {
+            return maxPool == null || maxPool <= 0L ? Long.MAX_VALUE : maxPool;
+        }
+
+        /** The shortest time away that counts, in minutes, 0 or more. */
+        public int minOfflineMinutes() {
+            return minOfflineMinutes == null ? DEFAULT_MIN_OFFLINE_MINUTES : Math.max(0, minOfflineMinutes);
+        }
+
+        /** The longest time away that counts, in hours, 0 or more. */
+        public int maxOfflineHours() {
+            return maxOfflineHours == null ? DEFAULT_MAX_OFFLINE_HOURS : Math.max(0, maxOfflineHours);
+        }
+    }
+
     /**
      * One unlock row: what it is known by, the levels it pays at, and what it pays. A player's record keeps how
      * far each row has paid under the row's {@link #key()}, never its place in the list, so rows can be added,
@@ -434,10 +598,11 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
                 .documentation("What this row is known by in a player's record and in the ids of its Claims "
                         + "(letters, digits, _ and -; anything else reads as _, and case does not matter). Rows can "
                         + "then be added, removed or reordered on a live track and none pays twice or is skipped. "
-                        + "Unauthored, the row is known by its own levels (At [2, 5] is at_2_5, Every 4 is every_4, "
-                        + "both together at_2_5_every_4), so changing those levels on a live track makes it a new "
-                        + "row that pays again: give it an Id before you do. Two rows known by the same name share "
-                        + "one record, so the later one pays no level the first has passed.").add()
+                        + "Unauthored, the row is known by its lowest At level and its Every (At [2, 5] is at_2, "
+                        + "Every 4 is every_4, both together at_2_every_4), so adding a higher level to a live row "
+                        + "keeps its record, while changing its lowest level or its Every makes it a new row that "
+                        + "pays again: give it an Id before you do. Two rows known by the same name share one "
+                        + "record, so the later one pays no level the first has passed.").add()
                 .appendInherited(new KeyedCodec<>("At", Codec.INT_ARRAY, false),
                         (o, v) -> o.at = v, o -> o.at, (o, p) -> o.at = p.at)
                 .documentation("The levels this row pays at, each once.").add()
@@ -467,8 +632,9 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
 
         /**
          * What this row is known by in a player's record and in its Claims' ids: its {@code Id}, lower-cased, or,
-         * unauthored, a name built from its own levels ({@code at_2_5}, {@code every_4}, {@code at_2_5_every_4};
-         * {@value #NO_LEVEL_KEY} for a row naming none), never its place in the list. Any character other than a
+         * unauthored, a name built from its lowest At level and its Every ({@code at_2}, {@code every_4},
+         * {@code at_2_every_4}; {@value #NO_LEVEL_KEY} for a row naming none), never its place in the list. Any
+         * character other than a
          * letter, a digit, {@code _} or {@code -} reads as {@code _}, so a key never carries a Claim id's
          * {@code :}.
          */
@@ -482,7 +648,11 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
             return held;
         }
 
-        /** {@link #key()} worked out; once per row instance, since every gain asks it of every row. */
+        /**
+         * {@link #key()} worked out; once per row instance, since every gain asks it of every row. A keyless row is
+         * known by its lowest At level and its Every alone, which stay as they are when a later level is added
+         * to a live row, so its paid mark keeps standing and no level it already paid pays again.
+         */
         @Nonnull
         private String deriveKey() {
             String own = blankToNull(id);
@@ -490,13 +660,9 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
                 return keyChars(own);
             }
             StringBuilder out = new StringBuilder();
-            int[] levels = at == null ? new int[0] : Arrays.stream(at).filter(l -> l >= 1).distinct().sorted()
-                    .toArray();
-            if (levels.length > 0) {
-                out.append("at");
-                for (int level : levels) {
-                    out.append('_').append(level);
-                }
+            int lowest = at == null ? 0 : Arrays.stream(at).filter(l -> l >= 1).min().orElse(0);
+            if (lowest > 0) {
+                out.append("at_").append(lowest);
             }
             if (every() > 0) {
                 out.append(out.length() == 0 ? "" : "_").append("every_").append(every());

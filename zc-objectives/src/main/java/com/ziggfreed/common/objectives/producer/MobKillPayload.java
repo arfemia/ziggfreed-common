@@ -6,6 +6,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.modules.entity.damage.DeathComponent;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.progress.runtime.MomentPayload;
+import com.ziggfreed.common.track.source.VictimPayload;
 
 /**
  * What rides with a {@code KILL_ENTITY} moment beyond the victim's id. A death has no native event
@@ -19,5 +20,5 @@ import com.ziggfreed.common.progress.runtime.MomentPayload;
  * @param death     the death component, carrying the killing {@code Damage}
  */
 public record MobKillPayload(@Nonnull Ref<EntityStore> victimRef, @Nonnull DeathComponent death)
-        implements MomentPayload {
+        implements MomentPayload, VictimPayload {
 }

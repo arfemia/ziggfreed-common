@@ -1,0 +1,11 @@
+{
+  "$Comment": "The library's sample source for its sample track, switched off like the track: turn both on (tracks.json { \"Zc_Track_Example\": { \"Enabled\": true } } and track-sources.json { \"Zc_Track_Example_Rocks\": { \"Enabled\": true } }) and every rock a player breaks pays 2, every ore 10, and an iron ore 25 once the track reaches level 4 (below it, iron pays the ore row's 10).",
+  "Enabled": false,
+  "Track": "Zc_Track_Example",
+  "When": { "Kind": "BREAK_BLOCK" },
+  "Rows": {
+    "Rock_*": 2,
+    "Ore_*": 10,
+    "Ore_Iron*": { "Xp": 25, "Level": 4 }
+  }
+}

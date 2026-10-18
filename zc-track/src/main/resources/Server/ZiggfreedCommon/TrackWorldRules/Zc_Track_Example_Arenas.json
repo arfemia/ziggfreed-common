@@ -1,0 +1,11 @@
+{
+  "$Comment": "The library's sample track world rule, switched off: turn it on in track-world-rules.json with { \"Zc_Track_Example_Arenas\": { \"Enabled\": true } } and the sample track gains nothing in any world whose name holds Arena, while every other track there gains half. A world's own gameplay config can say the same in its Plugin group as ZigTrackRules, and then that wins for the world.",
+  "Enabled": false,
+  "Where": { "Match": [ "*Arena*" ] },
+  "Rules": {
+    "Gain": {
+      "Multiplier": 0.5,
+      "DisabledTracks": [ "Zc_Track_Example" ]
+    }
+  }
+}
