@@ -14,8 +14,9 @@ import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 
 /**
- * {@link WorldSelector}'s pure matcher: the two positive axes alone and combined, the exclusion
- * filter, and the codec's null-is-null contract. No engine, no balance data.
+ * {@link WorldSelector}'s pure matcher: the name and config axes alone and combined, the Placement
+ * axis through a stub placement store, the exclusion filter, and the codec's null-is-null contract.
+ * No engine, no balance data.
  */
 class WorldSelectorMatchTest {
 
@@ -104,6 +105,39 @@ class WorldSelectorMatchTest {
         WorldSelector blank = new WorldSelector();
         assertTrue(blank.isBlank());
         assertNull(blank.match("default", "Default"));
+    }
+
+    // ==================== The Placement axis ====================
+
+    @Test
+    void placementAxisMatchesWhereTheNamedPlacementStandsAtItsRankAndNeverChains() {
+        // A stub placement store: the temple guide stands under a GameplayConfig, and a second
+        // placement whose own Where names the first (a chain) plus nothing else.
+        WorldSelector templeGuide = WorldSelector.of(null, new String[]{"ForgottenTemple"}, null);
+        WorldSelector chained = WorldSelector.of(null, null, null, new String[]{"yourmod_guide_temple"});
+        PlacementWheres.install(id -> switch (id) {
+            case "yourmod_guide_temple" -> templeGuide;
+            case "yourmod_chained" -> chained;
+            default -> null;
+        });
+        try {
+            WorldSelector shop = WorldSelector.of(null, null, null, new String[]{"YourMod_Guide_Temple"});
+
+            assertEquals(MatchRank.gameplayConfig(), shop.match(INSTANCE_WORLD, "ForgottenTemple"),
+                    "a placement id matches, in any casing, where that placement's own Where does, at its rank");
+            assertNull(shop.match("default", "Default"), "and nowhere that placement may not stand");
+
+            assertNull(WorldSelector.of(null, null, null, new String[]{"yourmod_chained"})
+                            .match(INSTANCE_WORLD, "ForgottenTemple"),
+                    "a placement whose own Where names placements resolves that axis to nothing: no chains");
+            assertNull(WorldSelector.of(null, null, null, new String[]{"yourmod_nobody"}).match("default", null),
+                    "an id no placement answers to adds no world");
+            assertNull(WorldSelector.of(null, null, new String[]{"*Forgotten_Temple*"},
+                            new String[]{"yourmod_guide_temple"}).match(INSTANCE_WORLD, "ForgottenTemple"),
+                    "ExcludeMatch filters the Placement axis like any other");
+        } finally {
+            PlacementWheres.clearForTests();
+        }
     }
 
     // ==================== ExcludeMatch is a filter, not a complement ====================

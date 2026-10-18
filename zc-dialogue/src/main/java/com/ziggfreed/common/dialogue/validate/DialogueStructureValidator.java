@@ -768,8 +768,8 @@ public final class DialogueStructureValidator {
         // can never appear. That reads as the opposite of the author's intent.
         if (condition.getSelector().hasNoPositiveAxis()) {
             out.add(error("WORLD_CONDITION_NO_AXIS",
-                    "Dialogue '" + id + "' " + where + " has a World condition with no Match or "
-                            + "GameplayConfig, so it can never pass and its content is invisible", id));
+                    "Dialogue '" + id + "' " + where + " has a World condition with no Match, "
+                            + "GameplayConfig or Placement, so it can never pass and its content is invisible", id));
             return;
         }
         // Whether a pattern names a world that EXISTS is a runtime question, not one a decoded

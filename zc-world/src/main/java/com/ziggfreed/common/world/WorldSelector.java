@@ -1,5 +1,7 @@
 package com.ziggfreed.common.world;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 import javax.annotation.Nonnull;
@@ -16,15 +18,17 @@ import com.ziggfreed.common.world.WorldNameMatcher.Pattern;
  * "Which worlds does this apply to?", as a reusable nested-group codec ANY consumer asset can
  * embed as a field under the key {@code Where}.
  *
- * <p><b>A world is named by what it is CALLED or by the gameplay config it runs.</b> There is no
- * intermediate vocabulary to learn: {@code Match} is a world-name pattern in the ordinary grammar,
- * {@code GameplayConfig} is the world's own authored config key, and both produce a
+ * <p><b>A world is named by what it is CALLED, by the gameplay config it runs, or by the NPC
+ * placement that may stand in it.</b> There is no intermediate vocabulary to learn: {@code Match} is a
+ * world-name pattern in the ordinary grammar, {@code GameplayConfig} is the world's own authored config
+ * key, {@code Placement} borrows an NPC placement's own {@code Where}, and each produces a
  * {@link MatchRank} so two rules pointing at one world are always ordered.
  *
  * <p>Authored shape (every key optional, every list nullable):
  * <pre>{@code
  * { "Match":          ["*Forgotten_Temple*"],
  *   "GameplayConfig": ["ForgottenTemple"],
+ *   "Placement":      ["YourMod_Guide_Temple"],
  *   "ExcludeMatch":   ["*Arena*"] }
  * }</pre>
  *
@@ -38,6 +42,14 @@ import com.ziggfreed.common.world.WorldNameMatcher.Pattern;
  *       {@code instance-<Name>-<random uuid>}, so its NAME changes every time it is entered while
  *       its config key does not; that is why this axis is the sturdiest way to reach an instance,
  *       and why it sits at the top of the ladder.</li>
+ *   <li><b>{@code Placement}</b> - NPC placement ids, matched without regard to case. A world
+ *       matches when any named placement's own {@code Where} matches it (the server owner's
+ *       {@code npc-placements.json} included), scored at the rank that {@code Where} matched with,
+ *       whether or not its NPC is standing there right now. So a storefront, a board or a line
+ *       written against a placement follows its NPC when a server moves it. The placement store
+ *       answers through the {@link PlacementWheres} seam, since this module cannot see it. There
+ *       are no chains: a {@code Placement} axis inside the {@code Where} a placement answers with
+ *       resolves to nothing ({@link #withoutPlacement}), which {@link WhereValidator} reports.</li>
  *   <li><b>{@code ExcludeMatch}</b> - name patterns in the SAME grammar as {@code Match}, applied
  *       as a FILTER over the positive axes rather than as a complement of them: a world whose name
  *       matches any of them is rejected even when a positive axis hit. A {@code Where} with ONLY
@@ -67,6 +79,7 @@ public final class WorldSelector {
 
     @Nullable protected String[] match;
     @Nullable protected String[] gameplayConfig;
+    @Nullable protected String[] placement;
     @Nullable protected String[] excludeMatch;
 
     public static final BuilderCodec<WorldSelector> CODEC =
@@ -85,6 +98,14 @@ public final class WorldSelector {
                             + "sturdiest way to target an instance world, and it outranks every name "
                             + "pattern.")
                     .add()
+                    .append(new KeyedCodec<>("Placement", Codec.STRING_ARRAY, false),
+                            (o, v) -> o.placement = v, o -> o.placement)
+                    .documentation("NPC placement ids, in any casing. Matches every world one of those "
+                            + "placements may stand in, as that placement's own Where says (the server "
+                            + "owner's npc-placements.json included), whether or not its NPC is standing "
+                            + "there right now, so this follows the NPC when a server moves it. It ranks "
+                            + "as that Where matched. A placement's own Where cannot use it.")
+                    .add()
                     .append(new KeyedCodec<>("ExcludeMatch", Codec.STRING_ARRAY, false),
                             (o, v) -> o.excludeMatch = v, o -> o.excludeMatch)
                     .documentation("Name patterns, same grammar as Match, that REJECT a world even when "
@@ -101,10 +122,18 @@ public final class WorldSelector {
     @Nonnull
     public static WorldSelector of(@Nullable String[] match, @Nullable String[] gameplayConfig,
             @Nullable String[] excludeMatch) {
+        return of(match, gameplayConfig, excludeMatch, null);
+    }
+
+    /** {@link #of(String[], String[], String[])} with a {@code Placement} axis too. Nulls stay null. */
+    @Nonnull
+    public static WorldSelector of(@Nullable String[] match, @Nullable String[] gameplayConfig,
+            @Nullable String[] excludeMatch, @Nullable String[] placement) {
         WorldSelector s = new WorldSelector();
         s.match = match;
         s.gameplayConfig = gameplayConfig;
         s.excludeMatch = excludeMatch;
+        s.placement = placement;
         return s;
     }
 
@@ -118,6 +147,12 @@ public final class WorldSelector {
         return gameplayConfig;
     }
 
+    /** The NPC placement ids the {@code Placement} axis names, as authored, or null. */
+    @Nullable
+    public String[] getPlacement() {
+        return placement;
+    }
+
     @Nullable
     public String[] getExcludeMatch() {
         return excludeMatch;
@@ -125,12 +160,48 @@ public final class WorldSelector {
 
     /** True when no positive axis is authored, so this selector can never match a world. */
     public boolean hasNoPositiveAxis() {
-        return isEmpty(match) && isEmpty(gameplayConfig);
+        return isEmpty(match) && isEmpty(gameplayConfig) && isEmpty(placement);
     }
 
     /** True when nothing at all is authored (the "absent stays null" case a read site defaults). */
     public boolean isBlank() {
         return hasNoPositiveAxis() && isEmpty(excludeMatch);
+    }
+
+    /**
+     * This selector with its {@code Placement} axis dropped, the rest unchanged: what a placement's own
+     * {@code Where} means, since a placement cannot follow another placement (no chains). Answers this
+     * very selector when it names no placement.
+     */
+    @Nonnull
+    public WorldSelector withoutPlacement() {
+        if (isEmpty(placement)) {
+            return this;
+        }
+        return of(match, gameplayConfig, excludeMatch, null);
+    }
+
+    /**
+     * The {@code Where} of each placement the {@code Placement} axis names, in authored order, each with its
+     * own {@code Placement} axis dropped ({@link #withoutPlacement}); an id no placement answers to adds
+     * nothing. Empty when the axis is unauthored, without asking the {@link PlacementWheres} seam at all.
+     */
+    @Nonnull
+    public List<WorldSelector> placementWheres() {
+        if (isEmpty(placement)) {
+            return List.of();
+        }
+        List<WorldSelector> out = new ArrayList<>(placement.length);
+        for (String id : placement) {
+            if (id == null || id.isBlank()) {
+                continue;
+            }
+            WorldSelector where = PlacementWheres.whereOf(id);
+            if (where != null) {
+                out.add(where.withoutPlacement());
+            }
+        }
+        return out;
     }
 
     // ==================== Matching ====================
@@ -156,10 +227,12 @@ public final class WorldSelector {
     }
 
     /**
-     * The PURE matcher: score this selector against a world's name and its authored
-     * {@code GameplayConfig}. Returns the most specific rank across the two positive axes, or
-     * {@code null} when nothing matched or an {@code ExcludeMatch} pattern vetoed the world. No
-     * engine coupling - this is the unit-tested decision core {@link #match(World)} delegates to.
+     * The matcher: score this selector against a world's name and its authored {@code GameplayConfig}.
+     * Returns the most specific rank across the positive axes, or {@code null} when nothing matched or
+     * an {@code ExcludeMatch} pattern vetoed the world. No engine coupling - this is the unit-tested
+     * decision core {@link #match(World)} delegates to. A {@code Placement} axis scores each named
+     * placement's own {@code Where} against the same world ({@link #placementWheres}); this selector's
+     * own axes come first, so a tie keeps them, then the placements in authored order.
      */
     @Nullable
     public MatchRank match(@Nullable String worldName, @Nullable String worldGameplayConfig) {
@@ -171,7 +244,12 @@ public final class WorldSelector {
         if (matchesAny(excludeMatch, worldName)) {
             return null;
         }
-        return directRank(match, gameplayConfig, worldName, worldGameplayConfig);
+        MatchRank best = directRank(match, gameplayConfig, worldName, worldGameplayConfig);
+        for (WorldSelector where : placementWheres()) {
+            // Each answer carries no Placement axis of its own, so this never recurses.
+            best = MatchRank.moreSpecific(best, where.match(worldName, worldGameplayConfig));
+        }
+        return best;
     }
 
     /**

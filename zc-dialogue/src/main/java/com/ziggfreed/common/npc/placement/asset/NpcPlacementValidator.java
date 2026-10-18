@@ -274,20 +274,25 @@ public final class NpcPlacementValidator {
 
     // ==================== where ====================
 
-    /** The shape of the embedded {@code Where} group, which the world layer owns the rules for. */
+    /**
+     * The shape of the embedded {@code Where} group, which the world layer owns the rules for. A
+     * placement's own {@code Where} cannot follow another placement, so it takes the placement form of
+     * the check, which reports a {@code Placement} axis rather than looking its ids up.
+     */
     private static void checkWhereShape(@Nonnull NpcPlacementAsset placement, @Nonnull String id,
             @Nonnull List<Finding> out) {
         WorldSelector where = placement.getWhere();
         if (where == null || where.isBlank()) {
             return; // Unauthored means the world named "default", which needs no checking.
         }
-        out.addAll(WhereValidator.validateSelector(where, id + ".Where"));
+        out.addAll(WhereValidator.validateForPlacement(where, id + ".Where"));
     }
 
     /**
      * Does the authored {@code Where} describe any world this server actually has? That question
      * belongs to the world layer, and it can only be answered once the universe is up - which is
-     * why it sits in the cross-asset half rather than beside the shape check.
+     * why it sits in the cross-asset half rather than beside the shape check. It is asked of the
+     * {@code Where} the placement really stands under, its {@code Placement} axis dropped.
      */
     private static void checkWhereMatchesALoadedWorld(@Nonnull NpcPlacementAsset placement,
             @Nonnull String id, @Nonnull List<Finding> out) {
@@ -295,7 +300,7 @@ public final class NpcPlacementValidator {
         if (where == null || where.isBlank()) {
             return;
         }
-        out.addAll(WhereValidator.validateAgainstWorlds(where, id + ".Where",
+        out.addAll(WhereValidator.validateAgainstWorlds(where.withoutPlacement(), id + ".Where",
                 WorldIdentity.loadedWorlds()));
     }
 

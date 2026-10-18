@@ -1,6 +1,8 @@
 package com.ziggfreed.common.dialogue.state;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -33,7 +35,7 @@ import com.ziggfreed.common.world.WorldSelector;
  * <h2>The scope is the ONE world grammar, not a grammar of its own</h2>
  *
  * <p>{@code Where} is the shared {@link WorldSelector} group - {@code Match} / {@code GameplayConfig}
- * / {@code ExcludeMatch} - the same field an NPC placement, a world rule and a dialogue {@code World}
+ * / {@code Placement} / {@code ExcludeMatch} - the same field an NPC placement, a world rule and a dialogue {@code World}
  * condition all carry. An author who has written one has already learned this one, and a new axis
  * reaches every surface at the same moment.
  *
@@ -50,6 +52,9 @@ import com.ziggfreed.common.world.WorldSelector;
  *       when the state belongs to an instance;</li>
  *   <li>a <b>{@code Match}</b> pattern files under the pattern's literal core ({@code KweebecNightmare}
  *       for {@code *KweebecNightmare*}), and an exact name is its own core;</li>
+ *   <li>a <b>{@code Placement}</b> hit files exactly as the named placement's own {@code Where} would
+ *       written inline (its config hit, else its pattern's core), so swapping a hand-written
+ *       {@code Where} for the placement it copies keeps every key already stored;</li>
  *   <li>with several matching, the MOST SPECIFIC wins deterministically: a config hit first, else the
  *       longest core, so which key is written never depends on the order the axes were read.</li>
  * </ul>
@@ -186,7 +191,8 @@ public final class DialogueFlagScope {
         if (selector == null || isEmpty(selector.getMatch())) {
             return false;
         }
-        if (!isEmpty(selector.getGameplayConfig()) || !isEmpty(selector.getExcludeMatch())) {
+        if (!isEmpty(selector.getGameplayConfig()) || !isEmpty(selector.getExcludeMatch())
+                || !isEmpty(selector.getPlacement())) {
             return false;
         }
         for (String raw : selector.getMatch()) {
@@ -216,24 +222,42 @@ public final class DialogueFlagScope {
         if (selector == null || selector.match(worldName, worldGameplayConfig) == null) {
             return null;
         }
+        // A Placement hit counts as the named placement's own Where written inline, so the axes read
+        // below are this selector's and those of each named placement that matched this world.
+        List<WorldSelector> scopes = new ArrayList<>();
+        scopes.add(selector);
+        for (WorldSelector placed : selector.placementWheres()) {
+            if (placed.match(worldName, worldGameplayConfig) != null) {
+                scopes.add(placed);
+            }
+        }
         // A GameplayConfig hit is the top of the shared ladder AND the sturdiest key: it is authored,
         // carries no uuid, and survives the instance world being torn down and rebuilt.
         String config = normalize(worldGameplayConfig);
-        if (!config.isEmpty() && matchesExactly(selector.getGameplayConfig(), config)) {
-            return config;
+        if (!config.isEmpty()) {
+            for (WorldSelector scope : scopes) {
+                if (matchesExactly(scope.getGameplayConfig(), config)) {
+                    return config;
+                }
+            }
         }
         String best = null;
         String worldLower = normalize(worldName);
-        String[] patterns = selector.getMatch();
-        if (patterns != null && !worldLower.isEmpty()) {
-            for (String raw : patterns) {
-                if (raw == null || raw.isBlank()) {
+        if (!worldLower.isEmpty()) {
+            for (WorldSelector scope : scopes) {
+                String[] patterns = scope.getMatch();
+                if (patterns == null) {
                     continue;
                 }
-                Pattern pattern = Pattern.parse(raw);
-                if (pattern.matches(worldLower)
-                        && (best == null || pattern.core().length() > best.length())) {
-                    best = pattern.core();
+                for (String raw : patterns) {
+                    if (raw == null || raw.isBlank()) {
+                        continue;
+                    }
+                    Pattern pattern = Pattern.parse(raw);
+                    if (pattern.matches(worldLower)
+                            && (best == null || pattern.core().length() > best.length())) {
+                        best = pattern.core();
+                    }
                 }
             }
         }
@@ -363,7 +387,7 @@ public final class DialogueFlagScope {
             return "";
         }
         return join(selector.getGameplayConfig()) + "|" + join(selector.getMatch())
-                + "|" + join(selector.getExcludeMatch());
+                + "|" + join(selector.getExcludeMatch()) + "|" + join(selector.getPlacement());
     }
 
     @Nonnull

@@ -2,7 +2,8 @@
 
 ## Where (world targeting)
 
-- `Where` (`WorldSelector`: `{Match, GameplayConfig, ExcludeMatch}`) is the one spelling of "which worlds?" in the family. A bare word under `Match` is an exact world name, so `["default"]` reaches that world alone; `ExcludeMatch` only filters the positive axes, so an exclude-only `Where` matches nothing.
+- `Where` (`WorldSelector`: `{Match, GameplayConfig, Placement, ExcludeMatch}`) is the one spelling of "which worlds?" in the family. A bare word under `Match` is an exact world name, so `["default"]` reaches that world alone; `ExcludeMatch` only filters the positive axes, so an exclude-only `Where` matches nothing.
+- `Placement` names NPC placement ids (any casing) and matches every world a named placement's own `Where` matches, the owner layer included, at that match's rank, whatever its NPC is doing. zc-world cannot see placements, so it reads them through the `PlacementWheres` seam, which zc-dialogue's `NpcBootstrap` fills at setup (it warns once while unfilled). No chains: `match` drops the `Placement` axis of every answer (`withoutPlacement`), and a placement's own `Where` goes through `WhereValidator.validateForPlacement` (`PLACEMENT_CHAIN`); `validateSelector` reports `UNKNOWN_PLACEMENT` only once the pool has folded, both WARNING.
 - `WorldSelector` carries no defaults (each read site applies its own) and answers a `MatchRank` or null, never a boolean. Under `Parent` an authored `Where` replaces the parent's whole: its axes are OR'd alternatives, so a merge would broaden the child.
 - `MatchRank` sorts `GameplayConfig` exact > exact name > the partial pattern with the longest literal core > bare `*`, and a tie keeps authoring order. It is zc-core's `NameMatchRank` plus the `GameplayConfig` rung, so never keep a private ladder.
 - An instance world is named `instance-<name>-<uuid>`: only the contains form (`*Name*`) reaches it by name, so prefer targeting an instance by the `GameplayConfig` it runs.

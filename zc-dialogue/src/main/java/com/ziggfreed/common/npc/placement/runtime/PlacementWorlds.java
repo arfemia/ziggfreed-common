@@ -9,13 +9,15 @@ import javax.annotation.Nullable;
 import com.ziggfreed.common.npc.NpcIdentities;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementAsset;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementConfig;
+import com.ziggfreed.common.world.PlacementWheres;
 import com.ziggfreed.common.world.WorldSelector;
 import com.ziggfreed.common.worldmap.WaypointPosition;
 
 /**
  * Where a character stands: under which worlds' {@code Where}, and at which remembered positions in
- * one world. The one read a waypoint makes; every table it reads is concurrent, so the map tracker
- * may call {@link #positionsOf}.
+ * one world. The one read a waypoint makes, and what a {@code Where}'s {@code Placement} axis reads
+ * ({@link #placementWheres}); every table it reads is concurrent, so the map tracker may call
+ * {@link #positionsOf} and any thread may score a {@code Placement} axis.
  */
 public final class PlacementWorlds {
 
@@ -26,11 +28,42 @@ public final class PlacementWorlds {
     private PlacementWorlds() {
     }
 
-    /** The {@code Where} {@code placement} stands under: its own, or {@code Match ["default"]} when it authors none. */
+    /**
+     * The {@code Where} {@code placement} stands under: its own, or {@code Match ["default"]} when it authors
+     * none. A {@code Placement} axis in it is dropped (no chains), so a placement naming only placements
+     * stands nowhere; the validator says so ({@code PLACEMENT_CHAIN}).
+     */
     @Nonnull
     public static WorldSelector effectiveWhere(@Nonnull NpcPlacementAsset placement) {
         WorldSelector where = placement.getWhere();
-        return where == null || where.isBlank() ? DEFAULT_WHERE : where;
+        return where == null || where.isBlank() ? DEFAULT_WHERE : where.withoutPlacement();
+    }
+
+    /**
+     * The answer to zc-world's {@code Placement} axis ({@link PlacementWheres}): each placement's
+     * {@link #effectiveWhere} as the store resolves it, the owner layer included, whether or not it is
+     * enabled or its NPC stands anywhere right now; an id the store does not hold answers nothing.
+     */
+    @Nonnull
+    public static PlacementWheres.Lookup placementWheres() {
+        return new PlacementWheres.Lookup() {
+            @Nullable
+            @Override
+            public WorldSelector whereOf(@Nonnull String placementId) {
+                NpcPlacementAsset placement = NpcPlacementConfig.getInstance().resolve(placementId);
+                return placement == null ? null : effectiveWhere(placement);
+            }
+
+            @Override
+            public boolean folded() {
+                return NpcPlacementConfig.getInstance().hasFolded();
+            }
+
+            @Override
+            public boolean refused(@Nonnull String placementId) {
+                return NpcPlacementConfig.getInstance().modGateRefused().containsKey(placementId);
+            }
+        };
     }
 
     /**

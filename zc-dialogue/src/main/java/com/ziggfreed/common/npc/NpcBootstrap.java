@@ -20,11 +20,13 @@ import com.ziggfreed.common.npc.placement.asset.NpcPlacementOverrides;
 import com.ziggfreed.common.npc.placement.runtime.NpcPlacementReconciler;
 import com.ziggfreed.common.npc.placement.runtime.PlacedNpcComponent;
 import com.ziggfreed.common.npc.placement.runtime.PlacementFortifySystem;
+import com.ziggfreed.common.npc.placement.runtime.PlacementWorlds;
 import com.ziggfreed.common.npc.placement.runtime.PropSectionWatch;
 import com.ziggfreed.common.npc.placement.anchor.PlacementMarkerSystem;
 import com.ziggfreed.common.npc.placement.interact.PlacementNpcActions;
 import com.ziggfreed.common.npc.placement.command.ZigNpcCommand;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.world.PlacementWheres;
 
 /**
  * Wires the NPC engines this module owns at plugin {@code setup()}: the placement engine, the
@@ -56,6 +58,9 @@ public final class NpcBootstrap {
      */
     public static void setupPlacementEngine(@Nonnull PluginBase plugin) {
         try {
+            // Who answers a Where's Placement axis: zc-world holds only the seam, and the placement
+            // store is this module's to read. Installed first, so nothing below can skip it.
+            PlacementWheres.install(PlacementWorlds.placementWheres());
             var placedType = PlacedNpcComponent.register(plugin.getEntityStoreRegistry());
             if (placedType != null) {
                 // Fortify at the add, on a spawn and a load alike: the engine skips the post-spawn of an

@@ -91,7 +91,7 @@ import com.ziggfreed.common.world.WorldSelector;
  *
  * <h2>{@code Where}</h2>
  *
- * <p>The shared world selector - the same {@code {Match, GameplayConfig, ExcludeMatch}} group an NPC
+ * <p>The shared world selector - the same {@code {Match, GameplayConfig, Placement, ExcludeMatch}} group an NPC
  * placement carries - so an author who has written one has already learned this one.
  *
  * <p>Reach for {@code GameplayConfig} for an instance world. One is named

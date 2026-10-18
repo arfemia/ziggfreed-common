@@ -83,7 +83,7 @@ public final class EncounterParticipationAsset
             .appendInherited(new KeyedCodec<>("Where", WorldSelector.CODEC, false),
                     (a, v) -> a.where = v, a -> a.where, (a, p) -> a.where = p.where)
             .documentation("Which worlds this rule applies in, as the shared selector group "
-                    + "(Match / GameplayConfig / ExcludeMatch). Omit it to apply everywhere.")
+                    + "(Match / GameplayConfig / Placement / ExcludeMatch). Omit it to apply everywhere.")
             .add()
             .appendInherited(new KeyedCodec<>("DamageDealt",
                             FactorFormula.numberOrGroup(EditorDataSets.FACTORS), false),

@@ -49,6 +49,9 @@ public final class NpcPlacementConfig extends AbstractKeyedAssetConfig<NpcPlacem
     /** Whether the late audit has already had its one run this boot. */
     private final AtomicBoolean lateAudited = new AtomicBoolean();
 
+    /** Whether a pack layer has folded yet, so an id this pool lacks is unknown rather than not loaded. */
+    private volatile boolean folded;
+
     /** Who reports this pool's cross-asset findings, when it is not this library. */
     @Nullable
     private volatile String lateAuditOwner;
@@ -97,8 +100,17 @@ public final class NpcPlacementConfig extends AbstractKeyedAssetConfig<NpcPlacem
     public synchronized void mergePackLayer(@Nonnull Map<String, NpcPlacementAsset> layer) {
         packRefusedFiles = Map.of();
         super.mergePackLayer(layer);
+        folded = true;
         onPoolChanged();
         logFindings();
+    }
+
+    /**
+     * True once a pack layer has folded, so a placement id this pool does not hold is unknown rather
+     * than not loaded yet: what an audit of a {@code Where}'s {@code Placement} axis asks first.
+     */
+    public boolean hasFolded() {
+        return folded;
     }
 
     /**

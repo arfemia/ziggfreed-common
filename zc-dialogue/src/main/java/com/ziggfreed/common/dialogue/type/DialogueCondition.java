@@ -120,8 +120,9 @@ public abstract class DialogueCondition {
                         (c, v) -> c.where = v, c -> c.where)
                 .documentation("Which worlds this line may appear in, in the shared world-targeting "
                         + "vocabulary: Match (world-name patterns), GameplayConfig (exact config "
-                        + "keys) and ExcludeMatch (a filter over those). Omit it and the line never "
-                        + "shows, because nothing said where it applies.")
+                        + "keys), Placement (wherever those NPC placements may stand) and ExcludeMatch "
+                        + "(a filter over those). Omit it and the line never shows, because nothing "
+                        + "said where it applies.")
                 .add()
                 .build();
 

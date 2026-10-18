@@ -14,6 +14,7 @@
 
 ## Audit
 
+- A placement's own `Where` goes through zc-world's `WhereValidator.validateForPlacement`: a `Placement` axis there is `PLACEMENT_CHAIN` (WARNING), since a placement cannot follow another one.
 - `auditFileLocal` runs at every fold. The full cross-asset audit runs once, at the first `PlayerReadyEvent`, because asking earlier invents findings; a consumer that folds placements into its own report calls `claimLateAudit`. zc's boot audit takes that one run at `BootEvent` instead (`claimLateFindings`), and nothing where a consumer claimed it.
 - The audit cannot check that a named role exists (roles are not an asset store); `NpcPlacementAuthoring.isSpawnable` is a courtesy check where someone types a role.
 - `NpcPlacementConfig.rolesByPlacement()` feeds zc-encounter's `EncounterAudit` through the wiring root, so a placement role that is an encounter script id is reported under the encounter domain.
