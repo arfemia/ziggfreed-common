@@ -1,0 +1,70 @@
+# What the track module says. The file name is the key PREFIX: an entry here resolves as
+# ziggfreedcommon.track.<key>.
+
+# How a requirement on a track reading is named when nothing names the track.
+factor.track_level = level on a track
+factor.track_climb = current level on a track
+factor.track_tier = a tier on a track
+factor.track_prestige = prestige on a track
+# A lock line's name for a reading on a track that names itself: {0} the track.
+factor.level_of = {0} level
+factor.climb_of = current {0} level
+factor.prestige_of = {0} prestige
+# A lock line's name for a tier gate: {0} the tier, {1} the track.
+factor.tier_in = {0} in {1}
+
+# A Track reward as it reads in a reward list: {0} the amount, {1} the track's name.
+reward.gain = +{0, number} {1}
+reward.loss = {0, number} {1}
+
+# A Claim's title. An unlock: {0} the track, {1} the level it was reached at. A track reward: {0} the track.
+claim.unlock = {0}: level {1}
+claim.reward = {0}
+
+# A TRACK_LEVEL step: {0} the level, {1} the track. A TRACK_TIER step: {1} the tier. The .any twins read when a
+# step names no track or tier; a TRACK_TIER step naming no tier counts tiers reached, {0} of them.
+objective.track_level = Reach level {0} in {1}
+objective.track_level.any = Reach level {0} on any track
+objective.track_tier = Reach {1}
+objective.track_tier.any = Reach {0} tiers
+
+# The categories the library ships.
+category.combat = Combat
+category.gathering = Gathering
+category.crafting = Crafting
+
+# The library's sample track and its tiers (switched off unless an owner turns it on).
+example.name = Sample Track
+example.tier.novice = Novice
+example.tier.adept = Adept
+example.tier.expert = Expert
+
+# /zigtrack, the admin family. The command.desc.* keys are what the engine's own help resolves a command or
+# an argument's description from.
+command.desc.family = Read and move players' tracks.
+command.desc.add = Move a player's track, the way a reward would.
+command.desc.show = Show a player's tracks, online or not.
+command.desc.prestige = Start a player's climb on a track again.
+command.desc.arg.player = The player, who has to be online. Defaults to you.
+command.desc.arg.player.any = The player: a name for someone online, or a player id for someone who is not. Defaults to you.
+command.desc.arg.track = The track, by its id.
+command.desc.arg.amount = How much to add. A negative amount takes some away.
+command.player.needed = Name a player with --player=<name>.
+command.player.offline = That player is not in a world right now. Try again in a moment.
+command.player.unknown = Could not find a player called '{0}'. Their player id works too.
+command.track.needed = Name a track with --track=<id>.
+command.track.unknown = No track called '{0}' is switched on here.
+command.amount.needed = Name an amount with --amount=<n>, other than zero.
+# In command.add.done {0} is the track, {1} the player, {2} how far it moved, {3} the level now and {4} how many
+# unlock Claims it parked.
+command.add.done = {1} moved {2, number} on {0} and is now level {3, number}. {4, number} {4, plural, one {Claim} other {Claims}} parked.
+command.add.unchanged = {0} did not move for {1}: it is at its cap, or nothing landed.
+command.add.locked = {1} does not meet what {0} requires, so nothing moved.
+# In the prestige lines {0} is the track and {1} the player; {2} is the prestige now, or the level the next one needs.
+command.prestige.done = {1} started {0} again. Prestige {2, number}.
+command.prestige.not_ready = {1} needs level {2, number} in {0} before the next prestige.
+command.prestige.not_allowed = {0} has no prestige left for {1}.
+# /zigtrack show. In command.show.line {0} is the track, then its level, best level, prestige and value.
+command.show.head = Tracks of {0}:
+command.show.line = {0}: level {1, number}, best {2, number}, prestige {3, number}, value {4, number}
+command.show.none = {0} has no tracks to show here.

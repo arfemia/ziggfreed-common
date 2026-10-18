@@ -9,6 +9,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
+import com.ziggfreed.common.progress.gate.GateEpochs;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.validation.ValidationReport;
@@ -81,25 +82,30 @@ public final class DerivedFactorConfig extends AbstractKeyedAssetConfig<DerivedF
     }
 
     // Every fold bumps the vocabulary generation: a file's traits (FactorTraits) are read off the fold, and a
-    // compiled gate that kept them, or a verdict over them, rechecks against that generation.
+    // compiled gate that kept them, or a verdict over them, rechecks against that generation. It moves the gate
+    // server epoch too, so a gate asked only at its own moments (a gear set's) hears of the reload and asks again.
     @Override
     public synchronized void loadDefaults(@Nonnull Map<String, DerivedFactorAsset> jarDefaults) {
         super.loadDefaults(jarDefaults);
-        FactorRegistry.bumpGeneration();
-        logFindings();
+        refolded();
     }
 
     @Override
     public synchronized void mergePackLayer(@Nonnull Map<String, DerivedFactorAsset> layer) {
         super.mergePackLayer(layer);
-        FactorRegistry.bumpGeneration();
-        logFindings();
+        refolded();
     }
 
     @Override
     public synchronized void mergeOwnerLayer(@Nonnull Map<String, DerivedFactorAsset> layer) {
         super.mergeOwnerLayer(layer);
+        refolded();
+    }
+
+    /** After any fold: the generation, the gate server epoch, and the always-on findings. */
+    private void refolded() {
         FactorRegistry.bumpGeneration();
+        GateEpochs.bumpServer();
         logFindings();
     }
 

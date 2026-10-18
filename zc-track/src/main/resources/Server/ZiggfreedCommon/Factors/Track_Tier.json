@@ -1,0 +1,6 @@
+{
+  "$Comment": "Names the ziggfreedcommon:track_tier reading for requirement lines. Param is a track id and a tier id joined by a slash (Your_Mining/Adept); the reading is 1 once the best level the player ever reached is at or above that tier's first level on the track's curve, and 0 below it. Write Min 1 to require the tier. A track that names itself words its lock lines ('Requires Adept in Mining'). It changes only through the player's own track gains or a track reload (Volatility Player).",
+  "Factor": "ziggfreedcommon:track_tier",
+  "Text": { "TitleKey": "ziggfreedcommon.track.factor.track_tier" },
+  "Volatility": "Player"
+}

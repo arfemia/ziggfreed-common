@@ -11,6 +11,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
@@ -126,6 +127,9 @@ public final class GearSets {
 
     /** The world tick each gated wearer was last re-checked on, so a re-check runs at most once a tick. */
     private static final Map<UUID, Long> RECHECKED_AT = new ConcurrentHashMap<>();
+
+    /** Whether a failed re-check queue has been said once this boot; every later one is fine-level only. */
+    private static final AtomicBoolean RECHECK_QUEUE_WARNED = new AtomicBoolean();
 
     private GearSets() {
     }
@@ -273,8 +277,21 @@ public final class GearSets {
             world.execute(() -> recheck(world, ref, playerId));
         } catch (Throwable t) {
             RECHECK_QUEUED.remove(playerId);
-            SafeLog.warn("[gearset] could not queue a gated set's re-check: " + t.getMessage());
+            if (RECHECK_QUEUE_WARNED.compareAndSet(false, true)) {
+                SafeLog.warn("[gearset] could not queue a gated set's re-check (said once; later failures are "
+                        + "fine-level): " + t.getMessage());
+            } else {
+                SafeLog.fine("[gearset] could not queue a gated set's re-check: " + t.getMessage());
+            }
         }
+    }
+
+    /**
+     * Does anyone wear a gated set right now? The cheap test the gate epochs ask before announcing a move
+     * ({@code GateEpochs.announceWhile}), so a move nobody here would re-check allocates nothing.
+     */
+    public static boolean anyGatedWearer() {
+        return !GATED_WEARERS.isEmpty();
     }
 
     /**

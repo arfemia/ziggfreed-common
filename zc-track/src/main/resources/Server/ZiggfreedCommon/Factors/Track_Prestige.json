@@ -1,0 +1,7 @@
+{
+  "$Comment": "Names the ziggfreedcommon:track_prestige reading for requirement lines. Param is a track id; the reading is how many times the player prestiged it, 0 before the first. It changes only through the player's own prestige or a track reload (Volatility Player).",
+  "Factor": "ziggfreedcommon:track_prestige",
+  "Text": { "TitleKey": "ziggfreedcommon.track.factor.track_prestige" },
+  "ParamDataSet": "ziggfreedcommon:tracks",
+  "Volatility": "Player"
+}

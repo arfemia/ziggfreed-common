@@ -136,6 +136,13 @@ import com.ziggfreed.common.stats.gearset.GearSetAsset;
 import com.ziggfreed.common.stats.gearset.GearSetConfig;
 import com.ziggfreed.common.stats.gearset.GearSetOwnerLayers;
 import com.ziggfreed.common.stats.gearset.GearSets;
+import com.ziggfreed.common.track.asset.TrackAsset;
+import com.ziggfreed.common.track.asset.TrackCategoryAsset;
+import com.ziggfreed.common.track.asset.TrackCategoryConfig;
+import com.ziggfreed.common.track.asset.TrackConfig;
+import com.ziggfreed.common.track.asset.TrackCurveAsset;
+import com.ziggfreed.common.track.asset.TrackCurveConfig;
+import com.ziggfreed.common.track.asset.TrackOwnerLayers;
 import com.ziggfreed.common.ui.hud.panel.HudOwnerLayers;
 import com.ziggfreed.common.ui.hud.panel.HudPanelAsset;
 import com.ziggfreed.common.ui.hud.panel.HudPanelConfig;
@@ -952,6 +959,41 @@ public final class FrameworkAssetRegistrar {
                     ReputationOwnerLayers.reload();
                 });
 
+        // --- Track curves (Pattern A) - one level curve per file, which tracks share by id: its pieces, what lies
+        //     past the top, its tier names. The library ships Skill_Hybrid (and the sample track's curve). No
+        //     owner file; every fold drops the tabulated curves (TrackCurveConfig). ---
+        AssetStoreRegistrar.registerStore(TrackCurveAsset.class,
+                new DefaultAssetMap<String, TrackCurveAsset>(), TrackCurveAsset.TYPE_ROOT,
+                TrackCurveAsset::getId, TrackCurveAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, TrackCurveAsset.class,
+                (LoadedAssetsEvent<String, TrackCurveAsset, DefaultAssetMap<String, TrackCurveAsset>> ev) ->
+                        TrackCurveConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
+
+        // --- Track categories (Pattern A) - one category tracks file under per file: the shared category leaves
+        //     and the prestige build its tracks default to. The library ships Combat, Gathering and Crafting. No
+        //     owner file. ---
+        AssetStoreRegistrar.registerStore(TrackCategoryAsset.class,
+                new DefaultAssetMap<String, TrackCategoryAsset>(), TrackCategoryAsset.TYPE_ROOT,
+                TrackCategoryAsset::getId, TrackCategoryAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, TrackCategoryAsset.class,
+                (LoadedAssetsEvent<String, TrackCategoryAsset, DefaultAssetMap<String, TrackCategoryAsset>> ev) ->
+                        TrackCategoryConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
+
+        // --- Tracks (Pattern A, gated) - one track per file: its name, category, curve, cap, mirror stat,
+        //     prestige setting and unlock rows. A file may gate on a mod through its top-level Requires. The
+        //     library ships one sample track, switched off. Owner file mods/ziggfreedcommon/tracks.json, re-read
+        //     on this same event, which then counts the unlock rows the mod gate leaves out. No loadsAfter: a
+        //     track names its curve and category by id and resolves them at read time. ---
+        AssetStoreRegistrar.registerStore(TrackAsset.class,
+                new DefaultAssetMap<String, TrackAsset>(), TrackAsset.TYPE_ROOT,
+                TrackAsset::getId, TrackAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, TrackAsset.class,
+                (LoadedAssetsEvent<String, TrackAsset, DefaultAssetMap<String, TrackAsset>> ev) -> {
+                    TrackConfig.getInstance().mergePackLayer(AssetMergeAdapter.gate(TrackConfig.MOD_GATE_STORE,
+                            ev.getAssetMap(), t -> GateSpec.missingMod(t.requires())));
+                    TrackOwnerLayers.reload();
+                });
+
         // --- Stats (Pattern A) - one stat the player stat store keeps per file, keyed by the file name
         //     (the tally key every player's record files it under): its name, what its number means, how
         //     it reads, the moments it counts and its breakdown. The library ships its own (Mob_Kills,
@@ -1018,7 +1060,8 @@ public final class FrameworkAssetRegistrar {
                         + "ShopEntryGenerators, Boards, Bounties, Encounters, EncounterParticipation, "
                         + "CalendarEvents (owner file mods/ziggfreedcommon/calendar.json), CalendarSpawns, "
                         + "GearSets (owner file mods/ziggfreedcommon/gear-sets.json), Titles (owner file mods/ziggfreedcommon/titles.json), "
-                        + "Reputations (owner file mods/ziggfreedcommon/reputation.json), "
+                        + "Reputations (owner file mods/ziggfreedcommon/reputation.json), TrackCurves, TrackCategories, "
+                        + "Tracks (owner file mods/ziggfreedcommon/tracks.json), "
                         + "Stats (owner file mods/ziggfreedcommon/stats.json)).");
     }
 }

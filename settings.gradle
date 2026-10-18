@@ -1,6 +1,6 @@
 rootProject.name = 'ZiggfreedCommon'
 
-// The library is built as eighteen focused modules plus a thin wiring root. Every module keeps the
+// The library is built as nineteen focused modules plus a thin wiring root. Every module keeps the
 // SAME package root (com.ziggfreed.common.*) and they are all merged back into the single
 // ZiggfreedCommon jar a server loads, so a module boundary here is a build-time concern only: no
 // consumer import, class name, or manifest changes because of it.
@@ -26,6 +26,7 @@ include 'zc-calendar'
 include 'zc-almanac'
 include 'zc-reputation'
 include 'zc-stats'
+include 'zc-track'
 
 // The local build cache, shared by every family repo and every tree on this machine: the main
 // checkout's .gradle-build-cache, on the workspace's drive, never Gradle's default under the user

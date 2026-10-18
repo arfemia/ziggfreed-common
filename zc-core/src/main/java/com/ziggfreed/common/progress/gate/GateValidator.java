@@ -1,6 +1,7 @@
 package com.ziggfreed.common.progress.gate;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -39,7 +40,9 @@ import com.ziggfreed.common.validation.Finding;
  *
  * <p>What a factor's Factors file declares is checked too ({@code ParamDataSet}, {@code AbsentReads}; see
  * {@code checkTraits}), so is a {@code Max}-only bound on a membership factor, and a registered
- * {@code Custom} kind's parameter names where the kind declares them ({@link GateKind#params()}).
+ * {@code Custom} kind's parameter names where the kind declares them ({@link GateKind#params()}). A domain
+ * whose content changes what a gate could read (a gear set's tiers raising a stat) also asks
+ * {@link #selfReads}, which names a block reading what its own content changes.
  */
 public final class GateValidator {
 
@@ -168,6 +171,60 @@ public final class GateValidator {
                             + "is told to go and get it. Write the negative as a Not group holding the plain "
                             + "condition (Min 1)", sourceId));
         }
+    }
+
+    /** The code a gate reading what the gated content itself changes is reported under ({@link #selfReads}). */
+    public static final String GATE_READS_OWN_STAT = "GATE_READS_OWN_STAT";
+
+    /**
+     * A WARNING for each {@code Param} the block's conditions on any of {@code readers} name (in any group) that
+     * {@code own} also lists, matched without regard to case: content gated on a reading it changes itself. A
+     * gear set gated on {@code hytale:stat Health} whose own tiers raise Health holds itself open once a tier
+     * applies (or shuts itself as a tier falls away), so whether it applies depends on whether it already did.
+     *
+     * @param readers the factor ids whose Param names the changed thing ({@code hytale:stat},
+     *                {@code hytale:stat_percent})
+     * @param own     what the content itself changes (the stat ids its tiers modify)
+     */
+    @Nonnull
+    public static List<Finding> selfReads(@Nullable GateSpec requires, @Nonnull Collection<String> readers,
+            @Nonnull Collection<String> own, @Nonnull String domain, @Nonnull String sourceId,
+            @Nonnull String noun) {
+        List<Finding> out = new ArrayList<>();
+        if (requires == null || own.isEmpty()) {
+            return out;
+        }
+        Set<String> reported = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        for (GateClause clause : clausesOf(requires)) {
+            if (clause == null) {
+                continue;
+            }
+            for (FactorCondition condition : clause.factorsOrEmpty()) {
+                String factorId = condition == null ? null : condition.getFactor();
+                String param = condition == null || condition.getParam() == null ? null : condition.getParam().trim();
+                if (factorId == null || param == null || param.isEmpty()
+                        || !containsIgnoreCase(readers, factorId.trim()) || !containsIgnoreCase(own, param)
+                        || !reported.add(param)) {
+                    continue;
+                }
+                out.add(Finding.warning(domain, GATE_READS_OWN_STAT, "Requires reads '" + param + "' through '"
+                        + factorId.trim() + "', which this " + noun + " changes itself; once it applies, its own "
+                        + "change can hold the gate open or shut it, so gate on something it does not change",
+                        sourceId));
+            }
+        }
+        return out;
+    }
+
+    /** The block and each of its groups, the walk every check here makes. */
+    @Nonnull
+    private static List<GateClause> clausesOf(@Nonnull GateSpec requires) {
+        List<GateClause> clauses = new ArrayList<>();
+        clauses.add(requires);
+        clauses.addAll(Arrays.asList(requires.allOfOrEmpty()));
+        clauses.addAll(Arrays.asList(requires.anyOfOrEmpty()));
+        clauses.addAll(Arrays.asList(requires.notOrEmpty()));
+        return clauses;
     }
 
     /** A registered kind's parameters against the names it declares reading ({@link GateKind#params()}). */

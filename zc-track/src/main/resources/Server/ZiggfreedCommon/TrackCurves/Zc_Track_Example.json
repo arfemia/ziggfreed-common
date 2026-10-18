@@ -1,0 +1,12 @@
+{
+  "$Comment": "The sample track's curve: ten levels written as Floors (the value each level starts at), then one more level every 600 past level 10 (Beyond), with three named tiers. It does nothing until a track names it; the library's sample track Zc_Track_Example does, and ships switched off.",
+  "Pieces": [
+    { "Floors": [ 0, 100, 250, 450, 700, 1000, 1350, 1750, 2200, 2700 ] }
+  ],
+  "Beyond": { "Every": 600 },
+  "Tiers": {
+    "Novice": { "From": 1, "Name": "ziggfreedcommon.track.example.tier.novice" },
+    "Adept": { "From": 4, "Name": "ziggfreedcommon.track.example.tier.adept" },
+    "Expert": { "From": 8, "Name": "ziggfreedcommon.track.example.tier.expert" }
+  }
+}

@@ -175,6 +175,25 @@ public final class DeferredRewards {
     }
 
     /**
+     * Registered-kind rewards decided outside any loot pass (a track's unlock row, a fixed payout), each as
+     * {@link #from} defers a grants group's {@code Rewards} leaf, in order; one that cannot be deferred is dropped
+     * and reported.
+     */
+    @Nonnull
+    public static List<InstanceReward> fromSpecs(@Nonnull List<RewardSpec> specs,
+            @Nullable RewardKindRegistry kinds, @Nullable Subject subject, @Nonnull String sourceId,
+            @Nullable Consumer<String> warn) {
+        List<InstanceReward> out = new ArrayList<>();
+        for (RewardSpec spec : specs) {
+            InstanceReward deferred = spec == null ? null : deferSpec(spec, kinds, subject, sourceId, warn);
+            if (deferred != null) {
+                out.add(deferred);
+            }
+        }
+        return out;
+    }
+
+    /**
      * One registered-kind reward as its replayable console line, or null when it cannot be deferred
      * (nothing registered the kind, the kind offers no replay, or resolving one threw). The line is the
      * kind's scalable one where it has one ({@link #keptLine}), so a payout scaled before it runs pays

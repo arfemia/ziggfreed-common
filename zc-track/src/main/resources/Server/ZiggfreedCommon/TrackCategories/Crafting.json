@@ -1,0 +1,7 @@
+{
+  "$Comment": "The crafting category. A prestige of a track in it clears the player's picks and offers each again preselected as the level comes back (Build Remember), unless the track says otherwise.",
+  "Order": 20,
+  "Icon": "Tool_Hammer_Crude",
+  "TitleKey": "ziggfreedcommon.track.category.crafting",
+  "Prestige": { "Build": "Remember" }
+}

@@ -14,6 +14,7 @@ import com.ziggfreed.common.entity.overhead.OverheadIndicators;
 import com.ziggfreed.common.entity.overhead.OverheadVisibilityFilter;
 import com.ziggfreed.common.entity.performer.PerformerIdentityComponent;
 import com.ziggfreed.common.entity.title.ZigTitleComponent;
+import com.ziggfreed.common.progress.gate.GateEpochs;
 import com.ziggfreed.common.progress.gate.ZigGateEpochMovedEvent;
 import com.ziggfreed.common.stats.EquipStatBridge;
 import com.ziggfreed.common.stats.damage.TypedDamageBonusSystem;
@@ -136,6 +137,7 @@ public final class EntityBootstrap {
             GearSets.install(bridge);
             plugin.getEventRegistry().registerGlobal(EventPriority.LATE, PlayerReadyEvent.class, GearSets::onPlayerReady);
             plugin.getEventRegistry().registerGlobal(ZigGateEpochMovedEvent.class, GearSets::onGateEpochMoved);
+            GateEpochs.announceWhile(GearSets::anyGatedWearer);
             plugin.getEntityStoreRegistry().registerSystem(new GearSetLifecycleSystems.Respawned());
             plugin.getEntityStoreRegistry().registerSystem(new GearSetLifecycleSystems.Left());
         } catch (Throwable t) {

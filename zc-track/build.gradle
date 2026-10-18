@@ -1,0 +1,43 @@
+apply from: "$rootDir/gradle/zc-module.gradle"
+
+// A player's climbs: the track (a named value per subject mapping to levels on a shared curve), the
+// curves tracks share, the categories they sit in, the keyed store every read and write goes through,
+// the best level ever reached, prestige as a track setting, unlocks parked as Claims, the track
+// readings, the change event and the Track reward kind (zc's and the engine's own reward Type).
+//
+// A module of its own, not a package of zc-progression, because the edges demand it: the level mirror
+// writes a native stat (zc-entity's StatMirror) and the later picks and grants write native modifiers
+// (zc-entity), which zc-progression has never reached and its quest and achievement engines do not want
+// (they stay agnostic of any one kind of progression). Every edge points down; zc-reputation (SK4) and
+// zc-objectives (the TRACK_LEVEL and TRACK_TIER producer) sit above this module.
+
+dependencies {
+    // SafeLog, the keyed asset bases and the owner-file reader, the factor vocabulary, the gate core and its
+    // epochs, the native-event seam, i18n, the editor hints, validation findings.
+    implementation project(':zc-core')
+    // The reward vocabulary (the Track kind, its chip, the deferral a Claim keeps) and the Claim store an
+    // unlock parks in.
+    implementation project(':zc-loot')
+    // The reward entry shape an unlock pays, the shared category leaves, the objective-target namer and
+    // the schema reference writer.
+    implementation project(':zc-progression')
+    // StatMirror, the one writer of a level onto a native stat channel.
+    implementation project(':zc-entity')
+}
+
+// Regenerate this module's SCHEMA.md (the authoring reference for tracks, track curves and track
+// categories) from the asset codecs, through zc-progression's SchemaDocWriter. Run on demand
+// (`:zc-track:generateSchemaDocs` through the lane) and commit the file; it is repo documentation, never a
+// jar resource.
+def schemaDocOutput = file('SCHEMA.md')
+tasks.register('generateSchemaDocs', JavaExec) {
+    dependsOn 'compileJava'
+    group = 'documentation'
+    description = 'Regenerate this module\'s SCHEMA.md track authoring reference from the asset codecs'
+    classpath = sourceSets.main.output.classesDirs + configurations.compileClasspath
+    mainClass = 'com.ziggfreed.common.track.docs.TrackSchemaDocs'
+    args schemaDocOutput.absolutePath
+    inputs.files(fileTree('src/main/java/com/ziggfreed/common/track/asset') { include '**/*.java' })
+    inputs.file('src/main/java/com/ziggfreed/common/track/docs/TrackSchemaDocs.java')
+    outputs.file(schemaDocOutput)
+}

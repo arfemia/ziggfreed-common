@@ -9,14 +9,15 @@ import com.hypixel.hytale.server.core.event.events.permissions.PlayerGroupEvent;
 import com.hypixel.hytale.server.core.event.events.permissions.PlayerPermissionChangeEvent;
 import com.hypixel.hytale.server.core.event.events.player.AddPlayerToWorldEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
+import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Wires the engine's events into the gate epochs ({@link GateEpochs}) at the library's {@code setup()}: the
- * boot that turns keeping on, a departing player, a player added to a world (every world, so registered
- * globally: the event is keyed by the world's name), and every permission change (each concrete event, since
- * the bus delivers a listener the class it registered for).
+ * boot that turns keeping on, a departing player, a player added to a world and a player ready in one (every
+ * world, so registered globally: both events are keyed by the world's name), and every permission change (each
+ * concrete event, since the bus delivers a listener the class it registered for).
  */
 public final class GateBootstrap {
 
@@ -30,6 +31,7 @@ public final class GateBootstrap {
             events.register(BootEvent.class, GateEpochs::onBoot);
             events.register(PlayerDisconnectEvent.class, GateEpochs::onDisconnect);
             events.registerGlobal(AddPlayerToWorldEvent.class, GateEpochs::onWorldChange);
+            events.registerGlobal(PlayerReadyEvent.class, GateEpochs::onPlayerReady);
             events.register(PlayerPermissionChangeEvent.PermissionsAdded.class, GateEpochs::onPlayerPermissions);
             events.register(PlayerPermissionChangeEvent.PermissionsRemoved.class, GateEpochs::onPlayerPermissions);
             events.register(PlayerPermissionChangeEvent.GroupAdded.class, GateEpochs::onPlayerPermissions);

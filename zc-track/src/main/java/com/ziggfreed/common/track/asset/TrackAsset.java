@@ -1,0 +1,601 @@
+package com.ziggfreed.common.track.asset;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Locale;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import com.hypixel.hytale.assetstore.AssetExtraInfo;
+import com.hypixel.hytale.assetstore.codec.AssetBuilderCodec;
+import com.hypixel.hytale.assetstore.map.DefaultAssetMap;
+import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
+import com.hypixel.hytale.codec.Codec;
+import com.hypixel.hytale.codec.KeyedCodec;
+import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
+import com.hypixel.hytale.server.core.asset.type.item.config.Item;
+import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
+import com.ziggfreed.common.asset.EditorSchema;
+import com.ziggfreed.common.loot.reward.RewardSpec;
+import com.ziggfreed.common.progress.asset.RewardEntryAsset;
+import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.progress.gate.StoreGates;
+import com.ziggfreed.common.text.ContentTextAsset;
+
+/**
+ * One track, at {@code Server/ZiggfreedCommon/Tracks/<Owner>/<Id>.json}: a named value a player climbs, read
+ * as levels on a shared curve. The FILE NAME is the id (matched without regard to case; it may not contain
+ * {@code @}, which a seasonal run's key reserves); the folders are the author's own grouping.
+ *
+ * <pre>{@code
+ * { "Text": { "TitleKey": "yourmod.track.mining" },
+ *   "Icon": "Tool_Pickaxe_Iron",
+ *   "Category": "Gathering",
+ *   "Curve": "Skill_Hybrid",
+ *   "Cap": 200,
+ *   "Mirror": { "Stat": "Yourmod_Level_Mining" },
+ *   "Prestige": { "Ranks": 10 },
+ *   "Unlocks": [ { "At": [ 25, 50, 75 ], "Rewards": [ { "Kind": "Item", "Params": { "Item": "Your_Cache" } } ] },
+ *                { "Every": 15, "Rewards": [ { "Kind": "Yourmod_Point", "Params": { "Amount": 1 } } ] } ] }
+ * }</pre>
+ *
+ * <p>A player's climb keeps its current value (with the fraction a gain left over), the best level they ever
+ * reached and how often they prestiged. Every read of a level that gates content reads the best ever, so a
+ * prestige, which resets only the current climb, never locks anything again. Each {@code Unlocks} row pays a
+ * Claim the first time the best level reaches one of its levels, never twice. Every leaf is nullable and
+ * inherited through {@code Parent}: {@code Unlocks} replaces whole, every group merges leaf by leaf. The server
+ * owner retunes any of it in {@code mods/ziggfreedcommon/tracks.json}.
+ */
+public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, TrackAsset>> {
+
+    /** The store's content path; the folders below it are the author's own grouping. */
+    public static final String TYPE_ROOT = "ZiggfreedCommon/Tracks";
+
+    /** The character a track id may not contain: a seasonal run's key puts it between the track and the run. */
+    public static final char RUN_SEPARATOR = '@';
+
+    /** The prestige ranks a track allows when its Prestige group names none. */
+    public static final int DEFAULT_PRESTIGE_RANKS = 10;
+
+    /** The level the nth prestige needs is this plus n, unless a track's Prestige group says otherwise. */
+    public static final int DEFAULT_PRESTIGE_BASE = 100;
+
+    /** The sentence the Asset Editor shows beside a track's own {@code Requires}. */
+    static final String REQUIRES_DOCUMENTATION = "What a player must meet for this track to be theirs, in the "
+            + "Requires shape quests use, every condition read. A plain { \"Factor\": \"hytale:mod_installed\", "
+            + "\"Param\": \"Group:Name\", \"Min\": 1 } keeps the track out entirely where that mod is not installed; "
+            + "the rest is asked of the player each time the track would grow, and a player who does not meet it "
+            + "gains nothing on it. Write Min 1 on a presence check.";
+
+    private String id;
+    private AssetExtraInfo.Data data;
+
+    @Nullable protected Boolean enabled;
+    @Nullable protected ContentTextAsset text;
+    @Nullable protected String icon;
+    @Nullable protected Integer order;
+    @Nullable protected String category;
+    @Nullable private GateSpec gate;
+    @Nullable protected String curve;
+    @Nullable protected Integer cap;
+    @Nullable protected Points points;
+    @Nullable protected Mirror mirror;
+    @Nullable protected Prestige prestige;
+    @Nullable protected Unlock[] unlocks;
+
+    /** The live part of the {@code Requires} block, lifted once per instance ({@link StoreGates#live}). */
+    @Nullable private volatile GateSpec[] live;
+
+    public static final AssetBuilderCodec<String, TrackAsset> CODEC = AssetBuilderCodec.builder(
+                    TrackAsset.class,
+                    TrackAsset::new,
+                    Codec.STRING,
+                    (a, id) -> a.id = id,
+                    a -> a.id,
+                    (a, extra) -> a.data = extra,
+                    a -> a.data)
+            .appendInherited(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false),
+                    (a, v) -> a.enabled = v, a -> a.enabled, (a, p) -> a.enabled = p.enabled)
+            .metadata(EditorSchema.defaultValue(true))
+            .documentation("Whether this track exists on this server; unauthored means true. False makes it "
+                    + "absent: its readings answer nothing, rewards naming it are refused and it pays nothing. "
+                    + "What players already hold on it is kept.").add()
+            .appendInherited(new KeyedCodec<>("Text", ContentTextAsset.CODEC, false),
+                    (a, v) -> a.text = v, a -> a.text, (a, p) -> a.text = p.text)
+            .documentation("What the track is called (TitleKey) and its description (FlavorKey), as "
+                    + "localization keys in your own lang file. Without a TitleKey it is named by its id.").add()
+            .appendInherited(new KeyedCodec<>("Icon", Codec.STRING, false),
+                    (a, v) -> a.icon = v, a -> a.icon, (a, p) -> a.icon = p.icon)
+            .metadata(EditorSchema.assetRef(Item.class))
+            .documentation("The item whose picture stands for the track wherever it is shown, its rewards "
+                    + "included.").add()
+            .appendInherited(new KeyedCodec<>("Order", Codec.INTEGER, false),
+                    (a, v) -> a.order = v, a -> a.order, (a, p) -> a.order = p.order)
+            .metadata(EditorSchema.defaultValue(0L))
+            .documentation("Where the track sorts among the others: lower first, then by id.").add()
+            .appendInherited(new KeyedCodec<>("Category", Codec.STRING, false),
+                    (a, v) -> a.category = v, a -> a.category, (a, p) -> a.category = p.category)
+            .metadata(EditorSchema.assetRef(TrackCategoryAsset.class))
+            .documentation("The category the track sits in, by id (a file under "
+                    + "Server/ZiggfreedCommon/TrackCategories): Combat, Gathering and Crafting ship with the "
+                    + "library. Its Prestige.Build is this track's default.").add()
+            .appendInherited(new KeyedCodec<>("Requires", GateSpec.CODEC, false),
+                    (a, v) -> a.gate = v, a -> a.gate, (a, p) -> a.gate = p.gate)
+            .documentation(REQUIRES_DOCUMENTATION).add()
+            .appendInherited(new KeyedCodec<>("Curve", Codec.STRING, false),
+                    (a, v) -> a.curve = v, a -> a.curve, (a, p) -> a.curve = p.curve)
+            .metadata(EditorSchema.assetRef(TrackCurveAsset.class))
+            .documentation("The curve that turns this track's value into levels, by id (a file under "
+                    + "Server/ZiggfreedCommon/TrackCurves); tracks share one. Skill_Hybrid ships with the library. "
+                    + "A track whose curve is not loaded answers nothing.").add()
+            .appendInherited(new KeyedCodec<>("Cap", Codec.INTEGER, false),
+                    (a, v) -> a.cap = v, a -> a.cap, (a, p) -> a.cap = p.cap)
+            .documentation("The highest level a player can reach: a gain past it stops at its start. Leave it out "
+                    + "to climb the whole curve (and its Beyond, without end).").add()
+            .appendInherited(new KeyedCodec<>("Points", Points.CODEC, false),
+                    (a, v) -> a.points = v, a -> a.points, (a, p) -> a.points = p.points)
+            .documentation("Points a player earns to spend on this track's picks as it levels. Leave it out for "
+                    + "a track whose picks cost no points.").add()
+            .appendInherited(new KeyedCodec<>("Mirror", Mirror.CODEC, false),
+                    (a, v) -> a.mirror = v, a -> a.mirror, (a, p) -> a.mirror = p.mirror)
+            .documentation("A native stat this track's level is written onto, so anything reading stats (an "
+                    + "item, an effect, a hytale:stat requirement) sees it. Leave it out for no stat.").add()
+            .appendInherited(new KeyedCodec<>("Prestige", Prestige.CODEC, false),
+                    (a, v) -> a.prestige = v, a -> a.prestige, (a, p) -> a.prestige = p.prestige)
+            .documentation("Whether a player may prestige this track: start the climb again from the bottom, "
+                    + "keeping the best level they ever reached, so nothing they unlocked locks again and no "
+                    + "unlock pays twice. Leave it out for a track that never prestiges.").add()
+            .appendInherited(new KeyedCodec<>("Unlocks", new ArrayCodec<>(Unlock.CODEC, Unlock[]::new), false),
+                    (a, v) -> a.unlocks = v, a -> a.unlocks, (a, p) -> a.unlocks = p.unlocks)
+            .documentation("Rewards for reaching levels: each row pays its Rewards as a Claim the player "
+                    + "collects, once for each of its levels the best level ever reached passes, and never "
+                    + "twice, whatever a prestige does. A row added later pays what is already behind the "
+                    + "player. A player's record knows each row by its Id (or, unauthored, by its levels), never "
+                    + "by its place, so the rows can be reordered freely. Under Parent this list replaces the "
+                    + "parent's whole.").add()
+            .build();
+
+    public TrackAsset() {
+    }
+
+    /** The track id, exactly as the filename spells it. */
+    @Override
+    public String getId() {
+        return id;
+    }
+
+    /** Is the track switched on in its own file? Unauthored means true. */
+    public boolean isEnabled() {
+        return enabled == null || enabled;
+    }
+
+    @Nullable
+    public ContentTextAsset getText() {
+        return text;
+    }
+
+    /** The localization key the track is named by, or null when the file names none. */
+    @Nullable
+    public String titleKey() {
+        return text == null ? null : blankToNull(text.getTitleKey());
+    }
+
+    /** The item standing for it, or null. */
+    @Nullable
+    public String icon() {
+        return blankToNull(icon);
+    }
+
+    /** Its place among the tracks; 0 unless authored. */
+    public int order() {
+        return order == null ? 0 : order;
+    }
+
+    /** The category id as written, trimmed, or null. */
+    @Nullable
+    public String category() {
+        return blankToNull(category);
+    }
+
+    /** The curve id as written, trimmed, or null. */
+    @Nullable
+    public String curveId() {
+        return blankToNull(curve);
+    }
+
+    /** The highest level, or null for the whole curve. A cap below 1 reads as 1. */
+    @Nullable
+    public Integer cap() {
+        return cap == null ? null : Math.max(1, cap);
+    }
+
+    /** Points earned per level; 0 when unauthored or below 0. */
+    public int pointsPerLevel() {
+        Integer per = points == null ? null : points.perLevel;
+        return per == null ? 0 : Math.max(0, per);
+    }
+
+    /** The native stat the level is mirrored onto, trimmed, or null for none. */
+    @Nullable
+    public String mirrorStat() {
+        return mirror == null ? null : blankToNull(mirror.stat);
+    }
+
+    /** Does the mirror carry the current climb's level rather than the best level ever? Unauthored: no. */
+    public boolean mirrorsCurrent() {
+        return mirror != null && Boolean.TRUE.equals(mirror.current);
+    }
+
+    /** Is prestige on for this track: a Prestige group allowing at least one rank? */
+    public boolean prestiges() {
+        return prestige != null && prestigeRanks() > 0;
+    }
+
+    /**
+     * How many times a player may prestige: {@link Integer#MAX_VALUE} with {@code Unlimited}, else the group's
+     * {@code Ranks} ({@link #DEFAULT_PRESTIGE_RANKS} unauthored); 0 with no Prestige group.
+     */
+    public int prestigeRanks() {
+        if (prestige == null) {
+            return 0;
+        }
+        if (Boolean.TRUE.equals(prestige.unlimited)) {
+            return Integer.MAX_VALUE;
+        }
+        return prestige.ranks == null ? DEFAULT_PRESTIGE_RANKS : Math.max(0, prestige.ranks);
+    }
+
+    /** The level the {@code nth} prestige (1 for the first) needs: the group's {@code Base} plus n. */
+    public int prestigeLevel(int nth) {
+        int base = prestige == null || prestige.base == null ? DEFAULT_PRESTIGE_BASE : Math.max(0, prestige.base);
+        return (int) Math.min(Integer.MAX_VALUE, (long) base + Math.max(1, nth));
+    }
+
+    /** The build this track's own Prestige group names, or null when it names none. */
+    @Nullable
+    public PrestigeBuild ownPrestigeBuild() {
+        return prestige == null ? null : PrestigeBuild.of(prestige.build);
+    }
+
+    /**
+     * The unlock rows, in authored order (a null row left out: a row is known by its {@link Unlock#key()}, never
+     * its place); empty when none.
+     */
+    @Nonnull
+    public List<Unlock> unlocks() {
+        List<Unlock> out = new ArrayList<>();
+        if (unlocks != null) {
+            for (Unlock row : unlocks) {
+                if (row != null) {
+                    out.add(row);
+                }
+            }
+        }
+        return List.copyOf(out);
+    }
+
+    /**
+     * What a player must meet for this track to be theirs, or null when it authors none: its plain mod-presence
+     * condition decides whether the track loads at all, and every other condition is asked of the player each
+     * time it would grow ({@link #liveRequires}).
+     */
+    @Nullable
+    public GateSpec requires() {
+        return gate;
+    }
+
+    /** The part of {@link #requires()} asked of the player, lifted once per instance; null when nothing is. */
+    @Nullable
+    public GateSpec liveRequires() {
+        GateSpec[] held = live;
+        if (held == null) {
+            held = new GateSpec[] {StoreGates.live(gate)};
+            live = held;
+        }
+        return held[0];
+    }
+
+    /** Add to {@code into} the missing mod of each unlock reward row its own {@code Requires} keeps off this server. */
+    public void collectGatedRows(@Nonnull Collection<String> into) {
+        if (unlocks == null) {
+            return;
+        }
+        for (Unlock row : unlocks) {
+            if (row != null) {
+                RewardEntryAsset.collectMissingMods(row.rewards, into);
+            }
+        }
+    }
+
+    /** Does an unlock reward row gate on more than mod presence (a live {@code Requires})? */
+    public boolean widensRows() {
+        if (unlocks == null) {
+            return false;
+        }
+        for (Unlock row : unlocks) {
+            if (row != null && RewardEntryAsset.anyWidened(row.rewards)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Is {@code trackId} usable as a track id: not blank, and free of the run separator? */
+    public static boolean usableId(@Nullable String trackId) {
+        return trackId != null && !trackId.isBlank() && trackId.indexOf(RUN_SEPARATOR) < 0;
+    }
+
+    @Nullable
+    static String blankToNull(@Nullable String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    /** The Points group: what a level earns toward the track's picks. */
+    public static final class Points {
+
+        @Nullable protected Integer perLevel;
+
+        public static final BuilderCodec<Points> CODEC = BuilderCodec.builder(Points.class, Points::new)
+                .appendInherited(new KeyedCodec<>("PerLevel", Codec.INTEGER, false),
+                        (o, v) -> o.perLevel = v, o -> o.perLevel, (o, p) -> o.perLevel = p.perLevel)
+                .metadata(EditorSchema.defaultValue(0L))
+                .documentation("Points each level earns, to spend on this track's picks. 0 when unauthored.").add()
+                .build();
+
+        public Points() {
+        }
+    }
+
+    /** The Mirror group: the native stat the level is written onto. */
+    public static final class Mirror {
+
+        @Nullable protected String stat;
+        @Nullable protected Boolean current;
+
+        public static final BuilderCodec<Mirror> CODEC = BuilderCodec.builder(Mirror.class, Mirror::new)
+                .appendInherited(new KeyedCodec<>("Stat", Codec.STRING, false),
+                        (o, v) -> o.stat = v, o -> o.stat, (o, p) -> o.stat = p.stat)
+                .metadata(EditorSchema.assetRef(EntityStatType.class))
+                .documentation("The native stat (an EntityStatType id) whose maximum carries the level, written "
+                        + "whenever it changes and again at login. A stat this server does not have is reported "
+                        + "and nothing is written.").add()
+                .appendInherited(new KeyedCodec<>("Current", Codec.BOOLEAN, false),
+                        (o, v) -> o.current = v, o -> o.current, (o, p) -> o.current = p.current)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("True writes the current climb's level, which a prestige starts again; false, "
+                        + "or unauthored, writes the best level ever reached, which a prestige never lowers.")
+                .add()
+                .build();
+
+        public Mirror() {
+        }
+    }
+
+    /** The Prestige group: whether, how often and when a player may start the climb again. */
+    public static final class Prestige {
+
+        @Nullable protected Integer ranks;
+        @Nullable protected Boolean unlimited;
+        @Nullable protected Integer base;
+        @Nullable protected String build;
+
+        public static final BuilderCodec<Prestige> CODEC = BuilderCodec.builder(Prestige.class, Prestige::new)
+                .appendInherited(new KeyedCodec<>("Ranks", Codec.INTEGER, false),
+                        (o, v) -> o.ranks = v, o -> o.ranks, (o, p) -> o.ranks = p.ranks)
+                .metadata(EditorSchema.defaultValue((long) DEFAULT_PRESTIGE_RANKS))
+                .documentation("How many times a player may prestige this track. 10 when unauthored; 0 turns "
+                        + "prestige off.").add()
+                .appendInherited(new KeyedCodec<>("Unlimited", Codec.BOOLEAN, false),
+                        (o, v) -> o.unlimited = v, o -> o.unlimited, (o, p) -> o.unlimited = p.unlimited)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("True lets a player prestige without limit, whatever Ranks says.").add()
+                .appendInherited(new KeyedCodec<>("Base", Codec.INTEGER, false),
+                        (o, v) -> o.base = v, o -> o.base, (o, p) -> o.base = p.base)
+                .metadata(EditorSchema.defaultValue((long) DEFAULT_PRESTIGE_BASE))
+                .documentation("The level each prestige needs, before the rank: the first needs Base + 1, the "
+                        + "second Base + 2, and so on. 100 when unauthored, so the first prestige needs level "
+                        + "101. Keep it below the track's Cap, or nobody can prestige.").add()
+                .appendInherited(new KeyedCodec<>("Build", Codec.STRING, false),
+                        (o, v) -> o.build = v, o -> o.build, (o, p) -> o.build = p.build)
+                .metadata(PrestigeBuild.editorHint())
+                .documentation(PrestigeBuild.DOCUMENTATION + " Unauthored, the track's category decides "
+                        + "(Combat keeps, Gathering and Crafting remember), and Keep where it says nothing.").add()
+                .build();
+
+        public Prestige() {
+        }
+    }
+
+    /**
+     * One unlock row: what it is known by, the levels it pays at, and what it pays. A player's record keeps how
+     * far each row has paid under the row's {@link #key()}, never its place in the list, so rows can be added,
+     * removed or reordered on a live track and each keeps its own mark.
+     */
+    public static final class Unlock {
+
+        /** The key of a row that names no level (it never pays, so its key reaches nothing). */
+        static final String NO_LEVEL_KEY = "none";
+
+        @Nullable protected String id;
+        @Nullable protected int[] at;
+        @Nullable protected Integer every;
+        @Nullable protected RewardEntryAsset[] rewards;
+
+        /** {@link #key()}, worked out on first ask (a row is never changed once decoded). */
+        @Nullable private volatile String key;
+
+        public static final BuilderCodec<Unlock> CODEC = BuilderCodec.builder(Unlock.class, Unlock::new)
+                .appendInherited(new KeyedCodec<>("Id", Codec.STRING, false),
+                        (o, v) -> o.id = v, o -> o.id, (o, p) -> o.id = p.id)
+                .documentation("What this row is known by in a player's record and in the ids of its Claims "
+                        + "(letters, digits, _ and -; anything else reads as _, and case does not matter). Rows can "
+                        + "then be added, removed or reordered on a live track and none pays twice or is skipped. "
+                        + "Unauthored, the row is known by its own levels (At [2, 5] is at_2_5, Every 4 is every_4, "
+                        + "both together at_2_5_every_4), so changing those levels on a live track makes it a new "
+                        + "row that pays again: give it an Id before you do. Two rows known by the same name share "
+                        + "one record, so the later one pays no level the first has passed.").add()
+                .appendInherited(new KeyedCodec<>("At", Codec.INT_ARRAY, false),
+                        (o, v) -> o.at = v, o -> o.at, (o, p) -> o.at = p.at)
+                .documentation("The levels this row pays at, each once.").add()
+                .appendInherited(new KeyedCodec<>("Every", Codec.INTEGER, false),
+                        (o, v) -> o.every = v, o -> o.every, (o, p) -> o.every = p.every)
+                .documentation("Pay at every multiple of this level as well (15 pays at 15, 30, 45, ...). Zero "
+                        + "or less, or unauthored, adds no levels.").add()
+                .appendInherited(new KeyedCodec<>("Rewards",
+                                new ArrayCodec<>(RewardEntryAsset.CODEC, RewardEntryAsset[]::new), false),
+                        (o, v) -> o.rewards = v, o -> o.rewards, (o, p) -> o.rewards = p.rewards)
+                .documentation("What each level of this row pays, as one Claim the player collects: the same "
+                        + "reward entries a quest pays.").add()
+                .build();
+
+        public Unlock() {
+        }
+
+        /** Java-side factory, for a test or a consumer's own default; sets the same fields the codec fills. */
+        @Nonnull
+        public static Unlock of(@Nullable int[] at, @Nullable Integer every, @Nullable RewardEntryAsset[] rewards) {
+            Unlock u = new Unlock();
+            u.at = at == null ? null : at.clone();
+            u.every = every;
+            u.rewards = rewards == null ? null : rewards.clone();
+            return u;
+        }
+
+        /**
+         * What this row is known by in a player's record and in its Claims' ids: its {@code Id}, lower-cased, or,
+         * unauthored, a name built from its own levels ({@code at_2_5}, {@code every_4}, {@code at_2_5_every_4};
+         * {@value #NO_LEVEL_KEY} for a row naming none), never its place in the list. Any character other than a
+         * letter, a digit, {@code _} or {@code -} reads as {@code _}, so a key never carries a Claim id's
+         * {@code :}.
+         */
+        @Nonnull
+        public String key() {
+            String held = key;
+            if (held == null) {
+                held = deriveKey();
+                key = held;
+            }
+            return held;
+        }
+
+        /** {@link #key()} worked out; once per row instance, since every gain asks it of every row. */
+        @Nonnull
+        private String deriveKey() {
+            String own = blankToNull(id);
+            if (own != null) {
+                return keyChars(own);
+            }
+            StringBuilder out = new StringBuilder();
+            int[] levels = at == null ? new int[0] : Arrays.stream(at).filter(l -> l >= 1).distinct().sorted()
+                    .toArray();
+            if (levels.length > 0) {
+                out.append("at");
+                for (int level : levels) {
+                    out.append('_').append(level);
+                }
+            }
+            if (every() > 0) {
+                out.append(out.length() == 0 ? "" : "_").append("every_").append(every());
+            }
+            return out.length() == 0 ? NO_LEVEL_KEY : out.toString();
+        }
+
+        /** {@code raw} as a key: lower-cased, every character but a letter, a digit, {@code _} and {@code -} as _. */
+        @Nonnull
+        private static String keyChars(@Nonnull String raw) {
+            String lower = raw.toLowerCase(Locale.ROOT);
+            StringBuilder out = new StringBuilder(lower.length());
+            for (int i = 0; i < lower.length(); i++) {
+                char c = lower.charAt(i);
+                out.append(Character.isLetterOrDigit(c) || c == '_' || c == '-' ? c : '_');
+            }
+            return out.toString();
+        }
+
+        /** The At levels as written, or an empty array. */
+        @Nonnull
+        public int[] atLevels() {
+            return at == null ? new int[0] : at.clone();
+        }
+
+        /** The Every step, 0 when unauthored or not positive. */
+        public int every() {
+            return every == null || every <= 0 ? 0 : every;
+        }
+
+        /** Does this row pay at {@code level}: one of its At levels, or a multiple of its Every? */
+        public boolean paysAt(int level) {
+            if (level < 1) {
+                return false;
+            }
+            if (at != null) {
+                for (int l : at) {
+                    if (l == level) {
+                        return true;
+                    }
+                }
+            }
+            int step = every();
+            return step > 0 && level % step == 0;
+        }
+
+        /** The first level above {@code level} this row pays at, or {@link Integer#MAX_VALUE} when none is. */
+        public int nextLevelAfter(int level) {
+            long next = Integer.MAX_VALUE;
+            if (at != null) {
+                for (int l : at) {
+                    if (l > level && l >= 1 && l < next) {
+                        next = l;
+                    }
+                }
+            }
+            int step = every();
+            if (step > 0) {
+                long multiple = ((long) Math.max(0, level) / step + 1) * step;
+                next = Math.min(next, multiple);
+            }
+            return (int) Math.min(Integer.MAX_VALUE, next);
+        }
+
+        /** Does this row name any level at all? */
+        public boolean namesALevel() {
+            if (every() > 0) {
+                return true;
+            }
+            if (at != null) {
+                for (int l : at) {
+                    if (l >= 1) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /** What one level of this row pays, as reward specs (rows its mod gate keeps out dropped); empty when none. */
+        @Nonnull
+        public List<RewardSpec> rewards() {
+            List<RewardSpec> out = new ArrayList<>();
+            if (rewards == null) {
+                return out;
+            }
+            for (RewardEntryAsset entry : rewards) {
+                RewardSpec spec = entry == null ? null : entry.toSpec();
+                if (spec != null) {
+                    out.add(spec);
+                }
+            }
+            return List.copyOf(out);
+        }
+
+        /** The reward entries as written, for an audit (the mod gate's absent rows left out). */
+        @Nonnull
+        public RewardEntryAsset[] presentEntries() {
+            return RewardEntryAsset.present(rewards);
+        }
+    }
+}

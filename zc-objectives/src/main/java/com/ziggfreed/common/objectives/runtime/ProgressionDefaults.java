@@ -53,6 +53,7 @@ import com.ziggfreed.common.objectives.producer.ZigPickupProducer;
 import com.ziggfreed.common.objectives.producer.ZigPlaceBlockProducer;
 import com.ziggfreed.common.objectives.producer.ZigQuestCompletionProducer;
 import com.ziggfreed.common.objectives.producer.ZigReputationProducer;
+import com.ziggfreed.common.objectives.producer.ZigTrackProducer;
 import com.ziggfreed.common.objectives.producer.ZigTalkProducer;
 import com.ziggfreed.common.objectives.store.ProgressHandle;
 import com.ziggfreed.common.objectives.store.ProgressSubjects;
@@ -81,6 +82,7 @@ import com.ziggfreed.common.quest.asset.QuestDefinition;
 import com.ziggfreed.common.quest.asset.QuestPool;
 import com.ziggfreed.common.quest.asset.QuestPoolValidator;
 import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.track.TrackObjectives;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.validation.ValidationReport;
@@ -239,6 +241,7 @@ public final class ProgressionDefaults {
         ZigQuestCompletionProducer.install(plugin);
         ZigReputationProducer.install(plugin);
         ZigGearSetProducer.install(plugin);
+        ZigTrackProducer.install(plugin);
         GatedContent.register(RankAchievementGatedContent.ID, RankAchievementGatedContent::entries);
         ZigTalkProducer.install(plugin);
         SafeLog.info("[progression] producers always-on: " + producedKinds()
@@ -266,7 +269,7 @@ public final class ProgressionDefaults {
                 ZigEncounterProducer.KIND_PHASE, ZigEncounterProducer.KIND_FEAT, ZigCalendarProducer.KIND,
                 ZigLootReceivedProducer.KIND,
                 ZigQuestCompletionProducer.KIND, ZigReputationProducer.KIND, ZigGearSetProducer.KIND,
-                ZigTalkProducer.KIND);
+                TrackObjectives.LEVEL, TrackObjectives.TIER, ZigTalkProducer.KIND);
     }
 
     // ==================== persistence notifications ====================

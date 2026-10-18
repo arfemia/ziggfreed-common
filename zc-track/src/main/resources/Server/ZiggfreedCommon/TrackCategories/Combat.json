@@ -1,0 +1,7 @@
+{
+  "$Comment": "The combat category. A prestige of a track in it keeps every pick the player made (Build Keep), unless the track says otherwise.",
+  "Order": 0,
+  "Icon": "Weapon_Sword_Crude",
+  "TitleKey": "ziggfreedcommon.track.category.combat",
+  "Prestige": { "Build": "Keep" }
+}

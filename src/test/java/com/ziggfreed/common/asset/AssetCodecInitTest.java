@@ -100,6 +100,10 @@ import com.ziggfreed.common.shop.asset.StorefrontAsset;
 import com.ziggfreed.common.stats.gearset.GearSetAsset;
 import com.ziggfreed.common.stats.gearset.StatModifierSpec;
 import com.ziggfreed.common.text.ContentTextAsset;
+import com.ziggfreed.common.track.ZigTrackReward;
+import com.ziggfreed.common.track.asset.TrackAsset;
+import com.ziggfreed.common.track.asset.TrackCategoryAsset;
+import com.ziggfreed.common.track.asset.TrackCurveAsset;
 import com.ziggfreed.common.ui.hud.panel.HudPanelAsset;
 import com.ziggfreed.common.ui.hud.panel.HudRowAsset;
 import com.ziggfreed.common.ui.hud.panel.HudSpotAsset;
@@ -203,6 +207,25 @@ class AssetCodecInitTest {
         // either would fail at a pack author's decode instead of at this build.
         assertNotNull(GearSetAsset.Tier.CODEC, "GearSetAsset.Tier.CODEC must static-init (PascalCase keys)");
         assertNotNull(StatModifierSpec.CODEC, "StatModifierSpec.CODEC must static-init (PascalCase keys)");
+    }
+
+    @Test
+    void trackCodecsInitialize() {
+        assertNotNull(TrackAsset.CODEC, "TrackAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(TrackAsset.Points.CODEC, "the Points group codec must static-init");
+        assertNotNull(TrackAsset.Mirror.CODEC, "the Mirror group codec must static-init");
+        assertNotNull(TrackAsset.Prestige.CODEC, "the Prestige group codec must static-init");
+        assertNotNull(TrackAsset.Unlock.CODEC, "the Unlocks row codec must static-init");
+        assertNotNull(TrackCurveAsset.CODEC, "TrackCurveAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(TrackCurveAsset.Piece.CODEC, "the Pieces row codec must static-init");
+        assertNotNull(TrackCurveAsset.Hybrid.CODEC, "the Hybrid group codec must static-init");
+        assertNotNull(TrackCurveAsset.Beyond.CODEC, "the Beyond group codec must static-init");
+        assertNotNull(TrackCurveAsset.Tier.CODEC, "the Tiers entry codec must static-init");
+        assertNotNull(TrackCategoryAsset.CODEC, "TrackCategoryAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(TrackCategoryAsset.Prestige.CODEC, "the category's Prestige group codec must static-init");
+        // The native reward Type registers into the engine's own reward codec, so a lower-case key in it
+        // would fail inside an owner's Server/Rewards file instead of at this build.
+        assertNotNull(ZigTrackReward.CODEC, "ZigTrackReward.CODEC must static-init (PascalCase keys)");
     }
 
     @Test

@@ -101,6 +101,8 @@ import com.ziggfreed.common.stats.gearset.GearSetValidator;
 import com.ziggfreed.common.stats.gearset.GearSets;
 import com.ziggfreed.common.stats.gearset.ZigGearSetPiecesChangedEvent;
 import com.ziggfreed.common.stats.gearset.ZigGearSetTierChangedEvent;
+import com.ziggfreed.common.track.TrackBootstrap;
+import com.ziggfreed.common.track.TrackValidator;
 import com.ziggfreed.common.ui.hud.panel.HudPanels;
 import com.ziggfreed.common.ui.hud.panel.HudSpotAsset;
 import com.ziggfreed.common.ui.hud.panel.HudSpotConfig;
@@ -130,8 +132,8 @@ import com.ziggfreed.common.world.stash.BlockStashBootstrap;
  * {@code PlacedBlockBootstrap} + {@code BlockStashBootstrap} + {@code BlockRulesBootstrap} (zc-world), {@code CalendarBootstrap}
  * (zc-calendar), {@code ProgressionBootstrap} + {@code DialogueBootstrap} + {@code BonusRowBootstrap}
  * + {@code CalendarSweepBootstrap} + {@code ObjectiveBookBootstrap} (zc-objectives), and
- * {@code AlmanacBootstrap} (zc-almanac), {@code ReputationBootstrap} (zc-reputation) and {@code StatsBootstrap}
- * (zc-stats). Each bootstrap lives in
+ * {@code AlmanacBootstrap} (zc-almanac), {@code ReputationBootstrap} (zc-reputation), {@code TrackBootstrap}
+ * (zc-track) and {@code StatsBootstrap} (zc-stats). Each bootstrap lives in
  * the module that already sees
  * everything its phase wires, so the phase can be read and reasoned about without standing up the
  * whole plugin. What remains a ROOT-OWNED body is only what no single module can host, each phase
@@ -296,6 +298,11 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // check at login, and the once-at-boot log of broken reputation files. Its companion store is
         // registered with the other framework stores.
         ReputationBootstrap.install(this);
+        // Tracks: the per-player record of every climb and its connect hook, the player store every read and
+        // write goes through, the four readings, the Track reward kind and the native ZigTrack reward Type, the
+        // track objective names, the settle at every ready and the /zigtrack family. Its three stores are
+        // registered with the other framework stores.
+        TrackBootstrap.install(this);
         // The player stat store: the per-player record, registered before any world loads so it reads
         // off entities saved carrying it, and its connect hook; the owner's switch, the moment counter,
         // the death and playtime systems, the board's ready re-sync, the library's default counter
@@ -604,8 +611,8 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
      * runtime first, so no Title reward goes unchecked), Almanac pages, stats and the board sections that
      * name them, derived factors, NPC identities,
      * NPC placements (claiming the first join's once-per-boot run, as commerce does), dungeons, the
-     * conversations (claiming the first join's run too, as placements do) and reputations (whose own boot
-     * hook then stands down, so an error prints once); and, always,
+     * conversations (claiming the first join's run too, as placements do), reputations and tracks (whose own
+     * boot hooks then stand down, so an error prints once); and, always,
      * the once-per-boot warning for a loaded pack whose ziggfreed-common range this version fails
      * ({@code PackRangeAudit}). Whether to run the audits is {@code BootAudit}'s to decide; this only
      * wires the event. Pinned here because no module sees commerce, loot, the gear-set validator and the
@@ -628,7 +635,8 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
                             () -> NpcPlacementConfig.getInstance().claimLateFindings()),
                     new BootAudit.Pass(DungeonValidator.LOG_LABEL, DungeonValidator::audit),
                     new BootAudit.Pass(DialogueAudit.LOG_LABEL, DialogueAudit::claimLateFindings),
-                    new BootAudit.Pass(ReputationValidator.LOG_LABEL, ReputationValidator::audit))));
+                    new BootAudit.Pass(ReputationValidator.LOG_LABEL, ReputationValidator::audit),
+                    new BootAudit.Pass(TrackValidator.LOG_LABEL, TrackValidator::audit))));
         } catch (Throwable t) {
             SafeLog.warn("[boot] the boot checks could not be registered", t);
         }

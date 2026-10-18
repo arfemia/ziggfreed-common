@@ -41,6 +41,7 @@ import com.ziggfreed.common.progress.ProgressDispatchTap;
 import com.ziggfreed.common.progress.RunSentinels;
 import com.ziggfreed.common.progress.StatThresholdProbe;
 import com.ziggfreed.common.progress.ZoneRef;
+import com.ziggfreed.common.progress.gate.GateEpochs;
 import com.ziggfreed.common.progress.runtime.ProgressionFeedbackHook;
 import com.ziggfreed.common.progress.runtime.ProgressionSystem;
 import com.ziggfreed.common.progress.runtime.ProgressionSystemGate;
@@ -286,6 +287,9 @@ public final class QuestEngine implements QuestStateReader {
         this.dropSources = QuestItemDrop.sourceKeys(frozen.values());
         this.warnedOnce.clear();
         warnUnrecordableRepeats(frozen.values());
+        // Which quests exist is part of every player's quest_completed reading (an id nothing knows reads null,
+        // a known unfinished one 0), so a kept verdict over it is read again for everyone.
+        GateEpochs.bumpServer();
     }
 
     /**
@@ -501,7 +505,13 @@ public final class QuestEngine implements QuestStateReader {
                 && !QuestLifecycle.repeatCheck(quest, subject, store, now()).available()) {
             return false;
         }
+        boolean wasCompleted = store.status(subject, quest.id()) == QuestStatus.COMPLETED;
         store.setStatus(subject, quest.id(), QuestStatus.ACTIVE);
+        if (wasCompleted) {
+            // Taken on again over a finished run (a repeatable come round, an administrator's give), so it no
+            // longer reads as completed.
+            completedStatusMoved(subject);
+        }
 
         Map<String, ObjectiveProgressState> progress = new LinkedHashMap<>();
         for (ObjectiveDef objective : quest.objectives()) {
@@ -1616,8 +1626,10 @@ public final class QuestEngine implements QuestStateReader {
         store.setStatus(subject, quest.id(), QuestStatus.COMPLETED);
         // Reported here rather than at each caller: this method is public precisely so a surface
         // outside the engine can close a quest out, and every path below returns from a different
-        // place.
+        // place. The epoch moves for the same reason, at the write, so the auto-accept pass a collect
+        // runs straight after already reads the quest as finished.
         store.markDirty(subject);
+        completedStatusMoved(subject);
         Quest.Repeat repeat = quest.repeat();
         if (repeat == null) {
             return;
@@ -1774,7 +1786,19 @@ public final class QuestEngine implements QuestStateReader {
     public void clearQuest(@Nonnull Subject subject, @Nonnull String questId) {
         store.clearQuest(subject, questId);
         store.markDirty(subject);
+        completedStatusMoved(subject);
         QuestResets.fire(subject, questId);
+    }
+
+    /**
+     * A quest's completed status moved for {@code subject} outside a moment (a finish, a re-arm, an abandon, an
+     * administrator's wipe or give): their gate epoch moves, so a verdict kept over {@code quest_completed}, a
+     * {@code Player} reading, is read again. The writers of that status, {@link #markCompleted}, {@link #clearQuest}
+     * and {@link #accept(Subject, Quest, String)} over a finished quest, call it at the write; every other path
+     * (an abandon, a wipe, the self-heal's re-arm, a pool's chain reset) reaches one of them.
+     */
+    private static void completedStatusMoved(@Nonnull Subject subject) {
+        GateEpochs.bumpPlayer(subject.id());
     }
 
     /**

@@ -58,4 +58,8 @@ dependencies {
     // with no consumer filling a seam. One-way by the same position argument: zc-commerce sits beside
     // this module and never imports it.
     implementation project(':zc-commerce')
+    // The track module's change event and readings, so reaching a level or a tier on a track feeds the same
+    // engines every other moment feeds (ZigTrackProducer). One-way by the same position argument: zc-track
+    // never imports this module.
+    implementation project(':zc-track')
 }

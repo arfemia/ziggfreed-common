@@ -1,0 +1,7 @@
+{
+  "$Comment": "The gathering category. A prestige of a track in it clears the player's picks and offers each again preselected as the level comes back (Build Remember), unless the track says otherwise.",
+  "Order": 10,
+  "Icon": "Tool_Pickaxe_Crude",
+  "TitleKey": "ziggfreedcommon.track.category.gathering",
+  "Prestige": { "Build": "Remember" }
+}

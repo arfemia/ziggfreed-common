@@ -1,6 +1,7 @@
 {
-  "$Comment": "Names the hytale:permission reading for requirement lines. A permission node is an operator-facing id, so the line names the concept rather than the node; ship a Factors file with a Param entry (Keys) to word a specific node's requirement for players. A node the player lacks reads a definite 0 (AbsentReads), so a condition on it needs Min 1.",
+  "$Comment": "Names the hytale:permission reading for requirement lines. A permission node is an operator-facing id, so the line names the concept rather than the node; ship a Factors file with a Param entry (Keys) to word a specific node's requirement for players. A node the player lacks reads a definite 0 (AbsentReads), so a condition on it needs Min 1. A player's permissions change only by a permission or group change, which moves their gate epoch (Volatility Player).",
   "Factor": "hytale:permission",
   "Text": { "TitleKey": "ziggfreedcommon.progress.factor.permission" },
-  "AbsentReads": 0
+  "AbsentReads": 0,
+  "Volatility": "Player"
 }

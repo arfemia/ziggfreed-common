@@ -1,0 +1,8 @@
+{
+  "$Comment": "Reaching tiers on a track. Qualifier is the track id, and a step without one counts any track. With a Target (a Tiers entry of the track's curve) the step reads 1 once the player's best level reaches that tier, so write Amount 1. Without a Target it reads how many of the track's tiers the player has reached, so Amount 3 asks for three tiers. A step keeps the highest it has seen; it is restated at every login and whenever the best level rises, so a jump never misses a tier, a repeat changes nothing and a prestige never undoes it. A step reads {\"Kind\": \"TRACK_TIER\", \"Target\": \"Adept\", \"Qualifier\": \"Your_Mining\", \"Amount\": 1}.",
+  "ValueBased": true,
+  "Producible": true,
+  "Presentation": {
+    "TextKey": "ziggfreedcommon.track.objective.track_tier"
+  }
+}

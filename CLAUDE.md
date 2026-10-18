@@ -10,7 +10,7 @@ The family's shared library of mod-agnostic Hytale primitives and engines. It de
 
 ## Modules
 
-- Eighteen `zc-*` Gradle modules share the package root `com.ziggfreed.common` and merge into the one jar a server loads; a module compiles only against what its `build.gradle` declares.
+- Nineteen `zc-*` Gradle modules share the package root `com.ziggfreed.common` and merge into the one jar a server loads; a module compiles only against what its `build.gradle` declares.
 - Every inter-module edge is `implementation`. Use `api` only when a public signature re-exports another module's type, and name that type in a comment on the edge.
 - Put a new package in the module whose domain owns it, over a one-way edge. When a lower module needs something from a higher one, it declares a seam the wiring root or a consumer fills; a reverse edge is a cycle.
 - A package enters `zc-core` only when two or more modules need it and it carries no domain vocabulary.

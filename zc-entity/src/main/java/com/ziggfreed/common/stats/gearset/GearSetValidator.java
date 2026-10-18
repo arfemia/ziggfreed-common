@@ -21,6 +21,7 @@ import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffec
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
 import com.ziggfreed.common.entity.HeldItemUtil;
+import com.ziggfreed.common.factor.HytaleFactors;
 import com.ziggfreed.common.progress.gate.GateRuntime;
 import com.ziggfreed.common.progress.gate.GateValidator;
 import com.ziggfreed.common.stats.StatIndexCache;
@@ -45,7 +46,9 @@ import com.ziggfreed.common.validation.Finding;
  *       same arithmetic, so one filter covers both), {@link #UNKNOWN_SET_EFFECT},
  *       {@link #TOO_FEW_MEMBERS}, {@link #UNKNOWN_JOIN_TARGET}, {@link #JOIN_EFFECT_CLASH},
  *       {@link #UNKNOWN_SET_BADGE}, {@link #BADGE_WITHOUT_ICON}, {@link #BADGE_NOT_INFINITE},
- *       {@link #BADGE_ID_CLASH}, {@link #JOIN_BADGE_CLASH}, {@link #LAYER_INHERITS_TARGET_TIERS};</li>
+ *       {@link #BADGE_ID_CLASH}, {@link #JOIN_BADGE_CLASH}, {@link #LAYER_INHERITS_TARGET_TIERS}, and the
+ *       gate audit's {@code GATE_READS_OWN_STAT} (a set's {@code Requires} reading a stat its own tiers raise,
+ *       {@code GateValidator.selfReads});</li>
  *   <li>INFO {@link #UNNAMED_SET}.</li>
  * </ul>
  *
@@ -86,6 +89,9 @@ public final class GearSetValidator {
     /** A set of one member is a set of nothing: the bonus is the item's own stats with extra steps. */
     static final int FEWEST_SENSIBLE_MEMBERS = 2;
 
+    /** The readings whose Param is a stat channel, which a set's own tiers may raise. */
+    private static final List<String> STAT_READINGS = List.of(HytaleFactors.STAT, HytaleFactors.STAT_PERCENT);
+
     /**
      * What the audit reads off a loaded effect a {@code Badge} names: whether it carries a buff-bar
      * icon (its own or its Parent's) and whether it is {@code Infinite}.
@@ -106,10 +112,19 @@ public final class GearSetValidator {
                     GearSetValidator::effectKnown,
                     GearSetValidator::effectFactsOf,
                     GearSetValidator::baseMaxOf));
-            // Each set's own Requires, every condition, through the one gate audit.
+            // Each set's own Requires, every condition, through the one gate audit, and against the stats the
+            // set's own tiers (as it applies, joined) raise.
+            GearSetIndex index = GearSetConfig.getInstance().index();
             for (Map.Entry<String, GearSetAsset> entry : GearSetConfig.getInstance().all().entrySet()) {
-                out.addAll(GateValidator.validate(entry.getValue().requires(), DOMAIN, entry.getKey(), "gear set",
+                GearSetAsset set = entry.getValue();
+                out.addAll(GateValidator.validate(set.requires(), DOMAIN, entry.getKey(), "gear set",
                         GateRuntime.kinds(), GateRuntime.vocabulary()::isRegistered, null));
+                // A layer's own block beyond mod presence is never read, so only a set stands to be asked.
+                if (!set.isLayer()) {
+                    GearSetAsset applied = index.set(set.getId());
+                    out.addAll(GateValidator.selfReads(set.requires(), STAT_READINGS,
+                            tierStats(applied == null ? set : applied), DOMAIN, entry.getKey(), "gear set"));
+                }
             }
             return out;
         } catch (Throwable t) {
@@ -180,6 +195,18 @@ public final class GearSetValidator {
             checkInheritedTiers(set, asWritten, out);
             auditOne(set, joined.getOrDefault(GearSetKeys.setId(appliesAs(set)), set), itemKnown, statKnown,
                     effectKnown, baseMax, badges, out);
+        }
+        return out;
+    }
+
+    /** Every stat channel any of {@code set}'s tiers modifies, as written. */
+    @Nonnull
+    private static Set<String> tierStats(@Nonnull GearSetAsset set) {
+        Set<String> out = new HashSet<>();
+        for (GearSetAsset.Tier tier : set.tiers()) {
+            if (tier != null) {
+                out.addAll(tier.statModifiers().keySet());
+            }
         }
         return out;
     }

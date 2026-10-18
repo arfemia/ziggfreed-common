@@ -1,0 +1,7 @@
+{
+  "$Comment": "Names the ziggfreedcommon:track_climb reading for requirement lines. Param is a track id; the reading is the level of the player's current climb on it, which a prestige starts again from the bottom. Gate on ziggfreedcommon:track_level instead for anything a prestige should never lock again. It changes only through the player's own track gains or a track reload (Volatility Player).",
+  "Factor": "ziggfreedcommon:track_climb",
+  "Text": { "TitleKey": "ziggfreedcommon.track.factor.track_climb" },
+  "ParamDataSet": "ziggfreedcommon:tracks",
+  "Volatility": "Player"
+}
