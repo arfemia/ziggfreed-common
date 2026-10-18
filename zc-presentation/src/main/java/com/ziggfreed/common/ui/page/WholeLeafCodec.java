@@ -1,4 +1,4 @@
-package com.ziggfreed.common.almanac.asset;
+package com.ziggfreed.common.ui.page;
 
 import java.io.IOException;
 
@@ -27,7 +27,7 @@ import com.ziggfreed.common.util.SafeLog;
  * <p>It is an {@link InheritCodec} only so the engine hands it the inherited value: it never merges
  * with it. The value is read whole first ({@link JsonTreeCodec}, verbatim) and decoded from that copy,
  * so a failed decode leaves the file's reader where the next key begins, and the key stack is put back
- * the way the decode found it.
+ * the way the decode found it. Reached through {@link PlateComposition#whole}.
  */
 final class WholeLeafCodec<T> implements Codec<T>, InheritCodec<T> {
 
@@ -101,7 +101,7 @@ final class WholeLeafCodec<T> implements Codec<T>, InheritCodec<T> {
             while (extraInfo.getIgnoredUnusedSize() > ignored) {
                 extraInfo.popIgnoredUnusedKey();
             }
-            SafeLog.warn("[almanac] " + extraInfo.peekKey() + ": the " + noun + " will not read ("
+            SafeLog.warn("[page] " + extraInfo.peekKey() + ": the " + noun + " will not read ("
                     + t.getMessage() + "), so " + (fallback == null ? "there is none" : "the inherited one stands"));
             return fallback;
         }

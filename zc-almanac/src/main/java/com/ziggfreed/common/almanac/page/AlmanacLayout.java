@@ -1,6 +1,7 @@
 package com.ziggfreed.common.almanac.page;
 
 import com.ziggfreed.common.almanac.view.AlmanacView;
+import com.ziggfreed.common.ui.kit.PlatePainter;
 import com.ziggfreed.common.ui.kit.RowSize;
 import com.ziggfreed.common.ui.kit.ZigTokens;
 import com.ziggfreed.common.ui.menu.MenuFrame;
@@ -101,9 +102,9 @@ public final class AlmanacLayout {
     /**
      * The least width or height a hero glow keeps once it is fitted onto the plate (the client does not clip a
      * child to its parent, so a glow is drawn as the largest box about its centre that the plate holds); smaller,
-     * it hides.
+     * it hides. The page kit's rule ({@link PlatePainter#GLOW_MIN_FITTED}).
      */
-    public static final int GLOW_MIN_FITTED = 16;
+    public static final int GLOW_MIN_FITTED = PlatePainter.GLOW_MIN_FITTED;
 
     private AlmanacLayout() {
     }

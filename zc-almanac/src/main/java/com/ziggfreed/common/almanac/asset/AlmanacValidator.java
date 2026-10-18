@@ -23,6 +23,9 @@ import com.ziggfreed.common.inventory.ItemIds;
 import com.ziggfreed.common.occurrence.Occurrences;
 import com.ziggfreed.common.progress.ObjectiveKindRegistry;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
+import com.ziggfreed.common.ui.page.BannerAsset;
+import com.ziggfreed.common.ui.page.LinkAsset;
+import com.ziggfreed.common.ui.page.PlateComposition;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.ui.route.Destinations;
 import com.ziggfreed.common.util.SafeLog;
@@ -42,7 +45,8 @@ import com.ziggfreed.common.validation.TextKeyAudit;
  * <p>A page's own findings ({@link AlmanacEntryAsset#findings()}: {@code COLOUR_NOT_HEX},
  * {@code LINK_LEFT_OUT}, {@code HERO_ITEMS_OVER_CAP}, {@code PICTURE_HAS_TWO} (a hero's or a banner's picture
  * naming both an {@code Item} and an {@code Npc}: the item is drawn), and over its {@code Sections}
- * {@code SECTION_EMPTY}, {@code SECTION_HAS_TWO}, {@code SECTION_REPEATED}, {@code SECTIONS_OVER_CAP},
+ * {@code SECTION_EMPTY}, {@code SECTION_UNKNOWN_PART}, {@code SECTION_HAS_TWO}, {@code SECTION_REPEATED},
+ * {@code SECTIONS_OVER_CAP},
  * {@code BANNER_EMPTY}, {@code BANNER_ITEMS_OVER_CAP}, {@code COLLECTION_ITEMS_OVER_CAP} and
  * {@code COLLECTION_ITEM_REPEATED}, each a warning) are folded in as they are. The codes this audit adds, each a stable machine token a
  * consumer may filter on:
@@ -248,9 +252,9 @@ public final class AlmanacValidator {
         TextKeyAudit.check(out, DOMAIN, id, where + " Text.FlavorKey", page.flavorKey(), keyShipped,
                 "the line about the season shows the raw key");
         AlmanacHeroAsset hero = page.hero();
-        AlmanacHeroAsset.Composition composition = hero == null ? null : hero.composition();
+        PlateComposition composition = hero == null ? null : hero.composition();
         if (composition != null) {
-            for (AlmanacHeroAsset.Placement placement : composition.items()) {
+            for (PlateComposition.Placement placement : composition.items()) {
                 checkPicture(where + " Hero.Composition.Items", placement, UNKNOWN_HERO_ITEM, UNKNOWN_HERO_NPC,
                         "that picture is left off the top of the page", itemKnown, roleKnown, id, out);
             }
@@ -259,7 +263,7 @@ public final class AlmanacValidator {
             auditStat(where + " tally line '" + stat.getKey() + "'", stat.getKey(), stat.getValue(), itemKnown, kinds,
                     keyShipped, id, out);
         }
-        for (AlmanacLinkAsset link : page.links()) {
+        for (LinkAsset link : page.links()) {
             TextKeyAudit.check(out, DOMAIN, id, where + " link", link.textKey(), keyShipped,
                     "the link shows the raw key");
         }
@@ -288,12 +292,12 @@ public final class AlmanacValidator {
             @Nonnull Predicate<String> itemKnown, @Nonnull Predicate<String> keyShipped,
             @Nonnull BiFunction<Destination, String, List<Finding>> destinationCheck,
             @Nullable Predicate<String> roleKnown, @Nonnull String id, @Nonnull List<Finding> out) {
-        AlmanacBannerAsset banner = section.banner();
+        BannerAsset banner = section.banner();
         if (banner != null) {
             String at = where + ".Banner";
-            AlmanacHeroAsset.Composition composition = banner.composition();
+            PlateComposition composition = banner.composition();
             if (composition != null) {
-                for (AlmanacHeroAsset.Placement placement : composition.items()) {
+                for (PlateComposition.Placement placement : composition.items()) {
                     checkPicture(at + ".Composition.Items", placement, UNKNOWN_BANNER_ITEM, UNKNOWN_BANNER_NPC,
                             "that picture is left off the banner", itemKnown, roleKnown, id, out);
                 }
@@ -343,7 +347,7 @@ public final class AlmanacValidator {
     }
 
     /** A usable button's words, and its destination asked of its own type. */
-    private static void auditButton(@Nonnull String where, @Nullable AlmanacLinkAsset button,
+    private static void auditButton(@Nonnull String where, @Nullable LinkAsset button,
             @Nonnull Predicate<String> keyShipped,
             @Nonnull BiFunction<Destination, String, List<Finding>> destinationCheck, @Nonnull String id,
             @Nonnull List<Finding> out) {
@@ -390,7 +394,7 @@ public final class AlmanacValidator {
      * when they are in hand. A picture naming both draws its item, so its NPC is never asked here; the page's own
      * {@code PICTURE_HAS_TWO} says it is ignored.
      */
-    private static void checkPicture(@Nonnull String where, @Nonnull AlmanacHeroAsset.Placement placement,
+    private static void checkPicture(@Nonnull String where, @Nonnull PlateComposition.Placement placement,
             @Nonnull String itemCode, @Nonnull String npcCode, @Nonnull String cost,
             @Nonnull Predicate<String> itemKnown, @Nullable Predicate<String> roleKnown, @Nonnull String id,
             @Nonnull List<Finding> out) {

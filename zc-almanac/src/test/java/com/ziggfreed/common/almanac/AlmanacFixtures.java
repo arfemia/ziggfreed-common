@@ -31,9 +31,11 @@ public final class AlmanacFixtures {
         return page(json, id, null, null);
     }
 
+    /** Decodes a page as the server does, its {@code Sections} read against the parts the library registers at setup. */
     @Nonnull
     public static AlmanacEntryAsset page(@Nonnull String json, @Nonnull String id, @Nullable String parentId,
             @Nullable AlmanacEntryAsset parent) throws IOException {
+        AlmanacBootstrap.registerParts();
         AssetExtraInfo.Data data = new AssetExtraInfo.Data(AlmanacEntryAsset.class, id, parentId);
         return AlmanacEntryAsset.CODEC.decodeAndInheritJsonAsset(
                 RawJsonReader.fromJsonString(json), parent, new AssetExtraInfo<>(data));

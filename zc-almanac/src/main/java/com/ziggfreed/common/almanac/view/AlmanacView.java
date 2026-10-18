@@ -36,11 +36,9 @@ import com.ziggfreed.common.almanac.AlmanacCollection;
 import com.ziggfreed.common.almanac.AlmanacKeys;
 import com.ziggfreed.common.almanac.ServerTallies;
 import com.ziggfreed.common.almanac.asset.AlmanacAchievementsAsset;
-import com.ziggfreed.common.almanac.asset.AlmanacBannerAsset;
 import com.ziggfreed.common.almanac.asset.AlmanacCollectionAsset;
 import com.ziggfreed.common.almanac.asset.AlmanacEntryAsset;
 import com.ziggfreed.common.almanac.asset.AlmanacHeroAsset;
-import com.ziggfreed.common.almanac.asset.AlmanacLinkAsset;
 import com.ziggfreed.common.almanac.asset.AlmanacSectionAsset;
 import com.ziggfreed.common.almanac.asset.AlmanacStatAsset;
 import com.ziggfreed.common.counter.CounterMap;
@@ -51,6 +49,10 @@ import com.ziggfreed.common.occurrence.Occurrence;
 import com.ziggfreed.common.occurrence.Recurrence;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.kit.KeepsakeState;
+import com.ziggfreed.common.ui.kit.PlatePainter;
+import com.ziggfreed.common.ui.page.BannerAsset;
+import com.ziggfreed.common.ui.page.LinkAsset;
+import com.ziggfreed.common.ui.page.PlateComposition;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.ui.route.Destinations;
 import com.ziggfreed.common.util.SafeLog;
@@ -74,9 +76,9 @@ public final class AlmanacView {
     /** The category every season's achievements file under. */
     public static final String SEASONS_CATEGORY = "seasons";
 
-    /** The hero plate's size: what a composed hero's items are kept inside. */
-    public static final int HERO_WIDTH = 962;
-    public static final int HERO_HEIGHT = 240;
+    /** The hero plate's size (the page kit's): what a composed hero's items are kept inside. */
+    public static final int HERO_WIDTH = PlatePainter.HERO_WIDTH;
+    public static final int HERO_HEIGHT = PlatePainter.HERO_HEIGHT;
 
     /** How many items a composed hero draws. */
     public static final int HERO_MAX_ITEMS = AlmanacEntryAsset.HERO_MAX_ITEMS;
@@ -100,9 +102,9 @@ public final class AlmanacView {
      * page's document test holds equal), its unauthored height, and the range its height is kept to.
      */
     public static final int BANNER_WIDTH = 906;
-    public static final int BANNER_HEIGHT = 120;
-    public static final int BANNER_MIN = 64;
-    public static final int BANNER_MAX = 240;
+    public static final int BANNER_HEIGHT = BannerAsset.HEIGHT;
+    public static final int BANNER_MIN = BannerAsset.HEIGHT_MIN;
+    public static final int BANNER_MAX = BannerAsset.HEIGHT_MAX;
 
     /** How many items a collection's grid draws. */
     public static final int COLLECTION_MAX_ITEMS = AlmanacEntryAsset.COLLECTION_MAX_ITEMS;
@@ -747,7 +749,7 @@ public final class AlmanacView {
             return List.of();
         }
         List<SeasonLink> out = new ArrayList<>();
-        for (AlmanacLinkAsset link : page.links()) {
+        for (LinkAsset link : page.links()) {
             String textKey = link.textKey();
             Destination destination = link.destination();
             if (textKey != null && destination != null) {
@@ -763,8 +765,9 @@ public final class AlmanacView {
      * The body's parts in the order drawn. With no page, or a page that writes no {@code Sections}: today's
      * order, Tallies, Keepsakes, Achievements (its button into the book resolved), Links. Else the first
      * {@link #SECTIONS_MAX} entries in the order written: an entry naming no part is skipped, a built-in part
-     * already drawn is skipped, and a banner or a collection with nothing it can draw is skipped. Which
-     * built-in parts have anything to show is the plan's question, not this one.
+     * already drawn is skipped, and a banner or a collection with nothing it can draw is skipped. A part the
+     * page's registry holds that this view does not read (another module's) is skipped too. Which built-in parts
+     * have anything to show is the plan's question, not this one.
      */
     @Nonnull
     static List<Section> sections(@Nonnull String eventId, @Nullable AlmanacEntryAsset page,
@@ -797,8 +800,10 @@ public final class AlmanacView {
                 section = new TalliesSection();
             } else if (AlmanacSectionAsset.KEEPSAKES.equals(part)) {
                 section = new KeepsakesSection();
-            } else {
+            } else if (AlmanacSectionAsset.LINKS.equals(part)) {
                 section = new LinksSection();
+            } else {
+                section = null;
             }
             if (section != null) {
                 out.add(section);
@@ -857,7 +862,7 @@ public final class AlmanacView {
      * when it has no picture of its own and no title, line or button either.
      */
     @Nullable
-    static BannerSection banner(@Nullable AlmanacBannerAsset authored, @Nullable String accent,
+    static BannerSection banner(@Nullable BannerAsset authored, @Nullable String accent,
             @Nonnull Predicate<String> textureShips, @Nonnull Function<String, String> iconPaths,
             @Nonnull Function<String, String> portraits) {
         if (authored == null) {
@@ -916,7 +921,7 @@ public final class AlmanacView {
 
     /** A usable authored button as the view's link, or null. */
     @Nullable
-    private static SeasonLink seasonLink(@Nullable AlmanacLinkAsset link) {
+    private static SeasonLink seasonLink(@Nullable LinkAsset link) {
         if (link == null || link.textKey() == null || link.destination() == null) {
             return null;
         }
@@ -1044,7 +1049,7 @@ public final class AlmanacView {
      * unless {@code keepEmpty} (a banner's colour band); the hero's top needs at least one.
      */
     @Nullable
-    private static HeroComposition composition(@Nullable AlmanacHeroAsset.Composition authored,
+    private static HeroComposition composition(@Nullable PlateComposition authored,
             @Nullable String accent, @Nonnull Predicate<String> textureShips,
             @Nonnull Function<String, String> iconPaths, @Nonnull Function<String, String> portraits,
             int plateWidth, int plateHeight, boolean keepEmpty) {
@@ -1053,7 +1058,7 @@ public final class AlmanacView {
         }
         int sideMax = Math.min(HERO_ITEM_MAX, plateHeight);
         List<HeroItem> items = new ArrayList<>();
-        for (AlmanacHeroAsset.Placement placement : authored.items()) {
+        for (PlateComposition.Placement placement : authored.items()) {
             if (items.size() >= HERO_MAX_ITEMS) {
                 break;
             }
@@ -1070,12 +1075,12 @@ public final class AlmanacView {
         if (items.isEmpty() && !keepEmpty) {
             return null;
         }
-        AlmanacHeroAsset.Gradient sky = authored.gradient();
+        PlateComposition.Gradient sky = authored.gradient();
         HeroGradient gradient = sky == null ? null : new HeroGradient(sky.top(), sky.bottom());
         String background = gradient != null ? null
                 : authored.background() != null ? authored.background() : darken(accent);
         String texture = authored.backgroundTexture();
-        AlmanacHeroAsset.Glow light = authored.glow();
+        PlateComposition.Glow light = authored.glow();
         HeroGlow glow = light == null ? null : new HeroGlow(light.color(),
                 clamp(light.x(), 0, GLOW_X_MIN, GLOW_X_MAX), clamp(light.y(), 0, GLOW_Y_MIN, GLOW_Y_MAX),
                 clamp(light.size(), GLOW_SIZE, GLOW_MIN, GLOW_MAX));

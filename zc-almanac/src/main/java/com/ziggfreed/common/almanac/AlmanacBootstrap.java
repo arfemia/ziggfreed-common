@@ -6,14 +6,17 @@ import com.hypixel.hytale.event.EventPriority;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.ziggfreed.common.almanac.asset.AlmanacOwnerLayers;
+import com.ziggfreed.common.almanac.asset.AlmanacSectionAsset;
 import com.ziggfreed.common.almanac.command.ZigAlmanacCommand;
 import com.ziggfreed.common.almanac.page.AlmanacDestinations;
 import com.ziggfreed.common.almanac.page.AlmanacMenuTab;
+import com.ziggfreed.common.almanac.page.AlmanacParts;
 import com.ziggfreed.common.almanac.stats.AlmanacStatistics;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.ui.kit.LedgerContributions;
 import com.ziggfreed.common.ui.menu.MenuSlot;
 import com.ziggfreed.common.ui.menu.ZigMenu;
+import com.ziggfreed.common.ui.page.PageParts;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -78,18 +81,28 @@ public final class AlmanacBootstrap {
     }
 
     /**
-     * The plugin-free half: the feature (before the first progression publish), the destination and
-     * the menu tab (before any asset decodes), the counter, at the library-default rank, the book's
+     * The plugin-free half: the feature (before the first progression publish), the destination, the
+     * page's parts and the menu tab (before any asset decodes), the counter, at the library-default rank, the book's
      * Seasons statistics (read on every look, so it needs nothing loaded yet), and the keepsake check, run
      * once when the shared progression runtime is built (both stores have loaded by then).
      */
     public static void registerVocabulary() {
         AlmanacSwitch.registerFeature();
         AlmanacDestinations.register();
+        registerParts();
         ZigMenu.fill(MenuSlot.ALMANAC, AlmanacMenuTab.entry());
         ProgressionRuntime.defaults(OWNER).momentListener(new AlmanacMomentListener(
                 OccurrenceAlmanacCalendar.INSTANCE, ServerTallies.shared()));
         LedgerContributions.contribute(LedgerContributions.STATISTICS, AlmanacStatistics.production());
         ProgressionRuntime.onBuilt(AlmanacKeepsakeCheck::logFindings);
+    }
+
+    /**
+     * The season page's six parts on the page kit's registry, in {@link AlmanacSectionAsset#PARTS} order (the order
+     * that picks an entry's drawn part), before any page decodes. Registering them again changes nothing, so a test
+     * that decodes a page calls this first.
+     */
+    public static void registerParts() {
+        AlmanacParts.ALL.forEach(PageParts.of(AlmanacSectionAsset.PAGE)::register);
     }
 }

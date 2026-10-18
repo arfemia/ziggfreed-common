@@ -13,8 +13,11 @@ import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.schema.SchemaContext;
 import com.hypixel.hytale.codec.schema.config.ObjectSchema;
 import com.hypixel.hytale.codec.schema.config.Schema;
+import com.ziggfreed.common.almanac.AlmanacBootstrap;
 import com.ziggfreed.common.almanac.page.AlmanacDestinations;
 import com.ziggfreed.common.almanac.view.AlmanacView;
+import com.ziggfreed.common.ui.page.BannerAsset;
+import com.ziggfreed.common.ui.page.PlateComposition;
 import com.ziggfreed.common.ui.route.Destinations;
 
 /**
@@ -44,7 +47,7 @@ class AlmanacEditorSchemaTest {
 
     @Test
     void aHeroItemOffersTheEnginesItemPicker() {
-        ObjectSchema placement = (ObjectSchema) AlmanacHeroAsset.Placement.CODEC.toSchema(new SchemaContext());
+        ObjectSchema placement = (ObjectSchema) PlateComposition.Placement.CODEC.toSchema(new SchemaContext());
         BsonDocument item = Schema.CODEC.encode(placement, new ExtraInfo()).asDocument()
                 .getDocument("properties").getDocument("Item");
 
@@ -64,6 +67,7 @@ class AlmanacEditorSchemaTest {
     @Test
     void theSectionsLeafExportsAndEveryPartIsOffered() {
         AlmanacDestinations.register();
+        AlmanacBootstrap.registerParts();
         BsonDocument page = Schema.CODEC.encode(AlmanacEntryAsset.CODEC.toSchema(new SchemaContext()), new ExtraInfo())
                 .asDocument().getDocument("properties");
         assertTrue(page.containsKey("Sections"), page.keySet().toString());
@@ -85,7 +89,7 @@ class AlmanacEditorSchemaTest {
 
     @Test
     void aBannersHeightAndTheAchievementsButtonDeclareTheirUnauthoredValues() {
-        BsonDocument banner = Schema.CODEC.encode(AlmanacBannerAsset.CODEC.toSchema(new SchemaContext()),
+        BsonDocument banner = Schema.CODEC.encode(BannerAsset.CODEC.toSchema(new SchemaContext()),
                 new ExtraInfo()).asDocument().getDocument("properties");
         assertEquals(AlmanacView.BANNER_HEIGHT, banner.getDocument("Height").getNumber("default").intValue());
         BsonDocument achievements = Schema.CODEC.encode(AlmanacAchievementsAsset.CODEC.toSchema(new SchemaContext()),

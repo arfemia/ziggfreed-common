@@ -21,6 +21,9 @@ import com.ziggfreed.common.almanac.AlmanacFixtures;
 import com.ziggfreed.common.almanac.AlmanacSwitch;
 import com.ziggfreed.common.almanac.page.AlmanacDestinations;
 import com.ziggfreed.common.progress.MatchMode;
+import com.ziggfreed.common.ui.page.BannerAsset;
+import com.ziggfreed.common.ui.page.LinkAsset;
+import com.ziggfreed.common.ui.page.PlateComposition;
 import com.ziggfreed.common.ui.route.Destinations;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.validation.Severity;
@@ -121,18 +124,18 @@ class AlmanacEntryAssetTest {
         assertNotNull(hero);
         assertEquals("UI/Custom/Almanac/Test_Season.png", hero.art());
         assertTrue(hero.showArt(), "an unauthored ShowArt shows the art");
-        AlmanacHeroAsset.Composition composition = hero.composition();
+        PlateComposition composition = hero.composition();
         assertNotNull(composition);
         assertEquals("#1a0f08", composition.background(), "a colour reads in one spelling");
         assertEquals("UI/Custom/Almanac/Test_Fade.png", composition.backgroundTexture());
         assertEquals(List.of("Test_Lantern", "Test_Pumpkin"),
-                composition.items().stream().map(AlmanacHeroAsset.Placement::item).toList(),
+                composition.items().stream().map(PlateComposition.Placement::item).toList(),
                 "a placement with no item is no placement");
-        AlmanacHeroAsset.Placement lantern = composition.items().get(0);
+        PlateComposition.Placement lantern = composition.items().get(0);
         assertEquals(620, lantern.x());
         assertEquals(40, lantern.y());
         assertEquals(96, lantern.size());
-        AlmanacHeroAsset.Placement pumpkin = composition.items().get(1);
+        PlateComposition.Placement pumpkin = composition.items().get(1);
         assertNull(pumpkin.x(), "an unauthored place is left to the reader's default");
         assertNull(pumpkin.size());
         assertEquals("#e8752a", page.accent());
@@ -150,9 +153,9 @@ class AlmanacEntryAssetTest {
                     { "Item": "Test_Bomb", "Npc": "Test_Rider" } ] } } } ] }
                 """, "Test_Season");
 
-        List<AlmanacHeroAsset.Placement> pictures = page.hero().composition().items();
+        List<PlateComposition.Placement> pictures = page.hero().composition().items();
         assertEquals(2, pictures.size(), "a placement naming neither is no placement");
-        AlmanacHeroAsset.Placement rider = pictures.get(0);
+        PlateComposition.Placement rider = pictures.get(0);
         assertNull(rider.item());
         assertEquals("Test_Rider", rider.npc(), "trimmed");
         assertEquals(700, rider.x());
@@ -230,7 +233,7 @@ class AlmanacEntryAssetTest {
         AlmanacEntryAsset page = AlmanacFixtures.page(DRESSED_PAGE, "Test_Season");
 
         assertEquals(2, page.links().size());
-        AlmanacLinkAsset first = page.links().get(0);
+        LinkAsset first = page.links().get(0);
         assertEquals("almanac.test.link.book", first.textKey());
         AlmanacDestinations.Almanac opens = (AlmanacDestinations.Almanac) first.destination();
         assertNotNull(opens);
@@ -251,7 +254,7 @@ class AlmanacEntryAssetTest {
                 """, "Test_Season");
 
         assertEquals(10, page.orderOrLast(), "the page decoded whole");
-        assertEquals(List.of("almanac.test.link.ok"), page.links().stream().map(AlmanacLinkAsset::textKey).toList(),
+        assertEquals(List.of("almanac.test.link.ok"), page.links().stream().map(LinkAsset::textKey).toList(),
                 "a link to a screen no installed mod opens, and a link with no words, are left out");
         assertEquals(2, page.findings().size());
         for (Finding finding : page.findings()) {
@@ -282,8 +285,8 @@ class AlmanacEntryAssetTest {
                 "{ \"Hero\": { \"Composition\": { \"Items\": [ { \"Item\": \"Test_Bomb\" } ] } } }",
                 "Test_Season_Own", "test_season", parent);
 
-        AlmanacHeroAsset.Composition composition = child.hero().composition();
-        assertEquals(List.of("Test_Bomb"), composition.items().stream().map(AlmanacHeroAsset.Placement::item).toList(),
+        PlateComposition composition = child.hero().composition();
+        assertEquals(List.of("Test_Bomb"), composition.items().stream().map(PlateComposition.Placement::item).toList(),
                 "a list replaces, never appends");
         assertNull(composition.background(), "a composition is one piece: the parent's background does not leak in");
         assertNull(composition.backgroundTexture());
@@ -306,10 +309,10 @@ class AlmanacEntryAssetTest {
                     "Background": "#202020", "Items": [ { "Item": "Test_Bomb", "X": 30, "Y": 30, "Size": 48 } ] } } } }
                 """);
 
-        AlmanacHeroAsset.Composition composition = resolved.hero().composition();
+        PlateComposition composition = resolved.hero().composition();
         assertEquals("#202020", composition.background());
         assertNull(composition.backgroundTexture(), "the pack's texture does not leak into the owner's layout");
-        assertEquals(List.of("Test_Bomb"), composition.items().stream().map(AlmanacHeroAsset.Placement::item).toList());
+        assertEquals(List.of("Test_Bomb"), composition.items().stream().map(PlateComposition.Placement::item).toList());
         assertEquals("UI/Custom/Almanac/Test_Season.png", resolved.hero().art(), "the pack's art stays named");
     }
 
@@ -331,7 +334,7 @@ class AlmanacEntryAssetTest {
                     "Items": [ { "Item": "Test_Lantern" } ] } } }
                 """, "Test_Season");
 
-        AlmanacHeroAsset.Composition composition = page.hero().composition();
+        PlateComposition composition = page.hero().composition();
         assertEquals("#1a2a4a", composition.gradient().top());
         assertEquals("#0a1119", composition.gradient().bottom());
         assertEquals("#a0501a", composition.glow().color());
@@ -358,7 +361,7 @@ class AlmanacEntryAssetTest {
                     "Items": [ { "Item": "Test_Bomb" } ] } } } }
                 """);
 
-        AlmanacHeroAsset.Composition composition = resolved.hero().composition();
+        PlateComposition composition = resolved.hero().composition();
         assertEquals("#000000", composition.gradient().top());
         assertEquals("#ffffff", composition.glow().color());
         assertEquals(100, composition.glow().size());
@@ -409,7 +412,7 @@ class AlmanacEntryAssetTest {
 
         assertEquals(List.of("Banner", "Achievements", "Collection", "Tallies", "Links"),
                 page.sections().stream().map(AlmanacSectionAsset::part).toList());
-        AlmanacBannerAsset banner = page.sections().get(0).banner();
+        BannerAsset banner = page.sections().get(0).banner();
         assertEquals(96, banner.height());
         assertEquals("almanac.test.banner.title", banner.titleKey());
         assertEquals(1, banner.composition().items().size());

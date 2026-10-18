@@ -52,9 +52,13 @@ import com.ziggfreed.common.ui.kit.LedgerSection;
 import com.ziggfreed.common.ui.kit.Mark;
 import com.ziggfreed.common.ui.kit.Picture;
 import com.ziggfreed.common.ui.kit.Pill;
+import com.ziggfreed.common.ui.kit.Plate;
+import com.ziggfreed.common.ui.kit.PlatePainter;
 import com.ziggfreed.common.ui.kit.StatTile;
 import com.ziggfreed.common.ui.kit.Tone;
 import com.ziggfreed.common.ui.kit.ZigTokens;
+import com.ziggfreed.common.ui.page.PagePart;
+import com.ziggfreed.common.ui.page.PartPlan;
 import com.ziggfreed.common.ui.route.Destination;
 
 /**
@@ -84,18 +88,19 @@ record AlmanacPagePlan(@Nonnull LedgerModel seasons, @Nullable String selected, 
     enum HeroKind { ART, COMPOSED, PICTURE }
 
     /** A box on the 962 x 240 plate, by its top-left corner. */
-    record HeroBox(int x, int y, int width, int height) {
+    record HeroBox(int x, int y, int width, int height) implements Plate.Box {
     }
 
     /**
      * One picture of a composed hero or banner: its texture (an item's own icon, or an NPC's portrait when
      * {@code portrait}), where it sits, how big; {@code itemId} is null for a portrait.
      */
-    record HeroPicture(@Nullable String itemId, @Nonnull String iconPath, @Nonnull HeroBox box, boolean portrait) {
+    record HeroPicture(@Nullable String itemId, @Nonnull String iconPath, @Nonnull HeroBox box, boolean portrait)
+            implements Plate.Picture {
     }
 
     /** A composed hero's glow: its tint and its box, fitted onto the plate. */
-    record HeroLight(@Nonnull String colorHex, @Nonnull HeroBox box) {
+    record HeroLight(@Nonnull String colorHex, @Nonnull HeroBox box) implements Plate.Light {
     }
 
     /**
@@ -104,12 +109,12 @@ record AlmanacPagePlan(@Nonnull LedgerModel seasons, @Nullable String selected, 
      * ({@code fillHex}); the tint of the white sky ({@code skyHex}, null hides it); the glow; the composed
      * pictures; the season's own picture ({@code pictureTexture}, the {@code PICTURE} kind only); the chip, the
      * name, the dates line, and the line under it ({@code next}: a monthly or weekly season's next run, null for
-     * any other); and the accent strip's colour, clamped.
+     * any other); and the accent strip's colour, clamped. The kit's {@link PlatePainter} paints it.
      */
     record HeroPlan(@Nonnull HeroKind kind, @Nullable String artTexture, @Nullable String fillHex,
             @Nullable String skyHex, @Nullable HeroLight glow, @Nonnull List<HeroPicture> pictures,
             @Nullable String pictureTexture, @Nonnull Pill chip, @Nonnull Message title, @Nullable Message dates,
-            @Nullable Message next, @Nonnull String accentHex) {
+            @Nullable Message next, @Nonnull String accentHex) implements Plate.Hero {
     }
 
     /** One year chip: its words, what its click carries ({@code Year}), and its check and dot. */
@@ -128,25 +133,56 @@ record AlmanacPagePlan(@Nonnull LedgerModel seasons, @Nullable String selected, 
     record LinkButton(@Nonnull Message label, @Nonnull Destination destination) {
     }
 
-    /** One part of the season's body, in the order the page draws it. */
-    sealed interface SectionPlan permits TalliesPlan, KeepsakesPlan, LinksPlan, AchievementsPlan, BannerPlan,
-            CollectionPlan {
+    /**
+     * One part of the season's body, in the order the page draws it, carrying what its part paints and naming that
+     * part ({@link AlmanacParts}), which the kit's {@code PagePainter} appends and paints.
+     */
+    sealed interface SectionPlan extends PartPlan permits TalliesPlan, KeepsakesPlan, LinksPlan, AchievementsPlan,
+            BannerPlan, CollectionPlan {
     }
 
-    /** The year chips and tiles: the body's {@code years}, scope, {@code tiles} and {@code hint}. */
-    record TalliesPlan() implements SectionPlan {
+    /**
+     * The year chips (each a click reopening the page on {@code eventId} in that year), the scope header and its
+     * meta, the tiles and the first-time hint: the body's own.
+     */
+    record TalliesPlan(@Nonnull String eventId, @Nonnull List<YearChoice> years, @Nonnull Message scopeHeader,
+            @Nonnull Message scopeMeta, @Nonnull List<StatTile> tiles, boolean hint) implements SectionPlan {
+
+        @Override
+        @Nonnull
+        public PagePart<?, ?> part() {
+            return AlmanacParts.TALLIES;
+        }
     }
 
-    /** The keepsake shelf: the body's {@code keepsakes}. */
-    record KeepsakesPlan() implements SectionPlan {
+    /** The keepsake shelf: the body's {@code keepsakes} (the plan places this part only with a shelf). */
+    record KeepsakesPlan(@Nullable KeepsakeShelf keepsakes) implements SectionPlan {
+
+        @Override
+        @Nonnull
+        public PagePart<?, ?> part() {
+            return AlmanacParts.KEEPSAKES;
+        }
     }
 
     /** The links: the body's {@code links}. */
-    record LinksPlan() implements SectionPlan {
+    record LinksPlan(@Nonnull List<LinkButton> links) implements SectionPlan {
+
+        @Override
+        @Nonnull
+        public PagePart<?, ?> part() {
+            return AlmanacParts.LINKS;
+        }
     }
 
     /** The achievements (the body's {@code achievements}) and the button into the book (null: none). */
-    record AchievementsPlan(@Nullable LinkButton cta) implements SectionPlan {
+    record AchievementsPlan(@Nullable AchievementShelf achievements, @Nullable LinkButton cta) implements SectionPlan {
+
+        @Override
+        @Nonnull
+        public PagePart<?, ?> part() {
+            return AlmanacParts.ACHIEVEMENTS;
+        }
     }
 
     /**
@@ -156,12 +192,24 @@ record AlmanacPagePlan(@Nonnull LedgerModel seasons, @Nullable String selected, 
      */
     record BannerPlan(@Nullable String artTexture, @Nullable String fillHex, @Nullable String skyHex,
             @Nullable HeroLight glow, @Nonnull List<HeroPicture> pictures, int height, @Nullable Message title,
-            @Nullable Message line, @Nullable LinkButton button) implements SectionPlan {
+            @Nullable Message line, @Nullable LinkButton button) implements SectionPlan, Plate.Layers {
+
+        @Override
+        @Nonnull
+        public PagePart<?, ?> part() {
+            return AlmanacParts.BANNER;
+        }
     }
 
     /** The items grid: its heading, "1 of 3 found" and its bar, the line under it, the slots, and its button. */
     record CollectionPlan(@Nonnull Message title, @Nonnull Message meta, float fraction, @Nullable Message line,
             @Nonnull List<ItemSlotTile> slots, @Nullable LinkButton button) implements SectionPlan {
+
+        @Override
+        @Nonnull
+        public PagePart<?, ?> part() {
+            return AlmanacParts.COLLECTION;
+        }
     }
 
     /** The season being read: everything the right column shows, and its parts in the order drawn. */
@@ -338,30 +386,36 @@ record AlmanacPagePlan(@Nonnull LedgerModel seasons, @Nullable String selected, 
         KeepsakeShelf keepsakes = keepsakes(page.keepsakes(), liveYear);
         AchievementShelf achievements = achievements(page.achievements());
         List<LinkButton> links = links(page.links());
-        return new SeasonBody(season.eventId(), hero(page), flavor, years(page.years(), scope),
-                AlmanacLines.scopeHeader(scope), AlmanacLines.scopeMeta(scope, page.tookPartInScope(), yearsTakenPart),
-                tiles(page.tallies()), hint, keepsakes, achievements, links,
-                sections(page.sections(), keepsakes != null, achievements != null, !links.isEmpty()));
+        List<YearChoice> years = years(page.years(), scope);
+        Message scopeHeader = AlmanacLines.scopeHeader(scope);
+        Message scopeMeta = AlmanacLines.scopeMeta(scope, page.tookPartInScope(), yearsTakenPart);
+        List<StatTile> tiles = tiles(page.tallies());
+        TalliesPlan tallies = new TalliesPlan(season.eventId(), years, scopeHeader, scopeMeta, tiles, hint);
+        return new SeasonBody(season.eventId(), hero(page), flavor, years, scopeHeader, scopeMeta, tiles, hint,
+                keepsakes, achievements, links, sections(page.sections(), tallies,
+                        keepsakes == null ? null : new KeepsakesPlan(keepsakes), achievements,
+                        links.isEmpty() ? null : new LinksPlan(links)));
     }
 
     // ---- the body's parts ----
 
     /**
      * The season's parts in the order its page writes them. The tallies always draw; the keepsakes, the
-     * achievements and the links only with something to show (as without {@code Sections}); a built-in part
-     * already placed is skipped (the view drops repeats too); banners and grids draw where written.
+     * achievements and the links only with something to show (as without {@code Sections}: a null part here); a
+     * built-in part already placed is skipped (the view drops repeats too); banners and grids draw where written.
      */
     @Nonnull
-    private static List<SectionPlan> sections(@Nonnull List<Section> sections, boolean keepsakes,
-            boolean achievements, boolean links) {
+    private static List<SectionPlan> sections(@Nonnull List<Section> sections, @Nonnull TalliesPlan tallies,
+            @Nullable KeepsakesPlan keepsakes, @Nullable AchievementShelf achievements, @Nullable LinksPlan links) {
         Set<Class<?>> placed = new HashSet<>();
         List<SectionPlan> out = new ArrayList<>();
         for (Section section : sections) {
             SectionPlan part = switch (section) {
-                case TalliesSection t -> new TalliesPlan();
-                case KeepsakesSection k -> keepsakes ? new KeepsakesPlan() : null;
-                case AchievementsSection a -> achievements ? new AchievementsPlan(callToAction(a)) : null;
-                case LinksSection l -> links ? new LinksPlan() : null;
+                case TalliesSection t -> tallies;
+                case KeepsakesSection k -> keepsakes;
+                case AchievementsSection a -> achievements == null ? null
+                        : new AchievementsPlan(achievements, callToAction(a));
+                case LinksSection l -> links;
                 case BannerSection b -> banner(b);
                 case CollectionSection c -> collection(c);
             };
@@ -589,12 +643,9 @@ record AlmanacPagePlan(@Nonnull LedgerModel seasons, @Nullable String selected, 
     }
 
     /**
-     * A glow fitted onto the plate, since the client does not clip a child to its parent (a glow hanging past the
-     * plate would spill over the page): the largest box about its authored centre that the plate holds, keeping
-     * the authored size on each axis where it fits, so the radial glow may stretch into an ellipse. A glow already
-     * on the plate keeps its box; one whose centre is off the plate, or that fits narrower or shorter than
-     * {@link AlmanacLayout#GLOW_MIN_FITTED}, draws nothing. Hallow's Eve's (514, -78, 400) becomes 400 x 236 at
-     * (514, 4).
+     * A glow fitted onto the hero plate by the kit's rule ({@link PlatePainter#fitGlow}): the largest box about its
+     * authored centre that the plate holds, or null to draw nothing. Hallow's Eve's (514, -78, 400) becomes 400 x
+     * 236 at (514, 4).
      */
     @Nullable
     static HeroBox fitGlow(@Nonnull HeroGlow glow) {
@@ -604,17 +655,7 @@ record AlmanacPagePlan(@Nonnull LedgerModel seasons, @Nullable String selected, 
     /** {@link #fitGlow(HeroGlow)}'s rule on any plate: an inline banner's is {@link AlmanacLayout#PLATE_WIDTH} wide. */
     @Nullable
     static HeroBox fitGlow(@Nonnull HeroGlow glow, int plateWidth, int plateHeight) {
-        double half = glow.size() / 2.0;
-        double cx = glow.x() + half;
-        double cy = glow.y() + half;
-        double halfWidth = Math.min(half, Math.min(cx, plateWidth - cx));
-        double halfHeight = Math.min(half, Math.min(cy, plateHeight - cy));
-        int width = (int) Math.floor(halfWidth * 2.0);
-        int height = (int) Math.floor(halfHeight * 2.0);
-        if (width < AlmanacLayout.GLOW_MIN_FITTED || height < AlmanacLayout.GLOW_MIN_FITTED) {
-            return null;
-        }
-        return new HeroBox((int) Math.round(cx - halfWidth), (int) Math.round(cy - halfHeight), width, height);
+        return PlatePainter.fitGlow(glow.x(), glow.y(), glow.size(), plateWidth, plateHeight, HeroBox::new);
     }
 
     /** A {@code #rrggbb} data colour as the page pushes it, or null for anything else. */

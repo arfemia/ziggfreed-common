@@ -1,4 +1,4 @@
-package com.ziggfreed.common.almanac.asset;
+package com.ziggfreed.common.ui.page;
 
 import java.io.IOException;
 
@@ -21,26 +21,25 @@ import com.ziggfreed.common.ui.route.Destinations;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * One line at the foot of a season's Almanac page that opens another screen: the words, and where they
- * go, in the shared destination vocabulary, so "See them in Achievements" opens the book with no edge
- * from the Almanac to it.
+ * A line or button on a composed page that opens another screen: the words, and where they go, in the
+ * shared destination vocabulary, so "See them in Achievements" opens the book with no edge from the page's
+ * module to it.
  *
  * <pre>{@code
- * "Links": [ { "TextKey": "almanac.spring_fair.link.book",
- *              "Destination": { "Type": "Achievements" } } ]
+ * { "TextKey": "almanac.spring_fair.link.book", "Destination": { "Type": "Achievements" } }
  * }</pre>
  *
- * <p>A season pack may link to a screen another mod brings, and run on a server without that mod. So a
+ * <p>A content pack may link to a screen another mod brings, and run on a server without that mod. So a
  * destination whose {@code Type} nothing registered does NOT fail the read here, as it would anywhere
- * else: the link is left out, the page loads, and the season page reports it.
+ * else: the link is left out, the page loads, and the page's own audit reports it.
  */
-public final class AlmanacLinkAsset {
+public final class LinkAsset {
 
     @Nullable private String textKey;
     @Nullable private Destination destination;
 
-    public static final BuilderCodec<AlmanacLinkAsset> CODEC =
-            BuilderCodec.builder(AlmanacLinkAsset.class, AlmanacLinkAsset::new)
+    public static final BuilderCodec<LinkAsset> CODEC =
+            BuilderCodec.builder(LinkAsset.class, LinkAsset::new)
                     .append(new KeyedCodec<>("TextKey", Codec.STRING, false),
                             (l, v) -> l.textKey = v, l -> l.textKey)
                     .documentation("The line's words, as a localization key.").add()
@@ -50,7 +49,7 @@ public final class AlmanacLinkAsset {
                             + "installed mod registers leaves the line out rather than failing the page.").add()
                     .build();
 
-    public AlmanacLinkAsset() {
+    public LinkAsset() {
     }
 
     /** The words' key, trimmed, or null when unauthored. */
@@ -108,7 +107,7 @@ public final class AlmanacLinkAsset {
             if (type != null && Destinations.registeredTypes().contains(type)) {
                 return true;
             }
-            SafeLog.warn("[almanac] " + extraInfo.peekKey() + ": a season link "
+            SafeLog.warn("[page] " + extraInfo.peekKey() + ": a page's link "
                     + (type == null ? "names no destination Type" : "opens '" + type
                             + "', which no installed mod registers") + ", so the link is left out");
             return false;

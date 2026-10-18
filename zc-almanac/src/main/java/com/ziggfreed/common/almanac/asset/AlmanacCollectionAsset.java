@@ -13,6 +13,7 @@ import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.text.ContentTextAsset;
+import com.ziggfreed.common.ui.page.LinkAsset;
 
 /**
  * The items a player can find this season, as a grid in a season page's {@code Sections}. Each item
@@ -31,7 +32,7 @@ public final class AlmanacCollectionAsset {
 
     @Nullable private ContentTextAsset text;
     @Nullable private Slot[] items;
-    @Nullable private AlmanacLinkAsset button;
+    @Nullable private LinkAsset button;
 
     public static final BuilderCodec<AlmanacCollectionAsset> CODEC =
             BuilderCodec.builder(AlmanacCollectionAsset.class, AlmanacCollectionAsset::new)
@@ -42,7 +43,7 @@ public final class AlmanacCollectionAsset {
                             (c, v) -> c.items = v, c -> c.items)
                     .documentation("The items a player can find this season, drawn in the order written, at most "
                             + "45, nine a row. An item the server does not have is left out.").add()
-                    .append(new KeyedCodec<>("Button", AlmanacLinkAsset.CODEC, false),
+                    .append(new KeyedCodec<>("Button", LinkAsset.CODEC, false),
                             (c, v) -> c.button = v, c -> c.button)
                     .documentation("A button under the grid: its words and what it opens, in the shared "
                             + "destination vocabulary, for example a storefront: { \"Type\": \"Shop\", \"Shop\": "
@@ -82,7 +83,7 @@ public final class AlmanacCollectionAsset {
 
     /** The button, when it has words and somewhere this server can open; else null. */
     @Nullable
-    public AlmanacLinkAsset button() {
+    public LinkAsset button() {
         return button != null && button.usable() ? button : null;
     }
 

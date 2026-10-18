@@ -21,6 +21,9 @@ import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.text.ContentTextAsset;
+import com.ziggfreed.common.ui.page.BannerAsset;
+import com.ziggfreed.common.ui.page.LinkAsset;
+import com.ziggfreed.common.ui.page.PlateComposition;
 import com.ziggfreed.common.validation.Finding;
 
 /**
@@ -45,7 +48,8 @@ import com.ziggfreed.common.validation.Finding;
  * year mints its own copy, {@code <id>_<year>}, and the Almanac lists every year's copy a player
  * earned. Every leaf is {@code appendInherited} and {@code Stats} merges per line, so a page with a
  * {@code Parent} can retune one line and keep the rest; {@code Hero} merges leaf by leaf except its
- * {@code Composition}, which is one piece ({@link AlmanacHeroAsset}), {@code Links} replaces whole,
+ * {@code Composition}, which is one piece ({@link AlmanacHeroAsset}, the page kit's {@link PlateComposition}),
+ * {@code Links} replaces whole,
  * and {@code Sections} replaces whole ({@link AlmanacSectionAsset}: one part of the body per entry, in
  * the order written; unauthored reads the page's own order).
  *
@@ -67,7 +71,7 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
     public static final String FINDING_HERO_ITEMS = "HERO_ITEMS_OVER_CAP";
 
     /** How many items a composed hero draws. */
-    public static final int HERO_MAX_ITEMS = 12;
+    public static final int HERO_MAX_ITEMS = PlateComposition.MAX_PICTURES;
 
     /**
      * A finding's code: a composition's picture (the hero's or a banner's) naming both an {@code Item} and an
@@ -77,6 +81,12 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
 
     /** A finding's code: a {@code Sections} entry that names no part, so it is skipped. */
     public static final String FINDING_SECTION_EMPTY = "SECTION_EMPTY";
+
+    /**
+     * A finding's code: a {@code Sections} entry naming a group that is no part of a season page (none registered on
+     * the page under that name), which never draws: the entry is skipped when it names no part as well.
+     */
+    public static final String FINDING_SECTION_UNKNOWN_PART = "SECTION_UNKNOWN_PART";
 
     /** A finding's code: a {@code Sections} entry naming two or more parts; only the first draws. */
     public static final String FINDING_SECTION_HAS_TWO = "SECTION_HAS_TWO";
@@ -123,7 +133,7 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
     @Nullable private Map<String, AlmanacStatAsset> stats;
     @Nullable private String accent;
     @Nullable private AlmanacHeroAsset hero;
-    @Nullable private AlmanacLinkAsset[] links;
+    @Nullable private LinkAsset[] links;
     @Nullable private AlmanacSectionAsset[] sections;
 
     public static final AssetBuilderCodec<String, AlmanacEntryAsset> CODEC = AssetBuilderCodec.builder(
@@ -174,7 +184,7 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
                     + "season in mods/ziggfreedcommon/almanac.json; an owner's Composition replaces the pack's whole.")
             .add()
             .appendInherited(new KeyedCodec<>("Links",
-                            new ArrayCodec<>(AlmanacLinkAsset.CODEC, AlmanacLinkAsset[]::new), false),
+                            new ArrayCodec<>(LinkAsset.CODEC, LinkAsset[]::new), false),
                     (a, v) -> a.links = v, a -> a.links, (a, p) -> a.links = p.links)
             .documentation("Lines at the foot of the season's page that open another screen, each a TextKey and "
                     + "a Destination. A link to a screen no installed mod opens is left out. A list written by a "
@@ -248,12 +258,12 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
 
     /** The links that have words and somewhere this server can open, in the order written. */
     @Nonnull
-    public List<AlmanacLinkAsset> links() {
+    public List<LinkAsset> links() {
         if (links == null) {
             return List.of();
         }
-        List<AlmanacLinkAsset> out = new ArrayList<>();
-        for (AlmanacLinkAsset link : links) {
+        List<LinkAsset> out = new ArrayList<>();
+        for (LinkAsset link : links) {
             if (link != null && link.usable()) {
                 out.add(link);
             }
@@ -284,7 +294,8 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
      * What is wrong with this page that does not stop it loading, each a warning: a colour that is not
      * {@code #rrggbb} (read as unauthored), a link left out, more hero items than the hero draws, a picture
      * naming both an item and an NPC; and in the {@code Sections} the page draws, an entry naming no part or
-     * two, a built-in part placed again, too many entries, a banner with nothing to show or too many items, a
+     * two, a group that is no part of the page (one warning per entry), a built-in part placed again, too many
+     * entries, a banner with nothing to show or too many items, a
      * collection repeating an item or listing too many, and a banner's or a collection's button left out.
      */
     @Nonnull
@@ -295,7 +306,7 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
             out.add(Finding.warning(DOMAIN, FINDING_COLOUR, "Accent '" + accent.trim() + "' is not a #rrggbb "
                     + "colour, so the season takes the shared accent", source));
         }
-        AlmanacHeroAsset.Composition composition = hero == null ? null : hero.composition();
+        PlateComposition composition = hero == null ? null : hero.composition();
         if (composition != null) {
             colourFindings(composition, "Hero.Composition", "the composed top", source, out);
             pictureFindings(composition, "Hero.Composition", source, out);
@@ -306,7 +317,7 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
             }
         }
         if (links != null) {
-            for (AlmanacLinkAsset link : links) {
+            for (LinkAsset link : links) {
                 if (link != null && !link.usable()) {
                     out.add(Finding.warning(DOMAIN, FINDING_LINK, "a link "
                             + (link.textKey() == null ? "with no TextKey" : "'" + link.textKey() + "'")
@@ -319,7 +330,7 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
     }
 
     /** The three colour checks a composition gets, the hero's and every banner's alike. */
-    private static void colourFindings(@Nonnull AlmanacHeroAsset.Composition composition, @Nonnull String where,
+    private static void colourFindings(@Nonnull PlateComposition composition, @Nonnull String where,
             @Nonnull String what, @Nonnull String source, @Nonnull List<Finding> out) {
         if (composition.backgroundMalformed()) {
             out.add(Finding.warning(DOMAIN, FINDING_COLOUR, where + ".Background is not a #rrggbb colour, so "
@@ -336,9 +347,9 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
     }
 
     /** A composition's pictures that name both an item and an NPC, the hero's and every banner's alike. */
-    private static void pictureFindings(@Nonnull AlmanacHeroAsset.Composition composition, @Nonnull String where,
+    private static void pictureFindings(@Nonnull PlateComposition composition, @Nonnull String where,
             @Nonnull String source, @Nonnull List<Finding> out) {
-        for (AlmanacHeroAsset.Placement placement : composition.items()) {
+        for (PlateComposition.Placement placement : composition.items()) {
             if (placement.namesBoth()) {
                 out.add(Finding.warning(DOMAIN, FINDING_PICTURE_HAS_TWO, where + ".Items names the item '"
                         + placement.item() + "' and the NPC '" + placement.npc() + "' in one picture; a picture "
@@ -359,10 +370,20 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
             String where = "Sections[" + i + "]";
             List<String> written = entry.partsWritten();
             String part = entry.part();
+            List<String> unknown = entry.unknownParts();
             if (part == null) {
-                out.add(Finding.warning(DOMAIN, FINDING_SECTION_EMPTY, where + " names no part, so it is skipped",
-                        source));
+                if (unknown.isEmpty()) {
+                    out.add(Finding.warning(DOMAIN, FINDING_SECTION_EMPTY, where + " names no part, so it is skipped",
+                            source));
+                } else {
+                    out.add(Finding.warning(DOMAIN, FINDING_SECTION_UNKNOWN_PART, where + " names " + quoted(unknown)
+                            + ", which is no part of a season page, so it is skipped", source));
+                }
                 continue;
+            }
+            if (!unknown.isEmpty()) {
+                out.add(Finding.warning(DOMAIN, FINDING_SECTION_UNKNOWN_PART, where + " also names " + quoted(unknown)
+                        + ", which is no part of a season page, so only " + part + " is drawn", source));
             }
             if (written.size() > 1) {
                 out.add(Finding.warning(DOMAIN, FINDING_SECTION_HAS_TWO, where + " names " + spoken(written)
@@ -372,7 +393,7 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
                 out.add(Finding.warning(DOMAIN, FINDING_SECTION_REPEATED, where + " places " + part + " again, "
                         + "which is drawn at its first place only", source));
             }
-            AlmanacBannerAsset banner = entry.banner();
+            BannerAsset banner = entry.banner();
             if (banner != null) {
                 bannerFindings(banner, where + ".Banner", source, out);
             }
@@ -387,13 +408,13 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
         }
     }
 
-    private static void bannerFindings(@Nonnull AlmanacBannerAsset banner, @Nonnull String where,
+    private static void bannerFindings(@Nonnull BannerAsset banner, @Nonnull String where,
             @Nonnull String source, @Nonnull List<Finding> out) {
         if (banner.nothingWritten()) {
             out.add(Finding.warning(DOMAIN, FINDING_BANNER_EMPTY, where + " names no Art, Composition, Text or "
                     + "Button, so it shows nothing and is skipped", source));
         }
-        AlmanacHeroAsset.Composition composition = banner.composition();
+        PlateComposition composition = banner.composition();
         if (composition != null) {
             colourFindings(composition, where + ".Composition", "the banner", source, out);
             pictureFindings(composition, where + ".Composition", source, out);
@@ -436,6 +457,16 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
             return String.join("", parts);
         }
         return String.join(", ", parts.subList(0, parts.size() - 1)) + " and " + parts.get(parts.size() - 1);
+    }
+
+    /** {@code 'Picks'}, {@code 'Picks' and 'Road'}: names an author wrote, quoted. */
+    @Nonnull
+    private static String quoted(@Nonnull List<String> names) {
+        List<String> out = new ArrayList<>();
+        for (String name : names) {
+            out.add("'" + name + "'");
+        }
+        return spoken(out);
     }
 
     @Nullable

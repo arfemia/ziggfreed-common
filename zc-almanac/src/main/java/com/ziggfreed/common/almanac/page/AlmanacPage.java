@@ -18,8 +18,6 @@ import com.hypixel.hytale.protocol.packets.interface_.Page;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.pages.InteractiveCustomUIPage;
-import com.hypixel.hytale.server.core.ui.Anchor;
-import com.hypixel.hytale.server.core.ui.Value;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
@@ -43,16 +41,12 @@ import com.ziggfreed.common.almanac.page.AlmanacPagePlan.BannerPlan;
 import com.ziggfreed.common.almanac.page.AlmanacPagePlan.CollectionPlan;
 import com.ziggfreed.common.almanac.page.AlmanacPagePlan.GlanceMonth;
 import com.ziggfreed.common.almanac.page.AlmanacPagePlan.HeroBox;
-import com.ziggfreed.common.almanac.page.AlmanacPagePlan.HeroLight;
-import com.ziggfreed.common.almanac.page.AlmanacPagePlan.HeroPicture;
-import com.ziggfreed.common.almanac.page.AlmanacPagePlan.HeroPlan;
 import com.ziggfreed.common.almanac.page.AlmanacPagePlan.KeepsakeShelf;
 import com.ziggfreed.common.almanac.page.AlmanacPagePlan.KeepsakesPlan;
 import com.ziggfreed.common.almanac.page.AlmanacPagePlan.LinkButton;
 import com.ziggfreed.common.almanac.page.AlmanacPagePlan.LinksPlan;
 import com.ziggfreed.common.almanac.page.AlmanacPagePlan.RecordCard;
 import com.ziggfreed.common.almanac.page.AlmanacPagePlan.SeasonBody;
-import com.ziggfreed.common.almanac.page.AlmanacPagePlan.SectionPlan;
 import com.ziggfreed.common.almanac.page.AlmanacPagePlan.TalliesPlan;
 import com.ziggfreed.common.almanac.page.AlmanacPagePlan.YearChoice;
 import com.ziggfreed.common.almanac.view.AlmanacView;
@@ -76,6 +70,7 @@ import com.ziggfreed.common.ui.kit.LedgerPainter;
 import com.ziggfreed.common.ui.kit.LedgerRow;
 import com.ziggfreed.common.ui.kit.LedgerSection;
 import com.ziggfreed.common.ui.kit.PillPainter;
+import com.ziggfreed.common.ui.kit.PlatePainter;
 import com.ziggfreed.common.ui.kit.RowSize;
 import com.ziggfreed.common.ui.kit.SegmentPainter;
 import com.ziggfreed.common.ui.kit.TilePainter;
@@ -84,6 +79,8 @@ import com.ziggfreed.common.ui.menu.MenuFrame;
 import com.ziggfreed.common.ui.menu.MenuRail;
 import com.ziggfreed.common.ui.menu.MenuSlot;
 import com.ziggfreed.common.ui.menu.ZigMenu;
+import com.ziggfreed.common.ui.page.PagePainter;
+import com.ziggfreed.common.ui.page.PartCanvas;
 import com.ziggfreed.common.ui.route.DestinationContext;
 import com.ziggfreed.common.ui.route.Destinations;
 import com.ziggfreed.common.util.SafeLog;
@@ -92,7 +89,8 @@ import com.ziggfreed.common.util.SafeLog;
  * The Almanac: every season this server runs on the left (a ledger list, On now first, the year at a glance and
  * the record card under it), the one being read on the right (its hero, then its parts in the order its page writes
  * them: inline banners, the items grid, the years to read and its tiles, keepsakes, achievements with the button
- * into the book, and links; each part a template appended into {@link #SECTIONS}). When it reads a season it first
+ * into the book, and links; each part one of the page kit's registered parts ({@link AlmanacParts}), its template
+ * appended into {@link #SECTIONS} and painted by its painter here). When it reads a season it first
  * looks at the player's bag for the items that season's grids list. It paints {@link AlmanacPagePlan} through the
  * kit and decides nothing: what a season says is {@link AlmanacView}'s, how the page maps it onto the kit is the
  * plan's. Every pick (a season, a year, a month) reopens the page, so every build is a full one and no row is
@@ -139,34 +137,22 @@ public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData>
             ACHIEVEMENTS_TEMPLATE, LINKS_TEMPLATE, BANNER_TEMPLATE, COLLECTION_TEMPLATE);
 
     /**
-     * One composed hero's item picture, appended onto the plate's {@code #HeroItems} and placed by a whole Anchor:
-     * the kit's plain picture slot, an {@code AssetImage #IcoTex} painted through {@code IconRenderer.applyPlainIcon}
-     * (no tooltip, no rarity square), filling the box the Anchor gives it.
+     * One composed hero's or banner's item picture: the kit's plain picture slot ({@link PlatePainter#PICTURE}),
+     * appended onto a plate's pictures host and placed by a whole Anchor.
      */
-    static final String HERO_PICTURE = "Group { AssetImage #IcoTex { Anchor: (Full: 0); Visible: false; "
-            + "FallbackTexturePath: \"UI/Custom/Common/Glyphs/Blank.png\"; } }";
+    static final String HERO_PICTURE = PlatePainter.PICTURE;
 
     /**
-     * One composed picture that is an NPC's portrait: the same plain slot as {@link #HERO_PICTURE}, falling back to
-     * the shared missing-picture icon ({@link Portraits#MISSING_TEXTURE}) for a model no still was rendered for, as
-     * every portrait widget does.
+     * One composed picture that is an NPC's portrait: the same plain slot, falling back to the shared missing-picture
+     * icon ({@link Portraits#MISSING_TEXTURE}) for a model no still was rendered for ({@link PlatePainter#PORTRAIT}).
      */
-    static final String HERO_PORTRAIT = "Group { AssetImage #IcoTex { Anchor: (Full: 0); Visible: false; "
-            + "FallbackTexturePath: \"" + Portraits.MISSING_TEXTURE + "\"; } }";
+    static final String HERO_PORTRAIT = PlatePainter.PORTRAIT;
 
-    // The hero plate's own layers (Common/ZigKit.ui's @ZigHeroPlate, instanced as #Hero): the kit has no painter
-    // for the plate, so the page addresses them here, and AlmanacPageDocumentTest holds each id to the kit.
+    /**
+     * The hero plate (Common/ZigKit.ui's @ZigHeroPlate) as the page document instances it: the kit's
+     * {@link PlatePainter} spells its layers' ids, and AlmanacPageDocumentTest holds each one to the kit.
+     */
     private static final String HERO = "#Hero";
-    private static final String HERO_ART = HERO + " #HeroArt";
-    private static final String HERO_SKY = HERO + " #HeroGradient";
-    private static final String HERO_GLOW = HERO + " #HeroGlow";
-    private static final String HERO_ITEMS = HERO + " #HeroItems";
-    private static final String HERO_PIC = HERO + " #HeroPic";
-    private static final String HERO_CHIP = HERO + " #HeroChip";
-    private static final String HERO_TITLE = HERO + " #HeroTitle";
-    private static final String HERO_DATES = HERO + " #HeroDates";
-    private static final String HERO_NEXT = HERO + " #HeroNext";
-    private static final String HERO_ACCENT = HERO + " #HeroAccent";
 
     // A standalone @ZigSectionHeader's label and meta (no kit painter for one outside a detail block).
     private static final String HEAD_LABEL = " #HeadLabel";
@@ -450,7 +436,8 @@ public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData>
                 RowSize.TALL, viewer);
         paintGlance(cmd, events, plan.months());
         paintRecord(cmd, plan.record());
-        paintHero(cmd, body.hero());
+        // The hero's layers, then its picture, chip, name, dates lines and accent strip: the kit's plate painter.
+        PlatePainter.paintHero(cmd, HERO, body.hero());
         paintBody(cmd, events, body, viewer);
     }
 
@@ -500,106 +487,44 @@ public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData>
     }
 
     /**
-     * The hero's layers, each set both ways so nothing the template ships shows by accident: the art layer only for
-     * art (or a composition's texture); the flat fill over the plate, the tinted sky, the glow fitted onto the plate
-     * and the pictures (items and NPC portraits) for a composition; the season's own picture otherwise; then the
-     * chip, the name, the dates, the line under them (a monthly or weekly season's next run) and the accent strip.
-     */
-    private static void paintHero(@Nonnull UICommandBuilder cmd, @Nonnull HeroPlan hero) {
-        String art = hero.artTexture();
-        cmd.set(HERO_ART + ".Visible", art != null);
-        if (art != null) {
-            cmd.set(HERO_ART + ".AssetPath", art);
-        }
-        if (hero.fillHex() != null) {
-            UiRetint.fill(cmd, HERO, hero.fillHex());
-        }
-        String sky = hero.skyHex();
-        cmd.set(HERO_SKY + ".Visible", sky != null);
-        if (sky != null) {
-            UiRetint.retintColor(cmd, HERO_SKY, sky);
-        }
-        HeroLight glow = hero.glow();
-        cmd.set(HERO_GLOW + ".Visible", glow != null);
-        if (glow != null) {
-            cmd.setObject(HERO_GLOW + ".Anchor", anchor(glow.box()));
-            UiRetint.retintColor(cmd, HERO_GLOW, glow.colorHex());
-        }
-        paintPictures(cmd, HERO_ITEMS, hero.pictures());
-        String own = hero.pictureTexture();
-        cmd.set(HERO_PIC + ".Visible", own != null);
-        if (own != null) {
-            IconRenderer.applyPlainIcon(cmd, HERO_PIC, null, own);
-        }
-        PillPainter.paint(cmd, HERO_CHIP, hero.chip());
-        cmd.set(HERO_TITLE + ".TextSpans", hero.title());
-        optional(cmd, HERO_DATES, hero.dates());
-        optional(cmd, HERO_NEXT, hero.next());
-        UiRetint.fill(cmd, HERO_ACCENT, hero.accentHex());
-    }
-
-    /**
-     * The flavor, then each of the season's parts in the plan's order: its template appended into {@link #SECTIONS}
-     * and painted under {@code #Sections[i]}.
+     * The flavor, then each of the season's parts in the plan's order, through the page kit: its part's template
+     * appended into {@link #SECTIONS} and painted under {@code #Sections[i]} by the part's painter (below).
      */
     private static void paintBody(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
             @Nonnull SeasonBody body, @Nullable PlayerRef viewer) {
         optional(cmd, "#Flavor", body.flavor());
-        List<SectionPlan> sections = body.sections();
-        for (int i = 0; i < sections.size(); i++) {
-            SectionPlan section = sections.get(i);
-            String root = SECTIONS + "[" + i + "]";
-            cmd.append(SECTIONS, template(section));
-            switch (section) {
-                case TalliesPlan t -> paintTallies(cmd, events, root, body);
-                case KeepsakesPlan k -> paintKeepsakes(cmd, root, body.keepsakes());
-                case AchievementsPlan a -> paintAchievements(cmd, events, root, body.achievements(), a, i);
-                case LinksPlan l -> paintLinks(cmd, events, root, body.links());
-                case BannerPlan b -> paintPlate(cmd, events, root, b, i);
-                case CollectionPlan c -> paintCollection(cmd, events, root, c, i);
-            }
-        }
+        PagePainter.paint(cmd, events, SECTIONS, body.sections(), viewer);
     }
 
-    /** The template a part is drawn from. */
-    @Nonnull
-    static String template(@Nonnull SectionPlan section) {
-        return switch (section) {
-            case TalliesPlan t -> TALLIES_TEMPLATE;
-            case KeepsakesPlan k -> KEEPSAKES_TEMPLATE;
-            case AchievementsPlan a -> ACHIEVEMENTS_TEMPLATE;
-            case LinksPlan l -> LINKS_TEMPLATE;
-            case BannerPlan b -> BANNER_TEMPLATE;
-            case CollectionPlan c -> COLLECTION_TEMPLATE;
-        };
-    }
+    // ==================== the parts' painters (AlmanacParts) ====================
 
     /** The year chips (a click reopens the page on that year), the scope header, the tiles and the first-time hint. */
-    private static void paintTallies(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
-            @Nonnull String root, @Nonnull SeasonBody body) {
-        String chips = root + " #YearChips";
-        List<YearChoice> years = body.years();
+    static void paintTallies(@Nonnull PartCanvas canvas, @Nonnull TalliesPlan tallies) {
+        UICommandBuilder cmd = canvas.cmd();
+        String chips = canvas.at("#YearChips");
+        List<YearChoice> years = tallies.years();
         cmd.set(chips + ".Visible", !years.isEmpty());
         for (YearChoice year : years) {
-            SegmentPainter.append(cmd, events, chips, year.label(), year.on(), year.check(), year.dot(),
-                    EventData.of("Action", "select").append("Season", body.eventId()).append("Year", year.value()));
+            SegmentPainter.append(cmd, canvas.events(), chips, year.label(), year.on(), year.check(), year.dot(),
+                    EventData.of("Action", "select").append("Season", tallies.eventId()).append("Year", year.value()));
         }
-        header(cmd, root + " #ScopeHeader", body.scopeHeader(), body.scopeMeta());
-        String grid = root + " #StatGrid";
-        cmd.set(grid + ".Visible", !body.tiles().isEmpty());
-        TilePainter.stats(cmd, grid, body.tiles());
-        String hint = root + " #Hint";
-        cmd.set(hint + ".Visible", body.hint());
-        if (body.hint()) {
+        header(cmd, canvas.at("#ScopeHeader"), tallies.scopeHeader(), tallies.scopeMeta());
+        String grid = canvas.at("#StatGrid");
+        cmd.set(grid + ".Visible", !tallies.tiles().isEmpty());
+        TilePainter.stats(cmd, grid, tallies.tiles());
+        String hint = canvas.at("#Hint");
+        cmd.set(hint + ".Visible", tallies.hint());
+        if (tallies.hint()) {
             cmd.set(hint + ".TextSpans", AlmanacText.line("hint.first_time"));
         }
     }
 
     /** The keepsake header and shelf (the plan places this part only with a shelf). */
-    private static void paintKeepsakes(@Nonnull UICommandBuilder cmd, @Nonnull String root,
-            @Nullable KeepsakeShelf keepsakes) {
-        String header = root + " #KeepsakeHeader";
-        String shelf = root + " #KeepsakeShelf";
+    static void paintKeepsakes(@Nonnull PartCanvas canvas, @Nonnull KeepsakesPlan part) {
+        UICommandBuilder cmd = canvas.cmd();
+        KeepsakeShelf keepsakes = part.keepsakes();
+        String header = canvas.at("#KeepsakeHeader");
+        String shelf = canvas.at("#KeepsakeShelf");
         cmd.set(header + ".Visible", keepsakes != null);
         cmd.set(shelf + ".Visible", keepsakes != null);
         if (keepsakes != null) {
@@ -609,12 +534,12 @@ public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData>
     }
 
     /** The achievements header, bar and feats, then the button into the book when the plan resolved one. */
-    private static void paintAchievements(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
-            @Nonnull String root, @Nullable AchievementShelf achievements, @Nonnull AchievementsPlan part,
-            int index) {
-        String header = root + " #AchHeader";
-        String bar = root + " #AchBar";
-        String feats = root + " #FeatList";
+    static void paintAchievements(@Nonnull PartCanvas canvas, @Nonnull AchievementsPlan part) {
+        UICommandBuilder cmd = canvas.cmd();
+        AchievementShelf achievements = part.achievements();
+        String header = canvas.at("#AchHeader");
+        String bar = canvas.at("#AchBar");
+        String feats = canvas.at("#FeatList");
         cmd.set(header + ".Visible", achievements != null);
         cmd.set(bar + ".Visible", achievements != null && achievements.fraction() != null);
         cmd.set(feats + ".Visible", achievements != null && !achievements.feats().isEmpty());
@@ -628,20 +553,21 @@ public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData>
                 PillPainter.paint(cmd, feats + "[" + j + "] #Pill", achievements.feats().get(j));
             }
         }
-        sectionButton(cmd, events, root + " #AchCta", part.cta(), index);
+        sectionButton(canvas, "#AchCta", part.cta());
     }
 
     /** The season's link buttons, filled in order; each click opens its link by the index it carries. */
-    private static void paintLinks(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
-            @Nonnull String root, @Nonnull List<LinkButton> links) {
-        cmd.set(root + " #Links.Visible", !links.isEmpty());
+    static void paintLinks(@Nonnull PartCanvas canvas, @Nonnull LinksPlan part) {
+        UICommandBuilder cmd = canvas.cmd();
+        List<LinkButton> links = part.links();
+        cmd.set(canvas.at("#Links.Visible"), !links.isEmpty());
         for (int i = 0; i < AlmanacLayout.LINK_SLOTS; i++) {
-            String button = root + " #Link" + (i + 1);
+            String button = canvas.at("#Link" + (i + 1));
             boolean shown = i < links.size();
             cmd.set(button + ".Visible", shown);
             if (shown) {
                 ZigRichButton.text(cmd, button, links.get(i).label());
-                events.addEventBinding(CustomUIEventBindingType.Activating, button,
+                canvas.events().addEventBinding(CustomUIEventBindingType.Activating, button,
                         EventData.of("Action", "link").append("Link", String.valueOf(i)), false);
             }
         }
@@ -649,77 +575,43 @@ public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData>
 
     /**
      * An inline banner (not {@code paintBanner}, the left column's card): its plate's whole Anchor for its height,
-     * then its layers, each set both ways as the hero's are: the art layer only for art (or a composition's
-     * texture); the flat fill over the plate, the tinted sky, the glow fitted onto the plate and the pictures
-     * (items and NPC portraits) for a composition; the fade under its words; its title and line; its button.
+     * then its layers through the kit's {@link PlatePainter} (set both ways, as the hero's are); the fade under its
+     * words; its title and line; its button.
      */
-    private static void paintPlate(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
-            @Nonnull String root, @Nonnull BannerPlan banner, int index) {
-        String plate = root + " #Plate";
-        cmd.setObject(plate + ".Anchor", anchor(new HeroBox(0, 0, AlmanacLayout.PLATE_WIDTH, banner.height())));
-        String art = banner.artTexture();
-        String artLayer = root + " #PlateArt";
-        cmd.set(artLayer + ".Visible", art != null);
-        if (art != null) {
-            cmd.set(artLayer + ".AssetPath", art);
-        }
-        if (banner.fillHex() != null) {
-            UiRetint.fill(cmd, plate, banner.fillHex());
-        }
-        String sky = banner.skyHex();
-        String skyLayer = root + " #PlateSky";
-        cmd.set(skyLayer + ".Visible", sky != null);
-        if (sky != null) {
-            UiRetint.retintColor(cmd, skyLayer, sky);
-        }
-        HeroLight glow = banner.glow();
-        String glowLayer = root + " #PlateGlow";
-        cmd.set(glowLayer + ".Visible", glow != null);
-        if (glow != null) {
-            cmd.setObject(glowLayer + ".Anchor", anchor(glow.box()));
-            UiRetint.retintColor(cmd, glowLayer, glow.colorHex());
-        }
-        paintPictures(cmd, plate + " #PlateItems", banner.pictures());
-        cmd.set(root + " #PlateFade.Visible", banner.title() != null || banner.line() != null);
-        optional(cmd, root + " #PlateTitle", banner.title());
-        optional(cmd, root + " #PlateLine", banner.line());
-        sectionButton(cmd, events, root + " #PlateButton", banner.button(), index);
-    }
-
-    /**
-     * A composition's pictures, the hero's and a banner's alike: each a plain slot appended onto {@code host} in
-     * order (an NPC's portrait the slot that falls back to the missing-picture icon), placed by a whole Anchor and
-     * painted through {@code IconRenderer.applyPlainIcon}.
-     */
-    private static void paintPictures(@Nonnull UICommandBuilder cmd, @Nonnull String host,
-            @Nonnull List<HeroPicture> pictures) {
-        for (int i = 0; i < pictures.size(); i++) {
-            HeroPicture picture = pictures.get(i);
-            String slot = host + "[" + i + "]";
-            cmd.appendInline(host, picture.portrait() ? HERO_PORTRAIT : HERO_PICTURE);
-            cmd.setObject(slot + ".Anchor", anchor(picture.box()));
-            IconRenderer.applyPlainIcon(cmd, slot, null, picture.iconPath());
-        }
+    static void paintPlate(@Nonnull PartCanvas canvas, @Nonnull BannerPlan banner) {
+        UICommandBuilder cmd = canvas.cmd();
+        String plate = canvas.at("#Plate");
+        cmd.setObject(plate + ".Anchor",
+                PlatePainter.anchor(new HeroBox(0, 0, AlmanacLayout.PLATE_WIDTH, banner.height())));
+        PlatePainter.paintLayers(cmd, new PlatePainter.Ids(plate, canvas.at("#PlateArt"), canvas.at("#PlateSky"),
+                canvas.at("#PlateGlow"), plate + " #PlateItems"), banner);
+        cmd.set(canvas.at("#PlateFade.Visible"), banner.title() != null || banner.line() != null);
+        optional(cmd, canvas.at("#PlateTitle"), banner.title());
+        optional(cmd, canvas.at("#PlateLine"), banner.line());
+        sectionButton(canvas, "#PlateButton", banner.button());
     }
 
     /** The items grid: its header and count, its bar, its line, a kit item slot per item, and its button. */
-    private static void paintCollection(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
-            @Nonnull String root, @Nonnull CollectionPlan collection, int index) {
-        header(cmd, root + " #ColHeader", collection.title(), collection.meta());
-        cmd.set(root + " #ColBar #Bar.Value", collection.fraction());
-        optional(cmd, root + " #ColLine", collection.line());
-        TilePainter.itemSlots(cmd, root + " #ColGrid", collection.slots());
-        sectionButton(cmd, events, root + " #ColButton", collection.button(), index);
+    static void paintCollection(@Nonnull PartCanvas canvas, @Nonnull CollectionPlan collection) {
+        UICommandBuilder cmd = canvas.cmd();
+        header(cmd, canvas.at("#ColHeader"), collection.title(), collection.meta());
+        cmd.set(canvas.at("#ColBar #Bar.Value"), collection.fraction());
+        optional(cmd, canvas.at("#ColLine"), collection.line());
+        TilePainter.itemSlots(cmd, canvas.at("#ColGrid"), collection.slots());
+        sectionButton(canvas, "#ColButton", collection.button());
     }
 
-    /** A part's button: shown and labelled with a link, bound to open it by the part's index; hidden without one. */
-    private static void sectionButton(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
-            @Nonnull String button, @Nullable LinkButton link, int index) {
-        cmd.set(button + ".Visible", link != null);
+    /**
+     * A part's button ({@code id} inside its template): shown and labelled with a link, bound to open it by the part's
+     * index, which the click is answered from; hidden without one.
+     */
+    private static void sectionButton(@Nonnull PartCanvas canvas, @Nonnull String id, @Nullable LinkButton link) {
+        String button = canvas.at(id);
+        canvas.cmd().set(button + ".Visible", link != null);
         if (link != null) {
-            ZigRichButton.text(cmd, button, link.label());
-            events.addEventBinding(CustomUIEventBindingType.Activating, button,
-                    EventData.of("Action", "section").append("Section", String.valueOf(index)), false);
+            ZigRichButton.text(canvas.cmd(), button, link.label());
+            canvas.events().addEventBinding(CustomUIEventBindingType.Activating, button,
+                    EventData.of("Action", "section").append("Section", String.valueOf(canvas.index())), false);
         }
     }
 
@@ -736,16 +628,5 @@ public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData>
             cmd.set(label + ".TextSpans", text);
         }
         cmd.set(label + ".Visible", text != null);
-    }
-
-    /** A whole Anchor for a box on the plate: the only form a layout input changes in from Java. */
-    @Nonnull
-    private static Anchor anchor(@Nonnull HeroBox box) {
-        Anchor anchor = new Anchor();
-        anchor.setLeft(Value.of(box.x()));
-        anchor.setTop(Value.of(box.y()));
-        anchor.setWidth(Value.of(box.width()));
-        anchor.setHeight(Value.of(box.height()));
-        return anchor;
     }
 }
