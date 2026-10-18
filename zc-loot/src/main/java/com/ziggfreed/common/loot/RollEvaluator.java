@@ -84,6 +84,10 @@ public final class RollEvaluator {
     @Nonnull
     public static Outcome evaluate(@Nonnull Roll roll, @Nonnull FactorLookup lookup,
             @Nonnull DoubleSupplier chanceSample) {
+        // The table's own Requires first: a player its table refuses takes no chance sample either.
+        if (!FactorGate.passesGates(roll.gates(), lookup)) {
+            return Outcome.NONE;
+        }
         if (!FactorGate.pass(roll.getConditions(), lookup)) {
             return Outcome.NONE;
         }

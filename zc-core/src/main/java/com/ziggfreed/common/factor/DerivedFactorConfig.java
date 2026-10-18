@@ -32,7 +32,8 @@ import com.ziggfreed.common.validation.ValidationReport;
  * <p><b>No cache to invalidate on a reload.</b> A registry that adopts a derived id keeps a provider
  * that re-reads this config on every call rather than the folded formula, so a re-import takes
  * effect on the next resolve and a definition that disappears goes straight back to failing closed.
- * That is why the merge methods here only re-audit, with no cache to drop.
+ * The merge methods re-audit and bump {@link FactorRegistry#generation()}, which is what a compiled
+ * gate keeping a file's traits ({@link FactorTraits}) rechecks.
  *
  * <p>An EMPTY definition (no {@code Base} and no usable term) is treated as NO definition:
  * {@link #formulaFor} answers null, so the id fails closed exactly as an unregistered one does. An
@@ -79,21 +80,26 @@ public final class DerivedFactorConfig extends AbstractKeyedAssetConfig<DerivedF
         return List.copyOf(out);
     }
 
+    // Every fold bumps the vocabulary generation: a file's traits (FactorTraits) are read off the fold, and a
+    // compiled gate that kept them, or a verdict over them, rechecks against that generation.
     @Override
     public synchronized void loadDefaults(@Nonnull Map<String, DerivedFactorAsset> jarDefaults) {
         super.loadDefaults(jarDefaults);
+        FactorRegistry.bumpGeneration();
         logFindings();
     }
 
     @Override
     public synchronized void mergePackLayer(@Nonnull Map<String, DerivedFactorAsset> layer) {
         super.mergePackLayer(layer);
+        FactorRegistry.bumpGeneration();
         logFindings();
     }
 
     @Override
     public synchronized void mergeOwnerLayer(@Nonnull Map<String, DerivedFactorAsset> layer) {
         super.mergeOwnerLayer(layer);
+        FactorRegistry.bumpGeneration();
         logFindings();
     }
 

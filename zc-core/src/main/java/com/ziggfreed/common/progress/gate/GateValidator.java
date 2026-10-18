@@ -1,13 +1,19 @@
 package com.ziggfreed.common.progress.gate;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.factor.FactorCondition;
+import com.ziggfreed.common.factor.FactorTraits;
 import com.ziggfreed.common.validation.Finding;
 
 /**
@@ -30,6 +36,10 @@ import com.ziggfreed.common.validation.Finding;
  * <p><b>Every unknown id is a WARNING, never an error</b> - the standing library rule. Whichever mod
  * owns a factor, a requirement kind or a prerequisite registers it at its own setup, which may run
  * after this audit and may be a mod the author expects some servers not to install.
+ *
+ * <p>What a factor's Factors file declares is checked too ({@code ParamDataSet}, {@code AbsentReads}; see
+ * {@code checkTraits}), so is a {@code Max}-only bound on a membership factor, and a registered
+ * {@code Custom} kind's parameter names where the kind declares them ({@link GateKind#params()}).
  */
 public final class GateValidator {
 
@@ -96,6 +106,7 @@ public final class GateValidator {
                                     + "answer; the requirement fails closed, so this " + noun + " stays locked "
                                     + "until whichever mod owns it is installed", sourceId));
                 }
+                checkTraits(condition, domain, sourceId, noun, out);
             }
             if (knownContent != null) {
                 for (String prerequisite : clause.questsOrEmpty()) {
@@ -108,16 +119,81 @@ public final class GateValidator {
                 }
             }
             if (gateKinds != null) {
-                for (String kindId : clause.customOrEmpty().keySet()) {
+                for (Map.Entry<String, Map<String, String>> entry : clause.customOrEmpty().entrySet()) {
+                    String kindId = entry.getKey();
                     if (!gateKinds.isRegistered(kindId)) {
                         out.add(Finding.warning(domain, "UNKNOWN_GATE_KIND",
                                 "Requires.Custom names '" + kindId + "', which nothing registered; the "
                                         + "requirement refuses, so this " + noun + " stays locked until "
                                         + "whichever mod owns it is installed", sourceId));
+                        continue;
                     }
+                    checkParams(kindId, gateKinds.kind(kindId), entry.getValue(), domain, sourceId, noun, out);
                 }
             }
         }
         return out;
+    }
+
+    /**
+     * What a condition's factor declares in its Factors file ({@link FactorTraits}), checked against the
+     * condition: a {@code Param} outside its {@code ParamDataSet} (a pattern with {@code *} is never checked),
+     * a condition with no {@code Max} that the factor's definite absent reading ({@code AbsentReads}) meets,
+     * which gates nothing, and a {@code Max}-only bound on a membership factor ({@link RefusalLines#isMemberFactor}),
+     * whose lock line reads as asking for the very thing the bound forbids.
+     */
+    private static void checkTraits(@Nonnull FactorCondition condition, @Nonnull String domain,
+            @Nonnull String sourceId, @Nonnull String noun, @Nonnull List<Finding> out) {
+        String factorId = condition.getFactor();
+        FactorTraits traits = FactorTraits.of(factorId);
+        String param = condition.getParam() == null ? null : condition.getParam().trim();
+        if (traits.paramDataSet() != null && param != null && !param.isEmpty() && param.indexOf('*') < 0) {
+            Collection<String> values = EditorDataSets.values(traits.paramDataSet());
+            if (values != null && !values.isEmpty() && !containsIgnoreCase(values, param)) {
+                out.add(Finding.warning(domain, "UNKNOWN_FACTOR_PARAM",
+                        "Requires asks '" + factorId + "' about '" + param + "', which is not one of its values on "
+                                + "this server; the reading answers nothing, so this " + noun + " stays locked",
+                        sourceId));
+            }
+        }
+        Double absent = traits.absentReads();
+        if (absent != null && condition.getMax() == null && condition.accepts(absent)) {
+            out.add(Finding.warning(domain, "ABSENT_READING_PASSES",
+                    "Requires bounds '" + factorId + "' so that its reading when absent (" + absent + ") passes, so "
+                            + "the condition gates nothing; write a Min above " + absent, sourceId));
+        }
+        if (condition.getMax() != null && condition.getMin() == null && RefusalLines.isMemberFactor(factorId)) {
+            out.add(Finding.warning(domain, "MAX_ONLY_MEMBERSHIP",
+                    "Requires bounds '" + factorId + "' with a Max alone, meaning 'not this'; a player it refuses "
+                            + "is told to go and get it. Write the negative as a Not group holding the plain "
+                            + "condition (Min 1)", sourceId));
+        }
+    }
+
+    /** A registered kind's parameters against the names it declares reading ({@link GateKind#params()}). */
+    private static void checkParams(@Nonnull String kindId, @Nullable GateKind kind,
+            @Nullable Map<String, String> authored, @Nonnull String domain, @Nonnull String sourceId,
+            @Nonnull String noun, @Nonnull List<Finding> out) {
+        Set<String> declared = kind == null ? null : kind.params();
+        if (declared == null || authored == null) {
+            return;
+        }
+        for (String name : authored.keySet()) {
+            if (name != null && !containsIgnoreCase(declared, name)) {
+                out.add(Finding.warning(domain, "UNKNOWN_GATE_PARAM",
+                        "Requires.Custom." + kindId + " writes '" + name + "', which that kind does not read (it "
+                                + "reads " + String.join(", ", new TreeSet<>(declared)) + "); this " + noun
+                                + " is gated as if it were not written", sourceId));
+            }
+        }
+    }
+
+    private static boolean containsIgnoreCase(@Nonnull Collection<String> values, @Nonnull String wanted) {
+        for (String value : values) {
+            if (value != null && value.trim().equalsIgnoreCase(wanted)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

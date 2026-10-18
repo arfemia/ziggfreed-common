@@ -1,6 +1,9 @@
 package com.ziggfreed.common.factor;
 
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.function.Function;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -17,6 +20,8 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.codec.TagMatch;
 import com.ziggfreed.common.entity.HeldItemUtil;
 import com.ziggfreed.common.entity.ItemReadings;
+import com.ziggfreed.common.inventory.ItemLineage;
+import com.ziggfreed.common.match.NamePattern;
 import com.ziggfreed.common.stats.StatIndexCache;
 
 /**
@@ -40,6 +45,8 @@ import com.ziggfreed.common.stats.StatIndexCache;
  *   <tr><th>Id</th><th>Param</th><th>Value</th></tr>
  *   <tr><td>{@code hytale:stat}</td><td>a registered {@code EntityStatType} id</td>
  *       <td>the subject's EFFECTIVE (folded max) value for that channel</td></tr>
+ *   <tr><td>{@code hytale:stat_percent}</td><td>a registered {@code EntityStatType} id</td>
+ *       <td>0..100: the channel's current value over that maximum</td></tr>
  *   <tr><td>{@code hytale:tool_power}</td><td>a native {@code GatherType} name (omit for the best
  *       of any type)</td><td>the held tool's gather power</td></tr>
  *   <tr><td>{@code hytale:tool_tier}</td><td>a native {@code GatherType} name (omit for the best
@@ -51,7 +58,8 @@ import com.ziggfreed.common.stats.StatIndexCache;
  *   <tr><td>{@code hytale:tool_item_level}</td><td>ignored</td><td>the held item's native item level</td></tr>
  *   <tr><td>{@code hytale:held_tag}</td><td>{@code family:value}, or a bare value</td>
  *       <td>1 when the held item carries it, else 0</td></tr>
- *   <tr><td>{@code hytale:held_item}</td><td>an item id</td><td>1 on a match, else 0</td></tr>
+ *   <tr><td>{@code hytale:held_item}</td><td>an item id, or a name pattern matched along the item's
+ *       {@code Parent} lineage</td><td>1 on a match, else 0</td></tr>
  *   <tr><td>{@code hytale:permission}</td><td>a permission node</td>
  *       <td>1 when the subject's connection holds it, else 0</td></tr>
  *   <tr><td>{@code hytale:item_quality}</td><td>ignored</td>
@@ -64,8 +72,9 @@ import com.ziggfreed.common.stats.StatIndexCache;
  *       {@code StatModifiers} author toward that channel</td></tr>
  * </table>
  *
- * <p><b>Two families read items, and they read DIFFERENT items.</b> The {@code tool_*} ids read
- * what is in the SUBJECT'S HAND. The {@code item_*} ids read the stack the moment itself carries in
+ * <p><b>Two families read items, and they read DIFFERENT items.</b> The {@code tool_*} ids (and
+ * {@code held_tag}, {@code held_item}) read what is in the SUBJECT'S HAND: the moment's own held leaf
+ * ({@link FactorContext#held()}) when it carries one, else the live active hotbar stack. The {@code item_*} ids read the stack the moment itself carries in
  * {@link FactorContext#item()} - the piece on a work surface, the input a recipe consumed - and
  * answer null wherever a moment carries none, so a gate on an item that is not there stays shut.
  * Both families read through the one item reader ({@link ItemReadings}), so level and wear read the
@@ -107,6 +116,11 @@ public final class HytaleFactors {
 
     /** {@code hytale:stat} - the subject's effective value for the {@code EntityStatType} named by Param. */
     public static final String STAT = "hytale:stat";
+    /**
+     * {@code hytale:stat_percent} - how full the subject's {@code EntityStatType} named by Param is right now:
+     * its current value over its effective maximum, 0..100.
+     */
+    public static final String STAT_PERCENT = "hytale:stat_percent";
     /** {@code hytale:tool_power} - the held tool's gather power for the GatherType named by Param. */
     public static final String TOOL_POWER = "hytale:tool_power";
     /**
@@ -125,7 +139,7 @@ public final class HytaleFactors {
     public static final String TOOL_ITEM_LEVEL = "hytale:tool_item_level";
     /** {@code hytale:held_tag} - 1 when the held item carries the tag named by Param, else 0. */
     public static final String HELD_TAG = "hytale:held_tag";
-    /** {@code hytale:held_item} - 1 when the held item id equals Param, else 0. */
+    /** {@code hytale:held_item} - 1 when the held item is Param (an exact id) or matches it (a name pattern), else 0. */
     public static final String HELD_ITEM = "hytale:held_item";
     /** {@code hytale:permission} - 1 when the subject holds the permission node named by Param, else 0. */
     public static final String PERMISSION = "hytale:permission";
@@ -154,6 +168,7 @@ public final class HytaleFactors {
      */
     public static void registerInto(@Nonnull FactorRegistry registry, @Nullable String owner) {
         registry.register(STAT, owner, HytaleFactors::resolveStat);
+        registry.register(STAT_PERCENT, owner, HytaleFactors::resolveStatPercent);
         registry.register(TOOL_POWER, owner, HytaleFactors::resolveToolPower);
         registry.register(TOOL_TIER, owner, HytaleFactors::resolveToolTier);
         registry.register(TOOL_DURABILITY_PERCENT, owner, HytaleFactors::resolveToolDurabilityPercent);
@@ -203,6 +218,42 @@ public final class HytaleFactors {
     }
 
     /**
+     * How full the subject's native stat channel named by {@code Param} is right now, 0..100: its CURRENT
+     * value over its effective maximum ({@code hytale:stat} reads that maximum). The reading a "below half
+     * health" condition wants. Null where {@code hytale:stat} is null, and where the maximum is not above 0,
+     * since a share of nothing is no answer.
+     */
+    @Nullable
+    static Double resolveStatPercent(@Nonnull FactorContext ctx) {
+        String statId = trimmed(ctx.param());
+        if (statId == null || !ctx.hasLiveSubject()) {
+            return null;
+        }
+        int index = StatIndexCache.resolve(statId);
+        if (index == StatIndexCache.UNRESOLVED) {
+            StatIndexCache.warnUnknownOnce(statId);
+            return null;
+        }
+        Store<EntityStore> store = ctx.store();
+        Ref<EntityStore> subject = ctx.subject();
+        if (store == null || subject == null) {
+            return null;
+        }
+        EntityStatMap stats = store.getComponent(subject, EntityStatsModule.get().getEntityStatMapComponentType());
+        EntityStatValue value = stats == null ? null : stats.get(index);
+        return value == null ? null : percentOf(value.get(), value.getMax());
+    }
+
+    /** {@code current} as a share of {@code max}, 0..100; null when {@code max} is not above 0. */
+    @Nullable
+    static Double percentOf(double current, double max) {
+        if (!(max > 0.0) || !Double.isFinite(current)) {
+            return null;
+        }
+        return Math.max(0.0, Math.min(100.0, current / max * 100.0));
+    }
+
+    /**
      * The held tool's gather power, ADDRESSED by {@code Param}.
      *
      * <p>A tool does not have "a power": the native {@code ItemToolSpec} is one entry per
@@ -224,7 +275,7 @@ public final class HytaleFactors {
      */
     @Nullable
     static Double resolveToolPower(@Nonnull FactorContext ctx) {
-        Item item = HeldItemUtil.heldItem(ctx.store(), ctx.subject());
+        Item item = HeldItemUtil.itemOf(heldStackOf(ctx));
         return HeldItemUtil.toolPowerFor(HeldItemUtil.toolPowersOf(item), ctx.param());
     }
 
@@ -249,7 +300,7 @@ public final class HytaleFactors {
      */
     @Nullable
     static Double resolveToolTier(@Nonnull FactorContext ctx) {
-        Item item = HeldItemUtil.heldItem(ctx.store(), ctx.subject());
+        Item item = HeldItemUtil.itemOf(heldStackOf(ctx));
         return HeldItemUtil.toolTierFor(HeldItemUtil.toolTiersOf(item), ctx.param());
     }
 
@@ -262,7 +313,7 @@ public final class HytaleFactors {
      */
     @Nullable
     static Double resolveToolDurabilityPercent(@Nonnull FactorContext ctx) {
-        return ItemReadings.durabilityPercent(HeldItemUtil.heldStack(ctx.store(), ctx.subject()));
+        return ItemReadings.durabilityPercent(heldStackOf(ctx));
     }
 
     /**
@@ -278,7 +329,7 @@ public final class HytaleFactors {
      */
     @Nullable
     static Double resolveToolQuality(@Nonnull FactorContext ctx) {
-        return toolQualityOfHeld(HeldItemUtil.heldStack(ctx.store(), ctx.subject()));
+        return toolQualityOfHeld(heldStackOf(ctx));
     }
 
     /**
@@ -299,7 +350,7 @@ public final class HytaleFactors {
      */
     @Nullable
     static Double resolveToolItemLevel(@Nonnull FactorContext ctx) {
-        return ItemReadings.itemLevel(HeldItemUtil.heldStack(ctx.store(), ctx.subject()));
+        return ItemReadings.itemLevel(heldStackOf(ctx));
     }
 
     /**
@@ -312,7 +363,7 @@ public final class HytaleFactors {
     @Nullable
     static Double resolveHeldTag(@Nonnull FactorContext ctx) {
         String tag = trimmed(ctx.param());
-        String itemId = HeldItemUtil.heldItemId(ctx.store(), ctx.subject());
+        String itemId = heldIdOf(ctx);
         if (tag == null || itemId == null) {
             return null;
         }
@@ -335,17 +386,60 @@ public final class HytaleFactors {
     }
 
     /**
-     * {@code 1} when the held item's id equals {@code Param} (case-insensitive), else {@code 0}.
-     * Null when nothing is held or no {@code Param} was authored.
+     * {@code 1} when the held item answers {@code Param}, else {@code 0}. An exact id (no {@code *}) means
+     * what it always has: the held item's own id equals it, case-insensitively. A name pattern
+     * ({@code Tool_Pickaxe_*}, {@code *_Sword}, {@code *Iron*}; zc-core's {@code NamePattern}) matches the
+     * held item's own id or any id it inherits from through {@code Parent} ({@code ItemLineage}), so a pack's
+     * copy of a pickaxe counts as a pickaxe. Null when nothing is held or no {@code Param} was authored.
      */
     @Nullable
     static Double resolveHeldItem(@Nonnull FactorContext ctx) {
         String wanted = trimmed(ctx.param());
-        String itemId = HeldItemUtil.heldItemId(ctx.store(), ctx.subject());
+        String itemId = heldIdOf(ctx);
         if (wanted == null || itemId == null) {
             return null;
         }
-        return wanted.equalsIgnoreCase(itemId) ? YES : NO;
+        return heldItemMatches(wanted, itemId, ItemLineage::of) ? YES : NO;
+    }
+
+    /**
+     * The {@code hytale:held_item} answer for {@code itemId} against the authored {@code wanted}: an exact id
+     * against the item's own id alone, a pattern against its lineage ({@code lineageOf}, the item's own id
+     * first). Kept apart so a test drives it with a lineage of its own.
+     */
+    static boolean heldItemMatches(@Nonnull String wanted, @Nonnull String itemId,
+            @Nonnull Function<String, List<String>> lineageOf) {
+        if (wanted.indexOf('*') < 0) {
+            return wanted.equalsIgnoreCase(itemId);
+        }
+        NamePattern pattern = NamePattern.parse(wanted);
+        for (String id : lineageOf.apply(itemId)) {
+            if (id != null && pattern.matches(id.toLowerCase(Locale.ROOT))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The stack standing for the subject's hand: the moment's own held leaf ({@link FactorContext#held()})
+     * when it carries one, else the live active hotbar stack; null when nothing usable is held.
+     */
+    @Nullable
+    static ItemStack heldStackOf(@Nonnull FactorContext ctx) {
+        ItemStack held = ctx.held();
+        if (held != null) {
+            return held.isEmpty() ? null : held;
+        }
+        return HeldItemUtil.heldStack(ctx.store(), ctx.subject());
+    }
+
+    /** The id of {@link #heldStackOf}, or null when nothing usable is held. */
+    @Nullable
+    static String heldIdOf(@Nonnull FactorContext ctx) {
+        ItemStack held = heldStackOf(ctx);
+        String id = held == null ? null : held.getItemId();
+        return id == null || id.isBlank() ? null : id;
     }
 
     /**

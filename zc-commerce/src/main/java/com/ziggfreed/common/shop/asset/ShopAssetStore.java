@@ -20,6 +20,7 @@ import com.ziggfreed.common.progress.asset.GeneratedBody;
 import com.ziggfreed.common.progress.asset.GeneratorCore;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.progress.gate.StoreGates;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.validation.ValidationReport;
@@ -223,10 +224,15 @@ public final class ShopAssetStore {
             }
         }
         List<String> gatedRows = new ArrayList<>();
-        for (ShopEntryAsset offer : out.values()) {
-            RewardEntryAsset.collectMissingMods(offer.rewardsOrEmpty(), gatedRows);
+        List<String> widened = new ArrayList<>();
+        for (Map.Entry<String, ShopEntryAsset> offer : out.entrySet()) {
+            RewardEntryAsset.collectMissingMods(offer.getValue().rewardsOrEmpty(), gatedRows);
+            if (RewardEntryAsset.anyWidened(offer.getValue().rewardsOrEmpty())) {
+                widened.add(offer.getKey());
+            }
         }
         ModGates.reportRewardRows(MOD_GATE_STORE, gatedRows);
+        StoreGates.reportWidened(MOD_GATE_STORE + " reward rows", widened);
         return new Resolution(out, issues);
     }
 

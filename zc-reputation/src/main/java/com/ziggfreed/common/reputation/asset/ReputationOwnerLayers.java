@@ -3,6 +3,7 @@ package com.ziggfreed.common.reputation.asset;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -10,6 +11,7 @@ import javax.annotation.Nullable;
 import com.google.gson.JsonObject;
 import com.ziggfreed.common.asset.OwnerLayerReader;
 import com.ziggfreed.common.factor.ModGates;
+import com.ziggfreed.common.progress.gate.StoreGates;
 import com.ziggfreed.common.util.OwnerFiles;
 
 /**
@@ -72,10 +74,15 @@ public final class ReputationOwnerLayers {
         OwnerLayerReader.apply(LOG_TAG, directory.resolve(FILE), ReputationAsset.class, ReputationAsset.CODEC,
                 ReputationConfig.getInstance(), NOUN);
         List<String> gatedRows = new ArrayList<>();
-        for (ReputationAsset reputation : ReputationConfig.getInstance().all().values()) {
-            reputation.collectGatedRows(gatedRows);
+        List<String> widened = new ArrayList<>();
+        for (Map.Entry<String, ReputationAsset> entry : ReputationConfig.getInstance().all().entrySet()) {
+            entry.getValue().collectGatedRows(gatedRows);
+            if (entry.getValue().widensRows()) {
+                widened.add(entry.getKey());
+            }
         }
         ModGates.reportRewardRows(ReputationConfig.MOD_GATE_STORE, gatedRows);
+        StoreGates.reportWidened(ReputationConfig.MOD_GATE_STORE + " reward rows", widened);
     }
 
     /** What {@code root} says about the switch: on unless it says false in so many words. */

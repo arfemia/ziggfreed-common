@@ -5,7 +5,7 @@ import java.nio.file.Path;
 import javax.annotation.Nonnull;
 
 import com.ziggfreed.common.asset.OwnerLayerReader;
-import com.ziggfreed.common.asset.PresenceRequiresCodec;
+import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.util.OwnerFiles;
 
 /**
@@ -57,6 +57,6 @@ public final class GearSetOwnerLayers {
     public static void reload() {
         OwnerLayerReader.apply(LOG_TAG, directory.resolve(FILE), GearSetAsset.class,
                 GearSetAsset.CODEC, GearSetConfig.getInstance(), "gear set",
-                s -> PresenceRequiresCodec.missingMod(s.getRequires()));
+                s -> GateSpec.missingMod(s.requires()));
     }
 }

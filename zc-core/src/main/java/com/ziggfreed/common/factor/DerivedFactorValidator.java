@@ -69,6 +69,12 @@ public final class DerivedFactorValidator {
         for (Map.Entry<String, DerivedFactorAsset> e : byId.entrySet()) {
             String id = e.getKey();
             DerivedFactorAsset asset = e.getValue();
+            String volatility = asset.getVolatility();
+            if (volatility != null && !volatility.isBlank() && Volatility.known(volatility) == null) {
+                out.add(Finding.warning(DOMAIN, "UNKNOWN_VOLATILITY",
+                        "Volatility '" + volatility + "' is not Server, Player or Moment, so it reads as Moment "
+                                + "and no gate keeps an answer over this factor", id));
+            }
             if (asset.isOverlay() && asset.getFormula() != null) {
                 out.add(Finding.error(DOMAIN, "FACTOR_AND_FORMULA",
                         "this file carries both a Factor target and a Formula, which address two different "
@@ -78,15 +84,16 @@ public final class DerivedFactorValidator {
                 continue;
             }
             if (asset.isOverlay()) {
-                if (!asset.carriesNaming()) {
+                if (!asset.carriesNaming() && !asset.carriesTraits()) {
                     out.add(Finding.warning(DOMAIN, "NAMES_NOTHING",
-                            "this file targets '" + asset.getFactor() + "' but carries no Text and no "
-                                    + "ParamNames, so it changes nothing", id));
+                            "this file targets '" + asset.getFactor() + "' but carries no Text, no "
+                                    + "ParamNames and no trait (ParamDataSet, AbsentReads, Volatility), so it "
+                                    + "changes nothing", id));
                 }
                 continue;
             }
             if (asset.getFormula() == null || asset.getFormula().isEmpty()) {
-                if (asset.carriesNaming()) {
+                if (asset.carriesNaming() || asset.carriesTraits()) {
                     // A naming-only file addressing its own id: valid, the name simply rides a
                     // factor whose value comes from wherever else provides it.
                     continue;

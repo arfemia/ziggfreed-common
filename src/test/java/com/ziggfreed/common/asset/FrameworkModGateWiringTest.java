@@ -101,7 +101,7 @@ class FrameworkModGateWiringTest {
     private static final List<OwnerReader> OWNER_READERS = List.of(
             new OwnerReader("BonusRowAsset", "BonusRowOwnerLayers.reload();",
                     module("zc-loot", "loot", "trigger", "BonusRowOwnerLayers.java"),
-                    "public static void reload()", "PresenceRequiresCodec.missingMod("),
+                    "public static void reload()", "GateSpec.missingMod("),
             new OwnerReader("CurrencyAsset", "CommerceOwnerLayers.reloadCurrencies();",
                     module("zc-commerce", "commerce", "fold", "CommerceOwnerLayers.java"),
                     "public static void reloadCurrencies()", "GateSpec.missingMod("),
@@ -113,7 +113,7 @@ class FrameworkModGateWiringTest {
                     "public static void reloadBoards()", "GateSpec.missingMod("),
             new OwnerReader("GearSetAsset", "GearSetOwnerLayers.reload();",
                     module("zc-entity", "stats", "gearset", "GearSetOwnerLayers.java"),
-                    "public static void reload()", "PresenceRequiresCodec.missingMod("),
+                    "public static void reload()", "GateSpec.missingMod("),
             new OwnerReader("NpcPlacementAsset", "NpcPlacementOverrides.getInstance().applyOwnerLayer();",
                     module("zc-dialogue", "npc", "placement", "asset", "NpcPlacementOverrides.java"),
                     "public void applyOwnerLayer()", "NpcPlacementAsset.Requires.missingMod("),

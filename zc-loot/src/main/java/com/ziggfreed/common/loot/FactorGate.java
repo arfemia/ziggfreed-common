@@ -5,6 +5,9 @@ import javax.annotation.Nullable;
 
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorConditions;
+import com.ziggfreed.common.progress.gate.GateQuery;
+import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.progress.gate.StoreGates;
 
 /**
  * Walks a {@code Conditions} array through a {@link FactorLookup} - the lookup-driven twin of
@@ -50,6 +53,33 @@ public final class FactorGate {
     /** True when every entry passed - the boolean wrapper over {@link #firstFailure}. */
     public static boolean pass(@Nullable FactorCondition[] conditions, @Nonnull FactorLookup lookup) {
         return firstFailure(conditions, lookup) == null;
+    }
+
+    /**
+     * Does every table gate a roll or a pool entry carries ({@link Roll#gates()}: the live {@code Requires} of
+     * the table it came from, and of a contributing file) pass under {@code lookup}? None carried passes; a
+     * lookup that can put no question ({@link FactorLookup#gateQuery()} null) refuses every gate, so a table
+     * gated on a player pays nothing where there is no player to ask.
+     */
+    public static boolean passesGates(@Nullable GateSpec[] gates, @Nonnull FactorLookup lookup) {
+        if (gates == null || gates.length == 0) {
+            return true;
+        }
+        GateQuery query;
+        try {
+            query = lookup.gateQuery();
+        } catch (Throwable t) {
+            query = null;
+        }
+        if (query == null) {
+            return false;
+        }
+        for (GateSpec gate : gates) {
+            if (!StoreGates.passes(gate, query)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** ONE entry: a null or id-less entry passes vacuously, everything else fails closed. */

@@ -94,6 +94,9 @@ public final class DerivedFactorAsset
     @Nullable private String param;
     @Nullable private ContentTextAsset text;
     @Nullable private ParamNames paramNames;
+    @Nullable private String paramDataSet;
+    @Nullable private Double absentReads;
+    @Nullable private String volatility;
 
     public static final AssetBuilderCodec<String, DerivedFactorAsset> CODEC = AssetBuilderCodec.builder(
                     DerivedFactorAsset.class,
@@ -137,9 +140,51 @@ public final class DerivedFactorAsset
                     + "factor - a pattern whose resolved key is not shipped is skipped, so the overlays "
                     + "compose instead of colliding.")
             .add()
+            .appendInherited(new KeyedCodec<>("ParamDataSet", Codec.STRING, false),
+                    (a, v) -> a.paramDataSet = v, a -> a.paramDataSet, (a, p) -> a.paramDataSet = p.paramDataSet)
+            .documentation("The editor dataset whose values are this factor's valid Params (a list of items, "
+                    + "currencies, stat channels): the requirements editor offers it as a pick list, and the "
+                    + "load check warns about a Requires condition whose Param is not in it. A dataset nobody "
+                    + "serves on this server checks nothing. Omit it for a factor whose Param is free text.")
+            .add()
+            .appendInherited(new KeyedCodec<>("AbsentReads", Codec.DOUBLE, false),
+                    (a, v) -> a.absentReads = v, a -> a.absentReads, (a, p) -> a.absentReads = p.absentReads)
+            .documentation("The number this factor reads when what it asks about is absent (a mod not "
+                    + "installed, an item not held), for a factor that reads a definite number rather than "
+                    + "nothing. A condition with no Max whose bounds this number meets gates nothing, so the "
+                    + "load check asks for a Min above it. Omit it for a factor that reads nothing when absent.")
+            .add()
+            .appendInherited(new KeyedCodec<>("Volatility", Codec.STRING, false),
+                    (a, v) -> a.volatility = v, a -> a.volatility, (a, p) -> a.volatility = p.volatility)
+            .metadata(EditorSchema.oneOfDocumented(
+                    "Server", "the same for everyone, changing only with the server (a mod installed)",
+                    "Player", "one player's own state, changing only through their own moments",
+                    "Moment", "anything else: the hand, the target, the clock"))
+            .metadata(EditorSchema.defaultValue("Moment"))
+            .documentation("How often the reading can change, which decides whether a gate's answer over it may "
+                    + "be kept: Server until the server changes, Player until that player's own state changes, "
+                    + "Moment (the default) never kept. Declare Server or Player only when it is true, or a "
+                    + "gate keeps a stale answer.")
+            .add()
             .build();
 
     public DerivedFactorAsset() {
+    }
+
+    /**
+     * The full Java-side factory: the naming and value leaves, plus the three traits a gate reads
+     * ({@code ParamDataSet}, {@code AbsentReads}, {@code Volatility}).
+     */
+    @Nonnull
+    public static DerivedFactorAsset of(@Nullable String id, @Nullable FactorFormula formula,
+            @Nullable String factor, @Nullable String param, @Nullable ContentTextAsset text,
+            @Nullable ParamNames paramNames, @Nullable String paramDataSet, @Nullable Double absentReads,
+            @Nullable String volatility) {
+        DerivedFactorAsset a = of(id, formula, factor, param, text, paramNames);
+        a.paramDataSet = paramDataSet;
+        a.absentReads = absentReads;
+        a.volatility = volatility;
+        return a;
     }
 
     /** Java-side factory; sets the same fields the codec fills, every leaf optional. */
@@ -190,6 +235,29 @@ public final class DerivedFactorAsset
     @Nullable
     public ParamNames getParamNames() {
         return paramNames;
+    }
+
+    /** The editor dataset listing this factor's valid Params, or null when its Param is free text. */
+    @Nullable
+    public String getParamDataSet() {
+        return paramDataSet == null || paramDataSet.isBlank() ? null : paramDataSet.trim();
+    }
+
+    /** What the factor reads when what it asks about is absent, or null when it reads nothing then. */
+    @Nullable
+    public Double getAbsentReads() {
+        return absentReads;
+    }
+
+    /** The authored {@code Volatility} word as written, or null; {@link Volatility#of} reads it. */
+    @Nullable
+    public String getVolatility() {
+        return volatility;
+    }
+
+    /** True when the file declares any of the three traits a gate reads. */
+    public boolean carriesTraits() {
+        return getParamDataSet() != null || absentReads != null || (volatility != null && !volatility.isBlank());
     }
 
     /** True when this file carries a usable value definition of its own id. */

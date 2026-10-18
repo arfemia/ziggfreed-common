@@ -21,6 +21,8 @@ import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffec
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
 import com.ziggfreed.common.entity.HeldItemUtil;
+import com.ziggfreed.common.progress.gate.GateRuntime;
+import com.ziggfreed.common.progress.gate.GateValidator;
 import com.ziggfreed.common.stats.StatIndexCache;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
@@ -98,12 +100,18 @@ public final class GearSetValidator {
     @Nonnull
     public static List<Finding> audit() {
         try {
-            return audit(GearSetConfig.getInstance().all().values(),
+            List<Finding> out = new ArrayList<>(audit(GearSetConfig.getInstance().all().values(),
                     loadedItemIds(),
                     id -> StatIndexCache.resolve(id) >= 0,
                     GearSetValidator::effectKnown,
                     GearSetValidator::effectFactsOf,
-                    GearSetValidator::baseMaxOf);
+                    GearSetValidator::baseMaxOf));
+            // Each set's own Requires, every condition, through the one gate audit.
+            for (Map.Entry<String, GearSetAsset> entry : GearSetConfig.getInstance().all().entrySet()) {
+                out.addAll(GateValidator.validate(entry.getValue().requires(), DOMAIN, entry.getKey(), "gear set",
+                        GateRuntime.kinds(), GateRuntime.vocabulary()::isRegistered, null));
+            }
+            return out;
         } catch (Throwable t) {
             SafeLog.warn("[gearset] the gear-set audit failed: " + t.getMessage(), t);
             return List.of();

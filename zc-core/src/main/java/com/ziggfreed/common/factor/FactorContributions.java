@@ -71,6 +71,7 @@ public final class FactorContributions {
         }
         boolean claimed = LEDGER.isRegistered(factorId);
         LEDGER.put(factorId, owner, provider);
+        FactorRegistry.bumpGeneration();
         if (!claimed) {
             SafeLog.info("[factor] '" + ownerLabel(owner) + "' contributed factor '"
                     + RegistryLedger.normalize(factorId) + "'");
@@ -126,6 +127,7 @@ public final class FactorContributions {
     /** Drop every contribution. Tests only; a live server contributes once and never withdraws. */
     static void clearForTests() {
         LEDGER.clear();
+        FactorRegistry.bumpGeneration();
     }
 
     @Nonnull

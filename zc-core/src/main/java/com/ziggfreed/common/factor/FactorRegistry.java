@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -89,6 +90,13 @@ public final class FactorRegistry {
      */
     private static final ThreadLocal<DerivedWalk> DERIVED_WALK = ThreadLocal.withInitial(DerivedWalk::new);
 
+    /**
+     * The process-wide vocabulary generation: bumped whenever any registry, the contributed table or the
+     * Factors files change what an id resolves through. A caller that resolved providers once (a compiled
+     * gate) rechecks against it, never against a registry of its own.
+     */
+    private static final AtomicLong GENERATION = new AtomicLong();
+
     @Nonnull
     private final RegistryLedger<FactorProvider> ledger;
 
@@ -137,6 +145,55 @@ public final class FactorRegistry {
         }
         ledger.put(factorId, owner, provider);
         warned.remove(RegistryLedger.normalize(factorId));
+        bumpGeneration();
+    }
+
+    /**
+     * The process-wide vocabulary generation (see {@link #GENERATION}): a reader that resolved a provider
+     * once keeps it only while this answers what it answered then.
+     */
+    public static long generation() {
+        return GENERATION.get();
+    }
+
+    /** Say that what some id resolves through has changed, anywhere in the process. */
+    static void bumpGeneration() {
+        GENERATION.incrementAndGet();
+    }
+
+    /**
+     * Is {@code factorId} registered in THIS registry's own ledger, contributions and definitions aside?
+     * What a layered read asks of a local vocabulary before falling back to the shared one.
+     */
+    public boolean answersLocally(@Nullable String factorId) {
+        return ledger.isRegistered(factorId);
+    }
+
+    /**
+     * The provider {@link #resolve} would ask for {@code factorId}, found the same way (this ledger, then
+     * {@link FactorContributions}, then the wired definitions, adopting one), without asking it; null when
+     * nothing answers, which is warned once exactly as a resolve warns. For a reader that resolves the
+     * provider once and keeps it while {@link #generation()} stands still; such a reader asks
+     * {@link #resolve} itself when a kept provider throws, so the failure is counted and warned here.
+     */
+    @Nullable
+    public FactorProvider providerFor(@Nullable String factorId) {
+        if (factorId == null || factorId.isBlank()) {
+            return null;
+        }
+        String key = RegistryLedger.normalize(factorId);
+        FactorProvider provider = ledger.get(key);
+        if (provider == null) {
+            provider = FactorContributions.provider(key);
+        }
+        if (provider == null) {
+            provider = adoptDerived(key, factorId);
+        }
+        if (provider == null) {
+            warnOnce(key, "no provider registered for factor '" + factorId
+                    + "' - conditions on it fail closed");
+        }
+        return provider;
     }
 
     /**
@@ -156,6 +213,7 @@ public final class FactorRegistry {
         }
         ledger.putQuietly(factorId, owner, provider);
         warned.remove(RegistryLedger.normalize(factorId));
+        bumpGeneration();
     }
 
     /**
@@ -166,6 +224,7 @@ public final class FactorRegistry {
      */
     public void derivedSource(@Nullable DerivedFactorSource source) {
         this.derivedSource = source;
+        bumpGeneration();
     }
 
     /** The wired derived source, or {@code null} when this registry has none. */
@@ -280,6 +339,7 @@ public final class FactorRegistry {
         ledger.clear();
         adoptedDerived.clear();
         warned.clear();
+        bumpGeneration();
     }
 
     // ==================== Derived factors ====================

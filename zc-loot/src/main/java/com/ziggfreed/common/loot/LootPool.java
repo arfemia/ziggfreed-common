@@ -13,6 +13,7 @@ import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorFormula;
+import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.util.WeightedPick;
 
 /**
@@ -98,6 +99,9 @@ public final class LootPool {
         @Nullable protected FactorCondition[] conditions;
         @Nullable protected LootGrants grants;
 
+        /** The table gates this entry carries, never authored ({@link #gatedBy}); empty for an authored entry. */
+        @Nonnull private GateSpec[] gates = new GateSpec[0];
+
         /** The plain codec: a factor id stays a free text field. */
         public static final BuilderCodec<Entry> CODEC = codec(null);
 
@@ -163,9 +167,32 @@ public final class LootPool {
             return Math.max(0.0, weight);
         }
 
-        /** True when this entry's conditions admit it under {@code lookup}. */
+        /** True when this entry's table gates and its conditions admit it under {@code lookup}. */
         public boolean isEligible(@Nonnull FactorLookup lookup) {
-            return FactorGate.pass(conditions, lookup);
+            return FactorGate.passesGates(gates, lookup) && FactorGate.pass(conditions, lookup);
+        }
+
+        /** The table gates this entry carries; never null. */
+        @Nonnull
+        public GateSpec[] gates() {
+            return gates;
+        }
+
+        /**
+         * A copy of this entry that also answers to {@code gate} (a table's live {@code Requires}): it
+         * competes only when every gate it carries passes. Null answers this entry itself.
+         */
+        @Nonnull
+        public Entry gatedBy(@Nullable GateSpec gate) {
+            if (gate == null) {
+                return this;
+            }
+            Entry copy = of(weight, conditions, grants);
+            GateSpec[] more = new GateSpec[gates.length + 1];
+            System.arraycopy(gates, 0, more, 0, gates.length);
+            more[gates.length] = gate;
+            copy.gates = more;
+            return copy;
         }
 
         /** True when nothing would be handed over even after a pick. */
@@ -222,6 +249,19 @@ public final class LootPool {
     @Nullable
     public Entry[] getEntries() {
         return entries;
+    }
+
+    /** A copy of this pool whose every entry also answers to {@code gate}; null answers this pool itself. */
+    @Nonnull
+    public LootPool gatedBy(@Nullable GateSpec gate) {
+        if (gate == null || entries == null) {
+            return this;
+        }
+        Entry[] gated = new Entry[entries.length];
+        for (int i = 0; i < entries.length; i++) {
+            gated[i] = entries[i] == null ? null : entries[i].gatedBy(gate);
+        }
+        return of(rolls, gated);
     }
 
     /** True when the pool holds no entry at all, so drawing from it can never produce anything. */

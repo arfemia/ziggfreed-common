@@ -7,6 +7,7 @@ import javax.annotation.Nullable;
 
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorRegistry;
+import com.ziggfreed.common.progress.gate.GateQuery;
 
 /**
  * How the loot layer asks for a factor reading: {@code (factorId, param) -> value}, with
@@ -31,6 +32,16 @@ public interface FactorLookup {
         return this::resolve;
     }
 
+    /**
+     * The question a table's {@code Requires} is put as for this moment ({@link FactorGate#passesGates}): its
+     * context, with this lookup's own vocabulary answering first for its ids. Null for a lookup that knows
+     * no moment, which refuses every table gate.
+     */
+    @Nullable
+    default GateQuery gateQuery() {
+        return null;
+    }
+
     /** A lookup that answers nothing, so every gate over it fails closed and every sum reads 0. */
     @Nonnull
     static FactorLookup none() {
@@ -40,6 +51,18 @@ public interface FactorLookup {
     /** A live lookup straight through {@code registry}, re-scoping {@code ctx} to each term's own param. */
     @Nonnull
     static FactorLookup through(@Nonnull FactorRegistry registry, @Nonnull FactorContext ctx) {
-        return (factorId, param) -> registry.resolve(factorId, ctx.withParam(param));
+        return new FactorLookup() {
+            @Nullable
+            @Override
+            public Double resolve(@Nonnull String factorId, @Nullable String param) {
+                return registry.resolve(factorId, ctx.withParam(param));
+            }
+
+            @Nonnull
+            @Override
+            public GateQuery gateQuery() {
+                return GateQuery.builder().context(ctx).local(registry).build();
+            }
+        };
     }
 }

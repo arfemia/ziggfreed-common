@@ -643,14 +643,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 |---|---|---|---|
 | `Kind` | `string` | `null` | Which registered reward kind pays this out, by id: Item, Lootable, Stamped_Item, Effect, Droplist, Command and Flair come with the framework, and a kind a mod brings carries that mod's prefix (Yourmod_Coin). A kind nothing registered is reported rather than silently skipped, so an owner can see which mod was expected to provide it; a row that only some servers can pay names its mod in Requires instead. |
 | `Params` | map of `scalarString` | `null` | The kind's own parameters. Which keys matter is documented by whoever registered the kind; nothing here interprets them. A number or true/false may be written bare (Amount: 50), a value with any other shape takes quotes. |
-| `Requires` | [Block](#field-rewardentry-requires) | `null` | Whether this reward row exists on this server at all, and whom it pays. A condition { "Factor": "hytale:mod_installed", "Param": "Group:Name", "Min": 1 } leaves the row out where that mod is not installed: it pays nothing, shows nowhere and is not reported, while the rest of the list pays as written. Write Min 1: a condition with no bound is satisfied by a missing mod too. Every other condition here is asked of the player as the row pays: a player who fails one gets nothing for this row while the rest of the list pays, and a shop refuses the purchase rather than take the price for it. |
-
-<a id="field-rewardentry-requires"></a>
-### RewardEntry.Requires
-
-| Key | Type | Default | Documentation |
-|---|---|---|---|
-| `Factors` | array of [FactorCondition](#type-factorcondition) | `null` | The conditions. A plain hytale:mod_installed condition with Min 1 decides whether the file or reward row carrying this block loads; every other condition is asked of the player where it pays or applies. Authoring this list replaces an inherited one whole. |
+| `Requires` | [Requires](#type-requires) | `null` | What a player must meet for this reward row to pay, in the Requires shape quests use, every condition read. A plain { "Factor": "hytale:mod_installed", "Param": "Group:Name", "Min": 1 } leaves the row out where that mod is not installed (it pays nothing, shows nowhere and is not reported); the rest is asked of the player when the row pays, and a row they do not meet pays them nothing while the rest of the list pays as written. |
 
 <a id="type-requires"></a>
 ## Requires

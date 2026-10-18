@@ -14,9 +14,9 @@ import org.junit.jupiter.api.Test;
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.schema.SchemaContext;
 import com.hypixel.hytale.codec.util.RawJsonReader;
-import com.ziggfreed.common.asset.PresenceRequiresCodec;
 import com.ziggfreed.common.factor.ModGates;
 import com.ziggfreed.common.loot.trigger.BonusRowAsset;
+import com.ziggfreed.common.progress.gate.GateSpec;
 
 /**
  * A loot table and a bonus row read the quest block's {@code Requires} shape, a child keeps its base's
@@ -44,13 +44,13 @@ class PresenceRequiresLeafTest {
         LootableAsset base = table("Mmo_Xp_Base", "{ " + GATE + ", \"ContributesTo\": \"Harvest_Feast_Table\" }", null);
         LootableAsset child = table("Mmo_Xp_Pies", "{ \"Rolls\": [] }", base);
 
-        assertNotNull(child.getRequires());
-        assertEquals(MMO, child.getRequires().factorsOrEmpty()[0].getParam());
-        assertNull(table("Plain", "{}", null).getRequires(), "unauthored means it loads everywhere");
+        assertNotNull(child.requires());
+        assertEquals(MMO, child.requires().factorsOrEmpty()[0].getParam());
+        assertNull(table("Plain", "{}", null).requires(), "unauthored means it loads everywhere");
 
         ModGates.useProbeForTests(param -> 0.0);
-        assertFalse(PresenceRequiresCodec.passesModGate(child.getRequires()));
-        assertTrue(PresenceRequiresCodec.passesModGate(null));
+        assertFalse(GateSpec.passesModGate(child.requires()));
+        assertTrue(GateSpec.passesModGate(null));
     }
 
     @Test
@@ -59,8 +59,8 @@ class PresenceRequiresLeafTest {
                 "{ " + GATE + ", \"When\": { \"Kind\": \"BreakBlock\", \"Match\": \"Rock_*\" } }"), null,
                 new AssetExtraInfo<>(new AssetExtraInfo.Data(BonusRowAsset.class, "Mmo_Rock_Bonus", null)));
 
-        assertNotNull(row.getRequires());
-        assertEquals(MMO, row.getRequires().factorsOrEmpty()[0].getParam());
+        assertNotNull(row.requires());
+        assertEquals(MMO, row.requires().factorsOrEmpty()[0].getParam());
     }
 
     @Test

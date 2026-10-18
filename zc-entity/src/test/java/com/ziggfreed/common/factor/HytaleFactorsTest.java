@@ -55,6 +55,7 @@ class HytaleFactorsTest {
                         HytaleFactors.ITEM_STAT,
                         HytaleFactors.PERMISSION,
                         HytaleFactors.STAT,
+                        HytaleFactors.STAT_PERCENT,
                         HytaleFactors.TOOL_DURABILITY_PERCENT,
                         HytaleFactors.TOOL_ITEM_LEVEL,
                         HytaleFactors.TOOL_POWER,

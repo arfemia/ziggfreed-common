@@ -18,6 +18,7 @@ import com.ziggfreed.common.asset.ModGateFold;
 import com.ziggfreed.common.factor.ModGates;
 import com.ziggfreed.common.progress.asset.ContentRewardsAsset;
 import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.progress.gate.StoreGates;
 import com.ziggfreed.common.quest.asset.QuestGeneratorExpander.Expansion;
 import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.util.SafeLog;
@@ -339,6 +340,7 @@ public final class QuestAssetStore {
         Map<String, String> takenOut = new LinkedHashMap<>(ownerGatedOut);
         Map<String, QuestDefinition> out = new LinkedHashMap<>();
         List<String> gatedRows = new ArrayList<>();
+        List<String> widenedRows = new ArrayList<>();
 
         List<String> authoredIds = new ArrayList<>(authored.keySet());
         Collections.sort(authoredIds);
@@ -356,6 +358,7 @@ public final class QuestAssetStore {
             }
             out.put(id, asset.toDefinition(null));
             ContentRewardsAsset.collectMissingMods(asset.getRewards(), gatedRows);
+            ContentRewardsAsset.collectWidened(asset.getRewards(), id, widenedRows);
             // Reported at the fold because only the ASSET still carries what the author typed;
             // the folded rule has already fallen back to a default for anything unparseable.
             issues.addAll(QuestPoolValidator.repeatFindings(asset.getRepeat(), id));
@@ -413,10 +416,12 @@ public final class QuestAssetStore {
                 }
                 out.put(body.id(), decoded.toDefinition(generatorId));
                 ContentRewardsAsset.collectMissingMods(decoded.getRewards(), gatedRows);
+                ContentRewardsAsset.collectWidened(decoded.getRewards(), body.id(), widenedRows);
                 issues.addAll(QuestPoolValidator.repeatFindings(decoded.getRepeat(), body.id()));
             }
         }
         ModGates.reportRewardRows(MOD_GATE_STORE, gatedRows);
+        StoreGates.reportWidened(MOD_GATE_STORE + " reward rows", widenedRows);
         foldGatedOut = Collections.unmodifiableMap(takenOut);
         return new Resolution(new QuestPool(out), issues);
     }

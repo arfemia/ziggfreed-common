@@ -8,8 +8,10 @@ import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.ziggfreed.common.loot.FactorGate;
-import com.ziggfreed.common.loot.FactorLookup;
+import com.ziggfreed.common.progress.gate.GateEvaluator;
+import com.ziggfreed.common.progress.gate.GateQuery;
+import com.ziggfreed.common.progress.gate.GateRuntime;
+import com.ziggfreed.common.progress.gate.StoreGates;
 import com.ziggfreed.common.subject.Subject;
 
 /**
@@ -25,10 +27,6 @@ import com.ziggfreed.common.subject.Subject;
  * <p>That distinction matters more than it looks. Without it, a payout loop aborts at the first
  * failure and every reward after it silently disappears - the player finishes whatever earned the
  * payout and gets part of it, with nothing anywhere saying so.
- *
- * <p>A reward that asks something of its receiver ({@link RewardSpec#conditions}, its row's own
- * {@code Requires}) is asked first, and a player it refuses is paid nothing for it: neither granted, queued
- * nor lost. A payout that charges before it pays asks {@link #firstRefusal} before it charges.
  */
 public final class RewardGrants {
 
@@ -143,17 +141,11 @@ public final class RewardGrants {
         int queued = 0;
         int failed = 0;
         List<RewardSpec> receipt = new ArrayList<>(rewards.size());
-        FactorLookup asked = null;
         for (RewardSpec spec : rewards) {
             // A row's own Requires: a player it refuses is paid nothing for it, which is neither a grant
             // nor a loss.
-            if (spec.hasConditions()) {
-                if (asked == null) {
-                    asked = LootRewardKinds.lookupFor(subject);
-                }
-                if (!FactorGate.pass(spec.conditions(), asked)) {
-                    continue;
-                }
+            if (!StoreGates.passes(spec.requires(), GateQuery.of(subject))) {
+                continue;
             }
             RewardHandler handler = kinds.handler(spec.kind());
             if (handler == null) {
@@ -184,28 +176,43 @@ public final class RewardGrants {
     }
 
     /**
-     * The factor id of the first condition one of {@code rewards} asks ({@link RewardSpec#conditions}) that
-     * {@code subject} fails, or null when every reward would pay them: what a payout that charges first asks
-     * before it charges, since {@link #grantAll} pays a refused reward nothing. Asked as {@link #grantAll}
-     * asks it, through the factor vocabulary the rolling kinds read about the subject's live player; a player
-     * who is not here fails every condition about a player.
+     * The gate's reason token for the first of {@code rewards} whose own {@code Requires}
+     * ({@link RewardSpec#requires()}) refuses {@code subject}, or null when every reward would pay them: what a
+     * payout that charges first asks before it charges, since {@link #grantAll} pays a refused reward nothing.
+     * Asked as {@link #grantAll} asks it.
      */
     @Nullable
-    public static String firstRefusal(@Nonnull List<RewardSpec> rewards, @Nonnull Subject subject) {
-        FactorLookup asked = null;
+    public static String firstRowFailure(@Nonnull List<RewardSpec> rewards, @Nonnull Subject subject) {
+        GateQuery query = null;
         for (RewardSpec spec : rewards) {
-            if (spec == null || !spec.hasConditions()) {
+            if (spec == null || spec.requires() == null) {
                 continue;
             }
-            if (asked == null) {
-                asked = LootRewardKinds.lookupFor(subject);
+            if (query == null) {
+                query = GateQuery.of(subject);
             }
-            String failed = FactorGate.firstFailure(spec.conditions(), asked);
+            String failed = GateRuntime.evaluator().check(spec.requires(), query).firstFailure();
             if (failed != null) {
                 return failed;
             }
         }
         return null;
+    }
+
+    /**
+     * 2.5.0's form of {@link #firstRowFailure}: the factor id of the first condition a reward's row asks that
+     * {@code subject} fails, without the {@code factor:} prefix, or null when every reward would pay them. A
+     * refusal that is not a factor's comes back as the gate's whole token.
+     *
+     * @deprecated a row's gate is its whole {@code Requires}, which may refuse on more than a factor; use
+     *             {@link #firstRowFailure}, whose token a refusal carries as it is.
+     */
+    @Deprecated(since = "2.6.0")
+    @Nullable
+    public static String firstRefusal(@Nonnull List<RewardSpec> rewards, @Nonnull Subject subject) {
+        String failed = firstRowFailure(rewards, subject);
+        return failed != null && failed.startsWith(GateEvaluator.REASON_FACTOR)
+                ? failed.substring(GateEvaluator.REASON_FACTOR.length()) : failed;
     }
 
     /**

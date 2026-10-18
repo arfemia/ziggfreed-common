@@ -27,9 +27,9 @@ class GearSetRequiresTest {
                 + " \"hytale:mod_installed\", \"Param\": \"Ziggfreed:MMOSkillTree\", \"Min\": 1 } ] } }", null);
         GearSetAsset child = set("Mmo_Harvest_Set", "{ \"Members\": [ \"Harvest_Feast_Hat\" ] }", base);
 
-        assertNotNull(child.getRequires());
-        assertEquals("Ziggfreed:MMOSkillTree", child.getRequires().factorsOrEmpty()[0].getParam());
-        assertNull(set("Plain_Set", "{}", null).getRequires());
+        assertNotNull(child.requires());
+        assertEquals("Ziggfreed:MMOSkillTree", child.requires().factorsOrEmpty()[0].getParam());
+        assertNull(set("Plain_Set", "{}", null).requires());
     }
 
     @Test

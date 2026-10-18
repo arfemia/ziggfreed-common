@@ -34,6 +34,11 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
  *       simply whatever the subject holds: the piece placed on a work surface, the stack a recipe
  *       consumed, the reward being rolled. A plain value rather than a live handle, so unlike the
  *       entity leaves it stays readable after the moment that supplied it.</li>
+ *   <li>{@link #held()} - the stack standing in for the subject's HAND, when the moment knows what
+ *       was held better than a live read of the hand would (a use the engine is about to refuse, a
+ *       work session holding a snapshot). The held readings read it first, then the live hand.</li>
+ *   <li>{@link #blockId()} - the block type the moment is about (the block being broken or used),
+ *       as its asset id.</li>
  *   <li>{@link #payload()} - an opaque consumer extension, so a consumer can carry its own
  *       evaluation subject (a placement id, a session handle) without this class learning that
  *       domain.</li>
@@ -47,6 +52,8 @@ public final class FactorContext {
     @Nullable private final Ref<EntityStore> subject;
     @Nullable private final Ref<EntityStore> target;
     @Nullable private final ItemStack item;
+    @Nullable private final ItemStack held;
+    @Nullable private final String blockId;
     @Nullable private final Object payload;
 
     private FactorContext(@Nonnull Builder b) {
@@ -56,6 +63,8 @@ public final class FactorContext {
         this.subject = b.subject;
         this.target = b.target;
         this.item = b.item;
+        this.held = b.held;
+        this.blockId = b.blockId;
         this.payload = b.payload;
     }
 
@@ -120,6 +129,21 @@ public final class FactorContext {
         return item != null && !ItemStack.isEmpty(item);
     }
 
+    /**
+     * The stack standing in for the subject's hand, or null when the moment supplied none and the
+     * held readings read the live hand. A plain value, like {@link #item()}.
+     */
+    @Nullable
+    public ItemStack held() {
+        return held;
+    }
+
+    /** The block type the moment is about, as its asset id, or null when it has none. */
+    @Nullable
+    public String blockId() {
+        return blockId;
+    }
+
     /** The consumer's own opaque extension value, or null when the call site supplied none. */
     @Nullable
     public Object payload() {
@@ -153,6 +177,12 @@ public final class FactorContext {
      */
     @Nonnull
     public FactorContext withParam(@Nullable String param) {
+        return toBuilder().param(param).build();
+    }
+
+    /** A builder carrying every leaf of this question, for a caller that re-scopes one or two of them. */
+    @Nonnull
+    public Builder toBuilder() {
         return builder()
                 .param(param)
                 .world(world)
@@ -160,8 +190,9 @@ public final class FactorContext {
                 .subject(subject)
                 .target(target)
                 .item(item)
-                .payload(payload)
-                .build();
+                .held(held)
+                .blockId(blockId)
+                .payload(payload);
     }
 
     @Nonnull
@@ -214,6 +245,8 @@ public final class FactorContext {
         @Nullable private Ref<EntityStore> subject;
         @Nullable private Ref<EntityStore> target;
         @Nullable private ItemStack item;
+        @Nullable private ItemStack held;
+        @Nullable private String blockId;
         @Nullable private Object payload;
 
         private Builder() {
@@ -254,6 +287,20 @@ public final class FactorContext {
         @Nonnull
         public Builder item(@Nullable ItemStack item) {
             this.item = item;
+            return this;
+        }
+
+        /** The stack standing in for the subject's hand; the held readings read it before the live hand. */
+        @Nonnull
+        public Builder held(@Nullable ItemStack held) {
+            this.held = held;
+            return this;
+        }
+
+        /** The block type the moment is about, as its asset id. */
+        @Nonnull
+        public Builder blockId(@Nullable String blockId) {
+            this.blockId = blockId;
             return this;
         }
 

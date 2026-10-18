@@ -4,9 +4,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.hypixel.hytale.builtin.asseteditor.event.AssetEditorRequestDataSetEvent;
 import com.hypixel.hytale.event.EventRegistry;
@@ -45,7 +49,46 @@ public final class EditorDataSets {
      */
     public static final String FACTORS = "ziggfreedcommon:factors";
 
+    /**
+     * Every dataset served through this class, by id (lower-cased), so a load check can ask what a dataset
+     * holds ({@link #values}) without going through the editor's event.
+     */
+    private static final Map<String, Supplier<Collection<String>>> SERVED = new ConcurrentHashMap<>();
+
     private EditorDataSets() {
+    }
+
+    /**
+     * What dataset {@code dataSet} holds right now, or null when nothing on this server serves it through
+     * this class (an engine picker, or a mod not installed). A source that throws answers null too. For a
+     * load check (a factor's {@code ParamDataSet}); never the editor's own path.
+     */
+    @Nullable
+    public static Collection<String> values(@Nullable String dataSet) {
+        if (dataSet == null || dataSet.isBlank()) {
+            return null;
+        }
+        Supplier<Collection<String>> source = SERVED.get(dataSet.trim().toLowerCase(Locale.ROOT));
+        if (source == null) {
+            return null;
+        }
+        try {
+            Collection<String> values = source.get();
+            return values == null ? null : List.copyOf(values);
+        } catch (Throwable t) {
+            SafeLog.fine("[editor] dataset '" + dataSet + "' failed: " + t.getMessage());
+            return null;
+        }
+    }
+
+    /** Serve {@code dataSet} to {@link #values} only (no editor event); tests, and null forgets it. */
+    public static void serveForTests(@Nonnull String dataSet, @Nullable Supplier<Collection<String>> source) {
+        String key = dataSet.trim().toLowerCase(Locale.ROOT);
+        if (source == null) {
+            SERVED.remove(key);
+        } else {
+            SERVED.put(key, source);
+        }
     }
 
     /**
@@ -55,6 +98,7 @@ public final class EditorDataSets {
      */
     public static void live(@Nonnull EventRegistry registry, @Nonnull String dataSet,
             @Nonnull Supplier<Collection<String>> source) {
+        SERVED.put(dataSet.trim().toLowerCase(Locale.ROOT), source);
         try {
             registry.register(AssetEditorRequestDataSetEvent.class, dataSet, event -> {
                 try {
@@ -75,6 +119,7 @@ public final class EditorDataSets {
     public static void fixed(@Nonnull EventRegistry registry, @Nonnull String dataSet,
             @Nonnull String... values) {
         String[] snapshot = values.clone();
+        SERVED.put(dataSet.trim().toLowerCase(Locale.ROOT), () -> List.of(snapshot));
         try {
             registry.register(AssetEditorRequestDataSetEvent.class, dataSet,
                     event -> event.setResults(snapshot.clone()));

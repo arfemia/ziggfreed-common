@@ -70,12 +70,12 @@ class RewardEntryRequiresTest {
         RewardEntryAsset xp = row(XP, null);
         RewardEntryAsset pie = row(PIE, null);
 
-        assertNotNull(xp.getRequires());
-        FactorCondition gate = xp.getRequires().factorsOrEmpty()[0];
+        assertNotNull(xp.requires());
+        FactorCondition gate = xp.requires().factorsOrEmpty()[0];
         assertEquals("hytale:mod_installed", gate.getFactor());
         assertEquals(MMO, gate.getParam());
         assertEquals(1.0, gate.getMin());
-        assertNull(pie.getRequires(), "unauthored means the row is everywhere");
+        assertNull(pie.requires(), "unauthored means the row is everywhere");
 
         mmoInstalled(false);
         assertEquals(MMO, xp.missingMod());
@@ -91,11 +91,11 @@ class RewardEntryRequiresTest {
         RewardEntryAsset child = row("{ \"Params\": { \"Skill\": \"Farming\" } }", base);
 
         assertEquals("Mmo_Xp", child.getKind());
-        assertNotNull(child.getRequires(), "the parent's block carries down");
-        assertEquals(MMO, child.getRequires().factorsOrEmpty()[0].getParam());
+        assertNotNull(child.requires(), "the parent's block carries down");
+        assertEquals(MMO, child.requires().factorsOrEmpty()[0].getParam());
         RewardEntryAsset ungated = row("{ \"Requires\": { \"Factors\": [] } }", base);
-        assertNotNull(ungated.getRequires());
-        assertEquals(0, ungated.getRequires().factorsOrEmpty().length, "a child's own block replaces the parent's");
+        assertNotNull(ungated.requires());
+        assertEquals(0, ungated.requires().factorsOrEmpty().length, "a child's own block replaces the parent's");
 
         mmoInstalled(false);
         assertNull(child.toSpec());

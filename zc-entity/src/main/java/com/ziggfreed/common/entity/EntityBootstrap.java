@@ -14,6 +14,7 @@ import com.ziggfreed.common.entity.overhead.OverheadIndicators;
 import com.ziggfreed.common.entity.overhead.OverheadVisibilityFilter;
 import com.ziggfreed.common.entity.performer.PerformerIdentityComponent;
 import com.ziggfreed.common.entity.title.ZigTitleComponent;
+import com.ziggfreed.common.progress.gate.ZigGateEpochMovedEvent;
 import com.ziggfreed.common.stats.EquipStatBridge;
 import com.ziggfreed.common.stats.damage.TypedDamageBonusSystem;
 import com.ziggfreed.common.stats.damage.TypedDamageBonuses;
@@ -105,7 +106,8 @@ public final class EntityBootstrap {
      * moment an item can start or stop being worn. Plus its lifecycle: a LATE player-ready recompute
      * through the bridge (the hydrate authority, after every earlier listener has attached what it
      * attaches), a recompute after every respawn (the engine clears every effect on death and on
-     * respawn, so the set's look is put back), and the ONE eviction of the player's last write, the
+     * respawn, so the set's look is put back), a re-check of a gated set's wearer when their gate epoch
+     * moves ({@code ZigGateEpochMovedEvent}), and the ONE eviction of the player's last write, the
      * entity leaving its store for any reason (a disconnect and a world change alike), after which
      * the next recompute is a hydrate. No per-world eviction and no disconnect listener: the removal
      * covers both.
@@ -133,6 +135,7 @@ public final class EntityBootstrap {
             }
             GearSets.install(bridge);
             plugin.getEventRegistry().registerGlobal(EventPriority.LATE, PlayerReadyEvent.class, GearSets::onPlayerReady);
+            plugin.getEventRegistry().registerGlobal(ZigGateEpochMovedEvent.class, GearSets::onGateEpochMoved);
             plugin.getEntityStoreRegistry().registerSystem(new GearSetLifecycleSystems.Respawned());
             plugin.getEntityStoreRegistry().registerSystem(new GearSetLifecycleSystems.Left());
         } catch (Throwable t) {

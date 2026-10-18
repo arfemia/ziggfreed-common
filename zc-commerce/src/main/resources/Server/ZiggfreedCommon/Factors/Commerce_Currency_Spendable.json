@@ -1,0 +1,7 @@
+{
+  "$Comment": "Names the ziggfreedcommon:currency_spendable reading (what the player can spend of the wallet its Param names, an item-backed wallet's inventory count or a counter wallet's balance) for requirement lines; a lock line names the wallet by its own name. The Param picks from the server's wallets, a wallet the player has none of reads a definite 0 (AbsentReads), so a condition on it needs a Min.",
+  "Factor": "ziggfreedcommon:currency_spendable",
+  "Text": { "TitleKey": "ziggfreedcommon.progress.factor.currency_spendable" },
+  "ParamDataSet": "ziggfreedcommon:currencies",
+  "AbsentReads": 0
+}

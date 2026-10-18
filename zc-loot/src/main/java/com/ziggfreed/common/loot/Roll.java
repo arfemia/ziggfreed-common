@@ -10,6 +10,7 @@ import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorFormula;
+import com.ziggfreed.common.progress.gate.GateSpec;
 
 /**
  * ONE conditional payout: a gate ({@code Conditions} then {@code Chance}), a payoff
@@ -84,6 +85,14 @@ public final class Roll {
     @Nullable protected String cue;
     @Nullable protected Boolean expected;
     @Nullable protected Boolean hideInPreview;
+
+    /**
+     * The table gates this roll carries, never authored: the live {@code Requires} of the table it was
+     * resolved from, and of the file that contributed it ({@link #gatedBy}). Empty for an authored roll.
+     */
+    @Nonnull private GateSpec[] gates = NO_GATES;
+
+    private static final GateSpec[] NO_GATES = new GateSpec[0];
 
     /** The plain codec: a factor id stays a free text field. */
     public static final BuilderCodec<Roll> CODEC = codec(null);
@@ -228,6 +237,32 @@ public final class Roll {
      */
     public boolean hidesInPreview() {
         return hideInPreview != null && hideInPreview;
+    }
+
+    /** The table gates this roll carries ({@link #gatedBy}); never null, empty for an authored roll. */
+    @Nonnull
+    public GateSpec[] gates() {
+        return gates;
+    }
+
+    /**
+     * A copy of this roll that also answers to {@code gate} (a table's live {@code Requires}): it hits only
+     * when every gate it carries passes for the moment's player ({@link FactorGate#passesGates}), before its
+     * conditions and before any chance sample. Null answers this roll itself.
+     */
+    @Nonnull
+    public Roll gatedBy(@Nullable GateSpec gate) {
+        if (gate == null) {
+            return this;
+        }
+        Roll copy = of(trigger, conditions, chance, ladder, grants, cue);
+        copy.expected = expected;
+        copy.hideInPreview = hideInPreview;
+        GateSpec[] more = new GateSpec[gates.length + 1];
+        System.arraycopy(gates, 0, more, 0, gates.length);
+        more[gates.length] = gate;
+        copy.gates = more;
+        return copy;
     }
 
     /** {@link #getTrigger()}, reader-defaulted to {@link #DEFAULT_TRIGGER} when absent or blank. */

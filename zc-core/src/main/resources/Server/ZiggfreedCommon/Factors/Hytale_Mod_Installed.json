@@ -1,5 +1,7 @@
 {
-  "$Comment": "Names the hytale:mod_installed reading (whether the mod its Param names, as Group:Name, runs on this server) for requirement lines. A mod id is an operator-facing id, so the line names the concept rather than the mod; ship a Factors file with a Param entry (Keys) to word a specific mod's requirement for players.",
+  "$Comment": "Names the hytale:mod_installed reading (whether the mod its Param names, as Group:Name, runs on this server) for requirement lines. A mod id is an operator-facing id, so the line names the concept rather than the mod; ship a Factors file with a Param entry (Keys) to word a specific mod's requirement for players. A missing mod reads a definite 0 (AbsentReads), so a presence check needs Min 1, and whether a mod runs never changes while the server is up (Volatility Server).",
   "Factor": "hytale:mod_installed",
-  "Text": { "TitleKey": "ziggfreedcommon.progress.factor.mod_installed" }
+  "Text": { "TitleKey": "ziggfreedcommon.progress.factor.mod_installed" },
+  "AbsentReads": 0,
+  "Volatility": "Server"
 }

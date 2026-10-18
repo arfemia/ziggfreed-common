@@ -27,14 +27,15 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.factor.ModGates;
+import com.ziggfreed.common.progress.gate.GateSpec;
 
 /**
  * The keep-filter fold: a file the filter refuses never enters the layer, every other one does under its
  * lower-cased id, the mapper form drops the same files, and {@code refused} names exactly the ones left
  * out. The reporting fold a load handler runs ({@code gate}) leaves out the same files, names the mod
  * that refused each, and logs one counted line per missing mod. Driven through the engine's own map,
- * with its pack-loading door opened for the test, and a stand-in asset carrying
- * {@link PresenceRequiresCodec}'s block.
+ * with its pack-loading door opened for the test, and a stand-in asset carrying a
+ * {@link GateSpec} block.
  */
 class AssetMergeAdapterKeepTest {
 
@@ -45,11 +46,11 @@ class AssetMergeAdapterKeepTest {
     static final class Probe implements JsonAsset<String> {
         String id;
         AssetExtraInfo.Data data;
-        @Nullable PresenceRequiresCodec.Block requires;
+        @Nullable GateSpec requires;
 
         static final AssetBuilderCodec<String, Probe> CODEC = AssetBuilderCodec.builder(Probe.class, Probe::new,
                         Codec.STRING, (a, id) -> a.id = id, a -> a.id, (a, d) -> a.data = d, a -> a.data)
-                .appendInherited(new KeyedCodec<>("Requires", PresenceRequiresCodec.CODEC, false),
+                .appendInherited(new KeyedCodec<>("Requires", GateSpec.CODEC, false),
                         (a, v) -> a.requires = v, a -> a.requires, (a, p) -> a.requires = p.requires)
                 .add()
                 .build();
@@ -72,10 +73,10 @@ class AssetMergeAdapterKeepTest {
         }
     }
 
-    private static final Predicate<Probe> LOADS_HERE = p -> PresenceRequiresCodec.passesModGate(p.requires);
+    private static final Predicate<Probe> LOADS_HERE = p -> GateSpec.passesModGate(p.requires);
 
     /** The same read in the reporting form a load handler passes to {@code gate}. */
-    static final Function<Probe, String> MISSING_MOD = p -> PresenceRequiresCodec.missingMod(p.requires);
+    static final Function<Probe, String> MISSING_MOD = p -> GateSpec.missingMod(p.requires);
 
     /** A body gated on the MMO, in the shape every store writes. */
     static final String GATED = "{ \"Requires\": { \"Factors\": [ { \"Factor\": \"hytale:mod_installed\","

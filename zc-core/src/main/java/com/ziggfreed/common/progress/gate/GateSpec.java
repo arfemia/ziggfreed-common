@@ -68,6 +68,12 @@ public final class GateSpec extends GateClause {
     /** The block content that authors no {@code Requires} is read as: it asks for nothing. */
     public static final GateSpec OPEN = new GateSpec();
 
+    /**
+     * The compiled form an evaluator made of this block ({@link GateEvaluator#check}), kept here so a hot path
+     * finds it with no lookup and it goes with the block. Never authored, never inherited, never copied.
+     */
+    @Nullable volatile CompiledGate compiled;
+
     public GateSpec() {
     }
 

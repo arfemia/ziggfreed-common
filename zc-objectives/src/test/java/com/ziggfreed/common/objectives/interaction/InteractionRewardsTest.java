@@ -19,7 +19,7 @@ import javax.annotation.Nonnull;
 
 import org.junit.jupiter.api.Test;
 
-import com.ziggfreed.common.asset.PresenceRequiresCodec;
+import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.ModGates;
 import com.ziggfreed.common.i18n.Msg;
@@ -140,8 +140,9 @@ class InteractionRewardsTest {
         try {
             RewardEntryAsset[] entries = {
                     RewardEntryAsset.of("Item", Map.of("Item", "Harvest_Feast_Pie", "Count", "1")),
-                    RewardEntryAsset.of("Mmo_Xp", Map.of("Skill", "Cooking"), PresenceRequiresCodec.Block.of(
-                            FactorCondition.of("hytale:mod_installed", mmo, 1.0, null)))
+                    RewardEntryAsset.of("Mmo_Xp", Map.of("Skill", "Cooking"), GateSpec.of(new FactorCondition[] {
+                            FactorCondition.of("hytale:mod_installed", mmo, 1.0, null)}, null, null, null, null, null,
+                            null))
             };
 
             assertEquals(List.of("Item"), InteractionRewards.specs(entries).stream().map(RewardSpec::kind).toList());

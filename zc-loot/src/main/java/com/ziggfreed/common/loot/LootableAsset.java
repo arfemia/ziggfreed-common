@@ -19,7 +19,8 @@ import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.asset.PresenceRequiresCodec;
-import com.ziggfreed.common.factor.FactorCondition;
+import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.progress.gate.StoreGates;
 import com.ziggfreed.common.text.ContentTextAsset;
 
 /**
@@ -109,9 +110,9 @@ public final class LootableAsset implements JsonAssetWithMap<String, DefaultAsse
     @Nullable private Roll[] rolls;
     @Nullable private LootPool pool;
     @Nullable private String contributesTo;
-    @Nullable private PresenceRequiresCodec.Block requires;
-    /** The live part of {@link #requires}, lifted once per instance ({@link PresenceRequiresCodec.Block#liveFactors}). */
-    @Nullable private volatile FactorCondition[] live;
+    @Nullable private GateSpec requires;
+    /** The live part of {@link #requires}, lifted once per instance ({@link StoreGates#live}). */
+    @Nullable private volatile GateSpec[] live;
     @Nullable private volatile List<Roll> gatedRolls;
     @Nullable private volatile List<LootPool> gatedPool;
     @Nullable private ContentTextAsset text;
@@ -147,9 +148,9 @@ public final class LootableAsset implements JsonAssetWithMap<String, DefaultAsse
             .documentation("Another table's id to fold this file's rolls and pool entries INTO, on top of what "
                     + "that table already has. The way to enrich a table shipped by someone else without "
                     + "owning its file. How many picks the merged pool makes stays the target's decision.").add()
-            .appendInherited(new KeyedCodec<>("Requires", PresenceRequiresCodec.CODEC, false),
+            .appendInherited(new KeyedCodec<>("Requires", GateSpec.CODEC, false),
                     (a, v) -> a.requires = v, a -> a.requires, (a, parent) -> a.requires = parent.requires)
-            .documentation(PresenceRequiresCodec.DOCUMENTATION).add()
+            .documentation(StoreGates.DOCUMENTATION).add()
             .appendInherited(new KeyedCodec<>("Text", ContentTextAsset.CODEC, false),
                     (a, v) -> a.text = v, a -> a.text, (a, parent) -> a.text = parent.text)
             .documentation("What a reward paying this table reads as, where a payout is shown before it pays. "
@@ -200,13 +201,10 @@ public final class LootableAsset implements JsonAssetWithMap<String, DefaultAsse
         return of(id, rolls, pool, contributesTo, null);
     }
 
-    /**
-     * {@link #of(String, Roll[], LootPool, String)} carrying a {@code Requires} block: what a rebuilt table
-     * ({@link LootableConfig}'s enriched and sourced views) keeps from the file it stands for.
-     */
+    /** {@link #of(String, Roll[], LootPool, String)} carrying a {@code Requires} block. */
     @Nonnull
-    static LootableAsset of(@Nonnull String id, @Nullable Roll[] rolls, @Nullable LootPool pool,
-            @Nullable String contributesTo, @Nullable PresenceRequiresCodec.Block requires) {
+    public static LootableAsset of(@Nonnull String id, @Nullable Roll[] rolls, @Nullable LootPool pool,
+            @Nullable String contributesTo, @Nullable GateSpec requires) {
         LootableAsset a = new LootableAsset();
         a.id = id.toLowerCase(Locale.ROOT);
         a.rolls = rolls;
@@ -244,12 +242,35 @@ public final class LootableAsset implements JsonAssetWithMap<String, DefaultAsse
 
     /**
      * What a player must meet for this table to pay, or null when it authors none: its plain mod-presence
-     * condition decides whether the table loads at all, and every other condition is asked of the moment's
-     * player each time the table is rolled ({@link #payingRolls}, {@link #payingPool}).
+     * condition decides whether the table loads at all, and every other condition is asked of the player each
+     * time the table is rolled ({@link #liveRequires}).
      */
     @Nullable
-    public PresenceRequiresCodec.Block getRequires() {
+    public GateSpec requires() {
         return requires;
+    }
+
+    /**
+     * The block's conditions in the old presence shape.
+     *
+     * @deprecated this table's {@code Requires} is read whole now: {@link #requires()} is the block. Removed
+     *     in a later release.
+     */
+    @Deprecated(since = "2.6.0")
+    @Nullable
+    public PresenceRequiresCodec.Block getRequires() {
+        return requires == null ? null : PresenceRequiresCodec.Block.of(requires.factorsOrEmpty());
+    }
+
+    /** The part of {@link #requires()} asked of the player per roll, lifted once; null when nothing is. */
+    @Nullable
+    public GateSpec liveRequires() {
+        GateSpec[] held = live;
+        if (held == null) {
+            held = new GateSpec[] {StoreGates.live(requires)};
+            live = held;
+        }
+        return held[0];
     }
 
     /** What a reward paying this table reads as (its name and hover line), or null when it authors none. */
@@ -296,15 +317,14 @@ public final class LootableAsset implements JsonAssetWithMap<String, DefaultAsse
     }
 
     /**
-     * This table's rolls as a pass rolls them: each carrying the table's live {@code Requires} (everything
-     * but its mod presence) in front of its own {@code Conditions}, so a player the table refuses gets
-     * nothing from it and takes no chance sample. The authored rolls themselves when the table asks nothing
-     * beyond mod presence. Made once per instance.
+     * This table's rolls as a pass rolls them: each carrying the table's live {@code Requires}
+     * ({@link Roll#gatedBy}), so a player the table refuses gets nothing from it. The authored rolls
+     * themselves when the table asks nothing beyond mod presence. Made once per instance.
      */
     @Nonnull
     public List<Roll> payingRolls() {
-        FactorCondition[] gate = liveConditions();
-        if (gate.length == 0) {
+        GateSpec gate = liveRequires();
+        if (gate == null) {
             return rollsOrEmpty();
         }
         List<Roll> held = gatedRolls;
@@ -312,7 +332,7 @@ public final class LootableAsset implements JsonAssetWithMap<String, DefaultAsse
             List<Roll> made = new ArrayList<>();
             for (Roll roll : rollsOrEmpty()) {
                 if (roll != null) {
-                    made.add(gated(roll, gate));
+                    made.add(roll.gatedBy(gate));
                 }
             }
             held = List.copyOf(made);
@@ -324,73 +344,15 @@ public final class LootableAsset implements JsonAssetWithMap<String, DefaultAsse
     /** {@link #poolOrEmpty()} as a pass draws it: every entry carrying the table's live {@code Requires}. */
     @Nonnull
     public List<LootPool> payingPool() {
-        FactorCondition[] gate = liveConditions();
-        if (gate.length == 0 || pool == null) {
+        GateSpec gate = liveRequires();
+        if (gate == null || pool == null) {
             return poolOrEmpty();
         }
         List<LootPool> held = gatedPool;
         if (held == null) {
-            held = List.of(gated(pool, gate));
+            held = List.of(pool.gatedBy(gate));
             gatedPool = held;
         }
         return held;
-    }
-
-    /** The live part of this table's {@code Requires}, lifted once; empty when it asks nothing more. */
-    @Nonnull
-    private FactorCondition[] liveConditions() {
-        FactorCondition[] held = live;
-        if (held == null) {
-            held = PresenceRequiresCodec.liveFactors(requires);
-            live = held;
-        }
-        return held;
-    }
-
-    /** A copy of {@code roll} asking {@code gate} before its own {@code Conditions}; the roll itself for none. */
-    @Nonnull
-    static Roll gated(@Nonnull Roll roll, @Nonnull FactorCondition[] gate) {
-        if (gate.length == 0) {
-            return roll;
-        }
-        Roll copy = Roll.of(roll.getTrigger(), gateFirst(gate, roll.getConditions()), roll.getChance(),
-                roll.getLadder(), roll.getGrants(), roll.getCue());
-        copy.withExpected(roll.getExpected());
-        copy.hideInPreview = roll.getHideInPreview();
-        return copy;
-    }
-
-    /** A copy of {@code entry} asking {@code gate} before its own {@code Conditions}; the entry itself for none. */
-    @Nonnull
-    static LootPool.Entry gated(@Nonnull LootPool.Entry entry, @Nonnull FactorCondition[] gate) {
-        if (gate.length == 0) {
-            return entry;
-        }
-        return LootPool.Entry.of(entry.getWeight(), gateFirst(gate, entry.getConditions()), entry.getGrants());
-    }
-
-    /** A copy of {@code pool} whose every entry asks {@code gate} first; the pool itself for none. */
-    @Nonnull
-    private static LootPool gated(@Nonnull LootPool pool, @Nonnull FactorCondition[] gate) {
-        LootPool.Entry[] entries = pool.getEntries();
-        if (gate.length == 0 || entries == null) {
-            return pool;
-        }
-        LootPool.Entry[] out = new LootPool.Entry[entries.length];
-        for (int i = 0; i < entries.length; i++) {
-            out[i] = entries[i] == null ? null : gated(entries[i], gate);
-        }
-        return LootPool.of(pool.getRolls(), out);
-    }
-
-    /** {@code gate} then {@code own}, as one {@code Conditions} array. */
-    @Nonnull
-    private static FactorCondition[] gateFirst(@Nonnull FactorCondition[] gate, @Nullable FactorCondition[] own) {
-        if (own == null || own.length == 0) {
-            return gate.clone();
-        }
-        FactorCondition[] out = Arrays.copyOf(gate, gate.length + own.length);
-        System.arraycopy(own, 0, out, gate.length, own.length);
-        return out;
     }
 }

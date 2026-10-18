@@ -12,6 +12,7 @@ import javax.annotation.Nonnull;
 
 import com.ziggfreed.common.factor.ModGates;
 import com.ziggfreed.common.progress.asset.ContentRewardsAsset;
+import com.ziggfreed.common.progress.gate.StoreGates;
 import com.ziggfreed.common.quest.asset.QuestDefinition;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
@@ -115,6 +116,7 @@ public final class BoardAssetStore {
         List<Finding> issues = new ArrayList<>(layerFindings);
         Map<String, QuestDefinition> out = new LinkedHashMap<>();
         List<String> gatedRows = new ArrayList<>();
+        List<String> widened = new ArrayList<>();
 
         List<String> authoredIds = new ArrayList<>(bounties.keySet());
         Collections.sort(authoredIds);
@@ -125,8 +127,10 @@ public final class BoardAssetStore {
             }
             out.put(id, asset.toDefinition(null));
             ContentRewardsAsset.collectMissingMods(asset.getRewards(), gatedRows);
+            ContentRewardsAsset.collectWidened(asset.getRewards(), id, widened);
         }
         ModGates.reportRewardRows(MOD_GATE_STORE, gatedRows);
+        StoreGates.reportWidened(MOD_GATE_STORE + " reward rows", widened);
         return new Resolution(out, issues);
     }
 

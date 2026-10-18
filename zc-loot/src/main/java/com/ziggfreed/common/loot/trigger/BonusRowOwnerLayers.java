@@ -5,7 +5,7 @@ import java.nio.file.Path;
 import javax.annotation.Nonnull;
 
 import com.ziggfreed.common.asset.OwnerLayerReader;
-import com.ziggfreed.common.asset.PresenceRequiresCodec;
+import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.util.OwnerFiles;
 
 /**
@@ -53,6 +53,6 @@ public final class BonusRowOwnerLayers {
     /** (Re)read the owner file into the row fold's owner layer. */
     public static void reload() {
         OwnerLayerReader.apply(LOG_TAG, file(), BonusRowAsset.class, BonusRowAsset.CODEC,
-                BonusRowConfig.getInstance(), "bonus row", r -> PresenceRequiresCodec.missingMod(r.getRequires()));
+                BonusRowConfig.getInstance(), "bonus row", r -> GateSpec.missingMod(r.requires()));
     }
 }

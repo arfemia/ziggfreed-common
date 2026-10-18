@@ -12,6 +12,7 @@ import com.ziggfreed.common.achievement.AchievementMilestone;
 import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
 import com.ziggfreed.common.factor.ModGates;
 import com.ziggfreed.common.progress.asset.ContentRewardsAsset;
+import com.ziggfreed.common.progress.gate.StoreGates;
 
 /**
  * The folded {@link AchievementMilestoneAsset} layer: the points ladder, resolved
@@ -52,10 +53,13 @@ public final class AchievementMilestoneConfig extends AbstractKeyedAssetConfig<A
     public synchronized void mergePackLayer(@Nonnull Map<String, AchievementMilestoneAsset> layer) {
         super.mergePackLayer(layer);
         List<String> gatedRows = new ArrayList<>();
+        List<String> widened = new ArrayList<>();
         for (AchievementMilestoneAsset rung : assetsByThreshold()) {
             ContentRewardsAsset.collectMissingMods(rung.getRewards(), gatedRows);
+            ContentRewardsAsset.collectWidened(rung.getRewards(), String.valueOf(rung.getId()), widened);
         }
         ModGates.reportRewardRows(MOD_GATE_STORE, gatedRows);
+        StoreGates.reportWidened(MOD_GATE_STORE + " reward rows", widened);
     }
 
     /**

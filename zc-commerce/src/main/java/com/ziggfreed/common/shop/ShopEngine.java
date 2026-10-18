@@ -43,8 +43,8 @@ import com.ziggfreed.common.util.SafeLog;
  *       storefront's lock ({@link ShopOffer#storefrontRequires()}) and then its own {@code Requires}
  *       block. Requirements are factors everywhere, evaluated by the same machinery a quest accept
  *       uses, so a shop lock and a quest lock mean the same thing. Then every reward row's own
- *       conditions ({@link RewardGrants#firstRefusal}): the grant pays a row they refuse nothing, so a
- *       buyer one refuses is refused here, with that factor's gate token, before any price is taken.</li>
+ *       {@code Requires} ({@link RewardGrants#firstRowFailure}): the grant pays a row it refuses nothing, so
+ *       a buyer one refuses is refused here, with that gate's token, before any price is taken.</li>
  *   <li><b>limits</b> - the commerce store's counts against the offer's own
  *       {@link PurchaseLimits}, using ONE day number threaded through the whole purchase.</li>
  *   <li><b>afford</b> - {@link CostEngine#check}, naming the first shortfall.</li>
@@ -212,11 +212,11 @@ public final class ShopEngine {
         if (gateFailure != null) {
             return PurchaseCheck.refused(gateFailure);
         }
-        // A reward row's own conditions: the grant would pay a row they refuse nothing, so the price is never
-        // taken for it. The purchase is refused as a gate refuses on that factor.
-        String rowFailure = RewardGrants.firstRefusal(offer.rewards(), subject);
+        // A reward row's own Requires: the grant would pay a row it refuses nothing, so the price is never
+        // taken for it. The purchase is refused with that gate's token.
+        String rowFailure = RewardGrants.firstRowFailure(offer.rewards(), subject);
         if (rowFailure != null) {
-            return PurchaseCheck.refused(GateEvaluator.REASON_FACTOR + rowFailure);
+            return PurchaseCheck.refused(rowFailure);
         }
         PurchaseCheck limits = checkLimits(subject, offer, epochDay(nowMs));
         if (!limits.ok()) {

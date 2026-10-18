@@ -1,5 +1,6 @@
 {
-  "$Comment": "Names the hytale:held_tag reading for requirement lines. A tag is an authored family:value pair with no display catalogue of its own, so the factor reads with one generic name; ship a Factors file with a Param entry (Keys) to word a specific tag requirement.",
+  "$Comment": "Names the hytale:held_tag reading for requirement lines. A tag is an authored family:value pair with no display catalogue of its own, so the factor reads with one generic name; ship a Factors file with a Param entry (Keys) to word a specific tag requirement. An item without the tag reads a definite 0 (AbsentReads), so a condition on it needs Min 1.",
   "Factor": "hytale:held_tag",
-  "Text": { "TitleKey": "ziggfreedcommon.progress.factor.held_tag" }
+  "Text": { "TitleKey": "ziggfreedcommon.progress.factor.held_tag" },
+  "AbsentReads": 0
 }

@@ -2,13 +2,20 @@ package com.ziggfreed.common.loot;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
 
+import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.loot.reward.LootRewardKinds;
 import com.ziggfreed.common.loot.reward.RewardKindValidator;
 import com.ziggfreed.common.loot.reward.RewardKinds;
+import com.ziggfreed.common.loot.trigger.BonusRowAsset;
 import com.ziggfreed.common.loot.trigger.BonusRowAudit;
+import com.ziggfreed.common.loot.trigger.BonusRowConfig;
+import com.ziggfreed.common.progress.gate.GateRuntime;
+import com.ziggfreed.common.progress.gate.GateValidator;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.validation.Severity;
@@ -56,7 +63,29 @@ public final class LootAudit {
             }
         }
         findings.addAll(BonusRowAudit.auditAll(RewardKinds.shared(), LootRewardKinds.installedFactors()));
+        findings.addAll(requiresFindings());
         return findings;
+    }
+
+    /**
+     * Each table's and each bonus row's own {@code Requires}, every condition, through the one gate audit,
+     * against the server's vocabulary and the loot one the rolls read.
+     */
+    @Nonnull
+    private static List<Finding> requiresFindings() {
+        FactorRegistry loot = LootRewardKinds.installedFactors();
+        FactorRegistry vocabulary = GateRuntime.vocabulary();
+        Predicate<String> known = id -> vocabulary.isRegistered(id) || (loot != null && loot.isRegistered(id));
+        List<Finding> out = new ArrayList<>();
+        for (Map.Entry<String, LootableAsset> entry : LootableConfig.getInstance().all().entrySet()) {
+            out.addAll(GateValidator.validate(entry.getValue().requires(), LootableValidator.DOMAIN, entry.getKey(),
+                    "loot table", GateRuntime.kinds(), known, null));
+        }
+        for (Map.Entry<String, BonusRowAsset> entry : BonusRowConfig.getInstance().all().entrySet()) {
+            out.addAll(GateValidator.validate(entry.getValue().requires(), BonusRowAudit.DOMAIN, entry.getKey(),
+                    "bonus row", GateRuntime.kinds(), known, null));
+        }
+        return out;
     }
 
     /** Push findings already in hand at the server log, split by how much each one matters. */

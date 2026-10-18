@@ -2,10 +2,12 @@ package com.ziggfreed.common.progress.gate;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.subject.Subject;
@@ -41,6 +43,34 @@ public interface GateKind {
      */
     boolean passes(@Nonnull Subject subject, @Nonnull Map<String, String> params,
             @Nonnull GateSupport support);
+
+    /**
+     * The parameter names this kind reads, matched without regard to case, so the load check
+     * ({@link GateValidator}) can name one an author misspelled; null (the default) checks nothing.
+     */
+    @Nullable
+    default Set<String> params() {
+        return null;
+    }
+
+    /** This kind declaring the parameter names it reads ({@link #params()}). */
+    @Nonnull
+    default GateKind reading(@Nonnull String... names) {
+        GateKind self = this;
+        Set<String> declared = Set.of(names);
+        return new GateKind() {
+            @Override
+            public boolean passes(@Nonnull Subject subject, @Nonnull Map<String, String> params,
+                    @Nonnull GateSupport support) {
+                return self.passes(subject, params, support);
+            }
+
+            @Override
+            public Set<String> params() {
+                return declared;
+            }
+        };
+    }
 
     /**
      * A kind that turns its parameters into factor conditions, ALL of which must pass. The mapping

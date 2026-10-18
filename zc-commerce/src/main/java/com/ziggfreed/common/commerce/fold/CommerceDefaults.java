@@ -76,6 +76,7 @@ public final class CommerceDefaults {
     public static void install(@Nonnull PluginBase plugin) {
         CommerceStores.install(ComponentCommerceStore.INSTANCE);
         installCurrencyEngine(assetBacked());
+        CurrencyFactors.contribute();
         GatedContent.register(CommerceGatedContent.ID, CommerceGatedContent::entries);
         registerQuestSites();
         plugin.getEventRegistry().register(PlayerConnectEvent.class, CommerceDefaults::onPlayerConnect);

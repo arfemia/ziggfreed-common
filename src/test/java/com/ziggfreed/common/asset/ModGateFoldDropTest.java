@@ -119,13 +119,13 @@ class ModGateFoldDropTest {
                 .load("Harvest_Feast_Table", "{ " + ROLLS + " }")
                 .load("Mmo_Xp_Into_Harvest", "{ " + GATE + ", \"ContributesTo\": \"Harvest_Feast_Table\", " + ROLLS + " }");
         LootableConfig.getInstance().mergePackLayer(
-                AssetMergeAdapter.gate("Lootables", tables, t -> PresenceRequiresCodec.missingMod(t.getRequires())));
+                AssetMergeAdapter.gate("Lootables", tables, t -> GateSpec.missingMod(t.requires())));
 
         PackMap<GearSetAsset> sets = new PackMap<>(GearSetAsset.CODEC, GearSetAsset.class)
                 .load("Mmo_Harvest_Set", "{ " + GATE + ", \"Members\": [ \"Harvest_Feast_Hat\" ],"
                         + " \"Bonuses\": [ { \"Pieces\": 1 } ] }");
         GearSetConfig.getInstance().mergePackLayer(
-                AssetMergeAdapter.gate("GearSets", sets, s -> PresenceRequiresCodec.missingMod(s.getRequires())));
+                AssetMergeAdapter.gate("GearSets", sets, s -> GateSpec.missingMod(s.requires())));
     }
 
     /** The exact line a store logs for the one file it dropped (the season boot pair parses it). */
@@ -215,7 +215,7 @@ class ModGateFoldDropTest {
 
         GearSetAsset retune = GearSetConfig.getInstance().resolve("mmo_harvest_set");
         assertNotNull(retune);
-        assertNotNull(retune.getRequires(), "with the MMO the retune merges over the pack's file and keeps its gate");
+        assertNotNull(retune.requires(), "with the MMO the retune merges over the pack's file and keeps its gate");
         assertEquals(1, GearSetConfig.getInstance().index().setsFor("Harvest_Feast_Hat").size());
         assertTrue(lines.isEmpty(), "nothing dropped says nothing: " + lines);
     }

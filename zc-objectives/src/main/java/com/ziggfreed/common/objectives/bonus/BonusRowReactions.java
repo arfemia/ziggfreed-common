@@ -23,10 +23,7 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.asset.PresenceRequiresCodec;
 import com.ziggfreed.common.command.CommandRunner;
-import com.ziggfreed.common.factor.FactorCondition;
-import com.ziggfreed.common.factor.FactorConditions;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.i18n.NativeNames;
@@ -40,7 +37,6 @@ import com.ziggfreed.common.loot.trigger.BonusChance;
 import com.ziggfreed.common.loot.trigger.BonusMoment;
 import com.ziggfreed.common.loot.trigger.BonusPasses;
 import com.ziggfreed.common.loot.trigger.BonusRow;
-import com.ziggfreed.common.loot.trigger.BonusRowAsset;
 import com.ziggfreed.common.loot.trigger.BonusRowConfig;
 import com.ziggfreed.common.objectives.producer.BlockBreakPayload;
 import com.ziggfreed.common.objectives.producer.MobKillPayload;
@@ -48,6 +44,9 @@ import com.ziggfreed.common.objectives.producer.PickupPayload;
 import com.ziggfreed.common.objectives.producer.ZigBlockBreakProducer;
 import com.ziggfreed.common.objectives.producer.ZigMobKillProducer;
 import com.ziggfreed.common.objectives.producer.ZigPickupProducer;
+import com.ziggfreed.common.progress.gate.GateQuery;
+import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.progress.gate.StoreGates;
 import com.ziggfreed.common.progress.runtime.Moment;
 import com.ziggfreed.common.progress.runtime.MomentListener;
 import com.ziggfreed.common.progress.runtime.MomentPayload;
@@ -60,8 +59,7 @@ import com.ziggfreed.common.util.SafeLog;
  * that reads only the library's own table ({@link BonusRowConfig}), never a consumer's.
  *
  * <p>No gate beyond the row's own: the producers already skip what the player placed and credit a
- * kill to a player only. The row's {@code Requires} (all but its mod presence, which its fold decided) is
- * asked of the player before its chance. A row with no {@code Chance} always fires; its odds are its rolls'. The
+ * kill to a player only. A row with no {@code Chance} always fires; its odds are its rolls'. The
  * pass pays through the moment's own quest subject (the runtime's, so a consumer's notification
  * preferences reach a cue toast), or a subject over the player reference when the runtime has none.
  * A harvest's pass waits for one world task past the engine's own give and re-reads the event there.
@@ -287,11 +285,12 @@ public final class BonusRowReactions implements MomentListener {
     // ==================== shared by the three ====================
 
     private static boolean fires(@Nonnull BonusRow row, @Nonnull FactorContext about) {
-        // The row's own Requires first, every condition but its mod presence (decided at the fold): a player it
-        // refuses takes no chance draw. Asked through the loot vocabulary the row's odds and rolls read.
-        BonusRowAsset asset = BonusRowConfig.getInstance().resolve(row.sourceId());
-        FactorCondition[] live = PresenceRequiresCodec.liveFactors(asset == null ? null : asset.getRequires());
-        if (live.length > 0 && !FactorConditions.pass(live, factors(), about)) {
+        // The row's own Requires first, every condition (its mod presence was decided at the fold): a
+        // player it refuses takes no chance draw. The loot vocabulary answers first for its own ids. A row with
+        // no live Requires builds no query.
+        GateSpec live = BonusRowConfig.getInstance().liveRequiresOf(row.sourceId());
+        if (live != null
+                && !StoreGates.passes(live, GateQuery.builder().context(about).local(factors()).build())) {
             return false;
         }
         double chance = BonusChance.fraction(row.chance(), UNWRITTEN_CHANCE, factors(), about, row.sourceId(),

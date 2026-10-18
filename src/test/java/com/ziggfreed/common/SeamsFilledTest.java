@@ -1,6 +1,7 @@
 package com.ziggfreed.common;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -21,10 +22,13 @@ import com.ziggfreed.common.commerce.fold.CommerceDefaults;
 import com.ziggfreed.common.commerce.page.CommercePages;
 import com.ziggfreed.common.objectives.runtime.ProgressionBootstrap;
 import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
+import com.ziggfreed.common.progress.gate.GateRuntime;
+import com.ziggfreed.common.progress.gate.RefusalLines;
 import com.ziggfreed.common.progress.runtime.ProgressionGates;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.progress.runtime.ProgressionTextSource;
 import com.ziggfreed.common.quest.InMemoryQuestProgressStore;
+import com.ziggfreed.common.quest.LockReasons;
 import com.ziggfreed.common.quest.NpcOfferProviders;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
@@ -63,6 +67,7 @@ class SeamsFilledTest {
         NpcOfferProviders.clear();
         ProgressionDefaults.reset();
         ProgressionGates.resetForTests();
+        RefusalLines.resetForTests();
         FirstClaims.resetForTests();
         CommercePages.boardPage(null);
     }
@@ -73,8 +78,25 @@ class SeamsFilledTest {
         NpcOfferProviders.clear();
         ProgressionDefaults.reset();
         ProgressionGates.resetForTests();
+        RefusalLines.resetForTests();
+        LockReasons.install();
         FirstClaims.resetForTests();
         CommercePages.boardPage(null);
+    }
+
+    /**
+     * The requirement evaluator lives in zc-core so every module can read a whole {@code Requires} block,
+     * and the progression runtime fills its seams: one evaluator for the server, and a prerequisite's lock
+     * line able to name the quest it asks for rather than quoting a bare id at a player.
+     */
+    @Test
+    void oneRequirementEvaluatorAndItsLinesNameTheirContent() {
+        ProgressionDefaults.register();
+
+        assertSame(GateRuntime.evaluator(), ProgressionGates.evaluator(),
+                "the progression runtime fills zc-core's one evaluator rather than building a second");
+        assertTrue(RefusalLines.namesContent(),
+                "a lock line naming a prerequisite needs somebody to say what that content is called");
     }
 
     /**

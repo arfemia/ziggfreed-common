@@ -23,6 +23,8 @@ import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffec
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.asset.PresenceRequiresCodec;
 import com.ziggfreed.common.codec.InheritMapCodec;
+import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.progress.gate.StoreGates;
 import com.ziggfreed.common.text.ContentTextAsset;
 
 /**
@@ -97,8 +99,18 @@ public final class GearSetAsset implements JsonAssetWithMap<String, DefaultAsset
     @Nullable protected Boolean enabled;
     @Nullable protected String[] members;
     @Nullable protected Tier[] bonuses;
+    @Nullable private GateSpec gate;
+    /**
+     * The old presence-shape field, no longer written: {@link #getRequires()} derives that view from the block
+     * on demand.
+     *
+     * @deprecated the set's {@code Requires} is read whole: {@link #requires()}. Removed in a later release.
+     */
+    @Deprecated(since = "2.6.0")
     @Nullable protected PresenceRequiresCodec.Block requires;
     @Nullable protected String joins;
+    /** The live part of {@link #requires}, lifted once per instance ({@link StoreGates#live}). */
+    @Nullable private volatile GateSpec[] live;
 
     public static final AssetBuilderCodec<String, GearSetAsset> CODEC = AssetBuilderCodec.builder(
                     GearSetAsset.class,
@@ -126,9 +138,9 @@ public final class GearSetAsset implements JsonAssetWithMap<String, DefaultAsset
             .documentation("The tiers, in order. Every tier whose minimums all hold applies at once, so "
                     + "they stack by construction. Under Parent this list replaces the parent's whole; "
                     + "restate every tier you keep.").add()
-            .appendInherited(new KeyedCodec<>("Requires", PresenceRequiresCodec.CODEC, false),
-                    (a, v) -> a.requires = v, a -> a.requires, (a, p) -> a.requires = p.requires)
-            .documentation(PresenceRequiresCodec.DOCUMENTATION).add()
+            .appendInherited(new KeyedCodec<>("Requires", GateSpec.CODEC, false),
+                    (a, v) -> a.gate = v, a -> a.gate, (a, p) -> a.gate = p.gate)
+            .documentation(StoreGates.DOCUMENTATION).add()
             .appendInherited(new KeyedCodec<>("Joins", Codec.STRING, false),
                     (a, v) -> a.joins = v, a -> a.joins, (a, p) -> a.joins = p.joins)
             .documentation("Another set's id, matched without regard to case, to add this file to instead of "
@@ -165,14 +177,36 @@ public final class GearSetAsset implements JsonAssetWithMap<String, DefaultAsset
     }
 
     /**
-     * What a wearer must meet for this set's bonuses to apply, or null when it authors none: its plain
+     * What a player must meet for this set's bonuses to apply, or null when it authors none: its plain
      * mod-presence condition decides whether the set loads at all, and every other condition is asked of the
-     * wearer at each recompute ({@link GearSets}). A joined set keeps its set's block; a layer's own is read
-     * for mod presence alone.
+     * wearer at each recompute ({@link #liveRequires}).
      */
     @Nullable
+    public GateSpec requires() {
+        return gate;
+    }
+
+    /**
+     * The block's conditions in the old presence shape, derived from the block on each call.
+     *
+     * @deprecated this set's {@code Requires} is read whole now: {@link #requires()} is the block. Removed in
+     *     a later release.
+     */
+    @Deprecated(since = "2.6.0")
+    @Nullable
     public PresenceRequiresCodec.Block getRequires() {
-        return requires;
+        return gate == null ? null : PresenceRequiresCodec.Block.of(gate.factorsOrEmpty());
+    }
+
+    /** The part of {@link #requires()} asked of the wearer, lifted once per instance; null when nothing is. */
+    @Nullable
+    public GateSpec liveRequires() {
+        GateSpec[] held = live;
+        if (held == null) {
+            held = new GateSpec[] {StoreGates.live(gate)};
+            live = held;
+        }
+        return held[0];
     }
 
     /** The id of the set this file joins as a layer, as authored and trimmed; null when it stands on its own. */
@@ -264,7 +298,7 @@ public final class GearSetAsset implements JsonAssetWithMap<String, DefaultAsset
         a.enabled = root.enabled;
         a.members = members.clone();
         a.bonuses = bonuses.clone();
-        a.requires = root.requires;
+        a.gate = root.gate;
         return a;
     }
 

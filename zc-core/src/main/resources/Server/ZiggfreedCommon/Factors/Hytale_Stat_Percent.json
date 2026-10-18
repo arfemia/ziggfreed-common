@@ -1,0 +1,9 @@
+{
+  "$Comment": "Names the hytale:stat_percent readings (how full a stat channel is right now, its current value over its maximum, 0 to 100) for requirement lines. The channel's own name from ziggfreedcommon.progress.factor.stat.<ChannelId> is wrapped as 'Health percent'; a channel nobody names reads as the factor's own name below.",
+  "Factor": "hytale:stat_percent",
+  "ParamNames": {
+    "KeyPattern": "ziggfreedcommon.progress.factor.stat.{param}",
+    "WrapKey": "ziggfreedcommon.progress.factor.stat_percent.of"
+  },
+  "Text": { "TitleKey": "ziggfreedcommon.progress.factor.stat_percent" }
+}

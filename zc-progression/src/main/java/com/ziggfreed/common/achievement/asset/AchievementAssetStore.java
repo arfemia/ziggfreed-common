@@ -15,6 +15,7 @@ import javax.annotation.Nullable;
 import com.ziggfreed.common.asset.ModGateFold;
 import com.ziggfreed.common.factor.ModGates;
 import com.ziggfreed.common.progress.asset.ContentRewardsAsset;
+import com.ziggfreed.common.progress.gate.StoreGates;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.validation.ValidationReport;
@@ -194,6 +195,13 @@ public final class AchievementAssetStore {
     public Resolution resolve() {
         Resolution resolution = resolve(achievements, layerFindings, OccurrenceReader.LIVE, this::modGateRefused);
         ModGates.reportRewardRows(MOD_GATE_STORE, gatedRows(achievements));
+        List<String> widened = new ArrayList<>();
+        for (Map.Entry<String, AchievementAsset> entry : achievements.entrySet()) {
+            if (entry.getValue() != null && !entry.getValue().isAbstract()) {
+                ContentRewardsAsset.collectWidened(entry.getValue().getRewards(), entry.getKey(), widened);
+            }
+        }
+        StoreGates.reportWidened(MOD_GATE_STORE + " reward rows", widened);
         return resolution;
     }
 

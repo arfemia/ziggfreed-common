@@ -9,6 +9,7 @@ import javax.annotation.Nullable;
 
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorRegistry;
+import com.ziggfreed.common.progress.gate.GateQuery;
 
 /**
  * One batch's worth of factor readings, each resolved AT MOST ONCE.
@@ -53,6 +54,13 @@ public final class FactorSnapshot implements FactorLookup {
         Double value = registry.resolve(factorId, ctx.withParam(param));
         cache.put(key, value);
         return value;
+    }
+
+    /** A table's {@code Requires} asks this moment's context, this snapshot's vocabulary answering first for its ids. */
+    @Nonnull
+    @Override
+    public GateQuery gateQuery() {
+        return GateQuery.builder().context(ctx).local(registry).build();
     }
 
     /** How many distinct readings this batch has taken, for a diagnostic that wants the number. */

@@ -257,7 +257,7 @@ public final class FrameworkAssetRegistrar {
                 (LoadedAssetsEvent<String, LootableAsset, DefaultAssetMap<String, LootableAsset>> ev) ->
                         LootableConfig.getInstance().mergePackLayer(AssetMergeAdapter.gate(
                                 LootableConfig.MOD_GATE_STORE, ev.getAssetMap(),
-                                t -> PresenceRequiresCodec.missingMod(t.getRequires()))));
+                                t -> GateSpec.missingMod(t.requires()))));
 
         // --- Roll pools (Pattern A) - named, reusable stat-roll tables a stamp draws from. ---
         AssetStoreRegistrar.registerStore(RollPoolAsset.class,
@@ -278,7 +278,7 @@ public final class FrameworkAssetRegistrar {
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, BonusRowAsset.class,
                 (LoadedAssetsEvent<String, BonusRowAsset, DefaultAssetMap<String, BonusRowAsset>> ev) -> {
                     BonusRowConfig.getInstance().mergePackLayer(AssetMergeAdapter.gate(BonusRowConfig.MOD_GATE_STORE,
-                            ev.getAssetMap(), r -> PresenceRequiresCodec.missingMod(r.getRequires())));
+                            ev.getAssetMap(), r -> GateSpec.missingMod(r.requires())));
                     BonusRowOwnerLayers.reload();
                 });
 
@@ -894,7 +894,7 @@ public final class FrameworkAssetRegistrar {
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, GearSetAsset.class,
                 (LoadedAssetsEvent<String, GearSetAsset, DefaultAssetMap<String, GearSetAsset>> ev) -> {
                     GearSetConfig.getInstance().mergePackLayer(AssetMergeAdapter.gate(GearSetConfig.MOD_GATE_STORE,
-                            ev.getAssetMap(), s -> PresenceRequiresCodec.missingMod(s.getRequires())));
+                            ev.getAssetMap(), s -> GateSpec.missingMod(s.requires())));
                     GearSetOwnerLayers.reload();
                     GearSets.onContentChanged();
                 });

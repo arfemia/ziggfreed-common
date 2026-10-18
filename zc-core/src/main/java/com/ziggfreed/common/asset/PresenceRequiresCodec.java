@@ -17,52 +17,39 @@ import com.ziggfreed.common.factor.ModGates;
  * JSON a quest's block writes, {@code { "Factors": [ { "Factor", "Param", "Min", "Max" } ] }}, read
  * through the same condition codec, so a pack author writes one shape everywhere.
  *
- * <p>Such a store reads it two ways. A plain top-level {@code hytale:mod_installed} condition with
- * {@code Min: 1} decides whether the file loads on this server at all: it keeps the file out where that
- * mod is missing ({@link ModGates}), and nothing asks it again. Every other condition in {@code Factors}
- * ({@link Block#liveFactors}) is asked where the file pays or applies, through the factor vocabulary that
- * store already reads: a loot table before any of its rolls or pool entries, a bonus row before its chance,
- * a gear set at each recompute of its wearer, a reward row before it pays. A condition about a player fails
- * closed where the question has no player in it (an offline one, or a pay site that asks about none).
+ * <p>Such a store reads it for one thing only, whether the file loads on this server: a plain top-level
+ * {@code hytale:mod_installed} condition with {@code Min: 1} keeps the file out where that mod is
+ * missing ({@link ModGates}). Nothing else in the block is evaluated by these stores.
  *
- * <p>The block is {@code Factors} alone: the shorthand leaves a quest's block also takes
- * ({@code Permission}, {@code Quests}, {@code Custom}, {@code AllOf}, {@code AnyOf}, {@code Not}) are not
- * read here. Write a permission as the {@code hytale:permission} factor and a finished quest as
- * {@code ziggfreedcommon:quest_completed}.
+ * <p>A reward row (zc-progression's {@code RewardEntryAsset}) carries the same block for the same one
+ * question about itself: where its mod is missing the row is absent while the rest of its file loads, and
+ * the editor shows {@link #ROW_DOCUMENTATION} beside it.
  *
- * <p>A reward row (zc-progression's {@code RewardEntryAsset}) carries the same block for itself: where its
- * mod is missing the row is absent while the rest of its file loads, its other conditions decide whom it
- * pays, and the editor shows {@link #ROW_DOCUMENTATION} beside it.
+ * @deprecated the stores that wrote it (loot tables, bonus rows, gear sets, reward rows) read their whole
+ *     {@code Requires} as {@code progress.gate.GateSpec} now, which lives in zc-core: decode
+ *     {@code GateSpec.CODEC}, gate a file with {@code GateSpec.missingMod}, and ask the rest of the block
+ *     through {@code progress.gate.StoreGates}. Removed in a later release.
  */
+@Deprecated(since = "2.6.0")
 public final class PresenceRequiresCodec {
 
     /** The sentence the Asset Editor shows beside every store's {@code Requires} leaf of this shape. */
-    public static final String DOCUMENTATION = "Whether this file loads on this server at all, and whom it pays. "
-            + "A condition { \"Factor\": \"hytale:mod_installed\", \"Param\": \"Group:Name\", \"Min\": 1 } keeps "
-            + "the file out entirely where that mod is not installed, so nothing reads it or reports it. Write "
-            + "Min 1: a condition with no bound is satisfied by a missing mod too. Every other condition here is "
-            + "asked of the player each time the file pays or applies (a table's rolls, a bonus row's find, a "
-            + "gear set's bonuses), and one about the player fails where no player is there to ask.";
+    public static final String DOCUMENTATION = "Whether this file loads on this server at all. A condition "
+            + "{ \"Factor\": \"hytale:mod_installed\", \"Param\": \"Group:Name\", \"Min\": 1 } keeps the file "
+            + "out entirely where that mod is not installed, so nothing reads it or reports it. Write Min 1: "
+            + "a condition with no bound is satisfied by a missing mod too. Other conditions here are not read.";
 
     /** The sentence the Asset Editor shows beside a reward row's {@code Requires} leaf of this shape. */
-    public static final String ROW_DOCUMENTATION = "Whether this reward row exists on this server at all, and "
-            + "whom it pays. A condition { \"Factor\": \"hytale:mod_installed\", \"Param\": \"Group:Name\", "
-            + "\"Min\": 1 } leaves the row out where that mod is not installed: it pays nothing, shows nowhere and "
-            + "is not reported, while the rest of the list pays as written. Write Min 1: a condition with no "
-            + "bound is satisfied by a missing mod too. Every other condition here is asked of the player as the "
-            + "row pays: a player who fails one gets nothing for this row while the rest of the list pays, and a "
-            + "shop refuses the purchase rather than take the price for it.";
-
-    /** What a block authoring nothing beyond mod presence leaves to ask. */
-    private static final FactorCondition[] NONE = new FactorCondition[0];
+    public static final String ROW_DOCUMENTATION = "Whether this reward row exists on this server at all. A "
+            + "condition { \"Factor\": \"hytale:mod_installed\", \"Param\": \"Group:Name\", \"Min\": 1 } leaves "
+            + "the row out where that mod is not installed: it pays nothing, shows nowhere and is not reported, "
+            + "while the rest of the list pays as written. Write Min 1: a condition with no bound is satisfied "
+            + "by a missing mod too. Other conditions here are not read.";
 
     /** The authored block: one inherited {@code Factors} leaf. */
     public static final class Block {
 
         @Nullable FactorCondition[] factors;
-
-        /** {@link #liveFactors()}, worked out on its first read: a decoded block never changes after. */
-        @Nullable private volatile FactorCondition[] live;
 
         public Block() {
         }
@@ -83,22 +70,11 @@ public final class PresenceRequiresCodec {
 
         /**
          * The authored conditions less every plain mod-presence gate ({@link ModGates#isPresenceGate}), which
-         * the fold already decided: what a store asks where the file pays or applies. A null or blank entry is
-         * dropped, and the answer is empty when nothing is left to ask. Never the authored array itself; worked
-         * out once and shared by every reader (a bonus row asks it at each kill or break), so never modify it.
+         * the fold already decided; a null or blank entry is dropped, and the answer is empty when nothing is
+         * left to ask. 2.5.0's way to ask a store's block of the player; never modify the answer.
          */
         @Nonnull
         public FactorCondition[] liveFactors() {
-            FactorCondition[] known = live;
-            if (known == null) {
-                known = computeLive();
-                live = known;
-            }
-            return known;
-        }
-
-        @Nonnull
-        private FactorCondition[] computeLive() {
             if (factors == null || factors.length == 0) {
                 return NONE;
             }
@@ -112,24 +88,26 @@ public final class PresenceRequiresCodec {
         }
     }
 
+    /** What a block authoring nothing beyond mod presence leaves to ask. */
+    private static final FactorCondition[] NONE = new FactorCondition[0];
+
+    /** {@link Block#liveFactors()} of {@code requires}, empty when it authors no block. */
+    @Nonnull
+    public static FactorCondition[] liveFactors(@Nullable Block requires) {
+        return requires == null ? NONE : requires.liveFactors();
+    }
+
     public static final BuilderCodec<Block> CODEC = BuilderCodec.builder(Block.class, Block::new)
             .appendInherited(new KeyedCodec<>("Factors",
                             new ArrayCodec<>(FactorCondition.codec(EditorDataSets.FACTORS), FactorCondition[]::new),
                             false),
                     (o, v) -> o.factors = v, o -> o.factors, (o, p) -> o.factors = p.factors)
             .documentation("The conditions. A plain hytale:mod_installed condition with Min 1 decides whether "
-                    + "the file or reward row carrying this block loads; every other condition is asked of the "
-                    + "player where it pays or applies. Authoring this list replaces an inherited one whole.")
-            .add()
+                    + "the file or reward row carrying this block loads; authoring this list replaces an "
+                    + "inherited one whole.").add()
             .build();
 
     private PresenceRequiresCodec() {
-    }
-
-    /** {@link Block#liveFactors()} of {@code requires}, empty when it authors no block. */
-    @Nonnull
-    public static FactorCondition[] liveFactors(@Nullable Block requires) {
-        return requires == null ? NONE : requires.liveFactors();
     }
 
     /** Does a file carrying {@code requires} load on this server? True when it authors no block. */

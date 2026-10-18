@@ -16,6 +16,8 @@ import javax.annotation.Nullable;
 
 import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
 import com.ziggfreed.common.loot.LootRef;
+import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.progress.gate.StoreGates;
 import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -108,6 +110,16 @@ public final class BonusRowConfig extends AbstractKeyedAssetConfig<BonusRowAsset
         return table().bestFor(moment, name);
     }
 
+    /**
+     * The live {@code Requires} of row {@code rowId} (everything but its plain mod-presence condition), asked
+     * of the player before the row pays; null when the row asks nothing more, or no row has that id.
+     */
+    @Nullable
+    public GateSpec liveRequiresOf(@Nonnull String rowId) {
+        BonusRowAsset asset = resolve(rowId);
+        return asset == null ? null : asset.liveRequires();
+    }
+
     /** Ids of rows switched on but naming no moment, paired with what they wrote there. */
     @Nonnull
     public Map<String, String> momentlessRows() {
@@ -123,6 +135,13 @@ public final class BonusRowConfig extends AbstractKeyedAssetConfig<BonusRowAsset
     private void invalidate() {
         folded = null;
         rolls.reset();
+        List<String> widened = new ArrayList<>();
+        for (Map.Entry<String, BonusRowAsset> entry : all().entrySet()) {
+            if (entry.getValue() != null && entry.getValue().liveRequires() != null) {
+                widened.add(entry.getKey());
+            }
+        }
+        StoreGates.reportWidened(MOD_GATE_STORE, widened);
     }
 
     /** Fold again because a season turned over; another thread's newer fold is kept. */

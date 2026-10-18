@@ -168,6 +168,9 @@ public final class ProgressionDefaults {
                     // ever answer them two ways.
                     .questGates(gates)
                     .achievementGates(gates)
+                    // A player's own moments move their gate epoch, so a requirement verdict kept over
+                    // their Player readings (a level, a finished quest) is read again after one.
+                    .momentListener(ProgressionGates.EPOCHS)
                     .textSource(RuntimeText.INSTANCE)
                     .maxTrackedQuests(MAX_TRACKED)
                     // No cap on how many quests may be carried at once. Capping it would make the

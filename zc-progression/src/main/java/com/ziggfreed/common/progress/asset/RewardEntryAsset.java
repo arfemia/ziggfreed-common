@@ -17,6 +17,8 @@ import com.ziggfreed.common.asset.PresenceRequiresCodec;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.codec.ScalarStringCodec;
 import com.ziggfreed.common.loot.reward.RewardSpec;
+import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.progress.gate.StoreGates;
 
 /**
  * One entry of a {@code Rewards} list: a registered reward KIND plus the parameters that kind reads.
@@ -43,20 +45,15 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
  * generator substituting a numeric axis value into a parameter slot lands legal for the same
  * reason.
  *
- * <p><b>{@code Requires} keeps one row off a server that lacks its mod</b>, in the file-level
- * block's JSON (zc-core's {@code PresenceRequiresCodec}, read through {@code ModGates}): a plain top-level
- * {@code hytale:mod_installed} condition with {@code Min: 1} naming a mod that reads a definite 0 makes
- * {@link #toSpec} answer null, so the row pays nothing, shows nowhere and no audit reads it, while its
- * siblings pay as written. Every store whose files carry rows counts the ones its fold left out in one line
- * per missing mod ({@code ModGates.reportRewardRows}, through {@link #collectMissingMods}); a row read
- * outside a store's fold (an interaction's or a dialogue action's inline list) is absent the same way and
- * never counted. Unauthored, a row is on every server.
- *
- * <p><b>The rest of the block decides whom the row pays.</b> Every other condition in its {@code Factors}
- * rides on the spec {@link #toSpec} answers ({@link RewardSpec#conditions}) and is asked of the receiving
- * player as the row pays: one they fail pays them nothing for this row while its siblings pay, a shop
- * refuses the purchase before it takes the price, and a player who is not online fails every condition
- * about a player.
+ * <p><b>{@code Requires} gates this one row</b>, in the quest block's shape (zc-core's {@code GateSpec}), every
+ * condition read. A plain top-level {@code hytale:mod_installed} condition with {@code Min: 1} naming a mod
+ * that reads a definite 0 keeps the row off the server: {@link #toSpec} answers null, so the row pays nothing,
+ * shows nowhere and no audit reads it, while its siblings pay as written. Every store whose files carry rows
+ * counts the ones its fold left out in one line per missing mod ({@code ModGates.reportRewardRows}, through
+ * {@link #collectMissingMods}); a row read outside a store's fold (an interaction's or a dialogue action's
+ * inline list) is absent the same way and never counted. Every other condition rides the spec
+ * ({@code RewardSpec.requires()}) and is asked of the receiving player when the row pays: a row they do not
+ * meet pays them nothing. Unauthored, a row is on every server and pays everyone.
  *
  * <pre>{@code
  * { "Kind": "Yourmod_Coin", "Params": { "Amount": 50 },
@@ -71,7 +68,17 @@ public final class RewardEntryAsset {
 
     @Nullable protected String kind;
     @Nullable protected Map<String, String> params;
+    @Nullable private GateSpec gate;
+    /**
+     * The old presence-shape field, no longer written: {@link #getRequires()} derives that view from the block
+     * on demand.
+     *
+     * @deprecated a row's {@code Requires} is read whole: {@link #requires()}. Removed in a later release.
+     */
+    @Deprecated(since = "2.6.0")
     @Nullable protected PresenceRequiresCodec.Block requires;
+    /** The live part of {@link #requires}, lifted once per instance ({@link StoreGates#live}). */
+    @Nullable private volatile GateSpec[] live;
 
     public static final BuilderCodec<RewardEntryAsset> CODEC =
             BuilderCodec.builder(RewardEntryAsset.class, RewardEntryAsset::new)
@@ -90,9 +97,9 @@ public final class RewardEntryAsset {
                     .documentation("The kind's own parameters. Which keys matter is documented by whoever "
                             + "registered the kind; nothing here interprets them. A number or true/false may be "
                             + "written bare (Amount: 50), a value with any other shape takes quotes.").add()
-                    .appendInherited(new KeyedCodec<>("Requires", PresenceRequiresCodec.CODEC, false),
-                            (o, v) -> o.requires = v, o -> o.requires, (o, p) -> o.requires = p.requires)
-                    .documentation(PresenceRequiresCodec.ROW_DOCUMENTATION).add()
+                    .appendInherited(new KeyedCodec<>("Requires", GateSpec.CODEC, false),
+                            (o, v) -> o.gate = v, o -> o.gate, (o, p) -> o.gate = p.gate)
+                    .documentation(StoreGates.ROW_DOCUMENTATION).add()
                     .build();
 
     public RewardEntryAsset() {
@@ -101,17 +108,17 @@ public final class RewardEntryAsset {
     /** Java-side factory for an ungated row; sets the same fields the codec fills. */
     @Nonnull
     public static RewardEntryAsset of(@Nullable String kind, @Nullable Map<String, String> params) {
-        return of(kind, params, null);
+        return of(kind, params, (GateSpec) null);
     }
 
     /** Java-side factory; sets the same fields the codec fills, {@code requires} included. */
     @Nonnull
     public static RewardEntryAsset of(@Nullable String kind, @Nullable Map<String, String> params,
-            @Nullable PresenceRequiresCodec.Block requires) {
+            @Nullable GateSpec requires) {
         RewardEntryAsset r = new RewardEntryAsset();
         r.kind = kind;
         r.params = params == null ? null : new LinkedHashMap<>(params);
-        r.requires = requires;
+        r.gate = requires;
         return r;
     }
 
@@ -126,12 +133,46 @@ public final class RewardEntryAsset {
     }
 
     /**
-     * The row's own {@code Requires} block, or null when it authors none (the row is on every server and pays
-     * anyone): its mod presence decides whether the row is here, the rest whom it pays.
+     * The 2.5 form, whose block was read for mod presence alone.
+     *
+     * @deprecated a row's {@code Requires} is read whole now: build it with
+     *     {@link #of(String, Map, GateSpec)}. Removed in a later release.
      */
+    @Deprecated(since = "2.6.0")
+    @Nonnull
+    public static RewardEntryAsset of(@Nullable String kind, @Nullable Map<String, String> params,
+            @Nullable PresenceRequiresCodec.Block requires) {
+        return of(kind, params, requires == null ? null
+                : GateSpec.of(requires.factorsOrEmpty(), null, null, null, null, null, null));
+    }
+
+    /** The row's own {@code Requires}, or null when it authors none (the row is on every server and pays everyone). */
+    @Nullable
+    public GateSpec requires() {
+        return gate;
+    }
+
+    /**
+     * The block's conditions in the old presence shape, derived from the block on each call.
+     *
+     * @deprecated a row's {@code Requires} is read whole now: {@link #requires()} is the block. Removed in a
+     *     later release.
+     */
+    @Deprecated(since = "2.6.0")
     @Nullable
     public PresenceRequiresCodec.Block getRequires() {
-        return requires;
+        return gate == null ? null : PresenceRequiresCodec.Block.of(gate.factorsOrEmpty());
+    }
+
+    /** The part of {@link #requires()} asked of the receiving player, lifted once; null when nothing is. */
+    @Nullable
+    public GateSpec liveRequires() {
+        GateSpec[] held = live;
+        if (held == null) {
+            held = new GateSpec[] {StoreGates.live(gate)};
+            live = held;
+        }
+        return held[0];
     }
 
     /** True when no kind is authored, so this entry can never pay anything out. */
@@ -145,7 +186,7 @@ public final class RewardEntryAsset {
      */
     @Nullable
     public String missingMod() {
-        return PresenceRequiresCodec.missingMod(requires);
+        return GateSpec.missingMod(gate);
     }
 
     /** Is this row on this server? False only when its own {@code Requires} names a mod that is missing. */
@@ -155,9 +196,8 @@ public final class RewardEntryAsset {
 
     /**
      * The engine's reward value. A blank kind yields null rather than an unpayable spec, and so does a row
-     * gated on a missing mod, which every payer and every reader of the folded rewards then leaves out. Every
-     * other condition of the row's {@code Requires} rides on the spec ({@link RewardSpec#conditions}), asked
-     * of the receiving player as it pays.
+     * gated on a missing mod, which every payer and every reader of the folded rewards then leaves out. The
+     * rest of the row's {@code Requires} rides the spec, asked of the receiving player when it pays.
      */
     @Nullable
     public RewardSpec toSpec() {
@@ -167,7 +207,23 @@ public final class RewardEntryAsset {
         RewardSpec spec = params == null || params.isEmpty()
                 ? RewardSpec.of(kind.trim())
                 : RewardSpec.of(kind.trim(), params);
-        return spec.withConditions(PresenceRequiresCodec.liveFactors(requires));
+        return spec.withRequires(liveRequires());
+    }
+
+    /**
+     * Do any of {@code rows} carry conditions beyond mod presence (a live {@code Requires})? What a store's
+     * fold reads to name, once, the files whose row conditions now apply ({@code StoreGates.reportWidened}).
+     */
+    public static boolean anyWidened(@Nullable RewardEntryAsset[] rows) {
+        if (rows == null) {
+            return false;
+        }
+        for (RewardEntryAsset row : rows) {
+            if (row != null && row.passesModGate() && row.liveRequires() != null) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

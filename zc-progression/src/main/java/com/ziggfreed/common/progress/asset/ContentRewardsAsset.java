@@ -121,6 +121,18 @@ public final class ContentRewardsAsset {
         RewardEntryAsset.collectMissingMods(rewards.claim, into);
     }
 
+    /**
+     * Add {@code id} to {@code into} when a row in either bucket of {@code rewards} gates on more than mod
+     * presence ({@link RewardEntryAsset#anyWidened}): what a store's fold names once, at INFO, through
+     * {@code StoreGates.reportWidened}. Nothing for null.
+     */
+    public static void collectWidened(@Nullable ContentRewardsAsset rewards, @Nonnull String id,
+            @Nonnull Collection<String> into) {
+        if (rewards != null && (RewardEntryAsset.anyWidened(rewards.auto) || RewardEntryAsset.anyWidened(rewards.claim))) {
+            into.add(id);
+        }
+    }
+
     @Nonnull
     private static List<RewardSpec> build(@Nullable RewardEntryAsset[] entries) {
         if (entries == null || entries.length == 0) {

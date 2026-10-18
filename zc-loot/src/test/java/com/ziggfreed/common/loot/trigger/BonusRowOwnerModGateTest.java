@@ -25,7 +25,7 @@ import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.assetstore.map.DefaultAssetMap;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.asset.AssetMergeAdapter;
-import com.ziggfreed.common.asset.PresenceRequiresCodec;
+import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.factor.ModGates;
 
 /**
@@ -91,7 +91,7 @@ class BonusRowOwnerModGateTest {
     /** The row store's load handler. */
     private void load() {
         BonusRowConfig.getInstance().mergePackLayer(AssetMergeAdapter.gate("BonusRows", packs,
-                r -> PresenceRequiresCodec.missingMod(r.getRequires())));
+                r -> GateSpec.missingMod(r.requires())));
         BonusRowOwnerLayers.reload();
     }
 
@@ -124,7 +124,7 @@ class BonusRowOwnerModGateTest {
 
         BonusRowAsset merged = BonusRowConfig.getInstance().resolve("harvest_geode");
         assertNotNull(merged, "the owner's entry is in force");
-        assertNotNull(merged.getRequires(), "with the gate it adds");
+        assertNotNull(merged.requires(), "with the gate it adds");
         BonusRow row = BonusRowConfig.getInstance().bestFor(BonusMoment.BREAK_BLOCK, "Rock_Geode_Cursed");
         assertNotNull(row, "and the pack's moment and pattern, which it left alone");
         assertEquals("harvest_geode", row.sourceId());

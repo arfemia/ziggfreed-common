@@ -2,6 +2,7 @@ package com.ziggfreed.common.loot;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -18,15 +19,14 @@ import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.factor.ModGates;
+import com.ziggfreed.common.progress.gate.GateRuntime;
 
 /**
- * A loot table honours its whole {@code Requires} where it pays: every condition but the plain mod-presence
- * gate (the fold's) goes in front of each roll and pool entry the table pays, through the moment's own
- * vocabulary. The enriched table keeps the base file's block through both rebuilds, a contributor's file and
- * a roll source included, which is the rebuild that drops leaves and has bitten before. A table asking only
- * for mod presence pays its authored instances untouched.
- *
- * <p>Fixture table, owner and item ids are this test's own.
+ * A loot table reads its whole {@code Requires} (R606): what is not plain mod presence is asked of the
+ * moment's player before any roll or pool entry of the table pays, and a lookup that can put no question
+ * refuses it. The enriched table keeps the base file's block through both rebuilds, a contributor's file and a
+ * roll source included, which is the rebuild that drops leaves and has bitten before. A table asking only for
+ * mod presence pays its authored rolls as they are.
  */
 class LootableRequiresTest {
 
@@ -43,19 +43,13 @@ class LootableRequiresTest {
     void tearDown() {
         LootableConfig.getInstance().unregisterRollSource(SOURCE_OWNER);
         LootableConfig.getInstance().mergePackLayer(Map.of());
+        GateRuntime.resetForTests();
         ModGates.useProbeForTests(null);
     }
 
     private static LootableAsset table(String json) throws IOException {
         return LootableAsset.CODEC.decodeAndInheritJsonAsset(RawJsonReader.fromJsonString(json), null,
                 new AssetExtraInfo<>(new AssetExtraInfo.Data(LootableAsset.class, TABLE, null)));
-    }
-
-    /** A moment whose own vocabulary reads the player's rank as {@code rank}, and nothing else. */
-    private static FactorSnapshot playerAt(double rank) {
-        FactorRegistry loot = new FactorRegistry("loot-requires-test");
-        loot.register(RANK, ctx -> rank);
-        return new FactorSnapshot(loot, FactorContext.builder().build());
     }
 
     private static boolean hits(Roll roll, FactorLookup lookup) {
@@ -72,18 +66,26 @@ class LootableRequiresTest {
         return out;
     }
 
-    @Test
-    void aTableGatedOnRankFivePaysAtSevenAndRefusesAtThree() throws IOException {
-        LootableAsset gated = table(GATED);
-        Roll roll = gated.payingRolls().get(0);
-        LootPool.Entry entry = gated.payingPool().get(0).getEntries()[0];
+    /** A moment whose own vocabulary reads the player's rank as {@code rank}. */
+    private static FactorSnapshot playerAt(double rank) {
+        FactorRegistry loot = new FactorRegistry("loot-test");
+        loot.register(RANK, ctx -> rank);
+        return new FactorSnapshot(loot, FactorContext.builder().build());
+    }
 
-        assertTrue(hits(roll, playerAt(7)), "rank 7 meets Min 5, and the mod-presence gate is the fold's");
-        assertFalse(hits(roll, playerAt(3)), "rank 3 is refused the table's roll");
+    @Test
+    void theTablesOwnConditionsDecideWhoItPays() throws IOException {
+        LootableAsset table = table(GATED);
+        Roll roll = table.payingRolls().get(0);
+        LootPool.Entry entry = table.payingPool().get(0).getEntries()[0];
+
+        assertTrue(RollEvaluator.evaluate(roll, playerAt(7), () -> 0.0).isHit());
+        assertFalse(RollEvaluator.evaluate(roll, playerAt(3), () -> 0.0).isHit(),
+                "a rank the table asks more than refuses its roll, where it used to pay");
         assertTrue(entry.isEligible(playerAt(7)));
-        assertFalse(entry.isEligible(playerAt(3)), "and kept out of the table's bag");
-        assertFalse(hits(roll, FactorLookup.none()), "a moment with nobody to ask refuses a gated table");
-        assertSame(gated.payingRolls(), gated.payingRolls(), "the gated copies are made once per table");
+        assertFalse(entry.isEligible(playerAt(3)), "and keeps its pool entries out of the bag");
+        assertFalse(RollEvaluator.evaluate(roll, FactorLookup.none(), () -> 0.0).isHit(),
+                "a lookup with nobody to ask refuses a gated table");
     }
 
     @Test
@@ -114,16 +116,27 @@ class LootableRequiresTest {
     }
 
     @Test
-    void aPresenceOnlyTablePaysItsAuthoredInstances() throws IOException {
+    void aTableAskingOnlyForModPresencePaysItsRollsAsAuthored() throws IOException {
         ModGates.useProbeForTests(param -> 1.0);
         LootableAsset table = table("{ \"Requires\": { \"Factors\": [ { \"Factor\": \"hytale:mod_installed\","
                 + " \"Param\": \"Yourgroup:Yourmod\", \"Min\": 1 } ] },"
                 + " \"Rolls\": [ { \"Grants\": { \"Items\": [ { \"Item\": \"Coin_Gold\" } ] } } ],"
                 + " \"Pool\": { \"Entries\": [ { \"Grants\": { \"Items\": [ { \"Item\": \"Gem_Ruby\" } ] } } ] } }");
 
-        assertSame(table.rollsOrEmpty().get(0), table.payingRolls().get(0), "nothing left to ask, so no copy");
-        assertSame(table.getPool(), table.payingPool().get(0));
-        assertTrue(hits(table.payingRolls().get(0), FactorLookup.none()));
+        assertNull(table.liveRequires(), "the fold decided presence; nothing is left to ask");
+        assertSame(table.rollsOrEmpty().get(0), table.payingRolls().get(0));
+        assertEquals(0, table.payingRolls().get(0).gates().length);
+        assertTrue(RollEvaluator.evaluate(table.payingRolls().get(0), FactorLookup.none(), () -> 0.0).isHit());
+        assertSame(table.getPool(), table.payingPool().get(0), "nothing left to ask, so no copy of the pool");
         assertTrue(table.payingPool().get(0).getEntries()[0].isEligible(FactorLookup.none()));
+    }
+
+    @Test
+    void theGatedCopiesAreMadeOncePerTable() throws IOException {
+        LootableAsset table = table(GATED);
+        List<Roll> first = table.payingRolls();
+
+        assertSame(first, table.payingRolls(), "a hot table pays no copy per pass");
+        assertEquals(1, first.get(0).gates().length);
     }
 }

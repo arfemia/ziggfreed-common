@@ -16,6 +16,8 @@ import com.ziggfreed.common.asset.PresenceRequiresCodec;
 import com.ziggfreed.common.asset.SeasonLeaf;
 import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.loot.LootRef;
+import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.progress.gate.StoreGates;
 import com.ziggfreed.common.season.SeasonGate;
 
 /**
@@ -33,8 +35,8 @@ import com.ziggfreed.common.season.SeasonGate;
  * }
  * }</pre>
  *
- * <p>A row fires on every matching moment with no gate but its own {@code Requires}: any block a player
- * breaks that they did not place, any kill credited to a player, any item a player harvests by hand. Where several
+ * <p>A row fires on every matching moment with no other gate: any block a player breaks that they
+ * did not place, any kill credited to a player, any item a player harvests by hand. Where several
  * rows match one name the one pinning down the most characters wins; a calendar event's run is the
  * row's own {@code Season}; anything else more selective than a name (a skill, a held tool) belongs in
  * a roll's own {@code Conditions}. A row with no {@code Loot} is a deliberate hole that stops a
@@ -55,7 +57,9 @@ public final class BonusRowAsset implements JsonAssetWithMap<String, DefaultAsse
     @Nullable private LootRef loot;
     @Nullable private Boolean enabled;
     @Nullable private String season;
-    @Nullable private PresenceRequiresCodec.Block requires;
+    @Nullable private GateSpec requires;
+    /** The live part of {@link #requires}, lifted once per instance ({@link StoreGates#live}). */
+    @Nullable private volatile GateSpec[] live;
 
     /** WHEN the row fires: the moment, and which block, mob or item within it. */
     public static final class When {
@@ -143,9 +147,9 @@ public final class BonusRowAsset implements JsonAssetWithMap<String, DefaultAsse
             .documentation("Set false to take this row out of the table entirely, which lets a broader "
                     + "pattern cover the same names again. To keep the row but hand nothing over, leave it "
                     + "on and write no Loot.").add()
-            .appendInherited(new KeyedCodec<>("Requires", PresenceRequiresCodec.CODEC, false),
+            .appendInherited(new KeyedCodec<>("Requires", GateSpec.CODEC, false),
                     (a, v) -> a.requires = v, a -> a.requires, (a, p) -> a.requires = p.requires)
-            .documentation(PresenceRequiresCodec.DOCUMENTATION).add(),
+            .documentation(StoreGates.DOCUMENTATION).add(),
                     (a, v) -> a.season = v, a -> a.season)
             .build();
 
@@ -215,10 +219,33 @@ public final class BonusRowAsset implements JsonAssetWithMap<String, DefaultAsse
     /**
      * What a player must meet for this row to pay, or null when it authors none: its plain mod-presence
      * condition decides whether the row loads at all, and every other condition is asked of the player the
-     * moment fires for, before its chance (zc-objectives' {@code BonusRowReactions}).
+     * moment fires for ({@link #liveRequires}).
      */
     @Nullable
-    public PresenceRequiresCodec.Block getRequires() {
+    public GateSpec requires() {
         return requires;
+    }
+
+    /**
+     * The block's conditions in the old presence shape.
+     *
+     * @deprecated this row's {@code Requires} is read whole now: {@link #requires()} is the block. Removed in
+     *     a later release.
+     */
+    @Deprecated(since = "2.6.0")
+    @Nullable
+    public PresenceRequiresCodec.Block getRequires() {
+        return requires == null ? null : PresenceRequiresCodec.Block.of(requires.factorsOrEmpty());
+    }
+
+    /** The part of {@link #requires()} asked of the player per moment, lifted once; null when nothing is. */
+    @Nullable
+    public GateSpec liveRequires() {
+        GateSpec[] held = live;
+        if (held == null) {
+            held = new GateSpec[] {StoreGates.live(requires)};
+            live = held;
+        }
+        return held[0];
     }
 }

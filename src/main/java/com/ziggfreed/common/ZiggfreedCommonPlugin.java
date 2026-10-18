@@ -33,6 +33,7 @@ import com.ziggfreed.common.commerce.fold.CurrencyRewardKind;
 import com.ziggfreed.common.commerce.page.CommercePages;
 import com.ziggfreed.common.commerce.page.CurrencyChipReading;
 import com.ziggfreed.common.commerce.page.CommerceStepIcons;
+import com.ziggfreed.common.progress.gate.GateBootstrap;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.currency.asset.CurrencyConfig;
 import com.ziggfreed.common.effect.NativeEffectUtil;
@@ -125,7 +126,7 @@ import com.ziggfreed.common.world.stash.BlockStashBootstrap;
  *
  * <p>The static primitives register nothing (a consumer calls them directly), and the library's own
  * registrations live in per-module bootstraps this class calls in one authoritative order:
- * {@code EntityBootstrap} (zc-entity), {@code NpcBootstrap} (zc-dialogue),
+ * {@code GateBootstrap} (zc-core), {@code EntityBootstrap} (zc-entity), {@code NpcBootstrap} (zc-dialogue),
  * {@code PlacedBlockBootstrap} + {@code BlockStashBootstrap} + {@code BlockRulesBootstrap} (zc-world), {@code CalendarBootstrap}
  * (zc-calendar), {@code ProgressionBootstrap} + {@code DialogueBootstrap} + {@code BonusRowBootstrap}
  * + {@code CalendarSweepBootstrap} + {@code ObjectiveBookBootstrap} (zc-objectives), and
@@ -211,6 +212,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         FrameworkAssetRegistrar.registerAll(this);
 
         registerEditorDataSets();
+        // The gate epochs a kept requirement verdict is checked against: the boot that starts keeping, a
+        // departing player, every permission change.
+        GateBootstrap.install(this);
         registerLootVocabulary();
         registerLootCommand();
         registerCommerce();

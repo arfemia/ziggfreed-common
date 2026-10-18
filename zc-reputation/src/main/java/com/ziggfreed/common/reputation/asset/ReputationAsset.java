@@ -295,6 +295,11 @@ public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAs
         RewardEntryAsset.collectMissingMods(beyond == null ? null : beyond.rewards, into);
     }
 
+    /** Does a Beyond reward row gate on more than mod presence (a live {@code Requires})? */
+    public boolean widensRows() {
+        return RewardEntryAsset.anyWidened(beyond == null ? null : beyond.rewards);
+    }
+
     @Nullable
     static String blankToNull(@Nullable String value) {
         return value == null || value.isBlank() ? null : value.trim();

@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -11,9 +12,14 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.factor.FactorCondition;
-import com.ziggfreed.common.factor.FactorConditions;
 import com.ziggfreed.common.factor.FactorContext;
+import com.ziggfreed.common.factor.FactorProvider;
 import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
@@ -22,7 +28,7 @@ import com.ziggfreed.common.util.SafeLog;
  * Answers an authored {@code Requires} block for one subject: factor bounds, a permission, a
  * finished-content list, and whatever requirement kinds a consumer registered.
  *
- * <p>ONE evaluator behind every gated thing in this module, so a requirement written on one kind of
+ * <p>ONE evaluator behind every gated thing on the server, so a requirement written on one kind of
  * content means exactly what it means on the next.
  *
  * <p>Everything is wired at setup, and every unwired seam REFUSES rather than passing. That
@@ -30,37 +36,41 @@ import com.ziggfreed.common.util.SafeLog;
  * dependency hands out content the author gated. Content that authors no requirements needs no
  * wiring at all and is open to everyone.
  *
- * <p>A server has exactly one, {@code ProgressionGates.evaluator()} in {@code progress/runtime}, built over the
- * shared runtime's live factor vocabulary, factor context and gate kinds. A mod feeds it by registering into the
- * runtime at setup, never by building a second one:
+ * <p>A server has exactly one, {@link GateRuntime#evaluator()}, built over live seams: the factor vocabulary
+ * (by default every contributed and file-defined factor), the subject's factor context (by default its live
+ * player) and the registered requirement kinds. zc-progression's {@code ProgressionGates} fills those seams with
+ * the shared progression runtime's parts and the completion probe, and answers the same instance, so a mod
+ * feeds it by registering into the runtime at setup, never by building a second one:
  * <pre>{@code
  * ProgressionRuntime.registrar("yourmod")
  *         .factors(myFactorRegistry)
  *         .questFactorContext(subject -> FactorContext.builder()
  *                 .store(storeOf(subject)).subject(refOf(subject)).build());
  * ProgressionRuntime.gateKinds().register("yourmod:reputation", "yourmod", myGateKind);
- * GateEvaluator gates = ProgressionGates.evaluator();
+ * GateEvaluator gates = GateRuntime.evaluator();
  * }</pre>
  * {@link #builder()} is only for a unit test or a genuinely private evaluator.
  *
  * <p><b>A {@code Permission} leaf is a factor bound spelled short</b>, resolved as
  * {@code {"Factor": "hytale:permission", "Param": <node>, "Min": 1}} through the very same registry
  * lookup every other factor condition takes. So there is nothing to wire for it beyond the factor
- * vocabulary itself, and one permission question has one answer however content spells it. Register
- * the portable {@code hytale:} standard library into the registry handed to {@link Builder#factors}
- * and give {@link Builder#factorContext} a context carrying the player, and the leaf works.
+ * vocabulary itself, and one permission question has one answer however content spells it.
  *
  * <p>A refusal is an opaque REASON TOKEN naming what shut the gate ({@code "factor:yourmod:rank"},
  * {@code "permission"}, {@code "quest:intro_1"}, {@code "gate:yourmod:reputation"},
- * {@code "any_of"}, {@code "not"}), never a sentence: turning one into text a player reads is the
- * consumer's job.
+ * {@code "any_of"}, {@code "not"}), never a sentence: turning one into text a player reads is
+ * {@link RefusalLines}' job.
  *
- * <p>There are TWO ways to ask. {@link #passes} and {@link #firstFailure} short-circuit at the first
- * unmet requirement, which is what a per-row boolean check in a loop wants. {@link #allFailures}
- * walks the whole block and reports every unmet requirement, which is what a detail panel listing
- * what still stands between a player and the content wants. A {@code factor:} token from the
- * collect-all walk carries the condition's {@code Param} after an {@code @} when one is authored
- * ({@code "factor:yourmod:stat@mining"}), so two bounds on the SAME factor id stay two
+ * <p>There are THREE ways to ask. {@link #passes} and {@link #firstFailure} short-circuit at the first
+ * unmet requirement, which is what a per-row boolean check in a loop wants. {@link #allFailures} and
+ * {@link #allRefusals} walk the whole block and report every unmet requirement, which is what a detail panel
+ * listing what still stands between a player and the content wants. {@link #check} asks with a
+ * {@link GateQuery} (a moment's held item, item, target and block, an optional local vocabulary) through the
+ * block's {@link CompiledGate}: its factor providers looked up once and kept while the vocabulary generation
+ * stands, and its verdict kept between asks where every reading in it is declared {@code Server} or
+ * {@code Player} ({@code Volatility} in its Factors file); {@link #refusals} is that question's full list. A
+ * {@code factor:} token from a collect-all walk carries the condition's {@code Param} after an {@code @} when
+ * one is authored ({@code "factor:yourmod:stat@mining"}), so two bounds on the SAME factor id stay two
  * distinguishable answers.
  */
 public final class GateEvaluator {
@@ -106,6 +116,9 @@ public final class GateEvaluator {
     /** The bound a {@code Permission} leaf carries: the node is held, or it is not. */
     private static final Double MUST_HOLD = Double.valueOf(1.0);
 
+    /** The id a subject with nobody behind it carries; never kept against. */
+    private static final UUID NOBODY = new UUID(0L, 0L);
+
     /** Answers "has this player finished this quest?". */
     @FunctionalInterface
     public interface CompletionProbe {
@@ -134,7 +147,6 @@ public final class GateEvaluator {
     private volatile CompletionProbe completion;
     private final Supplier<GateKindRegistry> gateKinds;
     private final Consumer<String> warn;
-    private final GateKind.GateSupport support;
 
     private GateEvaluator(@Nonnull Builder b) {
         this.factors = b.factors;
@@ -142,7 +154,6 @@ public final class GateEvaluator {
         this.completion = b.completion;
         this.gateKinds = b.gateKinds;
         this.warn = b.warn;
-        this.support = (subject, conditions) -> factorsPass(subject, conditions);
     }
 
     /**
@@ -168,6 +179,14 @@ public final class GateEvaluator {
         this.completion = completion;
     }
 
+    /** The factor vocabulary this evaluator reads right now, or null when none is wired (every bound refuses). */
+    @Nullable
+    FactorRegistry vocabulary() {
+        return factors.get();
+    }
+
+    // ==================== asking about a subject ====================
+
     /** Does {@code subject} satisfy {@code spec}? A null or empty block passes. */
     public boolean passes(@Nonnull Subject subject, @Nullable GateSpec spec) {
         return firstFailure(subject, spec) == null;
@@ -180,89 +199,7 @@ public final class GateEvaluator {
      */
     @Nullable
     public String firstFailure(@Nonnull Subject subject, @Nullable GateSpec spec) {
-        if (spec == null) {
-            return null;
-        }
-        String failure = clauseFailure(subject, spec);
-        if (failure != null) {
-            return failure;
-        }
-        for (GateClause clause : spec.allOfOrEmpty()) {
-            failure = clauseFailure(subject, clause);
-            if (failure != null) {
-                return failure;
-            }
-        }
-        // A Not group shuts the gate by PASSING. An empty group passes for everyone, so a Not on
-        // one shuts the content for everyone - deliberate, and the validator is what warns about it.
-        for (GateClause clause : spec.notOrEmpty()) {
-            if (clause != null && clauseFailure(subject, clause) == null) {
-                return REASON_NOT;
-            }
-        }
-        GateClause[] anyOf = spec.anyOfOrEmpty();
-        if (anyOf.length == 0) {
-            return null;
-        }
-        for (GateClause clause : anyOf) {
-            if (clauseFailure(subject, clause) == null) {
-                return null;
-            }
-        }
-        return REASON_ANY_OF;
-    }
-
-    /** Every requirement in ONE group, in leaf order. */
-    @Nullable
-    private String clauseFailure(@Nonnull Subject subject, @Nullable GateClause clause) {
-        if (clause == null || clause.isEmpty()) {
-            return null;
-        }
-
-        FactorCondition[] conditions = clause.factorsOrEmpty();
-        if (conditions.length > 0) {
-            FactorRegistry vocabulary = factors.get();
-            if (vocabulary == null) {
-                return REASON_FACTOR + firstFactorId(conditions);
-            }
-            String failed = FactorConditions.firstFailure(conditions, vocabulary, contextFor(subject));
-            if (failed != null) {
-                return REASON_FACTOR + failed;
-            }
-        }
-
-        // The leaf IS the factor: same registry, same context, same fail-closed rules. The refusal
-        // still names the leaf, because that is what the author wrote and what they can go and fix.
-        String permission = clause.getPermission();
-        if (permission != null && !factorsPass(subject, List.of(permissionCondition(permission)))) {
-            return REASON_PERMISSION;
-        }
-
-        for (String questId : clause.questsOrEmpty()) {
-            if (questId != null && !questId.isBlank() && !completion.hasCompleted(subject, questId.trim())) {
-                return REASON_QUEST + questId.trim();
-            }
-        }
-
-        GateKindRegistry kinds = gateKinds();
-        for (Map.Entry<String, Map<String, String>> entry : clause.customOrEmpty().entrySet()) {
-            String kindId = entry.getKey();
-            GateKind kind = kinds.kind(kindId);
-            if (kind == null) {
-                return REASON_CUSTOM + kindId;
-            }
-            Map<String, String> params = entry.getValue() == null ? Map.of() : entry.getValue();
-            try {
-                if (!kind.passes(subject, params, support)) {
-                    return REASON_CUSTOM + kindId;
-                }
-            } catch (Exception e) {
-                kinds.recordFailure(kindId, e.getMessage());
-                warn.accept("requirement kind '" + kindId + "' threw, so the gate stays shut: " + e.getMessage());
-                return REASON_CUSTOM + kindId;
-            }
-        }
-        return null;
+        return spec == null ? null : firstFailure(spec, about(subject));
     }
 
     /**
@@ -285,15 +222,7 @@ public final class GateEvaluator {
      */
     @Nonnull
     public List<String> allFailures(@Nonnull Subject subject, @Nullable GateSpec spec) {
-        List<GateRefusal> refusals = allRefusals(subject, spec);
-        if (refusals.isEmpty()) {
-            return List.of();
-        }
-        List<String> failures = new ArrayList<>(refusals.size());
-        for (GateRefusal refusal : refusals) {
-            failures.add(refusal.token());
-        }
-        return failures;
+        return tokensOf(allRefusals(subject, spec));
     }
 
     /**
@@ -315,18 +244,152 @@ public final class GateEvaluator {
      */
     @Nonnull
     public List<GateRefusal> allRefusals(@Nonnull Subject subject, @Nullable GateSpec spec) {
+        return spec == null ? List.of() : allRefusals(spec, about(subject));
+    }
+
+    /** The shared factor answer, also handed to every desugaring requirement kind. */
+    public boolean factorsPass(@Nonnull Subject subject, @Nullable List<FactorCondition> conditions) {
+        return about(subject).factorsPass(subject, conditions);
+    }
+
+    // ==================== asking with a query ====================
+
+    /**
+     * Does the block pass for {@code query}, and if not, what shut it first: the same walk and token as
+     * {@link #firstFailure}, through the block's {@link CompiledGate} (providers resolved once, the verdict kept
+     * between asks where every reading is {@code Server} or {@code Player}). A null or empty block passes.
+     */
+    @Nonnull
+    public GateVerdict check(@Nullable GateSpec spec, @Nonnull GateQuery query) {
+        if (spec == null || spec.isEmpty()) {
+            return GateVerdict.PASS;
+        }
+        return compile(spec).check(spec, query);
+    }
+
+    /** Every unmet requirement for {@code query}, as {@link #allRefusals} answers for a subject. Never kept. */
+    @Nonnull
+    public List<GateRefusal> refusals(@Nullable GateSpec spec, @Nonnull GateQuery query) {
         if (spec == null) {
             return List.of();
         }
-        List<GateRefusal> refusals = new ArrayList<>();
-        clauseRefusals(subject, spec, refusals);
+        return allRefusals(spec, ask(query, null));
+    }
+
+    /**
+     * The compiled form of {@code spec} for this evaluator, made once and kept on the block itself, so a hot
+     * path asking {@link #check} pays for no lookup of its own.
+     */
+    @Nonnull
+    CompiledGate compile(@Nonnull GateSpec spec) {
+        CompiledGate held = spec.compiled;
+        if (held != null && held.owner() == this) {
+            return held;
+        }
+        CompiledGate made = new CompiledGate(this);
+        spec.compiled = made;
+        return made;
+    }
+
+    /** One question about a subject, read through this evaluator's own context seam. */
+    @Nonnull
+    private Ask about(@Nonnull Subject subject) {
+        return new Ask(GateQuery.of(subject), subject, null);
+    }
+
+    /** One question as a query, reading through {@code providers} where a compiled gate supplies them. */
+    @Nonnull
+    Ask ask(@Nonnull GateQuery query, @Nullable Map<FactorCondition, FactorProvider> providers) {
+        return new Ask(query, query.subject(), providers);
+    }
+
+    // ==================== the walks ====================
+
+    /** The short-circuit walk over a whole block. */
+    @Nullable
+    String firstFailure(@Nonnull GateSpec spec, @Nonnull Ask ask) {
+        String failure = clauseFailure(spec, ask);
+        if (failure != null) {
+            return failure;
+        }
         for (GateClause clause : spec.allOfOrEmpty()) {
-            clauseRefusals(subject, clause, refusals);
+            failure = clauseFailure(clause, ask);
+            if (failure != null) {
+                return failure;
+            }
+        }
+        // A Not group shuts the gate by PASSING. An empty group passes for everyone, so a Not on
+        // one shuts the content for everyone - deliberate, and the validator is what warns about it.
+        for (GateClause clause : spec.notOrEmpty()) {
+            if (clause != null && clauseFailure(clause, ask) == null) {
+                return REASON_NOT;
+            }
+        }
+        GateClause[] anyOf = spec.anyOfOrEmpty();
+        if (anyOf.length == 0) {
+            return null;
+        }
+        for (GateClause clause : anyOf) {
+            if (clauseFailure(clause, ask) == null) {
+                return null;
+            }
+        }
+        return REASON_ANY_OF;
+    }
+
+    /** Every requirement in ONE group, in leaf order. */
+    @Nullable
+    private String clauseFailure(@Nullable GateClause clause, @Nonnull Ask ask) {
+        if (clause == null || clause.isEmpty()) {
+            return null;
+        }
+
+        FactorCondition[] conditions = clause.factorsOrEmpty();
+        if (conditions.length > 0) {
+            if (ask.vocabulary == null) {
+                return REASON_FACTOR + firstFactorId(conditions);
+            }
+            for (FactorCondition condition : conditions) {
+                if (condition != null && !condition.isBlank() && !condition.accepts(ask.read(condition))) {
+                    return REASON_FACTOR + condition.getFactor();
+                }
+            }
+        }
+
+        // The leaf IS the factor: same registry, same context, same fail-closed rules. The refusal
+        // still names the leaf, because that is what the author wrote and what they can go and fix.
+        String permission = clause.getPermission();
+        if (permission != null && !ask.allPass(List.of(permissionCondition(permission)))) {
+            return REASON_PERMISSION;
+        }
+
+        for (String questId : clause.questsOrEmpty()) {
+            if (questId != null && !questId.isBlank() && !ask.completed(questId.trim())) {
+                return REASON_QUEST + questId.trim();
+            }
+        }
+
+        GateKindRegistry kinds = gateKinds();
+        for (Map.Entry<String, Map<String, String>> entry : clause.customOrEmpty().entrySet()) {
+            if (!ask.kindPasses(kinds, entry.getKey(), entry.getValue())) {
+                return REASON_CUSTOM + entry.getKey();
+            }
+        }
+        return null;
+    }
+
+    /** The collect-all walk over a whole block. */
+    @Nonnull
+    private List<GateRefusal> allRefusals(@Nonnull GateSpec spec, @Nonnull Ask ask) {
+        List<GateRefusal> refusals = new ArrayList<>();
+        clauseRefusals(spec, ask, refusals);
+        for (GateClause clause : spec.allOfOrEmpty()) {
+            clauseRefusals(clause, ask, refusals);
         }
         // A Not group shuts the gate by PASSING, exactly as in the short-circuit walk. Its record
         // carries what the group asks for - the met requirements standing in the way.
         for (GateClause clause : spec.notOrEmpty()) {
-            if (clause != null && clauseFailure(subject, clause) == null) {
+            if (clause != null && clauseFailure(clause, ask) == null) {
                 refusals.add(GateRefusal.not(asksOf(clause)));
             }
         }
@@ -335,7 +398,7 @@ public final class GateEvaluator {
             return refusals;
         }
         for (GateClause clause : anyOf) {
-            if (clauseFailure(subject, clause) == null) {
+            if (clauseFailure(clause, ask) == null) {
                 return refusals;
             }
         }
@@ -397,16 +460,14 @@ public final class GateEvaluator {
     }
 
     /** Every unmet requirement in ONE group, in leaf order, appended to {@code out}. */
-    private void clauseRefusals(@Nonnull Subject subject, @Nullable GateClause clause,
-            @Nonnull List<GateRefusal> out) {
+    private void clauseRefusals(@Nullable GateClause clause, @Nonnull Ask ask, @Nonnull List<GateRefusal> out) {
         if (clause == null || clause.isEmpty()) {
             return;
         }
 
         FactorCondition[] conditions = clause.factorsOrEmpty();
         if (conditions.length > 0) {
-            FactorRegistry vocabulary = factors.get();
-            if (vocabulary == null) {
+            if (ask.vocabulary == null) {
                 // No vocabulary wired: every bound refuses, exactly as the short-circuit walk fails
                 // closed, and each one is named so the answer stays the whole list.
                 int before = out.size();
@@ -425,44 +486,34 @@ public final class GateEvaluator {
                 // custom leaves would report requirements that were never evaluated at all, and
                 // would run every registered kind on a server whose vocabulary is not even wired.
                 return;
-            } else {
-                for (FactorConditions.Failure failure
-                        : FactorConditions.allFailuresResolved(conditions, vocabulary, contextFor(subject))) {
-                    FactorCondition condition = failure.condition();
+            }
+            for (FactorCondition condition : conditions) {
+                if (condition == null || condition.isBlank()) {
+                    continue;
+                }
+                Double reading = ask.read(condition);
+                if (!condition.accepts(reading)) {
                     out.add(GateRefusal.factor(condition.getFactor(), condition.getParam(),
-                            condition.getMin(), condition.getMax(), failure.resolved()));
+                            condition.getMin(), condition.getMax(), reading));
                 }
             }
         }
 
         String permission = clause.getPermission();
-        if (permission != null && !factorsPass(subject, List.of(permissionCondition(permission)))) {
+        if (permission != null && !ask.allPass(List.of(permissionCondition(permission)))) {
             out.add(GateRefusal.PERMISSION);
         }
 
         for (String questId : clause.questsOrEmpty()) {
-            if (questId != null && !questId.isBlank() && !completion.hasCompleted(subject, questId.trim())) {
+            if (questId != null && !questId.isBlank() && !ask.completed(questId.trim())) {
                 out.add(GateRefusal.quest(questId.trim()));
             }
         }
 
         GateKindRegistry kinds = gateKinds();
         for (Map.Entry<String, Map<String, String>> entry : clause.customOrEmpty().entrySet()) {
-            String kindId = entry.getKey();
-            GateKind kind = kinds.kind(kindId);
-            if (kind == null) {
-                out.add(GateRefusal.custom(kindId));
-                continue;
-            }
-            Map<String, String> params = entry.getValue() == null ? Map.of() : entry.getValue();
-            try {
-                if (!kind.passes(subject, params, support)) {
-                    out.add(GateRefusal.custom(kindId));
-                }
-            } catch (Exception e) {
-                kinds.recordFailure(kindId, e.getMessage());
-                warn.accept("requirement kind '" + kindId + "' threw, so the gate stays shut: " + e.getMessage());
-                out.add(GateRefusal.custom(kindId));
+            if (!ask.kindPasses(kinds, entry.getKey(), entry.getValue())) {
+                out.add(GateRefusal.custom(entry.getKey()));
             }
         }
     }
@@ -474,19 +525,16 @@ public final class GateEvaluator {
                 condition.getMin(), condition.getMax());
     }
 
-    /** The shared factor answer, also handed to every desugaring requirement kind. */
-    public boolean factorsPass(@Nonnull Subject subject, @Nullable List<FactorCondition> conditions) {
-        if (conditions == null || conditions.isEmpty()) {
-            return true;
-        }
-        FactorRegistry vocabulary = factors.get();
-        return vocabulary != null && FactorConditions.pass(conditions, vocabulary, contextFor(subject));
-    }
-
     @Nonnull
-    private FactorContext contextFor(@Nonnull Subject subject) {
-        FactorContext ctx = factorContext.apply(subject);
-        return ctx == null ? FactorContext.builder().build() : ctx;
+    private static List<String> tokensOf(@Nonnull List<GateRefusal> refusals) {
+        if (refusals.isEmpty()) {
+            return List.of();
+        }
+        List<String> failures = new ArrayList<>(refusals.size());
+        for (GateRefusal refusal : refusals) {
+            failures.add(refusal.token());
+        }
+        return failures;
     }
 
     @Nonnull
@@ -497,6 +545,163 @@ public final class GateEvaluator {
                 .findFirst()
                 .orElse("");
     }
+
+    // ==================== one question ====================
+
+    /**
+     * One question being answered: who it is about, the context its readings take (built once, on first
+     * need), the vocabulary read when it began, and the compiled providers a {@link CompiledGate} hands in.
+     * It is also the factor seam a {@code Custom} kind is handed, so a desugaring kind reads the same moment.
+     */
+    final class Ask implements GateKind.GateSupport {
+
+        @Nonnull private final GateQuery query;
+        @Nullable private Subject subject;
+        private boolean subjectRead;
+        @Nullable private FactorContext ctx;
+        @Nullable final FactorRegistry vocabulary;
+        @Nullable private final FactorRegistry local;
+        @Nullable private final Map<FactorCondition, FactorProvider> providers;
+
+        private Ask(@Nonnull GateQuery query, @Nullable Subject subject,
+                @Nullable Map<FactorCondition, FactorProvider> providers) {
+            this.query = query;
+            this.subject = subject;
+            this.subjectRead = subject != null;
+            this.vocabulary = factors.get();
+            this.local = query.local();
+            this.providers = providers;
+        }
+
+        /** The context every reading takes: the query's own, else the subject's, with the moment's leaves laid over. */
+        @Nonnull
+        FactorContext context() {
+            FactorContext built = ctx;
+            if (built == null) {
+                FactorContext base = query.context();
+                if (base == null) {
+                    Subject who = query.subject();
+                    base = who == null ? null : factorContext.apply(who);
+                }
+                built = query.over(base == null ? FactorContext.builder().build() : base);
+                ctx = built;
+            }
+            return built;
+        }
+
+        /** Who the question is about: the query's subject, else the context's player; null for nobody. */
+        @Nullable
+        Subject subject() {
+            if (!subjectRead) {
+                subjectRead = true;
+                subject = playerOf(context());
+            }
+            return subject;
+        }
+
+        /** The id a kept verdict is filed under, or null when there is nobody to keep it for. */
+        @Nullable
+        UUID subjectId() {
+            Subject who = subject();
+            return who == null || NOBODY.equals(who.id()) ? null : who.id();
+        }
+
+        /** True when the question carries a local vocabulary, whose readings belong to its moment. */
+        boolean hasLocal() {
+            return local != null;
+        }
+
+        /** One condition's reading: the local vocabulary for its own ids, a compiled provider, else the vocabulary. */
+        @Nullable
+        Double read(@Nonnull FactorCondition condition) {
+            String id = condition.getFactor();
+            FactorContext scoped = context().withParam(condition.getParam());
+            if (local != null && local.answersLocally(id)) {
+                return local.resolve(id, scoped);
+            }
+            FactorRegistry vocab = vocabulary;
+            if (vocab == null) {
+                return null;
+            }
+            if (providers != null && providers.containsKey(condition)) {
+                FactorProvider provider = providers.get(condition);
+                if (provider == null) {
+                    return null;
+                }
+                try {
+                    Double value = provider.resolve(scoped);
+                    return value != null && Double.isFinite(value) ? value : null;
+                } catch (Throwable t) {
+                    // The vocabulary counts and warns a throwing provider; asking it is how this one is.
+                    return vocab.resolve(id, scoped);
+                }
+            }
+            return vocab.resolve(id, scoped);
+        }
+
+        /** Do ALL of {@code conditions} pass? False with no vocabulary; an empty list passes. */
+        boolean allPass(@Nullable List<FactorCondition> conditions) {
+            if (conditions == null || conditions.isEmpty()) {
+                return true;
+            }
+            if (vocabulary == null) {
+                return false;
+            }
+            for (FactorCondition condition : conditions) {
+                if (condition != null && !condition.isBlank() && !condition.accepts(read(condition))) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        @Override
+        public boolean factorsPass(@Nonnull Subject who, @Nonnull List<FactorCondition> conditions) {
+            return allPass(conditions);
+        }
+
+        /** Has the subject finished {@code questId}? Nobody to ask refuses. */
+        boolean completed(@Nonnull String questId) {
+            Subject who = subject();
+            return who != null && completion.hasCompleted(who, questId);
+        }
+
+        /** Does the registered kind {@code kindId} pass? Unregistered, throwing, or nobody to ask refuses. */
+        boolean kindPasses(@Nonnull GateKindRegistry kinds, @Nonnull String kindId,
+                @Nullable Map<String, String> authored) {
+            GateKind kind = kinds.kind(kindId);
+            Subject who = subject();
+            if (kind == null || who == null) {
+                return false;
+            }
+            Map<String, String> params = authored == null ? Map.of() : authored;
+            try {
+                return kind.passes(who, params, this);
+            } catch (Exception e) {
+                kinds.recordFailure(kindId, e.getMessage());
+                warn.accept("requirement kind '" + kindId + "' threw, so the gate stays shut: " + e.getMessage());
+                return false;
+            }
+        }
+    }
+
+    /** The subject for a context's live player, or null when it carries none. */
+    @Nullable
+    private static Subject playerOf(@Nonnull FactorContext ctx) {
+        try {
+            Store<EntityStore> store = ctx.store();
+            Ref<EntityStore> ref = ctx.subject();
+            if (store == null || ref == null || !ref.isValid()) {
+                return null;
+            }
+            return Subject.of(store.getComponent(ref, PlayerRef.getComponentType()),
+                    store.getComponent(ref, Player.getComponentType()));
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    // ==================== building ====================
 
     @Nonnull
     public static Builder builder() {
@@ -551,7 +756,10 @@ public final class GateEvaluator {
          */
         @Nonnull
         public Builder factorContext(@Nonnull Function<Subject, FactorContext> factorContext) {
-            this.factorContext = factorContext;
+            this.factorContext = subject -> {
+                FactorContext ctx = factorContext.apply(subject);
+                return ctx == null ? FactorContext.builder().build() : ctx;
+            };
             return this;
         }
 

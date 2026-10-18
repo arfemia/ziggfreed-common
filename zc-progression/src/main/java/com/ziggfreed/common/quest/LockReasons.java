@@ -4,26 +4,28 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.Message;
 
-import com.ziggfreed.common.factor.FactorNames;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.progress.gate.GateEvaluator;
 import com.ziggfreed.common.progress.gate.GateRefusal;
+import com.ziggfreed.common.progress.gate.RefusalLines;
 import com.ziggfreed.common.progress.runtime.ProgressionFactors;
 import com.ziggfreed.common.progress.runtime.ProgressionTexts;
-import com.ziggfreed.common.util.NumberFormatter;
 
 /**
- * The ONE mapping from refusal tokens (and their structured records) to the lines a player reads,
- * shared by every surface that has to explain why content is out of reach - the objective book, a
- * character's offer page, the commerce screens - so no two of them can disagree about the same
- * gate.
+ * The quest engine's family of refusal lines over zc-core's one mapping ({@link RefusalLines}), shared by
+ * every surface that has to explain why content is out of reach - the objective book, a character's offer
+ * page, the commerce screens - so no two of them can disagree about the same gate. The requirement
+ * evaluator's own tokens and records read through {@link RefusalLines} (its default family); this class adds
+ * the engine's flat tokens ({@link QuestGates}) and the clock, and fills {@link RefusalLines}' two seams for
+ * this module's content: a quest or achievement title ({@link ProgressionTexts}) and the two membership
+ * factors ({@code quest_completed}, {@code achievement_earned}). {@link #install} registers all of it, once
+ * and again after a reset; the class does so on first use.
  *
  * <p>Tokens come in two families. The engine's own flat tokens ({@link QuestGates}) each map to a
  * fixed line - every one of them, so a daily finished today reads "Comes back in 5h 12m" and a
@@ -39,7 +41,7 @@ import com.ziggfreed.common.util.NumberFormatter;
  * ({@link GateEvaluator}) are STRUCTURED - {@code
  * quest:<id>}, {@code factor:<id>}, {@code gate:<kind>} - and several render as the actual ask
  * rather than being discarded: a quest requirement names the quest ("Complete quest: X"), and a
- * FACTOR requirement whose factor has a naming overlay ({@link FactorNames}, the
+ * FACTOR requirement whose factor has a naming overlay (the
  * {@code Server/ZiggfreedCommon/Factors/} assets) names the factor - with its bound, when the
  * caller holds the {@link GateRefusal} record that carries one, and with the "(currently N)"
  * readout when that record also carries the value the evaluation resolved. The two membership
@@ -64,7 +66,51 @@ import com.ziggfreed.common.util.NumberFormatter;
  */
 public final class LockReasons {
 
+    /** The engine's flat tokens, each its own sentence (the clock ones in their no-clock form). */
+    private static final List<String> ENGINE_TOKENS = List.of(QuestGates.REASON_UNAVAILABLE,
+            QuestGates.REASON_ON_COOLDOWN, QuestGates.REASON_PERIOD_SPENT, QuestGates.REASON_RUN_SPENT,
+            QuestGates.REASON_MAX_COMPLETIONS, QuestGates.REASON_ALREADY_STARTED, QuestGates.REASON_SYSTEM_DISABLED,
+            QuestGates.REASON_PREREQUISITES, QuestGates.REASON_LOG_FULL);
+
+    /** The owner this family is registered under. */
+    private static final String OWNER = "ziggfreedcommon";
+
+    static {
+        install();
+    }
+
     private LockReasons() {
+    }
+
+    /**
+     * Register this module's part of {@link RefusalLines}: the engine's flat tokens as a family, the content
+     * titles seam over {@link ProgressionTexts}, and the two membership factors. Idempotent; the library's
+     * setup calls it, and so does this class's own first use.
+     */
+    public static void install() {
+        RefusalLines.Family engine = new RefusalLines.Family() {
+            @Override
+            public Message line(@Nonnull String token) {
+                return engineLine(token, NO_WAIT);
+            }
+
+            @Override
+            public boolean generic(@Nonnull String token) {
+                return QuestGates.REASON_PREREQUISITES.equals(token);
+            }
+
+            @Nonnull
+            @Override
+            public String dedupeKey(@Nonnull String token) {
+                return LockReasons.dedupeKey(token);
+            }
+        };
+        for (String token : ENGINE_TOKENS) {
+            RefusalLines.register(token, OWNER, engine);
+        }
+        RefusalLines.contentTitles(ProgressionTexts::title);
+        RefusalLines.memberFactor(ProgressionFactors.QUEST_COMPLETED, RefusalLines.QUEST_LINE_KEY);
+        RefusalLines.memberFactor(ProgressionFactors.ACHIEVEMENT_EARNED, "ziggfreedcommon.progress.lock.achievement");
     }
 
     /** A wait this short reads as "under a minute" rather than as a count of nothing. */
@@ -126,14 +172,7 @@ public final class LockReasons {
      */
     @Nonnull
     public static List<Message> linesOf(@Nonnull List<GateRefusal> refusals) {
-        Set<String> seen = new LinkedHashSet<>();
-        List<Message> lines = new ArrayList<>();
-        for (GateRefusal refusal : refusals) {
-            if (refusal != null && seen.add(dedupeKey(refusal))) {
-                lines.add(line(refusal));
-            }
-        }
-        return lines;
+        return RefusalLines.linesOf(refusals);
     }
 
     /**
@@ -183,6 +222,13 @@ public final class LockReasons {
         if (reason == null) {
             return text("lock.other");
         }
+        Message engine = engineLine(reason, waitMs);
+        return engine != null ? engine : RefusalLines.line(reason);
+    }
+
+    /** The engine's own line for one of its flat tokens, or null for any other token. */
+    @Nullable
+    private static Message engineLine(@Nonnull String reason, long waitMs) {
         return switch (reason) {
             case QuestGates.REASON_UNAVAILABLE -> text("lock.unavailable");
             case QuestGates.REASON_ON_COOLDOWN -> clockLine("lock.on_cooldown", waitMs);
@@ -193,10 +239,7 @@ public final class LockReasons {
             case QuestGates.REASON_SYSTEM_DISABLED -> text("lock.system_disabled");
             case QuestGates.REASON_PREREQUISITES -> text("lock.prerequisites");
             case QuestGates.REASON_LOG_FULL -> text("lock.log_full");
-            default -> {
-                GateRefusal structured = GateRefusal.fromToken(reason);
-                yield structured != null ? line(structured) : text("lock.other");
-            }
+            default -> null;
         };
     }
 
@@ -274,153 +317,18 @@ public final class LockReasons {
      */
     @Nonnull
     public static Message line(@Nonnull GateRefusal refusal) {
-        if (refusal.kind() == GateRefusal.Kind.QUEST) {
-            return contentLine("lock.quest", refusal.questId());
-        }
-        if (refusal.kind() == GateRefusal.Kind.PERMISSION) {
-            return text("lock.permission");
-        }
-        if (refusal.kind() == GateRefusal.Kind.ANY_OF) {
-            List<GateRefusal> routes = refusal.children();
-            if (routes.isEmpty()) {
-                return text("lock.prerequisites");
-            }
-            return routes.size() == 1 ? line(routes.get(0))
-                    : text("lock.any_of", fold(routes, LockReasons::orJoiner));
-        }
-        if (refusal.kind() == GateRefusal.Kind.NOT) {
-            List<GateRefusal> asks = refusal.children();
-            return asks.isEmpty() ? text("lock.not")
-                    : text("lock.not.met", fold(asks, LockReasons::commaJoiner));
-        }
-        if (refusal.kind() == GateRefusal.Kind.ALL_OF) {
-            // Only ever a child inside an AnyOf's routes: a frameless comma list, exactly as the
-            // bundle reads in that position.
-            List<GateRefusal> asks = refusal.children();
-            if (asks.isEmpty()) {
-                return text("lock.prerequisites");
-            }
-            return asks.size() == 1 ? line(asks.get(0)) : fold(asks, LockReasons::commaJoiner);
-        }
-        if (refusal.kind() == GateRefusal.Kind.FACTOR) {
-            if (GateEvaluator.PERMISSION_FACTOR.equalsIgnoreCase(refusal.factorId())) {
-                // The long spelling of a Permission leaf is the same question, same sentence.
-                return text("lock.permission");
-            }
-            if (ProgressionFactors.QUEST_COMPLETED.equalsIgnoreCase(refusal.factorId())
-                    && refusal.param() != null) {
-                return contentLine("lock.quest", refusal.param());
-            }
-            if (ProgressionFactors.ACHIEVEMENT_EARNED.equalsIgnoreCase(refusal.factorId())
-                    && refusal.param() != null) {
-                return contentLine("lock.achievement", refusal.param());
-            }
-            Message name = FactorNames.name(refusal.factorId(), refusal.param());
-            if (name != null) {
-                String bound = boundOf(refusal);
-                if (bound == null) {
-                    return text("lock.factor", name);
-                }
-                String current = numberOf(refusal.value());
-                return current != null
-                        ? text("lock.factor.bound.current", name, bound, current)
-                        : text("lock.factor.bound", name, bound);
-            }
-        }
-        return text("lock.prerequisites");
-    }
-
-    /**
-     * A composite's children folded into ONE message that can sit in a {@code {0}} PARAM position.
-     * Built with {@link Msg#cat}, NEVER {@link Msg#join}: a param renders only when it carries
-     * {@code rawText} or {@code messageId}, which a bare join result does not - it would render
-     * EMPTY nested inside the composite line. The separator folds the same way, because it is
-     * itself part of the composite that lands in that param.
-     */
-    @Nonnull
-    private static Message fold(@Nonnull List<GateRefusal> children,
-            @Nonnull Supplier<Message> separator) {
-        List<Message> parts = new ArrayList<>(children.size() * 2 - 1);
-        for (GateRefusal child : children) {
-            if (!parts.isEmpty()) {
-                parts.add(separator.get());
-            }
-            parts.add(line(child));
-        }
-        return Msg.cat(parts.toArray(new Message[0]));
-    }
-
-    /** The translatable " or " between an either-or list's routes; a fresh instance per slot. */
-    @Nonnull
-    private static Message orJoiner() {
-        return Msg.cat(Msg.raw(" "), text("lock.any_of.join"), Msg.raw(" "));
-    }
-
-    /** The locale-safe comma between the asks of one bundle. */
-    @Nonnull
-    private static Message commaJoiner() {
-        return Msg.raw(", ");
-    }
-
-    /** A line naming one piece of catalogued content: its title where a source knows it, else its id. */
-    @Nonnull
-    private static Message contentLine(@Nonnull String key, @Nullable String contentId) {
-        String id = contentId == null ? "" : contentId;
-        Message title = ProgressionTexts.title(id);
-        return text(key, title != null ? title : Msg.raw(id));
+        return RefusalLines.line(refusal);
     }
 
     /** Does this token render as a line that names the concrete thing to go and do? */
     private static boolean isSpecific(@Nullable String reason) {
-        if (reason == null) {
-            return false;
-        }
-        if (reason.startsWith(GateEvaluator.REASON_QUEST)) {
-            return true;
-        }
-        GateRefusal structured = GateRefusal.fromToken(reason);
-        return structured != null && isSpecific(structured);
+        return RefusalLines.isSpecific(reason);
     }
 
     /**
-     * The record twin: a quest gate always, a permission always (its sentence names the concrete
-     * kind of thing in the way), a composite when it carries children to describe, a factor gate
-     * when a naming overlay answers for it or when it is one of the membership spellings that name
-     * their content directly.
-     */
-    private static boolean isSpecific(@Nonnull GateRefusal refusal) {
-        if (refusal.kind() == GateRefusal.Kind.QUEST
-                || refusal.kind() == GateRefusal.Kind.PERMISSION) {
-            return true;
-        }
-        if (isComposite(refusal)) {
-            return !refusal.children().isEmpty();
-        }
-        if (refusal.kind() != GateRefusal.Kind.FACTOR) {
-            return false;
-        }
-        if (GateEvaluator.PERMISSION_FACTOR.equalsIgnoreCase(refusal.factorId())) {
-            return true;
-        }
-        if (refusal.param() != null
-                && (ProgressionFactors.QUEST_COMPLETED.equalsIgnoreCase(refusal.factorId())
-                        || ProgressionFactors.ACHIEVEMENT_EARNED.equalsIgnoreCase(refusal.factorId()))) {
-            return true;
-        }
-        return FactorNames.name(refusal.factorId(), refusal.param()) != null;
-    }
-
-    /** Is this one of the three composite kinds that can carry children? */
-    private static boolean isComposite(@Nonnull GateRefusal refusal) {
-        return refusal.kind() == GateRefusal.Kind.ANY_OF || refusal.kind() == GateRefusal.Kind.NOT
-                || refusal.kind() == GateRefusal.Kind.ALL_OF;
-    }
-
-    /**
-     * The identity a rendered line deduplicates under: the token itself where the line embeds it
-     * (two quest requirements are two different sentences, and so are two named factors) and for
-     * each of the engine's flat tokens (every one has its own sentence, so two of them are two
-     * lines), the bucket for everything that folds to a fixed sentence.
+     * The identity a rendered line deduplicates under: a gate token's through {@link RefusalLines}, each of
+     * the engine's flat tokens its own (every one has its own sentence, so two of them are two lines), and
+     * the shared requirements bucket for the flat requirements line.
      */
     @Nonnull
     private static String dedupeKey(@Nullable String reason) {
@@ -429,7 +337,7 @@ public final class LockReasons {
         }
         GateRefusal structured = GateRefusal.fromToken(reason);
         if (structured != null) {
-            return dedupeKey(structured);
+            return RefusalLines.dedupeKey(structured);
         }
         return switch (reason) {
             case QuestGates.REASON_UNAVAILABLE, QuestGates.REASON_ON_COOLDOWN,
@@ -439,73 +347,6 @@ public final class LockReasons {
             case QuestGates.REASON_PREREQUISITES -> "prerequisites";
             default -> "other";
         };
-    }
-
-    /**
-     * The record twin. A named factor deduplicates by everything its sentence says - id, param and
-     * bounds - so two different bounds on one factor stay two lines; an unnamed one folds into the
-     * shared requirements bucket exactly as its token would. Both permission spellings share the
-     * ONE permission bucket, and the {@code quest_completed} factor spelling deduplicates under
-     * the SAME key as the {@code Quests} leaf naming that quest, because each pair renders the
-     * identical sentence and a list saying it twice reads as a bug. A composite carrying children
-     * deduplicates by everything its composed sentence says (its kind plus each child's own key,
-     * recursively); a childless {@code not} keeps its own bucket - its fixed negated sentence is
-     * not the requirements line.
-     */
-    @Nonnull
-    private static String dedupeKey(@Nonnull GateRefusal refusal) {
-        if (refusal.kind() == GateRefusal.Kind.QUEST) {
-            return refusal.token();
-        }
-        if (refusal.kind() == GateRefusal.Kind.PERMISSION
-                || (refusal.kind() == GateRefusal.Kind.FACTOR
-                        && GateEvaluator.PERMISSION_FACTOR.equalsIgnoreCase(refusal.factorId()))) {
-            return GateEvaluator.REASON_PERMISSION;
-        }
-        if (isComposite(refusal)) {
-            if (!refusal.children().isEmpty()) {
-                StringBuilder key = new StringBuilder(refusal.token()).append('(');
-                for (GateRefusal child : refusal.children()) {
-                    key.append(dedupeKey(child)).append(',');
-                }
-                return key.append(')').toString();
-            }
-            return refusal.kind() == GateRefusal.Kind.NOT ? GateEvaluator.REASON_NOT : "prerequisites";
-        }
-        if (refusal.kind() == GateRefusal.Kind.FACTOR && refusal.param() != null
-                && ProgressionFactors.QUEST_COMPLETED.equalsIgnoreCase(refusal.factorId())) {
-            return GateRefusal.quest(refusal.param()).token();
-        }
-        if (isSpecific(refusal)) {
-            return refusal.token() + "#" + refusal.min() + "/" + refusal.max();
-        }
-        return "prerequisites";
-    }
-
-    /**
-     * The one number a factor line quotes, grouped: the lower bound when the condition has one
-     * (the thing to go and raise), else the upper bound, else null. A {@code Min} of exactly 1
-     * with no {@code Max} is the PRESENCE idiom this vocabulary is full of (hold the item, own the
-     * node, have done it once), and quoting its 1 turns "Requires X" into noise - so that one
-     * shape reads as the unbounded line too.
-     */
-    @Nullable
-    private static String boundOf(@Nonnull GateRefusal refusal) {
-        if (refusal.min() != null && refusal.min() == 1.0 && refusal.max() == null) {
-            return null;
-        }
-        return numberOf(refusal.min() != null ? refusal.min() : refusal.max());
-    }
-
-    /** A number as a line quotes it - grouped when whole - or null when there is none to quote. */
-    @Nullable
-    private static String numberOf(@Nullable Double number) {
-        if (number == null || !Double.isFinite(number)) {
-            return null;
-        }
-        return number == Math.floor(number)
-                ? NumberFormatter.grouped((long) number.doubleValue())
-                : number.toString();
     }
 
     @Nonnull

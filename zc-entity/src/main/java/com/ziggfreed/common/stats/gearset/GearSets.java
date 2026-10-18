@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
@@ -30,14 +32,12 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.LibraryOwner;
-import com.ziggfreed.common.asset.PresenceRequiresCodec;
 import com.ziggfreed.common.cast.WorldEvictors;
-import com.ziggfreed.common.factor.FactorCondition;
-import com.ziggfreed.common.factor.FactorConditions;
 import com.ziggfreed.common.factor.FactorContext;
-import com.ziggfreed.common.factor.FactorRegistry;
-import com.ziggfreed.common.factor.HytaleFactors;
+import com.ziggfreed.common.progress.gate.GateQuery;
+import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.progress.gate.StoreGates;
+import com.ziggfreed.common.progress.gate.ZigGateEpochMovedEvent;
 import com.ziggfreed.common.stats.EquipStatBridge;
 import com.ziggfreed.common.stats.EquipStatBridge.StatKey;
 import com.ziggfreed.common.stats.EquipStatBridge.UtilityPut;
@@ -88,11 +88,11 @@ import com.ziggfreed.common.util.SafeLog;
  * the engine answers for exactly as it does a look: dedicated to the set, swept at a hydrate (the
  * default pool's ids included), none while dead, back after a respawn, saved in the look record.
  *
- * <p><b>A set's {@code Requires} is asked of the wearer at each recompute</b>: everything but its mod
- * presence (which its fold decided), through the {@code hytale:} readings plus every contributed and
- * asset-defined factor. A wearer it refuses has none of its tiers. Nothing re-asks it between recomputes,
- * so a set gated on a permission or a finished quest switches at the wearer's next equipment change,
- * login or respawn.
+ * <p><b>A set's {@code Requires} is asked at each recompute, and again when the wearer's gate epoch
+ * moves</b> ({@link #onGateEpochMoved}): a set gated on a level, a permission or a world comes on or off
+ * when that reading changes, not at the next equip. Only a gated wearer re-checks (a player whose last
+ * recompute found a set with a live {@code Requires} among the sets they have pieces of), through this
+ * engine's own recompute alone, at most once a world tick each.
  *
  * <p>World-thread throughout, try-guarded, isolated by the bridge's own listener dispatch. An
  * unregistered stat channel is named in the log once and skipped, the bridge's own discipline.
@@ -115,25 +115,17 @@ public final class GearSets {
     private static volatile EquipStatBridge bridge;
 
     /**
-     * The vocabulary a set's {@code Requires} reads, built on first use: the portable {@code hytale:} readings
-     * about the wearer, plus every id another module contributes and every asset-defined one, which every
-     * registry resolves. So a set gates on what any library table can, a permission or a finished quest
-     * included, on a server running this library alone.
+     * The wearers a gate epoch move re-checks, by player id: every player whose last recompute found a set with
+     * a live {@code Requires} among the sets they have pieces of. Kept by each recompute, dropped as the entity
+     * leaves its store.
      */
-    private static final class WearerFactors {
+    private static final Map<UUID, PlayerRef> GATED_WEARERS = new ConcurrentHashMap<>();
 
-        static final FactorRegistry REGISTRY = build();
+    /** The gated wearers with a re-check queued and not yet done: every epoch move until it ends rides it. */
+    private static final Set<UUID> RECHECK_QUEUED = ConcurrentHashMap.newKeySet();
 
-        private WearerFactors() {
-        }
-
-        @Nonnull
-        private static FactorRegistry build() {
-            FactorRegistry registry = new FactorRegistry("gear-sets");
-            HytaleFactors.registerInto(registry, LibraryOwner.NAME);
-            return registry;
-        }
-    }
+    /** The world tick each gated wearer was last re-checked on, so a re-check runs at most once a tick. */
+    private static final Map<UUID, Long> RECHECKED_AT = new ConcurrentHashMap<>();
 
     private GearSets() {
     }
@@ -246,8 +238,77 @@ public final class GearSets {
     }
 
     /**
+     * A gate epoch moved ({@link ZigGateEpochMovedEvent}): that player's readings may have changed, or everyone's
+     * when the server epoch moved. A set's {@code Requires} is asked only at a recompute, so each gated wearer
+     * among them re-checks here ({@link #GATED_WEARERS}); anyone else costs one lookup. Runs on the thread that
+     * moved the epoch, so it only queues.
+     */
+    public static void onGateEpochMoved(@Nonnull ZigGateEpochMovedEvent event) {
+        if (GATED_WEARERS.isEmpty()) {
+            return;
+        }
+        UUID playerId = event.playerId();
+        if (playerId != null) {
+            queueRecheck(playerId);
+            return;
+        }
+        for (UUID wearer : GATED_WEARERS.keySet()) {
+            queueRecheck(wearer);
+        }
+    }
+
+    /** Queue one gated wearer's re-check on their world thread, unless one is queued already, which this rides. */
+    private static void queueRecheck(@Nonnull UUID playerId) {
+        PlayerRef player = GATED_WEARERS.get(playerId);
+        if (player == null || !RECHECK_QUEUED.add(playerId)) {
+            return;
+        }
+        try {
+            Ref<EntityStore> ref = player.getReference();
+            World world = ref == null || !ref.isValid() ? null : WorldEvictors.worldOf(ref);
+            if (world == null || !world.isAlive()) {
+                RECHECK_QUEUED.remove(playerId);
+                return;
+            }
+            world.execute(() -> recheck(world, ref, playerId));
+        } catch (Throwable t) {
+            RECHECK_QUEUED.remove(playerId);
+            SafeLog.warn("[gearset] could not queue a gated set's re-check: " + t.getMessage());
+        }
+    }
+
+    /**
+     * The re-check, on the wearer's world thread: this engine's recompute alone, not the bridge's. A second
+     * one in the same world tick waits a tick step, still queued, so the moves meanwhile ride it. The queue
+     * mark clears only once the recompute is done, so a move the recompute causes itself (a tier flip is a
+     * moment of the wearer's) re-checks nothing.
+     */
+    private static void recheck(@Nonnull World world, @Nonnull Ref<EntityStore> ref, @Nonnull UUID playerId) {
+        boolean waiting = false;
+        try {
+            if (!ref.isValid()) {
+                return;
+            }
+            long tick = world.getTick();
+            Long last = RECHECKED_AT.put(playerId, tick);
+            if (last != null && last == tick) {
+                world.scheduleAfter(() -> recheck(world, ref, playerId), world.getTickStepNanos(), TimeUnit.NANOSECONDS);
+                waiting = true;
+                return;
+            }
+            recompute(ref.getStore(), ref);
+        } catch (Throwable t) {
+            SafeLog.warn("[gearset] a gated set's re-check failed: " + t.getMessage());
+        } finally {
+            if (!waiting) {
+                RECHECK_QUEUED.remove(playerId);
+            }
+        }
+    }
+
+    /**
      * The player's entity left its store (see {@link GearSetLifecycleSystems.Left}): forget their
-     * row, whatever the {@code reason}. This is the row's ONE eviction. A disconnect removes the
+     * row, and their place among the gated wearers, whatever the {@code reason}. This is the row's ONE eviction. A disconnect removes the
      * player with {@code UNLOAD} ({@code PlayerRef.removeFromStore}, after the disconnect event has
      * fired) and a world change removes them with the same reason, so no reason is spared. It runs on
      * the world thread as the entity goes, after any recompute queued before it, and nothing can
@@ -262,6 +323,9 @@ public final class GearSets {
     static void onEntityRemoved(@Nullable UUID playerId, @Nonnull RemoveReason reason) {
         if (playerId != null) {
             GearSetApplied.forget(playerId);
+            GATED_WEARERS.remove(playerId);
+            RECHECK_QUEUED.remove(playerId);
+            RECHECKED_AT.remove(playerId);
         }
     }
 
@@ -297,17 +361,16 @@ public final class GearSets {
             Map<String, Integer> progressBySet = new LinkedHashMap<>();
             Map<String, Integer> fullBySet = new LinkedHashMap<>();
             List<String> pooled = new ArrayList<>();
-            FactorContext wearer = null;
+            GateQuery wearer = null;
             for (GearSetAsset set : index.candidates(snapshot)) {
-                // A set's own Requires, every condition but its mod presence (decided at the fold): a wearer
-                // it refuses has none of its tiers, as if no piece were on. Asked at each recompute, so a
-                // change in what it reads shows at the wearer's next one.
-                FactorCondition[] gate = PresenceRequiresCodec.liveFactors(set.getRequires());
-                if (gate.length > 0) {
+                // A set's own Requires, every condition (its mod presence was decided at the fold): a wearer
+                // it refuses has none of its tiers, as if no piece were on.
+                GateSpec gate = set.liveRequires();
+                if (gate != null) {
                     if (wearer == null) {
-                        wearer = FactorContext.about(store, ref);
+                        wearer = GateQuery.of(FactorContext.about(store, ref));
                     }
-                    if (!FactorConditions.pass(gate, WearerFactors.REGISTRY, wearer)) {
+                    if (!StoreGates.passes(gate, wearer)) {
                         continue;
                     }
                 }
@@ -381,6 +444,12 @@ public final class GearSets {
                     answered, active, pieces, seats));
             if (looks != null) {
                 looks.record(answered);
+            }
+            // A wearer asked any set's Requires (wearer was built) is re-checked when their gate epoch moves.
+            if (wearer != null) {
+                GATED_WEARERS.put(playerId, player);
+            } else {
+                GATED_WEARERS.remove(playerId);
             }
 
             // The joined set (its layers' tiers in), the one the tiers were decided over.
