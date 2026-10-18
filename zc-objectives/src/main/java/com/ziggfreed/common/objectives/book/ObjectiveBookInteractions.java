@@ -21,7 +21,7 @@ public final class ObjectiveBookInteractions {
     private ObjectiveBookInteractions() {
     }
 
-    /** Register {@code ZigOpenObjectiveBook}. Fail-soft: a throwing registration logs and returns false. */
+    /** Register {@code ZigOpenObjectiveBook}. A failed registration logs its line and throws, at setup. */
     public static boolean register(@Nonnull PluginBase plugin) {
         return InteractionTypes.register(plugin, InteractionTypeSpec.of(
                 ObjectiveBookOpenInteraction.TYPE_NAME,

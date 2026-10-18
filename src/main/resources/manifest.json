@@ -19,5 +19,8 @@
     "Hytale:TriggerVolumes": "*",
     "Hytale:Rewards": "*"
   },
+  "OptionalDependencies": {
+    "Hytale:WorldEvents": "*"
+  },
   "IncludesAssetPack": true
 }

@@ -73,9 +73,10 @@ public final class ProgressionBootstrap {
      * whoever keeps the tallies installs the source that answers it at its own setup.
      */
     public static void setupProgressionRuntime(@Nonnull PluginBase plugin) {
+        // Outside the guard: an interaction Type that fails to register throws, at setup, after its own line.
+        ObjectiveBookInteractions.register(plugin);
         try {
             ZigProgressComponent.register(plugin.getEntityStoreRegistry());
-            ObjectiveBookInteractions.register(plugin);
             ProgressionDefaults.install(plugin);
             ProgressionFactors.contribute();
             ModFactors.contribute();

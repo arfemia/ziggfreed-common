@@ -25,8 +25,8 @@ import com.ziggfreed.common.subject.Subject;
  * volume is walked through, not pressed, so a refusal said on every tick would only be noise. A block
  * chain that should explain itself starts with the {@code ZigRequires} interaction instead.
  *
- * <p>Registered on the TriggerVolumes plugin at setup ({@code ProgressInteractionsBootstrap}), which is
- * why the library's manifest depends on that plugin.
+ * <p>Registered into the engine's trigger condition map at setup ({@link ZigRequiresBootstrap}), the
+ * library's manifest depending on the TriggerVolumes plugin that reads it.
  */
 public final class ZigRequiresTriggerCondition extends TriggerCondition {
 
@@ -50,10 +50,16 @@ public final class ZigRequiresTriggerCondition extends TriggerCondition {
                 .build();
     }
 
-    /** The codec, built on first call. Only registration invokes this. */
+    /** The codec, built on first call. Only registration and a codec test invoke this. */
     @Nonnull
     public static BuilderCodec<ZigRequiresTriggerCondition> codec() {
         return Holder.CODEC;
+    }
+
+    /** The authored block, null when none was written. */
+    @Nullable
+    public GateSpec getRequires() {
+        return requires;
     }
 
     @Override

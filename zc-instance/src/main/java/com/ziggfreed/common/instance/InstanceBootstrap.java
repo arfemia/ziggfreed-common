@@ -156,8 +156,8 @@ public final class InstanceBootstrap {
      * chest's Use runs, beside {@code ZigEnterDungeon} and like it before any asset decodes (the shipped root
      * interaction names it); the ears for a boss defeat (where the chest will stand) and a new Claim (the first of a
      * fight's raises it); the world-closing eviction; and the encounter audit handed the reward chests a binding row's
-     * {@code Spoils.Chest} may name. Each guarded on its own. The chest files' store registers with the other
-     * framework stores. Registration only.
+     * {@code Spoils.Chest} may name. Each guarded on its own, except the Type, which throws at setup when it fails
+     * to register. The chest files' store registers with the other framework stores. Registration only.
      */
     public static void installSpoils(@Nonnull JavaPlugin plugin) {
         try {
@@ -170,12 +170,9 @@ public final class InstanceBootstrap {
         } catch (Throwable t) {
             SafeLog.warn("[spoils] the spoils chests' systems could not be registered", t);
         }
-        try {
-            InteractionTypes.registerAll(plugin, List.of(InteractionTypeSpec.of(ZigOpenSpoilsInteraction.TYPE_NAME,
-                    ZigOpenSpoilsInteraction.class, ZigOpenSpoilsInteraction::codec)));
-        } catch (Throwable t) {
-            SafeLog.warn("[spoils] the ZigOpenSpoils interaction Type could not be registered", t);
-        }
+        // A Type that fails to register throws, at setup, after its own line (InteractionTypes).
+        InteractionTypes.registerAll(plugin, List.of(InteractionTypeSpec.of(ZigOpenSpoilsInteraction.TYPE_NAME,
+                ZigOpenSpoilsInteraction.class, ZigOpenSpoilsInteraction::codec)));
         try {
             plugin.getEventRegistry().registerGlobal(EncounterDefeatedEvent.class, SpoilsChests::onDefeated);
             plugin.getEventRegistry().registerGlobal(ClaimAddedEvent.class, SpoilsChests::onClaimAdded);
@@ -224,12 +221,9 @@ public final class InstanceBootstrap {
         } catch (Throwable t) {
             SafeLog.warn("[dungeon] the dungeon areas' spawn provider could not be registered", t);
         }
-        try {
-            InteractionTypes.registerAll(plugin, List.of(InteractionTypeSpec.of(ZigEnterDungeonInteraction.TYPE_NAME,
-                    ZigEnterDungeonInteraction.class, ZigEnterDungeonInteraction::codec)));
-        } catch (Throwable t) {
-            SafeLog.warn("[dungeon] the ZigEnterDungeon interaction Type could not be registered", t);
-        }
+        // A Type that fails to register throws, at setup, after its own line (InteractionTypes).
+        InteractionTypes.registerAll(plugin, List.of(InteractionTypeSpec.of(ZigEnterDungeonInteraction.TYPE_NAME,
+                ZigEnterDungeonInteraction.class, ZigEnterDungeonInteraction::codec)));
         try {
             DungeonDestinations.register();
         } catch (Throwable t) {

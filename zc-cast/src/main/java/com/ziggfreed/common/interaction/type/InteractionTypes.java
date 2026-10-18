@@ -18,9 +18,10 @@ import com.ziggfreed.common.util.SafeLog;
  * registered after {@code LoadAssetEvent} has decoded the assets that reference it is too late:
  * the referencing asset already failed to decode.
  *
- * <p>Fail-soft per Type: a throwing registration logs one guarded WARN and returns {@code
- * false}; {@link #registerAll} keeps going and reports how many landed, so one bad Type never
- * takes the whole roster down.
+ * <p>A failed registration rethrows, at setup: a throwing registration (or a codec supplier
+ * that returns null) logs its own WARN naming the Type, then throws to the caller, and
+ * {@link #registerAll} stops at it. Swallowed, the miss would surface later as an unknown Type
+ * inside an owner's pack, far from its cause. Each Type that lands logs its own INFO line.
  *
  * <p><b>Argument guards run BEFORE any engine touch.</b> A null plugin/spec or a blank type name
  * is rejected before {@code Interaction.CODEC} is ever referenced, so this class is callable
@@ -35,7 +36,10 @@ public final class InteractionTypes {
 
     /**
      * @return {@code true} when the Type was handed to the registry, {@code false} on a
-     *         null/blank argument or any engine throw (each already logged)
+     *         null/blank argument (logged, and never reaching the engine)
+     * @throws IllegalStateException when the codec supplier returns null (logged first)
+     * @throws RuntimeException      or {@link Error}, whatever the engine or the supplier threw,
+     *                               rethrown after its WARN line
      */
     public static boolean register(@Nullable PluginBase plugin, @Nullable InteractionTypeSpec spec) {
         if (plugin == null || spec == null) {
@@ -47,22 +51,25 @@ public final class InteractionTypes {
             SafeLog.warn("[interaction] skipping Type registration: blank type name");
             return false;
         }
+        BuilderCodec<? extends Interaction> codec;
         try {
-            BuilderCodec<? extends Interaction> codec = spec.codecSupplier().get();
-            if (codec == null) {
-                SafeLog.warn("[interaction] skipping Type registration for '" + name + "': codec supplier returned null");
-                return false;
-            }
-            plugin.getCodecRegistry(Interaction.CODEC).register(name, spec.type(), codec);
-            SafeLog.info("[interaction] registered Type '" + name + "'");
-            return true;
+            codec = spec.codecSupplier().get();
         } catch (Throwable t) {
             SafeLog.warn("[interaction] failed to register Type '" + name + "'", t);
-            return false;
+            throw t;
         }
+        if (codec == null) {
+            SafeLog.warn("[interaction] failed to register Type '" + name + "': codec supplier returned null");
+            throw new IllegalStateException("the codec supplier for interaction Type '" + name + "' returned null");
+        }
+        registerOrThrow(plugin, name, spec.type(), codec);
+        return true;
     }
 
-    /** @return the number of specs that registered successfully; never aborts early */
+    /**
+     * @return the number of specs that registered: every non-null one, since a failed
+     *         registration throws and stops the run there
+     */
     public static int registerAll(@Nullable PluginBase plugin, @Nullable Collection<? extends InteractionTypeSpec> specs) {
         if (plugin == null || specs == null) {
             return 0;
@@ -78,8 +85,8 @@ public final class InteractionTypes {
 
     /**
      * Direct form for a caller that already holds a live codec (a Type whose codec is built
-     * inline at setup()). Same fail-soft contract as {@link #register(PluginBase,
-     * InteractionTypeSpec)}.
+     * inline at setup()). Same contract as {@link #register(PluginBase, InteractionTypeSpec)}:
+     * {@code false} on a missing argument, and an engine throw rethrown after its WARN line.
      */
     public static boolean register(@Nullable PluginBase plugin, @Nullable String typeName,
             @Nullable Class<? extends Interaction> type, @Nullable BuilderCodec<? extends Interaction> codec) {
@@ -87,13 +94,19 @@ public final class InteractionTypes {
             SafeLog.fine("[interaction] skipping Type registration: missing plugin/typeName/type/codec");
             return false;
         }
+        registerOrThrow(plugin, typeName, type, codec);
+        return true;
+    }
+
+    /** The one engine call: logs the Type's INFO line when it lands, its WARN line and rethrows when not. */
+    private static void registerOrThrow(PluginBase plugin, String typeName, Class<? extends Interaction> type,
+            BuilderCodec<? extends Interaction> codec) {
         try {
             plugin.getCodecRegistry(Interaction.CODEC).register(typeName, type, codec);
-            SafeLog.info("[interaction] registered Type '" + typeName + "'");
-            return true;
         } catch (Throwable t) {
             SafeLog.warn("[interaction] failed to register Type '" + typeName + "'", t);
-            return false;
+            throw t;
         }
+        SafeLog.info("[interaction] registered Type '" + typeName + "'");
     }
 }

@@ -22,14 +22,15 @@ public final class CostumeBootstrap {
 
     /**
      * Register the Type and the command. Call from plugin {@code setup()}, before any asset decode: an
-     * item naming a Type the registry has not seen fails to load.
+     * item naming a Type the registry has not seen fails to load. A Type that fails to register throws,
+     * at setup, after its own line ({@link InteractionTypes}); the command is fail-soft.
      */
     public static void registerCostumes(@Nonnull PluginBase plugin) {
+        InteractionTypes.register(plugin, spec());
         try {
-            InteractionTypes.register(plugin, spec());
             plugin.getCommandRegistry().registerCommand(new CostumeCommand());
         } catch (Throwable t) {
-            SafeLog.warn("[costume] the costume Type or its command could not be registered", t);
+            SafeLog.warn("[costume] the costume command could not be registered", t);
         }
     }
 }
