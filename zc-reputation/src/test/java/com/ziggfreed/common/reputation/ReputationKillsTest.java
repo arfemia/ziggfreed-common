@@ -7,17 +7,20 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.factor.FeatureFlags;
 import com.ziggfreed.common.progress.runtime.Moment;
+import com.ziggfreed.common.season.SeasonGate;
 
 /**
  * The kill table: a kill pays every row whose groups hold the dead NPC's role, summed per reputation (a
- * loss allowed), a switched-off reputation pays nothing, and the listener moves standing on a LATER world
- * task, never inside the engine's death system.
+ * loss allowed), a switched-off reputation pays nothing, a row out of its Season pays nothing, and the
+ * listener moves standing on a LATER world task, never inside the engine's death system.
  */
 class ReputationKillsTest {
 
@@ -46,6 +49,7 @@ class ReputationKillsTest {
     @AfterEach
     void clear() {
         ReputationFixtures.reset();
+        FeatureFlags.reset();
     }
 
     private Map<String, Integer> amounts(String role) {
@@ -70,6 +74,20 @@ class ReputationKillsTest {
                 "test_hallowed", ReputationFixtures.companion("Test_Hallowed", "{ \"Enabled\": false, "
                         + "\"Kills\": [ { \"NPCGroups\": [ \"Test_Raiders\" ], \"Amount\": 3 } ] }")));
         assertTrue(amounts("Test_Bandit").isEmpty());
+    }
+
+    @Test
+    void aRowOutOfItsSeasonPaysNothingWhileTheOtherRowsStillPay() {
+        AtomicBoolean moonLive = new AtomicBoolean(false);
+        FeatureFlags.register(SeasonGate.NAMESPACE, SeasonGate.featureOf("Test_Moon"), "test", moonLive::get);
+        ReputationFixtures.loadCompanions(Map.of(
+                "test_hallowed", ReputationFixtures.companion("Test_Hallowed", """
+                        { "Kills": [ { "NPCGroups": [ "Test_Raiders" ], "Amount": 3 },
+                                     { "NPCGroups": [ "Test_Raiders" ], "Amount": 1, "Season": "Test_Moon" } ] }
+                        """)));
+        assertEquals(Map.of("Test_Hallowed", 3), amounts("Test_Bandit"), "out of season the row counts no kill");
+        moonLive.set(true);
+        assertEquals(Map.of("Test_Hallowed", 4), amounts("Test_Bandit"), "the event runs, and the next kill counts it");
     }
 
     @Test

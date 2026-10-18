@@ -13,8 +13,9 @@ import com.ziggfreed.common.reputation.asset.ReputationAsset;
 
 /**
  * Which reputations one kill moves, and by how much: every switched-on reputation's {@code Kills} rows whose
- * native NPC groups hold the dead NPC's role, summed per reputation. Pure: membership is asked through the
- * predicate the engine seam answers.
+ * native NPC groups hold the dead NPC's role, summed per reputation. A row with a {@code Season} counts only
+ * while that calendar event runs ({@link ReputationAsset.Kill#live}, asked on each kill). Pure but for that
+ * reading: membership is asked through the predicate the engine seam answers.
  */
 public final class ReputationKills {
 
@@ -36,7 +37,7 @@ public final class ReputationKills {
         for (ReputationDef reputation : reputations) {
             long sum = 0;
             for (ReputationAsset.Kill kill : reputation.kills()) {
-                if (kill.amount() != 0 && anyHolds(kill.npcGroups(), role, roleInGroup)) {
+                if (kill.amount() != 0 && kill.live() && anyHolds(kill.npcGroups(), role, roleInGroup)) {
                     sum += kill.amount();
                 }
             }

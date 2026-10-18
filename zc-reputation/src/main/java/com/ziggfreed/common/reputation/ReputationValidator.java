@@ -16,7 +16,9 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.reputation.asset.ReputationAsset;
 import com.ziggfreed.common.reputation.asset.ReputationConfig;
+import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.validation.BootAudit;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.validation.Severity;
 
@@ -25,7 +27,8 @@ import com.ziggfreed.common.validation.Severity;
  * in this family is: {@link #audit()} is the engine walk (it never throws, and finds nothing while the
  * engine's reputation plugin is off) and the second {@code audit} is the pure core a test drives. The MMO's
  * content audit folds it; {@link #logErrorsOnce()} also logs the ERRORs once at boot, so a server without
- * the MMO still hears them.
+ * the MMO still hears them, unless the process asked for zc's boot audit ({@code BootAudit.ENV}), whose
+ * {@value #LOG_LABEL} pass prints every finding, warnings included, so an error prints once either way.
  *
  * <ul>
  *   <li>ERROR {@link #TOO_FEW_RANKS} (the engine's clamp needs two ranks), {@link #GROUP_WITHOUT_NPC_GROUPS}
@@ -35,12 +38,17 @@ import com.ziggfreed.common.validation.Severity;
  *       twice in two cases; the second is ignored);</li>
  *   <li>WARNING {@link #NO_NATIVE_GROUP}, {@link #UNKNOWN_NPC_GROUP}, {@link #UNKNOWN_KILL_GROUP},
  *       {@link #UNKNOWN_ICON}, {@link #UNKNOWN_RANK}, {@link #CAP_BELOW_LADDER},
- *       {@link #TIER_ABOVE_CAP}, {@link #TIER_WITHOUT_NAME} (a rank of its own with no Name shows its id).</li>
+ *       {@link #TIER_ABOVE_CAP}, {@link #TIER_WITHOUT_NAME} (a rank of its own with no Name shows its id),
+ *       {@link SeasonGate#UNKNOWN_SEASON} (a {@code Kills} row's Season that no calendar event defines, so that
+ *       row never counts).</li>
  * </ul>
  */
 public final class ReputationValidator {
 
     public static final String DOMAIN = "reputation";
+
+    /** The label the boot audit's reputation pass prints its lines under. */
+    public static final String LOG_LABEL = "[reputation] audit";
 
     public static final String TOO_FEW_RANKS = "TOO_FEW_RANKS";
     public static final String GROUP_WITHOUT_NPC_GROUPS = "GROUP_WITHOUT_NPC_GROUPS";
@@ -101,8 +109,14 @@ public final class ReputationValidator {
         return out;
     }
 
-    /** Log every ERROR of the engine walk, once per boot. */
+    /**
+     * Log every ERROR of the engine walk, once per boot, unless the process asked for zc's boot audit:
+     * its {@value #LOG_LABEL} pass prints them then, with the warnings, so no error prints twice.
+     */
     public static void logErrorsOnce() {
+        if (BootAudit.asked()) {
+            return;
+        }
         if (LOGGED.compareAndSet(false, true)) {
             logErrors(audit());
         }
@@ -224,6 +238,7 @@ public final class ReputationValidator {
 
     private static void auditKill(@Nonnull String where, @Nonnull String id, int index,
             @Nonnull ReputationAsset.Kill kill, @Nonnull Predicate<String> npcGroupKnown, @Nonnull List<Finding> out) {
+        SeasonGate.checkKnown(out, DOMAIN, kill.season(), id);
         if (kill.npcGroups().isEmpty()) {
             out.add(Finding.error(DOMAIN, KILL_WITHOUT_GROUPS, where + " Kills row " + index
                     + " lists no NPCGroups, so it never counts a kill", id));

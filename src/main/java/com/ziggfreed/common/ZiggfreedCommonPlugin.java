@@ -88,6 +88,7 @@ import com.ziggfreed.common.playerstats.StatsBootstrap;
 import com.ziggfreed.common.playerstats.asset.StatValidator;
 import com.ziggfreed.common.progress.asset.ProgressEditorDataSets;
 import com.ziggfreed.common.reputation.ReputationBootstrap;
+import com.ziggfreed.common.reputation.ReputationValidator;
 import com.ziggfreed.common.reward.CostumeRewardKind;
 import com.ziggfreed.common.reward.EffectRewardKind;
 import com.ziggfreed.common.rotation.SelectionStrategies;
@@ -598,8 +599,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
      * loot, gear sets, calendar events and their spawns, titles (the walk that builds the progression
      * runtime first, so no Title reward goes unchecked), Almanac pages, stats and the board sections that
      * name them, derived factors, NPC identities,
-     * NPC placements (claiming the first join's once-per-boot run, as commerce does), dungeons and the
-     * conversations (claiming the first join's run too, as placements do); and, always,
+     * NPC placements (claiming the first join's once-per-boot run, as commerce does), dungeons, the
+     * conversations (claiming the first join's run too, as placements do) and reputations (whose own boot
+     * hook then stands down, so an error prints once); and, always,
      * the once-per-boot warning for a loaded pack whose ziggfreed-common range this version fails
      * ({@code PackRangeAudit}). Whether to run the audits is {@code BootAudit}'s to decide; this only
      * wires the event. Pinned here because no module sees commerce, loot, the gear-set validator and the
@@ -621,7 +623,8 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
                     new BootAudit.Pass(NpcPlacementConfig.LOG_LABEL,
                             () -> NpcPlacementConfig.getInstance().claimLateFindings()),
                     new BootAudit.Pass(DungeonValidator.LOG_LABEL, DungeonValidator::audit),
-                    new BootAudit.Pass(DialogueAudit.LOG_LABEL, DialogueAudit::claimLateFindings))));
+                    new BootAudit.Pass(DialogueAudit.LOG_LABEL, DialogueAudit::claimLateFindings),
+                    new BootAudit.Pass(ReputationValidator.LOG_LABEL, ReputationValidator::audit))));
         } catch (Throwable t) {
             SafeLog.warn("[boot] the boot checks could not be registered", t);
         }

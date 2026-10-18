@@ -20,9 +20,11 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.asset.EditorSchema;
+import com.ziggfreed.common.asset.SeasonLeaf;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
+import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.text.ContentTextAsset;
 
 /**
@@ -38,7 +40,8 @@ import com.ziggfreed.common.text.ContentTextAsset;
  *   "Cap": 100000,
  *   "Ranks": { "Friendly": { "Name": "yourmod.reputation.traders.rank.friendly" },
  *              "Your_Trusted_Partner": { "Name": "yourmod.reputation.traders.rank.partner", "From": 60000 } },
- *   "Kills": [ { "NPCGroups": [ "Your_Bandits" ], "Amount": 5 } ],
+ *   "Kills": [ { "NPCGroups": [ "Your_Bandits" ], "Amount": 5 },
+ *              { "NPCGroups": [ "Undead" ], "Amount": 1, "Season": "Your_Event" } ],
  *   "Beyond": { "Every": 5000, "Rewards": [ { "Kind": "Lootable", "Params": { "Lootable": "Your_Cache" } } ] },
  *   "Earn": { "Lines": [ "yourmod.reputation.traders.earn.contracts" ] } }
  * }</pre>
@@ -46,6 +49,9 @@ import com.ziggfreed.common.text.ContentTextAsset;
  * <p>A native group with no file here still works: it reads by its id, with no cap and no kills. Gear that
  * speeds a reputation needs no leaf here: an item raises the stat {@code ReputationGain_<Id>} (or the global
  * {@code ReputationGain}), which the library reads by that name ({@code ReputationGain}).
+ * A {@code Kills} row with a {@code Season} (a calendar event's id) counts kills only while that event runs,
+ * read on each kill ({@link Kill#live}); the other rows count all year as before, and an id no calendar event
+ * defines is a warning in the audit, its row never counting.
  * {@code Enabled: false} makes the reputation ABSENT (its readings answer nothing, rewards naming it
  * are refused, the page hides it); the standing players hold is never touched. Every leaf is nullable and
  * inherited through {@code Parent}: {@code Ranks} merges by rank id, {@code Kills} replaces whole, every
@@ -114,8 +120,9 @@ public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAs
             .appendInherited(new KeyedCodec<>("Kills", new ArrayCodec<>(Kill.CODEC, Kill[]::new), false),
                     (a, v) -> a.kills = v, a -> a.kills, (a, p) -> a.kills = p.kills)
             .documentation("Standing a player gains, or loses with a negative Amount, for each kill of an NPC "
-                    + "whose role is in one of the listed NPC groups. Under Parent this list replaces the "
-                    + "parent's whole.").add()
+                    + "whose role is in one of the listed NPC groups. A row with a Season counts only while that "
+                    + "calendar event runs, so a reputation can pay a little more during an event. Under Parent "
+                    + "this list replaces the parent's whole.").add()
             .appendInherited(new KeyedCodec<>("Beyond", Beyond.CODEC, false),
                     (a, v) -> a.beyond = v, a -> a.beyond, (a, p) -> a.beyond = p.beyond)
             .documentation("Rewards for standing earned past the floor of this reputation's top rank (its own "
@@ -317,13 +324,24 @@ public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAs
         }
     }
 
-    /** One kill row: the NPC groups it counts and the standing each kill moves. */
+    /**
+     * One kill row: the NPC groups it counts, the standing each kill moves, and the calendar event it counts
+     * during ({@code Season}; none means all year).
+     */
     public static final class Kill {
+
+        /** The Asset Editor's sentence for a kill row's {@code Season}. */
+        static final String SEASON_DOCUMENTATION = "The calendar event this row counts during, by its id, such as "
+                + "Hallows_Eve. While that event is not running the row counts no kill, as if it were not written, "
+                + "and the reputation's other rows still count; while it runs, it counts like any other row. Leave "
+                + "it out for a row that counts all year. An id no calendar event defines is reported, and the row "
+                + "never counts.";
 
         @Nullable protected String[] npcGroups;
         @Nullable protected Integer amount;
+        @Nullable protected String season;
 
-        public static final BuilderCodec<Kill> CODEC = BuilderCodec.builder(Kill.class, Kill::new)
+        public static final BuilderCodec<Kill> CODEC = SeasonLeaf.append(BuilderCodec.builder(Kill.class, Kill::new)
                 .appendInherited(new KeyedCodec<>("NPCGroups", Codec.STRING_ARRAY, false),
                         (o, v) -> o.npcGroups = v, o -> o.npcGroups, (o, p) -> o.npcGroups = p.npcGroups)
                 .metadata(EditorSchema.assetRef(NPCGroup.class))
@@ -332,10 +350,26 @@ public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAs
                 .appendInherited(new KeyedCodec<>("Amount", Codec.INTEGER, false),
                         (o, v) -> o.amount = v, o -> o.amount, (o, p) -> o.amount = p.amount)
                 .metadata(EditorSchema.defaultValue(0))
-                .documentation("Standing per kill: positive to gain, negative to lose.").add()
+                .documentation("Standing per kill: positive to gain, negative to lose.").add(),
+                        (o, v) -> o.season = v, o -> o.season, SEASON_DOCUMENTATION)
                 .build();
 
         public Kill() {
+        }
+
+        /** The calendar event this row counts during, trimmed, or null when it counts all year. */
+        @Nullable
+        public String season() {
+            return SeasonGate.normalize(season);
+        }
+
+        /**
+         * Does this row count kills right now? Always for a row with no {@code Season}; otherwise only while
+         * that calendar event runs, asked afresh on every call ({@link SeasonGate#live}), so an event starting
+         * or ending lands on the next kill with nothing rebuilt.
+         */
+        public boolean live() {
+            return SeasonGate.live(season());
         }
 
         /** The group ids, trimmed, blanks dropped. */

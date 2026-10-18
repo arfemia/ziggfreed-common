@@ -54,9 +54,20 @@ public final class SeasonLeaf {
     @Nonnull
     public static <T, S extends BuilderCodec.BuilderBase<T, S>> S append(@Nonnull S builder,
             @Nonnull BiConsumer<T, String> set, @Nonnull Function<T, String> get) {
+        return append(builder, set, get, DOCUMENTATION);
+    }
+
+    /**
+     * The same leaf with the Asset Editor's sentence worded for what it hides, for a leaf on a row inside a
+     * store's file (a reputation's kill row) rather than on a whole asset: such a row has no {@code Parent}
+     * or {@code Requires} of its own, so {@link #DOCUMENTATION}'s inheritance sentence does not apply.
+     */
+    @Nonnull
+    public static <T, S extends BuilderCodec.BuilderBase<T, S>> S append(@Nonnull S builder,
+            @Nonnull BiConsumer<T, String> set, @Nonnull Function<T, String> get, @Nonnull String documentation) {
         return builder.appendInherited(new KeyedCodec<>(KEY, Codec.STRING, false), set, get,
                         (child, parent) -> set.accept(child, get.apply(parent)))
-                .documentation(DOCUMENTATION)
+                .documentation(documentation)
                 .add();
     }
 }

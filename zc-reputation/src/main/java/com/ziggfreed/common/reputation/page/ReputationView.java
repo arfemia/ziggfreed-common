@@ -21,6 +21,7 @@ import com.ziggfreed.common.reputation.ReputationFactors;
 import com.ziggfreed.common.reputation.ReputationLadder;
 import com.ziggfreed.common.reputation.ReputationService;
 import com.ziggfreed.common.reputation.ReputationText;
+import com.ziggfreed.common.reputation.asset.ReputationAsset;
 import com.ziggfreed.common.ui.kit.ActionLook;
 import com.ziggfreed.common.ui.kit.ActionSlot;
 import com.ziggfreed.common.ui.kit.DetailAction;
@@ -281,8 +282,9 @@ public final class ReputationView {
     }
 
     /**
-     * How to earn it: the author's own lines; without any, what the library can see (kills that count), and
-     * with nothing at all, the plain fact that helping them out raises it.
+     * How to earn it: the author's own lines; without any, what the library can see (kills that count right
+     * now, so a row out of its Season says nothing), and with nothing at all, the plain fact that helping them
+     * out raises it.
      */
     @Nonnull
     static List<DetailLine> earnLines(@Nonnull ReputationDef def) {
@@ -293,7 +295,7 @@ public final class ReputationView {
         if (!out.isEmpty()) {
             return out;
         }
-        if (!def.kills().isEmpty()) {
+        if (def.kills().stream().anyMatch(ReputationAsset.Kill::live)) {
             out.add(DetailLine.of(Picture.NONE, ReputationText.line("earn.kills")));
         }
         if (out.isEmpty()) {
