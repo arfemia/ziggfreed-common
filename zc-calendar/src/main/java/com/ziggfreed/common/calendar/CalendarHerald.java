@@ -33,7 +33,8 @@ import com.ziggfreed.common.util.SafeLog;
  * ends several runs, their end banners queue the same gap apart. A tick is one queue: its end banners first, then
  * the start banners its fresh runs owe; a run followed at once by its event's next run shows no end banner; and an
  * event may show its banners on every run, only the start banner on the year's first run and the end banner when
- * its last run ends, both by their dates ({@code Herald.FirstRunOfYear}), or never ({@code Herald.Enabled}).
+ * its last run ends, both by their dates ({@code Herald.FirstRunOfYear}), or never ({@code Herald.Enabled}). An
+ * event live by a condition has no runs: its banners are {@link CalendarConditionHerald}'s, queued after these.
  */
 public final class CalendarHerald {
 
@@ -141,6 +142,21 @@ public final class CalendarHerald {
         return endQueue(tick, events).size() * START_GAP_MS;
     }
 
+    /**
+     * When a tick's condition banners begin ({@link CalendarConditionHerald}): after its end banners and the start
+     * banners its fresh runs owe, so one tick is one queue.
+     */
+    public static long conditionsAfterMs(@Nonnull CalendarTick tick,
+            @Nonnull Function<String, CalendarEventAsset> events) {
+        List<Occurrence> fresh = new ArrayList<>();
+        for (CalendarTick.Started start : tick.started()) {
+            if (!start.resumed()) {
+                fresh.add(start.occurrence());
+            }
+        }
+        return startsAfterMs(tick, events) + startQueue(fresh, events, 0L).size() * START_GAP_MS;
+    }
+
     /** One banner per event that has a line, a gap apart, the first at {@code afterMs}. */
     @Nonnull
     private static List<QueuedBanner> queue(@Nonnull List<String> eventIds,
@@ -181,7 +197,7 @@ public final class CalendarHerald {
     }
 
     /** Show a queue to one player: a banner due now at once, each later one when its turn comes. */
-    private static void showQueued(@Nonnull PlayerRef player, @Nonnull List<QueuedBanner> queue) {
+    static void showQueued(@Nonnull PlayerRef player, @Nonnull List<QueuedBanner> queue) {
         for (QueuedBanner banner : queue) {
             if (banner.delayMs() <= 0L) {
                 show(player, banner.line());

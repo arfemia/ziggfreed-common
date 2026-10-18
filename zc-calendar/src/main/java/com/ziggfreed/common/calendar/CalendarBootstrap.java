@@ -8,6 +8,7 @@ import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.ziggfreed.common.calendar.attendance.CalendarAttendance;
 import com.ziggfreed.common.calendar.attendance.CalendarAttendanceComponent;
 import com.ziggfreed.common.calendar.command.ZigCalendarCommand;
+import com.ziggfreed.common.calendar.moon.MoonPhaseSystems;
 import com.ziggfreed.common.calendar.spawn.CalendarSpawns;
 import com.ziggfreed.common.occurrence.Occurrences;
 import com.ziggfreed.common.util.SafeLog;
@@ -15,8 +16,8 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * The calendar module's registration phase, called as one line from the wiring root's {@code setup()}: the
  * feature namespace, the two readings and the occurrence slot (before anything folds content), the
- * attendance record and its hooks, the tick's listeners and its start, and /zigcalendar. Registration only;
- * every decision lives in the module behind it.
+ * attendance record and its hooks, the tick's listeners and its start, the two moon systems, and /zigcalendar.
+ * Registration only; every decision lives in the module behind it.
  *
  * <p>The tick starts on {@code BootEvent}, never on a world being added: worlds are added inside the
  * universe's own start, possibly before the spawning plugin sets up the rules already in its store, and a
@@ -32,6 +33,7 @@ public final class CalendarBootstrap {
         declareVocabulary();
         registerAttendance(plugin);
         registerTick(plugin);
+        registerMoon(plugin);
         registerCommand(plugin);
     }
 
@@ -61,8 +63,19 @@ public final class CalendarBootstrap {
             plugin.getEventRegistry().registerGlobal(PlayerReadyEvent.class, CalendarAttendance::onPlayerReady);
             CalendarRuntime.ticker().listen(CalendarAttendance::onTick);
             CalendarRuntime.ticker().listen(CalendarHerald::onTick);
+            CalendarRuntime.ticker().listen(CalendarConditionHerald::onTick);
         } catch (Throwable t) {
             SafeLog.warn("[calendar] could not register calendar attendance", t);
+        }
+    }
+
+    /** Each world's moon, seeded on its own thread as its store comes up and kept on every phase change. */
+    private static void registerMoon(@Nonnull JavaPlugin plugin) {
+        try {
+            plugin.getEntityStoreRegistry().registerSystem(new MoonPhaseSystems.Seed());
+            plugin.getEntityStoreRegistry().registerSystem(new MoonPhaseSystems.Changed());
+        } catch (Throwable t) {
+            SafeLog.warn("[calendar] could not follow the worlds' moons, so every moon event waits", t);
         }
     }
 

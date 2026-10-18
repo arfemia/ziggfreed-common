@@ -14,8 +14,17 @@ import com.ziggfreed.common.calendar.CalendarRuntime;
 import com.ziggfreed.common.calendar.CalendarService;
 import com.ziggfreed.common.calendar.asset.CalendarEventAsset;
 
-/** {@code force on}, {@code force off} or {@code force clear}: one registered verb each. */
+/**
+ * {@code force on}, {@code force off} or {@code force clear}: one registered verb each. An event live by a condition
+ * (a Moon or a Live) forced on stays live until cleared, since it has no run whose days could end the force.
+ */
 final class CalendarForceCommand extends AbstractAsyncCommand {
+
+    /** What forcing a condition on answers: it has no run, so it says when the force ends its own way. */
+    private static final String CONDITION_ON_DONE = "force.on.condition.done";
+
+    /** What clearing a condition's force answers: it goes back to its condition, never to dates. */
+    private static final String CONDITION_CLEAR_DONE = "force.clear.condition.done";
 
     /** Which verb this instance is. */
     enum Move {
@@ -48,16 +57,20 @@ final class CalendarForceCommand extends AbstractAsyncCommand {
             return CompletableFuture.completedFuture(null);
         }
         String id = event.getId();
-        if (!service.isEnabled(id)) {
+        if (!service.isSwitchedOn(id)) {
             CalendarAdminMessages.refused(ctx, "force.absent", id);
             return CompletableFuture.completedFuture(null);
         }
+        boolean condition = event.isCondition();
         switch (move) {
             case ON -> {
-                // The force takes its one run here, as it is written. A window of per-year days may date no run
-                // this year: then there is nothing to force on, nothing is written, and the force standing (a
-                // force off included) stays exactly as it was.
-                if (service.forceOn(id, CalendarRuntime.now()) == null) {
+                // A condition has no run to take: forced on, it stays live until cleared. An event on dates takes
+                // its one run here, as the force is written. A window of per-year days may date no run this year:
+                // then there is nothing to force on, nothing is written, and the force standing (a force off
+                // included) stays exactly as it was.
+                boolean forced = condition ? service.forceConditionOn(id)
+                        : service.forceOn(id, CalendarRuntime.now()) != null;
+                if (!forced) {
                     CalendarAdminMessages.refused(ctx, "force.on.nodates", id);
                     return CompletableFuture.completedFuture(null);
                 }
@@ -66,7 +79,13 @@ final class CalendarForceCommand extends AbstractAsyncCommand {
             case CLEAR -> CalendarForces.getInstance().clear(id);
         }
         CalendarRuntime.ticker().requestEvaluation();
-        CalendarAdminMessages.done(ctx, "force." + move.verb() + ".done", id);
+        String done = "force." + move.verb() + ".done";
+        if (condition && move == Move.ON) {
+            done = CONDITION_ON_DONE;
+        } else if (condition && move == Move.CLEAR) {
+            done = CONDITION_CLEAR_DONE;
+        }
+        CalendarAdminMessages.done(ctx, done, id);
         return CompletableFuture.completedFuture(null);
     }
 }

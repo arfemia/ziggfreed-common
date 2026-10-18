@@ -97,6 +97,15 @@ public final class CalendarEventConfig extends AbstractKeyedAssetConfig<Calendar
                             + CalendarEventAsset.MAX_FIRST_YEAR + ", so it never runs";
             case CalendarEventAsset.PROBLEM_CLOCK_UNKNOWN ->
                     "names a Clock this server does not know, so its days are counted in UTC";
+            case CalendarEventAsset.PROBLEM_MOON_RANGE_INVALID ->
+                    "has a Moon whose MoonPhaseRange is not two phases of 0 or more ([0, 1] is the full-moon night "
+                            + "and the one after it), so it is never live";
+            case CalendarEventAsset.PROBLEM_LIVE_EMPTY ->
+                    "has a Live naming no event in AnyOf, AllOf or NoneOf, so it is never live";
+            case CalendarEventAsset.NOTE_WINDOW_UNUSED ->
+                    "has a Moon or a Live, which wins over its Window, so its Window is not used";
+            case CalendarEventAsset.NOTE_MOON_UNUSED ->
+                    "has a Live, which wins over its Moon, so its Moon is not used";
             default -> "has a problem: " + problem;
         };
     }

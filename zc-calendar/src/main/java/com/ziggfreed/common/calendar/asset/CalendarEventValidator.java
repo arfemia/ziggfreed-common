@@ -3,6 +3,7 @@ package com.ziggfreed.common.calendar.asset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -13,7 +14,11 @@ import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.server.core.universe.Universe;
+import com.hypixel.hytale.server.core.universe.world.World;
 import com.ziggfreed.common.calendar.AnnualWindow;
+import com.ziggfreed.common.calendar.LiveRule;
+import com.ziggfreed.common.calendar.moon.MoonPhases;
 import com.ziggfreed.common.inventory.ItemIds;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
@@ -34,13 +39,16 @@ import com.ziggfreed.common.validation.TextKeyAudit;
  * <ul>
  *   <li>ERROR every problem that stops the event running ({@code ID_RESERVED}, {@code ID_UNSAVABLE},
  *       {@code WINDOW_MISSING}, {@code WINDOW_UNREADABLE}, {@code WINDOW_RUN_INVALID}, {@code FIRST_YEAR_MISSING},
- *       {@code FIRST_YEAR_OUT_OF_RANGE}), {@link #SPAWN_NO_EVENT}, {@link #SPAWN_NO_RULE_BODY};</li>
+ *       {@code FIRST_YEAR_OUT_OF_RANGE}) or being live ({@code MOON_RANGE_INVALID}, {@code LIVE_EMPTY}),
+ *       {@link #SPAWN_NO_EVENT}, {@link #SPAWN_NO_RULE_BODY};</li>
  *   <li>WARNING every other problem ({@code CLOCK_UNKNOWN}: the event runs, on UTC; {@code YEARS_ENTRY_IGNORED}:
  *       the event runs, without that one Years entry; {@code RUN_SET_ASIDE}: the event runs without each run set
  *       aside, one finding per run, naming it; {@code SKIP_UNKNOWN_RUN}: the event runs, and a Skip number its
  *       year does not have leaves nothing out, one finding per number), {@link #UNKNOWN_ICON},
- *       {@link #HERALD_WITHOUT_TITLE}, {@link #SPAWN_UNKNOWN_EVENT}, and {@link TextKeyAudit#UNKNOWN_TEXT_KEY}
- *       for a Presentation or Herald key no loaded lang file ships.</li>
+ *       {@link #HERALD_WITHOUT_TITLE}, {@link #SPAWN_UNKNOWN_EVENT}, {@link #SPAWN_RIDES_CONDITION},
+ *       {@link #MOON_UNKNOWN_WORLD}, {@link #MOON_RANGE_PAST_PHASES}, {@link #LIVE_UNKNOWN_EVENT} (one per id),
+ *       {@link #LIVE_CYCLE}, and {@link TextKeyAudit#UNKNOWN_TEXT_KEY} for a Presentation or Herald key no loaded
+ *       lang file ships.</li>
  * </ul>
  */
 public final class CalendarEventValidator {
@@ -55,8 +63,18 @@ public final class CalendarEventValidator {
     public static final String SPAWN_NO_EVENT = "SPAWN_NO_EVENT";
     public static final String SPAWN_NO_RULE_BODY = "SPAWN_NO_RULE_BODY";
     public static final String SPAWN_UNKNOWN_EVENT = "SPAWN_UNKNOWN_EVENT";
+    /** A spawn rides an event live by a Moon or a Live, which has no runs, so it never writes its rule. */
+    public static final String SPAWN_RIDES_CONDITION = "SPAWN_RIDES_CONDITION";
+    /** A Moon names a World this server has not loaded; the event waits until that world loads. */
+    public static final String MOON_UNKNOWN_WORLD = "MOON_UNKNOWN_WORLD";
+    /** A MoonPhaseRange names a phase past the last its world's cycle has. */
+    public static final String MOON_RANGE_PAST_PHASES = "MOON_RANGE_PAST_PHASES";
+    /** A Live names an event this server has not loaded; it reads as not live. */
+    public static final String LIVE_UNKNOWN_EVENT = "LIVE_UNKNOWN_EVENT";
+    /** A Live leads round a loop back to an event on its path; the event is refused, never live. */
+    public static final String LIVE_CYCLE = "LIVE_CYCLE";
 
-    /** The problems that stop an event running, so each is an error; any other is a warning. */
+    /** The problems that stop an event running or being live, so each is an error; any other is a warning. */
     private static final Set<String> NEVER_RUNS = Set.of(
             CalendarEventAsset.PROBLEM_ID_RESERVED,
             CalendarEventAsset.PROBLEM_ID_UNSAVABLE,
@@ -64,7 +82,12 @@ public final class CalendarEventValidator {
             CalendarEventAsset.PROBLEM_WINDOW_UNREADABLE,
             CalendarEventAsset.PROBLEM_WINDOW_RUN_INVALID,
             CalendarEventAsset.PROBLEM_FIRST_YEAR_MISSING,
-            CalendarEventAsset.PROBLEM_FIRST_YEAR_OUT_OF_RANGE);
+            CalendarEventAsset.PROBLEM_FIRST_YEAR_OUT_OF_RANGE,
+            CalendarEventAsset.PROBLEM_MOON_RANGE_INVALID,
+            CalendarEventAsset.PROBLEM_LIVE_EMPTY);
+
+    /** What an audit that cannot ask the engine knows of a world: loaded, its phase count unknown. */
+    private static final Function<String, Integer> ANY_WORLD = world -> 0;
 
     private CalendarEventValidator() {
     }
@@ -78,37 +101,123 @@ public final class CalendarEventValidator {
                 return List.of();
             }
             return audit(events.all().values(), CalendarSpawnConfig.getInstance().all().values(),
-                    ItemIds::exists, TextKeyAudit.liveCatalogue());
+                    ItemIds::exists, TextKeyAudit.liveCatalogue(), CalendarEventValidator::liveWorldPhases);
         } catch (Throwable t) {
             SafeLog.warn("[calendar] the calendar audit failed: " + t.getMessage(), t);
             return List.of();
         }
     }
 
-    /**
-     * The pure core, in id order so a report reads the same twice running.
-     *
-     * @param events     every loaded event, switched on or off (a spawn riding a switched-off one is not
-     *                   riding an unknown one)
-     * @param itemKnown  whether an item id names a loaded item
-     * @param keyShipped whether a loaded lang file ships a key
-     */
+    /** The pure core with every world a Moon names read as loaded, its phase count unknown. */
     @Nonnull
     public static List<Finding> audit(@Nonnull Collection<CalendarEventAsset> events,
             @Nonnull Collection<CalendarSpawnAsset> spawns, @Nonnull Predicate<String> itemKnown,
             @Nonnull Predicate<String> keyShipped) {
+        return audit(events, spawns, itemKnown, keyShipped, ANY_WORLD);
+    }
+
+    /**
+     * The pure core, in id order so a report reads the same twice running.
+     *
+     * @param events      every loaded event, switched on or off (a spawn riding a switched-off one is not
+     *                    riding an unknown one, nor is a Live naming one)
+     * @param itemKnown   whether an item id names a loaded item
+     * @param keyShipped  whether a loaded lang file ships a key
+     * @param worldPhases the phase count of the world a Moon names (null or blank: the default world): above 0 for a
+     *                    loaded world, 0 for a loaded world whose count cannot be told, null for a world not loaded
+     */
+    @Nonnull
+    public static List<Finding> audit(@Nonnull Collection<CalendarEventAsset> events,
+            @Nonnull Collection<CalendarSpawnAsset> spawns, @Nonnull Predicate<String> itemKnown,
+            @Nonnull Predicate<String> keyShipped, @Nonnull Function<String, Integer> worldPhases) {
         List<Finding> out = new ArrayList<>();
         Set<String> loaded = new HashSet<>();
-        for (CalendarEventAsset event : byId(events, CalendarEventAsset::getId)) {
+        Set<String> conditions = new HashSet<>();
+        Map<String, CalendarEventAsset> indexed = new HashMap<>();
+        List<CalendarEventAsset> sorted = byId(events, CalendarEventAsset::getId);
+        for (CalendarEventAsset event : sorted) {
             loaded.add(event.getId());
+            indexed.put(event.getId(), event);
+            if (event.isCondition()) {
+                conditions.add(event.getId());
+            }
+        }
+        // The loops a Live leads round, through the events that follow other events and are switched on in their file.
+        Function<String, LiveRule> rules = id -> {
+            CalendarEventAsset event = indexed.get(id);
+            return event == null || !event.isEnabled() || !event.canFollow() ? null : event.liveRule();
+        };
+        for (CalendarEventAsset event : sorted) {
             if (event.isEnabled()) {
                 auditEvent(event, itemKnown, keyShipped, out);
+                auditCondition(event, loaded, rules, worldPhases, out);
             }
         }
         for (CalendarSpawnAsset spawn : byId(spawns, CalendarSpawnAsset::getId)) {
-            auditSpawn(spawn, loaded, out);
+            auditSpawn(spawn, loaded, conditions, out);
         }
         return out;
+    }
+
+    /**
+     * What an event live by a condition gets wrong across the loaded set and the server's worlds: a Moon's unknown
+     * world or a phase past its cycle's last, a Live's unknown event (one finding per id) or loop.
+     */
+    private static void auditCondition(@Nonnull CalendarEventAsset event, @Nonnull Set<String> loaded,
+            @Nonnull Function<String, LiveRule> rules, @Nonnull Function<String, Integer> worldPhases,
+            @Nonnull List<Finding> out) {
+        if (!event.canFollow()) {
+            return;
+        }
+        String id = event.getId();
+        String where = "the calendar event '" + id + "'";
+        LiveRule rule = event.liveRule();
+        if (rule != null) {
+            for (String member : rule.members()) {
+                if (!loaded.contains(member)) {
+                    out.add(Finding.warning(DOMAIN, LIVE_UNKNOWN_EVENT, where + " names '" + member + "' in its Live, "
+                            + "which is no loaded calendar event, so it reads as not live", id));
+                }
+            }
+            List<String> loop = LiveRule.loopFrom(id, rules);
+            if (loop != null) {
+                out.add(Finding.warning(DOMAIN, LIVE_CYCLE, where + " follows events in its Live that lead round a "
+                        + "loop (" + String.join(" > ", loop) + "), so it is never live: an event can never be live "
+                        + "by itself", id));
+            }
+            return;
+        }
+        int[] range = event.moonRange();
+        String world = event.moonWorld();
+        String named = world == null ? "the default world" : "the World '" + world + "'";
+        Integer phases = worldPhases.apply(world);
+        if (phases == null) {
+            out.add(Finding.warning(DOMAIN, MOON_UNKNOWN_WORLD, where + " follows the moon of " + named
+                    + ", which this server has not loaded, so it waits until that world loads", id));
+        } else if (range != null && phases > 0 && (range[0] >= phases || range[1] >= phases)) {
+            out.add(Finding.warning(DOMAIN, MOON_RANGE_PAST_PHASES, where + " has a MoonPhaseRange of [" + range[0]
+                    + ", " + range[1] + "], but the moon of " + named + " has phases 0 to " + (phases - 1)
+                    + ", so a phase past " + (phases - 1) + " never comes", id));
+        }
+    }
+
+    /**
+     * The phase count of {@code world}'s moon (null or blank: the default world): its gameplay config's
+     * {@code TotalMoonPhases}; null when the server has not loaded it, 0 when it cannot be told (no universe yet).
+     */
+    @Nullable
+    private static Integer liveWorldPhases(@Nullable String world) {
+        try {
+            Universe universe = Universe.get();
+            String name = universe == null ? null : MoonPhases.resolve(world);
+            if (name == null) {
+                return 0;
+            }
+            World loaded = universe.getWorld(name);
+            return loaded == null ? null : loaded.getGameplayConfig().getWorldConfig().getTotalMoonPhases();
+        } catch (Throwable t) {
+            return 0;
+        }
     }
 
     private static void auditEvent(@Nonnull CalendarEventAsset event, @Nonnull Predicate<String> itemKnown,
@@ -177,7 +286,7 @@ public final class CalendarEventValidator {
     }
 
     private static void auditSpawn(@Nonnull CalendarSpawnAsset spawn, @Nonnull Set<String> loadedEvents,
-            @Nonnull List<Finding> out) {
+            @Nonnull Set<String> conditions, @Nonnull List<Finding> out) {
         String id = spawn.getId();
         String where = "the calendar spawn '" + id + "'";
         String event = spawn.eventId();
@@ -186,6 +295,10 @@ public final class CalendarEventValidator {
         } else if (!loadedEvents.contains(event)) {
             out.add(Finding.warning(DOMAIN, SPAWN_UNKNOWN_EVENT, where + " rides the Event '" + event
                     + "', which names no loaded calendar event, so it never writes its rule", id));
+        } else if (conditions.contains(event)) {
+            out.add(Finding.warning(DOMAIN, SPAWN_RIDES_CONDITION, where + " rides the Event '" + event
+                    + "', which is live by a Moon or a Live rather than by dates and so has no runs, so it never "
+                    + "writes its rule; a world spawn's own MoonPhaseRange follows the moon", id));
         }
         if (spawn.spawnJson() == null) {
             out.add(Finding.error(DOMAIN, SPAWN_NO_RULE_BODY, where + " has no Spawn rule body (an object), so it "

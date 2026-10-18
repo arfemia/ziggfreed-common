@@ -2,7 +2,9 @@ package com.ziggfreed.common.calendar.tick;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
@@ -18,7 +20,9 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The calendar's once-a-minute look at the clock: what began and what ended since the last look, told
- * as native events and handed to every listener (spawns, attendance, the herald).
+ * as native events and handed to every listener (spawns, attendance, the herald), and which events live by a
+ * condition rose or lapsed (no native event: a condition is not a run). A world's moon changing asks for a look
+ * at once ({@link #requestEvaluation()}), so a Moon event rises within moments of its phase.
  *
  * <p>Nothing looks before {@link #start()}, which the bootstrap calls on {@code BootEvent}: its first look
  * is the boot's (every run already going is a RESUMED start), and a world added during the universe's own
@@ -39,6 +43,8 @@ public final class CalendarTicker {
     private final List<Consumer<CalendarTick>> listeners = new CopyOnWriteArrayList<>();
     /** The runs going on at the last look, by event id. */
     private final Map<String, Occurrence> live = new TreeMap<>();
+    /** The events live by a condition that were live at the last look. */
+    private final Set<String> conditions = new TreeSet<>();
     private volatile boolean started;
     @Nullable
     private TickScheduler.Cancellable repeating;
@@ -98,9 +104,14 @@ public final class CalendarTicker {
             // The one writer of a spent force: under the lock a reload folds under, so never on half a reload.
             service.clearSpentForces(now);
             Map<String, Occurrence> current = service.liveAll(now);
-            tick = CalendarTransitions.diff(live, current, service::isEnabled, now, booting);
+            Set<String> holding = service.liveConditions(now);
+            tick = CalendarTransitions.withConditions(
+                    CalendarTransitions.diff(live, current, service::isEnabled, now, booting), conditions, holding,
+                    service::isSwitchedOn);
             live.clear();
             live.putAll(current);
+            conditions.clear();
+            conditions.addAll(holding);
         }
         for (CalendarTick.Ended ended : tick.ended()) {
             CalendarEvents.fireEnded(ended.occurrence(), ended.switchedOff(), now);
@@ -111,6 +122,14 @@ public final class CalendarTicker {
             CalendarEvents.fireStarted(start.occurrence(), start.resumed(), now);
             SafeLog.info("[calendar] " + start.occurrence().eventId() + " " + start.occurrence().label()
                     + (start.resumed() ? " is running (resumed at boot)" : " started"));
+        }
+        // A condition is not a run: no run's native event, only a line, so a log reader follows the moon.
+        for (CalendarTick.Lapsed lapsed : tick.lapsed()) {
+            SafeLog.info("[calendar] " + lapsed.eventId() + (lapsed.switchedOff() ? " was switched off"
+                    : " is no longer live"));
+        }
+        for (String rose : tick.rose()) {
+            SafeLog.info("[calendar] " + rose + (booting ? " is live (at boot)" : " is live"));
         }
         for (Consumer<CalendarTick> listener : listeners) {
             try {

@@ -16,7 +16,9 @@ import javax.annotation.Nullable;
  * from any thread, so a reader may ask on every availability read.
  *
  * <p>An event this server does not have, or one its owner switched off, is ABSENT: it is not
- * enabled, never live, and has no history. Off means absent, never locked.
+ * enabled, never live, and has no history. Off means absent, never locked. So is an event that is live by a
+ * condition rather than by dates (the calendar's moon and composite events): it has no runs, so a reader of runs
+ * never sees it, and no year either ({@link #firstYear}); content gates on its season feature instead.
  *
  * <p>The two YEAR questions and the clock are the exceptions: {@link #firstYear}, {@link #currentYear}
  * and {@link #zone} answer for any event LOADED on this server whatever its switches say, so a reader

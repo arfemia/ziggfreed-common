@@ -14,8 +14,10 @@ import com.ziggfreed.common.season.SeasonGate;
  * than sitting there locked:
  * <ul>
  *   <li>{@code Calendar}: the owner's global switch;</li>
- *   <li>{@code <EventId>}: the event is switched on (by the owner and by its own file) and can run;</li>
- *   <li>{@code <EventId>_Live}: that, AND a run is going on now (a force included).</li>
+ *   <li>{@code <EventId>}: the event is switched on (by the owner and by its own file) and can run, or can follow
+ *       its condition ({@link CalendarService#isSwitchedOn});</li>
+ *   <li>{@code <EventId>_Live}: that, AND a run is going on now, or its Moon or Live holds now (a force included,
+ *       {@link CalendarService#isLive}).</li>
  * </ul>
  * Every supplier re-reads the calendar per gate, so a reload or a force lands on the next look. The
  * namespace is declared at library setup ({@link #declare}), before anything folds content; each event's
@@ -56,9 +58,9 @@ public final class CalendarFeatures {
             if (CalendarEventAsset.isReservedId(id)) {
                 continue;
             }
-            FeatureFlags.register(NAMESPACE, id, OWNER, () -> service.isEnabled(id));
+            FeatureFlags.register(NAMESPACE, id, OWNER, () -> service.isSwitchedOn(id));
             FeatureFlags.register(NAMESPACE, SeasonGate.featureOf(id), OWNER,
-                    () -> service.live(id, clock.getAsLong()) != null);
+                    () -> service.isLive(id, clock.getAsLong()));
         }
     }
 }

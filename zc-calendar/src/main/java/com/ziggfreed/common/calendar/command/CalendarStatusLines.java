@@ -16,12 +16,15 @@ import javax.annotation.Nullable;
 
 import com.ziggfreed.common.calendar.AnnualWindow;
 import com.ziggfreed.common.calendar.CalendarService;
+import com.ziggfreed.common.calendar.LiveRule;
 import com.ziggfreed.common.calendar.asset.CalendarEventAsset;
+import com.ziggfreed.common.calendar.moon.MoonSource;
 import com.ziggfreed.common.occurrence.Occurrence;
 
 /**
  * What /zigcalendar says about an event, as lines: a key under the admin prefix and its raw arguments (an
- * id, a year, a {@code yyyy-MM-dd} day, a problem code: data that reads the same in every language). Pure.
+ * id, a year, a {@code yyyy-MM-dd} day, a problem code, a world name, a moon phase: data that reads the same in
+ * every language). Pure over the service it is handed.
  */
 public final class CalendarStatusLines {
 
@@ -52,6 +55,9 @@ public final class CalendarStatusLines {
         if (!service.isGloballyEnabled() || !event.isEnabled()) {
             return Line.of("row.off", id);
         }
+        if (event.isCondition()) {
+            return conditionRow(service, event, nowMs);
+        }
         if (!event.canRun()) {
             return Line.of("row.broken", id, String.join(", ", event.problems()));
         }
@@ -80,6 +86,10 @@ public final class CalendarStatusLines {
         }
         List<Line> out = new ArrayList<>();
         out.add(row(service, eventId, nowMs));
+        if (event.isCondition()) {
+            conditionDetail(service, event, nowMs, out);
+            return out;
+        }
         AnnualWindow window = event.annualWindow();
         ZoneId zone = event.zone();
         String clock = ZoneOffset.UTC.equals(zone) ? "UTC" : zone.getId();
@@ -105,6 +115,108 @@ public final class CalendarStatusLines {
             out.add(Line.of("status.note", note));
         }
         return out;
+    }
+
+    /**
+     * The row of a switched-on event live by a condition: forced, stopped, broken, or live or waiting by its moon (with
+     * the world's phase) or by the events it follows (never, when they lead round a loop).
+     */
+    @Nonnull
+    private static Line conditionRow(@Nonnull CalendarService service, @Nonnull CalendarEventAsset event, long nowMs) {
+        String id = event.getId();
+        if (!event.canFollow()) {
+            return Line.of("row.broken", id, String.join(", ", event.problems()));
+        }
+        Boolean forced = service.forced(id);
+        if (Boolean.TRUE.equals(forced)) {
+            return Line.of("row.condition.forced", id);
+        }
+        if (Boolean.FALSE.equals(forced)) {
+            return Line.of("row.stopped", id);
+        }
+        boolean live = service.isLive(id, nowMs);
+        if (event.followsEvents()) {
+            if (service.loopOf(id) != null) {
+                return Line.of("row.events.loop", id);
+            }
+            return Line.of(live ? "row.events.live" : "row.events.waiting", id);
+        }
+        MoonSource.Reading moon = service.moonOf(id);
+        if (moon == null) {
+            return Line.of("row.moon.none", id, worldOf(service, id));
+        }
+        return Line.of(live ? "row.moon.live" : "row.moon.waiting", id, moon.world(), Integer.toString(moon.phase()));
+    }
+
+    /**
+     * What status says of an event live by a condition after its row: its moon's range and the world's phase (and
+     * whether time is paused there), or the lists it follows, any loop and each event it names; that it keeps no
+     * runs; and any problem or note.
+     */
+    private static void conditionDetail(@Nonnull CalendarService service, @Nonnull CalendarEventAsset event,
+            long nowMs, @Nonnull List<Line> out) {
+        String id = event.getId();
+        LiveRule rule = event.liveRule();
+        if (rule != null) {
+            if (!rule.anyOf().isEmpty()) {
+                out.add(Line.of("status.live.any", String.join(", ", rule.anyOf())));
+            }
+            if (!rule.allOf().isEmpty()) {
+                out.add(Line.of("status.live.all", String.join(", ", rule.allOf())));
+            }
+            if (!rule.noneOf().isEmpty()) {
+                out.add(Line.of("status.live.none", String.join(", ", rule.noneOf())));
+            }
+            List<String> loop = service.loopOf(id);
+            if (loop != null) {
+                out.add(Line.of("status.live.loop", String.join(" > ", loop)));
+            }
+            for (String member : rule.members()) {
+                out.add(memberLine(service, member, nowMs));
+            }
+        } else {
+            String world = worldOf(service, id);
+            int[] range = event.moonRange();
+            if (range != null) {
+                out.add(Line.of("status.moon", world, Integer.toString(range[0]), Integer.toString(range[1])));
+            }
+            MoonSource.Reading moon = service.moonOf(id);
+            if (moon == null) {
+                out.add(Line.of("status.moon.none", world));
+            } else {
+                out.add(Line.of("status.moon.phase", moon.world(), Integer.toString(moon.phase()),
+                        Integer.toString(moon.totalPhases() - 1)));
+                if (service.moonPaused(id)) {
+                    out.add(Line.of("status.moon.paused", moon.world()));
+                }
+            }
+        }
+        out.add(Line.of("status.condition.noruns"));
+        for (String problem : event.problems()) {
+            out.add(Line.of("status.problem", problem));
+        }
+        for (String note : event.notes()) {
+            out.add(Line.of("status.note", note));
+        }
+    }
+
+    /** One event a Live names, as it reads now: unknown, switched off, live or not. */
+    @Nonnull
+    private static Line memberLine(@Nonnull CalendarService service, @Nonnull String member, long nowMs) {
+        if (!service.isLoaded(member)) {
+            return Line.of("status.member.unknown", member);
+        }
+        if (!service.isSwitchedOn(member)) {
+            return Line.of("status.member.off", member);
+        }
+        return Line.of(service.isLive(member, nowMs) ? "status.member.live" : "status.member.waiting", member);
+    }
+
+    /** The name of the world whose moon {@code eventId} follows (the default world's for a blank one), or {@code ?}. */
+    @Nonnull
+    private static String worldOf(@Nonnull CalendarService service, @Nonnull String eventId) {
+        String world = service.moonWorldOf(eventId);
+        return world == null ? "?" : world;
     }
 
     /** The run a moving window's dates line frames: the one going on, else the next, else the last; null when absent. */

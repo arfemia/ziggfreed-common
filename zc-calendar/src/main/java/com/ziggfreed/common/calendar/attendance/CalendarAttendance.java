@@ -13,6 +13,7 @@ import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.calendar.CalendarConditionHerald;
 import com.ziggfreed.common.calendar.CalendarHerald;
 import com.ziggfreed.common.calendar.CalendarRuntime;
 import com.ziggfreed.common.calendar.CalendarService;
@@ -28,7 +29,9 @@ import com.ziggfreed.common.util.SafeLog;
  * year, by its number) on the player's own world thread: the record is written, {@code CalendarAttendedEvent}
  * fires for each run at once, and the runs' start banners show, queued a gap apart, after the tick's end banners
  * when a run's start credits everyone online ({@link CalendarHerald#showStarts}). A boot catch-up credits
- * nobody, since nobody was here.
+ * nobody, since nobody was here. An event live by a condition (a Moon or a Live) is never credited, since it has
+ * no runs; entering a world while one is live shows its start banner after the entry's run banners
+ * ({@link CalendarConditionHerald#showOnEntry}), on the same hop, so one entry is one queue.
  */
 public final class CalendarAttendance {
 
@@ -77,10 +80,10 @@ public final class CalendarAttendance {
         try {
             long now = CalendarRuntime.now();
             List<Occurrence> live = runningAt(now);
-            if (live.isEmpty()) {
+            if (live.isEmpty() && !CalendarConditionHerald.anyLive()) {
                 return;
             }
-            hop(event.getPlayerRef(), live, now, 0L);
+            hop(event.getPlayerRef(), live, now, 0L, true);
         } catch (Throwable t) {
             SafeLog.warn("[calendar] attendance on player ready failed", t);
         }
@@ -98,7 +101,7 @@ public final class CalendarAttendance {
             for (PlayerRef player : Universe.get().getPlayers()) {
                 Ref<EntityStore> ref = player == null ? null : player.getReference();
                 if (ref != null) {
-                    hop(ref, fresh, tick.nowMs(), afterMs);
+                    hop(ref, fresh, tick.nowMs(), afterMs, false);
                 }
             }
         } catch (Throwable t) {
@@ -106,12 +109,14 @@ public final class CalendarAttendance {
         }
     }
 
-    private static void hop(@Nonnull Ref<EntityStore> ref, @Nonnull List<Occurrence> runs, long nowMs, long afterMs) {
-        PlayerWorldThread.queue(ref, () -> creditOnWorldThread(ref, runs, nowMs, afterMs));
+    /** Credit {@code runs} on the player's world thread; {@code entering} a world also shows the live conditions' banners. */
+    private static void hop(@Nonnull Ref<EntityStore> ref, @Nonnull List<Occurrence> runs, long nowMs, long afterMs,
+            boolean entering) {
+        PlayerWorldThread.queue(ref, () -> creditOnWorldThread(ref, runs, nowMs, afterMs, entering));
     }
 
     private static void creditOnWorldThread(@Nonnull Ref<EntityStore> ref, @Nonnull List<Occurrence> runs, long nowMs,
-            long afterMs) {
+            long afterMs, boolean entering) {
         try {
             ComponentType<EntityStore, CalendarAttendanceComponent> type = CalendarAttendanceComponent.TYPE;
             if (type == null || !ref.isValid()) {
@@ -128,6 +133,11 @@ public final class CalendarAttendance {
                 CalendarEvents.fireAttended(player.getUuid(), run, nowMs);
             }
             CalendarHerald.showStarts(player, started, afterMs);
+            if (entering) {
+                // After the run banners this entry queued, so one entry is one queue.
+                int shown = CalendarHerald.startQueue(started, CalendarRuntime.service()::event, afterMs).size();
+                CalendarConditionHerald.showOnEntry(player, nowMs, afterMs + shown * CalendarHerald.START_GAP_MS);
+            }
         } catch (Throwable t) {
             SafeLog.warn("[calendar] could not credit attendance", t);
         }

@@ -13,11 +13,12 @@ import com.ziggfreed.common.occurrence.Occurrence;
  * event (its file name, any case); neither needs a live subject, so a placement sweep, a shop row and a
  * loot roll read them alike.
  * <ul>
- *   <li>{@value #LIVE}: 1 while a run is going on, 0 while the event is stopped by a command or between
- *       its dates, nothing at all for a blank Param or an event this server lacks, has switched off or
- *       cannot run. Off means ABSENT: every gate on it stays shut (the standing fail-closed rule), and a
- *       reader lists nothing rather than an event "between seasons";</li>
- *   <li>{@value #YEAR}: the year of the run going on (the year it began in), nothing otherwise.</li>
+ *   <li>{@value #LIVE}: 1 while a run is going on or its Moon or Live holds, 0 while the event is stopped by a
+ *       command, between its dates or waiting on its condition, nothing at all for a blank Param or an event
+ *       this server lacks, has switched off or cannot run. Off means ABSENT: every gate on it stays shut (the
+ *       standing fail-closed rule), and a reader lists nothing rather than an event "between seasons";</li>
+ *   <li>{@value #YEAR}: the year of the run going on (the year it began in), nothing otherwise, and nothing for
+ *       an event live by a condition, which has no runs.</li>
  * </ul>
  * A condition on {@value #LIVE} is a LOCK (a requirement a player reads); gate on the
  * {@code ziggfreedcommon:feature} switches ({@link CalendarFeatures}) to make content vanish instead.
@@ -45,10 +46,10 @@ public final class CalendarFactors {
             return null;
         }
         String id = param.trim();
-        if (!service.isEnabled(id)) {
+        if (!service.isSwitchedOn(id)) {
             return null;
         }
-        return service.live(id, nowMs) != null ? 1.0 : 0.0;
+        return service.isLive(id, nowMs) ? 1.0 : 0.0;
     }
 
     @Nullable

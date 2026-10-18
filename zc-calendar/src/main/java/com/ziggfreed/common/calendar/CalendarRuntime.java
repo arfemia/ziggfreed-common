@@ -6,18 +6,20 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.ziggfreed.common.calendar.asset.CalendarEventConfig;
+import com.ziggfreed.common.calendar.moon.MoonPhases;
 import com.ziggfreed.common.calendar.tick.CalendarTicker;
 import com.ziggfreed.common.calendar.tick.ExecutorTickScheduler;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * The one calendar a server runs: the service over the shared stores, the clock it reads, and the minute
- * tick. The tick only starts on boot (the bootstrap's {@code BootEvent} hook), so a unit JVM never ticks.
+ * The one calendar a server runs: the service over the shared stores and each world's moon, the clock it reads,
+ * and the minute tick. The tick only starts on boot (the bootstrap's {@code BootEvent} hook), so a unit JVM never
+ * ticks.
  */
 public final class CalendarRuntime {
 
-    private static final CalendarService SERVICE =
-            new CalendarService(CalendarEventConfig.getInstance(), CalendarForces.getInstance());
+    private static final CalendarService SERVICE = new CalendarService(CalendarEventConfig.getInstance(),
+            CalendarForces.getInstance(), MoonPhases.getInstance());
 
     private static volatile LongSupplier clock = System::currentTimeMillis;
 

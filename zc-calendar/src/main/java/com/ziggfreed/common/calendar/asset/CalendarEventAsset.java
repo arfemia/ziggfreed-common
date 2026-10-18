@@ -28,7 +28,9 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.calendar.AnnualWindow;
+import com.ziggfreed.common.calendar.LiveRule;
 import com.ziggfreed.common.calendar.YearRule;
+import com.ziggfreed.common.calendar.moon.MoonRange;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.season.SeasonGate;
 
@@ -64,6 +66,15 @@ import com.ziggfreed.common.season.SeasonGate;
  * move a weekly run into a neighbouring week, and so change its number. A run meeting one before it is set aside
  * ({@link #setAside()}), and a Years entry's {@code Skip} leaves runs out by number; neither number goes to
  * another run.
+ *
+ * <p><b>Live by a condition instead of dates</b>: {@code "Moon": {"MoonPhaseRange": [0, 1], "World": ""}} is live
+ * while a world's moon is in those phases (the engine's own key and wrap rule; phase 0 is full; a blank World is the
+ * default world), and {@code "Live": {"AnyOf": [...], "AllOf": [...], "NoneOf": [...]}} is live by other events, so
+ * content keeps one Season string. Live wins over Moon, and either over a Window. Such an event is a condition, not
+ * a run: it declares {@code <Id>} and {@code <Id>_Live} like any event, so every Season leaf and
+ * {@code calendar_live} read it, but it has no runs, so nothing that counts runs (attendance, history, a yearly
+ * copy, the Almanac, a stat's season line, a spawn rule) ever sees it. It needs no FirstYear. Its Herald shows the
+ * start banner at each rise and the end banner as it sets, or each at most once a day ({@code Herald.OncePerDay}).
  *
  * <p><b>{@code Enabled: false} makes the event ABSENT, not locked</b>: content gated on it vanishes,
  * as it does when the server owner switches every event off ({@code mods/ziggfreedcommon/calendar.json},
@@ -115,6 +126,14 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
     public static final String NOTE_START_END_BESIDE_RUNS = "START_END_BESIDE_RUNS";
     /** A Years entry's Skip names a run number its year does not have, so it skips nothing ({@link #unknownSkips()}). */
     public static final String PROBLEM_SKIP_UNKNOWN_RUN = "SKIP_UNKNOWN_RUN";
+    /** A Moon whose MoonPhaseRange is not two phases of 0 or more; the event is never live. */
+    public static final String PROBLEM_MOON_RANGE_INVALID = "MOON_RANGE_INVALID";
+    /** A Live naming no event in AnyOf, AllOf or NoneOf; the event is never live. */
+    public static final String PROBLEM_LIVE_EMPTY = "LIVE_EMPTY";
+    /** A Window beside a Moon or a Live, which wins over it: a note, never a problem. */
+    public static final String NOTE_WINDOW_UNUSED = "WINDOW_UNUSED";
+    /** A Moon beside a Live, which wins over it: a note, never a problem. */
+    public static final String NOTE_MOON_UNUSED = "MOON_UNUSED";
 
     /** How many years from FirstYear the audit reads for runs set aside: a leap year with both its edges among them. */
     static final int AUDIT_YEARS = 5;
@@ -146,6 +165,8 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
 
     @Nullable private Boolean enabled;
     @Nullable private Window window;
+    @Nullable private Moon moon;
+    @Nullable private Live live;
     @Nullable private Integer firstYear;
     @Nullable private String clock;
     @Nullable private Presentation presentation;
@@ -153,6 +174,9 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
 
     /** The Window read once per decoded file. */
     @Nullable private volatile ParsedWindow parsedWindow;
+
+    /** The Live group read once per decoded file. */
+    @Nullable private volatile LiveRule parsedLive;
 
     public static final AssetBuilderCodec<String, CalendarEventAsset> CODEC = AssetBuilderCodec.builder(
                     CalendarEventAsset.class,
@@ -174,20 +198,36 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
                     + "included, the same every year; a Rule (Fixed, Easter, Weekday, Monthly or Weekly) works each "
                     + "year's runs out instead and wins over them; Years sets the days of particular years and wins "
                     + "over both. An End before its Start crosses the new year, and that run belongs to the year it "
-                    + "starts in. A Window naming only some leaves under Parent or in an owner entry keeps the rest.")
+                    + "starts in. A Window naming only some leaves under Parent or in an owner entry keeps the rest. "
+                    + "Not used when a Moon or a Live is authored.")
+            .add()
+            .appendInherited(new KeyedCodec<>("Moon", Moon.CODEC, false),
+                    (a, v) -> a.moon = v, a -> a.moon, (a, p) -> a.moon = p.moon)
+            .documentation("Live while a world's moon is in the phases named, instead of on dates: the game's own "
+                    + "moon, as a world spawn's MoonPhaseRange reads it. Wins over a Window. Such an event has no runs, "
+                    + "so nothing that counts runs (attendance, past runs, a yearly copy, the Almanac) sees it; content "
+                    + "gated on its Season shows while it is live.")
+            .add()
+            .appendInherited(new KeyedCodec<>("Live", Live.CODEC, false),
+                    (a, v) -> a.live = v, a -> a.live, (a, p) -> a.live = p.live)
+            .documentation("Live by other calendar events instead of on dates: while any of AnyOf is live, all of "
+                    + "AllOf are and none of NoneOf is, so content keeps one Season string. Wins over a Moon and a "
+                    + "Window. An event whose Live leads back to itself is never live. Such an event has no runs.")
             .add()
             .appendInherited(new KeyedCodec<>("FirstYear", Codec.INTEGER, false),
                     (a, v) -> a.firstYear = v, a -> a.firstYear, (a, p) -> a.firstYear = p.firstYear)
             .documentation("The first year the event runs, from " + MIN_FIRST_YEAR + " to " + MAX_FIRST_YEAR
                     + ". Runs before it never happen, and a list of past runs starts here. Required: an event "
-                    + "without one, or with one outside those years, never runs.")
+                    + "without one, or with one outside those years, never runs. Not used by an event with a Moon or "
+                    + "a Live.")
             .add()
             .appendInherited(new KeyedCodec<>("Clock", Codec.STRING, false),
                     (a, v) -> a.clock = v, a -> a.clock, (a, p) -> a.clock = p.clock)
             .metadata(EditorSchema.defaultValue("UTC"))
             .documentation("The time zone the Window's days are counted in: a zone id (UTC, Europe/Paris, "
-                    + "America/New_York) or an offset (+02:00). Unauthored means UTC; a zone this server does not "
-                    + "know also counts in UTC, with a warning.")
+                    + "America/New_York) or an offset (+02:00), and for an event with a Moon or a Live the day "
+                    + "Herald.OncePerDay counts by. Unauthored means UTC; a zone this server does not know also "
+                    + "counts in UTC, with a warning.")
             .add()
             .appendInherited(new KeyedCodec<>("Presentation", Presentation.CODEC, false),
                     (a, v) -> a.presentation = v, a -> a.presentation, (a, p) -> a.presentation = p.presentation)
@@ -198,7 +238,8 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
             .documentation("The banner a player sees when a run begins for them and when it ends. Unauthored means "
                     + "the event comes and goes without one. Enabled false keeps every run quiet; FirstRunOfYear true "
                     + "shows the start banner on the year's first run and the end banner when its last run ends, both "
-                    + "by their dates.")
+                    + "by their dates. An event with a Moon or a Live shows them at each rise and set instead, or "
+                    + "each at most once a day with OncePerDay true.")
             .add()
             .build();
 
@@ -234,17 +275,92 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
     /** What the file authors that is not used, as stable codes (INFO, never a problem); empty when nothing is. */
     @Nonnull
     public List<String> notes() {
-        return parsed().notes();
+        if (!isCondition()) {
+            return parsed().notes();
+        }
+        List<String> out = new ArrayList<>();
+        if (window != null && !window.isEmpty()) {
+            out.add(NOTE_WINDOW_UNUSED);
+        }
+        if (followsEvents() && moon != null) {
+            out.add(NOTE_MOON_UNUSED);
+        }
+        return List.copyOf(out);
     }
 
+    /** The Window as read, or one that dates nothing for an event live by a condition (its Window is not used). */
     @Nonnull
     private ParsedWindow parsed() {
         ParsedWindow cached = parsedWindow;
         if (cached == null) {
-            cached = readWindow(window, firstYear);
+            cached = isCondition() ? ParsedWindow.none(List.of(), List.of()) : readWindow(window, firstYear);
             parsedWindow = cached;
         }
         return cached;
+    }
+
+    /**
+     * Is the event live by a condition, a {@code Moon} or a {@code Live}, rather than by its dates? Such an event has
+     * no runs: {@link #annualWindow()} is null and {@link #canRun()} false, so every reader of runs reads it as
+     * absent, and it follows its condition instead ({@link #canFollow()}).
+     */
+    public boolean isCondition() {
+        return live != null || moon != null;
+    }
+
+    /** Is it live by other events: a {@code Live}, which wins over a Moon? */
+    public boolean followsEvents() {
+        return live != null;
+    }
+
+    /** Is it live by a world's moon: a {@code Moon} and no Live? */
+    public boolean followsMoon() {
+        return live == null && moon != null;
+    }
+
+    /** Can it follow its condition: an id of its own and a readable Moon or Live? False for an event on dates. */
+    public boolean canFollow() {
+        return isCondition() && !isReservedId(id) && conditionProblem() == null;
+    }
+
+    /** The MoonPhaseRange it follows, {@code [first, last]}, when it follows a readable Moon; else null. */
+    @Nullable
+    public int[] moonRange() {
+        int[] range = moon == null ? null : moon.moonPhaseRange;
+        return followsMoon() && MoonRange.readable(range) ? range.clone() : null;
+    }
+
+    /** The world whose moon it follows, trimmed; null for the default world, or when it follows no Moon. */
+    @Nullable
+    public String moonWorld() {
+        return followsMoon() ? blankToNull(moon.world) : null;
+    }
+
+    /** The other events it is live by, when it has a Live; else null. */
+    @Nullable
+    public LiveRule liveRule() {
+        if (live == null) {
+            return null;
+        }
+        LiveRule cached = parsedLive;
+        if (cached == null) {
+            cached = LiveRule.of(live.anyOf, live.allOf, live.noneOf);
+            parsedLive = cached;
+        }
+        return cached;
+    }
+
+    /** What stops a condition event being live, as a code; null when nothing does or it is an event on dates. */
+    @Nullable
+    private String conditionProblem() {
+        if (followsEvents()) {
+            LiveRule rule = liveRule();
+            return rule == null || rule.isEmpty() ? PROBLEM_LIVE_EMPTY : null;
+        }
+        if (followsMoon()) {
+            return MoonRange.readable(moon.moonPhaseRange) ? null : PROBLEM_MOON_RANGE_INVALID;
+        }
+        return null;
     }
 
     /**
@@ -470,6 +586,19 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
         return heraldShows(year, number, false);
     }
 
+    /** Is its Herald switched on (unsaid is on)? What an event live by a condition asks before each banner. */
+    public boolean heraldOn() {
+        return herald == null || !Boolean.FALSE.equals(herald.enabled);
+    }
+
+    /**
+     * Does an event live by a condition show each of its banners to a player at most once a day, in its Clock,
+     * rather than at every rise and set? Unsaid is false.
+     */
+    public boolean heraldOncePerDay() {
+        return herald != null && Boolean.TRUE.equals(herald.oncePerDay);
+    }
+
     /**
      * The two answers' one rule: the start banner reads the year's first run, the end banner its last. Both are the
      * year's by their dates, never by number: a number is the year's rule's name for a run (a month, a calendar week,
@@ -505,7 +634,10 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
         return edge == null ? 1 : edge.number();
     }
 
-    /** Can the event run at all: an id of its own, a readable Window and a FirstYear from 1970 to 9999? */
+    /**
+     * Can the event run at all: an id of its own, a readable Window and a FirstYear from 1970 to 9999? Never for an
+     * event live by a condition, which has no runs ({@link #canFollow()}).
+     */
     public boolean canRun() {
         return !isReservedId(id) && annualWindow() != null && firstYear != null && isFirstYearInRange(firstYear);
     }
@@ -556,11 +688,19 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
         if (carriesAttendanceSeparator(id)) {
             out.add(PROBLEM_ID_UNSAVABLE);
         }
-        out.addAll(parsed().problems());
-        if (firstYear == null) {
-            out.add(PROBLEM_FIRST_YEAR_MISSING);
-        } else if (!isFirstYearInRange(firstYear)) {
-            out.add(PROBLEM_FIRST_YEAR_OUT_OF_RANGE);
+        if (isCondition()) {
+            // Live by a condition: no Window or FirstYear is needed, only a readable Moon or Live.
+            String problem = conditionProblem();
+            if (problem != null) {
+                out.add(problem);
+            }
+        } else {
+            out.addAll(parsed().problems());
+            if (firstYear == null) {
+                out.add(PROBLEM_FIRST_YEAR_MISSING);
+            } else if (!isFirstYearInRange(firstYear)) {
+                out.add(PROBLEM_FIRST_YEAR_OUT_OF_RANGE);
+            }
         }
         if (AnnualWindow.zone(clock) == null) {
             out.add(PROBLEM_CLOCK_UNKNOWN);
@@ -630,6 +770,64 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
         }
     }
 
+    /**
+     * The Moon group: the phases of one world's moon the event is live in. {@code MoonPhaseRange} is the engine's
+     * own key, read by its rule ({@link MoonRange#within}); {@code World} names the world, blank for the default.
+     */
+    public static final class Moon {
+
+        @Nullable private int[] moonPhaseRange;
+        @Nullable private String world;
+
+        public static final BuilderCodec<Moon> CODEC = BuilderCodec.builder(Moon.class, Moon::new)
+                .appendInherited(new KeyedCodec<>("MoonPhaseRange", Codec.INT_ARRAY, false),
+                        (o, v) -> o.moonPhaseRange = v, o -> o.moonPhaseRange,
+                        (o, p) -> o.moonPhaseRange = p.moonPhaseRange)
+                .documentation("The moon phases the event is live in, as [first, last], read the way a world "
+                        + "spawn's MoonPhaseRange is: phase 0 is the full moon, and the moon wanes through each phase "
+                        + "after it (the game's default has five, 0 to 4, each changing at midday). Both phases are "
+                        + "in it, and a first past its last wraps round, so [4, 1] is phases 4, 0 and 1. [0, 1] is "
+                        + "the full-moon night and the night after it. Required: two phases of 0 or more.").add()
+                .appendInherited(new KeyedCodec<>("World", Codec.STRING, false),
+                        (o, v) -> o.world = v, o -> o.world, (o, p) -> o.world = p.world)
+                .metadata(EditorSchema.defaultValue(""))
+                .documentation("The world whose moon it follows, by name. Unauthored or blank means the server's "
+                        + "default world. A world whose time is paused keeps its moon, so the event stays as it is "
+                        + "there.").add()
+                .build();
+
+        public Moon() {
+        }
+    }
+
+    /**
+     * The Live group: the other events this one is live by ({@link LiveRule}). Each list names event ids, and the
+     * lists merge whole under {@code Parent} and in an owner entry, leaf by leaf.
+     */
+    public static final class Live {
+
+        @Nullable private String[] anyOf;
+        @Nullable private String[] allOf;
+        @Nullable private String[] noneOf;
+
+        public static final BuilderCodec<Live> CODEC = BuilderCodec.builder(Live.class, Live::new)
+                .appendInherited(new KeyedCodec<>("AnyOf", Codec.STRING_ARRAY, false),
+                        (o, v) -> o.anyOf = v, o -> o.anyOf, (o, p) -> o.anyOf = p.anyOf)
+                .documentation("Calendar events by id, any of which being live makes this one live. Unauthored or "
+                        + "empty asks nothing of it.").add()
+                .appendInherited(new KeyedCodec<>("AllOf", Codec.STRING_ARRAY, false),
+                        (o, v) -> o.allOf = v, o -> o.allOf, (o, p) -> o.allOf = p.allOf)
+                .documentation("Calendar events by id that must all be live for this one to be.").add()
+                .appendInherited(new KeyedCodec<>("NoneOf", Codec.STRING_ARRAY, false),
+                        (o, v) -> o.noneOf = v, o -> o.noneOf, (o, p) -> o.noneOf = p.noneOf)
+                .documentation("Calendar events by id, any of which being live keeps this one from being live. An "
+                        + "event this server lacks or has switched off counts as not live.").add()
+                .build();
+
+        public Live() {
+        }
+    }
+
     /** The Presentation group: what the event is called and what stands for it. */
     public static final class Presentation {
 
@@ -679,6 +877,7 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
         @Nullable private HeraldLine end;
         @Nullable private Boolean enabled;
         @Nullable private Boolean firstRunOfYear;
+        @Nullable private Boolean oncePerDay;
 
         public static final BuilderCodec<Herald> CODEC = BuilderCodec.builder(Herald.class, Herald::new)
                 .appendInherited(new KeyedCodec<>("Start", HeraldLine.CODEC, false),
@@ -702,6 +901,14 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
                 .documentation("Show the start banner only on the year's first run and the end banner only when its "
                         + "last run ends, both by their dates; unauthored means false, so every run shows them. For an "
                         + "event that comes round each week or month.").add()
+                .appendInherited(new KeyedCodec<>("OncePerDay", Codec.BOOLEAN, false),
+                        (o, v) -> o.oncePerDay = v, o -> o.oncePerDay, (o, p) -> o.oncePerDay = p.oncePerDay)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("For an event with a Moon or a Live: show each player the start banner at most once a "
+                        + "day, and the end banner at most once a day, counted in the event's Clock. Unauthored means "
+                        + "false, so the start banner shows at every rise (to everyone online, and to a player who "
+                        + "joins while it is live) and the end banner every time it sets. Not used by an event on "
+                        + "dates.").add()
                 .build();
 
         public Herald() {

@@ -16,7 +16,8 @@ import javax.annotation.Nullable;
  * <p>A force on runs ONE run, taken as the force is written ({@link CalendarService#forceOn}, a {@link Pin}),
  * so it never walks on to another. Once that run is over a reader answers by the dates without writing here,
  * and only the tick's look, under the calendar's lock, clears the spent force ({@link #spend}). A force off
- * stands until cleared.
+ * stands until cleared, and so does a force on an event live by a condition (a Moon or a Live), which has no run
+ * to take ({@link #forceConditionOn}).
  */
 public final class CalendarForces {
 
@@ -31,21 +32,23 @@ public final class CalendarForces {
     record Pin(int year, int number, @Nullable Long replayEndsMs) {
     }
 
-    /** One force as it stands: on with the run it took, or off. Compared by identity. */
+    /** One force as it stands: on with the run it took (none for a condition's), or off. Compared by identity. */
     static final class Force {
 
+        private final boolean on;
         @Nullable private final Pin pin;
 
-        private Force(@Nullable Pin pin) {
+        private Force(boolean on, @Nullable Pin pin) {
+            this.on = on;
             this.pin = pin;
         }
 
-        /** Forced on (it has a run), rather than off. */
+        /** Forced on, rather than off. */
         boolean running() {
-            return pin != null;
+            return on;
         }
 
-        /** The run a force on took; null for a force off. */
+        /** The run a force on took; null for a force off and for a force on a condition. */
         @Nullable
         Pin pin() {
             return pin;
@@ -64,7 +67,15 @@ public final class CalendarForces {
 
     /** Stop {@code eventId} until cleared. */
     public void forceOff(@Nonnull String eventId) {
-        forced.put(normalize(eventId), new Force(null));
+        forced.put(normalize(eventId), new Force(false, null));
+    }
+
+    /**
+     * Hold {@code eventId}, an event live by a condition, live until cleared: it has no run to take, so nothing
+     * spends it. Only {@link CalendarService#forceConditionOn} writes this.
+     */
+    void forceConditionOn(@Nonnull String eventId) {
+        forced.put(normalize(eventId), new Force(true, null));
     }
 
     /** Hand {@code eventId} back to its dates. */
@@ -86,7 +97,7 @@ public final class CalendarForces {
 
     /** Run {@code eventId}'s run {@code pin} until it is over or cleared. Only {@link CalendarService#forceOn} writes this. */
     void forceOn(@Nonnull String eventId, @Nonnull Pin pin) {
-        forced.put(normalize(eventId), new Force(pin));
+        forced.put(normalize(eventId), new Force(true, pin));
     }
 
     /** The force standing on {@code eventId} as it stands, or null. */

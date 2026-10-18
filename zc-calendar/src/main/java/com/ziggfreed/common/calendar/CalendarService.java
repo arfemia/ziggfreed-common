@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -16,6 +17,7 @@ import javax.annotation.Nullable;
 
 import com.ziggfreed.common.calendar.asset.CalendarEventAsset;
 import com.ziggfreed.common.calendar.asset.CalendarEventConfig;
+import com.ziggfreed.common.calendar.moon.MoonSource;
 import com.ziggfreed.common.occurrence.Occurrence;
 import com.ziggfreed.common.occurrence.OccurrenceSource;
 import com.ziggfreed.common.occurrence.Recurrence;
@@ -45,18 +47,38 @@ import com.ziggfreed.common.util.SafeLog;
  * {@link #zone} answer for any loaded event, switched on or not, so what a player earned in a past run
  * keeps its years after the owner switches the event off; so does {@link #dated}, a run's own days by its
  * year and number. A FirstYear outside 1970 to 9999 is no first year at all.
+ *
+ * <p><b>A condition is not a run.</b> An event live by a {@code Moon} or a {@code Live}
+ * ({@link CalendarEventAsset#isCondition}) cannot run, so every question about runs (the occurrence answers:
+ * {@link #isEnabled}, {@link #live}, {@link #liveAll}, {@link #history}, {@link #next}, {@link #firstYear}) reads it
+ * as absent, and attendance, yearly copies, the Almanac, stat season lines and spawn rules never see it: a four-hour
+ * moon would otherwise be some two thousand runs a year. Its own two questions are {@link #isSwitchedOn} and
+ * {@link #isLive}, which the {@code <Id>} and {@code <Id>_Live} features and {@code calendar_live} read for every
+ * event alike. A Moon reads the world's phase {@link MoonSource} last heard; a Live reads its members' own
+ * {@link #isLive}, and one whose Live leads round a loop is refused ({@link LiveRule#loopFrom}). A force beats the
+ * condition: forced on it is live until cleared ({@link #forceConditionOn}), forced off it is not.
  */
 public final class CalendarService implements OccurrenceSource {
 
     private final CalendarEventConfig config;
     private final CalendarForces forces;
+    private final MoonSource moons;
     private final Object lock = new Object();
     /** The events whose answer threw last time they were asked, so the log says so once, not every tick. */
     private final Set<String> failing = ConcurrentHashMap.newKeySet();
+    /** The same for the walk over conditions, kept apart so the two walks never clear each other's note. */
+    private final Set<String> failingConditions = ConcurrentHashMap.newKeySet();
 
+    /** A calendar that knows no world's moon: every Moon event waits. */
     public CalendarService(@Nonnull CalendarEventConfig config, @Nonnull CalendarForces forces) {
+        this(config, forces, MoonSource.NONE);
+    }
+
+    public CalendarService(@Nonnull CalendarEventConfig config, @Nonnull CalendarForces forces,
+            @Nonnull MoonSource moons) {
         this.config = config;
         this.forces = forces;
+        this.moons = moons;
     }
 
     /**
@@ -154,9 +176,147 @@ public final class CalendarService implements OccurrenceSource {
                 if (end == null || nowMs >= end) {
                     forces.spend(id, force);
                 }
+            } else if (force != null && force.running()) {
+                // A force on taken while the event was live by a condition, which now runs on dates: no run of its own.
+                forces.spend(id, force);
             }
             return null;
         });
+    }
+
+    /**
+     * Force {@code eventId}, an event live by a condition (a Moon or a Live), on: live until cleared, since it has
+     * no run whose end could spend the force. False, writing nothing, when it is absent or runs on dates (whose
+     * force takes a run, {@link #forceOn}). Under {@link #lock()}, as {@link #forceOn} is.
+     */
+    public boolean forceConditionOn(@Nonnull String eventId) {
+        synchronized (lock) {
+            CalendarEventAsset event = switchedOn(eventId);
+            if (event == null || !event.isCondition()) {
+                return false;
+            }
+            forces.forceConditionOn(event.getId());
+            return true;
+        }
+    }
+
+    /** Is {@code eventId} loaded and live by a condition (a Moon or a Live), whatever its switches say? */
+    public boolean isCondition(@Nullable String eventId) {
+        CalendarEventAsset event = event(eventId);
+        return event != null && event.isCondition();
+    }
+
+    /**
+     * Is {@code eventId} switched on (by the owner and in its own file) and able to go live, by its dates or by its
+     * condition? The {@code <Id>} feature, for every event alike; {@link #isEnabled} answers runs only.
+     */
+    public boolean isSwitchedOn(@Nullable String eventId) {
+        return switchedOn(eventId) != null;
+    }
+
+    /**
+     * Is {@code eventId} live at {@code nowMs}: a run going on (a force included), or its condition holding (forced
+     * on, it holds until cleared; forced off, never)? False when it is absent or switched off, and for an event whose
+     * Live leads round a loop. The {@code <Id>_Live} feature and {@code calendar_live}, for every event alike.
+     */
+    public boolean isLive(@Nullable String eventId, long nowMs) {
+        CalendarEventAsset event = switchedOn(eventId);
+        if (event == null) {
+            return false;
+        }
+        if (event.isCondition() && forces.standing(event.getId()) == null && event.followsEvents()
+                && LiveRule.refused(event.getId(), this::ruleOf)) {
+            return false;
+        }
+        return liveNow(event, nowMs);
+    }
+
+    /**
+     * Every event live by a condition that is live at {@code nowMs}, in id order: what the tick's look follows rises
+     * and sets by. One that cannot answer costs only itself, said once until it answers again.
+     */
+    @Nonnull
+    public Set<String> liveConditions(long nowMs) {
+        Map<String, Boolean> live = eachEvent(config.ids(), id -> {
+            CalendarEventAsset event = switchedOn(id);
+            return event != null && event.isCondition() && isLive(id, nowMs) ? Boolean.TRUE : null;
+        }, failingConditions, (message, cause) -> SafeLog.warn(message, cause));
+        return new TreeSet<>(live.keySet());
+    }
+
+    /**
+     * The moon {@code eventId} follows as its world last said it; null when it follows no Moon, or its world (the
+     * default world for a blank one) is not loaded or has not said its phase yet.
+     */
+    @Nullable
+    public MoonSource.Reading moonOf(@Nullable String eventId) {
+        CalendarEventAsset event = event(eventId);
+        return event == null || !event.followsMoon() ? null : moons.reading(event.moonWorld());
+    }
+
+    /** The world whose moon {@code eventId} follows, by name (the default world's for a blank one); null if none. */
+    @Nullable
+    public String moonWorldOf(@Nullable String eventId) {
+        CalendarEventAsset event = event(eventId);
+        return event == null || !event.followsMoon() ? null : moons.name(event.moonWorld());
+    }
+
+    /** Is the game time paused in the world whose moon {@code eventId} follows, so its moon keeps its phase? */
+    public boolean moonPaused(@Nullable String eventId) {
+        CalendarEventAsset event = event(eventId);
+        return event != null && event.followsMoon() && moons.paused(event.moonWorld());
+    }
+
+    /**
+     * The loop {@code eventId}'s Live leads round, through events switched on and live by other events, from the
+     * first one met twice back to it; null when it leads round none or it has no Live.
+     */
+    @Nullable
+    public List<String> loopOf(@Nullable String eventId) {
+        CalendarEventAsset event = switchedOn(eventId);
+        return event == null || !event.followsEvents() ? null : LiveRule.loopFrom(event.getId(), this::ruleOf);
+    }
+
+    /**
+     * Is a switched-on {@code event} live now, by its run or its condition and its force; a Live's members are asked
+     * the same way, with no loop check of their own, since the caller checked every event its Live reaches.
+     */
+    private boolean liveNow(@Nonnull CalendarEventAsset event, long nowMs) {
+        if (!event.isCondition()) {
+            return liveOf(event, nowMs) != null;
+        }
+        CalendarForces.Force force = forces.standing(event.getId());
+        if (force != null) {
+            return force.running();
+        }
+        if (event.followsEvents()) {
+            LiveRule rule = event.liveRule();
+            return rule != null && rule.holds(member -> {
+                CalendarEventAsset other = switchedOn(member);
+                return other != null && liveNow(other, nowMs);
+            });
+        }
+        int[] range = event.moonRange();
+        MoonSource.Reading moon = range == null ? null : moons.reading(event.moonWorld());
+        return moon != null && moon.within(range[0], range[1]);
+    }
+
+    /** The Live of {@code id} when it is switched on and live by other events; null otherwise, ending a loop walk there. */
+    @Nullable
+    private LiveRule ruleOf(@Nonnull String id) {
+        CalendarEventAsset event = switchedOn(id);
+        return event == null || !event.followsEvents() ? null : event.liveRule();
+    }
+
+    /**
+     * The event's file when it is switched on (globally and in itself) and can go live, by dates or by a condition;
+     * else null. Resolved once per call, as {@link #runnable} is.
+     */
+    @Nullable
+    private CalendarEventAsset switchedOn(@Nullable String eventId) {
+        CalendarEventAsset event = event(eventId);
+        return event != null && config.isGlobalEnabled() && event.isEnabled() && (event.canRun() || event.canFollow())
+                ? event : null;
     }
 
     @Override
@@ -207,7 +367,9 @@ public final class CalendarService implements OccurrenceSource {
     @Nullable
     public Integer firstYear(@Nonnull String eventId) {
         CalendarEventAsset event = event(eventId);
-        return event == null || event.problems().contains(CalendarEventAsset.PROBLEM_FIRST_YEAR_OUT_OF_RANGE)
+        // A condition keeps no runs, so no reader keeps a copy of it per year.
+        return event == null || event.isCondition()
+                || event.problems().contains(CalendarEventAsset.PROBLEM_FIRST_YEAR_OUT_OF_RANGE)
                 ? null : event.firstYear();
     }
 
@@ -375,6 +537,13 @@ public final class CalendarService implements OccurrenceSource {
     @Nonnull
     <T> Map<String, T> eachEvent(@Nonnull List<String> ids, @Nonnull Function<String, T> answer,
             @Nonnull BiConsumer<String, RuntimeException> warn) {
+        return eachEvent(ids, answer, failing, warn);
+    }
+
+    /** {@link #eachEvent(List, Function, BiConsumer)}, noting a failing event in {@code failing}. */
+    @Nonnull
+    private <T> Map<String, T> eachEvent(@Nonnull List<String> ids, @Nonnull Function<String, T> answer,
+            @Nonnull Set<String> failing, @Nonnull BiConsumer<String, RuntimeException> warn) {
         Map<String, T> out = new TreeMap<>();
         for (String id : ids) {
             T value;
@@ -435,9 +604,13 @@ public final class CalendarService implements OccurrenceSource {
         if (force == null) {
             return liveOf(event, nowMs, null);
         }
+        if (!force.running()) {
+            return null;
+        }
         CalendarForces.Pin pin = force.pin();
         if (pin == null) {
-            return null;
+            // A force on taken while the event was live by a condition took no run: the dates answer until it is spent.
+            return liveOf(event, nowMs, null);
         }
         AnnualWindow window = event.annualWindow();
         ZoneId zone = event.zone();

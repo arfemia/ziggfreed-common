@@ -3,6 +3,7 @@ package com.ziggfreed.common.calendar.tick;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
@@ -38,5 +39,28 @@ public final class CalendarTransitions {
             }
         }
         return new CalendarTick(nowMs, booting, now.keySet(), started, ended);
+    }
+
+    /**
+     * {@code runs} with the conditions' turn added: an event live by a condition that is live {@code now} but was not
+     * {@code before} rose; one that was but is not lapsed, switched off when {@code switchedOn} now says no.
+     */
+    @Nonnull
+    public static CalendarTick withConditions(@Nonnull CalendarTick runs, @Nonnull Set<String> before,
+            @Nonnull Set<String> now, @Nonnull Predicate<String> switchedOn) {
+        List<CalendarTick.Lapsed> lapsed = new ArrayList<>();
+        for (String id : before) {
+            if (!now.contains(id)) {
+                lapsed.add(new CalendarTick.Lapsed(id, !switchedOn.test(id)));
+            }
+        }
+        List<String> rose = new ArrayList<>();
+        for (String id : now) {
+            if (!before.contains(id)) {
+                rose.add(id);
+            }
+        }
+        return new CalendarTick(runs.nowMs(), runs.booting(), runs.live(), runs.started(), runs.ended(), now, rose,
+                lapsed);
     }
 }
