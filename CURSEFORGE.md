@@ -11,7 +11,7 @@ The shared library behind Ziggfreed's Hytale mods. It runs their menus, quests, 
 ## What you see in game
 
 - The Objective Book, your menu for quests, achievements, the Almanac, Records, reputation and Claims. Craft it by hand from leather and plant fiber, or type `/ziggui`.
-- A Claims tab where the rewards you earn wait until you take them, so a full bag never costs you one, and nothing on it runs out. A boss you beat leaves a chest where it fell with your share in it, and whatever you leave there waits on the tab.
+- A Claims tab where the rewards you earn wait until you take them, so a full bag never costs you one, and nothing on it runs out. A boss you beat leaves a chest where it fell with your share in it, a mod or pack can have a rare kill or a rare block drop one too, and whatever you leave in a chest waits on the tab. Claim something and a notice lists everything you got.
 - Dungeons, when a mod or pack adds one, such as the Horseman's Graveyard in [Seasons of Orbis](https://www.curseforge.com/hytale/mods/seasons-of-orbis). Go in through a block, a character or a line in a conversation, and your party gets an area of its own. Clear it and a results screen shows your time, with a reward to claim.
 - Parties. Type `/zigparty` to start one and invite up to four players who are online. It works with CommonLib alone.
 - Records ranks every player by numbers like Mobs Defeated, Blocks Broken and Playtime, for this week, this month, each season and all time. On the Bosses tab, pick a boss to see its wins and fastest times, and who beat it first. The Dungeons tab ranks the runs you start, clear and fail, and each dungeon's fastest clear. The game's own Deepworks counts too.
@@ -34,12 +34,12 @@ This version needs a Hytale Update 7 server. On Update 6, use 2.2.0.
 
 ## For server owners
 
-- CommonLib's settings live in `mods/ziggfreedcommon/`. Switch a seasonal event off in `calendar.json`, show titles in chat with `"$Chat": true` in `titles.json`, turn Records off with `"$Enabled": false` in `stats.json`, or switch a dungeon off or let more players in with `dungeons.json`.
+- CommonLib's settings live in `mods/ziggfreedcommon/`. Switch a seasonal event off in `calendar.json`, show titles in chat with `"$Chat": true` in `titles.json`, turn Records off with `"$Enabled": false` in `stats.json`, switch a dungeon off or let more players in with `dungeons.json`, or change what a reward chest holds and how long it stays with `reward-chests.json`.
 - The admin commands, such as `/zigprogress`, `/zigcommerce`, `/zignpc`, `/zigcalendar`, `/zigdungeon` and `/zigclaims`, need a permission nobody holds until you grant it.
 
 ## For mod authors
 
-CommonLib depends on the Hytale server and nothing else. Add it as a `compileOnly` dependency and list `Ziggfreed:ZiggfreedCommon` in your manifest's dependencies so it loads first. Quests, achievements, conversations, shops, boards, placed characters, calendar events, reputations, gear sets, loot, boss fights and dungeons are plain JSON in your asset pack, with no Java needed, and the Asset Editor knows every one of them. Start with the [CommonLib docs](https://mmo-skill-tree-docs.ziggfreed.com/docs/ziggfreedcommon/).
+CommonLib depends on the Hytale server and nothing else. Add it as a `compileOnly` dependency and list `Ziggfreed:ZiggfreedCommon` in your manifest's dependencies so it loads first. Quests, achievements, conversations, shops, boards, placed characters, calendar events, reputations, gear sets, loot, reward chests, boss fights and dungeons are plain JSON in your asset pack, with no Java needed, and the Asset Editor knows every one of them. Start with the [CommonLib docs](https://mmo-skill-tree-docs.ziggfreed.com/docs/ziggfreedcommon/).
 
 ---
 

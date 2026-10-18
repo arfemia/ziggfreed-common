@@ -2,5 +2,5 @@
 default.name = Bônus de Conjunto
 
 # A quest step or achievement criterion of the GEAR_SET_TIER kind: {0} is how many pieces, {1} the set.
-objective.gear_set_tier = Use {0} peças de {1}
+objective.gear_set_tier = Use {0} peças do {1}
 objective.gear_set_tier.any = Use {0} peças de um conjunto de equipamento

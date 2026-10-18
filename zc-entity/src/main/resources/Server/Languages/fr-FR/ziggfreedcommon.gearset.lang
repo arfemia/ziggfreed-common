@@ -2,5 +2,5 @@
 default.name = Bonus de panoplie
 
 # A quest step or achievement criterion of the GEAR_SET_TIER kind: {0} is how many pieces, {1} the set.
-objective.gear_set_tier = Portez {0} pièces de {1}
+objective.gear_set_tier = Portez {0} pièces de la {1}
 objective.gear_set_tier.any = Portez {0} pièces d'une panoplie

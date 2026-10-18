@@ -53,6 +53,11 @@ spoils.empty = Rien ici ne vous attend.
 spoils.items_left = Le reste de votre part est dans le coffre.
 spoils.action.items = Ouvrir le coffre
 spoils.banner = Votre récompense vous attend dans le coffre où le boss est tombé.
+chest.lead = Ce qui vous a été laissé. Ce que vous laissez ici vous attend sous « À réclamer ».
+chest.banner.title = {0} a laissé un coffre
+chest.banner = Ouvrez-le pour prendre votre part. Ce que vous laissez attend sous « À réclamer ».
+notice.added.chest = Votre part vous attend dans le coffre tout près, et sous « À réclamer » dans votre menu.
+notice.added.chest.named = {0} vous attend dans le coffre tout près, et sous « À réclamer » dans votre menu.
 
 # A Claim's title when /zigclaims give wrote it: {0} is the loot table's id.
 title.admin = Butin de {0}
@@ -62,6 +67,7 @@ title.admin = Butin de {0}
 command.desc.family = Met des récompenses sous « À réclamer » chez les joueurs.
 command.desc.give = Tire une table de butin et met le résultat sous « À réclamer » chez un joueur.
 command.desc.arg.player = Le joueur, en ligne ou non : un nom ou un identifiant de joueur. Vous par défaut.
+command.desc.arg.player.online = Le joueur, qui doit être en ligne : un nom ou un identifiant de joueur. Vous par défaut.
 command.desc.arg.lootable = La table de butin à tirer, par son identifiant.
 command.player.needed = Nommez un joueur avec --player=<nom>.
 command.player.offline = Ce joueur n'est dans aucun monde pour le moment. Réessayez dans un instant.
@@ -70,3 +76,9 @@ command.lootable.needed = Nommez une table de butin avec --lootable=<id>.
 command.lootable.unknown = Aucune table de butin nommée '{0}' n'est chargée.
 command.give.done = Sous « À réclamer » chez {1} : {2, number} {2, plural, one {récompense} other {récompenses}} de {0}.
 command.give.nothing = {0} n'a rien donné à {1}, donc rien n'a été ajouté sous « À réclamer ».
+command.desc.chest = Dresse un coffre de récompense à côté d'un joueur, contenant le tirage d'une table de butin pour lui.
+command.desc.arg.chest = Le coffre de récompense à dresser, par son identifiant. Zc_Reward_Chest par défaut.
+command.chest.unknown = Aucun coffre de récompense nommé '{0}' n'est chargé.
+command.chest.done = {0} dressé à côté de {1}, contenant ce que {2} lui a donné.
+command.chest.nothing = {0} n'a rien donné à {1}, donc aucun coffre n'a été dressé.
+command.chest.failed = Le coffre n'a pas pu être dressé. Le journal du serveur en donne la raison.

@@ -54,6 +54,16 @@ spoils.items_left = Il resto della tua parte è nel forziere.
 spoils.action.items = Apri il Forziere
 spoils.banner = La tua ricompensa ti aspetta nel forziere dove è caduto il boss.
 
+# A reward chest that is not a boss's: one a rare kill, a rare break or another source leaves, holding each player's
+# own share. chest.lead is the line on its page. notice.added.chest is the toast when a reward lands in it, and
+# notice.added.chest.named the same for a reward with a title of its own, {0}. chest.banner.title is the banner as it
+# goes up, {0} what left it (a creature, a block), over chest.banner.
+chest.lead = Quello che è stato lasciato per te. Quello che lasci qui ti aspetta sotto Ricompense.
+chest.banner.title = {0} ha lasciato un forziere
+chest.banner = Aprilo per prendere la tua parte. Quello che lasci aspetta sotto Ricompense.
+notice.added.chest = La tua parte ti aspetta nel forziere qui vicino, e sotto Ricompense nel tuo menu.
+notice.added.chest.named = {0} ti aspetta nel forziere qui vicino, e sotto Ricompense nel tuo menu.
+
 # A Claim's title when /zigclaims give wrote it: {0} is the loot table's id.
 title.admin = Bottino da {0}
 
@@ -62,6 +72,7 @@ title.admin = Bottino da {0}
 command.desc.family = Mette ricompense nelle Ricompense dei giocatori.
 command.desc.give = Tira una tabella di bottino e mette ciò che esce nelle Ricompense di un giocatore.
 command.desc.arg.player = Il giocatore, online o no: un nome o un id giocatore. Predefinito: tu.
+command.desc.arg.player.online = Il giocatore, che deve essere online: un nome o un id giocatore. Predefinito: tu.
 command.desc.arg.lootable = La tabella di bottino da tirare, con il suo id.
 command.player.needed = Indica un giocatore con --player=<name>.
 command.player.offline = Quel giocatore non è in un mondo in questo momento. Riprova tra un attimo.
@@ -70,3 +81,11 @@ command.lootable.needed = Indica una tabella di bottino con --lootable=<id>.
 command.lootable.unknown = Nessuna tabella di bottino si chiama '{0}'.
 command.give.done = Messe {2, number} {2, plural, one {ricompensa} other {ricompense}} da {0} nelle Ricompense di {1}.
 command.give.nothing = {0} non ha dato nulla a {1}, quindi non è stata scritta nessuna ricompensa.
+# /zigclaims chest. In command.chest.done {0} is the chest's id, {1} the player and {2} the loot table's id; in
+# command.chest.nothing {0} is the loot table's id and {1} the player.
+command.desc.chest = Mette un forziere di ricompense accanto a un giocatore, con dentro il tiro di una tabella di bottino per lui.
+command.desc.arg.chest = Il forziere di ricompense da mettere, con il suo id. Predefinito: Zc_Reward_Chest.
+command.chest.unknown = Nessun forziere di ricompense si chiama '{0}'.
+command.chest.done = Messo {0} accanto a {1}, con dentro ciò che {2} ha dato per lui.
+command.chest.nothing = {0} non ha dato nulla a {1}, quindi non è comparso nessun forziere.
+command.chest.failed = Non è stato possibile mettere il forziere. Il log del server ne spiega il motivo.

@@ -54,6 +54,13 @@ spoils.items_left = Der Rest deines Anteils liegt in der Truhe.
 spoils.action.items = Truhe öffnen
 spoils.banner = Deine Belohnung wartet in der Truhe, wo der Boss gefallen ist.
 
+# Eine Belohnungstruhe, die kein Boss hinterlässt: eine seltene Beute, ein seltener Abbau oder eine andere Quelle lässt sie zurück, mit dem eigenen Anteil jedes Spielers.
+chest.lead = Was für dich übrig blieb. Was du hier liegen lässt, wartet unter Abholungen auf dich.
+chest.banner.title = {0} hat eine Truhe hinterlassen
+chest.banner = Öffne sie und nimm deinen Anteil. Was du liegen lässt, wartet unter Abholungen.
+notice.added.chest = Dein Anteil wartet in der Truhe in der Nähe und unter Abholungen in deinem Menü.
+notice.added.chest.named = {0} wartet in der Truhe in der Nähe und unter Abholungen in deinem Menü.
+
 # A Claim's title when /zigclaims give wrote it: {0} is the loot table's id.
 title.admin = Beute von {0}
 
@@ -62,6 +69,7 @@ title.admin = Beute von {0}
 command.desc.family = Belohnungen in die Abholungen von Spielern legen.
 command.desc.give = Eine Beutetabelle auswürfeln und das Ergebnis in die Abholungen eines Spielers legen.
 command.desc.arg.player = Der Spieler, online oder nicht: ein Name oder eine Spieler-ID. Standard bist du.
+command.desc.arg.player.online = Der Spieler, der online sein muss: ein Name oder eine Spieler-ID. Standard bist du.
 command.desc.arg.lootable = Die Beutetabelle zum Auswürfeln, per ID.
 command.player.needed = Nenne einen Spieler mit --player=<name>.
 command.player.offline = Dieser Spieler ist gerade in keiner Welt. Versuche es gleich noch einmal.
@@ -70,3 +78,10 @@ command.lootable.needed = Nenne eine Beutetabelle mit --lootable=<id>.
 command.lootable.unknown = Keine Beutetabelle namens '{0}' ist geladen.
 command.give.done = {2, number} {2, plural, one {Belohnung} other {Belohnungen}} aus {0} in die Abholungen von {1} gelegt.
 command.give.nothing = {0} hat für {1} nichts ergeben, also wurde keine Abholung geschrieben.
+# /zigclaims chest. In command.chest.done ist {0} die ID der Truhe, {1} der Spieler und {2} die ID der Beutetabelle; in command.chest.nothing ist {0} die ID der Beutetabelle und {1} der Spieler.
+command.desc.chest = Eine Belohnungstruhe neben einem Spieler aufstellen, die den Wurf einer Beutetabelle für ihn enthält.
+command.desc.arg.chest = Die Belohnungstruhe zum Aufstellen, per ID. Standard ist Zc_Reward_Chest.
+command.chest.unknown = Keine Belohnungstruhe namens '{0}' ist geladen.
+command.chest.done = {0} neben {1} aufgestellt, mit dem, was {2} für ihn ergeben hat.
+command.chest.nothing = {0} hat für {1} nichts ergeben, also wurde keine Truhe aufgestellt.
+command.chest.failed = Die Truhe konnte nicht aufgestellt werden. Das Serverlog nennt den Grund.

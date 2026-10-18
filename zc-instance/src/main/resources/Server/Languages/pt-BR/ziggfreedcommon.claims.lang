@@ -54,6 +54,13 @@ spoils.items_left = O resto da sua parte está no baú.
 spoils.action.items = Abrir o Baú
 spoils.banner = Sua recompensa espera no baú onde o chefe caiu.
 
+# A reward chest that is not a boss's (see en-US for the full note).
+chest.lead = O que foi deixado para você. O que você deixar aqui espera por você em Resgates.
+chest.banner.title = {0} deixou um baú
+chest.banner = Abra para pegar sua parte. O que você deixar espera em Resgates.
+notice.added.chest = Sua parte está esperando no baú aqui perto, e em Resgates no seu menu.
+notice.added.chest.named = {0} está esperando no baú aqui perto, e em Resgates no seu menu.
+
 # A Claim's title when /zigclaims give wrote it: {0} is the loot table's id.
 title.admin = Espólio de {0}
 
@@ -62,6 +69,7 @@ title.admin = Espólio de {0}
 command.desc.family = Coloca recompensas nos Resgates dos jogadores.
 command.desc.give = Sorteia uma tabela de espólio e coloca o que sair nos Resgates de um jogador.
 command.desc.arg.player = O jogador, online ou não: um nome ou um id de jogador. Padrão: você.
+command.desc.arg.player.online = O jogador, que precisa estar online: um nome ou um id de jogador. Padrão: você.
 command.desc.arg.lootable = A tabela de espólio a sortear, pelo id.
 command.player.needed = Indique um jogador com --player=<nome>.
 command.player.offline = Esse jogador não está em um mundo agora. Tente de novo daqui a pouco.
@@ -70,3 +78,11 @@ command.lootable.needed = Indique uma tabela de espólio com --lootable=<id>.
 command.lootable.unknown = Nenhuma tabela de espólio chamada '{0}' está carregada.
 command.give.done = Colocou {2, number} {2, plural, one {recompensa} other {recompensas}} de {0} nos Resgates de {1}.
 command.give.nothing = {0} não rendeu nada para {1}, então nenhum Resgate foi criado.
+# /zigclaims chest. In command.chest.done {0} is the chest's id, {1} the player and {2} the loot table's id; in
+# command.chest.nothing {0} is the loot table's id and {1} the player.
+command.desc.chest = Coloca um baú de recompensa ao lado de um jogador, com o sorteio de uma tabela de espólio para ele.
+command.desc.arg.chest = O baú de recompensa a colocar, pelo id. Padrão: Zc_Reward_Chest.
+command.chest.unknown = Nenhum baú de recompensa chamado '{0}' está carregado.
+command.chest.done = Colocou {0} ao lado de {1}, com o que {2} rendeu para ele.
+command.chest.nothing = {0} não rendeu nada para {1}, então nenhum baú foi colocado.
+command.chest.failed = Não deu para colocar o baú. O registro do servidor diz por quê.

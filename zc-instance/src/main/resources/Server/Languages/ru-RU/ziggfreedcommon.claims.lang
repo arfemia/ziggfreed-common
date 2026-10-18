@@ -54,6 +54,16 @@ spoils.items_left = Остальная часть вашей доли лежит
 spoils.action.items = Открыть сундук
 spoils.banner = Ваша награда ждёт в сундуке, где пал босс.
 
+# A reward chest that is not a boss's: one a rare kill, a rare break or another source leaves, holding each player's
+# own share. chest.lead is the line on its page. notice.added.chest is the toast when a reward lands in it, and
+# notice.added.chest.named the same for a reward with a title of its own, {0}. chest.banner.title is the banner as it
+# goes up, {0} what left it (a creature, a block), over chest.banner.
+chest.lead = Что осталось для вас. Что вы оставите здесь, будет ждать вас в разделе «Награды».
+chest.banner.title = {0} оставил сундук
+chest.banner = Откройте его и возьмите свою долю. Что вы оставите, будет ждать в разделе «Награды».
+notice.added.chest = Ваша доля ждёт в сундуке рядом и в разделе «Награды» вашего меню.
+notice.added.chest.named = {0} ждёт в сундуке рядом и в разделе «Награды» вашего меню.
+
 # A Claim's title when /zigclaims give wrote it: {0} is the loot table's id.
 title.admin = Добыча из {0}
 
@@ -62,6 +72,7 @@ title.admin = Добыча из {0}
 command.desc.family = Положить награды игрокам в раздел «Награды».
 command.desc.give = Бросить кости по таблице добычи и положить выпавшее в раздел «Награды» игрока.
 command.desc.arg.player = Игрок, в сети или нет: имя или id игрока. По умолчанию вы.
+command.desc.arg.player.online = Игрок, который должен быть в сети: имя или id игрока. По умолчанию вы.
 command.desc.arg.lootable = Таблица добычи, по её id.
 command.player.needed = Укажите игрока через --player=<name>.
 command.player.offline = Этого игрока сейчас нет ни в одном мире. Повторите через минуту.
@@ -70,3 +81,11 @@ command.lootable.needed = Укажите таблицу добычи через 
 command.lootable.unknown = Таблица добычи '{0}' не загружена.
 command.give.done = Положено {2, number} {2, plural, one {награда} few {награды} many {наград} other {награды}} из {0} в раздел «Награды» игрока {1}.
 command.give.nothing = {0} ничего не выпало для {1}, поэтому запись не создана.
+# /zigclaims chest. In command.chest.done {0} is the chest's id, {1} the player and {2} the loot table's id; in
+# command.chest.nothing {0} is the loot table's id and {1} the player.
+command.desc.chest = Поставить рядом с игроком сундук с наградами, в котором лежит выпавшее ему по таблице добычи.
+command.desc.arg.chest = Сундук с наградами, который нужно поставить, по его id. По умолчанию Zc_Reward_Chest.
+command.chest.unknown = Сундук с наградами '{0}' не загружен.
+command.chest.done = Сундук {0} поставлен рядом с игроком {1}, в нём то, что выпало ему по {2}.
+command.chest.nothing = {0} ничего не выпало для {1}, поэтому сундук не появился.
+command.chest.failed = Сундук поставить не удалось. Причина в журнале сервера.

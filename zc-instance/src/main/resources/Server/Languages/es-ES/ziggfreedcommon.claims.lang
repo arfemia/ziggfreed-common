@@ -36,6 +36,8 @@ notice.ready = {0, number} {0, plural, one {recompensa te espera} other {recompe
 # is a Claim with no title of its own, or the line over several; notice.added.spoils.named one with a title, {0}.
 notice.added.spoils = Tu parte te espera en el cofre donde cayó el jefe, y en Pendientes, en tu menú.
 notice.added.spoils.named = {0} te espera en el cofre donde cayó el jefe, y en Pendientes, en tu menú.
+notice.added.chest = Tu parte te espera en el cofre cercano, y en Pendientes, en tu menú.
+notice.added.chest.named = {0} te espera en el cofre cercano, y en Pendientes, en tu menú.
 
 # A boss's chest: what a won fight leaves where the boss fell, holding each player's own rewards from that fight.
 # spoils.hint is the prompt over the chest; the game fills {key} with the button to press. Opening it hands over
@@ -54,6 +56,11 @@ spoils.items_left = El resto de tu parte está en el cofre.
 spoils.action.items = Abrir el Cofre
 spoils.banner = Tu recompensa te espera en el cofre donde cayó el jefe.
 
+# Un cofre de recompensa que no es de un jefe.
+chest.lead = Lo que se dejó para ti. Lo que dejes aquí te espera en Pendientes.
+chest.banner.title = {0} dejó un cofre
+chest.banner = Ábrelo para coger tu parte. Lo que dejes espera en Pendientes.
+
 # A Claim's title when /zigclaims give wrote it: {0} is the loot table's id.
 title.admin = Botín de {0}
 
@@ -62,6 +69,9 @@ title.admin = Botín de {0}
 command.desc.family = Pone recompensas en los Pendientes de los jugadores.
 command.desc.give = Tira una tabla de botín y pone lo que sale en los Pendientes de un jugador.
 command.desc.arg.player = El jugador, conectado o no: un nombre o un id de jugador. Por defecto, tú.
+command.desc.arg.player.online = El jugador, que ha de estar conectado: un nombre o un id de jugador. Por defecto, tú.
+command.desc.chest = Coloca un cofre de recompensa junto a un jugador, con la tirada de una tabla de botín para él.
+command.desc.arg.chest = El cofre de recompensa que colocar, por su id. Por defecto, Zc_Reward_Chest.
 command.desc.arg.lootable = La tabla de botín que tirar, por su id.
 command.player.needed = Indica un jugador con --player=<nombre>.
 command.player.offline = Ese jugador no está en un mundo ahora mismo. Inténtalo de nuevo en un momento.
@@ -70,3 +80,7 @@ command.lootable.needed = Indica una tabla de botín con --lootable=<id>.
 command.lootable.unknown = No hay cargada ninguna tabla de botín llamada '{0}'.
 command.give.done = Se pusieron {2, number} {2, plural, one {recompensa} other {recompensas}} de {0} en los Pendientes de {1}.
 command.give.nothing = {0} no dio nada a {1}, así que no se escribió ningún pendiente.
+command.chest.unknown = No hay cargado ningún cofre de recompensa llamado '{0}'.
+command.chest.done = Se colocó {0} junto a {1}, con lo que {2} le dio.
+command.chest.nothing = {0} no dio nada a {1}, así que no se colocó ningún cofre.
+command.chest.failed = No se pudo colocar el cofre. El registro del servidor explica por qué.

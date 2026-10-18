@@ -54,6 +54,16 @@ spoils.items_left = A részed többi része a ládában van.
 spoils.action.items = Láda megnyitása
 spoils.banner = A jutalmad abban a ládában vár, ahol a főellenség elesett.
 
+# A reward chest that is not a boss's: one a rare kill, a rare break or another source leaves, holding each player's
+# own share. chest.lead is the line on its page. notice.added.chest is the toast when a reward lands in it, and
+# notice.added.chest.named the same for a reward with a title of its own, {0}. chest.banner.title is the banner as it
+# goes up, {0} what left it (a creature, a block), over chest.banner.
+chest.lead = Ezt hagyták neked. Ami itt marad, az az Átvehetők alatt vár rád.
+chest.banner.title = {0} ládát hagyott maga után
+chest.banner = Nyisd ki, és vedd el a részed. Ami itt marad, az az Átvehetők alatt vár.
+notice.added.chest = A részed a közeli ládában vár, és a menüben az Átvehetők alatt.
+notice.added.chest.named = {0} a közeli ládában vár, és a menüben az Átvehetők alatt.
+
 # A Claim's title when /zigclaims give wrote it: {0} is the loot table's id.
 title.admin = Zsákmány: {0}
 
@@ -62,6 +72,7 @@ title.admin = Zsákmány: {0}
 command.desc.family = Jutalmak betétele a játékosok Átvehetők közé.
 command.desc.give = Dobás egy zsákmánytáblán, és ami kijön, annak betétele egy játékos Átvehetők közé.
 command.desc.arg.player = A játékos, fenn van vagy sem: név vagy játékosazonosító. Alapértelmezés: te.
+command.desc.arg.player.online = A játékos, aki fenn van: név vagy játékosazonosító. Alapértelmezés: te.
 command.desc.arg.lootable = A zsákmánytábla azonosítója, amin dobni kell.
 command.player.needed = Add meg a játékost így: --player=<name>.
 command.player.offline = Ez a játékos most nincs világban. Próbáld újra egy pillanat múlva.
@@ -70,3 +81,11 @@ command.lootable.needed = Add meg a zsákmánytáblát így: --lootable=<id>.
 command.lootable.unknown = Nincs betöltve '{0}' nevű zsákmánytábla.
 command.give.done = {2, number} {2, plural, one {jutalom} other {jutalom}} betéve innen: {0}, ide: {1} Átvehetők.
 command.give.nothing = {0} semmit sem adott {1} számára, ezért nem készült átvehető jutalom.
+# /zigclaims chest. In command.chest.done {0} is the chest's id, {1} the player and {2} the loot table's id; in
+# command.chest.nothing {0} is the loot table's id and {1} the player.
+command.desc.chest = Jutalomláda felállítása egy játékos mellé, benne egy zsákmánytábla dobásával.
+command.desc.arg.chest = A felállítandó jutalomláda azonosítója. Alapértelmezés: Zc_Reward_Chest.
+command.chest.unknown = Nincs betöltve '{0}' nevű jutalomláda.
+command.chest.done = {0} felállítva {1} mellett, benne az, amit {2} hozott ki neki.
+command.chest.nothing = {0} semmit sem adott {1} számára, ezért nem épült láda.
+command.chest.failed = A ládát nem sikerült felállítani. A szerver naplója megmondja, miért.

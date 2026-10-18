@@ -1,5 +1,5 @@
 # The name a worn gear set's tile shows on the buff bar when the set names no badge of its own.
 default.name = Szettbónusz
 
-objective.gear_set_tier = Viselj {0} darabot ebből: {1}
+objective.gear_set_tier = Viselj {0} darabot ebből a szettből: {1}
 objective.gear_set_tier.any = Viselj {0} darabot egy szettből

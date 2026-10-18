@@ -54,6 +54,13 @@ spoils.items_left = Payının kalanı sandıkta.
 spoils.action.items = Sandığı Aç
 spoils.banner = Ödülün, patronun düştüğü yerdeki sandıkta seni bekliyor.
 
+# Patron olmayan birinin bıraktığı ödül sandığı: nadir bir öldürme, nadir bir kırma ya da başka bir kaynak bırakır, içinde her oyuncunun kendi payı vardır. chest.lead sayfasındaki satırdır. notice.added.chest ödül içine düşünce çıkan bildirim, notice.added.chest.named kendi başlığı {0} olan ödül için aynısı. chest.banner.title yükselirken görünen başlık, {0} sandığı bırakan şey (bir yaratık, bir blok); altında chest.banner var.
+chest.lead = Senin için bırakılanlar. Burada bıraktığın her şey Alınacaklar sekmesinde seni bekler.
+chest.banner.title = {0} bir sandık bıraktı
+chest.banner = Payını almak için aç. Bıraktığın her şey Alınacaklar sekmesinde bekler.
+notice.added.chest = Payın yakındaki sandıkta ve menündeki Alınacaklar sekmesinde bekliyor.
+notice.added.chest.named = {0}, yakındaki sandıkta ve menündeki Alınacaklar sekmesinde bekliyor.
+
 # A Claim's title when /zigclaims give wrote it: {0} is the loot table's id.
 title.admin = {0} ganimeti
 
@@ -62,6 +69,7 @@ title.admin = {0} ganimeti
 command.desc.family = Ödülleri oyuncuların Alınacaklar sekmesine koyar.
 command.desc.give = Bir ganimet tablosunu çevirir, çıkanı bir oyuncunun Alınacaklar sekmesine koyar.
 command.desc.arg.player = Oyuncu, çevrimiçi olsun olmasın: bir ad ya da oyuncu kimliği. Varsayılan sensin.
+command.desc.arg.player.online = Oyuncu, çevrimiçi olmalı: bir ad ya da oyuncu kimliği. Varsayılan sensin.
 command.desc.arg.lootable = Çevrilecek ganimet tablosu, kimliğiyle.
 command.player.needed = --player=<ad> ile bir oyuncu belirt.
 command.player.offline = Bu oyuncu şu an bir dünyada değil. Biraz sonra tekrar dene.
@@ -70,3 +78,10 @@ command.lootable.needed = --lootable=<id> ile bir ganimet tablosu belirt.
 command.lootable.unknown = '{0}' adında yüklü bir ganimet tablosu yok.
 command.give.done = {0} tablosundan {2, number} {2, plural, one {ödül} other {ödül}}, {1} oyuncusunun Alınacaklar sekmesine konuldu.
 command.give.nothing = {0}, {1} için hiçbir şey çıkarmadı, bu yüzden bir kayıt yazılmadı.
+# /zigclaims chest. command.chest.done içinde {0} sandığın kimliği, {1} oyuncu, {2} ganimet tablosunun kimliği; command.chest.nothing içinde {0} ganimet tablosunun kimliği, {1} oyuncu.
+command.desc.chest = Bir oyuncunun yanına, ona bir ganimet tablosunun çıkardığını tutan bir ödül sandığı koy.
+command.desc.arg.chest = Konacak ödül sandığı, kimliğiyle. Varsayılan Zc_Reward_Chest.
+command.chest.unknown = '{0}' adında yüklü bir ödül sandığı yok.
+command.chest.done = {0}, {1} oyuncusunun yanına konuldu; içinde {2} tablosunun ona çıkardıkları var.
+command.chest.nothing = {0}, {1} için hiçbir şey çıkarmadı, bu yüzden sandık konmadı.
+command.chest.failed = Sandık konamadı. Nedeni sunucu günlüğünde.
