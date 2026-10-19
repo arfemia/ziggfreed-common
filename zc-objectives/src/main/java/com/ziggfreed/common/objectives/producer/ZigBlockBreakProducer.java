@@ -14,6 +14,7 @@ import com.hypixel.hytale.component.system.EntityEventSystem;
 import com.hypixel.hytale.server.core.event.events.ecs.BreakBlockEvent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.loot.drops.DropContext;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.world.placed.PlacedBlockLedger;
 
@@ -29,7 +30,9 @@ import com.ziggfreed.common.world.placed.PlacedBlockLedger;
  * {@link PlacedBlockLedger} is asked first, and a placed block produces no moment at all. That is
  * what makes it ONE guard for everybody: a consumer awarding XP or a bonus drop reacts to the moment
  * this producer fires (through the {@link BlockBreakPayload} it carries), so progress, XP and
- * drops can never disagree about whether a block was placed.
+ * drops can never disagree about whether a block was placed. A native drop list's
+ * {@code ZigLootable} rolls on the same answer: every break seen here first tells zc-loot's
+ * {@link DropContext} nobody, and only the moment fired names a breaker.
  */
 public final class ZigBlockBreakProducer extends EntityEventSystem<EntityStore, BreakBlockEvent> {
 
@@ -55,6 +58,10 @@ public final class ZigBlockBreakProducer extends EntityEventSystem<EntityStore, 
             @Nonnull final CommandBuffer<EntityStore> commandBuffer,
             @Nonnull final BreakBlockEvent event) {
         try {
+            // Every break seen here first says nobody to the native drops, so a break this producer credits nothing (a
+            // placed block, a cancelled one) never rolls on an earlier breaker's credit; a credited one says its
+            // breaker next, through the moment it fires (bonus/DropCredit).
+            DropContext.breakingForNobody();
             if (event.isCancelled()) {
                 return;
             }

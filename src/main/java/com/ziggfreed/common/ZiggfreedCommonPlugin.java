@@ -57,6 +57,7 @@ import com.ziggfreed.common.loot.LootCues;
 import com.ziggfreed.common.loot.LootEditorDataSets;
 import com.ziggfreed.common.loot.LootFactors;
 import com.ziggfreed.common.loot.command.ZigLootCommand;
+import com.ziggfreed.common.loot.drops.LootDropsBootstrap;
 import com.ziggfreed.common.loot.reward.DroplistRewardKind;
 import com.ziggfreed.common.loot.reward.FeetDropOverflow;
 import com.ziggfreed.common.loot.reward.LootRewardKinds;
@@ -128,7 +129,8 @@ import com.ziggfreed.common.world.stash.BlockStashBootstrap;
  *
  * <p>The static primitives register nothing (a consumer calls them directly), and the library's own
  * registrations live in per-module bootstraps this class calls in one authoritative order:
- * {@code GateBootstrap} (zc-core), {@code EntityBootstrap} (zc-entity), {@code NpcBootstrap} (zc-dialogue),
+ * {@code GateBootstrap} (zc-core), {@code LootDropsBootstrap} (zc-loot), {@code EntityBootstrap} (zc-entity),
+ * {@code NpcBootstrap} (zc-dialogue),
  * {@code PlacedBlockBootstrap} + {@code BlockStashBootstrap} + {@code BlockRulesBootstrap} (zc-world), {@code CalendarBootstrap}
  * (zc-calendar), {@code ProgressionBootstrap} + {@code DialogueBootstrap} + {@code BonusRowBootstrap}
  * + {@code CalendarSweepBootstrap} + {@code ObjectiveBookBootstrap} (zc-objectives), and
@@ -218,6 +220,8 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // departing player, every permission change.
         GateBootstrap.install(this);
         registerLootVocabulary();
+        // Our loot tables inside native drop lists: the ZigLootable container Type, before any drop list decodes.
+        LootDropsBootstrap.install(this);
         registerLootCommand();
         registerCommerce();
         NpcBootstrap.setupPlacementEngine(this);
@@ -266,6 +270,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         ProgressInteractionsBootstrap.registerProgressInteractions(this);
         ProgressionBootstrap.registerFeedbackMoments();
         BonusRowBootstrap.registerReactions();
+        BonusRowBootstrap.registerDropCredit(this);
         DialogueBootstrap.registerDialogueVocabulary();
         DialogueBootstrap.registerDialogueMemories(this);
         DialogueBootstrap.registerDialogueAudit(this);

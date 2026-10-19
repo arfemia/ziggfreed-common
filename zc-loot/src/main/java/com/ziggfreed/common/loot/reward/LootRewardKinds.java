@@ -1050,18 +1050,26 @@ public final class LootRewardKinds {
     }
 
     /**
-     * The question a rolled reward, and a reward row's own conditions ({@link RewardGrants}), are asked:
-     * the installed vocabulary about the subject's live player, none when the player is not here.
+     * The question a rolled reward is asked: the installed vocabulary about the subject's live player, none when
+     * the player is not here.
      */
     @Nonnull
-    static FactorLookup lookupFor(@Nonnull Subject subject) {
-        FactorRegistry factors = FACTORS.get();
-        if (factors == null) {
-            return FactorLookup.none();
-        }
+    private static FactorLookup lookupFor(@Nonnull Subject subject) {
         Player player = playerOf(subject);
         Ref<EntityStore> ref = player == null ? null : player.getReference();
-        return new FactorSnapshot(factors, FactorContext.about(ref == null ? null : ref.getStore(), ref));
+        return lookupAbout(FactorContext.about(ref == null ? null : ref.getStore(), ref));
+    }
+
+    /**
+     * One moment's lookup over the vocabulary the rolling kinds read ({@link #installedFactors}): a fresh snapshot
+     * about {@code context}, whose gate question asks that context. Before the wiring root installs a vocabulary it
+     * answers nothing, so every gate over it refuses and every sum reads 0. The one way a table rolled on these terms
+     * is asked, a {@code Lootable} reward's and a drop container's alike.
+     */
+    @Nonnull
+    public static FactorLookup lookupAbout(@Nonnull FactorContext context) {
+        FactorRegistry factors = FACTORS.get();
+        return factors == null ? FactorLookup.none() : new FactorSnapshot(factors, context);
     }
 
     /**

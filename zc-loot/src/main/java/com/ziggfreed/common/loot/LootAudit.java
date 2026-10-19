@@ -8,6 +8,7 @@ import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 
 import com.ziggfreed.common.factor.FactorRegistry;
+import com.ziggfreed.common.loot.drops.DropAudit;
 import com.ziggfreed.common.loot.reward.LootRewardKinds;
 import com.ziggfreed.common.loot.reward.RewardKindValidator;
 import com.ziggfreed.common.loot.reward.RewardKinds;
@@ -26,7 +27,9 @@ import com.ziggfreed.common.validation.ValidationReport;
  * then every loaded reward-kind file ({@link RewardKindValidator#auditAll()}), then the library's
  * own bonus rows as they fold, a switched-off row left out ({@link BonusRowAudit#auditAll}, domain
  * {@link BonusRowAudit#DOMAIN bonus_rows}), against the same reward kinds and the factor vocabulary
- * the rolling kinds read, in one list.
+ * the rolling kinds read, then each table's and each bonus row's {@code Requires}, then what every
+ * {@code ZigLootable} drop container cannot drop ({@link DropAudit#auditAll}, domain
+ * {@link DropAudit#DOMAIN lootable_drops}), in one list.
  *
  * <p>A reward-kind file that only decorates a Java-registered kind (no {@code Command}, so it gives
  * that kind its {@code Presentation} and the payout stays with the mod) is the legitimate
@@ -64,6 +67,7 @@ public final class LootAudit {
         }
         findings.addAll(BonusRowAudit.auditAll(RewardKinds.shared(), LootRewardKinds.installedFactors()));
         findings.addAll(requiresFindings());
+        findings.addAll(DropAudit.auditAll());
         return findings;
     }
 
