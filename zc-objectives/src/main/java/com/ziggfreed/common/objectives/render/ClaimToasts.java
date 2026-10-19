@@ -8,8 +8,10 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.Message;
 
+import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardSpec;
+import com.ziggfreed.common.progress.ClaimAttempt;
 import com.ziggfreed.common.ui.toast.RewardToastLines;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastSpec;
@@ -51,5 +53,42 @@ public final class ClaimToasts {
         return ToastSpec.of(ToastKind.REWARD, headline)
                 .withLines(RewardToastLines.lines(rewards, source, overflow))
                 .withPriority(CLAIM_PRIORITY);
+    }
+
+    /**
+     * The ONE answer to a Collect press that paid nothing, on every surface a collect is pressed on, read off the
+     * engine's own refusal ({@code attemptClaim}), never a second look at the bag: rewards that will not fit say
+     * "make room" ({@link #noRoomToast}), a quest bound to another place says where it is collected, and anything
+     * else says there is nothing to collect ({@link #nothingToCollectToast}). A missing attempt reads as nothing
+     * waiting.
+     */
+    @Nonnull
+    public static ToastSpec refusedToast(@Nullable ClaimAttempt attempt) {
+        ClaimAttempt.Refusal why = ClaimAttempt.refusalOf(attempt);
+        if (why == ClaimAttempt.Refusal.NO_ROOM) {
+            return noRoomToast();
+        }
+        if (why == ClaimAttempt.Refusal.ELSEWHERE) {
+            return ToastSpec.of(ToastKind.ERROR, line("book.quests.claim_at_site"));
+        }
+        return nothingToCollectToast();
+    }
+
+    /** A collect refused because its rewards will not fit: "Make room to collect your rewards." */
+    @Nonnull
+    public static ToastSpec noRoomToast() {
+        return ToastSpec.of(ToastKind.ERROR, line("book.achievements.inventory_full"));
+    }
+
+    /** A collect pressed with nothing waiting: "Nothing to collect right now." */
+    @Nonnull
+    public static ToastSpec nothingToCollectToast() {
+        return ToastSpec.of(ToastKind.WARNING, line("book.toast.claim_failed"));
+    }
+
+    /** A line of the library's progression lang file, the one the book and the NPC quest page speak from. */
+    @Nonnull
+    private static Message line(@Nonnull String key) {
+        return Msg.tr("ziggfreedcommon.", "progression." + key);
     }
 }

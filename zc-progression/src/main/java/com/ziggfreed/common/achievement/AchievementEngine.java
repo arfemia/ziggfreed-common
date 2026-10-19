@@ -25,6 +25,7 @@ import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardSpec;
+import com.ziggfreed.common.progress.ClaimAttempt;
 import com.ziggfreed.common.progress.DispatchOptions;
 import com.ziggfreed.common.progress.ObjectiveArithmetic;
 import com.ziggfreed.common.progress.ObjectiveDef;
@@ -565,15 +566,28 @@ public final class AchievementEngine {
      */
     @Nullable
     public RewardGrants.GrantOutcome tryClaim(@Nonnull Subject subject, @Nonnull Achievement achievement) {
+        return attemptClaim(subject, achievement).paid();
+    }
+
+    /**
+     * {@link #tryClaim} answering WHY when it pays nothing, off the same checks in the same order:
+     * {@link ClaimAttempt.Refusal#NOT_WAITING} unless it waits to be collected, and
+     * {@link ClaimAttempt.Refusal#NO_ROOM} when the gate says what this collect owes cannot reach the subject now
+     * ({@link AchievementGates#canReceiveRewards}; a gate that throws refuses the same way). A surface reads the
+     * refusal here rather than asking the bag again, so the line it shows is the reason the payout stopped. A
+     * refused press changes nothing.
+     */
+    @Nonnull
+    public ClaimAttempt attemptClaim(@Nonnull Subject subject, @Nonnull Achievement achievement) {
         if (store.status(subject, achievement.id()) != AchievementStatus.UNLOCKED) {
-            return null;
+            return ClaimAttempt.refused(ClaimAttempt.Refusal.NOT_WAITING);
         }
         List<RewardSpec> owed = claimRewardsOwed(subject, achievement);
         // The gate weighs what THIS collect pays: on one reopened for added rows, never the rows already paid.
         Achievement asked = owed.size() == achievement.claimRewards().size()
                 ? achievement : achievement.withClaimRewards(owed);
         if (!safeGate(() -> gates.canReceiveRewards(subject, asked), "canReceiveRewards", achievement)) {
-            return null;
+            return ClaimAttempt.refused(ClaimAttempt.Refusal.NO_ROOM);
         }
         RewardGrants.GrantOutcome outcome = grant(subject, achievement, owed);
         store.setStatus(subject, achievement.id(), AchievementStatus.CLAIMED);
@@ -582,7 +596,7 @@ public final class AchievementEngine {
         store.markDirty(subject);
         store.flush(subject);
         fireClaimed(achievement, subject, outcome, true);
-        return outcome;
+        return ClaimAttempt.collected(outcome);
     }
 
     /**

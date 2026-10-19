@@ -8,5 +8,5 @@
 - The library registers no reward retry queue: a failed reward is parked through `ProgressionRuntime.rewardRetryQueue()` only where a consumer filled that slot, and is otherwise logged and lost.
 - `gate/` is `ZigRequires`' read side: `RequiresCheck` (the runtime's subject against a `Requires` block, one walk answering pass or the refusal line), the trigger-volume condition and the every-boot `RequiresVolumeAudit`; the interaction Type that speaks the line sits in `interaction/`.
 - Every surface (the book, the NPC quest page, the tracked HUD) reads the runtime's own subject and wraps each mutating call in the registered `ProgressionCallScope`; a subject built locally reads neutral through another mod's store and drops every write.
-- A claim toast lists the receipt (`tryClaim`'s `GrantOutcome.receipt()`, painted by `render/ClaimToasts`), never the authored reward list.
+- A claim toast lists the receipt (`tryClaim`'s `GrantOutcome.receipt()`, painted by `render/ClaimToasts`), never the authored reward list. A Collect presses `attemptClaim` and answers a refusal with `ClaimToasts.refusedToast` (no room, elsewhere, nothing waiting), never a fit probe of its own.
 - The progression admin page opens only through the static `admin/ProgressionAdminPages.open`, never a registered destination, and its audience defaults to deny.

@@ -29,6 +29,7 @@ import com.ziggfreed.common.occurrence.Occurrence;
 import com.ziggfreed.common.occurrence.OccurrenceSource;
 import com.ziggfreed.common.occurrence.Occurrences;
 import com.ziggfreed.common.occurrence.RunLabels;
+import com.ziggfreed.common.progress.ClaimAttempt;
 import com.ziggfreed.common.progress.DispatchOptions;
 import com.ziggfreed.common.progress.ObjectiveArithmetic;
 import com.ziggfreed.common.progress.ObjectiveDef;
@@ -1507,14 +1508,34 @@ public final class QuestEngine implements QuestStateReader {
     @Nullable
     public RewardGrants.GrantOutcome tryClaim(@Nonnull Subject subject, @Nonnull Quest quest,
                                               @Nullable String atId) {
+        return attemptClaim(subject, quest, atId).paid();
+    }
+
+    /** {@link #attemptClaim(Subject, Quest, String)} from a surface with no place attached. */
+    @Nonnull
+    public ClaimAttempt attemptClaim(@Nonnull Subject subject, @Nonnull Quest quest) {
+        return attemptClaim(subject, quest, null);
+    }
+
+    /**
+     * {@link #tryClaim(Subject, Quest, String)} answering WHY when it pays nothing, off the same checks in the
+     * same order: {@link ClaimAttempt.Refusal#NOT_WAITING} unless the quest waits to be collected,
+     * {@link ClaimAttempt.Refusal#ELSEWHERE} when {@link #canCompleteAt} binds it to another place, and
+     * {@link ClaimAttempt.Refusal#NO_ROOM} when the gate says the player cannot receive the rewards now
+     * ({@link QuestGates#canReceiveRewards}, the question a finishing quest parks on). A surface reads the refusal
+     * here rather than asking the bag again, so the line it shows is the reason the payout stopped. A refused
+     * press changes nothing.
+     */
+    @Nonnull
+    public ClaimAttempt attemptClaim(@Nonnull Subject subject, @Nonnull Quest quest, @Nullable String atId) {
         if (store.status(subject, quest.id()) != QuestStatus.COMPLETED_UNCLAIMED) {
-            return null;
+            return ClaimAttempt.refused(ClaimAttempt.Refusal.NOT_WAITING);
         }
         if (!canCompleteAt(subject, quest, atId)) {
-            return null;
+            return ClaimAttempt.refused(ClaimAttempt.Refusal.ELSEWHERE);
         }
         if (!gates.canReceiveRewards(subject, quest)) {
-            return null;
+            return ClaimAttempt.refused(ClaimAttempt.Refusal.NO_ROOM);
         }
         markCompleted(subject, quest);
         RewardGrants.GrantOutcome outcome = grantRewards(subject, quest);
@@ -1529,7 +1550,7 @@ public final class QuestEngine implements QuestStateReader {
         // reward waits for the player's next login, because the pass that ran when the quest parked
         // saw a prerequisite that was not finished yet.
         armAutoAccepts(subject);
-        return outcome;
+        return ClaimAttempt.collected(outcome);
     }
 
     /**

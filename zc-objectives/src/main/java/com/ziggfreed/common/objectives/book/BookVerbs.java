@@ -17,6 +17,7 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.npc.NpcNames;
 import com.ziggfreed.common.objectives.journal.QuestVerbs;
 import com.ziggfreed.common.objectives.render.ClaimToasts;
+import com.ziggfreed.common.progress.ClaimAttempt;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
 import com.ziggfreed.common.progress.runtime.ProgressionCallScope;
@@ -130,7 +131,8 @@ public final class BookVerbs {
 
     /**
      * Collect a finished quest's rewards. A consumer's pre-check may refuse first (an error toast, the engine
-     * never asked); the engine refuses a placeless payout for a site-bound quest, said as where to collect it.
+     * never asked); the engine refuses a placeless payout for a site-bound quest, said as where to collect it,
+     * and rewards that will not fit, said as make room ({@link ClaimToasts#refusedToast}).
      */
     public boolean collect(@Nonnull Quest quest) {
         QuestEngine engine = ProgressionRuntime.quests();
@@ -143,12 +145,13 @@ public final class BookVerbs {
             toast(ToastKind.ERROR, refusal);
             return false;
         }
-        RewardGrants.GrantOutcome paid = ProgressionRuntime.questScope().around(subject, s -> engine.tryClaim(s, quest));
+        ClaimAttempt claimed = ProgressionRuntime.questScope().around(subject, s -> engine.attemptClaim(s, quest));
+        RewardGrants.GrantOutcome paid = ClaimAttempt.paidOf(claimed);
         if (paid == null) {
-            // Said as where to collect it only while the engine still binds it to a site: one whose site is
-            // gone was refused for something else (no room), and naming a place that is not there misleads.
-            toast(ToastKind.ERROR, ctx.text(!engine.canCompleteAt(subject, quest, null)
-                    ? "book.quests.claim_at_site" : "book.toast.claim_failed"));
+            // The engine's own refusal picks the line: rewards that will not fit say make room, a quest the engine
+            // still binds to a site says where to collect it (a site that is gone binds nothing), anything else
+            // says there is nothing to collect.
+            ctx.toast(ClaimToasts.refusedToast(claimed));
             return false;
         }
         // The rows are what THIS press handed over (the claim rewards' receipt, so a rolled table lists what it
@@ -282,10 +285,12 @@ public final class BookVerbs {
         if (subject == null) {
             return false;
         }
-        RewardGrants.GrantOutcome paid = ProgressionRuntime.achievementScope()
-                .around(subject, s -> engine.tryClaim(s, achievement));
+        ClaimAttempt claimed = ProgressionRuntime.achievementScope()
+                .around(subject, s -> engine.attemptClaim(s, achievement));
+        RewardGrants.GrantOutcome paid = ClaimAttempt.paidOf(claimed);
         if (paid == null) {
-            toast(ToastKind.WARNING, ctx.text("book.toast.claim_failed"));
+            // Rewards that will not fit say make room; anything else says there is nothing to collect.
+            ctx.toast(ClaimToasts.refusedToast(claimed));
             return false;
         }
         // The rows are what the claim just handed over; a rolled table lists what it rolled.
@@ -318,8 +323,8 @@ public final class BookVerbs {
         }
         switch (result.outcome()) {
             case SUCCESS -> rewardToast(ctx.text("book.achievements.claim_success"), result.rowsOr(authored));
-            case INVENTORY_FULL -> toast(ToastKind.ERROR, ctx.text("book.achievements.inventory_full"));
-            case NOT_READY -> toast(ToastKind.WARNING, ctx.text("book.toast.claim_failed"));
+            case INVENTORY_FULL -> ctx.toast(ClaimToasts.noRoomToast());
+            case NOT_READY -> ctx.toast(ClaimToasts.nothingToCollectToast());
         }
         return result.outcome();
     }

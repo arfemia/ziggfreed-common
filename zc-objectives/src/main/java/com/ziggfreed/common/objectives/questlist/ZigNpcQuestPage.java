@@ -40,6 +40,7 @@ import com.ziggfreed.common.objectives.journal.QuestReader;
 import com.ziggfreed.common.objectives.journal.QuestVerbs;
 import com.ziggfreed.common.objectives.questlist.NpcQuestSections.Section;
 import com.ziggfreed.common.objectives.render.ClaimToasts;
+import com.ziggfreed.common.progress.ClaimAttempt;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.progress.runtime.ProgressionTexts;
@@ -905,10 +906,13 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
             return;
         }
         String site = listing.collectionSite(quest);
-        RewardGrants.GrantOutcome paid = ProgressionRuntime.questScope()
-                .around(subject, s -> engine.tryClaim(s, quest, site));
+        ClaimAttempt claimed = ProgressionRuntime.questScope()
+                .around(subject, s -> engine.attemptClaim(s, quest, site));
+        RewardGrants.GrantOutcome paid = ClaimAttempt.paidOf(claimed);
         if (paid == null) {
-            showToast(ToastKind.WARNING, text("book.toast.claim_failed"));
+            // The engine's own refusal picks the line, as in the book: make room, where to collect it, or nothing
+            // to collect.
+            showToast(ClaimToasts.refusedToast(claimed));
             refresh(ref, store, player);
             return;
         }
