@@ -38,6 +38,7 @@ import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.currency.asset.CurrencyConfig;
 import com.ziggfreed.common.effect.NativeEffectUtil;
 import com.ziggfreed.common.effect.buff.BuffBootstrap;
+import com.ziggfreed.common.effect.control.ControlBootstrap;
 import com.ziggfreed.common.effect.costume.CostumeBootstrap;
 import com.ziggfreed.common.effect.resist.ResistBootstrap;
 import com.ziggfreed.common.encounter.EncounterBootstrap;
@@ -251,6 +252,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         EntityBootstrap.registerGrants(this);
         registerGearSetSeams();
         CostumeBootstrap.registerCostumes(this);
+        // Crowd control: the ZigStun, ZigTaunt, ZigAggroDrop and ZigAggroSuppress Types before any asset decodes,
+        // and the per-world aggro windows with their attitude provider and sweep.
+        ControlBootstrap.install(this);
         // Timed buffs on the native buff bar: the per-player slot record (unconditional, so a saved one
         // always reads back) and the ready and respawn refreshes, inert until a consumer registers a source.
         BuffBootstrap.install(this);

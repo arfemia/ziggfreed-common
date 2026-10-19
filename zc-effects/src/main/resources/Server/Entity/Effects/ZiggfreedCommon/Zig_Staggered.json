@@ -1,0 +1,4 @@
+{
+  "$Comment": "The stagger: a short stun that never cuts a full stun short. Everything comes from Zig_Stunned, so restyle that file, or ship one with this id to make staggers look different.",
+  "Parent": "Zig_Stunned"
+}

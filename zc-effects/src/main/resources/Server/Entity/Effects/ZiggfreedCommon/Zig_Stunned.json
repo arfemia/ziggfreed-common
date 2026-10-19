@@ -1,0 +1,20 @@
+{
+  "$Comment": "The stun CommonLib's ZigStun Type and StunControl put on an entity, built on the game's own Stun: the head stars, the tint and the screen effect come from it. HorizontalSpeedMultiplier 0 holds a creature in place (the server reads it every tick); MovementEffects and AbilityEffects are what a stunned player's own game reads, so a player cannot move or use the listed abilities until it ends. The duration is set by whoever applies it, so this file's Duration only counts for a plain ApplyEffect. Restyle every stun by shipping a file with this same id.",
+  "Parent": "Stun",
+  "Duration": 2,
+  "OverlapBehavior": "Overwrite",
+  "Debuff": true,
+  "ApplicationEffects": {
+    "HorizontalSpeedMultiplier": 0.0,
+    "MovementEffects": { "DisableAll": true, "SpeedMultiplier": 0.0 },
+    "AbilityEffects": {
+      "Disabled": [
+        "Primary",
+        "Secondary",
+        "Ability1",
+        "Ability2",
+        "Ability3"
+      ]
+    }
+  }
+}
