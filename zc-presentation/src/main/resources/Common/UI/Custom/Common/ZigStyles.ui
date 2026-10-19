@@ -95,6 +95,15 @@ $ZX = "ZigText.ui";
   Sounds: $C.@ButtonSounds
 );
 
+// A reward that is not an item (Pages/ZigRewardCard.ui #PlainCard): the Memories tiles warmed by the kit's gold (a
+// tint multiplies the white tile), so it reads apart from an item's card at a glance and still lights under the cursor.
+@ZigTileWarmStyle = ButtonStyle(
+  Default: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileDefault.png", Border: 8, Color: $ZK.@ZigAccent)),
+  Hovered: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileHovered.png", Border: 8, Color: $ZK.@ZigAccent)),
+  Pressed: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileHovered.png", Border: 8, Color: $ZK.@ZigAccent)),
+  Sounds: $C.@ButtonSounds
+);
+
 // The tile being read, vanilla's selected Memories tile (Pages/Memories/Memory.ui #ButtonSelected) in every state.
 @ZigTileSelectedStyle = ButtonStyle(
   Default: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileSelected.png", Border: 8)),

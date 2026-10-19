@@ -2,6 +2,7 @@ package com.ziggfreed.common.ui.kit;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Function;
 
 import javax.annotation.Nonnull;
@@ -14,18 +15,23 @@ import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 
 import com.ziggfreed.common.ui.UiRetint;
+import com.ziggfreed.common.ui.icon.ItemQualityLook;
+import com.ziggfreed.common.ui.menu.MenuPalette;
 
 /**
  * Paints tile grids: category tiles ({@code Pages/ZigCollectionTile.ui}), keepsake shelves
  * ({@code Pages/ZigKeepsakeTile.ui}), statistic tiles ({@code Pages/ZigStatTile.ui}), item slots
- * ({@code Pages/ZigItemSlotTile.ui}) and wares ({@code Pages/ZigWareTile.ui}), the last under titled runs
- * ({@code Pages/ZigTileSection.ui}). Each tile call clears its grid and appends one template per tile, so a grid is
- * repainted whole (in a build, or a partial update that binds only the tiles it appended).
+ * ({@code Pages/ZigItemSlotTile.ui}), wares ({@code Pages/ZigWareTile.ui}) and reward cards
+ * ({@code Pages/ZigRewardCard.ui}, with {@code Pages/ZigRewardDivider.ui} between a run that is not items and the
+ * items), the last two under titled runs ({@code Pages/ZigTileSection.ui}). Each tile call clears its grid and appends
+ * one template per tile, so a grid is repainted whole (in a build, or a partial update that binds only the tiles it
+ * appended).
  *
  * <p>Selectors: a category tile's button {@code grid[i] #Tile}, a keepsake {@code shelf[i] #Keep} (its three
  * background layers {@code #KeepEarned}, {@code #KeepToEarn}, {@code #KeepMissed}, exactly one shown), a statistic
  * {@code grid[i] #StatTile}, an item slot {@code grid[i] #Slot} (its three background layers {@code #SlotOwned},
- * {@code #SlotSeen}, {@code #SlotHidden}, exactly one shown), a ware's button {@code grid[i] #Ware}, a section's grid
+ * {@code #SlotSeen}, {@code #SlotHidden}, exactly one shown), a ware's button {@code grid[i] #Ware}, a reward card's
+ * two faces {@code grid[i] #ItemCard} and {@code grid[i] #PlainCard} (exactly one shown), a section's grid
  * {@code list[i] #SecGrid}.
  */
 public final class TilePainter {
@@ -36,6 +42,8 @@ public final class TilePainter {
     public static final String ITEM_SLOT_TEMPLATE = "Pages/ZigItemSlotTile.ui";
     public static final String WARE_TEMPLATE = "Pages/ZigWareTile.ui";
     public static final String SECTION_TEMPLATE = "Pages/ZigTileSection.ui";
+    public static final String REWARD_CARD_TEMPLATE = "Pages/ZigRewardCard.ui";
+    public static final String REWARD_DIVIDER_TEMPLATE = "Pages/ZigRewardDivider.ui";
 
     /**
      * Whether a category tile underway wears its completion ring ({@code #Ring}, vanilla's
@@ -242,5 +250,94 @@ public final class TilePainter {
     public static void selectWare(@Nonnull UICommandBuilder cmd, @Nonnull String wareSelector, boolean selected) {
         ZigStyles.apply(cmd, wareSelector + ".Style",
                 selected ? ZigStyles.Name.TILE_SELECTED : ZigStyles.Name.TILE, null);
+    }
+
+    /**
+     * Reward cards into {@code grid} (a titled run's wrapping grid, {@link #section}), one per line in the order given,
+     * in the style of vanilla's Memories page; the whole card is one button. A line whose picture keeps its item's
+     * tooltip ({@link Picture#tooltipItem}) is an item: when this server ships it, the card shows its item face, the
+     * game's own rarity slot ({@code #Slot}, an {@code ItemSlot} with its quality background, its {@code .ItemId} set
+     * as vanilla's barter page sets it) whose hover shows the item's own tooltip, its words, and the engine's word for
+     * its quality in that quality's colour ({@link ItemQualityLook}; hidden where the quality shows none). Every other
+     * line, and an item this server does not ship, shows the plain face on the kit's warm plate: its picture, its words
+     * under it (a reward's own line carries its amount), its tooltip on the card; a line's count is not shown. One
+     * divider row sits before the first item that follows a line that is not one. A line whose select id is set is
+     * bound to {@code binding}'s answer (null leaves it unbound) on the face it shows.
+     */
+    public static void rewardCards(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
+            @Nonnull String grid, @Nonnull List<DetailLine> lines, @Nonnull Function<DetailLine, EventData> binding) {
+        rewardCards(cmd, events, grid, lines, binding, ItemQualityLook::of);
+    }
+
+    /** {@link #rewardCards} over an injected quality reading (null for an item the server does not ship). */
+    static void rewardCards(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events, @Nonnull String grid,
+            @Nonnull List<DetailLine> lines, @Nonnull Function<DetailLine, EventData> binding,
+            @Nonnull Function<String, ItemQualityLook> looks) {
+        cmd.clear(grid);
+        int child = 0;
+        boolean plainBefore = false;
+        boolean divided = false;
+        for (DetailLine line : lines) {
+            Picture picture = line.picture();
+            boolean item = picture.tooltip() && picture.itemId() != null;
+            if (item && plainBefore && !divided) {
+                cmd.append(grid, REWARD_DIVIDER_TEMPLATE);
+                child++;
+                divided = true;
+            }
+            plainBefore |= !item;
+            cmd.append(grid, REWARD_CARD_TEMPLATE);
+            String card = KitPaint.child(grid, child++);
+            ItemQualityLook look = item ? looks.apply(picture.itemId()) : null;
+            String face = look != null ? itemCard(cmd, card, picture.itemId(), line, look) : plainCard(cmd, card, line);
+            EventData data = line.selectId() == null ? null : binding.apply(line);
+            if (data != null) {
+                events.addEventBinding(CustomUIEventBindingType.Activating, face, data);
+            }
+        }
+    }
+
+    /** A card's item face: the rarity slot, the words, the quality's word. Its selector. */
+    @Nonnull
+    private static String itemCard(@Nonnull UICommandBuilder cmd, @Nonnull String card, @Nonnull String itemId,
+            @Nonnull DetailLine line, @Nonnull ItemQualityLook look) {
+        String face = card + " #ItemCard";
+        cmd.set(card + " #PlainCard.Visible", false);
+        cmd.set(face + ".Visible", true);
+        cmd.set(face + " #Slot.ItemId", itemId);
+        KitPaint.text(cmd, face + " #ItemName", line.text());
+        Message word = look.word();
+        cmd.set(face + " #Rarity.Visible", word != null);
+        if (word != null) {
+            KitPaint.text(cmd, face + " #Rarity", word);
+            cmd.set(face + " #Rarity.Style.TextColor", qualityInk(look.colour()));
+        }
+        return face;
+    }
+
+    /** A card's plain face: the picture, the words, the tooltip. Its selector. */
+    @Nonnull
+    private static String plainCard(@Nonnull UICommandBuilder cmd, @Nonnull String card, @Nonnull DetailLine line) {
+        String face = card + " #PlainCard";
+        cmd.set(card + " #ItemCard.Visible", false);
+        cmd.set(face + ".Visible", true);
+        KitPaint.picture(cmd, face + " #Pic", line.picture());
+        KitPaint.text(cmd, face + " #PlainName", line.text());
+        KitPaint.tooltip(cmd, face, line.tooltip());
+        return face;
+    }
+
+    /**
+     * A quality's word colour as painted: its own {@code TextColor} where it keeps the mark floor over the row (the
+     * game colours the word the same way in its tooltip), else the body ink, never the kit's gold, which would read as
+     * a better tier than it is.
+     */
+    @Nonnull
+    static String qualityInk(@Nullable String colour) {
+        if (colour == null || !UiRetint.isSixDigitHex(colour)) {
+            return ZigTokens.INK_BODY;
+        }
+        String hex = colour.toLowerCase(Locale.ROOT);
+        return MenuPalette.contrast(hex, ZigTokens.rowSeen()) >= ZigTokens.MARK_FLOOR ? hex : ZigTokens.INK_BODY;
     }
 }

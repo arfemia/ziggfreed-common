@@ -26,6 +26,8 @@ import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 
+import com.ziggfreed.common.ui.icon.ItemQualityLook;
+
 /**
  * Every selector a painter sends or binds names only ids its target document declares, because a command against
  * an element the page lacks disconnects the player ("Selected element in CustomUI command was not found"). Each
@@ -130,6 +132,41 @@ class KitSelectorsTest {
         TilePainter.selectWare(r.cmd(), wares.get(1), true);
         r.record();
         r.assertDeclared("TilePainter");
+    }
+
+    @Test
+    void theRewardCardPainterAddressesOnlyDeclaredIds() throws IOException {
+        // Both faces, the divider between the two runs (which shifts every later card's index), an item with a
+        // quality word and one without, and an item the server does not ship, which takes the plain face.
+        List<DetailLine> lines = List.of(
+                new DetailLine(Picture.item("Coin"), Message.raw("+50 Sweets"), null, null, Tick.NONE,
+                        "claim\nreward", false, Message.raw("Sweets")),
+                new DetailLine(Picture.NONE, Message.raw("A title"), null, null, Tick.NONE, null, false),
+                new DetailLine(Picture.tooltipItem("Rare_Sword"), Message.raw("Sword"), null, null, Tick.NONE,
+                        "claim\nsword", false),
+                new DetailLine(Picture.tooltipItem("Plain_Rock"), Message.raw("Rock"), null, null, Tick.NONE,
+                        "claim\nrock", false),
+                new DetailLine(Picture.tooltipItem("No_Such_Item"), Message.raw("Gone"), null, null, Tick.NONE,
+                        "claim\ngone", false));
+        Recorder r = new Recorder(Map.of());
+        r.cmd().clear("#Runs");
+        String grid = TilePainter.section(r.cmd(), "#Runs", 0, Message.raw("Rewards"), null);
+        TilePainter.rewardCards(r.cmd(), r.events(), grid, lines, l -> EventData.of("Take", l.selectId()),
+                id -> switch (id) {
+                    case "Rare_Sword" -> new ItemQualityLook(3, Message.raw("Rare"), "#2770b7");
+                    case "Plain_Rock" -> new ItemQualityLook(1, null, null);
+                    default -> null;
+                });
+        r.record();
+
+        // The same block painted by the detail page, through the engine's own quality reading.
+        Recorder d = new Recorder(Map.of("#Page", "@ZigDetailPage"));
+        DetailPainter.paint(d.cmd(), d.events(), "#Page", new DetailView(Picture.NONE, Message.raw("Chest"), null,
+                null, List.of(), null, null, null, null, List.of(new DetailBlock("cards", Message.raw("Rewards"), null,
+                        lines, true)), List.of(), null), detailBindings(), null);
+        d.record();
+        r.assertDeclared("TilePainter.rewardCards");
+        d.assertDeclared("DetailPainter's cards block");
     }
 
     @Test

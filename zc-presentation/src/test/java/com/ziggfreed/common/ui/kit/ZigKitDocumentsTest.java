@@ -410,6 +410,65 @@ class ZigKitDocumentsTest {
         assertTrue(property(block(slot, "#Check"), "Background").contains("Pages/Memories/Checkmark.png"));
     }
 
+    /**
+     * A reward card (a reward chest's page) is one of two faces on the Memories tiles, four a row in the chest page's
+     * 596px: an item on the game's own rarity slot inside an {@code ItemSlotButton}, as vanilla's barter card is
+     * ({@code Pages/BarterTradeRow.ui}), or anything else on the tile warmed by the kit's gold, its picture and its own
+     * line. The divider between the two runs is as wide as four cards less the last gap, so it takes a row of its own
+     * and lines up with the cards.
+     */
+    @Test
+    void theRewardCardIsAnItemFaceOrAPlainFaceOnTheMemoriesTiles() throws IOException {
+        String ui = document(TilePainter.REWARD_CARD_TEMPLATE);
+        String anchor = property(block(ui, "#ZigRewardCard"), "Anchor");
+        assertEquals(140, size(leaf(anchor, "Width")));
+        assertEquals(172, size(leaf(anchor, "Height")));
+        int gap = size(leaf(anchor, "Right"));
+        assertTrue(4 * (140 + gap) <= 596, "four cards a row in the chest page's 596px");
+
+        assertEquals("ItemSlotButton", type(ui, "#ItemCard"), "an item's card is the item slot's own button");
+        String item = block(ui, "#ItemCard");
+        String itemStyle = property(item, "Style");
+        assertTrue(itemStyle != null && itemStyle.startsWith("(") && itemStyle.contains("Memories/Tiles/TileDefault.png")
+                && itemStyle.contains("Hovered: (Background: (TexturePath: \"../Pages/Memories/Tiles/TileHovered.png\"")
+                && itemStyle.contains("Sounds: $C.@ButtonSounds"), "the Memories tile, lit under the cursor and "
+                + "clicking, as an untyped tuple like vanilla's barter card, never a typed style: " + itemStyle);
+        assertHidden(ui, "#ItemCard");
+        assertEquals("ItemSlot", type(item, "#Slot"));
+        String slot = block(item, "#Slot");
+        assertEquals("true", property(slot, "ShowQualityBackground"), "the game's own rarity slot");
+        assertEquals(64, size(leaf(property(slot, "Anchor"), "Width")), "an item icon at its native size");
+        assertEquals(64, size(leaf(property(slot, "Anchor"), "Height")));
+        assertEquals("Label", type(item, "#ItemName"));
+        assertEquals("Label", type(item, "#Rarity"));
+        assertHidden(item, "#Rarity");
+
+        assertEquals("Button", type(ui, "#PlainCard"));
+        String plain = block(ui, "#PlainCard");
+        assertEquals("$ZS.@ZigTileWarmStyle", property(plain, "Style"), "what is not an item sits on the warm plate");
+        assertHidden(ui, "#PlainCard");
+        assertEquals("$C.@DefaultTextTooltipStyle", property(plain, "TextTooltipStyle"),
+                "the tooltip Java sets on #PlainCard draws in the game's tooltip");
+        assertPicture(plain, "#Pic", 64);
+        assertEquals("Label", type(plain, "#PlainName"), "the reward's own line, which carries its amount");
+        assertFalse(declares(plain, "#Amount"), "no amount of its own, so no number shows twice");
+        assertEquals(1, count(ui, "\\bButton\\s+#"), "the plain face is the card's one Button");
+        assertEquals(1, count(ui, "\\bItemSlotButton\\s+#"), "the item face is the card's one ItemSlotButton");
+
+        String warm = style(document("Common/ZigStyles.ui"), "@ZigTileWarmStyle");
+        assertTrue(warm.contains("Memories/Tiles/TileDefault.png") && warm.contains("Memories/Tiles/TileHovered.png")
+                && warm.contains("Color: $ZK.@ZigAccent") && warm.contains("Sounds: $C.@"),
+                "the warm plate is the Memories tiles tinted gold, lit under the cursor, with a sound: " + warm);
+
+        String divider = document(TilePainter.REWARD_DIVIDER_TEMPLATE);
+        String row = property(block(divider, "#ZigRewardDivider"), "Anchor");
+        assertEquals(4 * (140 + gap) - gap, size(leaf(row, "Width")), "as wide as four cards less the last gap");
+        assertEquals(gap, size(leaf(row, "Right")), "the cards' own gap, so it lines up with them");
+        String rule = block(divider, "#DividerRule");
+        assertEquals("(Color: $ZK.@ZigDivider)", property(rule, "Background"), "the kit's divider");
+        assertEquals(1, size(leaf(property(rule, "Anchor"), "Height")), "1px");
+    }
+
     @Test
     void theStatTileHoldsAFigureANameAndTwoLines() throws IOException {
         String ui = document("Pages/ZigStatTile.ui");

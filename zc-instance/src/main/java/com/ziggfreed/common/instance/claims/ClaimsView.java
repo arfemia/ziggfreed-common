@@ -1,9 +1,15 @@
 package com.ziggfreed.common.instance.claims;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.TreeMap;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -12,12 +18,14 @@ import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.instance.result.RewardChipRenderer;
+import com.ziggfreed.common.instance.reward.DeferredRewards;
 import com.ziggfreed.common.instance.reward.InstanceReward;
 import com.ziggfreed.common.instance.reward.InstanceRewardGranter;
 import com.ziggfreed.common.loot.claim.Claim;
 import com.ziggfreed.common.loot.reward.RewardChip;
 import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardSpec;
+import com.ziggfreed.common.ui.icon.ItemQualityLook;
 import com.ziggfreed.common.ui.kit.ActionLook;
 import com.ziggfreed.common.ui.kit.ActionSlot;
 import com.ziggfreed.common.ui.kit.DetailAction;
@@ -31,6 +39,7 @@ import com.ziggfreed.common.ui.kit.LedgerSection;
 import com.ziggfreed.common.ui.kit.Mark;
 import com.ziggfreed.common.ui.kit.Picture;
 import com.ziggfreed.common.ui.kit.Pill;
+import com.ziggfreed.common.ui.kit.Tick;
 import com.ziggfreed.common.ui.kit.Tone;
 import com.ziggfreed.common.ui.toast.RewardToastLines;
 import com.ziggfreed.common.ui.toast.ToastKind;
@@ -170,41 +179,182 @@ public final class ClaimsView {
 
     /**
      * A reward chest's one page ({@link RewardChestPage}), over {@code claims} in the order given: the chest's picture,
-     * "Your share" and how many rewards wait in it, the difficulty of the first Claim that names one as a pill, the
-     * chest's own line ({@code lead}), one block per Claim under its title, and in each what is not an item first
-     * (a currency, experience, reputation), then the items, an item drawn with its own tooltip. Every line is a click
-     * that takes it ({@link ClaimGrants#rewardKey} on its select id, the block's id its Claim's); the gold Take All
-     * takes everything, over a hint saying so.
+     * "Your share" and how many cards it shows, the difficulty of the first Claim that names one as a pill, the
+     * chest's own line ({@code lead}), and one list of cards across every Claim ({@link #chestCards}, a
+     * {@link DetailBlock#cards} block): what is not an item first (a currency, experience, reputation; alike ones
+     * summed into one card, its own line carrying the amount), then the items, best quality first, each on the game's
+     * rarity slot. Every
+     * card is a click whose select id names its first reward ({@link Taken#selectId}); the gold Take All takes
+     * everything, over a hint saying so.
      */
     @Nonnull
     static DetailView chestDetail(@Nonnull List<Claim> claims, @Nonnull ClaimsText text, @Nonnull Message lead) {
-        List<DetailBlock> blocks = new ArrayList<>(claims.size());
-        int total = 0;
+        List<ChestCard> cards = chestCards(claims);
+        List<DetailLine> lines = new ArrayList<>(cards.size());
+        for (ChestCard card : cards) {
+            lines.add(card.line());
+        }
         String difficulty = null;
         for (Claim claim : claims) {
-            List<DetailLine> lines = new ArrayList<>(claim.rewards().size());
-            for (InstanceReward reward : claim.rewards()) {
-                if (!reward.isItem()) {
-                    lines.add(chestLine(reward));
-                }
-            }
-            for (InstanceReward reward : claim.rewards()) {
-                if (reward.isItem()) {
-                    lines.add(chestLine(reward));
-                }
-            }
-            total += lines.size();
             if (difficulty == null) {
                 difficulty = claim.difficulty();
             }
-            blocks.add(new DetailBlock(claim.id(), title(claim, text), text.line("row.rewards", lines.size()), lines));
         }
         List<Pill> badges = difficulty == null ? List.of() : List.of(Pill.of(label(difficulty), Tone.NEUTRAL));
         List<DetailAction> actions = List.of(new DetailAction(ActionSlot.PRIMARY, text.line("spoils.action.take_all"),
                 ActionLook.COLLECT, RewardChestActions.TAKE_ALL, null, true, null));
         return new DetailView(Picture.item(ClaimsDestinations.ICON), text.line("spoils.title"),
-                text.line("row.rewards", total), null, badges, null, null, null, lead, blocks, actions,
+                text.line("row.rewards", lines.size()), null, badges, null, null, null, lead,
+                List.of(new DetailBlock(BLOCK_REWARDS, text.line("detail.rewards"), null, lines, true)), actions,
                 text.line("spoils.page.hint"));
+    }
+
+    /**
+     * One reward of a Claim as a reward chest's card names it: the Claim's id and the reward's key within it
+     * ({@link ClaimGrants#rewardKey}), what a card's click sends ({@code Claim} and {@code Reward}) and what
+     * {@link ClaimGrants#claimReward} takes.
+     */
+    record Taken(@Nonnull String claim, @Nonnull String reward) {
+
+        /** Between the two in a select id; neither a Claim id nor a reward key holds it. */
+        private static final char SEPARATOR = '\n';
+
+        /** The card's select id, held on the server only (the binding sends the two apart). */
+        @Nonnull
+        String selectId() {
+            return claim + SEPARATOR + reward;
+        }
+
+        /** The Claim and reward a card's select id names, or null for one that names none. */
+        @Nullable
+        static Taken of(@Nullable String selectId) {
+            int at = selectId == null ? -1 : selectId.lastIndexOf(SEPARATOR);
+            if (at <= 0 || at == selectId.length() - 1) {
+                return null;
+            }
+            return new Taken(selectId.substring(0, at), selectId.substring(at + 1));
+        }
+    }
+
+    /**
+     * One card of a reward chest's page: the reward it shows and every reward its click takes ({@code takes}, in the
+     * order the Claims hold them). A run of alike rewards that are not items shows as one at their summed amount; an
+     * item is one card per stack.
+     */
+    record ChestCard(@Nonnull InstanceReward shown, @Nonnull List<Taken> takes) {
+
+        ChestCard {
+            takes = List.copyOf(takes);
+        }
+
+        /** This card with {@code reward} added: its amount on the shown one, its take after the others. */
+        @Nonnull
+        ChestCard plus(@Nonnull InstanceReward reward, @Nonnull Taken take) {
+            List<Taken> all = new ArrayList<>(takes);
+            all.add(take);
+            long sum = (long) shown.quantity() + reward.quantity();
+            return new ChestCard(shown.withQuantity((int) Math.min(sum, Integer.MAX_VALUE)), all);
+        }
+
+        /**
+         * The card as a line: the reward's chip, its own line carrying the amount ("+50 Sweets"), an item's picture
+         * keeping its own tooltip and any other picture drawn plain with the chip's words on hover (a borrowed item's
+         * tooltip would name the wrong thing), and the first take as its select id.
+         */
+        @Nonnull
+        DetailLine line() {
+            RewardChip chip = chip(shown);
+            Picture picture = !chip.hasIcon() ? Picture.NONE
+                    : shown.isItem() ? Picture.tooltipItem(chip.iconItemId()) : Picture.item(chip.iconItemId());
+            return new DetailLine(picture, chip.label(), null, null, Tick.NONE, takes.get(0).selectId(), false,
+                    shown.isItem() ? null : chip.tooltip());
+        }
+    }
+
+    /**
+     * Every card a reward chest's page shows for {@code claims} (oldest first): what is not an item first, in the
+     * order the Claims hold it, alike rewards from any Claim summed into the first one's card ({@link #alike}); then
+     * each item stack its own card, best quality first ({@link ItemQualityLook#rank}, an item this server does not
+     * ship last), Claim order kept within a quality.
+     */
+    @Nonnull
+    static List<ChestCard> chestCards(@Nonnull List<Claim> claims) {
+        List<ChestCard> plain = new ArrayList<>();
+        Map<String, Integer> byAlike = new HashMap<>();
+        List<ChestCard> items = new ArrayList<>();
+        for (Claim claim : claims) {
+            for (InstanceReward reward : claim.rewards()) {
+                Taken take = new Taken(claim.id(), ClaimGrants.rewardKey(reward));
+                if (reward.isItem()) {
+                    items.add(new ChestCard(reward, List.of(take)));
+                    continue;
+                }
+                String alike = alike(reward);
+                Integer at = alike == null ? null : byAlike.get(alike);
+                if (at != null) {
+                    plain.set(at, plain.get(at).plus(reward, take));
+                    continue;
+                }
+                if (alike != null) {
+                    byAlike.put(alike, plain.size());
+                }
+                plain.add(new ChestCard(reward, List.of(take)));
+            }
+        }
+        // A stable sort, so stacks of one quality keep the Claims' order.
+        items.sort(Comparator.comparingInt((ChestCard card) -> ItemQualityLook.rank(iconOf(card.shown()))).reversed());
+        List<ChestCard> all = new ArrayList<>(plain.size() + items.size());
+        all.addAll(plain);
+        all.addAll(items);
+        return all;
+    }
+
+    /**
+     * What a click on the card naming {@code claim}'s reward {@code reward} takes, read on {@code claims} as they
+     * stand now: every reward of that card ({@link #chestCards}), or that one alone when no card names it (a stale
+     * page, whose take then finds nothing).
+     */
+    @Nonnull
+    static List<Taken> takesOf(@Nonnull List<Claim> claims, @Nonnull String claim, @Nonnull String reward) {
+        Taken clicked = new Taken(claim, reward);
+        for (ChestCard card : chestCards(claims)) {
+            if (card.takes().contains(clicked)) {
+                return card.takes();
+            }
+        }
+        return List.of(clicked);
+    }
+
+    /**
+     * What makes two rewards that are not items one card: alike in kind, id, display key, icon and the reward a
+     * deferred row stands for, all but its amount; null for one whose shown amount does not follow its quantity
+     * (a command line that pays what it says, a kept reward with no amount to read), which keeps a card of its own.
+     */
+    @Nullable
+    private static String alike(@Nonnull InstanceReward reward) {
+        if (reward.isItem() || !reward.scalesWithQuantity()) {
+            return null;
+        }
+        RewardSpec spec = reward.spec();
+        String stands = "";
+        if (spec != null) {
+            String amount = DeferredRewards.quantityParam(spec);
+            if (amount == null || spec.longParam(amount, 0L) <= 0L) {
+                return null;
+            }
+            Map<String, String> params = new TreeMap<>(spec.params());
+            params.remove(amount);
+            stands = spec.kind().toLowerCase(Locale.ROOT) + params;
+        }
+        return reward.kind().name() + '\n' + reward.id() + '\n' + Objects.toString(reward.displayKey(), "") + '\n'
+                + Objects.toString(reward.iconItemId(), "") + '\n' + stands;
+    }
+
+    /** The item a reward's card pictures: its own icon item when it names one, else an item's own id. */
+    @Nullable
+    private static String iconOf(@Nonnull InstanceReward reward) {
+        String icon = reward.iconItemId();
+        return icon != null && !icon.isBlank() ? icon : reward.isItem() ? reward.id() : null;
     }
 
     /**
@@ -217,12 +367,6 @@ public final class ClaimsView {
                 text.line(took ? "spoils.all_taken" : "spoils.empty"), null, null);
     }
 
-    /** One reward as a chest line: its chip, drawn as a press's line, and the click that takes it. */
-    @Nonnull
-    private static DetailLine chestLine(@Nonnull InstanceReward reward) {
-        return DetailLine.reward(chip(reward), null).withSelect(ClaimGrants.rewardKey(reward));
-    }
-
     /**
      * The one toast a press raises over its page: everything handed over ({@code all}: everything that was waiting),
      * a full bag keeping the rest, or part of it not payable on this server, over a row for each reward it handed over
@@ -232,10 +376,21 @@ public final class ClaimsView {
      */
     @Nullable
     static ToastSpec pressToast(@Nonnull ClaimGrants.Result result, @Nonnull ClaimsText text, boolean all) {
+        return pressToast(result, text, all, false);
+    }
+
+    /**
+     * {@link #pressToast(ClaimGrants.Result, ClaimsText, boolean)}, or for a summed card's take ({@code summed}) the
+     * same toast whose rows add alike rewards into one, with no heading per Claim ({@link #summedLines}): the card
+     * named no source, so neither does its toast.
+     */
+    @Nullable
+    static ToastSpec pressToast(@Nonnull ClaimGrants.Result result, @Nonnull ClaimsText text, boolean all,
+            boolean summed) {
         if (result.nothing()) {
             return null;
         }
-        List<ToastLine> landed = landedLines(result.collected());
+        List<ToastLine> landed = summed ? summedLines(result.collected()) : landedLines(result.collected());
         if (result.anyKept()) {
             return ToastSpec.of(ToastKind.WARNING, text.line("toast.kept")).withLines(landed);
         }
@@ -310,6 +465,68 @@ public final class ClaimsView {
         }
         return RewardToastLines.linesBy(rows, spec -> own.containsKey(spec) ? own.get(spec) : receiptRow(spec),
                 dropped -> Msg.key(TOAST_MORE_KEY, dropped));
+    }
+
+    /**
+     * The rows of a summed card's toast: what its rewards really landed as, alike ones added into one row in the
+     * order they first landed, and no heading per Claim. A kind's receipts add up by their amount when alike in kind
+     * and every parameter but the amount (a reputation's gain after the worn bonus and the Cap); a row that paid by
+     * itself adds up at its own quantity when alike as the card's rewards are ({@link #alike}). Anything else keeps a
+     * row of its own; a receipt listing nothing adds none.
+     */
+    @Nonnull
+    static List<ToastLine> summedLines(@Nonnull List<ClaimGrants.Collected> collected) {
+        Map<String, Object> sums = new LinkedHashMap<>();
+        int own = 0;
+        for (ClaimGrants.Collected each : collected) {
+            for (InstanceRewardGranter.Landed landed : each.landed()) {
+                if (landed.receipted()) {
+                    for (RewardSpec spec : landed.receipt()) {
+                        String alike = alikeReceipt(spec);
+                        String slot = alike == null ? "own " + own++ : "receipt " + alike;
+                        Object held = sums.get(slot);
+                        sums.put(slot, held instanceof RewardSpec sum ? summedReceipt(sum, spec) : spec);
+                    }
+                } else {
+                    InstanceReward row = landed.row();
+                    String alike = alike(row);
+                    String slot = alike == null ? "own " + own++ : "row " + alike;
+                    Object held = sums.get(slot);
+                    if (held instanceof InstanceReward sum) {
+                        long total = (long) sum.quantity() + row.quantity();
+                        sums.put(slot, sum.withQuantity((int) Math.min(total, Integer.MAX_VALUE)));
+                    } else {
+                        sums.put(slot, row);
+                    }
+                }
+            }
+        }
+        List<ToastLine> lines = new ArrayList<>(sums.size());
+        for (Object sum : sums.values()) {
+            lines.add(sum instanceof RewardSpec spec ? receiptRow(spec)
+                    : RewardToastLines.row(chip((InstanceReward) sum)));
+        }
+        return lines;
+    }
+
+    /** What makes two receipts one row: kind, which parameter is the amount, and every other parameter; null for none. */
+    @Nullable
+    private static String alikeReceipt(@Nonnull RewardSpec spec) {
+        String amount = DeferredRewards.quantityParam(spec);
+        if (amount == null) {
+            return null;
+        }
+        Map<String, String> params = new TreeMap<>(spec.params());
+        params.remove(amount);
+        return spec.kind().toLowerCase(Locale.ROOT) + '\n' + amount + '\n' + params;
+    }
+
+    /** {@code sum} with {@code more}'s amount added to its own (the two alike, {@link #alikeReceipt}). */
+    @Nonnull
+    private static RewardSpec summedReceipt(@Nonnull RewardSpec sum, @Nonnull RewardSpec more) {
+        String amount = DeferredRewards.quantityParam(sum);
+        return amount == null ? sum
+                : sum.with(amount, Long.toString(sum.longParam(amount, 0L) + more.longParam(amount, 0L)));
     }
 
     /** The section heading entry for {@code claim}, its own title, or null when it has none (its rows read plain). */

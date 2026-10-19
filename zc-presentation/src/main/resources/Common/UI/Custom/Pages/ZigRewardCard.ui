@@ -1,0 +1,106 @@
+$C = "../Common.ui";
+$ZT = "../Common/ZigType.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
+$ZW = "../Common/ZigKit.ui";
+
+// One reward as a card (a reward chest's page), 140 x 172, four a row in a 596px wrapping grid, appended by
+// com.ziggfreed.common.ui.kit.TilePainter.rewardCards into a section's #SecGrid and addressed by index as
+// "#SecGrid[i] #ItemCard" or "#SecGrid[i] #PlainCard". In the style of vanilla's Memories page
+// (Pages/Memories/Memory.ui): the whole card is one button, and it shows exactly one of its two faces.
+//
+//   #ItemCard   an item handed over: an ItemSlotButton on the Memories tile (ZigTileStyle's look, lit under the cursor)
+//               holding the game's own rarity slot, an ItemSlot with its quality background whose .ItemId Java
+//               sets, as vanilla's barter page does (Pages/BarterTradeRow.ui); hovering it shows the item's own
+//               tooltip. Under it the item's name (#ItemName, three lines, centred) and the engine's word for its
+//               quality (#Rarity, in that quality's colour; hidden where the quality shows none).
+//   #PlainCard  anything else (a currency, experience, reputation): a Button on the Memories tile warmed by the
+//               kit's gold (ZigTileWarmStyle), so it reads apart from an item at a glance; the reward's own 64px
+//               picture (#Pic, painted through IconRenderer.applyPlainIcon) over its own line, which carries its
+//               amount ("+50 Sweets", #PlainName, at the item name's place). The tooltip Java sets on #PlainCard
+//               draws in the game's tooltip; nothing inside carries one, so a click anywhere reaches the card.
+//
+// Both faces ship hidden; the painter shows one and binds it.
+
+Group #ZigRewardCard {
+  Anchor: (Width: 140, Height: 172, Right: $ZK.@ZigSpace2, Bottom: $ZK.@ZigSpace2);
+
+  // ZigTileStyle's states written out as an untyped tuple, the way vanilla's only ItemSlotButton writes its Style
+  // (Pages/BarterTradeRow.ui): the client takes it whatever style type the element declares, where a typed
+  // ButtonStyle reference is unproven on this element, and a style the client cannot take fails every client's load.
+  ItemSlotButton #ItemCard {
+    Anchor: (Full: 0);
+    LayoutMode: Full;
+    Style: (
+      Default: (Background: (TexturePath: "../Pages/Memories/Tiles/TileDefault.png", Border: 8)),
+      Hovered: (Background: (TexturePath: "../Pages/Memories/Tiles/TileHovered.png", Border: 8)),
+      Pressed: (Background: (TexturePath: "../Pages/Memories/Tiles/TileHovered.png", Border: 8)),
+      Sounds: $C.@ButtonSounds
+    );
+    Visible: false;
+
+    Group #ItemBody {
+      Anchor: (Full: 0);
+      LayoutMode: Top;
+      Padding: (Top: 12, Horizontal: 6, Bottom: 8);
+
+      Group #SlotRow {
+        LayoutMode: Center;
+        Anchor: (Height: $ZK.@ZigPicLarge, Bottom: 6);
+
+        ItemSlot #Slot {
+          Anchor: (Width: $ZK.@ZigPicLarge, Height: $ZK.@ZigPicLarge);
+          ShowQualityBackground: true;
+          ShowQuantity: false;
+        }
+      }
+
+      Label #ItemName {
+        Anchor: (Height: 51);
+        Text: "";
+        Style: (...$ZX.@ZigTileNameStyle, FontSize: $ZT.@ZigFontBody, HorizontalAlignment: Center, VerticalAlignment: Start, WrapMaxLines: 3);
+      }
+
+      Group {
+        FlexWeight: 1;
+      }
+
+      Label #Rarity {
+        Anchor: (Height: 18);
+        Text: "";
+        Visible: false;
+        Style: (...$ZS.@ZigStateStyle, HorizontalAlignment: Center);
+      }
+    }
+  }
+
+  Button #PlainCard {
+    Anchor: (Full: 0);
+    LayoutMode: Full;
+    Style: $ZS.@ZigTileWarmStyle;
+    TextTooltipStyle: $C.@DefaultTextTooltipStyle;
+    Visible: false;
+
+    Group #PlainBody {
+      Anchor: (Full: 0);
+      LayoutMode: Top;
+      Padding: (Top: 12, Horizontal: 6, Bottom: 8);
+
+      Group #PicRow {
+        LayoutMode: Center;
+        Anchor: (Height: $ZK.@ZigPicLarge, Bottom: 6);
+
+        $ZW.@ZigPicture #Pic {
+          @Size = $ZK.@ZigPicLarge;
+        }
+      }
+
+      Label #PlainName {
+        Anchor: (Height: 51);
+        Text: "";
+        Style: (...$ZX.@ZigTileNameStyle, FontSize: $ZT.@ZigFontBody, HorizontalAlignment: Center, VerticalAlignment: Start, WrapMaxLines: 3);
+      }
+    }
+  }
+}

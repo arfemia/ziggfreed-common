@@ -1,0 +1,16 @@
+$ZK = "../Common/ZigTokens.ui";
+
+// The rule between a run of reward cards that are not items and the item cards after it, appended by
+// com.ziggfreed.common.ui.kit.TilePainter.rewardCards into the same wrapping grid as the cards
+// (Pages/ZigRewardCard.ui). As wide as four cards less the last one's gap, so it always takes a row of its own and
+// lines up with the cards' edges; the 1px rule (#DividerRule, the kit's divider) sits in the middle of its height.
+
+Group #ZigRewardDivider {
+  Anchor: (Width: 584, Height: 9, Right: $ZK.@ZigSpace2, Bottom: $ZK.@ZigSpace2);
+  LayoutMode: Top;
+
+  Group #DividerRule {
+    Anchor: (Top: 4, Height: 1);
+    Background: (Color: $ZK.@ZigDivider);
+  }
+}

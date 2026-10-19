@@ -21,8 +21,10 @@ import com.ziggfreed.common.ui.icon.IconRenderer;
  * {@code #DMeta}, {@code #DSubMeta}, the pills in {@code #DBadges}, the {@code #DToggle} button), the progress block
  * ({@code #DProgress}: {@code #Bar}, {@code #Count}, {@code #Percent}), the lead ({@code #DLead}), the blocks
  * ({@code Pages/ZigDetailBlock.ui} into {@code #DBlocks}: its {@code @ZigSectionHeader #Head} with
- * {@code #HeadLabel} and {@code #Meta}, each line a {@code Pages/ZigDetailLine.ui}), and the action
- * bar ({@code #DActions}: {@code #Hint}, {@code #Danger}, {@code #Secondary}, {@code #Primary}).
+ * {@code #HeadLabel} and {@code #Meta}, each line a {@code Pages/ZigDetailLine.ui}; a {@link DetailBlock#cards} block
+ * is a {@code Pages/ZigTileSection.ui} instead, its lines reward cards in the section's wrapping grid,
+ * {@link TilePainter#rewardCards}), and the action bar ({@code #DActions}: {@code #Hint}, {@code #Danger},
+ * {@code #Secondary}, {@code #Primary}).
  *
  * <p>The page is live: a selection repaints it in a partial update, so every leaf is painted both ways (shown and
  * hidden) and the pills and blocks are cleared and appended again. The header toggle and the three action buttons
@@ -136,6 +138,12 @@ public final class DetailPainter {
         cmd.clear(list);
         for (int b = 0; b < blocks.size(); b++) {
             DetailBlock block = blocks.get(b);
+            if (block.cards()) {
+                // The kit's titled run of tiles, its wrapping grid holding the block's lines as reward cards.
+                String grid = TilePainter.section(cmd, list, b, block.label(), block.meta());
+                TilePainter.rewardCards(cmd, events, grid, block.lines(), line -> bindings.line(block, line));
+                continue;
+            }
             cmd.append(list, BLOCK_TEMPLATE);
             String root = KitPaint.child(list, b) + " #Block";
             KitPaint.text(cmd, root + " #Head #HeadLabel", block.label());

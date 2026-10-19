@@ -33,9 +33,11 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * A reward chest's one page: everything of the player's own filed under the chest (its key, {@link Claim#fight}),
  * and nothing of anyone else's, on the kit's reading page in a decorated frame with no menu rail. {@link ClaimsView}
- * decides what it shows ({@link ClaimsView#chestDetail}): one block per Claim under its title, what is not an item
- * first and then the items, each an item's own picture with its own tooltip. A click on a line takes that one
- * reward ({@link ClaimGrants#claimReward}: an item only when all of it fits), and the gold Take All takes everything
+ * decides what it shows ({@link ClaimsView#chestDetail}): under the chest's heading, one list of cards across all its
+ * Claims in the style of vanilla's Memories page, what is not an item first on a warm plate (alike rewards summed into
+ * one card), a divider, then the items best quality first, each on the game's own rarity slot with its own tooltip. A
+ * click on a card takes it ({@link ClaimGrants#claimReward}: an item only when all of it fits; a summed card each of
+ * its rewards in turn, {@link ClaimsView#takesOf}), and the gold Take All takes everything
  * ({@link ClaimGrants#claimFight}); each press repaints the page under one toast naming what landed and how much
  * ({@link ClaimsView#pressToast}). What does not fit stays listed here and waits under Claims once the page closes.
  * With nothing left the page says the player took everything and stays open, so the toast is seen; the chest goes
@@ -50,12 +52,16 @@ public final class RewardChestPage extends ToastablePage<ClaimsEventData> {
     static final String DETAIL = "#Page";
     static final String EMPTY = "#ChestEmpty";
 
-    /** A line's click takes it: its block is its Claim, its select id the reward ({@link ClaimGrants#rewardKey}). */
+    /**
+     * A card's click takes it: its select id names its first reward's Claim and key ({@link ClaimsView.Taken}), sent
+     * apart as {@code Claim} and {@code Reward}; the page takes the rest of a summed card on the server.
+     */
     private static final DetailBindings LINES = new DetailBindings() {
         @Override
         public EventData line(DetailBlock b, DetailLine l) {
-            return EventData.of("Action", RewardChestActions.TAKE).append("Claim", b.id()).append("Reward",
-                    l.selectId());
+            ClaimsView.Taken take = ClaimsView.Taken.of(l.selectId());
+            return take == null ? null : EventData.of("Action", RewardChestActions.TAKE).append("Claim", take.claim())
+                    .append("Reward", take.reward());
         }
 
         @Override
@@ -126,16 +132,25 @@ public final class RewardChestPage extends ToastablePage<ClaimsEventData> {
             @Override
             public void take(@Nonnull Player player, @Nonnull String claim, @Nonnull String reward) {
                 UUID uuid = playerRef.getUuid();
-                if (uuid != null) {
-                    told(ClaimGrants.claimReward(deps.claims(), uuid, claim, reward, ref, store, deps.sink()), false);
+                if (uuid == null) {
+                    return;
                 }
+                // A summed card stands for alike rewards across the chest's Claims: each is taken in turn, under one
+                // toast whose rows add them up, as the card did.
+                List<ClaimsView.Taken> takes = ClaimsView.takesOf(waiting(), claim, reward);
+                ClaimGrants.Result total = ClaimGrants.Result.NOTHING;
+                for (ClaimsView.Taken each : takes) {
+                    total = total.plus(ClaimGrants.claimReward(deps.claims(), uuid, each.claim(), each.reward(), ref,
+                            store, deps.sink()));
+                }
+                told(total, false, takes.size() > 1);
             }
 
             @Override
             public void takeAll(@Nonnull Player player) {
                 UUID uuid = playerRef.getUuid();
                 if (uuid != null) {
-                    told(ClaimGrants.claimFight(deps.claims(), uuid, fight, ref, store, deps.sink()), true);
+                    told(ClaimGrants.claimFight(deps.claims(), uuid, fight, ref, store, deps.sink()), true, false);
                 }
             }
 
@@ -156,12 +171,15 @@ public final class RewardChestPage extends ToastablePage<ClaimsEventData> {
         }, data.action, data.claim, data.reward);
     }
 
-    /** A press's one toast, over the repaint that follows; nothing for a press that took nothing (a stale line). */
-    private void told(@Nonnull ClaimGrants.Result result, boolean all) {
+    /**
+     * A press's one toast, over the repaint that follows ({@code summed}: a summed card's, its rows added up);
+     * nothing for a press that took nothing (a stale line).
+     */
+    private void told(@Nonnull ClaimGrants.Result result, boolean all, boolean summed) {
         if (!result.nothing()) {
             took = true;
         }
-        ToastSpec toast = ClaimsView.pressToast(result, deps.text(), all);
+        ToastSpec toast = ClaimsView.pressToast(result, deps.text(), all, summed);
         if (toast != null) {
             showToast(toast);
         }
