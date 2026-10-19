@@ -21,6 +21,8 @@ import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.event.events.player.PlayerConnectEvent;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.track.boost.BoostRun;
+import com.ziggfreed.common.track.boost.HeldBoosts;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -35,7 +37,9 @@ import com.ziggfreed.common.util.SafeLog;
  * kept, unread, until it comes back. How far each unlock row has paid is {@code PaidThrough}, a map from the
  * row's key to its level, so a row added, removed or moved on a live track keeps its own mark. The picks made on a
  * climb are {@code Picks} (slot to the options chosen, comma-joined), {@code Takes} (bought pick to its count) and
- * the slot choices a Remember prestige put aside ({@code Remembered}).
+ * the slot choices a Remember prestige put aside ({@code Remembered}). The player's own boosts ride beside the
+ * climbs ({@code Boosts}: each running start and each wait before the next start of a boost), absent when they
+ * hold none, so a save from before boosts reads as none held.
  *
  * <p>{@link #register} runs once at library setup, before any world loads (a component type registered later
  * cannot be read off entities saved carrying it), and {@link #install} hangs the connect hook that attaches one
@@ -59,6 +63,10 @@ public final class TrackComponent implements Component<EntityStore> {
             .append(new KeyedCodec<>("SavedAt", Codec.LONG, false),
                     (c, v) -> c.savedAtMs = v == null ? 0L : v, c -> System.currentTimeMillis())
             .add()
+            // The player's own boosts (the track store's boost seam): absent when none is held.
+            .append(new KeyedCodec<>("Boosts", BoostsSave.CODEC, false),
+                    (c, v) -> c.boosts = BoostsSave.read(v), c -> BoostsSave.of(c.boosts))
+            .add()
             .build();
 
     /** Every climb on record, by {@link #storageKey}, sorted so a save is stable. */
@@ -68,7 +76,22 @@ public final class TrackComponent implements Component<EntityStore> {
     /** When the record read at load was saved (0 when it carries none, or once it has been asked). */
     private long savedAtMs;
 
+    /** The player's own boosts: their running starts and their waits. Immutable, replaced whole. */
+    @Nonnull
+    private HeldBoosts boosts = HeldBoosts.EMPTY;
+
     public TrackComponent() {
+    }
+
+    /** The player's own boosts, as last kept ({@link HeldBoosts#EMPTY} when none). */
+    @Nonnull
+    public HeldBoosts boosts() {
+        return boosts;
+    }
+
+    /** Keep {@code held} as the player's own boosts, replacing what was kept. */
+    public void boosts(@Nonnull HeldBoosts held) {
+        this.boosts = held;
     }
 
     /**
@@ -228,7 +251,110 @@ public final class TrackComponent implements Component<EntityStore> {
         TrackComponent copy = new TrackComponent();
         copy.climbs.putAll(climbs);
         copy.savedAtMs = savedAtMs;
+        copy.boosts = boosts;
         return copy;
+    }
+
+    /**
+     * The saved shape of the player's own boosts: {@code Runs} (each start's boost, percent, start, end and who
+     * started it) and {@code Cooldowns} (per boost id, when its next start may come, in epoch milliseconds). A new
+     * fact is a new leaf, never a rename.
+     */
+    static final class BoostsSave {
+
+        @Nullable RunSave[] runs;
+        @Nullable Map<String, Long> cooldowns;
+
+        static final BuilderCodec<BoostsSave> CODEC = BuilderCodec.builder(BoostsSave.class, BoostsSave::new)
+                .append(new KeyedCodec<>("Runs", new ArrayCodec<>(RunSave.CODEC, RunSave[]::new), false),
+                        (o, v) -> o.runs = v, o -> o.runs)
+                .add()
+                .append(new KeyedCodec<>("Cooldowns", new MapCodec<>(Codec.LONG, LinkedHashMap::new, false), false),
+                        (o, v) -> o.cooldowns = v, o -> o.cooldowns)
+                .add()
+                .build();
+
+        BoostsSave() {
+        }
+
+        /** {@code held} as saved, or null (the leaf left out) when nothing is held. */
+        @Nullable
+        static BoostsSave of(@Nonnull HeldBoosts held) {
+            if (held.isEmpty()) {
+                return null;
+            }
+            BoostsSave save = new BoostsSave();
+            if (!held.runs().isEmpty()) {
+                List<RunSave> rows = new ArrayList<>(held.runs().size());
+                for (BoostRun run : held.runs()) {
+                    rows.add(RunSave.of(run));
+                }
+                save.runs = rows.toArray(new RunSave[0]);
+            }
+            if (!held.cooldowns().isEmpty()) {
+                // Sorted, so a save is stable.
+                save.cooldowns = new LinkedHashMap<>(new TreeMap<>(held.cooldowns()));
+            }
+            return save;
+        }
+
+        /** What {@code save} holds, a row naming no boost left out; {@link HeldBoosts#EMPTY} for none. */
+        @Nonnull
+        static HeldBoosts read(@Nullable BoostsSave save) {
+            if (save == null) {
+                return HeldBoosts.EMPTY;
+            }
+            List<BoostRun> runs = new ArrayList<>();
+            if (save.runs != null) {
+                for (RunSave row : save.runs) {
+                    if (row != null && row.boost != null && !row.boost.isBlank()) {
+                        runs.add(new BoostRun(row.boost, row.percent == null ? 0.0 : row.percent,
+                                row.startedAt == null ? 0L : row.startedAt, row.endsAt == null ? 0L : row.endsAt,
+                                row.by == null ? "" : row.by));
+                    }
+                }
+            }
+            HeldBoosts held = new HeldBoosts(runs, save.cooldowns == null ? Map.of() : save.cooldowns);
+            return held.isEmpty() ? HeldBoosts.EMPTY : held;
+        }
+    }
+
+    /** One saved start of a boost. */
+    static final class RunSave {
+
+        @Nullable String boost;
+        @Nullable Double percent;
+        @Nullable Long startedAt;
+        @Nullable Long endsAt;
+        @Nullable String by;
+
+        static final BuilderCodec<RunSave> CODEC = BuilderCodec.builder(RunSave.class, RunSave::new)
+                .append(new KeyedCodec<>("Boost", Codec.STRING, false), (o, v) -> o.boost = v, o -> o.boost)
+                .add()
+                .append(new KeyedCodec<>("Percent", Codec.DOUBLE, false), (o, v) -> o.percent = v, o -> o.percent)
+                .add()
+                .append(new KeyedCodec<>("StartedAt", Codec.LONG, false), (o, v) -> o.startedAt = v,
+                        o -> o.startedAt)
+                .add()
+                .append(new KeyedCodec<>("EndsAt", Codec.LONG, false), (o, v) -> o.endsAt = v, o -> o.endsAt)
+                .add()
+                .append(new KeyedCodec<>("By", Codec.STRING, false), (o, v) -> o.by = v, o -> o.by)
+                .add()
+                .build();
+
+        RunSave() {
+        }
+
+        @Nonnull
+        static RunSave of(@Nonnull BoostRun run) {
+            RunSave row = new RunSave();
+            row.boost = run.boost();
+            row.percent = run.percent();
+            row.startedAt = run.startedAt();
+            row.endsAt = run.endsAt();
+            row.by = run.by().isEmpty() ? null : run.by();
+            return row;
+        }
     }
 
     /** One saved climb. Records are immutable, so a copy shares them safely. */

@@ -8,6 +8,7 @@ import javax.annotation.Nullable;
 
 import com.ziggfreed.common.event.NativeEventSeam;
 import com.ziggfreed.common.track.TrackChange;
+import com.ziggfreed.common.track.boost.BoostRun;
 
 /**
  * Where the track module's native events go: the shared engine bus, through one {@link NativeEventSeam} (built
@@ -31,5 +32,12 @@ public final class TrackEvents {
             @Nonnull List<String> options) {
         SEAM.fire("ZigTrackPicksChanged", ZigTrackPicksChangedEvent.class,
                 () -> new ZigTrackPicksChangedEvent(playerId, trackId, change, pickId, slot, options));
+    }
+
+    /** A boost started: {@code boostId}, of {@code scope}'s word, by the player {@code playerId}. */
+    public static void fireBoostStarted(@Nonnull String boostId, @Nonnull String scope, @Nonnull UUID playerId,
+            @Nonnull BoostRun run) {
+        SEAM.fire("ZigBoostStarted", ZigBoostStartedEvent.class, () -> new ZigBoostStartedEvent(boostId, scope,
+                playerId, run.percent(), run.startedAt(), run.endsAt(), run.by()));
     }
 }

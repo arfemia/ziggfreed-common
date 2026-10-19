@@ -1,0 +1,59 @@
+# What a boost says. The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.boost.<key>.
+
+# What a boost is called when its file names no title of its own.
+name.personal = Boost
+name.server = Server Boost
+
+# What a boost lifts, when it names one track or category: that name. {0} the first one it names.
+target.all = everything
+target.none = nothing
+target.more = {0} and more
+
+# A length of time. {0} the hours, minutes or seconds, {1} the minutes or seconds after it.
+time.hours = {0, number}h {1, number}m
+time.hours_only = {0, number}h
+time.minutes = {0, number}m {1, number}s
+time.minutes_only = {0, number}m
+time.seconds = {0, number}s
+
+# A boost starting. {0} the boost, {1} its percent, {2} what it lifts, {3} how long it runs.
+started.personal = {0} has started: +{1, number}% {2} for {3}.
+started.server = {0} has started for everyone: +{1, number}% {2} for {3}.
+
+# A Boost reward in a reward list. {0} its percent, {1} what it lifts, {2} how long it runs.
+reward.line = +{0, number}% {1} for {2}
+
+# Why a boost did not start. {0} the boost; in refused.cooldown {1} how long is left; in the two full lines {0}
+# the most that may run at once.
+refused.unknown = That boost is not on this server.
+refused.standing = {0} runs on its own, so it cannot be started.
+refused.untimed = {0} has no length, so it cannot be started.
+refused.season = {0} is not running right now.
+refused.locked = You do not meet what {0} needs yet.
+refused.not_live = Your boosts could not be read just now. Try again in a moment.
+refused.cooldown = You can start {0} again in {1}.
+refused.stack = {0} is already running as many times as it can.
+refused.personal_full = You already have {0, number} {0, plural, one {boost} other {boosts}} running, the most you can have at once.
+refused.server_full = The server already has {0, number} {0, plural, one {boost} other {boosts}} running, the most it can have at once.
+
+# A boost reward that could not start yet. {0} the boost.
+waits = {0} could not start yet, so it is waiting in your Claims.
+
+# A Claim's title. {0} the boost.
+claim.waiting = {0}
+claim.reward = {0}
+
+# /zigboost, the admin family. The command.desc.* keys are what the engine's own help resolves a command or an
+# argument's description from.
+command.desc.family = Start boosts for players.
+command.desc.start = Start a boost for a player, the way a boost item would.
+command.desc.arg.player = The player, who has to be online. Defaults to you.
+command.desc.arg.boost = The boost, by its id.
+command.desc.arg.percent = How much it lifts by, as a percent, in place of the boost's own.
+command.desc.arg.seconds = How long it runs, in seconds, in place of the boost's own.
+command.player.needed = Name a player with --player=<name>.
+command.player.offline = That player is not in a world right now. Try again in a moment.
+command.boost.needed = Name a boost with --boost=<id>.
+# In command.start.done {0} is the boost and {1} the player; in command.start.refused {0} is the player.
+command.start.done = Started {0} for {1}.
+command.start.refused = Could not start that boost for {0}.

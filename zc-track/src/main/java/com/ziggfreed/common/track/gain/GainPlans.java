@@ -109,11 +109,20 @@ public final class GainPlans {
         return plan;
     }
 
+    /**
+     * The plan: each named factor compiled in the track's order, a factor compiling to nothing left out, and the
+     * factors the track adds together ({@code Gain.Additive}) run as one {@link AdditiveStep} where the first of
+     * them stands (one alone runs as itself).
+     */
     @Nonnull
     private static Plan compile(@Nonnull GainCall call, long server, long own) {
         GainScope scope = new GainScope(call.key(), call.def(), call.ref(), worldOf(call.ref()));
+        List<String> additive = call.def().asset().additiveFactors();
         List<String> ids = new ArrayList<>();
         List<GainStep> steps = new ArrayList<>();
+        List<String> groupIds = new ArrayList<>();
+        List<GainStep> groupSteps = new ArrayList<>();
+        int groupAt = -1;
         for (String id : call.def().asset().gainFactors()) {
             GainFactor factor = GainFactors.factor(id);
             if (factor == null) {
@@ -126,12 +135,35 @@ public final class GainPlans {
                 warnOnce(id, "could not be compiled", t);
                 step = GainStep.NONE;
             }
-            if (step != null && step != GainStep.NONE) {
-                ids.add(id);
-                steps.add(step);
+            if (step == null || step == GainStep.NONE) {
+                continue;
             }
+            if (named(additive, id)) {
+                groupIds.add(id);
+                groupSteps.add(step);
+                if (groupAt >= 0) {
+                    continue;
+                }
+                groupAt = ids.size();
+            }
+            ids.add(id);
+            steps.add(step);
+        }
+        if (groupSteps.size() > 1) {
+            ids.set(groupAt, String.join("+", groupIds));
+            steps.set(groupAt, new AdditiveStep(groupIds.toArray(new String[0]), groupSteps.toArray(new GainStep[0])));
         }
         return new Plan(ids.toArray(new String[0]), steps.toArray(new GainStep[0]), server, own);
+    }
+
+    /** Does {@code ids} name {@code id}, in any case? */
+    private static boolean named(@Nonnull List<String> ids, @Nonnull String id) {
+        for (String each : ids) {
+            if (each.equalsIgnoreCase(id)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Say once that the factor {@code id} failed (until a registration or fold re-arms it). */

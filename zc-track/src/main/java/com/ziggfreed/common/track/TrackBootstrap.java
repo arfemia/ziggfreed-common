@@ -22,6 +22,7 @@ import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.progress.ObjectiveTargetNames;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.track.asset.TrackConfig;
+import com.ziggfreed.common.track.boost.BoostBootstrap;
 import com.ziggfreed.common.track.command.ZigTrackCommand;
 import com.ziggfreed.common.track.gain.GainPlans;
 import com.ziggfreed.common.track.pick.PickClaims;
@@ -38,10 +39,11 @@ import com.ziggfreed.common.util.SafeLog;
  * per-player record and the connect hook that attaches it, the four readings, the Track reward kind and how it reads, the native {@code ZigTrack} reward Type,
  * how the two track objective kinds name their targets, the editor's list of tracks, the settle at every ready,
  * the {@code /zigtrack} family and the once-at-boot log of broken track files; the native {@code ZigTrackRules}
- * gameplay config group, the track sources' reaction on the produced moments and the gain plans' epoch hooks; the
- * picks waiting on the Claims tab and the undo window's close at a departure. The eight stores (tracks, curves,
- * categories, sources, world rules, picks, pick options, pick decks) are registered with the other framework stores.
- * Registration only ({@code RootRegistrationOnlyTest}).
+ * gameplay config group, the track sources' reaction on the produced moments, the gain plans' epoch hooks, the
+ * picks waiting on the Claims tab, the undo window's close at a departure and the boosts
+ * ({@code boost.BoostBootstrap}). The ten stores (tracks, curves, categories, sources, world rules, picks, pick
+ * options, pick decks, boosts, boost settings) are registered with the other framework stores. Registration only
+ * ({@code RootRegistrationOnlyTest}).
  */
 public final class TrackBootstrap {
 
@@ -66,6 +68,9 @@ public final class TrackBootstrap {
         registerHooks(plugin);
         registerGrowth(plugin);
         registerPicks(plugin);
+        // The boosts: the Boost gain factor, their tiles, the native ZigBoost Type, the server's boosts read back at
+        // boot and /zigboost (their two stores are registered with the other framework stores).
+        BoostBootstrap.install(plugin);
     }
 
     /**
@@ -138,6 +143,7 @@ public final class TrackBootstrap {
         } catch (Throwable t) {
             SafeLog.warn("[track] could not declare the track readings, reward kind and objective names", t);
         }
+        BoostBootstrap.registerVocabulary();
     }
 
     /**

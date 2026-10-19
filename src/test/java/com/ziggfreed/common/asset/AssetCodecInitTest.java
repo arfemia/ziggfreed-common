@@ -108,6 +108,9 @@ import com.ziggfreed.common.track.pick.TrackPickAsset;
 import com.ziggfreed.common.track.asset.TrackAsset;
 import com.ziggfreed.common.track.asset.TrackCategoryAsset;
 import com.ziggfreed.common.track.asset.TrackCurveAsset;
+import com.ziggfreed.common.track.boost.BoostAsset;
+import com.ziggfreed.common.track.boost.BoostSettingsAsset;
+import com.ziggfreed.common.track.boost.ZigBoostReward;
 import com.ziggfreed.common.track.source.SourceRow;
 import com.ziggfreed.common.track.source.TrackSourceAsset;
 import com.ziggfreed.common.track.world.TrackRules;
@@ -257,6 +260,19 @@ class AssetCodecInitTest {
         // The grant kind registers into the grant union every pick reads, so a lower-case key in it would fail
         // inside a pack's pick instead of at this build.
         assertNotNull(StatGrant.CODEC, "StatGrant.CODEC must static-init (PascalCase keys)");
+    }
+
+    @Test
+    void boostCodecsInitialize() {
+        assertNotNull(BoostAsset.CODEC, "BoostAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(BoostAsset.Tracks.CODEC, "the Tracks group codec must static-init");
+        assertNotNull(BoostAsset.Stack.CODEC, "the Stack group codec must static-init");
+        assertNotNull(BoostSettingsAsset.CODEC, "BoostSettingsAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(BoostSettingsAsset.Limits.CODEC, "the Limits group codec must static-init");
+        // The native reward Type registers into the engine's own reward codec, so a lower-case key in it would
+        // fail inside an owner's Server/Rewards file instead of at this build. The ZigBoost interaction Type's
+        // codec class-inits the engine's Interaction, which throws outside a live server, so the boot checks it.
+        assertNotNull(ZigBoostReward.CODEC, "ZigBoostReward.CODEC must static-init (PascalCase keys)");
     }
 
     @Test

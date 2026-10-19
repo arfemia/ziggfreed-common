@@ -15,6 +15,9 @@ import com.ziggfreed.common.track.ZigTrackReward;
 import com.ziggfreed.common.track.asset.TrackAsset;
 import com.ziggfreed.common.track.asset.TrackCategoryAsset;
 import com.ziggfreed.common.track.asset.TrackCurveAsset;
+import com.ziggfreed.common.track.boost.BoostAsset;
+import com.ziggfreed.common.track.boost.BoostSettingsAsset;
+import com.ziggfreed.common.track.boost.ZigBoostReward;
 import com.ziggfreed.common.track.pick.PickDeckAsset;
 import com.ziggfreed.common.track.pick.PickOptionAsset;
 import com.ziggfreed.common.track.pick.TrackPickAsset;
@@ -25,8 +28,8 @@ import com.ziggfreed.common.track.world.TrackWorldRuleAsset;
 import com.ziggfreed.common.world.WorldSelector;
 
 /**
- * This module's authoring reference, {@code zc-track/SCHEMA.md}: the track, curve and category files and the
- * native {@code ZigTrack} reward, rendered from their codecs by zc-progression's {@link SchemaDocWriter}, and
+ * This module's authoring reference, {@code zc-track/SCHEMA.md}: the track, curve and category files, the
+ * boost files and settings, and the native {@code ZigTrack} and {@code ZigBoost} rewards, rendered from their codecs by zc-progression's {@link SchemaDocWriter}, and
  * regenerated on demand with {@code :zc-track:generateSchemaDocs} through the lane.
  */
 public final class TrackSchemaDocs {
@@ -57,6 +60,14 @@ public final class TrackSchemaDocs {
                     + "`track-picks.json` and an option in `track-pick-options.json`. A grant (`Grants`) names its "
                     + "`Kind`: the library ships `Stat` (the `StatGrant` shape); other mods register their own "
                     + "kinds.\n\n"
+                    + "One boost (a percent more on every gain on the tracks it names) is one file under "
+                    + "`Server/ZiggfreedCommon/Boosts/`, retuned in `mods/ziggfreedcommon/boosts.json`; how boosts add "
+                    + "up and how many may run is the one `Server/ZiggfreedCommon/BoostSettings/Default.json` record, "
+                    + "retuned in `boost-settings.json`. A boost starts from a boost item's native `ZigBoost` "
+                    + "interaction (`Boost`, and optional `Percent` and `Seconds`, then a `Next` that consumes the "
+                    + "item, run only when the boost started), from a `Boost` reward (`Params`: `Boost`, `Percent`, "
+                    + "`Seconds`) or a native `ZigBoost` reward file when its Claim is collected, or from "
+                    + "`/zigboost start`.\n\n"
                     + "Every field is optional and defaults to `null` unless its Default column reads "
                     + "*(required)*.\n\n")
             .register("TrackAsset", TrackAsset.CODEC)
@@ -70,6 +81,9 @@ public final class TrackSchemaDocs {
             .register("PickDeckAsset", PickDeckAsset.CODEC)
             .register("StatGrant", StatGrant.CODEC)
             .register("ZigTrackReward", ZigTrackReward.CODEC)
+            .register("BoostAsset", BoostAsset.CODEC)
+            .register("BoostSettingsAsset", BoostSettingsAsset.CODEC)
+            .register("ZigBoostReward", ZigBoostReward.CODEC)
             .register("When", When.CODEC)
             .register("SourceRow", SourceRow.CODEC)
             .register("Where", WorldSelector.CODEC)

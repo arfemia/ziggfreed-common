@@ -1,0 +1,6 @@
+{
+  "$Comment": "How boosts add up on this server. Cap is the most every boost on one track adds up to, as a percent (200 is three times a gain); HighestOnly counts only the strongest server boost and the strongest personal one; Limits are how many may run at once. Change any of them in mods/ziggfreedcommon/boost-settings.json, under the id Default.",
+  "Cap": 200,
+  "HighestOnly": false,
+  "Limits": { "Personal": 3, "Server": 3 }
+}

@@ -261,6 +261,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // here, before the progression runtime is set up over content that gates on them.
         CalendarBootstrap.install(this);
         CalendarSweepBootstrap.registerPlacementSweeps(this);
+        CalendarSweepBootstrap.registerBoostTiles();
         ProgressionBootstrap.setupProgressionRuntime(this);
         ProgressInteractionsBootstrap.registerProgressInteractions(this);
         ProgressionBootstrap.registerFeedbackMoments();

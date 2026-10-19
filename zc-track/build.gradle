@@ -3,7 +3,8 @@ apply from: "$rootDir/gradle/zc-module.gradle"
 // A player's climbs: the track (a named value per subject mapping to levels on a shared curve), the
 // curves tracks share, the categories they sit in, the keyed store every read and write goes through,
 // the best level ever reached, prestige as a track setting, unlocks parked as Claims, the track
-// readings, the change event and the Track reward kind (zc's and the engine's own reward Type).
+// readings, the change event and the Track reward kind (zc's and the engine's own reward Type), and the
+// boosts (timed and standing percent lifts, one factor of the gain pipeline).
 //
 // A module of its own, not a package of zc-progression, because the edges demand it: the level mirror
 // writes a native stat (zc-entity's StatMirror) and the later picks and grants write native modifiers
@@ -29,6 +30,12 @@ dependencies {
     // The kit's ledger records and LedgerContributions, the seam the picks waiting are listed on the Claims tab
     // through (PickClaims). One-way: zc-presentation sits on zc-core, zc-loot and zc-cast and never reaches up here.
     implementation project(':zc-presentation')
+    // TimedBuffs, the buff bar a running boost shows on as a native EntityEffect tile. One-way: zc-effects sits on
+    // zc-core, zc-cast and zc-entity and never reaches up here.
+    implementation project(':zc-effects')
+    // The interaction-Type toolkit (InteractionCtx, InteractionOutcome) behind the native ZigBoost Type a boost
+    // item's chain names. One-way: zc-cast depends on zc-core alone.
+    implementation project(':zc-cast')
 }
 
 // Regenerate this module's SCHEMA.md (the authoring reference for tracks, track curves and track
@@ -47,6 +54,7 @@ tasks.register('generateSchemaDocs', JavaExec) {
     inputs.files(fileTree('src/main/java/com/ziggfreed/common/track/source') { include '**/*.java' })
     inputs.files(fileTree('src/main/java/com/ziggfreed/common/track/world') { include '**/*.java' })
     inputs.files(fileTree('src/main/java/com/ziggfreed/common/track/pick') { include '**/*.java' })
+    inputs.files(fileTree('src/main/java/com/ziggfreed/common/track/boost') { include '**/*.java' })
     inputs.file('src/main/java/com/ziggfreed/common/track/docs/TrackSchemaDocs.java')
     outputs.file(schemaDocOutput)
 }

@@ -5,6 +5,8 @@ import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.track.boost.HeldBoosts;
+
 /**
  * Where one kind of subject's climbs are kept (R583): every read and write of track progress goes through
  * the store {@link TrackStores} holds for the key's subject kind, so a later keeping (a profile, a guild's
@@ -36,4 +38,22 @@ public interface TrackStore {
      */
     @Nonnull
     CompletableFuture<TrackRecord> load(@Nonnull TrackKey key);
+
+    /**
+     * The boosts a live {@code subject} holds (its own running starts and the waits before its next ones), read on
+     * its own thread, or null when the subject is not live here or this store keeps no boosts: the seam a personal
+     * boost is keyed through, so a later keeping (a profile) keeps them beside its climbs.
+     */
+    @Nullable
+    default HeldBoosts boosts(@Nonnull TrackKey.Subject subject) {
+        return null;
+    }
+
+    /**
+     * Keep {@code boosts} for the live {@code subject}, on its own thread. False when the subject is not live here,
+     * this store keeps no boosts, or nothing could be written.
+     */
+    default boolean putBoosts(@Nonnull TrackKey.Subject subject, @Nonnull HeldBoosts boosts) {
+        return false;
+    }
 }

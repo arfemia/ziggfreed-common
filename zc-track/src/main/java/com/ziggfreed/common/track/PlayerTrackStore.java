@@ -14,13 +14,14 @@ import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.inventory.PlayerAccess;
+import com.ziggfreed.common.track.boost.HeldBoosts;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The player store: a player's climbs on their own entity ({@link TrackComponent}), which the engine saves
  * with the player. A live player is read and written on their world thread; an offline one is read from the
  * engine's own player storage (the saved player file), which a write never touches: a climb moves only while
- * its player is here.
+ * its player is here. A player's own boosts ride the same record ({@link #boosts}), read and written live only.
  */
 public final class PlayerTrackStore implements TrackStore {
 
@@ -85,6 +86,31 @@ public final class PlayerTrackStore implements TrackStore {
             SafeLog.fine("[track] could not read the climb of " + playerId + ": " + t.getMessage());
             return CompletableFuture.completedFuture(TrackRecord.EMPTY);
         }
+    }
+
+    @Override
+    @Nullable
+    public HeldBoosts boosts(@Nonnull TrackKey.Subject subject) {
+        TrackComponent record = live(subject);
+        return record == null ? null : record.boosts();
+    }
+
+    @Override
+    public boolean putBoosts(@Nonnull TrackKey.Subject subject, @Nonnull HeldBoosts boosts) {
+        TrackComponent held = live(subject);
+        if (held == null) {
+            return false;
+        }
+        held.boosts(boosts);
+        return true;
+    }
+
+    /** The live record of the player {@code subject} is, read on their world thread, or null. */
+    @Nullable
+    private static TrackComponent live(@Nonnull TrackKey.Subject subject) {
+        UUID playerId = subject.playerId();
+        Ref<EntityStore> ref = playerId == null ? null : PlayerAccess.liveRef(playerId);
+        return ref == null ? null : live(ref.getStore(), ref);
     }
 
     /** The record {@code key} names in a loaded player, {@link TrackRecord#EMPTY} when it carries none. */

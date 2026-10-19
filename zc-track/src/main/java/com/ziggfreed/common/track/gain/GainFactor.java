@@ -11,7 +11,10 @@ import javax.annotation.Nonnull;
 @FunctionalInterface
 public interface GainFactor {
 
-    /** Says nothing on any track: what a factor id holds until its owner registers it (the boost, before SK3). */
+    /**
+     * Says nothing on any track: what a factor id holds until its owner registers it (the boost, until the boost
+     * module's setup registers its own).
+     */
     GainFactor NEUTRAL = scope -> GainStep.NONE;
 
     /**

@@ -22,6 +22,14 @@ public interface GainStep {
     double apply(@Nonnull GainCall call, double amount);
 
     /**
+     * Does this step say what it did itself ({@link GainCall#explain}), so the pipeline says nothing for it? Only
+     * a step standing for several factors at once does (the factors a track adds together, {@code AdditiveStep}).
+     */
+    default boolean explainsItself() {
+        return false;
+    }
+
+    /**
      * A fixed multiplier: 1 is {@link #NONE}, 0 (or anything below it, or not a number) stops the gain, so the
      * steps after it never run.
      */

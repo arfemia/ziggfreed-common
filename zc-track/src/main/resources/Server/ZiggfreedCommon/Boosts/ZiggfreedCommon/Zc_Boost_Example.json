@@ -1,0 +1,9 @@
+{
+  "$Comment": "The library's sample boost for its sample track, switched off like the track: turn both on (tracks.json { \"Zc_Track_Example\": { \"Enabled\": true } } and boosts.json { \"Zc_Boost_Example\": { \"Enabled\": true } }) and /zigboost start --boost=Zc_Boost_Example gives the player half as much again on the sample track for 30 minutes, shown as a tile on their buff bar. One may run at a time, and a player waits an hour between starts.",
+  "Enabled": false,
+  "Tracks": { "Ids": [ "Zc_Track_Example" ] },
+  "Percent": 50,
+  "Scope": "Personal",
+  "Seconds": 1800,
+  "Stack": { "Max": 1, "Cooldown": 3600 }
+}

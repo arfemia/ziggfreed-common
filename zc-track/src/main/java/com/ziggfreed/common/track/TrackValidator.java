@@ -24,6 +24,7 @@ import com.ziggfreed.common.track.asset.TrackCategoryConfig;
 import com.ziggfreed.common.track.asset.TrackConfig;
 import com.ziggfreed.common.track.asset.TrackCurveAsset;
 import com.ziggfreed.common.track.asset.TrackCurveConfig;
+import com.ziggfreed.common.track.boost.BoostValidator;
 import com.ziggfreed.common.track.curve.CurveTable;
 import com.ziggfreed.common.track.gain.GainFactors;
 import com.ziggfreed.common.track.pick.TrackPickAsset;
@@ -68,7 +69,9 @@ import com.ziggfreed.common.validation.Severity;
  *       {@code UNKNOWN_PICK_TRACK}, {@code UNKNOWN_PICK_OPTION}, {@code UNKNOWN_PICK_DECK},
  *       {@code GROUP_WITHOUT_LEVEL}, {@code GROUP_WITHOUT_OPTIONS}), then WARNING
  *       {@link #UNKNOWN_PICK_PREREQUISITE}, {@link #UNKNOWN_COST_TRACK}, {@link #COST_WITHOUT_POINTS},
- *       {@link #UNKNOWN_GRANT_STAT} ({@link #auditPicks}) and the gate audit over a pick's {@code Requires}.</li>
+ *       {@link #UNKNOWN_GRANT_STAT} ({@link #auditPicks}) and the gate audit over a pick's {@code Requires};</li>
+ *   <li>The boosts' own audit ({@code boost.BoostValidator}, its {@code boost} domain), run inside this one so the
+ *       boot audit and the once-at-boot error log carry it.</li>
  * </ul>
  */
 public final class TrackValidator {
@@ -157,6 +160,7 @@ public final class TrackValidator {
                             "track pick", GateRuntime.kinds(), GateRuntime.vocabulary()::isRegistered, null));
                 }
             }
+            out.addAll(BoostValidator.audit());
             return out;
         } catch (Throwable t) {
             SafeLog.warn("[track] the track audit failed: " + t.getMessage(), t);

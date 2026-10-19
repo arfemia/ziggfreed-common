@@ -11,7 +11,8 @@ import com.ziggfreed.common.track.TrackGain;
  * hot path is a walk over a few steps with nothing to look up. A step that stops the gain (a world paying nothing
  * on the track) ends the walk; a step that throws changes nothing, warned once. A loss (a negative ask) lands as
  * asked: the factors scale what a player earns, never what an admin or a penalty takes. What each factor did is
- * said only when the call asks for a breakdown ({@link GainCall#explaining()}).
+ * said only when the call asks for a breakdown ({@link GainCall#explaining()}); the factors a track adds together
+ * ({@code Gain.Additive}) run as one step that says each one's part itself.
  */
 public final class GainPipeline implements TrackGain {
 
@@ -41,7 +42,7 @@ public final class GainPipeline implements TrackGain {
             if (!Double.isFinite(amount)) {
                 amount = in;
             }
-            if (explaining) {
+            if (explaining && !steps[i].explainsItself()) {
                 call.explain(ids[i], amount / in);
             }
         }

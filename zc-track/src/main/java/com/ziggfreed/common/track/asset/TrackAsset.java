@@ -65,6 +65,9 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
     /** The level the nth prestige needs is this plus n, unless a track's Prestige group says otherwise. */
     public static final int DEFAULT_PRESTIGE_BASE = 100;
 
+    /** What a prestiged climb earns on top of every gain, as a percent, unless its Prestige group says otherwise (R642). */
+    public static final double DEFAULT_PRESTIGE_GAIN_PERCENT = 10.0;
+
     /** The sentence the Asset Editor shows beside a track's own {@code Requires}. */
     static final String REQUIRES_DOCUMENTATION = "What a player must meet for this track to be theirs, in the "
             + "Requires shape quests use, every condition read. A plain { \"Factor\": \"hytale:mod_installed\", "
@@ -162,8 +165,9 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
             .appendInherited(new KeyedCodec<>("Gain", Gain.CODEC, false),
                     (a, v) -> a.gain = v, a -> a.gain, (a, p) -> a.gain = p.gain)
             .documentation("How a gain on this track is worked out before it lands: the named factors it runs, "
-                    + "in order, and the rested pool. Leave it out for the usual order (Class, World, Bonus, "
-                    + "Boost, Rested) and no rested pool.").add()
+                    + "in order, the ones that add together, and the rested pool. Leave it out for the usual order "
+                    + "(Class, World, Bonus, Boost, Prestige, Rested), Bonus and Boost adding together, and no "
+                    + "rested pool.").add()
             .build();
 
     public TrackAsset() {
@@ -355,6 +359,38 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
         return gain != null && gain.factors != null;
     }
 
+    /**
+     * The gain factors this track adds together rather than multiplying, as written ({@code Gain.Additive}, blank
+     * ids left out; an empty list multiplies every factor), or the usual pair ({@link GainFactors#DEFAULT_ADDITIVE},
+     * Bonus and Boost) when it names none.
+     */
+    @Nonnull
+    public List<String> additiveFactors() {
+        String[] written = gain == null ? null : gain.additive;
+        if (written == null) {
+            return GainFactors.DEFAULT_ADDITIVE;
+        }
+        List<String> out = new ArrayList<>(written.length);
+        for (String id : written) {
+            if (id != null && !id.isBlank()) {
+                out.add(id.trim());
+            }
+        }
+        return List.copyOf(out);
+    }
+
+    /**
+     * What a prestiged climb earns on top of every gain, as a percent ({@code Prestige.GainPercent}): 10 unless
+     * written (R642), 0 for a track with no Prestige group.
+     */
+    public double prestigeGainPercent() {
+        if (prestige == null) {
+            return 0.0;
+        }
+        Double percent = prestige.gainPercent;
+        return percent == null || !Double.isFinite(percent) ? DEFAULT_PRESTIGE_GAIN_PERCENT : percent;
+    }
+
     /** The rested pool's settings when this track turns one on, else null: off unless written (R572). */
     @Nullable
     public Rested rested() {
@@ -422,6 +458,7 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
         @Nullable protected Boolean unlimited;
         @Nullable protected Integer base;
         @Nullable protected String build;
+        @Nullable protected Double gainPercent;
 
         public static final BuilderCodec<Prestige> CODEC = BuilderCodec.builder(Prestige.class, Prestige::new)
                 .appendInherited(new KeyedCodec<>("Ranks", Codec.INTEGER, false),
@@ -444,6 +481,12 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
                 .metadata(PrestigeBuild.editorHint())
                 .documentation(PrestigeBuild.DOCUMENTATION + " Unauthored, the track's category decides "
                         + "(Combat keeps, Gathering and Crafting remember), and Keep where it says nothing.").add()
+                .appendInherited(new KeyedCodec<>("GainPercent", Codec.DOUBLE, false),
+                        (o, v) -> o.gainPercent = v, o -> o.gainPercent, (o, p) -> o.gainPercent = p.gainPercent)
+                .metadata(EditorSchema.defaultValue(DEFAULT_PRESTIGE_GAIN_PERCENT))
+                .documentation("What a player who has prestiged this track earns on top of every gain on it, as a "
+                        + "percent: the same after one prestige or ten. 10 when unauthored; 0 turns it off. It "
+                        + "runs as the Prestige gain factor.").add()
                 .build();
 
         public Prestige() {
@@ -454,16 +497,23 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
     public static final class Gain {
 
         @Nullable protected String[] factors;
+        @Nullable protected String[] additive;
         @Nullable protected Rested rested;
 
         public static final BuilderCodec<Gain> CODEC = BuilderCodec.builder(Gain.class, Gain::new)
                 .appendInherited(new KeyedCodec<>("Factors", Codec.STRING_ARRAY, false),
                         (o, v) -> o.factors = v, o -> o.factors, (o, p) -> o.factors = p.factors)
                 .documentation("The named factors every gain on this track runs through, in this order: World "
-                        + "(the world's track rules), Boost (timed boosts), Rested (the rested pool below), and "
-                        + "any a mod registers, such as Class and Bonus. A name nothing registered changes "
-                        + "nothing. Leave it out for Class, World, Bonus, Boost, Rested. A loss is never "
-                        + "changed.").add()
+                        + "(the world's track rules), Boost (boosts), Prestige (the extra a prestiged climb "
+                        + "earns), Rested (the rested pool below), and any a mod registers, such as Class and "
+                        + "Bonus. A name nothing registered changes nothing. Leave it out for Class, World, Bonus, "
+                        + "Boost, Prestige, Rested. A loss is never changed.").add()
+                .appendInherited(new KeyedCodec<>("Additive", Codec.STRING_ARRAY, false),
+                        (o, v) -> o.additive = v, o -> o.additive, (o, p) -> o.additive = p.additive)
+                .documentation("The factors whose extras add together rather than multiplying, run where the first "
+                        + "of them stands in Factors: with a Bonus of 1.2 and a Boost of 1.5 a gain pays 1.7 times "
+                        + "(1 + 0.2 + 0.5), not 1.8. Leave it out for Bonus and Boost, the way skills have always "
+                        + "stacked them; an empty list multiplies every factor.").add()
                 .appendInherited(new KeyedCodec<>("Rested", Rested.CODEC, false),
                         (o, v) -> o.rested = v, o -> o.rested, (o, p) -> o.rested = p.rested)
                 .documentation("A rested pool for this track: while a player is away it fills, and gains pay "

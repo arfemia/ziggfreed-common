@@ -143,6 +143,11 @@ import com.ziggfreed.common.track.asset.TrackConfig;
 import com.ziggfreed.common.track.asset.TrackCurveAsset;
 import com.ziggfreed.common.track.asset.TrackCurveConfig;
 import com.ziggfreed.common.track.asset.TrackOwnerLayers;
+import com.ziggfreed.common.track.boost.BoostAsset;
+import com.ziggfreed.common.track.boost.BoostConfig;
+import com.ziggfreed.common.track.boost.BoostOwnerLayers;
+import com.ziggfreed.common.track.boost.BoostSettingsAsset;
+import com.ziggfreed.common.track.boost.BoostSettingsConfig;
 import com.ziggfreed.common.track.pick.PickDeckAsset;
 import com.ziggfreed.common.track.pick.PickDeckConfig;
 import com.ziggfreed.common.track.pick.PickOptionAsset;
@@ -1073,6 +1078,34 @@ public final class FrameworkAssetRegistrar {
                 (LoadedAssetsEvent<String, PickDeckAsset, DefaultAssetMap<String, PickDeckAsset>> ev) ->
                         PickDeckConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
 
+        // --- Boosts (Pattern A, gated) - one boost per file: the tracks it lifts (by id, by category, or All),
+        //     its percent, whose it is, how long a start runs or that it stands, how it stacks with itself, its
+        //     tile and its season. A file may gate on a mod through its top-level Requires. The library ships
+        //     none. Owner file mods/ziggfreedcommon/boosts.json, re-read on this same event. No loadsAfter: a
+        //     boost names its tracks and categories by id and matches them at compile time. ---
+        AssetStoreRegistrar.registerStore(BoostAsset.class,
+                new DefaultAssetMap<String, BoostAsset>(), BoostAsset.TYPE_ROOT,
+                BoostAsset::getId, BoostAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, BoostAsset.class,
+                (LoadedAssetsEvent<String, BoostAsset, DefaultAssetMap<String, BoostAsset>> ev) -> {
+                    BoostConfig.getInstance().mergePackLayer(AssetMergeAdapter.gate(BoostConfig.MOD_GATE_STORE,
+                            ev.getAssetMap(), b -> GateSpec.missingMod(b.requires())));
+                    BoostOwnerLayers.reload();
+                });
+
+        // --- Boost settings (Pattern A) - the server's one word on how boosts add up and how many may run:
+        //     the summed cap (+200% unless written), HighestOnly, and the personal and server limits. The library
+        //     ships Default.json. Owner file mods/ziggfreedcommon/boost-settings.json, re-read on this same
+        //     event. ---
+        AssetStoreRegistrar.registerStore(BoostSettingsAsset.class,
+                new DefaultAssetMap<String, BoostSettingsAsset>(), BoostSettingsAsset.TYPE_ROOT,
+                BoostSettingsAsset::getId, BoostSettingsAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, BoostSettingsAsset.class,
+                (LoadedAssetsEvent<String, BoostSettingsAsset, DefaultAssetMap<String, BoostSettingsAsset>> ev) -> {
+                    BoostSettingsConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    BoostOwnerLayers.reloadSettings();
+                });
+
         // --- Stats (Pattern A) - one stat the player stat store keeps per file, keyed by the file name
         //     (the tally key every player's record files it under): its name, what its number means, how
         //     it reads, the moments it counts and its breakdown. The library ships its own (Mob_Kills,
@@ -1145,6 +1178,8 @@ public final class FrameworkAssetRegistrar {
                         + "TrackWorldRules (owner file mods/ziggfreedcommon/track-world-rules.json), "
                         + "TrackPicks (owner file mods/ziggfreedcommon/track-picks.json), "
                         + "TrackPickOptions (owner file mods/ziggfreedcommon/track-pick-options.json), TrackPickDecks, "
+                        + "Boosts (owner file mods/ziggfreedcommon/boosts.json), "
+                        + "BoostSettings (owner file mods/ziggfreedcommon/boost-settings.json), "
                         + "Stats (owner file mods/ziggfreedcommon/stats.json)).");
     }
 }
