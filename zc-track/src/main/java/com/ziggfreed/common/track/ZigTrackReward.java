@@ -1,8 +1,6 @@
 package com.ziggfreed.common.track;
 
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import javax.annotation.Nonnull;
@@ -19,7 +17,6 @@ import com.ziggfreed.common.instance.reward.InstanceReward;
 import com.ziggfreed.common.loot.claim.Claim;
 import com.ziggfreed.common.loot.claim.ClaimStore;
 import com.ziggfreed.common.loot.reward.RewardKinds;
-import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.track.asset.TrackAsset;
 import com.ziggfreed.common.util.SafeLog;
@@ -46,6 +43,12 @@ public final class ZigTrackReward extends RewardAsset {
 
     /** What a Claim this reward parks starts its id and source with. */
     static final String SOURCE_PREFIX = "reward:";
+
+    /**
+     * The title a track's Claim reads with when nothing authors one ({@code {0}} the track's name,
+     * {@link TrackText#claimNameArg}); an objective's {@code ZigTrack} completion falls back to it too.
+     */
+    public static final String CLAIM_TITLE_KEY = TrackText.PREFIX + "claim.reward";
 
     /** The name a deferred command keeps for whoever presses Claim. */
     private static final String CLAIMER = "{player}";
@@ -97,15 +100,12 @@ public final class ZigTrackReward extends RewardAsset {
                 SafeLog.info("[track] reward " + rewardId + ": no usable track or no amount, nothing to pay");
                 return;
             }
-            Map<String, String> params = new LinkedHashMap<>();
-            params.put("Track", def.asset().getId());
-            params.put("Amount", Long.toString(amount()));
             String source = SOURCE_PREFIX + rewardId;
             List<InstanceReward> rewards = DeferredRewards.fromSpecs(
-                    List.of(RewardSpec.of(TrackRewardKind.KIND, params)), RewardKinds.shared(),
+                    List.of(TrackRewardKind.spec(def.asset().getId(), amount())), RewardKinds.shared(),
                     Subject.of(player, CLAIMER), source, message -> SafeLog.warn("[track] " + message));
             long now = System.currentTimeMillis();
-            String title = titleKey == null || titleKey.isBlank() ? TrackText.PREFIX + "claim.reward" : titleKey.trim();
+            String title = titleKey == null || titleKey.isBlank() ? CLAIM_TITLE_KEY : titleKey.trim();
             Claim claim = new Claim(source + ":" + player + ":" + now, source, title,
                     List.of(TrackText.claimNameArg(def.asset())), null, rewards, now);
             ClaimStore.shared().award(player, claim, null, source, now);

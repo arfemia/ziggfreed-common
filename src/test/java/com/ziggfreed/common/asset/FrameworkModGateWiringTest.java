@@ -180,11 +180,11 @@ class FrameworkModGateWiringTest {
                     "public static void reload()"));
 
     /**
-     * The classes whose reward rows are read inline (a dialogue action's, an interaction's) or that are the
-     * shared group itself: a gated row there is absent, and no store fold counts it.
+     * The classes whose reward rows are read inline (a dialogue action's, an interaction's, a native objective
+     * completion's) or that are the shared group itself: a gated row there is absent, and no store fold counts it.
      */
-    private static final Set<String> INLINE_ROWS =
-            Set.of("ContentRewardsAsset", "GrantDialogueAction", "ZigGrantRewardInteraction");
+    private static final Set<String> INLINE_ROWS = Set.of("ContentRewardsAsset", "GrantDialogueAction",
+            "ZigGrantRewardInteraction", "ZigRewardsCompletionAsset");
 
     /** A field holding reward rows, as a codec-backed class declares one. */
     private static final Pattern ROW_FIELD = Pattern.compile(

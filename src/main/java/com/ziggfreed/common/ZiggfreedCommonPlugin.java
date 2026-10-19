@@ -80,6 +80,7 @@ import com.ziggfreed.common.objectives.calendar.CalendarSweepBootstrap;
 import com.ziggfreed.common.objectives.dialogue.DialogueAudit;
 import com.ziggfreed.common.objectives.dialogue.DialogueBootstrap;
 import com.ziggfreed.common.objectives.flair.FlairBootstrap;
+import com.ziggfreed.common.objectives.hytale.NativeObjectivesBootstrap;
 import com.ziggfreed.common.objectives.interaction.ProgressInteractionsBootstrap;
 import com.ziggfreed.common.objectives.runtime.ProgressionBootstrap;
 import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
@@ -268,6 +269,10 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         CalendarSweepBootstrap.registerBoostTiles();
         ProgressionBootstrap.setupProgressionRuntime(this);
         ProgressInteractionsBootstrap.registerProgressInteractions(this);
+        // Hytale's own Objectives count the library's moments and pay through its reward kinds: the ZigMoment task
+        // and the ZigRewards and ZigTrack completions, registered once the Objectives plugin has set up (the
+        // manifest's OptionalDependencies), proved, and fed by a library-default moment listener.
+        NativeObjectivesBootstrap.registerObjectiveTypes(this);
         ProgressionBootstrap.registerFeedbackMoments();
         BonusRowBootstrap.registerReactions();
         BonusRowBootstrap.registerDropCredit(this);

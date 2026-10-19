@@ -59,7 +59,30 @@ dependencies {
     // this module and never imports it.
     implementation project(':zc-commerce')
     // The track module's change event and readings, so reaching a level or a tier on a track feeds the same
-    // engines every other moment feeds (ZigTrackProducer). One-way by the same position argument: zc-track
-    // never imports this module.
+    // engines every other moment feeds (ZigTrackProducer), and the Track reward a native objective's ZigTrack
+    // completion parks. One-way by the same position argument: zc-track never imports this module.
     implementation project(':zc-track')
+
+    // The engine store swap (testing/EngineAssetStores): a native objective task's schema names the engine's
+    // Item store, which only a swapped store answers in a unit JVM.
+    testImplementation(testFixtures(project(':zc-core')))
+}
+
+// Regenerate this module's SCHEMA.md (the authoring reference for the Types it registers into Hytale's own
+// Objectives) from their codecs, through zc-progression's SchemaDocWriter. Run on demand
+// (`:zc-objectives:generateSchemaDocs` through the lane) and commit the file; it is repo documentation, never a
+// jar resource. The walk reaches the engine's own task base, whose codecs build engine items that log at class
+// init, so the JVM runs under the engine's log manager, as engineItemTest does.
+def schemaDocOutput = file('SCHEMA.md')
+tasks.register('generateSchemaDocs', JavaExec) {
+    dependsOn 'compileJava'
+    group = 'documentation'
+    description = 'Regenerate this module\'s SCHEMA.md native objective Types reference from their codecs'
+    classpath = sourceSets.main.output.classesDirs + configurations.compileClasspath
+    mainClass = 'com.ziggfreed.common.objectives.docs.ObjectivesSchemaDocs'
+    args schemaDocOutput.absolutePath
+    systemProperty 'java.util.logging.manager', 'com.hypixel.hytale.logger.backend.HytaleLogManager'
+    inputs.files(fileTree('src/main/java/com/ziggfreed/common/objectives/hytale') { include '**/*.java' })
+    inputs.file('src/main/java/com/ziggfreed/common/objectives/docs/ObjectivesSchemaDocs.java')
+    outputs.file(schemaDocOutput)
 }

@@ -20,7 +20,8 @@
     "Hytale:Rewards": "*"
   },
   "OptionalDependencies": {
-    "Hytale:WorldEvents": "*"
+    "Hytale:WorldEvents": "*",
+    "Hytale:Objectives": "*"
   },
   "IncludesAssetPack": true
 }

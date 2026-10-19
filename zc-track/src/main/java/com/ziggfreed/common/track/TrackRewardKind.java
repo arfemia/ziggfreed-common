@@ -1,6 +1,8 @@
 package com.ziggfreed.common.track;
 
+import java.util.LinkedHashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.function.Consumer;
 
 import javax.annotation.Nonnull;
@@ -71,6 +73,18 @@ public final class TrackRewardKind implements RewardHandler {
         Message name = TrackText.name(def.asset());
         return RewardChip.picture(def.asset().icon(), TrackText.line(amount > 0 ? "reward.gain" : "reward.loss",
                 amount, name), name);
+    }
+
+    /**
+     * One Track reward moving {@code trackId} by {@code amount}, for a payout written in Java (the native
+     * {@code ZigTrack} reward, an objective's {@code ZigTrack} completion): the one place its params are spelt.
+     */
+    @Nonnull
+    public static RewardSpec spec(@Nonnull String trackId, long amount) {
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("Track", trackId);
+        params.put("Amount", Long.toString(amount));
+        return RewardSpec.of(KIND, params);
     }
 
     /** Which track {@code spec} moves, trimmed; empty when it names none. */

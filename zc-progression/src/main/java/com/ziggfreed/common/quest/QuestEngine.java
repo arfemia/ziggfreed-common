@@ -2681,10 +2681,25 @@ public final class QuestEngine implements QuestStateReader {
                     + "': " + t.getMessage());
             gated = 0L;
         }
+        return Math.max(gated, standingValue(subject, objective));
+    }
+
+    /**
+     * The standing value this engine reads for ITSELF for {@code objective}, with no quest in hand: the half of
+     * what {@link #accept} seeds a step from that is not the consumer's {@link QuestGates#preSatisfiedAmount}
+     * (which answers per quest). Today that is a threshold step's stat channel, through the engine's own
+     * {@link StatThresholdProbe}; any other step, or an engine wired with no factor vocabulary, reads 0, which
+     * applied as a high-water value is a no-op.
+     *
+     * <p>Public so a surface counting the same steps outside a quest (a native objective's task) seeds them
+     * exactly as a quest step is seeded, from this one reading rather than a copy of it. Call it where the
+     * subject is owned (the world thread), as the probe asks. Never throws.
+     */
+    public long standingValue(@Nonnull Subject subject, @Nonnull ObjectiveDef objective) {
         if (statProbe == null || !StatThresholdProbe.isStatThreshold(objective)) {
-            return gated;
+            return 0L;
         }
-        return Math.max(gated, statProbe.valueFor(subject, objective));
+        return statProbe.valueFor(subject, objective);
     }
 
     private void fireAccepted(@Nonnull Quest quest, @Nonnull Subject subject) {

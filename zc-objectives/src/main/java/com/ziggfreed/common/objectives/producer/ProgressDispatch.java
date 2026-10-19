@@ -77,7 +77,23 @@ import com.ziggfreed.common.util.SafeLog;
  */
 public final class ProgressDispatch {
 
+    /**
+     * How many moment-stream engine halves are running on this thread ({@link #produce}); nested, since a payout
+     * inside one can produce another. Read through {@link #dispatchingStreamedMoment}.
+     */
+    private static final ThreadLocal<int[]> STREAMED = ThreadLocal.withInitial(() -> new int[1]);
+
     private ProgressDispatch() {
+    }
+
+    /**
+     * Whether the engine dispatch running on this thread is the engine half of a moment this class fed to the
+     * listeners first. False for every dispatch a mod makes into the engines itself and for an alias
+     * re-dispatch, neither of which any {@link MomentListener} sees; a dispatch tap asks it to tell the two
+     * apart. World thread, like every dispatch.
+     */
+    public static boolean dispatchingStreamedMoment() {
+        return STREAMED.get()[0] > 0;
     }
 
     /**
@@ -188,10 +204,16 @@ public final class ProgressDispatch {
         // once per member) runs its engine half under that shared credit, so a server-first one of
         // them wins inside it is a win for the rest of them rather than a race lost to a teammate.
         SharedCredit shared = moment.payload(SharedCredit.class);
-        FirstClaims.withSharedCredit(shared == null ? null : shared.creditKey(), () ->
-                dispatch(quests, achievements, moment.questSubject(), moment.achievementSubject(),
-                        moment.kindId(), moment.target(), moment.qualifier(), moment.amount(),
-                        moment.zone(), DispatchOptions.FULL));
+        int[] streamed = STREAMED.get();
+        streamed[0]++;
+        try {
+            FirstClaims.withSharedCredit(shared == null ? null : shared.creditKey(), () ->
+                    dispatch(quests, achievements, moment.questSubject(), moment.achievementSubject(),
+                            moment.kindId(), moment.target(), moment.qualifier(), moment.amount(),
+                            moment.zone(), DispatchOptions.FULL));
+        } finally {
+            streamed[0]--;
+        }
     }
 
     /**

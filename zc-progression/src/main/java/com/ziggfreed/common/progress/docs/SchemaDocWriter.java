@@ -14,8 +14,13 @@ import java.util.List;
 import java.util.Map;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import org.bson.BsonDocument;
+import org.bson.BsonValue;
 
 import com.hypixel.hytale.codec.Codec;
+import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.WrappedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
@@ -176,6 +181,12 @@ public final class SchemaDocWriter {
         /** Reverse lookup from a nested field's {@link BuilderCodec#getInnerClass()} to its root doc name. */
         private final Map<Class<?>, String> rootTypeNames = new LinkedHashMap<>();
 
+        /** A paragraph of this document's own under a root type's section, by doc name ({@link #note}). */
+        private final Map<String, String> notes = new LinkedHashMap<>();
+
+        /** Whether the Default column reads each field's effective default ({@link #showingDefaults}). */
+        private boolean showDefaults;
+
         /**
          * @param title the document's {@code #} heading
          * @param intro the paragraphs under it, Markdown, each ending in a blank line
@@ -190,6 +201,30 @@ public final class SchemaDocWriter {
         public Document register(@Nonnull String docName, @Nonnull BuilderCodec<?> codec) {
             rootCodecs.put(docName, codec);
             rootTypeNames.put(codec.getInnerClass(), docName);
+            return this;
+        }
+
+        /**
+         * Render each field's effective default in the Default column: the scalar an unwritten field reads as,
+         * taken from its type's own default instance (the value the engine's schema export, and so the Asset
+         * Editor, offers), where the plain reference reads {@code null} for every field that is not required. A
+         * field whose default is nothing, or is not a scalar, still reads {@code null}. Opt-in, so a reference
+         * whose intro says every field defaults to {@code null} keeps saying it truthfully.
+         */
+        @Nonnull
+        public Document showingDefaults() {
+            this.showDefaults = true;
+            return this;
+        }
+
+        /**
+         * A paragraph of this document's own under {@code docName}'s section, after its codec's documentation:
+         * what this reference's types make of a shared group (a leaf one of them does not read, say), which the
+         * shared group's own documentation cannot know. Markdown, one paragraph.
+         */
+        @Nonnull
+        public Document note(@Nonnull String docName, @Nonnull String paragraph) {
+            notes.put(docName, paragraph);
             return this;
         }
 
@@ -210,7 +245,11 @@ public final class SchemaDocWriter {
                 if (doc != null) {
                     typeDoc.put("documentation", doc);
                 }
-                typeDoc.put("fields", renderFields(codec, new ArrayDeque<>()));
+                String note = notes.get(entry.getKey());
+                if (note != null) {
+                    typeDoc.put("note", note);
+                }
+                typeDoc.put("fields", renderFields(codec, new ArrayDeque<>(), defaultsOf(codec)));
                 types.put(entry.getKey(), typeDoc);
             }
 
@@ -269,15 +308,60 @@ public final class SchemaDocWriter {
                     + " fields, including nested groups) to " + outFile.toAbsolutePath());
         }
 
+        /**
+         * {@code codec}'s default instance encoded, which is where {@link #showingDefaults} reads each field's
+         * default; null when this document shows none, or the type builds no default (an abstract base).
+         */
+        @Nullable
+        @SuppressWarnings("unchecked")
+        private BsonDocument defaultsOf(@Nonnull BuilderCodec<?> codec) {
+            if (!showDefaults) {
+                return null;
+            }
+            try {
+                BuilderCodec<Object> concrete = (BuilderCodec<Object>) codec;
+                Object instance = concrete.getDefaultValue();
+                return instance == null ? null : concrete.encode(instance, new ExtraInfo());
+            } catch (RuntimeException e) {
+                return null;
+            }
+        }
+
+        /** The scalar {@code value} as the Default column prints it, or null for nothing or a non-scalar. */
+        @Nullable
+        private static String defaultText(@Nullable BsonValue value) {
+            if (value == null || value.isNull()) {
+                return null;
+            }
+            if (value.isBoolean()) {
+                return Boolean.toString(value.asBoolean().getValue());
+            }
+            if (value.isInt32()) {
+                return Integer.toString(value.asInt32().getValue());
+            }
+            if (value.isInt64()) {
+                return Long.toString(value.asInt64().getValue());
+            }
+            if (value.isDouble()) {
+                return Double.toString(value.asDouble().getValue());
+            }
+            return value.isString() ? value.asString().getValue() : null;
+        }
+
+        /**
+         * One codec's fields, its parent's first; {@code defaults} is the encoded default instance of the
+         * concrete type being documented (the parent's fields read their defaults off it too), or null.
+         */
         @SuppressWarnings({"unchecked", "rawtypes"})
-        private List<Object> renderFields(BuilderCodec<?> codec, Deque<Class<?>> stack) {
+        private List<Object> renderFields(BuilderCodec<?> codec, Deque<Class<?>> stack,
+                @Nullable BsonDocument defaults) {
             List<Object> out = new ArrayList<>();
 
             // An asset codec inherits the engine's own base fields, and a builder chain that called
             // .inherits(parent) would otherwise silently drop the parent's leaves from getEntries().
             BuilderCodec<?> parent = codec.getParent();
             if (parent != null) {
-                out.addAll(renderFields(parent, stack));
+                out.addAll(renderFields(parent, stack, defaults));
             }
 
             Map<String, List<BuilderField>> entries = (Map) codec.getEntries();
@@ -297,6 +381,10 @@ public final class SchemaDocWriter {
                 String doc = field.getDocumentation();
                 if (doc != null) {
                     fieldDoc.put("documentation", doc);
+                }
+                String def = defaults == null ? null : defaultText(defaults.get(keyed.getKey()));
+                if (def != null) {
+                    fieldDoc.put("default", def);
                 }
                 fieldDoc.putAll(classify((Codec) keyed.getChildCodec(), stack));
                 out.add(fieldDoc);
@@ -326,7 +414,7 @@ public final class SchemaDocWriter {
                     out.put("cyclic", true);
                 } else {
                     stack.push(inner);
-                    out.put("fields", renderFields(bc, stack));
+                    out.put("fields", renderFields(bc, stack, defaultsOf(bc)));
                     stack.pop();
                 }
                 return out;
@@ -415,6 +503,10 @@ public final class SchemaDocWriter {
         if (doc != null && !doc.isBlank()) {
             sb.append(doc.strip()).append("\n\n");
         }
+        String note = (String) typeDoc.get("note");
+        if (note != null && !note.isBlank()) {
+            sb.append(note.strip()).append("\n\n");
+        }
 
         Deque<PendingSection> queue = new ArrayDeque<>();
         renderFieldsTable(sb, (List<Object>) typeDoc.get("fields"), slug(rootName), rootName, 3, queue);
@@ -444,7 +536,8 @@ public final class SchemaDocWriter {
             String anchor = anchorPrefix + "-" + slug(key);
             String human = humanPrefix + "." + key;
             String typeLabel = describeType(field, anchor, human, level, queue);
-            String def = required ? "*(required)*" : "`null`";
+            Object declared = field.get("default");
+            String def = required ? "*(required)*" : "`" + (declared == null ? "null" : declared) + "`";
             Object docValue = field.get("documentation");
             String docCell = docValue != null ? escapeCell((String) docValue) : "";
             sb.append("| `").append(key).append("` | ").append(typeLabel).append(" | ").append(def)
