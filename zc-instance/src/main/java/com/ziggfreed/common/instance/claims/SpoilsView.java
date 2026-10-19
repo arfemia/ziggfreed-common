@@ -21,22 +21,16 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * What a player sees when they open a reward chest: their own unclaimed Claims filed under it, and nothing of
  * anyone else's. The one place the chest decides its view, so the chest's Use ({@link ZigOpenSpoilsInteraction}) never
- * names one, and the chest's file's {@code View.ItemsWindow} ({@link SpoilsChests#itemsWindow}) is the one switch
- * between the two views.
+ * names one.
  *
- * <p><b>The game's chest window</b> (the default). What is not an item (a currency, an experience or reputation
- * token) is collected first, on the Claims page filtered to the fight with its items left out ({@link ClaimsPage}'s
- * chest mode): each Claim and Take All there hands over only what is not an item ({@link ClaimGrants#claimExceptItems},
- * {@link ClaimGrants#claimFightExceptItems}) under the page's own toast, so nothing is paid unasked or told behind a
- * window, and once nothing but items is left the page offers the chest's items through one button. With nothing but
- * items waiting, opening the chest goes straight to them ({@link #openItems}): the game's own chest window
- * ({@link SpoilsWindow}), from which they only go into the bag, and whatever is left in it stays under Claims. A
- * player with nothing waiting reads one line saying so, and no window opens. A second use while their window is open
- * does nothing. A window the engine will not open falls back to the Claims page below, so the items are never out of
- * reach.
+ * <p><b>One page</b> ({@link RewardChestPage}), for every reward chest: everything of the player's in it on one page
+ * with no menu rail, what is not an item first and then the items, a click on a line taking that one reward and Take
+ * All taking everything, each told by the page's own toast, so nothing is paid unasked; whatever is left in it waits
+ * under Claims. A player with nothing waiting reads one line saying so, and no page opens. The chest's file's
+ * {@code View.ItemsWindow} no longer changes the view.
  *
- * <p><b>The Claims page</b> ({@code View.ItemsWindow} false): the Claims page filtered to the fight
- * ({@link ClaimsPage}'s spoils mode: only those Claims, Claim and Take All, one line when nothing waits).
+ * <p>The game's chest window ({@link SpoilsWindow}, {@link #openItems}) is no longer how a chest opens; it is what
+ * {@link ClaimsPage}'s chest mode still offers, which nothing in the library opens now.
  */
 public final class SpoilsView {
 
@@ -44,8 +38,9 @@ public final class SpoilsView {
     }
 
     /**
-     * Open the spoils of {@code fight} for the player behind {@code ref}; false when nothing could open. World thread,
-     * outside any system's processing. Never throws.
+     * Open the spoils of {@code fight} for the player behind {@code ref}: the chest's one page, or a line saying
+     * nothing in it waits for them; false when no page opened. World thread, outside any system's processing. Never
+     * throws.
      */
     public static boolean open(@Nullable Store<EntityStore> store, @Nullable Ref<EntityStore> ref,
             @Nullable Player player, @Nonnull String fight) {
@@ -58,43 +53,36 @@ public final class SpoilsView {
             return false;
         }
         try {
-            return SpoilsChests.itemsWindow(fight) ? openWindow(store, ref, player, playerRef, uuid, fight)
-                    : openClaimsPage(store, ref, player, playerRef, fight);
+            ClaimsPageDeps deps = ClaimsPageDeps.library();
+            if (deps.claims().list(uuid).stream().noneMatch(claim -> claim.fromFight(fight))) {
+                tellEmpty(playerRef, deps);
+                return false;
+            }
+            player.getPageManager().openCustomPage(ref, store, new RewardChestPage(playerRef, deps, fight));
+            return true;
         } catch (Throwable t) {
             SafeLog.warn(SpoilsChests.LOG + "the spoils of run=" + fight + " could not open; they wait under Claims", t);
             return false;
         }
     }
 
-    /** The game's chest window: what is not an item on the chest's page first, else the items at once. */
-    private static boolean openWindow(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
-            @Nonnull Player player, @Nonnull PlayerRef playerRef, @Nonnull UUID uuid, @Nonnull String fight) {
-        if (SpoilsWindow.isOpen(uuid, player)) {
-            return true;
-        }
-        ClaimsPageDeps deps = ClaimsPageDeps.library();
-        boolean others = deps.claims().list(uuid).stream()
-                .anyMatch(claim -> claim.fromFight(fight) && ClaimGrants.hasNonItem(claim));
-        if (others) {
-            player.getPageManager().openCustomPage(ref, store, new ClaimsPage(playerRef, deps, null, fight, true));
-            return true;
-        }
-        openItems(store, ref, player, playerRef, uuid, fight);
-        return true;
+    /** The one line a player with nothing waiting in a chest reads, beside the chest's picture. */
+    private static void tellEmpty(@Nonnull PlayerRef playerRef, @Nonnull ClaimsPageDeps deps) {
+        ToastDelivery.deliver(playerRef, ToastSpec.of(ToastKind.INFO, deps.text().line("spoils.empty"))
+                .withIcon(ClaimsDestinations.ICON), null);
     }
 
     /**
      * The items {@code fight} left the player, in the game's chest window; the Claims page filtered to the fight when
      * the window will not open; one line when no item waits. True when a window or page opened, false when only the
-     * line was told. World thread.
+     * line was told. World thread. {@link ClaimsPage}'s chest mode is its one caller.
      */
     static boolean openItems(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref, @Nonnull Player player,
             @Nonnull PlayerRef playerRef, @Nonnull UUID uuid, @Nonnull String fight) {
         ClaimsPageDeps deps = ClaimsPageDeps.library();
         ClaimStore claims = deps.claims();
         if (!hasItems(claims, uuid, fight)) {
-            ToastDelivery.deliver(playerRef, ToastSpec.of(ToastKind.INFO, deps.text().line("spoils.empty"))
-                    .withIcon(ClaimsDestinations.ICON), null);
+            tellEmpty(playerRef, deps);
             return false;
         }
         if (SpoilsWindow.open(store, ref, player, uuid, fight, claims)) {

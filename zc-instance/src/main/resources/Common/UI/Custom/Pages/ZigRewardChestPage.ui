@@ -1,0 +1,35 @@
+$C = "../Common.ui";
+$F = "../Common/ZigFrames.ui";
+$ZW = "../Common/ZigKit.ui";
+
+// A reward chest's one page (com.ziggfreed.common.instance.claims.RewardChestPage): everything of the player's own
+// in the chest, on the kit's reading page in the decorated frame, with no menu rail.
+//
+// #Page is the kit's @ZigDetailPage, painted by com.ziggfreed.common.ui.kit.DetailPainter: the chest's picture,
+// "Your share", how many rewards wait and the difficulty pill; the chest's own line; one block per Claim under its
+// title, what is not an item first and then the items, each a Pages/ZigDetailLine.ui line whose #LineSelect takes
+// that one reward on a click (an item keeps its own tooltip); then the hint and the gold Take All on the action bar.
+// #ChestEmpty, the kit's empty state, takes its place once nothing is left, the page staying open so the press's
+// toast is seen. The frame owns the size, the padding and the close button. Every press reopens the page, so every
+// build is a full one, and the page never spells a template's child ids: the kit's painters own them.
+//
+// Shipped once in ziggfreed-common; neutral Zig* ids. Smoke-test in-game.
+
+$C.@PageOverlay {}
+
+$F.@ZigDecoratedFrame {
+  @CloseButton = true;
+  @Ornaments = true;
+  Anchor: (Width: 680, Height: 780);
+
+  #Content {
+    $ZW.@ZigDetailPage #Page {
+      FlexWeight: 1;
+    }
+
+    $ZW.@ZigEmptyState #ChestEmpty {
+      FlexWeight: 1;
+      Visible: false;
+    }
+  }
+}

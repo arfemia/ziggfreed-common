@@ -194,7 +194,6 @@ public final class SpoilsChests {
         final String hintKey;
         final long expiresAt;
         final boolean goesWhenEmptied;
-        final boolean itemsWindow;
         final String leadKey;
         final String noticeKey;
         @Nullable final String bannerTitleKey;
@@ -220,7 +219,6 @@ public final class SpoilsChests {
             this.hintKey = file.hintKey();
             this.expiresAt = expiresAt;
             this.goesWhenEmptied = file.goesWhenEmptied();
-            this.itemsWindow = file.itemsWindow();
             this.leadKey = file.leadKey();
             this.noticeKey = file.noticeKey();
             this.bannerTitleKey = file.bannerTitleKey();
@@ -646,12 +644,6 @@ public final class SpoilsChests {
     static Message leadOf(@Nullable String fight) {
         Spoils spoils = fight == null ? null : FIGHTS.get(key(fight));
         return ContentKeys.tr(spoils == null ? RewardChestAsset.DEFAULT_LEAD_KEY : spoils.leadKey);
-    }
-
-    /** Whether the chest of {@code fight} shows its items in the game's chest window ({@code View.ItemsWindow}). */
-    static boolean itemsWindow(@Nullable String fight) {
-        Spoils spoils = fight == null ? null : FIGHTS.get(key(fight));
-        return spoils == null || spoils.itemsWindow;
     }
 
     // ==================== a later payout's way into the chest ====================

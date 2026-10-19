@@ -20,7 +20,8 @@ import com.ziggfreed.common.loot.diminish.DiminishSpec;
  * One reward chest, as a file: {@code Server/ZiggfreedCommon/RewardChests/<Id>.json}, the filename its id. Every
  * reward source that stands a chest ({@link SpoilsChests#stand}: a won boss fight, a rare kill or break from a library
  * bonus row, the admin's {@code /zigclaims chest}) names one, and the chest that goes up is that file: how it looks,
- * who may open it, what it holds of its own, how it shows what it holds, what it says, and when it goes.
+ * who may open it, what it holds of its own, what it says, and when it goes. Every chest shows what it holds on one
+ * page ({@link RewardChestPage}); its {@code View} group no longer changes that.
  *
  * <pre>{@code
  * {
@@ -29,7 +30,6 @@ import com.ziggfreed.common.loot.diminish.DiminishSpec;
  *   "Open":     { "Credited": true },
  *   "Contents": { "Lootable": "MyPack_Trork_Hoard", "Diminish": { "Steps": [1, 0.5], "Window": "Daily" },
  *                 "TitleKey": "mypack.chest.trork.title" },
- *   "View":     { "ItemsWindow": true },
  *   "Banner":   { "TitleKey": "mypack.chest.trork.banner.title", "SubtitleKey": "mypack.chest.trork.banner",
  *                 "Major": false },
  *   "Text":     { "LeadKey": "mypack.chest.lead", "NoticeKey": "mypack.chest.notice" },
@@ -111,7 +111,9 @@ public final class RewardChestAsset implements JsonAssetWithMap<String, DefaultA
                     + "only what its source pays.").add()
             .appendInherited(new KeyedCodec<>("View", View.CODEC, false),
                     (a, v) -> a.view = v, a -> a.view, (a, p) -> a.view = p.view)
-            .documentation("How opening the chest shows what it holds.").add()
+            .documentation("How opening the chest shows what it holds. Every chest opens one page with the "
+                    + "player's whole share on it, what is not an item first and then the items, each taken with "
+                    + "a click or all at once with Take All.").add()
             .appendInherited(new KeyedCodec<>("Banner", Banner.CODEC, false),
                     (a, v) -> a.banner = v, a -> a.banner, (a, p) -> a.banner = p.banner)
             .documentation("The banner each player with a share sees once as the chest goes up. Unauthored, none. "
@@ -173,8 +175,8 @@ public final class RewardChestAsset implements JsonAssetWithMap<String, DefaultA
     }
 
     /**
-     * {@code View.ItemsWindow}: true opens what is not an item on the chest's page first, then the items in the game's
-     * own chest window; false shows everything on the Claims page filtered to the chest. Unauthored means true.
+     * {@code View.ItemsWindow} as the file writes it, unauthored true. It no longer changes the view: every chest
+     * opens its one page ({@link RewardChestPage}), items and all, whichever way a file writes it.
      */
     public boolean itemsWindow() {
         Boolean v = view == null ? null : view.itemsWindow;
@@ -321,10 +323,9 @@ public final class RewardChestAsset implements JsonAssetWithMap<String, DefaultA
                 .appendInherited(new KeyedCodec<>("ItemsWindow", Codec.BOOLEAN, false),
                         (o, v) -> o.itemsWindow = v, o -> o.itemsWindow, (o, p) -> o.itemsWindow = p.itemsWindow)
                 .metadata(EditorSchema.defaultValue(true))
-                .documentation("True opens what is not an item (a currency, experience, reputation) on the chest's "
-                        + "page first, then the items in the game's own chest window, from which they only go into "
-                        + "the bag. False shows everything on the Claims page, filtered to this chest. Unauthored "
-                        + "means true.").add()
+                .documentation("No longer changes anything: every chest opens one page with the player's whole "
+                        + "share on it, items and all, whether this is true or false. Kept so a file that writes "
+                        + "it still reads.").add()
                 .build();
 
         public View() {

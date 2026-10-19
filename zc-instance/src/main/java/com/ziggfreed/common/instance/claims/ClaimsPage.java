@@ -55,8 +55,8 @@ import com.ziggfreed.common.util.SafeLog;
  * the fight paid, under the spoils' own words, and Take All taking just those ({@link ClaimGrants#claimFight}). With
  * none left it says so in one line.
  *
- * <p><b>The chest's first screen.</b> Built with a fight and {@code itemsInWindow}, it is what opening the chest
- * shows while something that is not an item waits: those Claims with their items left out, Claim and Take All
+ * <p><b>The chest's first screen, which no chest opens now ({@link RewardChestPage} is every chest's one page).</b>
+ * Built with a fight and {@code itemsInWindow}, it is what opening the chest showed while something that is not an item waits: those Claims with their items left out, Claim and Take All
  * handing over only what is not an item ({@link ClaimGrants#claimExceptItems},
  * {@link ClaimGrants#claimFightExceptItems}), each press told by the page's own toast. Once nothing but items is left,
  * the page says the rest is in the chest and its one button opens the chest's item window

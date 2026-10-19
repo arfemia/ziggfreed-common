@@ -1,5 +1,5 @@
 {
-  "$Comment": "The library's boss chest: what a won boss fight leaves where the boss fell when its binding row names no Spoils.Chest of its own. Each credited player finds only their own rewards from the fight in it: what is not an item first, on the chest's page, then the items in the game's own chest window. It stands five minutes at most, or until everyone it serves has taken everything, and whatever is left waits under Claims. It shows no banner of its own; a dungeon's clear whose reward joins it shows the dungeon's. A pack's chest can take this one as its Parent and change only what it needs.",
+  "$Comment": "The library's boss chest: what a won boss fight leaves where the boss fell when its binding row names no Spoils.Chest of its own. Each credited player finds only their own rewards from the fight in it, all on one page: what is not an item first, then the items, each taken with a click or everything with Take All. It stands five minutes at most, or until everyone it serves has taken everything, and whatever is left waits under Claims. It shows no banner of its own; a dungeon's clear whose reward joins it shows the dungeon's. A pack's chest can take this one as its Parent and change only what it needs.",
   "Look": {
     "Prop": "Furniture_Dungeon_Chest_Epic",
     "HintKey": "ziggfreedcommon.claims.spoils.hint"

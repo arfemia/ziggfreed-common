@@ -33,13 +33,17 @@ import com.ziggfreed.common.ui.kit.Picture;
 import com.ziggfreed.common.ui.kit.Pill;
 import com.ziggfreed.common.ui.kit.Tone;
 import com.ziggfreed.common.ui.toast.RewardToastLines;
+import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastLine;
+import com.ziggfreed.common.ui.toast.ToastSounds;
+import com.ziggfreed.common.ui.toast.ToastSpec;
 
 /**
  * What the Claims page shows, decided where the page only paints it: the newest Claim first, one row each (its
  * title, how many rewards it holds, its first item's picture or a wallet-only Claim's wallet), the one being read
- * (its rewards as the library's reward chips, its difficulty, Claim and Claim All), what an empty tab says, and the
- * rows of a press's toast ({@link #landedLines}). Nothing here touches a store.
+ * (its rewards as the library's reward chips, its difficulty, Claim and Claim All), what an empty tab says, the
+ * rows of a press's toast ({@link #landedLines}), and a reward chest's one page ({@link #chestDetail}). Nothing here
+ * touches a store.
  */
 public final class ClaimsView {
 
@@ -160,6 +164,87 @@ public final class ClaimsView {
         return new EmptyState(Picture.item(ClaimsDestinations.ICON), text.line("spoils.items_left"), null,
                 new DetailAction(ActionSlot.PRIMARY, text.line("spoils.action.items"), ActionLook.COLLECT,
                         ACTION_ITEMS, null, true, null));
+    }
+
+    // ==================== a reward chest's page ====================
+
+    /**
+     * A reward chest's one page ({@link RewardChestPage}), over {@code claims} in the order given: the chest's picture,
+     * "Your share" and how many rewards wait in it, the difficulty of the first Claim that names one as a pill, the
+     * chest's own line ({@code lead}), one block per Claim under its title, and in each what is not an item first
+     * (a currency, experience, reputation), then the items, an item drawn with its own tooltip. Every line is a click
+     * that takes it ({@link ClaimGrants#rewardKey} on its select id, the block's id its Claim's); the gold Take All
+     * takes everything, over a hint saying so.
+     */
+    @Nonnull
+    static DetailView chestDetail(@Nonnull List<Claim> claims, @Nonnull ClaimsText text, @Nonnull Message lead) {
+        List<DetailBlock> blocks = new ArrayList<>(claims.size());
+        int total = 0;
+        String difficulty = null;
+        for (Claim claim : claims) {
+            List<DetailLine> lines = new ArrayList<>(claim.rewards().size());
+            for (InstanceReward reward : claim.rewards()) {
+                if (!reward.isItem()) {
+                    lines.add(chestLine(reward));
+                }
+            }
+            for (InstanceReward reward : claim.rewards()) {
+                if (reward.isItem()) {
+                    lines.add(chestLine(reward));
+                }
+            }
+            total += lines.size();
+            if (difficulty == null) {
+                difficulty = claim.difficulty();
+            }
+            blocks.add(new DetailBlock(claim.id(), title(claim, text), text.line("row.rewards", lines.size()), lines));
+        }
+        List<Pill> badges = difficulty == null ? List.of() : List.of(Pill.of(label(difficulty), Tone.NEUTRAL));
+        List<DetailAction> actions = List.of(new DetailAction(ActionSlot.PRIMARY, text.line("spoils.action.take_all"),
+                ActionLook.COLLECT, RewardChestActions.TAKE_ALL, null, true, null));
+        return new DetailView(Picture.item(ClaimsDestinations.ICON), text.line("spoils.title"),
+                text.line("row.rewards", total), null, badges, null, null, null, lead, blocks, actions,
+                text.line("spoils.page.hint"));
+    }
+
+    /**
+     * What a reward chest's page shows with nothing of the player's left in it: that they took everything, once the
+     * page handed something over ({@code took}), else that nothing in it is theirs.
+     */
+    @Nonnull
+    static EmptyState chestEmpty(@Nonnull ClaimsText text, boolean took) {
+        return new EmptyState(Picture.item(ClaimsDestinations.ICON),
+                text.line(took ? "spoils.all_taken" : "spoils.empty"), null, null);
+    }
+
+    /** One reward as a chest line: its chip, drawn as a press's line, and the click that takes it. */
+    @Nonnull
+    private static DetailLine chestLine(@Nonnull InstanceReward reward) {
+        return DetailLine.reward(chip(reward), null).withSelect(ClaimGrants.rewardKey(reward));
+    }
+
+    /**
+     * The one toast a press raises over its page: everything handed over ({@code all}: everything that was waiting),
+     * a full bag keeping the rest, or part of it not payable on this server, over a row for each reward it handed over
+     * at what really landed ({@link #landedLines}). Unranked, as the page's own answer to the click, so it always shows
+     * and a ranked notice the press raised first waits to come back after it. Null for a press that took nothing (a
+     * stale page), whose reopen shows the truth.
+     */
+    @Nullable
+    static ToastSpec pressToast(@Nonnull ClaimGrants.Result result, @Nonnull ClaimsText text, boolean all) {
+        if (result.nothing()) {
+            return null;
+        }
+        List<ToastLine> landed = landedLines(result.collected());
+        if (result.anyKept()) {
+            return ToastSpec.of(ToastKind.WARNING, text.line("toast.kept")).withLines(landed);
+        }
+        if (result.failed() > 0) {
+            return ToastSpec.of(ToastKind.WARNING, text.line("toast.failed")).withLines(landed);
+        }
+        return ToastSpec.of(ToastKind.REWARD, text.line(all ? "toast.claimed_all" : "toast.claimed"))
+                .withLines(landed)
+                .withSound(ToastSounds.RECEIPT);
     }
 
     /** A Claim's title: its own key with its arguments, else the tab's word for a reward. */

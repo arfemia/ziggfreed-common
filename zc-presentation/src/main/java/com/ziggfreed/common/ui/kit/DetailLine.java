@@ -58,4 +58,14 @@ public record DetailLine(@Nonnull Picture picture, @Nonnull Message text, @Nulla
     public DetailLine withTooltip(@Nullable Message tooltip) {
         return new DetailLine(picture, text, count, tag, tick, selectId, current, tooltip);
     }
+
+    /**
+     * This line opening {@code selectId} (the page's binding carries it; null or blank for none), so a click anywhere
+     * on it reaches the page. A picture's own words are left off a line that opens something, while an item picture
+     * keeps its item tooltip ({@link DetailPainter}).
+     */
+    @Nonnull
+    public DetailLine withSelect(@Nullable String selectId) {
+        return new DetailLine(picture, text, count, tag, tick, selectId, current, tooltip);
+    }
 }
