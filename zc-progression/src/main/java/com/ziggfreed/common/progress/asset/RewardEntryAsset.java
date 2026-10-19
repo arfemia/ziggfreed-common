@@ -43,7 +43,7 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
  * generator substituting a numeric axis value into a parameter slot lands legal for the same
  * reason.
  *
- * <p><b>{@code Requires} keeps one row off a server that lacks its mod</b>, in the file-level presence
+ * <p><b>{@code Requires} keeps one row off a server that lacks its mod</b>, in the file-level
  * block's JSON (zc-core's {@code PresenceRequiresCodec}, read through {@code ModGates}): a plain top-level
  * {@code hytale:mod_installed} condition with {@code Min: 1} naming a mod that reads a definite 0 makes
  * {@link #toSpec} answer null, so the row pays nothing, shows nowhere and no audit reads it, while its
@@ -51,6 +51,12 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
  * per missing mod ({@code ModGates.reportRewardRows}, through {@link #collectMissingMods}); a row read
  * outside a store's fold (an interaction's or a dialogue action's inline list) is absent the same way and
  * never counted. Unauthored, a row is on every server.
+ *
+ * <p><b>The rest of the block decides whom the row pays.</b> Every other condition in its {@code Factors}
+ * rides on the spec {@link #toSpec} answers ({@link RewardSpec#conditions}) and is asked of the receiving
+ * player as the row pays: one they fail pays them nothing for this row while its siblings pay, a shop
+ * refuses the purchase before it takes the price, and a player who is not online fails every condition
+ * about a player.
  *
  * <pre>{@code
  * { "Kind": "Yourmod_Coin", "Params": { "Amount": 50 },
@@ -119,7 +125,10 @@ public final class RewardEntryAsset {
         return params == null ? null : new LinkedHashMap<>(params);
     }
 
-    /** The row's own presence block, or null when it authors none (the row is on every server). */
+    /**
+     * The row's own {@code Requires} block, or null when it authors none (the row is on every server and pays
+     * anyone): its mod presence decides whether the row is here, the rest whom it pays.
+     */
     @Nullable
     public PresenceRequiresCodec.Block getRequires() {
         return requires;
@@ -146,16 +155,19 @@ public final class RewardEntryAsset {
 
     /**
      * The engine's reward value. A blank kind yields null rather than an unpayable spec, and so does a row
-     * gated on a missing mod, which every payer and every reader of the folded rewards then leaves out.
+     * gated on a missing mod, which every payer and every reader of the folded rewards then leaves out. Every
+     * other condition of the row's {@code Requires} rides on the spec ({@link RewardSpec#conditions}), asked
+     * of the receiving player as it pays.
      */
     @Nullable
     public RewardSpec toSpec() {
         if (isBlank() || !passesModGate()) {
             return null;
         }
-        return params == null || params.isEmpty()
+        RewardSpec spec = params == null || params.isEmpty()
                 ? RewardSpec.of(kind.trim())
                 : RewardSpec.of(kind.trim(), params);
+        return spec.withConditions(PresenceRequiresCodec.liveFactors(requires));
     }
 
     /**

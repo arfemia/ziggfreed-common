@@ -16,6 +16,8 @@ import javax.annotation.Nullable;
 
 import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
 import com.ziggfreed.common.asset.OwnedSources;
+import com.ziggfreed.common.asset.PresenceRequiresCodec;
+import com.ziggfreed.common.factor.FactorCondition;
 
 /**
  * The runtime table of named {@link LootableAsset}s, folded {@code defaults < pack < owner} like
@@ -34,6 +36,10 @@ import com.ziggfreed.common.asset.OwnedSources;
  * reader wants the same answer. {@link #all} and {@link #resolveAuthored} answer the files as they
  * were written, which is what a validator and an editor pick list want: a contributor's own mistakes
  * belong to its own file, and reporting them twice helps nobody.
+ *
+ * <p>Both rebuilt views (enriched, and with a source's rolls) keep the winning file's {@code Requires}, so a
+ * pass asks it before every roll and entry the table pays ({@link LootableAsset#payingRolls}); a
+ * contributor's own live {@code Requires} rides in front of the rolls and entries it adds.
  *
  * <h2>A running mod can add rolls too, through a roll source</h2>
  *
@@ -56,6 +62,9 @@ public final class LootableConfig extends AbstractKeyedAssetConfig<LootableAsset
 
     /** The store's mod-gate label, which its drop lines carry (a contract the season boot pair parses). */
     public static final String MOD_GATE_STORE = "Lootables";
+
+    /** What the base table's own entries ask on top of their own: nothing, since a pass asks the base's whole. */
+    private static final FactorCondition[] NO_GATE = new FactorCondition[0];
 
     private static final LootableConfig INSTANCE = new LootableConfig();
 
@@ -136,7 +145,7 @@ public final class LootableConfig extends AbstractKeyedAssetConfig<LootableAsset
         List<Roll> rolls = new ArrayList<>(table.rollsOrEmpty());
         rolls.addAll(sourced);
         return LootableAsset.of(table.getId() == null ? key : table.getId(), rolls.toArray(Roll[]::new),
-                table.getPool(), table.getContributesTo());
+                table.getPool(), table.getContributesTo(), table.getRequires());
     }
 
     // ==================== roll sources ====================
@@ -232,19 +241,28 @@ public final class LootableConfig extends AbstractKeyedAssetConfig<LootableAsset
         this.enriched = Map.copyOf(folded);
     }
 
-    /** {@code base} with every contributor's rolls appended and every pool entry added to its bag. */
+    /**
+     * {@code base} with every contributor's rolls appended and every pool entry added to its bag. The merged
+     * table keeps the base's {@code Requires} (a pass asks it before every roll and entry), and each
+     * contributor's rolls and entries ask that contributor's own live {@code Requires} too.
+     */
     @Nonnull
     private static LootableAsset merge(@Nonnull String id, @Nonnull LootableAsset base,
             @Nonnull List<LootableAsset> contributors) {
         List<Roll> rolls = new ArrayList<>(base.rollsOrEmpty());
         List<LootPool.Entry> entries = new ArrayList<>();
-        collectEntries(base.getPool(), entries);
+        collectEntries(base.getPool(), NO_GATE, entries);
         // The target decides how often its pool is drawn. A target with no pool of its own borrows the
         // first contributor's formula, so a pool that exists only through contributions still draws.
         LootPool picksFrom = base.getPool();
         for (LootableAsset contributor : contributors) {
-            rolls.addAll(contributor.rollsOrEmpty());
-            collectEntries(contributor.getPool(), entries);
+            FactorCondition[] gate = PresenceRequiresCodec.liveFactors(contributor.getRequires());
+            for (Roll roll : contributor.rollsOrEmpty()) {
+                if (roll != null) {
+                    rolls.add(LootableAsset.gated(roll, gate));
+                }
+            }
+            collectEntries(contributor.getPool(), gate, entries);
             if (picksFrom == null) {
                 picksFrom = contributor.getPool();
             }
@@ -253,16 +271,18 @@ public final class LootableConfig extends AbstractKeyedAssetConfig<LootableAsset
                 ? null
                 : LootPool.of(picksFrom == null ? null : picksFrom.getRolls(),
                         entries.toArray(LootPool.Entry[]::new));
-        return LootableAsset.of(id, rolls.isEmpty() ? null : rolls.toArray(Roll[]::new), pool, null);
+        return LootableAsset.of(id, rolls.isEmpty() ? null : rolls.toArray(Roll[]::new), pool, null,
+                base.getRequires());
     }
 
-    private static void collectEntries(@Nullable LootPool pool, @Nonnull List<LootPool.Entry> out) {
+    private static void collectEntries(@Nullable LootPool pool, @Nonnull FactorCondition[] gate,
+            @Nonnull List<LootPool.Entry> out) {
         if (pool == null || pool.getEntries() == null) {
             return;
         }
         for (LootPool.Entry entry : pool.getEntries()) {
             if (entry != null) {
-                out.add(entry);
+                out.add(LootableAsset.gated(entry, gate));
             }
         }
     }

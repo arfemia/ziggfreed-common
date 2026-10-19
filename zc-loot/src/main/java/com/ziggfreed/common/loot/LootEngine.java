@@ -216,8 +216,9 @@ public final class LootEngine {
                     report(unknownSink, tableId);
                     continue;
                 }
-                rolls.addAll(table.rollsOrEmpty());
-                pools.addAll(table.poolOrEmpty());
+                // As the table pays: each roll and pool entry carrying its table's live Requires.
+                rolls.addAll(table.payingRolls());
+                pools.addAll(table.payingPool());
             }
         }
         if (ref.getRolls() != null) {

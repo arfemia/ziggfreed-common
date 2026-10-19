@@ -33,8 +33,8 @@ import com.ziggfreed.common.season.SeasonGate;
  * }
  * }</pre>
  *
- * <p>A row fires on every matching moment with no other gate: any block a player breaks that they
- * did not place, any kill credited to a player, any item a player harvests by hand. Where several
+ * <p>A row fires on every matching moment with no gate but its own {@code Requires}: any block a player
+ * breaks that they did not place, any kill credited to a player, any item a player harvests by hand. Where several
  * rows match one name the one pinning down the most characters wins; a calendar event's run is the
  * row's own {@code Season}; anything else more selective than a name (a skill, a held tool) belongs in
  * a roll's own {@code Conditions}. A row with no {@code Loot} is a deliberate hole that stops a
@@ -212,7 +212,11 @@ public final class BonusRowAsset implements JsonAssetWithMap<String, DefaultAsse
         return SeasonGate.normalize(season);
     }
 
-    /** Whether this row loads here at all (a companion mod's presence), or null when it always does. */
+    /**
+     * What a player must meet for this row to pay, or null when it authors none: its plain mod-presence
+     * condition decides whether the row loads at all, and every other condition is asked of the player the
+     * moment fires for, before its chance (zc-objectives' {@code BonusRowReactions}).
+     */
     @Nullable
     public PresenceRequiresCodec.Block getRequires() {
         return requires;

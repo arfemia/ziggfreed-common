@@ -1049,8 +1049,12 @@ public final class LootRewardKinds {
         return subject.handleAs(Player.class);
     }
 
+    /**
+     * The question a rolled reward, and a reward row's own conditions ({@link RewardGrants}), are asked:
+     * the installed vocabulary about the subject's live player, none when the player is not here.
+     */
     @Nonnull
-    private static FactorLookup lookupFor(@Nonnull Subject subject) {
+    static FactorLookup lookupFor(@Nonnull Subject subject) {
         FactorRegistry factors = FACTORS.get();
         if (factors == null) {
             return FactorLookup.none();

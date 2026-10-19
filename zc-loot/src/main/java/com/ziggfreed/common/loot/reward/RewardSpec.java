@@ -1,11 +1,15 @@
 package com.ziggfreed.common.loot.reward;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
+import com.ziggfreed.common.factor.FactorCondition;
 
 /**
  * One reward, as far as the engine is concerned: a KIND and a bag of parameters. The engine hands
@@ -30,8 +34,15 @@ import javax.annotation.Nullable;
  * picked-up item lands, so the game's own pickup notice already told the player (or will, for a part
  * that dropped at their feet). The same kind of mark as the origin, read only by a surface deciding
  * whether to repeat the row: the corner feed leaves it out, a page still lists it.
+ *
+ * <p>An authored reward may carry {@link #conditions()}: what the receiving player must meet for it to pay,
+ * the live part of the row's own {@code Requires}. Like the origin, never a parameter and never written by a
+ * serializer; {@link RewardGrants} asks them before the handler.
  */
 public final class RewardSpec {
+
+    /** A reward anyone may receive asks nothing. */
+    private static final FactorCondition[] NO_CONDITIONS = new FactorCondition[0];
 
     private final String kind;
     private final Map<String, String> params;
@@ -43,12 +54,16 @@ public final class RewardSpec {
     /** True when this receipt row's item landed as a pickup, with the game's own notice. */
     private final boolean pickupNoticed;
 
+    /** What the receiving player must meet for this reward to pay (its row's live {@code Requires}); never null. */
+    @Nonnull
+    private final FactorCondition[] conditions;
+
     private RewardSpec(@Nonnull String kind, @Nonnull Map<String, String> params) {
-        this(kind, params, null, false);
+        this(kind, params, null, false, NO_CONDITIONS);
     }
 
     private RewardSpec(@Nonnull String kind, @Nonnull Map<String, String> params, @Nullable RewardSpec origin,
-            boolean pickupNoticed) {
+            boolean pickupNoticed, @Nonnull FactorCondition[] conditions) {
         this.kind = kind.trim();
         Map<String, String> lowered = new LinkedHashMap<>();
         params.forEach((key, value) -> {
@@ -59,6 +74,7 @@ public final class RewardSpec {
         this.params = Map.copyOf(lowered);
         this.origin = origin;
         this.pickupNoticed = pickupNoticed;
+        this.conditions = conditions;
     }
 
     /** A reward of {@code kind} with no parameters. */
@@ -148,12 +164,49 @@ public final class RewardSpec {
         return value != null ? Boolean.parseBoolean(value.trim()) : fallback;
     }
 
-    /** A copy with one parameter added or replaced, keeping its {@link #origin()}. */
+    /** A copy with one parameter added or replaced, keeping its {@link #origin()} and {@link #conditions()}. */
     @Nonnull
     public RewardSpec with(@Nonnull String key, @Nonnull String value) {
         Map<String, String> merged = new LinkedHashMap<>(params);
         merged.put(key.trim().toLowerCase(Locale.ROOT), value);
-        return new RewardSpec(kind, merged, origin, pickupNoticed);
+        return new RewardSpec(kind, merged, origin, pickupNoticed, conditions);
+    }
+
+    /**
+     * What the receiving player must meet for this reward to pay: the live conditions of the row it was
+     * authored on (its {@code Requires} less the mod-presence gate its fold decided), empty when anyone may
+     * receive it. {@link RewardGrants} asks them before the handler and pays a player they refuse nothing for
+     * this reward. A copy on each call.
+     */
+    @Nonnull
+    public FactorCondition[] conditions() {
+        return conditions.length == 0 ? NO_CONDITIONS : conditions.clone();
+    }
+
+    /** True when this reward asks something of the player who receives it ({@link #conditions()}). */
+    boolean hasConditions() {
+        return conditions.length > 0;
+    }
+
+    /**
+     * A copy asking {@code conditions} of the receiving player before it pays, keeping everything else; null
+     * or empty clears them. A null entry is dropped.
+     */
+    @Nonnull
+    public RewardSpec withConditions(@Nullable FactorCondition[] conditions) {
+        List<FactorCondition> kept = new ArrayList<>();
+        if (conditions != null) {
+            for (FactorCondition condition : conditions) {
+                if (condition != null) {
+                    kept.add(condition);
+                }
+            }
+        }
+        if (kept.isEmpty() && this.conditions.length == 0) {
+            return this;
+        }
+        return new RewardSpec(kind, params, origin, pickupNoticed,
+                kept.isEmpty() ? NO_CONDITIONS : kept.toArray(new FactorCondition[0]));
     }
 
     /**
@@ -172,7 +225,7 @@ public final class RewardSpec {
      */
     @Nonnull
     public RewardSpec withOrigin(@Nullable RewardSpec origin) {
-        return new RewardSpec(kind, params, origin, pickupNoticed);
+        return new RewardSpec(kind, params, origin, pickupNoticed, conditions);
     }
 
     /**
@@ -187,7 +240,7 @@ public final class RewardSpec {
     /** A copy marked {@link #pickupNoticed()}, keeping its parameters and its {@link #origin()}. */
     @Nonnull
     public RewardSpec asPickupNoticed() {
-        return new RewardSpec(kind, params, origin, true);
+        return new RewardSpec(kind, params, origin, true, conditions);
     }
 
     @Override

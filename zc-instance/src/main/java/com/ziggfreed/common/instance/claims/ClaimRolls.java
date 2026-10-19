@@ -21,6 +21,11 @@ import com.ziggfreed.common.subject.Subject;
  * score ({@code LootFactors.lookupFor(0, true)}, so a table gated on a win pays its floor), kept as rewards to hand over
  * later ({@link DeferredRewards}), each command reward keeping {@code {player}} for whoever claims it, and repeated picks
  * of one item read as one reward. The Claim pays exactly that when it is taken.
+ *
+ * <p>The table rolls as it pays ({@code LootableAsset.payingRolls} and {@code payingPool}): its live {@code Requires}
+ * rides in front of every roll and entry, and this roll's question answers only the run's score and win, with no
+ * player in it, so a table asking anything beyond mod presence pays nothing here, as a roll's own condition on any
+ * other reading already did.
  */
 public final class ClaimRolls {
 
@@ -38,7 +43,7 @@ public final class ClaimRolls {
     public static List<InstanceReward> roll(@Nonnull LootableAsset table, @Nonnull UUID player, @Nonnull String source,
             @Nonnull Consumer<String> warn) {
         ThreadLocalRandom random = ThreadLocalRandom.current();
-        List<LootEngine.Selected> decided = LootEngine.select(table.rollsOrEmpty(), table.poolOrEmpty(), null,
+        List<LootEngine.Selected> decided = LootEngine.select(table.payingRolls(), table.payingPool(), null,
                 LootFactors.lookupFor(0, true), random::nextDouble);
         return InstanceReward.merge(DeferredRewards.fromSelection(decided, RewardKinds.shared(),
                 Subject.of(player, CLAIMER), source, warn));

@@ -30,7 +30,14 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.LibraryOwner;
+import com.ziggfreed.common.asset.PresenceRequiresCodec;
 import com.ziggfreed.common.cast.WorldEvictors;
+import com.ziggfreed.common.factor.FactorCondition;
+import com.ziggfreed.common.factor.FactorConditions;
+import com.ziggfreed.common.factor.FactorContext;
+import com.ziggfreed.common.factor.FactorRegistry;
+import com.ziggfreed.common.factor.HytaleFactors;
 import com.ziggfreed.common.stats.EquipStatBridge;
 import com.ziggfreed.common.stats.EquipStatBridge.StatKey;
 import com.ziggfreed.common.stats.EquipStatBridge.UtilityPut;
@@ -81,6 +88,12 @@ import com.ziggfreed.common.util.SafeLog;
  * the engine answers for exactly as it does a look: dedicated to the set, swept at a hydrate (the
  * default pool's ids included), none while dead, back after a respawn, saved in the look record.
  *
+ * <p><b>A set's {@code Requires} is asked of the wearer at each recompute</b>: everything but its mod
+ * presence (which its fold decided), through the {@code hytale:} readings plus every contributed and
+ * asset-defined factor. A wearer it refuses has none of its tiers. Nothing re-asks it between recomputes,
+ * so a set gated on a permission or a finished quest switches at the wearer's next equipment change,
+ * login or respawn.
+ *
  * <p>World-thread throughout, try-guarded, isolated by the bridge's own listener dispatch. An
  * unregistered stat channel is named in the log once and skipped, the bridge's own discipline.
  */
@@ -100,6 +113,27 @@ public final class GearSets {
     private static final SlotCounts NONE_ON = new SlotCounts(0, 0, 0, 0);
 
     private static volatile EquipStatBridge bridge;
+
+    /**
+     * The vocabulary a set's {@code Requires} reads, built on first use: the portable {@code hytale:} readings
+     * about the wearer, plus every id another module contributes and every asset-defined one, which every
+     * registry resolves. So a set gates on what any library table can, a permission or a finished quest
+     * included, on a server running this library alone.
+     */
+    private static final class WearerFactors {
+
+        static final FactorRegistry REGISTRY = build();
+
+        private WearerFactors() {
+        }
+
+        @Nonnull
+        private static FactorRegistry build() {
+            FactorRegistry registry = new FactorRegistry("gear-sets");
+            HytaleFactors.registerInto(registry, LibraryOwner.NAME);
+            return registry;
+        }
+    }
 
     private GearSets() {
     }
@@ -263,7 +297,20 @@ public final class GearSets {
             Map<String, Integer> progressBySet = new LinkedHashMap<>();
             Map<String, Integer> fullBySet = new LinkedHashMap<>();
             List<String> pooled = new ArrayList<>();
+            FactorContext wearer = null;
             for (GearSetAsset set : index.candidates(snapshot)) {
+                // A set's own Requires, every condition but its mod presence (decided at the fold): a wearer
+                // it refuses has none of its tiers, as if no piece were on. Asked at each recompute, so a
+                // change in what it reads shows at the wearer's next one.
+                FactorCondition[] gate = PresenceRequiresCodec.liveFactors(set.getRequires());
+                if (gate.length > 0) {
+                    if (wearer == null) {
+                        wearer = FactorContext.about(store, ref);
+                    }
+                    if (!FactorConditions.pass(gate, WearerFactors.REGISTRY, wearer)) {
+                        continue;
+                    }
+                }
                 SlotCounts counts = GearSetDecision.count(set, snapshot);
                 countsBySet.put(GearSetKeys.setId(set.getId()), counts);
                 progressBySet.put(GearSetKeys.setId(set.getId()), GearSetDecision.progress(set, counts));

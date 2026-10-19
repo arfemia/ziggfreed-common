@@ -164,7 +164,12 @@ public final class GearSetAsset implements JsonAssetWithMap<String, DefaultAsset
         return enabled == null || enabled;
     }
 
-    /** Whether this set loads here at all (a companion mod's presence), or null when it always does. */
+    /**
+     * What a wearer must meet for this set's bonuses to apply, or null when it authors none: its plain
+     * mod-presence condition decides whether the set loads at all, and every other condition is asked of the
+     * wearer at each recompute ({@link GearSets}). A joined set keeps its set's block; a layer's own is read
+     * for mod presence alone.
+     */
     @Nullable
     public PresenceRequiresCodec.Block getRequires() {
         return requires;
