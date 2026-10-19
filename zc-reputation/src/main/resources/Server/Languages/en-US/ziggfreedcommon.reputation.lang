@@ -92,6 +92,9 @@ block.standing = Your standing
 standing.earned = Earned
 standing.cap = The most you can earn
 
+# The track category every reputation sits in, wherever tracks are listed by category.
+track.category = Reputation
+
 # The shared menu's tab.
 menu.tab = Reputation
 

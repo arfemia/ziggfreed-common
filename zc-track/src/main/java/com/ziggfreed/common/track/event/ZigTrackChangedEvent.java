@@ -33,11 +33,12 @@ public final class ZigTrackChangedEvent implements IEvent<Void> {
     private final int prestigeAfter;
     private final int claims;
     private final String source;
+    private final boolean startedEmpty;
 
     public ZigTrackChangedEvent(@Nonnull String subjectKind, @Nonnull String subjectId, @Nullable UUID playerId,
             @Nonnull String namespace, @Nonnull String trackId, @Nonnull String run, long valueBefore, long valueAfter,
             int levelBefore, int levelAfter, int bestBefore, int bestAfter, int prestigeBefore, int prestigeAfter,
-            int claims, @Nonnull String source) {
+            int claims, @Nonnull String source, boolean startedEmpty) {
         this.subjectKind = subjectKind;
         this.subjectId = subjectId;
         this.playerId = playerId;
@@ -54,6 +55,7 @@ public final class ZigTrackChangedEvent implements IEvent<Void> {
         this.prestigeAfter = prestigeAfter;
         this.claims = claims;
         this.source = source;
+        this.startedEmpty = startedEmpty;
     }
 
     /** The event for {@code change}. */
@@ -63,7 +65,7 @@ public final class ZigTrackChangedEvent implements IEvent<Void> {
         return new ZigTrackChangedEvent(key.subject().kind(), key.subject().id(), key.playerId(), key.namespace(),
                 key.track(), key.run(), change.before().value(), change.after().value(), change.levelBefore(),
                 change.levelAfter(), change.bestBefore(), change.bestAfter(), change.before().prestige(),
-                change.after().prestige(), change.claims(), change.source());
+                change.after().prestige(), change.claims(), change.source(), change.before().isEmpty());
     }
 
     /** The kind of subject that climbs ({@code player} today). */
@@ -148,5 +150,13 @@ public final class ZigTrackChangedEvent implements IEvent<Void> {
     @Nonnull
     public String source() {
         return source;
+    }
+
+    /**
+     * Was nothing on record before this move, so it was the first move of a fresh climb, which starts at 0? A module
+     * whose climbs start somewhere else (a reputation's starting value) puts its start under such a move.
+     */
+    public boolean startedEmpty() {
+        return startedEmpty;
     }
 }

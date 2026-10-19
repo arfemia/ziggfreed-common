@@ -59,6 +59,11 @@ import com.ziggfreed.common.text.ContentTextAsset;
  * above the server's top rank; every reading of this reputation, its bar, its page and its Beyond read it,
  * while the shared ranks keep their floors. The server owner retunes any of it in
  * {@code mods/ziggfreedcommon/reputation.json}.
+ *
+ * <p>A player's standing is kept on the reputation's track, of the same id, whose curve this file and the
+ * shared ranks make ({@code ReputationTracks}): its ranks are the track's tiers and its {@code Beyond.Every} the
+ * track's Beyond. A reputation never prestiges unless the server owner turns it on for it in
+ * {@code mods/ziggfreedcommon/tracks.json} ({@code "<Id>": { "Prestige": { "Ranks": 1 } }}).
  */
 public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, ReputationAsset>> {
 

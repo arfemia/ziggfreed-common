@@ -2,8 +2,9 @@ apply from: "$rootDir/gradle/zc-module.gradle"
 
 // Standing with a faction or with one NPC, on Hytale's own (dormant) reputation system: the one global
 // rank ladder (seven native ReputationRank files), the companion asset zc keeps beside a native
-// ReputationGroup of the same id (names, cap, rank names, kill standing, the payout past the top rank), the
-// one writer over the native value (which raises a gain by the worn ReputationGain stats), two readings,
+// ReputationGroup of the same id (names, cap, rank names, kill standing, the payout past the top rank), each
+// reputation as a track whose climb holds the standing (the native value a copy kept in step), the
+// one writer (which raises a gain by the worn ReputationGain stats), two readings,
 // the Reputation reward kind, the change
 // event, the World bar (out in the world only: a change made in a page shows in that page's toast), the
 // rank notice, the kill table and the rail tab.
@@ -29,4 +30,10 @@ dependencies {
     // The World bars and the page check, the feedback engine, the destination
     // vocabulary, the shared menu and its rows, the in-page toast.
     implementation project(':zc-presentation')
+    // Each reputation is a track (SK4, R602): its standing is kept on the reputation's track, whose curve is the
+    // reputation's ladder, and the engine's own value is a copy kept in step for NPC attitudes. One-way: zc-track
+    // sits below this module and never imports it. `api`, since public signatures re-export zc-track's types:
+    // ReputationTracks (TrackDef, TrackKey, TrackCurveAsset, TrackRecord, CurveTable, ZigTrackChangedEvent) and
+    // ReputationService.trackChanged (ZigTrackChangedEvent).
+    api project(':zc-track')
 }

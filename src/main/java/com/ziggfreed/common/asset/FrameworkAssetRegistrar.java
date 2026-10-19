@@ -126,6 +126,7 @@ import com.ziggfreed.common.quest.asset.QuestCategoryAsset;
 import com.ziggfreed.common.quest.asset.QuestCategoryConfig;
 import com.ziggfreed.common.quest.asset.QuestGeneratorAsset;
 import com.ziggfreed.common.recipe.RecipeIndex;
+import com.ziggfreed.common.reputation.ReputationTracks;
 import com.ziggfreed.common.reputation.asset.ReputationAsset;
 import com.ziggfreed.common.reputation.asset.ReputationConfig;
 import com.ziggfreed.common.reputation.asset.ReputationOwnerLayers;
@@ -966,7 +967,9 @@ public final class FrameworkAssetRegistrar {
         //     file name, any case): what it is called, its picture, the stat gear moves it by, its cap,
         //     its rank names, its kill standing and the payout past the top rank. The library ships none.
         //     Owner file mods/ziggfreedcommon/reputation.json ($Enabled switches the module off; an entry
-        //     retunes or switches off one), re-read on this same event for the usual reason. ---
+        //     retunes or switches off one), re-read on this same event for the usual reason. Each fold builds
+        //     the reputations' tracks and curves again (zc-reputation's ReputationTracks; it also runs at boot,
+        //     once the native groups and ranks are in). ---
         AssetStoreRegistrar.registerStore(ReputationAsset.class,
                 new DefaultAssetMap<String, ReputationAsset>(), ReputationAsset.TYPE_ROOT,
                 ReputationAsset::getId, ReputationAsset.CODEC, null);
@@ -974,6 +977,7 @@ public final class FrameworkAssetRegistrar {
                 (LoadedAssetsEvent<String, ReputationAsset, DefaultAssetMap<String, ReputationAsset>> ev) -> {
                     ReputationConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
                     ReputationOwnerLayers.reload();
+                    ReputationTracks.refresh();
                 });
 
         // --- Track curves (Pattern A) - one level curve per file, which tracks share by id: its pieces, what lies

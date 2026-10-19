@@ -16,12 +16,24 @@ public final class TrackCurveConfig extends AbstractKeyedAssetConfig<TrackCurveA
 
     private static final TrackCurveConfig INSTANCE = new TrackCurveConfig();
 
+    /** The curves modules derive in code, per owner: the defaults layer. */
+    private final ProvidedLayer<TrackCurveAsset> provided = new ProvidedLayer<>();
+
     private TrackCurveConfig() {
     }
 
     @Nonnull
     public static TrackCurveConfig getInstance() {
         return INSTANCE;
+    }
+
+    /**
+     * The curves {@code owner} derives in code from assets of its own (a reputation's ladder as a curve), by id,
+     * replacing whatever it provided before; an empty map withdraws them. They sit under every pack file, so a
+     * pack's curve of the same id replaces one whole. Drops every tabulated curve. Any thread.
+     */
+    public synchronized void provide(@Nonnull String owner, @Nonnull Map<String, TrackCurveAsset> curves) {
+        loadDefaults(provided.provide(owner, curves));
     }
 
     @Override

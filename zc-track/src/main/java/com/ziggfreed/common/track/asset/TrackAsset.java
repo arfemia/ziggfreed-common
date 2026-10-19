@@ -173,6 +173,25 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
     public TrackAsset() {
     }
 
+    /**
+     * Java-side factory for a track a module derives in code from assets of its own ({@link TrackConfig#provide}):
+     * its name, picture, place, category, curve and Prestige group, every other leaf unauthored. Sets the same
+     * fields the codec fills, so an owner entry decodes against it leaf by leaf.
+     */
+    @Nonnull
+    public static TrackAsset of(@Nonnull String id, @Nullable ContentTextAsset text, @Nullable String icon,
+            @Nullable Integer order, @Nullable String category, @Nonnull String curve, @Nullable Prestige prestige) {
+        TrackAsset a = new TrackAsset();
+        a.id = id;
+        a.text = text;
+        a.icon = blankToNull(icon);
+        a.order = order;
+        a.category = blankToNull(category);
+        a.curve = curve;
+        a.prestige = prestige;
+        return a;
+    }
+
     /** The track id, exactly as the filename spells it. */
     @Override
     public String getId() {
@@ -490,6 +509,18 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
                 .build();
 
         public Prestige() {
+        }
+
+        /** Java-side factory; sets the same fields the codec fills, null leaves unauthored. */
+        @Nonnull
+        public static Prestige of(@Nullable Integer ranks, @Nullable Boolean unlimited, @Nullable Integer base,
+                @Nullable String build) {
+            Prestige p = new Prestige();
+            p.ranks = ranks;
+            p.unlimited = unlimited;
+            p.base = base;
+            p.build = blankToNull(build);
+            return p;
         }
     }
 

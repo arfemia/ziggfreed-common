@@ -26,6 +26,9 @@ public final class TrackConfig extends AbstractKeyedAssetConfig<TrackAsset> {
 
     private static final TrackConfig INSTANCE = new TrackConfig();
 
+    /** The tracks modules derive in code, per owner: the defaults layer. */
+    private final ProvidedLayer<TrackAsset> provided = new ProvidedLayer<>();
+
     private TrackConfig() {
         super(MOD_GATE_STORE);
     }
@@ -35,10 +38,28 @@ public final class TrackConfig extends AbstractKeyedAssetConfig<TrackAsset> {
         return INSTANCE;
     }
 
+    /**
+     * The tracks {@code owner} derives in code from assets of its own (a reputation's track, from its native
+     * group and companion file), by id, replacing whatever it provided before; an empty map withdraws them. They
+     * sit under every pack file and the owner's word: a pack's file of the same id replaces one whole, and an
+     * owner entry in {@code tracks.json} retunes it leaf by leaf once {@link TrackOwnerLayers#reload} runs again,
+     * which the provider calls after this. Any thread.
+     */
+    public synchronized void provide(@Nonnull String owner, @Nonnull Map<String, TrackAsset> tracks) {
+        loadDefaults(provided.provide(owner, tracks));
+    }
+
     // A fold may switch a track on or off, or move its curve or cap, which every player's track readings answer:
     // the gate server epoch moves, so no verdict kept over them outlives it. It may also change a track's gain
     // factors or switch off a track a source pays or a pick sits on, so every compiled gain plan, the source index
-    // and the folded picks go too (the picks' fold rebuilds every online player's grants).
+    // and the folded picks go too (the picks' fold rebuilds every online player's grants). The defaults layer (what
+    // modules provide) moves them the same way.
+    @Override
+    public synchronized void loadDefaults(@Nonnull Map<String, TrackAsset> jarDefaults) {
+        super.loadDefaults(jarDefaults);
+        folded();
+    }
+
     @Override
     public synchronized void mergePackLayer(@Nonnull Map<String, TrackAsset> layer) {
         super.mergePackLayer(layer);

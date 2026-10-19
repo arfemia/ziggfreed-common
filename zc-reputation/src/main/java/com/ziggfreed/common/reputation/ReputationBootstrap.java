@@ -13,6 +13,7 @@ import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.reputation.asset.ReputationOwnerLayers;
 import com.ziggfreed.common.reputation.page.ReputationDestinations;
 import com.ziggfreed.common.reputation.page.ReputationMenuTab;
+import com.ziggfreed.common.track.event.ZigTrackChangedEvent;
 import com.ziggfreed.common.ui.menu.MenuSlot;
 import com.ziggfreed.common.ui.menu.ZigMenu;
 import com.ziggfreed.common.util.SafeLog;
@@ -24,7 +25,8 @@ import com.ziggfreed.common.util.SafeLog;
  * and how it reads, the kill table on the shared moment stream, the standing reader the stat board ranks,
  * the Reputation destination and its tab in
  * the shared menu, the rank check at login and its memory dropped at
- * disconnect, and the once-at-boot log of broken reputation files.
+ * disconnect, the reputations' tracks built at boot and their outside moves followed, and the once-at-boot
+ * log of broken reputation files.
  * The companion store is registered with the other framework stores. Registration only
  * ({@code RootRegistrationOnlyTest}).
  */
@@ -50,6 +52,7 @@ public final class ReputationBootstrap {
         registerVocabulary();
         registerMenu();
         registerRankChecks(plugin);
+        registerTracks(plugin);
         registerAudit(plugin);
     }
 
@@ -89,6 +92,20 @@ public final class ReputationBootstrap {
             plugin.getEventRegistry().register(PlayerDisconnectEvent.class, ReputationRankTriggers::onPlayerDisconnect);
         } catch (Throwable t) {
             SafeLog.warn("[reputation] could not hang the reputation rank checks", t);
+        }
+    }
+
+    /**
+     * Each reputation as a track: its track and curve built at boot (and after every companion fold, from the
+     * root's store wiring), the per-world warning, and every move of a reputation's track made outside the
+     * service followed (the engine's copy kept in step, the move told).
+     */
+    private static void registerTracks(@Nonnull PluginBase plugin) {
+        try {
+            plugin.getEventRegistry().register(BootEvent.class, ReputationTracks::onBoot);
+            plugin.getEventRegistry().registerGlobal(ZigTrackChangedEvent.class, ReputationTracks::onTrackChanged);
+        } catch (Throwable t) {
+            SafeLog.warn("[reputation] could not hang the reputation tracks' hooks", t);
         }
     }
 

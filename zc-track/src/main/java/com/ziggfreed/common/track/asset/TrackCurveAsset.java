@@ -290,5 +290,14 @@ public final class TrackCurveAsset implements JsonAssetWithMap<String, DefaultAs
 
         public Tier() {
         }
+
+        /** Java-side factory; sets the same fields the codec fills. */
+        @Nonnull
+        public static Tier of(int from, @Nullable String nameKey) {
+            Tier t = new Tier();
+            t.from = from;
+            t.name = blankToNull(nameKey);
+            return t;
+        }
     }
 }

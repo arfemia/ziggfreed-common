@@ -21,8 +21,9 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
  * PLAY raises the notice: the last rank seen per player and reputation is remembered here, and the first
  * check after login (nothing remembered yet) is a silent hydrate.
  *
- * <p>Checks come from two places: every change through {@link ReputationService#change}, and once at login.
- * A rank a write outside zc moved (the admin {@code /reputation}) heals at the player's next change or login.
+ * <p>Checks come from two places: every change (through {@link ReputationService#change}, or a move of the
+ * reputation's track the service follows), and once at every world entry. A rank a write outside zc moved (the
+ * admin {@code /reputation}) is folded into the track, and checked, at the player's next change or world entry.
  *
  * <p>The memory is TRANSIENT and single-process: nothing is saved, {@link #forget} drops a player at
  * disconnect, and a restart starts everyone with a hydrate.

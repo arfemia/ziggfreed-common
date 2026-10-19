@@ -14,17 +14,23 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.inventory.PlayerAccess;
 import com.ziggfreed.common.reputation.asset.ReputationAsset;
 import com.ziggfreed.common.reputation.asset.ReputationConfig;
+import com.ziggfreed.common.track.TrackDef;
+import com.ziggfreed.common.track.TrackRecord;
+import com.ziggfreed.common.track.event.ZigTrackChangedEvent;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Every reputation reading, the ONE zc writer and the rank checks. A reputation is a native
  * ReputationGroup, found by its id without regard to case; it is absent (unknown) while the engine's
  * plugin is off, the owner's switch is off or its companion says {@code Enabled: false}. Standing is what
- * the player earned, the engine's own number; worn gear adds nothing to it, and instead raises how much each
- * gain pays ({@link ReputationGain}). World thread for every per-player call; every {@code store}/{@code ref}
- * is asked of the engine seam first, so no live player means no answer.
+ * the player earned, kept where the service's {@link ReputationLedger} keeps it (in production the
+ * reputation's track, with the engine's own number a copy kept in step for NPC attitudes); worn gear adds
+ * nothing to it, and instead raises how much each gain pays ({@link ReputationGain}). World thread for every
+ * per-player call; every {@code store}/{@code ref} is asked of the engine seam first, so no live player means no
+ * answer.
  */
 public final class ReputationService {
 
@@ -41,16 +47,26 @@ public final class ReputationService {
         }
     }
 
-    /** What one player stands at with one reputation, read live; {@code rank} is where earned standing falls. */
+    /**
+     * What one player stands at with one reputation, read live: {@code earned} the current climb's standing,
+     * {@code held} the standing the ranks read (the same, or after a prestige at least the floor of the best rank
+     * ever reached), and {@code rank} where {@code held} falls.
+     */
     public record Standing(@Nonnull ReputationDef reputation, int earned, boolean entry,
-                           @Nullable ReputationLadder.Rank rank) {
+                           @Nullable ReputationLadder.Rank rank, int held) {
 
-        /** The standing every reading compares: what was earned, since gear adds none. */
-        public long effective() {
-            return earned;
+        /** A standing whose ranks read what was earned. */
+        public Standing(@Nonnull ReputationDef reputation, int earned, boolean entry,
+                @Nullable ReputationLadder.Rank rank) {
+            this(reputation, earned, entry, rank, earned);
         }
 
-        /** Met: the engine holds an entry for them, or their standing is not 0. */
+        /** The standing every reading compares: what was earned (gear adds none), or what a prestige kept. */
+        public long effective() {
+            return held;
+        }
+
+        /** Met: something is recorded for them, or their standing is not 0. */
         public boolean met() {
             return entry || earned != 0;
         }
@@ -58,16 +74,31 @@ public final class ReputationService {
 
     private final ReputationNative engine;
     private final ReputationFanOut fanOut;
+    private final ReputationLedger ledger;
     private final ReputationRankWatch watch = new ReputationRankWatch();
 
+    /** A service whose standing is the engine's own value alone ({@link NativeReputationLedger}). */
     public ReputationService(@Nonnull ReputationNative engine, @Nonnull ReputationFanOut fanOut) {
+        this(engine, fanOut, new NativeReputationLedger(engine));
+    }
+
+    /** A service whose standing {@code ledger} keeps. */
+    public ReputationService(@Nonnull ReputationNative engine, @Nonnull ReputationFanOut fanOut,
+            @Nonnull ReputationLedger ledger) {
         this.engine = engine;
         this.fanOut = fanOut;
+        this.ledger = ledger;
     }
 
     @Nonnull
     public ReputationNative engine() {
         return engine;
+    }
+
+    /** Where this service keeps standing. */
+    @Nonnull
+    public ReputationLedger ledger() {
+        return ledger;
     }
 
     /** Is the module switched on and the engine's reputation plugin running? */
@@ -185,8 +216,9 @@ public final class ReputationService {
     /**
      * The one zc writer: refuse an unknown reputation or a zero delta, raise a gain by the player's worn
      * reputation gain ({@link #wornGain}, through {@link ReputationGain#scale}; a loss is never raised), cut it
-     * at the Cap, write through the engine (its clamp applies), tell the fan-out, then check the rank. The
-     * change it answers carries what actually moved. World thread.
+     * at the Cap, write it where the ledger keeps standing (in production the reputation's track, through its
+     * gain seam, then the engine's copy; with the engine as the truth its clamp applies), tell the fan-out, then
+     * check the rank. The change it answers carries what actually moved. World thread.
      */
     @Nonnull
     public Result change(@Nullable Store<EntityStore> store, @Nullable Ref<EntityStore> ref, @Nullable String id,
@@ -202,27 +234,105 @@ public final class ReputationService {
             return new Result(Status.NOT_LIVE, null);
         }
         UUID player = engine.playerId(store, ref);
-        Integer before = engine.earned(store, ref, def.id());
+        ReputationLadder ladder = ladderFor(def);
+        ReputationLedger.Reading before = ledger.read(store, ref, def, ladder);
         if (player == null || before == null) {
             return new Result(Status.NOT_LIVE, null);
         }
         int gained = delta > 0 ? ReputationGain.scale(delta, wornGain(store, ref, def)) : delta;
-        int applied = capped(before, gained, def.cap());
+        int applied = capped(before.earned(), gained, def.cap());
         if (applied == 0) {
             return new Result(Status.UNCHANGED, null);
         }
-        Integer after = engine.add(store, ref, def.id(), applied);
+        ReputationLedger.Reading after = ledger.add(store, ref, def, ladder, applied, source);
         if (after == null) {
             return new Result(Status.NOT_WRITTEN, null);
         }
-        if (after.intValue() == before.intValue()) {
+        if (after.earned() == before.earned() && after.held() == before.held()) {
             return new Result(Status.UNCHANGED, null);
         }
+        return new Result(Status.CHANGED, announce(store, ref, player, def, ladder, before, after, source));
+    }
+
+    /**
+     * Bring the live player's standing in step once they are in a world, for every switched-on reputation: the
+     * one-time import onto its track and any outside write folded in ({@link ReputationLedger#settle}). The login
+     * rank check runs after it. World thread.
+     */
+    public void settle(@Nullable Store<EntityStore> store, @Nullable Ref<EntityStore> ref) {
+        if (!isOn() || !engine.live(store, ref)) {
+            return;
+        }
+        for (ReputationDef def : all()) {
+            try {
+                ledger.settle(store, ref, def, ladderFor(def));
+            } catch (Throwable t) {
+                SafeLog.warn("[reputation] bringing '" + def.id() + "' in step failed: " + t.getMessage());
+            }
+        }
+    }
+
+    /**
+     * A climb moved through the track module: when it is a reputation's track and the ledger did not move it
+     * itself (a Track reward, {@code /zigtrack}, a prestige; never an import or an outside write folded in, which
+     * the ledger keeps silent), keep the engine's copy in step and tell it like any change: the event, the bar, a
+     * Beyond payout it crossed and the rank check. On the player's own thread, where the track fires it.
+     */
+    public void trackChanged(@Nonnull ZigTrackChangedEvent event) {
+        if (TrackReputationLedger.ownMove() || !event.isDefaultClimb() || event.playerId() == null
+                || !ReputationTracks.provides(event.trackId())) {
+            return;
+        }
+        ReputationDef def = known(event.trackId());
+        Ref<EntityStore> ref = def == null ? null : PlayerAccess.liveRef(event.playerId());
+        if (ref == null) {
+            return;
+        }
+        Store<EntityStore> store = ref.getStore();
+        TrackDef track = ReputationTracks.track(def);
+        if (track == null || !engine.live(store, ref)) {
+            return;
+        }
         ReputationLadder ladder = ladderFor(def);
+        // What the move did, read off the event; what it landed on, read fresh (a late import, or an outside write
+        // to the copy folded in first, shifts both).
+        ReputationLedger.Reading from = movedReading(event.valueBefore(), event.bestBefore(), event.prestigeBefore(),
+                track);
+        ReputationLedger.Reading to = movedReading(event.valueAfter(), event.bestAfter(), event.prestigeAfter(),
+                track);
+        ledger.followed(store, ref, def, ladder, event.startedEmpty() ? null : from);
+        ReputationLedger.Reading after = ledger.read(store, ref, def, ladder);
+        if (after == null) {
+            return;
+        }
+        int earnedMove = to.earned() - from.earned();
+        int heldMove = to.held() - from.held();
+        if (earnedMove != 0 || heldMove != 0) {
+            ReputationLedger.Reading before = new ReputationLedger.Reading(after.earned() - earnedMove,
+                    after.held() - heldMove, true);
+            announce(store, ref, event.playerId(), def, ladder, before, after, event.source());
+        }
+    }
+
+    /** One side of a track move as a reading: its value, and the standing its ranks read. */
+    @Nonnull
+    private static ReputationLedger.Reading movedReading(long value, int best, int prestige, @Nonnull TrackDef track) {
+        TrackRecord record = new TrackRecord(value, 0.0, best, prestige, Map.of());
+        return new ReputationLedger.Reading(ReputationTracks.toInt(value),
+                ReputationTracks.toInt(ReputationTracks.held(record, value, track.table())), true);
+    }
+
+    /** Tell a move that landed: the change it was, the fan-out (guarded), then the rank check. */
+    @Nonnull
+    private ReputationChange announce(@Nullable Store<EntityStore> store, @Nullable Ref<EntityStore> ref,
+            @Nonnull UUID player, @Nonnull ReputationDef def, @Nonnull ReputationLadder ladder,
+            @Nonnull ReputationLedger.Reading before, @Nonnull ReputationLedger.Reading after,
+            @Nonnull String source) {
         ReputationLadder.Rank top = ladder.top();
-        ReputationChange change = new ReputationChange(player, def, before, after,
-                ladder.rankFor(before), ladder.rankFor(after),
-                ladder.progress(after, def.beyondEvery()), top == null ? null : top.min(), source);
+        ReputationChange change = new ReputationChange(player, def, before.earned(), after.earned(),
+                ladder.rankFor(before.held()), ladder.rankFor(after.held()),
+                ladder.progress(after.earned(), def.beyondEvery()), top == null ? null : top.min(), source,
+                before.held(), after.held());
         try {
             fanOut.changed(store, ref, change);
         } catch (Throwable t) {
@@ -230,7 +340,7 @@ public final class ReputationService {
                     + t.getMessage());
         }
         observe(store, ref, player, def, change.effectiveAfter(), ladder, ReputationRankWatch.Trigger.CHANGE);
-        return new Result(Status.CHANGED, change);
+        return change;
     }
 
     /** Check every switched-on reputation's rank for the live player at {@code ref}. World thread. */
@@ -281,11 +391,11 @@ public final class ReputationService {
     @Nullable
     private Standing standingOf(@Nullable Store<EntityStore> store, @Nullable Ref<EntityStore> ref,
             @Nonnull ReputationDef def, @Nonnull ReputationLadder ladder) {
-        Integer earned = engine.earned(store, ref, def.id());
-        if (earned == null) {
+        ReputationLedger.Reading reading = ledger.read(store, ref, def, ladder);
+        if (reading == null) {
             return null;
         }
-        return new Standing(def, earned, engine.hasEntry(store, ref, def.id()), ladder.rankFor(earned));
+        return new Standing(def, reading.earned(), reading.entry(), ladder.rankFor(reading.held()), reading.held());
     }
 
     @Nullable

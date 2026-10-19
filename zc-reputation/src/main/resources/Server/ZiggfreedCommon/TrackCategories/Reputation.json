@@ -1,0 +1,7 @@
+{
+  "$Comment": "The category every reputation's track sits in. Each reputation's standing is kept on a track of the same id, built from its ladder: its ranks are the track's tiers, and what it pays past the top is the track's Beyond. A reputation does not prestige unless the server owner turns it on for that reputation in mods/ziggfreedcommon/tracks.json, for example { \"Hallows_Eve_Hallowed\": { \"Prestige\": { \"Ranks\": 1 } } }; a prestige then starts its standing again while the best rank reached keeps everything it opened and how its people treat the player.",
+  "Order": 30,
+  "Icon": "Deco_Trophy_Harvest",
+  "TitleKey": "ziggfreedcommon.reputation.track.category",
+  "Prestige": { "Build": "Keep" }
+}

@@ -1,6 +1,7 @@
 package com.ziggfreed.common.track;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -31,7 +32,10 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The one writer and reader of climbs. Every write is {@link #add} (a gain or a loss, through the gain seam),
- * {@link #prestige} or {@link #markPaidBelow}; every read is {@link #read} (a live subject, on its thread) or
+ * {@link #set} (a value that already moved somewhere else, past the seam), {@link #prestige}, a migration's
+ * silent {@link #seed} into an empty climb and {@link #raiseBest}, or {@link #markPaidBelow} and
+ * {@link #markPaidThrough}; every read is
+ * {@link #read} (a live subject, on its thread) or
  * {@link #load} (anyone, from any thread). All of them go through the {@link TrackStore} the key's subject kind
  * has ({@link TrackStores}).
  *
@@ -295,26 +299,145 @@ public final class TrackService {
      */
     public static int markPaidBelow(@Nonnull TrackKey key, int level) {
         TrackDef def = def(key.track());
-        TrackStore store = def == null ? null : TrackStores.forKey(key);
-        TrackRecord before = store == null ? null : store.get(key);
-        if (before == null) {
+        if (def == null) {
             return -1;
         }
         Set<String> rows = new LinkedHashSet<>();
         for (TrackAsset.Unlock unlock : def.asset().unlocks()) {
             rows.add(unlock.key());
         }
-        TrackRecord after = before.withAllPaidThrough(rows, level - 1);
+        return markPaidThrough(key, rows, level - 1);
+    }
+
+    /**
+     * Mark the rows {@code rows} keys (a row's key, as {@link TrackAsset.Unlock#key()} spells it, or a mark a
+     * module keeps on the record under a key of its own) paid through {@code level} on {@code key}'s climb.
+     * Marks only rise; nothing is paid or announced. On the live subject's own thread.
+     *
+     * @return how many rows' marks moved, or -1 when the track is not usable or the subject is not live here
+     */
+    public static int markPaidThrough(@Nonnull TrackKey key, @Nonnull Collection<String> rows, int level) {
+        TrackDef def = def(key.track());
+        TrackStore store = def == null ? null : TrackStores.forKey(key);
+        TrackRecord before = store == null ? null : store.get(key);
+        if (before == null) {
+            return -1;
+        }
+        Set<String> keys = new LinkedHashSet<>();
+        for (String row : rows) {
+            String normalized = TrackKey.normalize(row);
+            if (!normalized.isEmpty()) {
+                keys.add(normalized);
+            }
+        }
+        TrackRecord after = before.withAllPaidThrough(keys, level);
         if (after.equals(before)) {
             return 0;
         }
         int moved = 0;
-        for (String row : rows) {
+        for (String row : keys) {
             if (after.paidThrough(row) != before.paidThrough(row)) {
                 moved++;
             }
         }
         return store.put(key, after) ? moved : -1;
+    }
+
+    /**
+     * Raise {@code key}'s best level to {@code level} when it stands lower: what a one-time import calls when the
+     * older system's record says the subject once stood higher than the climb it merged into shows. The best level
+     * only rises; nothing is paid or announced, so an unlock Claim the higher best now owes is parked at the
+     * player's next settle, as after a {@link #seed}; the mirror stat is written and the player's gate epoch moved,
+     * since a reading moved. On the live subject's own thread.
+     *
+     * @return true when it rose
+     */
+    public static boolean raiseBest(@Nonnull TrackKey key, int level) {
+        TrackDef def = def(key.track());
+        TrackStore store = def == null ? null : TrackStores.forKey(key);
+        TrackRecord before = store == null ? null : store.get(key);
+        if (before == null) {
+            return false;
+        }
+        TrackRecord after = before.withBest(level);
+        if (after.equals(before) || !store.put(key, after)) {
+            return false;
+        }
+        Ref<EntityStore> ref = liveRef(key);
+        if (ref != null && key.isDefault()) {
+            mirror(ref, def, after);
+        }
+        GateEpochs.bumpPlayer(key.playerId());
+        return true;
+    }
+
+    /**
+     * Put {@code key}'s current climb at {@code value} exactly, past the gain seam: what a write that already
+     * happened somewhere else is folded in as (an engine value an admin moved, which the track's own value
+     * follows), or an admin's set. The value is held between the curve's level 1 and the track's ceiling, the
+     * fraction dropped and the best level raised to where it now stands; the move is kept, paid and announced as
+     * {@link #add} keeps one, with no {@code Requires} asked, since it already happened. On the live subject's own
+     * thread.
+     *
+     * @param source what moved it: {@code native}, {@code admin}
+     */
+    @Nonnull
+    public static Result set(@Nonnull TrackKey key, long value, @Nonnull String source) {
+        TrackDef def = def(key.track());
+        if (def == null) {
+            return Result.of(Status.UNKNOWN);
+        }
+        TrackStore store = TrackStores.forKey(key);
+        TrackRecord before = store == null ? null : store.get(key);
+        if (before == null) {
+            return Result.of(Status.NOT_LIVE);
+        }
+        long held = inRange(def, value);
+        TrackRecord after = before.withValue(held, 0.0).withBest(def.table().levelOf(held));
+        if (after.equals(before)) {
+            return Result.of(Status.UNCHANGED);
+        }
+        return commit(store, key, def, before, after, source, liveRef(key));
+    }
+
+    /**
+     * Keep {@code record} as {@code key}'s climb when nothing is on record for it yet: the one-time import of a
+     * climb an older system kept. Its value is held between the curve's level 1 and the track's ceiling, its best
+     * level raised to where that value stands, and the marks it carries kept as the older system's word on what
+     * it already paid. Nothing is paid, announced or credited, so an import is silent; the mirror stat is written
+     * and the player's gate epoch moved, since a reading may have moved. A climb already on record is never
+     * overwritten ({@code UNCHANGED}). On the live subject's own thread.
+     *
+     * @param source what imported it
+     */
+    @Nonnull
+    public static Result seed(@Nonnull TrackKey key, @Nonnull TrackRecord record, @Nonnull String source) {
+        TrackDef def = def(key.track());
+        if (def == null) {
+            return Result.of(Status.UNKNOWN);
+        }
+        TrackStore store = TrackStores.forKey(key);
+        TrackRecord before = store == null ? null : store.get(key);
+        if (before == null) {
+            return Result.of(Status.NOT_LIVE);
+        }
+        if (!before.isEmpty()) {
+            return Result.of(Status.UNCHANGED);
+        }
+        long value = inRange(def, record.value());
+        TrackRecord after = record.withValue(value, 0.0).withBest(def.table().levelOf(value));
+        if (after.equals(before)) {
+            return Result.of(Status.UNCHANGED);
+        }
+        if (!store.put(key, after)) {
+            return Result.of(Status.NOT_LIVE);
+        }
+        Ref<EntityStore> ref = liveRef(key);
+        if (ref != null && key.isDefault()) {
+            mirror(ref, def, after);
+        }
+        GateEpochs.bumpPlayer(key.playerId());
+        return new Result(Status.CHANGED, new TrackChange(key, def, before, after, source, 0));
     }
 
     /**
@@ -352,6 +475,11 @@ public final class TrackService {
     }
 
     // ==================== the pieces ====================
+
+    /** {@code value} held between the curve's level 1 and the track's ceiling. */
+    private static long inRange(@Nonnull TrackDef def, long value) {
+        return Math.max(def.table().minimum(), Math.min(def.ceiling(), value));
+    }
 
     /**
      * {@code before} moved by {@code amount}, pure: the fraction carried, a gain stopped at the track's ceiling

@@ -14,10 +14,11 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * Where the rank checks come from besides a change: once at login (a silent hydrate, run on a later world
- * task once the player is in), and the transient memory dropped at disconnect. Worn gear adds no standing,
- * so nothing is checked on an equip: a rank a write outside zc moved (the admin {@code /reputation}) heals
- * at the player's next change or login.
+ * Where the rank checks come from besides a change: once at every world entry (a silent hydrate, run on a later
+ * world task once the player is in, after the player's standing is brought in step: the one-time import onto
+ * each reputation's track and any outside write folded in), and the transient memory dropped at disconnect.
+ * Worn gear adds no standing, so nothing is checked on an equip: a rank a write outside zc moved (the admin
+ * {@code /reputation}) is folded into the track, silently, and checked at the player's next change or world entry.
  */
 public final class ReputationRankTriggers {
 
@@ -52,9 +53,15 @@ public final class ReputationRankTriggers {
         }
     }
 
+    /**
+     * Bring the player's standing in step first (the one-time import onto each reputation's track, and an outside
+     * write folded in), then check every rank.
+     */
     private static void check(@Nonnull Ref<EntityStore> ref, @Nonnull ReputationRankWatch.Trigger trigger) {
         if (ref.isValid()) {
-            ReputationRuntime.service().checkAll(ref.getStore(), ref, trigger);
+            ReputationService service = ReputationRuntime.service();
+            service.settle(ref.getStore(), ref);
+            service.checkAll(ref.getStore(), ref, trigger);
         }
     }
 }

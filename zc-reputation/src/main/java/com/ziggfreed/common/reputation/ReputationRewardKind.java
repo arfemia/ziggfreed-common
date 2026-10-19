@@ -28,8 +28,9 @@ import com.ziggfreed.common.subject.Subject;
  * <p>It writes through {@link ReputationService#change}, so the Cap, the event, the bar and the rank checks
  * all apply. A gain the Cap cuts to nothing is no failure (and nothing is receipted). With no live player
  * it fails, and {@link #retryCommand} answers the engine's own {@code /reputation add} line for a consumer's
- * retry queue; that replay writes the native value directly, so it skips the Cap, the event, the bar and the
- * Beyond payout. The line is null for exactly the rewards that could never pay (no id, no Amount, a
+ * retry queue; that replay writes the engine's own value, which the library folds into the reputation's track
+ * at the player's next change or world entry (the event, the bar and a Beyond payout come then), skipping the
+ * Cap and the worn gain. The line is null for exactly the rewards that could never pay (no id, no Amount, a
  * reputation this server does not have switched on). A Claim keeps that line beside the reward and pays the
  * reward through this kind when it is collected ({@code InstanceRewardGranter}), at the Claim's share, so the
  * line runs only where this kind could not pay.

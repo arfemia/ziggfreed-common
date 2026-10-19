@@ -9,6 +9,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.assetstore.map.AssetMapWithIndexes;
+import com.hypixel.hytale.builtin.adventure.reputation.ReputationGameplayConfig;
 import com.hypixel.hytale.builtin.adventure.reputation.ReputationPlugin;
 import com.hypixel.hytale.builtin.adventure.reputation.assets.ReputationGroup;
 import com.hypixel.hytale.builtin.adventure.reputation.assets.ReputationRank;
@@ -16,11 +17,13 @@ import com.hypixel.hytale.builtin.tagset.TagSetPlugin;
 import com.hypixel.hytale.builtin.tagset.config.NPCGroup;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.asset.type.gameplay.GameplayConfig;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatsModule;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.NPCPlugin;
 import com.ziggfreed.common.stats.StatIndexCache;
@@ -172,6 +175,44 @@ public final class EngineReputationNative implements ReputationNative {
         } catch (Throwable t) {
             return false;
         }
+    }
+
+    /** The world's own gameplay config says where the engine keeps reputation; unreadable reads as per player. */
+    @Override
+    public boolean copiesTo(@Nullable Store<EntityStore> store, @Nullable Ref<EntityStore> ref) {
+        if (store == null) {
+            return false;
+        }
+        try {
+            World world = store.getExternalData().getWorld();
+            return world == null || !perWorld(world.getGameplayConfig());
+        } catch (Throwable t) {
+            return true;
+        }
+    }
+
+    @Nonnull
+    @Override
+    public List<String> perWorldConfigs() {
+        List<String> out = new ArrayList<>();
+        if (!available()) {
+            return out;
+        }
+        try {
+            for (GameplayConfig config : GameplayConfig.getAssetMap().getAssetMap().values()) {
+                if (config != null && config.getId() != null && perWorld(config)) {
+                    out.add(config.getId());
+                }
+            }
+        } catch (Throwable t) {
+            SafeLog.fine("[reputation] the gameplay configs could not be read: " + t.getMessage());
+        }
+        return out;
+    }
+
+    private static boolean perWorld(@Nullable GameplayConfig config) {
+        return config != null && ReputationGameplayConfig.getOrDefault(config).getReputationStorageType()
+                == ReputationGameplayConfig.ReputationStorageType.PerWorld;
     }
 
     @Nonnull

@@ -82,7 +82,9 @@ public final class ReputationBeyond {
      * steps read from the top floor and the Every the change landed under) and answer how many payouts
      * it newly parked; 0 for a change below the top, a fall, a climb back to standing already reached, or a
      * ladder with no top. Answers -1 when there is nowhere to park (no record, or an id the save cannot hold),
-     * so the caller pays on the spot rather than lose the crossing.
+     * so the caller pays on the spot rather than lose the crossing. The reputation's track then carries every step
+     * through the highest standing as its Beyond mark ({@link ReputationTracks#markBeyond}): the steps parked, and
+     * the steps the high-water rule settled unpaid (a standing an admin set, read as the change's before).
      */
     static long park(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull ReputationChange change) {
@@ -95,8 +97,13 @@ public final class ReputationBeyond {
         if (floor == null) {
             return 0L;
         }
-        return record.climbed(id, change.earnedBefore(), change.earnedAfter(), floor,
+        long parked = record.climbed(id, change.earnedBefore(), change.earnedAfter(), floor,
                 change.reputation().beyondEvery());
+        Long highest = record.highest(id);
+        if (highest != null) {
+            ReputationTracks.markBeyond(change.playerId(), change.reputation(), highest);
+        }
+        return parked;
     }
 
     /**

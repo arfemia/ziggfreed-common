@@ -62,4 +62,20 @@ public interface ReputationNative {
 
     /** Is {@code npcGroupId} a loaded native NPCGroup? */
     boolean npcGroupExists(@Nonnull String npcGroupId);
+
+    /**
+     * Does the engine keep the live player's reputation per player in the world they stand in, so their standing
+     * can be copied into it ({@code ReputationStorage PerPlayer}, the engine's default)? False in a world whose
+     * gameplay config keeps one reputation value for the whole world ({@code PerWorld}): there the copy is
+     * skipped. True by default, for a seam that has no worlds.
+     */
+    default boolean copiesTo(@Nullable Store<EntityStore> store, @Nullable Ref<EntityStore> ref) {
+        return true;
+    }
+
+    /** The ids of every loaded gameplay config that keeps reputation per world; empty by default. */
+    @Nonnull
+    default List<String> perWorldConfigs() {
+        return List.of();
+    }
 }

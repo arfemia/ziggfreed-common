@@ -21,11 +21,13 @@ import com.ziggfreed.common.counter.PackedTallies;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * One player's reputation record beside the engine's native standing: per reputation, the Beyond payouts
- * waiting to be collected and the highest earned standing the player has reached.
+ * One player's reputation record beside their standing: per reputation, the Beyond payouts waiting to be
+ * collected, the highest earned standing the player has reached, whether their standing was imported onto
+ * the reputation's track, and whether the engine's copy of it is behind the track.
  *
  * <p><b>One field, and it only grows.</b> The record persists as one {@code Beyond} string
- * ({@link PackedTallies}: {@code <id>/owed:<n>|<id>/highest:<standing>}, keys sorted so a save is stable). A
+ * ({@link PackedTallies}: {@code <id>/owed:<n>|<id>/highest:<standing>|<id>/imported:1|<id>/unsynced:1}, keys
+ * sorted so a save is stable). A
  * reputation id is matched without regard to case and written in the engine's own spelling. A new fact is a
  * new key or a new leaf APPENDED after this one, never a rename. Absent means nothing: no key reads as nothing
  * owed and no standing on record, and a record kept for a reputation that is switched off or no longer pays
@@ -58,12 +60,18 @@ public class ReputationComponent implements Component<EntityStore> {
     /** The key suffix of the highest earned standing reached. */
     static final String HIGHEST = "/highest";
 
+    /** The key suffix marking a reputation whose standing was imported onto its track (1 once done). */
+    static final String IMPORTED = "/imported";
+
+    /** The key suffix marking a reputation whose engine copy did not take the track's last move (1 until it does). */
+    static final String UNSYNCED = "/unsynced";
+
     @Nullable
     public static ComponentType<EntityStore, ReputationComponent> TYPE;
 
     public static final BuilderCodec<ReputationComponent> CODEC;
 
-    /** {@code <id>/owed} and {@code <id>/highest} for every reputation with something on record. */
+    /** {@code <id>/owed}, {@code <id>/highest}, {@code <id>/imported} and {@code <id>/unsynced}, where set. */
     @Nonnull
     CounterMap beyond;
 
@@ -149,6 +157,33 @@ public class ReputationComponent implements Component<EntityStore> {
     public void paid(@Nonnull String reputationId, long steps) {
         String id = reputationId.trim();
         beyond.set(id + OWED, Math.max(0L, owed(id) - Math.max(0L, steps)));
+    }
+
+    /**
+     * Has {@code reputationId}'s standing (any case) been imported onto its track for this player? Once it has,
+     * the track holds the standing and the engine's own value is a copy, so the import never runs again.
+     */
+    public boolean imported(@Nonnull String reputationId) {
+        return beyond.get(reputationId.trim() + IMPORTED) > 0;
+    }
+
+    /** Mark {@code reputationId}'s standing imported onto its track (the engine's spelling, which it keeps). */
+    public void markImported(@Nonnull String reputationId) {
+        beyond.set(reputationId.trim() + IMPORTED, 1L);
+    }
+
+    /**
+     * Is the engine's copy of the player's standing with {@code reputationId} (any case) behind its track: a move
+     * made where the engine keeps reputation per world, or a write the engine refused? While it is, the copy is
+     * written again at the next chance and never folded back into the track, across a restart too.
+     */
+    public boolean unsynced(@Nonnull String reputationId) {
+        return beyond.get(reputationId.trim() + UNSYNCED) > 0;
+    }
+
+    /** Mark the copy of {@code reputationId} behind its track, or (false) caught up, which drops the key. */
+    public void unsynced(@Nonnull String reputationId, boolean behind) {
+        beyond.set(reputationId.trim() + UNSYNCED, behind ? 1L : 0L);
     }
 
     /** The save string: {@code key:value|key:value}, keys sorted; an empty record is an empty string. */
