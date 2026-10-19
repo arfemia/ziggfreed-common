@@ -8,9 +8,10 @@ import com.ziggfreed.common.track.TrackText;
 import com.ziggfreed.common.track.pick.PickService;
 
 /**
- * {@code respec [--player=<name>] --track=<id>}: clear every pick an online player made on a track, for free (an
- * admin's respec; a player's own is a trainer's service with its price): every slot reopens with the same offer
- * it had, every point spent comes back, and the grants are rebuilt. Left out, the sender is the player.
+ * {@code respec [--player=<name>] --track=<id>}: respec an online player's picks on a track, for free (an admin's
+ * respec; a player's own is a trainer's service with its price): only what a trainer taught stays, every other
+ * pick (Mastery and {@code KeptThroughPrestige} ones included) is cleared, every slot reopens with the same offer it
+ * had, every point spent comes back, and the grants are rebuilt. Left out, the sender is the player.
  */
 final class ZigTrackRespecCommand extends TrackTargetCommand {
 

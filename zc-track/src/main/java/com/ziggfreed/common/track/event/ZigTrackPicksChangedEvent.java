@@ -9,8 +9,9 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.event.IEvent;
 
 /**
- * The picks a player made on a track changed through zc: a choice made or a pick bought, either undone, a respec, or
- * a prestige that remembered or cleared them. Fired once per change, on the player's own thread, after the record was
+ * The picks a player made on a track changed through zc: a choice made or a pick bought (one or several in order),
+ * either undone, a respec, a prestige that remembered or cleared them, a saved build swapped in, or remembered takes
+ * spent again. Fired once per change, on the player's own thread, after the record was
  * kept and the player's grants rebuilt (so a reader sees the new modifiers), and only while something listens. A
  * change that moved nothing fires none.
  */
@@ -27,7 +28,11 @@ public final class ZigTrackPicksChangedEvent implements IEvent<Void> {
         /** Every pick on the track was cleared. */
         RESPEC,
         /** A prestige put the picks aside or cleared them. */
-        PRESTIGE
+        PRESTIGE,
+        /** A saved build was swapped in. */
+        SWAPPED,
+        /** Takes a Remember prestige put aside were spent again. */
+        RESPENT
     }
 
     @Nonnull private final UUID playerId;
@@ -63,7 +68,7 @@ public final class ZigTrackPicksChangedEvent implements IEvent<Void> {
         return change;
     }
 
-    /** The pick it was about, lower-cased, or null for a respec or a prestige. */
+    /** The pick it was about, lower-cased, or null for a respec, a prestige, a swap or several takes at once. */
     @Nullable
     public String pickId() {
         return pickId;

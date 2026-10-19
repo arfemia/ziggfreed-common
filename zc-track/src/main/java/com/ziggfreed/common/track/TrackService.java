@@ -257,8 +257,11 @@ public final class TrackService {
      * track's build setting ({@link TrackDef#prestigeBuild}, R641): {@code Keep} leaves them, {@code Remember} puts
      * each slot aside to be offered again preselected as its level comes back, {@code Clear} clears them; a pick the
      * folded files keep through a prestige (a trainer's, or one writing {@code KeptThroughPrestige},
-     * {@code PickService.keptThroughPrestige}) stays under every build. Then the player's grants are rebuilt and the
-     * track's undo window closes ({@code PickService.prestiged}). On the live subject's own thread.
+     * {@code PickService.keptThroughPrestige}) stays under every build, held by design even when a gate it once met
+     * (a branch's points) no longer is: nothing re-gates it, at the rebuild or after. {@code KeptThroughPrestige}
+     * governs a prestige alone; a respec clears such a pick like any other but what a trainer taught. Then the
+     * player's grants are rebuilt and the track's undo window closes ({@code PickService.prestiged}). On the live
+     * subject's own thread.
      */
     @Nonnull
     public static Result prestige(@Nonnull TrackKey key, @Nonnull String source) {

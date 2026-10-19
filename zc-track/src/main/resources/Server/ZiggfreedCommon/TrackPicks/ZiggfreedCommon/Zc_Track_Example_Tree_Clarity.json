@@ -1,0 +1,12 @@
+{
+  "$Comment": "A first-row node of the sample tree's Swift branch, switched off like the rest of it: three ranks, a point and five mana each, counting toward Swift.",
+  "Enabled": false,
+  "Track": "Zc_Track_Example",
+  "Text": { "TitleKey": "ziggfreedcommon.track.example.tree.clarity", "FlavorKey": "ziggfreedcommon.track.example.tree.clarity.desc" },
+  "Icon": "Ingredient_Crystal_Blue",
+  "Order": 6,
+  "Branch": "Swift",
+  "Cost": { "Points": 1 },
+  "Repeat": { "Max": 3 },
+  "Grants": [ { "Kind": "Stat", "Stat": "Mana", "Add": 5 } ]
+}

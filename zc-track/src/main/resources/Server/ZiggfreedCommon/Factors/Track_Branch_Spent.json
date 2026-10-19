@@ -1,0 +1,6 @@
+{
+  "$Comment": "Names the ziggfreedcommon:track_branch_spent reading for requirement lines. Param is a track id and a branch id joined by a colon (Your_Swords:Duelist); the reading is the points the player spent on that track's picks whose Branch names that branch, each pick's cost once for each time it was taken. Write Min 5 on a tree's second row so it opens once five points are spent in its branch. A branch the track names in its Branches words its own lock lines ('Requires Duelist points 5'). It changes only through the player's own picks, their undo, a respec, a saved build swapped in or a prestige, or a reload of the track or of its pick files (Volatility Player).",
+  "Factor": "ziggfreedcommon:track_branch_spent",
+  "Text": { "TitleKey": "ziggfreedcommon.track.factor.track_branch_spent" },
+  "Volatility": "Player"
+}

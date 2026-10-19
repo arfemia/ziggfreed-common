@@ -68,6 +68,14 @@ public final class TrackText {
         return key != null ? Msg.key(key) : Msg.raw(trimmed);
     }
 
+    /** What the branch {@code branch} of {@code track}'s tree is called: its {@code Branches} TitleKey, else its id. */
+    @Nonnull
+    public static Message branchName(@Nonnull TrackAsset track, @Nullable String branch) {
+        TrackAsset.Branch declared = track.branch(branch);
+        String key = declared == null ? null : declared.titleKey();
+        return key != null ? Msg.key(key) : Msg.raw(branch == null ? "" : branch.trim());
+    }
+
     /** What {@code tier} is called: its {@code Name}, else its id. */
     @Nonnull
     public static Message tierName(@Nonnull CurveTable.Tier tier) {

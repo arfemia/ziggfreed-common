@@ -1,7 +1,8 @@
 {
-  "$Comment": "The crafting category. A prestige of a track in it clears the player's picks and offers each again preselected as the level comes back (Build Remember), unless the track says otherwise.",
+  "$Comment": "The crafting category. A prestige of a track in it clears the player's picks and offers each again preselected as the level comes back (Build Remember), unless the track says otherwise. A swap to one of a track's saved builds costs one copper bar (Loadouts.SwapCost, any wallet or item, an empty group for free); a respec is free unless a track or this file writes a Respec.Cost. A track keeps no saved builds until it writes Loadouts.Max.",
   "Order": 20,
   "Icon": "Tool_Hammer_Crude",
   "TitleKey": "ziggfreedcommon.track.category.crafting",
-  "Prestige": { "Build": "Remember" }
+  "Prestige": { "Build": "Remember" },
+  "Loadouts": { "SwapCost": { "Items": [ { "Item": "Ingredient_Bar_Copper", "Count": 1 } ] } }
 }

@@ -3,6 +3,7 @@ package com.ziggfreed.common.track;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.commerce.asset.CostAsset;
 import com.ziggfreed.common.track.asset.PrestigeBuild;
 import com.ziggfreed.common.track.asset.TrackAsset;
 import com.ziggfreed.common.track.asset.TrackCategoryAsset;
@@ -54,9 +55,53 @@ public record TrackDef(@Nonnull TrackAsset asset, @Nonnull CurveTable table) {
         if (own != null) {
             return own;
         }
-        TrackCategoryAsset category = TrackCategoryConfig.getInstance().category(asset.category());
+        TrackCategoryAsset category = category();
         PrestigeBuild fromCategory = category == null ? null : category.prestigeBuild();
         return fromCategory == null ? PrestigeBuild.KEEP : fromCategory;
+    }
+
+    /**
+     * How many saved builds a player keeps on this track: its own {@code Loadouts.Max}, else its category's, else
+     * 0 (none).
+     */
+    public int loadoutsMax() {
+        Integer own = asset.loadouts() == null ? null : asset.loadouts().max();
+        if (own != null) {
+            return own;
+        }
+        TrackCategoryAsset category = category();
+        Integer fromCategory = category == null || category.loadouts() == null ? null : category.loadouts().max();
+        return fromCategory == null ? 0 : fromCategory;
+    }
+
+    /** What a swap to a saved build costs: the track's own {@code Loadouts.SwapCost}, else its category's, else free. */
+    @Nonnull
+    public CostAsset swapCost() {
+        CostAsset own = asset.loadouts() == null ? null : asset.loadouts().swapCost();
+        if (own != null) {
+            return own;
+        }
+        TrackCategoryAsset category = category();
+        CostAsset fromCategory = category == null || category.loadouts() == null ? null
+                : category.loadouts().swapCost();
+        return fromCategory == null ? CostAsset.FREE : fromCategory;
+    }
+
+    /** What a respec costs: the track's own {@code Respec.Cost}, else its category's, else free. */
+    @Nonnull
+    public CostAsset respecCost() {
+        CostAsset own = asset.respec() == null ? null : asset.respec().cost();
+        if (own != null) {
+            return own;
+        }
+        TrackCategoryAsset category = category();
+        CostAsset fromCategory = category == null || category.respec() == null ? null : category.respec().cost();
+        return fromCategory == null ? CostAsset.FREE : fromCategory;
+    }
+
+    @Nullable
+    private TrackCategoryAsset category() {
+        return TrackCategoryConfig.getInstance().category(asset.category());
     }
 
     /** The tier {@code record}'s best level stands in, or null when the curve names none reached. */

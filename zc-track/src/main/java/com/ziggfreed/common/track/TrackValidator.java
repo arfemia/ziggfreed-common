@@ -4,7 +4,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -12,11 +14,14 @@ import java.util.function.ToIntFunction;
 
 import javax.annotation.Nonnull;
 
+import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.grant.Grant;
 import com.ziggfreed.common.grant.StatGrant;
 import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
+import com.ziggfreed.common.progress.gate.GateClause;
 import com.ziggfreed.common.progress.gate.GateRuntime;
+import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.progress.gate.GateValidator;
 import com.ziggfreed.common.stats.StatIndexCache;
 import com.ziggfreed.common.track.asset.TrackAsset;
@@ -69,7 +74,10 @@ import com.ziggfreed.common.validation.Severity;
  *       {@code UNKNOWN_PICK_TRACK}, {@code UNKNOWN_PICK_OPTION}, {@code UNKNOWN_PICK_DECK},
  *       {@code GROUP_WITHOUT_LEVEL}, {@code GROUP_WITHOUT_OPTIONS}), then WARNING
  *       {@link #UNKNOWN_PICK_PREREQUISITE}, {@link #UNKNOWN_COST_TRACK}, {@link #COST_WITHOUT_POINTS},
- *       {@link #UNKNOWN_GRANT_STAT} ({@link #auditPicks}) and the gate audit over a pick's {@code Requires};</li>
+ *       {@link #UNKNOWN_GRANT_STAT} ({@link #auditPicks}; also over a track's {@code Points.Grants}) and the gate
+ *       audit over a pick's {@code Requires};</li>
+ *   <li>WARNING, for trees ({@link #auditTrees}): {@link #UNDECLARED_BRANCH}, {@link #NODE_ACROSS_TRACKS},
+ *       {@link #UNKNOWN_GATE_BRANCH}, {@link #UNKNOWN_STARTER_PICK}, {@link #RESERVED_PICK_ID}.</li>
  *   <li>The boosts' own audit ({@code boost.BoostValidator}, its {@code boost} domain), run inside this one so the
  *       boot audit and the once-at-boot error log carry it.</li>
  * </ul>
@@ -109,6 +117,11 @@ public final class TrackValidator {
     public static final String UNKNOWN_COST_TRACK = "UNKNOWN_COST_TRACK";
     public static final String COST_WITHOUT_POINTS = "COST_WITHOUT_POINTS";
     public static final String UNKNOWN_GRANT_STAT = "UNKNOWN_GRANT_STAT";
+    public static final String UNDECLARED_BRANCH = "UNDECLARED_BRANCH";
+    public static final String NODE_ACROSS_TRACKS = "NODE_ACROSS_TRACKS";
+    public static final String UNKNOWN_GATE_BRANCH = "UNKNOWN_GATE_BRANCH";
+    public static final String UNKNOWN_STARTER_PICK = "UNKNOWN_STARTER_PICK";
+    public static final String RESERVED_PICK_ID = "RESERVED_PICK_ID";
 
     private static final AtomicBoolean LOGGED = new AtomicBoolean();
 
@@ -154,6 +167,10 @@ public final class TrackValidator {
                         return track == null ? -1 : track.pointsPerLevel();
                     },
                     id -> StatIndexCache.resolve(id) != StatIndexCache.UNRESOLVED));
+            out.addAll(auditTrees(TrackConfig.getInstance().liveTracks(), TrackPicks.all().values(), id -> {
+                TrackPickAsset file = TrackPickConfig.getInstance().resolve(id);
+                return file != null && !file.isEnabled();
+            }));
             for (Map.Entry<String, TrackPickAsset> entry : TrackPickConfig.getInstance().all().entrySet()) {
                 if (entry.getValue().isEnabled()) {
                     out.addAll(GateValidator.validate(entry.getValue().requires(), DOMAIN, entry.getKey(),
@@ -234,6 +251,13 @@ public final class TrackValidator {
         if (stat != null && !statKnown.test(stat)) {
             out.add(Finding.warning(DOMAIN, UNKNOWN_MIRROR_STAT, "track '" + id + "' mirrors its level onto the "
                     + "stat '" + stat + "', which is not registered here, so nothing is written", id));
+        }
+        for (Grant grant : track.pointsGrants()) {
+            if (grant instanceof StatGrant granted && granted.stat() != null && !statKnown.test(granted.stat())) {
+                out.add(Finding.warning(DOMAIN, UNKNOWN_GRANT_STAT, "track '" + id + "' grants the stat '"
+                        + granted.stat() + "' for each point spent, which is not registered here, so that grant "
+                        + "raises nothing", id));
+            }
         }
         if (table != null) {
             Integer cap = track.cap();
@@ -417,6 +441,121 @@ public final class TrackValidator {
                 if (grant instanceof StatGrant stat && stat.stat() != null && !statKnown.test(stat.stat())) {
                     out.add(Finding.warning(DOMAIN, UNKNOWN_GRANT_STAT, where + " grants the stat '" + stat.stat()
                             + "', which is not registered here, so that grant raises nothing", id));
+                }
+            }
+        }
+        return out;
+    }
+
+    /**
+     * The pure core of the trees' audit, over the switched-on tracks and the folded picks: a pick's {@code Branch}
+     * its track's {@code Branches} does not declare ({@link #UNDECLARED_BRANCH}), a {@code Node} written by picks on
+     * different tracks, which never lock each other ({@link #NODE_ACROSS_TRACKS}), a branch gate
+     * ({@code ziggfreedcommon:track_branch_spent}) naming a branch no pick on its track sits in, which never opens
+     * ({@link #UNKNOWN_GATE_BRANCH}), a {@code Starter} entry that is no pick bought outright on its track
+     * ({@link #UNKNOWN_STARTER_PICK}; one naming a pick switched off is passed over quietly), and a pick whose id
+     * is {@value TrackDerived#POINTS} in any case, whose grants would be written under its track's
+     * {@code Points.Grants} key {@code zigtrack:<track>:points} ({@link #RESERVED_PICK_ID}). Every finding is a
+     * WARNING.
+     *
+     * @param switchedOff whether a pick id names a pick file that is switched off
+     */
+    @Nonnull
+    public static List<Finding> auditTrees(@Nonnull Collection<TrackAsset> tracks,
+            @Nonnull Collection<TrackPicks.PickDef> picks, @Nonnull Predicate<String> switchedOff) {
+        List<Finding> out = new ArrayList<>();
+        Map<String, TrackAsset> byId = new TreeMap<>();
+        for (TrackAsset track : tracks) {
+            if (track != null && track.getId() != null) {
+                byId.put(TrackKey.normalize(track.getId()), track);
+            }
+        }
+        Map<String, Set<String>> branchesInUse = new TreeMap<>();
+        Map<String, Set<String>> nodeTracks = new TreeMap<>();
+        Map<String, Set<String>> boughtOn = new TreeMap<>();
+        for (TrackPicks.PickDef pick : picks) {
+            if (!pick.isChoice()) {
+                boughtOn.computeIfAbsent(pick.trackId(), k -> new TreeSet<>()).add(pick.id());
+            }
+            if (TrackDerived.POINTS.equals(pick.id())) {
+                out.add(Finding.warning(DOMAIN, RESERVED_PICK_ID, "track pick '" + pick.asset().getId() + "' has "
+                        + "the id its track's Points.Grants are written under (" + TrackDerived.grantKey(
+                        pick.trackId(), TrackDerived.POINTS) + "), so the two would overwrite each other's grants; "
+                        + "give the pick another id", pick.asset().getId()));
+            }
+            String branch = pick.asset().branch();
+            if (branch != null) {
+                branchesInUse.computeIfAbsent(pick.trackId(), k -> new TreeSet<>()).add(branch);
+                TrackAsset track = byId.get(pick.trackId());
+                if (track != null && track.branch(branch) == null) {
+                    out.add(Finding.warning(DOMAIN, UNDECLARED_BRANCH, "track pick '" + pick.asset().getId()
+                            + "' sits in the branch '" + branch + "', which its track '" + track.getId()
+                            + "' does not declare in Branches, so the branch is named by its id", pick.asset().getId()));
+                }
+            }
+            String node = pick.asset().node();
+            if (node != null) {
+                nodeTracks.computeIfAbsent(node, k -> new TreeSet<>()).add(pick.trackId());
+            }
+        }
+        nodeTracks.forEach((node, onTracks) -> {
+            if (onTracks.size() > 1) {
+                out.add(Finding.warning(DOMAIN, NODE_ACROSS_TRACKS, "the choice node '" + node + "' has faces on "
+                        + "the tracks " + String.join(", ", onTracks) + "; a node joins picks on one track only, so "
+                        + "faces on different tracks never lock each other", node));
+            }
+        });
+        for (TrackPicks.PickDef pick : picks) {
+            GateSpec requires = pick.asset().requires();
+            if (requires == null) {
+                continue;
+            }
+            for (String param : branchParams(requires)) {
+                String[] parts = TrackFactors.splitBranch(param);
+                if (parts == null) {
+                    continue;
+                }
+                String trackId = TrackKey.normalize(parts[0]);
+                String branch = TrackKey.normalize(parts[1]);
+                if (byId.containsKey(trackId) && !branchesInUse.getOrDefault(trackId, Set.of()).contains(branch)) {
+                    out.add(Finding.warning(DOMAIN, UNKNOWN_GATE_BRANCH, "track pick '" + pick.asset().getId()
+                            + "' opens on the points spent in the branch '" + parts[1] + "' of '" + parts[0]
+                            + "', where no pick sits, so it never opens", pick.asset().getId()));
+                }
+            }
+        }
+        for (TrackAsset track : byId.values()) {
+            String trackId = TrackKey.normalize(track.getId());
+            Set<String> reported = new TreeSet<>();
+            for (String entry : track.starter()) {
+                if (!boughtOn.getOrDefault(trackId, Set.of()).contains(entry) && !switchedOff.test(entry)
+                        && reported.add(entry)) {
+                    out.add(Finding.warning(DOMAIN, UNKNOWN_STARTER_PICK, "track '" + track.getId() + "' starts its "
+                            + "starter build with '" + entry + "', which is no pick bought outright on it, so that "
+                            + "step is passed over", track.getId()));
+                }
+            }
+        }
+        return out;
+    }
+
+    /** Every Param a {@code ziggfreedcommon:track_branch_spent} condition anywhere in {@code requires} names. */
+    @Nonnull
+    private static List<String> branchParams(@Nonnull GateSpec requires) {
+        List<String> out = new ArrayList<>();
+        List<GateClause> clauses = new ArrayList<>();
+        clauses.add(requires);
+        clauses.addAll(List.of(requires.allOfOrEmpty()));
+        clauses.addAll(List.of(requires.anyOfOrEmpty()));
+        clauses.addAll(List.of(requires.notOrEmpty()));
+        for (GateClause clause : clauses) {
+            if (clause == null) {
+                continue;
+            }
+            for (FactorCondition condition : clause.factorsOrEmpty()) {
+                if (condition != null && TrackFactors.BRANCH_SPENT.equalsIgnoreCase(
+                        String.valueOf(condition.getFactor()).trim()) && condition.getParam() != null) {
+                    out.add(condition.getParam());
                 }
             }
         }

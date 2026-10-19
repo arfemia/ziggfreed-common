@@ -61,4 +61,45 @@ class TrackComponentCodecTest {
         TrackComponent before = TrackComponent.CODEC.decodeJson(RawJsonReader.fromJsonString("{}"), new ExtraInfo());
         assertEquals(TrackRecord.EMPTY, before.get(mining), "a player saved before the record existed holds nothing");
     }
+
+    /**
+     * The tree's leaves, appended after the picks: the order every take was made in, the takes a Remember prestige
+     * put aside in order, the saved builds and the build in use all survive a restart, and a save from before they
+     * were kept reads its takes in id order with no build saved.
+     */
+    @Test
+    void savedBuildsAndTakeOrderRoundTrip() throws IOException {
+        TrackKey swords = TrackKey.player(PLAYER, "Your_Swords");
+        PickState.Loadout fencer = new PickState.Loadout(Map.of("your_swords_lines/lines/2", List.of("your_edge")),
+                List.of("Your_Keen_Edge", "Your_Keen_Edge", "Your_Flow"));
+        PickState state = PickState.EMPTY
+                .withTakes("Your_Planted", 1)
+                .withTakes("Your_Keen_Edge", 2)
+                .withTakes("Your_Planted", 1)
+                .withRememberedTakes(List.of("Your_Reaper", "Your_Whirl", "Your_Reaper"))
+                .withLoadout(1, fencer)
+                .withLoadout(2, new PickState.Loadout(Map.of(), List.of("Your_Planted")))
+                .withActiveLoadout(1);
+        TrackRecord built = new TrackRecord(9_000L, 0.0, 30, 0, Map.of()).withPicks(state);
+        TrackComponent record = new TrackComponent();
+        record.put(swords, built);
+
+        ExtraInfo info = new ExtraInfo();
+        TrackRecord restarted = TrackComponent.CODEC.decode(TrackComponent.CODEC.encode(record, info), info)
+                .get(swords);
+        assertEquals(built, restarted, "the takes in order, what a prestige put aside, the builds and the one in use");
+        assertEquals(List.of("your_planted", "your_keen_edge", "your_keen_edge", "your_planted"),
+                restarted.picks().order(), "every take keeps the order it was made in");
+        assertEquals(List.of("your_reaper", "your_whirl", "your_reaper"), restarted.picks().rememberedTakes());
+        assertEquals(List.of("your_keen_edge", "your_keen_edge", "your_flow"), restarted.picks().loadout(1).takes(),
+                "a saved build keeps its takes in order");
+        assertEquals(1, restarted.picks().activeLoadout());
+
+        TrackComponent older = TrackComponent.CODEC.decodeJson(RawJsonReader.fromJsonString(
+                "{\"Tracks\": [ { \"Track\": \"Your_Swords\", \"Takes\": { \"Your_B\": 1, \"Your_A\": 2 } } ]}"),
+                new ExtraInfo());
+        assertEquals(List.of("your_a", "your_a", "your_b"), older.get(swords).picks().order(),
+                "a save from before the order was kept reads its takes in id order");
+        assertEquals(PickState.Loadout.EMPTY, older.get(swords).picks().loadout(1), "and holds no saved build");
+    }
 }

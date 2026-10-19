@@ -1,6 +1,7 @@
 package com.ziggfreed.common.track;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,15 +22,22 @@ import com.ziggfreed.common.grant.Grant;
 import com.ziggfreed.common.grant.Grants;
 import com.ziggfreed.common.grant.Placed;
 import com.ziggfreed.common.inventory.PlayerAccess;
+import com.ziggfreed.common.track.asset.TrackAsset;
+import com.ziggfreed.common.track.asset.TrackConfig;
 import com.ziggfreed.common.track.pick.TrackPicks;
 import com.ziggfreed.common.track.world.TrackWorldRules;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * What a player's tracks put on them: every grant of every pick they made, written by one idempotent rebuild
- * ({@link #rebuild}). Each grant is keyed {@code <owner>:<track>:<pick>} ({@value #OWNER}, {@link #grantKey}), so a
- * pick's grants are one modifier per stat however often it was taken, and the rebuild takes off anything under
+ * What a player's tracks put on them: every grant of every pick they made, and each track's {@code Points.Grants}
+ * once per point spent, written by one idempotent rebuild ({@link #rebuild}). Each grant is keyed
+ * {@code <owner>:<track>:<pick>} ({@value #OWNER}, {@link #grantKey}; a track's points grants
+ * {@code <owner>:<track>:}{@value #POINTS}), so a pick's grants are one modifier per stat however often it was
+ * taken, and the rebuild takes off anything under
  * {@value #OWNER} it no longer wants, including what a pick switched off or a world rule took away left behind.
+ * A pick held grants while it is held: the rebuild never asks its {@code Requires} again, so a pick a prestige kept
+ * keeps granting even when a branch's points no longer meet its gate (R641, R736). A pick whose id is
+ * {@value #POINTS} would share its track's points key (the validator's {@code RESERVED_PICK_ID}).
  *
  * <p><b>When it runs</b>: at every world entry (the ready settle, so a world's {@code Grants} rules apply where the
  * player now stands and leaving an arena gives the grants back), after every pick, undo and respec
@@ -44,6 +52,9 @@ public final class TrackDerived {
 
     /** The holder every track grant is written under. */
     public static final String OWNER = "zigtrack";
+
+    /** What a track's {@code Points.Grants} are written under, after the track: {@code zigtrack:<track>:points}. */
+    public static final String POINTS = "points";
 
     /** Whether a grant stays on: the world rules' answer for its kind on its track. */
     @FunctionalInterface
@@ -80,7 +91,7 @@ public final class TrackDerived {
             }
             UUID id = player.getUuid();
             World world = store.getExternalData().getWorld();
-            List<Placed> placed = placements(TrackPicks.all(),
+            List<Placed> placed = placements(TrackPicks.all(), TrackConfig.getInstance().liveTracks(),
                     trackId -> {
                         TrackReading reading = TrackService.read(TrackKey.player(id, trackId));
                         return reading == null ? null : reading.record();
@@ -124,22 +135,44 @@ public final class TrackDerived {
     /**
      * What a player's picks grant, before the writers see it (pure): for each folded pick, every chosen option's
      * grants once per slot made, or a bought pick's grants once per take (no more than its {@code Repeat.Max}), each
-     * under {@link #grantKey} and kept only where {@code filter} keeps it. An option no longer offered by its group
-     * (switched off, gone) grants nothing.
+     * under {@link #grantKey}; and for each track writing {@code Points.Grants}, those grants once per point of its
+     * pool spent anywhere (the main line, R736), under {@code zigtrack:<track>:points} ({@link #POINTS}). Each is
+     * kept only where {@code filter} keeps it. An option no longer offered by its group (switched off, gone) grants
+     * nothing.
      *
      * @param picks   every folded pick, by id
+     * @param tracks  every switched-on track (what {@code Points.Grants} is read from)
      * @param records each track's record by lower-cased id, or null when the player holds none there
      */
     @Nonnull
     public static List<Placed> placements(@Nonnull Map<String, TrackPicks.PickDef> picks,
-            @Nonnull Function<String, TrackRecord> records, @Nonnull GrantFilter filter) {
+            @Nonnull Collection<TrackAsset> tracks, @Nonnull Function<String, TrackRecord> records,
+            @Nonnull GrantFilter filter) {
         List<Placed> out = new ArrayList<>();
         Map<String, TrackRecord> seen = new HashMap<>();
+        Function<String, TrackRecord> recordOf = id -> seen.computeIfAbsent(id, key -> {
+            TrackRecord held = records.apply(key);
+            return held == null ? TrackRecord.EMPTY : held;
+        });
+        for (TrackAsset track : tracks) {
+            List<Grant> grants = track == null ? List.of() : track.pointsGrants();
+            if (grants.isEmpty()) {
+                continue;
+            }
+            String trackId = TrackKey.normalize(track.getId());
+            int spent = TrackPicks.spentOn(trackId, picks.values(), recordOf);
+            if (spent <= 0) {
+                continue;
+            }
+            String key = grantKey(trackId, POINTS);
+            for (Grant grant : grants) {
+                if (filter.keeps(grant, trackId, track.category())) {
+                    out.add(new Placed(key, grant, spent));
+                }
+            }
+        }
         for (TrackPicks.PickDef pick : picks.values()) {
-            TrackRecord record = seen.computeIfAbsent(pick.trackId(), id -> {
-                TrackRecord held = records.apply(id);
-                return held == null ? TrackRecord.EMPTY : held;
-            });
+            TrackRecord record = recordOf.apply(pick.trackId());
             PickState state = record.picks();
             if (state.isEmpty()) {
                 continue;

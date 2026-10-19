@@ -1,0 +1,12 @@
+{
+  "$Comment": "A first-row node of the sample tree's Guard branch, switched off like the rest of it: three ranks, a point and one stamina each, counting toward Guard.",
+  "Enabled": false,
+  "Track": "Zc_Track_Example",
+  "Text": { "TitleKey": "ziggfreedcommon.track.example.tree.footing", "FlavorKey": "ziggfreedcommon.track.example.tree.footing.desc" },
+  "Icon": "Ingredient_Crystal_Blue",
+  "Order": 2,
+  "Branch": "Guard",
+  "Cost": { "Points": 1 },
+  "Repeat": { "Max": 3 },
+  "Grants": [ { "Kind": "Stat", "Stat": "Stamina", "Add": 1 } ]
+}

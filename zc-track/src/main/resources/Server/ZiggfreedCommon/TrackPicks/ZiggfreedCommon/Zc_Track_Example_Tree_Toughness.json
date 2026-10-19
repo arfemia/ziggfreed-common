@@ -1,0 +1,12 @@
+{
+  "$Comment": "One node of the library's sample tree on the sample track, switched off like the rest of it: turn the track on in tracks.json and each Zc_Track_Example_Tree_* pick on in track-picks.json ({ \"Zc_Track_Example_Tree_Toughness\": { \"Enabled\": true }, ... }). A first-row node of the Guard branch: each of its three ranks costs a point and adds two health, and the points count toward Guard, which opens that branch's second row at five. /zigtrack pick --track=Zc_Track_Example --pick=Zc_Track_Example_Tree_Toughness takes a rank as the track's page would.",
+  "Enabled": false,
+  "Track": "Zc_Track_Example",
+  "Text": { "TitleKey": "ziggfreedcommon.track.example.tree.toughness", "FlavorKey": "ziggfreedcommon.track.example.tree.toughness.desc" },
+  "Icon": "Ingredient_Crystal_Red",
+  "Order": 1,
+  "Branch": "Guard",
+  "Cost": { "Points": 1 },
+  "Repeat": { "Max": 3 },
+  "Grants": [ { "Kind": "Stat", "Stat": "Health", "Add": 2 } ]
+}

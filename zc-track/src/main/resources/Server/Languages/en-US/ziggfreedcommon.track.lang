@@ -16,6 +16,9 @@ factor.tier_in = {0} in {1}
 # itself ({0} the pick or option).
 factor.track_pick = picks taken on a track
 factor.pick_of = {0} picks
+# How a requirement on the points spent in a branch of a track's tree is named: generic, then for a branch ({0}).
+factor.track_branch_spent = points spent in a branch
+factor.branch_points = {0} points
 
 # The Claims tab's list of choices waiting. In claims.row.meta {0} is how many choices wait on the track.
 claims.section = Choices waiting
@@ -63,6 +66,21 @@ example.option.stamina = Wind
 example.option.stamina.desc = More stamina.
 example.option.focus = Focus
 example.option.focus.desc = More mana.
+# The sample track's tree (switched off unless an owner turns it on): its two branches and their nodes.
+example.branch.guard = Guard
+example.branch.swift = Swift
+example.tree.toughness = Toughness
+example.tree.toughness.desc = More health.
+example.tree.footing = Footing
+example.tree.footing.desc = More stamina.
+example.tree.stand = Hold Fast
+example.tree.stand.desc = Much more health. Taking it closes off Rush.
+example.tree.rush = Rush
+example.tree.rush.desc = Much more stamina. Taking it closes off Hold Fast.
+example.tree.stride = Stride
+example.tree.stride.desc = More stamina.
+example.tree.clarity = Clarity
+example.tree.clarity.desc = More mana.
 
 # /zigtrack, the admin family. The command.desc.* keys are what the engine's own help resolves a command or
 # an argument's description from.
@@ -72,7 +90,13 @@ command.desc.show = Show a player's tracks, online or not.
 command.desc.prestige = Start a player's climb on a track again.
 command.desc.pick = Make a pick on a player's track: choose an offered option, or take a pick bought outright.
 command.desc.undo = Undo a player's latest pick that can still be undone.
-command.desc.respec = Clear every pick a player made on a track.
+command.desc.respec = Clear every pick a player made on a track and give back the points. What a trainer taught stays.
+command.desc.savebuild = Save the picks a player has in use on a track as one of their saved builds.
+command.desc.swapbuild = Swap a player's picks on a track for one of their saved builds, paying the swap's price.
+command.desc.builds = List a player's saved builds on a track.
+command.desc.respend = Spend again, in order, the picks a prestige set aside on a track, as far as the points allow.
+command.desc.arg.slot = Which saved build, by its number.
+command.desc.arg.force = Swap even when no saved build holds the picks in use. Those picks are lost.
 command.desc.arg.option = The option to choose, by its id.
 command.desc.arg.pick = The pick, by its id.
 command.desc.arg.level = The level of the choice to make. Leave it out for the lowest one waiting that offers the option.
@@ -120,6 +144,7 @@ command.pick.no_points = {1} does not have the points {2} costs.
 command.pick.spend_cap = {1} has spent all {2} allows from that pool.
 command.pick.maxed = {1} has taken {2} as often as it can be taken.
 command.pick.elsewhere = {2} is taken at a trainer, not here.
+command.pick.node_taken = {1} already took the other side of that choice on {0}, so {2} is closed off.
 command.pick.nothing = Nothing changed for {1} on {0}.
 # /zigtrack undo: {0} the track, {1} the player, {2} what was undone; in command.undo.none {0} is the player and {1}
 # the most minutes a pick stays undoable. /zigtrack respec: {2} how many picks cleared.
@@ -127,3 +152,25 @@ command.undo.done = Undid {1}'s pick of {2} on {0}.
 command.undo.none = {0} has no pick left to undo. A pick can be undone until its page closes, and for {1, number} {1, plural, one {minute} other {minutes}} at most.
 command.respec.done = Cleared {2, number} {2, plural, one {pick} other {picks}} {1} made on {0}.
 command.respec.none = {1} has no picks to clear on {0}.
+# In command.undo.needed {0} is the player and {1} the pick that could not be undone.
+command.undo.needed = {0} cannot undo {1} yet: a later pick still needs it. Undo that one first.
+# The saved builds. {0} is the track, {1} the player, {2} the build's number, {3} how many picks; in build.no_slot {1}
+# is how many builds the track keeps. In the build list's lines {0} is the build's number and {1} how many picks.
+command.build.slot.needed = Name a saved build with --slot=<n>.
+command.build.saved = Saved {1}'s picks on {0} as build {2, number}: {3, number} {3, plural, one {pick} other {picks}}.
+command.build.swapped = {1} swapped to build {2, number} on {0}: {3, number} {3, plural, one {pick} other {picks}} back.
+command.build.none = {0} keeps no saved builds.
+command.build.no_slot = {0} keeps {1, number} saved {1, plural, one {build} other {builds}}. Name one by its number.
+command.build.unknown = {0} is not switched on here.
+command.build.in_combat = {1} is in combat. A build can be swapped once the fight is over.
+command.build.in_encounter = {1} is in a boss fight. A build can be swapped once it ends.
+command.build.cannot_pay = {1} cannot pay for a swap on {0}.
+command.build.in_use = {1} already has that build in use on {0}, just as it was saved. Nothing was taken.
+command.build.unsaved = The picks {1} has in use on {0} are in no saved build, so a swap would lose them. Save them as a build first, or add --force to swap anyway. Nothing was taken.
+command.build.head = Saved builds of {1} on {0}, {2, number} at most:
+command.build.line = Build {0, number}: {1, number} {1, plural, one {pick} other {picks}}
+command.build.line.active = Build {0, number}: {1, number} {1, plural, one {pick} other {picks}}, in use
+command.build.line.empty = Build {0, number}: nothing saved
+# /zigtrack respend: {0} the track, {1} the player, {2} how many picks were spent again.
+command.respend.done = {1} spent {2, number} remembered {2, plural, one {pick} other {picks}} again on {0}.
+command.respend.none = {1} has no remembered pick that can be spent again on {0} right now.

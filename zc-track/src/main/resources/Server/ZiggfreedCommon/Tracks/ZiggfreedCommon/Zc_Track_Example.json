@@ -1,5 +1,5 @@
 {
-  "$Comment": "The library's sample track, switched off: nothing on a server grows it until the owner turns it on in mods/ziggfreedcommon/tracks.json with { \"Zc_Track_Example\": { \"Enabled\": true } }. Then /zigtrack add --track=Zc_Track_Example --amount=1000 climbs it, and each level an Unlocks row names parks a Claim on the player's Claims tab: three copper bars at levels 2 and 5, a blue crystal at every fourth level. It prestiges three times, first at level 12, and stops at level 15.",
+  "$Comment": "The library's sample track, switched off: nothing on a server grows it until the owner turns it on in mods/ziggfreedcommon/tracks.json with { \"Zc_Track_Example\": { \"Enabled\": true } }. Then /zigtrack add --track=Zc_Track_Example --amount=1000 climbs it, and each level an Unlocks row names parks a Claim on the player's Claims tab: three copper bars at levels 2 and 5, a blue crystal at every fourth level. It prestiges three times, first at level 12, and stops at level 15. Each level from 2 to 15 earns a point for its sample tree (the Zc_Track_Example_Tree_* picks, switched off on their own), and every point spent there adds one health (Points.Grants). The tree has two branches, Guard and Swift, and its Guard row two opens once five points are spent in Guard. A player keeps two saved builds here (/zigtrack savebuild and swapbuild), a swap costing what the Gathering category says. Starter is the order a one-time claim of points earned before a tree existed would spend them in.",
   "Enabled": false,
   "Text": { "TitleKey": "ziggfreedcommon.track.example.name" },
   "Icon": "Ingredient_Crystal_Blue",
@@ -7,6 +7,22 @@
   "Category": "Gathering",
   "Curve": "Zc_Track_Example",
   "Cap": 15,
+  "Points": {
+    "PerLevel": 1,
+    "To": 15,
+    "Grants": [ { "Kind": "Stat", "Stat": "Health", "Add": 1 } ]
+  },
+  "Branches": {
+    "Guard": { "Text": { "TitleKey": "ziggfreedcommon.track.example.branch.guard" }, "Icon": "Ingredient_Bar_Copper", "Order": 1 },
+    "Swift": { "Text": { "TitleKey": "ziggfreedcommon.track.example.branch.swift" }, "Icon": "Ingredient_Crystal_Blue", "Order": 2 }
+  },
+  "Starter": [
+    "Zc_Track_Example_Tree_Toughness", "Zc_Track_Example_Tree_Toughness", "Zc_Track_Example_Tree_Toughness",
+    "Zc_Track_Example_Tree_Footing", "Zc_Track_Example_Tree_Footing",
+    "Zc_Track_Example_Tree_Stand",
+    "Zc_Track_Example_Tree_Stride", "Zc_Track_Example_Tree_Stride"
+  ],
+  "Loadouts": { "Max": 2 },
   "Prestige": { "Ranks": 3, "Base": 11 },
   "Unlocks": [
     { "At": [ 2, 5 ], "Rewards": [ { "Kind": "Item", "Params": { "Item": "Ingredient_Bar_Copper", "Count": 3 } } ] },

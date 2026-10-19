@@ -36,6 +36,14 @@ dependencies {
     // The interaction-Type toolkit (InteractionCtx, InteractionOutcome) behind the native ZigBoost Type a boost
     // item's chain names. One-way: zc-cast depends on zc-core alone.
     implementation project(':zc-cast')
+    // The one price (CostAsset, folded and charged through CommerceEngines.costs()): what a saved build's swap and
+    // a respec cost, payable in any wallet or item (R733, R736). One-way: zc-commerce sits on zc-core, zc-loot,
+    // zc-progression, zc-world and zc-presentation and never reaches up here. `api`, since TrackAsset's and
+    // TrackDef's public signatures return a CostAsset.
+    api project(':zc-commerce')
+    // EncounterRuns, the live run index: a saved build is never swapped mid-encounter. One-way: zc-encounter sits
+    // on zc-core, zc-entity, zc-world, zc-effects, zc-loot, zc-presentation and zc-scaling and never reaches up here.
+    implementation project(':zc-encounter')
 }
 
 // Regenerate this module's SCHEMA.md (the authoring reference for tracks, track curves and track

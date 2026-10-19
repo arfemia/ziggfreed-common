@@ -1,0 +1,13 @@
+{
+  "$Comment": "One face of the sample tree's choice node (Node Guard_Stance), in the Guard branch's second row, switched off like the rest of it: it opens once five points are spent in Guard (Requires on ziggfreedcommon:track_branch_spent), costs two points and adds five health. Taking it locks the other face, Zc_Track_Example_Tree_Rush, until it is undone or the track is respecced.",
+  "Enabled": false,
+  "Track": "Zc_Track_Example",
+  "Text": { "TitleKey": "ziggfreedcommon.track.example.tree.stand", "FlavorKey": "ziggfreedcommon.track.example.tree.stand.desc" },
+  "Icon": "Ingredient_Crystal_Red",
+  "Order": 3,
+  "Branch": "Guard",
+  "Node": "Guard_Stance",
+  "Requires": { "Factors": [ { "Factor": "ziggfreedcommon:track_branch_spent", "Param": "Zc_Track_Example:Guard", "Min": 5 } ] },
+  "Cost": { "Points": 2 },
+  "Grants": [ { "Kind": "Stat", "Stat": "Health", "Add": 5 } ]
+}

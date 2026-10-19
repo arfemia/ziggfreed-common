@@ -39,6 +39,8 @@ public final class TrackCategoryAsset extends CategoryPresentationAsset
     private AssetExtraInfo.Data data;
 
     @Nullable protected Prestige prestige;
+    @Nullable protected TrackAsset.Loadouts loadouts;
+    @Nullable protected TrackAsset.Respec respec;
 
     public static final AssetBuilderCodec<String, TrackCategoryAsset> CODEC = appendLeaves(
             AssetBuilderCodec.builder(
@@ -53,6 +55,14 @@ public final class TrackCategoryAsset extends CategoryPresentationAsset
                     (a, v) -> a.prestige = v, a -> a.prestige, (a, p) -> a.prestige = p.prestige)
             .documentation("What a prestige does by default to the tracks in this category; a track's own "
                     + "Prestige.Build overrides it.").add()
+            .appendInherited(new KeyedCodec<>("Loadouts", TrackAsset.Loadouts.CODEC, false),
+                    (a, v) -> a.loadouts = v, a -> a.loadouts, (a, p) -> a.loadouts = p.loadouts)
+            .documentation("The saved builds this category's tracks default to: how many a player keeps and what "
+                    + "a swap costs. A track's own Loadouts leaves override these one by one.").add()
+            .appendInherited(new KeyedCodec<>("Respec", TrackAsset.Respec.CODEC, false),
+                    (a, v) -> a.respec = v, a -> a.respec, (a, p) -> a.respec = p.respec)
+            .documentation("What a respec of this category's tracks costs by default; a track's own Respec.Cost "
+                    + "overrides it.").add()
             .build();
 
     public TrackCategoryAsset() {
@@ -68,6 +78,18 @@ public final class TrackCategoryAsset extends CategoryPresentationAsset
     @Nullable
     public PrestigeBuild prestigeBuild() {
         return prestige == null ? null : PrestigeBuild.of(prestige.build);
+    }
+
+    /** The saved-build defaults this category writes, or null. */
+    @Nullable
+    public TrackAsset.Loadouts loadouts() {
+        return loadouts;
+    }
+
+    /** The respec default this category writes, or null. */
+    @Nullable
+    public TrackAsset.Respec respec() {
+        return respec;
     }
 
     /** The category's prestige defaults. */

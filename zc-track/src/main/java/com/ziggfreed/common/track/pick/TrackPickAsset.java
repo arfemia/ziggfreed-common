@@ -90,6 +90,8 @@ public final class TrackPickAsset implements JsonAssetWithMap<String, DefaultAss
     @Nullable protected Integer spendCap;
     @Nullable protected Where where;
     @Nullable protected Boolean keptThroughPrestige;
+    @Nullable protected String branch;
+    @Nullable protected String node;
     @Nullable protected Grant[] grants;
 
     /** The live part of the {@code Requires} block, lifted once per instance ({@link StoreGates#live}). */
@@ -182,8 +184,22 @@ public final class TrackPickAsset implements JsonAssetWithMap<String, DefaultAss
                     (a, p) -> a.keptThroughPrestige = p.keptThroughPrestige)
             .metadata(EditorSchema.defaultValue(false))
             .documentation("True keeps this pick through every prestige, whatever the track's prestige Build says: "
-                    + "abilities, techniques and Mastery picks are never lost to a prestige. A pick whose Where names "
-                    + "a trainer is always kept. False when unauthored: the pick follows the track's Build.").add()
+                    + "abilities, techniques and Mastery picks are never lost to a prestige, and stay held even if a "
+                    + "branch's points no longer meet its Requires. A pick whose Where names a trainer is always "
+                    + "kept. False when unauthored: the pick follows the track's Build. It governs a prestige only: "
+                    + "a respec clears this pick and gives its points back, keeping only what a trainer taught.")
+            .add()
+            .appendInherited(new KeyedCodec<>("Branch", Codec.STRING, false),
+                    (a, v) -> a.branch = v, a -> a.branch, (a, p) -> a.branch = p.branch)
+            .documentation("The branch of the track's tree this pick sits in, by id (one its track's Branches "
+                    + "names): the points spent on it count toward that branch, so a later row's Requires can "
+                    + "open on them (ziggfreedcommon:track_branch_spent, Param <Track>:<Branch>, Min 5). Leave it "
+                    + "out for a pick in no branch, such as a root row.").add()
+            .appendInherited(new KeyedCodec<>("Node", Codec.STRING, false),
+                    (a, v) -> a.node = v, a -> a.node, (a, p) -> a.node = p.node)
+            .documentation("The choice node this pick is one face of, by an id of your own: the picks on one "
+                    + "track that write the same Node are one choice, so taking one locks the others until it is "
+                    + "undone or the track is respecced. Leave it out for a pick that stands alone.").add()
             .appendInherited(new KeyedCodec<>("Grants", Grant.ARRAY_CODEC, false),
                     (a, v) -> a.grants = v, a -> a.grants, (a, p) -> a.grants = p.grants)
             .documentation("What a pick bought outright grants each time it is taken (a choice grants what its "
@@ -373,6 +389,20 @@ public final class TrackPickAsset implements JsonAssetWithMap<String, DefaultAss
     @Nonnull
     public List<String> placements() {
         return where == null ? List.of() : lowered(where.placements);
+    }
+
+    /** The branch this pick sits in, lower-cased, or null for none. */
+    @Nullable
+    public String branch() {
+        String id = TrackKey.normalize(branch);
+        return id.isEmpty() ? null : id;
+    }
+
+    /** The choice node this pick is one face of, lower-cased, or null for none. */
+    @Nullable
+    public String node() {
+        String id = TrackKey.normalize(node);
+        return id.isEmpty() ? null : id;
     }
 
     /** The grants a pick bought outright pays (null entries left out). */

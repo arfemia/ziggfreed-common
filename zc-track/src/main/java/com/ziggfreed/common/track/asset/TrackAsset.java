@@ -3,8 +3,11 @@ package com.ziggfreed.common.track.asset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -20,6 +23,9 @@ import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
 import com.ziggfreed.common.asset.EditorSchema;
+import com.ziggfreed.common.codec.InheritMapCodec;
+import com.ziggfreed.common.commerce.asset.CostAsset;
+import com.ziggfreed.common.grant.Grant;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.progress.gate.GateSpec;
@@ -87,6 +93,10 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
     @Nullable protected String curve;
     @Nullable protected Integer cap;
     @Nullable protected Points points;
+    @Nullable protected Map<String, Branch> branches;
+    @Nullable protected String[] starter;
+    @Nullable protected Loadouts loadouts;
+    @Nullable protected Respec respec;
     @Nullable protected Mirror mirror;
     @Nullable protected Prestige prestige;
     @Nullable protected Unlock[] unlocks;
@@ -145,6 +155,26 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
                     (a, v) -> a.points = v, a -> a.points, (a, p) -> a.points = p.points)
             .documentation("Points a player earns to spend on this track's picks as it levels. Leave it out for "
                     + "a track whose picks cost no points.").add()
+            .appendInherited(new KeyedCodec<>("Branches", new InheritMapCodec<>(Branch.CODEC), false),
+                    (a, v) -> a.branches = v, a -> a.branches, (a, p) -> a.branches = p.branches)
+            .documentation("The branches of this track's tree, by id: what each is called and where it sorts. A "
+                    + "pick names its branch in its own Branch, and a row's Requires opens on the points spent in "
+                    + "it (the ziggfreedcommon:track_branch_spent reading, Param <Track>:<Branch>). Merges branch by "
+                    + "branch under Parent and in the owner file.").add()
+            .appendInherited(new KeyedCodec<>("Starter", Codec.STRING_ARRAY, false),
+                    (a, v) -> a.starter = v, a -> a.starter, (a, p) -> a.starter = p.starter)
+            .documentation("The starter build: pick ids in the order they are spent, a pick written again for each "
+                    + "further rank. Read only by a one-time claim of points a player earned before the tree "
+                    + "existed; nothing else suggests it.").add()
+            .appendInherited(new KeyedCodec<>("Loadouts", Loadouts.CODEC, false),
+                    (a, v) -> a.loadouts = v, a -> a.loadouts, (a, p) -> a.loadouts = p.loadouts)
+            .documentation("Saved builds: how many a player keeps on this track and what swapping to one costs. "
+                    + "Each leaf left out reads from the track's category, else none are kept and a swap is free.")
+            .add()
+            .appendInherited(new KeyedCodec<>("Respec", Respec.CODEC, false),
+                    (a, v) -> a.respec = v, a -> a.respec, (a, p) -> a.respec = p.respec)
+            .documentation("What a player pays to clear every pick on this track and get every point back; what "
+                    + "a trainer taught stays. Left out, the track's category decides, else it is free.").add()
             .appendInherited(new KeyedCodec<>("Mirror", Mirror.CODEC, false),
                     (a, v) -> a.mirror = v, a -> a.mirror, (a, p) -> a.mirror = p.mirror)
             .documentation("A native stat this track's level is written onto, so anything reading stats (an "
@@ -247,6 +277,73 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
     public int pointsPerLevel() {
         Integer per = points == null ? null : points.perLevel;
         return per == null ? 0 : Math.max(0, per);
+    }
+
+    /** The last level that earns a point ({@code Points.To}), at least 1; {@link Integer#MAX_VALUE} unauthored. */
+    public int pointsTo() {
+        Integer to = points == null ? null : points.to;
+        return to == null ? Integer.MAX_VALUE : Math.max(1, to);
+    }
+
+    /** What each point spent on this track grants ({@code Points.Grants}, null entries left out); empty for none. */
+    @Nonnull
+    public List<Grant> pointsGrants() {
+        List<Grant> out = new ArrayList<>();
+        if (points != null && points.grants != null) {
+            for (Grant grant : points.grants) {
+                if (grant != null) {
+                    out.add(grant);
+                }
+            }
+        }
+        return List.copyOf(out);
+    }
+
+    /** The branches as written, by lower-cased id in authored order (a null entry left out); empty for none. */
+    @Nonnull
+    public Map<String, Branch> branches() {
+        Map<String, Branch> out = new LinkedHashMap<>();
+        if (branches != null) {
+            branches.forEach((key, branch) -> {
+                String id = key == null ? "" : key.trim().toLowerCase(Locale.ROOT);
+                if (!id.isEmpty() && branch != null) {
+                    out.put(id, branch);
+                }
+            });
+        }
+        return Collections.unmodifiableMap(out);
+    }
+
+    /** The branch {@code id} names (any case), or null when this track declares none by that id. */
+    @Nullable
+    public Branch branch(@Nullable String id) {
+        return id == null ? null : branches().get(id.trim().toLowerCase(Locale.ROOT));
+    }
+
+    /** The starter build's pick ids, lower-cased, in order, a repeat kept as a further rank; empty for none. */
+    @Nonnull
+    public List<String> starter() {
+        List<String> out = new ArrayList<>();
+        if (starter != null) {
+            for (String id : starter) {
+                if (id != null && !id.isBlank()) {
+                    out.add(id.trim().toLowerCase(Locale.ROOT));
+                }
+            }
+        }
+        return List.copyOf(out);
+    }
+
+    /** The {@code Loadouts} group as written, or null. */
+    @Nullable
+    public Loadouts loadouts() {
+        return loadouts;
+    }
+
+    /** The {@code Respec} group as written, or null. */
+    @Nullable
+    public Respec respec() {
+        return respec;
     }
 
     /** The native stat the level is mirrored onto, trimmed, or null for none. */
@@ -427,10 +524,12 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
         return value == null || value.isBlank() ? null : value.trim();
     }
 
-    /** The Points group: what a level earns toward the track's picks. */
+    /** The Points group: what a level earns toward the track's picks, and what each point spent grants. */
     public static final class Points {
 
         @Nullable protected Integer perLevel;
+        @Nullable protected Integer to;
+        @Nullable protected Grant[] grants;
 
         public static final BuilderCodec<Points> CODEC = BuilderCodec.builder(Points.class, Points::new)
                 .appendInherited(new KeyedCodec<>("PerLevel", Codec.INTEGER, false),
@@ -439,9 +538,127 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
                 .documentation("Points each level past the first earns, to spend on the picks priced in this "
                         + "track's points (a pick's Cost). A respec gives back what was spent. 0 when unauthored.")
                 .add()
+                .appendInherited(new KeyedCodec<>("To", Codec.INTEGER, false),
+                        (o, v) -> o.to = v, o -> o.to, (o, p) -> o.to = p.to)
+                .documentation("The last level that earns a point: 100 earns one at every level from 2 to 100 "
+                        + "and none past it. Leave it out for every level the track reaches.").add()
+                .appendInherited(new KeyedCodec<>("Grants", Grant.ARRAY_CODEC, false),
+                        (o, v) -> o.grants = v, o -> o.grants, (o, p) -> o.grants = p.grants)
+                .documentation("What each point spent on this track grants, wherever it was spent: the main line "
+                        + "a skill gains with every point placed. Paid only for points a player spent, so a point "
+                        + "waiting to be spent grants nothing; a world rule that takes a kind of grant away takes "
+                        + "these too. Leave it out for none.").add()
                 .build();
 
         public Points() {
+        }
+    }
+
+    /** One branch of a track's tree: what it is called, the item standing for it, and where it sorts. */
+    public static final class Branch {
+
+        @Nullable protected ContentTextAsset text;
+        @Nullable protected String icon;
+        @Nullable protected Integer order;
+
+        public static final BuilderCodec<Branch> CODEC = BuilderCodec.builder(Branch.class, Branch::new)
+                .appendInherited(new KeyedCodec<>("Text", ContentTextAsset.CODEC, false),
+                        (o, v) -> o.text = v, o -> o.text, (o, p) -> o.text = p.text)
+                .documentation("What the branch is called (TitleKey) and its description (FlavorKey), as "
+                        + "localization keys in your own lang file. Without a TitleKey it is named by its id.").add()
+                .appendInherited(new KeyedCodec<>("Icon", Codec.STRING, false),
+                        (o, v) -> o.icon = v, o -> o.icon, (o, p) -> o.icon = p.icon)
+                .metadata(EditorSchema.assetRef(Item.class))
+                .documentation("The item whose picture stands for the branch.").add()
+                .appendInherited(new KeyedCodec<>("Order", Codec.INTEGER, false),
+                        (o, v) -> o.order = v, o -> o.order, (o, p) -> o.order = p.order)
+                .metadata(EditorSchema.defaultValue(0L))
+                .documentation("Where the branch sorts among the track's others: lower first, then by id.").add()
+                .build();
+
+        public Branch() {
+        }
+
+        /** The localization key the branch is named by, or null. */
+        @Nullable
+        public String titleKey() {
+            return text == null ? null : blankToNull(text.getTitleKey());
+        }
+
+        @Nullable
+        public ContentTextAsset getText() {
+            return text;
+        }
+
+        @Nullable
+        public String icon() {
+            return blankToNull(icon);
+        }
+
+        public int order() {
+            return order == null ? 0 : order;
+        }
+    }
+
+    /**
+     * The Loadouts group: how many saved builds a player keeps on a track and what a swap costs. A category writes
+     * the same group as its tracks' default, leaf by leaf.
+     */
+    public static final class Loadouts {
+
+        @Nullable protected Integer max;
+        @Nullable protected CostAsset swapCost;
+
+        public static final BuilderCodec<Loadouts> CODEC = BuilderCodec.builder(Loadouts.class, Loadouts::new)
+                .appendInherited(new KeyedCodec<>("Max", Codec.INTEGER, false),
+                        (o, v) -> o.max = v, o -> o.max, (o, p) -> o.max = p.max)
+                .metadata(EditorSchema.defaultValue(0L))
+                .documentation("How many builds a player may save on the track and swap between. 0 when "
+                        + "unauthored (here and on the category): no saved builds.").add()
+                .appendInherited(new KeyedCodec<>("SwapCost", CostAsset.CODEC, false),
+                        (o, v) -> o.swapCost = v, o -> o.swapCost, (o, p) -> o.swapCost = p.swapCost)
+                .documentation("What a swap to a saved build costs, in any wallet or item (the one price shape "
+                        + "shops use). An empty group is free. Unauthored here and on the category: free.").add()
+                .build();
+
+        public Loadouts() {
+        }
+
+        /** The most saved builds as written (0 or more), or null when unauthored. */
+        @Nullable
+        public Integer max() {
+            return max == null ? null : Math.max(0, max);
+        }
+
+        /** The swap's price as written, or null when unauthored. */
+        @Nullable
+        public CostAsset swapCost() {
+            return swapCost;
+        }
+    }
+
+    /**
+     * The Respec group: what clearing every pick on a track but the trainer-taught costs. A category writes it as its
+     * tracks' default.
+     */
+    public static final class Respec {
+
+        @Nullable protected CostAsset cost;
+
+        public static final BuilderCodec<Respec> CODEC = BuilderCodec.builder(Respec.class, Respec::new)
+                .appendInherited(new KeyedCodec<>("Cost", CostAsset.CODEC, false),
+                        (o, v) -> o.cost = v, o -> o.cost, (o, p) -> o.cost = p.cost)
+                .documentation("What a respec costs, in any wallet or item (the one price shape shops use). An "
+                        + "empty group is free. Unauthored here and on the category: free.").add()
+                .build();
+
+        public Respec() {
+        }
+
+        /** The respec's price as written, or null when unauthored. */
+        @Nullable
+        public CostAsset cost() {
+            return cost;
         }
     }
 

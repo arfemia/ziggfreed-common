@@ -31,6 +31,8 @@ final class ZigTrackUndoCommand extends TrackTargetCommand {
                                 : result.options().get(0)));
             }
             case NOT_LIVE -> TrackCommandMessages.refused(ctx, "player.offline");
+            case NEEDED -> TrackCommandMessages.refused(ctx, "undo.needed", target.name(),
+                    TrackText.pickName(result.options().isEmpty() ? result.pickId() : result.options().get(0)));
             default -> TrackCommandMessages.detail(ctx, "undo.none", target.name(), PickService.undoWindowMinutes());
         }
     }

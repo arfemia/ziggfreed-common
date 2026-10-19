@@ -14,6 +14,7 @@ import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorContributions;
 import com.ziggfreed.common.factor.FactorNames;
 import com.ziggfreed.common.track.curve.CurveTable;
+import com.ziggfreed.common.track.pick.TrackPicks;
 
 /**
  * The four track readings, contributed to every vocabulary on the server. {@code Param} names the track (its
@@ -28,12 +29,16 @@ import com.ziggfreed.common.track.curve.CurveTable;
  *   <li>{@value #PICK} (Param {@code <Track>/<Pick or option>}): how many times the player took that pick or
  *       option on the track: every slot a choice made with it, every take of a pick bought outright, every slot of a
  *       choice pick made. What a line rank or a gate on a build reads (Edge rank III is 39 Edge picks).</li>
+ *   <li>{@value #BRANCH_SPENT} (Param {@code <Track>:<Branch>}): the points the player spent on that track's picks
+ *       whose {@code Branch} names that branch, each pick's cost once per take (or slot made). What a tree's later
+ *       row opens on (R736): {@code Min 5} for the second row.</li>
  * </ul>
  * Null (fail closed) for an unknown, switched-off or curve-less track, an unknown tier, or no live player; a
  * usable track the player never touched reads level 1 (and 0 picks). Each reading changes only through the player's
- * own track writes, which move their gate epoch (a pick, its undo and a respec move it too), or a track or curve
- * reload, which moves the server epoch, so each declares {@code Volatility Player} in its Factors file and a verdict
- * over it is kept per player.
+ * own track writes, which move their gate epoch (a pick, its undo and a respec move it too), or a track, curve or
+ * pick reload ({@code TrackPicks.invalidate}: a branch's points read the picks' {@code Branch} and {@code Cost}),
+ * which moves the server epoch, so each declares {@code Volatility Player} in its Factors file and a verdict over it
+ * is kept per player.
  */
 public final class TrackFactors {
 
@@ -49,13 +54,20 @@ public final class TrackFactors {
 
     public static final String PICK = "ziggfreedcommon:track_pick";
 
+    public static final String BRANCH_SPENT = "ziggfreedcommon:track_branch_spent";
+
+    /** Between a branch reading's track and branch: {@code <Track>:<Branch>}. */
+    public static final char BRANCH_SEPARATOR = ':';
+
     private TrackFactors() {
     }
 
-    /** Claim the five ids process-wide and word their lock lines. Once, at library setup. */
+    /** Claim the six ids process-wide and word their lock lines. Once, at library setup. */
     public static void contribute() {
         FactorContributions.register(PICK, OWNER, TrackFactors::pick);
         FactorNames.registerParamNamer(PICK, TrackFactors::pickLockName);
+        FactorContributions.register(BRANCH_SPENT, OWNER, TrackFactors::branchSpent);
+        FactorNames.registerParamNamer(BRANCH_SPENT, TrackFactors::branchLockName);
         FactorContributions.register(LEVEL, OWNER, ctx -> {
             TrackReading reading = reading(ctx, ctx.param());
             return reading == null ? null : (double) reading.best();
@@ -106,6 +118,46 @@ public final class TrackFactors {
         String[] parts = split(param);
         TrackDef def = parts == null ? null : TrackService.def(parts[0]);
         return def == null ? null : TrackText.line("factor.pick_of", TrackText.pickName(parts[1]));
+    }
+
+    /**
+     * The points the asking player spent in the branch {@code <Track>:<Branch>} names on that track's tree; null for
+     * no track (a branch no pick names reads 0).
+     */
+    @Nullable
+    static Double branchSpent(@Nonnull FactorContext ctx) {
+        String[] parts = splitBranch(ctx.param());
+        if (parts == null) {
+            return null;
+        }
+        TrackReading reading = reading(ctx, parts[0]);
+        return reading == null ? null : (double) TrackPicks.branchSpent(TrackPicks.onTrack(reading.def().id()),
+                reading.record().picks(), parts[1]);
+    }
+
+    /**
+     * What a lock line on {@code <Track>:<Branch>} calls the gate: the points in that branch, the branch named by
+     * its track's {@code Branches} ({@code factor.branch_points}). Null, so the generic line reads, when the track is
+     * unknown.
+     */
+    @Nullable
+    static Message branchLockName(@Nonnull String param) {
+        String[] parts = splitBranch(param);
+        TrackDef def = parts == null ? null : TrackService.def(parts[0]);
+        return def == null ? null : TrackText.line("factor.branch_points", TrackText.branchName(def.asset(), parts[1]));
+    }
+
+    /** {@code <Track>:<Branch>} as its two halves, or null when it is not that shape. */
+    @Nullable
+    static String[] splitBranch(@Nullable String param) {
+        if (param == null) {
+            return null;
+        }
+        int cut = param.lastIndexOf(BRANCH_SEPARATOR);
+        if (cut <= 0 || cut == param.length() - 1) {
+            return null;
+        }
+        return new String[] {param.substring(0, cut).trim(), param.substring(cut + 1).trim()};
     }
 
     /** The asking player's climb on {@code trackId}, read live, or null. */

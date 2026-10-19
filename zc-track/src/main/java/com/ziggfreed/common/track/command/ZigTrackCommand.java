@@ -12,7 +12,13 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractComman
  * /zigtrack pick [--player=&lt;name&gt;] --track=&lt;id&gt; --option=&lt;id&gt; [--level=&lt;n&gt;] | --pick=&lt;id&gt;
  *                                                         make a pick, as the track's own page would
  * /zigtrack undo [--player=&lt;name&gt;]                         undo the latest pick still in its window
- * /zigtrack respec [--player=&lt;name&gt;] --track=&lt;id&gt;              clear every pick on a track
+ * /zigtrack respec [--player=&lt;name&gt;] --track=&lt;id&gt;              clear every pick a trainer did not teach
+ * /zigtrack savebuild [--player=&lt;name&gt;] --track=&lt;id&gt; --slot=&lt;n&gt;   save the picks in use as a build
+ * /zigtrack swapbuild [--player=&lt;name&gt;] --track=&lt;id&gt; --slot=&lt;n&gt; [--force]
+ *                                                         swap to a saved build, at its price (--force: even when
+ *                                                         the picks in use are in no saved build, losing them)
+ * /zigtrack builds [--player=&lt;name&gt;] --track=&lt;id&gt;              list the saved builds
+ * /zigtrack respend [--player=&lt;name&gt;] --track=&lt;id&gt;             spend remembered takes again, in order
  * </pre>
  *
  * <p>No permission check is written here: the engine derives one node per verb
@@ -43,6 +49,18 @@ public final class ZigTrackCommand extends AbstractCommandCollection {
     /** Clear a track's picks. */
     static final String RESPEC = "respec";
 
+    /** Save the picks in use as a build. */
+    static final String SAVE_BUILD = "savebuild";
+
+    /** Swap to a saved build. */
+    static final String SWAP_BUILD = "swapbuild";
+
+    /** List the saved builds. */
+    static final String BUILDS = "builds";
+
+    /** Spend the remembered takes again. */
+    static final String RESPEND = "respend";
+
     public ZigTrackCommand() {
         super(FAMILY, TrackCommandMessages.desc("family"));
         addSubCommand(new ZigTrackAddCommand());
@@ -51,5 +69,9 @@ public final class ZigTrackCommand extends AbstractCommandCollection {
         addSubCommand(new ZigTrackPickCommand());
         addSubCommand(new ZigTrackUndoCommand());
         addSubCommand(new ZigTrackRespecCommand());
+        addSubCommand(new ZigTrackSaveBuildCommand());
+        addSubCommand(new ZigTrackSwapBuildCommand());
+        addSubCommand(new ZigTrackBuildsCommand());
+        addSubCommand(new ZigTrackRespendCommand());
     }
 }

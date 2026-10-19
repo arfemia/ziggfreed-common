@@ -1,6 +1,7 @@
 package com.ziggfreed.common.track.pick;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -17,9 +18,11 @@ import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.grant.Grant;
 import com.ziggfreed.common.progress.asset.GeneratorCore;
+import com.ziggfreed.common.progress.gate.GateEpochs;
 import com.ziggfreed.common.track.PickState;
 import com.ziggfreed.common.track.TrackDerived;
 import com.ziggfreed.common.track.TrackKey;
+import com.ziggfreed.common.track.TrackRecord;
 import com.ziggfreed.common.track.asset.TrackAsset;
 import com.ziggfreed.common.track.asset.TrackConfig;
 import com.ziggfreed.common.validation.Finding;
@@ -141,6 +144,8 @@ public final class TrackPicks {
         @Nonnull private final String trackId;
         @Nullable private final String categoryId;
         @Nonnull private final List<GroupDef> groups;
+        /** The other faces of this pick's choice node on its track, set once by the fold before it is published. */
+        @Nonnull private List<String> otherFaces = List.of();
 
         PickDef(@Nonnull TrackPickAsset asset, @Nonnull String id, @Nonnull String trackId,
                 @Nullable String categoryId, @Nonnull List<GroupDef> groups) {
@@ -149,6 +154,20 @@ public final class TrackPicks {
             this.trackId = trackId;
             this.categoryId = categoryId;
             this.groups = List.copyOf(groups);
+        }
+
+        /**
+         * The other picks on this pick's track that write its {@code Node}, by id: one of them taken locks this one.
+         * Empty for a pick in no node.
+         */
+        @Nonnull
+        public List<String> otherFaces() {
+            return otherFaces;
+        }
+
+        /** How many times this pick's cost was paid on {@code state}: each slot made for a choice, each take else. */
+        public int paidTimes(@Nonnull PickState state) {
+            return isChoice() ? state.slotsMade(id) : state.takesOf(id);
         }
 
         @Nonnull
@@ -251,14 +270,16 @@ public final class TrackPicks {
     }
 
     /**
-     * A pick, option, deck or track folded: the next ask folds again, and every online player's grants are rebuilt
-     * on their own world thread, so a pick switched off takes its grants off and a retuned option pays its new
-     * amount.
+     * A pick, option, deck or track folded: the next ask folds again, the gate server epoch moves (a branch's
+     * points, {@code ziggfreedcommon:track_branch_spent}, read the picks' {@code Branch} and {@code Cost}, so no
+     * verdict kept over the old files outlives them), and every online player's grants are rebuilt on their own
+     * world thread, so a pick switched off takes its grants off and a retuned option pays its new amount.
      */
     public static void invalidate() {
         synchronized (TrackPicks.class) {
             folded = null;
         }
+        GateEpochs.bumpServer();
         TrackDerived.rebuildAllOnline();
     }
 
@@ -349,9 +370,72 @@ public final class TrackPicks {
         byTrack.forEach((track, list) -> {
             list.sort((a, b) -> a.asset().order() != b.asset().order()
                     ? Integer.compare(a.asset().order(), b.asset().order()) : a.id().compareTo(b.id()));
+            linkFaces(list);
             frozen.put(track, List.copyOf(list));
         });
         return new Folded(Collections.unmodifiableMap(frozen), Collections.unmodifiableMap(byId), List.copyOf(issues));
+    }
+
+    /** Point each pick on one track at the other faces of its choice node (the picks writing the same Node). */
+    private static void linkFaces(@Nonnull List<PickDef> onTrack) {
+        Map<String, List<String>> byNode = new LinkedHashMap<>();
+        for (PickDef pick : onTrack) {
+            String node = pick.asset().node();
+            if (node != null) {
+                byNode.computeIfAbsent(node, k -> new ArrayList<>()).add(pick.id());
+            }
+        }
+        for (PickDef pick : onTrack) {
+            String node = pick.asset().node();
+            if (node == null) {
+                continue;
+            }
+            List<String> others = new ArrayList<>(byNode.get(node));
+            others.remove(pick.id());
+            pick.otherFaces = List.copyOf(others);
+        }
+    }
+
+    /**
+     * The points of {@code costTrackId}'s pool spent (pure): every pick of {@code picks} priced in them, its cost
+     * once for each time it was paid on its own track's record ({@code records}, by lower-cased track id, null when
+     * the player holds none there).
+     */
+    public static int spentOn(@Nonnull String costTrackId, @Nonnull Collection<PickDef> picks,
+            @Nonnull Function<String, TrackRecord> records) {
+        String pool = TrackKey.normalize(costTrackId);
+        long spent = 0L;
+        for (PickDef pick : picks) {
+            int cost = pick.asset().costPoints();
+            if (cost <= 0 || !pool.equals(TrackKey.normalize(pick.asset().costTrack()))) {
+                continue;
+            }
+            TrackRecord record = records.apply(pick.trackId());
+            if (record != null) {
+                spent += (long) cost * pick.paidTimes(record.picks());
+            }
+        }
+        return (int) Math.min(Integer.MAX_VALUE, spent);
+    }
+
+    /**
+     * The points spent in the branch {@code branch} (any case) of one track's tree (pure): every pick of
+     * {@code onTrack} whose {@code Branch} names it, its cost once for each time it was paid on {@code state}. What
+     * {@code ziggfreedcommon:track_branch_spent} reads.
+     */
+    public static int branchSpent(@Nonnull Collection<PickDef> onTrack, @Nonnull PickState state,
+            @Nullable String branch) {
+        String wanted = TrackKey.normalize(branch);
+        if (wanted.isEmpty()) {
+            return 0;
+        }
+        long spent = 0L;
+        for (PickDef pick : onTrack) {
+            if (wanted.equals(pick.asset().branch())) {
+                spent += (long) pick.asset().costPoints() * pick.paidTimes(state);
+            }
+        }
+        return (int) Math.min(Integer.MAX_VALUE, spent);
     }
 
     /** One group folded, or null when it names no level (reported). */
