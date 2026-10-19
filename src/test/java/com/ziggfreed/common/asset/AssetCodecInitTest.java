@@ -100,6 +100,8 @@ import com.ziggfreed.common.shop.asset.StorefrontAsset;
 import com.ziggfreed.common.stats.gearset.GearSetAsset;
 import com.ziggfreed.common.stats.gearset.StatModifierSpec;
 import com.ziggfreed.common.text.ContentTextAsset;
+import com.ziggfreed.common.usegate.UseGateAsset;
+import com.ziggfreed.common.usegate.UseGateOn;
 import com.ziggfreed.common.grant.StatGrant;
 import com.ziggfreed.common.track.ZigTrackReward;
 import com.ziggfreed.common.track.pick.PickDeckAsset;
@@ -219,6 +221,12 @@ class AssetCodecInitTest {
         // either would fail at a pack author's decode instead of at this build.
         assertNotNull(GearSetAsset.Tier.CODEC, "GearSetAsset.Tier.CODEC must static-init (PascalCase keys)");
         assertNotNull(StatModifierSpec.CODEC, "StatModifierSpec.CODEC must static-init (PascalCase keys)");
+    }
+
+    @Test
+    void useGateCodecsInitialize() {
+        assertNotNull(UseGateAsset.CODEC, "UseGateAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(UseGateOn.CODEC, "UseGateOn.CODEC must static-init (PascalCase keys)");
     }
 
     @Test

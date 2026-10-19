@@ -3,6 +3,7 @@
 # The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.calendar.<key>.
 
 factor.calendar_live = a calendar event running
+factor.calendar_live_of = {0} to be on
 factor.calendar_year = the year of a running calendar event
 factor.feature = a feature this server has switched on
 

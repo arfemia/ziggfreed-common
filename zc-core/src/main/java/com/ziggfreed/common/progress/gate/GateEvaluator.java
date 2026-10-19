@@ -407,6 +407,40 @@ public final class GateEvaluator {
     }
 
     /**
+     * What the whole of {@code spec} ASKS FOR, described from its authored requirements without evaluating any
+     * of them, as the records a refusal would carry: every leaf ask and each {@code AllOf} group's asks in order,
+     * then the {@code AnyOf} routes as one either-or record, then each {@code Not} group as one negated record.
+     * Bounds ride along; no reading is resolved. The list a surface shows to say what a gate requires of anybody
+     * (an admin page listing gates), rendered through {@link RefusalLines#linesOf}. Empty for a block asking
+     * nothing.
+     */
+    @Nonnull
+    public static List<GateRefusal> asks(@Nullable GateSpec spec) {
+        List<GateRefusal> out = new ArrayList<>();
+        if (spec == null) {
+            return out;
+        }
+        out.addAll(asksOf(spec));
+        for (GateClause clause : spec.allOfOrEmpty()) {
+            if (clause != null) {
+                out.addAll(asksOf(clause));
+            }
+        }
+        if (spec.anyOfOrEmpty().length > 0) {
+            List<GateRefusal> routes = routesOf(spec.anyOfOrEmpty());
+            if (!routes.isEmpty()) {
+                out.add(GateRefusal.anyOf(routes));
+            }
+        }
+        for (GateClause clause : spec.notOrEmpty()) {
+            if (clause != null) {
+                out.add(GateRefusal.not(asksOf(clause)));
+            }
+        }
+        return out;
+    }
+
+    /**
      * Each {@code AnyOf} route as ONE child: a route's single ask directly, several asks folded
      * into one all-of group so "either of these two bundles" never flattens into interchangeable
      * alternatives. A route describing nothing contributes nothing.

@@ -142,6 +142,11 @@ public final class TrackService {
         return table == null ? null : new TrackDef(track, table);
     }
 
+    /** Does {@code trackId} (any case) name a usable track, the one {@link #def} answers? */
+    public static boolean isUsable(@Nullable String trackId) {
+        return def(trackId) != null;
+    }
+
     /** Every usable track, by {@code Order} then id. */
     @Nonnull
     public static List<TrackDef> defs() {

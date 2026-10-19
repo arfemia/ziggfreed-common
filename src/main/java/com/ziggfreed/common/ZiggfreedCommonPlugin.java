@@ -104,6 +104,9 @@ import com.ziggfreed.common.stats.gearset.GearSetValidator;
 import com.ziggfreed.common.stats.gearset.GearSets;
 import com.ziggfreed.common.stats.gearset.ZigGearSetPiecesChangedEvent;
 import com.ziggfreed.common.stats.gearset.ZigGearSetTierChangedEvent;
+import com.ziggfreed.common.usegate.UseGateValidator;
+import com.ziggfreed.common.usegate.ZigUseGateRefusedEvent;
+import com.ziggfreed.common.usegate.notice.UseGateNoticeBridge;
 import com.ziggfreed.common.track.TrackBootstrap;
 import com.ziggfreed.common.track.TrackValidator;
 import com.ziggfreed.common.ui.hud.panel.HudPanels;
@@ -247,6 +250,10 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         EntityBootstrap.installGearSets(this);
         // Per-type damage bonuses: gear raising DamageBonus_<Type> stats hits harder with that type.
         EntityBootstrap.installTypedDamageBonuses(this);
+        // Use gates: a break, a hit or a piece of armor a gate refuses does not happen, and the player is told
+        // why. The cancels register here, before the progression producers that order themselves after them.
+        EntityBootstrap.installUseGates(this);
+        registerUseGateNotice();
         // The grant kinds a pick (and later a class or a perk) pays: Stat, a native stat modifier, into the
         // native grant union before any asset decodes.
         EntityBootstrap.registerGrants(this);
@@ -623,6 +630,18 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
     }
 
     /**
+     * What the use-gate engine cannot do alone: tell a refused player why (the feedback engine lives in
+     * zc-presentation, out of zc-entity's reach). The root hangs the notice bridge on the engine's refusal event.
+     */
+    private void registerUseGateNotice() {
+        try {
+            getEventRegistry().registerGlobal(ZigUseGateRefusedEvent.class, UseGateNoticeBridge::onRefused);
+        } catch (Throwable t) {
+            SafeLog.warn("[usegate] the refusal notice could not be wired", t);
+        }
+    }
+
+    /**
      * What runs once the server has booted. Here, the content audits a headless boot asks for through
      * {@code BootAudit.ENV}: commerce (claiming the same once-per-boot flag as the first player's pass),
      * loot, gear sets, calendar events and their spawns, titles (the walk that builds the progression
@@ -643,6 +662,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
                     new BootAudit.Pass(CommerceAudit.LOG_LABEL, CommerceAudit::claimLateFindings),
                     new BootAudit.Pass(LootAudit.LOG_LABEL, LootAudit::auditAll),
                     new BootAudit.Pass(GearSetValidator.LOG_LABEL, GearSetValidator::audit),
+                    new BootAudit.Pass(UseGateValidator.LOG_LABEL, UseGateValidator::audit),
                     new BootAudit.Pass(CalendarEventValidator.LOG_LABEL, CalendarEventValidator::audit),
                     new BootAudit.Pass(TitleValidator.LOG_LABEL, TitleValidator::auditForcingBuild),
                     new BootAudit.Pass(AlmanacValidator.LOG_LABEL, AlmanacValidator::audit),

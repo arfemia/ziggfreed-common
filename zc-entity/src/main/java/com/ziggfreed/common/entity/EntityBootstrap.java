@@ -3,6 +3,7 @@ package com.ziggfreed.common.entity;
 import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.event.EventPriority;
+import com.hypixel.hytale.server.core.event.events.BootEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.modules.entity.tracker.EntityTrackerSystems.EntityViewer;
@@ -25,6 +26,11 @@ import com.ziggfreed.common.stats.damage.TypedDamageBonuses;
 import com.ziggfreed.common.stats.gearset.GearSetLifecycleSystems;
 import com.ziggfreed.common.stats.gearset.GearSetLooksComponent;
 import com.ziggfreed.common.stats.gearset.GearSets;
+import com.ziggfreed.common.usegate.UseGateBreakSystem;
+import com.ziggfreed.common.usegate.UseGateDamageSystem;
+import com.ziggfreed.common.usegate.UseGateKeeps;
+import com.ziggfreed.common.usegate.UseGateValidator;
+import com.ziggfreed.common.usegate.UseGateWornFilter;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -111,6 +117,27 @@ public final class EntityBootstrap {
             plugin.getEntityStoreRegistry().registerSystem(new TypedDamageBonusSystem());
         } catch (Throwable t) {
             SafeLog.warn("[stats] could not register the per-type damage bonus step", t);
+        }
+    }
+
+    /**
+     * Register the use-gate engine ({@code usegate/}): the break and hit refusals (the hit step ahead of the
+     * per-type bonus step, so register it after {@link #installTypedDamageBonuses}), the worn gate hung on each
+     * player's armor slots at every player-ready, the kept-gear stamp declared safe to destroy with its item, and
+     * the one line at boot that counts the folded gates and the items tagged {@code ZigLevel}. With no use gate
+     * authored and no item tagged, a break or a hit pays two volatile reads. Its store (and the item loads that
+     * re-read the tags) are registered with the other framework stores; the refusal's notice is the wiring root's,
+     * which sees the feedback engine.
+     */
+    public static void installUseGates(@Nonnull PluginBase plugin) {
+        try {
+            UseGateKeeps.declareDisposable();
+            plugin.getEntityStoreRegistry().registerSystem(new UseGateBreakSystem());
+            plugin.getEntityStoreRegistry().registerSystem(new UseGateDamageSystem());
+            plugin.getEventRegistry().registerGlobal(PlayerReadyEvent.class, UseGateWornFilter::onPlayerReady);
+            plugin.getEventRegistry().register(BootEvent.class, event -> UseGateValidator.logSummary());
+        } catch (Throwable t) {
+            SafeLog.warn("[usegate] could not install the use-gate engine", t);
         }
     }
 

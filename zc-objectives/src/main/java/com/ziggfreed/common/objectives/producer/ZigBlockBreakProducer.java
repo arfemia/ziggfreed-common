@@ -1,5 +1,6 @@
 package com.ziggfreed.common.objectives.producer;
 
+import java.util.Set;
 import java.util.UUID;
 
 import javax.annotation.Nonnull;
@@ -9,12 +10,16 @@ import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.component.dependency.Dependency;
+import com.hypixel.hytale.component.dependency.Order;
+import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.EntityEventSystem;
 import com.hypixel.hytale.server.core.event.events.ecs.BreakBlockEvent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.loot.drops.DropContext;
+import com.ziggfreed.common.usegate.UseGateBreakSystem;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.world.placed.PlacedBlockLedger;
 
@@ -42,8 +47,23 @@ public final class ZigBlockBreakProducer extends EntityEventSystem<EntityStore, 
     /** The engine's id for "there is nothing here", which is not a block anybody broke. */
     private static final String EMPTY_BLOCK_ID = "Empty";
 
+    /**
+     * After the library's use-gate cancel ({@link UseGateBreakSystem}), declared here because the gate's module
+     * sits below this one: a break a use gate refused is cancelled before this producer reads it, so it credits
+     * no quest and pays no reaction on any boot, whatever order the engine would otherwise pick.
+     */
+    @Nonnull
+    private final Set<Dependency<EntityStore>> dependencies = Set.of(
+            new SystemDependency<>(Order.AFTER, UseGateBreakSystem.class));
+
     public ZigBlockBreakProducer() {
         super(BreakBlockEvent.class);
+    }
+
+    @Nonnull
+    @Override
+    public Set<Dependency<EntityStore>> getDependencies() {
+        return dependencies;
     }
 
     @Nullable

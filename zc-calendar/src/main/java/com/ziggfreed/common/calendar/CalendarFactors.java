@@ -5,7 +5,11 @@ import java.util.function.LongSupplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.factor.FactorContributions;
+import com.ziggfreed.common.factor.FactorNames;
+import com.ziggfreed.common.i18n.ContentKeys;
+import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.occurrence.Occurrence;
 
 /**
@@ -34,10 +38,27 @@ public final class CalendarFactors {
     private CalendarFactors() {
     }
 
-    /** Claim both ids process-wide. Once, at library setup. */
+    /**
+     * Claim both ids process-wide, and name a requirement on {@value #LIVE} by its event's own title ("Requires
+     * Hallow's Eve to be on"), so a refused player reads which event it waits for. Once, at library setup.
+     */
     public static void contribute(@Nonnull CalendarService service, @Nonnull LongSupplier clock) {
         FactorContributions.register(LIVE, OWNER, ctx -> live(service, ctx.param(), clock.getAsLong()));
         FactorContributions.register(YEAR, OWNER, ctx -> year(service, ctx.param(), clock.getAsLong()));
+        FactorNames.registerParamNamer(LIVE, param -> liveName(service, param));
+    }
+
+    /** {@value #LIVE} on {@code param} named by the event's title, or null when the event names none. */
+    @Nullable
+    static Message liveName(@Nonnull CalendarService service, @Nullable String param) {
+        if (param == null || param.isBlank()) {
+            return null;
+        }
+        String titleKey = service.titleKey(param.trim());
+        if (titleKey == null || titleKey.isBlank()) {
+            return null;
+        }
+        return Msg.tr(OWNER + ".calendar.", "factor.calendar_live_of", ContentKeys.tr(titleKey));
     }
 
     @Nullable

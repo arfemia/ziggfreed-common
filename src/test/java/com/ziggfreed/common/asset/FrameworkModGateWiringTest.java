@@ -32,6 +32,7 @@ import com.ziggfreed.common.reputation.asset.ReputationConfig;
 import com.ziggfreed.common.shop.asset.ShopAssetStore;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.stats.gearset.GearSetConfig;
+import com.ziggfreed.common.usegate.UseGateConfig;
 import com.ziggfreed.common.track.asset.TrackConfig;
 import com.ziggfreed.common.track.boost.BoostConfig;
 import com.ziggfreed.common.track.pick.TrackPickConfig;
@@ -93,6 +94,7 @@ class FrameworkModGateWiringTest {
         GATED.put("BoardAsset", new Gated("Boards", "BoardConfig", BoardConfig.MOD_GATE_STORE));
         GATED.put("BountyAsset", new Gated("Bounties", "BoardAssetStore", BoardAssetStore.MOD_GATE_STORE));
         GATED.put("GearSetAsset", new Gated("GearSets", "GearSetConfig", GearSetConfig.MOD_GATE_STORE));
+        GATED.put("UseGateAsset", new Gated("UseGates", "UseGateConfig", UseGateConfig.MOD_GATE_STORE));
         GATED.put("TrackAsset", new Gated("Tracks", "TrackConfig", TrackConfig.MOD_GATE_STORE));
         GATED.put("TrackSourceAsset", new Gated("TrackSources", "TrackSourceConfig", TrackSourceConfig.MOD_GATE_STORE));
         GATED.put("TrackPickAsset", new Gated("TrackPicks", "TrackPickConfig", TrackPickConfig.MOD_GATE_STORE));
@@ -122,6 +124,9 @@ class FrameworkModGateWiringTest {
                     "public static void reloadBoards()", "GateSpec.missingMod("),
             new OwnerReader("GearSetAsset", "GearSetOwnerLayers.reload();",
                     module("zc-entity", "stats", "gearset", "GearSetOwnerLayers.java"),
+                    "public static void reload()", "GateSpec.missingMod("),
+            new OwnerReader("UseGateAsset", "UseGateOwnerLayers.reload();",
+                    module("zc-entity", "usegate", "UseGateOwnerLayers.java"),
                     "public static void reload()", "GateSpec.missingMod("),
             new OwnerReader("TrackAsset", "TrackOwnerLayers.reload();",
                     module("zc-track", "track", "asset", "TrackOwnerLayers.java"),

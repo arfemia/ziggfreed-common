@@ -137,6 +137,10 @@ import com.ziggfreed.common.stats.gearset.GearSetAsset;
 import com.ziggfreed.common.stats.gearset.GearSetConfig;
 import com.ziggfreed.common.stats.gearset.GearSetOwnerLayers;
 import com.ziggfreed.common.stats.gearset.GearSets;
+import com.ziggfreed.common.usegate.ItemLevelTags;
+import com.ziggfreed.common.usegate.UseGateAsset;
+import com.ziggfreed.common.usegate.UseGateConfig;
+import com.ziggfreed.common.usegate.UseGateOwnerLayers;
 import com.ziggfreed.common.track.asset.TrackAsset;
 import com.ziggfreed.common.track.asset.TrackCategoryAsset;
 import com.ziggfreed.common.track.asset.TrackCategoryConfig;
@@ -924,6 +928,27 @@ public final class FrameworkAssetRegistrar {
                     GearSets.onContentChanged();
                 });
 
+        // --- Use gates (Pattern A) - one gate per file: the Held, Worn, Block and Mob name patterns it is
+        //     about, the Group its patterns compete in, and the Requires a player must meet to break, hit or
+        //     wear what it names. The library ships none. Like every store whose files carry a Requires, it
+        //     folds through the reporting mod gate. Owner layer mods/ziggfreedcommon/use-gates.json, re-read on
+        //     this same event; the config drops its derived index on every merge. ---
+        AssetStoreRegistrar.registerStore(UseGateAsset.class,
+                new DefaultAssetMap<String, UseGateAsset>(), UseGateAsset.TYPE_ROOT,
+                UseGateAsset::getId, UseGateAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, UseGateAsset.class,
+                (LoadedAssetsEvent<String, UseGateAsset, DefaultAssetMap<String, UseGateAsset>> ev) -> {
+                    UseGateConfig.getInstance().mergePackLayer(AssetMergeAdapter.gate(UseGateConfig.MOD_GATE_STORE,
+                            ev.getAssetMap(), g -> GateSpec.missingMod(g.requires())));
+                    UseGateOwnerLayers.reload();
+                });
+        // The ZigLevel item tag (zc-entity's ItemLevelTags) reads the ENGINE's item store, never one of ours: an
+        // item load or removal marks it, and the next ask reads the tags again from the engine's own tag index.
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, Item.class,
+                (LoadedAssetsEvent<String, Item, DefaultAssetMap<String, Item>> ev) -> ItemLevelTags.markDirty());
+        plugin.getEventRegistry().register(RemovedAssetsEvent.class, Item.class,
+                (RemovedAssetsEvent<String, Item, DefaultAssetMap<String, Item>> ev) -> ItemLevelTags.markDirty());
+
         // --- Calendar events (Pattern A) - one event that comes round every year per file: its
         //     window (Start and End month-days, both in), the year it first ran, the zone its days are
         //     counted in, what it is called and what the herald says. Owner file
@@ -1175,7 +1200,9 @@ public final class FrameworkAssetRegistrar {
                         + "Currencies, Shops, ShopPools, ShopEntries, "
                         + "ShopEntryGenerators, Boards, Bounties, Encounters, EncounterParticipation, "
                         + "CalendarEvents (owner file mods/ziggfreedcommon/calendar.json), CalendarSpawns, "
-                        + "GearSets (owner file mods/ziggfreedcommon/gear-sets.json), Titles (owner file mods/ziggfreedcommon/titles.json), "
+                        + "GearSets (owner file mods/ziggfreedcommon/gear-sets.json), "
+                        + "UseGates (owner file mods/ziggfreedcommon/use-gates.json), "
+                        + "Titles (owner file mods/ziggfreedcommon/titles.json), "
                         + "Reputations (owner file mods/ziggfreedcommon/reputation.json), TrackCurves, TrackCategories, "
                         + "Tracks (owner file mods/ziggfreedcommon/tracks.json), "
                         + "TrackSources (owner file mods/ziggfreedcommon/track-sources.json), "

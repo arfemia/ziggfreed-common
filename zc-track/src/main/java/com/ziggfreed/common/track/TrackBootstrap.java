@@ -32,6 +32,7 @@ import com.ziggfreed.common.track.source.TrackSourceReactions;
 import com.ziggfreed.common.track.world.TrackRules;
 import com.ziggfreed.common.track.world.TrackWorldRules;
 import com.ziggfreed.common.ui.kit.LedgerContributions;
+import com.ziggfreed.common.usegate.ItemLevelTags;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -132,10 +133,15 @@ public final class TrackBootstrap {
         plugin.getEventRegistry().register(PlayerDisconnectEvent.class, PickService::onDisconnect);
     }
 
-    /** The plugin-free half: the readings, the reward kind and its chip, the objective target names. */
+    /**
+     * The plugin-free half: the readings, the reward kind and its chip, the objective target names, and the track
+     * lookup the {@code ZigLevel} item tag asks (zc-entity's {@code ItemLevelTags}), so a tag naming a track this
+     * server does not run asks nothing.
+     */
     public static void registerVocabulary() {
         try {
             TrackFactors.contribute();
+            ItemLevelTags.trackLookup(TrackService::isUsable);
             TrackRewardKind.registerInto(RewardKinds.shared());
             RewardChips.contribute(TrackRewardKind.chips());
             ObjectiveTargetNames.register(TrackObjectives.LEVEL, TrackObjectives::levelTargetName);

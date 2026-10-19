@@ -120,6 +120,23 @@ page.changed = {0} is now {1}.
 page.refused = {0} could not be changed and keeps its state.
 page.back = Back
 
+usegates.title = Use Gates
+usegates.subtitle = What a player must meet to break a block, hit a creature or use a piece of gear. Switch a gate off and it asks nothing.
+usegates.empty = No use gate is installed on this server.
+usegates.switch.hint = Turns {0, number} {0, plural, one {gate} other {gates}} on or off.
+usegates.switch.items_hint = Turns the level asked by {0, number} tagged {0, plural, one {item} other {items}} on or off.
+usegates.gate.hint = {0}\n{1}
+usegates.gate.on = {0}: {1}
+usegates.gate.requires = Asks: {0}
+usegates.gate.nothing = Asks for nothing yet.
+usegates.axis.held = Held
+usegates.axis.worn = Worn
+usegates.axis.block = Block
+usegates.axis.mob = Creature
+usegates.page = Page {0, number} of {1, number}
+usegates.prev = Previous
+usegates.next = Next
+
 status.quest.not_started = not started
 status.quest.active = active
 status.quest.completed = completed

@@ -6,6 +6,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -56,6 +57,9 @@ public final class FeatureFlags {
     /** Features already warned about a throwing supplier, keyed {@code namespace:feature}. */
     private static final Set<String> WARNED = ConcurrentHashMap.newKeySet();
 
+    /** How a declared feature is switched, per namespace and normalized feature id; absent is read-only. */
+    private static final Map<String, Map<String, Consumer<Boolean>>> WRITERS = new ConcurrentHashMap<>();
+
     private FeatureFlags() {
     }
 
@@ -78,6 +82,55 @@ public final class FeatureFlags {
             return new ConcurrentHashMap<>();
         });
         table.put(RegistryLedger.normalize(featureId), enabled);
+    }
+
+    /**
+     * Declare how {@code namespace}'s {@code featureId} is switched, so an admin surface that shows the feature
+     * (the Use Gates page lists the features its gates hide behind) can offer to flip it. The writer persists the
+     * new state wherever the declaring mod keeps it; the feature's own supplier then reads it back. Re-registering
+     * replaces; a feature with no writer is shown read-only. At setup, beside {@link #register}.
+     */
+    public static void registerWriter(@Nullable String namespace, @Nullable String featureId,
+            @Nullable Consumer<Boolean> writer) {
+        String ns = normalizeNamespace(namespace);
+        if (ns == null || featureId == null || featureId.isBlank() || writer == null) {
+            return;
+        }
+        WRITERS.computeIfAbsent(ns, key -> new ConcurrentHashMap<>()).put(RegistryLedger.normalize(featureId), writer);
+    }
+
+    /** Can {@code namespace}'s {@code featureId} be switched from an admin surface? */
+    public static boolean isWritable(@Nullable String namespace, @Nullable String featureId) {
+        return writerOf(namespace, featureId) != null;
+    }
+
+    /**
+     * Switch {@code namespace}'s {@code featureId} through its declared writer. False when it has none or the
+     * writer threw (one warning), which leaves the feature as it was.
+     */
+    public static boolean write(@Nullable String namespace, @Nullable String featureId, boolean enabled) {
+        Consumer<Boolean> writer = writerOf(namespace, featureId);
+        if (writer == null) {
+            return false;
+        }
+        try {
+            writer.accept(enabled);
+            return true;
+        } catch (Throwable t) {
+            SafeLog.warn("[factor] feature '" + featureId + "' of '" + namespace + "' could not be switched: "
+                    + t.getMessage());
+            return false;
+        }
+    }
+
+    @Nullable
+    private static Consumer<Boolean> writerOf(@Nullable String namespace, @Nullable String featureId) {
+        String ns = normalizeNamespace(namespace);
+        if (ns == null || featureId == null || featureId.isBlank()) {
+            return null;
+        }
+        Map<String, Consumer<Boolean>> table = WRITERS.get(ns);
+        return table == null ? null : table.get(RegistryLedger.normalize(featureId));
     }
 
     /** Has {@code namespace} declared {@code featureId} (whatever its current state)? */
@@ -175,6 +228,7 @@ public final class FeatureFlags {
     public static void reset() {
         FEATURES.clear();
         WARNED.clear();
+        WRITERS.clear();
     }
 
     /**
