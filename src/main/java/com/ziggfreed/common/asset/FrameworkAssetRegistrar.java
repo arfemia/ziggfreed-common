@@ -143,6 +143,13 @@ import com.ziggfreed.common.track.asset.TrackConfig;
 import com.ziggfreed.common.track.asset.TrackCurveAsset;
 import com.ziggfreed.common.track.asset.TrackCurveConfig;
 import com.ziggfreed.common.track.asset.TrackOwnerLayers;
+import com.ziggfreed.common.track.pick.PickDeckAsset;
+import com.ziggfreed.common.track.pick.PickDeckConfig;
+import com.ziggfreed.common.track.pick.PickOptionAsset;
+import com.ziggfreed.common.track.pick.PickOptionConfig;
+import com.ziggfreed.common.track.pick.TrackPickAsset;
+import com.ziggfreed.common.track.pick.TrackPickConfig;
+import com.ziggfreed.common.track.pick.TrackPickOwnerLayers;
 import com.ziggfreed.common.track.source.TrackSourceAsset;
 import com.ziggfreed.common.track.source.TrackSourceConfig;
 import com.ziggfreed.common.track.source.TrackSourceOwnerLayers;
@@ -1027,6 +1034,45 @@ public final class FrameworkAssetRegistrar {
                     TrackWorldRuleConfig.reloadOwnerLayer();
                 });
 
+        // --- Track picks (Pattern A, gated) - one pick per file, the one shape every choice, Mastery node, trainer
+        //     offer and prestige perk is: its track, its choice groups or its cost and repeat, its Requires,
+        //     prerequisites, spend cap, Where and grants. A file may gate on a mod through its top-level Requires.
+        //     The library ships the sample track's one pick. Owner file mods/ziggfreedcommon/track-picks.json,
+        //     re-read on this same event. No loadsAfter: a pick names its track, options and deck by id and the
+        //     picks fold at first ask. ---
+        AssetStoreRegistrar.registerStore(TrackPickAsset.class,
+                new DefaultAssetMap<String, TrackPickAsset>(), TrackPickAsset.TYPE_ROOT,
+                TrackPickAsset::getId, TrackPickAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, TrackPickAsset.class,
+                (LoadedAssetsEvent<String, TrackPickAsset, DefaultAssetMap<String, TrackPickAsset>> ev) -> {
+                    TrackPickConfig.getInstance().mergePackLayer(AssetMergeAdapter.gate(
+                            TrackPickConfig.MOD_GATE_STORE, ev.getAssetMap(), p -> GateSpec.missingMod(p.requires())));
+                    TrackPickOwnerLayers.reload();
+                });
+
+        // --- Track pick options (Pattern A) - one option a choice may offer per file, shared by every pick naming
+        //     it: its name, the part of an offer it fills, how often a deck brings it round, its levels and its
+        //     grants as a template the naming pick's Vars fill. The library ships the sample pick's three. Owner
+        //     file mods/ziggfreedcommon/track-pick-options.json, re-read on this same event. ---
+        AssetStoreRegistrar.registerStore(PickOptionAsset.class,
+                new DefaultAssetMap<String, PickOptionAsset>(), PickOptionAsset.TYPE_ROOT,
+                PickOptionAsset::getId, PickOptionAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, PickOptionAsset.class,
+                (LoadedAssetsEvent<String, PickOptionAsset, DefaultAssetMap<String, PickOptionAsset>> ev) -> {
+                    PickOptionConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    TrackPickOwnerLayers.reloadOptions();
+                });
+
+        // --- Track pick decks (Pattern A) - how a choice group's offers are drawn per file, shared by every group
+        //     naming it: offer sizes by level, reserved room, the bag and its no-drought rule, the foe levels. The
+        //     library ships the sample pick's deck. No owner file. ---
+        AssetStoreRegistrar.registerStore(PickDeckAsset.class,
+                new DefaultAssetMap<String, PickDeckAsset>(), PickDeckAsset.TYPE_ROOT,
+                PickDeckAsset::getId, PickDeckAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, PickDeckAsset.class,
+                (LoadedAssetsEvent<String, PickDeckAsset, DefaultAssetMap<String, PickDeckAsset>> ev) ->
+                        PickDeckConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
+
         // --- Stats (Pattern A) - one stat the player stat store keeps per file, keyed by the file name
         //     (the tally key every player's record files it under): its name, what its number means, how
         //     it reads, the moments it counts and its breakdown. The library ships its own (Mob_Kills,
@@ -1097,6 +1143,8 @@ public final class FrameworkAssetRegistrar {
                         + "Tracks (owner file mods/ziggfreedcommon/tracks.json), "
                         + "TrackSources (owner file mods/ziggfreedcommon/track-sources.json), "
                         + "TrackWorldRules (owner file mods/ziggfreedcommon/track-world-rules.json), "
+                        + "TrackPicks (owner file mods/ziggfreedcommon/track-picks.json), "
+                        + "TrackPickOptions (owner file mods/ziggfreedcommon/track-pick-options.json), TrackPickDecks, "
                         + "Stats (owner file mods/ziggfreedcommon/stats.json)).");
     }
 }

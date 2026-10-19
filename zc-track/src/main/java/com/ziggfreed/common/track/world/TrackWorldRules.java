@@ -12,6 +12,7 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.ziggfreed.common.cast.WorldEvictors;
+import com.ziggfreed.common.track.TrackDerived;
 import com.ziggfreed.common.track.gain.GainPlans;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.world.MatchRank;
@@ -27,7 +28,7 @@ import com.ziggfreed.common.world.MatchRank;
  * names runs under no rules: every gain lands as anywhere else.
  *
  * <p>The gain pipeline's {@code World} factor reads it when a plan is built, which happens again after every world
- * change; the grant pass (SK2d) asks {@link #grantsOn}.
+ * change; the grant rebuild ({@code TrackDerived}) asks {@link #grantsOn} of every grant at every world entry.
  */
 public final class TrackWorldRules {
 
@@ -65,19 +66,35 @@ public final class TrackWorldRules {
         return rules;
     }
 
-    /** Does a track's grant of {@code kind} stay on in {@code world}? Yes wherever no rules say otherwise. */
+    /**
+     * Does a grant of {@code kind} stay on in {@code world}, for every track alike? Yes wherever no rules say
+     * otherwise. A track or category entry may still take it away for one track
+     * ({@link #grantsOn(World, String, String, String, String)}).
+     */
     public static boolean grantsOn(@Nullable World world, @Nullable String kind) {
         TrackRules rules = forWorld(world);
         return rules == null || rules.grantsOn(kind);
     }
 
     /**
-     * The rules or the gameplay configs loaded again: every world reads its rules again on its next ask, and every
-     * compiled gain plan is built again.
+     * Does a grant of {@code kind} (and its broader word {@code family}) from a pick on {@code trackId} (in
+     * {@code categoryId}) stay on in {@code world}? What the grant rebuild asks of every grant at every world entry.
+     * World thread.
+     */
+    public static boolean grantsOn(@Nullable World world, @Nullable String kind, @Nullable String family,
+            @Nullable String trackId, @Nullable String categoryId) {
+        TrackRules rules = forWorld(world);
+        return rules == null || rules.grantsOn(kind, family, trackId, categoryId);
+    }
+
+    /**
+     * The rules or the gameplay configs loaded again: every world reads its rules again on its next ask, every
+     * compiled gain plan is built again, and every online player's grants are rebuilt where they stand.
      */
     public static void invalidate() {
         GENERATION.incrementAndGet();
         GainPlans.invalidateAll();
+        TrackDerived.rebuildAllOnline();
     }
 
     /** The world's own gameplay config's group, else the most specific rule file naming it, else null. */

@@ -19,12 +19,14 @@ import com.ziggfreed.common.asset.EditorSchema;
 
 /**
  * What a world does to tracks (R699: a PvP arena that strips passive stats): whether a gain lands there and at
- * what multiplier, for every track or by track and category, and which grant kinds stay on there.
+ * what multiplier, for every track or by track and category, and which grant kinds stay on there, for every track
+ * or by track and category.
  *
  * <pre>{@code
  * { "Gain": { "Multiplier": 0.5, "DisabledTracks": [ "Gathering" ],
  *             "Tracks": { "Your_Swords": { "Multiplier": 2.0 } } },
- *   "Grants": { "Stats": false } }
+ *   "Grants": { "Kinds": { "Stat": false },
+ *               "Tracks": { "Combat": { "Kinds": { "Ability": false } } } } }
  * }</pre>
  *
  * <p>Native first (R695): a world's own gameplay config carries it, written in its {@code Plugin} group under
@@ -38,6 +40,13 @@ import com.ziggfreed.common.asset.EditorSchema;
  * {@code Gain.EnabledTracks} (an allow list: when written, only the tracks it names gain). Each list and each
  * {@code Gain.Tracks} entry names a track id or a category id, a track entry winning over its category's. Every
  * switch only takes away: a track any of them turns off gains nothing here.
+ *
+ * <p>{@code Grants} is the same for what the picks made on a track grant (R699), read by the grant rebuild at every
+ * world entry: its {@code Enabled} and {@code Kinds} take away every grant or the grants of one kind (a grant kind
+ * id such as {@code Stat}, or the broader word a kind declares, such as {@code Combat}), for every track, and its
+ * {@code Tracks} entries the same for one track or one category. The MMO's three switches map one to one:
+ * {@code StatBonusesEnabled} is {@code Kinds.Stat}, {@code CombatBonusesEnabled} {@code Kinds.Combat} (the word the
+ * resistance and outgoing-damage kinds share) and {@code AbilitiesEnabled} {@code Kinds.Ability}.
  */
 public final class TrackRules {
 
@@ -45,7 +54,7 @@ public final class TrackRules {
     public static final String ID = "ZigTrackRules";
 
     @Nullable protected GainRules gain;
-    @Nullable protected Map<String, Boolean> grants;
+    @Nullable protected GrantRules grants;
 
     public static final BuilderCodec<TrackRules> CODEC = BuilderCodec.builder(TrackRules.class, TrackRules::new)
             .documentation("What this world does to tracks: whether gains land and at what multiplier, and which "
@@ -54,11 +63,12 @@ public final class TrackRules {
                     (o, v) -> o.gain = v, o -> o.gain, (o, p) -> o.gain = p.gain)
             .documentation("Whether a gain on a track lands in this world, and at what multiplier, for every track "
                     + "or by track and category. Leave it out and every track gains as anywhere else.").add()
-            .appendInherited(new KeyedCodec<>("Grants", new MapCodec<>(Codec.BOOLEAN, LinkedHashMap::new, false),
-                            false), (o, v) -> o.grants = v, o -> o.grants, (o, p) -> o.grants = p.grants)
-            .documentation("Which kinds of what a track grants stay on in this world, by grant kind: false takes "
-                    + "that kind away while a player is here (a PvP arena writes \"Stats\": false). A kind it "
-                    + "does not name stays on.").add()
+            .appendInherited(new KeyedCodec<>("Grants", GrantRules.CODEC, false),
+                    (o, v) -> o.grants = v, o -> o.grants, (o, p) -> o.grants = p.grants)
+            .documentation("Which of what the picks made on a track grant stay on in this world, for every track or "
+                    + "by track and category: a PvP arena that strips passive stats writes { \"Kinds\": { \"Stat\": "
+                    + "false } }. Each switch only takes away, and leaving the world gives the grants back. Leave it "
+                    + "out and every grant stays on.").add()
             .build();
 
     public TrackRules() {
@@ -66,10 +76,10 @@ public final class TrackRules {
 
     /** Java-side construction (a test, a consumer building rules in code). */
     @Nonnull
-    public static TrackRules of(@Nullable GainRules gain, @Nullable Map<String, Boolean> grants) {
+    public static TrackRules of(@Nullable GainRules gain, @Nullable GrantRules grants) {
         TrackRules rules = new TrackRules();
         rules.gain = gain;
-        rules.grants = grants == null ? null : new LinkedHashMap<>(grants);
+        rules.grants = grants;
         return rules;
     }
 
@@ -93,18 +103,24 @@ public final class TrackRules {
         return g == null ? 1.0 : g.multiplier(trackId, categoryId);
     }
 
-    /** Does a track's grant of {@code kind} stay on in this world? A kind these rules do not name does. */
+    /**
+     * Does a grant of {@code kind} (with its broader word {@code family}, null for none) stay on in this world, on
+     * every track? What the rules say for all tracks alike; a track or category entry may still take it away
+     * ({@link #grantsOn(String, String, String, String)}).
+     */
     public boolean grantsOn(@Nullable String kind) {
-        Map<String, Boolean> map = grants;
-        if (map == null || kind == null) {
-            return true;
-        }
-        for (Map.Entry<String, Boolean> e : map.entrySet()) {
-            if (e.getKey() != null && e.getKey().trim().equalsIgnoreCase(kind.trim())) {
-                return !Boolean.FALSE.equals(e.getValue());
-            }
-        }
-        return true;
+        return grantsOn(kind, null, null, null);
+    }
+
+    /**
+     * Does a grant of {@code kind} (and its broader word {@code family}, null for none) from a pick on track
+     * {@code trackId} (in category {@code categoryId}) stay on in this world? No unless every switch that applies
+     * leaves it on: the group's own, the track's entry and the category's entry.
+     */
+    public boolean grantsOn(@Nullable String kind, @Nullable String family, @Nullable String trackId,
+            @Nullable String categoryId) {
+        GrantRules g = grants;
+        return g == null || g.on(kind, family, trackId, categoryId);
     }
 
     /** The {@code Gain} group as written, or null. */
@@ -113,10 +129,157 @@ public final class TrackRules {
         return gain;
     }
 
-    /** The {@code Grants} map as written, or an empty one. */
-    @Nonnull
-    public Map<String, Boolean> grants() {
-        return grants == null ? Map.of() : Map.copyOf(grants);
+    /** The {@code Grants} group as written, or null. */
+    @Nullable
+    public GrantRules grants() {
+        return grants;
+    }
+
+    /** One grant switch set: every grant on or off, and per grant kind (or a kind's broader word). */
+    public static class GrantRule {
+
+        @Nullable protected Boolean enabled;
+        @Nullable protected Map<String, Boolean> kinds;
+
+        /** The kinds map lower-cased once, on first ask (a group never changes once decoded). */
+        @Nullable private volatile Map<String, Boolean> folded;
+
+        public static final BuilderCodec<GrantRule> CODEC = BuilderCodec.builder(GrantRule.class, GrantRule::new)
+                .appendInherited(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false),
+                        (o, v) -> o.enabled = v, o -> o.enabled, (o, p) -> o.enabled = p.enabled)
+                .metadata(EditorSchema.defaultValue(true))
+                .documentation("Whether what the picks grant stays on here at all. Unauthored means true; false "
+                        + "takes every grant away while a player is here.").add()
+                .appendInherited(new KeyedCodec<>("Kinds", new MapCodec<>(Codec.BOOLEAN, LinkedHashMap::new, false),
+                                false), (o, v) -> o.kinds = v, o -> o.kinds, (o, p) -> o.kinds = p.kinds)
+                .documentation("Grant kinds switched off here, by the kind's id (Stat, or one a mod registers) or "
+                        + "the broader word a kind declares (Combat): false takes those grants away while a player "
+                        + "is here. A kind it does not name stays on.").add()
+                .build();
+
+        public GrantRule() {
+        }
+
+        /** Java-side construction; nulls stay unauthored. */
+        @Nonnull
+        public static GrantRule of(@Nullable Boolean enabled, @Nullable Map<String, Boolean> kinds) {
+            GrantRule rule = new GrantRule();
+            rule.enabled = enabled;
+            rule.kinds = kinds == null ? null : new LinkedHashMap<>(kinds);
+            return rule;
+        }
+
+        /** The kinds map as written, or an empty one. */
+        @Nonnull
+        public Map<String, Boolean> kinds() {
+            return kinds == null ? Map.of() : Map.copyOf(kinds);
+        }
+
+        /** Does this switch set leave a grant of {@code kind} (or its word {@code family}) on? */
+        boolean leavesOn(@Nullable String kind, @Nullable String family) {
+            if (enabled != null && !enabled) {
+                return false;
+            }
+            Map<String, Boolean> map = foldedKinds();
+            if (map.isEmpty()) {
+                return true;
+            }
+            return !off(map, kind) && !off(map, family);
+        }
+
+        private static boolean off(@Nonnull Map<String, Boolean> map, @Nullable String word) {
+            return word != null && Boolean.FALSE.equals(map.get(word.trim().toLowerCase(Locale.ROOT)));
+        }
+
+        @Nonnull
+        private Map<String, Boolean> foldedKinds() {
+            Map<String, Boolean> held = folded;
+            if (held == null) {
+                Map<String, Boolean> out = new HashMap<>();
+                if (kinds != null) {
+                    for (Map.Entry<String, Boolean> e : kinds.entrySet()) {
+                        if (e.getKey() != null && !e.getKey().isBlank() && e.getValue() != null) {
+                            out.put(e.getKey().trim().toLowerCase(Locale.ROOT), e.getValue());
+                        }
+                    }
+                }
+                held = Map.copyOf(out);
+                folded = held;
+            }
+            return held;
+        }
+    }
+
+    /** The {@code Grants} group: the world's switches for every track, and per-track or per-category entries. */
+    public static final class GrantRules extends GrantRule {
+
+        @Nullable protected Map<String, GrantRule> tracks;
+
+        /** The entries lower-cased once, on first ask. */
+        @Nullable private volatile Map<String, GrantRule> byId;
+
+        public static final BuilderCodec<GrantRules> CODEC = BuilderCodec.builder(GrantRules.class, GrantRules::new,
+                        GrantRule.CODEC)
+                .appendInherited(new KeyedCodec<>("Tracks", new MapCodec<>(GrantRule.CODEC, LinkedHashMap::new,
+                                false), false), (o, v) -> o.tracks = v, o -> o.tracks, (o, p) -> o.tracks = p.tracks)
+                .documentation("The same switches for one track or one category, by its id: they take away only "
+                        + "what that track's picks grant, beside whatever the group's own switches take away.")
+                .add()
+                .build();
+
+        public GrantRules() {
+        }
+
+        /** Java-side construction; nulls stay unauthored. */
+        @Nonnull
+        public static GrantRules of(@Nullable Boolean enabled, @Nullable Map<String, Boolean> kinds,
+                @Nullable Map<String, GrantRule> tracks) {
+            GrantRules rules = new GrantRules();
+            rules.enabled = enabled;
+            rules.kinds = kinds == null ? null : new LinkedHashMap<>(kinds);
+            rules.tracks = tracks == null ? null : new LinkedHashMap<>(tracks);
+            return rules;
+        }
+
+        /** The per-id entries as written, or an empty map. */
+        @Nonnull
+        public Map<String, GrantRule> tracks() {
+            return tracks == null ? Map.of() : Map.copyOf(tracks);
+        }
+
+        boolean on(@Nullable String kind, @Nullable String family, @Nullable String trackId,
+                @Nullable String categoryId) {
+            if (!leavesOn(kind, family)) {
+                return false;
+            }
+            Map<String, GrantRule> entries = entries();
+            if (entries.isEmpty()) {
+                return true;
+            }
+            GrantRule byTrack = trackId == null ? null : entries.get(trackId.trim().toLowerCase(Locale.ROOT));
+            GrantRule byCategory = categoryId == null || categoryId.isBlank() ? null
+                    : entries.get(categoryId.trim().toLowerCase(Locale.ROOT));
+            return (byTrack == null || byTrack.leavesOn(kind, family))
+                    && (byCategory == null || byCategory.leavesOn(kind, family));
+        }
+
+        @Nonnull
+        private Map<String, GrantRule> entries() {
+            Map<String, GrantRule> held = byId;
+            if (held == null) {
+                Map<String, GrantRule> out = new HashMap<>();
+                if (tracks != null) {
+                    for (Map.Entry<String, GrantRule> e : tracks.entrySet()) {
+                        if (e.getKey() != null && !e.getKey().isBlank() && e.getValue() != null) {
+                            out.put(e.getKey().trim().toLowerCase(Locale.ROOT), e.getValue());
+                        }
+                    }
+                }
+                held = Map.copyOf(out);
+                byId = held;
+            }
+            return held;
+        }
     }
 
     /** One switch and multiplier: the group's own, or one track's or category's under {@code Gain.Tracks}. */

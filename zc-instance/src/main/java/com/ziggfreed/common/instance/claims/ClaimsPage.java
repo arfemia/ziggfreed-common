@@ -20,13 +20,16 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.loot.claim.Claim;
 import com.ziggfreed.common.ui.kit.ActionSlot;
+import com.ziggfreed.common.ui.kit.ContributedLedger;
 import com.ziggfreed.common.ui.kit.DetailBindings;
 import com.ziggfreed.common.ui.kit.DetailBlock;
 import com.ziggfreed.common.ui.kit.DetailLine;
 import com.ziggfreed.common.ui.kit.DetailPainter;
 import com.ziggfreed.common.ui.kit.DetailToggle;
+import com.ziggfreed.common.ui.kit.DetailView;
 import com.ziggfreed.common.ui.kit.EmptyStatePainter;
 import com.ziggfreed.common.ui.kit.LedgerBindings;
+import com.ziggfreed.common.ui.kit.LedgerContext;
 import com.ziggfreed.common.ui.kit.LedgerPainter;
 import com.ziggfreed.common.ui.kit.LedgerRow;
 import com.ziggfreed.common.ui.kit.LedgerSection;
@@ -43,9 +46,11 @@ import com.ziggfreed.common.ui.toast.ToastablePage;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * Claims: every reward the player has earned and not taken, newest first, on the left (the kit's list), and the
- * one being read on the right (the kit's reading page, its rewards as the library's reward chips). It paints
- * {@link ClaimsView} and decides nothing. Claim (gold) and Claim All are the action bar's rich buttons; a press
+ * Claims: every reward the player has earned and not taken, newest first, on the left (the kit's list), with what
+ * other modules list on the tab below it (a track's choices not made yet, {@code LedgerContributions.CLAIMS}, each
+ * row opening its source's own page), and the one being read on the right (the kit's reading page, its rewards as
+ * the library's reward chips). It paints {@link ClaimsView} and decides nothing. Claim (gold) and Claim All are the
+ * action bar's rich buttons, on a Claim's page only; a press
  * hands the rewards over through {@link ClaimGrants}, a full bag keeping the rest here, and reopens the page with
  * a toast saying how it went and naming what landed. Picking a row reopens the page, so every build is a full one.
  * It sits in the shared menu frame with the Claims tab selected on the rail. Every {@code handleDataEvent} exit
@@ -166,8 +171,16 @@ public final class ClaimsPage extends ToastablePage<ClaimsEventData> {
                 MenuSlot.CLAIMS.id(), false);
 
         List<Claim> claims = ClaimsView.newestFirst(waiting());
-        Claim claim = ClaimsView.pick(claims, selected);
-        if (claim == null) {
+        // What other modules list on the tab (a track's choices not made yet): only on the plain tab, never a chest.
+        ContributedLedger contributed = fight == null ? contributed(store, ref) : null;
+        DetailView page = contributed == null || !contributed.hasRow(selected) ? null
+                : contributed.page(selected, context(store, ref));
+        Claim claim = page != null ? null : ClaimsView.pick(claims, selected);
+        if (claim == null && page == null && contributed != null && !contributed.isEmpty()) {
+            selected = contributed.firstRow();
+            page = contributed.page(selected, context(store, ref));
+        }
+        if (claim == null && page == null) {
             cmd.set(DETAIL + ".Visible", false);
             cmd.set(EMPTY + ".Visible", true);
             if (itemsInWindow && itemsLeft()) {
@@ -180,16 +193,30 @@ public final class ClaimsPage extends ToastablePage<ClaimsEventData> {
                     fight == null ? ClaimsView.empty(text) : ClaimsView.spoilsEmpty(text), null);
             return;
         }
-        selected = claim.id();
+        if (claim != null) {
+            selected = claim.id();
+        }
         try {
-            LedgerPainter.paint(cmd, events, LIST, ClaimsView.ledger(claims, text), Set.of(), selected, ROWS,
-                    RowSize.STANDARD, playerRef);
-            DetailPainter.paint(cmd, events, DETAIL, ClaimsView.detail(claim, text, fight != null), DETAIL_BINDINGS,
-                    playerRef);
+            LedgerPainter.paint(cmd, events, LIST, ClaimsView.ledger(claims, text, contributed), Set.of(), selected,
+                    ROWS, RowSize.STANDARD, playerRef);
+            DetailPainter.paint(cmd, events, DETAIL, claim != null ? ClaimsView.detail(claim, text, fight != null)
+                    : page, DETAIL_BINDINGS, playerRef);
         } catch (Throwable t) {
             // build() must not throw: a reading that fails leaves the page as far as it got.
-            SafeLog.warn("[claims] the page could not paint the Claim " + claim.id(), t);
+            SafeLog.warn("[claims] the page could not paint the row " + selected, t);
         }
+    }
+
+    /** What other modules list on the tab for this player; empty when it cannot be read. */
+    @Nonnull
+    private ContributedLedger contributed(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
+        return ClaimsView.contributed(context(store, ref));
+    }
+
+    /** Who the contributed sources read for: this page's player, now. */
+    @Nonnull
+    private LedgerContext context(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
+        return new LedgerContext(store, ref, playerRef, System.currentTimeMillis());
     }
 
     /** The press each action-bar button carries: Claim on the primary, Claim All on the secondary. */

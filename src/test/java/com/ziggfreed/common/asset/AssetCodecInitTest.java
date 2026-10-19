@@ -100,7 +100,11 @@ import com.ziggfreed.common.shop.asset.StorefrontAsset;
 import com.ziggfreed.common.stats.gearset.GearSetAsset;
 import com.ziggfreed.common.stats.gearset.StatModifierSpec;
 import com.ziggfreed.common.text.ContentTextAsset;
+import com.ziggfreed.common.grant.StatGrant;
 import com.ziggfreed.common.track.ZigTrackReward;
+import com.ziggfreed.common.track.pick.PickDeckAsset;
+import com.ziggfreed.common.track.pick.PickOptionAsset;
+import com.ziggfreed.common.track.pick.TrackPickAsset;
 import com.ziggfreed.common.track.asset.TrackAsset;
 import com.ziggfreed.common.track.asset.TrackCategoryAsset;
 import com.ziggfreed.common.track.asset.TrackCurveAsset;
@@ -241,6 +245,18 @@ class AssetCodecInitTest {
         // it would fail inside a world's gameplay config instead of at this build.
         assertNotNull(TrackRules.CODEC, "TrackRules.CODEC must static-init (PascalCase keys)");
         assertNotNull(TrackRules.GainRules.CODEC, "the Gain rules group codec must static-init");
+        assertNotNull(TrackRules.GrantRules.CODEC, "the Grants rules group codec must static-init");
+        assertNotNull(TrackPickAsset.CODEC, "TrackPickAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(TrackPickAsset.Group.CODEC, "the pick's Groups row codec must static-init");
+        assertNotNull(TrackPickAsset.Cost.CODEC, "the pick's Cost group codec must static-init");
+        assertNotNull(TrackPickAsset.Repeat.CODEC, "the pick's Repeat group codec must static-init");
+        assertNotNull(TrackPickAsset.Where.CODEC, "the pick's Where group codec must static-init");
+        assertNotNull(PickOptionAsset.CODEC, "PickOptionAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(PickDeckAsset.CODEC, "PickDeckAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(PickDeckAsset.Foes.CODEC, "the deck's Foes group codec must static-init");
+        // The grant kind registers into the grant union every pick reads, so a lower-case key in it would fail
+        // inside a pack's pick instead of at this build.
+        assertNotNull(StatGrant.CODEC, "StatGrant.CODEC must static-init (PascalCase keys)");
     }
 
     @Test

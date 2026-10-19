@@ -241,6 +241,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         EntityBootstrap.installGearSets(this);
         // Per-type damage bonuses: gear raising DamageBonus_<Type> stats hits harder with that type.
         EntityBootstrap.installTypedDamageBonuses(this);
+        // The grant kinds a pick (and later a class or a perk) pays: Stat, a native stat modifier, into the
+        // native grant union before any asset decodes.
+        EntityBootstrap.registerGrants(this);
         registerGearSetSeams();
         CostumeBootstrap.registerCostumes(this);
         // Timed buffs on the native buff bar: the per-player slot record (unconditional, so a saved one

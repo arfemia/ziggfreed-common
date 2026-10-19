@@ -1,0 +1,6 @@
+{
+  "$Comment": "One of the sample pick's options: each time it is chosen it raises the player's maximum health by the naming pick's Step (its Vars). Shared option files keep picks short: any pick may offer it with its own Step.",
+  "Text": { "TitleKey": "ziggfreedcommon.track.example.option.vigor", "FlavorKey": "ziggfreedcommon.track.example.option.vigor.desc" },
+  "Icon": "Ingredient_Crystal_Red",
+  "Grants": [ { "Kind": "Stat", "Stat": "Health", "Add": "{Step}" } ]
+}

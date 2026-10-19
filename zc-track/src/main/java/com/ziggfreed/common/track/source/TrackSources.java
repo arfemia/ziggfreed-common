@@ -109,9 +109,15 @@ public final class TrackSources {
         return table == null ? MomentTable.empty() : table;
     }
 
-    /** A source or track folded: the next ask folds again. */
+    /**
+     * A source or track folded: the next ask folds again. Taken under the fold's own lock, so a fold already in
+     * flight finishes first and its table is dropped here, never stored after this (a stale table outliving the
+     * reload).
+     */
     public static void invalidate() {
-        folded = null;
+        synchronized (TrackSources.class) {
+            folded = null;
+        }
     }
 
     /** The tracks with a row for {@code kindId}, or null when none has. */

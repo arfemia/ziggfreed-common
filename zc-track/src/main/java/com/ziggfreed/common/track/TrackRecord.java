@@ -19,26 +19,34 @@ import javax.annotation.Nonnull;
  *                 the level that row has paid through; a row the map does not hold has paid nothing
  * @param rested   the rested pool: extra the track's {@code Gain.Rested} factor may still pay on top of gains,
  *                 filled while the player is away; 0 for none
+ * @param picks    the picks made on this climb ({@link PickState}); owed picks are derived, never kept
  */
 public record TrackRecord(long value, double fraction, int best, int prestige, @Nonnull Map<String, Integer> paid,
-                          long rested) {
+                          long rested, @Nonnull PickState picks) {
 
     /** Nothing on record: what a player who never touched a track holds. */
-    public static final TrackRecord EMPTY = new TrackRecord(0L, 0.0, 0, 0, Map.of(), 0L);
+    public static final TrackRecord EMPTY = new TrackRecord(0L, 0.0, 0, 0, Map.of(), 0L, PickState.EMPTY);
 
     public TrackRecord {
         best = Math.max(0, best);
         prestige = Math.max(0, prestige);
         paid = marks(paid);
         rested = Math.max(0L, rested);
+        picks = picks == null ? PickState.EMPTY : picks;
         if (!Double.isFinite(fraction)) {
             fraction = 0.0;
         }
     }
 
-    /** A record with no rested pool. */
+    /** A record with no picks. */
+    public TrackRecord(long value, double fraction, int best, int prestige, @Nonnull Map<String, Integer> paid,
+            long rested) {
+        this(value, fraction, best, prestige, paid, rested, PickState.EMPTY);
+    }
+
+    /** A record with no rested pool and no picks. */
     public TrackRecord(long value, double fraction, int best, int prestige, @Nonnull Map<String, Integer> paid) {
-        this(value, fraction, best, prestige, paid, 0L);
+        this(value, fraction, best, prestige, paid, 0L, PickState.EMPTY);
     }
 
     /** The level the unlock row keyed {@code row} has paid through, 0 for none. */
@@ -50,25 +58,32 @@ public record TrackRecord(long value, double fraction, int best, int prestige, @
     /** This record holding {@code value} and {@code fraction} instead. */
     @Nonnull
     public TrackRecord withValue(long value, double fraction) {
-        return new TrackRecord(value, fraction, best, prestige, paid, rested);
+        return new TrackRecord(value, fraction, best, prestige, paid, rested, picks);
     }
 
     /** This record with its best level raised to {@code level}, never lowered. */
     @Nonnull
     public TrackRecord withBest(int level) {
-        return level <= best ? this : new TrackRecord(value, fraction, level, prestige, paid, rested);
+        return level <= best ? this : new TrackRecord(value, fraction, level, prestige, paid, rested, picks);
     }
 
     /** This record with its prestige count at {@code count}. */
     @Nonnull
     public TrackRecord withPrestige(int count) {
-        return new TrackRecord(value, fraction, best, count, paid, rested);
+        return new TrackRecord(value, fraction, best, count, paid, rested, picks);
     }
 
     /** This record with its rested pool at {@code pool} (0 or more). */
     @Nonnull
     public TrackRecord withRested(long pool) {
-        return Math.max(0L, pool) == rested ? this : new TrackRecord(value, fraction, best, prestige, paid, pool);
+        return Math.max(0L, pool) == rested ? this
+                : new TrackRecord(value, fraction, best, prestige, paid, pool, picks);
+    }
+
+    /** This record holding {@code state} as its picks. */
+    @Nonnull
+    public TrackRecord withPicks(@Nonnull PickState state) {
+        return state.equals(picks) ? this : new TrackRecord(value, fraction, best, prestige, paid, rested, state);
     }
 
     /** This record with the row keyed {@code row} paid through {@code level}, never lowered. */
@@ -88,7 +103,7 @@ public record TrackRecord(long value, double fraction, int best, int prestige, @
         }
         Map<String, Integer> next = new HashMap<>(paid);
         next.put(row, level);
-        return new TrackRecord(value, fraction, best, prestige, next, rested);
+        return new TrackRecord(value, fraction, best, prestige, next, rested, picks);
     }
 
     /** This record with each row {@code rows} keys paid through at least {@code level}. */
@@ -103,7 +118,8 @@ public record TrackRecord(long value, double fraction, int best, int prestige, @
 
     /** Is this record the same as nothing on record? */
     public boolean isEmpty() {
-        return value == 0L && fraction == 0.0 && best == 0 && prestige == 0 && paid.isEmpty() && rested == 0L;
+        return value == 0L && fraction == 0.0 && best == 0 && prestige == 0 && paid.isEmpty() && rested == 0L
+                && picks.isEmpty();
     }
 
     /** {@code paid} as a record keeps it: blank keys and marks of nothing dropped, so equal records compare equal. */

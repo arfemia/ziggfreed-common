@@ -11,6 +11,7 @@ import javax.annotation.Nullable;
 import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
 import com.ziggfreed.common.progress.gate.GateEpochs;
 import com.ziggfreed.common.track.gain.GainPlans;
+import com.ziggfreed.common.track.pick.TrackPicks;
 import com.ziggfreed.common.track.source.TrackSources;
 
 /**
@@ -36,7 +37,8 @@ public final class TrackConfig extends AbstractKeyedAssetConfig<TrackAsset> {
 
     // A fold may switch a track on or off, or move its curve or cap, which every player's track readings answer:
     // the gate server epoch moves, so no verdict kept over them outlives it. It may also change a track's gain
-    // factors or switch off a track a source pays, so every compiled gain plan and the source index go too.
+    // factors or switch off a track a source pays or a pick sits on, so every compiled gain plan, the source index
+    // and the folded picks go too (the picks' fold rebuilds every online player's grants).
     @Override
     public synchronized void mergePackLayer(@Nonnull Map<String, TrackAsset> layer) {
         super.mergePackLayer(layer);
@@ -53,6 +55,7 @@ public final class TrackConfig extends AbstractKeyedAssetConfig<TrackAsset> {
         GateEpochs.bumpServer();
         GainPlans.invalidateAll();
         TrackSources.invalidate();
+        TrackPicks.invalidate();
     }
 
     /**

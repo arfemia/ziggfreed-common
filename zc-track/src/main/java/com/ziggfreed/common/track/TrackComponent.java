@@ -33,7 +33,9 @@ import com.ziggfreed.common.util.SafeLog;
  * new fact is a new leaf APPENDED to the entry, never a rename; an absent leaf reads as nothing on record. A
  * climb with nothing on record is not saved at all, and an entry for a track that is switched off or gone is
  * kept, unread, until it comes back. How far each unlock row has paid is {@code PaidThrough}, a map from the
- * row's key to its level, so a row added, removed or moved on a live track keeps its own mark.
+ * row's key to its level, so a row added, removed or moved on a live track keeps its own mark. The picks made on a
+ * climb are {@code Picks} (slot to the options chosen, comma-joined), {@code Takes} (bought pick to its count) and
+ * the slot choices a Remember prestige put aside ({@code Remembered}).
  *
  * <p>{@link #register} runs once at library setup, before any world loads (a component type registered later
  * cannot be read off entities saved carrying it), and {@link #install} hangs the connect hook that attaches one
@@ -148,10 +150,38 @@ public final class TrackComponent implements Component<EntityStore> {
             }
             TrackRecord record = new TrackRecord(entry.value == null ? 0L : entry.value,
                     entry.fraction == null ? 0.0 : entry.fraction, entry.best == null ? 0 : entry.best,
-                    entry.prestige == null ? 0 : entry.prestige, paid, entry.rested == null ? 0L : entry.rested);
+                    entry.prestige == null ? 0 : entry.prestige, paid, entry.rested == null ? 0L : entry.rested,
+                    new PickState(choices(entry.picks), entry.takes == null ? Map.of() : entry.takes,
+                            choices(entry.remembered)));
             keep(TrackKey.normalize(entry.namespace), TrackKey.normalize(entry.track),
                     TrackKey.normalize(entry.run), record);
         }
+    }
+
+    /** Saved slot choices (comma-joined) as lists; a missing leaf reads as none. */
+    @Nonnull
+    private static Map<String, List<String>> choices(@Nullable Map<String, String> saved) {
+        if (saved == null || saved.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, List<String>> out = new HashMap<>();
+        saved.forEach((slot, options) -> {
+            if (slot != null) {
+                out.put(slot, PickState.split(options));
+            }
+        });
+        return out;
+    }
+
+    /** Slot choices as a save keeps them (comma-joined, sorted), or null for none. */
+    @Nullable
+    private static Map<String, String> saved(@Nonnull Map<String, List<String>> choices) {
+        if (choices.isEmpty()) {
+            return null;
+        }
+        Map<String, String> out = new LinkedHashMap<>();
+        new TreeMap<>(choices).forEach((slot, options) -> out.put(slot, PickState.join(options)));
+        return out;
     }
 
     @Nonnull
@@ -213,6 +243,9 @@ public final class TrackComponent implements Component<EntityStore> {
         @Nullable Integer prestige;
         @Nullable Map<String, Integer> paidThrough;
         @Nullable Long rested;
+        @Nullable Map<String, String> picks;
+        @Nullable Map<String, Integer> takes;
+        @Nullable Map<String, String> remembered;
 
         static final BuilderCodec<Entry> CODEC = BuilderCodec.builder(Entry.class, Entry::new)
                 .append(new KeyedCodec<>("Track", Codec.STRING, false), (o, v) -> o.track = v, o -> o.track)
@@ -237,6 +270,17 @@ public final class TrackComponent implements Component<EntityStore> {
                 .add()
                 .append(new KeyedCodec<>("Rested", Codec.LONG, false), (o, v) -> o.rested = v, o -> o.rested)
                 .add()
+                // The picks: per choice slot the options chosen, comma-joined; per bought pick its count;
+                // and the slot choices a Remember prestige put aside, comma-joined.
+                .append(new KeyedCodec<>("Picks", new MapCodec<>(Codec.STRING, LinkedHashMap::new, false), false),
+                        (o, v) -> o.picks = v, o -> o.picks)
+                .add()
+                .append(new KeyedCodec<>("Takes", new MapCodec<>(Codec.INTEGER, LinkedHashMap::new, false), false),
+                        (o, v) -> o.takes = v, o -> o.takes)
+                .add()
+                .append(new KeyedCodec<>("Remembered", new MapCodec<>(Codec.STRING, LinkedHashMap::new, false),
+                        false), (o, v) -> o.remembered = v, o -> o.remembered)
+                .add()
                 .build();
 
         Entry() {
@@ -259,6 +303,10 @@ public final class TrackComponent implements Component<EntityStore> {
                 // Sorted, so a save is stable.
                 e.paidThrough = new LinkedHashMap<>(new TreeMap<>(record.paid()));
             }
+            PickState picks = record.picks();
+            e.picks = saved(picks.slots());
+            e.takes = picks.takes().isEmpty() ? null : new LinkedHashMap<>(new TreeMap<>(picks.takes()));
+            e.remembered = saved(picks.remembered());
             return e;
         }
     }

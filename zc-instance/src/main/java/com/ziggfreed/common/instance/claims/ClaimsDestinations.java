@@ -14,6 +14,8 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.icon.IconSpec;
 import com.ziggfreed.common.inventory.PlayerAccess;
 import com.ziggfreed.common.loot.claim.ClaimStore;
+import com.ziggfreed.common.ui.kit.LedgerContext;
+import com.ziggfreed.common.ui.kit.LedgerContributions;
 import com.ziggfreed.common.ui.menu.MenuEntry;
 import com.ziggfreed.common.ui.menu.MenuSlot;
 import com.ziggfreed.common.ui.route.Destination;
@@ -25,8 +27,9 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * Claims: the library's tab and destination for what a player has earned and not taken yet. {@code "Open":
  * "Claims"} opens the Claims page on the player's own ref, on the rail with this tab selected. The tab shows
- * while the player has a Claim waiting, so it appears with the toast that names it (lead's call); the page opens
- * whenever it is asked for, saying so when nothing waits.
+ * while the player has a Claim waiting, or a row another module lists there ({@code LedgerContributions.CLAIMS}),
+ * so it appears with the toast that names it (lead's call); the page opens whenever it is asked for, saying so
+ * when nothing waits.
  */
 public final class ClaimsDestinations {
 
@@ -52,7 +55,10 @@ public final class ClaimsDestinations {
                 ClaimsDestinations::waiting);
     }
 
-    /** Whether the player looking has a Claim waiting; false with nobody behind the context. */
+    /**
+     * Whether the player looking has a Claim waiting, or something another module lists on the tab
+     * ({@code LedgerContributions.CLAIMS}: a track's choices not yet made); false with nobody behind the context.
+     */
     static boolean waiting(@Nonnull DestinationContext viewer) {
         Ref<EntityStore> ref = viewer.playerReference();
         Store<EntityStore> store = viewer.store();
@@ -61,7 +67,15 @@ public final class ClaimsDestinations {
         }
         PlayerRef playerRef = PlayerAccess.playerRef(store, ref);
         UUID player = playerRef == null ? null : playerRef.getUuid();
-        return player != null && ClaimStore.shared().has(player);
+        if (player == null) {
+            return false;
+        }
+        if (ClaimStore.shared().has(player)) {
+            return true;
+        }
+        return !LedgerContributions.sources(LedgerContributions.CLAIMS).isEmpty()
+                && !ClaimsView.contributed(new LedgerContext(store, ref, playerRef, System.currentTimeMillis()))
+                .isEmpty();
     }
 
     private static boolean open(@Nonnull Claims destination, @Nonnull DestinationContext ctx) {

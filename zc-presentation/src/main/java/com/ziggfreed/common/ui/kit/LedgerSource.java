@@ -6,9 +6,10 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * A module's contribution to a shared ledger surface ({@link LedgerContributions#STATISTICS}): the sections it adds
- * to the list and the page for one of its rows. Pure reads for one viewer; a source that has nothing for this
- * viewer returns no sections, and a surface with no section from any source hides.
+ * A module's contribution to a shared ledger surface ({@link LedgerContributions#STATISTICS},
+ * {@link LedgerContributions#CLAIMS}): the sections it adds to the list and the page for one of its rows. Pure reads
+ * for one viewer; a source that has nothing for this viewer returns no sections, and a surface with no section from
+ * any source hides.
  */
 public interface LedgerSource {
 

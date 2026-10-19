@@ -3,6 +3,7 @@ package com.ziggfreed.common.track.docs;
 import javax.annotation.Nonnull;
 
 import com.ziggfreed.common.factor.FactorCondition;
+import com.ziggfreed.common.grant.StatGrant;
 import com.ziggfreed.common.loot.diminish.DiminishSpec;
 import com.ziggfreed.common.match.When;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
@@ -14,6 +15,9 @@ import com.ziggfreed.common.track.ZigTrackReward;
 import com.ziggfreed.common.track.asset.TrackAsset;
 import com.ziggfreed.common.track.asset.TrackCategoryAsset;
 import com.ziggfreed.common.track.asset.TrackCurveAsset;
+import com.ziggfreed.common.track.pick.PickDeckAsset;
+import com.ziggfreed.common.track.pick.PickOptionAsset;
+import com.ziggfreed.common.track.pick.TrackPickAsset;
 import com.ziggfreed.common.track.source.SourceRow;
 import com.ziggfreed.common.track.source.TrackSourceAsset;
 import com.ziggfreed.common.track.world.TrackRules;
@@ -46,6 +50,13 @@ public final class TrackSchemaDocs {
                     + "`Plugin` group as `ZigTrackRules` (the `TrackRules` shape), which wins over a rule file for "
                     + "that world. A `ZigTrack` reward is a native reward file under `Server/Rewards/`, which an "
                     + "encounter script's `GrantReward` pays as a Claim.\n\n"
+                    + "One pick (the one shape every choice, Mastery node, trainer offer and prestige perk is) is one "
+                    + "file under `Server/ZiggfreedCommon/TrackPicks/`, one option a choice may offer one file under "
+                    + "`Server/ZiggfreedCommon/TrackPickOptions/`, and one deck (how a group's offers are drawn) one "
+                    + "file under `Server/ZiggfreedCommon/TrackPickDecks/`. The server owner retunes a pick in "
+                    + "`track-picks.json` and an option in `track-pick-options.json`. A grant (`Grants`) names its "
+                    + "`Kind`: the library ships `Stat` (the `StatGrant` shape); other mods register their own "
+                    + "kinds.\n\n"
                     + "Every field is optional and defaults to `null` unless its Default column reads "
                     + "*(required)*.\n\n")
             .register("TrackAsset", TrackAsset.CODEC)
@@ -54,6 +65,10 @@ public final class TrackSchemaDocs {
             .register("TrackSourceAsset", TrackSourceAsset.CODEC)
             .register("TrackWorldRuleAsset", TrackWorldRuleAsset.CODEC)
             .register("TrackRules", TrackRules.CODEC)
+            .register("TrackPickAsset", TrackPickAsset.CODEC)
+            .register("PickOptionAsset", PickOptionAsset.CODEC)
+            .register("PickDeckAsset", PickDeckAsset.CODEC)
+            .register("StatGrant", StatGrant.CODEC)
             .register("ZigTrackReward", ZigTrackReward.CODEC)
             .register("When", When.CODEC)
             .register("SourceRow", SourceRow.CODEC)

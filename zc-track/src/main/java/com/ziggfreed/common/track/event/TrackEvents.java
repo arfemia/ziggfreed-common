@@ -1,6 +1,10 @@
 package com.ziggfreed.common.track.event;
 
+import java.util.List;
+import java.util.UUID;
+
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.ziggfreed.common.event.NativeEventSeam;
 import com.ziggfreed.common.track.TrackChange;
@@ -19,5 +23,13 @@ public final class TrackEvents {
 
     public static void fireChanged(@Nonnull TrackChange change) {
         SEAM.fire("ZigTrackChanged", ZigTrackChangedEvent.class, () -> ZigTrackChangedEvent.of(change));
+    }
+
+    /** The picks on {@code trackId} changed for {@code playerId}; built only when something listens. */
+    public static void firePicksChanged(@Nonnull UUID playerId, @Nonnull String trackId,
+            @Nonnull ZigTrackPicksChangedEvent.Change change, @Nullable String pickId, @Nullable String slot,
+            @Nonnull List<String> options) {
+        SEAM.fire("ZigTrackPicksChanged", ZigTrackPicksChangedEvent.class,
+                () -> new ZigTrackPicksChangedEvent(playerId, trackId, change, pickId, slot, options));
     }
 }

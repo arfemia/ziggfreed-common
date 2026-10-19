@@ -26,6 +26,7 @@ import com.ziggfreed.common.track.curve.TrackCurves;
 import com.ziggfreed.common.track.event.TrackEvents;
 import com.ziggfreed.common.track.gain.GainPipeline;
 import com.ziggfreed.common.track.gain.RestedFactor;
+import com.ziggfreed.common.track.pick.PickService;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -248,9 +249,12 @@ public final class TrackService {
     /**
      * Start {@code key}'s climb again (R582, R615): the current value back to where a new climb starts, the
      * prestige count up one, the best level ever reached kept, so every gate and every unlock paid stays. The nth
-     * prestige needs the current level at the track's {@code Prestige.Base} plus n. What happens to the picks
-     * made on it is the track's build setting ({@link TrackDef#prestigeBuild}), the picks' own to act on. On the
-     * live subject's own thread.
+     * prestige needs the current level at the track's {@code Prestige.Base} plus n. The picks made on it follow the
+     * track's build setting ({@link TrackDef#prestigeBuild}, R641): {@code Keep} leaves them, {@code Remember} puts
+     * each slot aside to be offered again preselected as its level comes back, {@code Clear} clears them; a pick the
+     * folded files keep through a prestige (a trainer's, or one writing {@code KeptThroughPrestige},
+     * {@code PickService.keptThroughPrestige}) stays under every build. Then the player's grants are rebuilt and the
+     * track's undo window closes ({@code PickService.prestiged}). On the live subject's own thread.
      */
     @Nonnull
     public static Result prestige(@Nonnull TrackKey key, @Nonnull String source) {
@@ -272,8 +276,14 @@ public final class TrackService {
         if (level < track.prestigeLevel(done + 1)) {
             return Result.of(Status.NOT_READY);
         }
-        TrackRecord after = before.withBest(def.best(before)).withValue(def.start(), 0.0).withPrestige(done + 1);
-        return commit(store, key, def, before, after, source, liveRef(key));
+        TrackRecord after = before.withBest(def.best(before)).withValue(def.start(), 0.0).withPrestige(done + 1)
+                .withPicks(before.picks().afterPrestige(def.prestigeBuild(), PickService.keptThroughPrestige(def)));
+        Result result = commit(store, key, def, before, after, source, liveRef(key));
+        UUID playerId = key.playerId();
+        if (result.moved() && playerId != null && key.isDefault()) {
+            PickService.prestiged(playerId, def, !after.picks().equals(before.picks()));
+        }
+        return result;
     }
 
     /**

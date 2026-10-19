@@ -9,6 +9,10 @@ import com.ziggfreed.common.loot.claim.Claim;
 import com.ziggfreed.common.track.asset.TrackAsset;
 import com.ziggfreed.common.track.asset.TrackConfig;
 import com.ziggfreed.common.track.curve.CurveTable;
+import com.ziggfreed.common.track.pick.PickOptionAsset;
+import com.ziggfreed.common.track.pick.PickOptionConfig;
+import com.ziggfreed.common.track.pick.TrackPickAsset;
+import com.ziggfreed.common.track.pick.TrackPickConfig;
 
 /**
  * Every word the track module says: its lines are keys in {@code ziggfreedcommon.track.lang}, and a track or a
@@ -43,6 +47,25 @@ public final class TrackText {
         }
         TrackAsset track = TrackConfig.getInstance().resolve(trackId.trim());
         return track == null ? null : name(track);
+    }
+
+    /**
+     * What the option or pick {@code id} is called: an option file's {@code Text.TitleKey}, else a pick file's, else
+     * the id as written.
+     */
+    @Nonnull
+    public static Message pickName(@Nullable String id) {
+        if (id == null || id.isBlank()) {
+            return Msg.raw("");
+        }
+        String trimmed = id.trim();
+        PickOptionAsset option = PickOptionConfig.getInstance().resolve(trimmed);
+        String key = option == null ? null : option.titleKey();
+        if (key == null) {
+            TrackPickAsset pick = TrackPickConfig.getInstance().resolve(trimmed);
+            key = pick == null ? null : pick.titleKey();
+        }
+        return key != null ? Msg.key(key) : Msg.raw(trimmed);
     }
 
     /** What {@code tier} is called: its {@code Name}, else its id. */

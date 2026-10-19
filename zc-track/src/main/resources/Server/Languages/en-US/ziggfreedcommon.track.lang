@@ -12,6 +12,24 @@ factor.climb_of = current {0} level
 factor.prestige_of = {0} prestige
 # A lock line's name for a tier gate: {0} the tier, {1} the track.
 factor.tier_in = {0} in {1}
+# How a requirement on how often a pick was taken is named: generic, then for a pick or option that names
+# itself ({0} the pick or option).
+factor.track_pick = picks taken on a track
+factor.pick_of = {0} picks
+
+# The Claims tab's list of choices waiting. In claims.row.meta {0} is how many choices wait on the track.
+claims.section = Choices waiting
+claims.row.meta = {0, number} {0, plural, one {choice} other {choices}} waiting
+claims.page.lead = These choices are yours to make. Each level offers its own, the same for everyone.
+# A waiting choice's heading: {0} the level it opened at; a pick taken outright; how many to choose, {0} of them.
+claims.block.level = Level {0, number}
+claims.block.pick = Ready to take
+claims.block.choose = Choose {0, number}
+claims.block.points = Points to spend
+claims.line.points = {0, number} {0, plural, one {point} other {points}} left
+claims.tag.remembered = Your last pick
+# Under the page when more wait than it lists: {0} how many more.
+claims.page.more = {0, number} more {0, plural, one {choice waits} other {choices wait}} after these.
 
 # A Track reward as it reads in a reward list: {0} the amount, {1} the track's name.
 reward.gain = +{0, number} {1}
@@ -38,6 +56,13 @@ example.name = Sample Track
 example.tier.novice = Novice
 example.tier.adept = Adept
 example.tier.expert = Expert
+example.picks = Sample Choices
+example.option.vigor = Vigor
+example.option.vigor.desc = More health.
+example.option.stamina = Wind
+example.option.stamina.desc = More stamina.
+example.option.focus = Focus
+example.option.focus.desc = More mana.
 
 # /zigtrack, the admin family. The command.desc.* keys are what the engine's own help resolves a command or
 # an argument's description from.
@@ -45,6 +70,12 @@ command.desc.family = Read and move players' tracks.
 command.desc.add = Move a player's track, the way a reward would.
 command.desc.show = Show a player's tracks, online or not.
 command.desc.prestige = Start a player's climb on a track again.
+command.desc.pick = Make a pick on a player's track: choose an offered option, or take a pick bought outright.
+command.desc.undo = Undo a player's latest pick that can still be undone.
+command.desc.respec = Clear every pick a player made on a track.
+command.desc.arg.option = The option to choose, by its id.
+command.desc.arg.pick = The pick, by its id.
+command.desc.arg.level = The level of the choice to make. Leave it out for the lowest one waiting that offers the option.
 command.desc.arg.player = The player, who has to be online. Defaults to you.
 command.desc.arg.player.any = The player: a name for someone online, or a player id for someone who is not. Defaults to you.
 command.desc.arg.track = The track, by its id.
@@ -68,3 +99,31 @@ command.prestige.not_allowed = {0} has no prestige left for {1}.
 command.show.head = Tracks of {0}:
 command.show.line = {0}: level {1, number}, best {2, number}, prestige {3, number}, value {4, number}
 command.show.none = {0} has no tracks to show here.
+# The picks waiting under a show: {0} the track and {1} how many wait; an offer, {0} its level, {1} the options, {2}
+# the slot; a pick taken outright, {0} its name, {1} its id; {0} points left.
+command.show.waiting = {0}: {1, number} {1, plural, one {choice} other {choices}} waiting
+command.show.offer = Level {0, number}: {1} (slot {2})
+command.show.free = Ready to take: {0} ({1})
+command.show.points = {0, number} {0, plural, one {point} other {points}} to spend
+# /zigtrack pick. In each line {0} is the track, {1} the player and {2} the option or pick.
+command.pick.needed = Name an option with --option=<id>, or a pick with --pick=<id>.
+command.pick.done = {1} took {2} on {0}.
+command.pick.unknown = {0} has no pick by that name for {1}.
+command.pick.not_live = That player is not in a world right now. Try again in a moment.
+command.pick.not_open = {2} is not open to {1} on {0} yet.
+command.pick.already_made = {1} already made that choice on {0}.
+command.pick.not_offered = No choice {1} has waiting on {0} offers {2}.
+command.pick.wrong_count = That choice on {0} takes another number of options.
+command.pick.locked = {1} does not meet what {2} requires.
+command.pick.needs_prerequisite = {1} needs another pick on {0} before {2}.
+command.pick.no_points = {1} does not have the points {2} costs.
+command.pick.spend_cap = {1} has spent all {2} allows from that pool.
+command.pick.maxed = {1} has taken {2} as often as it can be taken.
+command.pick.elsewhere = {2} is taken at a trainer, not here.
+command.pick.nothing = Nothing changed for {1} on {0}.
+# /zigtrack undo: {0} the track, {1} the player, {2} what was undone; in command.undo.none {0} is the player and {1}
+# the most minutes a pick stays undoable. /zigtrack respec: {2} how many picks cleared.
+command.undo.done = Undid {1}'s pick of {2} on {0}.
+command.undo.none = {0} has no pick left to undo. A pick can be undone until its page closes, and for {1, number} {1, plural, one {minute} other {minutes}} at most.
+command.respec.done = Cleared {2, number} {2, plural, one {pick} other {picks}} {1} made on {0}.
+command.respec.none = {1} has no picks to clear on {0}.

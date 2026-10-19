@@ -12,7 +12,8 @@ import javax.annotation.Nonnull;
 /**
  * The one seam through which a module adds sections to another module's ledger list without a module edge: the
  * book's Statistics view lists every {@link LedgerSource} contributed to {@link #STATISTICS} (the MMO's statistics,
- * zc-almanac's seasons), and opens a row's page from the source that owns it. A source contributes at setup time;
+ * zc-almanac's seasons), the Claims tab every one contributed to {@link #CLAIMS} (zc-track's picks waiting), and each
+ * opens a row's page from the source that owns it ({@link ContributedLedger}). A source contributes at setup time;
  * the same id contributed again replaces the first (a reload), and {@link #sources} reads them by
  * {@link LedgerSource#order()}, then id.
  */
@@ -20,6 +21,12 @@ public final class LedgerContributions {
 
     /** The book's Statistics view. */
     public static final String STATISTICS = "ziggfreedcommon:statistics";
+
+    /**
+     * The Claims tab: what waits for a player that is no Claim of its own (choices a track has opened and the player
+     * has not made), listed below the Claims and shown with the tab whenever any source has a row for the player.
+     */
+    public static final String CLAIMS = "ziggfreedcommon:claims";
 
     private static final Map<String, Map<String, LedgerSource>> SURFACES = new ConcurrentHashMap<>();
 

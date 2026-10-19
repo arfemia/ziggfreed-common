@@ -8,15 +8,18 @@ import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.NameMatching;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
+import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.track.TrackDef;
 import com.ziggfreed.common.track.TrackKey;
 import com.ziggfreed.common.track.TrackReading;
 import com.ziggfreed.common.track.TrackService;
 import com.ziggfreed.common.track.TrackText;
+import com.ziggfreed.common.track.pick.PickService;
 
 /**
  * {@code show [--player=<name or id>] [--track=<id>]}: read a player's climbs, every usable track or the one
@@ -59,7 +62,51 @@ final class ZigTrackShowCommand extends TrackTargetCommand {
             }
         }
         answer(ctx, target, readings);
+        // An online player's picks waiting, on each track shown: the next few slots and their offers.
+        for (TrackReading reading : readings) {
+            showWaiting(ctx, target, reading.def());
+        }
     }
+
+    /** The picks {@code target} has waiting on {@code def}, the first few slots with their offers. */
+    private static void showWaiting(@Nonnull CommandContext ctx, @Nonnull TrackTarget target,
+            @Nonnull TrackDef def) {
+        PickService.Waiting waiting = PickService.waiting(target.id(), def.id());
+        if (waiting.isEmpty()) {
+            return;
+        }
+        TrackCommandMessages.detail(ctx, "show.waiting", TrackText.name(def.asset()), waiting.count());
+        int shown = 0;
+        for (PickService.Owed owed : waiting.owed()) {
+            if (shown++ >= SHOWN_SLOTS) {
+                break;
+            }
+            if (owed.isChoice()) {
+                TrackCommandMessages.detail(ctx, "show.offer", owed.level(), names(owed.offer()), owed.slot());
+            } else {
+                TrackCommandMessages.detail(ctx, "show.free", TrackText.pickName(owed.pickId()), owed.pickId());
+            }
+        }
+        if (waiting.pointsLeft() > 0) {
+            TrackCommandMessages.detail(ctx, "show.points", waiting.pointsLeft());
+        }
+    }
+
+    /** {@code ids}' names, comma-joined as one composite message. */
+    @Nonnull
+    private static Message names(@Nonnull List<String> ids) {
+        List<Message> parts = new ArrayList<>();
+        for (String id : ids) {
+            if (!parts.isEmpty()) {
+                parts.add(Msg.raw(", "));
+            }
+            parts.add(Msg.cat(TrackText.pickName(id), Msg.raw(" (" + id + ")")));
+        }
+        return Msg.cat(parts.toArray(new Message[0]));
+    }
+
+    /** How many waiting slots a show lists per track. */
+    private static final int SHOWN_SLOTS = 3;
 
     /** Every shown track read from the player's saved file, answered once all are read. */
     @Nonnull

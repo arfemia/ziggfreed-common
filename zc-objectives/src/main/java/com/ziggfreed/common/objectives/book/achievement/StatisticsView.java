@@ -1,6 +1,5 @@
 package com.ziggfreed.common.objectives.book.achievement;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -8,20 +7,20 @@ import java.util.function.Function;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.ui.kit.ContributedLedger;
 import com.ziggfreed.common.ui.kit.DetailView;
 import com.ziggfreed.common.ui.kit.LedgerContext;
 import com.ziggfreed.common.ui.kit.LedgerContributions;
 import com.ziggfreed.common.ui.kit.LedgerModel;
-import com.ziggfreed.common.ui.kit.LedgerRow;
 import com.ziggfreed.common.ui.kit.LedgerSection;
 import com.ziggfreed.common.ui.kit.LedgerSource;
-import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The book's Statistics view as data: every section the sources contributed to
  * {@link LedgerContributions#STATISTICS} return for one viewer, in the sources' own order, as one list; and the page
  * of a row, from the source that owns it. No zc module knows what a statistic is: the MMO contributes its counters,
- * zc-almanac its seasons, and the book only lists and opens what they hand over.
+ * zc-almanac its seasons, and the book only lists and opens what they hand over. The reading is the kit's one
+ * {@link ContributedLedger}, which the Claims tab shares.
  *
  * <p><b>Ids.</b> Two sources may use the same row or section id, so the view names each by its source:
  * {@link #id(LedgerSource, String)} is the source's id, {@link #SEPARATOR}, then the source's own id. A row's page,
@@ -33,17 +32,21 @@ import com.ziggfreed.common.util.SafeLog;
 public final class StatisticsView {
 
     /** Between a source's id and its own row or section id. */
-    public static final String SEPARATOR = "/";
+    public static final String SEPARATOR = ContributedLedger.SEPARATOR;
+
+    /** What a failing source's line names it by. */
+    private static final String TAG = "[progression] the book's statistics";
 
     /** No sources, or no one to read for. */
-    public static final StatisticsView EMPTY = new StatisticsView(List.of(), LedgerModel.of(List.of()));
+    public static final StatisticsView EMPTY = new StatisticsView(ContributedLedger.of(List.of(), s -> List.of(),
+            TAG));
 
-    private final List<LedgerSource> sources;
+    private final ContributedLedger ledger;
     private final LedgerModel model;
 
-    private StatisticsView(@Nonnull List<LedgerSource> sources, @Nonnull LedgerModel model) {
-        this.sources = List.copyOf(sources);
-        this.model = model;
+    private StatisticsView(@Nonnull ContributedLedger ledger) {
+        this.ledger = ledger;
+        this.model = LedgerModel.of(ledger.sections());
     }
 
     /** Every source on {@link LedgerContributions#STATISTICS}, read for {@code ctx}; empty when it is null. */
@@ -58,39 +61,19 @@ public final class StatisticsView {
         if (ctx == null || sources.isEmpty()) {
             return EMPTY;
         }
-        return of(sources, source -> source.sections(ctx));
+        return new StatisticsView(ContributedLedger.read(sources, ctx, TAG));
     }
 
     /** {@code sources}, each read through {@code sections} (a test's own reading). */
     @Nonnull
     static StatisticsView of(@Nonnull List<LedgerSource> sources,
             @Nonnull Function<LedgerSource, List<LedgerSection>> sections) {
-        List<LedgerSection> all = new ArrayList<>();
-        for (LedgerSource source : sources) {
-            List<LedgerSection> own;
-            try {
-                own = sections.apply(source);
-            } catch (Throwable t) {
-                SafeLog.warn("[progression] the book's statistics source '" + source.id() + "' failed: "
-                        + t.getMessage());
-                continue;
-            }
-            if (own == null) {
-                continue;
-            }
-            for (LedgerSection section : own) {
-                if (section != null) {
-                    all.add(named(source, section));
-                }
-            }
-        }
-        return all.isEmpty() ? new StatisticsView(sources, LedgerModel.of(List.of()))
-                : new StatisticsView(sources, LedgerModel.of(all));
+        return new StatisticsView(ContributedLedger.of(sources, sections, TAG));
     }
 
     /** Whether no source returned a section: the view has nothing to list and its segment hides. */
     public boolean isEmpty() {
-        return model.sections().isEmpty();
+        return ledger.isEmpty();
     }
 
     /** Every section, named by its source. */
@@ -102,65 +85,30 @@ public final class StatisticsView {
     /** {@code ownId} of {@code source} as this view names it. */
     @Nonnull
     public static String id(@Nonnull LedgerSource source, @Nonnull String ownId) {
-        return source.id() + SEPARATOR + ownId;
+        return ContributedLedger.id(source, ownId);
     }
 
     /** The source a view id belongs to (the longest source id it starts with), or null for none. */
     @Nullable
     public LedgerSource sourceOf(@Nullable String id) {
-        if (id == null) {
-            return null;
-        }
-        LedgerSource best = null;
-        for (LedgerSource source : sources) {
-            String prefix = source.id() + SEPARATOR;
-            if (id.startsWith(prefix) && (best == null || source.id().length() > best.id().length())) {
-                best = source;
-            }
-        }
-        return best;
+        return ledger.sourceOf(id);
     }
 
     /** The source's own id inside a view id, or null when no source owns it. */
     @Nullable
     public String ownId(@Nullable String id) {
-        LedgerSource source = sourceOf(id);
-        return source == null ? null : id.substring(source.id().length() + SEPARATOR.length());
+        return ledger.ownId(id);
     }
 
     /** The page for a row, from the source that owns it; null for no such row, nobody to read for, or a failure. */
     @Nullable
     public DetailView page(@Nullable String rowId, @Nullable LedgerContext ctx) {
-        if (ctx == null) {
-            return null;
-        }
-        return page(rowId, (source, own) -> source.page(own, ctx));
+        return ledger.page(rowId, ctx);
     }
 
     /** {@link #page(String, LedgerContext)} through {@code pages} (a test's own reading). */
     @Nullable
     DetailView page(@Nullable String rowId, @Nonnull BiFunction<LedgerSource, String, DetailView> pages) {
-        LedgerSource source = sourceOf(rowId);
-        if (source == null) {
-            return null;
-        }
-        try {
-            return pages.apply(source, ownId(rowId));
-        } catch (Throwable t) {
-            SafeLog.warn("[progression] the book's statistics source '" + source.id() + "' failed on a page: "
-                    + t.getMessage());
-            return null;
-        }
-    }
-
-    @Nonnull
-    private static LedgerSection named(@Nonnull LedgerSource source, @Nonnull LedgerSection section) {
-        List<LedgerRow> rows = new ArrayList<>(section.rows().size());
-        for (LedgerRow row : section.rows()) {
-            rows.add(new LedgerRow(id(source, row.id()), row.title(), row.meta(), row.picture(), row.tone(),
-                    row.state(), row.value(), row.progress(), row.mark(), row.faint()));
-        }
-        return new LedgerSection(id(source, section.id()), section.label(), rows, section.openByDefault(),
-                section.cap());
+        return ledger.page(rowId, pages);
     }
 }

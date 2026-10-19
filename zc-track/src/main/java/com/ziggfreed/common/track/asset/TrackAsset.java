@@ -220,7 +220,7 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
         return cap == null ? null : Math.max(1, cap);
     }
 
-    /** Points earned per level; 0 when unauthored or below 0. */
+    /** Points earned per level past the first; 0 when unauthored or below 0. */
     public int pointsPerLevel() {
         Integer per = points == null ? null : points.perLevel;
         return per == null ? 0 : Math.max(0, per);
@@ -381,7 +381,9 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
                 .appendInherited(new KeyedCodec<>("PerLevel", Codec.INTEGER, false),
                         (o, v) -> o.perLevel = v, o -> o.perLevel, (o, p) -> o.perLevel = p.perLevel)
                 .metadata(EditorSchema.defaultValue(0L))
-                .documentation("Points each level earns, to spend on this track's picks. 0 when unauthored.").add()
+                .documentation("Points each level past the first earns, to spend on the picks priced in this "
+                        + "track's points (a pick's Cost). A respec gives back what was spent. 0 when unauthored.")
+                .add()
                 .build();
 
         public Points() {
@@ -486,6 +488,8 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
         public static final int DEFAULT_MIN_OFFLINE_MINUTES = 30;
         /** The longest time away that counts, unauthored. */
         public static final int DEFAULT_MAX_OFFLINE_HOURS = 168;
+        /** The most the pool holds, unauthored: the MMO's own rested cap. */
+        public static final long DEFAULT_MAX_POOL = 50_000L;
 
         @Nullable protected Boolean enabled;
         @Nullable protected Double multiplier;
@@ -519,8 +523,9 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
                         + "unauthored.").add()
                 .appendInherited(new KeyedCodec<>("MaxPool", Codec.LONG, false),
                         (o, v) -> o.maxPool = v, o -> o.maxPool, (o, p) -> o.maxPool = p.maxPool)
-                .metadata(EditorSchema.defaultValue(0L))
-                .documentation("The most the pool holds. 0, or unauthored, sets no limit.").add()
+                .metadata(EditorSchema.defaultValue(DEFAULT_MAX_POOL))
+                .documentation("The most the pool holds. 50000 when unauthored, the MMO's own cap; 0 or less sets "
+                        + "no limit.").add()
                 .appendInherited(new KeyedCodec<>("MinOfflineMinutes", Codec.INTEGER, false),
                         (o, v) -> o.minOfflineMinutes = v, o -> o.minOfflineMinutes,
                         (o, p) -> o.minOfflineMinutes = p.minOfflineMinutes)
@@ -558,9 +563,12 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
             return percentPerHour == null || !Double.isFinite(percentPerHour) ? 0.0 : Math.max(0.0, percentPerHour);
         }
 
-        /** The most the pool holds; {@link Long#MAX_VALUE} for no limit. */
+        /** The most the pool holds: {@link #DEFAULT_MAX_POOL} unauthored, {@link Long#MAX_VALUE} for no limit. */
         public long maxPool() {
-            return maxPool == null || maxPool <= 0L ? Long.MAX_VALUE : maxPool;
+            if (maxPool == null) {
+                return DEFAULT_MAX_POOL;
+            }
+            return maxPool <= 0L ? Long.MAX_VALUE : maxPool;
         }
 
         /** The shortest time away that counts, in minutes, 0 or more. */

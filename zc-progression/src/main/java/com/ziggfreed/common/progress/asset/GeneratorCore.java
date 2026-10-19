@@ -360,6 +360,18 @@ public final class GeneratorCore {
 
     // ==================== token scanning ====================
 
+    /**
+     * Every {@code {token}} name still written anywhere in {@code node} (its strings and its object keys): what a
+     * caller filling a template through {@link #substitute} asks afterwards, so an unbound token is reported the
+     * same way {@link #expand} reports it, never shipped half-written.
+     */
+    @Nonnull
+    public static Set<String> tokensIn(@Nonnull JsonElement node) {
+        Set<String> out = new LinkedHashSet<>();
+        collectTokens(node, out);
+        return out;
+    }
+
     /** Add every {@code {token}} name found anywhere in {@code node} to {@code out}. */
     private static void collectTokens(@Nonnull JsonElement node, @Nonnull Set<String> out) {
         if (node.isJsonObject()) {

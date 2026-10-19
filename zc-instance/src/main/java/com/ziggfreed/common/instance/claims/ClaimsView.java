@@ -29,11 +29,14 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.ui.icon.ItemQualityLook;
 import com.ziggfreed.common.ui.kit.ActionLook;
 import com.ziggfreed.common.ui.kit.ActionSlot;
+import com.ziggfreed.common.ui.kit.ContributedLedger;
 import com.ziggfreed.common.ui.kit.DetailAction;
 import com.ziggfreed.common.ui.kit.DetailBlock;
 import com.ziggfreed.common.ui.kit.DetailLine;
 import com.ziggfreed.common.ui.kit.DetailView;
 import com.ziggfreed.common.ui.kit.EmptyState;
+import com.ziggfreed.common.ui.kit.LedgerContext;
+import com.ziggfreed.common.ui.kit.LedgerContributions;
 import com.ziggfreed.common.ui.kit.LedgerModel;
 import com.ziggfreed.common.ui.kit.LedgerRow;
 import com.ziggfreed.common.ui.kit.LedgerSection;
@@ -50,10 +53,10 @@ import com.ziggfreed.common.ui.toast.ToastSpec;
 
 /**
  * What the Claims page shows, decided where the page only paints it: the newest Claim first, one row each (its
- * title, how many rewards it holds, its first item's picture or a wallet-only Claim's wallet), the one being read
- * (its rewards as the library's reward chips, its difficulty, Claim and Claim All), what an empty tab says, the
- * rows of a press's toast ({@link #landedLines}), and a reward chest's one page ({@link #chestDetail}). Nothing here
- * touches a store.
+ * title, how many rewards it holds, its first item's picture or a wallet-only Claim's wallet), then the sections
+ * other modules list on the tab ({@link #contributed}), the one being read (its rewards as the library's reward
+ * chips, its difficulty, Claim and Claim All), what an empty tab says, the rows of a press's toast
+ * ({@link #landedLines}), and a reward chest's one page ({@link #chestDetail}). Nothing here touches a store.
  */
 public final class ClaimsView {
 
@@ -109,13 +112,43 @@ public final class ClaimsView {
     /** One section, a row per Claim in the order given. */
     @Nonnull
     public static LedgerModel ledger(@Nonnull List<Claim> claims, @Nonnull ClaimsText text) {
-        List<LedgerRow> rows = new ArrayList<>(claims.size());
-        for (Claim claim : claims) {
-            rows.add(new LedgerRow(claim.id(), title(claim, text), text.line("row.rewards", claim.rewards().size()),
-                    picture(claim), Tone.COLLECT, null, null, null, Mark.NONE, false));
-        }
-        return LedgerModel.of(List.of(new LedgerSection(SECTION, text.line("page.section"), rows, true)));
+        return ledger(claims, text, null);
     }
+
+    /**
+     * The Claims' section (a row per Claim in the order given, left out when there is none) and after it every
+     * section {@code contributed} lists, named by its source.
+     */
+    @Nonnull
+    public static LedgerModel ledger(@Nonnull List<Claim> claims, @Nonnull ClaimsText text,
+            @Nullable ContributedLedger contributed) {
+        List<LedgerSection> sections = new ArrayList<>();
+        if (!claims.isEmpty() || contributed == null || contributed.isEmpty()) {
+            List<LedgerRow> rows = new ArrayList<>(claims.size());
+            for (Claim claim : claims) {
+                rows.add(new LedgerRow(claim.id(), title(claim, text),
+                        text.line("row.rewards", claim.rewards().size()), picture(claim), Tone.COLLECT, null, null,
+                        null, Mark.NONE, false));
+            }
+            sections.add(new LedgerSection(SECTION, text.line("page.section"), rows, true));
+        }
+        if (contributed != null) {
+            sections.addAll(contributed.sections());
+        }
+        return LedgerModel.of(sections);
+    }
+
+    /**
+     * What other modules list on the tab for the viewer ({@code LedgerContributions.CLAIMS}: a track's choices not
+     * made yet), read once for one build; empty with nobody behind the context.
+     */
+    @Nonnull
+    public static ContributedLedger contributed(@Nullable LedgerContext ctx) {
+        return ContributedLedger.read(LedgerContributions.CLAIMS, ctx, CONTRIBUTED_TAG);
+    }
+
+    /** What a failing contributed source's line names it by. */
+    private static final String CONTRIBUTED_TAG = "[claims] the Claims tab's";
 
     // ==================== the reading page ====================
 

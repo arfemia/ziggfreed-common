@@ -26,6 +26,9 @@ dependencies {
     // WorldSelector and MatchRank, the one "which worlds?" a world's track rules file names (Where). One-way:
     // zc-world sits on zc-core and zc-entity alone and never reaches up here.
     implementation project(':zc-world')
+    // The kit's ledger records and LedgerContributions, the seam the picks waiting are listed on the Claims tab
+    // through (PickClaims). One-way: zc-presentation sits on zc-core, zc-loot and zc-cast and never reaches up here.
+    implementation project(':zc-presentation')
 }
 
 // Regenerate this module's SCHEMA.md (the authoring reference for tracks, track curves and track
@@ -43,6 +46,7 @@ tasks.register('generateSchemaDocs', JavaExec) {
     inputs.files(fileTree('src/main/java/com/ziggfreed/common/track/asset') { include '**/*.java' })
     inputs.files(fileTree('src/main/java/com/ziggfreed/common/track/source') { include '**/*.java' })
     inputs.files(fileTree('src/main/java/com/ziggfreed/common/track/world') { include '**/*.java' })
+    inputs.files(fileTree('src/main/java/com/ziggfreed/common/track/pick') { include '**/*.java' })
     inputs.file('src/main/java/com/ziggfreed/common/track/docs/TrackSchemaDocs.java')
     outputs.file(schemaDocOutput)
 }

@@ -14,8 +14,9 @@ import com.hypixel.hytale.codec.util.RawJsonReader;
 
 /**
  * The per-player record of climbs, read back through the engine codec a restart reads it with: every leaf of
- * every key (a reserved namespace and run included) survives, a climb with nothing on record is not saved, a
- * key reads in any case, and a save written with fewer leaves reads the rest as nothing on record.
+ * every key (a reserved namespace and run included, and the picks made on a climb) survives, a climb with nothing on
+ * record is not saved, a key reads in any case, and a save written with fewer leaves reads the rest as nothing on
+ * record.
  */
 class TrackComponentCodecTest {
 
@@ -29,18 +30,28 @@ class TrackComponentCodecTest {
         TrackRecord climbed = new TrackRecord(123_456_789_012L, 0.375, 150, 2,
                 Map.of("at_25_50_75", 25, "every_15", 0, "your_cache", 100));
         TrackRecord lost = new TrackRecord(-500L, 0.0, 3, 0, Map.of());
+        TrackKey swords = TrackKey.player(PLAYER, "Your_Swords");
+        TrackRecord picked = new TrackRecord(9_000L, 0.0, 12, 1, Map.of()).withPicks(new PickState(
+                Map.of("your_swords_lines/lines/2", List.of("Your_Edge"),
+                        "your_swords_lines/lines/3", List.of("your_keen", "your_edge")),
+                Map.of("Your_Whirlwind", 2),
+                Map.of("your_swords_lines/lines/4", List.of("your_precision"))));
         TrackComponent record = new TrackComponent();
         record.put(mining, climbed);
         record.put(seasonal, lost);
+        record.put(swords, picked);
         record.put(TrackKey.player(PLAYER, "Your_Untouched"), TrackRecord.EMPTY);
 
         ExtraInfo info = new ExtraInfo();
         TrackComponent restarted = TrackComponent.CODEC.decode(TrackComponent.CODEC.encode(record, info), info);
         assertEquals(climbed, restarted.get(mining), "the value, its fraction, the best, the prestige and the marks");
         assertEquals(lost, restarted.get(seasonal), "a namespaced, seasonal climb is its own entry");
-        assertEquals(2, restarted.size(), "a climb with nothing on record is not saved");
+        assertEquals(picked, restarted.get(swords), "the picks made, the takes and what a prestige put aside");
+        assertEquals(List.of("your_keen", "your_edge"), restarted.get(swords).picks()
+                .chosen("your_swords_lines/lines/3"), "a slot's options keep the order they were chosen in");
+        assertEquals(3, restarted.size(), "a climb with nothing on record is not saved");
         assertEquals(climbed, restarted.get(TrackKey.player(PLAYER, "YOUR_MINING")), "a key reads in any case");
-        assertEquals(List.of("your_mining"), restarted.defaultTracks());
+        assertEquals(List.of("your_mining", "your_swords"), restarted.defaultTracks());
 
         TrackComponent fewer = TrackComponent.CODEC.decodeJson(RawJsonReader.fromJsonString(
                 "{\"Tracks\": [ { \"Track\": \"Your_Mining\", \"Value\": 10 } ]}"), new ExtraInfo());

@@ -1,0 +1,6 @@
+{
+  "$Comment": "Names the ziggfreedcommon:track_pick reading for requirement lines. Param is a track id and a pick or option id joined by a slash (Your_Swords/Your_Edge); the reading is how many times the player took it on that track: every level whose choice took that option, every take of a pick bought outright, every level of a choice pick made. Write Min 39 to ask for 39 Edge picks (a line rank). A pick or option that names itself words its own lock lines ('Requires Edge picks 39'). It changes only through the player's own picks, their undo, a respec or a prestige, or a track reload (Volatility Player).",
+  "Factor": "ziggfreedcommon:track_pick",
+  "Text": { "TitleKey": "ziggfreedcommon.track.factor.track_pick" },
+  "Volatility": "Player"
+}

@@ -14,6 +14,9 @@ import com.ziggfreed.common.entity.overhead.OverheadIndicators;
 import com.ziggfreed.common.entity.overhead.OverheadVisibilityFilter;
 import com.ziggfreed.common.entity.performer.PerformerIdentityComponent;
 import com.ziggfreed.common.entity.title.ZigTitleComponent;
+import com.ziggfreed.common.grant.Grants;
+import com.ziggfreed.common.grant.StatGrant;
+import com.ziggfreed.common.grant.StatGrantWriter;
 import com.ziggfreed.common.progress.gate.GateEpochs;
 import com.ziggfreed.common.progress.gate.ZigGateEpochMovedEvent;
 import com.ziggfreed.common.stats.EquipStatBridge;
@@ -84,6 +87,16 @@ public final class EntityBootstrap {
     @javax.annotation.Nullable
     public static EquipStatBridge equipStatBridge() {
         return equipStatBridge;
+    }
+
+    /**
+     * Register the library's grant kind, {@code Stat} ({@link StatGrant}, written by {@link StatGrantWriter}), into
+     * the native grant union ({@code Grant.CODEC}) through the plugin's codec registry, before any asset decodes, so
+     * a file naming it reads from the first load. Not guarded: a failed registration throws here, at setup, rather
+     * than as an unknown Kind inside a pack later (R700).
+     */
+    public static void registerGrants(@Nonnull PluginBase plugin) {
+        Grants.register(plugin, StatGrant.KIND, StatGrant.class, StatGrant.CODEC, StatGrantWriter.INSTANCE);
     }
 
     /**

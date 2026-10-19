@@ -8,9 +8,12 @@ import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.ToIntFunction;
 
 import javax.annotation.Nonnull;
 
+import com.ziggfreed.common.grant.Grant;
+import com.ziggfreed.common.grant.StatGrant;
 import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.progress.gate.GateRuntime;
@@ -23,6 +26,9 @@ import com.ziggfreed.common.track.asset.TrackCurveAsset;
 import com.ziggfreed.common.track.asset.TrackCurveConfig;
 import com.ziggfreed.common.track.curve.CurveTable;
 import com.ziggfreed.common.track.gain.GainFactors;
+import com.ziggfreed.common.track.pick.TrackPickAsset;
+import com.ziggfreed.common.track.pick.TrackPickConfig;
+import com.ziggfreed.common.track.pick.TrackPicks;
 import com.ziggfreed.common.track.source.SourceRow;
 import com.ziggfreed.common.track.source.TrackSourceAsset;
 import com.ziggfreed.common.track.source.TrackSourceConfig;
@@ -56,7 +62,13 @@ import com.ziggfreed.common.validation.Severity;
  *   <li>WARNING, for growth ({@link #auditGrowth}): {@link #UNKNOWN_GAIN_FACTOR}, {@link #SOURCE_WITHOUT_TRACK},
  *       {@link #UNKNOWN_SOURCE_TRACK}, {@link #SOURCE_WITHOUT_KIND}, {@link #UNKNOWN_SOURCE_KIND},
  *       {@link #SOURCE_PAYS_NOTHING}, {@link #RULE_WITHOUT_WHERE}, {@link #UNKNOWN_RULE_TRACK}, the gate audit
- *       over a source's {@code Requires} and the {@code Where} audit over a world rule file's.</li>
+ *       over a source's {@code Requires} and the {@code Where} audit over a world rule file's;</li>
+ *   <li>for picks: the fold's own findings ({@code TrackPicks}: ERROR {@code UNRESOLVED_PICK_TOKEN} and
+ *       {@code UNREADABLE_PICK_GRANTS}, an option left out; WARNING {@code PICK_WITHOUT_TRACK},
+ *       {@code UNKNOWN_PICK_TRACK}, {@code UNKNOWN_PICK_OPTION}, {@code UNKNOWN_PICK_DECK},
+ *       {@code GROUP_WITHOUT_LEVEL}, {@code GROUP_WITHOUT_OPTIONS}), then WARNING
+ *       {@link #UNKNOWN_PICK_PREREQUISITE}, {@link #UNKNOWN_COST_TRACK}, {@link #COST_WITHOUT_POINTS},
+ *       {@link #UNKNOWN_GRANT_STAT} ({@link #auditPicks}) and the gate audit over a pick's {@code Requires}.</li>
  * </ul>
  */
 public final class TrackValidator {
@@ -90,6 +102,10 @@ public final class TrackValidator {
     public static final String SOURCE_PAYS_NOTHING = "SOURCE_PAYS_NOTHING";
     public static final String RULE_WITHOUT_WHERE = "RULE_WITHOUT_WHERE";
     public static final String UNKNOWN_RULE_TRACK = "UNKNOWN_RULE_TRACK";
+    public static final String UNKNOWN_PICK_PREREQUISITE = "UNKNOWN_PICK_PREREQUISITE";
+    public static final String UNKNOWN_COST_TRACK = "UNKNOWN_COST_TRACK";
+    public static final String COST_WITHOUT_POINTS = "COST_WITHOUT_POINTS";
+    public static final String UNKNOWN_GRANT_STAT = "UNKNOWN_GRANT_STAT";
 
     private static final AtomicBoolean LOGGED = new AtomicBoolean();
 
@@ -126,6 +142,19 @@ public final class TrackValidator {
             for (Map.Entry<String, TrackWorldRuleAsset> entry : TrackWorldRuleConfig.getInstance().all().entrySet()) {
                 if (entry.getValue().isEnabled()) {
                     out.addAll(WhereValidator.validateSelector(entry.getValue().where(), entry.getKey() + ".Where"));
+                }
+            }
+            out.addAll(TrackPicks.issues());
+            out.addAll(auditPicks(TrackPicks.all().values(),
+                    id -> {
+                        TrackAsset track = TrackConfig.getInstance().live(id);
+                        return track == null ? -1 : track.pointsPerLevel();
+                    },
+                    id -> StatIndexCache.resolve(id) != StatIndexCache.UNRESOLVED));
+            for (Map.Entry<String, TrackPickAsset> entry : TrackPickConfig.getInstance().all().entrySet()) {
+                if (entry.getValue().isEnabled()) {
+                    out.addAll(GateValidator.validate(entry.getValue().requires(), DOMAIN, entry.getKey(),
+                            "track pick", GateRuntime.kinds(), GateRuntime.vocabulary()::isRegistered, null));
                 }
             }
             return out;
@@ -339,6 +368,55 @@ public final class TrackValidator {
                         + name.trim() + "', which is neither a switched-on track nor a category here", id));
             }
         }
+    }
+
+    /**
+     * The pure core of the picks' audit, over the folded picks (the fold reports its own findings): a prerequisite
+     * naming no pick or option on the same track, a cost priced in a track not switched on or one that earns no
+     * points, and a {@code Stat} grant naming a stat this server does not have. Every finding is a WARNING.
+     *
+     * @param pointsPerLevel a switched-on track's {@code Points.PerLevel}, or -1 when the id names none
+     * @param statKnown      whether a native stat id is registered
+     */
+    @Nonnull
+    public static List<Finding> auditPicks(@Nonnull Collection<TrackPicks.PickDef> picks,
+            @Nonnull ToIntFunction<String> pointsPerLevel, @Nonnull Predicate<String> statKnown) {
+        List<Finding> out = new ArrayList<>();
+        for (TrackPicks.PickDef pick : picks) {
+            TrackPickAsset asset = pick.asset();
+            String id = asset.getId();
+            String where = "track pick '" + id + "'";
+            for (String needed : asset.prerequisites()) {
+                if (!TrackPicks.knownOnTrack(pick.trackId(), needed)) {
+                    out.add(Finding.warning(DOMAIN, UNKNOWN_PICK_PREREQUISITE, where + " needs '" + needed
+                            + "' first, which is no pick or option on its track, so it never opens", id));
+                }
+            }
+            if (asset.costPoints() > 0) {
+                String costTrack = asset.costTrack();
+                int perLevel = costTrack == null ? -1 : pointsPerLevel.applyAsInt(costTrack);
+                if (perLevel < 0) {
+                    out.add(Finding.warning(DOMAIN, UNKNOWN_COST_TRACK, where + " is priced in the points of '"
+                            + costTrack + "', which is not a switched-on track here, so nobody can pay for it", id));
+                } else if (perLevel == 0) {
+                    out.add(Finding.warning(DOMAIN, COST_WITHOUT_POINTS, where + " is priced in the points of '"
+                            + costTrack + "', which earns none (no Points.PerLevel), so nobody can pay for it", id));
+                }
+            }
+            List<Grant> grants = new ArrayList<>(asset.grants());
+            for (TrackPicks.GroupDef group : pick.groups()) {
+                for (TrackPicks.OptionDef option : group.options().values()) {
+                    grants.addAll(option.grants());
+                }
+            }
+            for (Grant grant : grants) {
+                if (grant instanceof StatGrant stat && stat.stat() != null && !statKnown.test(stat.stat())) {
+                    out.add(Finding.warning(DOMAIN, UNKNOWN_GRANT_STAT, where + " grants the stat '" + stat.stat()
+                            + "', which is not registered here, so that grant raises nothing", id));
+                }
+            }
+        }
+        return out;
     }
 
     private static void auditCurve(@Nonnull TrackCurveAsset curve, @Nonnull List<Finding> out) {
