@@ -24,7 +24,8 @@ import com.ziggfreed.common.world.WhereValidator.LoadedWorld;
  * The mark over a placed character's head, per viewer: a scroll for a quest they could take, a gold
  * bar for an errand they can hand in, coins for a reward waiting, as the looks say. The answer is
  * {@link QuestIndicators}' over the same alias set the NPC quest page asks
- * ({@link NpcQuestPages#resolvedDeps}), so the mark and the page always agree.
+ * ({@link NpcQuestPages#resolvedDeps}), so the mark and the page always agree. A surface on the engine
+ * bus, hung there by {@link QuestMarkers#install}.
  */
 final class QuestOverheads implements QuestMarkerListener {
 

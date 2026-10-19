@@ -19,6 +19,9 @@ import javax.annotation.Nonnull;
  * command thread or the invite-expiry scheduler), so it must be cheap, never block, never
  * open a page and never touch a Store/Ref off the world thread. The service guards each
  * callback in a try/catch.
+ *
+ * <p>The same change then goes out on the engine event bus as {@link ZigPartyChangedEvent},
+ * for a mod that hears every service's parties without holding one.
  */
 @FunctionalInterface
 public interface PartyListener {

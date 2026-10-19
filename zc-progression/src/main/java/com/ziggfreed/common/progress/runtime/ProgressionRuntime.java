@@ -557,7 +557,8 @@ public final class ProgressionRuntime {
 
     /**
      * THE reaction fan-out over every produced moment, read LIVE: every registered
-     * {@link MomentListener}, each guarded, in one call.
+     * {@link MomentListener}, each guarded, in one call, and then the moment's native
+     * {@link ZigMomentEvent} for a mod listening on the bus.
      *
      * <p>Handed out so the shared dispatch - and any producer of a net-new moment that routes
      * through it - reaches every reaction with one call, and so a listener registered after the

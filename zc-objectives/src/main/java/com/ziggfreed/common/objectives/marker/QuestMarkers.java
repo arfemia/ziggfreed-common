@@ -27,6 +27,7 @@ import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.cast.WorldEvictors;
+import com.ziggfreed.common.event.NativeEventSeam;
 import com.ziggfreed.common.npc.placement.runtime.PlacedNpcComponent;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.quest.event.QuestAbandonedEvent;
@@ -40,8 +41,11 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The library's quest marks: what a player sees about their quests without opening a page, recomputed
- * one viewer at a time and handed to each surface ({@link QuestMarkerListener}): the marks over the
- * placed characters' heads ({@link QuestOverheads}) and anything else registered.
+ * one viewer at a time and handed to each surface on the engine event bus as
+ * {@link ZigQuestMarksEvaluatedEvent}: the marks over the placed characters' heads
+ * ({@link QuestOverheads}), the compass and map ({@code waypoint/QuestWaypoints}) and any mod drawing a
+ * surface of its own, each hung there by {@link #registerSurface} or by its own two listeners. A viewer
+ * who leaves is the engine's {@code PlayerDisconnectEvent}.
  *
  * <p><b>When.</b> Immediately on the quest engine's six events and at player ready (every login and
  * world change), for the one player named; and on a slow sweep, {@value #SWEEP_SECONDS} seconds by
@@ -61,13 +65,25 @@ public final class QuestMarkers {
     /** The placed characters standing in each world, indexed by the host system on its cadence. */
     private static final ConcurrentHashMap<World, Set<Ref<EntityStore>>> HOSTS = new ConcurrentHashMap<>();
 
+    /** The surfaces added through the deprecated {@link #addListener}. */
     private static final CopyOnWriteArrayList<QuestMarkerListener> LISTENERS = new CopyOnWriteArrayList<>();
     private static final Set<String> LISTENER_IDS = ConcurrentHashMap.newKeySet();
+
+    /** Where {@link ZigQuestMarksEvaluatedEvent} goes, after any surface added here; built only when somebody listens. */
+    private static final NativeEventSeam EVENTS = new NativeEventSeam("[progression]");
 
     private QuestMarkers() {
     }
 
-    /** Add a surface under {@code id}; a second add under the same id (any case) is ignored. Call from setup. */
+    /**
+     * Add a surface under {@code id}; a second add under the same id (any case) is ignored. Call from setup.
+     *
+     * @deprecated a surface listens on the engine bus: {@link ZigQuestMarksEvaluatedEvent} carries the
+     *     scope {@code evaluate} was handed, on the same thread at the same moments, and the engine's own
+     *     {@code PlayerDisconnectEvent} is where {@code forget} ran. {@link #registerSurface} hangs both on
+     *     a plugin's event registry, as the library's own surfaces do. Removed in a later release.
+     */
+    @Deprecated(since = "2.6.0")
     public static void addListener(@Nonnull String id, @Nonnull QuestMarkerListener listener) {
         if (LISTENER_IDS.add(id.trim().toLowerCase(Locale.ROOT))) {
             LISTENERS.add(listener);
@@ -75,14 +91,38 @@ public final class QuestMarkers {
     }
 
     /**
-     * Add the overhead surface, subscribe the refresh to the six quest events, player ready and
-     * disconnect, and register the two delayed systems and the per-world eviction. Call once from
+     * Hang one surface of the marks on the engine bus through {@code plugin}'s event registry: its
+     * {@code evaluate} on every {@link ZigQuestMarksEvaluatedEvent} (the world thread, the scope valid only
+     * during the call) and its {@code forget} on the engine's {@code PlayerDisconnectEvent} (any thread),
+     * each guarded so a surface that throws costs only itself and one warning. The library's own surfaces
+     * register this way; a mod may register the two events itself just as well. Call from setup, inside
+     * the caller's own guard: a registry that refuses throws.
+     */
+    public static void registerSurface(@Nonnull PluginBase plugin, @Nonnull QuestMarkerListener surface) {
+        var events = plugin.getEventRegistry();
+        events.register(ZigQuestMarksEvaluatedEvent.class, event -> evaluateGuarded(surface, event.scope()));
+        events.register(PlayerDisconnectEvent.class, event -> {
+            UUID viewerId = viewerOf(event);
+            if (viewerId != null) {
+                forgetGuarded(surface, viewerId);
+            }
+        });
+    }
+
+    /**
+     * Hang the overhead surface on the bus, subscribe the refresh to the six quest events, player ready
+     * and disconnect, and register the two delayed systems and the per-world eviction. Call once from
      * setup; guarded and loud, since a subscription that failed is a mark that lags the sweep. The
-     * surface sits outside the subscriptions' guard, so a failed subscription never costs the overheads
+     * surface has a guard of its own, so a failed refresh subscription never costs the overheads
      * themselves.
      */
     public static void install(@Nonnull PluginBase plugin) {
-        addListener("overheads", QuestOverheads.INSTANCE);
+        try {
+            registerSurface(plugin, QuestOverheads.INSTANCE);
+        } catch (Throwable t) {
+            SafeLog.warn("[progression] the quest marks over characters' heads could not subscribe to the"
+                    + " evaluation event, so none is drawn this boot", t);
+        }
         try {
             var events = plugin.getEventRegistry();
             events.registerGlobal(QuestTrackedEvent.class, event -> refresh(event.playerId()));
@@ -146,7 +186,10 @@ public final class QuestMarkers {
         }
     }
 
-    /** One viewer's whole answer, handed to every surface. World thread. */
+    /**
+     * One viewer's whole answer, handed to every surface added here and then to the bus's, as
+     * {@link ZigQuestMarksEvaluatedEvent}. World thread.
+     */
     static void evaluate(@Nonnull Store<EntityStore> store, @Nonnull ComponentAccessor<EntityStore> accessor,
             @Nonnull World world, @Nonnull Ref<EntityStore> viewerRef, @Nonnull UUID viewerId) {
         Subject subject;
@@ -161,29 +204,45 @@ public final class QuestMarkers {
         }
         QuestMarkerScope scope = new QuestMarkerScope(store, accessor, world, viewerRef, viewerId, subject,
                 hostsIn(world));
-        for (QuestMarkerListener listener : LISTENERS) {
-            try {
-                listener.evaluate(scope);
-            } catch (Throwable t) {
-                SafeLog.warn("[progression] a quest-mark surface failed: " + t.getMessage());
-            }
+        for (QuestMarkerListener surface : LISTENERS) {
+            evaluateGuarded(surface, scope);
+        }
+        if (EVENTS.listening(ZigQuestMarksEvaluatedEvent.class)) {
+            EVENTS.fire("ZigQuestMarksEvaluated", ZigQuestMarksEvaluatedEvent.class,
+                    () -> new ZigQuestMarksEvaluatedEvent(scope));
         }
     }
 
-    /** Tell every surface a viewer left; one that throws costs only itself. Any thread. */
+    /** Tell every surface added here that a viewer left; one that throws costs only itself. Any thread. */
     static void forgetEverywhere(@Nonnull UUID viewerId) {
-        for (QuestMarkerListener listener : LISTENERS) {
-            try {
-                listener.forget(viewerId);
-            } catch (Throwable t) {
-                SafeLog.warn("[progression] a quest-mark surface failed to forget a player: " + t.getMessage());
-            }
+        for (QuestMarkerListener surface : LISTENERS) {
+            forgetGuarded(surface, viewerId);
         }
     }
 
-    /** The surfaces added. Tests only. */
-    static int listenerCount() {
-        return LISTENERS.size();
+    /** Hand one surface a viewer's answer; a throw costs only that surface. World thread. */
+    private static void evaluateGuarded(@Nonnull QuestMarkerListener surface, @Nonnull QuestMarkerScope scope) {
+        try {
+            surface.evaluate(scope);
+        } catch (Throwable t) {
+            SafeLog.warn("[progression] a quest-mark surface failed: " + t.getMessage());
+        }
+    }
+
+    /** Tell one surface a viewer left; a throw costs only that surface. Any thread. */
+    private static void forgetGuarded(@Nonnull QuestMarkerListener surface, @Nonnull UUID viewerId) {
+        try {
+            surface.forget(viewerId);
+        } catch (Throwable t) {
+            SafeLog.warn("[progression] a quest-mark surface failed to forget a player: " + t.getMessage());
+        }
+    }
+
+    /** The leaving player's id, or null when the engine names none. */
+    @Nullable
+    private static UUID viewerOf(@Nonnull PlayerDisconnectEvent event) {
+        PlayerRef playerRef = event.getPlayerRef();
+        return playerRef != null ? playerRef.getUuid() : null;
     }
 
     /** Drop every surface. Tests only. */
@@ -230,8 +289,7 @@ public final class QuestMarkers {
     }
 
     private static void onPlayerDisconnect(@Nonnull PlayerDisconnectEvent event) {
-        PlayerRef playerRef = event.getPlayerRef();
-        UUID uuid = playerRef != null ? playerRef.getUuid() : null;
+        UUID uuid = viewerOf(event);
         if (uuid != null) {
             forgetEverywhere(uuid);
         }

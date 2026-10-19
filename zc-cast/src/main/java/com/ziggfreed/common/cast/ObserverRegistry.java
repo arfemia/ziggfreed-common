@@ -23,7 +23,14 @@ import com.ziggfreed.common.util.SafeLog;
  * sharing this jar never see each other's listeners.
  *
  * @param <E> the event type
+ * @deprecated a moment another mod may hook is a native event: make the event an {@code IEvent<Void>}
+ *     POJO, fire it through zc-core's {@code event/NativeEventSeam} (guarded, built only when somebody
+ *     listens), and register each listener on the engine bus through its plugin's
+ *     {@code getEventRegistry().register(Event.class, listener)}. The bus already runs every listener
+ *     whatever another throws (it logs the throw at SEVERE); a listener wanting a quieter line of its
+ *     own wraps itself in a try/catch. Removed in a later release.
  */
+@Deprecated(since = "2.6.0")
 public final class ObserverRegistry<E> {
 
     @Nullable private final String label;

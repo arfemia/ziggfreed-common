@@ -18,6 +18,7 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * ONE shared per-target hit-application routine: dispatch the damage, then an optional on-hit hook,
+ * then the native {@link ZigCastHitEvent} (built only when somebody listens, {@link CastEvents}),
  * then an optional per-hit sound and per-hit particle, reproducing the exact sequence + catch policy
  * a consumer's independently-copied {@code damage + onHit + sound} hit loops shared. Lifted config-
  * free from a consumer; the two consumer-coupled knobs it had - an XP-attribution wrap around the
@@ -92,6 +93,10 @@ public final class HitResolver {
             Runnable dispatch = () -> req.sink.execute(target, req.source, req.cause, req.amount);
             req.originDecorator.apply(dispatch).run();
             fireOnHit(store, req, target, hitPos);
+            if (CastEvents.listeningForHits()) {
+                CastEvents.fireHit(() -> new ZigCastHitEvent(contextOf(store, req, target, hitPos), req.source,
+                        req.cause));
+            }
             if (req.perHitSound != null && hitPos != null) {
                 req.perHitSound.accept(store, hitPos);
             }
@@ -126,20 +131,28 @@ public final class HitResolver {
         }
         if (req.onHitAction != null) {
             try {
-                HitContext ctx = HitContext.builder()
-                        .accessor(store)
-                        .target(target)
-                        .source(req.sourceRef)
-                        .sourcePlayerId(req.sourcePlayerId)
-                        .damageAmount(req.amount)
-                        .position(hitPos)
-                        .cause(req.hitCauseLabel)
-                        .build();
-                req.onHitAction.onHit(ctx);
+                req.onHitAction.onHit(contextOf(store, req, target, hitPos));
             } catch (Throwable hitErr) {
                 fine(req.onHitFailLabel + " failed: " + hitErr.getMessage());
             }
         }
+    }
+
+    /** The on-hit {@link HitContext} for one hit: what a {@link HitAction} is handed and the hit event carries. */
+    @Nonnull
+    private static HitContext contextOf(@Nonnull Store<EntityStore> store,
+                                        @Nonnull HitRequest req,
+                                        @Nonnull Ref<EntityStore> target,
+                                        @Nullable Vector3d hitPos) {
+        return HitContext.builder()
+                .accessor(store)
+                .target(target)
+                .source(req.sourceRef)
+                .sourcePlayerId(req.sourcePlayerId)
+                .damageAmount(req.amount)
+                .position(hitPos)
+                .cause(req.hitCauseLabel)
+                .build();
     }
 
     /**

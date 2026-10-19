@@ -50,6 +50,10 @@ import com.ziggfreed.common.util.SafeLog;
  * {@code CommandBuffer} accessor (to DEFER a component mutation), the damage amount, or the hit
  * position can route through this registry too. The two registrations live in separate tables and
  * never collide; a type registered on one path is invisible to the other.
+ *
+ * <p><b>Not an observer.</b> A builder here RETURNS the callback a cast's own params ask for, per
+ * consumer, so no event can stand in for it. A mod that only wants to hear a hit land listens for
+ * {@link ZigCastHitEvent} on the engine bus instead.
  */
 public final class OnHitRegistry {
 

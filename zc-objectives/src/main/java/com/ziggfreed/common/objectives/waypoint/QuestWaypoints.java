@@ -28,9 +28,10 @@ import com.ziggfreed.common.worldmap.WaypointTarget;
  * current step sends the player, or at the nearest way into the world that place stands in; and one
  * at each character in this world with a quest the player could take. Always on.
  *
- * <p>A surface of {@link QuestMarkers}, so it refreshes on the quest engine's six events, at player
- * ready and on the slow sweep, never a tick. The nearest gateway still follows the player, because
- * the resolver reads where they stand on every map update.
+ * <p>A surface of {@link QuestMarkers} on the engine bus ({@code ZigQuestMarksEvaluatedEvent}), so it
+ * refreshes on the quest engine's six events, at player ready and on the slow sweep, never a tick. The
+ * nearest gateway still follows the player, because the resolver reads where they stand on every map
+ * update.
  */
 public final class QuestWaypoints implements QuestMarkerListener {
 
@@ -64,12 +65,13 @@ public final class QuestWaypoints implements QuestMarkerListener {
     }
 
     /**
-     * Add this surface to the quest-mark hub. Call once from setup, after {@link QuestMarkers#install}.
-     * A removed world's gateway index is dropped by {@link Gateways} itself.
+     * Hang this surface on the engine bus beside the quest-mark hub's ({@link QuestMarkers#registerSurface}).
+     * Call once from setup, after {@link QuestMarkers#install}. A removed world's gateway index is dropped
+     * by {@link Gateways} itself.
      */
     public static void install(@Nonnull PluginBase plugin) {
         try {
-            QuestMarkers.addListener("waypoints", INSTANCE);
+            QuestMarkers.registerSurface(plugin, INSTANCE);
             SafeLog.info("[progression] quest waypoints installed (" + PROVIDER_KEY + "): every tracked quest"
                     + " is pointed at, through the nearest gateway when its character stands in another world,"
                     + " and the quests on offer are marked on the map");

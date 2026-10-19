@@ -32,6 +32,10 @@ import com.ziggfreed.common.progress.ProgressDispatchTap;
  * against the {@link Moment#store() store} and {@link Moment#ref() ref} it is handed exactly as the
  * event system it replaces did. Keep it to the reaction; anything slow slows every action in the
  * game.
+ *
+ * <p><b>The native face.</b> After every registered listener, the same moment goes out on the
+ * engine event bus as {@link ZigMomentEvent}, so a mod can hear it with
+ * {@code getEventRegistry().register(ZigMomentEvent.class, ...)} and register nothing here.
  */
 @FunctionalInterface
 public interface MomentListener {

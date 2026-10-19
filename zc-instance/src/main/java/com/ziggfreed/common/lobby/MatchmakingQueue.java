@@ -420,9 +420,13 @@ public final class MatchmakingQueue {
 
     // ==================== listener fan-out (packet-only, fully guarded) ====================
 
-    /** Push a fresh snapshot to every registered listener. Guarded; under-lock-safe (packet-only). */
+    /**
+     * Push a fresh snapshot to every registered listener, then out as the native
+     * {@link ZigQueueChangedEvent}. Guarded; under-lock-safe (packet-only).
+     */
     private void notifyChange() {
-        if (listeners.isEmpty()) {
+        boolean announce = QueueEvents.listeningForChanges();
+        if (listeners.isEmpty() && !announce) {
             return;
         }
         QueueSnapshot snap = snapshot();
@@ -432,11 +436,15 @@ public final class MatchmakingQueue {
             } catch (Throwable ignored) {
             }
         }
+        if (announce) {
+            QueueEvents.fireChanged(snap);
+        }
     }
 
-    /** Tell every listener the queue launched (off the lock). */
+    /** Tell every listener the queue launched (off the lock), then out as the native {@link ZigQueueLaunchedEvent}. */
     private void notifyLaunch(@Nonnull UUID initiator, @Nonnull List<UUID> party) {
-        if (listeners.isEmpty()) {
+        boolean announce = QueueEvents.listeningForLaunches();
+        if (listeners.isEmpty() && !announce) {
             return;
         }
         List<UUID> snapshot = List.copyOf(party);
@@ -445,6 +453,9 @@ public final class MatchmakingQueue {
                 l.onLaunch(key, initiator, snapshot);
             } catch (Throwable ignored) {
             }
+        }
+        if (announce) {
+            QueueEvents.fireLaunched(key, initiator, snapshot);
         }
     }
 

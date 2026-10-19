@@ -345,8 +345,10 @@ public final class PartyService {
 
     private enum Tone { DEFAULT, SUCCESS, WARNING, DANGER }
 
+    /** Every registered listener, then the native {@link ZigPartyChangedEvent}; the snapshot only if anybody hears it. */
     private void fireChange(@Nonnull Party party) {
-        if (listeners.isEmpty()) {
+        boolean announce = PartyEvents.listening();
+        if (listeners.isEmpty() && !announce) {
             return;
         }
         PartySnapshot snap = party.snapshot();
@@ -355,6 +357,9 @@ public final class PartyService {
                 l.onChange(snap);
             } catch (Throwable ignored) {
             }
+        }
+        if (announce) {
+            PartyEvents.fireChanged(snap);
         }
     }
 

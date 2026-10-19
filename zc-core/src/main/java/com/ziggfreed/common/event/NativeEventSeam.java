@@ -44,6 +44,16 @@ public final class NativeEventSeam {
     public interface Publisher {
 
         <E extends IEvent<Void>> void publish(@Nonnull Class<E> type, @Nonnull Supplier<E> build);
+
+        /**
+         * Would a fire of {@code type} reach anybody? Asked by a HOT path (one fire per produced moment
+         * or per landed hit) before it builds even the supplier, so a server nobody listens on pays one
+         * listener check and allocates nothing. The default answers yes, so a publisher a host or a test
+         * installs hears every fire exactly as it always did.
+         */
+        default <E extends IEvent<Void>> boolean listening(@Nonnull Class<E> type) {
+            return true;
+        }
     }
 
     /** The shared engine bus: dispatch when it has a listener, allocate nothing when it has none. */
@@ -54,6 +64,13 @@ public final class NativeEventSeam {
             if (dispatcher.hasListener()) {
                 dispatcher.dispatch(build.get());
             }
+        }
+
+        /** The bus's own {@code hasListener()}; no server at all (a unit JVM) is nobody listening. */
+        @Override
+        public <E extends IEvent<Void>> boolean listening(@Nonnull Class<E> type) {
+            HytaleServer server = HytaleServer.get();
+            return server != null && server.getEventBus().dispatchFor(type).hasListener();
         }
     };
 
@@ -72,6 +89,20 @@ public final class NativeEventSeam {
      */
     public void publishTo(@Nullable Publisher publisher) {
         this.publisher.set(publisher != null ? publisher : ENGINE_BUS);
+    }
+
+    /**
+     * Is anybody listening for {@code type} where this family publishes? The guard a HOT path puts
+     * in front of {@link #fire}, so nobody listening costs one listener check and not even the
+     * supplier's allocation: {@code if (SEAM.listening(X.class)) SEAM.fire("X", X.class, () -> ...)}.
+     * Never throws; a failure to ask is nobody listening.
+     */
+    public <E extends IEvent<Void>> boolean listening(@Nonnull Class<E> type) {
+        try {
+            return publisher.get().listening(type);
+        } catch (Throwable t) {
+            return false;
+        }
     }
 
     /**

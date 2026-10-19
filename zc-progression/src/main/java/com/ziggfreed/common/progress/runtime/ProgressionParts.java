@@ -351,10 +351,13 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
 
     /**
      * The composed reaction fan-out, read LIVE, so a listener registered after the runtime was
-     * built still sees every produced moment.
+     * built still sees every produced moment; then the moment's native event, for a mod listening
+     * on the bus ({@link MomentEvents}, one listener check when nobody is).
      */
-    static final MomentListener MOMENT_LISTENER = moment ->
-            ProgressionRuntime.parts().momentListener().react(moment);
+    static final MomentListener MOMENT_LISTENER = moment -> {
+        ProgressionRuntime.parts().momentListener().react(moment);
+        MomentEvents.fire(moment);
+    };
 
     /** The composed kill attribution, read LIVE. */
     static final KillAttribution KILL_ATTRIBUTION = (store, attackerRef) ->

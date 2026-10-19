@@ -130,7 +130,8 @@ public final class CurrencyEngine {
      * amount changes nothing.
      *
      * <p>Fires {@link CurrencyObserver#earned} with the delta that genuinely landed, never with
-     * what was asked for. Use {@link #refund} instead when putting back a charge.
+     * what was asked for, and then the native {@link ZigCurrencyEarnedEvent} on the same terms. Use
+     * {@link #refund} instead when putting back a charge.
      */
     public long credit(@Nonnull Subject subject, @Nonnull String currencyId, long amount) {
         CurrencyDef def = catalog.get(currencyId);
@@ -143,6 +144,7 @@ public final class CurrencyEngine {
         long delta = after - before;
         if (delta > 0L) {
             guarded(() -> observer.earned(subject, def, delta, after), "earned", def.id());
+            CurrencyEvents.fireEarned(subject, def, delta, after);
         }
         return after;
     }
@@ -152,7 +154,8 @@ public final class CurrencyEngine {
      * charging several components can compensate the ones it already took.
      *
      * <p>A successful take records the spend on the store and fires
-     * {@link CurrencyObserver#spent}; a refused one does neither.
+     * {@link CurrencyObserver#spent} and then the native {@link ZigCurrencySpentEvent}; a refused one
+     * does none of these.
      */
     public boolean debit(@Nonnull Subject subject, @Nonnull String currencyId, long amount) {
         if (amount <= 0L) {
@@ -171,6 +174,7 @@ public final class CurrencyEngine {
         }
         store.get().recordSpend(subject, def.id(), amount);
         guarded(() -> observer.spent(subject, def, amount), "spent", def.id());
+        CurrencyEvents.fireSpent(subject, def, amount);
         return true;
     }
 

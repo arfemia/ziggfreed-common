@@ -16,6 +16,10 @@ import javax.annotation.Nonnull;
  * Store/Ref read or a blocking call, or they break the lobby's packet-only thread rule.
  * The queue guards every callback in a try/catch, so a throwing listener degrades to a
  * no-op rather than corrupting the state machine.
+ *
+ * <p>Both moments then go out on the engine event bus ({@link ZigQueueChangedEvent},
+ * {@link ZigQueueLaunchedEvent}), under the same threading contract, for a mod that hears
+ * every queue without holding one.
  */
 public interface QueueListener {
 

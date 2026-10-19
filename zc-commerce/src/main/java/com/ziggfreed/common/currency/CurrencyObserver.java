@@ -24,6 +24,10 @@ import com.ziggfreed.common.subject.Subject;
  * <p>An engine has one observer slot; two listeners share it through {@link #both}, which tells the
  * first and then the second ({@link CurrencyEngine#alsoObservedBy} adds one to an engine already
  * built).
+ *
+ * <p><b>The native face.</b> After the observer, every engine announces the same two moments on the
+ * engine event bus ({@link ZigCurrencyEarnedEvent}, {@link ZigCurrencySpentEvent}), so a mod that only
+ * wants to hear them listens there and takes no observer slot.
  */
 public interface CurrencyObserver {
 
