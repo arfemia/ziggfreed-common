@@ -20,8 +20,8 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Mod-agnostic helpers for restoring an entity's vital stats through the NATIVE
- * {@code EntityStats} module - the same API the MMO Skill Tree health-tick path uses
- * ({@code RegenTickingSystem} / {@code AbilityHealService}): read the {@code Health}
+ * {@code EntityStats} module - the same API this package's {@link StatRegenSystem} and a consumer's ability heals
+ * use: read the {@code Health}
  * (or {@code Mana}) {@link EntityStatValue} off the entity's {@link EntityStatMap} and
  * {@link EntityStatMap#addStatValue} the delta up to its {@code getMax()}. The single
  * seam a minigame uses to top a player off (e.g. fully heal on a round win) without
@@ -34,6 +34,15 @@ import com.ziggfreed.common.util.SafeLog;
  * to a {@code false} return, never an exception into the caller.
  */
 public final class HealthUtil {
+
+    /**
+     * The stat (whole percent points) that raises every heal a healer gives through
+     * {@link #heal(Store, Ref, Ref, float)}. It ships from zc-entity ({@code Server/Entity/Stats/HealingPower.json}).
+     */
+    public static final String HEALING_POWER_STAT = "HealingPower";
+
+    /** The lowest healing power that counts: at -100 a heal gives nothing, never harm. */
+    public static final double MIN_HEALING_POWER = -100.0;
 
     private HealthUtil() {
     }
@@ -69,6 +78,59 @@ public final class HealthUtil {
         } catch (Throwable t) {
             warn("heal", t);
             return false;
+        }
+    }
+
+    /**
+     * The one healing applier (R648): add {@code amount}, raised by {@code healer}'s {@value #HEALING_POWER_STAT},
+     * to {@code target}'s {@code Health} through {@link #heal(Store, Ref, float)}. Every heal a player GIVES, on
+     * themselves or on someone else, goes through here with the giver as {@code healer}; a heal with no giver (a
+     * drain such as lifesteal, a regeneration, a full restore) passes {@code null} and is paid as asked. One read
+     * of the healer's stat and one multiply on top of the plain heal; nothing extra for a null healer.
+     *
+     * @return {@code true} if any health was added; {@code false} otherwise
+     */
+    public static boolean heal(@Nonnull Store<EntityStore> store, @Nullable Ref<EntityStore> healer,
+            @Nonnull Ref<EntityStore> target, float amount) {
+        if (amount <= 0f) {
+            return false;
+        }
+        return heal(store, target, scaledHeal(amount, healingPower(store, healer)));
+    }
+
+    /**
+     * {@code amount} raised by {@code powerPoints} of healing power (whole percent points: 20 heals a fifth more),
+     * the power held at {@value #MIN_HEALING_POWER} so a heal never turns into harm. Pure, so a tooltip and the
+     * applier read one rule; a power that is not a number counts as none.
+     */
+    public static float scaledHeal(float amount, double powerPoints) {
+        if (!Double.isFinite(powerPoints) || powerPoints == 0.0) {
+            return amount;
+        }
+        double factor = 1.0 + Math.max(MIN_HEALING_POWER, powerPoints) / 100.0;
+        return (float) (amount * factor);
+    }
+
+    /**
+     * {@code healer}'s healing power in whole percent points: the {@value #HEALING_POWER_STAT} stat's maximum (its
+     * base plus every modifier gear, an effect or a grant put on it), 0 for no healer, a healer without the stat
+     * or one that cannot be read.
+     */
+    public static double healingPower(@Nonnull Store<EntityStore> store, @Nullable Ref<EntityStore> healer) {
+        if (healer == null || !healer.isValid()) {
+            return 0.0;
+        }
+        try {
+            int index = EntityStatType.getAssetMap().getIndex(HEALING_POWER_STAT);
+            if (index < 0) {
+                return 0.0;
+            }
+            EntityStatMap stats = statMap(store, healer);
+            EntityStatValue power = stats == null ? null : stats.get(index);
+            return power == null ? 0.0 : power.getMax();
+        } catch (Throwable t) {
+            warn("healingPower", t);
+            return 0.0;
         }
     }
 

@@ -1,0 +1,8 @@
+{
+  "$Comment": "Mana the carrier regains each second, as a percent of their maximum Mana (0.5 is half a percent a second). Any item's StatModifiers raise it like any stat, and so does an effect's RawStatModifiers. ziggfreed-common's regen pass pays it to a living player every tick, in a fight too, since mana is what an ability spends. Base 0; a total at or below 0 regains nothing.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

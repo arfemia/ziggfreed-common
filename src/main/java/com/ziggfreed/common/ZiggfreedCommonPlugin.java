@@ -40,7 +40,9 @@ import com.ziggfreed.common.effect.NativeEffectUtil;
 import com.ziggfreed.common.effect.buff.BuffBootstrap;
 import com.ziggfreed.common.effect.control.ControlBootstrap;
 import com.ziggfreed.common.effect.costume.CostumeBootstrap;
+import com.ziggfreed.common.effect.movement.MovementBootstrap;
 import com.ziggfreed.common.effect.resist.ResistBootstrap;
+import com.ziggfreed.common.health.RegenBootstrap;
 import com.ziggfreed.common.encounter.EncounterBootstrap;
 import com.ziggfreed.common.encounter.seam.EncounterSeams;
 import com.ziggfreed.common.encounter.validate.EncounterAudit;
@@ -268,6 +270,12 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // Per-type damage resistance: gear raising DamageResist_<Type> stats takes less of that type,
         // through a hidden native resistance effect kept in step with the stat every tick.
         ResistBootstrap.install(this);
+        // Speed and knockback: gear raising MoveSpeed or KnockbackResist moves the player faster or shrugs off
+        // knockback, through one hidden native effect per channel kept in step with the stat every tick.
+        MovementBootstrap.install(this);
+        // Health and mana regeneration: the Regen_Health and Regen_Mana stats paid every tick, health paused for
+        // 15 seconds after a hit.
+        RegenBootstrap.install(this);
         PlacedBlockBootstrap.setupPlacedBlockLedger(this);
         BlockStashBootstrap.registerBlockStash(this);
         // A gameplay config's ZigBlockRules group (CreativeOnlyBreaking, which zc's dungeon config writes)

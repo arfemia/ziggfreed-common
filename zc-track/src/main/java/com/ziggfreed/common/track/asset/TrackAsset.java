@@ -232,6 +232,20 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
         return a;
     }
 
+    /**
+     * This track with its {@code Gain.Factors} written as {@code factors}, the rest of its Gain group kept: for a
+     * module that provides its tracks in code ({@code TrackConfig.provide}) and runs other than the usual order (a
+     * reputation, whose own gain stat already raises its gains, runs no Bonus). An owner's {@code tracks.json} still
+     * rewrites the list. Returns this track.
+     */
+    @Nonnull
+    public TrackAsset withGainFactors(@Nonnull List<String> factors) {
+        Gain written = gain == null ? new Gain() : gain;
+        written.factors = factors.toArray(new String[0]);
+        gain = written;
+        return this;
+    }
+
     /** The track id, exactly as the filename spells it. */
     @Override
     public String getId() {
@@ -782,10 +796,10 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
                 .appendInherited(new KeyedCodec<>("Factors", Codec.STRING_ARRAY, false),
                         (o, v) -> o.factors = v, o -> o.factors, (o, p) -> o.factors = p.factors)
                 .documentation("The named factors every gain on this track runs through, in this order: World "
-                        + "(the world's track rules), Boost (boosts), Prestige (the extra a prestiged climb "
-                        + "earns), Rested (the rested pool below), and any a mod registers, such as Class and "
-                        + "Bonus. A name nothing registered changes nothing. Leave it out for Class, World, Bonus, "
-                        + "Boost, Prestige, Rested. A loss is never changed.").add()
+                        + "(the world's track rules), Bonus (the player's TrackGain stats), Boost (boosts), Prestige "
+                        + "(the extra a prestiged climb earns), Rested (the rested pool below), and any a mod "
+                        + "registers, such as Class. A name nothing registered changes nothing. Leave it out for "
+                        + "Class, World, Bonus, Boost, Prestige, Rested. A loss is never changed.").add()
                 .appendInherited(new KeyedCodec<>("Additive", Codec.STRING_ARRAY, false),
                         (o, v) -> o.additive = v, o -> o.additive, (o, p) -> o.additive = p.additive)
                 .documentation("The factors whose extras add together rather than multiplying, run where the first "

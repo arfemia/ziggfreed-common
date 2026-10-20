@@ -1,0 +1,8 @@
+{
+  "$Comment": "Percent of knockback the carrier shrugs off, in whole percent points (25 takes a quarter off every knockback). Any item's StatModifiers raise it like any stat, and so does an effect's RawStatModifiers. ziggfreed-common carries the total to the engine as one hidden effect whose KnockbackMultiplier is 1 minus this percent, held between 0 and KnockbackResistMax, so it multiplies with every other knockback effect the player has. Base 0; Min is a generous negative so a subtractive modifier never clamps.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

@@ -182,6 +182,30 @@ public final class RuntimeEffectGrid {
         return new Plan(apply, remove);
     }
 
+    /**
+     * Whether {@code ctrl} carries exactly {@code wanted} of this family: every wanted bucket on, and no other
+     * effect this family owns. The allocation-free check a per-tick caller makes before it reconciles, so a tick in
+     * step costs one index lookup per wanted bucket and one pass over the entity's active effects. A wanted bucket
+     * not written yet reads as not carried.
+     */
+    public boolean carriesExactly(@Nonnull EffectControllerComponent ctrl, @Nonnull Collection<Bucket> wanted) {
+        var active = ctrl.getActiveEffects();
+        for (Bucket bucket : wanted) {
+            int idx = EntityEffect.getAssetMap().getIndex(effectId(bucket));
+            if (idx == Integer.MIN_VALUE || !active.containsKey(idx)) {
+                return false;
+            }
+        }
+        int owned = 0;
+        for (int idx : active.keySet()) {
+            EntityEffect effect = EntityEffect.getAssetMap().getAsset(idx);
+            if (effect != null && owns(effect.getId())) {
+                owned++;
+            }
+        }
+        return owned == wanted.size();
+    }
+
     // ==================== Asset landing ====================
 
     /**

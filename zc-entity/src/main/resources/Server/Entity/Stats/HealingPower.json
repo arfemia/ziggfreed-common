@@ -1,0 +1,8 @@
+{
+  "$Comment": "Percent bonus to the healing the carrier gives, on themselves and on others, in whole percent points (20 heals a fifth more). Any item's StatModifiers raise it like any stat, and so does an effect's RawStatModifiers. Every heal a mod pays through ziggfreed-common's HealthUtil.heal with a healer takes it; regeneration and a drain such as lifesteal do not. Base 0; Min -100, so a subtractive modifier can at most stop a heal.",
+  "InitialValue": 0.0,
+  "Min": -100.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

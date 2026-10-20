@@ -4,6 +4,7 @@ import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.assetstore.AssetMap;
 import com.hypixel.hytale.assetstore.event.LoadedAssetsEvent;
+import com.hypixel.hytale.assetstore.map.IndexedLookupTableAssetMap;
 import com.hypixel.hytale.builtin.rewards.asset.RewardAsset;
 import com.hypixel.hytale.server.core.asset.type.gameplay.GameplayConfig;
 import com.hypixel.hytale.server.core.event.events.BootEvent;
@@ -15,6 +16,7 @@ import com.hypixel.hytale.server.core.event.events.player.AddPlayerToWorldEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.event.events.player.RemovedPlayerFromWorldEvent;
+import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.loot.reward.RewardChips;
@@ -114,6 +116,11 @@ public final class TrackBootstrap {
             events.register(LoadedAssetsEvent.class, GameplayConfig.class,
                     (LoadedAssetsEvent<String, GameplayConfig, AssetMap<String, GameplayConfig>> event) ->
                             TrackWorldRules.invalidate());
+            // The Bonus factor resolves the gain stats when a plan is built, so a stat loaded later (a pack's
+            // TrackGain_<Track>, a mod's runtime stat) builds every plan again.
+            events.register(LoadedAssetsEvent.class, EntityStatType.class,
+                    (LoadedAssetsEvent<String, EntityStatType, IndexedLookupTableAssetMap<String, EntityStatType>> event) ->
+                            GainPlans.invalidateAll());
         } catch (Throwable t) {
             SafeLog.warn("[track] could not hang the gain plans' epoch hooks, so a world change or a permission "
                     + "change may keep the old rules on a gain until the next fold", t);

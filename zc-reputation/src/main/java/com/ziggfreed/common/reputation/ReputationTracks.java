@@ -25,6 +25,7 @@ import com.ziggfreed.common.track.asset.TrackCurveConfig;
 import com.ziggfreed.common.track.asset.TrackOwnerLayers;
 import com.ziggfreed.common.track.curve.CurveTable;
 import com.ziggfreed.common.track.event.ZigTrackChangedEvent;
+import com.ziggfreed.common.track.gain.GainFactors;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -163,7 +164,19 @@ public final class ReputationTracks {
         return CURVE_PREFIX + def.id();
     }
 
-    /** {@code def}'s track: its name, picture and place, its curve, the category, prestige off. */
+    /**
+     * The gain factors a reputation's track runs: the world's rules, the boosts, the prestige extra and the rested
+     * pool, never the library's {@code Bonus} (the {@code TrackGain} stats), since {@code ReputationService.change}
+     * already raises a gain by the reputation's own {@code ReputationGain} stats, so a Bonus XP meal speeds skills and
+     * not standing. An owner adds Bonus back in {@code tracks.json}.
+     */
+    public static final List<String> GAIN_FACTORS = List.of(GainFactors.WORLD, GainFactors.BOOST, GainFactors.PRESTIGE,
+            GainFactors.RESTED);
+
+    /**
+     * {@code def}'s track: its name, picture and place, its curve, the category, prestige off, and
+     * {@link #GAIN_FACTORS}.
+     */
     @Nonnull
     static TrackAsset trackOf(@Nonnull ReputationDef def, @Nonnull String curveId, @Nonnull ReputationLadder ladder) {
         String title = def.titleKey();
@@ -172,7 +185,8 @@ public final class ReputationTracks {
                 : ContentTextAsset.of(title == null ? null : ContentKeys.resolved(title),
                         flavor == null ? null : ContentKeys.resolved(flavor), null);
         return TrackAsset.of(def.id(), text, def.icon(), def.order(), CATEGORY, curveId,
-                TrackAsset.Prestige.of(0, null, Math.max(0, ladder.ranks().size() - 1), null, 0.0));
+                TrackAsset.Prestige.of(0, null, Math.max(0, ladder.ranks().size() - 1), null, 0.0))
+                .withGainFactors(GAIN_FACTORS);
     }
 
     /** {@code def}'s ladder as a curve: its floors, its Beyond step, a tier per rank. */

@@ -129,7 +129,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 
 | Key | Type | Default | Documentation |
 |---|---|---|---|
-| `Factors` | array of `string` | `null` | The named factors every gain on this track runs through, in this order: World (the world's track rules), Boost (boosts), Prestige (the extra a prestiged climb earns), Rested (the rested pool below), and any a mod registers, such as Class and Bonus. A name nothing registered changes nothing. Leave it out for Class, World, Bonus, Boost, Prestige, Rested. A loss is never changed. |
+| `Factors` | array of `string` | `null` | The named factors every gain on this track runs through, in this order: World (the world's track rules), Bonus (the player's TrackGain stats), Boost (boosts), Prestige (the extra a prestiged climb earns), Rested (the rested pool below), and any a mod registers, such as Class. A name nothing registered changes nothing. Leave it out for Class, World, Bonus, Boost, Prestige, Rested. A loss is never changed. |
 | `Additive` | array of `string` | `null` | The factors whose extras add together rather than multiplying, run where the first of them stands in Factors: with a Bonus of 1.2 and a Boost of 1.5 a gain pays 1.7 times (1 + 0.2 + 0.5), not 1.8. Leave it out for Bonus and Boost, the way skills have always stacked them; an empty list multiplies every factor. |
 | `Rested` | [Rested](#field-trackasset-gain-rested) | `null` | A rested pool for this track: while a player is away it fills, and gains pay extra until it is spent. Leave it out for none; no track has one unless it is written. |
 

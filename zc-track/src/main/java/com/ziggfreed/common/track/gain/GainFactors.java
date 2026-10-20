@@ -17,11 +17,13 @@ import javax.annotation.Nullable;
  * registered changes nothing.
  *
  * <p>Ships filled (a zc-only server needs no consumer): {@value #WORLD} reads the world's track rules
- * ({@code world.TrackWorldRules}), {@value #BOOST} holds the neutral factor until the boost module registers over
- * it at setup ({@code boost.BoostBootstrap}), {@value #PRESTIGE} pays a prestiged track's constant extra (R642) and
+ * ({@code world.TrackWorldRules}), {@value #BONUS} reads the player's gain stats ({@link BonusGainFactor}, R734; a
+ * consumer adds its own stats to it through {@link TrackGainStats#registerSource}, never by registering over it),
+ * {@value #BOOST} holds the neutral factor until the boost module registers over it at setup
+ * ({@code boost.BoostBootstrap}), {@value #PRESTIGE} pays a prestiged track's constant extra (R642) and
  * {@value #RESTED} spends a track's rested pool where its {@code Gain.Rested} group turns one on (off on every
- * track until written). {@value #CLASS} and {@value #BONUS} are a consumer's to register. Registering again
- * replaces, and every compiled plan is built again.
+ * track until written). {@value #CLASS} is a consumer's to register. Registering again replaces, and every compiled
+ * plan is built again.
  */
 public final class GainFactors {
 
@@ -29,7 +31,7 @@ public final class GainFactors {
     public static final String CLASS = "Class";
     /** The world's track rules: its gain switch and multiplier for the track or its category. */
     public static final String WORLD = "World";
-    /** A consumer's bonus from claimed rewards and gear. */
+    /** The player's gain stats: TrackGain, TrackGain_<Category>, TrackGain_<Track> and a consumer's sources (R734). */
     public static final String BONUS = "Bonus";
     /** The boosts: timed ones a player or the server started, and standing ones (boost.BoostFactor). */
     public static final String BOOST = "Boost";
@@ -54,6 +56,7 @@ public final class GainFactors {
 
     static {
         FACTORS.put(key(WORLD), WorldGainFactor.INSTANCE);
+        FACTORS.put(key(BONUS), BonusGainFactor.INSTANCE);
         FACTORS.put(key(BOOST), GainFactor.NEUTRAL);
         FACTORS.put(key(PRESTIGE), PrestigeGainFactor.INSTANCE);
         FACTORS.put(key(RESTED), RestedFactor.INSTANCE);

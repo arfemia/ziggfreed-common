@@ -1,0 +1,8 @@
+{
+  "$Comment": "Percent bonus to every track gain the carrier earns (skill XP and any other climb), in whole percent points (10 is +10%). Any item's StatModifiers raise it like any stat (Additive on the Max), and so does an effect's RawStatModifiers, such as a meal. ziggfreed-common's Bonus gain factor adds it to TrackGain_<Category> and TrackGain_<Track> (a pack ships those in this same shape, spelled as the category and the track file are named) and to any stat a mod names for the track, holds the total at TrackGainMax, and adds the result beside the track's boosts. Base 0; Min -100, so a subtractive modifier can at most stop a gain.",
+  "InitialValue": 0.0,
+  "Min": -100.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}
