@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -28,8 +29,8 @@ import com.ziggfreed.common.validation.Finding;
  * The shape audit of a track's tree (R736), pure over the switched-on tracks and the tree as authored
  * ({@link TrackPicks#authored}: the live picks, and the picks switched off in their own pack files whose lineage is
  * live, so a node shipped off for a later pass still counts in every check below, what it will grant once switched
- * on included), filed under the track audit's domain; every finding is a WARNING. A tree is a switched-on track that
- * declares {@code Branches} or writes a {@code Tree} group.
+ * on included), filed under the track audit's domain; every finding is a WARNING but {@link #STARTER_WALKS_OFF}, an
+ * INFO. A tree is a switched-on track that declares {@code Branches} or writes a {@code Tree} group.
  * What it checks against the track's {@code Tree} group (read by this audit alone) where one is written:
  *
  * <ul>
@@ -44,7 +45,10 @@ import com.ziggfreed.common.validation.Finding;
  *   <li>{@link #STARTER_STOPS}, {@link #STARTER_SHORT}, {@link #STARTER_PAST_CAP}, {@link #STARTER_STEP_DROPPED}: the
  *       track's {@code Starter} walked as a one-time claim walks it, at the level that earns the whole pool, with
  *       every point the pool holds ({@code TrackAsset.pointsCap}): a step that must wait stops it, a pool it leaves
- *       unspent, steps past the pool, and a step it drops (taken as often as it may be, or its node taken);</li>
+ *       unspent, steps past the pool, and a step it drops (taken as often as it may be, or its node taken); and, at
+ *       INFO, {@link #STARTER_WALKS_OFF}: how many of its steps walk a node still switched off in its own file (in the
+ *       tree as authored, not live), each passed over by a player's claim today, so it spends less than the pool (the
+ *       consumer's release-seam check fails on it; development stays green);</li>
  *   <li>{@link #STAT_PAST_CEILING}: a stat one build can raise past its {@code Tree.Ceilings} entry: its
  *       {@code Points.Grants} for every point of the pool plus the most the pool can buy of the nodes granting it (a
  *       knapsack over the costs, gates aside, so it is the peak a build could ever hold); with a {@code Tree} group
@@ -69,11 +73,15 @@ public final class TrackTreeAudit {
     public static final String STARTER_SHORT = "STARTER_SHORT";
     public static final String STARTER_PAST_CAP = "STARTER_PAST_CAP";
     public static final String STARTER_STEP_DROPPED = "STARTER_STEP_DROPPED";
+    public static final String STARTER_WALKS_OFF = "STARTER_WALKS_OFF";
     public static final String STAT_PAST_CEILING = "STAT_PAST_CEILING";
     public static final String STAT_WITHOUT_CEILING = "STAT_WITHOUT_CEILING";
     public static final String NON_STAT_GRANT = "NON_STAT_GRANT";
 
     private static final String DOMAIN = TrackValidator.DOMAIN;
+
+    /** How many off nodes a {@link #STARTER_WALKS_OFF} finding names before it says there are more. */
+    private static final int STARTER_OFF_NAMED = 5;
 
     private TrackTreeAudit() {
     }
@@ -344,6 +352,7 @@ public final class TrackTreeAudit {
         for (TrackPicks.PickDef pick : bought) {
             byId.put(pick.id(), pick);
         }
+        auditStarterOff(id, steps, byId, out);
         Map<String, Integer> takes = new HashMap<>();
         Map<String, Integer> inBranch = new HashMap<>();
         int spent = 0;
@@ -417,6 +426,32 @@ public final class TrackTreeAudit {
                     + "its pool of " + pool + " points, so a claim of the whole pool leaves " + (pool - spent)
                     + " unspent", id));
         }
+    }
+
+    /**
+     * The starter build's steps that walk a node still switched off in its own file (in the tree as authored, its
+     * file not live), as one INFO a track: the audit walks them, a player's claim passes each over until it is
+     * switched on. A pick in the tree as authored is off exactly when its own file is.
+     */
+    private static void auditStarterOff(@Nonnull String id, @Nonnull List<String> steps,
+            @Nonnull Map<String, TrackPicks.PickDef> byId, @Nonnull List<Finding> out) {
+        int count = 0;
+        Set<String> off = new LinkedHashSet<>();
+        for (String step : steps) {
+            TrackPicks.PickDef pick = byId.get(TrackKey.normalize(step));
+            if (pick != null && !pick.asset().isEnabled()) {
+                count++;
+                off.add(pick.asset().getId());
+            }
+        }
+        if (count == 0) {
+            return;
+        }
+        List<String> named = new ArrayList<>(off).subList(0, Math.min(off.size(), STARTER_OFF_NAMED));
+        out.add(Finding.info(DOMAIN, STARTER_WALKS_OFF, "track '" + id + "' starter build walks " + count
+                + " step(s) through " + off.size() + " node(s) still switched off (" + String.join(", ", named)
+                + (off.size() > named.size() ? ", ..." : "") + "); a claim today passes them over and leaves their "
+                + "points unspent until they are switched on", id));
     }
 
     // ==================== stat ceilings ====================

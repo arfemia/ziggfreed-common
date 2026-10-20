@@ -71,8 +71,13 @@ refused.other = This cannot be taken right now.
 # What a press did, as a toast: {0} the pick.
 toast.taken = You took {0}.
 toast.undone = You undid {0}.
+# A batch made in one go (a starter build, remembered picks spent again) undone whole: {0} how many picks came back,
+# {1} the track.
+toast.undone.batch = You undid your last {0, number} {0, plural, one {pick} other {picks}} on {1}, all made in one go.
 toast.undo.none = There is nothing left to undo.
 toast.undo.needed = {0} cannot be undone yet: a pick you made after it still needs it. Undo that one first.
+# A batch made in one go that cannot be undone yet: {0} how many picks it holds, {1} the track.
+toast.undo.needed.batch = The {0, number} {0, plural, one {pick} other {picks}} you made in one go on {1} cannot be undone yet: a later pick still needs {0, plural, one {it} other {them}}. Undo that one first.
 toast.combat = You cannot do this while you are fighting.
 toast.encounter = You cannot do this during a boss fight.
 toast.pay = You cannot pay for this yet.

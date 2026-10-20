@@ -39,9 +39,8 @@ import com.ziggfreed.common.track.pick.PickService.Status;
  * with its ranks, cost, level gate, the other faces of its choice node and what a take would answer now.
  *
  * <p>It only reads: a take is {@link PickService#take} on the track's own page, which asks every rule again. A
- * pick's state here asks the same rules a take does, in the same order (taken as often as it may be read first, so a
- * pick a prestige kept reads as taken), through {@link PickService#open} and the pick's cost on its pool. World
- * thread.
+ * pick's state here is the take's own read ({@link PickService#takeStatus}, on the track's own page: taken as often as
+ * it may be read first, so a pick a prestige kept reads as taken), one record cache across the page. World thread.
  */
 public final class TrackTree {
 
@@ -219,7 +218,7 @@ public final class TrackTree {
                     state.takesOf(pick.id()), pick.asset().repeatMax(), pick.asset().costPoints(),
                     pick.asset().costPoints() > 0 ? TrackKey.normalize(pick.asset().costTrack()) : null,
                     pick.otherFaces(), pick.asset().prerequisites(), missing,
-                    status(player, pick, state, level, query, records));
+                    PickService.takeStatus(player, def, reading.record(), pick, null, query, records));
             byBranch.computeIfAbsent(branch == null ? "" : branch, k -> new ArrayList<>()).add(node);
         }
         List<Branch> branches = new ArrayList<>();
@@ -324,38 +323,6 @@ public final class TrackTree {
                     : 0);
         }
         return gate;
-    }
-
-    /**
-     * What a take of {@code pick} would answer now, read without writing: taken as often as it may be first, then
-     * every rule a take on the track's own page asks ({@link PickService#open}: its level, its node, its Requires and
-     * prerequisites; then its points on their pool and its spend cap). A trainer's pick is never in the tree.
-     */
-    @Nonnull
-    private static Status status(@Nonnull UUID player, @Nonnull TrackPicks.PickDef pick, @Nonnull PickState state,
-            int level, @Nonnull GateQuery query, @Nonnull Map<String, TrackRecord> records) {
-        if (state.takesOf(pick.id()) >= pick.asset().repeatMax()) {
-            return Status.MAXED;
-        }
-        Status open = PickService.open(pick, state, level, query);
-        if (open != Status.DONE) {
-            return open;
-        }
-        int cost = pick.asset().costPoints();
-        if (cost <= 0) {
-            return Status.DONE;
-        }
-        TrackDef pool = TrackService.def(pick.asset().costTrack());
-        TrackRecord poolRecord = pool == null ? null : record(player, pool.id(), records);
-        if (poolRecord == null) {
-            return Status.NO_POINTS;
-        }
-        long spent = spentOn(player, pool.id(), records);
-        if (spent + cost > PickService.pointsEarned(pool, poolRecord)) {
-            return Status.NO_POINTS;
-        }
-        int cap = pick.asset().spendCap();
-        return cap > 0 && spent + cost > cap ? Status.SPEND_CAP : Status.DONE;
     }
 
     /** The points {@code player} has spent of {@code poolId}'s pool, on every pick priced in it. */

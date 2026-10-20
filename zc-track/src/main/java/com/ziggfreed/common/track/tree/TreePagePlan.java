@@ -14,7 +14,6 @@ import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.commerce.fold.CommerceFold;
 import com.ziggfreed.common.commerce.page.CommerceChips;
 import com.ziggfreed.common.cost.Cost;
-import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.track.PickState;
 import com.ziggfreed.common.track.TrackDef;
@@ -328,7 +327,8 @@ final class TreePagePlan {
                     ActionLook.NORMAL, "undo", null, canUndo, null);
             DetailView page = new DetailView(picture(), name(), meta, null, List.of(Pill.of(state(), tone())), null,
                     ranked() ? new Progress(node.taken(), node.ranks()) : null,
-                    ranked() ? TreeText.line("detail.ranks", node.taken(), node.ranks()) : null, flavor(asset),
+                    ranked() ? TreeText.line("detail.ranks", node.taken(), node.ranks()) : null,
+                    TrackText.pickDescription(node.pickId()),
                     blocks, List.of(take, undo), hint(canUndo));
             String trackId = view.def().id();
             String pickId = node.pickId();
@@ -360,9 +360,7 @@ final class TreePagePlan {
             } else if (node.costTrack() == null || node.costTrack().equals(view.def().id())) {
                 lines.add(ticked(TreeText.line("need.points", node.cost()), view.left() >= node.cost()));
             } else {
-                Message pool = TrackText.nameOf(node.costTrack());
-                lines.add(ticked(TreeText.line("need.points.from", node.cost(),
-                        pool == null ? Msg.raw(node.costTrack()) : pool),
+                lines.add(ticked(TreeText.line("need.points.from", node.cost(), trackName(node.costTrack())),
                         node.status() != Status.NO_POINTS && node.status() != Status.SPEND_CAP));
             }
             return lines;
@@ -435,27 +433,28 @@ final class TreePagePlan {
         }
     }
 
-    /** The pick's description, when its file names one. */
-    @Nullable
-    private static Message flavor(@Nullable TrackPickAsset asset) {
-        String key = asset == null || asset.getText() == null ? null : asset.getText().getFlavorKey();
-        return key == null || key.isBlank() ? null : ContentKeys.tr(key.trim());
-    }
-
     /** A need ticked done or locked. */
     @Nonnull
     private static DetailLine ticked(@Nonnull Message text, boolean met) {
         return new DetailLine(Picture.NONE, text, null, null, met ? Tick.DONE : Tick.LOCKED, null, false);
     }
 
-    /** Undo the player's latest pick (the server's own undo, newest first), and say how it went. */
+    /**
+     * Undo the player's latest pick (the server's own undo, newest first), and say how it went: a batch made in one go
+     * (a starter build, remembered takes re-spent) by how many picks came back and on which track, as
+     * {@code /zigtrack undo} says it.
+     */
     @Nonnull
     private static ToastSpec undo(@Nonnull UUID player) {
         PickService.Result result = PickService.undo(player);
         return switch (result.status()) {
-            case DONE -> ToastSpec.of(ToastKind.SUCCESS, TreeText.line("toast.undone", undone(result)));
+            case DONE -> ToastSpec.of(ToastKind.SUCCESS, result.isBatch()
+                    ? TreeText.line("toast.undone.batch", result.count(), trackName(result.trackId()))
+                    : TreeText.line("toast.undone", undone(result)));
             case NOTHING -> ToastSpec.of(ToastKind.WARNING, TreeText.line("toast.undo.none"));
-            case NEEDED -> ToastSpec.of(ToastKind.WARNING, TreeText.line("toast.undo.needed", undone(result)));
+            case NEEDED -> ToastSpec.of(ToastKind.WARNING, result.isBatch()
+                    ? TreeText.line("toast.undo.needed.batch", result.count(), trackName(result.trackId()))
+                    : TreeText.line("toast.undo.needed", undone(result)));
             default -> ToastSpec.of(ToastKind.WARNING, TreeText.line("action.failed"));
         };
     }
@@ -465,6 +464,13 @@ final class TreePagePlan {
     private static Message undone(@Nonnull PickService.Result result) {
         String id = result.slot() != null && !result.options().isEmpty() ? result.options().get(0) : result.pickId();
         return TrackText.pickName(id);
+    }
+
+    /** What the track {@code trackId} is called, else its id as written. */
+    @Nonnull
+    private static Message trackName(@Nullable String trackId) {
+        Message name = TrackText.nameOf(trackId);
+        return name != null ? name : Msg.raw(trackId);
     }
 
     // ==================== the builds tab ====================

@@ -23,6 +23,7 @@ import com.ziggfreed.common.track.asset.TrackAsset;
 import com.ziggfreed.common.track.pick.TrackPickAsset;
 import com.ziggfreed.common.track.pick.TrackPicks;
 import com.ziggfreed.common.validation.Finding;
+import com.ziggfreed.common.validation.Severity;
 
 /**
  * The tree audit's mechanics over a small tree (R736, R649, R757): a row the nodes below can never open, one opened
@@ -87,8 +88,8 @@ class TrackTreeAuditTest {
 
     /**
      * A node shipped switched off in its own file for a later pass is in the tree as authored: its branch still adds up
-     * to its 56, the row above it still opens, and the starter build walks through it. Only the live fold, or an
-     * owner's word switching it off, leaves it out.
+     * to its 56, the row above it still opens, and the starter build walks through it, said once at INFO (a claim today
+     * passes the off node over). Only the live fold, or an owner's word switching it off, leaves it out.
      */
     @Test
     void aBranchWithAnOffNodeStillTotalsItsPoints() throws IOException {
@@ -105,8 +106,11 @@ class TrackTreeAuditTest {
         picks.put("Your_Top", gated("Guard", 40, "\"Cost\": { \"Points\": 4 }, \"Repeat\": { \"Max\": 4 }"));
 
         List<Finding> authored = TrackTreeAudit.audit(List.of(track), foldAuthored(picks, id -> true));
-        assertTrue(authored.isEmpty(), () -> "20 + 20 off + 16 is 56, every row reachable, the starter whole: "
-                + authored);
+        assertEquals(Map.of(TrackTreeAudit.STARTER_WALKS_OFF, 1), codes(authored),
+                () -> "20 + 20 off + 16 is 56, every row reachable, the starter whole, and one INFO that ten of its "
+                        + "steps walk the off node: " + authored);
+        assertEquals(Severity.INFO, authored.get(0).severity(), "development stays green on it");
+        assertTrue(authored.get(0).message().contains("walks 10 step(s) through 1 node(s)"), authored.get(0).message());
 
         Map<String, Integer> live = codes(TrackTreeAudit.audit(List.of(track), fold(picks)));
         assertEquals(Integer.valueOf(1), live.get(TrackTreeAudit.BRANCH_POINTS_OFF), "36 live points");

@@ -191,6 +191,15 @@ public final class PickService {
         public boolean done() {
             return status == Status.DONE;
         }
+
+        /**
+         * Was this undo ({@link #undo}, done or refused as {@link Status#NEEDED}) of a batch of takes made in one go (a
+         * starter build spent, or remembered takes re-spent), given back or kept whole? It names no pick, slot or
+         * option then, and {@code count} is the batch's takes.
+         */
+        public boolean isBatch() {
+            return pickId == null && slot == null && options.isEmpty();
+        }
     }
 
     /** One saved build as a page lists it: its number, how many picks it holds, and whether it is in use. */
@@ -437,7 +446,7 @@ public final class PickService {
                     Status.NOT_LIVE);
         }
         int taken = climb.record().picks().takesOf(pick.id());
-        Status status = taken >= max ? Status.MAXED : takeStatus(player, climb, pick, placement, query);
+        Status status = takeStatus(player, climb, pick, placement, query);
         return new TrainerPick(pick.trackId(), pick.id(), asset.opensAt(), pickLevel(climb.def(), climb.record()),
                 cost, costTrack, taken, max, status);
     }
@@ -628,7 +637,9 @@ public final class PickService {
             climb.store().put(climb.key(), climb.record());
             GateEpochs.bumpPlayer(player);
             PickUndo.putBack(player, entry);
-            return new Result(Status.NEEDED, climb.def().id(), entry.pickId(), entry.slot(), entry.options(), 0);
+            return entry.isBatch()
+                    ? new Result(Status.NEEDED, climb.def().id(), null, null, List.of(), entry.batch().size())
+                    : new Result(Status.NEEDED, climb.def().id(), entry.pickId(), entry.slot(), entry.options(), 0);
         }
         if (entry.isBatch()) {
             changed(player, climb, ZigTrackPicksChangedEvent.Change.UNDONE, null, null, List.of());
@@ -706,11 +717,9 @@ public final class PickService {
             return Result.of(Status.NOT_LIVE);
         }
         Ref<EntityStore> ref = climb.ref();
-        if (CombatState.inCombat(ref.getStore(), ref)) {
-            return Result.of(Status.IN_COMBAT);
-        }
-        if (inEncounter(ref)) {
-            return Result.of(Status.IN_ENCOUNTER);
+        Status refused = refusal(ref);
+        if (refused != null) {
+            return Result.of(refused);
         }
         PickState state = climb.record().picks();
         if (respecced(def, state).size() == state.size()) {
@@ -807,11 +816,9 @@ public final class PickService {
             return Result.of(Status.NO_LOADOUT);
         }
         Ref<EntityStore> ref = climb.ref();
-        if (CombatState.inCombat(ref.getStore(), ref)) {
-            return Result.of(Status.IN_COMBAT);
-        }
-        if (inEncounter(ref)) {
-            return Result.of(Status.IN_ENCOUNTER);
+        Status refused = refusal(ref);
+        if (refused != null) {
+            return Result.of(refused);
         }
         Predicate<String> kept = keptThroughPrestige(def);
         PickState state = climb.record().picks();
@@ -1035,25 +1042,43 @@ public final class PickService {
         return gates(pick, state, query) == Status.DONE;
     }
 
-    /** May {@code pick} be taken once more on {@code climb} at {@code placement}: every rule a take obeys. */
+    /**
+     * What a take of {@code pick} on {@code player}'s {@code record} of {@code def} at {@code placement} (the trainer a
+     * page belongs to, null for the track's own page) would answer now, read without writing: the one order a take, a
+     * trainer's page and a track's tree page all ask. A pick bought outright on that track, else
+     * {@link Status#UNKNOWN}; then one taken as often as it may be reads {@link Status#MAXED} first, so a pick held
+     * at its full rank that has lost a gate it met since (a pick a prestige kept, past a branch's points) reads as
+     * taken, never as locked; then its level, its node, its Requires and its prerequisites ({@link #open}, the
+     * Requires asked of {@code query}'s player, not asked without one); then where it is taken
+     * ({@link Status#ELSEWHERE}); then its points on their pool and its spend cap. {@code records} caches each track's
+     * record for one read or one page's reads (a pick's pool may be another track's). World thread.
+     */
     @Nonnull
-    private static Status takeStatus(@Nonnull UUID player, @Nonnull Climb climb, @Nullable TrackPicks.PickDef pick,
-            @Nullable String placement, @Nullable GateQuery query) {
-        if (pick == null || pick.isChoice() || !pick.trackId().equals(climb.def().id())) {
+    public static Status takeStatus(@Nonnull UUID player, @Nonnull TrackDef def, @Nonnull TrackRecord record,
+            @Nullable TrackPicks.PickDef pick, @Nullable String placement, @Nullable GateQuery query,
+            @Nonnull Map<String, TrackRecord> records) {
+        if (pick == null || pick.isChoice() || !pick.trackId().equals(def.id())) {
             return Status.UNKNOWN;
         }
-        PickState state = climb.record().picks();
-        Status open = open(pick, state, pickLevel(climb.def(), climb.record()), query);
+        PickState state = record.picks();
+        if (state.takesOf(pick.id()) >= pick.asset().repeatMax()) {
+            return Status.MAXED;
+        }
+        Status open = open(pick, state, pickLevel(def, record), query);
         if (open != Status.DONE) {
             return open;
         }
         if (!at(pick, placement)) {
             return Status.ELSEWHERE;
         }
-        if (state.takesOf(pick.id()) >= pick.asset().repeatMax()) {
-            return Status.MAXED;
-        }
-        return costStatus(player, pick, new HashMap<>());
+        return costStatus(player, pick, records);
+    }
+
+    /** {@link #takeStatus(UUID, TrackDef, TrackRecord, TrackPicks.PickDef, String, GateQuery, Map)} on a live climb. */
+    @Nonnull
+    private static Status takeStatus(@Nonnull UUID player, @Nonnull Climb climb, @Nullable TrackPicks.PickDef pick,
+            @Nullable String placement, @Nullable GateQuery query) {
+        return takeStatus(player, climb.def(), climb.record(), pick, placement, query, new HashMap<>());
     }
 
     /** May the slot {@code parts} names be chosen with {@code wanted} on {@code climb}: every rule a choice obeys. */
@@ -1168,6 +1193,26 @@ public final class PickService {
             }
         }
         return false;
+    }
+
+    /**
+     * Why {@code player} may not rework their build right now: {@link Status#IN_COMBAT}, {@link Status#IN_ENCOUNTER}, or
+     * null when nothing refuses it (a player not live here included, which the write itself answers). The one rule
+     * {@link #buyRespec} and {@link #swapLoadout} keep, for a consumer's own priced respec (a scroll that clears with
+     * the free {@link #respec}) to ask first; an admin's {@link #respec} asks nothing. World thread.
+     */
+    @Nullable
+    public static Status respecRefusal(@Nonnull UUID player) {
+        Ref<EntityStore> ref = PlayerAccess.liveRef(player);
+        return ref == null ? null : refusal(ref);
+    }
+
+    @Nullable
+    private static Status refusal(@Nonnull Ref<EntityStore> ref) {
+        if (CombatState.inCombat(ref.getStore(), ref)) {
+            return Status.IN_COMBAT;
+        }
+        return inEncounter(ref) ? Status.IN_ENCOUNTER : null;
     }
 
     /** Is the player at {@code ref} in a live encounter's roster (a boss fight under way)? */

@@ -162,6 +162,8 @@ command.respec.done = Cleared {2, number} {2, plural, one {pick} other {picks}} 
 command.respec.none = {1} has no picks to clear on {0}.
 # In command.undo.needed {0} is the player and {1} the pick that could not be undone.
 command.undo.needed = {0} cannot undo {1} yet: a later pick still needs it. Undo that one first.
+# In command.undo.needed.batch {0} is the player, {1} how many picks the batch made in one go holds, {2} the track.
+command.undo.needed.batch = {0} cannot undo the {1, number} {1, plural, one {pick} other {picks}} made in one go on {2} yet: a later pick still needs {1, plural, one {it} other {them}}. Undo that one first.
 # The saved builds. {0} is the track, {1} the player, {2} the build's number, {3} how many picks; in build.no_slot {1}
 # is how many builds the track keeps. In the build list's lines {0} is the build's number and {1} how many picks.
 command.build.slot.needed = Name a saved build with --slot=<n>.

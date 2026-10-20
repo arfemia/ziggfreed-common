@@ -23,11 +23,11 @@ final class ZigTrackUndoCommand extends TrackTargetCommand {
     @Override
     protected void execute(@Nonnull CommandContext ctx, @Nonnull TrackTarget target) {
         PickService.Result result = PickService.undo(target.id());
+        Message track = TrackText.nameOf(result.trackId());
+        Message onTrack = track == null ? Msg.raw(result.trackId()) : track;
         switch (result.status()) {
             case DONE -> {
-                Message track = TrackText.nameOf(result.trackId());
-                Message onTrack = track == null ? Msg.raw(result.trackId()) : track;
-                if (result.pickId() == null && result.options().isEmpty()) {
+                if (result.isBatch()) {
                     // A batch (a starter build spent, remembered takes re-spent) comes back whole.
                     TrackCommandMessages.done(ctx, "undo.batch", onTrack, target.name(), result.count());
                 } else {
@@ -36,8 +36,15 @@ final class ZigTrackUndoCommand extends TrackTargetCommand {
                 }
             }
             case NOT_LIVE -> TrackCommandMessages.refused(ctx, "player.offline");
-            case NEEDED -> TrackCommandMessages.refused(ctx, "undo.needed", target.name(),
-                    TrackText.pickName(result.options().isEmpty() ? result.pickId() : result.options().get(0)));
+            case NEEDED -> {
+                if (result.isBatch()) {
+                    // A batch a later pick still needs stays whole, so it is worded by its count.
+                    TrackCommandMessages.refused(ctx, "undo.needed.batch", target.name(), result.count(), onTrack);
+                } else {
+                    TrackCommandMessages.refused(ctx, "undo.needed", target.name(),
+                            TrackText.pickName(result.options().isEmpty() ? result.pickId() : result.options().get(0)));
+                }
+            }
             default -> TrackCommandMessages.detail(ctx, "undo.none", target.name(), PickService.undoWindowMinutes());
         }
     }
