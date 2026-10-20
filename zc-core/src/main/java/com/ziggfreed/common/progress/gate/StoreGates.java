@@ -43,6 +43,9 @@ public final class StoreGates {
     /** The last list each store reported, so a refold with nothing new says nothing again. */
     private static final Map<String, List<String>> REPORTED = new ConcurrentHashMap<>();
 
+    /** How many of a store's files the INFO line names; the whole list goes to the FINE (debug) log. */
+    private static final int NAMED_AT_INFO = 10;
+
     private StoreGates() {
     }
 
@@ -66,8 +69,9 @@ public final class StoreGates {
 
     /**
      * Name, once at INFO, the files of {@code store} whose {@code Requires} carries conditions beyond mod
-     * presence, which apply from this version on. Nothing for an empty list, or for the same list this store
-     * reported last.
+     * presence, which apply from this version on: their count and the first ten ids in id order, with the
+     * whole list at FINE when there are more (a store of hundreds of gated files stays one short
+     * line). Nothing for an empty list, or for the same list this store reported last.
      */
     public static void reportWidened(@Nonnull String store, @Nonnull Collection<String> ids) {
         List<String> sorted = new ArrayList<>(new TreeSet<>(ids));
@@ -76,9 +80,15 @@ public final class StoreGates {
         if (sorted.isEmpty() || sorted.equals(last)) {
             return;
         }
+        int more = sorted.size() - NAMED_AT_INFO;
+        String named = String.join(", ", more > 0 ? sorted.subList(0, NAMED_AT_INFO) : sorted);
         SafeLog.info("[zc] " + store + ": " + sorted.size() + " file(s) gate on more than mod presence in Requires;"
                 + " earlier versions read only the mod condition, and the rest now applies to each player: "
-                + String.join(", ", sorted));
+                + named + (more > 0 ? ", and " + more + " more (every id at FINE)" : ""));
+        if (more > 0) {
+            SafeLog.fine("[zc] " + store + ": every file that gates on more than mod presence in Requires: "
+                    + String.join(", ", sorted));
+        }
     }
 
     /** Forget what each store reported. Tests only. */

@@ -12,14 +12,14 @@ import javax.annotation.Nullable;
 import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
 import com.ziggfreed.common.asset.ModGateFold;
 import com.ziggfreed.common.commerce.fold.CommerceCatalogs;
-import com.ziggfreed.common.progress.gate.StoreGates;
 import com.ziggfreed.common.validation.Finding;
 
 /**
  * The {@code defaults < pack < owner} fold of every {@link TrackPickAsset}. A file may gate on a mod through its
  * top-level {@code Requires} (the mod gate): the store's fold and its owner reader count what they leave out under
  * {@link #MOD_GATE_STORE}. Every merge drops the folded picks ({@link TrackPicks#invalidate}), so the next read folds
- * from what is here now, and names once the files whose gate reads more than mod presence.
+ * from what is here now. The rest of a file's {@code Requires} has applied per player since the store began, so it
+ * names no widened files ({@code StoreGates.reportWidened} is for the older stores).
  *
  * <p><b>Generated picks.</b> The pack layer is the {@link TrackPickGeneratorAsset}s' picks
  * ({@link TrackPickGenerators}) with the hand-written files over them, so a file of a generated id replaces it, and
@@ -165,14 +165,12 @@ public final class TrackPickConfig extends AbstractKeyedAssetConfig<TrackPickAss
         return new ModGateFold<>(fold.store(), layer, refused);
     }
 
+    /**
+     * Drop the folded picks. No {@code StoreGates.reportWidened} line: that line tells an owner which files of an
+     * older store now apply more of their {@code Requires} than mod presence, and no version of this store ever read
+     * less, so every row-gated node would be named for nothing.
+     */
     private void folded() {
         TrackPicks.invalidate();
-        List<String> widened = new ArrayList<>();
-        for (Map.Entry<String, TrackPickAsset> entry : all().entrySet()) {
-            if (entry.getValue() != null && entry.getValue().liveRequires() != null) {
-                widened.add(entry.getKey());
-            }
-        }
-        StoreGates.reportWidened(MOD_GATE_STORE, widened);
     }
 }

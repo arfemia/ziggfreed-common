@@ -10,7 +10,7 @@ action.failed = Something went wrong. Try again in a moment.
 header.level = Level {0, number}
 header.spent = Points spent
 header.left = Points to spend
-header.each = Every point you spend also gives {0}
+header.each = {0} for every point you spend
 header.list = {0}, {1}
 
 # The tabs: the picks outside every branch, and the saved builds with the respec.
@@ -116,12 +116,16 @@ respec.confirm = Press again to respec
 respec.toast.done = Respec done: {0, number} {0, plural, one {pick is} other {picks are}} cleared and the points are yours to spend again.
 respec.toast.nothing = You have nothing to clear here.
 
-# What a pick gives: a stat raised or lowered by an amount, or by a percent of its base ({0} the amount, {1} the
-# stat); a kind of grant that names itself here as grant.kind.<kind>; any other kind.
-grant.stat.more = +{0, number} {1}
-grant.stat.less = -{0, number} {1}
-grant.stat.more.percent = +{0, number}% {1}
-grant.stat.less.percent = -{0, number}% {1}
+# What a pick gives. A stat raised or lowered reads on the stat's own item-tooltip row
+# (client.itemTooltip.stats.<StatId>, such as "Fire Resistance: {value}%"), its {value} the signed amount below
+# ({0} the amount, or the percent of the stat's base for a .percent one); a stat no tooltip row names reads as
+# grant.stat.row ({0} the stat, {1} the signed amount); a kind of grant that names itself here as
+# grant.kind.<kind>; any other kind.
+grant.amount.more = +{0, number}
+grant.amount.less = -{0, number}
+grant.amount.more.percent = +{0, number}%
+grant.amount.less.percent = -{0, number}%
+grant.stat.row = {0}: {1}
 grant.kind.weakspot = More of your hits land as weak spots
 grant.other = A bonus of its own kind
 
