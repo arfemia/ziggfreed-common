@@ -40,6 +40,9 @@ class FrameworkStoreOrderTest {
             new String[]{"ShopEntryGeneratorAsset", "ShopEntryAsset",
                     "a generated offer is decoded against its Base out of the offer store, so a "
                             + "generator that folds first writes a whole family inheriting nothing"},
+            new String[]{"TrackPickGeneratorAsset", "TrackPickAsset",
+                    "a generated pick is decoded against its Base out of the pick store, so a generator "
+                            + "that folds first writes no tree node at all until the picks load again"},
             new String[]{"AchievementAsset", "CalendarEventAsset",
                     "a yearly achievement's Occurrence names a calendar event, so an achievement fold "
                             + "that runs first finds no event and makes no yearly copy until the next fold"});

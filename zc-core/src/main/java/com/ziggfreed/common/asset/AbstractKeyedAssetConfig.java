@@ -152,6 +152,27 @@ public abstract class AbstractKeyedAssetConfig<T> {
     }
 
     /**
+     * The pack layer as it stands, by lower-cased id, a read-only copy: what a test or a tool that swaps the layer
+     * for a while hands back to {@link #mergePackLayer(Map)} afterwards.
+     */
+    @Nonnull
+    public Map<String, T> packLayer() {
+        return Collections.unmodifiableMap(new LinkedHashMap<>(pack));
+    }
+
+    /** The owner layer as it stands, by lower-cased id, a read-only copy (as {@link #packLayer}). */
+    @Nonnull
+    public Map<String, T> ownerLayer() {
+        return Collections.unmodifiableMap(new LinkedHashMap<>(owner));
+    }
+
+    /** What the last owner read took out on the owner's own gate, lower-cased id to the missing mod. */
+    @Nonnull
+    public Map<String, String> ownerGatedOut() {
+        return ownerGatedOut;
+    }
+
+    /**
      * What the last pack fold's mod gate refused, lower-cased id to the missing mod: what an owner reader
      * reads, so an override of a refused pack file goes with that file.
      */

@@ -155,6 +155,8 @@ command.pick.nothing = Nothing changed for {1} on {0}.
 # /zigtrack undo: {0} the track, {1} the player, {2} what was undone; in command.undo.none {0} is the player and {1}
 # the most minutes a pick stays undoable. /zigtrack respec: {2} how many picks cleared.
 command.undo.done = Undid {1}'s pick of {2} on {0}.
+# command.undo.batch: a batch spent in one go (a starter build) undone whole; {2} how many picks came back.
+command.undo.batch = Undid {1}'s last {2, number} {2, plural, one {pick} other {picks}} on {0}, all made in one go.
 command.undo.none = {0} has no pick left to undo. A pick can be undone until its page closes, and for {1, number} {1, plural, one {minute} other {minutes}} at most.
 command.respec.done = Cleared {2, number} {2, plural, one {pick} other {picks}} {1} made on {0}.
 command.respec.none = {1} has no picks to clear on {0}.

@@ -50,7 +50,7 @@ import com.ziggfreed.common.track.source.TrackSourceConfig;
  * the MMO show MMO content.
  *
  * <p>Not listed, because their files carry no top-level {@code Requires} and so cannot be gated:
- * QuestGenerators and ShopEntryGenerators (a family follows its {@code Base}); DialogueFragments,
+ * QuestGenerators, ShopEntryGenerators and TrackPickGenerators (a family follows its {@code Base}); DialogueFragments,
  * DialogueExtensions and Dialogues (a line gates on its own {@code Conditions}); Instances, RollPools,
  * StatDisplays, ObjectiveKinds, OverheadIndicators, QuestIndicators, RewardKinds, BandedEffects,
  * PrefabPlacements, Leaderboard, Arenas, Party, Dungeons, RewardChests, DialogueOptionTheme, NpcIdentities, Factors,

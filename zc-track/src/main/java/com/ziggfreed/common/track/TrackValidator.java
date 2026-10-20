@@ -89,7 +89,10 @@ import com.ziggfreed.common.validation.Severity;
  *       {@link #UNKNOWN_GRANT_STAT} ({@link #auditPicks}; also over a track's {@code Points.Grants}) and the gate
  *       audit over a pick's {@code Requires};</li>
  *   <li>WARNING, for trees ({@link #auditTrees}): {@link #UNDECLARED_BRANCH}, {@link #NODE_ACROSS_TRACKS},
- *       {@link #UNKNOWN_GATE_BRANCH}, {@link #UNKNOWN_STARTER_PICK}, {@link #RESERVED_PICK_ID}.</li>
+ *       {@link #UNKNOWN_GATE_BRANCH}, {@link #UNKNOWN_STARTER_PICK}, {@link #RESERVED_PICK_ID}; then the shape audit
+ *       ({@link TrackTreeAudit}: branches, row gates and their slack, branch totals, node faces, the starter build
+ *       walked to the whole pool, stat ceilings, grant kinds) and the pick generators' findings
+ *       ({@code TrackPickGenerators}, with zc-progression's {@code GeneratorCore}'s own).</li>
  *   <li>The boosts' own audit ({@code boost.BoostValidator}, its {@code boost} domain), run inside this one so the
  *       boot audit and the once-at-boot error log carry it.</li>
  * </ul>
@@ -179,6 +182,7 @@ public final class TrackValidator {
                     out.addAll(WhereValidator.validateSelector(entry.getValue().where(), entry.getKey() + ".Where"));
                 }
             }
+            out.addAll(TrackPickConfig.getInstance().generatorIssues());
             out.addAll(TrackPicks.issues());
             out.addAll(auditPicks(TrackPicks.all().values(),
                     id -> {
@@ -188,8 +192,9 @@ public final class TrackValidator {
                     id -> StatIndexCache.resolve(id) != StatIndexCache.UNRESOLVED));
             out.addAll(auditTrees(TrackConfig.getInstance().liveTracks(), TrackPicks.all().values(), id -> {
                 TrackPickAsset file = TrackPickConfig.getInstance().resolve(id);
-                return file != null && !file.isEnabled();
+                return file != null && (!file.isEnabled() || TrackPicks.pick(id) == null);
             }));
+            out.addAll(TrackTreeAudit.audit(TrackConfig.getInstance().liveTracks(), TrackPicks.all().values()));
             for (Map.Entry<String, TrackPickAsset> entry : TrackPickConfig.getInstance().all().entrySet()) {
                 if (entry.getValue().isEnabled()) {
                     out.addAll(GateValidator.validate(entry.getValue().requires(), DOMAIN, entry.getKey(),

@@ -161,6 +161,7 @@ import com.ziggfreed.common.track.pick.PickOptionAsset;
 import com.ziggfreed.common.track.pick.PickOptionConfig;
 import com.ziggfreed.common.track.pick.TrackPickAsset;
 import com.ziggfreed.common.track.pick.TrackPickConfig;
+import com.ziggfreed.common.track.pick.TrackPickGeneratorAsset;
 import com.ziggfreed.common.track.pick.TrackPickOwnerLayers;
 import com.ziggfreed.common.track.source.TrackSourceAsset;
 import com.ziggfreed.common.track.source.TrackSourceConfig;
@@ -1086,6 +1087,20 @@ public final class FrameworkAssetRegistrar {
                     TrackPickOwnerLayers.reload();
                 });
 
+        // --- Track pick generators (Pattern A) - a family of picks from one file (the node every tree repeats, a
+        //     branch's single-stat rows), through zc-progression's GeneratorCore. Loaded AFTER the picks, because
+        //     each generated pick is decoded against its Base out of the pick store; the generated picks fold under
+        //     the hand-written ones (a file of a generated id wins), then the owner file is re-read over both. ---
+        AssetStoreRegistrar.registerStore(TrackPickGeneratorAsset.class,
+                new DefaultAssetMap<String, TrackPickGeneratorAsset>(), TrackPickGeneratorAsset.TYPE_ROOT,
+                TrackPickGeneratorAsset::getId, TrackPickGeneratorAsset.CODEC,
+                new Class<?>[]{TrackPickAsset.class});
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, TrackPickGeneratorAsset.class,
+                (LoadedAssetsEvent<String, TrackPickGeneratorAsset, DefaultAssetMap<String, TrackPickGeneratorAsset>> ev) -> {
+                    TrackPickConfig.getInstance().mergeGenerators(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    TrackPickOwnerLayers.reload();
+                });
+
         // --- Track pick options (Pattern A) - one option a choice may offer per file, shared by every pick naming
         //     it: its name, the part of an offer it fills, how often a deck brings it round, its levels and its
         //     grants as a template the naming pick's Vars fill. The library ships the sample pick's three. Owner
@@ -1222,7 +1237,7 @@ public final class FrameworkAssetRegistrar {
                         + "Tracks (owner file mods/ziggfreedcommon/tracks.json), "
                         + "TrackSources (owner file mods/ziggfreedcommon/track-sources.json), "
                         + "TrackWorldRules (owner file mods/ziggfreedcommon/track-world-rules.json), "
-                        + "TrackPicks (owner file mods/ziggfreedcommon/track-picks.json), "
+                        + "TrackPicks (owner file mods/ziggfreedcommon/track-picks.json), TrackPickGenerators, "
                         + "TrackPickOptions (owner file mods/ziggfreedcommon/track-pick-options.json), TrackPickDecks, "
                         + "Boosts (owner file mods/ziggfreedcommon/boosts.json), "
                         + "BoostSettings (owner file mods/ziggfreedcommon/boost-settings.json), "

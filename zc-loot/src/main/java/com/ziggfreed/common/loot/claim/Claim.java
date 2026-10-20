@@ -5,8 +5,7 @@ import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.ziggfreed.common.i18n.ContentKeys;
-import com.ziggfreed.common.i18n.NativeNames;
+import com.ziggfreed.common.i18n.ContentArgs;
 import com.ziggfreed.common.instance.reward.InstanceReward;
 
 /**
@@ -42,11 +41,11 @@ public record Claim(@Nonnull String id, @Nonnull String source, @Nullable String
         this(id, source, titleKey, titleArgs, difficulty, rewards, createdAt, null);
     }
 
-    /** What starts a title argument that reads as a lang key's own line ({@link #keyArg}). */
-    public static final String KEY_ARG = "@key:";
+    /** What starts a title argument that reads as a lang key's own line ({@link #keyArg}; zc-core's ContentArgs word). */
+    public static final String KEY_ARG = ContentArgs.KEY;
 
-    /** What starts a title argument that reads as an item's name ({@link #itemArg}). */
-    public static final String ITEM_ARG = "@item:";
+    /** What starts a title argument that reads as an item's name ({@link #itemArg}; zc-core's ContentArgs word). */
+    public static final String ITEM_ARG = ContentArgs.ITEM;
 
     public Claim {
         if (id == null || id.isBlank()) {
@@ -91,21 +90,17 @@ public record Claim(@Nonnull String id, @Nonnull String source, @Nullable String
     }
 
     /**
-     * What this Claim's title key binds: a {@link #keyArg} argument nested as that key's line, an
-     * {@link #itemArg} one as the item's name, every other argument as written.
+     * What this Claim's title key binds: each argument word zc-core's {@code ContentArgs} reads (a {@link #keyArg}
+     * argument nested as that key's line, an {@link #itemArg} one as the item's name, a number as a typed number),
+     * every other argument as written.
      */
     @Nonnull
     public Object[] titleParams() {
         Object[] out = new Object[titleArgs.size()];
         for (int i = 0; i < out.length; i++) {
             String arg = titleArgs.get(i);
-            if (arg.startsWith(KEY_ARG) && arg.length() > KEY_ARG.length()) {
-                out[i] = ContentKeys.tr(arg.substring(KEY_ARG.length()));
-            } else if (arg.startsWith(ITEM_ARG) && arg.length() > ITEM_ARG.length()) {
-                out[i] = NativeNames.itemNameMsg(arg.substring(ITEM_ARG.length()));
-            } else {
-                out[i] = arg;
-            }
+            Object nested = ContentArgs.nested(arg);
+            out[i] = nested != null ? nested : arg;
         }
         return out;
     }

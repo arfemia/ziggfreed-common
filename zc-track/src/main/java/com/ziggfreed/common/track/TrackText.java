@@ -4,8 +4,11 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.Message;
+import com.ziggfreed.common.i18n.ContentArgs;
+import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.loot.claim.Claim;
+import com.ziggfreed.common.text.ContentTextAsset;
 import com.ziggfreed.common.track.asset.TrackAsset;
 import com.ziggfreed.common.track.asset.TrackConfig;
 import com.ziggfreed.common.track.curve.CurveTable;
@@ -50,8 +53,9 @@ public final class TrackText {
     }
 
     /**
-     * What the option or pick {@code id} is called: an option file's {@code Text.TitleKey}, else a pick file's, else
-     * the id as written.
+     * What the option or pick {@code id} is called: an option file's {@code Text.TitleKey}, else a pick file's, its
+     * slots filled from {@code Text.TextArgs.Title} ({@link ContentArgs}: a family's one key naming each member, a
+     * skill's or a foe family's name nested from its own key), else the id as written.
      */
     @Nonnull
     public static Message pickName(@Nullable String id) {
@@ -59,13 +63,41 @@ public final class TrackText {
             return Msg.raw("");
         }
         String trimmed = id.trim();
-        PickOptionAsset option = PickOptionConfig.getInstance().resolve(trimmed);
-        String key = option == null ? null : option.titleKey();
-        if (key == null) {
-            TrackPickAsset pick = TrackPickConfig.getInstance().resolve(trimmed);
-            key = pick == null ? null : pick.titleKey();
+        ContentTextAsset text = pickText(trimmed, true);
+        String key = text == null ? null : blankToNull(text.getTitleKey());
+        return key != null ? ContentKeys.tr(key, ContentArgs.expand(text.titleArgs(), null)) : Msg.raw(trimmed);
+    }
+
+    /**
+     * The description of the option or pick {@code id}: its file's {@code Text.FlavorKey} (an option's first, then a
+     * pick's), its slots filled from {@code Text.TextArgs.Flavor} as {@link #pickName} fills a name; null when it
+     * names none, so a surface shows no line.
+     */
+    @Nullable
+    public static Message pickDescription(@Nullable String id) {
+        if (id == null || id.isBlank()) {
+            return null;
         }
-        return key != null ? Msg.key(key) : Msg.raw(trimmed);
+        ContentTextAsset text = pickText(id.trim(), false);
+        String key = text == null ? null : blankToNull(text.getFlavorKey());
+        return key == null ? null : ContentKeys.tr(key, ContentArgs.expand(text.flavorArgs(), null));
+    }
+
+    /** The {@code Text} of the option file {@code id} names if it writes the key asked for, else the pick file's. */
+    @Nullable
+    private static ContentTextAsset pickText(@Nonnull String id, boolean title) {
+        PickOptionAsset option = PickOptionConfig.getInstance().resolve(id);
+        ContentTextAsset text = option == null ? null : option.getText();
+        if (text != null && blankToNull(title ? text.getTitleKey() : text.getFlavorKey()) != null) {
+            return text;
+        }
+        TrackPickAsset pick = TrackPickConfig.getInstance().resolve(id);
+        return pick == null ? null : pick.getText();
+    }
+
+    @Nullable
+    private static String blankToNull(@Nullable String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     /** What the branch {@code branch} of {@code track}'s tree is called: its {@code Branches} TitleKey, else its id. */

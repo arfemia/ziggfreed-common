@@ -7,3 +7,4 @@
 - `LangCatalog` is the one existence probe (default language), and `overrideForTests` its one test seam.
 - `GeneratedLangPack` registers an immutable zip, never a watched directory: a change to a watched `.lang` file prunes every key under its prefix, vanilla ones included. `registerZipPack` unregisters before it rebuilds, so keep that order, and call `unregisterZipPack` from the owner's `shutdown()`. A generated pack cannot satisfy a key the engine validates at asset decode.
 - `PlainText` is only for String-only sinks and server-side reads; display text stays a client-resolved `Message`.
+- `ContentArgs` is the one reading of an authored argument word (`@key:<lang key>` and `@item:<item id>` nested as a `Message`, `@num:<number>` a typed number), so one key serves a family of content: a Claim's title args and a track pick's `TextArgs` both read it; a surface filling authored args reads it too, never a copy.

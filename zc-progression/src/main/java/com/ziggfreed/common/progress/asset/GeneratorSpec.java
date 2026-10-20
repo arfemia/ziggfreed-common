@@ -24,7 +24,10 @@ public interface GeneratorSpec {
     /** Does this generator run at all? Unauthored means true. */
     boolean isEnabled();
 
-    /** The content id every child inherits from, lower-cased; null when unauthored. */
+    /**
+     * The content id every child inherits from, which may carry {@code {token}} placeholders the core fills per
+     * combination (and lower-cases after filling); null when unauthored.
+     */
     @Nullable
     String getBase();
 

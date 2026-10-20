@@ -28,7 +28,8 @@ import com.ziggfreed.common.validation.Finding;
  * generator disagree about, say, whether an object KEY is substituted - which is exactly the kind of
  * difference nobody discovers until a file silently writes the wrong thing.
  *
- * <p>Substitution rules, in full: every string value, every object KEY, and {@code IdPattern}; a
+ * <p>Substitution rules, in full: every string value, every object KEY, {@code IdPattern} and {@code Base} (so
+ * each combination may sit under a parent of its own, its body's {@link GeneratedBody#baseId}); a
  * value that is EXACTLY one token keeps that token's own type (so {@code "Amount": "{amount}"} lands
  * as a number); a token nothing binds is an ERROR finding and that one entry is skipped rather than
  * shipped half-written.
@@ -144,6 +145,7 @@ public final class GeneratorCore {
         Set<String> usedTokens = new LinkedHashSet<>();
         collectTokens(child, usedTokens);
         collectTokens(idPattern, usedTokens);
+        collectTokens(baseId, usedTokens);
         for (String token : boundTokens) {
             if (!usedTokens.contains(token)) {
                 issues.add(Finding.warning(domain, "UNUSED_TOKEN",
@@ -156,10 +158,12 @@ public final class GeneratorCore {
         Set<String> seen = new LinkedHashSet<>();
         for (Map<String, JsonPrimitive> bindings : combinations) {
             String id = substituteString(idPattern, bindings).trim().toLowerCase(Locale.ROOT);
+            String base = substituteString(baseId, bindings).trim().toLowerCase(Locale.ROOT);
             JsonObject body = (JsonObject) substitute(child, bindings);
 
             Set<String> unresolved = new LinkedHashSet<>();
             collectTokens(id, unresolved);
+            collectTokens(base, unresolved);
             collectTokens(body, unresolved);
             if (!unresolved.isEmpty()) {
                 issues.add(Finding.error(domain, "UNRESOLVED_TOKEN",
@@ -175,13 +179,13 @@ public final class GeneratorCore {
             }
 
             JsonObject withParent = new JsonObject();
-            withParent.addProperty("Parent", baseId);
+            withParent.addProperty("Parent", base);
             for (Map.Entry<String, JsonElement> entry : body.entrySet()) {
                 if (!"Parent".equals(entry.getKey())) {
                     withParent.add(entry.getKey(), entry.getValue());
                 }
             }
-            bodies.add(new GeneratedBody(id, withParent, baseId, sourceId));
+            bodies.add(new GeneratedBody(id, withParent, base, sourceId));
         }
         return new Expansion(bodies, issues);
     }

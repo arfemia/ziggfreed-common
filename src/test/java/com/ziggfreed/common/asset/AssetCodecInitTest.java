@@ -109,6 +109,7 @@ import com.ziggfreed.common.track.ZigTrackReward;
 import com.ziggfreed.common.track.pick.PickDeckAsset;
 import com.ziggfreed.common.track.pick.PickOptionAsset;
 import com.ziggfreed.common.track.pick.TrackPickAsset;
+import com.ziggfreed.common.track.pick.TrackPickGeneratorAsset;
 import com.ziggfreed.common.track.asset.TrackAsset;
 import com.ziggfreed.common.track.asset.TrackCategoryAsset;
 import com.ziggfreed.common.track.asset.TrackCurveAsset;
@@ -264,6 +265,9 @@ class AssetCodecInitTest {
         assertNotNull(TrackPickAsset.Cost.CODEC, "the pick's Cost group codec must static-init");
         assertNotNull(TrackPickAsset.Repeat.CODEC, "the pick's Repeat group codec must static-init");
         assertNotNull(TrackPickAsset.Where.CODEC, "the pick's Where group codec must static-init");
+        assertNotNull(TrackPickGeneratorAsset.CODEC,
+                "TrackPickGeneratorAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(TrackAsset.Tree.CODEC, "the track's Tree group codec must static-init");
         assertNotNull(PickOptionAsset.CODEC, "PickOptionAsset.CODEC must static-init (PascalCase keys)");
         assertNotNull(PickDeckAsset.CODEC, "PickDeckAsset.CODEC must static-init (PascalCase keys)");
         assertNotNull(PickDeckAsset.Foes.CODEC, "the deck's Foes group codec must static-init");

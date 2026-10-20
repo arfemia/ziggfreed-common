@@ -23,6 +23,7 @@ import com.ziggfreed.common.track.boost.ZigBoostReward;
 import com.ziggfreed.common.track.pick.PickDeckAsset;
 import com.ziggfreed.common.track.pick.PickOptionAsset;
 import com.ziggfreed.common.track.pick.TrackPickAsset;
+import com.ziggfreed.common.track.pick.TrackPickGeneratorAsset;
 import com.ziggfreed.common.track.source.SourceRow;
 import com.ziggfreed.common.track.source.TrackSourceAsset;
 import com.ziggfreed.common.track.world.TrackRules;
@@ -58,7 +59,12 @@ public final class TrackSchemaDocs {
                     + "One pick (the one shape every choice, Mastery node, trainer offer and prestige perk is) is one "
                     + "file under `Server/ZiggfreedCommon/TrackPicks/`, one option a choice may offer one file under "
                     + "`Server/ZiggfreedCommon/TrackPickOptions/`, and one deck (how a group's offers are drawn) one "
-                    + "file under `Server/ZiggfreedCommon/TrackPickDecks/`. The server owner retunes a pick in "
+                    + "file under `Server/ZiggfreedCommon/TrackPickDecks/`. One pick generator (a family of picks "
+                    + "from one template: `Base`, `IdPattern`, `ForEach` axes and a `Child` pick body, each row's "
+                    + "tokens filled in; `Base` may carry tokens too) is one file under "
+                    + "`Server/ZiggfreedCommon/TrackPickGenerators/`, and a pick file of a generated id replaces "
+                    + "that pick. A pick with `Abstract` true is a skeleton picks inherit from, and one switched off "
+                    + "switches off every pick under it. The server owner retunes a pick in "
                     + "`track-picks.json` and an option in `track-pick-options.json`. A grant (`Grants`) names its "
                     + "`Kind`: the library ships `Stat` (the `StatGrant` shape) and `WeakSpot` (the "
                     + "`WeakSpotGrant` shape: more of the holder's hits count as weak spots); other mods register "
@@ -81,6 +87,7 @@ public final class TrackSchemaDocs {
             .register("TrackWorldRuleAsset", TrackWorldRuleAsset.CODEC)
             .register("TrackRules", TrackRules.CODEC)
             .register("TrackPickAsset", TrackPickAsset.CODEC)
+            .register("TrackPickGeneratorAsset", TrackPickGeneratorAsset.CODEC)
             .register("PickOptionAsset", PickOptionAsset.CODEC)
             .register("PickDeckAsset", PickDeckAsset.CODEC)
             .register("StatGrant", StatGrant.CODEC)

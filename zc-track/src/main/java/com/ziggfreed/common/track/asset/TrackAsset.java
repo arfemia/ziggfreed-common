@@ -25,6 +25,7 @@ import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.commerce.asset.CostAsset;
+import com.ziggfreed.common.grant.BuiltInGrants;
 import com.ziggfreed.common.grant.Grant;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
@@ -95,6 +96,7 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
     @Nullable protected Points points;
     @Nullable protected Map<String, Branch> branches;
     @Nullable protected String[] starter;
+    @Nullable protected Tree tree;
     @Nullable protected Loadouts loadouts;
     @Nullable protected Respec respec;
     @Nullable protected Mirror mirror;
@@ -105,6 +107,11 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
 
     /** The live part of the {@code Requires} block, lifted once per instance ({@link StoreGates#live}). */
     @Nullable private volatile GateSpec[] live;
+
+    static {
+        // Points.Grants decodes the library's own grant kinds in any JVM, setup or none.
+        BuiltInGrants.ensure();
+    }
 
     public static final AssetBuilderCodec<String, TrackAsset> CODEC = AssetBuilderCodec.builder(
                     TrackAsset.class,
@@ -167,6 +174,11 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
             .documentation("The starter build: pick ids in the order they are spent, a pick written again for each "
                     + "further rank. Read only by a one-time claim of points a player earned before the tree "
                     + "existed; nothing else suggests it.").add()
+            .appendInherited(new KeyedCodec<>("Tree", Tree.CODEC, false),
+                    (a, v) -> a.tree = v, a -> a.tree, (a, p) -> a.tree = p.tree)
+            .documentation("What the track audit holds this track's tree to: what each branch's nodes add up to, the "
+                    + "spare points a row gate leaves, and the most the whole tree may grant a stat. Read by the "
+                    + "audit alone, never in play. Leave it out to check only that each row can open.").add()
             .appendInherited(new KeyedCodec<>("Loadouts", Loadouts.CODEC, false),
                     (a, v) -> a.loadouts = v, a -> a.loadouts, (a, p) -> a.loadouts = p.loadouts)
             .documentation("Saved builds: how many a player keeps on this track and what swapping to one costs. "
@@ -356,6 +368,32 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
             }
         }
         return List.copyOf(out);
+    }
+
+    /** The {@code Tree} group (what the audit holds the tree to) as written, or null. */
+    @Nullable
+    public Tree tree() {
+        return tree;
+    }
+
+    /**
+     * The most points this track's pool ever holds: {@code Points.PerLevel} for each level from 2 to {@code Points.To}
+     * (else to {@code Cap}); 0 for a track that earns none, -1 when it has no last level (no To and no Cap).
+     */
+    public int pointsCap() {
+        int per = pointsPerLevel();
+        if (per <= 0) {
+            return 0;
+        }
+        int to = pointsTo();
+        if (to == Integer.MAX_VALUE) {
+            Integer top = cap();
+            if (top == null) {
+                return -1;
+            }
+            to = top;
+        }
+        return (int) Math.min(Integer.MAX_VALUE, (long) per * Math.max(0, to - 1));
     }
 
     /** The {@code Loadouts} group as written, or null. */
@@ -632,6 +670,63 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
 
         public int order() {
             return order == null ? 0 : order;
+        }
+    }
+
+    /**
+     * The Tree group: what the track audit holds a track's tree to, read by the audit alone. Each leaf left out checks
+     * nothing of its own, and a {@code Parent} carries the whole family's template.
+     */
+    public static final class Tree {
+
+        @Nullable protected Integer branchPoints;
+        @Nullable protected Integer gateSlack;
+        @Nullable protected Map<String, Double> ceilings;
+
+        public static final BuilderCodec<Tree> CODEC = BuilderCodec.builder(Tree.class, Tree::new)
+                .appendInherited(new KeyedCodec<>("BranchPoints", Codec.INTEGER, false),
+                        (o, v) -> o.branchPoints = v, o -> o.branchPoints, (o, p) -> o.branchPoints = p.branchPoints)
+                .documentation("What every branch's nodes add up to, each node at its full rank and a choice node "
+                        + "at its dearest face: the audit warns on a branch that adds up to anything else. Leave it "
+                        + "out to let branches differ.").add()
+                .appendInherited(new KeyedCodec<>("GateSlack", Codec.INTEGER, false),
+                        (o, v) -> o.gateSlack = v, o -> o.gateSlack, (o, p) -> o.gateSlack = p.gateSlack)
+                .documentation("The fewest spare points a row gate leaves: the nodes below a row opening at 10 points "
+                        + "spent in its branch should add up to 10 and this many more, so a player can skip a node "
+                        + "they dislike. Leave it out to warn only on a row the nodes below can never open.").add()
+                .appendInherited(new KeyedCodec<>("Ceilings", new InheritMapCodec<>(Codec.DOUBLE), false),
+                        (o, v) -> o.ceilings = v, o -> o.ceilings, (o, p) -> o.ceilings = p.ceilings)
+                .documentation("The most one build of this tree may grant each native stat, by stat id: its "
+                        + "Points.Grants for every point the track earns plus the nodes the earned points can buy at "
+                        + "most. The audit warns on a stat the tree can raise past it. Merges stat by stat under "
+                        + "Parent.").add()
+                .build();
+
+        public Tree() {
+        }
+
+        /** What every branch should add up to, or 0 when unauthored. */
+        public int branchPoints() {
+            return branchPoints == null ? 0 : Math.max(0, branchPoints);
+        }
+
+        /** The fewest spare points a row gate should leave, 0 when unauthored. */
+        public int gateSlack() {
+            return gateSlack == null ? 0 : Math.max(0, gateSlack);
+        }
+
+        /** The ceilings by stat id as written (a non-number left out); empty for none. */
+        @Nonnull
+        public Map<String, Double> ceilings() {
+            Map<String, Double> out = new LinkedHashMap<>();
+            if (ceilings != null) {
+                ceilings.forEach((stat, max) -> {
+                    if (stat != null && !stat.isBlank() && max != null && Double.isFinite(max)) {
+                        out.put(stat.trim(), max);
+                    }
+                });
+            }
+            return Collections.unmodifiableMap(out);
         }
     }
 

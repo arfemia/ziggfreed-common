@@ -68,7 +68,8 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p><b>Undo</b> (R650): every choice and take can be undone until the page it was made on closes
  * ({@link #closeUndo}), never more than five minutes after, newest first; the server holds that state
- * ({@code PickUndo}). An undo that would leave a pick the player still holds short of what it needed when it was
+ * ({@code PickUndo}), a batch of takes made in one go ({@link #spendInOrder}, {@link #respendRemembered}) as one
+ * entry, undone whole. An undo that would leave a pick the player still holds short of what it needed when it was
  * taken (its {@code Requires} or prerequisites) is refused ({@link Status#NEEDED}), so no gate is ever left unmet.
  *
  * <p><b>A respec</b> ({@link #respec}, {@link #buyRespec}) keeps only what a trainer taught (a pick whose
@@ -597,7 +598,12 @@ public final class PickService {
         }
         PickState state = climb.record().picks();
         PickState next;
-        if (entry.slot() != null) {
+        if (entry.isBatch()) {
+            next = PickUndo.undoBatch(state, entry);
+            if (next == null) {
+                return Result.of(Status.NOTHING);
+            }
+        } else if (entry.slot() != null) {
             if (!state.chosen(entry.slot()).equals(entry.options())) {
                 return Result.of(Status.NOTHING);
             }
@@ -623,6 +629,10 @@ public final class PickService {
             GateEpochs.bumpPlayer(player);
             PickUndo.putBack(player, entry);
             return new Result(Status.NEEDED, climb.def().id(), entry.pickId(), entry.slot(), entry.options(), 0);
+        }
+        if (entry.isBatch()) {
+            changed(player, climb, ZigTrackPicksChangedEvent.Change.UNDONE, null, null, List.of());
+            return new Result(Status.DONE, climb.def().id(), null, null, List.of(), entry.batch().size());
         }
         changed(player, climb, ZigTrackPicksChangedEvent.Change.UNDONE, entry.pickId(), entry.slot(),
                 entry.options());
@@ -856,8 +866,8 @@ public final class PickService {
      * that have come back allow: each is taken by every rule a pick obeys, and the walk stops at the first that must
      * wait (for points, a level, a gate or a prerequisite), keeping it and every later one for the next time; one
      * that can never come back as it was (taken as often as it may be, or its node taken another way) is dropped,
-     * and one switched off is kept and passed over. A choice the player confirms, never automatic (R598); each take
-     * can be undone, back to the head of what is remembered. World thread.
+     * and one switched off is kept and passed over. A choice the player confirms, never automatic (R598); the whole
+     * re-spend is one undo, every take back to the head of what is remembered in its order. World thread.
      *
      * @return the result, its {@code count} the takes re-spent ({@link Status#NOTHING} when none could be)
      */
@@ -884,9 +894,8 @@ public final class PickService {
         if (walk.spent().isEmpty() && walk.left().equals(remembered)) {
             return Result.of(Status.NOTHING);
         }
-        long at = System.currentTimeMillis();
-        for (String node : walk.spent()) {
-            PickUndo.record(player, new PickUndo.Entry(def.id(), node, null, List.of(), List.of(node), at));
+        if (!walk.spent().isEmpty()) {
+            PickUndo.record(player, PickUndo.Entry.batch(def.id(), walk.spent(), true, System.currentTimeMillis()));
         }
         changed(player, now.with(kept), ZigTrackPicksChangedEvent.Change.RESPENT, null, null, List.of());
         return new Result(walk.spent().isEmpty() ? Status.NOTHING : Status.DONE, def.id(), null, null, List.of(),
@@ -898,7 +907,8 @@ public final class PickService {
      * {@code trackId}, in order, by every rule a pick obeys, stopping at the first that must wait (for points, a
      * level, a gate or a prerequisite) and passing over one that can never be taken (unknown here, taken as often as
      * it may be, its node taken another way, or a trainer's): the walk a one-time claim of points earned before the
-     * tree existed spends a track's {@link #starter} with (R727). Each take can be undone. World thread.
+     * tree existed spends a track's {@link #starter} with (R727). The whole walk is one undo, however many takes it
+     * made, so a 99-point starter build comes back in one press. World thread.
      *
      * @return the result, its {@code count} the takes made ({@link Status#NOTHING} when none could be)
      */
@@ -916,10 +926,7 @@ public final class PickService {
         if (walk.spent().isEmpty()) {
             return Result.of(Status.NOTHING);
         }
-        long at = System.currentTimeMillis();
-        for (String node : walk.spent()) {
-            PickUndo.record(player, new PickUndo.Entry(def.id(), node, null, List.of(), List.of(), at));
-        }
+        PickUndo.record(player, PickUndo.Entry.batch(def.id(), walk.spent(), false, System.currentTimeMillis()));
         changed(player, walk.climb(), ZigTrackPicksChangedEvent.Change.TAKEN, null, null, List.of());
         return new Result(Status.DONE, def.id(), null, null, List.of(), walk.spent().size());
     }

@@ -3,6 +3,7 @@ package com.ziggfreed.common.track.pick;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,7 +48,8 @@ import com.ziggfreed.common.validation.Finding;
  * <p>An option whose grants still hold a {@code {Name}} after filling, or whose grants do not read (an unknown
  * {@code Kind} among them), is left out of that group and reported; a deck, core or option nobody ships is
  * reported and passed over, and so is an {@code Offers} level no group opens a slot at. A pick on a track that is
- * not switched on is nowhere.
+ * not switched on is nowhere, and so is a skeleton ({@code Abstract}) and every pick under a pick switched off in its
+ * {@code Parent} chain ({@link #lineageLive}).
  */
 public final class TrackPicks {
 
@@ -335,9 +337,11 @@ public final class TrackPicks {
         List<Finding> issues = new ArrayList<>();
         Map<String, List<PickDef>> byTrack = new LinkedHashMap<>();
         Map<String, PickDef> byId = new LinkedHashMap<>();
+        Map<String, TrackPickAsset> byLowerId = new LinkedHashMap<>();
+        picks.forEach((key, value) -> byLowerId.put(TrackKey.normalize(key), value));
         for (String rawId : ids) {
             TrackPickAsset asset = picks.get(rawId);
-            if (asset == null || !asset.isEnabled()) {
+            if (asset == null || !asset.isEnabled() || asset.isAbstract() || !lineageLive(asset, byLowerId)) {
                 continue;
             }
             String id = TrackKey.normalize(rawId);
@@ -374,6 +378,27 @@ public final class TrackPicks {
             frozen.put(track, List.copyOf(list));
         });
         return new Folded(Collections.unmodifiableMap(frozen), Collections.unmodifiableMap(byId), List.copyOf(issues));
+    }
+
+    /**
+     * Is every pick above {@code asset} in its {@code Parent} chain switched on ({@code picks} by lower-cased id)? A
+     * skeleton switched off takes every pick under it away, whatever they write, so one file or one owner entry turns
+     * a whole tree off. A Parent no file is ends the walk (the engine reports it), and so does a loop.
+     */
+    static boolean lineageLive(@Nonnull TrackPickAsset asset, @Nonnull Map<String, TrackPickAsset> picks) {
+        Set<String> seen = new HashSet<>();
+        String parent = asset.parentId();
+        while (parent != null && seen.add(TrackKey.normalize(parent))) {
+            TrackPickAsset above = picks.get(TrackKey.normalize(parent));
+            if (above == null) {
+                return true;
+            }
+            if (!above.isEnabled()) {
+                return false;
+            }
+            parent = above.parentId();
+        }
+        return true;
     }
 
     /** Point each pick on one track at the other faces of its choice node (the picks writing the same Node). */

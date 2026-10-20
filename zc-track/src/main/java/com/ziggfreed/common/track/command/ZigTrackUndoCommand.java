@@ -26,9 +26,14 @@ final class ZigTrackUndoCommand extends TrackTargetCommand {
         switch (result.status()) {
             case DONE -> {
                 Message track = TrackText.nameOf(result.trackId());
-                TrackCommandMessages.done(ctx, "undo.done", track == null ? Msg.raw(result.trackId()) : track,
-                        target.name(), TrackText.pickName(result.options().isEmpty() ? result.pickId()
-                                : result.options().get(0)));
+                Message onTrack = track == null ? Msg.raw(result.trackId()) : track;
+                if (result.pickId() == null && result.options().isEmpty()) {
+                    // A batch (a starter build spent, remembered takes re-spent) comes back whole.
+                    TrackCommandMessages.done(ctx, "undo.batch", onTrack, target.name(), result.count());
+                } else {
+                    TrackCommandMessages.done(ctx, "undo.done", onTrack, target.name(),
+                            TrackText.pickName(result.options().isEmpty() ? result.pickId() : result.options().get(0)));
+                }
             }
             case NOT_LIVE -> TrackCommandMessages.refused(ctx, "player.offline");
             case NEEDED -> TrackCommandMessages.refused(ctx, "undo.needed", target.name(),

@@ -25,6 +25,7 @@ import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.codec.JsonTreeCodec;
+import com.ziggfreed.common.grant.BuiltInGrants;
 import com.ziggfreed.common.grant.Grant;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.progress.gate.StoreGates;
@@ -58,6 +59,10 @@ import com.ziggfreed.common.track.asset.TrackAsset;
  * that lists at least one of its live options offers its core and those; a group that lists none keeps its drawn
  * offer, and an empty list unpins the level. Every leaf inherits through {@code Parent}; a server owner retunes a
  * pick in {@code mods/ziggfreedcommon/track-picks.json}.
+ *
+ * <p>A file writing {@code Abstract} is a skeleton the picks under it inherit from (a tree's track and branch), never a
+ * pick, and a pick lives only while every pick up its {@code Parent} chain is switched on, so a skeleton switched off
+ * in one file (or one owner entry) takes its whole tree away ({@link TrackPicks#lineageLive}).
  */
 public final class TrackPickAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, TrackPickAsset>> {
 
@@ -74,6 +79,9 @@ public final class TrackPickAsset implements JsonAssetWithMap<String, DefaultAss
     private AssetExtraInfo.Data data;
 
     @Nullable protected Boolean enabled;
+    @Nullable protected Boolean skeleton;
+    /** The Parent as the pack layer wrote it, for an owner entry (whose own decode names itself): see {@link #parentId}. */
+    @Nullable private String lineage;
     @Nullable protected String track;
     @Nullable protected ContentTextAsset text;
     @Nullable protected String icon;
@@ -97,6 +105,11 @@ public final class TrackPickAsset implements JsonAssetWithMap<String, DefaultAss
     /** The live part of the {@code Requires} block, lifted once per instance ({@link StoreGates#live}). */
     @Nullable private volatile GateSpec[] live;
 
+    static {
+        // Grants (and a fold reading an option's grants) decodes the library's own kinds in any JVM.
+        BuiltInGrants.ensure();
+    }
+
     public static final AssetBuilderCodec<String, TrackPickAsset> CODEC = AssetBuilderCodec.builder(
                     TrackPickAsset.class,
                     TrackPickAsset::new,
@@ -109,7 +122,15 @@ public final class TrackPickAsset implements JsonAssetWithMap<String, DefaultAss
                     (a, v) -> a.enabled = v, a -> a.enabled, (a, p) -> a.enabled = p.enabled)
             .metadata(EditorSchema.defaultValue(true))
             .documentation("Whether this pick exists on this server; unauthored means true. False takes it away: "
-                    + "nothing is owed or offered, and the grants of picks already made are taken off.").add()
+                    + "nothing is owed or offered, and the grants of picks already made are taken off. False on a "
+                    + "pick other picks name as their Parent takes every pick under it away too, whatever they "
+                    + "write, so one file (or one owner entry) switches a whole tree off.").add()
+            .append(new KeyedCodec<>("Abstract", Codec.BOOLEAN, false),
+                    (a, v) -> a.skeleton = v, a -> a.skeleton)
+            .metadata(EditorSchema.defaultValue(false))
+            .documentation("True makes this file a skeleton other picks inherit from (their Parent), never a pick "
+                    + "itself: it is on no track's page and nobody takes it. Not inherited, so a pick under a "
+                    + "skeleton is a real pick. False when unauthored.").add()
             .appendInherited(new KeyedCodec<>("Track", Codec.STRING, false),
                     (a, v) -> a.track = v, a -> a.track, (a, p) -> a.track = p.track)
             .metadata(EditorSchema.assetRef(TrackAsset.class))
@@ -218,6 +239,37 @@ public final class TrackPickAsset implements JsonAssetWithMap<String, DefaultAss
     /** Is the pick switched on in its own file? Unauthored means true. */
     public boolean isEnabled() {
         return enabled == null || enabled;
+    }
+
+    /** Is this file a skeleton ({@code Abstract}): inherited from, never a pick itself? */
+    public boolean isAbstract() {
+        return Boolean.TRUE.equals(skeleton);
+    }
+
+    /**
+     * The id of the pick this file names as its {@code Parent}, as the pack layer wrote it, or null for none: what
+     * the fold walks to switch a pick off with the skeleton above it. An owner entry (decoded against its own pack
+     * file) answers its pack file's Parent.
+     */
+    @Nullable
+    public String parentId() {
+        if (lineage != null) {
+            return lineage.isEmpty() ? null : lineage;
+        }
+        Object parent = data == null ? null : data.getParentKey();
+        String key = parent == null ? null : blankToNull(parent.toString());
+        return key == null || key.equalsIgnoreCase(id == null ? "" : id.trim()) ? null : key;
+    }
+
+    /**
+     * Carry {@code below}'s lineage (its {@code Abstract} and its {@code Parent}) onto this owner entry, decoded
+     * against it: an owner retunes a pick's leaves, never which skeleton it is or sits under. The owner layer's merge
+     * calls it ({@link TrackPickConfig}).
+     */
+    void keepLineageOf(@Nonnull TrackPickAsset below) {
+        skeleton = below.skeleton;
+        String parent = below.parentId();
+        lineage = parent == null ? "" : parent;
     }
 
     /** The track id as written, trimmed, or null. */
