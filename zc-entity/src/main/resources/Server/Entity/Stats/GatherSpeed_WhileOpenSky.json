@@ -1,0 +1,8 @@
+{
+  "$Comment": "A conditional gathering speed in whole percent points (1 is +1% faster block breaking), added to its holder's GatherSpeed while nothing is over their head (under the open sky), so the gather step reads it with every other speed stat and the tool still decides what can break. Any item's StatModifiers raise it like any stat, and so does an effect's RawStatModifiers. Base 0.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

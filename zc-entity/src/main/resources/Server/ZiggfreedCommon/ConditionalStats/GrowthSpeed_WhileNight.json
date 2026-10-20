@@ -1,0 +1,13 @@
+{
+  "$Comment": "Makes GrowthSpeed_WhileNight conditional: A conditional growth speed in whole percent points, added to its holder's GrowthSpeed while it is night where they stand.",
+  "Holder": [
+    {
+      "Id": "ZigNight"
+    }
+  ],
+  "Pays": {
+    "Onto": [
+      "GrowthSpeed"
+    ]
+  }
+}

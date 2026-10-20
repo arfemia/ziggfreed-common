@@ -1,0 +1,13 @@
+{
+  "$Comment": "Makes GatherSpeed_WhileOpenSky conditional: A conditional gathering speed in whole percent points, added to its holder's GatherSpeed while nothing is over their head (under the open sky).",
+  "Holder": [
+    {
+      "Id": "ZigOpenSky"
+    }
+  ],
+  "Pays": {
+    "Onto": [
+      "GatherSpeed"
+    ]
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "$Comment": "Makes GatherSpeed_WhileUnderground conditional: A conditional gathering speed in whole percent points, added to its holder's GatherSpeed while a block is over their head (underground, in a cave, under a roof).",
+  "Holder": [
+    {
+      "Id": "ZigOpenSky",
+      "Inverse": true
+    }
+  ],
+  "Pays": {
+    "Onto": [
+      "GatherSpeed"
+    ]
+  }
+}

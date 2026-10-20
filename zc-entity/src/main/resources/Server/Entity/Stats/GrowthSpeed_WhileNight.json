@@ -1,0 +1,8 @@
+{
+  "$Comment": "A conditional growth speed in whole percent points (1 is +1% faster growth for the crops, saplings and fishing traps its holder placed), added to its holder's GrowthSpeed while it is night where they stand, so the growth step reads it with GrowthSpeed. Any item's StatModifiers raise it like any stat, and so does an effect's RawStatModifiers. Base 0.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}
