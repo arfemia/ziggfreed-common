@@ -53,9 +53,14 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
  * At the press {@link InstanceRewardGranter} pays it through its kind, at the row's own quantity, and the
  * {@link #id} line pays only where the kind cannot ({@code DeferredRewards.payableSpec}). Two rows are equal
  * when their specs hold the same kind and parameters.
+ *
+ * <p>{@link #dropChance} is how likely the drop that paid this row was, in percent per chest (0 to 100), stamped by
+ * {@link DeferredRewards#fromSelection} from the loot pass that decided it; a reward chest's card reads its rarity
+ * from it ({@link DropRarity}). Null for a row no roll decided and for one saved before the chance was kept, which
+ * reads as its item's own quality. It is shown, never paid, so it takes no part in equality.
  */
 public record InstanceReward(@Nonnull Kind kind, @Nonnull String id, int quantity, @Nullable String displayKey,
-                             @Nullable String iconItemId, @Nullable RewardSpec spec) {
+                             @Nullable String iconItemId, @Nullable RewardSpec spec, @Nullable Double dropChance) {
 
     /**
      * The literal a {@link Kind#COMMAND} line writes where its amount goes: {@link InstanceRewardGranter} fills it
@@ -74,6 +79,14 @@ public record InstanceReward(@Nonnull Kind kind, @Nonnull String id, int quantit
 
     public InstanceReward {
         quantity = Math.max(1, quantity);
+        dropChance = dropChance == null || !Double.isFinite(dropChance) ? null
+                : Math.max(0.0, Math.min(100.0, dropChance));
+    }
+
+    /** A row with no {@link #dropChance}: one no loot pass decided, or one saved before the chance was kept. */
+    public InstanceReward(@Nonnull Kind kind, @Nonnull String id, int quantity, @Nullable String displayKey,
+                          @Nullable String iconItemId, @Nullable RewardSpec spec) {
+        this(kind, id, quantity, displayKey, iconItemId, spec, null);
     }
 
     /** A row with no {@link #spec}: the shape every reward had before a deferred row kept one. */
@@ -123,13 +136,19 @@ public record InstanceReward(@Nonnull Kind kind, @Nonnull String id, int quantit
     /** This reward at {@code quantity}, everything else kept (a scaled or merged row). */
     @Nonnull
     public InstanceReward withQuantity(int quantity) {
-        return new InstanceReward(kind, id, quantity, displayKey, iconItemId, spec);
+        return new InstanceReward(kind, id, quantity, displayKey, iconItemId, spec, dropChance);
     }
 
     /** This reward with {@code id} in place of its own, everything else kept (a line with placeholders filled). */
     @Nonnull
     public InstanceReward withId(@Nonnull String id) {
-        return new InstanceReward(kind, id, quantity, displayKey, iconItemId, spec);
+        return new InstanceReward(kind, id, quantity, displayKey, iconItemId, spec, dropChance);
+    }
+
+    /** This reward with {@code dropChance} (percent per chest, null for none) as its drop's chance, the rest kept. */
+    @Nonnull
+    public InstanceReward withDropChance(@Nullable Double dropChance) {
+        return new InstanceReward(kind, id, quantity, displayKey, iconItemId, spec, dropChance);
     }
 
     /** True for an {@link Kind#ITEM} reward - the only kind the inventory-space guard applies to. */
@@ -211,7 +230,9 @@ public record InstanceReward(@Nonnull Kind kind, @Nonnull String id, int quantit
      * Combine same-identity rewards into one entry each, summing quantities, so the results screen
      * shows "x9 Moonbloom" ONCE instead of four separate Moonbloom chips (and the claim store grants
      * one merged entry instead of several). Two rewards merge when their {@link #kind}, {@link #id},
-     * and {@link #displayKey} all match. {@link Kind#COMMAND} entries NEVER merge - each command is a
+     * and {@link #displayKey} all match and their drops read as one rarity ({@link DropRarity}, a row
+     * with no {@link #dropChance} a rarity of its own), the merged entry keeping the lowest chance of
+     * its rows. {@link Kind#COMMAND} entries NEVER merge - each command is a
      * distinct side effect, and summing a quantity would be meaningless. First-seen order is preserved
      * (a merged entry keeps the slot of its first occurrence). Mod-agnostic: any consumer rolling a
      * loot table (which intentionally yields repeated picks) routes its result through here.
@@ -225,22 +246,33 @@ public record InstanceReward(@Nonnull Kind kind, @Nonnull String id, int quantit
                 out.add(r);
                 continue;
             }
-            String key = r.kind + " " + r.id + " " + (r.displayKey == null ? "" : r.displayKey);
+            String key = r.kind + " " + r.id + " " + (r.displayKey == null ? "" : r.displayKey) + " "
+                    + Objects.toString(DropRarity.qualityOf(r.dropChance), "");
             Integer at = slotByKey.get(key);
             if (at == null) {
                 slotByKey.put(key, out.size());
                 out.add(r);
             } else {
                 InstanceReward cur = out.get(at);
-                out.set(at, cur.withQuantity(cur.quantity + r.quantity));
+                out.set(at, cur.withQuantity(cur.quantity + r.quantity)
+                        .withDropChance(lower(cur.dropChance, r.dropChance)));
             }
         }
         return out;
     }
 
+    /** The lower of two chances, either one alone when the other is unknown. */
+    @Nullable
+    private static Double lower(@Nullable Double a, @Nullable Double b) {
+        if (a == null || b == null) {
+            return a == null ? b : a;
+        }
+        return Math.min(a, b);
+    }
+
     /**
-     * Equal when every component is, the {@link #spec} by its kind and parameters: a spec has no value
-     * equality of its own, and a row read back from a store must equal the row that was written.
+     * Equal when every component but {@link #dropChance} is, the {@link #spec} by its kind and parameters: a spec
+     * has no value equality of its own, and a row read back from a store must equal the row that was written.
      */
     @Override
     public boolean equals(@Nullable Object other) {

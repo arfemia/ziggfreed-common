@@ -110,7 +110,9 @@ public final class DeferredRewards {
     }
 
     /**
-     * Every reward a whole pass decided on, in decision order.
+     * Every reward a whole pass decided on, in decision order, each carrying the chance of the payout that decided it
+     * ({@link LootEngine.Selected#chance}, as {@link InstanceReward#dropChance}); a native drop list's stacks take
+     * the chance of the payout that named the list.
      *
      * @param selected what {@code LootEngine.select} answered
      * @param kinds    the vocabulary a registered reward entry is looked up in; null drops them all
@@ -125,7 +127,9 @@ public final class DeferredRewards {
             @Nullable Consumer<String> warn) {
         List<InstanceReward> out = new ArrayList<>();
         for (LootEngine.Selected entry : selected) {
-            out.addAll(from(entry.grants(), kinds, subject, sourceId, warn));
+            for (InstanceReward reward : from(entry.grants(), kinds, subject, sourceId, warn)) {
+                out.add(entry.chance() == null ? reward : reward.withDropChance(entry.chance()));
+            }
         }
         return out;
     }

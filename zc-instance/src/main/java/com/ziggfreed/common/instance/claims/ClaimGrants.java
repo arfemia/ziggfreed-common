@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
@@ -15,6 +16,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.event.NativeEventSeam;
+import com.ziggfreed.common.instance.reward.DropRarity;
 import com.ziggfreed.common.instance.reward.GrantOutcome;
 import com.ziggfreed.common.instance.reward.InstanceReward;
 import com.ziggfreed.common.instance.reward.InstanceRewardGranter;
@@ -197,14 +199,16 @@ public final class ClaimGrants {
     }
 
     /**
-     * What names one reward of a Claim on a page's line, for {@link #claimReward}: its kind, id, quantity and display
-     * key folded into a short token, so a line never carries a command reward's console line to the client. Two
-     * rewards alike in all four share it, and either one pays the same. Stable for the server's life, never saved.
+     * What names one reward of a Claim on a page's line, for {@link #claimReward}: its kind, id, quantity, display
+     * key and the rarity its drop reads as ({@link DropRarity}) folded into a short token, so a line never carries a
+     * command reward's console line to the client. Two rewards alike in all five share it, and either one pays the
+     * same and shows the same. Stable for the server's life, never saved.
      */
     @Nonnull
     public static String rewardKey(@Nonnull InstanceReward reward) {
         String identity = reward.kind().name() + '\n' + reward.id() + '\n' + reward.quantity() + '\n'
-                + (reward.displayKey() == null ? "" : reward.displayKey());
+                + (reward.displayKey() == null ? "" : reward.displayKey()) + '\n'
+                + Objects.toString(DropRarity.qualityOf(reward.dropChance()), "");
         return reward.kind().name().toLowerCase(Locale.ROOT) + "-" + Integer.toHexString(identity.hashCode());
     }
 

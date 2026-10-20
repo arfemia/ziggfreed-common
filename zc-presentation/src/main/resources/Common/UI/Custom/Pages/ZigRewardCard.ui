@@ -11,14 +11,17 @@ $ZW = "../Common/ZigKit.ui";
 // (Pages/Memories/Memory.ui): the whole card is one button, and it shows exactly one of its two faces.
 //
 //   #ItemCard   an item handed over: an ItemSlotButton on the Memories tile (ZigTileStyle's look, lit under the cursor)
-//               holding the game's own rarity slot, an ItemSlot with its quality background whose .ItemId Java
-//               sets, as vanilla's barter page does (Pages/BarterTradeRow.ui); hovering it shows the item's own
-//               tooltip. Under it the item's name (#ItemName, three lines, centred) and the engine's word for its
-//               quality (#Rarity, in that quality's colour; hidden where the quality shows none).
+//               holding the item on a rarity slot: an AssetImage (#SlotBack, hidden until Java sets its .AssetPath to
+//               a quality's own SlotTexture, the art the game draws behind an item) under an ItemSlot with no quality
+//               background of its own whose .ItemId Java sets, as vanilla's barter page does
+//               (Pages/BarterTradeRow.ui); hovering it shows the item's own tooltip. The quality is the one the line
+//               names (its drop's chance), else the item's own. Under it the item's name (#ItemName, three lines,
+//               centred) and the engine's word for that quality (#Rarity, in its colour; hidden where it shows none).
 //   #PlainCard  anything else (a currency, experience, reputation): a Button on the Memories tile warmed by the
 //               kit's gold (ZigTileWarmStyle), so it reads apart from an item at a glance; the reward's own 64px
 //               picture (#Pic, painted through IconRenderer.applyPlainIcon) over its own line, which carries its
-//               amount ("+50 Sweets", #PlainName, at the item name's place). The tooltip Java sets on #PlainCard
+//               amount ("+50 Sweets", #PlainName, at the item name's place), and the word for the quality the line
+//               names (#PlainRarity, in its colour; hidden when it names none). The tooltip Java sets on #PlainCard
 //               draws in the game's tooltip; nothing inside carries one, so a click anywhere reaches the card.
 //
 // Both faces ship hidden; the painter shows one and binds it.
@@ -49,10 +52,21 @@ Group #ZigRewardCard {
         LayoutMode: Center;
         Anchor: (Height: $ZK.@ZigPicLarge, Bottom: 6);
 
-        ItemSlot #Slot {
+        // The slot art and the item stacked, as the barter card stacks its slot's layers: the later one draws on top.
+        Group #SlotStack {
           Anchor: (Width: $ZK.@ZigPicLarge, Height: $ZK.@ZigPicLarge);
-          ShowQualityBackground: true;
-          ShowQuantity: false;
+
+          AssetImage #SlotBack {
+            Anchor: (Full: 0);
+            FallbackTexturePath: "UI/Custom/Common/Glyphs/Blank.png";
+            Visible: false;
+          }
+
+          ItemSlot #Slot {
+            Anchor: (Full: 0);
+            ShowQualityBackground: false;
+            ShowQuantity: false;
+          }
         }
       }
 
@@ -100,6 +114,17 @@ Group #ZigRewardCard {
         Anchor: (Height: 51);
         Text: "";
         Style: (...$ZX.@ZigTileNameStyle, FontSize: $ZT.@ZigFontBody, HorizontalAlignment: Center, VerticalAlignment: Start, WrapMaxLines: 3);
+      }
+
+      Group {
+        FlexWeight: 1;
+      }
+
+      Label #PlainRarity {
+        Anchor: (Height: 18);
+        Text: "";
+        Visible: false;
+        Style: (...$ZS.@ZigStateStyle, HorizontalAlignment: Center);
       }
     }
   }

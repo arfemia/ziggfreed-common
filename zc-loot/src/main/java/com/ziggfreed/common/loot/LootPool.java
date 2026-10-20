@@ -13,6 +13,7 @@ import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorFormula;
+import com.ziggfreed.common.util.WeightedPick;
 
 /**
  * The DRAW half of a loot table: a bag of weighted entries plus how many picks the moment earns.
@@ -270,5 +271,23 @@ public final class LootPool {
             }
         }
         return out;
+    }
+
+    /**
+     * The chance, in percent, that {@code entry} comes up at least once in a draw of {@code picks} with replacement
+     * among {@code eligible}: {@code 1 - (1 - w / total)^picks} over the effective weights, a bag whose every weight
+     * is zero drawing evenly as {@link WeightedPick} does. How many of it each pick hands over plays no part. The
+     * result is rounded to a billionth of a percent, so a weight of exactly 1 in 100 reads 1, never the hair above it
+     * the floating-point power leaves, and lands in the band an author meant.
+     */
+    static double pickChancePercent(@Nonnull Entry entry, @Nonnull List<Entry> eligible, int picks) {
+        if (picks <= 0 || eligible.isEmpty()) {
+            return Roll.MIN_CHANCE_PERCENT;
+        }
+        double total = WeightedPick.totalWeight(eligible, Entry::effectiveWeight);
+        double each = total > 0.0 ? entry.effectiveWeight() / total : 1.0 / eligible.size();
+        double once = Math.max(0.0, Math.min(1.0, each));
+        double percent = Roll.MAX_CHANCE_PERCENT * (1.0 - Math.pow(1.0 - once, picks));
+        return Math.round(percent * 1e9) / 1e9;
     }
 }

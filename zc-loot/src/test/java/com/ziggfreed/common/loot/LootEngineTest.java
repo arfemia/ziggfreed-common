@@ -11,6 +11,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardSpec;
@@ -160,6 +161,32 @@ class LootEngineTest {
             assertEquals(LootEngine.Origin.POOL, new LootEngine.Selected(null, "fanfare").origin(),
                     "the two-argument shape a site builds by hand carries no roll");
         }
+    }
+
+    // ==================== chances ====================
+
+    /**
+     * A pool pick carries the chance its entry came up at least once in the pool's draw, over the weights competing
+     * at that draw: a weight-3 entry against a weight-1 one, drawn twice, is 1 - (1/4)^2 and the other 1 - (3/4)^2.
+     */
+    @Test
+    void aPoolPickCarriesTheChanceItsEntryCameUpAtLeastOnce() {
+        LootPool pool = LootPool.of(FactorFormula.of(2.0, null, null), new LootPool.Entry[] {
+                LootPool.Entry.of(3.0, null, LootGrants.ofItem("Often", 1)),
+                LootPool.Entry.of(1.0, null, LootGrants.ofItem("Seldom", 1)),
+                LootPool.Entry.of(50.0, new FactorCondition[] {FactorCondition.of("test:unanswered", null, 1.0, null)},
+                        LootGrants.ofItem("Gated", 1))});
+        // The first pick lands on the weight-3 entry, the second on the weight-1 one; any later draw reads 0.
+        double[] draws = {0.1, 0.9};
+        int[] next = {0};
+        List<LootEngine.Selected> picks = LootEngine.select(List.of(), List.of(pool), null, FactorLookup.none(),
+                () -> next[0] < draws.length ? draws[next[0]++] : 0.0);
+
+        assertEquals(2, picks.size());
+        assertEquals(100.0 * (1.0 - Math.pow(0.25, 2)), picks.get(0).chance(), 1e-9,
+                "an entry holding three quarters of the eligible weight, drawn twice");
+        assertEquals(100.0 * (1.0 - Math.pow(0.75, 2)), picks.get(1).chance(), 1e-9,
+                "an entry holding a quarter, drawn twice; the gated entry is not in the bag, so not in the odds");
     }
 
     // ==================== drop lists ====================

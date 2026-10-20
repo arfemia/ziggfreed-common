@@ -412,9 +412,10 @@ class ZigKitDocumentsTest {
 
     /**
      * A reward card (a reward chest's page) is one of two faces on the Memories tiles, four a row in the chest page's
-     * 596px: an item on the game's own rarity slot inside an {@code ItemSlotButton}, as vanilla's barter card is
-     * ({@code Pages/BarterTradeRow.ui}), or anything else on the tile warmed by the kit's gold, its picture and its own
-     * line. The divider between the two runs is as wide as four cards less the last gap, so it takes a row of its own
+     * 596px: an item on its quality's slot art (a picture under the item slot) inside an {@code ItemSlotButton}, as
+     * vanilla's barter card is ({@code Pages/BarterTradeRow.ui}), or anything else on the tile warmed by the kit's gold,
+     * its picture, its own line and a rarity word it may name. The divider between the two runs is as wide as four
+     * cards less the last gap, so it takes a row of its own
      * and lines up with the cards.
      */
     @Test
@@ -434,11 +435,18 @@ class ZigKitDocumentsTest {
                 && itemStyle.contains("Sounds: $C.@ButtonSounds"), "the Memories tile, lit under the cursor and "
                 + "clicking, as an untyped tuple like vanilla's barter card, never a typed style: " + itemStyle);
         assertHidden(ui, "#ItemCard");
-        assertEquals("ItemSlot", type(item, "#Slot"));
-        String slot = block(item, "#Slot");
-        assertEquals("true", property(slot, "ShowQualityBackground"), "the game's own rarity slot");
-        assertEquals(64, size(leaf(property(slot, "Anchor"), "Width")), "an item icon at its native size");
-        assertEquals(64, size(leaf(property(slot, "Anchor"), "Height")));
+        String stack = block(item, "#SlotStack");
+        assertEquals(64, size(leaf(property(stack, "Anchor"), "Width")), "an item icon at its native size");
+        assertEquals(64, size(leaf(property(stack, "Anchor"), "Height")));
+        assertEquals("AssetImage", type(stack, "#SlotBack"), "the slot art is a picture Java names");
+        assertHidden(stack, "#SlotBack");
+        assertEquals("(Full: 0)", property(block(stack, "#SlotBack"), "Anchor"));
+        assertEquals("ItemSlot", type(stack, "#Slot"));
+        assertTrue(stack.indexOf("#SlotBack") < stack.indexOf("#Slot "), "the slot art draws under the item");
+        String slot = block(stack, "#Slot");
+        assertEquals("false", property(slot, "ShowQualityBackground"),
+                "the slot art is the quality the card shows, never a second one the client draws");
+        assertEquals("(Full: 0)", property(slot, "Anchor"));
         assertEquals("Label", type(item, "#ItemName"));
         assertEquals("Label", type(item, "#Rarity"));
         assertHidden(item, "#Rarity");
@@ -451,6 +459,8 @@ class ZigKitDocumentsTest {
                 "the tooltip Java sets on #PlainCard draws in the game's tooltip");
         assertPicture(plain, "#Pic", 64);
         assertEquals("Label", type(plain, "#PlainName"), "the reward's own line, which carries its amount");
+        assertEquals("Label", type(plain, "#PlainRarity"), "the rarity a rare roll names");
+        assertHidden(plain, "#PlainRarity");
         assertFalse(declares(plain, "#Amount"), "no amount of its own, so no number shows twice");
         assertEquals(1, count(ui, "\\bButton\\s+#"), "the plain face is the card's one Button");
         assertEquals(1, count(ui, "\\bItemSlotButton\\s+#"), "the item face is the card's one ItemSlotButton");

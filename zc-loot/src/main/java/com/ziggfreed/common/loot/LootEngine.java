@@ -252,9 +252,20 @@ public final class LootEngine {
      * <p>The origin is what lets a site tell an expected payout from a find without a second pass
      * over the tables: {@link #expected()} reads the paying roll's own {@code Expected} knob, and a
      * pool pick is always a find.
+     *
+     * <p>{@code chance} is how likely this payout was, in percent: the paying roll's {@code Chance}
+     * as the pass read it (100 for a roll with none, a floor taking its roll's), or for a pool pick
+     * the chance its entry came up at least once in the pool's draw. How many of a thing it hands
+     * over plays no part. Null for a payout built by hand, which knows no odds.
      */
     public record Selected(@Nullable LootGrants grants, @Nullable String cue, @Nullable Roll roll,
-            @Nonnull Origin origin) {
+            @Nonnull Origin origin, @Nullable Double chance) {
+
+        /** A payout whose odds are not known (one built by hand). */
+        public Selected(@Nullable LootGrants grants, @Nullable String cue, @Nullable Roll roll,
+                @Nonnull Origin origin) {
+            this(grants, cue, roll, origin, null);
+        }
 
         /** A payout with no roll behind it (a pool pick, or a payout built by hand). */
         public Selected(@Nullable LootGrants grants, @Nullable String cue) {
@@ -294,8 +305,9 @@ public final class LootEngine {
             if (!outcome.isHit()) {
                 continue;
             }
-            add(out, outcome.getTopGrants(), outcome.getTopCue(), roll, Origin.ROLL, sample);
-            add(out, outcome.getFloorGrants(), outcome.getFloorCue(), roll, Origin.FLOOR, sample);
+            double chance = RollEvaluator.effectiveChancePercent(roll.getChance(), lookup);
+            add(out, outcome.getTopGrants(), outcome.getTopCue(), roll, Origin.ROLL, chance, sample);
+            add(out, outcome.getFloorGrants(), outcome.getFloorCue(), roll, Origin.FLOOR, chance, sample);
         }
         if (trigger == null || Roll.DEFAULT_TRIGGER.equalsIgnoreCase(trigger)) {
             for (LootPool pool : pools) {
@@ -321,12 +333,13 @@ public final class LootEngine {
         }
         for (LootPool.Entry entry : WeightedPick.some(eligible, LootPool.Entry::effectiveWeight,
                 picks, false, sample)) {
-            add(out, entry.getGrants(), null, null, Origin.POOL, sample);
+            add(out, entry.getGrants(), null, null, Origin.POOL, LootPool.pickChancePercent(entry, eligible, picks),
+                    sample);
         }
     }
 
     private static void add(@Nonnull List<Selected> out, @Nullable LootGrants grants, @Nullable String cue,
-            @Nullable Roll roll, @Nonnull Origin origin, @Nonnull DoubleSupplier sample) {
+            @Nullable Roll roll, @Nonnull Origin origin, double chance, @Nonnull DoubleSupplier sample) {
         boolean hasCue = cue != null && !cue.isBlank();
         if (grants == null && !hasCue) {
             return;
@@ -334,7 +347,7 @@ public final class LootEngine {
         // Varying quantities are drawn HERE, so what a pass decided on is a concrete payout even when
         // the handing over happens much later.
         out.add(new Selected(grants == null ? null : grants.drawQuantities(sample), hasCue ? cue : null,
-                roll, origin));
+                roll, origin, chance));
     }
 
     // ==================== the pass ====================

@@ -2,6 +2,7 @@ package com.ziggfreed.common.loot.claim;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -100,6 +101,43 @@ class ClaimStoreTest {
         assertEquals(1, old.list(OWED).size(), "a row from before the leaf still loads");
         assertNull(old.list(OWED).get(0).fight(), "and no fight paid it");
         assertFalse(old.list(OWED).get(0).fromFight(run));
+    }
+
+    /**
+     * A reward keeps the chance of the drop that paid it across a restart, one no roll decided keeps none, and a row
+     * written before the chance was kept (no {@code chance} key) reads whole as none, under the same version.
+     */
+    @Tag("engine-items")
+    @Test
+    void aRewardKeepsItsDropChanceAndARowWithoutOneReadsAsNone(@TempDir Path dir) throws IOException {
+        Claim claim = new Claim("test:boss:run-2:" + OWED, "test:boss", null, List.of(), null,
+                List.of(InstanceReward.item("Ingredient_Bar_Iron", 2, null).withDropChance(0.8),
+                        InstanceReward.item("Ingredient_Bar_Copper", 1, null)), NOW);
+        ClaimStore store = new ClaimStore("claims", new DiminishLedger("claims-diminish"));
+        store.init(dir);
+        assertTrue(store.award(OWED, claim, null, "test:boss", NOW));
+        JsonObject root = JsonParser.parseString(Files.readString(dir.resolve("claims.json"))).getAsJsonObject();
+        assertEquals(1, root.get("version").getAsInt(), "the chance moves no version");
+
+        ClaimStore restarted = new ClaimStore("claims", new DiminishLedger("claims-diminish"));
+        restarted.init(dir);
+        List<InstanceReward> read = restarted.list(OWED).get(0).rewards();
+        assertEquals(claim.rewards(), read, "every reward reads back as it was written");
+        assertNotNull(read.get(0).dropChance(), "a drop's chance reads back");
+        assertEquals(0.8, read.get(0).dropChance(), 1e-9);
+        assertNull(read.get(1).dropChance(), "a reward no roll decided keeps none");
+
+        Path older = dir.resolve("older");
+        Files.createDirectories(older);
+        Files.writeString(older.resolve("claims.json"), "{\"version\": 1, \"players\": {\"" + OWED + "\": [{"
+                + "\"id\": \"test:old:2\", \"source\": \"test:old\", \"titleArgs\": [], \"rewards\": [{\"kind\":"
+                + " \"ITEM\", \"id\": \"Ingredient_Bar_Iron\", \"quantity\": 3}], \"createdAt\": 1760000000000}]}}");
+        ClaimStore old = new ClaimStore("claims", new DiminishLedger("claims-diminish"));
+        old.init(older);
+        List<InstanceReward> held = old.list(OWED).get(0).rewards();
+        assertEquals(List.of(InstanceReward.item("Ingredient_Bar_Iron", 3, null)), held,
+                "a row from before the chance still loads whole");
+        assertNull(held.get(0).dropChance(), "and reads as no chance, so its card keeps the item's own quality");
     }
 
     /** Half pay, the step a repeat clear under {@code "Diminish": {"Steps": [1, 0.5]}} earns. */

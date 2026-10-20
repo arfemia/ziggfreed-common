@@ -256,23 +256,35 @@ public final class TilePainter {
      * Reward cards into {@code grid} (a titled run's wrapping grid, {@link #section}), one per line in the order given,
      * in the style of vanilla's Memories page; the whole card is one button. A line whose picture keeps its item's
      * tooltip ({@link Picture#tooltipItem}) is an item: when this server ships it, the card shows its item face, the
-     * game's own rarity slot ({@code #Slot}, an {@code ItemSlot} with its quality background, its {@code .ItemId} set
-     * as vanilla's barter page sets it) whose hover shows the item's own tooltip, its words, and the engine's word for
-     * its quality in that quality's colour ({@link ItemQualityLook}; hidden where the quality shows none). Every other
+     * item ({@code #Slot}, an {@code ItemSlot}, its {@code .ItemId} set as vanilla's barter page sets it, whose hover
+     * shows the item's own tooltip) on its quality's slot art ({@code #SlotBack}, the quality's {@code SlotTexture}),
+     * its words, and the engine's word for that quality in its colour ({@link ItemQualityLook}; hidden where the quality
+     * shows none). The quality is the one the line names ({@link DetailLine#quality}), else the item's own. Every other
      * line, and an item this server does not ship, shows the plain face on the kit's warm plate: its picture, its words
-     * under it (a reward's own line carries its amount), its tooltip on the card; a line's count is not shown. One
-     * divider row sits before the first item that follows a line that is not one. A line whose select id is set is
-     * bound to {@code binding}'s answer (null leaves it unbound) on the face it shows.
+     * under it (a reward's own line carries its amount), the word for the quality the line names in its colour (none
+     * when it names none), its tooltip on the card; a line's count is not shown. One divider row sits before the first
+     * item that follows a line that is not one. A line whose select id is set is bound to {@code binding}'s answer
+     * (null leaves it unbound) on the face it shows.
      */
     public static void rewardCards(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
             @Nonnull String grid, @Nonnull List<DetailLine> lines, @Nonnull Function<DetailLine, EventData> binding) {
         rewardCards(cmd, events, grid, lines, binding, ItemQualityLook::of);
     }
 
-    /** {@link #rewardCards} over an injected quality reading (null for an item the server does not ship). */
+    /** {@link #rewardCards} over an injected item quality reading (null for an item the server does not ship). */
     static void rewardCards(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events, @Nonnull String grid,
             @Nonnull List<DetailLine> lines, @Nonnull Function<DetailLine, EventData> binding,
             @Nonnull Function<String, ItemQualityLook> looks) {
+        rewardCards(cmd, events, grid, lines, binding, looks, ItemQualityLook::ofQuality);
+    }
+
+    /**
+     * {@link #rewardCards} over injected readings: an item's quality ({@code looks}, null for an item the server does
+     * not ship) and a quality's by its id ({@code qualities}, null for one it does not ship).
+     */
+    static void rewardCards(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events, @Nonnull String grid,
+            @Nonnull List<DetailLine> lines, @Nonnull Function<DetailLine, EventData> binding,
+            @Nonnull Function<String, ItemQualityLook> looks, @Nonnull Function<String, ItemQualityLook> qualities) {
         cmd.clear(grid);
         int child = 0;
         boolean plainBefore = false;
@@ -288,8 +300,11 @@ public final class TilePainter {
             plainBefore |= !item;
             cmd.append(grid, REWARD_CARD_TEMPLATE);
             String card = KitPaint.child(grid, child++);
+            ItemQualityLook named = line.quality() == null ? null : qualities.apply(line.quality());
             ItemQualityLook look = item ? looks.apply(picture.itemId()) : null;
-            String face = look != null ? itemCard(cmd, card, picture.itemId(), line, look) : plainCard(cmd, card, line);
+            String face = look != null
+                    ? itemCard(cmd, card, picture.itemId(), line, named != null ? named : look)
+                    : plainCard(cmd, card, line, named);
             EventData data = line.selectId() == null ? null : binding.apply(line);
             if (data != null) {
                 events.addEventBinding(CustomUIEventBindingType.Activating, face, data);
@@ -297,34 +312,47 @@ public final class TilePainter {
         }
     }
 
-    /** A card's item face: the rarity slot, the words, the quality's word. Its selector. */
+    /** A card's item face: the item on its quality's slot art, the words, the quality's word. Its selector. */
     @Nonnull
     private static String itemCard(@Nonnull UICommandBuilder cmd, @Nonnull String card, @Nonnull String itemId,
             @Nonnull DetailLine line, @Nonnull ItemQualityLook look) {
         String face = card + " #ItemCard";
         cmd.set(card + " #PlainCard.Visible", false);
         cmd.set(face + ".Visible", true);
+        String slot = look.slotTexture();
+        cmd.set(face + " #SlotBack.Visible", slot != null);
+        if (slot != null) {
+            cmd.set(face + " #SlotBack.AssetPath", slot);
+        }
         cmd.set(face + " #Slot.ItemId", itemId);
         KitPaint.text(cmd, face + " #ItemName", line.text());
-        Message word = look.word();
-        cmd.set(face + " #Rarity.Visible", word != null);
-        if (word != null) {
-            KitPaint.text(cmd, face + " #Rarity", word);
-            cmd.set(face + " #Rarity.Style.TextColor", qualityInk(look.colour()));
-        }
+        qualityWord(cmd, face + " #Rarity", look);
         return face;
     }
 
-    /** A card's plain face: the picture, the words, the tooltip. Its selector. */
+    /** A card's plain face: the picture, the words, the named quality's word, the tooltip. Its selector. */
     @Nonnull
-    private static String plainCard(@Nonnull UICommandBuilder cmd, @Nonnull String card, @Nonnull DetailLine line) {
+    private static String plainCard(@Nonnull UICommandBuilder cmd, @Nonnull String card, @Nonnull DetailLine line,
+            @Nullable ItemQualityLook named) {
         String face = card + " #PlainCard";
         cmd.set(card + " #ItemCard.Visible", false);
         cmd.set(face + ".Visible", true);
         KitPaint.picture(cmd, face + " #Pic", line.picture());
         KitPaint.text(cmd, face + " #PlainName", line.text());
+        qualityWord(cmd, face + " #PlainRarity", named);
         KitPaint.tooltip(cmd, face, line.tooltip());
         return face;
+    }
+
+    /** {@code look}'s word on the label at {@code label} in its colour ({@link #qualityInk}); hidden with none. */
+    private static void qualityWord(@Nonnull UICommandBuilder cmd, @Nonnull String label,
+            @Nullable ItemQualityLook look) {
+        Message word = look == null ? null : look.word();
+        cmd.set(label + ".Visible", word != null);
+        if (word != null) {
+            KitPaint.text(cmd, label, word);
+            cmd.set(label + ".Style.TextColor", qualityInk(look.colour()));
+        }
     }
 
     /**

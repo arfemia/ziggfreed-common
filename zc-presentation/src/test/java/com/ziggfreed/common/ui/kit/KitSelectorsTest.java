@@ -44,6 +44,11 @@ class KitSelectorsTest {
 
     private static final String TEXTURE = "UI/Custom/Pages/Memories/MissingIcon.png";
 
+    /** Vanilla quality slot art, as each quality's {@code SlotTexture} names it. */
+    private static final String SLOT_RARE = "UI/ItemQualities/Slots/SlotRare.png";
+    private static final String SLOT_EPIC = "UI/ItemQualities/Slots/SlotEpic.png";
+    private static final String SLOT_LEGENDARY = "UI/ItemQualities/Slots/SlotLegendary.png";
+
     /** One selector segment: an id, any indexes, and (on the last) the property path. */
     private static final Pattern SEGMENT = Pattern.compile("#([A-Za-z][A-Za-z0-9]*)((?:\\[\\d+])*)(\\..*)?");
 
@@ -136,25 +141,36 @@ class KitSelectorsTest {
 
     @Test
     void theRewardCardPainterAddressesOnlyDeclaredIds() throws IOException {
-        // Both faces, the divider between the two runs (which shifts every later card's index), an item with a
-        // quality word and one without, and an item the server does not ship, which takes the plain face.
+        // Both faces, a plain card naming a rarity and one naming none, the divider between the two runs (which shifts
+        // every later card's index), an item on its own quality's slot art, one on the quality its line names, one
+        // with no quality word or slot art, and an item the server does not ship, which takes the plain face.
         List<DetailLine> lines = List.of(
                 new DetailLine(Picture.item("Coin"), Message.raw("+50 Sweets"), null, null, Tick.NONE,
                         "claim\nreward", false, Message.raw("Sweets")),
+                new DetailLine(Picture.item("Coin"), Message.raw("+500 Sweets"), null, null, Tick.NONE,
+                        "claim\njackpot", false, Message.raw("Sweets"), "Epic"),
                 new DetailLine(Picture.NONE, Message.raw("A title"), null, null, Tick.NONE, null, false),
                 new DetailLine(Picture.tooltipItem("Rare_Sword"), Message.raw("Sword"), null, null, Tick.NONE,
                         "claim\nsword", false),
+                new DetailLine(Picture.tooltipItem("Rare_Sword"), Message.raw("Sword"), null, null, Tick.NONE,
+                        "claim\nlucky", false, null, "Legendary"),
                 new DetailLine(Picture.tooltipItem("Plain_Rock"), Message.raw("Rock"), null, null, Tick.NONE,
                         "claim\nrock", false),
                 new DetailLine(Picture.tooltipItem("No_Such_Item"), Message.raw("Gone"), null, null, Tick.NONE,
-                        "claim\ngone", false));
+                        "claim\ngone", false, null, "Rare"));
         Recorder r = new Recorder(Map.of());
         r.cmd().clear("#Runs");
         String grid = TilePainter.section(r.cmd(), "#Runs", 0, Message.raw("Rewards"), null);
         TilePainter.rewardCards(r.cmd(), r.events(), grid, lines, l -> EventData.of("Take", l.selectId()),
                 id -> switch (id) {
-                    case "Rare_Sword" -> new ItemQualityLook(3, Message.raw("Rare"), "#2770b7");
+                    case "Rare_Sword" -> new ItemQualityLook(3, Message.raw("Rare"), "#2770b7", SLOT_RARE);
                     case "Plain_Rock" -> new ItemQualityLook(1, null, null);
+                    default -> null;
+                },
+                quality -> switch (quality) {
+                    case "Epic" -> new ItemQualityLook(4, Message.raw("Epic"), "#8b339e", SLOT_EPIC);
+                    case "Legendary" -> new ItemQualityLook(5, Message.raw("Legendary"), "#bb8a2c", SLOT_LEGENDARY);
+                    case "Rare" -> new ItemQualityLook(3, Message.raw("Rare"), "#2770b7", SLOT_RARE);
                     default -> null;
                 });
         r.record();

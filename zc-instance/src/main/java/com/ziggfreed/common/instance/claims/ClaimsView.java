@@ -19,6 +19,7 @@ import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.instance.result.RewardChipRenderer;
 import com.ziggfreed.common.instance.reward.DeferredRewards;
+import com.ziggfreed.common.instance.reward.DropRarity;
 import com.ziggfreed.common.instance.reward.InstanceReward;
 import com.ziggfreed.common.instance.reward.InstanceRewardGranter;
 import com.ziggfreed.common.loot.claim.Claim;
@@ -182,8 +183,9 @@ public final class ClaimsView {
      * "Your share" and how many cards it shows, the difficulty of the first Claim that names one as a pill, the
      * chest's own line ({@code lead}), and one list of cards across every Claim ({@link #chestCards}, a
      * {@link DetailBlock#cards} block): what is not an item first (a currency, experience, reputation; alike ones
-     * summed into one card, its own line carrying the amount), then the items, best quality first, each on the game's
-     * rarity slot. Every
+     * summed into one card, its own line carrying the amount, the rarity its drop's chance reads as named when rarer
+     * than Common), then the items, best quality first, each on that quality's slot: the one its drop's chance reads
+     * as ({@link DropRarity}), else the item's own. Every
      * card is a click whose select id names its first reward ({@link Taken#selectId}); the gold Take All takes
      * everything, over a hint saying so.
      */
@@ -259,7 +261,8 @@ public final class ClaimsView {
         /**
          * The card as a line: the reward's chip, its own line carrying the amount ("+50 Sweets"), an item's picture
          * keeping its own tooltip and any other picture drawn plain with the chip's words on hover (a borrowed item's
-         * tooltip would name the wrong thing), and the first take as its select id.
+         * tooltip would name the wrong thing), the first take as its select id, and the quality its drop's chance
+         * reads as ({@link #cardQuality}).
          */
         @Nonnull
         DetailLine line() {
@@ -267,15 +270,20 @@ public final class ClaimsView {
             Picture picture = !chip.hasIcon() ? Picture.NONE
                     : shown.isItem() ? Picture.tooltipItem(chip.iconItemId()) : Picture.item(chip.iconItemId());
             return new DetailLine(picture, chip.label(), null, null, Tick.NONE, takes.get(0).selectId(), false,
-                    shown.isItem() ? null : chip.tooltip());
+                    shown.isItem() ? null : chip.tooltip(), cardQuality(shown));
         }
+    }
+
+    /** An item card, ranked once for the sort: its quality's rank and its drop's chance. */
+    private record RankedCard(@Nonnull ChestCard card, int rank, double chance) {
     }
 
     /**
      * Every card a reward chest's page shows for {@code claims} (oldest first): what is not an item first, in the
      * order the Claims hold it, alike rewards from any Claim summed into the first one's card ({@link #alike}); then
-     * each item stack its own card, best quality first ({@link ItemQualityLook#rank}, an item this server does not
-     * ship last), Claim order kept within a quality.
+     * each item stack its own card, best quality first (the quality its drop's chance reads as, {@link DropRarity},
+     * else the item's own; an item this server does not ship last), the rarer drop first within a quality (a stack
+     * with no chance after those with one), Claim order kept after that.
      */
     @Nonnull
     static List<ChestCard> chestCards(@Nonnull List<Claim> claims) {
@@ -301,12 +309,43 @@ public final class ClaimsView {
                 plain.add(new ChestCard(reward, List.of(take)));
             }
         }
-        // A stable sort, so stacks of one quality keep the Claims' order.
-        items.sort(Comparator.comparingInt((ChestCard card) -> ItemQualityLook.rank(iconOf(card.shown()))).reversed());
-        List<ChestCard> all = new ArrayList<>(plain.size() + items.size());
+        // Each card ranked once, then a stable sort, so stacks of one quality and one chance keep the Claims' order.
+        List<RankedCard> ranked = new ArrayList<>(items.size());
+        for (ChestCard card : items) {
+            Double chance = card.shown().dropChance();
+            ranked.add(new RankedCard(card, rankOf(card.shown()), chance == null ? Double.MAX_VALUE : chance));
+        }
+        ranked.sort(Comparator.comparingInt(RankedCard::rank).reversed().thenComparingDouble(RankedCard::chance));
+        List<ChestCard> all = new ArrayList<>(plain.size() + ranked.size());
         all.addAll(plain);
-        all.addAll(items);
+        for (RankedCard card : ranked) {
+            all.add(card.card());
+        }
         return all;
+    }
+
+    /**
+     * The quality a reward's card shows ({@link DetailLine#quality}): for an item, the one its drop's chance reads as
+     * ({@link DropRarity}), null for a reward with no chance, whose card shows the item's own; for anything else the
+     * same only when rarer than Common, so a gold card names a rarity only for a rare roll.
+     */
+    @Nullable
+    static String cardQuality(@Nonnull InstanceReward reward) {
+        String quality = DropRarity.qualityOf(reward.dropChance());
+        return reward.isItem() || !DropRarity.COMMON.equals(quality) ? quality : null;
+    }
+
+    /**
+     * An item card's rank, best first: the rank of the quality its card shows ({@link #cardQuality}, else the item's
+     * own), {@link ItemQualityLook#UNKNOWN_RANK} for an item this server does not ship, whose card is the plain one.
+     */
+    private static int rankOf(@Nonnull InstanceReward reward) {
+        ItemQualityLook own = ItemQualityLook.of(iconOf(reward));
+        if (own == null) {
+            return ItemQualityLook.UNKNOWN_RANK;
+        }
+        ItemQualityLook named = ItemQualityLook.ofQuality(cardQuality(reward));
+        return named != null ? named.rank() : own.rank();
     }
 
     /**
@@ -326,9 +365,10 @@ public final class ClaimsView {
     }
 
     /**
-     * What makes two rewards that are not items one card: alike in kind, id, display key, icon and the reward a
-     * deferred row stands for, all but its amount; null for one whose shown amount does not follow its quantity
-     * (a command line that pays what it says, a kept reward with no amount to read), which keeps a card of its own.
+     * What makes two rewards that are not items one card: alike in kind, id, display key, icon, the reward a
+     * deferred row stands for, all but its amount, and the rarity its card names ({@link #cardQuality}); null for one
+     * whose shown amount does not follow its quantity (a command line that pays what it says, a kept reward with no
+     * amount to read), which keeps a card of its own.
      */
     @Nullable
     private static String alike(@Nonnull InstanceReward reward) {
@@ -347,7 +387,8 @@ public final class ClaimsView {
             stands = spec.kind().toLowerCase(Locale.ROOT) + params;
         }
         return reward.kind().name() + '\n' + reward.id() + '\n' + Objects.toString(reward.displayKey(), "") + '\n'
-                + Objects.toString(reward.iconItemId(), "") + '\n' + stands;
+                + Objects.toString(reward.iconItemId(), "") + '\n' + stands + '\n'
+                + Objects.toString(cardQuality(reward), "");
     }
 
     /** The item a reward's card pictures: its own icon item when it names one, else an item's own id. */

@@ -41,9 +41,10 @@ import com.ziggfreed.common.util.SafeLog;
  * and unwritten, with one warning; so is a file this build cannot read at all (a damaged or cut-short one),
  * so one bad read never costs a player the Claims on disk. A missing or empty file is a fresh start, not a
  * refusal. A write that fails keeps the Claims in memory, which a plain unit JVM (where the engine's writer
- * cannot load) relies on. A reward's optional spec (what a deferred row reads as, {@code StoredReward}) and a
- * Claim's optional fight ({@link Claim#fight()}) are additive fields: a file written before either reads
- * unchanged (a row with no fight is a Claim no fight paid) and the version does not move for them.
+ * cannot load) relies on. A reward's optional spec (what a deferred row reads as, {@code StoredReward}) and drop
+ * chance ({@link InstanceReward#dropChance}), and a Claim's optional fight ({@link Claim#fight()}), are additive
+ * fields: a file written before any of them reads unchanged (a row with no fight is a Claim no fight paid, a reward
+ * with no chance reads as its item's own quality) and the version does not move for them.
  *
  * <p>Thread-safe: every change holds the store's lock, and {@link ClaimAddedEvent} fires inside it.
  */
@@ -136,7 +137,8 @@ public final class ClaimStore {
      * beside its own (a top-up) instead of refusing them: one Claim per payout that keeps coming, such as a quest
      * step's item. A top-up is counted, scaled and announced exactly as a first write is ({@link ClaimAddedEvent},
      * carrying the Claim as it now stands); the held Claim keeps its title and its place by age, and a reward the
-     * same as one it holds adds to that one's quantity ({@link InstanceReward#merge}). A top-up that names a fight
+     * same as one it holds, its drop reading as the same rarity, adds to that one's quantity
+     * ({@link InstanceReward#merge}). A top-up that names a fight
      * ({@link Claim#fight()}) moves the whole Claim to that fight, so the chest the newest fight leaves offers it;
      * one that names none keeps the held Claim's. Whatever caps the payout is the caller's: this adds what it is
      * given.
@@ -272,9 +274,9 @@ public final class ClaimStore {
     }
 
     /**
-     * {@code held} taking {@code more}'s rewards beside its own, a reward the same as one it holds adding to that
-     * one's quantity; its title, source and difficulty kept, its age the older of the two. A held row too damaged
-     * to read gives way to {@code more}.
+     * {@code held} taking {@code more}'s rewards beside its own, a reward the same as one it holds, its drop reading
+     * as the same rarity, adding to that one's quantity ({@link InstanceReward#merge}); its title, source and
+     * difficulty kept, its age the older of the two. A held row too damaged to read gives way to {@code more}.
      */
     @Nonnull
     private static Claim joined(@Nullable Claim held, @Nonnull Claim more) {
