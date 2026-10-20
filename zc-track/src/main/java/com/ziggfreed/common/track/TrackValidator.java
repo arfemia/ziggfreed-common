@@ -194,7 +194,7 @@ public final class TrackValidator {
                 TrackPickAsset file = TrackPickConfig.getInstance().resolve(id);
                 return file != null && (!file.isEnabled() || TrackPicks.pick(id) == null);
             }));
-            out.addAll(TrackTreeAudit.audit(TrackConfig.getInstance().liveTracks(), TrackPicks.all().values()));
+            out.addAll(TrackTreeAudit.audit(TrackConfig.getInstance().liveTracks(), TrackPicks.authored().values()));
             for (Map.Entry<String, TrackPickAsset> entry : TrackPickConfig.getInstance().all().entrySet()) {
                 if (entry.getValue().isEnabled()) {
                     out.addAll(GateValidator.validate(entry.getValue().requires(), DOMAIN, entry.getKey(),

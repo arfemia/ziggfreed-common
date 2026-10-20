@@ -4,10 +4,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.function.Predicate;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -82,6 +85,37 @@ class TrackTreeAuditTest {
         assertTrue(findings.isEmpty(), () -> "a tree within every rule: " + findings);
     }
 
+    /**
+     * A node shipped switched off in its own file for a later pass is in the tree as authored: its branch still adds up
+     * to its 56, the row above it still opens, and the starter build walks through it. Only the live fold, or an
+     * owner's word switching it off, leaves it out.
+     */
+    @Test
+    void aBranchWithAnOffNodeStillTotalsItsPoints() throws IOException {
+        List<String> steps = new ArrayList<>();
+        steps.addAll(Collections.nCopies(20, "\"Your_Wall\""));
+        steps.addAll(Collections.nCopies(10, "\"Your_Later\""));
+        steps.addAll(Collections.nCopies(4, "\"Your_Top\""));
+        TrackAsset track = track("{ \"Points\": { \"PerLevel\": 1, \"To\": 57 }, \"Branches\": { \"Guard\": {} },"
+                + " \"Tree\": { \"BranchPoints\": 56 }, \"Starter\": [ " + String.join(", ", steps) + " ] }");
+        Map<String, String> picks = new LinkedHashMap<>();
+        picks.put("Your_Wall", "{ \"Branch\": \"Guard\", \"Cost\": { \"Points\": 1 }, \"Repeat\": { \"Max\": 20 } }");
+        picks.put("Your_Later", gated("Guard", 20,
+                "\"Enabled\": false, \"Cost\": { \"Points\": 2 }, \"Repeat\": { \"Max\": 10 }"));
+        picks.put("Your_Top", gated("Guard", 40, "\"Cost\": { \"Points\": 4 }, \"Repeat\": { \"Max\": 4 }"));
+
+        List<Finding> authored = TrackTreeAudit.audit(List.of(track), foldAuthored(picks, id -> true));
+        assertTrue(authored.isEmpty(), () -> "20 + 20 off + 16 is 56, every row reachable, the starter whole: "
+                + authored);
+
+        Map<String, Integer> live = codes(TrackTreeAudit.audit(List.of(track), fold(picks)));
+        assertEquals(Integer.valueOf(1), live.get(TrackTreeAudit.BRANCH_POINTS_OFF), "36 live points");
+        assertEquals(Integer.valueOf(1), live.get(TrackTreeAudit.GATE_OUT_OF_REACH), "20 live below the row at 40");
+        assertEquals(Integer.valueOf(1), live.get(TrackTreeAudit.STARTER_STOPS), "the Top waits on 40 in Guard");
+        assertEquals(live, codes(TrackTreeAudit.audit(List.of(track), foldAuthored(picks, id -> false))),
+                "a pick an owner's word switched off stays out of the tree as authored");
+    }
+
     private static String gated(String branch, int min, String rest) {
         return "{ \"Branch\": \"" + branch + "\", " + rest + ", \"Requires\": { \"Factors\": [ { \"Factor\": \""
                 + TrackFactors.BRANCH_SPENT + "\", \"Param\": \"Your_Sample:" + branch + "\", \"Min\": " + min
@@ -102,14 +136,26 @@ class TrackTreeAuditTest {
     }
 
     private static List<TrackPicks.PickDef> fold(Map<String, String> files) throws IOException {
+        TrackAsset sample = track(TRACK);
+        return List.copyOf(TrackPicks.fold(decode(files), id -> null, id -> null,
+                id -> "your_sample".equals(TrackKey.normalize(id)) ? sample : null).byId().values());
+    }
+
+    /** The tree as authored from {@code files}, an off pick in it where {@code offInOwnFile} says so. */
+    private static List<TrackPicks.PickDef> foldAuthored(Map<String, String> files, Predicate<String> offInOwnFile)
+            throws IOException {
+        TrackAsset sample = track(TRACK);
+        return List.copyOf(TrackPicks.foldAuthored(decode(files), id -> null, id -> null,
+                id -> "your_sample".equals(TrackKey.normalize(id)) ? sample : null, offInOwnFile).byId().values());
+    }
+
+    private static Map<String, TrackPickAsset> decode(Map<String, String> files) throws IOException {
         Map<String, TrackPickAsset> picks = new LinkedHashMap<>();
         for (Map.Entry<String, String> file : files.entrySet()) {
             String json = file.getValue().replaceFirst("\\{", "{ \"Track\": \"Your_Sample\", ");
             picks.put(file.getKey(), TrackPickAsset.CODEC.decodeJsonAsset(RawJsonReader.fromJsonString(json),
                     new AssetExtraInfo<>(new AssetExtraInfo.Data(TrackPickAsset.class, file.getKey(), null))));
         }
-        TrackAsset sample = track(TRACK);
-        return List.copyOf(TrackPicks.fold(picks, id -> null, id -> null,
-                id -> "your_sample".equals(TrackKey.normalize(id)) ? sample : null).byId().values());
+        return picks;
     }
 }

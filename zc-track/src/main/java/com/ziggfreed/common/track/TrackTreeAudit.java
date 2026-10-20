@@ -25,9 +25,11 @@ import com.ziggfreed.common.track.pick.TrackPicks;
 import com.ziggfreed.common.validation.Finding;
 
 /**
- * The shape audit of a track's tree (R736), pure over the switched-on tracks and the folded picks, filed under the
- * track audit's domain; every finding is a WARNING. A tree is a switched-on track that declares {@code Branches} or
- * writes a {@code Tree} group.
+ * The shape audit of a track's tree (R736), pure over the switched-on tracks and the tree as authored
+ * ({@link TrackPicks#authored}: the live picks, and the picks switched off in their own pack files whose lineage is
+ * live, so a node shipped off for a later pass still counts in every check below, what it will grant once switched
+ * on included), filed under the track audit's domain; every finding is a WARNING. A tree is a switched-on track that
+ * declares {@code Branches} or writes a {@code Tree} group.
  * What it checks against the track's {@code Tree} group (read by this audit alone) where one is written:
  *
  * <ul>
@@ -76,7 +78,10 @@ public final class TrackTreeAudit {
     private TrackTreeAudit() {
     }
 
-    /** Audit every tree among {@code tracks} (switched-on tracks) over {@code picks} (the folded picks). */
+    /**
+     * Audit every tree among {@code tracks} (switched-on tracks) over {@code picks} (the tree as authored,
+     * {@link TrackPicks#authored} or a {@link TrackPicks#foldAuthored} of the files).
+     */
     @Nonnull
     public static List<Finding> audit(@Nonnull Collection<TrackAsset> tracks,
             @Nonnull Collection<TrackPicks.PickDef> picks) {
@@ -346,7 +351,7 @@ public final class TrackTreeAudit {
             String step = steps.get(i);
             TrackPicks.PickDef pick = byId.get(TrackKey.normalize(step));
             if (pick == null || !pick.asset().placements().isEmpty()) {
-                continue; // unknown here, switched off or a trainer's: passed over (UNKNOWN_STARTER_PICK names one)
+                continue; // not in the tree as authored, or a trainer's: passed over (UNKNOWN_STARTER_PICK names one)
             }
             TrackPickAsset asset = pick.asset();
             String wait = null;

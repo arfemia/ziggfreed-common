@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -238,6 +239,9 @@ public final class TrackPicks {
 
     @Nullable private static volatile Folded folded;
 
+    /** The tree as authored ({@link #authored}), folded on its first ask after a fold moved. */
+    @Nullable private static volatile Folded authored;
+
     private TrackPicks() {
     }
 
@@ -272,6 +276,36 @@ public final class TrackPicks {
     }
 
     /**
+     * The tree as authored, by id: what the tree audit reads, never a runtime read (nothing takes, grants or gates on
+     * it). Every pick {@link #all} holds, and with them each pick switched off in its own pack file (the layer under
+     * the owner's word is off too, so a node shipped off for a later pass still counts toward its branch, its gates
+     * and its starter build), its lineage live; a pick an owner entry switched off, a skeleton, and one under a
+     * switched-off ancestor stay out. Folded as {@link #foldAuthored} folds, so a choice node's faces link across both.
+     */
+    @Nonnull
+    public static Map<String, PickDef> authored() {
+        Folded local = authored;
+        if (local == null) {
+            synchronized (TrackPicks.class) {
+                local = authored;
+                if (local == null) {
+                    TrackPickConfig config = TrackPickConfig.getInstance();
+                    local = foldAuthored(config.all(),
+                            id -> PickOptionConfig.getInstance().resolve(id),
+                            id -> PickDeckConfig.getInstance().resolve(id),
+                            id -> TrackConfig.getInstance().live(id),
+                            id -> {
+                                TrackPickAsset file = config.resolveBelowOwner(id);
+                                return file != null && !file.isEnabled();
+                            });
+                    authored = local;
+                }
+            }
+        }
+        return local.byId();
+    }
+
+    /**
      * A pick, option, deck or track folded: the next ask folds again, the gate server epoch moves (a branch's
      * points, {@code ziggfreedcommon:track_branch_spent}, read the picks' {@code Branch} and {@code Cost}, so no
      * verdict kept over the old files outlives them), and every online player's grants are rebuilt on their own
@@ -280,6 +314,7 @@ public final class TrackPicks {
     public static void invalidate() {
         synchronized (TrackPicks.class) {
             folded = null;
+            authored = null;
         }
         GateEpochs.bumpServer();
         TrackDerived.rebuildAllOnline();
@@ -332,6 +367,25 @@ public final class TrackPicks {
     public static Folded fold(@Nonnull Map<String, TrackPickAsset> picks,
             @Nonnull Function<String, PickOptionAsset> options, @Nonnull Function<String, PickDeckAsset> decks,
             @Nonnull Function<String, TrackAsset> tracks) {
+        return fold(picks, options, decks, tracks, id -> false);
+    }
+
+    /**
+     * Fold {@code picks} as authored, for the tree audit alone ({@link #authored}): what {@link #fold} folds, and with
+     * it each pick switched off whose id {@code offInOwnFile} answers yes for (switched off in its own pack file, not
+     * by an owner's word: any off pick, when {@code picks} are pack files alone), its lineage live as the fold asks.
+     */
+    @Nonnull
+    public static Folded foldAuthored(@Nonnull Map<String, TrackPickAsset> picks,
+            @Nonnull Function<String, PickOptionAsset> options, @Nonnull Function<String, PickDeckAsset> decks,
+            @Nonnull Function<String, TrackAsset> tracks, @Nonnull Predicate<String> offInOwnFile) {
+        return fold(picks, options, decks, tracks, offInOwnFile);
+    }
+
+    @Nonnull
+    private static Folded fold(@Nonnull Map<String, TrackPickAsset> picks,
+            @Nonnull Function<String, PickOptionAsset> options, @Nonnull Function<String, PickDeckAsset> decks,
+            @Nonnull Function<String, TrackAsset> tracks, @Nonnull Predicate<String> offInOwnFile) {
         List<String> ids = new ArrayList<>(picks.keySet());
         Collections.sort(ids);
         List<Finding> issues = new ArrayList<>();
@@ -341,7 +395,8 @@ public final class TrackPicks {
         picks.forEach((key, value) -> byLowerId.put(TrackKey.normalize(key), value));
         for (String rawId : ids) {
             TrackPickAsset asset = picks.get(rawId);
-            if (asset == null || !asset.isEnabled() || asset.isAbstract() || !lineageLive(asset, byLowerId)) {
+            if (asset == null || (!asset.isEnabled() && !offInOwnFile.test(rawId)) || asset.isAbstract()
+                    || !lineageLive(asset, byLowerId)) {
                 continue;
             }
             String id = TrackKey.normalize(rawId);
