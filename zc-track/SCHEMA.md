@@ -59,7 +59,8 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Mirror` | [Mirror](#field-trackasset-mirror) | `null` | A native stat this track's level is written onto, so anything reading stats (an item, an effect, a hytale:stat requirement) sees it. Leave it out for no stat. |
 | `Prestige` | [Prestige](#field-trackasset-prestige) | `null` | Whether a player may prestige this track: start the climb again from the bottom, keeping the best level they ever reached, so nothing they unlocked locks again and no unlock pays twice. Leave it out for a track that never prestiges. |
 | `Unlocks` | array of [Unlock](#field-trackasset-unlocks-item) | `null` | Rewards for reaching levels: each row pays its Rewards as a Claim the player collects, once for each of its levels the best level ever reached passes, and never twice, whatever a prestige does. A row added later pays what is already behind the player. A player's record knows each row by its Id (or, unauthored, by its levels), never by its place, so the rows can be reordered freely. Under Parent this list replaces the parent's whole. |
-| `Gain` | [Gain](#field-trackasset-gain) | `null` | How a gain on this track is worked out before it lands: the named factors it runs, in order, the ones that add together, and the rested pool. Leave it out for the usual order (Class, World, Bonus, Boost, Prestige, Rested), Bonus and Boost adding together, and no rested pool. |
+| `Gain` | [Gain](#field-trackasset-gain) | `null` | How a gain on this track is worked out before it lands: the named factors it runs, in order, and the rested pool. Leave it out for the usual order (Class, World, Bonus, Boost, Rested) and no rested pool. |
+| `Derived` | [Derived](#field-trackasset-derived) | `null` | Makes this track a reading of other tracks instead of a climb of its own: its level, its best level and whether it is usable are read live from its sources, so every requirement, level tag and reading that names it sees them with no change of its own. It holds no value: a gain or a set on it lands on its highest source under Highest, and is refused under Sum. A source that is itself derived is skipped. A derived track with no usable source is not usable. It still names a Curve, which its tiers read on. Leave it out for an ordinary track. |
 
 <a id="field-trackasset-points"></a>
 ### TrackAsset.Points
@@ -132,6 +133,14 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Additive` | array of `string` | `null` | The factors whose extras add together rather than multiplying, run where the first of them stands in Factors: with a Bonus of 1.2 and a Boost of 1.5 a gain pays 1.7 times (1 + 0.2 + 0.5), not 1.8. Leave it out for Bonus and Boost, the way skills have always stacked them; an empty list multiplies every factor. |
 | `Rested` | [Rested](#field-trackasset-gain-rested) | `null` | A rested pool for this track: while a player is away it fills, and gains pay extra until it is spent. Leave it out for none; no track has one unless it is written. |
 
+<a id="field-trackasset-derived"></a>
+### TrackAsset.Derived
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `From` | [From](#field-trackasset-derived-from) | `null` | The tracks this one reads: the ones Tracks names, in that order, then every track in the categories Categories names, by Order then id, each once. A track that is switched off, has no loaded curve, is itself derived or is this track is left out. |
+| `Reading` | `string` | `null` | How this track reads its sources: Highest is the level of the highest one, and a gain or a set lands on that one (the first listed when two are level); Sum adds their levels together, and a gain or a set on it is refused, since no one source holds it. Highest when unauthored. |
+
 <a id="field-trackasset-gain-rested"></a>
 #### TrackAsset.Gain.Rested
 
@@ -144,6 +153,14 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `MaxPool` | `long` | `null` | The most the pool holds. 50000 when unauthored, the MMO's own cap; 0 or less sets no limit. |
 | `MinOfflineMinutes` | `integer` | `null` | The shortest time away, in minutes, that fills the pool at all; at or past it the whole time away counts. 30 when unauthored. |
 | `MaxOfflineHours` | `integer` | `null` | The longest time away, in hours, that counts. 168 (a week) when unauthored. |
+
+<a id="field-trackasset-derived-from"></a>
+#### TrackAsset.Derived.From
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Tracks` | array of `string` | `null` | Track ids this track reads, in order: under Highest the first one listed wins a tie, so a write lands there. |
+| `Categories` | array of `string` | `null` | Category ids (a track's Category) whose every track this track reads too, after the ones Tracks names, by Order then id. |
 
 <a id="type-trackcurveasset"></a>
 ## TrackCurveAsset

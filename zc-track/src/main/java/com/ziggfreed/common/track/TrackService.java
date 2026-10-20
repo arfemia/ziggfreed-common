@@ -20,6 +20,7 @@ import com.ziggfreed.common.progress.gate.GateQuery;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.progress.gate.StoreGates;
 import com.ziggfreed.common.stats.StatMirror;
+import com.ziggfreed.common.track.asset.DerivedReading;
 import com.ziggfreed.common.track.asset.TrackAsset;
 import com.ziggfreed.common.track.asset.TrackConfig;
 import com.ziggfreed.common.track.curve.CurveTable;
@@ -57,6 +58,11 @@ import com.ziggfreed.common.util.SafeLog;
  * factor set for this player ({@link GainCall#capAtLevel}), the fraction dropped there as the MMO's accumulator
  * does; a loss stops at the curve's level 1. Writes are the live
  * subject's own thread only; an offline player's climb is read, never written.
+ *
+ * <p><b>A derived track</b> ({@code Derived}) keeps no value: its readings read its sources live
+ * ({@link TrackReading#isDerived}, {@link #derivation}), a gain or a set on a Highest one lands on its highest source
+ * (the first listed on a tie) and is that source's move in every way, one on a Sum one is refused
+ * ({@code DERIVED_SUM}), and it never prestiges.
  */
 public final class TrackService {
 
@@ -80,7 +86,9 @@ public final class TrackService {
         /** A prestige the track does not allow: no prestige, or every rank already taken. */
         NOT_ALLOWED,
         /** A prestige whose level the current climb has not reached yet. */
-        NOT_READY
+        NOT_READY,
+        /** A write on a derived track that sums its sources: it holds nothing of its own, so nothing is written. */
+        DERIVED_SUM
     }
 
     /**
@@ -132,14 +140,14 @@ public final class TrackService {
     // ==================== reads ====================
 
     /**
-     * The usable track {@code trackId} names (any case): switched on, its id usable, its curve tabulated; null
-     * otherwise.
+     * The usable track {@code trackId} names (any case): switched on, its id usable, its curve tabulated, and, for a
+     * derived track, at least one source usable; null otherwise.
      */
     @Nullable
     public static TrackDef def(@Nullable String trackId) {
         TrackAsset track = TrackConfig.getInstance().live(trackId);
         CurveTable table = track == null ? null : TrackCurves.table(track.curveId());
-        return table == null ? null : new TrackDef(track, table);
+        return table == null || !usable(track, table) ? null : new TrackDef(track, table);
     }
 
     /** Does {@code trackId} (any case) name a usable track, the one {@link #def} answers? */
@@ -153,28 +161,74 @@ public final class TrackService {
         List<TrackDef> out = new ArrayList<>();
         for (TrackAsset track : TrackConfig.getInstance().liveTracks()) {
             CurveTable table = TrackCurves.table(track.curveId());
-            if (table != null) {
+            if (table != null && usable(track, table)) {
                 out.add(new TrackDef(track, table));
             }
         }
         return out;
     }
 
+    /** Is a loaded {@code track} usable: an ordinary one always, a derived one while one of its sources is? */
+    private static boolean usable(@Nonnull TrackAsset track, @Nonnull CurveTable table) {
+        return !track.isDerived() || TrackDerivations.of(track, table) != null;
+    }
+
+    /**
+     * The derivation of the derived track {@code trackId} names (any case): how it reads its sources and which of
+     * them are usable, in order. Null for an ordinary track and an unusable one. Kept until a track or curve fold.
+     */
+    @Nullable
+    public static TrackDerivation derivation(@Nullable String trackId) {
+        TrackAsset track = TrackConfig.getInstance().live(trackId);
+        if (track == null || !track.isDerived()) {
+            return null;
+        }
+        CurveTable table = TrackCurves.table(track.curveId());
+        return table == null ? null : TrackDerivations.of(track, table);
+    }
+
+    /**
+     * The usable derived tracks that read {@code trackId} (any case), by {@code Order} then id: whose reading a move
+     * of {@code trackId} may have moved. Empty for none. Kept until a track or curve fold.
+     */
+    @Nonnull
+    public static List<TrackDef> derivedOver(@Nullable String trackId) {
+        return TrackDerivations.over(trackId);
+    }
+
     /**
      * {@code key}'s climb read on its live subject's own thread, or null when the track is not usable, the
-     * subject is not live here, or no store keeps its kind.
+     * subject is not live here, or no store keeps its kind. A derived track's reading carries each source's, read
+     * for the same subject.
      */
     @Nullable
     public static TrackReading read(@Nonnull TrackKey key) {
         TrackDef def = def(key.track());
         TrackStore store = def == null ? null : TrackStores.forKey(key);
         TrackRecord record = store == null ? null : store.get(key);
-        return record == null ? null : new TrackReading(key, def, record);
+        if (record == null) {
+            return null;
+        }
+        TrackDerivation derivation = def.asset().isDerived() ? derivation(def.asset().getId()) : null;
+        if (derivation == null) {
+            return new TrackReading(key, def, record);
+        }
+        List<TrackReading> sources = new ArrayList<>(derivation.sources().size());
+        for (TrackDef source : derivation.sources()) {
+            TrackKey sourceKey = key.onTrack(source.id());
+            TrackRecord kept = store.get(sourceKey);
+            if (kept == null) {
+                return null;
+            }
+            sources.add(new TrackReading(sourceKey, source, kept));
+        }
+        return new TrackReading(key, def, record, sources);
     }
 
     /**
      * {@code key}'s climb, live or not, from any thread; null (completed) when the track is not usable or no store
-     * keeps its subject's kind. An offline player's climb is read from their saved file.
+     * keeps its subject's kind. An offline player's climb is read from their saved file; a derived track's sources
+     * are read the same way.
      */
     @Nonnull
     public static CompletableFuture<TrackReading> load(@Nonnull TrackKey key) {
@@ -183,7 +237,57 @@ public final class TrackService {
         if (store == null) {
             return CompletableFuture.completedFuture(null);
         }
-        return store.load(key).thenApply(record -> new TrackReading(key, def, record));
+        TrackDerivation derivation = def.asset().isDerived() ? derivation(def.asset().getId()) : null;
+        if (derivation == null) {
+            return store.load(key).thenApply(record -> new TrackReading(key, def, record));
+        }
+        List<TrackKey> keys = new ArrayList<>();
+        List<CompletableFuture<TrackRecord>> loads = new ArrayList<>();
+        for (TrackDef source : derivation.sources()) {
+            TrackKey sourceKey = key.onTrack(source.id());
+            keys.add(sourceKey);
+            loads.add(store.load(sourceKey));
+        }
+        CompletableFuture<TrackRecord> own = store.load(key);
+        return CompletableFuture.allOf(loads.toArray(new CompletableFuture<?>[0])).thenCombine(own,
+                (ignored, record) -> {
+                    List<TrackReading> sources = new ArrayList<>(keys.size());
+                    for (int i = 0; i < keys.size(); i++) {
+                        sources.add(new TrackReading(keys.get(i), derivation.sources().get(i), loads.get(i).join()));
+                    }
+                    return new TrackReading(key, def, record, sources);
+                });
+    }
+
+    /**
+     * Where a write on the derived track {@code key} names lands: its highest source's climb under Highest (the first
+     * listed on a tie, read live), or a refusal: {@code DERIVED_SUM} under Sum, {@code NOT_LIVE} when a source's
+     * climb cannot be read here.
+     */
+    @Nonnull
+    private static Forward forward(@Nonnull TrackKey key, @Nonnull TrackDerivation derivation) {
+        if (derivation.reading() == DerivedReading.SUM) {
+            return new Forward(null, Status.DERIVED_SUM);
+        }
+        TrackStore store = TrackStores.forKey(key);
+        if (store == null) {
+            return new Forward(null, Status.NOT_LIVE);
+        }
+        boolean[] unread = {false};
+        TrackDef target = derivation.writeTarget(source -> {
+            TrackRecord kept = store.get(key.onTrack(source.id()));
+            if (kept == null) {
+                unread[0] = true;
+                return 0;
+            }
+            return source.level(kept);
+        });
+        return unread[0] || target == null ? new Forward(null, Status.NOT_LIVE)
+                : new Forward(key.onTrack(target.id()), Status.CHANGED);
+    }
+
+    /** Where a derived write lands ({@code key}), or why it lands nowhere ({@code refused}). */
+    private record Forward(@Nullable TrackKey key, @Nonnull Status refused) {
     }
 
     // ==================== writes ====================
@@ -216,6 +320,12 @@ public final class TrackService {
         }
         if (!Double.isFinite(amount) || amount == 0.0) {
             return Result.of(Status.ZERO);
+        }
+        TrackDerivation derivation = def.asset().isDerived() ? derivation(def.asset().getId()) : null;
+        if (derivation != null) {
+            // A derived track holds no value: the gain lands on its highest source, through that one's own factors.
+            Forward to = forward(key, derivation);
+            return to.key() == null ? Result.of(to.refused()) : add(to.key(), amount, source, explain);
         }
         TrackStore store = TrackStores.forKey(key);
         TrackRecord before = store == null ? null : store.get(key);
@@ -258,7 +368,9 @@ public final class TrackService {
      * further keeps every point. The best level is raised to where the value now stands and never lowered. Then the
      * move is kept and announced as a gain is (the mirror, the gate epoch, the unlock Claims it owes, and
      * {@code ZigTrackChangedEvent}, whose {@code asked} is how far the value moved): a caller moving a climb an older
-     * system already paid for marks those rows first ({@link #markPaidBelow}). On the live subject's own thread.
+     * system already paid for marks those rows first ({@link #markPaidBelow}). A set on a derived track lands on its
+     * highest source as a gain does, and one on a Sum track is refused ({@code DERIVED_SUM}). On the live subject's
+     * own thread.
      *
      * @param source what asked: {@code admin}, a consumer's own label, a migration's id
      */
@@ -267,6 +379,11 @@ public final class TrackService {
         TrackDef def = def(key.track());
         if (def == null) {
             return Result.of(Status.UNKNOWN);
+        }
+        TrackDerivation derivation = def.asset().isDerived() ? derivation(def.asset().getId()) : null;
+        if (derivation != null) {
+            Forward to = forward(key, derivation);
+            return to.key() == null ? Result.of(to.refused()) : set(to.key(), value, fraction, source);
         }
         TrackStore store = TrackStores.forKey(key);
         TrackRecord before = store == null ? null : store.get(key);
@@ -315,7 +432,7 @@ public final class TrackService {
         }
         TrackAsset track = def.asset();
         int done = before.prestige();
-        if (!track.prestiges() || done >= track.prestigeRanks()) {
+        if (track.isDerived() || !track.prestiges() || done >= track.prestigeRanks()) {
             return Result.of(Status.NOT_ALLOWED);
         }
         int level = def.level(before);
@@ -482,6 +599,10 @@ public final class TrackService {
         TrackComponent held = PlayerTrackStore.live(ref.getStore(), ref);
         long awayMs = held == null ? 0L : held.takeAwayMs(System.currentTimeMillis());
         for (TrackDef def : defs()) {
+            if (def.asset().isDerived()) {
+                // A derived track keeps no climb: nothing of its own to mirror, fill or pay.
+                continue;
+            }
             TrackKey key = TrackKey.player(playerId, def.asset().getId());
             TrackStore store = TrackStores.forKey(key);
             TrackRecord record = store == null ? null : store.get(key);

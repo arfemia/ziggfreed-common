@@ -1,0 +1,4 @@
+{
+  "$Comment": "Arcane as an element of the game's own ability system, beside Hytale's Fire, Water, Lightning, Wind and Earth, keyed on this library's Arcane damage type. A conversion rune that names Arcane turns an ability's elemental damage into Arcane damage. To make an Arcane hit leave a status on its victim, add an OnHitEffect; to make a status react to an Arcane hit, list Arcane under that state's own element's Reactions.",
+  "DamageCause": "Arcane"
+}

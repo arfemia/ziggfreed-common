@@ -71,6 +71,8 @@ import com.ziggfreed.common.validation.Severity;
  *       {@link #DUPLICATE_UNLOCK_KEY} (two rows of one track known by one key: they share one record),
  *       {@link #PRESTIGE_OUT_OF_REACH}, {@link #CAP_PAST_CURVE}, {@link #TIER_PAST_TOP}, and the gate audit's
  *       findings over a track's {@code Requires};</li>
+ *   <li>WARNING, for derived tracks ({@link #auditDerived}): {@link #DERIVED_WITHOUT_SOURCES},
+ *       {@link #UNKNOWN_DERIVED_SOURCE}, {@link #DERIVED_FROM_DERIVED};</li>
  *   <li>WARNING, for growth ({@link #auditGrowth}): {@link #UNKNOWN_GAIN_FACTOR}, {@link #SOURCE_WITHOUT_TRACK},
  *       {@link #UNKNOWN_SOURCE_TRACK}, {@link #SOURCE_WITHOUT_KIND}, {@link #UNKNOWN_SOURCE_KIND},
  *       {@link #SOURCE_PAYS_NOTHING}, {@link #RULE_WITHOUT_WHERE}, {@link #UNKNOWN_RULE_TRACK},
@@ -133,6 +135,9 @@ public final class TrackValidator {
     public static final String UNKNOWN_GATE_BRANCH = "UNKNOWN_GATE_BRANCH";
     public static final String UNKNOWN_STARTER_PICK = "UNKNOWN_STARTER_PICK";
     public static final String RESERVED_PICK_ID = "RESERVED_PICK_ID";
+    public static final String DERIVED_WITHOUT_SOURCES = "DERIVED_WITHOUT_SOURCES";
+    public static final String UNKNOWN_DERIVED_SOURCE = "UNKNOWN_DERIVED_SOURCE";
+    public static final String DERIVED_FROM_DERIVED = "DERIVED_FROM_DERIVED";
 
     private static final AtomicBoolean LOGGED = new AtomicBoolean();
 
@@ -148,6 +153,7 @@ public final class TrackValidator {
                     id -> TrackCategoryConfig.getInstance().category(id) != null,
                     id -> StatIndexCache.resolve(id) != StatIndexCache.UNRESOLVED,
                     kind -> RewardKinds.shared().isRegistered(kind)));
+            out.addAll(auditDerived(TrackConfig.getInstance().all().values()));
             for (Map.Entry<String, TrackAsset> entry : TrackConfig.getInstance().all().entrySet()) {
                 if (entry.getValue().isEnabled()) {
                     out.addAll(GateValidator.validate(entry.getValue().requires(), DOMAIN, entry.getKey(), "track",
@@ -314,6 +320,56 @@ public final class TrackValidator {
                 }
             }
         }
+    }
+
+    /**
+     * The pure core of the derived tracks' audit, over every folded track: a switched-on derived track naming no
+     * source ({@link #DERIVED_WITHOUT_SOURCES}), a source id no switched-on track has or a category no switched-on
+     * track sits in ({@link #UNKNOWN_DERIVED_SOURCE}), and a source that is itself derived or is the track itself
+     * ({@link #DERIVED_FROM_DERIVED}, left out). Every finding is a WARNING: a source may be a mod's that is not
+     * installed here.
+     */
+    @Nonnull
+    public static List<Finding> auditDerived(@Nonnull Collection<TrackAsset> tracks) {
+        List<Finding> out = new ArrayList<>();
+        Map<String, TrackAsset> live = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        for (TrackAsset track : tracks) {
+            if (track != null && track.getId() != null && track.isEnabled() && TrackAsset.usableId(track.getId())) {
+                live.put(track.getId(), track);
+            }
+        }
+        for (TrackAsset track : live.values()) {
+            TrackAsset.Derived derived = track.derived();
+            if (derived == null) {
+                continue;
+            }
+            String id = track.getId();
+            if (derived.tracks().isEmpty() && derived.categories().isEmpty()) {
+                out.add(Finding.warning(DOMAIN, DERIVED_WITHOUT_SOURCES, "derived track '" + id + "' names no "
+                        + "track and no category in Derived.From, so it has nothing to read and is not usable", id));
+            }
+            for (String source : derived.tracks()) {
+                TrackAsset named = live.get(source);
+                if (named == null) {
+                    out.add(Finding.warning(DOMAIN, UNKNOWN_DERIVED_SOURCE, "derived track '" + id + "' reads the "
+                            + "track '" + source + "', which is not switched on here, so it is left out", id));
+                } else if (named == track || named.isDerived()) {
+                    out.add(Finding.warning(DOMAIN, DERIVED_FROM_DERIVED, "derived track '" + id + "' reads '"
+                            + source + "', which is itself derived, so it is left out", id));
+                }
+            }
+            for (String category : derived.categories()) {
+                boolean any = false;
+                for (TrackAsset candidate : live.values()) {
+                    any |= category.equalsIgnoreCase(candidate.category() == null ? "" : candidate.category());
+                }
+                if (!any) {
+                    out.add(Finding.warning(DOMAIN, UNKNOWN_DERIVED_SOURCE, "derived track '" + id + "' reads the "
+                            + "category '" + category + "', which no switched-on track sits in", id));
+                }
+            }
+        }
+        return out;
     }
 
     /**

@@ -63,6 +63,12 @@ public record TrackKey(@Nonnull Subject subject, @Nonnull String namespace, @Non
         return new TrackKey(Subject.player(playerId), "", trackId, "");
     }
 
+    /** This key's subject, namespace and run, on the track {@code trackId}: how a derived track names a source's climb. */
+    @Nonnull
+    public TrackKey onTrack(@Nonnull String trackId) {
+        return new TrackKey(subject, namespace, trackId, run);
+    }
+
     /** The player this key's subject is, or null for another kind of subject. */
     @Nullable
     public UUID playerId() {

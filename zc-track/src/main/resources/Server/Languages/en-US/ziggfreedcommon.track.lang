@@ -115,6 +115,8 @@ command.amount.needed = Name an amount with --amount=<n>, other than zero.
 command.add.done = {1} moved {2, number} on {0} and is now level {3, number}. {4, number} {4, plural, one {Claim} other {Claims}} parked.
 command.add.unchanged = {0} did not move for {1}: it is at its cap, or nothing landed.
 command.add.locked = {1} does not meet what {0} requires, so nothing moved.
+# A track that adds up other tracks holds nothing of its own: {0} the track.
+command.add.sums = {0} adds up other tracks and holds nothing of its own, so move one of those instead.
 # In the prestige lines {0} is the track and {1} the player; {2} is the prestige now, or the level the next one needs.
 command.prestige.done = {1} started {0} again. Prestige {2, number}.
 command.prestige.not_ready = {1} needs level {2, number} in {0} before the next prestige.

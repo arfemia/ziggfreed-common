@@ -101,6 +101,7 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
     @Nullable protected Prestige prestige;
     @Nullable protected Unlock[] unlocks;
     @Nullable protected Gain gain;
+    @Nullable protected Derived derived;
 
     /** The live part of the {@code Requires} block, lifted once per instance ({@link StoreGates#live}). */
     @Nullable private volatile GateSpec[] live;
@@ -198,6 +199,15 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
                     + "in order, the ones that add together, and the rested pool. Leave it out for the usual order "
                     + "(Class, World, Bonus, Boost, Prestige, Rested), Bonus and Boost adding together, and no "
                     + "rested pool.").add()
+            .appendInherited(new KeyedCodec<>("Derived", Derived.CODEC, false),
+                    (a, v) -> a.derived = v, a -> a.derived, (a, p) -> a.derived = p.derived)
+            .documentation("Makes this track a reading of other tracks instead of a climb of its own: its level, "
+                    + "its best level and whether it is usable are read live from its sources, so every "
+                    + "requirement, level tag and reading that names it sees them with no change of its own. It "
+                    + "holds no value: a gain or a set on it lands on its highest source under Highest, and is "
+                    + "refused under Sum. A source that is itself derived is skipped. A derived track with no usable "
+                    + "source is not usable. It still names a Curve, which its tiers read on. Leave it out for an "
+                    + "ordinary track.").add()
             .build();
 
     public TrackAsset() {
@@ -514,6 +524,17 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
         return rested == null || !rested.isEnabled() ? null : rested;
     }
 
+    /** The Derived group when this track reads others instead of climbing its own value, else null. */
+    @Nullable
+    public Derived derived() {
+        return derived;
+    }
+
+    /** Does this track read other tracks ({@code Derived}) instead of climbing a value of its own? */
+    public boolean isDerived() {
+        return derived != null;
+    }
+
     /** Is {@code trackId} usable as a track id: not blank, and free of the run separator? */
     public static boolean usableId(@Nullable String trackId) {
         return trackId != null && !trackId.isBlank() && trackId.indexOf(RUN_SEPARATOR) < 0;
@@ -779,6 +800,88 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
                 .build();
 
         public Gain() {
+        }
+    }
+
+    /**
+     * The Derived group: the tracks a derived track reads ({@code From}) and how it reads them ({@code Reading}).
+     * Shaped so a later reading (unlocks or a level mirror on a derived track) adds leaves beside these without
+     * reshaping them.
+     */
+    public static final class Derived {
+
+        @Nullable protected From from;
+        @Nullable protected String reading;
+
+        public static final BuilderCodec<Derived> CODEC = BuilderCodec.builder(Derived.class, Derived::new)
+                .appendInherited(new KeyedCodec<>("From", From.CODEC, false),
+                        (o, v) -> o.from = v, o -> o.from, (o, p) -> o.from = p.from)
+                .documentation("The tracks this one reads: the ones Tracks names, in that order, then every "
+                        + "track in the categories Categories names, by Order then id, each once. A track that is "
+                        + "switched off, has no loaded curve, is itself derived or is this track is left out.").add()
+                .appendInherited(new KeyedCodec<>("Reading", Codec.STRING, false),
+                        (o, v) -> o.reading = v, o -> o.reading, (o, p) -> o.reading = p.reading)
+                .metadata(DerivedReading.editorHint())
+                .metadata(EditorSchema.defaultValue(DerivedReading.HIGHEST.word()))
+                .documentation(DerivedReading.DOCUMENTATION).add()
+                .build();
+
+        public Derived() {
+        }
+
+        /** The track ids {@code From.Tracks} names, trimmed, blanks left out, in authored order. */
+        @Nonnull
+        public List<String> tracks() {
+            return from == null ? List.of() : words(from.tracks);
+        }
+
+        /** The category ids {@code From.Categories} names, trimmed, blanks left out, in authored order. */
+        @Nonnull
+        public List<String> categories() {
+            return from == null ? List.of() : words(from.categories);
+        }
+
+        /** How the sources are read: the authored word, {@link DerivedReading#HIGHEST} when unwritten or unknown. */
+        @Nonnull
+        public DerivedReading reading() {
+            DerivedReading read = DerivedReading.of(reading);
+            return read == null ? DerivedReading.HIGHEST : read;
+        }
+
+        @Nonnull
+        private static List<String> words(@Nullable String[] written) {
+            if (written == null) {
+                return List.of();
+            }
+            List<String> out = new ArrayList<>(written.length);
+            for (String word : written) {
+                String kept = blankToNull(word);
+                if (kept != null) {
+                    out.add(kept);
+                }
+            }
+            return List.copyOf(out);
+        }
+    }
+
+    /** The From group of a derived track: the tracks it reads, by id and by category. */
+    public static final class From {
+
+        @Nullable protected String[] tracks;
+        @Nullable protected String[] categories;
+
+        public static final BuilderCodec<From> CODEC = BuilderCodec.builder(From.class, From::new)
+                .appendInherited(new KeyedCodec<>("Tracks", Codec.STRING_ARRAY, false),
+                        (o, v) -> o.tracks = v, o -> o.tracks, (o, p) -> o.tracks = p.tracks)
+                .documentation("Track ids this track reads, in order: under Highest the first one listed wins a "
+                        + "tie, so a write lands there.").add()
+                .appendInherited(new KeyedCodec<>("Categories", Codec.STRING_ARRAY, false),
+                        (o, v) -> o.categories = v, o -> o.categories, (o, p) -> o.categories = p.categories)
+                .documentation("Category ids (a track's Category) whose every track this track reads too, after "
+                        + "the ones Tracks names, by Order then id.").add()
+                .build();
+
+        public From() {
         }
     }
 

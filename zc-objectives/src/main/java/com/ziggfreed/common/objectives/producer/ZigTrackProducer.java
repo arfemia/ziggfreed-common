@@ -28,7 +28,8 @@ import com.ziggfreed.common.util.SafeLog;
  * ever reached), and {@code TRACK_TIER}, Qualifier the track id, once per tier that level has reached (Target the
  * tier id, Amount 1, so a step naming a tier reads 1) and once more counting them (Target blank, Amount how many
  * tiers it has reached, so a step naming no tier reads the count). All are restated whenever the best level rises
- * ({@code ZigTrackChangedEvent}) and once for every usable track at each ready (a login or a world change), so a
+ * ({@code ZigTrackChangedEvent}, a derived track reading the moved one restated with it) and once for every usable
+ * track at each ready (a login or a world change), so a
  * step accepted after the level was reached settles at the next of either, and a restatement changes nothing.
  * Only the default climb (no namespace, no run) is credited.
  *
@@ -67,6 +68,14 @@ public final class ZigTrackProducer {
             TrackDef def = TrackService.def(event.trackId());
             if (def != null) {
                 fanOut(playerId, def, event.bestAfter(), deferred());
+            }
+            // A derived track reading this one may have moved with it: restate it too (value-based, so a restatement
+            // that moved nothing changes nothing).
+            for (TrackDef derived : TrackService.derivedOver(event.trackId())) {
+                TrackReading reading = TrackService.read(TrackKey.player(playerId, derived.asset().getId()));
+                if (reading != null) {
+                    fanOut(playerId, derived, reading.best(), deferred());
+                }
             }
         } catch (Throwable t) {
             SafeLog.warn("[progression] track progress failed", t);

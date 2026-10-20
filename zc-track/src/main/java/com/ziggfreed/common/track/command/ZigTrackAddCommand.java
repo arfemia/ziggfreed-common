@@ -44,13 +44,16 @@ final class ZigTrackAddCommand extends TrackTargetCommand {
                 SOURCE);
         TrackChange change = result.change();
         switch (result.status()) {
-            case CHANGED -> TrackCommandMessages.done(ctx, "add.done", TrackText.name(def.asset()), target.name(),
+            // A derived track's gain lands on one of its sources, so the line names the track that moved.
+            case CHANGED -> TrackCommandMessages.done(ctx, "add.done",
+                    TrackText.name(change == null ? def.asset() : change.def().asset()), target.name(),
                     change == null ? 0L : change.delta(), change == null ? 1 : change.levelAfter(),
                     change == null ? 0 : change.claims());
             case UNCHANGED -> TrackCommandMessages.detail(ctx, "add.unchanged", TrackText.name(def.asset()),
                     target.name());
             case LOCKED -> TrackCommandMessages.refused(ctx, "add.locked", TrackText.name(def.asset()), target.name());
             case NOT_LIVE -> TrackCommandMessages.refused(ctx, "player.offline");
+            case DERIVED_SUM -> TrackCommandMessages.refused(ctx, "add.sums", TrackText.name(def.asset()));
             default -> TrackCommandMessages.refused(ctx, "track.unknown", def.asset().getId());
         }
     }
