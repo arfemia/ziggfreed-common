@@ -134,6 +134,36 @@ public final class EffectDurations {
     }
 
     /**
+     * How long an effect lasts as it lands, for an applier that puts it on itself (a stacking damage over time, whose
+     * refresh may shorten what is left, which the pass above would not read as a landing): {@code seconds} through
+     * the Duration rules of every family the effect at {@code effectIndex} is in, {@code owner}'s added seconds and
+     * {@code carrier}'s cut. Pair it with {@link #markLanded} on the instance it lands as, so the pass does not
+     * change it again. {@code seconds} unchanged when no family has a rule. Never throws.
+     */
+    public static float lengthAsLanded(@Nonnull ComponentAccessor<EntityStore> accessor,
+            @Nonnull Ref<EntityStore> carrier, int effectIndex, @Nullable Ref<EntityStore> owner, float seconds) {
+        try {
+            List<EffectFamilies.DurationRule> rules = EffectFamilies.durationRules(effectIndex);
+            if (rules.isEmpty()) {
+                return seconds;
+            }
+            return (float) changedRemaining(seconds, secondsAdded(accessor, owner, rules),
+                    percentCut(accessor, carrier, rules), cap(rules));
+        } catch (Throwable t) {
+            if (!failureWarned) {
+                failureWarned = true;
+                SafeLog.warn("[duration] changing an effect's length failed (named once): " + t);
+            }
+            return seconds;
+        }
+    }
+
+    /** Record that {@code active} landed with {@code remaining} seconds already through the rules ({@link #lengthAsLanded}). */
+    public static void markLanded(@Nonnull ActiveEntityEffect active, float remaining) {
+        SEEN.put(active, remaining);
+    }
+
+    /**
      * The remaining time after the stats: {@code remaining} plus {@code seconds}, then less {@code cutPercent}
      * (held to [0, {@code cap}]) of that, never below a tenth of a second. Pure.
      */

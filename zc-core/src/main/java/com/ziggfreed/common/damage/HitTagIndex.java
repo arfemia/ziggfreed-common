@@ -7,6 +7,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -173,6 +174,30 @@ final class HitTagIndex {
         return values == null ? Set.of() : values;
     }
 
+    /** The id of the tagged entity effect that owns {@code calculator}; null for any other calculator. */
+    @Nullable
+    static String effectOf(@Nonnull DamageCalculator calculator) {
+        return current().effectByCalculator.get(calculator);
+    }
+
+    /**
+     * The ids of the tagged entity effects that deal damage over time and carry {@code value} under
+     * {@code tagKey} (both ignoring case), sorted; empty when none or the key is not indexed.
+     */
+    @Nonnull
+    static List<String> effectsTagged(@Nonnull String tagKey, @Nonnull String value) {
+        String folded = indexedOrWarn(tagKey);
+        if (folded == null || value.isBlank()) {
+            return List.of();
+        }
+        Map<String, List<String>> byValue = current().effectsByTag.get(folded);
+        if (byValue == null) {
+            return List.of();
+        }
+        List<String> ids = byValue.get(HitTagMerge.fold(value.trim()));
+        return ids == null ? List.of() : ids;
+    }
+
     /** The folded key when it is indexed; otherwise warns once and answers null. */
     @Nullable
     private static String indexedOrWarn(@Nonnull String tagKey) {
@@ -239,11 +264,63 @@ final class HitTagIndex {
                 indexCalculators(table, damage, String.valueOf(interaction.getId()), tags);
             }
         }
-        Set<String> taggedEffects = indexEffects(table, declared, foldedKeys);
+        List<TaggedEffect> effectsWithDamage = new ArrayList<>();
+        Set<String> taggedEffects = indexEffects(table, declared, foldedKeys, effectsWithDamage);
         for (String warning : table.warnings()) {
             warnOnce(warning);
         }
-        return new Snapshot(table.tagged(), HitTagMerge.freeze(declared), taggedEffects);
+        IdentityHashMap<DamageCalculator, Map<String, List<String>>> tagged = table.tagged();
+        return new Snapshot(tagged, HitTagMerge.freeze(declared), taggedEffects,
+                effectsByCalculator(tagged, effectsWithDamage), effectsByTag(tagged, effectsWithDamage));
+    }
+
+    /**
+     * Each tagged effect's calculator to the effect's id, for the effects whose calculator kept its tags (a shared
+     * calculator whose owners disagree is left out, as its hits read untagged).
+     */
+    @Nonnull
+    private static IdentityHashMap<DamageCalculator, String> effectsByCalculator(
+            @Nonnull IdentityHashMap<DamageCalculator, Map<String, List<String>>> tagged,
+            @Nonnull List<TaggedEffect> effects) {
+        IdentityHashMap<DamageCalculator, String> out = new IdentityHashMap<>();
+        for (TaggedEffect effect : effects) {
+            if (tagged.containsKey(effect.calculator())) {
+                out.putIfAbsent(effect.calculator(), effect.id());
+            }
+        }
+        return out;
+    }
+
+    /** Folded key to folded value to the ids of the tagged effects that deal damage and carry it, sorted. */
+    @Nonnull
+    private static Map<String, Map<String, List<String>>> effectsByTag(
+            @Nonnull IdentityHashMap<DamageCalculator, Map<String, List<String>>> tagged,
+            @Nonnull List<TaggedEffect> effects) {
+        Map<String, Map<String, Set<String>>> collected = new HashMap<>();
+        for (TaggedEffect effect : effects) {
+            if (!tagged.containsKey(effect.calculator())) {
+                continue;
+            }
+            for (Map.Entry<String, List<String>> entry : effect.tags().entrySet()) {
+                Map<String, Set<String>> byValue = collected.computeIfAbsent(entry.getKey(), k -> new HashMap<>());
+                for (String value : entry.getValue()) {
+                    byValue.computeIfAbsent(HitTagMerge.fold(value), k -> new TreeSet<>(String.CASE_INSENSITIVE_ORDER))
+                            .add(effect.id());
+                }
+            }
+        }
+        Map<String, Map<String, List<String>>> out = new HashMap<>();
+        for (Map.Entry<String, Map<String, Set<String>>> entry : collected.entrySet()) {
+            Map<String, List<String>> byValue = new HashMap<>();
+            entry.getValue().forEach((value, ids) -> byValue.put(value, List.copyOf(ids)));
+            out.put(entry.getKey(), Map.copyOf(byValue));
+        }
+        return Map.copyOf(out);
+    }
+
+    /** One tagged entity effect that authors its own damage: its id, calculator and merged tags. */
+    private record TaggedEffect(@Nonnull String id, @Nonnull DamageCalculator calculator,
+                                @Nonnull Map<String, List<String>> tags) {
     }
 
     /**
@@ -255,7 +332,8 @@ final class HitTagIndex {
     @Nonnull
     private static Set<String> indexEffects(@Nonnull HitTagMerge.Table<DamageCalculator> table,
                                             @Nonnull Map<String, Set<String>> declared,
-                                            @Nonnull Set<String> foldedKeys) {
+                                            @Nonnull Set<String> foldedKeys,
+                                            @Nonnull List<TaggedEffect> effectsWithDamage) {
         IndexedLookupTableAssetMap<String, EntityEffect> map = EntityEffect.getAssetMap();
         Set<String> tagged = new HashSet<>();
         int end = map.getNextIndex();
@@ -267,9 +345,13 @@ final class HitTagIndex {
             Map<String, List<String>> tags = HitTagMerge.merge(
                     rawTagChain(EntityEffect.CODEC.getData(effect)), foldedKeys);
             HitTagMerge.declare(declared, tags);
-            put(table, effect.getDamageCalculator(), effect.getId() + " (EntityEffect)", tags);
+            DamageCalculator calculator = effect.getDamageCalculator();
+            put(table, calculator, effect.getId() + " (EntityEffect)", tags);
             if (!tags.isEmpty()) {
                 tagged.add(effect.getId());
+                if (calculator != null && effect.getId() != null) {
+                    effectsWithDamage.add(new TaggedEffect(effect.getId(), calculator, tags));
+                }
             }
         }
         return Set.copyOf(tagged);
@@ -337,11 +419,13 @@ final class HitTagIndex {
 
     /**
      * One published table: calculator to its tags (folded key to values), folded key to every declared
-     * value, and the ids of the entity effects that carry an indexed key.
+     * value, the ids of the entity effects that carry an indexed key, each tagged damage-dealing
+     * effect's calculator to its id, and those effects by tag (folded key to folded value to ids).
      */
     private static final class Snapshot {
 
-        static final Snapshot EMPTY = new Snapshot(new IdentityHashMap<>(), Map.of(), Set.of());
+        static final Snapshot EMPTY = new Snapshot(new IdentityHashMap<>(), Map.of(), Set.of(),
+                new IdentityHashMap<>(), Map.of());
 
         /** Never mutated once published. */
         @Nonnull
@@ -350,12 +434,21 @@ final class HitTagIndex {
         final Map<String, Set<String>> declared;
         @Nonnull
         final Set<String> taggedEffects;
+        /** Never mutated once published. */
+        @Nonnull
+        final IdentityHashMap<DamageCalculator, String> effectByCalculator;
+        @Nonnull
+        final Map<String, Map<String, List<String>>> effectsByTag;
 
         Snapshot(@Nonnull IdentityHashMap<DamageCalculator, Map<String, List<String>>> byCalculator,
-                 @Nonnull Map<String, Set<String>> declared, @Nonnull Set<String> taggedEffects) {
+                 @Nonnull Map<String, Set<String>> declared, @Nonnull Set<String> taggedEffects,
+                 @Nonnull IdentityHashMap<DamageCalculator, String> effectByCalculator,
+                 @Nonnull Map<String, Map<String, List<String>>> effectsByTag) {
             this.byCalculator = byCalculator;
             this.declared = declared;
             this.taggedEffects = taggedEffects;
+            this.effectByCalculator = effectByCalculator;
+            this.effectsByTag = effectsByTag;
         }
     }
 }

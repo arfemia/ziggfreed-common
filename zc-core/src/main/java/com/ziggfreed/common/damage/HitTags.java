@@ -103,6 +103,30 @@ public final class HitTags {
         return HitTagIndex.declared(tagKey);
     }
 
+    /**
+     * The id of the entity effect whose damage over time dealt {@code d}, when that effect carries an
+     * indexed tag key; null for a direct hit, an untagged effect's tick or a hit with no calculator. It
+     * reads the calculator the engine attaches to every tick, so it answers on every engine line, the
+     * effect's owner being the hit's {@code Damage.EntitySource} when it has one.
+     */
+    @Nullable
+    public static String effectOf(@Nonnull Damage d) {
+        DamageCalculator calculator = calculatorOf(d);
+        return calculator == null ? null : HitTagIndex.effectOf(calculator);
+    }
+
+    /**
+     * The ids of the entity effects that deal damage over time (each authoring its own
+     * {@code DamageCalculator}) and carry {@code value} under {@code tagKey}, both ignoring case, sorted:
+     * how an applier finds the effect a tag names as its own (an effect carrying
+     * {@code "Tags": {"Hit": ["Moonbloom_Burn"]}} answers {@code effectsTagged("Hit", "moonbloom_burn")}).
+     * Empty when none does or the key is not indexed (which logs once).
+     */
+    @Nonnull
+    public static List<String> effectsTagged(@Nonnull String tagKey, @Nonnull String value) {
+        return HitTagIndex.effectsTagged(tagKey, value);
+    }
+
     /** Drop the table so the next read rebuilds it; the library calls this on every interaction load and removal. */
     public static void markDirty() {
         HitTagIndex.markDirty();
