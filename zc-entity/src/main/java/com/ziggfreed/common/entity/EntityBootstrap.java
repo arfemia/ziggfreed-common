@@ -15,6 +15,7 @@ import com.ziggfreed.common.entity.overhead.OverheadVisibilityFilter;
 import com.ziggfreed.common.entity.performer.PerformerIdentityComponent;
 import com.ziggfreed.common.entity.title.ZigTitleComponent;
 import com.ziggfreed.common.stats.EquipStatBridge;
+import com.ziggfreed.common.stats.RollbackStatSweep;
 import com.ziggfreed.common.stats.damage.TypedDamageBonusSystem;
 import com.ziggfreed.common.stats.damage.TypedDamageBonuses;
 import com.ziggfreed.common.stats.gearset.GearSetLifecycleSystems;
@@ -26,8 +27,8 @@ import com.ziggfreed.common.util.SafeLog;
  * Registers this module's own per-player state and plumbing at plugin {@code setup()}: the
  * station-performer identity component, the unlocked-flair set with its connect hook, the title
  * record and who shows which, the {@link PlayerIdentityCache} lifecycle listeners, the equip-stat
- * bridge, the gear-set engine that hangs on it with its per-player look record, and the two systems
- * behind the overhead indicators.
+ * bridge, the gear-set engine that hangs on it with its per-player look record, the rollback sweep, and
+ * the two systems behind the overhead indicators.
  * Ordered phases, each called once from {@code ZiggfreedCommonPlugin.setup()}, which stays the one
  * authority on call ORDER.
  *
@@ -137,6 +138,22 @@ public final class EntityBootstrap {
             plugin.getEntityStoreRegistry().registerSystem(new GearSetLifecycleSystems.Left());
         } catch (Throwable t) {
             SafeLog.warn("[gearset] could not install the gear-set engine", t);
+        }
+    }
+
+    /**
+     * Hang the rollback sweep ({@link RollbackStatSweep}) on every player-ready: each saved stat modifier keyed
+     * {@code zigtrack:}, which only the later Skills 2.0 line writes, comes off, so a server rolled back from it never
+     * stacks that line's grants on what a consumer here re-applies under its own keys (R755). FIRST, so the sweep is
+     * queued ahead of every ready-time recompute; it never meets a key this line writes, so the order is only tidy.
+     * The library's, so a server running it with no consumer at all is swept too.
+     */
+    public static void installRollbackSweep(@Nonnull PluginBase plugin) {
+        try {
+            plugin.getEventRegistry().registerGlobal(EventPriority.FIRST, PlayerReadyEvent.class,
+                    RollbackStatSweep::onPlayerReady);
+        } catch (Throwable t) {
+            SafeLog.warn("[stats] could not register the rollback sweep", t);
         }
     }
 
