@@ -52,6 +52,7 @@ public final class SimpleDialogueExecContext implements DialogueExecContext {
     @Nullable private PlayerRef playerRef;
     private final Player player;
     @Nullable private final String contextId;
+    @Nullable private final String placementId;
     @Nullable private DialogueFlagStore flags;
     @Nullable private final Object payload;
     /** Fallback payloads already asked for, {@link #NO_PAYLOAD} where nobody had one to give. */
@@ -64,10 +65,19 @@ public final class SimpleDialogueExecContext implements DialogueExecContext {
                                      @Nullable String contextId,
                                      @Nullable Object payload, @Nonnull NpcDialogue dialogue,
                                      @Nonnull String nodeId, int optionIndex) {
+        this(store, ref, player, contextId, null, payload, dialogue, nodeId, optionIndex);
+    }
+
+    /** As the shorter form, also naming the placement that stood the character ({@link #placementId()}). */
+    public SimpleDialogueExecContext(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref, @Nonnull Player player,
+                                     @Nullable String contextId, @Nullable String placementId,
+                                     @Nullable Object payload, @Nonnull NpcDialogue dialogue,
+                                     @Nonnull String nodeId, int optionIndex) {
         this.store = store;
         this.ref = ref;
         this.player = player;
         this.contextId = contextId;
+        this.placementId = placementId;
         this.payload = payload;
         this.dialogue = dialogue;
         this.nodeId = nodeId;
@@ -97,6 +107,8 @@ public final class SimpleDialogueExecContext implements DialogueExecContext {
     @Override @Nonnull public Player player() { return player; }
 
     @Override @Nullable public String contextId() { return contextId; }
+
+    @Override @Nullable public String placementId() { return placementId; }
 
     /**
      * The state store behind {@code Once} and the declared {@code Memories}, resolved on first use.

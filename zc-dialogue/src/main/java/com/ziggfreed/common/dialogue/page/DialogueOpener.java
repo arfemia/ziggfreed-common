@@ -78,7 +78,7 @@ public final class DialogueOpener {
             return false;
         }
         ctx.player().getPageManager().openCustomPage(ctx.pageAnchor(), ctx.store(),
-                new DialoguePage(playerRef, dialogueId, npcId, ctx.npcRef(), entry));
+                new DialoguePage(playerRef, dialogueId, npcId, ctx.npcRef(), ctx.placementId(), entry));
         return true;
     }
 }

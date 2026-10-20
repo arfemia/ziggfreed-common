@@ -90,6 +90,8 @@ import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
 import com.ziggfreed.common.objectives.settings.ObjectivesSettingsBootstrap;
 import com.ziggfreed.common.objectives.title.TitleBootstrap;
 import com.ziggfreed.common.objectives.title.TitleValidator;
+import com.ziggfreed.common.objectives.trainer.TrainerAudit;
+import com.ziggfreed.common.objectives.trainer.TrainerBootstrap;
 import com.ziggfreed.common.playerstats.StatsBootstrap;
 import com.ziggfreed.common.playerstats.asset.StatValidator;
 import com.ziggfreed.common.progress.asset.ProgressEditorDataSets;
@@ -140,7 +142,7 @@ import com.ziggfreed.common.world.stash.BlockStashBootstrap;
  * {@code NpcBootstrap} (zc-dialogue),
  * {@code PlacedBlockBootstrap} + {@code BlockStashBootstrap} + {@code BlockRulesBootstrap} (zc-world), {@code CalendarBootstrap}
  * (zc-calendar), {@code ProgressionBootstrap} + {@code DialogueBootstrap} + {@code BonusRowBootstrap}
- * + {@code CalendarSweepBootstrap} + {@code ObjectiveBookBootstrap} (zc-objectives), and
+ * + {@code CalendarSweepBootstrap} + {@code ObjectiveBookBootstrap} + {@code TrainerBootstrap} (zc-objectives), and
  * {@code AlmanacBootstrap} (zc-almanac), {@code ReputationBootstrap} (zc-reputation), {@code TrackBootstrap}
  * (zc-track) and {@code StatsBootstrap} (zc-stats). Each bootstrap lives in
  * the module that already sees
@@ -336,6 +338,10 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // track objective names, the settle at every ready and the /zigtrack family. Its three stores are
         // registered with the other framework stores.
         TrackBootstrap.install(this);
+        // Trainers: the trainer page's parts (a placement's Trainer.Sections read against them), the Trainer
+        // destination and the native ZigOpenTrainer interaction Type before any asset decodes, and zc-track's
+        // PickTrainers seam filled from the placement store, so a pick whose trainers are off is learned on its track.
+        TrainerBootstrap.install(this);
         // The player stat store: the per-player record, registered before any world loads so it reads
         // off entities saved carrying it, and its connect hook; the owner's switch, the moment counter,
         // the death and playtime systems, the board's ready re-sync, the library's default counter
@@ -682,7 +688,8 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
                     new BootAudit.Pass(DungeonValidator.LOG_LABEL, DungeonValidator::audit),
                     new BootAudit.Pass(DialogueAudit.LOG_LABEL, DialogueAudit::claimLateFindings),
                     new BootAudit.Pass(ReputationValidator.LOG_LABEL, ReputationValidator::audit),
-                    new BootAudit.Pass(TrackValidator.LOG_LABEL, TrackValidator::audit))));
+                    new BootAudit.Pass(TrackValidator.LOG_LABEL, TrackValidator::audit),
+                    new BootAudit.Pass(TrainerAudit.LOG_LABEL, TrainerAudit::claimLateFindings))));
         } catch (Throwable t) {
             SafeLog.warn("[boot] the boot checks could not be registered", t);
         }

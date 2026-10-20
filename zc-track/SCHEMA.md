@@ -94,6 +94,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | Key | Type | Default | Documentation |
 |---|---|---|---|
 | `Cost` | [Cost](#type-cost) | `null` | What a respec costs, in any wallet or item (the one price shape shops use). An empty group is free. Unauthored here and on the category: free. |
+| `PerLevel` | `double` | `null` | How the price grows with the track's best level: Cost is paid this many times per level, rounded up and at least once, so 1 pays Cost once per level and 0.5 once per two levels (cheap early, a real price near the top). Leave it out, or 0, to pay Cost once whatever the level. Unauthored here, the category's. |
 
 <a id="field-trackasset-mirror"></a>
 ### TrackAsset.Mirror
@@ -239,6 +240,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | Key | Type | Default | Documentation |
 |---|---|---|---|
 | `Cost` | [Cost](#type-cost) | `null` | What a respec costs, in any wallet or item (the one price shape shops use). An empty group is free. Unauthored here and on the category: free. |
+| `PerLevel` | `double` | `null` | How the price grows with the track's best level: Cost is paid this many times per level, rounded up and at least once, so 1 pays Cost once per level and 0.5 once per two levels (cheap early, a real price near the top). Leave it out, or 0, to pay Cost once whatever the level. Unauthored here, the category's. |
 
 <a id="type-tracksourceasset"></a>
 ## TrackSourceAsset

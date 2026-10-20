@@ -43,6 +43,12 @@ public interface DialogueContext {
     @Nullable String contextId();
 
     /**
+     * The NPC placement that stood the character, when the conversation was opened at one (a press F), else null;
+     * a screen an option opens is told it, so two placements of one character stay apart.
+     */
+    @Nullable default String placementId() { return null; }
+
+    /**
      * The dialogue this context was built for, or null when it was built without one. Needed by
      * anything that resolves a per-dialogue name (a declared {@link DialogueMemory}, a
      * {@code Once} key); {@link DialogueExecContext} always has it.

@@ -1,5 +1,10 @@
 package com.ziggfreed.common.track.pick;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -13,7 +18,9 @@ import com.ziggfreed.common.commerce.fold.CommerceEngines;
 import com.ziggfreed.common.commerce.fold.CommerceFold;
 import com.ziggfreed.common.cost.Cost;
 import com.ziggfreed.common.cost.CostEngine;
+import com.ziggfreed.common.cost.ItemCost;
 import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.track.TrackDef;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -55,7 +62,45 @@ final class PickPayments {
      */
     @Nullable
     static Paid charge(@Nonnull Ref<EntityStore> ref, @Nonnull CostAsset price, @Nonnull String source) {
-        Cost cost = CommerceFold.cost(price, source);
+        return charge(ref, CommerceFold.cost(price, source), source);
+    }
+
+    /**
+     * What a respec of {@code def} costs at the best level {@code bestLevel}: its {@code Respec.Cost} (else its
+     * category's, else free), paid {@link TrackDef#respecTimes} times, so a price written to scale with the level
+     * does (R665).
+     */
+    @Nonnull
+    static Cost respecPrice(@Nonnull TrackDef def, int bestLevel) {
+        return times(CommerceFold.cost(def.respecCost(), "the respec of " + def.id()), def.respecTimes(bestLevel));
+    }
+
+    /** {@code cost} paid {@code times} times: every wallet amount and item count multiplied, its Combine kept. */
+    @Nonnull
+    static Cost times(@Nonnull Cost cost, int times) {
+        if (times <= 1 || cost.isFree()) {
+            return cost;
+        }
+        Map<String, Long> currencies = new LinkedHashMap<>();
+        cost.currencies().forEach((id, amount) -> currencies.put(id, multiply(amount, times)));
+        List<ItemCost> items = new ArrayList<>();
+        for (ItemCost item : cost.items()) {
+            items.add(item.withCount((int) Math.min(Integer.MAX_VALUE, multiply(item.count(), times))));
+        }
+        return Cost.of(cost.combine(), currencies, items, null);
+    }
+
+    private static long multiply(long amount, int times) {
+        try {
+            return Math.multiplyExact(amount, (long) times);
+        } catch (ArithmeticException e) {
+            return Long.MAX_VALUE;
+        }
+    }
+
+    /** {@link #charge(Ref, CostAsset, String)} for a price already folded. */
+    @Nullable
+    static Paid charge(@Nonnull Ref<EntityStore> ref, @Nonnull Cost cost, @Nonnull String source) {
         if (cost.isFree()) {
             return Paid.FREE;
         }

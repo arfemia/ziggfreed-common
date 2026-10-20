@@ -1,0 +1,69 @@
+# The trainer page's own lines (com.ziggfreed.common.objectives.trainer) and the library's sample trainer.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.trainer.<key>.
+
+page.title.none = Trainer
+page.lead = Pick something on the list to see what it does and what it takes.
+page.empty = There is nothing to learn here right now.
+page.unavailable = This trainer cannot teach you right now.
+action.failed = Something went wrong. Try again in a moment.
+none = There is no trainer here.
+refused.far = Go to the trainer to do this.
+
+part.learn = Learn
+part.quests = Quests
+part.services = Services
+
+learn.meta = {0}, level {1, number}
+learn.cost = {0, number} {0, plural, one {point} other {points}}
+learn.block = What it takes
+learn.need.level = Reach level {0, number} in {1}
+learn.need.free = Free to learn
+learn.need.points = {0, number} {0, plural, one {point} other {points}} from {1}
+learn.taken = Learned {0, number} of {1, number} times
+learn.action = Learn
+learn.done = You learned {0}.
+learn.state.learn = Learn
+learn.state.learned = Learned
+learn.state.level = Level {0, number}
+learn.state.locked = Locked
+learn.refused.level = Reach level {0, number} in {1} to learn this.
+learn.refused.locked = You do not meet what this needs yet.
+learn.refused.before = Learn what comes before it first.
+learn.refused.node = You took the other path here.
+learn.refused.points = You need more points to learn this.
+learn.refused.cap = You have spent all the points you can here.
+learn.refused.learned = You already know this.
+learn.refused.elsewhere = Another trainer teaches this.
+learn.refused.other = This cannot be learned right now.
+
+quest.meta = Quest
+quest.action = See quest
+quest.hint = Take it on, hand it in and collect it in this trainer's quest list.
+quest.refused = The quest list could not be opened.
+quest.state.available = Available
+quest.state.active = Active
+quest.state.collect = Collect
+quest.state.done = Done
+quest.state.waiting = Later
+quest.state.locked = Locked
+
+service.respec.title = Reset {0}
+service.respec.meta = {0, number} {0, plural, one {choice} other {choices}} to make again
+service.respec.meta.none = Nothing to reset yet
+service.respec.state.ready = Ready
+service.respec.lead = Clears every choice you made on {0} and gives back every point it cost. What a trainer taught you stays.
+service.respec.price = Price
+service.respec.free = Free
+service.respec.action = Reset
+service.respec.confirm = Press again to reset
+service.respec.done = {0} is reset: {1, number} {1, plural, one {choice is} other {choices are}} yours to make again.
+service.respec.refused.nothing = You have nothing to reset on {0}.
+service.respec.refused.pay = You cannot pay for this yet.
+service.respec.refused.combat = You cannot reset while you are fighting.
+service.respec.refused.encounter = You cannot reset during a boss fight.
+service.respec.refused.other = This cannot be done right now.
+
+example.name = Sample Trainer
+example.greet = I teach what the sample track has to offer. Come back as you climb, there is more to learn the higher you go.
+example.opt.train = Train
+example.opt.farewell = Farewell.

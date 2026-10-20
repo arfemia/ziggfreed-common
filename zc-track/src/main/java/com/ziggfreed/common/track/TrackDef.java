@@ -99,6 +99,31 @@ public record TrackDef(@Nonnull TrackAsset asset, @Nonnull CurveTable table) {
         return fromCategory == null ? CostAsset.FREE : fromCategory;
     }
 
+    /**
+     * How many times a respec pays {@link #respecCost()} at the best level {@code bestLevel}: the track's own
+     * {@code Respec.PerLevel}, else its category's, times that level, rounded up and at least once (R665); once
+     * whatever the level when neither writes one, or one writes 0 or less.
+     */
+    public int respecTimes(int bestLevel) {
+        Double own = asset.respec() == null ? null : asset.respec().perLevel();
+        TrackCategoryAsset category = own != null ? null : category();
+        Double perLevel = own != null ? own
+                : category == null || category.respec() == null ? null : category.respec().perLevel();
+        return timesAt(perLevel, bestLevel);
+    }
+
+    /**
+     * The pure rule behind {@link #respecTimes}: {@code perLevel} times {@code bestLevel}, rounded up, at least 1;
+     * 1 for an unwritten, zero or negative {@code perLevel}.
+     */
+    public static int timesAt(@Nullable Double perLevel, int bestLevel) {
+        if (perLevel == null || !(perLevel > 0) || bestLevel <= 0) {
+            return 1;
+        }
+        double times = Math.ceil(perLevel * bestLevel);
+        return times >= Integer.MAX_VALUE ? Integer.MAX_VALUE : Math.max(1, (int) times);
+    }
+
     @Nullable
     private TrackCategoryAsset category() {
         return TrackCategoryConfig.getInstance().category(asset.category());

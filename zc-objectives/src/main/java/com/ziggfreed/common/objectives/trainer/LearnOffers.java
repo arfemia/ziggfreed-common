@@ -1,0 +1,157 @@
+package com.ziggfreed.common.objectives.trainer;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import com.hypixel.hytale.server.core.Message;
+import com.ziggfreed.common.i18n.ContentKeys;
+import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.track.TrackText;
+import com.ziggfreed.common.track.pick.PickService;
+import com.ziggfreed.common.track.pick.PickService.Status;
+import com.ziggfreed.common.track.pick.PickService.TrainerPick;
+import com.ziggfreed.common.track.pick.TrackPickAsset;
+import com.ziggfreed.common.track.pick.TrackPicks;
+import com.ziggfreed.common.ui.kit.ActionLook;
+import com.ziggfreed.common.ui.kit.ActionSlot;
+import com.ziggfreed.common.ui.kit.DetailAction;
+import com.ziggfreed.common.ui.kit.DetailBlock;
+import com.ziggfreed.common.ui.kit.DetailLine;
+import com.ziggfreed.common.ui.kit.DetailView;
+import com.ziggfreed.common.ui.kit.LedgerRow;
+import com.ziggfreed.common.ui.kit.Mark;
+import com.ziggfreed.common.ui.kit.Picture;
+import com.ziggfreed.common.ui.kit.Pill;
+import com.ziggfreed.common.ui.kit.Tick;
+import com.ziggfreed.common.ui.kit.Tone;
+import com.ziggfreed.common.ui.page.PageSection;
+import com.ziggfreed.common.ui.toast.ToastKind;
+
+/**
+ * The Learn part: every pick bought outright whose {@code Where} names this trainer ({@code PickService.trainerPicks}),
+ * each with the level it opens at, what it costs, and Learn, the level still needed, or Learned. Learn takes it
+ * through {@code PickService.take} at this placement, which asks every rule again.
+ */
+final class LearnOffers {
+
+    private LearnOffers() {
+    }
+
+    /** What this trainer teaches the player at {@code at}; null when it names no pick. */
+    @Nullable
+    static TrainerOffers offers(@Nonnull TrainerAt at, @Nullable PageSection entry) {
+        List<TrainerPick> picks = PickService.trainerPicks(at.playerId(), at.placementId());
+        if (picks.isEmpty()) {
+            return null;
+        }
+        List<TrainerEntry> entries = new ArrayList<>(picks.size());
+        for (TrainerPick pick : picks) {
+            entries.add(entry(pick));
+        }
+        return new TrainerOffers(TrainerText.line("part.learn"), entries);
+    }
+
+    /** One pick's row and page. */
+    @Nonnull
+    private static TrainerEntry entry(@Nonnull TrainerPick pick) {
+        TrackPicks.PickDef def = TrackPicks.pick(pick.pickId());
+        TrackPickAsset asset = def == null ? null : def.asset();
+        Message name = TrackText.pickName(pick.pickId());
+        Message track = trackName(pick.trackId());
+        Picture picture = asset == null ? Picture.NONE : Picture.item(asset.icon());
+        Tone tone = tone(pick);
+        Message word = word(pick);
+        Message cost = pick.costPoints() > 0 ? TrainerText.line("learn.cost", pick.costPoints()) : null;
+        LedgerRow row = new LedgerRow(pick.pickId(), name, TrainerText.line("learn.meta", track, pick.opensAt()),
+                picture, tone, word, cost, null, Mark.NONE, pick.learned());
+
+        List<DetailLine> needs = new ArrayList<>();
+        needs.add(new DetailLine(Picture.NONE, TrainerText.line("learn.need.level", pick.opensAt(), track), null,
+                null, pick.level() >= pick.opensAt() ? Tick.DONE : Tick.LOCKED, null, false));
+        needs.add(DetailLine.of(Picture.NONE, cost == null ? TrainerText.line("learn.need.free")
+                : TrainerText.line("learn.need.points", pick.costPoints(), costName(pick))));
+        if (pick.max() > 1 && pick.max() != Integer.MAX_VALUE) {
+            needs.add(DetailLine.of(Picture.NONE, TrainerText.line("learn.taken", pick.taken(), pick.max())));
+        }
+        boolean learnable = pick.status() == Status.DONE;
+        DetailAction learn = new DetailAction(ActionSlot.PRIMARY, TrainerText.line("learn.action"),
+                ActionLook.NORMAL, "learn", null, learnable, null);
+        DetailView page = new DetailView(picture, name, track, null, List.of(Pill.of(word, tone)), null, null, null,
+                flavor(asset), List.of(new DetailBlock("needs", TrainerText.line("learn.block"), null, needs)),
+                List.of(learn), learnable ? null : refusal(pick.status(), pick.opensAt(), track));
+        String trackId = pick.trackId();
+        String pickId = pick.pickId();
+        return TrainerEntry.of(row, page, at -> learn(at, trackId, pickId));
+    }
+
+    /** Take the pick at this trainer, and say what happened. */
+    @Nonnull
+    private static TrainerResult learn(@Nonnull TrainerAt at, @Nonnull String trackId, @Nonnull String pickId) {
+        PickService.Result result = PickService.take(at.playerId(), trackId, pickId, at.placementId());
+        if (result.done()) {
+            return TrainerResult.toast(ToastKind.SUCCESS, TrainerText.line("learn.done", TrackText.pickName(pickId)));
+        }
+        TrackPicks.PickDef def = TrackPicks.pick(pickId);
+        int opensAt = def == null ? 1 : def.asset().opensAt();
+        return TrainerResult.toast(ToastKind.WARNING, refusal(result.status(), opensAt, trackName(trackId)));
+    }
+
+    /** Why a take was or would be refused, in the player's words. */
+    @Nonnull
+    static Message refusal(@Nonnull Status status, int opensAt, @Nonnull Message track) {
+        return switch (status) {
+            case NOT_OPEN -> TrainerText.line("learn.refused.level", opensAt, track);
+            case LOCKED -> TrainerText.line("learn.refused.locked");
+            case NEEDS_PREREQUISITE -> TrainerText.line("learn.refused.before");
+            case NODE_TAKEN -> TrainerText.line("learn.refused.node");
+            case NO_POINTS -> TrainerText.line("learn.refused.points");
+            case SPEND_CAP -> TrainerText.line("learn.refused.cap");
+            case MAXED -> TrainerText.line("learn.refused.learned");
+            case ELSEWHERE -> TrainerText.line("learn.refused.elsewhere");
+            default -> TrainerText.line("learn.refused.other");
+        };
+    }
+
+    /** The row's state: learned, ready to learn, a level away, or held back by something else. */
+    @Nonnull
+    private static Tone tone(@Nonnull TrainerPick pick) {
+        return switch (pick.status()) {
+            case MAXED -> Tone.DONE;
+            case DONE -> Tone.AVAILABLE;
+            default -> Tone.BLOCKED;
+        };
+    }
+
+    @Nonnull
+    private static Message word(@Nonnull TrainerPick pick) {
+        return switch (pick.status()) {
+            case MAXED -> TrainerText.line("learn.state.learned");
+            case DONE -> TrainerText.line("learn.state.learn");
+            case NOT_OPEN -> TrainerText.line("learn.state.level", pick.opensAt());
+            default -> TrainerText.line("learn.state.locked");
+        };
+    }
+
+    /** What the track {@code trackId} is called, else its id. */
+    @Nonnull
+    static Message trackName(@Nonnull String trackId) {
+        Message name = TrackText.nameOf(trackId);
+        return name != null ? name : Msg.raw(trackId);
+    }
+
+    /** The track whose points the pick spends: its Cost's own, else its own track. */
+    @Nonnull
+    private static Message costName(@Nonnull TrainerPick pick) {
+        return trackName(pick.costTrack() != null ? pick.costTrack() : pick.trackId());
+    }
+
+    /** The pick's description, when its file names one. */
+    @Nullable
+    private static Message flavor(@Nullable TrackPickAsset asset) {
+        String key = asset == null || asset.getText() == null ? null : asset.getText().getFlavorKey();
+        return key == null || key.isBlank() ? null : ContentKeys.tr(key.trim());
+    }
+}

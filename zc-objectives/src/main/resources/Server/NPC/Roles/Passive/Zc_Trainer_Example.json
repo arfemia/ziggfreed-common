@@ -1,0 +1,8 @@
+{
+  "$Comment": "The library's sample trainer, as a thin Variant of the library's Template_Zig_QuestGiver, which holds the whole body (standing, watching, the press-F action that opens what the placement's Interact names). Modify names only NameTranslationKey, one of the five parameters that template declares; the look is the template's own. The NPC placement Zc_Trainer_Example stands it, switched off until an owner turns it on.",
+  "Type": "Variant",
+  "Reference": "Template_Zig_QuestGiver",
+  "Modify": {
+    "NameTranslationKey": "ziggfreedcommon.trainer.example.name"
+  }
+}

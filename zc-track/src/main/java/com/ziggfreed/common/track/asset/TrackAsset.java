@@ -679,12 +679,19 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
     public static final class Respec {
 
         @Nullable protected CostAsset cost;
+        @Nullable protected Double perLevel;
 
         public static final BuilderCodec<Respec> CODEC = BuilderCodec.builder(Respec.class, Respec::new)
                 .appendInherited(new KeyedCodec<>("Cost", CostAsset.CODEC, false),
                         (o, v) -> o.cost = v, o -> o.cost, (o, p) -> o.cost = p.cost)
                 .documentation("What a respec costs, in any wallet or item (the one price shape shops use). An "
                         + "empty group is free. Unauthored here and on the category: free.").add()
+                .appendInherited(new KeyedCodec<>("PerLevel", Codec.DOUBLE, false),
+                        (o, v) -> o.perLevel = v, o -> o.perLevel, (o, p) -> o.perLevel = p.perLevel)
+                .documentation("How the price grows with the track's best level: Cost is paid this many times per "
+                        + "level, rounded up and at least once, so 1 pays Cost once per level and 0.5 once per two "
+                        + "levels (cheap early, a real price near the top). Leave it out, or 0, to pay Cost once "
+                        + "whatever the level. Unauthored here, the category's.").add()
                 .build();
 
         public Respec() {
@@ -694,6 +701,12 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
         @Nullable
         public CostAsset cost() {
             return cost;
+        }
+
+        /** How many times Cost is paid per level of the best level, as written, or null when unauthored. */
+        @Nullable
+        public Double perLevel() {
+            return perLevel;
         }
     }
 

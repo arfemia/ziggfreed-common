@@ -1,0 +1,19 @@
+{
+  "$Comment": "The library's sample trainer, switched off: an NPC placement with a Trainer block, so the character it stands is a trainer and its page shows the whole loop on a server running the library alone. Turn it on in mods/ziggfreedcommon/npc-placements.json with { \"Zc_Trainer_Example\": { \"Enabled\": true } }, together with the sample track (tracks.json) and its two lessons (track-picks.json, Zc_Track_Example_Trainer_Footwork and Zc_Track_Example_Trainer_Guard). It stands three and a half blocks from the spawn point of the world named default, never in an instance. Press F opens its conversation, whose Train answer opens the page: Learn lists every pick whose Where names this placement, Quests the quests this character gives, and Services a respec of the sample track at that track's own price. Tracks names the climbs it serves (Categories names whole categories), and Sections lays the page out; leave Sections out to show every part. Switch this placement off again and its lessons are learned on the sample track's own page.",
+  "Name": "Zc_Trainer_Example",
+  "Enabled": false,
+  "Identity": { "Role": "Zc_Trainer_Example" },
+  "Where": { "Match": [ "default" ] },
+  "Anchor": {
+    "WorldSpawn": {
+      "Offset": { "Z": 3.5 },
+      "Yaw": 180.0
+    }
+  },
+  "Lifecycle": { "Respawn": true, "Fortify": true },
+  "Interact": { "Dialogue": "Zc_Trainer_Example" },
+  "Trainer": {
+    "Tracks": [ "Zc_Track_Example" ],
+    "Sections": [ { "Learn": {} }, { "Quests": {} }, { "Services": {} } ]
+  }
+}

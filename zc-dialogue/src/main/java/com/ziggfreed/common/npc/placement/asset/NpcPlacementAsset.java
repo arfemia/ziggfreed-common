@@ -1,5 +1,6 @@
 package com.ziggfreed.common.npc.placement.asset;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -31,6 +32,8 @@ import com.ziggfreed.common.factor.ModGates;
 import com.ziggfreed.common.npc.NpcDestinations;
 import com.ziggfreed.common.npc.placement.registry.AnchorResolverRegistry;
 import com.ziggfreed.common.season.SeasonGate;
+import com.ziggfreed.common.ui.page.PageParts;
+import com.ziggfreed.common.ui.page.PageSection;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.world.WorldSelector;
 
@@ -54,7 +57,8 @@ import com.ziggfreed.common.world.WorldSelector;
  *   "Limits":   { "SpawnChance": 1.0, "OncePerWorld": true },
  *   "Lifecycle":{ "KeepAlive": true, "Fortify": true },
  *   "Interact": { "Dialogue": "guide_intro" },
- *   "Props":    [ { "Item": "Furniture_Tavern_Table", "Offset": {"Z": 1.5}, "Yaw": 90 } ] }
+ *   "Props":    [ { "Item": "Furniture_Tavern_Table", "Offset": {"Z": 1.5}, "Yaw": 90 } ],
+ *   "Trainer":  { "Tracks": ["Mining"] } }
  * }</pre>
  *
  * <p><b>The groups, and why each is where it is.</b>
@@ -89,6 +93,8 @@ import com.ziggfreed.common.world.WorldSelector;
  *       feast table beside a seasonal cook), gone with it. With props, {@code Identity.Role} is
  *       optional: a placement naming no role draws only its props, with no NPC, no conversation and
  *       nothing to press F on.</li>
+ *   <li><b>{@link Trainer}</b> - makes the character a trainer: what it teaches and the parts of its
+ *       trainer page. A placement without it is no trainer.</li>
  * </ul>
  *
  * <p>To re-tune a placement someone else shipped, override the file by id (a same-named file in a
@@ -111,6 +117,7 @@ public final class NpcPlacementAsset
     @Nullable private Lifecycle lifecycle;
     @Nullable private Interact interact;
     @Nullable private Prop[] props;
+    @Nullable private Trainer trainer;
     @Nullable private String season;
 
     public static final AssetBuilderCodec<String, NpcPlacementAsset> CODEC = SeasonLeaf.append(AssetBuilderCodec.builder(
@@ -182,6 +189,14 @@ public final class NpcPlacementAsset
                     + "Requires failing, an owner switching it off). With Props, Identity.Role is optional: a "
                     + "placement naming no role draws only its props. Authoring this replaces the parent's whole "
                     + "list rather than adding to it.")
+            .add()
+            .appendInherited(new KeyedCodec<>("Trainer", Trainer.CODEC, false),
+                    (a, v) -> a.trainer = v, a -> a.trainer, (a, p) -> a.trainer = p.trainer)
+            .documentation("Makes the character standing here a trainer: the tracks or categories it teaches, and "
+                    + "what its trainer page shows. A placement without it is no trainer. Its page lists every pick "
+                    + "whose Where names this placement, the quests this character gives, and a respec for each "
+                    + "track it teaches. Open the page with the Trainer destination (a conversation's Open, or this "
+                    + "placement's Interact) or the ZigOpenTrainer interaction.")
             .add(),
                     (a, v) -> a.season = v, a -> a.season)
             .build();
@@ -285,6 +300,17 @@ public final class NpcPlacementAsset
      */
     public boolean hasProps() {
         return props != null && props.length > 0;
+    }
+
+    /** The trainer block, or null for a placement that is no trainer. */
+    @Nullable
+    public Trainer getTrainer() {
+        return trainer;
+    }
+
+    /** True when this placement authors a trainer block (whether it stands right now is the gates' to say). */
+    public boolean isTrainer() {
+        return trainer != null;
     }
 
     // ==================== Identity ====================
@@ -1230,6 +1256,140 @@ public final class NpcPlacementAsset
         /** {@code Scale}, reader-defaulted to {@link #DEFAULT_SCALE}; a value at or below 0 would draw nothing. */
         public double effectiveScale() {
             return scale != null && scale > 0 ? scale : DEFAULT_SCALE;
+        }
+    }
+
+    // ==================== Trainer ====================
+
+    /**
+     * What makes the character standing here a trainer (R608): the tracks and track categories it teaches, and the
+     * parts its trainer page shows.
+     *
+     * <pre>{@code
+     * "Trainer": { "Tracks": [ "Mining" ], "Categories": [ "Gathering" ],
+     *              "Sections": [ { "Learn": {} }, { "Quests": {} }, { "Services": {} } ] }
+     * }</pre>
+     *
+     * <p><b>What it teaches rides the picks.</b> Every pick whose {@code Where} names this placement is on its page's
+     * Learn list, so another mod's pick opts in from its own file (R751), whichever track it sits on. {@code Tracks}
+     * and {@code Categories} name the climbs the trainer serves beyond that: a respec of each, and any service a mod
+     * adds. A placement authoring no block is no trainer, however its picks name it.
+     *
+     * <p><b>The page's parts.</b> {@code Sections} lays out the page in the order written, one registered part per
+     * entry (the page kit's {@link PageSection}, read against the parts registered on {@link #PAGE} when the file
+     * decodes). Unwritten, the page shows every registered part, in registration order; a part with nothing to show
+     * at this trainer is left out either way.
+     *
+     * <p>Every leaf inherits through {@code Parent}; {@code Sections} replaces the inherited list whole. The owner
+     * layer overrides the block like any other group of a placement.
+     */
+    public static final class Trainer {
+
+        /** The trainer page's name on the page kit's part registry. */
+        public static final String PAGE = "Trainer";
+
+        /** One entry of {@code Sections}, read against the parts registered on {@link #PAGE} when the file decodes. */
+        public static final Codec<PageSection> SECTION_CODEC =
+                PageParts.of(PAGE).sectionCodec(PageSection.class, PageSection::new);
+
+        /** How near the trainer a player must stand to learn or buy, in blocks, when {@code Reach} is unwritten. */
+        public static final double DEFAULT_REACH = 8.0;
+
+        @Nullable protected String[] tracks;
+        @Nullable protected String[] categories;
+        @Nullable protected PageSection[] sections;
+        @Nullable protected Double reach;
+
+        public static final BuilderCodec<Trainer> CODEC = BuilderCodec.builder(Trainer.class, Trainer::new)
+                .appendInherited(new KeyedCodec<>("Tracks", Codec.STRING_ARRAY, false),
+                        (o, v) -> o.tracks = v, o -> o.tracks, (o, p) -> o.tracks = p.tracks)
+                .documentation("The tracks this trainer teaches, by id: its page offers a respec of each, and any "
+                        + "service another mod adds. What there is to learn is every pick whose Where names this "
+                        + "placement, whichever track it sits on.").add()
+                .appendInherited(new KeyedCodec<>("Categories", Codec.STRING_ARRAY, false),
+                        (o, v) -> o.categories = v, o -> o.categories, (o, p) -> o.categories = p.categories)
+                .documentation("Track categories this trainer teaches, by id: every track in one counts as if "
+                        + "Tracks named it.").add()
+                .appendInherited(new KeyedCodec<>("Sections",
+                                new ArrayCodec<>(SECTION_CODEC, PageSection[]::new), false),
+                        (o, v) -> o.sections = v, o -> o.sections, (o, p) -> o.sections = p.sections)
+                .documentation("The parts of this trainer's page, in the order written, one per entry: "
+                        + "{ \"Learn\": {} }, { \"Quests\": {} }, { \"Services\": {} }, or a part another mod "
+                        + "registers. A part with nothing to show here is left out. Leave it out to show every part, "
+                        + "in the order they were registered. A child's list replaces its parent's whole.").add()
+                .appendInherited(new KeyedCodec<>("Reach", Codec.DOUBLE, false),
+                        (o, v) -> o.reach = v, o -> o.reach, (o, p) -> o.reach = p.reach)
+                .metadata(EditorSchema.defaultValue(DEFAULT_REACH))
+                .documentation("How near this trainer, in blocks, a player must stand to learn from it or buy a "
+                        + "service: the page opened from afar (an item, a block) still shows everything, and its "
+                        + "buttons ask the player to come closer. 8 when unwritten; 0 or less lets a player learn "
+                        + "from anywhere.").add()
+                .build();
+
+        public Trainer() {
+        }
+
+        /** Java-side construction (tests, a consumer building a placement in code). */
+        @Nonnull
+        public static Trainer of(@Nullable String[] tracks, @Nullable String[] categories) {
+            Trainer t = new Trainer();
+            t.tracks = tracks == null ? null : tracks.clone();
+            t.categories = categories == null ? null : categories.clone();
+            return t;
+        }
+
+        /** The track ids as written, trimmed, blanks and repeats (in any case) left out, in authored order. */
+        @Nonnull
+        public List<String> tracks() {
+            return ids(tracks);
+        }
+
+        /** The category ids as written, trimmed, blanks and repeats (in any case) left out, in authored order. */
+        @Nonnull
+        public List<String> categories() {
+            return ids(categories);
+        }
+
+        /** How near, in blocks, a player must stand to learn or buy: {@link #DEFAULT_REACH} unwritten; 0 for anywhere. */
+        public double reach() {
+            if (reach == null) {
+                return DEFAULT_REACH;
+            }
+            return reach > 0 ? reach : 0.0;
+        }
+
+        /**
+         * The page's parts as authored, in the order written: null when no {@code Sections} is written (the page
+         * then shows every registered part), else every entry the list holds (a null one left out), an empty list
+         * staying empty.
+         */
+        @Nullable
+        public List<PageSection> sections() {
+            if (sections == null) {
+                return null;
+            }
+            List<PageSection> out = new ArrayList<>();
+            for (PageSection section : sections) {
+                if (section != null) {
+                    out.add(section);
+                }
+            }
+            return List.copyOf(out);
+        }
+
+        @Nonnull
+        private static List<String> ids(@Nullable String[] values) {
+            if (values == null) {
+                return List.of();
+            }
+            Map<String, String> out = new LinkedHashMap<>();
+            for (String value : values) {
+                String id = value == null ? "" : value.trim();
+                if (!id.isEmpty()) {
+                    out.putIfAbsent(id.toLowerCase(Locale.ROOT), id);
+                }
+            }
+            return List.copyOf(out.values());
         }
     }
 

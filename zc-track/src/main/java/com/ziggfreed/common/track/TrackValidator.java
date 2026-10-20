@@ -85,6 +85,7 @@ import com.ziggfreed.common.validation.Severity;
  *       {@code UNKNOWN_PICK_TRACK}, {@code UNKNOWN_PICK_OPTION}, {@code UNKNOWN_PICK_DECK},
  *       {@code GROUP_WITHOUT_LEVEL}, {@code GROUP_WITHOUT_OPTIONS}), then WARNING
  *       {@link #UNKNOWN_PICK_PREREQUISITE}, {@link #UNKNOWN_COST_TRACK}, {@link #COST_WITHOUT_POINTS},
+ *       {@link #WHERE_ON_CHOICE} (a choice naming trainers, which no trainer's page offers),
  *       {@link #UNKNOWN_GRANT_STAT} ({@link #auditPicks}; also over a track's {@code Points.Grants}) and the gate
  *       audit over a pick's {@code Requires};</li>
  *   <li>WARNING, for trees ({@link #auditTrees}): {@link #UNDECLARED_BRANCH}, {@link #NODE_ACROSS_TRACKS},
@@ -129,6 +130,7 @@ public final class TrackValidator {
     public static final String UNKNOWN_PICK_PREREQUISITE = "UNKNOWN_PICK_PREREQUISITE";
     public static final String UNKNOWN_COST_TRACK = "UNKNOWN_COST_TRACK";
     public static final String COST_WITHOUT_POINTS = "COST_WITHOUT_POINTS";
+    public static final String WHERE_ON_CHOICE = "WHERE_ON_CHOICE";
     public static final String UNKNOWN_GRANT_STAT = "UNKNOWN_GRANT_STAT";
     public static final String UNDECLARED_BRANCH = "UNDECLARED_BRANCH";
     public static final String NODE_ACROSS_TRACKS = "NODE_ACROSS_TRACKS";
@@ -553,6 +555,11 @@ public final class TrackValidator {
                     out.add(Finding.warning(DOMAIN, UNKNOWN_PICK_PREREQUISITE, where + " needs '" + needed
                             + "' first, which is no pick or option on its track, so it never opens", id));
                 }
+            }
+            if (pick.isChoice() && !asset.placements().isEmpty()) {
+                out.add(Finding.warning(DOMAIN, WHERE_ON_CHOICE, where + " is a choice whose Where names trainers, "
+                        + "but a trainer's page takes only picks bought outright, so its slots are never offered "
+                        + "anywhere while one of those trainers stands. Leave Where out of a choice", id));
             }
             if (asset.costPoints() > 0) {
                 String costTrack = asset.costTrack();

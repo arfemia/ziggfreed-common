@@ -19,6 +19,7 @@ import com.ziggfreed.common.npc.NpcNames;
 import com.ziggfreed.common.npc.placement.registry.AnchorResolverRegistry;
 import com.ziggfreed.common.npc.placement.registry.PlacementFactorRegistry;
 import com.ziggfreed.common.season.SeasonGate;
+import com.ziggfreed.common.ui.page.PageSection;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.ui.route.Destinations;
 import com.ziggfreed.common.validation.Finding;
@@ -68,6 +69,12 @@ public final class NpcPlacementValidator {
      * a WARNING naming them, since they do nothing there.
      */
     public static final String PROPS_ONLY_NPC_FIELDS = "PROPS_ONLY_NPC_FIELDS";
+
+    /** A trainer block's {@code Sections} entry naming a group no part of the trainer page is registered for. */
+    public static final String TRAINER_SECTION_UNKNOWN_PART = "TRAINER_SECTION_UNKNOWN_PART";
+
+    /** A trainer block's {@code Sections} entry naming no part at all. */
+    public static final String TRAINER_SECTION_EMPTY = "TRAINER_SECTION_EMPTY";
 
     /**
      * How the prop-item check reads this server's items: true for an id it has, false for one it does
@@ -153,6 +160,7 @@ public final class NpcPlacementValidator {
         checkInteractForms(placement, id, out);
         checkPropsShape(placement, id, out);
         checkPropsOnlyNpcFields(placement, id, out);
+        checkTrainerSections(placement, id, out);
     }
 
     private static void validateCrossAsset(@Nonnull NpcPlacementAsset placement, @Nonnull String id,
@@ -236,6 +244,9 @@ public final class NpcPlacementValidator {
         if (identity != null && !NpcPlacementAsset.isAllBlank(identity.getAliases())) {
             idle.add("Identity.Aliases");
         }
+        if (placement.isTrainer()) {
+            idle.add("Trainer");
+        }
         if (idle.isEmpty()) {
             return;
         }
@@ -243,6 +254,35 @@ public final class NpcPlacementValidator {
                 "names no Identity.Role, so it stands no NPC and draws only its Props, and these fields only an "
                         + "NPC reads do nothing: " + String.join(", ", idle) + ". Name the Role they are for, or "
                         + "remove them", id));
+    }
+
+    // ==================== trainer ====================
+
+    /**
+     * Each entry of a trainer block's {@code Sections} names one part of the trainer page: an entry naming a group no
+     * part is registered for never draws ({@link #TRAINER_SECTION_UNKNOWN_PART}, one per entry), and one naming no
+     * part at all is skipped ({@link #TRAINER_SECTION_EMPTY}). Both WARNINGs: the rest of the page draws, and the part
+     * may be a mod's this server does not run.
+     */
+    private static void checkTrainerSections(@Nonnull NpcPlacementAsset placement, @Nonnull String id,
+            @Nonnull List<Finding> out) {
+        NpcPlacementAsset.Trainer trainer = placement.getTrainer();
+        List<PageSection> sections = trainer == null ? null : trainer.sections();
+        if (sections == null) {
+            return;
+        }
+        for (int i = 0; i < sections.size(); i++) {
+            PageSection entry = sections.get(i);
+            if (!entry.unknownParts().isEmpty()) {
+                out.add(Finding.warning(DOMAIN, TRAINER_SECTION_UNKNOWN_PART,
+                        "Trainer.Sections entry " + (i + 1) + " names " + String.join(", ", entry.unknownParts())
+                                + ", which no installed mod registers as a part of the trainer page, so it never "
+                                + "draws", id));
+            } else if (entry.part() == null) {
+                out.add(Finding.warning(DOMAIN, TRAINER_SECTION_EMPTY,
+                        "Trainer.Sections entry " + (i + 1) + " names no part, so it is skipped", id));
+            }
+        }
     }
 
     /**

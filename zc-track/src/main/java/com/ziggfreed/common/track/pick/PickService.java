@@ -18,6 +18,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.cost.Cost;
 import com.ziggfreed.common.encounter.run.EncounterRuns;
 import com.ziggfreed.common.entity.CombatState;
 import com.ziggfreed.common.factor.FactorContext;
@@ -51,8 +52,9 @@ import com.ziggfreed.common.util.SafeLog;
  * <p><b>What is owed is derived, never kept</b> ({@link #waiting}): the slots a pick's groups have opened up to the
  * player's pick level, less the ones made; a free pick bought outright not yet taken as often as it may be; and the
  * points a track has earned and not spent. Nothing is ever parked as a Claim, and the Claims tab lists it through
- * {@code PickClaims}. A pick whose {@code Where} names a trainer is that trainer page's to offer, so it is never
- * owed here.
+ * {@code PickClaims}. A pick whose {@code Where} names a trainer that teaches ({@link PickTrainers}) is that trainer
+ * page's to offer ({@link #trainerPicks}), so it is never owed here; one whose trainers are all switched off or gone
+ * is owed and taken on the track's own page like any other (R608).
  *
  * <p><b>The pick level</b> ({@link #pickLevel}) is the level slots open up to: the best level ever under a
  * {@code Keep} prestige build (the picks stay, and nothing new opens until the climb passes them), the current
@@ -213,6 +215,23 @@ public final class PickService {
         }
     }
 
+    /**
+     * One pick a trainer's page offers a player ({@link #trainerPicks}): the pick and its track, the level it opens
+     * at and the player's pick level there, the points one take costs and the track they come from (0 and null for a
+     * free pick), how many times it was taken and may be ({@link Integer#MAX_VALUE} for no limit), and what a take
+     * at that trainer would answer now: {@link Status#DONE} when it can be learned, {@link Status#MAXED} once learned
+     * as often as it may be.
+     */
+    public record TrainerPick(@Nonnull String trackId, @Nonnull String pickId, int opensAt, int level,
+                              int costPoints, @Nullable String costTrack, int taken, int max,
+                              @Nonnull Status status) {
+
+        /** Has it been learned as often as it may be? */
+        public boolean learned() {
+            return status == Status.MAXED;
+        }
+    }
+
     /** One live climb read for a write: its track, key, store, record and the player's entity. */
     private record Climb(@Nonnull TrackDef def, @Nonnull TrackKey key, @Nonnull TrackStore store,
                          @Nonnull TrackRecord record, @Nonnull Ref<EntityStore> ref) {
@@ -262,7 +281,7 @@ public final class PickService {
         records.put(id, climb.record());
         List<Owed> owed = new ArrayList<>();
         for (TrackPicks.PickDef pick : TrackPicks.onTrack(id)) {
-            if (!pick.asset().placements().isEmpty() || open(pick, state, level, query) != Status.DONE) {
+            if (!PickTrainers.of(pick.asset()).isEmpty() || open(pick, state, level, query) != Status.DONE) {
                 continue;
             }
             boolean costed = pick.asset().costPoints() > 0;
@@ -368,6 +387,72 @@ public final class PickService {
             slots.add(new LoadoutView(slot, state.loadout(slot).size(), state.activeLoadout() == slot));
         }
         return new Loadouts(reading.def().id(), max, state.activeLoadout() <= max ? state.activeLoadout() : 0, slots);
+    }
+
+    /**
+     * Every pick bought outright whose {@code Where} names {@code placement}, as {@code player} meets it now: what that
+     * trainer's page lists, track by track in the tracks' order and each track's picks in theirs. Each one's status is
+     * what a take there would answer ({@link #take} with that placement), read without writing, a pick learned as
+     * often as it may be reading {@link Status#MAXED} first. A choice whose {@code Where} names the placement is left
+     * out: a trainer's page takes picks bought outright, and a choice's slots are made on the track's own page. A
+     * track the player is not live on lists its picks as {@link Status#NOT_LIVE}. World thread.
+     */
+    @Nonnull
+    public static List<TrainerPick> trainerPicks(@Nonnull UUID player, @Nullable String placement) {
+        String at = TrackKey.normalize(placement);
+        List<TrainerPick> out = new ArrayList<>();
+        if (at.isEmpty() || !TrackPicks.any()) {
+            return out;
+        }
+        for (TrackDef def : TrackService.defs()) {
+            List<TrackPicks.PickDef> taught = new ArrayList<>();
+            for (TrackPicks.PickDef pick : TrackPicks.onTrack(def.id())) {
+                if (!pick.isChoice() && pick.asset().placements().contains(at)) {
+                    taught.add(pick);
+                }
+            }
+            if (taught.isEmpty()) {
+                continue;
+            }
+            Climb climb = climb(player, def.id());
+            GateQuery query = climb == null ? null : queryOf(climb.ref());
+            for (TrackPicks.PickDef pick : taught) {
+                out.add(trainerPick(player, climb, query, pick, at));
+            }
+        }
+        return out;
+    }
+
+    /** {@code pick} as the trainer page at {@code placement} reads it for {@code player}. */
+    @Nonnull
+    private static TrainerPick trainerPick(@Nonnull UUID player, @Nullable Climb climb, @Nullable GateQuery query,
+            @Nonnull TrackPicks.PickDef pick, @Nonnull String placement) {
+        TrackPickAsset asset = pick.asset();
+        int max = asset.repeatMax();
+        int cost = asset.costPoints();
+        String costTrack = cost > 0 ? TrackKey.normalize(asset.costTrack()) : null;
+        if (climb == null) {
+            return new TrainerPick(pick.trackId(), pick.id(), asset.opensAt(), 0, cost, costTrack, 0, max,
+                    Status.NOT_LIVE);
+        }
+        int taken = climb.record().picks().takesOf(pick.id());
+        Status status = taken >= max ? Status.MAXED : takeStatus(player, climb, pick, placement, query);
+        return new TrainerPick(pick.trackId(), pick.id(), asset.opensAt(), pickLevel(climb.def(), climb.record()),
+                cost, costTrack, taken, max, status);
+    }
+
+    /**
+     * How many of {@code player}'s picks on {@code trackId} a respec would clear (every pick but what a trainer
+     * taught): what a respec offer says before it charges, 0 when there is nothing to clear or the player is not
+     * live. World thread.
+     */
+    public static int respecClears(@Nonnull UUID player, @Nullable String trackId) {
+        Climb climb = climb(player, trackId);
+        if (climb == null) {
+            return 0;
+        }
+        PickState state = climb.record().picks();
+        return Math.max(0, state.size() - respecced(climb.def(), state).size());
     }
 
     /** Can {@code player} undo a pick right now? */
@@ -593,10 +678,12 @@ public final class PickService {
     }
 
     /**
-     * A player's own respec of {@code trackId}: the track's respec price ({@code Respec.Cost}, else its category's,
-     * else free; any wallet or item, R665, R733) taken, then every pick but what a trainer taught cleared as
-     * {@link #respec} does. Nothing is taken when there is nothing to clear, and the price is given back when the
-     * clearing cannot be kept. World thread.
+     * A player's own respec of {@code trackId}: the track's respec price ({@link #respecPrice}: its
+     * {@code Respec.Cost}, else its category's, else free, any wallet or item, paid {@code Respec.PerLevel} times per
+     * level of the best level; R665, R733) taken, then every pick but what a trainer taught cleared as
+     * {@link #respec} does. Refused in combat ({@link Status#IN_COMBAT}) and mid-encounter
+     * ({@link Status#IN_ENCOUNTER}), as a swap is. Nothing is taken when there is nothing to clear, and the receipt
+     * is given back when the clearing cannot be kept or throws. World thread.
      */
     @Nonnull
     public static Result buyRespec(@Nonnull UUID player, @Nullable String trackId) {
@@ -608,19 +695,43 @@ public final class PickService {
         if (climb == null) {
             return Result.of(Status.NOT_LIVE);
         }
+        Ref<EntityStore> ref = climb.ref();
+        if (CombatState.inCombat(ref.getStore(), ref)) {
+            return Result.of(Status.IN_COMBAT);
+        }
+        if (inEncounter(ref)) {
+            return Result.of(Status.IN_ENCOUNTER);
+        }
         PickState state = climb.record().picks();
         if (respecced(def, state).size() == state.size()) {
             return Result.of(Status.NOTHING);
         }
-        PickPayments.Paid paid = PickPayments.charge(climb.ref(), def.respecCost(), "the respec of " + def.id());
+        PickPayments.Paid paid = PickPayments.charge(ref,
+                PickPayments.respecPrice(def, def.best(climb.record())), "the respec of " + def.id());
         if (paid == null) {
             return Result.of(Status.CANNOT_PAY);
         }
-        Result result = respec(player, trackId);
+        Result result;
+        try {
+            result = respec(player, trackId);
+        } catch (Throwable t) {
+            paid.refund();
+            throw t;
+        }
         if (!result.done()) {
             paid.refund();
         }
         return result;
+    }
+
+    /**
+     * What {@code player}'s own respec of {@code trackId} costs right now ({@link #buyRespec}'s price at their best
+     * level); free when the track is unknown or they are not live. World thread.
+     */
+    @Nonnull
+    public static Cost respecPrice(@Nonnull UUID player, @Nullable String trackId) {
+        Climb climb = climb(player, trackId);
+        return climb == null ? Cost.FREE : PickPayments.respecPrice(climb.def(), climb.def().best(climb.record()));
     }
 
     /**
@@ -1114,10 +1225,13 @@ public final class PickService {
         return record;
     }
 
-    /** Is {@code placement} somewhere {@code pick} is taken: anywhere for a pick naming no trainer. */
+    /**
+     * Is {@code placement} somewhere {@code pick} is taken: one of the trainers its {@code Where} names that teach
+     * now, or anywhere for a pick naming none that teaches ({@link PickTrainers#of}).
+     */
     private static boolean at(@Nonnull TrackPicks.PickDef pick, @Nullable String placement) {
-        List<String> placements = pick.asset().placements();
-        return placements.isEmpty() || (placement != null && placements.contains(TrackKey.normalize(placement)));
+        List<String> trainers = PickTrainers.of(pick.asset());
+        return trainers.isEmpty() || (placement != null && trainers.contains(TrackKey.normalize(placement)));
     }
 
     /** Keep a change's knock-on: the epoch, the grants, the event. */

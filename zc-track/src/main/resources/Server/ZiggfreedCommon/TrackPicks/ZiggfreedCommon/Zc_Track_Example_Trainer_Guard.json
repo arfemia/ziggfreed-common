@@ -1,0 +1,12 @@
+{
+  "$Comment": "The sample trainer's second lesson, switched off like the first (Zc_Track_Example_Trainer_Footwork): it opens at level eight and costs one of the sample track's points, so the trainer's page shows the level still needed until then. It adds six health. Turn it on in track-picks.json beside the first.",
+  "Enabled": false,
+  "Track": "Zc_Track_Example",
+  "Text": { "TitleKey": "ziggfreedcommon.track.example.trainer.guard", "FlavorKey": "ziggfreedcommon.track.example.trainer.guard.desc" },
+  "Icon": "Ingredient_Crystal_Red",
+  "Order": 21,
+  "At": 8,
+  "Cost": { "Points": 1 },
+  "Where": { "Placements": [ "Zc_Trainer_Example" ] },
+  "Grants": [ { "Kind": "Stat", "Stat": "Health", "Add": 6 } ]
+}

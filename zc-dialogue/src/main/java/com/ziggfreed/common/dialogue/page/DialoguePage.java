@@ -96,6 +96,7 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
     private final String dialogueId;
     @Nullable private final String contextNpcId;
     @Nullable private final Ref<EntityStore> npcRef;
+    @Nullable private final String placementId;
     @Nullable private String currentNodeId;
 
     /**
@@ -152,10 +153,22 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
     public DialoguePage(@Nonnull PlayerRef playerRef, @Nonnull String dialogueId,
                         @Nullable String contextNpcId, @Nullable Ref<EntityStore> npcRef,
                         @Nullable DialogueEngine.EntryResolution preResolved) {
+        this(playerRef, dialogueId, contextNpcId, npcRef, null, preResolved);
+    }
+
+    /**
+     * @param placementId the placement that stood the character, when the conversation was opened at one, so a
+     *        screen an option opens is told which placement the moment came from (a trainer shared by two
+     *        placements of one character)
+     */
+    public DialoguePage(@Nonnull PlayerRef playerRef, @Nonnull String dialogueId,
+                        @Nullable String contextNpcId, @Nullable Ref<EntityStore> npcRef,
+                        @Nullable String placementId, @Nullable DialogueEngine.EntryResolution preResolved) {
         super(playerRef, CustomPageLifetime.CanDismissOrCloseThroughInteraction, DialogueEventData.CODEC);
         this.dialogueId = dialogueId;
         this.contextNpcId = (contextNpcId == null || contextNpcId.isBlank()) ? null : contextNpcId;
         this.npcRef = npcRef;
+        this.placementId = (placementId == null || placementId.isBlank()) ? null : placementId;
         this.preResolved = preResolved;
     }
 
@@ -317,7 +330,7 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
     private DialogueExecContext context(@Nonnull NpcDialogue dialogue, @Nonnull String nodeId,
                                         int optionIndex, @Nonnull Ref<EntityStore> ref,
                                         @Nonnull Store<EntityStore> store, @Nonnull Player player) {
-        return new SimpleDialogueExecContext(store, ref, player, contextNpcId, null,
+        return new SimpleDialogueExecContext(store, ref, player, contextNpcId, placementId, null,
                 dialogue, nodeId, optionIndex);
     }
 

@@ -1,0 +1,14 @@
+$ZK = "../Common/ZigTokens.ui";
+
+// One part of the trainer page (Pages/ZigTrainerPage.ui), appended by the page kit's PagePainter into #Sections and
+// addressed by index as "#Sections[i] #List": the part's one kit list section (its heading, a count, and a row per
+// entry), which com.ziggfreed.common.ui.kit.LedgerPainter paints into #List.
+
+Group #ZigTrainerSection {
+  LayoutMode: Top;
+  Anchor: (Bottom: $ZK.@ZigSpace2);
+
+  Group #List {
+    LayoutMode: Top;
+  }
+}

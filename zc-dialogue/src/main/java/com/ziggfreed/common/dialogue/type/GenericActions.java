@@ -137,7 +137,8 @@ public final class GenericActions {
      * told who it is for a second time.
      *
      * <p>The page is opened on the PLAYER: an option click comes back on the player's own ref, and
-     * the NPC's entity is not something a conversation still holds by then.
+     * the NPC's entity is not something a conversation still holds by then. The placement that stood
+     * the character travels too, when the conversation was opened at one.
      */
     private static boolean openDestination(@Nullable Destination destination,
             @Nonnull DialogueExecContext ctx) {
@@ -145,7 +146,7 @@ public final class GenericActions {
             return false;
         }
         DestinationContext target = new DestinationContext(ctx.store(), ctx.ref(),
-                ctx.player(), null, ctx.contextId(), null);
+                ctx.player(), null, ctx.contextId(), ctx.placementId());
         return Destinations.open(destination, target);
     }
 }

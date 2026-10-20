@@ -1,0 +1,14 @@
+{
+  "Name": "Zc_Trainer_Example",
+  "$Comment": "The library's sample trainer's conversation, which its placement (NpcPlacements/Zc_Trainer_Example.json) opens on press F: one line and two answers. Train opens the trainer page through the Trainer destination ({ \"Open\": \"Trainer\" }), which names no placement, so it opens the trainer the player is talking to. Any conversation gives a trainer its Train answer the same way.",
+  "Start": { "Fallback": "greet" },
+  "Nodes": {
+    "greet": {
+      "TextKey": "ziggfreedcommon.trainer.example.greet",
+      "Options": [
+        { "LabelKey": "ziggfreedcommon.trainer.example.opt.train", "Style": "accept", "Open": "Trainer" },
+        { "LabelKey": "ziggfreedcommon.trainer.example.opt.farewell", "Style": "farewell", "Close": true }
+      ]
+    }
+  }
+}

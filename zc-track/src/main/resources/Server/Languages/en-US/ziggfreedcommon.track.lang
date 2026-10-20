@@ -81,6 +81,10 @@ example.tree.stride = Stride
 example.tree.stride.desc = More stamina.
 example.tree.clarity = Clarity
 example.tree.clarity.desc = More mana.
+example.trainer.footwork = Footwork
+example.trainer.footwork.desc = More health, taught by the sample trainer.
+example.trainer.guard = Steady Guard
+example.trainer.guard.desc = Much more health, taught by the sample trainer.
 
 # /zigtrack, the admin family. The command.desc.* keys are what the engine's own help resolves a command or
 # an argument's description from.

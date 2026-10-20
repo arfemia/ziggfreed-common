@@ -1,5 +1,5 @@
 {
-  "$Comment": "The library's sample track, switched off: nothing on a server grows it until the owner turns it on in mods/ziggfreedcommon/tracks.json with { \"Zc_Track_Example\": { \"Enabled\": true } }. Then /zigtrack add --track=Zc_Track_Example --amount=1000 climbs it, and each level an Unlocks row names parks a Claim on the player's Claims tab: three copper bars at levels 2 and 5, a blue crystal at every fourth level. It prestiges three times, first at level 12, and stops at level 15. Each level from 2 to 15 earns a point for its sample tree (the Zc_Track_Example_Tree_* picks, switched off on their own), and every point spent there adds one health (Points.Grants). The tree has two branches, Guard and Swift, and its Guard row two opens once five points are spent in Guard. A player keeps two saved builds here (/zigtrack savebuild and swapbuild), a swap costing what the Gathering category says. Starter is the order a one-time claim of points earned before a tree existed would spend them in.",
+  "$Comment": "The library's sample track, switched off: nothing on a server grows it until the owner turns it on in mods/ziggfreedcommon/tracks.json with { \"Zc_Track_Example\": { \"Enabled\": true } }. Then /zigtrack add --track=Zc_Track_Example --amount=1000 climbs it, and each level an Unlocks row names parks a Claim on the player's Claims tab: three copper bars at levels 2 and 5, a blue crystal at every fourth level. It prestiges three times, first at level 12, and stops at level 15. Each level from 2 to 15 earns a point for its sample tree (the Zc_Track_Example_Tree_* picks, switched off on their own), and every point spent there adds one health (Points.Grants). The tree has two branches, Guard and Swift, and its Guard row two opens once five points are spent in Guard. A player keeps two saved builds here (/zigtrack savebuild and swapbuild), a swap costing what the Gathering category says. Starter is the order a one-time claim of points earned before a tree existed would spend them in. A player's own respec, bought at the sample trainer (the NPC placement Zc_Trainer_Example), costs one copper bar for every two levels of the player's best level (Respec.Cost, any wallet or item, paid Respec.PerLevel times per level, rounded up) and keeps what a trainer taught.",
   "Enabled": false,
   "Text": { "TitleKey": "ziggfreedcommon.track.example.name" },
   "Icon": "Ingredient_Crystal_Blue",
@@ -23,6 +23,7 @@
     "Zc_Track_Example_Tree_Stride", "Zc_Track_Example_Tree_Stride"
   ],
   "Loadouts": { "Max": 2 },
+  "Respec": { "Cost": { "Items": [ { "Item": "Ingredient_Bar_Copper", "Count": 1 } ] }, "PerLevel": 0.5 },
   "Prestige": { "Ranks": 3, "Base": 11 },
   "Unlocks": [
     { "At": [ 2, 5 ], "Rewards": [ { "Kind": "Item", "Params": { "Item": "Ingredient_Bar_Copper", "Count": 3 } } ] },

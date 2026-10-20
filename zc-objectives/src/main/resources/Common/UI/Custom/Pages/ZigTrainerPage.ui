@@ -1,0 +1,78 @@
+$C = "../Common.ui";
+$F = "../Common/ZigFrames.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZW = "../Common/ZigKit.ui";
+
+// The trainer page (com.ziggfreed.common.objectives.trainer.TrainerPage): what a trainer offers, as lists on the
+// left and the entry being read on the right, built from the kit's pieces the way the NPC quest page is.
+//
+// LEFT, #LeftPanel (450 wide): the trainer's name (#TrainerName), the page's lead (#TrainerLead), a rule, and
+// #Sections, where the page kit's PagePainter appends one Pages/ZigTrainerSection.ui per part of the page (Learn,
+// Quests, Services, or a part another mod registers), in the order the trainer's placement lays them out, each
+// holding one kit list section the kit's LedgerPainter paints.
+//
+// RIGHT, #RightPanel (710 wide, padded to a 640 page): #Page, the kit's reading page (@ZigDetailPage: the header,
+// the lead, the blocks and the action bar), painted by com.ziggfreed.common.ui.kit.DetailPainter; and #PageEmpty,
+// the kit's empty state, shown in its place when the trainer has nothing to offer. The page never spells a template's
+// child ids: the kit's painters own them.
+
+$C.@PageOverlay {}
+
+$F.@ZigDecoratedFrame {
+  @CloseButton = true;
+  @Ornaments = true;
+  Anchor: (Width: 1160, Height: 850);
+
+  #Content {
+    Anchor: (Top: 0);
+    LayoutMode: Left;
+    Padding: (Full: 0);
+
+    Group #LeftPanel {
+      Anchor: (Width: 450);
+      Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
+      LayoutMode: Top;
+      Padding: (Full: $ZK.@ZigSpace4);
+
+      Label #TrainerName {
+        Anchor: (Bottom: $ZK.@ZigSpace1);
+        Text: "";
+        Style: $ZX.@ZigTitleStyle;
+      }
+
+      Label #TrainerLead {
+        Anchor: (Bottom: $ZK.@ZigSpace3);
+        Text: "";
+        Style: (...$ZX.@ZigCaptionStyle, Wrap: true);
+      }
+
+      Group #ListRule {
+        Anchor: (Height: 1, Bottom: $ZK.@ZigSpace2);
+        Background: (Color: $ZK.@ZigDivider);
+      }
+
+      Group #Sections {
+        FlexWeight: 1;
+        LayoutMode: TopScrolling;
+        ScrollbarStyle: $C.@DefaultScrollbarStyle;
+        Padding: (Right: $ZK.@ZigSpace2);
+      }
+    }
+
+    Group #RightPanel {
+      FlexWeight: 1;
+      LayoutMode: Top;
+      Padding: (Horizontal: 35, Vertical: $ZK.@ZigSpace3);
+
+      $ZW.@ZigDetailPage #Page {
+        FlexWeight: 1;
+      }
+
+      $ZW.@ZigEmptyState #PageEmpty {
+        FlexWeight: 1;
+        Visible: false;
+      }
+    }
+  }
+}

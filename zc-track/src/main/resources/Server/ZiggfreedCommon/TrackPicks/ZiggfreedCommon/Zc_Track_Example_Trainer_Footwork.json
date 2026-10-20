@@ -1,0 +1,11 @@
+{
+  "$Comment": "A lesson the library's sample trainer teaches, switched off like the sample track: a pick bought outright whose Where names the sample trainer's NPC placement (Zc_Trainer_Example), so it is learned on that trainer's page, free from level three, and adds three health. Turn it on in track-picks.json ({ \"Zc_Track_Example_Trainer_Footwork\": { \"Enabled\": true } }) together with the sample track and the sample trainer. While no trainer it names stands (its placement switched off), it is learned on the track's own page like any other pick. A respec never clears it, since what a trainer taught stays, and a prestige keeps it.",
+  "Enabled": false,
+  "Track": "Zc_Track_Example",
+  "Text": { "TitleKey": "ziggfreedcommon.track.example.trainer.footwork", "FlavorKey": "ziggfreedcommon.track.example.trainer.footwork.desc" },
+  "Icon": "Ingredient_Bar_Copper",
+  "Order": 20,
+  "At": 3,
+  "Where": { "Placements": [ "Zc_Trainer_Example" ] },
+  "Grants": [ { "Kind": "Stat", "Stat": "Health", "Add": 3 } ]
+}
