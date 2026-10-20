@@ -129,22 +129,40 @@ public final class CurrencyEngine {
      * credit that would cross it lands short and the answer says how far it got; a non-positive
      * amount changes nothing.
      *
-     * <p>Fires {@link CurrencyObserver#earned} with the delta that genuinely landed, never with
-     * what was asked for. Use {@link #refund} instead when putting back a charge.
+     * <p>Fires {@link CurrencyObserver#earned} with what genuinely landed, never with what was asked
+     * for: for an item currency that is everything the wallet handed over, the part a full bag sent
+     * to the player's feet included, which the balance does not see until it is picked up. Use
+     * {@link #refund} instead when putting back a charge, and {@link #creditLanded} when what landed
+     * is the answer wanted.
      */
     public long credit(@Nonnull Subject subject, @Nonnull String currencyId, long amount) {
+        return creditAnnounced(subject, currencyId, amount).after();
+    }
+
+    /**
+     * {@link #credit}, answering how much LANDED rather than the new balance: the answer a payout
+     * that reports what it handed over needs (a reward's receipt), since a cap cuts a credit short
+     * and a full bag sends part of an item currency to the player's feet, where the balance cannot
+     * see it. Zero for an unknown currency, a wallet already at its cap, or a non-positive amount.
+     * It announces exactly as {@link #credit} does.
+     */
+    public long creditLanded(@Nonnull Subject subject, @Nonnull String currencyId, long amount) {
+        return creditAnnounced(subject, currencyId, amount).landed();
+    }
+
+    /** The one announced credit behind {@link #credit} and {@link #creditLanded}. */
+    @Nonnull
+    private Landing creditAnnounced(@Nonnull Subject subject, @Nonnull String currencyId, long amount) {
         CurrencyDef def = catalog.get(currencyId);
         if (def == null) {
             unknown("credit", currencyId);
-            return 0L;
+            return Landing.NONE;
         }
-        long before = balance(subject, def);
-        long after = creditQuietly(subject, def, amount);
-        long delta = after - before;
-        if (delta > 0L) {
-            guarded(() -> observer.earned(subject, def, delta, after), "earned", def.id());
+        Landing landing = creditQuietly(subject, def, amount);
+        if (landing.landed() > 0L) {
+            guarded(() -> observer.earned(subject, def, landing.landed(), landing.after()), "earned", def.id());
         }
-        return after;
+        return landing;
     }
 
     /**
@@ -185,7 +203,7 @@ public final class CurrencyEngine {
             unknown("refund", currencyId);
             return 0L;
         }
-        long after = creditQuietly(subject, def, amount);
+        long after = creditQuietly(subject, def, amount).after();
         store.get().refundSpend(subject, def.id(), amount);
         return after;
     }
@@ -275,27 +293,38 @@ public final class CurrencyEngine {
 
     // ==================== Internals ====================
 
+    /**
+     * What one credit did: how much {@code landed} (for an item currency, all the wallet handed
+     * over, at the player's feet included) and the balance {@code after} it.
+     */
+    private record Landing(long landed, long after) {
+
+        /** Nothing moved, for a currency nobody defines. */
+        static final Landing NONE = new Landing(0L, 0L);
+    }
+
     /** The cap-honouring add, with no announcement. Both {@link #credit} and {@link #refund} use it. */
-    private long creditQuietly(@Nonnull Subject subject, @Nonnull CurrencyDef def, long amount) {
-        if (amount <= 0L) {
-            return balance(subject, def);
-        }
+    @Nonnull
+    private Landing creditQuietly(@Nonnull Subject subject, @Nonnull CurrencyDef def, long amount) {
         long current = balance(subject, def);
+        if (amount <= 0L) {
+            return new Landing(0L, current);
+        }
         long allowed = amount;
         if (!def.isUncapped()) {
             long room = def.cap() - current;
             if (room <= 0L) {
-                return current;
+                return new Landing(0L, current);
             }
             allowed = Math.min(allowed, room);
         }
         if (def.isItemBacked()) {
-            items.give(subject, def.backingItemId(), allowed);
-            return balance(subject, def);
+            long landed = Math.max(0L, Math.min(allowed, items.give(subject, def.backingItemId(), allowed)));
+            return new Landing(landed, balance(subject, def));
         }
         long next = current + allowed;
         store.get().setBalance(subject, def.id(), next);
-        return next;
+        return new Landing(allowed, next);
     }
 
     /** A take that is a LOSS rather than a purchase: no spend record, no observer. */

@@ -1,5 +1,7 @@
 package com.ziggfreed.common.commerce.fold;
 
+import java.util.function.Consumer;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -28,6 +30,14 @@ import com.ziggfreed.common.subject.Subject;
  * <p><b>An undefined wallet FAILS the payout</b>, so the shared issuance pass reports it and the
  * rest of the rewards still land; a wallet at its authored ceiling does NOT, because landing short
  * of a cap is a decision the content made rather than a failure.
+ *
+ * <p><b>Its receipt is what landed, never the authored amount</b> ({@link CurrencyEngine#creditLanded}):
+ * a credit the cap cut short is receipted at the part that went in, and one the cap cut to nothing
+ * is receipted not at all, so the toast a payout raises names what the wallet really gained. An item
+ * currency lands through the library's one delivery for items handed to a player (the bag with the
+ * game's pickup notice, the rest at the player's feet), so its row counts both parts and is marked
+ * {@link RewardSpec#asPickupNoticed() pickup-noticed}, like an {@code Item} reward's, and the corner
+ * feed does not repeat the game's own notice.
  *
  * <p><b>A failed payout is replayable</b>: {@link #retryCommand} answers the admin command line that
  * would credit the same wallet the same amount, so a consumer's retry queue hands it over on the
@@ -81,6 +91,18 @@ public final class CurrencyRewardKind implements RewardHandler {
 
     @Override
     public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject) throws Exception {
+        grant(spec, subject, KIND, row -> {
+        });
+    }
+
+    /**
+     * Credit the wallet {@code spec} names and receipt what landed (see the class note): {@code spec}
+     * itself when all of it did, the same row at the amount that landed when a cap cut it short, and
+     * nothing when it moved nothing.
+     */
+    @Override
+    public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject, @Nonnull String sourceId,
+            @Nonnull Consumer<RewardSpec> receipt) throws Exception {
         String currencyId = walletOf(spec);
         if (currencyId.isEmpty()) {
             throw new IllegalStateException("a reward of kind '" + KIND
@@ -97,7 +119,14 @@ public final class CurrencyRewardKind implements RewardHandler {
             throw new IllegalStateException("a reward of kind '" + KIND + "' pays the wallet '"
                     + currencyId + "', which nothing on this server defines");
         }
-        engine.credit(subject, currencyId, amount);
+        long landed = engine.creditLanded(subject, currencyId, amount);
+        if (landed <= 0L) {
+            // Nothing moved (a wallet already at its ceiling, or an item currency with no live player
+            // to hand it to), so nothing is receipted.
+            return;
+        }
+        RewardSpec row = landed == amount ? spec : spec.with(PARAM_AMOUNT, Long.toString(landed));
+        receipt.accept(def.isItemBacked() ? row.asPickupNoticed() : row);
     }
 
     /**
