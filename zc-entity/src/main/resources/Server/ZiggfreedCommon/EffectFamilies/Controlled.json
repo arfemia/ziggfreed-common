@@ -1,0 +1,9 @@
+{
+  "$Comment": "A foe held back: slowed, rooted, frozen or withered.",
+  "Includes": [
+    "Slowed",
+    "Rooted",
+    "Frozen",
+    "Withered"
+  ]
+}

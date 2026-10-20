@@ -1,0 +1,33 @@
+{
+  "$Comment": "Makes DamageResist_All_AllyLow conditional: A conditional resistance in whole percent points, added to its holder's every resistance but Fall while another player within 8 blocks is under half health.",
+  "Holder": [
+    {
+      "Id": "ZigPlayersNear",
+      "Radius": 8,
+      "Min": 1,
+      "Conditions": [
+        {
+          "Id": "ZigStatPercent",
+          "Stat": "Health",
+          "Below": 50
+        }
+      ]
+    }
+  ],
+  "Pays": {
+    "Onto": [
+      "DamageResist_Physical",
+      "DamageResist_Projectile",
+      "DamageResist_Fire",
+      "DamageResist_Ice",
+      "DamageResist_Lightning",
+      "DamageResist_Water",
+      "DamageResist_Wind",
+      "DamageResist_Earth",
+      "DamageResist_Poison",
+      "DamageResist_Arcane",
+      "DamageResist_Void",
+      "DamageResist_Life"
+    ]
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "$Comment": "Makes Damage_WhileLoneFoe conditional: A conditional damage bonus in whole percent points (10 is +10%) on every hit its holder deals while only one foe is within 10 blocks.",
+  "Holder": [
+    {
+      "Id": "ZigFoesNear",
+      "Radius": 10,
+      "Min": 1,
+      "Max": 1
+    }
+  ],
+  "Pays": {
+    "Damage": {}
+  }
+}

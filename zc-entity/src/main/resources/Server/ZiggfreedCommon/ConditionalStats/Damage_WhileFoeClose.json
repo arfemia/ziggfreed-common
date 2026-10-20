@@ -1,0 +1,13 @@
+{
+  "$Comment": "Makes Damage_WhileFoeClose conditional: A conditional damage bonus in whole percent points (10 is +10%) on every hit its holder deals while a foe is within 4 blocks.",
+  "Holder": [
+    {
+      "Id": "ZigFoesNear",
+      "Radius": 4,
+      "Min": 1
+    }
+  ],
+  "Pays": {
+    "Damage": {}
+  }
+}

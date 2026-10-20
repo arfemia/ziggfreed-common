@@ -1,0 +1,9 @@
+{
+  "$Comment": "Stuns.",
+  "Effects": [
+    "Stun",
+    "Bomb_Explode_Stun",
+    "Hazard_Electric_Stun",
+    "Hit_Interrupt_Stunned"
+  ]
+}

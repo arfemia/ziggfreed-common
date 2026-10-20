@@ -1,14 +1,21 @@
 package com.ziggfreed.common.damage.weakspot;
 
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.component.ComponentAccessor;
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.meta.MetaKey;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.stats.StatIndexCache;
+import com.ziggfreed.common.stats.damage.TypedDamageBonuses;
 
 /**
  * Weak spots (R628, R683, R708): a bonus that rides on top of a hit where the hit really lands on a weak spot,
@@ -16,9 +23,14 @@ import com.ziggfreed.common.stats.StatIndexCache;
  * the hit is a weak spot. A hit is a weak spot when it lands inside the target's {@code Head} detail box (the
  * model's own {@code DetailBoxes}), from behind the target (the rear arc the game's own dagger backstab tests),
  * while the target carries a window effect (one tagged {@value #TAG} in its own native {@code Tags}, R751, or one
- * the settings list for vanilla's own: a stun, a flinch's lockout, a freeze, a boss broken down), or by a rule a
- * {@code WeakSpot} grant adds for its holder ({@link WeakSpotGrant}). {@link WeakSpotSystem} applies it; the
+ * the settings list for vanilla's own: a stun, a flinch's lockout, a freeze, a boss broken down), or on a target at
+ * or under the attacker's {@value #FOE_LOW_STAT} percent of its health. {@link WeakSpotSystem} applies it; the
  * settings are {@code Server/ZiggfreedCommon/WeakSpotSettings/Default.json} ({@link WeakSpotSettingsAsset}).
+ *
+ * <p><b>What a weak spot pays</b> (R757, every number a stat): {@value #DAMAGE_STAT}, plus each way's own stat when the
+ * hit is a weak spot that way ({@value #HEAD_STAT} on the head, {@value #BACK_STAT} from behind,
+ * {@value #STAGGERED_STAT} in a window), plus every stat a consumer registers as a source ({@link #registerSource}: a
+ * weapon skill's own bonus, counted on the hits its route names), the whole held to {@value #CEILING_STAT}.
  *
  * <p><b>Never two weak-spot bonuses.</b> A vanilla weapon whose damage interaction carries a {@code Head}
  * {@code TargetedDamage} (the shortbow's full draw) or a rear {@code AngledDamage} with damage of its own (a dagger's
@@ -37,6 +49,28 @@ public final class WeakSpots {
 
     /** The most {@link #DAMAGE_STAT} pays, whole percent points; its asset's Max (75, R708) is the default. */
     public static final String CEILING_STAT = "WeakSpotMax";
+
+    /** More weak-spot bonus on a hit to the head, whole percent points. */
+    public static final String HEAD_STAT = "WeakSpotDamage_Head";
+
+    /** More weak-spot bonus on a hit from behind, whole percent points. */
+    public static final String BACK_STAT = "WeakSpotDamage_Back";
+
+    /** More weak-spot bonus on a hit inside a window (a stunned, frozen, flinching or launched foe), whole points. */
+    public static final String STAGGERED_STAT = "WeakSpotDamage_Staggered";
+
+    /**
+     * The health, in percent of its whole, at or under which a target takes the attacker's every hit as a weak spot
+     * (8 is a foe at 8% health or less). Base 0: no foe is low enough until it is raised.
+     */
+    public static final String FOE_LOW_STAT = "WeakSpot_FoeLow";
+
+    /** One registered weak-spot source: a stat counted on the hits its route names. */
+    public record Source(@Nonnull String statId, @Nullable TypedDamageBonuses.Route route) {
+    }
+
+    /** The registered sources, in registration order. */
+    private static final List<Source> SOURCES = new CopyOnWriteArrayList<>();
 
     /** The default ceiling, mirroring the shipped {@code WeakSpotMax.json}'s Max, for when the stat cannot be read. */
     public static final double FALLBACK_CEILING_PERCENT = 75.0;
@@ -107,6 +141,48 @@ public final class WeakSpots {
     /** The attacker's weak-spot bonus in whole points, off the stat's maximum; 0 when it is not on the entity. */
     public static double damagePoints(@Nonnull EntityStatMap stats) {
         return readMax(stats, DAMAGE_STAT, 0.0);
+    }
+
+    /** A stat's reading in whole points, off its maximum; 0 when it is not on the entity. */
+    public static double pointsOf(@Nonnull EntityStatMap stats, @Nonnull String statId) {
+        return readMax(stats, statId, 0.0);
+    }
+
+    /**
+     * Count {@code statId} (whole percent points) toward every weak spot of its holder on the hits {@code route}
+     * names (every hit when null): a weapon skill's own weak-spot bonus, counted while its weapon counts. The same
+     * stat again replaces the earlier registration. Set at setup.
+     */
+    public static void registerSource(@Nonnull String statId, @Nullable TypedDamageBonuses.Route route) {
+        if (statId.isBlank()) {
+            return;
+        }
+        SOURCES.removeIf(s -> s.statId().equalsIgnoreCase(statId));
+        SOURCES.add(new Source(statId, route));
+    }
+
+    /** Does the attacker hold any registered source's stat above 0 (before any route is asked)? */
+    public static boolean anySource(@Nonnull EntityStatMap stats) {
+        for (Source source : SOURCES) {
+            if (readMax(stats, source.statId(), 0.0) > 0.0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The registered sources' points on this hit: each nonzero one whose route names it. */
+    public static double sourcePoints(@Nonnull ComponentAccessor<EntityStore> accessor,
+            @Nonnull Ref<EntityStore> attacker, @Nonnull Damage damage, @Nonnull EntityStatMap stats) {
+        double sum = 0.0;
+        for (Source source : SOURCES) {
+            double points = readMax(stats, source.statId(), 0.0);
+            if (points == 0.0 || (source.route() != null && !source.route().matches(accessor, attacker, damage))) {
+                continue;
+            }
+            sum += points;
+        }
+        return sum;
     }
 
     /**

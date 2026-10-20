@@ -1,0 +1,8 @@
+{
+  "$Comment": "Weak-spot bonus in whole percent points, added to WeakSpotDamage on a weak spot to the head, under WeakSpotMax. Any item's StatModifiers raise it like any stat. Base 0.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

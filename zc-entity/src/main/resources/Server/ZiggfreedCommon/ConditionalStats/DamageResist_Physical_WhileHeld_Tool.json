@@ -1,0 +1,14 @@
+{
+  "$Comment": "Makes DamageResist_Physical_WhileHeld_Tool conditional: A conditional resistance in whole percent points, added to its holder's Physical resistance while a gathering tool (a pickaxe, a hatchet) is in their hand.",
+  "Holder": [
+    {
+      "Id": "ZigHolding",
+      "Tool": true
+    }
+  ],
+  "Pays": {
+    "Onto": [
+      "DamageResist_Physical"
+    ]
+  }
+}

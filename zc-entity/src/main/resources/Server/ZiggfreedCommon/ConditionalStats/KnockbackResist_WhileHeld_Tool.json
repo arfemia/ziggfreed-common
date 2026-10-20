@@ -1,0 +1,14 @@
+{
+  "$Comment": "Makes KnockbackResist_WhileHeld_Tool conditional: A conditional knockback resistance in whole percent points, added to its holder's KnockbackResist while a gathering tool is in their hand.",
+  "Holder": [
+    {
+      "Id": "ZigHolding",
+      "Tool": true
+    }
+  ],
+  "Pays": {
+    "Onto": [
+      "KnockbackResist"
+    ]
+  }
+}

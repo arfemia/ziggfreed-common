@@ -18,6 +18,7 @@ import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatsSystems;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.stats.condition.ConditionalStatSystems;
 
 /**
  * Every tick, for every living player, keeps their damage resistance effects in step with their
@@ -37,7 +38,9 @@ public final class DamageResistSyncSystem extends EntityTickingSystem<EntityStor
 
     @Nonnull
     private final Set<Dependency<EntityStore>> dependencies = Set.of(
-            new SystemDependency<>(Order.AFTER, EntityStatsSystems.Recalculate.class));
+            new SystemDependency<>(Order.AFTER, EntityStatsSystems.Recalculate.class),
+            // A conditional resistance (zc-entity's Onto fold) is written there, so it counts the same tick.
+            new SystemDependency<>(Order.AFTER, ConditionalStatSystems.HolderPass.class));
 
     @Nonnull
     @Override

@@ -1,0 +1,9 @@
+{
+  "$Comment": "Makes Damage_WhileFar conditional: A conditional damage bonus in whole percent points (10 is +10%) on its holder's hits on a foe 8 or more blocks away.",
+  "Hit": {
+    "MinDistance": 8
+  },
+  "Pays": {
+    "Damage": {}
+  }
+}

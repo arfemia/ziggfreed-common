@@ -1,0 +1,9 @@
+{
+  "$Comment": "Makes HealingPower_OnSelf conditional: A conditional healing bonus in whole percent points (10 heals a tenth more) on the heals its holder gives to themselves.",
+  "Hit": {
+    "OnSelf": true
+  },
+  "Pays": {
+    "Healing": true
+  }
+}

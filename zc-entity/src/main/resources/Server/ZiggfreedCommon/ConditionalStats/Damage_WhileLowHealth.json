@@ -1,0 +1,13 @@
+{
+  "$Comment": "Makes Damage_WhileLowHealth conditional: A conditional damage bonus in whole percent points (10 is +10%) on every hit its holder deals while they are under half health.",
+  "Holder": [
+    {
+      "Id": "ZigStatPercent",
+      "Stat": "Health",
+      "Below": 50
+    }
+  ],
+  "Pays": {
+    "Damage": {}
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "$Comment": "A damage bonus in whole percent points on the damage-over-time ticks of the effects its holder puts on (burns, poisons, bleeds). Any item's StatModifiers raise it like any stat. Base 0.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

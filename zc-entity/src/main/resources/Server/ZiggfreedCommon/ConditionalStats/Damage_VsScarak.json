@@ -1,0 +1,15 @@
+{
+  "$Comment": "Makes Damage_VsScarak conditional: A conditional damage bonus in whole percent points (10 is +10%) on its holder's hits on a creature of the Scarak family (the NPC group Zig_Foe_Scarak). Max holds it at +50% in all, however many skill trees and pieces of gear raise it; change Max to move that limit.",
+  "Target": [
+    {
+      "Id": "ZigFoeFamily",
+      "Groups": [
+        "Zig_Foe_Scarak"
+      ]
+    }
+  ],
+  "Max": 50,
+  "Pays": {
+    "Damage": {}
+  }
+}

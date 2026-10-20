@@ -1,0 +1,10 @@
+{
+  "$Comment": "Roots. Whoever put one on adds EffectDuration_Root seconds as it lands.",
+  "Effects": [
+    "Root",
+    "Dungeon_Goblin_Mace_Slam_Rooted"
+  ],
+  "Duration": {
+    "AddedBy": "EffectDuration_Root"
+  }
+}

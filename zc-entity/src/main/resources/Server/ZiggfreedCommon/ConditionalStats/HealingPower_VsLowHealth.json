@@ -1,0 +1,13 @@
+{
+  "$Comment": "Makes HealingPower_VsLowHealth conditional: A conditional healing bonus in whole percent points (10 heals a tenth more) on the heals its holder gives to a target under half health.",
+  "Target": [
+    {
+      "Id": "ZigStatPercent",
+      "Stat": "Health",
+      "Below": 50
+    }
+  ],
+  "Pays": {
+    "Healing": true
+  }
+}

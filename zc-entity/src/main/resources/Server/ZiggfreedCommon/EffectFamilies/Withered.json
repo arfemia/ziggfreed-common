@@ -1,0 +1,9 @@
+{
+  "$Comment": "Wither: a foe it weakens and slows. Its length is EffectDuration_Slow's, with the slows.",
+  "Effects": [
+    "Wither"
+  ],
+  "Duration": {
+    "AddedBy": "EffectDuration_Slow"
+  }
+}

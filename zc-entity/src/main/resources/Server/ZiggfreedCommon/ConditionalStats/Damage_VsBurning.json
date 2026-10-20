@@ -1,0 +1,12 @@
+{
+  "$Comment": "Makes Damage_VsBurning conditional: A conditional damage bonus in whole percent points (10 is +10%) on its holder's hits on a burning foe.",
+  "Target": [
+    {
+      "Id": "ZigEffectFamily",
+      "Family": "Burning"
+    }
+  ],
+  "Pays": {
+    "Damage": {}
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "$Comment": "What holds a player back: stuns, roots, freezes, slows and flinches. Whoever carries one takes EffectTaken_Control percent off it as it lands, never past 80.",
+  "Effects": [
+    "Hit_Interrupt_Flinch"
+  ],
+  "Includes": [
+    "Stunned",
+    "Rooted",
+    "Frozen",
+    "Slowed"
+  ],
+  "Duration": {
+    "CutBy": "EffectTaken_Control",
+    "CutCap": 80
+  }
+}

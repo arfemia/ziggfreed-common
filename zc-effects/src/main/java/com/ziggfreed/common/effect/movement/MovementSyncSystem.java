@@ -18,6 +18,7 @@ import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatsSystems;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.stats.condition.ConditionalStatSystems;
 
 /**
  * Every tick, for every living player, keeps their speed and knockback effects in step with their movement stats
@@ -35,7 +36,9 @@ public final class MovementSyncSystem extends EntityTickingSystem<EntityStore> {
 
     @Nonnull
     private final Set<Dependency<EntityStore>> dependencies = Set.of(
-            new SystemDependency<>(Order.AFTER, EntityStatsSystems.Recalculate.class));
+            new SystemDependency<>(Order.AFTER, EntityStatsSystems.Recalculate.class),
+            // A conditional knockback stat (zc-entity's Onto fold) is written there, so it counts the same tick.
+            new SystemDependency<>(Order.AFTER, ConditionalStatSystems.HolderPass.class));
 
     @Nonnull
     @Override

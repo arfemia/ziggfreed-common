@@ -1,0 +1,9 @@
+{
+  "$Comment": "Makes Damage_WhileAbove conditional: A conditional damage bonus in whole percent points (10 is +10%) on its holder's hits on a foe at least 3 blocks below them.",
+  "Hit": {
+    "MinHeightAbove": 3
+  },
+  "Pays": {
+    "Damage": {}
+  }
+}

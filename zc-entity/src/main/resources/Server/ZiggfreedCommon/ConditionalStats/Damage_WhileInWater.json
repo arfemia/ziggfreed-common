@@ -1,0 +1,26 @@
+{
+  "$Comment": "Makes Damage_WhileInWater conditional: A conditional damage bonus in whole percent points (10 is +10%) on its holder's hits on a foe in water while they are in water too.",
+  "Holder": [
+    {
+      "Id": "InFluid",
+      "FluidIds": [
+        "Water_Source",
+        "Water",
+        "Water_Finite"
+      ]
+    }
+  ],
+  "Target": [
+    {
+      "Id": "InFluid",
+      "FluidIds": [
+        "Water_Source",
+        "Water",
+        "Water_Finite"
+      ]
+    }
+  ],
+  "Pays": {
+    "Damage": {}
+  }
+}

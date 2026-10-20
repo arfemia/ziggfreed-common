@@ -1,0 +1,10 @@
+{
+  "$Comment": "Makes Damage_PerFoeNear conditional: A conditional damage bonus in whole percent points (10 is +10%) on every hit its holder deals while foes are near: paid once for each foe within 8 blocks, up to three.",
+  "PerFoe": {
+    "Radius": 8,
+    "UpTo": 3
+  },
+  "Pays": {
+    "Damage": {}
+  }
+}

@@ -126,7 +126,6 @@ grant.amount.less = -{0, number}
 grant.amount.more.percent = +{0, number}%
 grant.amount.less.percent = -{0, number}%
 grant.stat.row = {0}: {1}
-grant.kind.weakspot = More of your hits land as weak spots
 grant.other = A bonus of its own kind
 
 # The Claims tab's waiting row for a track with a tree: the button that opens it.

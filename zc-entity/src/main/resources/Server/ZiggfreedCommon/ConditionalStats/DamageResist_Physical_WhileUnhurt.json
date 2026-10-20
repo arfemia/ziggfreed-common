@@ -1,0 +1,14 @@
+{
+  "$Comment": "Makes DamageResist_Physical_WhileUnhurt conditional: A conditional resistance in whole percent points, added to its holder's Physical resistance once no hit has landed on them for 10 seconds.",
+  "Holder": [
+    {
+      "Id": "NoDamageTaken",
+      "Delay": 10
+    }
+  ],
+  "Pays": {
+    "Onto": [
+      "DamageResist_Physical"
+    ]
+  }
+}

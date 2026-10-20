@@ -1,0 +1,14 @@
+{
+  "$Comment": "Makes DamageResist_Fall_WhileHigh conditional: A conditional resistance in whole percent points, added to its holder's Fall resistance while their feet are above height 120.",
+  "Holder": [
+    {
+      "Id": "ZigHeight",
+      "Above": 120
+    }
+  ],
+  "Pays": {
+    "Onto": [
+      "DamageResist_Fall"
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "$Comment": "Freezes. Whoever put one on adds EffectDuration_Freeze seconds as it lands.",
+  "Effects": [
+    "Freeze",
+    "Ability_Frost_Freeze"
+  ],
+  "Duration": {
+    "AddedBy": "EffectDuration_Freeze"
+  }
+}

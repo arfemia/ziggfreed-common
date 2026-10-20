@@ -1,0 +1,13 @@
+{
+  "$Comment": "Makes Damage_WhileHighMana conditional: A conditional damage bonus in whole percent points (10 is +10%) on every hit its holder deals while their mana is over four fifths full.",
+  "Holder": [
+    {
+      "Id": "ZigStatPercent",
+      "Stat": "Mana",
+      "Above": 80
+    }
+  ],
+  "Pays": {
+    "Damage": {}
+  }
+}

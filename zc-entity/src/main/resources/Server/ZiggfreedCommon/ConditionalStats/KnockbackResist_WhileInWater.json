@@ -1,0 +1,18 @@
+{
+  "$Comment": "Makes KnockbackResist_WhileInWater conditional: A conditional knockback resistance in whole percent points, added to its holder's KnockbackResist while they are in water.",
+  "Holder": [
+    {
+      "Id": "InFluid",
+      "FluidIds": [
+        "Water_Source",
+        "Water",
+        "Water_Finite"
+      ]
+    }
+  ],
+  "Pays": {
+    "Onto": [
+      "KnockbackResist"
+    ]
+  }
+}

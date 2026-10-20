@@ -1,0 +1,14 @@
+{
+  "$Comment": "Makes KnockbackResist_HoldingBlock conditional: A conditional knockback resistance in whole percent points, added to its holder's KnockbackResist while the item in their hand is a block.",
+  "Holder": [
+    {
+      "Id": "ZigHolding",
+      "Block": true
+    }
+  ],
+  "Pays": {
+    "Onto": [
+      "KnockbackResist"
+    ]
+  }
+}

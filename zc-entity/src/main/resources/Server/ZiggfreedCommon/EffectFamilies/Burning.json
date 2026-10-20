@@ -1,0 +1,7 @@
+{
+  "$Comment": "Burning effects: vanilla's listed here, a mod's own through its ZigEffectFamily tag.",
+  "Effects": [
+    "Burn",
+    "Lava_Burn"
+  ]
+}

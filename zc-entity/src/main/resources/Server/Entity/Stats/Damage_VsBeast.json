@@ -1,0 +1,8 @@
+{
+  "$Comment": "A conditional damage bonus in whole percent points (10 is +10%) on its holder's hits on a creature of the Beasts family (the NPC group Zig_Foe_Beast). Any item's StatModifiers raise it like any stat. Base 0.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

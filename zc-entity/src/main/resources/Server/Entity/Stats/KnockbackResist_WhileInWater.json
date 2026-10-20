@@ -1,0 +1,8 @@
+{
+  "$Comment": "A conditional knockback resistance in whole percent points, added to its holder's KnockbackResist while they are in water. Any item's StatModifiers raise it like any stat. Base 0.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

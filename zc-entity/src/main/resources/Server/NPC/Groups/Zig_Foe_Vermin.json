@@ -1,0 +1,32 @@
+{
+  "$Comment": "The Vermin foe family: the rats, snakes, spiders and scorpions a foe-family bonus counts on. Bosses and elites never count, so every family excludes the game's boss and encounter groups and their role names, and so do the foes as strong as an elite (the Shadow Knight, the two larger Aberrant zombies and the Void Spawn); add a role to ExcludeRoles to take it out too.",
+  "IncludeGroups": [
+    "Vermin"
+  ],
+  "ExcludeGroups": [
+    "Goblin_Gobliterator_Boss_Group",
+    "Skeleton_Elite_Encounter_Target",
+    "Trork_Chieftain",
+    "Dungeon_Feastmaster_Group",
+    "Hunt_Predators",
+    "Bear_Voidtaken_Family"
+  ],
+  "ExcludeRoles": [
+    "*Boss*",
+    "*Elite*",
+    "*Gobliterator*",
+    "*Chieftain*",
+    "*Praetorian*",
+    "*Captain*",
+    "*Broodmother*",
+    "Goblin_Duke*",
+    "Goblin_Pilot*",
+    "Bear_Voidtaken*",
+    "Shadow_Knight",
+    "Zombie_Aberrant",
+    "Zombie_Aberrant_Big",
+    "Void_Spawn*",
+    "Cinematic_*",
+    "Tamed_*"
+  ]
+}

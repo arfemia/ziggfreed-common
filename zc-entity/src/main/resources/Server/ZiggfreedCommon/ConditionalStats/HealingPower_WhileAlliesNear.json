@@ -1,0 +1,13 @@
+{
+  "$Comment": "Makes HealingPower_WhileAlliesNear conditional: A conditional healing bonus in whole percent points (10 heals a tenth more) on the heals its holder gives while two or more other players are within 10 blocks.",
+  "Holder": [
+    {
+      "Id": "ZigPlayersNear",
+      "Radius": 10,
+      "Min": 2
+    }
+  ],
+  "Pays": {
+    "Healing": true
+  }
+}

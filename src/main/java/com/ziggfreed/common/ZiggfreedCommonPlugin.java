@@ -41,6 +41,7 @@ import com.ziggfreed.common.effect.NativeEffectUtil;
 import com.ziggfreed.common.effect.buff.BuffBootstrap;
 import com.ziggfreed.common.effect.control.ControlBootstrap;
 import com.ziggfreed.common.effect.costume.CostumeBootstrap;
+import com.ziggfreed.common.effect.duration.DurationBootstrap;
 import com.ziggfreed.common.effect.movement.MovementBootstrap;
 import com.ziggfreed.common.effect.outgoing.OutgoingBootstrap;
 import com.ziggfreed.common.effect.resist.ResistBootstrap;
@@ -106,6 +107,9 @@ import com.ziggfreed.common.settings.PlayerSettings;
 import com.ziggfreed.common.settings.page.SettingsBootstrap;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.shop.asset.ShopPoolConfig;
+import com.ziggfreed.common.stats.StatTypeCeiling;
+import com.ziggfreed.common.stats.condition.ConditionBootstrap;
+import com.ziggfreed.common.stats.condition.ConditionalStatValidator;
 import com.ziggfreed.common.stats.gearset.GearSetValidator;
 import com.ziggfreed.common.stats.gearset.GearSets;
 import com.ziggfreed.common.stats.gearset.ZigGearSetPiecesChangedEvent;
@@ -266,10 +270,14 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // The grant kinds a pick (and later a class or a perk) pays: Stat, a native stat modifier, into the
         // native grant union before any asset decodes.
         EntityBootstrap.registerGrants(this);
-        // Weak spots: the hit step (a headshot, a backstab, a foe in a stun, a freeze or a launch), the
-        // ZigGrounded condition that ends Zig_Airborne on landing and the WeakSpot grant kind, before any asset
-        // decodes; it orders itself after the use gate and the route step above.
+        // Weak spots: the hit step (a headshot, a backstab, a foe in a stun, a freeze or a launch, a foe low enough)
+        // and the ZigGrounded condition that ends Zig_Airborne on landing, before any asset decodes; it orders itself
+        // after the use gate and the route step above.
         WeakSpotBootstrap.install(this);
+        // Conditional stats (R757): the library's entity conditions into the engine's condition map, the holder pass,
+        // the first-hit record and the damage and healing terms a conditional stat pays through, before any asset
+        // decodes and after the route step it adds to.
+        ConditionBootstrap.install(this);
         registerGearSetSeams();
         CostumeBootstrap.registerCostumes(this);
         // Crowd control: the ZigStun, ZigTaunt, ZigAggroDrop and ZigAggroSuppress Types before any asset decodes,
@@ -281,6 +289,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // Per-type damage resistance: gear raising DamageResist_<Type> stats takes less of that type,
         // through a hidden native resistance effect kept in step with the stat every tick.
         ResistBootstrap.install(this);
+        // Effect length by stats: an effect family's Duration rule (a stat of whoever put the effect on, one of
+        // whoever carries it), read as each effect lands on a player or on something a player's hit just struck.
+        DurationBootstrap.install(this);
         // Speed and knockback: gear raising MoveSpeed or KnockbackResist moves the player faster or shrugs off
         // knockback, through one hidden native effect per channel kept in step with the stat every tick.
         MovementBootstrap.install(this);
@@ -698,7 +709,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
                     new BootAudit.Pass(DialogueAudit.LOG_LABEL, DialogueAudit::claimLateFindings),
                     new BootAudit.Pass(ReputationValidator.LOG_LABEL, ReputationValidator::audit),
                     new BootAudit.Pass(TrackValidator.LOG_LABEL, TrackValidator::audit),
-                    new BootAudit.Pass(TrainerAudit.LOG_LABEL, TrainerAudit::claimLateFindings))));
+                    new BootAudit.Pass(TrainerAudit.LOG_LABEL, TrainerAudit::claimLateFindings),
+                    new BootAudit.Pass(ConditionalStatValidator.LOG_LABEL, ConditionalStatValidator::audit),
+                    new BootAudit.Pass(StatTypeCeiling.LOG_LABEL, StatTypeCeiling::audit))));
         } catch (Throwable t) {
             SafeLog.warn("[boot] the boot checks could not be registered", t);
         }

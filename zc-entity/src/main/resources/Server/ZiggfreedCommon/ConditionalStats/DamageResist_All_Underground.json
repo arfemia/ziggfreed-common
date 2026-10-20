@@ -1,0 +1,25 @@
+{
+  "$Comment": "Makes DamageResist_All_Underground conditional: A conditional resistance in whole percent points, added to its holder's every resistance but Fall while a block is over their head (underground, in a cave).",
+  "Holder": [
+    {
+      "Id": "ZigOpenSky",
+      "Inverse": true
+    }
+  ],
+  "Pays": {
+    "Onto": [
+      "DamageResist_Physical",
+      "DamageResist_Projectile",
+      "DamageResist_Fire",
+      "DamageResist_Ice",
+      "DamageResist_Lightning",
+      "DamageResist_Water",
+      "DamageResist_Wind",
+      "DamageResist_Earth",
+      "DamageResist_Poison",
+      "DamageResist_Arcane",
+      "DamageResist_Void",
+      "DamageResist_Life"
+    ]
+  }
+}

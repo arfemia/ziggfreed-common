@@ -17,6 +17,10 @@ import com.ziggfreed.common.camera.CameraSequenceAsset;
 import com.ziggfreed.common.damage.HitTags;
 import com.ziggfreed.common.damage.weakspot.WeakSpotSettingsAsset;
 import com.ziggfreed.common.damage.weakspot.WeakSpotSettingsConfig;
+import com.ziggfreed.common.stats.condition.ConditionalStatAsset;
+import com.ziggfreed.common.stats.condition.ConditionalStatConfig;
+import com.ziggfreed.common.stats.condition.EffectFamilyAsset;
+import com.ziggfreed.common.stats.condition.EffectFamilyConfig;
 import com.ziggfreed.common.dialogue.style.DialogueOptionThemeConfig;
 import com.ziggfreed.common.dialogue.asset.DialogueAssetStore;
 import com.ziggfreed.common.dialogue.asset.DialogueExtensionAsset;
@@ -1165,6 +1169,33 @@ public final class FrameworkAssetRegistrar {
                     WeakSpotSettingsConfig.reloadOwner();
                 });
 
+        // --- Effect families (Pattern A) - one family of effects a conditional stat or an effect stat names as one
+        //     (Burning, Slowed, Controlled) per file: the game's own effects it lists and the families it includes;
+        //     a mod's own effect joins through its ZigEffectFamily tag in its own file. The library ships its
+        //     families. Owner file mods/ziggfreedcommon/effect-families.json, re-read on this same event. ---
+        AssetStoreRegistrar.registerStore(EffectFamilyAsset.class,
+                new DefaultAssetMap<String, EffectFamilyAsset>(), EffectFamilyAsset.TYPE_ROOT,
+                EffectFamilyAsset::getId, EffectFamilyAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, EffectFamilyAsset.class,
+                (LoadedAssetsEvent<String, EffectFamilyAsset, DefaultAssetMap<String, EffectFamilyAsset>> ev) -> {
+                    EffectFamilyConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    EffectFamilyConfig.reloadOwner();
+                });
+
+        // --- Conditional stats (Pattern A) - what makes one native entity stat a conditional one (R757): the
+        //     conditions asked of its holder, its target and the hit, and what it pays into (a damage percent, a
+        //     healing percent, a fold onto other stats). The library ships its own families' files; a consumer
+        //     ships its own. Owner file mods/ziggfreedcommon/conditional-stats.json, re-read on this same event;
+        //     every merge rebuilds the runtime's view. ---
+        AssetStoreRegistrar.registerStore(ConditionalStatAsset.class,
+                new DefaultAssetMap<String, ConditionalStatAsset>(), ConditionalStatAsset.TYPE_ROOT,
+                ConditionalStatAsset::getId, ConditionalStatAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, ConditionalStatAsset.class,
+                (LoadedAssetsEvent<String, ConditionalStatAsset, DefaultAssetMap<String, ConditionalStatAsset>> ev) -> {
+                    ConditionalStatConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    ConditionalStatConfig.reloadOwner();
+                });
+
         // --- Stats (Pattern A) - one stat the player stat store keeps per file, keyed by the file name
         //     (the tally key every player's record files it under): its name, what its number means, how
         //     it reads, the moments it counts and its breakdown. The library ships its own (Mob_Kills,
@@ -1242,6 +1273,8 @@ public final class FrameworkAssetRegistrar {
                         + "Boosts (owner file mods/ziggfreedcommon/boosts.json), "
                         + "BoostSettings (owner file mods/ziggfreedcommon/boost-settings.json), "
                         + "WeakSpotSettings (owner file mods/ziggfreedcommon/weak-spots.json), "
+                        + "EffectFamilies (owner file mods/ziggfreedcommon/effect-families.json), "
+                        + "ConditionalStats (owner file mods/ziggfreedcommon/conditional-stats.json), "
                         + "Stats (owner file mods/ziggfreedcommon/stats.json)).");
     }
 }

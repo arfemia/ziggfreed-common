@@ -44,7 +44,30 @@ public final class HealthUtil {
     /** The lowest healing power that counts: at -100 a heal gives nothing, never harm. */
     public static final double MIN_HEALING_POWER = -100.0;
 
+    /**
+     * Healing power a module works out for one heal (a conditional healing stat read against the heal's target), in
+     * whole percent points beside {@value #HEALING_POWER_STAT}. Asked only for a heal with a healer; answers 0 when
+     * nothing applies and never throws.
+     */
+    @FunctionalInterface
+    public interface HealingTerm {
+        double points(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> healer,
+                @Nonnull Ref<EntityStore> target);
+    }
+
+    /** The one term, or null for none (no conditional healing on a server whose modules add none). */
+    @Nullable
+    private static volatile HealingTerm healingTerm;
+
     private HealthUtil() {
+    }
+
+    /**
+     * Install the one {@link HealingTerm} (zc-entity's conditional stats fill it at setup); null removes it. Set once,
+     * at setup.
+     */
+    public static void installHealingTerm(@Nullable HealingTerm term) {
+        healingTerm = term;
     }
 
     /**
@@ -95,7 +118,23 @@ public final class HealthUtil {
         if (amount <= 0f) {
             return false;
         }
-        return heal(store, target, scaledHeal(amount, healingPower(store, healer)));
+        return heal(store, target, scaledHeal(amount, healingPower(store, healer) + termPoints(store, healer, target)));
+    }
+
+    /** The installed term's points for a heal by {@code healer} on {@code target}; 0 with no healer or no term. */
+    private static double termPoints(@Nonnull Store<EntityStore> store, @Nullable Ref<EntityStore> healer,
+            @Nonnull Ref<EntityStore> target) {
+        HealingTerm term = healingTerm;
+        if (term == null || healer == null || !healer.isValid()) {
+            return 0.0;
+        }
+        try {
+            double points = term.points(store, healer, target);
+            return Double.isFinite(points) ? points : 0.0;
+        } catch (Throwable t) {
+            warn("healingTerm", t);
+            return 0.0;
+        }
     }
 
     /**

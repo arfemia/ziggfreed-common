@@ -1,6 +1,5 @@
 package com.ziggfreed.common.damage.weakspot;
 
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -22,11 +21,8 @@ import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.math.shape.Box;
 import com.hypixel.hytale.protocol.CombatTextUpdate;
-import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
 import com.hypixel.hytale.server.core.asset.type.model.config.DetailBox;
 import com.hypixel.hytale.server.core.asset.util.ColorParseUtil;
-import com.hypixel.hytale.server.core.entity.effect.ActiveEntityEffect;
-import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.hypixel.hytale.server.core.modules.entity.component.BoundingBox;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
@@ -51,13 +47,13 @@ import com.ziggfreed.common.util.SafeLog;
  * already cancelled), so the bonus multiplies the whole hit, flats included, on top as a crit does. A consumer
  * whose fold must see the weak-spot amount (a lifesteal read off the hit) orders itself {@code AFTER} this class.
  *
- * <p><b>Cost.</b> A hit by an entity whose {@code WeakSpotDamage} is 0 (every one until something raises it) pays
- * one component read and one stat read and returns. A damage-over-time tick never asks. Only a nonzero attacker
+ * <p><b>Cost.</b> A hit by an entity whose weak-spot stats are all 0 (every one until something raises them) pays
+ * one component read and a stat read each and returns. A damage-over-time tick never asks. Only a nonzero attacker
  * asks the ways in, cheapest first: vanilla's own headshot or backstab branch (a meta read, decided once a hit and
- * applied to each of its causes), the target's window effects (one pass
- * over its active effects against a table), the rear arc (two transform reads), the head box (the target's
- * detail boxes), and last the holder's {@code WeakSpot} grant rules. A weak spot puts {@link WeakSpots#hitKey} on the
- * hit and shows the attacker the combat text.
+ * applied to each of its causes), the target's window effects (one pass over its active effects against a table), the
+ * rear arc (two transform reads), the head box (the target's detail boxes), and last the target's health against the
+ * attacker's {@code WeakSpot_FoeLow}; once the hit is a weak spot, only a way whose own stat pays more is asked. A weak
+ * spot puts {@link WeakSpots#hitKey} on the hit and shows the attacker the combat text.
  */
 public final class WeakSpotSystem extends DamageEventSystem {
 
@@ -106,24 +102,37 @@ public final class WeakSpotSystem extends DamageEventSystem {
             if (stats == null) {
                 return;
             }
-            double points = WeakSpots.damagePoints(stats);
-            if (points <= 0.0) {
-                return;
-            }
             Ref<EntityStore> target = chunk.getReferenceTo(index);
             // Read before the cancel check: only a hit's first damage names vanilla's branch, and every later damage
             // of the same hit (another cause) takes the same answer, even when the first was refused.
             VanillaWeakSpots.Paid vanilla = VanillaWeakSpots.paidForHit(damage, target);
+            Ways ways = Ways.of(stats);
+            if (ways.base() <= 0.0 && !ways.anyWay() && !ways.sourcesMayPay()) {
+                return;
+            }
             if (damage.isCancelled() || damage.getAmount() <= 0f
                     || target.equals(attacker) || !TypedDamageBonuses.attackerAllowed(store, attacker)) {
                 return;
             }
+            double base = ways.base() + WeakSpots.sourcePoints(store, attacker, damage, stats);
             WeakSpotSettingsAsset settings = WeakSpotSettingsConfig.getInstance().settings();
             // Vanilla's own headshot or backstab branch is a weak spot (when that way counts here) and, either way,
             // the bonus it already paid counts against ours: one weak-spot bonus a hit, the larger of the two.
-            boolean vanillaWay = vanilla != null && ((vanilla.head() && settings.headEnabled())
-                    || (vanilla.backstab() && settings.backstabEnabled()));
-            if (!vanillaWay && !isWeakSpot(store, damage, target, attacker, settings)) {
+            boolean vanillaHead = vanilla != null && vanilla.head() && settings.headEnabled();
+            boolean vanillaBack = vanilla != null && vanilla.backstab() && settings.backstabEnabled();
+            int found = waysOf(store, damage, target, attacker, settings, ways, vanillaHead || vanillaBack);
+            if (vanillaHead) {
+                found |= HEAD;
+            }
+            if (vanillaBack) {
+                found |= BACK;
+            }
+            if (found == 0) {
+                return;
+            }
+            double points = base + ((found & HEAD) != 0 ? ways.head() : 0.0) + ((found & BACK) != 0 ? ways.back() : 0.0)
+                    + ((found & WINDOW) != 0 ? ways.staggered() : 0.0);
+            if (points <= 0.0) {
                 return;
             }
             double ours = WeakSpots.bonusFraction(points, WeakSpots.ceilingPercent(stats));
@@ -141,26 +150,76 @@ public final class WeakSpotSystem extends DamageEventSystem {
         }
     }
 
-    /** Is the hit a weak spot by any way the settings and the attacker's grants allow? */
-    private static boolean isWeakSpot(@Nonnull Store<EntityStore> store, @Nonnull Damage damage,
+    /** The hit is a weak spot through a window effect on the target. */
+    static final int WINDOW = 1;
+
+    /** The hit is a weak spot from behind. */
+    static final int BACK = 2;
+
+    /** The hit is a weak spot on the head. */
+    static final int HEAD = 4;
+
+    /** The hit is a weak spot on a target low enough for the attacker's {@code WeakSpot_FoeLow}. */
+    static final int LOW = 8;
+
+    /** The attacker's weak-spot stats for one hit, read once. */
+    record Ways(double base, double head, double back, double staggered, double foeLow, boolean sourcesMayPay) {
+
+        static Ways of(@Nonnull EntityStatMap stats) {
+            return new Ways(WeakSpots.damagePoints(stats), WeakSpots.pointsOf(stats, WeakSpots.HEAD_STAT),
+                    WeakSpots.pointsOf(stats, WeakSpots.BACK_STAT), WeakSpots.pointsOf(stats, WeakSpots.STAGGERED_STAT),
+                    WeakSpots.pointsOf(stats, WeakSpots.FOE_LOW_STAT), WeakSpots.anySource(stats));
+        }
+
+        /** Does a way of its own pay more on top (a head, back or window stat raised)? */
+        boolean anyWay() {
+            return head > 0.0 || back > 0.0 || staggered > 0.0;
+        }
+    }
+
+    /**
+     * The ways the hit is a weak spot, as a mask of {@link #WINDOW}, {@link #BACK}, {@link #HEAD} and {@link #LOW},
+     * cheapest first: once the hit is a weak spot (or {@code alreadyWeak}, vanilla's own branch), only a way that pays
+     * more of its own is asked.
+     */
+    private static int waysOf(@Nonnull Store<EntityStore> store, @Nonnull Damage damage,
             @Nonnull Ref<EntityStore> target, @Nonnull Ref<EntityStore> attacker,
-            @Nonnull WeakSpotSettingsAsset settings) {
-        if (WeakSpotWindows.openFor(store, target, attacker)) {
-            return true;
+            @Nonnull WeakSpotSettingsAsset settings, @Nonnull Ways ways, boolean alreadyWeak) {
+        int found = 0;
+        boolean weak = alreadyWeak;
+        if ((!weak || ways.staggered() > 0.0) && WeakSpotWindows.openFor(store, target, attacker)) {
+            found |= WINDOW;
+            weak = true;
         }
         TransformComponent targetAt = store.getComponent(target, TransformComponent.getComponentType());
-        if (targetAt != null && settings.backstabEnabled() && settings.backstabArc() > 0.0) {
+        if ((!weak || ways.back() > 0.0) && targetAt != null && settings.backstabEnabled()
+                && settings.backstabArc() > 0.0) {
             TransformComponent attackerAt = store.getComponent(attacker, TransformComponent.getComponentType());
             if (attackerAt != null && behind(attackerAt.getPosition().x, attackerAt.getPosition().z,
                     targetAt.getPosition().x, targetAt.getPosition().z, targetAt.getRotation().yaw(),
                     settings.backstabArc())) {
-                return true;
+                found |= BACK;
+                weak = true;
             }
         }
-        if (targetAt != null && settings.headEnabled() && inHead(store, damage, target, targetAt, settings.headMargin())) {
-            return true;
+        if ((!weak || ways.head() > 0.0) && targetAt != null && settings.headEnabled()
+                && inHead(store, damage, target, targetAt, settings.headMargin())) {
+            found |= HEAD;
+            weak = true;
         }
-        return byGrant(store, target, attacker);
+        if (!weak && ways.foeLow() > 0.0 && lowEnough(store, target, ways.foeLow())) {
+            found |= LOW;
+        }
+        return found;
+    }
+
+    /** Is the target at or under {@code percent} of its health? */
+    private static boolean lowEnough(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> target,
+            double percent) {
+        EntityStatMap targetStats = store.getComponent(target, EntityStatMap.getComponentType());
+        EntityStatValue health = targetStats == null ? null : targetStats.get(DefaultEntityStatTypes.getHealth());
+        return health != null && health.getMax() > 0f
+                && health.get() * 100.0 / health.getMax() <= Math.min(100.0, percent);
     }
 
     /** The hit's location inside one of the target's {@code Head} detail boxes, grown by {@code margin}. */
@@ -192,35 +251,6 @@ public final class WeakSpotSystem extends DamageEventSystem {
                 if (inside(hit.x, hit.y, hit.z, center.x + shape.min.x, center.y + shape.min.y, center.z + shape.min.z,
                         center.x + shape.max.x, center.y + shape.max.y, center.z + shape.max.z, margin)) {
                     return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    /** The attacker's {@code WeakSpot} grant rules: a foe low enough, or carrying a named effect. */
-    private static boolean byGrant(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> target,
-            @Nonnull Ref<EntityStore> attacker) {
-        WeakSpotGrantWriter.Rules rules = WeakSpotGrantWriter.rulesFor(store, attacker);
-        if (rules.isEmpty()) {
-            return false;
-        }
-        if (rules.healthBelow() > 0.0) {
-            EntityStatMap targetStats = store.getComponent(target, EntityStatMap.getComponentType());
-            EntityStatValue health = targetStats == null ? null : targetStats.get(DefaultEntityStatTypes.getHealth());
-            if (health != null && health.getMax() > 0f && health.get() * 100.0 / health.getMax() <= rules.healthBelow()) {
-                return true;
-            }
-        }
-        if (!rules.effects().isEmpty()) {
-            EffectControllerComponent ctrl = store.getComponent(target, EffectControllerComponent.getComponentType());
-            if (ctrl != null) {
-                for (ActiveEntityEffect active : ctrl.getActiveEffects().values()) {
-                    EntityEffect effect = EntityEffect.getAssetMap().getAsset(active.getEntityEffectIndex());
-                    if (effect != null && effect.getId() != null
-                            && rules.effects().contains(effect.getId().toLowerCase(Locale.ROOT))) {
-                        return true;
-                    }
                 }
             }
         }

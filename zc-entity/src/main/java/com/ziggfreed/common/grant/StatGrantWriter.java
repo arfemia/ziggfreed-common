@@ -18,6 +18,7 @@ import com.hypixel.hytale.server.core.modules.entitystats.modifier.Modifier;
 import com.hypixel.hytale.server.core.modules.entitystats.modifier.StaticModifier;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.stats.StatIndexCache;
+import com.ziggfreed.common.stats.condition.ConditionalStats;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -25,7 +26,8 @@ import com.ziggfreed.common.util.SafeLog;
  * amounts of every placement under that key summed (times how often each is held). It reads back every modifier it
  * finds under the owner's prefix on the entity's stat map (the map is saved with the entity, so what an earlier
  * session wrote is found too), plans the difference ({@link StatGrantPlan}) and writes only that, through the stat
- * map's keyed put and remove. World thread.
+ * map's keyed put and remove. The one key under an owner's prefix it never owns is the conditional fold's
+ * ({@code ConditionalStats.MODIFIER_PREFIX}, under {@code zigtrack:} for the rollback sweep). World thread.
  */
 public final class StatGrantWriter implements GrantWriter {
 
@@ -89,7 +91,9 @@ public final class StatGrantWriter implements GrantWriter {
             }
             List<String> keys = new ArrayList<>(modifiers.keySet());
             for (String key : keys) {
-                if (key == null || !key.startsWith(prefix)) {
+                // The conditional fold's Onto modifiers sit under zigtrack: for the 1.7.x rollback sweep (R755) but
+                // are its own, never a grant: a rebuild that took them off would leave them off until they change.
+                if (key == null || !key.startsWith(prefix) || ConditionalStats.writesKey(key)) {
                     continue;
                 }
                 out.put(new StatGrantPlan.Target(i, key), amountOf(modifiers.get(key)));

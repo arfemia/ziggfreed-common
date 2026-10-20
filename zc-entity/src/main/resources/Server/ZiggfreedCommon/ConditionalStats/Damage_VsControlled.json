@@ -1,0 +1,12 @@
+{
+  "$Comment": "Makes Damage_VsControlled conditional: A conditional damage bonus in whole percent points (10 is +10%) on its holder's hits on a slowed, rooted, frozen or withered foe.",
+  "Target": [
+    {
+      "Id": "ZigEffectFamily",
+      "Family": "Controlled"
+    }
+  ],
+  "Pays": {
+    "Damage": {}
+  }
+}

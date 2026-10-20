@@ -1,0 +1,21 @@
+{
+  "$Comment": "Makes DamageResist_Physical_WhileFoesBurning conditional: A conditional resistance in whole percent points, added to its holder's Physical resistance while three or more burning foes are within 6 blocks.",
+  "Holder": [
+    {
+      "Id": "ZigFoesNear",
+      "Radius": 6,
+      "Min": 3,
+      "Conditions": [
+        {
+          "Id": "ZigEffectFamily",
+          "Family": "Burning"
+        }
+      ]
+    }
+  ],
+  "Pays": {
+    "Onto": [
+      "DamageResist_Physical"
+    ]
+  }
+}

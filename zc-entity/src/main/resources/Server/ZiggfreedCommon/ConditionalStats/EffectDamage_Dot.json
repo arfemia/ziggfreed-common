@@ -1,0 +1,9 @@
+{
+  "$Comment": "Makes EffectDamage_Dot conditional: A damage bonus in whole percent points on the damage-over-time ticks of the effects its holder puts on (burns, poisons, bleeds).",
+  "Hit": {
+    "OverTime": true
+  },
+  "Pays": {
+    "Damage": {}
+  }
+}

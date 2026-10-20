@@ -1,0 +1,13 @@
+{
+  "$Comment": "Makes Damage_WhileStill conditional: A conditional damage bonus in whole percent points (10 is +10%) on every hit its holder deals while they have stood still a second.",
+  "Holder": [
+    {
+      "Id": "ZigMoving",
+      "Inverse": true
+    }
+  ],
+  "HoldSeconds": 1,
+  "Pays": {
+    "Damage": {}
+  }
+}

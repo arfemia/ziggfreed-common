@@ -1,0 +1,12 @@
+{
+  "$Comment": "Makes Damage_VsAirborne conditional: A conditional damage bonus in whole percent points (10 is +10%) on its holder's hits on a foe off the ground.",
+  "Target": [
+    {
+      "Id": "ZigGrounded",
+      "Inverse": true
+    }
+  ],
+  "Pays": {
+    "Damage": {}
+  }
+}

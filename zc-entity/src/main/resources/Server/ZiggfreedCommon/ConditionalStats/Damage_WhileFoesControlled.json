@@ -1,0 +1,19 @@
+{
+  "$Comment": "Makes Damage_WhileFoesControlled conditional: A conditional damage bonus in whole percent points (10 is +10%) on every hit its holder deals while three or more slowed foes are within 8 blocks.",
+  "Holder": [
+    {
+      "Id": "ZigFoesNear",
+      "Radius": 8,
+      "Min": 3,
+      "Conditions": [
+        {
+          "Id": "ZigEffectFamily",
+          "Family": "Slowed"
+        }
+      ]
+    }
+  ],
+  "Pays": {
+    "Damage": {}
+  }
+}

@@ -30,7 +30,8 @@ import com.ziggfreed.common.util.SafeLog;
  * The per-hit step of {@link TypedDamageBonuses}, for a player's hits. Two things join the engine's own
  * outgoing sum here ({@link NativeOutgoing#addToSum}), so they add to Enrage and every native percent line
  * rather than multiplying on top of them: the route sources a registered {@link TypedDamageBonuses.Route}
- * names (a tagged bomb's burst, a thrown spear), and on a DIRECT hit every source's flat stat
+ * names (a tagged bomb's burst, a thrown spear) with every registered {@link TypedDamageBonuses.RouteTerm}'s percent
+ * (the conditional stats, read against this hit's target), and on a DIRECT hit every source's flat stat
  * ({@link TypedDamageBonuses#flatFor}), as {@code (a + flat) * (1 + P)}. A damage-over-time tick
  * ({@code DamageSourceType.DoT}) takes no flat. The every-hit percent lines are not here: the engine
  * applies those itself, from the native effects zc-effects' {@code DamageBonusReconciler} keeps in step.
@@ -87,7 +88,8 @@ public final class TypedDamageBonusSystem extends DamageEventSystem {
             // A flat line lands on a direct hit, never on a damage-over-time tick (a burn's one-point
             // tick would otherwise take a weapon's whole flat each tick).
             boolean directHit = source.getSourceType() != DamageSourceType.DoT;
-            TypedDamageBonuses.Sums route = TypedDamageBonuses.routeSumsFor(store, attacker, damage, cause.getId());
+            TypedDamageBonuses.Sums route = TypedDamageBonuses.routeSumsFor(store, attacker,
+                    chunk.getReferenceTo(index), damage, cause.getId());
             double flat = directHit ? TypedDamageBonuses.flatFor(store, attacker, cause.getId()) + route.flat() : 0.0;
             double percentPoints = route.percentPoints();
             if (percentPoints == 0.0 && flat == 0.0) {

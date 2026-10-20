@@ -1,0 +1,8 @@
+{
+  "$Comment": "Percent taken, as it lands, off every effect of the Control family (stuns, roots, freezes, slows, flinches) on its holder, held to the family's cap so it never makes anyone immune. Any item's StatModifiers raise it like any stat. Base 0.",
+  "InitialValue": 0.0,
+  "Min": -100.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

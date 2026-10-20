@@ -57,7 +57,8 @@ import com.ziggfreed.common.track.source.TrackSourceConfig;
  * FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, PlayerSettings, AchievementCategories,
  * QuestCategories, AchievementMilestones, Almanac, ShopPools, EncounterBindings,
  * EncounterParticipation, EncounterRules, CalendarEvents, CalendarSpawns, Titles, Reputations, TrackCurves,
- * TrackCategories, TrackWorldRules, TrackPickOptions, TrackPickDecks, BoostSettings, WeakSpotSettings and Gateways. A
+ * TrackCategories, TrackWorldRules, TrackPickOptions, TrackPickDecks, BoostSettings, WeakSpotSettings, EffectFamilies,
+ * ConditionalStats and Gateways. A
  * store that gains a
  * top-level {@code Requires} moves from this paragraph into {@code GATED}, and into {@code OWNER_READERS}
  * or {@code NO_OWNER_FILE}.

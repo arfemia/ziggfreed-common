@@ -1,0 +1,8 @@
+{
+  "$Comment": "Seconds added, as it lands, to every effect its holder puts on of the Frozen family. Any item's StatModifiers raise it like any stat. Base 0.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

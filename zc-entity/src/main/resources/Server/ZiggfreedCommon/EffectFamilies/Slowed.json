@@ -1,0 +1,13 @@
+{
+  "$Comment": "Slows. Whoever put one on adds EffectDuration_Slow seconds as it lands.",
+  "Effects": [
+    "Slow",
+    "Ability_Frost_Slow",
+    "Ability_Frost_Chill",
+    "Two_Handed_Bow_Ability2_Slow",
+    "Slowness_Totem_Slow"
+  ],
+  "Duration": {
+    "AddedBy": "EffectDuration_Slow"
+  }
+}

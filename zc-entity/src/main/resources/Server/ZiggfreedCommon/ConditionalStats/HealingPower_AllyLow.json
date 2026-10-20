@@ -1,0 +1,20 @@
+{
+  "$Comment": "Makes HealingPower_AllyLow conditional: A conditional healing bonus in whole percent points (10 heals a tenth more) on the heals its holder gives while another player within 16 blocks is under half health.",
+  "Holder": [
+    {
+      "Id": "ZigPlayersNear",
+      "Radius": 16,
+      "Min": 1,
+      "Conditions": [
+        {
+          "Id": "ZigStatPercent",
+          "Stat": "Health",
+          "Below": 50
+        }
+      ]
+    }
+  ],
+  "Pays": {
+    "Healing": true
+  }
+}

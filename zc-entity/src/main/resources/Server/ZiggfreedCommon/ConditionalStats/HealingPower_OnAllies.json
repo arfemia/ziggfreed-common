@@ -1,0 +1,14 @@
+{
+  "$Comment": "Makes HealingPower_OnAllies conditional: A conditional healing bonus in whole percent points (10 heals a tenth more) on the heals its holder gives to another player, never to themselves.",
+  "Target": [
+    {
+      "Id": "IsPlayer"
+    }
+  ],
+  "Hit": {
+    "OnSelf": false
+  },
+  "Pays": {
+    "Healing": true
+  }
+}

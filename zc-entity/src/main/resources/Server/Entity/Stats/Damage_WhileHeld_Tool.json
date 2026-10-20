@@ -1,0 +1,8 @@
+{
+  "$Comment": "A conditional damage bonus in whole percent points (10 is +10%) on every hit its holder deals while a gathering tool (a pickaxe, a hatchet) is in their hand. Any item's StatModifiers raise it like any stat. Base 0.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

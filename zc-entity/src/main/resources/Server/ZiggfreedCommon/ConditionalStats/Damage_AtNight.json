@@ -1,0 +1,11 @@
+{
+  "$Comment": "Makes Damage_AtNight conditional: A conditional damage bonus in whole percent points (10 is +10%) on every hit its holder deals while it is night where they stand.",
+  "Holder": [
+    {
+      "Id": "ZigNight"
+    }
+  ],
+  "Pays": {
+    "Damage": {}
+  }
+}

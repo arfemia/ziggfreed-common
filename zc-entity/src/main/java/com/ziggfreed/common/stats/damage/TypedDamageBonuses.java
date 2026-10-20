@@ -8,6 +8,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 
@@ -45,7 +46,10 @@ import com.ziggfreed.common.stats.StatIndexCache;
  * <p><b>Route sources</b> ({@link #registerRouteSource}) count only on the hits a {@link Route} names (a
  * hit's {@code Tags.Hit} value, a projectile): a line that belongs to how a hit was dealt rather than to
  * what the attacker holds. {@link TypedDamageBonusSystem} adds them per hit into the same sum the engine
- * built ({@link NativeOutgoing#addToSum}), so they add to Enrage rather than multiply on top of it.
+ * built ({@link NativeOutgoing#addToSum}), so they add to Enrage rather than multiply on top of it. A
+ * {@link RouteTerm} ({@link #registerRouteTerm}) is the same per hit for a percent a consumer works out against the
+ * hit's target (the library's conditional stats), held with the route lines under the ceiling; {@link #countsOn} tells
+ * such a term whether another stat's own line counts on the hit.
  *
  * <p>{@link #apply} is the one arithmetic, shared by any tooltip that prints the number a hit will deal.
  */
@@ -117,6 +121,19 @@ public final class TypedDamageBonuses {
         }
     }
 
+    /**
+     * A percent a consumer works out per hit (a conditional stat read against the hit's target, the library's own
+     * {@code ConditionalStats}), added by the route step beside the route sources and held with them under the
+     * ceiling. Asked of a player's hit only; it answers whole percent points, 0 when nothing applies, and must be
+     * cheap: a lookup per stat the attacker holds, never a scan.
+     */
+    @FunctionalInterface
+    public interface RouteTerm {
+
+        double percentPoints(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> attacker,
+                @Nullable Ref<EntityStore> target, @Nonnull Damage damage, @Nullable String causeId);
+    }
+
     /** One registered stat pair for one type; either stat may be absent. */
     public record Source(@Nullable String percentStatId, @Nullable String flatStatId, @Nullable Gate gate) {
     }
@@ -142,6 +159,10 @@ public final class TypedDamageBonuses {
     /** Route sources by lower-cased type id ({@link #EVERY_TYPE} for every type). */
     @Nonnull
     private static final Map<String, List<RouteSource>> ROUTES = new ConcurrentHashMap<>();
+
+    /** The route terms by owner (lower-cased), in registration order. */
+    @Nonnull
+    private static final Map<String, RouteTerm> TERMS = new ConcurrentSkipListMap<>();
 
     /** Each registered type id in its first registered spelling, {@link #EVERY_TYPE} left out. */
     @Nonnull
@@ -196,6 +217,16 @@ public final class TypedDamageBonuses {
         list.removeIf(s -> sameStats(s.percentStatId(), s.flatStatId(), source.percentStatId(), source.flatStatId()));
         list.add(source);
         noteSpelling(typeId);
+    }
+
+    /**
+     * Add {@code term} to the route step under {@code owner} (any case; the same owner again replaces it): its percent
+     * joins every player hit's route lines, held with them under the ceiling. Set at setup.
+     */
+    public static void registerRouteTerm(@Nonnull String owner, @Nonnull RouteTerm term) {
+        if (!owner.isBlank()) {
+            TERMS.put(key(owner), term);
+        }
     }
 
     /**
@@ -319,7 +350,17 @@ public final class TypedDamageBonuses {
     @Nonnull
     public static Sums routeSumsFor(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> attacker,
             @Nonnull Damage damage, @Nullable String causeId) {
-        if (ROUTES.isEmpty() || !attackerAllowed(accessor, attacker)) {
+        return routeSumsFor(accessor, attacker, null, damage, causeId);
+    }
+
+    /**
+     * {@link #routeSumsFor(ComponentAccessor, Ref, Damage, String)} knowing the hit's {@code target}, with every
+     * registered {@link RouteTerm}'s percent added (a term asked with a null target when it is not known).
+     */
+    @Nonnull
+    public static Sums routeSumsFor(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> attacker,
+            @Nullable Ref<EntityStore> target, @Nonnull Damage damage, @Nullable String causeId) {
+        if ((ROUTES.isEmpty() && TERMS.isEmpty()) || !attackerAllowed(accessor, attacker)) {
             return Sums.NONE;
         }
         EntityStatMap stats = accessor.getComponent(attacker, EntityStatMap.getComponentType());
@@ -331,7 +372,87 @@ public final class TypedDamageBonuses {
         for (String type : typesFor(causeId)) {
             addRoutes(accessor, attacker, damage, stats, ROUTES.get(key(type)), sum);
         }
+        for (RouteTerm term : TERMS.values()) {
+            double points = term.percentPoints(accessor, attacker, target, damage, causeId);
+            if (Double.isFinite(points)) {
+                sum[0] += points;
+            }
+        }
         return sum[0] == 0.0 && sum[1] == 0.0 ? Sums.NONE : new Sums(sum[0], sum[1]);
+    }
+
+    /**
+     * Does {@code statId}'s own damage line count on this hit: a source of it registered for the hit's type (or every
+     * type) whose gate allows, or a route source of it whose route names the hit? What a stat that follows another's
+     * line ({@code Like}) asks, so a weapon skill's conditional bonus counts exactly where the skill's line does.
+     * False for a stat no source names.
+     */
+    public static boolean countsOn(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> attacker,
+            @Nonnull Damage damage, @Nullable String causeId, @Nonnull String statId) {
+        if (sourceCounts(accessor, attacker, SOURCES.get(EVERY_TYPE), statId)
+                || routeCounts(accessor, attacker, damage, ROUTES.get(EVERY_TYPE), statId)) {
+            return true;
+        }
+        for (String type : typesFor(causeId)) {
+            if (sourceCounts(accessor, attacker, SOURCES.get(key(type)), statId)
+                    || routeCounts(accessor, attacker, damage, ROUTES.get(key(type)), statId)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Does any registered source or route source name {@code statId} (any case)? An audit's read. */
+    public static boolean hasLine(@Nullable String statId) {
+        if (statId == null || statId.isBlank()) {
+            return false;
+        }
+        for (List<Source> sources : SOURCES.values()) {
+            for (Source source : sources) {
+                if (statId.equalsIgnoreCase(source.percentStatId()) || statId.equalsIgnoreCase(source.flatStatId())) {
+                    return true;
+                }
+            }
+        }
+        for (List<RouteSource> sources : ROUTES.values()) {
+            for (RouteSource source : sources) {
+                if (statId.equalsIgnoreCase(source.percentStatId()) || statId.equalsIgnoreCase(source.flatStatId())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /** Is any source among {@code sources} a line of {@code statId} whose gate allows? */
+    private static boolean sourceCounts(@Nonnull ComponentAccessor<EntityStore> accessor,
+            @Nonnull Ref<EntityStore> attacker, @Nullable List<Source> sources, @Nonnull String statId) {
+        if (sources == null) {
+            return false;
+        }
+        for (Source source : sources) {
+            if ((statId.equalsIgnoreCase(source.percentStatId()) || statId.equalsIgnoreCase(source.flatStatId()))
+                    && (source.gate() == null || source.gate().allows(accessor, attacker))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Is any route source among {@code sources} a line of {@code statId} whose route names the hit? */
+    private static boolean routeCounts(@Nonnull ComponentAccessor<EntityStore> accessor,
+            @Nonnull Ref<EntityStore> attacker, @Nonnull Damage damage, @Nullable List<RouteSource> sources,
+            @Nonnull String statId) {
+        if (sources == null) {
+            return false;
+        }
+        for (RouteSource source : sources) {
+            if ((statId.equalsIgnoreCase(source.percentStatId()) || statId.equalsIgnoreCase(source.flatStatId()))
+                    && source.route().matches(accessor, attacker, damage)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

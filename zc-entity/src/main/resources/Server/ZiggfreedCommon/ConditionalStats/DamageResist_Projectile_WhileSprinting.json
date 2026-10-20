@@ -1,0 +1,13 @@
+{
+  "$Comment": "Makes DamageResist_Projectile_WhileSprinting conditional: A conditional resistance in whole percent points, added to its holder's Projectile resistance while they sprint.",
+  "Holder": [
+    {
+      "Id": "Sprinting"
+    }
+  ],
+  "Pays": {
+    "Onto": [
+      "DamageResist_Projectile"
+    ]
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "$Comment": "The Beasts foe family: the predators a foe-family bonus counts on. A creature that also rides with a faction (the Trork and Outlander wolves) belongs to that faction's family alone, so Beast leaves those roles out by name and no foe takes two families' bonus; it names them rather than excluding Zig_Foe_Trork or Zig_Foe_Outlander, since the engine refuses a group that reaches the same group twice. Bosses and elites never count, so every family excludes the game's boss and encounter groups and their role names, and so do the foes as strong as an elite (the Shadow Knight, the two larger Aberrant zombies and the Void Spawn); add a role to ExcludeRoles to take it out too.",
+  "IncludeGroups": [
+    "Predators",
+    "PredatorsBig"
+  ],
+  "ExcludeGroups": [
+    "Goblin_Gobliterator_Boss_Group",
+    "Skeleton_Elite_Encounter_Target",
+    "Trork_Chieftain",
+    "Dungeon_Feastmaster_Group",
+    "Hunt_Predators",
+    "Bear_Voidtaken_Family"
+  ],
+  "ExcludeRoles": [
+    "*Boss*",
+    "*Elite*",
+    "*Gobliterator*",
+    "*Chieftain*",
+    "*Praetorian*",
+    "*Captain*",
+    "*Broodmother*",
+    "Goblin_Duke*",
+    "Goblin_Pilot*",
+    "Bear_Voidtaken*",
+    "Shadow_Knight",
+    "Zombie_Aberrant",
+    "Zombie_Aberrant_Big",
+    "Void_Spawn*",
+    "Wolf_Trork_Hunter",
+    "Wolf_Trork_Shaman",
+    "Wolf_Outlander_Priest",
+    "Wolf_Outlander_Sorcerer",
+    "Cinematic_*",
+    "Tamed_*"
+  ]
+}

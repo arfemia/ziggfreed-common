@@ -1,0 +1,26 @@
+{
+  "$Comment": "Makes DamageResist_All_AllyNear conditional: A conditional resistance in whole percent points, added to its holder's every resistance but Fall while another player is within 3 blocks.",
+  "Holder": [
+    {
+      "Id": "ZigPlayersNear",
+      "Radius": 3,
+      "Min": 1
+    }
+  ],
+  "Pays": {
+    "Onto": [
+      "DamageResist_Physical",
+      "DamageResist_Projectile",
+      "DamageResist_Fire",
+      "DamageResist_Ice",
+      "DamageResist_Lightning",
+      "DamageResist_Water",
+      "DamageResist_Wind",
+      "DamageResist_Earth",
+      "DamageResist_Poison",
+      "DamageResist_Arcane",
+      "DamageResist_Void",
+      "DamageResist_Life"
+    ]
+  }
+}

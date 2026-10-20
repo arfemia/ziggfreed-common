@@ -16,8 +16,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
+import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.util.RawJsonReader;
-import com.ziggfreed.common.damage.weakspot.WeakSpotGrant;
 import com.ziggfreed.common.grant.Grant;
 import com.ziggfreed.common.track.asset.TrackAsset;
 import com.ziggfreed.common.track.pick.TrackPickAsset;
@@ -39,10 +39,24 @@ class TrackTreeAuditTest {
             + " \"Tree\": { \"BranchPoints\": 9, \"GateSlack\": 2, \"Ceilings\": { \"Health\": 10 } },"
             + " \"Starter\": [ \"Your_Wall\", \"Your_Stand\" ] }";
 
-    /** WeakSpot joins the union at setup (zc-entity's WeakSpotBootstrap); Stat is in it from class init. */
+    /**
+     * A grant kind that writes no stat, standing for any a module registers (the library ships Stat alone since the
+     * WeakSpot kind retired into stats, R757): the audit tells a node granting one.
+     */
+    static final class Marker extends Grant {
+        static final String KIND = "Test_Marker";
+        static final BuilderCodec<Marker> CODEC = BuilderCodec.builder(Marker.class, Marker::new).build();
+
+        @Override
+        public String kind() {
+            return KIND;
+        }
+    }
+
+    /** A module's kind joins the union at its setup; Stat is in it from class init. */
     @BeforeAll
-    static void weakSpotsRead() {
-        Grant.CODEC.register(WeakSpotGrant.KIND, WeakSpotGrant.class, WeakSpotGrant.CODEC);
+    static void aMarkerKindReads() {
+        Grant.CODEC.register(Marker.KIND, Marker.class, Marker.CODEC);
     }
 
     @Test
@@ -54,7 +68,7 @@ class TrackTreeAuditTest {
         picks.put("Your_Stand", gated("Guard", 4, "\"Node\": \"Your_Stance\", \"Cost\": { \"Points\": 2 }"));
         picks.put("Your_Rush", gated("Guard", 4, "\"Node\": \"Your_Stance\", \"Cost\": { \"Points\": 2 }"));
         picks.put("Your_Dash", gated("Swift", 3, "\"Cost\": { \"Points\": 1 }, \"Node\": \"Your_Lonely\","
-                + " \"Grants\": [ { \"Kind\": \"WeakSpot\" } ]"));
+                + " \"Grants\": [ { \"Kind\": \"Test_Marker\" } ]"));
         Map<String, Integer> codes = codes(TrackTreeAudit.audit(List.of(track(TRACK)), fold(picks)));
         assertEquals(Integer.valueOf(2), codes.get(TrackTreeAudit.BRANCH_POINTS_OFF), "Guard adds up to 7, Swift to 1");
         assertEquals(Integer.valueOf(1), codes.get(TrackTreeAudit.GATE_SLACK_THIN),

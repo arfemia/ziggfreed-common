@@ -1,0 +1,18 @@
+{
+  "$Comment": "Damage over time the engine ticks itself (an effect with its own damage): burns, poisons and bleeds. Whoever put one on adds EffectDuration_Dot seconds as it lands. A look-only effect whose damage a mod deals on its own clock belongs in Burning, Poisoned or Bleeding alone, never here, or its look would outlast its damage.",
+  "Effects": [
+    "Burn",
+    "Lava_Burn",
+    "Poison",
+    "Poison_T1",
+    "Poison_T2",
+    "Poison_T3",
+    "Ability_Poison_Stack_A",
+    "Ability_Poison_Stack_B",
+    "Ability_Poison_Stack_C",
+    "Rend"
+  ],
+  "Duration": {
+    "AddedBy": "EffectDuration_Dot"
+  }
+}

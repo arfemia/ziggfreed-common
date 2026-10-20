@@ -1,0 +1,8 @@
+{
+  "$Comment": "The health, in percent of its whole, at or under which a foe takes every hit of its holder as a weak spot (8 is a foe at 8% health or less). Base 0: no foe is low enough until something raises it. Any item's StatModifiers raise it like any stat. Base 0.",
+  "InitialValue": 0.0,
+  "Min": 0.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

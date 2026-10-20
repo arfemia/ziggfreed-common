@@ -34,7 +34,9 @@ import com.ziggfreed.common.util.SafeLog;
  * {@code <owner>:<track>:<pick>} ({@value #OWNER}, {@link #grantKey}; a track's points grants
  * {@code <owner>:<track>:}{@value #POINTS}), so a pick's grants are one modifier per stat however often it was
  * taken, and the rebuild takes off anything under
- * {@value #OWNER} it no longer wants, including what a pick switched off or a world rule took away left behind.
+ * {@value #OWNER} it no longer wants, including what a pick switched off or a world rule took away left behind, but
+ * the conditional stats' {@code zigtrack:@cond:} modifiers, which zc-entity's {@code ConditionalStats} writes under
+ * this owner only so the 1.7.x rollback sweep clears them (R755; no track id holds an {@code @}).
  * A pick held grants while it is held: the rebuild never asks its {@code Requires} again, so a pick a prestige kept
  * keeps granting even when a branch's points no longer meet its gate (R641, R736). A pick whose id is
  * {@value #POINTS} would share its track's points key (the validator's {@code RESERVED_PICK_ID}).

@@ -1,0 +1,16 @@
+{
+  "$Comment": "Makes DamageResist_Physical_WhileStill conditional: A conditional resistance in whole percent points, added to its holder's Physical and Projectile resistance after they have stood still a second.",
+  "Holder": [
+    {
+      "Id": "ZigMoving",
+      "Inverse": true
+    }
+  ],
+  "HoldSeconds": 1,
+  "Pays": {
+    "Onto": [
+      "DamageResist_Physical",
+      "DamageResist_Projectile"
+    ]
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "$Comment": "Poison effects, every tier of vanilla's and its stacking poisons.",
+  "Effects": [
+    "Poison",
+    "Poison_T1",
+    "Poison_T2",
+    "Poison_T3",
+    "Ability_Poison_Stack_A",
+    "Ability_Poison_Stack_B",
+    "Ability_Poison_Stack_C"
+  ]
+}
