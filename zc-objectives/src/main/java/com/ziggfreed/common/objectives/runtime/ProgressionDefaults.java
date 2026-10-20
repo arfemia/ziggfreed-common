@@ -226,7 +226,7 @@ public final class ProgressionDefaults {
         plugin.getEventRegistry().registerGlobal(PlayerReadyEvent.class, ProgressionDefaults::onPlayerReady);
         plugin.getEntityStoreRegistry().registerSystem(new ZigBlockBreakProducer());
         plugin.getEntityStoreRegistry().registerSystem(new ZigMobKillProducer());
-        // DEAL_DAMAGE, to the reactions only and only while a track source listens (the MMO feeds the engines).
+        // DEAL_DAMAGE, every hit a player is credited with, once, to the reactions and both engines.
         ZigDamageProducer.install(plugin);
         plugin.getEntityStoreRegistry().registerSystem(new ZigCraftProducer());
         plugin.getEntityStoreRegistry().registerSystem(new ZigPickupProducer());
@@ -272,8 +272,7 @@ public final class ProgressionDefaults {
                 ZigEncounterProducer.KIND_PHASE, ZigEncounterProducer.KIND_FEAT, ZigCalendarProducer.KIND,
                 ZigLootReceivedProducer.KIND,
                 ZigQuestCompletionProducer.KIND, ZigReputationProducer.KIND, ZigGearSetProducer.KIND,
-                TrackObjectives.LEVEL, TrackObjectives.TIER, ZigTalkProducer.KIND,
-                ZigDamageProducer.KIND + " (reactions only, while a track source listens)");
+                TrackObjectives.LEVEL, TrackObjectives.TIER, ZigTalkProducer.KIND, ZigDamageProducer.KIND);
     }
 
     // ==================== persistence notifications ====================

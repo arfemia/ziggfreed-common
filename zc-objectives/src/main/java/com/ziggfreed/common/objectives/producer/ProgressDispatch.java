@@ -138,10 +138,9 @@ public final class ProgressDispatch {
 
     /**
      * Feed one moment to the REACTIONS ONLY, never to the engines: for a moment a consumer still dispatches into
-     * the engines itself, so an engine half here would count it twice. {@code DEAL_DAMAGE} is the one today (the
-     * MMO fires it into the shared engines from its own damage system), produced here only for the track sources
-     * that pay on it ({@code ZigDamageProducer}). The moment carries no subjects and no zone, which only the
-     * engines read, so a hit costs neither lookup.
+     * the engines itself, so an engine half here would count it twice. No library producer uses it today
+     * ({@code DEAL_DAMAGE} goes through {@link #fire} like every other produced kind). The moment carries no
+     * subjects and no zone, which only the engines read, so it costs neither lookup.
      */
     public static void react(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nullable CommandBuffer<EntityStore> commandBuffer, @Nonnull String kindId,

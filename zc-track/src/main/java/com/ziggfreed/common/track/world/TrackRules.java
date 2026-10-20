@@ -169,6 +169,12 @@ public final class TrackRules {
             return rule;
         }
 
+        /** The {@code Enabled} switch as written, or null when unauthored (which reads as on). */
+        @Nullable
+        public Boolean enabled() {
+            return enabled;
+        }
+
         /** The kinds map as written, or an empty one. */
         @Nonnull
         public Map<String, Boolean> kinds() {
@@ -310,6 +316,18 @@ public final class TrackRules {
             rule.enabled = enabled;
             rule.multiplier = multiplier;
             return rule;
+        }
+
+        /** The {@code Enabled} switch as written, or null when unauthored (which reads as on). */
+        @Nullable
+        public Boolean enabled() {
+            return enabled;
+        }
+
+        /** The {@code Multiplier} as written, or null when unauthored (a reader holds it at 0 or more). */
+        @Nullable
+        public Double multiplier() {
+            return multiplier;
         }
 
         /** False only when written false. */

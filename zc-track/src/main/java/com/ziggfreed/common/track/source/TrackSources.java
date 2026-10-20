@@ -27,8 +27,7 @@ import com.ziggfreed.common.track.asset.TrackConfig;
  * writing one pattern for one moment resolve to the one whose id sorts last.
  *
  * <p><b>What it costs when nothing listens.</b> {@link #listens} is one lookup in a map of the kinds some source
- * names; a producer of a moment nothing else reads (DEAL_DAMAGE) asks it before doing anything, and the reaction
- * ({@link TrackSourceReactions}) asks the same map before reading anything off the moment.
+ * names; the reaction ({@link TrackSourceReactions}) asks it before reading anything off the moment.
  *
  * <p><b>Summed kinds.</b> A kind fired many times a second ({@link #batches}: {@code DEAL_DAMAGE},
  * {@code SPRINT_DISTANCE} and {@code SWIM_DISTANCE}, plus any {@link #batchKind} adds) is summed per player and
@@ -37,7 +36,7 @@ import com.ziggfreed.common.track.asset.TrackConfig;
  */
 public final class TrackSources {
 
-    /** The damage a player deals a creature: the kind zc's damage producer fires only while a source listens. */
+    /** The damage a player deals a creature: the kind zc's damage producer fires for every credited hit. */
     public static final String DEAL_DAMAGE = "DEAL_DAMAGE";
 
     /** What every gain a source pays is labelled with, before the source's id. */
@@ -83,7 +82,7 @@ public final class TrackSources {
     private TrackSources() {
     }
 
-    /** Does some source listen for {@code kindId}? One lookup; what a producer asks before producing. */
+    /** Does some source listen for {@code kindId}? One lookup. */
     public static boolean listens(@Nullable String kindId) {
         return kindId != null && lookup(folded().byKind(), kindId) != null;
     }

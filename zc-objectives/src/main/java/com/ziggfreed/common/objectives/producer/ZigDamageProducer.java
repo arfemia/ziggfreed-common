@@ -23,13 +23,14 @@ import com.ziggfreed.common.track.source.TrackSources;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * Fires {@code DEAL_DAMAGE} for every hit a player lands on a creature, but only while some track source listens
- * for it ({@link TrackSources#listens}): a hit is the most frequent moment in the game and nothing else reads it,
- * so with no source naming the kind both systems here stop at one lookup.
+ * Fires {@code DEAL_DAMAGE} for every hit a player lands on a creature: the one producer of the kind, so a hit
+ * counts once for every reader of it.
  *
- * <p><b>Reactions only.</b> The moment goes to the moment listeners ({@link ProgressDispatch#react}), never to the
- * quest and achievement engines: the MMO fires {@code DEAL_DAMAGE} into the shared engines from its own damage
- * system, so an engine half here would count every hit twice there.
+ * <p><b>Everyone hears it, once.</b> The moment goes through {@link DamageMoments#fire} into
+ * {@link ProgressDispatch#fire}: first to every moment
+ * listener (a track source paying on hits, a stat file counting damage dealt), then to the quest and achievement
+ * engines, so an objective or a criterion on damage advances by the same amount the listeners saw. No consumer
+ * dispatches the kind into the engines itself, or every hit would count twice there.
  *
  * <p><b>Capped at what the creature had left.</b> The engine rounds and applies a hit between the Filter and the
  * Inspect groups and clamps health at its minimum, so the Inspect amount of a killing blow can be far more than the
@@ -40,7 +41,8 @@ import com.ziggfreed.common.util.SafeLog;
  * <p>Target the creature's id (as a kill names it), Qualifier the attacker's held item (a sword, the bow that shot
  * the arrow; none for a turret), credited the way a kill is (the attacker when it is a player, else whoever the
  * composed {@code KillAttribution} says it acts for). A player hit, an invulnerable creature, a cancelled or empty
- * hit and a self-hit fire nothing.
+ * hit and a self-hit fire nothing, nor does a hit a consumer's {@link DamageHitFilters} filter keeps out (a training
+ * dummy, a passive animal its own combat does not count).
  */
 public final class ZigDamageProducer {
 
@@ -77,11 +79,17 @@ public final class ZigDamageProducer {
         @Override
         public void handle(int index, @Nonnull ArchetypeChunk<EntityStore> chunk, @Nonnull Store<EntityStore> store,
                 @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull Damage damage) {
-            if (!TrackSources.listens(KIND) || damage.isCancelled()) {
+            // Only a hit the Inspect half could credit is worth noting: one struck by an entity (no fall, no
+            // fire), on a creature (never a player). Every other hit stops here at an instanceof and one lookup.
+            if (damage.isCancelled() || ZigMobKillProducer.resolveAttackerRef(damage) == null) {
                 return;
             }
             try {
-                float health = HealthUtil.current(store, chunk.getReferenceTo(index));
+                Ref<EntityStore> victim = chunk.getReferenceTo(index);
+                if (store.getComponent(victim, Player.getComponentType()) != null) {
+                    return;
+                }
+                float health = HealthUtil.current(store, victim);
                 if (Float.isFinite(health)) {
                     damage.putMetaObject(HEALTH_BEFORE, health);
                 }
@@ -108,18 +116,20 @@ public final class ZigDamageProducer {
         @Override
         public void handle(int index, @Nonnull ArchetypeChunk<EntityStore> chunk, @Nonnull Store<EntityStore> store,
                 @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull Damage damage) {
-            if (!TrackSources.listens(KIND) || damage.isCancelled()) {
+            if (damage.isCancelled()) {
                 return;
             }
             try {
-                fire(chunk.getReferenceTo(index), store, commandBuffer, damage);
+                fire(chunk, index, store, commandBuffer, damage);
             } catch (Throwable t) {
                 SafeLog.warn("[progression] damage dispatch failed", t);
             }
         }
 
-        private static void fire(@Nonnull Ref<EntityStore> victim, @Nonnull Store<EntityStore> store,
-                @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull Damage damage) {
+        private static void fire(@Nonnull ArchetypeChunk<EntityStore> chunk, int index,
+                @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer,
+                @Nonnull Damage damage) {
+            Ref<EntityStore> victim = chunk.getReferenceTo(index);
             float amount = damage.getAmount();
             if (!(amount > 0f) || store.getComponent(victim, Player.getComponentType()) != null
                     || store.getComponent(victim, Invulnerable.getComponentType()) != null) {
@@ -135,8 +145,9 @@ public final class ZigDamageProducer {
             }
             Float before = damage.getIfPresentMetaObject(HEALTH_BEFORE);
             double dealt = before == null || !(before > 0f) ? amount : Math.min(amount, before);
-            ProgressDispatch.react(store, credited, commandBuffer, KIND, ZigMobKillProducer.victimId(store, victim),
-                    HeldItemUtil.heldItemId(store, attacker), Math.round(dealt), new DamagePayload(victim, damage, dealt));
+            DamageMoments.fire(new DamageHit(chunk, index, store, victim, attacker, credited, damage), commandBuffer,
+                    ZigMobKillProducer.victimId(store, victim), HeldItemUtil.heldItemId(store, attacker), dealt,
+                    new DamagePayload(victim, damage, dealt));
         }
     }
 }

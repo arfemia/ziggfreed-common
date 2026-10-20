@@ -13,6 +13,8 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.ziggfreed.common.cast.WorldEvictors;
 import com.ziggfreed.common.track.TrackDerived;
+import com.ziggfreed.common.track.asset.TrackAsset;
+import com.ziggfreed.common.track.asset.TrackConfig;
 import com.ziggfreed.common.track.gain.GainPlans;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.world.MatchRank;
@@ -25,7 +27,8 @@ import com.ziggfreed.common.world.MatchRank;
  * reads that group, whole; only a world whose config writes none reads the {@link TrackWorldRuleAsset} files,
  * whose most specific {@code Where} wins (the {@link MatchRank} ladder; a tie keeps the first by id). Whole, never
  * leaf by leaf: a world's rules are read in one place, so what a world does is what one file says. A world neither
- * names runs under no rules: every gain lands as anywhere else.
+ * names runs under no rules: every gain lands as anywhere else. While the owner file switches the rules off
+ * ({@link TrackWorldRuleConfig#ENABLED_KEY}), every world runs under none.
  *
  * <p>The gain pipeline's {@code World} factor reads it when a plan is built, which happens again after every world
  * change; the grant rebuild ({@code TrackDerived}) asks {@link #grantsOn} of every grant at every world entry.
@@ -88,6 +91,27 @@ public final class TrackWorldRules {
     }
 
     /**
+     * What a gain on {@code trackId} is multiplied by in {@code world}, read against the track's own category, as
+     * the gain pipeline's {@code World} factor reads it: 0 where the world turns the track off, 1 where no rules
+     * apply. For a consumer paying a gain past that factor (an exact write it still holds to the world's rules).
+     * World thread.
+     */
+    public static double gainMultiplier(@Nullable World world, @Nonnull String trackId) {
+        TrackAsset track = TrackConfig.getInstance().live(trackId);
+        return gainMultiplier(world, trackId, track == null ? null : track.category());
+    }
+
+    /**
+     * {@link #gainMultiplier(World, String)} for a climb no track file names (a consumer's own), with the
+     * {@code categoryId} the consumer files it under (null for none).
+     */
+    public static double gainMultiplier(@Nullable World world, @Nonnull String trackId,
+            @Nullable String categoryId) {
+        TrackRules rules = forWorld(world);
+        return rules == null ? 1.0 : rules.gainMultiplier(trackId, categoryId);
+    }
+
+    /**
      * The rules or the gameplay configs loaded again: every world reads its rules again on its next ask, every
      * compiled gain plan is built again, and every online player's grants are rebuilt where they stand.
      */
@@ -97,9 +121,15 @@ public final class TrackWorldRules {
         TrackDerived.rebuildAllOnline();
     }
 
-    /** The world's own gameplay config's group, else the most specific rule file naming it, else null. */
+    /**
+     * The world's own gameplay config's group, else the most specific rule file naming it, else null; null too
+     * while the owner file switches the rules off.
+     */
     @Nullable
     private static TrackRules resolve(@Nonnull World world) {
+        if (!TrackWorldRuleConfig.getInstance().isEnabled()) {
+            return null;
+        }
         try {
             TrackRules own = TrackRules.of(world.getGameplayConfig());
             if (own != null) {

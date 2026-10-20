@@ -2,7 +2,11 @@ package com.ziggfreed.common.track;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -13,6 +17,7 @@ import java.util.function.Predicate;
 import java.util.function.ToIntFunction;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.grant.Grant;
@@ -45,6 +50,7 @@ import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.BootAudit;
 import com.ziggfreed.common.world.WhereValidator;
+import com.ziggfreed.common.world.WorldSelector;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.validation.Severity;
 
@@ -67,8 +73,11 @@ import com.ziggfreed.common.validation.Severity;
  *       findings over a track's {@code Requires};</li>
  *   <li>WARNING, for growth ({@link #auditGrowth}): {@link #UNKNOWN_GAIN_FACTOR}, {@link #SOURCE_WITHOUT_TRACK},
  *       {@link #UNKNOWN_SOURCE_TRACK}, {@link #SOURCE_WITHOUT_KIND}, {@link #UNKNOWN_SOURCE_KIND},
- *       {@link #SOURCE_PAYS_NOTHING}, {@link #RULE_WITHOUT_WHERE}, {@link #UNKNOWN_RULE_TRACK}, the gate audit
- *       over a source's {@code Requires} and the {@code Where} audit over a world rule file's;</li>
+ *       {@link #SOURCE_PAYS_NOTHING}, {@link #RULE_WITHOUT_WHERE}, {@link #UNKNOWN_RULE_TRACK},
+ *       {@link #DUPLICATE_RULE_WHERE} (two rule files naming the same worlds: one shadows the other),
+ *       {@link #CONFLICTING_RULE_TRACK} (one id both allowed and turned off: it stays off), the gate audit over a
+ *       source's {@code Requires} and the {@code Where} audit over a world rule file's ({@link #auditWorldRules}
+ *       is the rules' part alone, for a consumer's own audit);</li>
  *   <li>for picks: the fold's own findings ({@code TrackPicks}: ERROR {@code UNRESOLVED_PICK_TOKEN} and
  *       {@code UNREADABLE_PICK_GRANTS}, an option left out; WARNING {@code PICK_WITHOUT_TRACK},
  *       {@code UNKNOWN_PICK_TRACK}, {@code UNKNOWN_PICK_OPTION}, {@code UNKNOWN_PICK_DECK},
@@ -113,6 +122,8 @@ public final class TrackValidator {
     public static final String SOURCE_PAYS_NOTHING = "SOURCE_PAYS_NOTHING";
     public static final String RULE_WITHOUT_WHERE = "RULE_WITHOUT_WHERE";
     public static final String UNKNOWN_RULE_TRACK = "UNKNOWN_RULE_TRACK";
+    public static final String DUPLICATE_RULE_WHERE = "DUPLICATE_RULE_WHERE";
+    public static final String CONFLICTING_RULE_TRACK = "CONFLICTING_RULE_TRACK";
     public static final String UNKNOWN_PICK_PREREQUISITE = "UNKNOWN_PICK_PREREQUISITE";
     public static final String UNKNOWN_COST_TRACK = "UNKNOWN_COST_TRACK";
     public static final String COST_WITHOUT_POINTS = "COST_WITHOUT_POINTS";
@@ -338,12 +349,65 @@ public final class TrackValidator {
                 auditSource(source, trackKnown, kindKnown, out);
             }
         }
+        out.addAll(auditWorldRules(rules, trackKnown, categoryKnown));
+        return out;
+    }
+
+    /**
+     * The world rules' part of growth's audit, over the enabled rule files: one naming no world
+     * ({@link #RULE_WITHOUT_WHERE}), a list or entry naming neither a track nor a category
+     * ({@link #UNKNOWN_RULE_TRACK}), two naming the very same worlds, of which only the first by id ever applies to
+     * them ({@link #DUPLICATE_RULE_WHERE}), and an id both allowed and turned off, which stays off
+     * ({@link #CONFLICTING_RULE_TRACK}). Every finding is a WARNING. A consumer whose own climbs are no track
+     * (a skill no track file names) passes a {@code trackKnown} that knows them too.
+     */
+    @Nonnull
+    public static List<Finding> auditWorldRules(@Nonnull Collection<TrackWorldRuleAsset> rules,
+            @Nonnull Predicate<String> trackKnown, @Nonnull Predicate<String> categoryKnown) {
+        List<Finding> out = new ArrayList<>();
+        List<TrackWorldRuleAsset> sorted = new ArrayList<>();
         for (TrackWorldRuleAsset rule : rules) {
             if (rule != null && rule.getId() != null && rule.isEnabled()) {
-                auditRule(rule, trackKnown, categoryKnown, out);
+                sorted.add(rule);
+            }
+        }
+        sorted.sort(Comparator.comparing(rule -> rule.getId().toLowerCase(Locale.ROOT)));
+        Map<String, String> seenWhere = new HashMap<>();
+        for (TrackWorldRuleAsset rule : sorted) {
+            auditRule(rule, trackKnown, categoryKnown, out);
+            WorldSelector where = rule.where();
+            if (where == null || where.hasNoPositiveAxis()) {
+                continue;
+            }
+            String prior = seenWhere.putIfAbsent(whereKey(where), rule.getId());
+            if (prior != null) {
+                out.add(Finding.warning(DOMAIN, DUPLICATE_RULE_WHERE, "track world rule '" + rule.getId()
+                        + "' names the same worlds as '" + prior + "', so only '" + prior + "' applies there",
+                        rule.getId()));
             }
         }
         return out;
+    }
+
+    /** One selector's axes as a comparable key: each axis lower-cased and sorted, since its entries are OR'd. */
+    @Nonnull
+    private static String whereKey(@Nonnull WorldSelector where) {
+        return "match=" + axisKey(where.getMatch()) + "|config=" + axisKey(where.getGameplayConfig())
+                + "|placement=" + axisKey(where.getPlacement()) + "|exclude=" + axisKey(where.getExcludeMatch());
+    }
+
+    @Nonnull
+    private static String axisKey(@Nullable String[] values) {
+        if (values == null) {
+            return "";
+        }
+        TreeSet<String> out = new TreeSet<>();
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                out.add(value.trim().toLowerCase(Locale.ROOT));
+            }
+        }
+        return String.join(",", out);
     }
 
     private static void auditSource(@Nonnull TrackSourceAsset source, @Nonnull Predicate<String> trackKnown,
@@ -394,6 +458,20 @@ public final class TrackValidator {
             if (name != null && !name.isBlank() && !trackKnown.test(name.trim()) && !categoryKnown.test(name.trim())) {
                 out.add(Finding.warning(DOMAIN, UNKNOWN_RULE_TRACK, "track world rule '" + id + "' names '"
                         + name.trim() + "', which is neither a switched-on track nor a category here", id));
+            }
+        }
+        Set<String> allowed = new HashSet<>();
+        for (String name : gain.enabledTracks()) {
+            if (name != null && !name.isBlank()) {
+                allowed.add(name.trim().toLowerCase(Locale.ROOT));
+            }
+        }
+        Set<String> reported = new HashSet<>();
+        for (String name : gain.disabledTracks()) {
+            String key = name == null ? "" : name.trim().toLowerCase(Locale.ROOT);
+            if (!key.isEmpty() && allowed.contains(key) && reported.add(key)) {
+                out.add(Finding.warning(DOMAIN, CONFLICTING_RULE_TRACK, "track world rule '" + id + "' lists '"
+                        + name.trim() + "' in both EnabledTracks and DisabledTracks, so it stays off", id));
             }
         }
     }

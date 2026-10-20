@@ -30,7 +30,7 @@ public final class CostumeBootstrap {
         try {
             plugin.getCommandRegistry().registerCommand(new CostumeCommand());
         } catch (Throwable t) {
-            SafeLog.warn("[costume] the costume command could not be registered", t);
+            SafeLog.warn("[costume] the /zigcostume command could not be registered", t);
         }
     }
 }
