@@ -302,9 +302,12 @@ public final class RuntimeEffectGrid {
 
     /**
      * Bring the entity's effects of this family into line with {@code desired}, each applied with no
-     * expiry: owned effects not wanted come off first (so a channel never carries two buckets, even for
-     * part of a tick), then each wanted bucket not on yet goes on. Idempotent. A wanted bucket still
-     * landing runs {@code onLanded} when it lands, once per pass. World thread only; never throws.
+     * expiry, make-before-break: each wanted bucket not on yet goes on first, then the owned effects not
+     * wanted come off, except the old bucket of a channel whose new one is still landing, which stays
+     * until it lands, so a changed value never leaves the entity with nothing for that channel (a refused
+     * body is logged and its channel's old bucket comes off). The two buckets of a channel overlap only inside this call, on the world thread, where no
+     * hit can read them. Idempotent. A wanted bucket still landing runs {@code onLanded} when it lands,
+     * once per pass. World thread only; never throws.
      */
     public void reconcile(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
             @Nonnull Collection<Bucket> desired, @Nullable Runnable onLanded) {
@@ -315,16 +318,23 @@ public final class RuntimeEffectGrid {
             }
             Map<String, Integer> active = activeOwned(ctrl);
             Plan plan = plan(active.keySet(), desired);
+            Set<String> notOnYet = new HashSet<>();
+            boolean retryQueued = false;
+            for (Bucket bucket : plan.apply()) {
+                Outcome outcome = applyInfinite(accessor, ref, ctrl, bucket, retryQueued ? null : onLanded);
+                if (outcome == Outcome.PENDING) {
+                    retryQueued = true;
+                    notOnYet.add(bucket.channel());
+                }
+            }
             for (String id : plan.remove()) {
+                String channel = channelOf(id);
+                if (channel != null && notOnYet.contains(channel)) {
+                    continue; // its successor is not on yet: keep this one until it is
+                }
                 Integer idx = active.get(id);
                 if (idx != null) {
                     ctrl.removeEffect(ref, idx.intValue(), RemovalBehavior.COMPLETE, accessor);
-                }
-            }
-            boolean retryQueued = false;
-            for (Bucket bucket : plan.apply()) {
-                if (applyInfinite(accessor, ref, ctrl, bucket, retryQueued ? null : onLanded) == Outcome.PENDING) {
-                    retryQueued = true;
                 }
             }
         } catch (Throwable t) {

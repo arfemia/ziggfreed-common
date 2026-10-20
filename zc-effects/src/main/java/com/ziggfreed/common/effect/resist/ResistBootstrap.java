@@ -6,7 +6,6 @@ import com.hypixel.hytale.assetstore.event.LoadedAssetsEvent;
 import com.hypixel.hytale.assetstore.map.IndexedLookupTableAssetMap;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageCause;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
-import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Registers the per-type damage resistance ({@link DamageResistReconciler}): the per-tick system that keeps
@@ -20,7 +19,7 @@ public final class ResistBootstrap {
     private ResistBootstrap() {
     }
 
-    /** Call once from plugin {@code setup()}. */
+    /** Call once from plugin {@code setup()}. A failed registration rethrows (R700): every resistance would be gone. */
     public static void install(@Nonnull PluginBase plugin) {
         try {
             plugin.getEntityStoreRegistry().registerSystem(new DamageResistSyncSystem());
@@ -28,7 +27,7 @@ public final class ResistBootstrap {
                     (LoadedAssetsEvent<String, DamageCause, IndexedLookupTableAssetMap<String, DamageCause>> ev) ->
                             DamageResistReconciler.onDamageCausesLoaded());
         } catch (Throwable t) {
-            SafeLog.warn("[resist] could not register the damage resistance pass, so DamageResist stats resist nothing this boot", t);
+            throw new IllegalStateException("[resist] could not register the damage resistance pass", t);
         }
     }
 }

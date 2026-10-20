@@ -22,6 +22,7 @@ itemTooltip.stats.DamageBonus_Void = Void Damage: {value}%
 itemTooltip.stats.DamageBonusFlat_Void = Flat Void Damage: {value}
 itemTooltip.stats.DamageBonus_Life = Life Damage: {value}%
 itemTooltip.stats.DamageBonusFlat_Life = Flat Life Damage: {value}
+itemTooltip.stats.DamageBonusMax = Damage Bonus Cap: {value}%
 itemTooltip.stats.ReputationGain = Reputation Gain: {value}%
 itemTooltip.stats.DamageResist_Physical = Physical Resistance: {value}%
 itemTooltip.stats.DamageResist_Projectile = Projectile Resistance: {value}%

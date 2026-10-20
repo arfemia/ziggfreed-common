@@ -1,5 +1,5 @@
 {
-  "$Comment": "Percent bonus to Life damage the carrier deals, in whole percent points (10 is +10%). Any item's StatModifiers raise it like any stat; ziggfreed-common adds it to every hit whose damage cause is Life or filed under it, after the hit's other bonuses. Base 0; Min is a generous negative so a subtractive modifier never clamps.",
+  "$Comment": "Percent bonus to Life damage the carrier deals, in whole percent points (10 is +10%). Any item's StatModifiers raise it like any stat; ziggfreed-common carries it on a hidden native effect, so the game adds it to every hit whose damage cause is Life or filed under it, summed with the hit's other percent bonuses such as Enrage, up to the carrier's DamageBonusMax. Base 0; Min is a generous negative so a subtractive modifier never clamps.",
   "InitialValue": 0.0,
   "Min": -1000.0,
   "Max": 0.0,

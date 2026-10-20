@@ -106,17 +106,20 @@ public final class EntityBootstrap {
     }
 
     /**
-     * Register the per-type damage bonus step ({@link TypedDamageBonusSystem}): every hit an entity
-     * deals takes its {@code DamageBonus_<Type>} and {@code DamageBonusFlat_<Type>} stats (and any a
-     * consumer registered for that type through {@link TypedDamageBonuses#registerSource}), so gear on a
-     * server running the library alone can raise one type's damage. A consumer whose own damage fold
-     * must run first orders itself BEFORE the system class; it never registers a second one.
+     * Register the per-type damage bonus hit step ({@link TypedDamageBonusSystem}): a player's direct hit
+     * takes every source's flat stat, and a hit a consumer's route source names (through
+     * {@link TypedDamageBonuses#registerRouteSource}) takes that source's stats, inside the engine's own
+     * outgoing sum. The every-hit percent sources (the library's {@code DamageBonus_<Type>} and
+     * {@link TypedDamageBonuses#registerSource}'s) reach a hit through the engine itself, from zc-effects'
+     * native outgoing effects. A consumer whose own damage fold must see these orders itself AFTER the
+     * system class; it never registers a second one. A failed registration rethrows (R700): every flat and
+     * route line would be gone.
      */
     public static void installTypedDamageBonuses(@Nonnull PluginBase plugin) {
         try {
             plugin.getEntityStoreRegistry().registerSystem(new TypedDamageBonusSystem());
         } catch (Throwable t) {
-            SafeLog.warn("[stats] could not register the per-type damage bonus step", t);
+            throw new IllegalStateException("[stats] could not register the per-type damage bonus step", t);
         }
     }
 

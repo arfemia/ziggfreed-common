@@ -41,6 +41,7 @@ import com.ziggfreed.common.effect.buff.BuffBootstrap;
 import com.ziggfreed.common.effect.control.ControlBootstrap;
 import com.ziggfreed.common.effect.costume.CostumeBootstrap;
 import com.ziggfreed.common.effect.movement.MovementBootstrap;
+import com.ziggfreed.common.effect.outgoing.OutgoingBootstrap;
 import com.ziggfreed.common.effect.resist.ResistBootstrap;
 import com.ziggfreed.common.health.RegenBootstrap;
 import com.ziggfreed.common.encounter.EncounterBootstrap;
@@ -252,8 +253,11 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         EntityBootstrap.installEquipStatBridge(this);
         // Set bonuses hang on that same bridge: one post-apply listener, never a fourth trigger.
         EntityBootstrap.installGearSets(this);
-        // Per-type damage bonuses: gear raising DamageBonus_<Type> stats hits harder with that type.
+        // Per-type damage bonuses: gear raising DamageBonus_<Type> stats hits harder with that type, through
+        // hidden native outgoing-damage effects kept in step every tick (summed with Enrage as vanilla sums
+        // it), and the per-hit route step for the lines a consumer keys on how a hit was dealt.
         EntityBootstrap.installTypedDamageBonuses(this);
+        OutgoingBootstrap.install(this);
         // Use gates: a break, a hit or a piece of armor a gate refuses does not happen, and the player is told
         // why. The cancels register here, before the progression producers that order themselves after them.
         EntityBootstrap.installUseGates(this);

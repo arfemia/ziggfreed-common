@@ -1,5 +1,5 @@
 {
-  "$Comment": "Flat bonus to Projectile damage the carrier deals, in damage points, added before the percent bonus. Any item's StatModifiers raise it like any stat; ziggfreed-common adds it to every hit whose damage cause is Projectile or filed under it, counting the shooter's stats. Base 0; Min is a generous negative so a subtractive modifier never clamps.",
+  "$Comment": "Flat bonus to Projectile damage the carrier deals, in damage points, added before the percent bonus. Any item's StatModifiers raise it like any stat; ziggfreed-common adds it to each direct hit a player deals, never a damage-over-time tick, whose damage cause is Projectile or filed under it, counting the shooter's stats. Base 0; Min is a generous negative so a subtractive modifier never clamps.",
   "InitialValue": 0.0,
   "Min": -1000.0,
   "Max": 0.0,
