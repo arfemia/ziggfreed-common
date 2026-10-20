@@ -31,6 +31,7 @@ import com.ziggfreed.common.track.pick.PickClaims;
 import com.ziggfreed.common.track.pick.PickService;
 import com.ziggfreed.common.track.source.SourceBatch;
 import com.ziggfreed.common.track.source.TrackSourceReactions;
+import com.ziggfreed.common.track.tree.TreeDestinations;
 import com.ziggfreed.common.track.world.TrackRules;
 import com.ziggfreed.common.track.world.TrackWorldRules;
 import com.ziggfreed.common.ui.kit.LedgerContributions;
@@ -131,13 +132,15 @@ public final class TrackBootstrap {
     }
 
     /**
-     * Picks: the picks waiting listed on the Claims tab, and a departing player's undo window closed. The three pick
+     * Picks: the picks waiting listed on the Claims tab, a departing player's undo window closed, and the
+     * {@code Track_Tree} destination that opens a track's tree page (before any asset decodes). The three pick
      * stores are registered with the other framework stores; the grants rebuild at every ready settle
      * ({@link TrackLogin}). Not guarded: a failed registration throws here, at setup.
      */
     private static void registerPicks(@Nonnull JavaPlugin plugin) {
         LedgerContributions.contribute(LedgerContributions.CLAIMS, PickClaims.INSTANCE);
         plugin.getEventRegistry().register(PlayerDisconnectEvent.class, PickService::onDisconnect);
+        TreeDestinations.register();
     }
 
     /**

@@ -2,19 +2,12 @@ package com.ziggfreed.common.objectives.trainer;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.Message;
-import com.ziggfreed.common.commerce.fold.CommerceEngines;
 import com.ziggfreed.common.commerce.page.CommerceChips;
-import com.ziggfreed.common.commerce.page.CurrencyText;
-import com.ziggfreed.common.cost.Cost;
-import com.ziggfreed.common.cost.ItemCost;
-import com.ziggfreed.common.currency.CurrencyDef;
-import com.ziggfreed.common.currency.CurrencyEngine;
 import com.ziggfreed.common.track.TrackDef;
 import com.ziggfreed.common.track.TrackText;
 import com.ziggfreed.common.track.pick.PickService;
@@ -30,7 +23,6 @@ import com.ziggfreed.common.ui.kit.Picture;
 import com.ziggfreed.common.ui.kit.Tone;
 import com.ziggfreed.common.ui.page.PageSection;
 import com.ziggfreed.common.ui.toast.ToastKind;
-import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The Services part: for each track the trainer teaches, a respec priced in the track's own {@code Respec.Cost}
@@ -63,7 +55,7 @@ final class ServiceOffers {
         Message name = TrackText.name(track.asset());
         int clears = PickService.respecClears(at.playerId(), track.id());
         boolean ready = clears > 0;
-        List<DetailLine> price = priceLines(PickService.respecPrice(at.playerId(), track.id()));
+        List<DetailLine> price = CommerceChips.priceLines(PickService.respecPrice(at.playerId(), track.id()));
         Message value = price.isEmpty() ? TrainerText.line("service.respec.free")
                 : price.size() == 1 ? price.get(0).text() : null;
         Picture picture = Picture.item(track.asset().icon());
@@ -102,35 +94,5 @@ final class ServiceOffers {
                     TrainerText.line("service.respec.refused.encounter"));
             default -> TrainerResult.toast(ToastKind.WARNING, TrainerText.line("service.respec.refused.other"));
         };
-    }
-
-    /**
-     * A price as the lines its reading page lists, one per wallet or item, each in the shops' own wording
-     * ({@code CommerceChips}); empty for a free price.
-     */
-    @Nonnull
-    private static List<DetailLine> priceLines(@Nonnull Cost cost) {
-        List<DetailLine> out = new ArrayList<>();
-        if (cost.isFree()) {
-            return out;
-        }
-        try {
-            CurrencyEngine currencies = CommerceEngines.costs().currencies();
-            for (Map.Entry<String, Long> component : cost.currencies().entrySet()) {
-                long amount = component.getValue() == null ? 0L : component.getValue();
-                CurrencyDef def = currencies.catalog().get(component.getKey());
-                out.add(DetailLine.of(def == null ? Picture.NONE : Picture.item(CurrencyText.iconOf(def)),
-                        CommerceChips.amountAndName(currencies, component.getKey(), amount, null)));
-            }
-        } catch (Throwable t) {
-            SafeLog.fine("[trainer] a respec's wallets could not be read: " + t.getMessage());
-        }
-        for (ItemCost item : cost.items()) {
-            if (item != null && !item.isBlank()) {
-                out.add(DetailLine.of(Picture.tooltipItem(item.item()),
-                        CommerceChips.priceAmount(item.count(), CommerceChips.itemName(item.item()))));
-            }
-        }
-        return out;
     }
 }

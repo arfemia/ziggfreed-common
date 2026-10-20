@@ -13,6 +13,7 @@ import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.ui.ItemGridSlot;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 
+import com.ziggfreed.common.commerce.fold.CommerceEngines;
 import com.ziggfreed.common.cost.Cost;
 import com.ziggfreed.common.cost.ItemCost;
 import com.ziggfreed.common.currency.CurrencyCatalog;
@@ -23,7 +24,10 @@ import com.ziggfreed.common.icon.IconSpec;
 import com.ziggfreed.common.loot.reward.RewardChip;
 import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.icon.IconRenderer;
+import com.ziggfreed.common.ui.kit.DetailLine;
+import com.ziggfreed.common.ui.kit.Picture;
 import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The two repeatable things every commerce screen paints: a CHIP (a picture and how much, side by
@@ -250,6 +254,38 @@ public final class CommerceChips {
         } catch (Throwable ignored) {
             return Msg.raw(itemId);
         }
+    }
+
+    /**
+     * A price as the lines a kit reading page lists ({@link DetailLine}), one per wallet or item, each in the price
+     * reading a chip uses ({@link #amountAndName}, {@link #priceAmount}); empty for a free price. A wallet the engine
+     * cannot read costs its own lines, never the item lines after them. What a respec on a trainer's page and a
+     * saved build's swap on a tree page both list under their price.
+     */
+    @Nonnull
+    public static List<DetailLine> priceLines(@Nonnull Cost cost) {
+        List<DetailLine> out = new ArrayList<>();
+        if (cost.isFree()) {
+            return out;
+        }
+        try {
+            CurrencyEngine currencies = CommerceEngines.costs().currencies();
+            for (Map.Entry<String, Long> component : cost.currencies().entrySet()) {
+                long amount = component.getValue() == null ? 0L : component.getValue();
+                CurrencyDef def = currencies.catalog().get(component.getKey());
+                out.add(DetailLine.of(def == null ? Picture.NONE : Picture.item(CurrencyText.iconOf(def)),
+                        amountAndName(currencies, component.getKey(), amount, null)));
+            }
+        } catch (Throwable t) {
+            SafeLog.fine("[commerce] a price's wallets could not be read: " + t.getMessage());
+        }
+        for (ItemCost item : cost.items()) {
+            if (item != null && !item.isBlank()) {
+                out.add(DetailLine.of(Picture.tooltipItem(item.item()),
+                        priceAmount(item.count(), itemName(item.item()))));
+            }
+        }
+        return out;
     }
 
     // ==================== lines ====================

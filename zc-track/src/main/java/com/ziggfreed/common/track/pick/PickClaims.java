@@ -11,6 +11,11 @@ import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.track.TrackDef;
 import com.ziggfreed.common.track.TrackService;
 import com.ziggfreed.common.track.TrackText;
+import com.ziggfreed.common.track.tree.TreeDestinations;
+import com.ziggfreed.common.track.tree.TreeText;
+import com.ziggfreed.common.ui.kit.ActionLook;
+import com.ziggfreed.common.ui.kit.ActionSlot;
+import com.ziggfreed.common.ui.kit.DetailAction;
 import com.ziggfreed.common.ui.kit.DetailBlock;
 import com.ziggfreed.common.ui.kit.DetailLine;
 import com.ziggfreed.common.ui.kit.DetailView;
@@ -28,8 +33,10 @@ import com.ziggfreed.common.ui.kit.Tone;
  * The picks waiting, on the Claims tab ({@code LedgerContributions.CLAIMS}): owed picks are never Claims, so this is
  * how they show there. One section, a row per track with anything waiting (how many choices), and a row's page lists
  * the next few slots with their offers (the option a Remember prestige preselects marked), the free picks and the
- * points left to spend. It only lists: a choice is made on the page a consumer builds over {@link PickService}.
- * Nothing while no track carries a pick.
+ * points left to spend. It only lists: a choice is made on the page a consumer builds over {@link PickService}, and a
+ * track whose tree has something to do for the player ({@link TrackTree.View#offersAny}: a point to spend, a node
+ * ready) carries a button opening its tree page (the {@code Track_Tree} destination). Nothing while no track carries
+ * a pick.
  */
 public final class PickClaims implements LedgerSource {
 
@@ -111,9 +118,17 @@ public final class PickClaims implements LedgerSource {
         }
         int more = waiting.owed().size() - shown;
         Message hint = more > 0 ? TrackText.line("claims.page.more", more) : null;
+        // A track whose tree has something to do (a point to spend, a node ready) spends it there: the page's button
+        // opens it (the Claims tab opens a contributed page's destination through Destinations, no module edge). Only
+        // choices waiting, which the tree does not list, carry no button.
+        TrackTree.View tree = TrackTree.read(player, def.id());
+        List<DetailAction> actions = tree != null && tree.offersAny()
+                ? List.of(new DetailAction(ActionSlot.PRIMARY, TreeText.line("claims.open"), ActionLook.NORMAL, "tree",
+                        TreeDestinations.of(def.id()), true, null))
+                : List.of();
         return new DetailView(Picture.item(def.asset().icon()), TrackText.name(def.asset()),
                 TrackText.line("claims.row.meta", waiting.count()), null, List.of(), null, null, null,
-                TrackText.line("claims.page.lead"), blocks, List.of(), hint);
+                TrackText.line("claims.page.lead"), blocks, actions, hint);
     }
 
     /** One owed pick as a block: its level, then each option offered (or the pick itself), the preselected marked. */

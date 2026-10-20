@@ -28,7 +28,9 @@ dependencies {
     // zc-world sits on zc-core and zc-entity alone and never reaches up here.
     implementation project(':zc-world')
     // The kit's ledger records and LedgerContributions, the seam the picks waiting are listed on the Claims tab
-    // through (PickClaims). One-way: zc-presentation sits on zc-core, zc-loot and zc-cast and never reaches up here.
+    // through (PickClaims), and the kit a track's tree page (tree/) is built from: its painters, the toastable page,
+    // the destination vocabulary its Track_Tree type registers into. One-way: zc-presentation sits on zc-core, zc-loot
+    // and zc-cast and never reaches up here.
     implementation project(':zc-presentation')
     // TimedBuffs, the buff bar a running boost shows on as a native EntityEffect tile. One-way: zc-effects sits on
     // zc-core, zc-cast and zc-entity and never reaches up here.
@@ -37,7 +39,8 @@ dependencies {
     // item's chain names. One-way: zc-cast depends on zc-core alone.
     implementation project(':zc-cast')
     // The one price (CostAsset, folded and charged through CommerceEngines.costs()): what a saved build's swap and
-    // a respec cost, payable in any wallet or item (R733, R736). One-way: zc-commerce sits on zc-core, zc-loot,
+    // a respec cost, payable in any wallet or item (R733, R736), and on the tree page that price's lines and the
+    // two-press arm a charge waits on (CommerceChips, ConfirmArm). One-way: zc-commerce sits on zc-core, zc-loot,
     // zc-progression, zc-world and zc-presentation and never reaches up here. `api`, since TrackAsset's and
     // TrackDef's public signatures return a CostAsset.
     api project(':zc-commerce')

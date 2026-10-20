@@ -21,6 +21,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.loot.claim.Claim;
 import com.ziggfreed.common.ui.kit.ActionSlot;
 import com.ziggfreed.common.ui.kit.ContributedLedger;
+import com.ziggfreed.common.ui.kit.DetailAction;
 import com.ziggfreed.common.ui.kit.DetailBindings;
 import com.ziggfreed.common.ui.kit.DetailBlock;
 import com.ziggfreed.common.ui.kit.DetailLine;
@@ -38,6 +39,8 @@ import com.ziggfreed.common.ui.menu.MenuFrame;
 import com.ziggfreed.common.ui.menu.MenuRail;
 import com.ziggfreed.common.ui.menu.MenuSlot;
 import com.ziggfreed.common.ui.menu.ZigMenu;
+import com.ziggfreed.common.ui.route.DestinationContext;
+import com.ziggfreed.common.ui.route.Destinations;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastLine;
 import com.ziggfreed.common.ui.toast.ToastSounds;
@@ -246,7 +249,11 @@ public final class ClaimsPage extends ToastablePage<ClaimsEventData> {
             return;
         }
         if (ClaimsView.ACTION_CLAIM.equals(data.action) || ClaimsView.ACTION_CLAIM_ALL.equals(data.action)) {
-            press(ClaimsView.ACTION_CLAIM_ALL.equals(data.action), ref, store);
+            boolean all = ClaimsView.ACTION_CLAIM_ALL.equals(data.action);
+            if (openContributed(ref, store, player, all ? ActionSlot.SECONDARY : ActionSlot.PRIMARY)) {
+                return;
+            }
+            press(all, ref, store);
             player.getPageManager().openCustomPage(ref, store, this);
             return;
         }
@@ -264,6 +271,29 @@ public final class ClaimsPage extends ToastablePage<ClaimsEventData> {
             return;
         }
         player.getPageManager().setPage(ref, store, Page.None);
+    }
+
+    /**
+     * A press on a contributed row's page (a track's choices waiting) whose button in {@code slot} names a destination
+     * (the track's tree): that screen opened through {@link Destinations}, so the source's own page opens with no
+     * module edge. True when it took the screen; false leaves the press to the Claims (a contributed row holds none, so
+     * it hands nothing over) and the reopen. Never on a chest.
+     */
+    private boolean openContributed(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
+            @Nonnull Player player, @Nonnull ActionSlot slot) {
+        if (fight != null || selected == null) {
+            return false;
+        }
+        try {
+            ContributedLedger contributed = contributed(store, ref);
+            DetailView page = contributed.hasRow(selected) ? contributed.page(selected, context(store, ref)) : null;
+            DetailAction action = page == null ? null : page.action(slot);
+            return action != null && action.enabled() && action.destination() != null
+                    && Destinations.open(action.destination(), DestinationContext.of(store, ref, player));
+        } catch (Throwable t) {
+            SafeLog.warn("[claims] a contributed row's button could not open its screen: " + t.getMessage());
+            return false;
+        }
     }
 
     /**

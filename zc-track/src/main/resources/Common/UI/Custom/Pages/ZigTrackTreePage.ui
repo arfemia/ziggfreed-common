@@ -1,0 +1,118 @@
+$C = "../Common.ui";
+$F = "../Common/ZigFrames.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZW = "../Common/ZigKit.ui";
+
+// A track's tree (com.ziggfreed.common.track.tree.TreePage), built from the kit's pieces the way the trainer page is.
+//
+// TOP, #TreeHeader: the track's picture (#TreePic), its name (#TreeName), the player's level on it (#TreeLevel), what
+// every point spent there also gives (#TreeEach, hidden when the track gives nothing per point), and two kit figures,
+// the points spent (#PointsSpent) and the points left to spend (#PointsLeft).
+//
+// #TreeTabs: the kit's view tabs (Pages/ZigViewTab.ui, appended by ViewTabPainter): one per branch in the track's
+// order, the picks in no branch first, and the saved builds with the respec last. A thin rule (#TabRule) under them.
+//
+// LEFT, #LeftPanel (450 wide): #TreeList, the kit's list (LedgerPainter): a section per row of the branch shown, a row
+// per pick, a locked row's heading saying how many more points it needs in the branch.
+//
+// RIGHT, #RightPanel: #Page, the kit's reading page (@ZigDetailPage, painted by DetailPainter): what the pick gives and
+// needs, its choice's other faces, and Take and Undo in its action bar; #PageEmpty, the kit's empty state, in its
+// place when there is nothing to read. The page never spells a template's child ids: the kit's painters own them.
+
+$C.@PageOverlay {}
+
+$F.@ZigDecoratedFrame {
+  @CloseButton = true;
+  @Ornaments = true;
+  Anchor: (Width: 1160, Height: 850);
+
+  #Content {
+    Anchor: (Top: 0);
+    LayoutMode: Top;
+
+    Group #TreeHeader {
+      LayoutMode: Left;
+      Anchor: (Height: 64, Bottom: $ZK.@ZigSpace2);
+
+      $ZW.@ZigPicture #TreePic {
+        @Size = $ZK.@ZigPicHeader;
+        @Anchor = (Top: 8, Right: $ZK.@ZigSpace3);
+      }
+
+      Group #TreeHeadText {
+        FlexWeight: 1;
+        LayoutMode: Top;
+
+        Label #TreeName {
+          Anchor: (Height: 28);
+          Text: "";
+          Style: (...$ZX.@ZigTitleStyle, WrapMaxLines: 1);
+        }
+
+        Label #TreeLevel {
+          Anchor: (Height: 18);
+          Text: "";
+          Style: (...$ZX.@ZigCaptionStyle, Wrap: true, WrapMaxLines: 1);
+        }
+
+        Label #TreeEach {
+          Anchor: (Height: 18);
+          Text: "";
+          Visible: false;
+          Style: (...$ZX.@ZigCaptionStyle, Wrap: true, WrapMaxLines: 1);
+        }
+      }
+
+      $ZW.@ZigStat #PointsSpent {}
+
+      $ZW.@ZigStat #PointsLeft {
+        @Anchor = (Left: $ZK.@ZigSpace3);
+      }
+    }
+
+    Group #TreeTabs {
+      LayoutMode: Left;
+      Anchor: (Height: 40);
+    }
+
+    Group #TabRule {
+      Anchor: (Height: 1, Bottom: $ZK.@ZigSpace2);
+      Background: (Color: $ZK.@ZigDivider);
+    }
+
+    Group #TreeBody {
+      FlexWeight: 1;
+      LayoutMode: Left;
+
+      Group #LeftPanel {
+        Anchor: (Width: 450);
+        Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
+        LayoutMode: Top;
+        Padding: (Full: $ZK.@ZigSpace3);
+
+        Group #TreeList {
+          FlexWeight: 1;
+          LayoutMode: TopScrolling;
+          ScrollbarStyle: $C.@DefaultScrollbarStyle;
+          Padding: (Right: $ZK.@ZigSpace2);
+        }
+      }
+
+      Group #RightPanel {
+        FlexWeight: 1;
+        LayoutMode: Top;
+        Padding: (Horizontal: 35, Vertical: $ZK.@ZigSpace2);
+
+        $ZW.@ZigDetailPage #Page {
+          FlexWeight: 1;
+        }
+
+        $ZW.@ZigEmptyState #PageEmpty {
+          FlexWeight: 1;
+          Visible: false;
+        }
+      }
+    }
+  }
+}

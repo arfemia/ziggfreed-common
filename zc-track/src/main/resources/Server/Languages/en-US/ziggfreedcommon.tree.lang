@@ -1,0 +1,124 @@
+# The tree page (com.ziggfreed.common.track.tree): a track's tree of picks, a tab per branch with its rows by the
+# points spent in that branch, and a tab for the saved builds and the respec. The file name is the key PREFIX: an
+# entry here resolves as ziggfreedcommon.tree.<key>.
+
+page.empty = There is no tree to show here right now.
+action.failed = Something went wrong. Try again in a moment.
+
+# The header: {0} the player's level on the track; the two figures; {0} what every point spent gives. header.list
+# joins two of those, {0} and {1}.
+header.level = Level {0, number}
+header.spent = Points spent
+header.left = Points to spend
+header.each = Every point you spend also gives {0}
+header.list = {0}, {1}
+
+# The tabs: the picks outside every branch, and the saved builds with the respec.
+tab.root = Basics
+tab.builds = Builds
+
+# A row's heading: {0} its place in the branch. A locked row: {0} the points still to spend, {1} the branch.
+row.open = Row {0, number}
+row.locked = {0, number} more in {1}
+
+# A pick's line. Its cost, {0} points a rank or once; a free pick; one side of a choice, {0} its cost line. The state
+# word: {0} the level it opens at.
+node.meta.rank = {0, number} {0, plural, one {point} other {points}} a rank
+node.meta.once = {0, number} {0, plural, one {point} other {points}}
+node.meta.free = Free
+node.meta.face = {0}, one side of a choice
+state.ready = Ready
+state.taken = Taken
+state.level = Level {0, number}
+state.closed = Closed off
+state.locked = Locked
+state.points = Need points
+
+# A pick's page. The meta: {0} its branch and {1} its row; a pick outside every branch. {0} ranks taken of {1}.
+detail.meta = {0}, row {1, number}
+detail.meta.root = Outside the branches
+detail.ranks = Rank {0, number} of {1, number}
+block.gives = What it gives
+block.gives.rank = What each rank gives
+block.needs = What it needs
+block.choice = Choose one
+# What a pick needs: {0} points in the branch {1}; {0} the level; {0} the pick to take first; {0} points, from the
+# track {1} when another track's points pay.
+need.branch = {0, number} {0, plural, one {point} other {points}} in {1}
+need.level = Level {0, number}
+need.before = {0} first
+need.points = {0, number} {0, plural, one {point} other {points}} to spend
+need.points.from = {0, number} {0, plural, one {point} other {points}} from {1}
+need.other = Something else it asks for
+need.free = Free to take
+tag.taken = Taken
+tag.this = This one
+action.take = Take
+action.undo = Undo last
+hint.undo = Undo last takes back the newest pick you made, here or anywhere else. Closing this page ends it.
+hint.maxed = You have taken every rank of this.
+# Why a pick cannot be taken: {0} the level it opens at; {0} the branch and {1} the points still to spend there; {0}
+# the side of its choice already taken.
+refused.level = Reach level {0, number} to take this.
+refused.row = Spend {1, number} more {1, plural, one {point} other {points}} in {0} to open this row.
+refused.locked = You do not meet what this needs yet.
+refused.before = Take what comes before it first.
+refused.node = You took {0} here. Undo it, or respec, to choose again.
+refused.points = You need more points to take this.
+refused.cap = You have spent all the points you can on this.
+refused.other = This cannot be taken right now.
+
+# What a press did, as a toast: {0} the pick.
+toast.taken = You took {0}.
+toast.undone = You undid {0}.
+toast.undo.none = There is nothing left to undo.
+toast.undo.needed = {0} cannot be undone yet: a pick you made after it still needs it. Undo that one first.
+toast.combat = You cannot do this while you are fighting.
+toast.encounter = You cannot do this during a boss fight.
+toast.pay = You cannot pay for this yet.
+
+# The saved builds: {0} the build's number; {0} how many picks it holds. In the toasts {0} is the build's number and
+# {1} how many picks it saved or put back.
+section.builds = Saved builds
+build.title = Build {0, number}
+build.meta = {0, number} {0, plural, one {pick} other {picks}} saved
+build.meta.empty = Nothing saved
+build.state.active = In use
+build.lead = A saved build keeps your picks, so you can swap back to them in one go. A swap clears the picks you have and takes the build's picks again in the order you made them.
+build.block.price = What a swap costs
+build.price.free = Free
+build.action.swap = Use this build
+build.action.save = Save here
+build.confirm.swap = Press again to swap
+build.confirm.save = Press again to replace it
+build.confirm.reset = Press again to put it back
+build.hint.changed = Using it again is free and puts it back as you saved it: the picks you made since are cleared.
+build.hint.as_saved = This build is in use just as you saved it.
+build.toast.saved = Saved as build {0, number}: {1, number} {1, plural, one {pick} other {picks}}.
+build.toast.swapped = Build {0, number} is in use: {1, number} {1, plural, one {pick} other {picks}} back.
+build.toast.in_use = That build is already in use, just as you saved it.
+build.toast.unsaved = Your picks are in no saved build, so a swap would lose them. Save them as a build first.
+
+# The respec: {0} how many picks it would clear, or cleared.
+section.respec = Start over
+respec.title = Respec
+respec.meta = {0, number} {0, plural, one {pick} other {picks}} to clear
+respec.meta.none = Nothing to clear
+respec.lead = Clears every pick you made here and gives back every point it cost. What a trainer taught you stays.
+respec.block.price = What it costs
+respec.action = Respec
+respec.confirm = Press again to respec
+respec.toast.done = Respec done: {0, number} {0, plural, one {pick is} other {picks are}} cleared and the points are yours to spend again.
+respec.toast.nothing = You have nothing to clear here.
+
+# What a pick gives: a stat raised or lowered by an amount, or by a percent of its base ({0} the amount, {1} the
+# stat); a kind of grant that names itself here as grant.kind.<kind>; any other kind.
+grant.stat.more = +{0, number} {1}
+grant.stat.less = -{0, number} {1}
+grant.stat.more.percent = +{0, number}% {1}
+grant.stat.less.percent = -{0, number}% {1}
+grant.kind.weakspot = More of your hits land as weak spots
+grant.other = A bonus of its own kind
+
+# The Claims tab's waiting row for a track with a tree: the button that opens it.
+claims.open = Open the tree
