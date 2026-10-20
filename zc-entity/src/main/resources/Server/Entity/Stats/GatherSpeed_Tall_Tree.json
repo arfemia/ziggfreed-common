@@ -1,0 +1,8 @@
+{
+  "$Comment": "Percent faster breaking of a log in a tall tree (its column of logs of one wood at least ten tall), in whole percent points, added to GatherSpeed by the gather step on such a log. Any item's StatModifiers raise it like any stat, and so does an effect's RawStatModifiers. Base 0; Min is a generous negative so a subtractive modifier never clamps.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

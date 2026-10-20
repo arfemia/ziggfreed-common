@@ -1,0 +1,8 @@
+{
+  "$Comment": "Fishing traps, which no native tag groups. A block joins any family by naming it in its own item Tags under ZigBlockFamily, so another mod opts its blocks in from its own files. Retune or switch it off by id in mods/ziggfreedcommon/block-families.json.",
+  "Match": {
+    "Blocks": [
+      "Tool_Fishing_Trap*"
+    ]
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "$Comment": "The hardest stones, which no native tag tells apart: basalt, volcanic and cooled magma rock, marble, slate, aqua stone and lime. GatherSpeed_Hard_Stone speeds them. A block joins any family by naming it in its own item Tags under ZigBlockFamily, so another mod opts its blocks in from its own files. Retune or switch it off by id in mods/ziggfreedcommon/block-families.json.",
+  "Match": {
+    "Blocks": [
+      "Rock_Basalt*",
+      "Rock_Volcanic*",
+      "Rock_Magma*",
+      "Rock_Marble*",
+      "Rock_Slate*",
+      "Rock_Aqua*",
+      "Rock_Lime*"
+    ]
+  }
+}

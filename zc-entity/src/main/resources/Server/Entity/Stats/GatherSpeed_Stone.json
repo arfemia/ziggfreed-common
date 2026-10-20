@@ -1,0 +1,8 @@
+{
+  "$Comment": "Percent faster block breaking, in whole percent points (10 is +10%), on blocks in the Stone block family (Server/ZiggfreedCommon/BlockFamilies/Stone.json, or a block whose own item Tags name Stone under ZigBlockFamily). ziggfreed-common's gather step adds it to GatherSpeed on such a block, holds the sum at GatherSpeedMax and multiplies the hit's damage by it; the tool still decides what it can break. Any item's StatModifiers raise it like any stat, and so does an effect's RawStatModifiers. Base 0; Min is a generous negative so a subtractive modifier never clamps.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

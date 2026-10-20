@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Method;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
@@ -159,6 +160,97 @@ class PlacedBlockSectionTest {
         copy.setMarked(ChunkUtil.indexBlock(6, 6, 6), true);
         assertFalse(section.isMarked(ChunkUtil.indexBlock(6, 6, 6)),
                 "writing to the copy must not reach back into the original");
+    }
+
+    /**
+     * Who placed a block is read back per block, however many players built in one section: the
+     * palette widens from no data a block to packed indices as placers arrive, and an index written
+     * before a widening still names the same player after it.
+     */
+    @Test
+    void eachMarkedBlockKeepsItsOwnPlacerAcrossWidening() throws Exception {
+        PlacedBlockSection section = new PlacedBlockSection();
+        UUID[] players = new UUID[20];
+        for (int i = 0; i < players.length; i++) {
+            players[i] = new UUID(7L, i);
+        }
+        section.setMarked(ChunkUtil.indexBlock(0, 0, 0), true, players[0]);
+        assertEquals(0, section.placerBits(), "one placer in a section costs nothing a block");
+        for (int i = 1; i < players.length; i++) {
+            section.setMarked(ChunkUtil.indexBlock(i, 1, 2), true, players[i]);
+        }
+        assertEquals(8, section.placerBits(), "twenty placers take a byte a block");
+        assertEquals(players[0], section.placerAt(ChunkUtil.indexBlock(0, 0, 0)));
+        for (int i = 1; i < players.length; i++) {
+            assertEquals(players[i], section.placerAt(ChunkUtil.indexBlock(i, 1, 2)), "placer " + i);
+        }
+
+        PlacedBlockSection restored = roundTrip(section);
+        assertEquals(players[0], restored.placerAt(ChunkUtil.indexBlock(0, 0, 0)),
+                "the placers survive a chunk save and load");
+        for (int i = 1; i < players.length; i++) {
+            assertEquals(players[i], restored.placerAt(ChunkUtil.indexBlock(i, 1, 2)), "placer " + i);
+        }
+        assertEquals(null, restored.placerAt(ChunkUtil.indexBlock(30, 30, 30)), "an unmarked block has no placer");
+    }
+
+    /**
+     * A section saved before placers were kept reads its marks as placed by nobody known, and the
+     * first player to place there afterwards does not inherit them.
+     */
+    @Test
+    void marksSavedWithoutPlacersStayUnknown() throws Exception {
+        PlacedBlockSection legacy = new PlacedBlockSection();
+        int old = ChunkUtil.indexBlock(3, 3, 3);
+        legacy.setMarked(old, true);
+        PlacedBlockSection restored = roundTrip(legacy);
+        assertTrue(restored.isMarked(old));
+        assertEquals(null, restored.placerAt(old));
+
+        UUID player = new UUID(1L, 2L);
+        int fresh = ChunkUtil.indexBlock(4, 4, 4);
+        restored.setMarked(fresh, true, player);
+        assertEquals(player, restored.placerAt(fresh));
+        assertEquals(null, restored.placerAt(old), "an older mark is never handed to a newer placer");
+    }
+
+    /**
+     * The spared mark is its own record: it survives a save with what each spared block was, beside
+     * the placers, and an emptied section drops it.
+     */
+    @Test
+    void sparedBlocksSurviveBeingWrittenOutAndReadBack() throws Exception {
+        PlacedBlockSection section = new PlacedBlockSection();
+        int spared = ChunkUtil.indexBlock(9, 10, 11);
+        int torch = ChunkUtil.indexBlock(0, 0, 0);
+        int wall = ChunkUtil.indexBlock(31, 31, 31);
+        assertTrue(section.spare(spared, "Rock_Stone"));
+        assertTrue(section.spare(torch, "Wood_Torch"));
+        assertTrue(section.spare(wall, "Rock_Stone"));
+        assertFalse(section.spare(wall, "Rock_Stone"), "the same block spared again changes nothing");
+        assertFalse(section.isMarked(spared), "a spared block need not be a guarded placement");
+        UUID player = new UUID(5L, 6L);
+        int placed = ChunkUtil.indexBlock(2, 2, 2);
+        section.setMarked(placed, true, player);
+
+        PlacedBlockSection restored = roundTrip(section);
+        assertTrue(restored.isSpared(spared));
+        assertFalse(restored.isSpared(ChunkUtil.indexBlock(9, 10, 12)));
+        assertEquals(3, restored.sparedCount());
+        assertEquals("Rock_Stone", restored.sparedAs(spared));
+        assertEquals("Wood_Torch", restored.sparedAs(torch));
+        assertEquals("Rock_Stone", restored.sparedAs(wall));
+        assertEquals(null, restored.sparedAs(ChunkUtil.indexBlock(9, 10, 12)));
+        assertEquals(player, restored.placerAt(placed), "the placers still read after the spared blocks");
+
+        assertTrue(restored.unspare(spared));
+        assertTrue(restored.unspare(torch));
+        assertTrue(restored.unspare(wall));
+        assertFalse(restored.unspare(wall), "a mark already gone is not forgotten twice");
+        assertEquals(0, restored.sparedCount());
+        PlacedBlockSection cleared = roundTrip(restored);
+        assertFalse(cleared.isSpared(spared));
+        assertEquals(player, cleared.placerAt(placed));
     }
 
     /**

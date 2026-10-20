@@ -1,0 +1,23 @@
+{
+  "$Comment": "The common woods: every tree trunk but the hardest woods. GatherSpeed_Soft_Wood speeds them. A block joins any family by naming it in its own item Tags under ZigBlockFamily, so another mod opts its blocks in from its own files. Retune or switch it off by id in mods/ziggfreedcommon/block-families.json.",
+  "Match": {
+    "Tags": {
+      "Type": [
+        "Trunk"
+      ]
+    }
+  },
+  "Exclude": {
+    "Blocks": [
+      "Wood_Azure_*",
+      "Wood_Crystal_*",
+      "Wood_Fire_*",
+      "Wood_Ice_*",
+      "Wood_Petrified_*",
+      "Wood_Poisoned_*",
+      "Wood_Spiral_*",
+      "Wood_Stormbark_*",
+      "Wood_Windwillow_*"
+    ]
+  }
+}

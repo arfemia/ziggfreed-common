@@ -53,6 +53,7 @@ import com.ziggfreed.common.progress.runtime.MomentPayload;
 import com.ziggfreed.common.subject.PlayerRefSubjectHandle;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.world.gather.ShapedBreaks;
 
 /**
  * The library's bonus rows on every produced break, hand harvest and kill: a {@link MomentListener}
@@ -145,7 +146,8 @@ public final class BonusRowReactions implements MomentListener {
 
     private static void onBreak(@Nonnull Moment moment, @Nonnull BonusRow row, @Nonnull BlockBreakPayload payload) {
         CommandBuffer<EntityStore> buffer = moment.commandBuffer();
-        if (buffer == null) {
+        // A further block a gather shape breaks for the player rolls only where that shape lets its blocks roll.
+        if (buffer == null || !ShapedBreaks.rowsAllowed()) {
             return;
         }
         Store<EntityStore> store = moment.store();

@@ -1,0 +1,14 @@
+{
+  "$Comment": "Packed soil, which no native tag tells apart: clay, gravel, mud, snow, ash, hive and root soil. GatherSpeed_Packed_Soil speeds them. A block joins any family by naming it in its own item Tags under ZigBlockFamily, so another mod opts its blocks in from its own files. Retune or switch it off by id in mods/ziggfreedcommon/block-families.json.",
+  "Match": {
+    "Blocks": [
+      "Soil_Clay*",
+      "Soil_Gravel*",
+      "Soil_Mud*",
+      "Soil_Snow*",
+      "Soil_Ash*",
+      "Soil_Hive*",
+      "Soil_Roots*"
+    ]
+  }
+}

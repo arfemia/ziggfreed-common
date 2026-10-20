@@ -127,6 +127,7 @@ import com.ziggfreed.common.ui.menu.command.ZigMenuCommand;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.BootAudit;
 import com.ziggfreed.common.world.BlockRulesBootstrap;
+import com.ziggfreed.common.world.gather.GatherBootstrap;
 import com.ziggfreed.common.world.placed.PlacedBlockBootstrap;
 import com.ziggfreed.common.world.stash.BlockStashBootstrap;
 
@@ -303,6 +304,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // A gameplay config's ZigBlockRules group (CreativeOnlyBreaking, which zc's dungeon config writes)
         // registers before any gameplay config decodes, with the systems that enforce it.
         BlockRulesBootstrap.registerBlockRules(this);
+        // The gather and build steps (block speed, tool care, thrift, growth, the gather shapes), ordered after
+        // the block rules' refusals they read.
+        GatherBootstrap.install(this);
         // The yearly calendar declares its feature switches, its two readings and the occurrence slot
         // here, before the progression runtime is set up over content that gates on them.
         CalendarBootstrap.install(this);

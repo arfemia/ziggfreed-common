@@ -1,0 +1,8 @@
+{
+  "$Comment": "Percent faster block breaking on every block, in whole percent points (10 is +10%). ziggfreed-common's gather step (world/gather/GatherSpeedSystem) sums it with each GatherSpeed_<Family> stat whose block family holds the block, GatherSpeed_Placed on a placed block, the GatherRhythm chain and any stat a mod names for the block, holds the sum at GatherSpeedMax and multiplies each hit's block damage by it. The tool still decides what it can break, so speed never mines a tier early. A holder condition pairs with it as GatherSpeed_While<Condition>. Any item's StatModifiers raise it like any stat, and so does an effect's RawStatModifiers. Base 0; Min is a generous negative so a subtractive modifier never clamps.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

@@ -1,0 +1,8 @@
+{
+  "$Comment": "Percent faster block breaking for each block broken in a chain, in whole percent points: every break within two seconds of the last adds one step, up to five, and a longer pause starts the chain again. The gather step adds steps times this to GatherSpeed. Any item's StatModifiers raise it like any stat, and so does an effect's RawStatModifiers. Base 0; Min is a generous negative so a subtractive modifier never clamps.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

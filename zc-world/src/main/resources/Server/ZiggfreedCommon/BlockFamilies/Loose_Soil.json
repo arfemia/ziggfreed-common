@@ -1,0 +1,14 @@
+{
+  "$Comment": "Loose soil, which no native tag tells apart: dirt, grass, sand, fallen leaves and needles, paths and pebbles. GatherSpeed_Loose_Soil speeds them. A block joins any family by naming it in its own item Tags under ZigBlockFamily, so another mod opts its blocks in from its own files. Retune or switch it off by id in mods/ziggfreedcommon/block-families.json.",
+  "Match": {
+    "Blocks": [
+      "Soil_Dirt*",
+      "Soil_Grass*",
+      "Soil_Sand*",
+      "Soil_Leaves*",
+      "Soil_Needles*",
+      "Soil_Pathway*",
+      "Soil_Pebbles*"
+    ]
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "$Comment": "The blocks thrift may spare when placed: plain stone, soil and wood and torches, the cheap building blocks, so placing and breaking again never multiplies anything worth having. Ore, gems, gold and silver blocks, crystal and ornate pieces are left out, and furniture, benches, metal and decoration are never tagged Rock, Soil or Wood. A block joins any family by naming it in its own item Tags under ZigBlockFamily, so another mod opts its blocks in from its own files. Retune or switch it off by id in mods/ziggfreedcommon/block-families.json.",
+  "Match": {
+    "Tags": {
+      "Type": [
+        "Rock",
+        "Soil",
+        "Wood"
+      ]
+    },
+    "Blocks": [
+      "*Torch*"
+    ]
+  },
+  "Exclude": {
+    "Tags": {
+      "Type": [
+        "Ore"
+      ],
+      "Family": [
+        "Gem",
+        "Gold",
+        "Silver"
+      ]
+    },
+    "Blocks": [
+      "*Ornate*",
+      "*Crystal*",
+      "*Gold*",
+      "*Silver*",
+      "*Gem*"
+    ]
+  }
+}

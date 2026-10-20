@@ -37,6 +37,7 @@ import com.ziggfreed.common.track.asset.TrackConfig;
 import com.ziggfreed.common.track.boost.BoostConfig;
 import com.ziggfreed.common.track.pick.TrackPickConfig;
 import com.ziggfreed.common.track.source.TrackSourceConfig;
+import com.ziggfreed.common.world.gather.GatherShapeConfig;
 
 /**
  * Every store whose files carry a top-level {@code Requires} folds its load event through the reporting
@@ -58,7 +59,7 @@ import com.ziggfreed.common.track.source.TrackSourceConfig;
  * QuestCategories, AchievementMilestones, Almanac, ShopPools, EncounterBindings,
  * EncounterParticipation, EncounterRules, CalendarEvents, CalendarSpawns, Titles, Reputations, TrackCurves,
  * TrackCategories, TrackWorldRules, TrackPickOptions, TrackPickDecks, BoostSettings, WeakSpotSettings, EffectFamilies,
- * ConditionalStats and Gateways. A
+ * ConditionalStats, BlockFamilies and Gateways. A
  * store that gains a
  * top-level {@code Requires} moves from this paragraph into {@code GATED}, and into {@code OWNER_READERS}
  * or {@code NO_OWNER_FILE}.
@@ -100,6 +101,8 @@ class FrameworkModGateWiringTest {
         GATED.put("TrackSourceAsset", new Gated("TrackSources", "TrackSourceConfig", TrackSourceConfig.MOD_GATE_STORE));
         GATED.put("TrackPickAsset", new Gated("TrackPicks", "TrackPickConfig", TrackPickConfig.MOD_GATE_STORE));
         GATED.put("BoostAsset", new Gated("Boosts", "BoostConfig", BoostConfig.MOD_GATE_STORE));
+        GATED.put("GatherShapeAsset",
+                new Gated("GatherShapes", "GatherShapeConfig", GatherShapeConfig.MOD_GATE_STORE));
     }
 
     /**
@@ -140,6 +143,9 @@ class FrameworkModGateWiringTest {
                     "public static void reload()", "GateSpec.missingMod("),
             new OwnerReader("BoostAsset", "BoostOwnerLayers.reload();",
                     module("zc-track", "track", "boost", "BoostOwnerLayers.java"),
+                    "public static void reload()", "GateSpec.missingMod("),
+            new OwnerReader("GatherShapeAsset", "GatherShapeOwnerLayers.reload();",
+                    module("zc-world", "world", "gather", "GatherShapeOwnerLayers.java"),
                     "public static void reload()", "GateSpec.missingMod("),
             new OwnerReader("NpcPlacementAsset", "NpcPlacementOverrides.getInstance().applyOwnerLayer();",
                     module("zc-dialogue", "npc", "placement", "asset", "NpcPlacementOverrides.java"),
@@ -242,6 +248,7 @@ class FrameworkModGateWiringTest {
         assertEquals("TrackSources", TrackSourceConfig.getInstance().modGateStore());
         assertEquals("TrackPicks", TrackPickConfig.getInstance().modGateStore());
         assertEquals("Boosts", BoostConfig.getInstance().modGateStore());
+        assertEquals("GatherShapes", GatherShapeConfig.getInstance().modGateStore());
     }
 
     @Test

@@ -13,6 +13,8 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
+import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
@@ -133,6 +135,10 @@ public final class PlacedBlockLedger {
     public record BlockPosition(@Nonnull UUID worldUuid, int x, int y, int z) {
     }
 
+    /** A mark spent at {@code at}, and who had placed it, kept for the grace window. */
+    private record Spent(long at, @Nullable UUID placer) {
+    }
+
     /** Placer uuid to item id to how many of that item they put down. */
     private final Map<UUID, Map<String, TrackedItem>> playerPlacedItems = new ConcurrentHashMap<>();
 
@@ -141,7 +147,7 @@ public final class PlacedBlockLedger {
      * break is told the same thing. Never more than the positions broken in the last second, and
      * swept on the same beat as the item half.
      */
-    private final Map<BlockPosition, Long> recentlySpent = new ConcurrentHashMap<>();
+    private final Map<BlockPosition, Spent> recentlySpent = new ConcurrentHashMap<>();
 
     @Nonnull
     private volatile Policy policy = Policy.DEFAULT;
@@ -190,20 +196,101 @@ public final class PlacedBlockLedger {
     // ==================== placements ====================
 
     /**
-     * Remember that a player put a block down at this position.
-     *
-     * <p>The placer's uuid is accepted for the caller's convenience and deliberately not stored:
-     * the guard refuses credit for a placement whoever breaks it, so the identity would never be
-     * read back.
+     * Remember that a player put a block down at this position, and who: the guard refuses credit
+     * for a placement whoever breaks it, so it never reads the placer, but a rule that takes only a
+     * player's own blocks does ({@link #placedBy}).
      */
     public void trackPlacement(@Nonnull UUID placerUuid, @Nonnull UUID worldUuid, int x, int y, int z) {
         if (!policy.enabled()) {
             return;
         }
         withSection(worldUuid, x, y, z, (store, sectionRef) -> {
-            PlacedBlockSection.mark(store, sectionRef, x, y, z);
+            PlacedBlockSection.mark(store, sectionRef, x, y, z, placerUuid);
             return true;
         });
+    }
+
+    /**
+     * Who placed the block at this position: the player the ledger recorded, also for a mark spent
+     * by a reader of the same break inside {@link #READ_GRACE_MS}; null for a block nobody placed, one
+     * placed before placers were kept, or a placement left unrecorded.
+     */
+    @Nullable
+    public UUID placedBy(@Nonnull UUID worldUuid, int x, int y, int z) {
+        if (!policy.enabled()) {
+            return null;
+        }
+        UUID[] found = new UUID[1];
+        boolean marked = withSection(worldUuid, x, y, z, (store, sectionRef) -> {
+            found[0] = PlacedBlockSection.placerOf(store, sectionRef, x, y, z);
+            return PlacedBlockSection.isPlaced(store, sectionRef, x, y, z);
+        });
+        if (marked) {
+            return found[0];
+        }
+        Spent spent = recentlySpent.get(new BlockPosition(worldUuid, x, y, z));
+        return spent != null && System.currentTimeMillis() - spent.at() <= READ_GRACE_MS ? spent.placer() : null;
+    }
+
+    /** Whether {@code playerUuid} placed the block at this position, as {@link #placedBy} reads it. */
+    public boolean isPlacedBy(@Nonnull UUID playerUuid, @Nonnull UUID worldUuid, int x, int y, int z) {
+        return playerUuid.equals(placedBy(worldUuid, x, y, z));
+    }
+
+    // ==================== spared placements ====================
+
+    /**
+     * Remember that {@code block}, now at this position, was placed without using up its item (a thrift
+     * step spared it), so breaking it must hand nothing back. The mark keeps what the block is
+     * ({@link #sparedIdentity}), so a different block standing in the cell later never reads as spared.
+     * Kept whatever the policy says, since it guards against making an item from nothing rather than
+     * against credit.
+     */
+    public void markSpared(@Nonnull UUID worldUuid, int x, int y, int z, @Nonnull BlockType block) {
+        String identity = sparedIdentity(block);
+        withSection(worldUuid, x, y, z,
+                (store, sectionRef) -> PlacedBlockSection.markSpared(store, sectionRef, x, y, z, identity));
+    }
+
+    /** Forget a spared mark at this position: the block it named is gone. */
+    public void clearSpared(@Nonnull UUID worldUuid, int x, int y, int z) {
+        withSection(worldUuid, x, y, z,
+                (store, sectionRef) -> PlacedBlockSection.clearSpared(store, sectionRef, x, y, z));
+    }
+
+    /**
+     * Was {@code block}, the block at this position now, placed without using up its item? A mark that
+     * names another block (the spared one went by physics or by another mod's write, which nothing
+     * hears, and something else stands there now) is forgotten here and answers false, so it never
+     * costs that block its drop.
+     */
+    public boolean isSpared(@Nonnull UUID worldUuid, int x, int y, int z, @Nonnull BlockType block) {
+        String identity = sparedIdentity(block);
+        return withSection(worldUuid, x, y, z, (store, sectionRef) -> {
+            String was = PlacedBlockSection.sparedAs(store, sectionRef, x, y, z);
+            if (was == null) {
+                return false;
+            }
+            if (was.equals(identity)) {
+                return true;
+            }
+            PlacedBlockSection.clearSpared(store, sectionRef, x, y, z);
+            return false;
+        });
+    }
+
+    /**
+     * What a spared mark records of a block: its own item's id, which every state and rotation of the
+     * block shares (a door swung open, a lamp lit), or the block's id when no item holds it.
+     */
+    @Nonnull
+    public static String sparedIdentity(@Nonnull BlockType block) {
+        Item item = block.getItem();
+        String id = item == null ? null : item.getId();
+        if (id == null) {
+            id = block.getId();
+        }
+        return id == null ? "" : id;
     }
 
     /**
@@ -219,18 +306,21 @@ public final class PlacedBlockLedger {
         long now = System.currentTimeMillis();
         sweepRecentlySpent(now);
         BlockPosition position = new BlockPosition(worldUuid, x, y, z);
-        Long spentAt = recentlySpent.get(position);
-        if (spentAt != null) {
-            if (now - spentAt <= READ_GRACE_MS) {
+        Spent spent = recentlySpent.get(position);
+        if (spent != null) {
+            if (now - spent.at() <= READ_GRACE_MS) {
                 // Somebody else already read this same break. Same answer, nothing spent twice.
                 return true;
             }
-            recentlySpent.remove(position, spentAt);
+            recentlySpent.remove(position, spent);
         }
-        boolean placed = withSection(worldUuid, x, y, z,
-                (store, sectionRef) -> PlacedBlockSection.consume(store, sectionRef, x, y, z));
+        UUID[] placer = new UUID[1];
+        boolean placed = withSection(worldUuid, x, y, z, (store, sectionRef) -> {
+            placer[0] = PlacedBlockSection.placerOf(store, sectionRef, x, y, z);
+            return PlacedBlockSection.consume(store, sectionRef, x, y, z);
+        });
         if (placed) {
-            recentlySpent.put(position, now);
+            recentlySpent.put(position, new Spent(now, placer[0]));
         }
         return placed;
     }
@@ -367,7 +457,7 @@ public final class PlacedBlockLedger {
     /** Drop placed-item rows that have aged out or have already been answered for. */
     public void cleanupExpired() {
         long now = System.currentTimeMillis();
-        recentlySpent.entrySet().removeIf(entry -> now - entry.getValue() > READ_GRACE_MS);
+        recentlySpent.entrySet().removeIf(entry -> now - entry.getValue().at() > READ_GRACE_MS);
         long itemExpireMillis = Math.max(1, policy.itemExpireMinutes()) * 60_000L;
         for (Map<String, TrackedItem> items : playerPlacedItems.values()) {
             items.entrySet().removeIf(entry -> {
@@ -390,7 +480,7 @@ public final class PlacedBlockLedger {
             return;
         }
         lastSpentSweep = now;
-        recentlySpent.entrySet().removeIf(entry -> now - entry.getValue() > READ_GRACE_MS);
+        recentlySpent.entrySet().removeIf(entry -> now - entry.getValue().at() > READ_GRACE_MS);
     }
 
     /**

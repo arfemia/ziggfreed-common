@@ -186,6 +186,12 @@ import com.ziggfreed.common.ui.hud.card.HudCardOwnerLayers;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.world.WeightedPrefabPlacementAsset;
 import com.ziggfreed.common.world.WeightedPrefabPlacementConfig;
+import com.ziggfreed.common.world.gather.BlockFamilyAsset;
+import com.ziggfreed.common.world.gather.BlockFamilyConfig;
+import com.ziggfreed.common.world.gather.BlockFamilyOwnerLayers;
+import com.ziggfreed.common.world.gather.GatherShapeAsset;
+import com.ziggfreed.common.world.gather.GatherShapeConfig;
+import com.ziggfreed.common.world.gather.GatherShapeOwnerLayers;
 import com.ziggfreed.common.worldmap.GatewayAsset;
 import com.ziggfreed.common.worldmap.GatewayConfig;
 import com.ziggfreed.common.worldmap.PortalGateways;
@@ -403,6 +409,35 @@ public final class FrameworkAssetRegistrar {
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, WeightedPrefabPlacementAsset.class,
                 (LoadedAssetsEvent<String, WeightedPrefabPlacementAsset, DefaultAssetMap<String, WeightedPrefabPlacementAsset>> ev) ->
                         WeightedPrefabPlacementConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
+
+        // --- Block families (Pattern A) - a named family of blocks (ore, stone, the hardest woods, the cheap
+        //     building blocks thrift may spare), matched on the block item's native tags or id, which the
+        //     gather and thrift steps read stats for by name and a gather shape names. The library ships the
+        //     families its own stats name. Owner layer mods/ziggfreedcommon/block-families.json, re-read
+        //     whenever this store loads. No top-level Requires. An item load or removal re-reads every
+        //     block's tags. ---
+        AssetStoreRegistrar.registerStore(BlockFamilyAsset.class,
+                new DefaultAssetMap<String, BlockFamilyAsset>(), BlockFamilyAsset.TYPE_ROOT,
+                BlockFamilyAsset::getId, BlockFamilyAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, BlockFamilyAsset.class,
+                (LoadedAssetsEvent<String, BlockFamilyAsset, DefaultAssetMap<String, BlockFamilyAsset>> ev) -> {
+                    BlockFamilyConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    BlockFamilyOwnerLayers.reload();
+                });
+
+        // --- Gather shapes (Pattern A) - what more a player's break or harvest takes for a player who meets
+        //     its Requires (a vein, a tree, a row of crops), every further block through the engine's own
+        //     break or harvest. The library ships none. Owner layer mods/ziggfreedcommon/gather-shapes.json,
+        //     re-read whenever this store loads. A top-level Requires follows the mod gate. ---
+        AssetStoreRegistrar.registerStore(GatherShapeAsset.class,
+                new DefaultAssetMap<String, GatherShapeAsset>(), GatherShapeAsset.TYPE_ROOT,
+                GatherShapeAsset::getId, GatherShapeAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, GatherShapeAsset.class,
+                (LoadedAssetsEvent<String, GatherShapeAsset, DefaultAssetMap<String, GatherShapeAsset>> ev) -> {
+                    GatherShapeConfig.getInstance().mergePackLayer(AssetMergeAdapter.gate(GatherShapeConfig.MOD_GATE_STORE,
+                            ev.getAssetMap(), s -> GateSpec.missingMod(s.requires())));
+                    GatherShapeOwnerLayers.reload();
+                });
 
         // --- Gateways: where the way into another world stands, so a tracked quest whose character
         //     stands elsewhere points at the nearest way there (worldmap/Gateways). The base game's
@@ -955,6 +990,13 @@ public final class FrameworkAssetRegistrar {
                 (LoadedAssetsEvent<String, Item, DefaultAssetMap<String, Item>> ev) -> ItemLevelTags.markDirty());
         plugin.getEventRegistry().register(RemovedAssetsEvent.class, Item.class,
                 (RemovedAssetsEvent<String, Item, DefaultAssetMap<String, Item>> ev) -> ItemLevelTags.markDirty());
+        // A block family is matched on its blocks' item tags, so an item load or removal re-reads them too.
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, Item.class,
+                (LoadedAssetsEvent<String, Item, DefaultAssetMap<String, Item>> ev) ->
+                        BlockFamilyConfig.getInstance().itemsChanged());
+        plugin.getEventRegistry().register(RemovedAssetsEvent.class, Item.class,
+                (RemovedAssetsEvent<String, Item, DefaultAssetMap<String, Item>> ev) ->
+                        BlockFamilyConfig.getInstance().itemsChanged());
 
         // --- Calendar events (Pattern A) - one event that comes round every year per file: its
         //     window (Start and End month-days, both in), the year it first ran, the zone its days are

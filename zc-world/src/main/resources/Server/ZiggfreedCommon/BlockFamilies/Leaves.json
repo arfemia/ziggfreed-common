@@ -1,0 +1,10 @@
+{
+  "$Comment": "Tree leaves: the blocks whose item is tagged Family Leaves. A block joins any family by naming it in its own item Tags under ZigBlockFamily, so another mod opts its blocks in from its own files. Retune or switch it off by id in mods/ziggfreedcommon/block-families.json.",
+  "Match": {
+    "Tags": {
+      "Family": [
+        "Leaves"
+      ]
+    }
+  }
+}

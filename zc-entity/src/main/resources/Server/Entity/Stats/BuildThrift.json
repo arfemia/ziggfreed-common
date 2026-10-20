@@ -1,0 +1,8 @@
+{
+  "$Comment": "Percent chance a building block a player places is not used up, in whole percent points (10 keeps one block in ten in hand). ziggfreed-common's thrift step (world/gather/ThriftSystem) reads it, with each BuildThrift_<Family> stat whose block family holds the block and BuildThrift_Shaped on a shaped placement, only on a block the Thrift block family lets through (cheap building blocks, never ore, metal, gems or furniture, so placing and breaking multiplies nothing worth having), held at BuildThriftMax, through the engine's own place event. Any item's StatModifiers raise it like any stat, and so does an effect's RawStatModifiers. Base 0; Min is a generous negative so a subtractive modifier never clamps.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

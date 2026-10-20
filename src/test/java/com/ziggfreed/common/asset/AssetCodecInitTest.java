@@ -131,6 +131,8 @@ import com.ziggfreed.common.ui.hud.panel.HudSpotPosition;
 import com.ziggfreed.common.ui.hud.card.HudCardAsset;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.world.WeightedPrefabPlacementAsset;
+import com.ziggfreed.common.world.gather.BlockFamilyAsset;
+import com.ziggfreed.common.world.gather.GatherShapeAsset;
 import com.ziggfreed.common.world.WorldSelector;
 import com.ziggfreed.common.worldmap.GatewayAsset;
 
@@ -634,6 +636,17 @@ class AssetCodecInitTest {
     @Test
     void bonusRowAssetCodecInitializes() {
         assertNotNull(BonusRowAsset.CODEC, "BonusRowAsset.CODEC must static-init (PascalCase keys)");
+    }
+
+    @Test
+    void gatherCodecsInitialize() {
+        assertNotNull(BlockFamilyAsset.CODEC, "BlockFamilyAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(BlockFamilyAsset.Selector.CODEC, "BlockFamilyAsset.Selector.CODEC must static-init");
+        assertNotNull(GatherShapeAsset.CODEC, "GatherShapeAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(GatherShapeAsset.Origin.CODEC, "GatherShapeAsset.Origin.CODEC must static-init");
+        assertNotNull(GatherShapeAsset.Shape.CODEC, "GatherShapeAsset.Shape.CODEC must static-init");
+        assertNotNull(GatherShapeAsset.Offset.CODEC, "GatherShapeAsset.Offset.CODEC must static-init");
+        assertNotNull(GatherShapeAsset.Canopy.CODEC, "GatherShapeAsset.Canopy.CODEC must static-init");
     }
 
     @Test

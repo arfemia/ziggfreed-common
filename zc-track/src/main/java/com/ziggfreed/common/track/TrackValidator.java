@@ -551,12 +551,23 @@ public final class TrackValidator {
     public static List<Finding> auditPicks(@Nonnull Collection<TrackPicks.PickDef> picks,
             @Nonnull ToIntFunction<String> pointsPerLevel, @Nonnull Predicate<String> statKnown) {
         List<Finding> out = new ArrayList<>();
+        // What each track knows is read off the picks handed in, never the server's live fold, so the audit is the
+        // pure core it says it is: a caller auditing its own fold (a test over the shipped files) gets that fold's
+        // answer.
+        Map<String, Set<String>> known = new HashMap<>();
+        for (TrackPicks.PickDef pick : picks) {
+            Set<String> ids = known.computeIfAbsent(pick.trackId(), t -> new HashSet<>());
+            ids.add(pick.id());
+            for (TrackPicks.GroupDef group : pick.groups()) {
+                ids.addAll(group.options().keySet());
+            }
+        }
         for (TrackPicks.PickDef pick : picks) {
             TrackPickAsset asset = pick.asset();
             String id = asset.getId();
             String where = "track pick '" + id + "'";
             for (String needed : asset.prerequisites()) {
-                if (!TrackPicks.knownOnTrack(pick.trackId(), needed)) {
+                if (!known.getOrDefault(pick.trackId(), Set.of()).contains(TrackKey.normalize(needed))) {
                     out.add(Finding.warning(DOMAIN, UNKNOWN_PICK_PREREQUISITE, where + " needs '" + needed
                             + "' first, which is no pick or option on its track, so it never opens", id));
                 }

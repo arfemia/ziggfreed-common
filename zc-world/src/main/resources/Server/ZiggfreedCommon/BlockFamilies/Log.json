@@ -1,0 +1,10 @@
+{
+  "$Comment": "Tree trunks: the blocks whose item is tagged Type Trunk. A tall tree's logs are read for GatherSpeed_Tall_Tree, and a felling shape walks them. A block joins any family by naming it in its own item Tags under ZigBlockFamily, so another mod opts its blocks in from its own files. Retune or switch it off by id in mods/ziggfreedcommon/block-families.json.",
+  "Match": {
+    "Tags": {
+      "Type": [
+        "Trunk"
+      ]
+    }
+  }
+}
