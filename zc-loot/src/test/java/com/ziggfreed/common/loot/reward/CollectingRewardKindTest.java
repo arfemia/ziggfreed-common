@@ -175,6 +175,19 @@ class CollectingRewardKindTest {
     }
 
     @Test
+    void aNestedTableAsksTheLookupThePassLayeredOnTheSubject() {
+        // A station re-rolls a find table through a Lootable reward; that table's conditions read the piece on
+        // the bench, which only the pass's own lookup knows. The pass layers it on the subject, and the nested
+        // roll asks it rather than a fresh one about the player.
+        FactorLookup passLookup = (factorId, param) -> 42.0;
+
+        assertSame(passLookup, LootRewardKinds.lookupFor(player().withFacets(new Tally(), passLookup)),
+                "a nested roll asks the pass's own lookup");
+        assertTrue(LootRewardKinds.lookupFor(player()) != passLookup,
+                "a subject carrying no lookup is asked about its player as before");
+    }
+
+    @Test
     void theSameNestedTableRolledOutsideAPassCountsItLost() {
         RewardSpec outer = RewardSpec.of(LootRewardKinds.KIND_LOOTABLE, Map.of("Lootable", "demo"));
 

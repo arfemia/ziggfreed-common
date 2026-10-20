@@ -547,6 +547,8 @@ public final class LootRewardKinds {
             NESTED.set(depth + 1);
             LootEngine.Result result;
             try {
+                // The pass's own lookup when it layered one on the subject (lookupFor), so a table rolled
+                // again inside a station's pass still reads that pass's piece and cycle.
                 result = rollTable(table, trigger, lookupFor(subject),
                         () -> ThreadLocalRandom.current().nextDouble(),
                         lootableSinks(spec, subject, kinds, tableSource));
@@ -1050,11 +1052,17 @@ public final class LootRewardKinds {
     }
 
     /**
-     * The question a rolled reward is asked: the installed vocabulary about the subject's live player, none when
-     * the player is not here.
+     * The question a rolled reward is asked. A pass that rolls with its own lookup layers it on the subject
+     * ({@link Subject#withFacets}), and a table or a stamp a reward rolls inside that pass asks the same lookup, so
+     * it reads the moment the pass reads (a station's piece and cycle, say) and answers each reading as the pass did.
+     * Otherwise the installed vocabulary about the subject's live player, none when the player is not here.
      */
     @Nonnull
-    private static FactorLookup lookupFor(@Nonnull Subject subject) {
+    static FactorLookup lookupFor(@Nonnull Subject subject) {
+        FactorLookup carried = subject.handleAs(FactorLookup.class);
+        if (carried != null) {
+            return carried;
+        }
         Player player = playerOf(subject);
         Ref<EntityStore> ref = player == null ? null : player.getReference();
         return lookupAbout(FactorContext.about(ref == null ? null : ref.getStore(), ref));
