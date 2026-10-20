@@ -23,7 +23,12 @@ public final class TrackEvents {
     }
 
     public static void fireChanged(@Nonnull TrackChange change) {
-        SEAM.fire("ZigTrackChanged", ZigTrackChangedEvent.class, () -> ZigTrackChangedEvent.of(change));
+        fireChanged(change, Double.NaN);
+    }
+
+    /** {@link #fireChanged(TrackChange)}, saying what the write asked for ({@code ZigTrackChangedEvent.asked}). */
+    public static void fireChanged(@Nonnull TrackChange change, double asked) {
+        SEAM.fire("ZigTrackChanged", ZigTrackChangedEvent.class, () -> ZigTrackChangedEvent.of(change, asked));
     }
 
     /** The picks on {@code trackId} changed for {@code playerId}; built only when something listens. */

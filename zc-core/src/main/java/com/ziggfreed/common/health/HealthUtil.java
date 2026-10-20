@@ -369,6 +369,19 @@ public final class HealthUtil {
         }
     }
 
+    /**
+     * The entity's {@code Health} maximum right now (its asset's Max with every modifier applied), or NaN when it has
+     * none or it cannot be read: what a track source paying a creature's health bar reads at a kill or a hit.
+     */
+    public static float max(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
+        try {
+            EntityStatValue health = ref.isValid() ? healthStat(store, ref) : null;
+            return health == null ? Float.NaN : health.getMax();
+        } catch (Throwable t) {
+            return Float.NaN;
+        }
+    }
+
     private static EntityStatValue healthStat(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
         EntityStatMap stats = statMap(store, ref);
         return stats == null ? null : stats.get(DefaultEntityStatTypes.getHealth());

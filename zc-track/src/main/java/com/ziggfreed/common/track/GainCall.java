@@ -29,6 +29,8 @@ public final class GainCall {
     private final double asked;
     @Nonnull private final String source;
     @Nullable private final List<GainBreakdown.Factor> explained;
+    /** The lowest level cap a factor set on this gain ({@link #capAtLevel}), 0 for none. */
+    private int capLevel;
 
     GainCall(@Nonnull TrackKey key, @Nonnull TrackDef def, @Nonnull TrackRecord before,
             @Nullable Ref<EntityStore> ref, double asked, @Nonnull String source, boolean explain) {
@@ -105,6 +107,23 @@ public final class GainCall {
     @Nonnull
     public String source() {
         return source;
+    }
+
+    /**
+     * Stop this gain at the start of {@code level} as well as at the track's own {@code Cap}: a factor's way to cap one
+     * player lower (a permission's level cap, a server owner's per-track setting). The lowest cap any factor names
+     * wins, the track's own Cap stands over all of them, and a climb already at or past it gains nothing (the
+     * fraction dropped there, as at the Cap). A level below 1 sets nothing.
+     */
+    public void capAtLevel(int level) {
+        if (level >= 1 && (capLevel == 0 || level < capLevel)) {
+            capLevel = level;
+        }
+    }
+
+    /** The lowest level cap a factor set on this gain ({@link #capAtLevel}), or 0 when none did. */
+    public int capLevel() {
+        return capLevel;
     }
 
     /** Is a breakdown wanted? Only then does a pipeline say what each factor did. */

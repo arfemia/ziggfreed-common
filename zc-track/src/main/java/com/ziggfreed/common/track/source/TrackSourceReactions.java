@@ -14,6 +14,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.components.SpawnBeaconReference;
 import com.hypixel.hytale.server.npc.components.SpawnMarkerReference;
 import com.ziggfreed.common.factor.FactorContext;
+import com.ziggfreed.common.health.HealthUtil;
 import com.ziggfreed.common.loot.diminish.DiminishLedger;
 import com.ziggfreed.common.progress.gate.GateQuery;
 import com.ziggfreed.common.progress.gate.StoreGates;
@@ -80,7 +81,8 @@ public final class TrackSourceReactions implements MomentListener {
         if (paid == null) {
             return;
         }
-        double amount = paid.row().xp() + paid.row().perAmount() * amountOf(moment);
+        SourceRow row = paid.row();
+        double amount = row.payFor(amountOf(moment), row.perMaxHealth() > 0.0 ? maxHealthOf(moment) : 0.0);
         if (!(amount > 0.0)) {
             return;
         }
@@ -135,6 +137,17 @@ public final class TrackSourceReactions implements MomentListener {
         ExactAmountPayload exact = moment.payload(ExactAmountPayload.class);
         double amount = exact != null ? exact.exactAmount() : (double) moment.amount();
         return Double.isFinite(amount) ? Math.max(0.0, amount) : 0.0;
+    }
+
+    /** The maximum health of the entity the moment happened to, or 0 when it names none or it cannot be read. */
+    private static double maxHealthOf(@Nonnull Moment moment) {
+        VictimPayload payload = moment.payload(VictimPayload.class);
+        Ref<EntityStore> victim = payload == null ? null : payload.victimRef();
+        if (victim == null || !victim.isValid()) {
+            return 0.0;
+        }
+        float max = HealthUtil.max(victim.getStore(), victim);
+        return Float.isFinite(max) && max > 0f ? max : 0.0;
     }
 
     /** Did a spawn marker or a spawn beacon stand up the entity the moment happened to? */

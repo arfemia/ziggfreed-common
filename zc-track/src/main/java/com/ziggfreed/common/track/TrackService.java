@@ -32,9 +32,9 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The one writer and reader of climbs. Every write is {@link #add} (a gain or a loss, through the gain seam),
- * {@link #set} (a value that already moved somewhere else, past the seam), {@link #prestige}, a migration's
- * silent {@link #seed} into an empty climb and {@link #raiseBest}, or {@link #markPaidBelow} and
- * {@link #markPaidThrough}; every read is
+ * {@link #set} (an exact value, past the seam; held in the track's range for a value that already moved somewhere
+ * else), {@link #prestige}, a migration's silent {@link #seed} into an empty climb and {@link #raiseBest}, or
+ * {@link #markPaidBelow} and {@link #markPaidThrough}; every read is
  * {@link #read} (a live subject, on its thread) or
  * {@link #load} (anyone, from any thread). All of them go through the {@link TrackStore} the key's subject kind
  * has ({@link TrackStores}).
@@ -53,8 +53,9 @@ import com.ziggfreed.common.util.SafeLog;
  * A move that changes nothing does none of it.
  *
  * <p><b>The value</b> is kept whole, with the fraction a gain left over carried into the next one, so
- * fractional gains add up exactly. A gain stops at the start of the track's {@code Cap} level (the fraction
- * dropped there, as the MMO's accumulator does); a loss stops at the curve's level 1. Writes are the live
+ * fractional gains add up exactly. A gain stops at the start of the track's {@code Cap} level, or of a lower cap a
+ * factor set for this player ({@link GainCall#capAtLevel}), the fraction dropped there as the MMO's accumulator
+ * does; a loss stops at the curve's level 1. Writes are the live
  * subject's own thread only; an offline player's climb is read, never written.
  */
 public final class TrackService {
@@ -236,12 +237,45 @@ public final class TrackService {
             landed = 0.0;
         }
         TrackRecord base = call.record();
-        TrackRecord after = landed == 0.0 ? base : moved(def, base, landed);
+        TrackRecord after = landed == 0.0 ? base : moved(def, base, landed, call.capLevel());
         if (after.equals(before)) {
             return Result.of(Status.UNCHANGED).explained(explain ? breakdown(call, landed, before, after) : null);
         }
-        Result result = commit(store, key, def, before, after, source, ref);
+        Result result = commit(store, key, def, before, after, source, ref, amount);
         return result.explained(explain ? breakdown(call, landed, before, after) : null);
+    }
+
+    /**
+     * Put {@code key}'s climb at exactly {@code value}, with {@code fraction} carried into the next gain, past the
+     * gain seam: what an admin's set, a consumer's raw write and a one-time move from an older system call, where no
+     * factor may scale the number and the track's own {@code Requires} is not asked. A value below the curve's level
+     * 1 reads as that floor; the track's {@code Cap} does not hold it, so a move from a system that let a climb run
+     * further keeps every point. The best level is raised to where the value now stands and never lowered. Then the
+     * move is kept and announced as a gain is (the mirror, the gate epoch, the unlock Claims it owes, and
+     * {@code ZigTrackChangedEvent}, whose {@code asked} is how far the value moved): a caller moving a climb an older
+     * system already paid for marks those rows first ({@link #markPaidBelow}). On the live subject's own thread.
+     *
+     * @param source what asked: {@code admin}, a consumer's own label, a migration's id
+     */
+    @Nonnull
+    public static Result set(@Nonnull TrackKey key, long value, double fraction, @Nonnull String source) {
+        TrackDef def = def(key.track());
+        if (def == null) {
+            return Result.of(Status.UNKNOWN);
+        }
+        TrackStore store = TrackStores.forKey(key);
+        TrackRecord before = store == null ? null : store.get(key);
+        if (before == null) {
+            return Result.of(Status.NOT_LIVE);
+        }
+        long held = Math.max(def.table().minimum(), value);
+        double carried = Double.isFinite(fraction) && fraction > 0.0 && fraction < 1.0 ? fraction : 0.0;
+        TrackRecord after = before.withValue(held, carried)
+                .withBest(Math.max(def.best(before), def.table().levelOf(held)));
+        if (after.equals(before)) {
+            return Result.of(Status.UNCHANGED);
+        }
+        return commit(store, key, def, before, after, source, liveRef(key), (double) (held - before.value()));
     }
 
     @Nonnull
@@ -285,7 +319,7 @@ public final class TrackService {
         }
         TrackRecord after = before.withBest(def.best(before)).withValue(def.start(), 0.0).withPrestige(done + 1)
                 .withPicks(before.picks().afterPrestige(def.prestigeBuild(), PickService.keptThroughPrestige(def)));
-        Result result = commit(store, key, def, before, after, source, liveRef(key));
+        Result result = commit(store, key, def, before, after, source, liveRef(key), Double.NaN);
         UUID playerId = key.playerId();
         if (result.moved() && playerId != null && key.isDefault()) {
             PickService.prestiged(playerId, def, !after.picks().equals(before.picks()));
@@ -375,32 +409,18 @@ public final class TrackService {
     }
 
     /**
-     * Put {@code key}'s current climb at {@code value} exactly, past the gain seam: what a write that already
-     * happened somewhere else is folded in as (an engine value an admin moved, which the track's own value
-     * follows), or an admin's set. The value is held between the curve's level 1 and the track's ceiling, the
-     * fraction dropped and the best level raised to where it now stands; the move is kept, paid and announced as
-     * {@link #add} keeps one, with no {@code Requires} asked, since it already happened. On the live subject's own
-     * thread.
+     * Put {@code key}'s current climb at {@code value} held between the curve's level 1 and the track's ceiling, the
+     * fraction dropped: what a write that already happened somewhere else is folded in as (an engine value an admin
+     * moved, which the track's own value follows, never past the track's top). Otherwise the exact write
+     * {@link #set(TrackKey, long, double, String)} is: kept, paid and announced, with no {@code Requires} asked,
+     * since it already happened. On the live subject's own thread.
      *
      * @param source what moved it: {@code native}, {@code admin}
      */
     @Nonnull
     public static Result set(@Nonnull TrackKey key, long value, @Nonnull String source) {
         TrackDef def = def(key.track());
-        if (def == null) {
-            return Result.of(Status.UNKNOWN);
-        }
-        TrackStore store = TrackStores.forKey(key);
-        TrackRecord before = store == null ? null : store.get(key);
-        if (before == null) {
-            return Result.of(Status.NOT_LIVE);
-        }
-        long held = inRange(def, value);
-        TrackRecord after = before.withValue(held, 0.0).withBest(def.table().levelOf(held));
-        if (after.equals(before)) {
-            return Result.of(Status.UNCHANGED);
-        }
-        return commit(store, key, def, before, after, source, liveRef(key));
+        return def == null ? Result.of(Status.UNKNOWN) : set(key, inRange(def, value), 0.0, source);
     }
 
     /**
@@ -491,7 +511,16 @@ public final class TrackService {
      */
     @Nonnull
     static TrackRecord moved(@Nonnull TrackDef def, @Nonnull TrackRecord before, double amount) {
-        long ceiling = def.ceiling();
+        return moved(def, before, amount, 0);
+    }
+
+    /**
+     * {@link #moved(TrackDef, TrackRecord, double)} with a gain also stopped at the start of {@code capLevel} (a
+     * factor's per-player cap, {@link GainCall#capAtLevel}; 0 for none), under the track's own ceiling.
+     */
+    @Nonnull
+    static TrackRecord moved(@Nonnull TrackDef def, @Nonnull TrackRecord before, double amount, int capLevel) {
+        long ceiling = capLevel >= 1 ? Math.min(def.ceiling(), def.table().ceiling(capLevel)) : def.ceiling();
         long floor = def.table().minimum();
         double accumulated = before.fraction() + amount;
         long whole = (long) accumulated;
@@ -530,7 +559,7 @@ public final class TrackService {
     @Nonnull
     private static Result commit(@Nonnull TrackStore store, @Nonnull TrackKey key, @Nonnull TrackDef def,
             @Nonnull TrackRecord before, @Nonnull TrackRecord after, @Nonnull String source,
-            @Nullable Ref<EntityStore> ref) {
+            @Nullable Ref<EntityStore> ref, double asked) {
         UUID playerId = key.playerId();
         if (!store.put(key, after)) {
             return Result.of(Status.NOT_LIVE);
@@ -557,7 +586,7 @@ public final class TrackService {
         }
         TrackChange change = claims == 0 && kept == after ? moved
                 : new TrackChange(key, def, before, kept, source, claims);
-        TrackEvents.fireChanged(change);
+        TrackEvents.fireChanged(change, asked);
         return new Result(Status.CHANGED, change, null);
     }
 

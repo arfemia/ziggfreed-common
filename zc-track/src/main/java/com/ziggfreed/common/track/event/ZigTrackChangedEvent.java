@@ -34,11 +34,12 @@ public final class ZigTrackChangedEvent implements IEvent<Void> {
     private final int claims;
     private final String source;
     private final boolean startedEmpty;
+    private final double asked;
 
     public ZigTrackChangedEvent(@Nonnull String subjectKind, @Nonnull String subjectId, @Nullable UUID playerId,
             @Nonnull String namespace, @Nonnull String trackId, @Nonnull String run, long valueBefore, long valueAfter,
             int levelBefore, int levelAfter, int bestBefore, int bestAfter, int prestigeBefore, int prestigeAfter,
-            int claims, @Nonnull String source, boolean startedEmpty) {
+            int claims, @Nonnull String source, boolean startedEmpty, double asked) {
         this.subjectKind = subjectKind;
         this.subjectId = subjectId;
         this.playerId = playerId;
@@ -56,16 +57,23 @@ public final class ZigTrackChangedEvent implements IEvent<Void> {
         this.claims = claims;
         this.source = source;
         this.startedEmpty = startedEmpty;
+        this.asked = asked;
     }
 
-    /** The event for {@code change}. */
+    /** The event for {@code change}, saying nothing of what was asked. */
     @Nonnull
     public static ZigTrackChangedEvent of(@Nonnull TrackChange change) {
+        return of(change, Double.NaN);
+    }
+
+    /** The event for {@code change}, made by a write that asked for {@code asked} ({@link #asked()}). */
+    @Nonnull
+    public static ZigTrackChangedEvent of(@Nonnull TrackChange change, double asked) {
         TrackKey key = change.key();
         return new ZigTrackChangedEvent(key.subject().kind(), key.subject().id(), key.playerId(), key.namespace(),
                 key.track(), key.run(), change.before().value(), change.after().value(), change.levelBefore(),
                 change.levelAfter(), change.bestBefore(), change.bestAfter(), change.before().prestige(),
-                change.after().prestige(), change.claims(), change.source(), change.before().isEmpty());
+                change.after().prestige(), change.claims(), change.source(), change.before().isEmpty(), asked);
     }
 
     /** The kind of subject that climbs ({@code player} today). */
@@ -158,5 +166,13 @@ public final class ZigTrackChangedEvent implements IEvent<Void> {
      */
     public boolean startedEmpty() {
         return startedEmpty;
+    }
+
+    /**
+     * What the write asked for before any gain factor: a gain's ask (a summed source's whole sum), a loss as a
+     * negative, an exact set as how far it moved the value; NaN for a prestige or when the firer did not say.
+     */
+    public double asked() {
+        return asked;
     }
 }

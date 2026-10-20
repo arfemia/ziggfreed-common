@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -43,6 +44,8 @@ public final class TrackSources {
     public static final String SOURCE_PREFIX = "tracksource:";
 
     private static final Set<String> BATCHED = ConcurrentHashMap.newKeySet();
+
+    private static final AtomicInteger GENERATION = new AtomicInteger();
 
     static {
         BATCHED.add(DEAL_DAMAGE);
@@ -117,7 +120,17 @@ public final class TrackSources {
     public static void invalidate() {
         synchronized (TrackSources.class) {
             folded = null;
+            GENERATION.incrementAndGet();
         }
+    }
+
+    /**
+     * How many times the sources (or the tracks they pay onto) have folded since start. Only ever grows. A consumer
+     * keeping a view of its own source files (a table it reads at its own moments) folds it into its epoch and builds
+     * the view again when it moves, with no callback.
+     */
+    public static int generation() {
+        return GENERATION.get();
     }
 
     /** The tracks with a row for {@code kindId}, or null when none has. */
@@ -184,7 +197,7 @@ public final class TrackSources {
             for (Map.Entry<String, SourceRow> row : source.rows().entrySet()) {
                 if (row.getValue() != null) {
                     rows.add(MomentTable.Row.of(when.kindId(), row.getKey(), when.qualifier(),
-                            paid(id, track, label, row.getValue(), source)));
+                            paid(id, track, label, row.getValue().withDefaultMax(source.max()), source)));
                 }
             }
         }

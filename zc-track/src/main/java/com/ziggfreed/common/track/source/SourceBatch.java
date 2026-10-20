@@ -82,8 +82,13 @@ public final class SourceBatch {
     private SourceBatch() {
     }
 
-    /** Add {@code amount} to {@code player}'s sum on {@code trackId} from {@code label}. On {@code world}'s thread. */
-    static void add(@Nonnull World world, @Nonnull UUID player, @Nonnull String trackId, @Nonnull String label,
+    /**
+     * Add {@code amount} to {@code player}'s sum on {@code trackId} from {@code label}, paid with the tick's other
+     * sums as one {@link TrackService#add} labelled {@code label}: what the source reactions call for a frequent kind,
+     * and what a consumer awarding a frequent gain of its own (every hit a player lands) calls instead of one add per
+     * moment, for the same totals. On {@code world}'s thread, the world {@code player} stands in.
+     */
+    public static void add(@Nonnull World world, @Nonnull UUID player, @Nonnull String trackId, @Nonnull String label,
             double amount) {
         Pending pending = PENDING.computeIfAbsent(world, w -> new Pending());
         String key = player + "|" + trackId + "|" + label;

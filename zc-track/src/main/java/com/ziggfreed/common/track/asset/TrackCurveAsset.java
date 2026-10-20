@@ -144,6 +144,45 @@ public final class TrackCurveAsset implements JsonAssetWithMap<String, DefaultAs
         return CurveTable.build(plain, beyondEvery(), tiers());
     }
 
+    /**
+     * This curve tabulated as {@link #table()}, with its last piece, when that is a Hybrid one, carried on by the same
+     * formula to {@code level} when that is past its own {@code To}: what a level past the top would start at, for a
+     * reading that shows how far the next level lies from the top (no climb reaches it, since a track stops at the
+     * curve's top). A {@code level} at or below the top changes nothing.
+     */
+    @Nonnull
+    public CurveTable tableThrough(int level) {
+        return through(level).table();
+    }
+
+    /**
+     * This curve with its last piece, when that is a Hybrid one, carried on by the same formula to {@code level} when
+     * that is past its own {@code To}, every level below kept to the bit and everything else (its id, Beyond and Tiers)
+     * as written: what a consumer runs its own copy of a shared curve to when its levels go past the top (a server
+     * owner's raised level cap, written into the curve store's owner layer). This curve itself when its last piece is
+     * no Hybrid one or already reaches {@code level}.
+     */
+    @Nonnull
+    public TrackCurveAsset through(int level) {
+        List<Piece> written = pieces();
+        Piece last = written.isEmpty() ? null : written.get(written.size() - 1);
+        if (last == null || last.hasFloors() || last.hybrid == null || last.to == null || level <= last.to) {
+            return this;
+        }
+        Piece carried = new Piece();
+        carried.hybrid = last.hybrid;
+        carried.to = level;
+        Piece[] out = written.toArray(new Piece[0]);
+        out[out.length - 1] = carried;
+        TrackCurveAsset copy = new TrackCurveAsset();
+        copy.id = id;
+        copy.data = data;
+        copy.pieces = out;
+        copy.beyond = beyond;
+        copy.tiers = tiers;
+        return copy;
+    }
+
     @Nullable
     static String blankToNull(@Nullable String value) {
         return value == null || value.isBlank() ? null : value.trim();

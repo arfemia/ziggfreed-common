@@ -28,7 +28,9 @@ import com.ziggfreed.common.asset.EditorSchema;
  * }</pre>
  *
  * <p>{@code Xp} pays once per moment, {@code PerAmount} once per unit of the moment's amount (a hit's damage, a
- * distance walked, a craft's count); a row writing both pays both. {@code Level} is a soft gate on the track's
+ * distance walked, a craft's count), {@code PerMaxHealth} once per point of the target's maximum health (a kill
+ * paying the creature's health bar); a row writing several pays them all, held at its {@code Max} (or the source's)
+ * when one is written. {@code Level} is a soft gate on the track's
  * current level: below it this row stands aside and the next row matching the same moment pays instead, so nothing
  * is ever refused, only paid at the rate already reached.
  */
@@ -36,6 +38,8 @@ public final class SourceRow {
 
     @Nullable protected Double xp;
     @Nullable protected Double perAmount;
+    @Nullable protected Double perMaxHealth;
+    @Nullable protected Double max;
     @Nullable protected Integer level;
 
     public static final BuilderCodec<SourceRow> CODEC = BuilderCodec.builder(SourceRow.class, SourceRow::new)
@@ -49,6 +53,18 @@ public final class SourceRow {
             .metadata(EditorSchema.defaultValue(0.0))
             .documentation("What each unit of the moment's amount pays: a hit's damage (capped at what the target "
                     + "had left), a distance, a craft's count. 0 when unauthored.").add()
+            .appendInherited(new KeyedCodec<>("PerMaxHealth", Codec.DOUBLE, false),
+                    (o, v) -> o.perMaxHealth = v, o -> o.perMaxHealth, (o, p) -> o.perMaxHealth = p.perMaxHealth)
+            .metadata(EditorSchema.defaultValue(0.0))
+            .documentation("What each point of the target's maximum health pays, read when the moment happens: 1 "
+                    + "on a kill pays the creature's whole health bar, 0.25 a quarter of it. Only a moment that names "
+                    + "the creature it happened to (a kill, a hit) has one. 0 when unauthored.").add()
+            .appendInherited(new KeyedCodec<>("Max", Codec.DOUBLE, false),
+                    (o, v) -> o.max = v, o -> o.max, (o, p) -> o.max = p.max)
+            .metadata(EditorSchema.defaultValue(0.0))
+            .documentation("The most one moment pays from this row, whatever its Xp, PerAmount and PerMaxHealth "
+                    + "add up to: a cap on a boss's huge health bar. Unauthored, the source's own Max; 0 or less "
+                    + "there too sets no limit.").add()
             .appendInherited(new KeyedCodec<>("Level", Codec.INTEGER, false),
                     (o, v) -> o.level = v, o -> o.level, (o, p) -> o.level = p.level)
             .metadata(EditorSchema.defaultValue(0L))
@@ -66,11 +82,26 @@ public final class SourceRow {
     /** Java-side factory; nulls stay unauthored. */
     @Nonnull
     public static SourceRow of(@Nullable Double xp, @Nullable Double perAmount, @Nullable Integer level) {
+        return of(xp, perAmount, null, null, level);
+    }
+
+    /** Java-side factory with every leaf; nulls stay unauthored. */
+    @Nonnull
+    public static SourceRow of(@Nullable Double xp, @Nullable Double perAmount, @Nullable Double perMaxHealth,
+            @Nullable Double max, @Nullable Integer level) {
         SourceRow row = new SourceRow();
         row.xp = xp;
         row.perAmount = perAmount;
+        row.perMaxHealth = perMaxHealth;
+        row.max = max;
         row.level = level;
         return row;
+    }
+
+    /** This row with {@code sourceMax} as its {@code Max} when it writes none of its own (the source's cap). */
+    @Nonnull
+    SourceRow withDefaultMax(@Nullable Double sourceMax) {
+        return max != null || sourceMax == null ? this : of(xp, perAmount, perMaxHealth, sourceMax, level);
     }
 
     /** What each moment pays, 0 or more. */
@@ -83,6 +114,16 @@ public final class SourceRow {
         return clean(perAmount);
     }
 
+    /** What each point of the target's maximum health pays, 0 or more. */
+    public double perMaxHealth() {
+        return clean(perMaxHealth);
+    }
+
+    /** The most one moment pays from this row, or 0 for no limit. */
+    public double max() {
+        return clean(max);
+    }
+
     /** The level this row waits for, 0 for none. */
     public int level() {
         return level == null ? 0 : Math.max(0, level);
@@ -90,7 +131,18 @@ public final class SourceRow {
 
     /** Does this row pay anything at all? */
     public boolean pays() {
-        return xp() > 0.0 || perAmount() > 0.0;
+        return xp() > 0.0 || perAmount() > 0.0 || perMaxHealth() > 0.0;
+    }
+
+    /**
+     * What one moment pays from this row: its Xp, its PerAmount times {@code amount}, its PerMaxHealth times
+     * {@code maxHealth} (NaN, or below 0, reads as 0), held at its Max when it has one.
+     */
+    public double payFor(double amount, double maxHealth) {
+        double health = Double.isFinite(maxHealth) && maxHealth > 0.0 ? maxHealth : 0.0;
+        double paid = xp() + perAmount() * amount + perMaxHealth() * health;
+        double cap = max();
+        return cap > 0.0 ? Math.min(paid, cap) : paid;
     }
 
     private static double clean(@Nullable Double value) {
@@ -128,7 +180,8 @@ public final class SourceRow {
         @Nonnull
         @Override
         public BsonValue encode(@Nonnull SourceRow row, ExtraInfo extraInfo) {
-            if (row.perAmount == null && row.level == null && row.xp != null) {
+            if (row.perAmount == null && row.perMaxHealth == null && row.max == null && row.level == null
+                    && row.xp != null) {
                 return new BsonDouble(row.xp);
             }
             return CODEC.encode(row, extraInfo);

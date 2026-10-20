@@ -27,8 +27,8 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The compiled gain plans, one per subject and track: each factor the track names, compiled once against where the
- * subject stands ({@link GainScope}) and kept behind an epoch, the {@code LevelCurve.generation} pattern, so a gain
- * on the hot path runs its steps with nothing to look up.
+ * subject stands ({@link GainScope}) and kept behind an epoch of generation counters (the pattern of
+ * {@code TrackCurves.generation}), so a gain on the hot path runs its steps with nothing to look up.
  *
  * <p><b>The epoch</b> is two counters, both read on every gain: the server's ({@link #invalidateAll}, moved by a
  * factor registration, a track fold, a world rule or gameplay config load, and a group permission change) and the

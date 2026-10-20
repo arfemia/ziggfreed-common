@@ -37,7 +37,10 @@ import com.ziggfreed.common.track.asset.TrackAsset;
  *
  * <p>{@code When} names the moment (an objective kind id), and optionally a {@code Qualifier} every row asks of it
  * (a hit's weapon); each {@code Rows} key is a name pattern over the moment's target (the block, mob or item). The
- * top-level {@code Xp} and {@code PerAmount} are a row of their own at {@code When.Match} ({@code *} unwritten),
+ * top-level {@code Xp}, {@code PerAmount} and {@code PerMaxHealth} are a row of their own at {@code When.Match}
+ * ({@code *} unwritten), held at the top-level {@code Max}, which also caps every row writing no {@code Max} of its
+ * own ({@code { "When": { "Kind": "KILL_ENTITY" }, "PerMaxHealth": 1, "Max": 500 }} pays a kill its creature's
+ * health, at most 500),
  * which a more specific row beats. Every source on one track shares one table: for each moment the most specific
  * matching row the player's level has reached pays ({@code MomentTable}; a row's {@code Level} is a soft gate, and
  * two files writing one pattern for one moment are one row, the later file by id winning it). A server owner
@@ -62,6 +65,8 @@ public final class TrackSourceAsset implements JsonAssetWithMap<String, DefaultA
     @Nullable protected When when;
     @Nullable protected Double xp;
     @Nullable protected Double perAmount;
+    @Nullable protected Double perMaxHealth;
+    @Nullable protected Double max;
     @Nullable protected Map<String, SourceRow> rows;
     @Nullable protected GateSpec requires;
     @Nullable protected DiminishSpec diminish;
@@ -103,6 +108,16 @@ public final class TrackSourceAsset implements JsonAssetWithMap<String, DefaultA
             .documentation("What each unit of a moment's amount pays for a moment When.Match covers, when no more "
                     + "specific row does: a hit's damage (capped at what the target had left), a distance, a "
                     + "craft's count.").add()
+            .appendInherited(new KeyedCodec<>("PerMaxHealth", Codec.DOUBLE, false),
+                    (a, v) -> a.perMaxHealth = v, a -> a.perMaxHealth, (a, p) -> a.perMaxHealth = p.perMaxHealth)
+            .documentation("What each point of the target's maximum health pays for a moment When.Match covers, "
+                    + "when no more specific row does: 1 on a KILL_ENTITY source pays every creature's whole health "
+                    + "bar, so a tougher creature pays more with nothing written per creature.").add()
+            .appendInherited(new KeyedCodec<>("Max", Codec.DOUBLE, false),
+                    (a, v) -> a.max = v, a -> a.max, (a, p) -> a.max = p.max)
+            .documentation("The most one moment pays from any row of this source that writes no Max of its own: a "
+                    + "cap that keeps a boss's health bar from paying a fortune. Leave it out, or write 0, for no "
+                    + "limit.").add()
             .appendInherited(new KeyedCodec<>("Rows", new InheritMapCodec<>(SourceRow.NUMBER_OR_ROW), false),
                     (a, v) -> a.rows = v, a -> a.rows, (a, p) -> a.rows = p.rows)
             .documentation("What each target pays, by name pattern (\"Ore_Iron\" exactly, \"Ore_*\" starting with, "
@@ -164,16 +179,26 @@ public final class TrackSourceAsset implements JsonAssetWithMap<String, DefaultA
         return when;
     }
 
-    /** The row the top-level Xp and PerAmount make at {@code When.Match}, or null when neither is written. */
+    /**
+     * The row the top-level Xp, PerAmount and PerMaxHealth make at {@code When.Match}, held at the top-level Max, or
+     * null when none of the three is written.
+     */
     @Nullable
     public SourceRow baseRow() {
-        return xp == null && perAmount == null ? null : SourceRow.of(xp, perAmount, null);
+        return xp == null && perAmount == null && perMaxHealth == null ? null
+                : SourceRow.of(xp, perAmount, perMaxHealth, max, null);
     }
 
     /** The rows as written, by pattern, or an empty map. */
     @Nonnull
     public Map<String, SourceRow> rows() {
         return rows == null ? Map.of() : rows;
+    }
+
+    /** The cap every row writing no Max of its own pays at most, as written, or null for none. */
+    @Nullable
+    public Double max() {
+        return max;
     }
 
     /** The diminishing returns, or null for none. */
