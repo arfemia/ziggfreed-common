@@ -739,6 +739,15 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
             p.build = blankToNull(build);
             return p;
         }
+
+        /** {@link #of(Integer, Boolean, Integer, String)} with {@code GainPercent} as well, null leaving it unauthored. */
+        @Nonnull
+        public static Prestige of(@Nullable Integer ranks, @Nullable Boolean unlimited, @Nullable Integer base,
+                @Nullable String build, @Nullable Double gainPercent) {
+            Prestige p = of(ranks, unlimited, base, build);
+            p.gainPercent = gainPercent;
+            return p;
+        }
     }
 
     /** The Gain group: the factors a gain runs through, and the rested pool. */

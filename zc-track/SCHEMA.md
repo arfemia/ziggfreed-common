@@ -6,6 +6,8 @@ One track is one file under `Server/ZiggfreedCommon/Tracks/` (subfolders are the
 
 One pick (the one shape every choice, Mastery node, trainer offer and prestige perk is) is one file under `Server/ZiggfreedCommon/TrackPicks/`, one option a choice may offer one file under `Server/ZiggfreedCommon/TrackPickOptions/`, and one deck (how a group's offers are drawn) one file under `Server/ZiggfreedCommon/TrackPickDecks/`. The server owner retunes a pick in `track-picks.json` and an option in `track-pick-options.json`. A grant (`Grants`) names its `Kind`: the library ships `Stat` (the `StatGrant` shape); other mods register their own kinds. A track's swap and respec prices are the library's one price shape (`Cost`), the one shops use.
 
+One boost (a percent more on every gain on the tracks it names) is one file under `Server/ZiggfreedCommon/Boosts/`, retuned in `mods/ziggfreedcommon/boosts.json`; how boosts add up and how many may run is the one `Server/ZiggfreedCommon/BoostSettings/Default.json` record, retuned in `boost-settings.json`. A boost starts from a boost item's native `ZigBoost` interaction (`Boost`, and optional `Percent` and `Seconds`, then a `Next` that consumes the item, run only when the boost started), from a `Boost` reward (`Params`: `Boost`, `Percent`, `Seconds`) or a native `ZigBoost` reward file when its Claim is collected, or from `/zigboost start`.
+
 Every field is optional and defaults to `null` unless its Default column reads *(required)*.
 
 ## Types

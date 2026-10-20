@@ -465,7 +465,7 @@ public final class TrackService {
             mirror(ref, def, after);
         }
         GateEpochs.bumpPlayer(key.playerId());
-        return new Result(Status.CHANGED, new TrackChange(key, def, before, after, source, 0));
+        return new Result(Status.CHANGED, new TrackChange(key, def, before, after, source, 0), null);
     }
 
     /**

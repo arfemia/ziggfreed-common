@@ -41,7 +41,9 @@ import com.ziggfreed.common.util.SafeLog;
  *   <li>The track sits in the {@value #CATEGORY} category and does not prestige (R643): its Prestige group
  *       allows no rank, with {@code Base} one below the top rank's level, so an owner who turns it on in
  *       {@code tracks.json} ({@code "Prestige": { "Ranks": 1 }}) asks the top rank for the first prestige and
- *       one level more for each one after it.</li>
+ *       one level more for each one after it. A prestiged standing earns nothing on top of a gain
+ *       ({@code GainPercent} 0: R642's bonus is a skill's, and a quest's reputation lands as written) unless the
+ *       owner writes {@code GainPercent} too.</li>
  * </ul>
  * The tracks and curves are provided to the track stores under {@value #OWNER} ({@link #refresh}), at boot and
  * after every companion fold, so a pack's file and the owner's word still outrank them.
@@ -170,7 +172,7 @@ public final class ReputationTracks {
                 : ContentTextAsset.of(title == null ? null : ContentKeys.resolved(title),
                         flavor == null ? null : ContentKeys.resolved(flavor), null);
         return TrackAsset.of(def.id(), text, def.icon(), def.order(), CATEGORY, curveId,
-                TrackAsset.Prestige.of(0, null, Math.max(0, ladder.ranks().size() - 1), null));
+                TrackAsset.Prestige.of(0, null, Math.max(0, ladder.ranks().size() - 1), null, 0.0));
     }
 
     /** {@code def}'s ladder as a curve: its floors, its Beyond step, a tier per rank. */
