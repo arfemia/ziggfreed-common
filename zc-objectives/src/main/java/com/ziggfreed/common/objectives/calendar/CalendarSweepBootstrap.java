@@ -9,8 +9,9 @@ import com.ziggfreed.common.calendar.event.CalendarEventStartedEvent;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * Hangs the placement sweep on the calendar's two native events, and the boost tiles' re-sync on the calendar's
- * tick. Registration only; every decision lives in {@link CalendarPlacementSweep} and {@link CalendarBoostTiles}.
+ * Hangs the placement sweep on the calendar's two native events and on its tick (a condition's rise and lapse),
+ * and the boost tiles' re-sync on the calendar's tick. Registration only; every decision lives in
+ * {@link CalendarPlacementSweep} and {@link CalendarBoostTiles}.
  */
 public final class CalendarSweepBootstrap {
 
@@ -18,8 +19,10 @@ public final class CalendarSweepBootstrap {
     }
 
     /**
-     * Listen for every calendar start and end on the shared bus. Call from plugin {@code setup()}: the
-     * boot's resumed start fires on {@code BootEvent}, after every setup has returned.
+     * Listen for every calendar start and end on the shared bus, and for every look of the calendar's tick, where a
+     * condition rises and lapses with no native event. Call from plugin {@code setup()}, after the calendar module
+     * installed: the boot's resumed start fires and the tick starts on {@code BootEvent}, after every setup has
+     * returned.
      */
     public static void registerPlacementSweeps(@Nonnull PluginBase plugin) {
         try {
@@ -29,6 +32,12 @@ public final class CalendarSweepBootstrap {
                     CalendarPlacementSweep::onEnded);
         } catch (Throwable t) {
             SafeLog.warn("[placement] could not hang the placement sweep on the calendar's events", t);
+        }
+        try {
+            CalendarRuntime.ticker().listen(CalendarPlacementSweep::onTick);
+        } catch (Throwable t) {
+            SafeLog.warn("[placement] could not hang the placement sweep on the calendar's tick, so a character "
+                    + "placed by a Moon or Live event changes only at its world's next sweep", t);
         }
     }
 

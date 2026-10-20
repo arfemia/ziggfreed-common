@@ -5,16 +5,18 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import com.ziggfreed.common.calendar.event.CalendarEventEndedEvent;
 import com.ziggfreed.common.calendar.event.CalendarEventStartedEvent;
+import com.ziggfreed.common.calendar.tick.CalendarTick;
 
 /**
- * A calendar start or end re-reads every placement: each transition asks for a sweep (a resumed start
- * and a switch-off included, the two a date never produces), and the sweep reaches every live world,
+ * A calendar start or end, and a condition's rise or lapse, re-reads every placement: each transition asks for a
+ * sweep (a resumed start and a switch-off included, the two a date never produces), and the sweep reaches every live world,
  * one world's failure costing only itself. The production sweep (the universe's worlds, the reconciler)
  * is the in-game smoke's: a unit JVM never touches the universe.
  */
@@ -45,6 +47,29 @@ class CalendarPlacementSweepTest {
         CalendarPlacementSweep.onEnded(new CalendarEventEndedEvent("spring_fair", 2026, true, 21L));
 
         assertEquals(List.of("harvest_moon ended", "spring_fair was switched off"), asked);
+    }
+
+    /**
+     * A condition (a Moon or a Live event) rises and lapses with no native event, so the tick's look asks for the
+     * sweep itself: a rise, a rise at boot, a lapse and a switch-off each ask, in one ask per look, and a look that
+     * moved no condition asks nothing, whatever runs it began or ended (those are the native events' to sweep for).
+     */
+    @Test
+    void aLookThatSawAConditionRiseOrLapseAsksForASweepAndAQuietOneDoesNot() {
+        CalendarPlacementSweep.useSweeperForTests(asked::add);
+
+        CalendarPlacementSweep.onTick(new CalendarTick(10L, false, Set.of(), List.of(), List.of(),
+                Set.of("full_moon"), List.of("full_moon"), List.of()));
+        CalendarPlacementSweep.onTick(new CalendarTick(11L, true, Set.of(), List.of(), List.of(),
+                Set.of("full_moon"), List.of("full_moon"), List.of()));
+        CalendarPlacementSweep.onTick(new CalendarTick(12L, false, Set.of(), List.of(), List.of(), Set.of(),
+                List.of(), List.of(new CalendarTick.Lapsed("full_moon", false),
+                        new CalendarTick.Lapsed("restless_moon", true))));
+        CalendarPlacementSweep.onTick(new CalendarTick(13L, false, Set.of("harvest_moon"), List.of(), List.of(),
+                Set.of("full_moon"), List.of(), List.of()));
+
+        assertEquals(List.of("full_moon rose", "full_moon is live (at boot)",
+                "full_moon lapsed, restless_moon was switched off"), asked);
     }
 
     @Test
