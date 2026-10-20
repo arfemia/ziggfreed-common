@@ -2,13 +2,11 @@ package com.ziggfreed.common.effect.resist;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Function;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -20,11 +18,13 @@ import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffec
 import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageCause;
 import com.hypixel.hytale.server.core.modules.entity.damage.DeathComponent;
+import com.hypixel.hytale.server.core.modules.entity.damage.ResistanceModifier;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.effect.grid.EffectBodies;
 import com.ziggfreed.common.effect.grid.RuntimeEffectGrid;
 import com.ziggfreed.common.stats.damage.DamageResistances;
+import com.ziggfreed.common.stats.damage.NativeResistance;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -32,18 +32,22 @@ import com.ziggfreed.common.util.SafeLog;
  * ({@link DamageResistances}): one authority (the stat), one applier (the engine), one path.
  *
  * <p>The engine reads resistance only from worn armor and active effects, never from a stat, and an
- * item's {@code StatModifiers} can only move a stat. So every player carries, per type whose stat reads
+ * item's {@code StatModifiers} can only move a stat. So every player carries, per type whose reading is
  * above zero, one hidden infinite {@code EntityEffect} whose {@code DamageResistance} is that reading in
- * percent, and the engine sums it with worn armor and any other resistance effect. Whatever raises the
- * stat (a held item's or the utility slot's {@code Utility.StatModifiers}, worn armor, a stamped roll, an
- * effect's own {@code StatModifiers}, a consumer's keyed modifier) resists through this, and two sources
- * add up because their modifiers do.
+ * percent, and the engine sums it with worn armor and any other resistance effect. The reading is the
+ * type's stat plus every source a consumer registered ({@link DamageResistances#pointsFor}). Whatever
+ * raises the stat (a held item's or the utility slot's {@code Utility.StatModifiers}, worn armor, a stamped
+ * roll, an effect's own {@code StatModifiers}, a consumer's keyed modifier) resists through this, and two
+ * sources add up because their modifiers do.
  *
  * <p><b>Bucketed effect assets.</b> The applied effect is one of a bounded grid of runtime assets,
- * {@code Zig_DamageResist_<Type>_<percent>}, the reading rounded to a whole percent and held to
- * {@code [0, ceiling]} ({@link DamageResistances#ceilingPercent}). zc's {@link RuntimeEffectGrid} writes each
- * the first time anyone reaches it and shares it after. A body keys the type's damage cause AND every
- * cause filed under it, because the engine's resistance lookup matches a hit's exact cause.
+ * {@code Zig_DamageResist_<Type>_<percent>}, the reading rounded to a whole percent and held to the
+ * type's headroom: the ceiling ({@link DamageResistances#ceilingPercent}) less what worn armor and every
+ * other effect already resist on that key ({@link NativeResistance#percentsByKey}), so the summed total
+ * stays under the ceiling ({@link #headroom}). zc's {@link RuntimeEffectGrid} writes each the first time
+ * anyone reaches it and shares it after. A body keys exactly the type's own cause, as vanilla armor keys
+ * {@code Physical} (R674): the engine looks a hit's cause up exactly, so a Crush, Bludgeoning or Slashing hit
+ * is NOT reduced by a {@code Physical} resistance, as armor's is not.
  *
  * <p><b>State lives on the entity.</b> What an entity carries is read off its own
  * {@code EffectControllerComponent} and compared with its stats, never remembered here, so nothing goes
@@ -51,9 +55,10 @@ import com.ziggfreed.common.util.SafeLog;
  * else removed. {@link DamageResistSyncSystem} makes that comparison every tick for every living player,
  * right after the engine recomputes item and effect stat modifiers, which is the only moment the stat is
  * known to be current: the engine applies a worn or utility-slot item's stats in its own ticking pass, so
- * an equip event's listener can read the stat a tick early. A tick in step costs a dozen stat reads; only
- * a difference reconciles. {@link #sync} is the same pass for a consumer that has just written a stat and
- * wants it to count before the next tick.
+ * an equip event's listener can read the stat a tick early. A tick in step costs a dozen stat reads, plus,
+ * only for a player with some reading above zero, one read of the engine's armor and effect table for the
+ * headroom; only a difference reconciles. {@link #sync} is the same pass for a consumer that has just
+ * written a stat and wants it to count before the next tick.
  *
  * <p><b>Rules.</b> {@link DamageResistances#installGate} switches every resistance off for an entity (a
  * consumer's world rule), which takes this family's effects off; {@link DamageResistances#installCeiling}
@@ -72,8 +77,8 @@ public final class DamageResistReconciler {
 
     private static final String EFFECT_COMMENT = "Runtime-generated by ziggfreed-common: an invisible always-on"
             + " effect carrying a player's summed DamageResist_<Type> stat as native damage resistance, keyed on"
-            + " the type's damage cause and every cause filed under it, because the engine's resistance lookup"
-            + " matches the exact cause of the hit. One asset per type and whole percent, shared by every player"
+            + " exactly the type's own damage cause as vanilla armor keys Physical, so a hit of a child cause such"
+            + " as Crush is not reduced by it, as armor's is not. One asset per type and whole percent, shared by every player"
             + " on that value. Tune a resistance by tuning what raises the stat, never by overriding this asset.";
 
     /** The shared grid of bucket assets: channel = the type, value = the whole percent. */
@@ -86,9 +91,12 @@ public final class DamageResistReconciler {
 
     // ==================== Pure bucket math and planning (testable, no engine) ====================
 
-    /** The ceiling as a whole percent: rounded and held to {@code [0, FULL_PERCENT]}. */
+    /**
+     * The ceiling as a whole percent: rounded and held to {@code [0, HIGHEST_PERCENT]}, one short of a whole
+     * hit, so no raised ceiling lets the summed resistance reach immunity (R240).
+     */
     static int ceilingBucket(double ceilingPercent) {
-        return RuntimeEffectGrid.bucketFor(ceilingPercent, 0, DamageResistances.FULL_PERCENT);
+        return RuntimeEffectGrid.bucketFor(ceilingPercent, 0, DamageResistances.HIGHEST_PERCENT);
     }
 
     /**
@@ -98,6 +106,26 @@ public final class DamageResistReconciler {
      */
     static int percentFor(double rawPercentPoints, int ceiling) {
         return RuntimeEffectGrid.bucketFor(rawPercentPoints, 0, Math.max(0, ceiling));
+    }
+
+    /**
+     * The whole percent this library may still add on one key: {@code ceiling} less what worn armor and
+     * every other effect already resist there ({@code othersPoints}, percent points), rounded down so the
+     * summed total never passes the ceiling, and never below 0. A negative {@code othersPoints} (a
+     * vulnerability) frees no room past the ceiling itself. A non-finite reading leaves the whole ceiling.
+     */
+    static int headroom(int ceiling, double othersPoints) {
+        int cap = Math.max(0, ceiling);
+        if (!Double.isFinite(othersPoints) || othersPoints <= 0.0) {
+            return cap;
+        }
+        double room = cap - othersPoints;
+        return room <= 0.0 ? 0 : (int) Math.floor(room + 1e-9);
+    }
+
+    /** {@link #percentFor(double, int)} held to the key's {@link #headroom}: the bucket a type asks for. */
+    static int percentFor(double rawPercentPoints, int ceiling, double othersPoints) {
+        return percentFor(rawPercentPoints, headroom(ceiling, othersPoints));
     }
 
     /** The generated effect id for {@code type} at a whole-percent value. */
@@ -143,41 +171,66 @@ public final class DamageResistReconciler {
     }
 
     /**
-     * The damage causes a {@code type} resistance body keys, out of {@code causeIds}: the type itself when it
-     * is among them, then every cause whose {@code Inherits} chain reaches it, each in its listed spelling.
+     * The damage cause a {@code type} resistance body keys, out of {@code causeIds}: the type's own cause in
+     * its listed spelling, or nothing when it is not among them (a body keying an unloaded cause would fail
+     * the effect's load). Never a cause filed under the type: the engine looks a hit's cause up exactly, and
+     * vanilla armor keys {@code Physical} alone, so our resistance does not reduce a Crush hit, as armor's does not (R674).
      */
     @Nonnull
-    static List<String> coveredCauses(@Nonnull String type, @Nonnull Collection<String> causeIds,
-            @Nonnull Function<String, String> parentOf) {
-        List<String> sorted = new ArrayList<>();
+    static List<String> keyedCauses(@Nonnull String type, @Nonnull Collection<String> causeIds) {
         for (String id : causeIds) {
-            if (id != null && !id.isBlank()) {
-                sorted.add(id);
+            if (id != null && id.equalsIgnoreCase(type)) {
+                return List.of(id);
             }
         }
-        sorted.sort(String.CASE_INSENSITIVE_ORDER);
-        List<String> out = new ArrayList<>();
-        for (String id : sorted) {
-            if (id.equalsIgnoreCase(type)) {
-                out.add(0, id);
-            } else if (filedUnder(id, type, parentOf)) {
-                out.add(id);
-            }
-        }
-        return out;
+        return List.of();
     }
 
-    private static boolean filedUnder(@Nonnull String id, @Nonnull String type,
-            @Nonnull Function<String, String> parentOf) {
-        Set<String> seen = new HashSet<>();
-        String current = parentOf.apply(id);
-        while (current != null && !current.isBlank() && seen.add(current.toLowerCase(Locale.ROOT))) {
-            if (current.equalsIgnoreCase(type)) {
-                return true;
+    /**
+     * This library's own share of the resistance {@code ctrl} carries, by lower-cased cause key, as a
+     * fraction: the summed {@code DamageResistance} percent of every active effect of this family. Empty
+     * when it carries none.
+     */
+    @Nonnull
+    static Map<String, Double> oursByKey(@Nonnull EffectControllerComponent ctrl) {
+        Map<String, Double> out = null;
+        for (int idx : ctrl.getActiveEffects().keySet()) {
+            EntityEffect effect = EntityEffect.getAssetMap().getAsset(idx);
+            if (effect == null || !GRID.owns(effect.getId())) {
+                continue;
             }
-            current = parentOf.apply(current);
+            Map<DamageCause, ResistanceModifier[]> values = effect.getDamageResistanceValues();
+            if (values == null) {
+                continue;
+            }
+            for (Map.Entry<DamageCause, ResistanceModifier[]> e : values.entrySet()) {
+                if (e.getKey() == null || e.getKey().getId() == null || e.getValue() == null) {
+                    continue;
+                }
+                double percent = 0.0;
+                for (ResistanceModifier modifier : e.getValue()) {
+                    if (modifier.getCalculationType() == ResistanceModifier.ResistanceCalculationType.PERCENT) {
+                        percent += modifier.getAmount();
+                    }
+                }
+                if (percent != 0.0) {
+                    if (out == null) {
+                        out = new HashMap<>();
+                    }
+                    out.merge(e.getKey().getId().toLowerCase(Locale.ROOT), percent, Double::sum);
+                }
+            }
         }
-        return false;
+        return out == null ? Map.of() : out;
+    }
+
+    /** This library's share of the resistance {@code ctrl} carries on {@code cause}, a fraction; 0 for none. */
+    public static double oursOn(@Nullable EffectControllerComponent ctrl, @Nullable DamageCause cause) {
+        if (ctrl == null || cause == null || cause.getId() == null) {
+            return 0.0;
+        }
+        Double ours = oursByKey(ctrl).get(cause.getId().toLowerCase(Locale.ROOT));
+        return ours == null ? 0.0 : ours;
     }
 
     // ==================== Live passes (world thread) ====================
@@ -205,13 +258,14 @@ public final class DamageResistReconciler {
     }
 
     /**
-     * The per-tick pass: a dozen stat reads and a look at the entity's active effects, and a reconcile only
-     * when the two differ. A bucket still being written applies on a later tick. Never throws.
+     * The per-tick pass: a dozen stat reads, the engine's armor and effect table only when a reading is
+     * above zero (for the headroom), a look at the entity's active effects, and a reconcile only when the
+     * two differ. A bucket still being written applies on a later tick. Never throws.
      */
     static void keepInStep(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
             @Nonnull EntityStatMap stats, @Nonnull EffectControllerComponent ctrl) {
         try {
-            int[] wanted = wantedPercents(accessor, ref, stats);
+            int[] wanted = wantedPercents(accessor, ref, stats, ctrl);
             if (!inStep(ctrl, wanted)) {
                 GRID.reconcile(accessor, ref, desired(wanted), null);
             }
@@ -228,34 +282,51 @@ public final class DamageResistReconciler {
     }
 
     /**
-     * Re-write every bucket generated so far, so a body picks up causes a reload filed under its type; an
-     * applied effect reads its asset live, so nothing is re-applied. A no-op before the first bucket.
+     * Re-write every bucket generated so far, so a body written before its type's cause loaded (a mod's
+     * cause arriving late) keys it now; an applied effect reads its asset live, so nothing is re-applied. A
+     * no-op before the first bucket.
      */
     public static void resynthesizeAll() {
         GRID.resynthesizeAll();
     }
 
     /**
-     * The {@code DamageCause} store loaded: re-write the bodies, so a cause a reload filed under a type is
-     * covered. A no-op until the first bucket exists (the boot load); later the write goes through
+     * The {@code DamageCause} store loaded: re-write the bodies, so a type whose cause has just loaded is
+     * keyed. A no-op until the first bucket exists (the boot load); later the write goes through
      * {@code AssetStoreWriter}, which re-enters the loader's write lock or defers past a tick's read lock.
      */
     static void onDamageCausesLoaded() {
         resynthesizeAll();
     }
 
-    /** What the entity should carry, per type in order: nothing at all while the consumer's rule says no. */
+    /**
+     * What the entity should carry, per type in order: nothing at all while the consumer's rule says no;
+     * else each type's reading (its stat and sources) held to its key's headroom under the ceiling, read
+     * off the engine's own table, this family's current share taken back out of it first.
+     */
     @Nonnull
     private static int[] wantedPercents(@Nonnull ComponentAccessor<EntityStore> accessor,
-            @Nonnull Ref<EntityStore> ref, @Nonnull EntityStatMap stats) {
-        List<String> statIds = DamageResistances.STAT_IDS;
-        int[] out = new int[statIds.size()];
+            @Nonnull Ref<EntityStore> ref, @Nonnull EntityStatMap stats, @Nonnull EffectControllerComponent ctrl) {
+        List<String> types = DamageResistances.TYPE_IDS;
+        int[] out = new int[types.size()];
         if (!DamageResistances.allows(accessor, ref)) {
             return out;
         }
         int ceiling = ceilingBucket(DamageResistances.ceilingPercent(accessor, ref, stats));
+        Map<String, Double> engine = null;
+        Map<String, Double> ours = null;
         for (int i = 0; i < out.length; i++) {
-            out[i] = percentFor(DamageResistances.pointsOf(stats, statIds.get(i)), ceiling);
+            double raw = DamageResistances.pointsFor(stats, types.get(i));
+            if (percentFor(raw, ceiling) <= 0) {
+                continue;
+            }
+            if (engine == null) {
+                engine = NativeResistance.percentsByKey(accessor, ref);
+                ours = oursByKey(ctrl);
+            }
+            String key = types.get(i).toLowerCase(Locale.ROOT);
+            double others = engine.getOrDefault(key, 0.0) - ours.getOrDefault(key, 0.0);
+            out[i] = percentFor(raw, ceiling, others * 100.0);
         }
         return out;
     }
@@ -285,21 +356,17 @@ public final class DamageResistReconciler {
         return owned == wantedCount;
     }
 
-    /** One bucket's body: the type's loaded cause and every loaded cause filed under it. */
+    /** One bucket's body: exactly the type's own loaded cause. */
     @Nonnull
     private static String body(@Nonnull String type, int percent) {
-        return EffectBodies.damageModifiers(EffectBodies.DAMAGE_RESISTANCE, liveCoveredCauses(type),
+        return EffectBodies.damageModifiers(EffectBodies.DAMAGE_RESISTANCE, liveKeyedCauses(type),
                 EffectBodies.PERCENT, percent / 100.0, EFFECT_COMMENT, true);
     }
 
     @Nonnull
-    private static List<String> liveCoveredCauses(@Nonnull String type) {
+    private static List<String> liveKeyedCauses(@Nonnull String type) {
         try {
-            Map<String, DamageCause> loaded = DamageCause.getAssetMap().getAssetMap();
-            return coveredCauses(type, new ArrayList<>(loaded.keySet()), id -> {
-                DamageCause cause = loaded.get(id);
-                return cause != null ? cause.getInherits() : null;
-            });
+            return keyedCauses(type, new ArrayList<>(DamageCause.getAssetMap().getAssetMap().keySet()));
         } catch (Throwable t) {
             return List.of(type);
         }

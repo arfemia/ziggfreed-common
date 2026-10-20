@@ -1,0 +1,6 @@
+# effect/buff/ - the timed-buff binding
+
+- A consumer registers a `TimedBuffSource` once at setup (`TimedBuffs.register`) and calls `TimedBuffs.refresh(ref)` or `refreshAllOnline()` whenever its buffs change; the library refreshes on its own at every player-ready and respawn. A source answers per player (key, effect id or null, scope, ends-at) and never applies an effect itself; with no source nothing happens. The saved `BuffSlotsComponent` is registered unconditionally at setup, never behind whether a source exists.
+- A buff naming no effect takes a slot of its scope's pool, `Zig_Buff_Personal` or `Zig_Buff_Server`: four slots each (`_2` to `_4` naming the base as `Parent`, seated by zc-core's `SlotPlan`), a fifth key of one scope sharing slot 4. The defaults ship Duration 1800, not Infinite, so the ring reads the remaining time against 1800 s; a pack restyles a pool by a same-id base file.
+- A tile is applied with the buff's remaining time and `OVERWRITE` only when it is missing or drifts more than 5 s from its buff (`BuffPlan.DRIFT_SECONDS`), so its start never replays; nothing goes on a dead player.
+- The eight `Zig_Buff_*` ids, and any effect a source names, belong to the binding: it takes off every one no live buff wants, so a pack never applies them itself.

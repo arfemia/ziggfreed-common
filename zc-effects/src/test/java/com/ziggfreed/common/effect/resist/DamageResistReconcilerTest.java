@@ -17,8 +17,8 @@ import com.ziggfreed.common.stats.damage.DamageResistances;
 
 /**
  * Engine-free coverage for {@link DamageResistReconciler}: the whole-percent bucket math, the generated
- * effect-id scheme, the reconcile PLAN (apply / swap / sweep / idempotency) driven against a fake
- * active-effect set standing in for a live {@code EffectControllerComponent}, and the causes a body keys.
+ * effect-id scheme, and the reconcile PLAN (apply / swap / sweep / idempotency) driven against a fake
+ * active-effect set standing in for a live {@code EffectControllerComponent}.
  * The apply and remove engine calls, the per-tick pass and the consumer rules need a live server and are
  * covered by the in-game smoke.
  */
@@ -56,14 +56,6 @@ class DamageResistReconcilerTest {
     void percentFor_nonFiniteReadingIsZero() {
         assertEquals(0, DamageResistReconciler.percentFor(Double.NaN, CEILING));
         assertEquals(0, DamageResistReconciler.percentFor(Double.POSITIVE_INFINITY, CEILING));
-    }
-
-    @Test
-    void ceilingBucket_neverPassesAWholeHit() {
-        assertEquals(DamageResistances.FULL_PERCENT, DamageResistReconciler.ceilingBucket(250.0),
-                "no ceiling lets a resistance pass a whole hit");
-        assertEquals(0, DamageResistReconciler.ceilingBucket(-5.0));
-        assertEquals(0, DamageResistReconciler.ceilingBucket(Double.NaN));
     }
 
     // ==================== id scheme ====================
@@ -166,30 +158,6 @@ class DamageResistReconcilerTest {
 
         assertEquals(DamageResistances.TYPE_IDS.size(), active.size(), "one effect per type");
         assertTrue(DamageResistReconciler.plan(active, stats, CEILING).isEmpty());
-    }
-
-    // ==================== the causes a body keys ====================
-
-    private static final Map<String, String> PARENTS = Map.of(
-            "Bludgeoning", "Physical", "Slashing", "Physical", "Crush", "Physical",
-            "Fire", "Elemental", "Ice", "Elemental", "Hellfire", "Fire");
-
-    @Test
-    void coveredCauses_areTheTypeAndEveryCauseFiledUnderIt() {
-        List<String> loaded = List.of("Physical", "Projectile", "Slashing", "Bludgeoning", "Crush",
-                "Fire", "Hellfire", "Elemental", "Ice");
-
-        assertEquals(List.of("Physical", "Bludgeoning", "Crush", "Slashing"),
-                DamageResistReconciler.coveredCauses("Physical", loaded, PARENTS::get),
-                "Projectile is a root type of its own, never under Physical");
-        assertEquals(List.of("Fire", "Hellfire"), DamageResistReconciler.coveredCauses("Fire", loaded, PARENTS::get),
-                "a cause a mod files under a type is covered too");
-        assertEquals(List.of("Projectile"), DamageResistReconciler.coveredCauses("projectile", loaded, PARENTS::get));
-    }
-
-    @Test
-    void coveredCauses_ofATypeNotLoadedIsEmpty() {
-        assertEquals(List.of(), DamageResistReconciler.coveredCauses("Void", List.of("Physical", "Fire"), PARENTS::get));
     }
 
     // ==================== helpers ====================

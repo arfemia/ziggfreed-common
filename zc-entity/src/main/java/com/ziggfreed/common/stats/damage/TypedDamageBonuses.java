@@ -83,7 +83,7 @@ public final class TypedDamageBonuses {
     /**
      * The damage types the library ships a stat pair for: the game's own top-level and elemental types,
      * and the three this library adds beside them. Disjoint, so no hit matches two of them. The
-     * resistance stats ({@link DamageResistances}) cover the same types.
+     * resistance stats ({@link DamageResistances}) cover the same types and the resist-only Fall.
      */
     public static final List<String> TYPE_IDS = List.of("Physical", "Projectile", "Fire", "Ice", "Lightning",
             "Water", "Wind", "Earth", "Poison", "Arcane", "Void", "Life");

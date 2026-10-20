@@ -1,0 +1,8 @@
+{
+  "$Comment": "How much less fall damage the carrier takes when they roll the landing, in whole percent points (20 takes another fifth of the hit off a rolled fall). The game's own roll already softens a landing by the world's movement settings, the same for everyone; this is a per-player part on top, added to the carrier's Fall resistance for that one hit and held so the sum stays under DamageResistMax. Any item's StatModifiers raise it like any stat (Additive on the Max). Base 0; Min is a generous negative so a subtractive modifier never clamps, and a total below 0 does nothing.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}
