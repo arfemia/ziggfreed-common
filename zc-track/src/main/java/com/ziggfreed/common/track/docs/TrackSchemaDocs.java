@@ -3,6 +3,7 @@ package com.ziggfreed.common.track.docs;
 import javax.annotation.Nonnull;
 
 import com.ziggfreed.common.commerce.asset.CostAsset;
+import com.ziggfreed.common.damage.weakspot.WeakSpotGrant;
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.grant.StatGrant;
 import com.ziggfreed.common.loot.diminish.DiminishSpec;
@@ -59,8 +60,9 @@ public final class TrackSchemaDocs {
                     + "`Server/ZiggfreedCommon/TrackPickOptions/`, and one deck (how a group's offers are drawn) one "
                     + "file under `Server/ZiggfreedCommon/TrackPickDecks/`. The server owner retunes a pick in "
                     + "`track-picks.json` and an option in `track-pick-options.json`. A grant (`Grants`) names its "
-                    + "`Kind`: the library ships `Stat` (the `StatGrant` shape); other mods register their own "
-                    + "kinds. A track's swap and respec prices are the library's one price shape (`Cost`), the "
+                    + "`Kind`: the library ships `Stat` (the `StatGrant` shape) and `WeakSpot` (the "
+                    + "`WeakSpotGrant` shape: more of the holder's hits count as weak spots); other mods register "
+                    + "their own kinds. A track's swap and respec prices are the library's one price shape (`Cost`), the "
                     + "one shops use.\n\n"
                     + "One boost (a percent more on every gain on the tracks it names) is one file under "
                     + "`Server/ZiggfreedCommon/Boosts/`, retuned in `mods/ziggfreedcommon/boosts.json`; how boosts add "
@@ -82,6 +84,7 @@ public final class TrackSchemaDocs {
             .register("PickOptionAsset", PickOptionAsset.CODEC)
             .register("PickDeckAsset", PickDeckAsset.CODEC)
             .register("StatGrant", StatGrant.CODEC)
+            .register("WeakSpotGrant", WeakSpotGrant.CODEC)
             .register("Cost", CostAsset.CODEC)
             .register("ZigTrackReward", ZigTrackReward.CODEC)
             .register("BoostAsset", BoostAsset.CODEC)

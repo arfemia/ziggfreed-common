@@ -103,6 +103,8 @@ import com.ziggfreed.common.text.ContentTextAsset;
 import com.ziggfreed.common.usegate.UseGateAsset;
 import com.ziggfreed.common.usegate.UseGateOn;
 import com.ziggfreed.common.grant.StatGrant;
+import com.ziggfreed.common.damage.weakspot.WeakSpotGrant;
+import com.ziggfreed.common.damage.weakspot.WeakSpotSettingsAsset;
 import com.ziggfreed.common.track.ZigTrackReward;
 import com.ziggfreed.common.track.pick.PickDeckAsset;
 import com.ziggfreed.common.track.pick.PickOptionAsset;
@@ -281,6 +283,18 @@ class AssetCodecInitTest {
         // fail inside an owner's Server/Rewards file instead of at this build. The ZigBoost interaction Type's
         // codec class-inits the engine's Interaction, which throws outside a live server, so the boot checks it.
         assertNotNull(ZigBoostReward.CODEC, "ZigBoostReward.CODEC must static-init (PascalCase keys)");
+    }
+
+    @Test
+    void weakSpotCodecsInitialize() {
+        assertNotNull(WeakSpotSettingsAsset.CODEC, "WeakSpotSettingsAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(WeakSpotSettingsAsset.Head.CODEC, "the Head group codec must static-init");
+        assertNotNull(WeakSpotSettingsAsset.Backstab.CODEC, "the Backstab group codec must static-init");
+        assertNotNull(WeakSpotSettingsAsset.Windows.CODEC, "the Windows group codec must static-init");
+        assertNotNull(WeakSpotSettingsAsset.Text.CODEC, "the CombatText group codec must static-init");
+        // The grant kind registers into the grant union every pick reads, so a lower-case key in it would fail
+        // inside a pack's pick instead of at this build.
+        assertNotNull(WeakSpotGrant.CODEC, "WeakSpotGrant.CODEC must static-init (PascalCase keys)");
     }
 
     @Test

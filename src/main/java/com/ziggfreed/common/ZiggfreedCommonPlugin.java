@@ -36,6 +36,7 @@ import com.ziggfreed.common.commerce.page.CommerceStepIcons;
 import com.ziggfreed.common.progress.gate.GateBootstrap;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.currency.asset.CurrencyConfig;
+import com.ziggfreed.common.damage.weakspot.WeakSpotBootstrap;
 import com.ziggfreed.common.effect.NativeEffectUtil;
 import com.ziggfreed.common.effect.buff.BuffBootstrap;
 import com.ziggfreed.common.effect.control.ControlBootstrap;
@@ -265,6 +266,10 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // The grant kinds a pick (and later a class or a perk) pays: Stat, a native stat modifier, into the
         // native grant union before any asset decodes.
         EntityBootstrap.registerGrants(this);
+        // Weak spots: the hit step (a headshot, a backstab, a foe in a stun, a freeze or a launch), the
+        // ZigGrounded condition that ends Zig_Airborne on landing and the WeakSpot grant kind, before any asset
+        // decodes; it orders itself after the use gate and the route step above.
+        WeakSpotBootstrap.install(this);
         registerGearSetSeams();
         CostumeBootstrap.registerCostumes(this);
         // Crowd control: the ZigStun, ZigTaunt, ZigAggroDrop and ZigAggroSuppress Types before any asset decodes,

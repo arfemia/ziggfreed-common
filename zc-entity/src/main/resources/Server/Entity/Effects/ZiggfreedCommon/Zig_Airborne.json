@@ -1,0 +1,8 @@
+{
+  "$Comment": "A foe your own hit launched into the air. Put it on with a native ApplyEffect in the hit's chain (Entity Target), so you are its owner: while it lasts, your hits on that foe are weak spots and nobody else's are (the Owner value of its ZigWeakSpot tag). It comes off when the foe lands (the ZigGrounded condition, after a short grace so the hit that launches the foe can put it on before the foe leaves the ground), or after Duration at the latest. A foe that cannot be moved lands at once. Restyle it, or change the grace, by shipping a file with this same id.",
+  "Duration": 4,
+  "OverlapBehavior": "Overwrite",
+  "Debuff": false,
+  "Tags": { "ZigWeakSpot": ["Owner"] },
+  "ApplyConditions": [ { "Id": "ZigGrounded", "Inverse": true, "GraceSeconds": 0.3 } ]
+}

@@ -46,3 +46,5 @@ itemTooltip.stats.KnockbackResistMax = Knockback Resistance Cap: {value}%
 itemTooltip.stats.Regen_Health = Health Regen: {value}% a second
 itemTooltip.stats.Regen_Mana = Mana Regen: {value}% a second
 itemTooltip.stats.HealingPower = Healing Power: {value}%
+itemTooltip.stats.WeakSpotDamage = Weak Spot Damage: {value}%
+itemTooltip.stats.WeakSpotMax = Weak Spot Damage Cap: {value}%

@@ -1,0 +1,8 @@
+{
+  "$Comment": "Percent bonus a weak-spot hit deals, in whole percent points (25 is +25%): a hit to the head, from behind, on a foe that is stunned, staggered, frozen or broken down, or that your own hit launched into the air. Any item's StatModifiers raise it like any stat, and so does an effect's RawStatModifiers or a pick's grant. ziggfreed-common pays it once per hit, on top of the hit's other bonuses, up to the carrier's WeakSpotMax. Base 0, so nothing is a weak spot until something raises it; Min is a generous negative so a subtractive modifier never clamps.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

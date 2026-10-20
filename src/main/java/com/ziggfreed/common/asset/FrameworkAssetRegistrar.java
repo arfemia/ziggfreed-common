@@ -15,6 +15,8 @@ import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.ziggfreed.common.ZiggfreedCommonPlugin;
 import com.ziggfreed.common.camera.CameraSequenceAsset;
 import com.ziggfreed.common.damage.HitTags;
+import com.ziggfreed.common.damage.weakspot.WeakSpotSettingsAsset;
+import com.ziggfreed.common.damage.weakspot.WeakSpotSettingsConfig;
 import com.ziggfreed.common.dialogue.style.DialogueOptionThemeConfig;
 import com.ziggfreed.common.dialogue.asset.DialogueAssetStore;
 import com.ziggfreed.common.dialogue.asset.DialogueExtensionAsset;
@@ -1135,6 +1137,19 @@ public final class FrameworkAssetRegistrar {
                     BoostOwnerLayers.reloadSettings();
                 });
 
+        // --- Weak spot settings (Pattern A) - the server's one word on where a hit is a weak spot: the head box
+        //     and its margin, the backstab arc, the vanilla effects that open a window (an effect of a mod's own
+        //     carries the ZigWeakSpot tag in its own file instead) and the combat text. The library ships
+        //     Default.json. Owner file mods/ziggfreedcommon/weak-spots.json, re-read on this same event. ---
+        AssetStoreRegistrar.registerStore(WeakSpotSettingsAsset.class,
+                new DefaultAssetMap<String, WeakSpotSettingsAsset>(), WeakSpotSettingsAsset.TYPE_ROOT,
+                WeakSpotSettingsAsset::getId, WeakSpotSettingsAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, WeakSpotSettingsAsset.class,
+                (LoadedAssetsEvent<String, WeakSpotSettingsAsset, DefaultAssetMap<String, WeakSpotSettingsAsset>> ev) -> {
+                    WeakSpotSettingsConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    WeakSpotSettingsConfig.reloadOwner();
+                });
+
         // --- Stats (Pattern A) - one stat the player stat store keeps per file, keyed by the file name
         //     (the tally key every player's record files it under): its name, what its number means, how
         //     it reads, the moments it counts and its breakdown. The library ships its own (Mob_Kills,
@@ -1211,6 +1226,7 @@ public final class FrameworkAssetRegistrar {
                         + "TrackPickOptions (owner file mods/ziggfreedcommon/track-pick-options.json), TrackPickDecks, "
                         + "Boosts (owner file mods/ziggfreedcommon/boosts.json), "
                         + "BoostSettings (owner file mods/ziggfreedcommon/boost-settings.json), "
+                        + "WeakSpotSettings (owner file mods/ziggfreedcommon/weak-spots.json), "
                         + "Stats (owner file mods/ziggfreedcommon/stats.json)).");
     }
 }
