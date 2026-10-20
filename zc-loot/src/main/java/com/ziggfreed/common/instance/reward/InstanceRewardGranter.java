@@ -9,11 +9,12 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
-import com.ziggfreed.common.inventory.InventoryUtil;
 import com.ziggfreed.common.inventory.PlayerAccess;
+import com.ziggfreed.common.loot.GroundSpillSinks;
 import com.ziggfreed.common.loot.reward.RewardHandler;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardKinds;
@@ -26,7 +27,9 @@ import com.ziggfreed.common.util.SafeLog;
  * Grants a list of {@link InstanceReward}s to one player with the BLOCK-FIRST
  * full-inventory guard (the user's "players cannot claim rewards with a full inventory"
  * rule, mirroring hyMMO's paradigm): an {@code ITEM} reward is granted ONLY if it all
- * fits ({@link InventoryUtil#canFit}); otherwise it is NOT delivered and is returned in
+ * fits, and lands the way the engine gives a picked-up item ({@link GroundSpillSinks#pickupFits},
+ * then {@link GroundSpillSinks#pickupRouted}: the hotbar, storage and backpack, never an armor
+ * or utility slot); otherwise it is NOT delivered and is returned in
  * {@link GrantOutcome#pending()} for the caller to hold / re-claim. Currency and command
  * rewards have no space guard and run through the consumer-supplied {@link Sink} (so
  * common imports no currency engine). Non-throwing, isolate-each.
@@ -146,16 +149,12 @@ public final class InstanceRewardGranter {
             try {
                 switch (r.kind()) {
                     case ITEM -> {
-                        if (!InventoryUtil.canFit(store, ref, r.id(), r.quantity())) {
-                            blocked++;
-                            pending.add(r);
-                        } else if (InventoryUtil.give(store, ref, r.id(), r.quantity()) > 0) {
-                            // Raced full between the check and the give: treat as blocked, not partial.
-                            blocked++;
-                            pending.add(r);
-                        } else {
+                        if (handOverWhole(r, ref, store)) {
                             granted++;
                             onLanded.accept(new Landed(r, null));
+                        } else {
+                            blocked++;
+                            pending.add(r);
                         }
                     }
                     case CURRENCY -> {
@@ -186,6 +185,34 @@ public final class InstanceRewardGranter {
             }
         }
         return new GrantOutcome(granted, blocked, failed, pending);
+    }
+
+    /**
+     * Hand the item reward {@code r} over whole, the way the engine gives a picked-up item: only when all of it fits
+     * the bag ({@link GroundSpillSinks#pickupFits}: the hotbar, storage and backpack), then into the container the
+     * player's own pickup settings choose ({@link GroundSpillSinks#pickupRouted}, the engine's
+     * {@code Player.giveItem}). Never an armor or utility slot, which the engine's pickup never fills either: zc-core's
+     * combined view ({@code InventoryUtil.give}) runs armor, hotbar, utility, storage, backpack slot by slot, so a
+     * reward taken with a full hotbar landed worn, or as a shield in a utility slot the player never looks at.
+     *
+     * <p>True when all of it went in, and for a row of no quantity (nothing to move, as the combined give answered).
+     * False when it would not all fit, the give took less than all of it (raced full between the check and the give:
+     * read as not handed over, the whole reward waiting, as the combined give was), or anything threw. Never throws.
+     */
+    private static boolean handOverWhole(@Nonnull InstanceReward r, @Nonnull Ref<EntityStore> ref,
+            @Nonnull Store<EntityStore> store) {
+        if (r.quantity() <= 0) {
+            return true;
+        }
+        try {
+            if (!GroundSpillSinks.pickupFits(ref, store, List.of(new ItemStack(r.id(), r.quantity())))) {
+                return false;
+            }
+            return GroundSpillSinks.pickupRouted(ref, store).accept(new ItemStack(r.id(), r.quantity()));
+        } catch (Throwable t) {
+            SafeLog.fine("[claims] the item '" + r.id() + "' could not be handed over, so it waits: " + t.getMessage());
+            return false;
+        }
     }
 
     /**
