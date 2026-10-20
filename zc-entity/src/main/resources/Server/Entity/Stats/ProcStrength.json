@@ -1,0 +1,8 @@
+{
+  "$Comment": "Whole percent points added to the strength of every proc its holder runs (zc-track's proc/): 10 makes each proc's effect damage, stat change and counter add 10% larger. A proc whose own strength reads 0 never runs, whatever this reads. Any item's StatModifiers raise it like any stat. Base 0.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

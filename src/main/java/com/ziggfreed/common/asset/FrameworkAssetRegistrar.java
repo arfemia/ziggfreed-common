@@ -17,6 +17,13 @@ import com.ziggfreed.common.camera.CameraSequenceAsset;
 import com.ziggfreed.common.damage.HitTags;
 import com.ziggfreed.common.damage.weakspot.WeakSpotSettingsAsset;
 import com.ziggfreed.common.damage.weakspot.WeakSpotSettingsConfig;
+import com.ziggfreed.common.proc.CounterAsset;
+import com.ziggfreed.common.proc.CounterConfig;
+import com.ziggfreed.common.proc.HeldEffectAsset;
+import com.ziggfreed.common.proc.HeldEffectConfig;
+import com.ziggfreed.common.proc.ProcAsset;
+import com.ziggfreed.common.proc.ProcConfig;
+import com.ziggfreed.common.proc.ProcOwnerLayers;
 import com.ziggfreed.common.stats.condition.ConditionalStatAsset;
 import com.ziggfreed.common.stats.condition.ConditionalStatConfig;
 import com.ziggfreed.common.stats.condition.EffectFamilyAsset;
@@ -1238,6 +1245,47 @@ public final class FrameworkAssetRegistrar {
                     ConditionalStatConfig.reloadOwner();
                 });
 
+        // --- Procs (Pattern A) - what a moment does for a player who meets the file's Requires (a talent, a held
+        //     item): its trigger, its filters, its chance, strength and wait, and its actions (an effect on or off, a
+        //     stat moved, a counter changed, a chain run). The library ships none. Owner file
+        //     mods/ziggfreedcommon/procs.json, re-read on this same event. A top-level Requires follows the mod gate. ---
+        AssetStoreRegistrar.registerStore(ProcAsset.class,
+                new DefaultAssetMap<String, ProcAsset>(), ProcAsset.TYPE_ROOT,
+                ProcAsset::getId, ProcAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, ProcAsset.class,
+                (LoadedAssetsEvent<String, ProcAsset, DefaultAssetMap<String, ProcAsset>> ev) -> {
+                    ProcConfig.getInstance().mergePackLayer(AssetMergeAdapter.gate(ProcConfig.MOD_GATE_STORE,
+                            ev.getAssetMap(), p -> GateSpec.missingMod(p.requires())));
+                    ProcOwnerLayers.reloadProcs();
+                });
+
+        // --- Counters (Pattern A) - the stacks a player builds and spends (Flow, Rage), filled and emptied by procs:
+        //     their size, decay, what clears them, what keeps them, what each stack gives and the effect that shows
+        //     them. The library ships none. Owner file mods/ziggfreedcommon/counters.json, re-read on this same event.
+        //     A top-level Requires follows the mod gate. ---
+        AssetStoreRegistrar.registerStore(CounterAsset.class,
+                new DefaultAssetMap<String, CounterAsset>(), CounterAsset.TYPE_ROOT,
+                CounterAsset::getId, CounterAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, CounterAsset.class,
+                (LoadedAssetsEvent<String, CounterAsset, DefaultAssetMap<String, CounterAsset>> ev) -> {
+                    CounterConfig.getInstance().mergePackLayer(AssetMergeAdapter.gate(CounterConfig.MOD_GATE_STORE,
+                            ev.getAssetMap(), c -> GateSpec.missingMod(c.requires())));
+                    ProcOwnerLayers.reloadCounters();
+                });
+
+        // --- Held effects (Pattern A) - a native effect a player wears with no end while a pick, a stat or a
+        //     condition says so. The library ships none. Owner file mods/ziggfreedcommon/held-effects.json, re-read on
+        //     this same event. A top-level Requires follows the mod gate. ---
+        AssetStoreRegistrar.registerStore(HeldEffectAsset.class,
+                new DefaultAssetMap<String, HeldEffectAsset>(), HeldEffectAsset.TYPE_ROOT,
+                HeldEffectAsset::getId, HeldEffectAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, HeldEffectAsset.class,
+                (LoadedAssetsEvent<String, HeldEffectAsset, DefaultAssetMap<String, HeldEffectAsset>> ev) -> {
+                    HeldEffectConfig.getInstance().mergePackLayer(AssetMergeAdapter.gate(HeldEffectConfig.MOD_GATE_STORE,
+                            ev.getAssetMap(), h -> GateSpec.missingMod(h.requires())));
+                    ProcOwnerLayers.reloadHeldEffects();
+                });
+
         // --- Stats (Pattern A) - one stat the player stat store keeps per file, keyed by the file name
         //     (the tally key every player's record files it under): its name, what its number means, how
         //     it reads, the moments it counts and its breakdown. The library ships its own (Mob_Kills,
@@ -1317,6 +1365,9 @@ public final class FrameworkAssetRegistrar {
                         + "WeakSpotSettings (owner file mods/ziggfreedcommon/weak-spots.json), "
                         + "EffectFamilies (owner file mods/ziggfreedcommon/effect-families.json), "
                         + "ConditionalStats (owner file mods/ziggfreedcommon/conditional-stats.json), "
+                        + "Procs (owner file mods/ziggfreedcommon/procs.json), "
+                        + "Counters (owner file mods/ziggfreedcommon/counters.json), "
+                        + "HeldEffects (owner file mods/ziggfreedcommon/held-effects.json), "
                         + "Stats (owner file mods/ziggfreedcommon/stats.json)).");
     }
 }

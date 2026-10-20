@@ -43,6 +43,8 @@ public final class ConditionBootstrap {
             conditions.register(ZigHoldingCondition.TYPE_NAME, ZigHoldingCondition.class, ZigHoldingCondition.codec());
             conditions.register(ZigOpenSkyCondition.TYPE_NAME, ZigOpenSkyCondition.class, ZigOpenSkyCondition.codec());
             conditions.register(ZigHeightCondition.TYPE_NAME, ZigHeightCondition.class, ZigHeightCondition.codec());
+            conditions.register(ZigCrouchingCondition.TYPE_NAME, ZigCrouchingCondition.class,
+                    ZigCrouchingCondition.codec());
             plugin.getEntityStoreRegistry().registerSystem(new ConditionalStatSystems.HolderPass());
             plugin.getEntityStoreRegistry().registerSystem(new ConditionalStatSystems.FirstHitRecord());
             plugin.getEntityStoreRegistry().registerSystem(new ConditionalStatSystems.Left());

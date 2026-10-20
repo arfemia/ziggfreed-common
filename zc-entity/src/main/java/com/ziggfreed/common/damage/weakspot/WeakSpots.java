@@ -116,6 +116,17 @@ public final class WeakSpots {
     }
 
     /**
+     * Did the hit {@code damage} belongs to take its weapon's own {@code Head} branch on {@code target} (the
+     * interaction's {@code TargetedDamage} entry keyed {@code Head}: in vanilla, a shortbow's full-draw arrow to the
+     * head)? Decided on the hit's first damage and answered the same for its later ones, in either damage group.
+     * False when it cannot tell. Never throws.
+     */
+    public static boolean headBranch(@Nonnull Damage damage, @Nonnull Ref<EntityStore> target) {
+        VanillaWeakSpots.Paid paid = VanillaWeakSpots.paidForHit(damage, target);
+        return paid != null && paid.head();
+    }
+
+    /**
      * The weak-spot bonus as a fraction: {@code points} held to [0, {@code ceiling}] (both whole percent points),
      * the ceiling itself never below 0. 0 for a value that is not a number.
      */

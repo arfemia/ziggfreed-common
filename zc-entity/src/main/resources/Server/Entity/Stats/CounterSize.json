@@ -1,0 +1,8 @@
+{
+  "$Comment": "Whole percent points added to the size of every counter its holder builds (zc-track's proc/ counters, such as a talent's Flow or Rage): 25 lets a counter of 4 stacks reach 5. Any item's StatModifiers raise it like any stat. Base 0.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

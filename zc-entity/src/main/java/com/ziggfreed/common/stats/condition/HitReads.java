@@ -17,10 +17,13 @@ import com.hypixel.hytale.server.core.modules.entity.damage.DamageSourceType;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.server.combat.DamageCalculator;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.server.combat.DamageClass;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.damage.weakspot.WeakSpots;
 
 /**
  * The reads a conditional stat's {@code Hit} group asks of one hit ({@link ConditionalStatAsset.Hit}): the first hit,
- * the target's lock, distance and height, the hit's class, projectile and damage-over-time. All but the class and the
+ * the target's lock, distance and height, the hit's class, projectile, damage-over-time and the weapon's own head
+ * branch ({@link WeakSpots#headBranch}). A proc's {@code Hit} group (zc-track's {@code proc/}) asks the same reads.
+ * All but the class and the
  * first hit read the entities as they stand; those two are decided ONCE per hit, on its first damage (the one the
  * engine puts the interaction's calculator on), and every later damage of the same strike (another cause, the same
  * source object and target) takes the same answer, as the weak-spot step decides vanilla's branch.
@@ -67,7 +70,10 @@ public final class HitReads {
         }
         if (target == null) {
             return hit.firstHit() == null && hit.notTargeted() == null && hit.minDistance() == null
-                    && hit.maxDistance() == null && hit.minHeightAbove() == null;
+                    && hit.maxDistance() == null && hit.minHeightAbove() == null && hit.headshot() == null;
+        }
+        if (hit.headshot() != null && hit.headshot() != WeakSpots.headBranch(damage, target)) {
+            return false;
         }
         if (hit.firstHit() != null && hit.firstHit() != decide(accessor, damage, target).first) {
             return false;

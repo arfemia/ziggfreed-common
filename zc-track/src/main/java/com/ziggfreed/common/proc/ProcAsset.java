@@ -1,0 +1,298 @@
+package com.ziggfreed.common.proc;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import com.hypixel.hytale.assetstore.AssetExtraInfo;
+import com.hypixel.hytale.assetstore.codec.AssetBuilderCodec;
+import com.hypixel.hytale.assetstore.map.DefaultAssetMap;
+import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
+import com.hypixel.hytale.codec.Codec;
+import com.hypixel.hytale.codec.KeyedCodec;
+import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
+import com.hypixel.hytale.server.core.modules.entity.condition.Condition;
+import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
+import com.ziggfreed.common.asset.EditorDataSets;
+import com.ziggfreed.common.asset.EditorSchema;
+import com.ziggfreed.common.factor.FactorFormula;
+import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.progress.gate.StoreGates;
+import com.ziggfreed.common.stats.condition.ConditionalStatAsset;
+
+/**
+ * A proc: when a moment happens to a player who meets its {@code Requires} (a talent through
+ * {@code ziggfreedcommon:track_pick}, a held item, anything the factor vocabulary reads), and the moment passes its
+ * filters, roll its {@code Chance} and run its {@code Actions} at its {@code Strength}, then wait its
+ * {@code Cooldown}. One proc per file at {@code Server/ZiggfreedCommon/Procs/<Id>.json}, the filename its id; a
+ * server owner retunes or switches one off by id in {@code mods/ziggfreedcommon/procs.json}.
+ *
+ * <pre>{@code
+ * {
+ *   "Trigger": "Dodge",
+ *   "Requires": { "Factors": [ { "Factor": "ziggfreedcommon:track_pick", "Param": "Defense/My_Cleanse", "Min": 1 } ] },
+ *   "Cooldown": { "Seconds": { "Base": 10 } },
+ *   "Actions": [ { "RemoveEffect": { "Families": [ "Burning", "Poisoned" ], "OnSelf": true } } ]
+ * }
+ * }</pre>
+ *
+ * <p><b>Filters.</b> A moment that carries a hit (Hit, Crit, SprintHit, HitTaken, Blocked) is read by {@code Hit},
+ * the same group a conditional stat reads (zc-entity's {@code HitReads}: first hit, projectile, class, distance, the
+ * weapon's head branch), read as the hit's attacker dealt it, and {@code OverTime} is false unless written (a
+ * damage-over-time tick never procs by accident); {@code Like} counts it only where a damage line counts.
+ * {@code Holder} conditions are asked of the holder, {@code Target} conditions of the moment's target (a foe family,
+ * an effect family, a health band); a moment with no target of its own finds one through {@code Seek}.
+ */
+public final class ProcAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, ProcAsset>> {
+
+    /** Where the procs live under a pack's {@code Server/} folder. */
+    public static final String TYPE_ROOT = "ZiggfreedCommon/Procs";
+
+    /** The Cooldown group: how long the proc waits after it runs, for the player or for each target. */
+    public static final class Cooldown {
+
+        @Nullable protected FactorFormula seconds;
+        @Nullable protected Boolean perTarget;
+
+        public static final BuilderCodec<Cooldown> CODEC = BuilderCodec.builder(Cooldown.class, Cooldown::new)
+                .appendInherited(new KeyedCodec<>("Seconds", FactorFormula.codec(EditorDataSets.FACTORS), false),
+                        (o, v) -> o.seconds = v, o -> o.seconds, (o, p) -> o.seconds = p.seconds)
+                .documentation("Seconds before it can run again, a formula (a talent's rank shortens it), cut by "
+                        + "the holder's ProcCooldownCut stat held at ProcCooldownCutMax. 0 or less: no wait.").add()
+                .appendInherited(new KeyedCodec<>("PerTarget", Codec.BOOLEAN, false),
+                        (o, v) -> o.perTarget = v, o -> o.perTarget, (o, p) -> o.perTarget = p.perTarget)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("True: the wait is kept for each target apart (once per foe every few seconds). "
+                        + "False: one wait for the player. False when unauthored.").add()
+                .build();
+
+        public Cooldown() {
+        }
+
+        @Nullable
+        public FactorFormula seconds() {
+            return seconds;
+        }
+
+        public boolean perTarget() {
+            return Boolean.TRUE.equals(perTarget);
+        }
+    }
+
+    /** The Seek group: where a moment with no target of its own finds one. */
+    public static final class Seek {
+
+        /** The radius in blocks unless written. */
+        public static final double DEFAULT_RADIUS = 3.0;
+
+        @Nullable protected Double radius;
+
+        public static final BuilderCodec<Seek> CODEC = BuilderCodec.builder(Seek.class, Seek::new)
+                .appendInherited(new KeyedCodec<>("Radius", Codec.DOUBLE, false),
+                        (o, v) -> o.radius = v, o -> o.radius, (o, p) -> o.radius = p.radius)
+                .metadata(EditorSchema.defaultValue(DEFAULT_RADIUS))
+                .documentation("How far, in blocks, a foe may stand. The nearest foe meeting the proc's Target "
+                        + "conditions and off its wait is the target. 3 when unauthored.").add()
+                .build();
+
+        public Seek() {
+        }
+
+        public double radius() {
+            return radius == null || !Double.isFinite(radius) ? DEFAULT_RADIUS : Math.max(0.0, radius);
+        }
+    }
+
+    private String id;
+    private AssetExtraInfo.Data data;
+
+    @Nullable protected Boolean isAbstract;
+    @Nullable protected Boolean enabled;
+    @Nullable protected String trigger;
+    @Nullable protected GateSpec requires;
+    @Nullable protected ConditionalStatAsset.Hit hit;
+    @Nullable protected String like;
+    @Nullable protected Condition[] holder;
+    @Nullable protected Condition[] target;
+    @Nullable protected Seek seek;
+    @Nullable protected Double minAmount;
+    @Nullable protected FactorFormula chance;
+    @Nullable protected FactorFormula strength;
+    @Nullable protected Cooldown cooldown;
+    @Nullable protected ProcAction[] actions;
+    @Nullable private volatile GateSpec[] live;
+
+    public static final AssetBuilderCodec<String, ProcAsset> CODEC = AssetBuilderCodec.builder(
+                    ProcAsset.class,
+                    ProcAsset::new,
+                    Codec.STRING,
+                    (a, id) -> a.id = id,
+                    a -> a.id,
+                    (a, extra) -> a.data = extra,
+                    a -> a.data)
+            .append(new KeyedCodec<>("Abstract", Codec.BOOLEAN, false), (a, v) -> a.isAbstract = v, a -> a.isAbstract)
+            .metadata(EditorSchema.defaultValue(false))
+            .documentation("A skeleton other procs take their fields from through Parent: it never runs. Never "
+                    + "inherited. False when unauthored.").add()
+            .appendInherited(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false),
+                    (a, v) -> a.enabled = v, a -> a.enabled, (a, p) -> a.enabled = p.enabled)
+            .metadata(EditorSchema.defaultValue(true))
+            .documentation("Set false to switch the proc off. True when unauthored.").add()
+            .appendInherited(new KeyedCodec<>("Trigger", Codec.STRING, false),
+                    (a, v) -> a.trigger = v, a -> a.trigger, (a, p) -> a.trigger = p.trigger)
+            .metadata(EditorSchema.oneOfDocumented(ProcTrigger.documented()))
+            .documentation("The moment the proc answers. A proc naming none, or an unknown one, never runs.").add()
+            .appendInherited(new KeyedCodec<>("Requires", GateSpec.CODEC, false),
+                    (a, v) -> a.requires = v, a -> a.requires, (a, p) -> a.requires = p.requires)
+            .documentation(StoreGates.DOCUMENTATION).add()
+            .appendInherited(new KeyedCodec<>("Hit", ConditionalStatAsset.Hit.CODEC, false),
+                    (a, v) -> a.hit = v, a -> a.hit, (a, p) -> a.hit = p.hit)
+            .documentation("What the hit must be, on a moment that carries one: the conditional stats' Hit group "
+                    + "(FirstHit, Projectile, Classes, distances, Headshot), read as the attacker dealt it. OverTime "
+                    + "is false unless written. Nothing else asked when unauthored.").add()
+            .appendInherited(new KeyedCodec<>("Like", Codec.STRING, false),
+                    (a, v) -> a.like = v, a -> a.like, (a, p) -> a.like = p.like)
+            .metadata(EditorSchema.assetRef(EntityStatType.class))
+            .documentation("A damage stat: count only a hit on which that stat's own damage line counts (a weapon "
+                    + "skill's line, which counts only with its weapon). Every hit when unauthored.").add()
+            .appendInherited(new KeyedCodec<>("Holder", new ArrayCodec<>(Condition.CODEC, Condition[]::new), false),
+                    (a, v) -> a.holder = v, a -> a.holder, (a, p) -> a.holder = p.holder)
+            .documentation("Entity conditions every one of which must hold on the holder (Sprinting, "
+                    + "ZigCrouching, ZigStatPercent). None when unauthored.").add()
+            .appendInherited(new KeyedCodec<>("Target", new ArrayCodec<>(Condition.CODEC, Condition[]::new), false),
+                    (a, v) -> a.target = v, a -> a.target, (a, p) -> a.target = p.target)
+            .documentation("Entity conditions every one of which must hold on the moment's target (ZigFoeFamily, "
+                    + "ZigEffectFamily, ZigStatPercent for a health band). Written, a moment with no target never "
+                    + "runs the proc. None when unauthored.").add()
+            .appendInherited(new KeyedCodec<>("Seek", Seek.CODEC, false),
+                    (a, v) -> a.seek = v, a -> a.seek, (a, p) -> a.seek = p.seek)
+            .documentation("For a moment with no target of its own (CrouchStill, Dodge, Landing, Cast): the "
+                    + "nearest foe within Radius becomes it, or the proc does not run. No target sought when "
+                    + "unauthored.").add()
+            .appendInherited(new KeyedCodec<>("MinAmount", Codec.DOUBLE, false),
+                    (a, v) -> a.minAmount = v, a -> a.minAmount, (a, p) -> a.minAmount = p.minAmount)
+            .documentation("The least the moment's amount may be: the damage of a hit dealt or taken, the blocks "
+                    + "fallen on Landing, the seconds held on CrouchStill. No least when unauthored.").add()
+            .appendInherited(new KeyedCodec<>("Chance", FactorFormula.codec(EditorDataSets.FACTORS), false),
+                    (a, v) -> a.chance = v, a -> a.chance, (a, p) -> a.chance = p.chance)
+            .documentation("The percent chance it runs when everything else holds, a formula (25 is one time in "
+                    + "four), raised by the holder's ProcChance stat. 0 or less never runs. Always when "
+                    + "unauthored.").add()
+            .appendInherited(new KeyedCodec<>("Strength", FactorFormula.codec(EditorDataSets.FACTORS), false),
+                    (a, v) -> a.strength = v, a -> a.strength, (a, p) -> a.strength = p.strength)
+            .documentation("What the actions' amounts are multiplied by, a formula (a talent's rank, a stat), "
+                    + "raised by the holder's ProcStrength stat. 0 or less: the proc never runs. 1 when "
+                    + "unauthored.").add()
+            .appendInherited(new KeyedCodec<>("Cooldown", Cooldown.CODEC, false),
+                    (a, v) -> a.cooldown = v, a -> a.cooldown, (a, p) -> a.cooldown = p.cooldown)
+            .documentation("How long it waits after it runs. No wait when unauthored.").add()
+            .appendInherited(new KeyedCodec<>("Actions", new ArrayCodec<>(ProcAction.CODEC, ProcAction[]::new), false),
+                    (a, v) -> a.actions = v, a -> a.actions, (a, p) -> a.actions = p.actions)
+            .documentation("What it does, in order. A proc with none does nothing.").add()
+            .build();
+
+    public ProcAsset() {
+    }
+
+    @Override
+    public String getId() {
+        return id;
+    }
+
+    public boolean isAbstract() {
+        return Boolean.TRUE.equals(isAbstract);
+    }
+
+    public boolean isEnabled() {
+        return enabled == null || enabled;
+    }
+
+    /** The trigger named, or null when none or an unknown one was. */
+    @Nullable
+    public ProcTrigger trigger() {
+        return ProcTrigger.parse(trigger);
+    }
+
+    @Nullable
+    public String rawTrigger() {
+        return trigger;
+    }
+
+    @Nullable
+    public GateSpec requires() {
+        return requires;
+    }
+
+    /** The part of {@link #requires()} asked of the player, lifted once; null when nothing is. */
+    @Nullable
+    public GateSpec liveRequires() {
+        GateSpec[] held = live;
+        if (held == null) {
+            held = new GateSpec[] {StoreGates.live(requires)};
+            live = held;
+        }
+        return held[0];
+    }
+
+    @Nullable
+    public ConditionalStatAsset.Hit hit() {
+        return hit;
+    }
+
+    @Nullable
+    public String like() {
+        return like == null || like.isBlank() ? null : like.trim();
+    }
+
+    @Nonnull
+    public Condition[] holderConditions() {
+        return holder == null ? new Condition[0] : holder;
+    }
+
+    @Nonnull
+    public Condition[] targetConditions() {
+        return target == null ? new Condition[0] : target;
+    }
+
+    @Nullable
+    public Seek seek() {
+        return seek;
+    }
+
+    @Nullable
+    public Double minAmount() {
+        return minAmount == null || !Double.isFinite(minAmount) ? null : minAmount;
+    }
+
+    @Nullable
+    public FactorFormula chance() {
+        return chance;
+    }
+
+    @Nullable
+    public FactorFormula strength() {
+        return strength;
+    }
+
+    @Nullable
+    public Cooldown cooldown() {
+        return cooldown;
+    }
+
+    @Nonnull
+    public List<ProcAction> actions() {
+        if (actions == null || actions.length == 0) {
+            return List.of();
+        }
+        List<ProcAction> out = new ArrayList<>(actions.length);
+        for (ProcAction action : actions) {
+            if (action != null && !action.isEmpty()) {
+                out.add(action);
+            }
+        }
+        return List.copyOf(out);
+    }
+}

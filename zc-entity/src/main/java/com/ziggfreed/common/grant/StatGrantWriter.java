@@ -26,8 +26,9 @@ import com.ziggfreed.common.util.SafeLog;
  * amounts of every placement under that key summed (times how often each is held). It reads back every modifier it
  * finds under the owner's prefix on the entity's stat map (the map is saved with the entity, so what an earlier
  * session wrote is found too), plans the difference ({@link StatGrantPlan}) and writes only that, through the stat
- * map's keyed put and remove. The one key under an owner's prefix it never owns is the conditional fold's
- * ({@code ConditionalStats.MODIFIER_PREFIX}, under {@code zigtrack:} for the rollback sweep). World thread.
+ * map's keyed put and remove. The keys under an owner's prefix it never owns are a runtime writer's, an {@code @}
+ * straight after the prefix: the conditional fold's ({@code ConditionalStats.MODIFIER_PREFIX}) and a counter's stacks
+ * (zc-track's {@code proc/}), both under {@code zigtrack:} for the rollback sweep. World thread.
  */
 public final class StatGrantWriter implements GrantWriter {
 
@@ -91,15 +92,26 @@ public final class StatGrantWriter implements GrantWriter {
             }
             List<String> keys = new ArrayList<>(modifiers.keySet());
             for (String key : keys) {
-                // The conditional fold's Onto modifiers sit under zigtrack: for the 1.7.x rollback sweep (R755) but
-                // are its own, never a grant: a rebuild that took them off would leave them off until they change.
-                if (key == null || !key.startsWith(prefix) || ConditionalStats.writesKey(key)) {
+                // A key with an @ right after the owner's prefix is a runtime writer's, never a grant (no track id
+                // holds an @): the conditional fold's Onto modifiers (zigtrack:@cond:) and a counter's stacks
+                // (zigtrack:@counter:) sit under zigtrack: for the 1.7.x rollback sweep (R755), and a rebuild that
+                // took them off would leave them off until they change.
+                if (key == null || !key.startsWith(prefix) || isRuntimeKey(key, prefix)) {
                     continue;
                 }
                 out.put(new StatGrantPlan.Target(i, key), amountOf(modifiers.get(key)));
             }
         }
         return out;
+    }
+
+    /**
+     * Is {@code key} (under {@code prefix}) a runtime writer's rather than a grant's: an {@code @} straight after the
+     * owner's prefix ({@code zigtrack:@cond:}, {@code zigtrack:@counter:}), or the conditional fold's own prefix?
+     */
+    static boolean isRuntimeKey(@Nonnull String key, @Nonnull String prefix) {
+        return ConditionalStats.writesKey(key)
+                || (key.length() > prefix.length() && key.startsWith(prefix) && key.charAt(prefix.length()) == '@');
     }
 
     private static float amountOf(@Nullable Modifier modifier) {

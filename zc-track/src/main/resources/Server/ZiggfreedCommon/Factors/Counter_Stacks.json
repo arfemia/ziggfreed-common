@@ -1,0 +1,5 @@
+{
+  "$Comment": "Names the ziggfreedcommon:counter_stacks reading for requirement lines. Param is a counter's id (Server/ZiggfreedCommon/Counters); the reading is how many stacks of it the player holds right now, 0 for none. Write Min 1 to ask for any. It moves with every add, take and decay, outside any moment, so no gate keeps a verdict over it.",
+  "Factor": "ziggfreedcommon:counter_stacks",
+  "Text": { "TitleKey": "ziggfreedcommon.proc.factor.counter_stacks" }
+}

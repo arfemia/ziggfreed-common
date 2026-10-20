@@ -61,8 +61,12 @@ public final class ConditionalStatAsset implements JsonAssetWithMap<String, Defa
     /** The every-type damage key, as the per-type damage bonus spells it. */
     public static final String EVERY_TYPE = "*";
 
-    /** The engine's damage classes a {@code Hit.Classes} entry may name (its fixed four, less Unknown). */
-    public static final String[] DAMAGE_CLASSES = {"Light", "Charged", "Signature"};
+    /**
+     * The engine's damage classes a {@code Hit.Classes} entry may name (its fixed four, less Unknown). Held by
+     * {@link Hit} itself, so a reader that initializes the Hit group first (a proc's codec) never reaches back into
+     * this class while it is still being built.
+     */
+    public static final String[] DAMAGE_CLASSES = Hit.CLASS_NAMES;
 
     private String id;
     private AssetExtraInfo.Data data;
@@ -206,6 +210,9 @@ public final class ConditionalStatAsset implements JsonAssetWithMap<String, Defa
     /** The Hit group: what the hit itself must be. Every leaf optional; an unauthored one asks nothing. */
     public static final class Hit {
 
+        /** The damage classes a {@code Classes} entry may name; {@link ConditionalStatAsset#DAMAGE_CLASSES}. */
+        static final String[] CLASS_NAMES = {"Light", "Charged", "Signature"};
+
         @Nullable protected Boolean firstHit;
         @Nullable protected Boolean notTargeted;
         @Nullable protected Double minDistance;
@@ -215,6 +222,7 @@ public final class ConditionalStatAsset implements JsonAssetWithMap<String, Defa
         @Nullable protected Boolean projectile;
         @Nullable protected Boolean overTime;
         @Nullable protected Boolean onSelf;
+        @Nullable protected Boolean headshot;
 
         public static final BuilderCodec<Hit> CODEC = BuilderCodec.builder(Hit.class, Hit::new)
                 .appendInherited(new KeyedCodec<>("FirstHit", Codec.BOOLEAN, false),
@@ -241,7 +249,7 @@ public final class ConditionalStatAsset implements JsonAssetWithMap<String, Defa
                         + "unauthored.").add()
                 .appendInherited(new KeyedCodec<>("Classes", Codec.STRING_ARRAY, false),
                         (o, v) -> o.classes = v, o -> o.classes, (o, p) -> o.classes = p.classes)
-                .metadata(EditorSchema.oneOf(DAMAGE_CLASSES))
+                .metadata(EditorSchema.oneOf(CLASS_NAMES))
                 .documentation("The damage classes the hit's interaction declares (Light, Charged, Signature), any of "
                         + "which counts. Only the first damage of a strike carries its class, and the hit's other "
                         + "damages take the same answer. Any class, or none, when unauthored.").add()
@@ -257,6 +265,11 @@ public final class ConditionalStatAsset implements JsonAssetWithMap<String, Defa
                         (o, v) -> o.onSelf = v, o -> o.onSelf, (o, p) -> o.onSelf = p.onSelf)
                 .documentation("For a heal: true only on the holder, false only on someone else. Either when "
                         + "unauthored.").add()
+                .appendInherited(new KeyedCodec<>("Headshot", Codec.BOOLEAN, false),
+                        (o, v) -> o.headshot = v, o -> o.headshot, (o, p) -> o.headshot = p.headshot)
+                .documentation("True: only a hit that took its weapon's own Head branch (the interaction's "
+                        + "TargetedDamage Head entry: in vanilla, a shortbow's full-draw arrow to the head). False: "
+                        + "only one that did not. Either when unauthored.").add()
                 .build();
 
         public Hit() {
@@ -266,7 +279,7 @@ public final class ConditionalStatAsset implements JsonAssetWithMap<String, Defa
         public boolean isEmpty() {
             return firstHit == null && notTargeted == null && minDistance == null && maxDistance == null
                     && minHeightAbove == null && (classes == null || classes.length == 0) && projectile == null
-                    && overTime == null && onSelf == null;
+                    && overTime == null && onSelf == null && headshot == null;
         }
 
         @Nullable public Boolean firstHit() { return firstHit; }
@@ -277,6 +290,7 @@ public final class ConditionalStatAsset implements JsonAssetWithMap<String, Defa
         @Nullable public Boolean projectile() { return projectile; }
         @Nullable public Boolean overTime() { return overTime; }
         @Nullable public Boolean onSelf() { return onSelf; }
+        @Nullable public Boolean headshot() { return headshot; }
 
         /** The classes as written, lower-cased, blanks dropped. */
         @Nonnull

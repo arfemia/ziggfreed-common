@@ -104,6 +104,10 @@ import com.ziggfreed.common.usegate.UseGateAsset;
 import com.ziggfreed.common.usegate.UseGateOn;
 import com.ziggfreed.common.grant.StatGrant;
 import com.ziggfreed.common.damage.weakspot.WeakSpotSettingsAsset;
+import com.ziggfreed.common.proc.CounterAsset;
+import com.ziggfreed.common.proc.HeldEffectAsset;
+import com.ziggfreed.common.proc.ProcAction;
+import com.ziggfreed.common.proc.ProcAsset;
 import com.ziggfreed.common.stats.condition.ConditionalStatAsset;
 import com.ziggfreed.common.stats.condition.EffectFamilyAsset;
 import com.ziggfreed.common.track.ZigTrackReward;
@@ -647,6 +651,23 @@ class AssetCodecInitTest {
         assertNotNull(GatherShapeAsset.Shape.CODEC, "GatherShapeAsset.Shape.CODEC must static-init");
         assertNotNull(GatherShapeAsset.Offset.CODEC, "GatherShapeAsset.Offset.CODEC must static-init");
         assertNotNull(GatherShapeAsset.Canopy.CODEC, "GatherShapeAsset.Canopy.CODEC must static-init");
+    }
+
+    @Test
+    void procCodecsInitialize() {
+        assertNotNull(ProcAsset.CODEC, "ProcAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(ProcAsset.Cooldown.CODEC, "ProcAsset.Cooldown.CODEC must static-init");
+        assertNotNull(ProcAsset.Seek.CODEC, "ProcAsset.Seek.CODEC must static-init");
+        assertNotNull(ProcAction.CODEC, "ProcAction.CODEC must static-init");
+        assertNotNull(ProcAction.ApplyEffect.CODEC, "ProcAction.ApplyEffect.CODEC must static-init");
+        assertNotNull(ProcAction.RemoveEffect.CODEC, "ProcAction.RemoveEffect.CODEC must static-init");
+        assertNotNull(ProcAction.ChangeStat.CODEC, "ProcAction.ChangeStat.CODEC must static-init");
+        assertNotNull(ProcAction.CounterChange.CODEC, "ProcAction.CounterChange.CODEC must static-init");
+        assertNotNull(ProcAction.RunInteraction.CODEC, "ProcAction.RunInteraction.CODEC must static-init");
+        assertNotNull(CounterAsset.CODEC, "CounterAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(CounterAsset.Decay.CODEC, "CounterAsset.Decay.CODEC must static-init");
+        assertNotNull(CounterAsset.PerStack.CODEC, "CounterAsset.PerStack.CODEC must static-init");
+        assertNotNull(HeldEffectAsset.CODEC, "HeldEffectAsset.CODEC must static-init (PascalCase keys)");
     }
 
     @Test

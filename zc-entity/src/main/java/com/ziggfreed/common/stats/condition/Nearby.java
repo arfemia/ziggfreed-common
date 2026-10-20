@@ -119,6 +119,62 @@ public final class Nearby {
         }
     }
 
+    /**
+     * The foes of {@code holder} within {@code radius} blocks that meet every one of {@code conditions} (none: every
+     * foe), nearest first, no more than {@code limit} of them (0 or less: no limit). What a proc with no target of its
+     * own seeks one among (zc-track's {@code proc/}). Empty, never null, when none or when a read fails.
+     */
+    @Nonnull
+    public static List<Ref<EntityStore>> foesWithin(@Nonnull ComponentAccessor<EntityStore> accessor,
+            @Nonnull Ref<EntityStore> holder, double radius, @Nullable Condition[] conditions, @Nonnull Instant now,
+            int limit) {
+        try {
+            Vector3d at = positionOf(accessor, holder);
+            if (at == null || !(radius > 0.0)) {
+                return List.of();
+            }
+            SpatialResource<Ref<EntityStore>, EntityStore> npcs = accessor.getResource(NPCPlugin.get().getNpcSpatialResource());
+            if (npcs == null) {
+                return List.of();
+            }
+            List<Ref<EntityStore>> found = new ArrayList<>();
+            npcs.getSpatialStructure().collect(at, radius, found);
+            if (found.isEmpty()) {
+                return List.of();
+            }
+            AttitudeView attitudes = attitudes(accessor);
+            List<Ref<EntityStore>> foes = new ArrayList<>();
+            List<Double> distances = new ArrayList<>();
+            for (Ref<EntityStore> creature : found) {
+                if (creature == null || !creature.isValid() || Targets.same(creature, holder)
+                        || accessor.getComponent(creature, DeathComponent.getComponentType()) != null
+                        || !isFoe(accessor, creature, holder, attitudes)
+                        || !allHold(accessor, creature, conditions, now)) {
+                    continue;
+                }
+                Vector3d there = positionOf(accessor, creature);
+                double distance = there == null ? Double.MAX_VALUE : there.distanceSquared(at);
+                int slot = 0;
+                while (slot < distances.size() && distances.get(slot) <= distance) {
+                    slot++;
+                }
+                foes.add(slot, creature);
+                distances.add(slot, distance);
+            }
+            if (limit > 0 && foes.size() > limit) {
+                return List.copyOf(foes.subList(0, limit));
+            }
+            return List.copyOf(foes);
+        } catch (Throwable t) {
+            return List.of();
+        }
+    }
+
+    /** Are two refs one live entity (the same slot of the same store)? */
+    public static boolean same(@Nullable Ref<EntityStore> a, @Nullable Ref<EntityStore> b) {
+        return Targets.same(a, b);
+    }
+
     /** Is the creature hostile to {@code holder}, or locked on to it? */
     private static boolean isFoe(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> creature,
             @Nonnull Ref<EntityStore> holder, @Nullable AttitudeView attitudes) {
@@ -136,7 +192,7 @@ public final class Nearby {
     }
 
     /** Do all of {@code conditions} hold on {@code ref}? True for none. */
-    static boolean allHold(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
+    public static boolean allHold(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
             @Nullable Condition[] conditions, @Nonnull Instant now) {
         if (conditions == null || conditions.length == 0) {
             return true;
@@ -149,8 +205,9 @@ public final class Nearby {
         return true;
     }
 
+    /** Where the entity stands, or null when it has no transform. */
     @Nullable
-    static Vector3d positionOf(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref) {
+    public static Vector3d positionOf(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref) {
         TransformComponent transform = accessor.getComponent(ref, TransformComponent.getComponentType());
         return transform == null ? null : transform.getPosition();
     }

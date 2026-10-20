@@ -1,0 +1,8 @@
+{
+  "$Comment": "Whole percent points added to the chance of every proc that rolls (zc-track's proc/): 5 makes a 20% proc a 25% one. A proc with no Chance always runs and a proc whose own chance reads 0 never does, whatever this reads. Any item's StatModifiers raise it like any stat. Base 0.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

@@ -97,6 +97,8 @@ import com.ziggfreed.common.objectives.trainer.TrainerAudit;
 import com.ziggfreed.common.objectives.trainer.TrainerBootstrap;
 import com.ziggfreed.common.playerstats.StatsBootstrap;
 import com.ziggfreed.common.playerstats.asset.StatValidator;
+import com.ziggfreed.common.proc.ProcBootstrap;
+import com.ziggfreed.common.proc.ProcValidator;
 import com.ziggfreed.common.progress.asset.ProgressEditorDataSets;
 import com.ziggfreed.common.reputation.ReputationBootstrap;
 import com.ziggfreed.common.reputation.ReputationValidator;
@@ -151,7 +153,7 @@ import com.ziggfreed.common.world.stash.BlockStashBootstrap;
  * (zc-calendar), {@code ProgressionBootstrap} + {@code DialogueBootstrap} + {@code BonusRowBootstrap}
  * + {@code CalendarSweepBootstrap} + {@code ObjectiveBookBootstrap} + {@code TrainerBootstrap} (zc-objectives), and
  * {@code AlmanacBootstrap} (zc-almanac), {@code ReputationBootstrap} (zc-reputation), {@code TrackBootstrap}
- * (zc-track) and {@code StatsBootstrap} (zc-stats). Each bootstrap lives in
+ * and {@code ProcBootstrap} (zc-track) and {@code StatsBootstrap} (zc-stats). Each bootstrap lives in
  * the module that already sees
  * everything its phase wires, so the phase can be read and reasoned about without standing up the
  * whole plugin. What remains a ROOT-OWNED body is only what no single module can host, each phase
@@ -362,6 +364,11 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // track objective names, the settle at every ready and the /zigtrack family. Its three stores are
         // registered with the other framework stores.
         TrackBootstrap.install(this);
+        // Procs, counters and held effects (zc-track's proc/): the systems behind a hit taken or blocked, the player's
+        // own dodge, guard and cast, a landing and a crouch held still; the reaction on the hit, kill, break and harvest
+        // moments; the counters' reading; the holder pass. Their three stores are registered with the other framework
+        // stores.
+        ProcBootstrap.install(this);
         // Trainers: the trainer page's parts (a placement's Trainer.Sections read against them), the Trainer
         // destination and the native ZigOpenTrainer interaction Type before any asset decodes, and zc-track's
         // PickTrainers seam filled from the placement store, so a pick whose trainers are off is learned on its track.
@@ -715,7 +722,8 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
                     new BootAudit.Pass(TrackValidator.LOG_LABEL, TrackValidator::audit),
                     new BootAudit.Pass(TrainerAudit.LOG_LABEL, TrainerAudit::claimLateFindings),
                     new BootAudit.Pass(ConditionalStatValidator.LOG_LABEL, ConditionalStatValidator::audit),
-                    new BootAudit.Pass(StatTypeCeiling.LOG_LABEL, StatTypeCeiling::audit))));
+                    new BootAudit.Pass(StatTypeCeiling.LOG_LABEL, StatTypeCeiling::audit),
+                    new BootAudit.Pass(ProcValidator.LOG_LABEL, ProcValidator::audit))));
         } catch (Throwable t) {
             SafeLog.warn("[boot] the boot checks could not be registered", t);
         }

@@ -27,6 +27,9 @@ import com.ziggfreed.common.currency.asset.CurrencyConfig;
 import com.ziggfreed.common.loot.LootableConfig;
 import com.ziggfreed.common.loot.trigger.BonusRowConfig;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementConfig;
+import com.ziggfreed.common.proc.CounterConfig;
+import com.ziggfreed.common.proc.HeldEffectConfig;
+import com.ziggfreed.common.proc.ProcConfig;
 import com.ziggfreed.common.quest.asset.QuestAssetStore;
 import com.ziggfreed.common.reputation.asset.ReputationConfig;
 import com.ziggfreed.common.shop.asset.ShopAssetStore;
@@ -103,6 +106,9 @@ class FrameworkModGateWiringTest {
         GATED.put("BoostAsset", new Gated("Boosts", "BoostConfig", BoostConfig.MOD_GATE_STORE));
         GATED.put("GatherShapeAsset",
                 new Gated("GatherShapes", "GatherShapeConfig", GatherShapeConfig.MOD_GATE_STORE));
+        GATED.put("ProcAsset", new Gated("Procs", "ProcConfig", ProcConfig.MOD_GATE_STORE));
+        GATED.put("CounterAsset", new Gated("Counters", "CounterConfig", CounterConfig.MOD_GATE_STORE));
+        GATED.put("HeldEffectAsset", new Gated("HeldEffects", "HeldEffectConfig", HeldEffectConfig.MOD_GATE_STORE));
     }
 
     /**
@@ -147,6 +153,18 @@ class FrameworkModGateWiringTest {
             new OwnerReader("GatherShapeAsset", "GatherShapeOwnerLayers.reload();",
                     module("zc-world", "world", "gather", "GatherShapeOwnerLayers.java"),
                     "public static void reload()", "GateSpec.missingMod("),
+            new OwnerReader("ProcAsset", "ProcOwnerLayers.reloadProcs();",
+                    Path.of("zc-track", "src", "main", "java", "com", "ziggfreed", "common", "proc",
+                            "ProcOwnerLayers.java"),
+                    "public static void reloadProcs()", "GateSpec.missingMod("),
+            new OwnerReader("CounterAsset", "ProcOwnerLayers.reloadCounters();",
+                    Path.of("zc-track", "src", "main", "java", "com", "ziggfreed", "common", "proc",
+                            "ProcOwnerLayers.java"),
+                    "public static void reloadCounters()", "GateSpec.missingMod("),
+            new OwnerReader("HeldEffectAsset", "ProcOwnerLayers.reloadHeldEffects();",
+                    Path.of("zc-track", "src", "main", "java", "com", "ziggfreed", "common", "proc",
+                            "ProcOwnerLayers.java"),
+                    "public static void reloadHeldEffects()", "GateSpec.missingMod("),
             new OwnerReader("NpcPlacementAsset", "NpcPlacementOverrides.getInstance().applyOwnerLayer();",
                     module("zc-dialogue", "npc", "placement", "asset", "NpcPlacementOverrides.java"),
                     "public void applyOwnerLayer()", "NpcPlacementAsset.Requires.missingMod("),
@@ -249,6 +267,9 @@ class FrameworkModGateWiringTest {
         assertEquals("TrackPicks", TrackPickConfig.getInstance().modGateStore());
         assertEquals("Boosts", BoostConfig.getInstance().modGateStore());
         assertEquals("GatherShapes", GatherShapeConfig.getInstance().modGateStore());
+        assertEquals("Procs", ProcConfig.getInstance().modGateStore());
+        assertEquals("Counters", CounterConfig.getInstance().modGateStore());
+        assertEquals("HeldEffects", HeldEffectConfig.getInstance().modGateStore());
     }
 
     @Test

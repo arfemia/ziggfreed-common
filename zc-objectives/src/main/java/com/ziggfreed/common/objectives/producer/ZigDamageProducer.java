@@ -1,5 +1,7 @@
 package com.ziggfreed.common.objectives.producer;
 
+import java.util.Set;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -8,6 +10,9 @@ import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.SystemGroup;
+import com.hypixel.hytale.component.dependency.Dependency;
+import com.hypixel.hytale.component.dependency.Order;
+import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.meta.MetaKey;
@@ -19,6 +24,7 @@ import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.entity.HeldItemUtil;
 import com.ziggfreed.common.health.HealthUtil;
+import com.ziggfreed.common.stats.condition.ConditionalStatSystems;
 import com.ziggfreed.common.track.source.TrackSources;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -99,12 +105,25 @@ public final class ZigDamageProducer {
         }
     }
 
-    /** The Inspect-group half: the hit as applied, capped and fired. */
+    /**
+     * The Inspect-group half: the hit as applied, capped and fired. Ordered before zc-entity's first-hit record, so a
+     * reader of the moment (a proc's {@code Hit.FirstHit}) sees the hit as it was before the record noted it.
+     */
     public static final class Dealt extends DamageEventSystem {
+
+        @Nonnull
+        private final Set<Dependency<EntityStore>> dependencies = Set.of(
+                new SystemDependency<>(Order.BEFORE, ConditionalStatSystems.FirstHitRecord.class));
 
         @Override
         public SystemGroup<EntityStore> getGroup() {
             return DamageModule.get().getInspectDamageGroup();
+        }
+
+        @Nonnull
+        @Override
+        public Set<Dependency<EntityStore>> getDependencies() {
+            return dependencies;
         }
 
         @Nullable

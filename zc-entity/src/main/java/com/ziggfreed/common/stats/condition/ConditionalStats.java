@@ -406,7 +406,7 @@ public final class ConditionalStats {
      * stat regeneration asks its conditions with and its damage records stamp; the wall clock when it is not there.
      */
     @Nonnull
-    static Instant now(@Nonnull ComponentAccessor<EntityStore> accessor) {
+    public static Instant now(@Nonnull ComponentAccessor<EntityStore> accessor) {
         try {
             TimeResource time = accessor.getResource(TimeResource.getResourceType());
             Instant now = time == null ? null : time.getNow();
