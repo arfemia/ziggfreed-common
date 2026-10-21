@@ -948,8 +948,9 @@ public final class DungeonRuns {
         InstanceRoundCompletedEvent event = new InstanceRoundCompletedEvent(
                 metadata(run, participants.size(), seconds, winners.isEmpty() ? ResultKind.LOSS : ResultKind.WIN),
                 participants, winners);
-        outbox.add(new Fire(run.world, () -> InstanceRounds.fireCompleted(event)));
+        // Pay first: the payout raises each stayer's best wave, which a criterion on the round's end reads.
         queueEndlessPay(run, stayers, false);
+        outbox.add(new Fire(run.world, () -> InstanceRounds.fireCompleted(event)));
         SafeLog.info(LOG + "the endless run " + run.runId + " in " + run.where() + " ended ("
                 + ending.name().toLowerCase(Locale.ROOT).replace('_', ' ') + ") after " + seconds + " s and "
                 + run.reach + " cleared waves: " + participants.size() + " took part, " + winners.size()
