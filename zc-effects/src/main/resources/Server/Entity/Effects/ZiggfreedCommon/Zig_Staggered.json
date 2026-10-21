@@ -1,4 +1,5 @@
 {
-  "$Comment": "The stagger: a short stun that never cuts a full stun short. Everything comes from Zig_Stunned, so restyle that file, or ship one with this id to make staggers look different.",
-  "Parent": "Zig_Stunned"
+  "$Comment": "The stagger: a short stun that never cuts a full stun short. Its ZigEffectFamily tag puts it in the Stunned effect family beside Zig_Stunned (a Parent's tags are its child's too; it is written here as well so a same-id restyle keeps it in mind). Everything else comes from Zig_Stunned, so restyle that file, or ship one with this id to make staggers look different.",
+  "Parent": "Zig_Stunned",
+  "Tags": { "ZigEffectFamily": ["Stunned"] }
 }
