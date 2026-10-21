@@ -43,7 +43,7 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The one reader and writer of the picks a player makes on their tracks. Every write ({@link #choose},
- * {@link #take}, {@link #undo}, {@link #respec}, {@link #buyRespec}, {@link #swapLoadout},
+ * {@link #take}, an admin's {@link #teach}, {@link #undo}, {@link #respec}, {@link #buyRespec}, {@link #swapLoadout},
  * {@link #respendRemembered}, {@link #spendInOrder}) is the live player's own world thread, keeps the record through
  * the track's store, moves the player's gate epoch (the {@code ziggfreedcommon:track_pick} and
  * {@code ziggfreedcommon:track_branch_spent} readings, Volatility Player), rebuilds the player's grants
@@ -589,6 +589,37 @@ public final class PickService {
     }
 
     /**
+     * An admin's teach: take the pick bought outright {@code pickId} on {@code trackId} for {@code player} once more,
+     * by every rule {@link #take} obeys (its rank, its choice node, its {@code Requires}, its prerequisites, its
+     * points) but two: the level it opens at and where it is taught, so an admin hands a player a pick their level
+     * has not reached, wherever they stand (a trainer's pick included). Kept, the epoch moved, the grants rebuilt and
+     * {@code ZigTrackPicksChangedEvent} fired ({@code TAKEN}) as a take is; it leaves no undo, since the player made no
+     * pick to take back. Only an admin's path calls it, never a player's page. World thread.
+     */
+    @Nonnull
+    public static Result teach(@Nonnull UUID player, @Nullable String trackId, @Nullable String pickId) {
+        if (TrackService.def(trackId) == null) {
+            return Result.of(Status.UNKNOWN);
+        }
+        Climb climb = climb(player, trackId);
+        if (climb == null) {
+            return Result.of(Status.NOT_LIVE);
+        }
+        TrackPicks.PickDef pick = TrackPicks.pick(pickId);
+        Status status = takeStatus(player, climb.def(), climb.record(), pick, null, queryOf(climb.ref()),
+                new HashMap<>(), true);
+        if (status != Status.DONE) {
+            return Result.of(status);
+        }
+        PickState state = climb.record().picks();
+        if (!climb.store().put(climb.key(), climb.record().withPicks(state.withTakes(pick.id(), 1)))) {
+            return Result.of(Status.NOT_LIVE);
+        }
+        changed(player, climb, ZigTrackPicksChangedEvent.Change.TAKEN, pick.id(), null, List.of());
+        return new Result(Status.DONE, climb.def().id(), pick.id(), null, List.of(), 1);
+    }
+
+    /**
      * Undo {@code player}'s latest pick still in its window, newest first: the slot unmade, or the take given back
      * (a re-spent remembered take goes back to the head of what is remembered). Refused, and kept undoable, when it
      * would leave a pick the player still holds short of what it met when it was taken ({@link Status#NEEDED}).
@@ -1057,6 +1088,18 @@ public final class PickService {
     public static Status takeStatus(@Nonnull UUID player, @Nonnull TrackDef def, @Nonnull TrackRecord record,
             @Nullable TrackPicks.PickDef pick, @Nullable String placement, @Nullable GateQuery query,
             @Nonnull Map<String, TrackRecord> records) {
+        return takeStatus(player, def, record, pick, placement, query, records, false);
+    }
+
+    /**
+     * {@link #takeStatus(UUID, TrackDef, TrackRecord, TrackPicks.PickDef, String, GateQuery, Map)}, or with
+     * {@code taught} an admin's {@link #teach}: the same order, past the level the pick opens at and where it is
+     * taught.
+     */
+    @Nonnull
+    private static Status takeStatus(@Nonnull UUID player, @Nonnull TrackDef def, @Nonnull TrackRecord record,
+            @Nullable TrackPicks.PickDef pick, @Nullable String placement, @Nullable GateQuery query,
+            @Nonnull Map<String, TrackRecord> records, boolean taught) {
         if (pick == null || pick.isChoice() || !pick.trackId().equals(def.id())) {
             return Status.UNKNOWN;
         }
@@ -1064,11 +1107,11 @@ public final class PickService {
         if (state.takesOf(pick.id()) >= pick.asset().repeatMax()) {
             return Status.MAXED;
         }
-        Status open = open(pick, state, pickLevel(def, record), query);
+        Status open = open(pick, state, taught ? Integer.MAX_VALUE : pickLevel(def, record), query);
         if (open != Status.DONE) {
             return open;
         }
-        if (!at(pick, placement)) {
+        if (!taught && !at(pick, placement)) {
             return Status.ELSEWHERE;
         }
         return costStatus(player, pick, records);

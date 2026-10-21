@@ -19,7 +19,9 @@ import com.ziggfreed.common.validation.Severity;
 
 /**
  * The trainers' audit over loaded files: an unknown track or category in a trainer block, one character at two
- * switched-on trainer placements, and a pick naming a placement that is no trainer, each a WARNING, never an ERROR.
+ * switched-on trainer placements, and a pick naming a placement that stands but is no trainer, or an id no placement
+ * can carry, each a WARNING, never an ERROR; a trainer switched off, or one no placement file defines as yet, is no
+ * fault (R608), one INFO line a trainer id however many picks name it.
  */
 class TrainerAuditTest {
 
@@ -35,7 +37,7 @@ class TrainerAuditTest {
     }
 
     @Test
-    void eachAuthoringSlipIsOneWarning() throws Exception {
+    void eachAuthoringSlipIsOneWarningAndATrainerNotTeachingOneInfoLine() throws Exception {
         List<NpcPlacementAsset> placements = List.of(
                 placement("Smith_A", "{ \"Trainer\": { \"Tracks\": [ \"Mining\", \"Minning\" ], "
                         + "\"Categories\": [ \"Gathering\", \"Gatherng\" ] } }"),
@@ -43,18 +45,35 @@ class TrainerAuditTest {
                 placement("Smith_Off", "{ \"Enabled\": false, \"Trainer\": {} }"),
                 placement("Guide", "{ \"Identity\": { \"Role\": \"Guide\" } }"));
         List<TrackPickAsset> picks = List.of(
-                pick("Lesson", "{ \"Where\": { \"Placements\": [ \"Smith_A\", \"Guide\", \"Gone\", \"Refused\" ] } }"));
+                pick("Lesson", "{ \"Where\": { \"Placements\": [ \"Smith_A\", \"Guide\", \"Gone\", \"Refused\" ] } }"),
+                pick("Lesson_Two", "{ \"Where\": { \"Placements\": [ \"Gone\", \"Smith Off\", \"Smith_Off\", "
+                        + "\"Smith_B\" ] } }"));
         Map<String, String> npc = Map.of("smith_a", "Smith", "smith_b", "smith", "smith_off", "Smith");
 
         List<Finding> findings = TrainerAudit.audit(placements, "Mining"::equals, "Gathering"::equals, npc::get,
-                picks, Set.of("refused")::contains);
+                picks, Set.of("refused")::contains, id -> !"smith_b".equals(id));
 
         assertEquals(List.of(TrainerAudit.UNKNOWN_TRAINER_TRACK, TrainerAudit.UNKNOWN_TRAINER_CATEGORY,
                         TrainerAudit.SHARED_TRAINER_CHARACTER, TrainerAudit.SHARED_TRAINER_CHARACTER,
-                        TrainerAudit.WHERE_NAMES_NO_TRAINER, TrainerAudit.WHERE_NAMES_NO_TRAINER),
+                        TrainerAudit.WHERE_NAMES_NO_TRAINER, TrainerAudit.WHERE_NAMES_NO_TRAINER,
+                        TrainerAudit.TRAINER_SWITCHED_OFF, TrainerAudit.TRAINER_SWITCHED_OFF,
+                        TrainerAudit.TRAINER_NOT_PLACED),
                 findings.stream().map(Finding::code).toList(),
                 "a misspelt track and category, the two switched-on placements of one character (the switched-off "
-                        + "one is not counted), and the two Where ids that are no trainer (a refused one is named nowhere)");
-        assertTrue(findings.stream().allMatch(f -> f.severity() == Severity.WARNING));
+                        + "one is not counted), a Where naming a placement with no Trainer block and one naming an id "
+                        + "no placement can carry, then a line for each trainer switched off (its file's Enabled, the "
+                        + "owner's switch) and one for the trainer two picks name that no file defines (a refused one "
+                        + "is named nowhere)");
+        assertTrue(findings.subList(0, 6).stream().allMatch(f -> f.severity() == Severity.WARNING),
+                "each slip is a WARNING");
+        List<Finding> lines = findings.subList(6, findings.size());
+        assertTrue(lines.stream().allMatch(f -> f.severity() == Severity.INFO),
+                "a trainer switched off or not placed yet is no fault (R608)");
+        assertTrue(lines.get(0).message().startsWith("1 pick(s) name the trainer 'smith_b', whose placement is "
+                + "switched off"), "the owner's switch reads as switched off: " + lines.get(0).message());
+        assertTrue(lines.get(1).message().startsWith("1 pick(s) name the trainer 'smith_off', whose placement is "
+                + "switched off"), "a trainer file switched off reads as switched off: " + lines.get(1).message());
+        assertTrue(lines.get(2).message().startsWith("2 pick(s) name the trainer 'gone', which no placement file"),
+                "one line names the trainer and how many picks name it: " + lines.get(2).message());
     }
 }
