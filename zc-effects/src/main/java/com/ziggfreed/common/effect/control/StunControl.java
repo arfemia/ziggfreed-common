@@ -100,6 +100,31 @@ public final class StunControl {
     }
 
     /**
+     * Stun {@code target} for {@code seconds} with the caller's own stun effect {@code effectId} in place of
+     * {@value #STUNNED_EFFECT}: the same hold (its chains cancelled, a creature's action ended and its attacks paused
+     * for the stun and the wake), under an effect the caller ships, built on the game's {@code Stun} as
+     * {@value #STUNNED_EFFECT} is. For a stun that must stay exactly as long as asked, whatever reads the Stunned and
+     * Control effect families (a carrier's control resistance cuts every member as it lands): ship the effect in no
+     * family and stun with it. {@link #isStunned} and {@link #wake} know only this library's two effects, so the caller
+     * reads and ends its own.
+     *
+     * @return true when the stun landed
+     */
+    public static boolean stun(@Nonnull ComponentAccessor<EntityStore> accessor, @Nullable Ref<EntityStore> target,
+            float seconds, @Nullable Ref<EntityStore> source, @Nonnull String effectId) {
+        if (!usable(target) || !(seconds > 0f) || effectId.isBlank()) {
+            return false;
+        }
+        if (!addEffect(accessor, target, effectId.trim(), seconds, source != null && source.isValid() ? source : null)) {
+            return false;
+        }
+        interrupt(accessor, target);
+        stopCurrentAction(accessor, target);
+        holdAttacks(accessor, target, seconds + STUN_WAKE_SECONDS);
+        return true;
+    }
+
+    /**
      * Stagger {@code target} for {@code seconds}: the same hold as a stun, with a shorter wake, which never shortens or
      * replaces a stun already on it.
      *

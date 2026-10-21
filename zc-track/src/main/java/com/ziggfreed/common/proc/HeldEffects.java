@@ -1,22 +1,35 @@
 package com.ziggfreed.common.proc;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import org.joml.Vector3d;
+
+import com.hypixel.hytale.assetstore.map.AssetMapWithIndexes;
 import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
+import com.hypixel.hytale.server.core.asset.type.entityeffect.config.OverlapBehavior;
+import com.hypixel.hytale.server.core.entity.effect.ActiveEntityEffect;
+import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.effect.NativeEffectUtil;
+import com.ziggfreed.common.effect.control.AggroControl;
+import com.ziggfreed.common.entity.Allies;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorFormula;
+import com.ziggfreed.common.stats.condition.FirstHits;
 import com.ziggfreed.common.stats.condition.Nearby;
 
 /**
@@ -25,8 +38,22 @@ import com.ziggfreed.common.stats.condition.Nearby;
  * stands, once it has stood its {@code Hold} seconds, and for its {@code Linger} seconds after it stops (each file
  * keeps its own times, per holder, never saved). Only an effect worn with no end is taken off, so a timed apply of the
  * same effect by something else runs out on its own. World thread; a holder's times are its world's thread's alone.
+ *
+ * <p><b>Auras.</b> A file with {@code Reach} also puts its effect on the others in reach while it is on (the holder's
+ * allies, the creatures their taunt holds), each for {@value #REACH_SECONDS} seconds at a time with the holder as its
+ * owner, topped up while it has under {@value #REFRESH_BELOW} seconds left. Nothing keeps a record of who wears it, so
+ * nothing goes stale: whoever steps out of reach, a hold that ends, a holder that dies, leaves or changes worlds, each
+ * leaves the effect to run out on its own within that time. One that already wears it with no end (their own held
+ * effect) is left alone. Bounded: one pass reaches at most {@code Max} (never past 32) within {@code Radius} (never
+ * past 64), four times a second.
  */
 final class HeldEffects {
+
+    /** How long one aura apply lasts on another. */
+    static final float REACH_SECONDS = 1.5f;
+
+    /** An aura on another is topped up when it has less than this left. */
+    static final float REFRESH_BELOW = 0.8f;
 
     /** One file's times on one holder: since when its hold has stood (-1: not standing), since when it stopped. */
     static final class Times {
@@ -40,7 +67,7 @@ final class HeldEffects {
     private HeldEffects() {
     }
 
-    /** Reconcile every held effect on {@code holder}. */
+    /** Reconcile every held effect on {@code holder}, and reach the others its auras reach. */
     static void pass(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> holder,
             @Nonnull FactorContext context, @Nonnull Instant now, long nanos) {
         List<HeldEffectAsset> files = HeldEffectConfig.getInstance().held();
@@ -57,7 +84,15 @@ final class HeldEffects {
             }
             String key = effect.toLowerCase(Locale.ROOT);
             spelled.putIfAbsent(key, effect);
-            wanted.merge(key, on(accessor, holder, file, context, now, nanos, times), Boolean::logicalOr);
+            HeldEffectAsset.Reach reach = file.reach();
+            List<Ref<EntityStore>> reached = new ArrayList<>();
+            boolean on = on(accessor, holder, file, context, now, nanos, times, reached);
+            wanted.merge(key, on && (reach == null || reach.self()), Boolean::logicalOr);
+            if (on && reach != null) {
+                for (Ref<EntityStore> other : reached) {
+                    topUp(accessor, other, effect, holder);
+                }
+            }
         }
         for (Map.Entry<String, Boolean> entry : wanted.entrySet()) {
             String effect = spelled.get(entry.getKey());
@@ -71,16 +106,25 @@ final class HeldEffects {
         }
     }
 
-    /** Is {@code file} on for {@code holder} this pass, its Hold and Linger read? */
+    /**
+     * Is {@code file} on for {@code holder} this pass, its Hold and Linger read? With {@code Reach}, the others it
+     * reaches this pass go into {@code reached} (its {@code Min} of them a part of the hold standing).
+     */
     private static boolean on(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> holder,
             @Nonnull HeldEffectAsset file, @Nonnull FactorContext context, @Nonnull Instant now, long nanos,
-            @Nonnull Map<String, Times> times) {
+            @Nonnull Map<String, Times> times, @Nonnull List<Ref<EntityStore>> reached) {
         String key = file.getId() == null ? "" : file.getId().toLowerCase(Locale.ROOT);
         if (!file.isEnabled() || !Procs.gatePasses(file.liveRequires(), context)) {
             times.remove(key);
             return false;
         }
         boolean standing = holds(accessor, holder, file, now);
+        HeldEffectAsset.Reach reach = file.reach();
+        // A hold that does not stand, with no linger to keep the file on, reaches no one: skip the look around.
+        if (reach != null && (standing || file.linger() != null)) {
+            reached.addAll(reach(accessor, context, holder, reach, now));
+            standing &= reached.size() >= reach.min();
+        }
         if (file.hold() == null && file.linger() == null) {
             times.remove(key);
             return standing;
@@ -117,6 +161,98 @@ final class HeldEffects {
             state.stoppedAt = -1L;
         }
         return state.on;
+    }
+
+    /**
+     * The others an aura reaches from {@code holder}: their allies and, or, the creatures their taunt holds, within
+     * the radius and meeting the conditions, behind them when asked, allies first then nearest, at most {@code Max}.
+     */
+    @Nonnull
+    private static List<Ref<EntityStore>> reach(@Nonnull ComponentAccessor<EntityStore> accessor,
+            @Nonnull FactorContext context, @Nonnull Ref<EntityStore> holder, @Nonnull HeldEffectAsset.Reach reach,
+            @Nonnull Instant now) {
+        int max = Math.max(reach.max(), reach.min());
+        Vector3d at = Nearby.positionOf(accessor, holder);
+        if (max <= 0 || at == null || !(reach.radius() > 0.0) || reach.reachesNoKind()) {
+            return List.of();
+        }
+        double[] look = reach.behind() ? ProcActions.levelLook(accessor, holder) : null;
+        if (reach.behind() && look == null) {
+            return List.of();
+        }
+        List<Ref<EntityStore>> out = new ArrayList<>();
+        if (reach.allies()) {
+            UUID holderId = FirstHits.idOf(accessor, holder);
+            Store<EntityStore> store = context.store();
+            boolean pvp = store == null || ProcActions.pvpOn(store);
+            if (holderId != null) {
+                for (Ref<EntityStore> other : Nearby.playersAround(accessor, holder, at, reach.radius(),
+                        reach.conditions(), now, 0)) {
+                    UUID otherId = FirstHits.idOf(accessor, other);
+                    if (otherId != null && Allies.areAllies(holderId, otherId, pvp)
+                            && (look == null || behind(at, look, Nearby.positionOf(accessor, other)))) {
+                        out.add(other);
+                        if (out.size() >= max) {
+                            return out;
+                        }
+                    }
+                }
+            }
+        }
+        if (reach.taunted()) {
+            for (Ref<EntityStore> foe : Nearby.foesAround(accessor, holder, at, reach.radius(), reach.conditions(),
+                    now, 0)) {
+                if (AggroControl.tauntedBy(accessor, holder, foe)
+                        && (look == null || behind(at, look, Nearby.positionOf(accessor, foe)))) {
+                    out.add(foe);
+                    if (out.size() >= max) {
+                        return out;
+                    }
+                }
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Does one standing at {@code there} stand behind a holder at {@code at} looking along {@code look} (a level unit
+     * {x, z})? Behind is the far side of the line across the holder's look. Pure.
+     */
+    static boolean behind(@Nonnull Vector3d at, @Nonnull double[] look, @Nullable Vector3d there) {
+        if (there == null) {
+            return false;
+        }
+        double dx = there.x - at.x;
+        double dz = there.z - at.z;
+        return dx * look[0] + dz * look[1] < 0.0;
+    }
+
+    /**
+     * Put {@code effect} on {@code other} for {@value #REACH_SECONDS} seconds, owned by {@code holder}, unless it
+     * already wears it with no end or with at least {@value #REFRESH_BELOW} seconds left.
+     */
+    private static void topUp(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> other,
+            @Nonnull String effectId, @Nonnull Ref<EntityStore> holder) {
+        try {
+            if (!other.isValid() || Nearby.same(other, holder)) {
+                return;
+            }
+            int index = EntityEffect.getAssetMap().getIndex(effectId);
+            EntityEffect effect = index == AssetMapWithIndexes.NOT_FOUND ? null
+                    : EntityEffect.getAssetMap().getAsset(index);
+            EffectControllerComponent controller = effect == null ? null
+                    : accessor.getComponent(other, EffectControllerComponent.getComponentType());
+            if (controller == null) {
+                return;
+            }
+            ActiveEntityEffect active = controller.getActiveEffects().get(index);
+            if (active != null && (active.isInfinite() || active.getRemainingDuration() >= REFRESH_BELOW)) {
+                return;
+            }
+            controller.addEffect(other, index, effect, REACH_SECONDS, OverlapBehavior.OVERWRITE, accessor, holder);
+        } catch (Throwable t) {
+            Procs.failed("an aura reaching another", t);
+        }
     }
 
     private static long seconds(@Nullable FactorFormula formula, @Nonnull FactorContext context) {

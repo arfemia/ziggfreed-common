@@ -20,6 +20,7 @@ import com.hypixel.hytale.server.core.entity.InteractionChain;
 import com.hypixel.hytale.server.core.entity.damage.DamageDataComponent;
 import com.hypixel.hytale.server.core.entity.effect.ActiveEntityEffect;
 import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
+import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.stats.condition.EffectFamilies;
 
@@ -33,7 +34,8 @@ import com.ziggfreed.common.stats.condition.EffectFamilies;
  *       {@value #DODGE_FAMILY} effect family lands on them inside it (vanilla's side dodges and their moment of
  *       invulnerability, put on only after the stamina check passed), the chain still running or just ended, at most
  *       {@value #DODGE_WINDOW_NANOS} ns after the press. One landing proves one press, the oldest waiting: a second
- *       press made before it waits for a landing of its own.</li>
+ *       press made before it waits for a landing of its own. A hit the dodge slips before its proof holds its Dodged
+ *       moment on it ({@link #deferDodged}), run right after the Dodge, so one dodge's paybacks are reckoned once.</li>
  *   <li><b>GuardStart</b>: no chain at all. The guard is up when the engine says the player wields a block
  *       ({@code DamageDataComponent.getCurrentWielding}), so the moment is that going from none to one, whatever
  *       input raised it (a sword's guard is a Secondary chain holding a Wielding step).</li>
@@ -62,6 +64,13 @@ final class MoveProofs {
     record Mark(@Nonnull Object instance, float remaining) {
     }
 
+    /** A foe's hit a dodge slipped while that dodge's proof still waited: its Dodged, held back until then. */
+    private record HeldDodged(@Nonnull Ref<EntityStore> attacker, @Nonnull Damage damage) {
+    }
+
+    /** The most Dodged moments one waiting dodge holds back. */
+    static final int HELD_DODGED_CAP = 8;
+
     /** One move waiting for its proof. */
     private static final class Pending {
         final ProcTrigger trigger;
@@ -71,6 +80,8 @@ final class MoveProofs {
         @Nullable Map<Integer, Mark> before;
         @Nullable final String root;
         boolean endedSeen;
+        /** The Dodged moments this dodge's slipped hits wait to run, after its Dodge (or its drop). */
+        @Nullable List<HeldDodged> dodged;
 
         Pending(@Nonnull ProcTrigger trigger, @Nonnull InteractionChain chain, long startedNanos,
                 @Nullable Map<Integer, Mark> before, @Nullable String root) {
@@ -126,6 +137,32 @@ final class MoveProofs {
                 nanos + HANDED_BACK_NANOS);
     }
 
+    /**
+     * A foe's hit the holder's dodge slipped: when a dodge of theirs still waits for its proof, its Dodged moment is
+     * held on that dodge (the oldest waiting) and runs right after the dodge's own Dodge moment, so whatever the Dodge
+     * clears (the stamina payback mark among them) is cleared before the Dodged pays, never after it. Answers whether it
+     * was held; false (no dodge waits) means the caller fires it now.
+     */
+    static boolean deferDodged(@Nonnull Ref<EntityStore> holder, @Nonnull Ref<EntityStore> attacker,
+            @Nonnull Damage damage) {
+        HolderState state = STATES.get(holder);
+        if (state == null) {
+            return false;
+        }
+        for (Pending pending : state.pending) {
+            if (pending.trigger == ProcTrigger.DODGE) {
+                if (pending.dodged == null) {
+                    pending.dodged = new ArrayList<>(1);
+                }
+                if (pending.dodged.size() < HELD_DODGED_CAP) {
+                    pending.dodged.add(new HeldDodged(attacker, damage));
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Is a server chain of {@code root} starting now one a consumer handed back for the holder (spent once)? */
     static boolean takeHandedBack(@Nonnull Ref<EntityStore> holder, @Nullable String root, long nanos) {
         HolderState state = STATES.get(holder);
@@ -163,6 +200,7 @@ final class MoveProofs {
             return;
         }
         List<Pending> proven = null;
+        List<HeldDodged> heldDodged = null;
         Map<Integer, Mark> dodgeNow = null;
         boolean landingSpent = false;
         Iterator<Pending> it = state.pending.iterator();
@@ -186,6 +224,13 @@ final class MoveProofs {
                 continue;
             }
             it.remove();
+            if (pending.dodged != null) {
+                // Slipped hits run once this dodge is settled: after its Dodge when proven, still when dropped.
+                if (heldDodged == null) {
+                    heldDodged = new ArrayList<>(pending.dodged.size());
+                }
+                heldDodged.addAll(pending.dodged);
+            }
             if (verdict == Verdict.PROVEN) {
                 if (proven == null) {
                     proven = new ArrayList<>(1);
@@ -205,6 +250,14 @@ final class MoveProofs {
             for (Pending pending : proven) {
                 Procs.fire(new ProcMoment(pending.trigger, store, commandBuffer, holder, null, null, 1.0, null,
                         pending.root, null, null));
+            }
+        }
+        if (heldDodged != null) {
+            for (HeldDodged dodged : heldDodged) {
+                if (dodged.attacker().isValid()) {
+                    Procs.fire(new ProcMoment(ProcTrigger.DODGED, store, commandBuffer, holder, dodged.attacker(),
+                            dodged.damage(), dodged.damage().getAmount(), null));
+                }
             }
         }
     }

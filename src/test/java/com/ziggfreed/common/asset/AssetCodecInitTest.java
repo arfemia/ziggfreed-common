@@ -669,10 +669,16 @@ class AssetCodecInitTest {
         assertNotNull(ProcAction.ChangeStat.CODEC, "ProcAction.ChangeStat.CODEC must static-init");
         assertNotNull(ProcAction.CounterChange.CODEC, "ProcAction.CounterChange.CODEC must static-init");
         assertNotNull(ProcAction.RunInteraction.CODEC, "ProcAction.RunInteraction.CODEC must static-init");
+        assertNotNull(ProcAction.Heal.CODEC, "ProcAction.Heal.CODEC must static-init");
+        assertNotNull(ProcAction.Soak.CODEC, "ProcAction.Soak.CODEC must static-init");
+        assertNotNull(ProcAction.GuardCost.CODEC, "ProcAction.GuardCost.CODEC must static-init");
         assertNotNull(CounterAsset.CODEC, "CounterAsset.CODEC must static-init (PascalCase keys)");
         assertNotNull(CounterAsset.Decay.CODEC, "CounterAsset.Decay.CODEC must static-init");
         assertNotNull(CounterAsset.PerStack.CODEC, "CounterAsset.PerStack.CODEC must static-init");
+        assertNotNull(CounterAsset.OnFoe.CODEC, "CounterAsset.OnFoe.CODEC must static-init");
+        assertNotNull(CounterAsset.Weakness.CODEC, "CounterAsset.Weakness.CODEC must static-init");
         assertNotNull(HeldEffectAsset.CODEC, "HeldEffectAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(HeldEffectAsset.Reach.CODEC, "HeldEffectAsset.Reach.CODEC must static-init");
     }
 
     @Test

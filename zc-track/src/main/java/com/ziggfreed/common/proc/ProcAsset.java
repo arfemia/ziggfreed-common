@@ -48,7 +48,9 @@ import com.ziggfreed.common.stats.condition.ConditionalStatAsset;
  * {@code Holder} conditions are asked of the holder, {@code Target} conditions of the moment's target (a foe family,
  * an effect family, a health band, the engine's own {@code Wielding} for a guard that is up); a moment with no target
  * of its own finds one through {@code Seek}. {@code Ability} asks which move a hit or a cast came from, and
- * {@code Effect} names what an effect moment watches.
+ * {@code Effect} names what an effect moment watches. A coming hit (HitIncoming, AllyHitIncoming) is read by
+ * {@code LeavesUnder} (how low it would drop the one it lands on), an ally's by {@code AllyRadius}, and a block by
+ * {@code WouldBreakGuard}; a coming hit's {@code OverTime} asks nothing unless written.
  *
  * <p><b>Order.</b> The procs on one moment run in the order of their ids, compared lower-cased ({@link ProcConfig}),
  * so a proc that must act before another on the same moment takes an id that sorts first.
@@ -57,6 +59,12 @@ public final class ProcAsset implements JsonAssetWithMap<String, DefaultAssetMap
 
     /** Where the procs live under a pack's {@code Server/} folder. */
     public static final String TYPE_ROOT = "ZiggfreedCommon/Procs";
+
+    /** How far an AllyHitIncoming's ally may stand unless written, in blocks. */
+    public static final double DEFAULT_ALLY_RADIUS = 8.0;
+
+    /** The farthest an AllyHitIncoming's ally may stand, whatever {@code AllyRadius} says. */
+    public static final double ALLY_RADIUS_CAP = 64.0;
 
     /** The Cooldown group: how long the proc waits after it runs, for the player or for each target. */
     public static final class Cooldown {
@@ -226,6 +234,9 @@ public final class ProcAsset implements JsonAssetWithMap<String, DefaultAssetMap
     @Nullable protected Condition[] target;
     @Nullable protected Seek seek;
     @Nullable protected Double minAmount;
+    @Nullable protected Double leavesUnder;
+    @Nullable protected Double allyRadius;
+    @Nullable protected Boolean wouldBreakGuard;
     @Nullable protected FactorFormula chance;
     @Nullable protected FactorFormula strength;
     @Nullable protected Cooldown cooldown;
@@ -292,6 +303,22 @@ public final class ProcAsset implements JsonAssetWithMap<String, DefaultAssetMap
                     (a, v) -> a.minAmount = v, a -> a.minAmount, (a, p) -> a.minAmount = p.minAmount)
             .documentation("The least the moment's amount may be: the damage of a hit dealt or taken, the blocks "
                     + "fallen on Landing, the seconds held on CrouchStill. No least when unauthored.").add()
+            .appendInherited(new KeyedCodec<>("LeavesUnder", Codec.DOUBLE, false),
+                    (a, v) -> a.leavesUnder = v, a -> a.leavesUnder, (a, p) -> a.leavesUnder = p.leavesUnder)
+            .documentation("For HitIncoming and AllyHitIncoming: only a hit that would drop the one it lands on from "
+                    + "above this share of their maximum health to it or under, a percent (25 is a quarter); 0 asks "
+                    + "only for a hit that would kill them. Every coming hit when unauthored.").add()
+            .appendInherited(new KeyedCodec<>("AllyRadius", Codec.DOUBLE, false),
+                    (a, v) -> a.allyRadius = v, a -> a.allyRadius, (a, p) -> a.allyRadius = p.allyRadius)
+            .metadata(EditorSchema.defaultValue(DEFAULT_ALLY_RADIUS))
+            .documentation("For AllyHitIncoming: how far, in blocks, the ally may stand from the holder, never past "
+                    + "64. 8 when unauthored.").add()
+            .appendInherited(new KeyedCodec<>("WouldBreakGuard", Codec.BOOLEAN, false),
+                    (a, v) -> a.wouldBreakGuard = v, a -> a.wouldBreakGuard,
+                    (a, p) -> a.wouldBreakGuard = p.wouldBreakGuard)
+            .documentation("For Blocked: true runs only on a block whose stamina cost is more than the holder has "
+                    + "left (it would break their guard), false only on one that would not. Either when "
+                    + "unauthored.").add()
             .appendInherited(new KeyedCodec<>("Chance", FactorFormula.codec(EditorDataSets.FACTORS), false),
                     (a, v) -> a.chance = v, a -> a.chance, (a, p) -> a.chance = p.chance)
             .documentation("The percent chance it runs when everything else holds, a formula (25 is one time in "
@@ -391,6 +418,30 @@ public final class ProcAsset implements JsonAssetWithMap<String, DefaultAssetMap
     @Nullable
     public Double minAmount() {
         return minAmount == null || !Double.isFinite(minAmount) ? null : minAmount;
+    }
+
+    /** The health share, a percent held to [0, 100], a coming hit must drop its target to; null asks nothing. */
+    @Nullable
+    public Double leavesUnder() {
+        return leavesUnder == null || !Double.isFinite(leavesUnder) ? null
+                : Math.max(0.0, Math.min(100.0, leavesUnder));
+    }
+
+    /** How far an AllyHitIncoming's ally may stand, in blocks, held to [0, {@value #ALLY_RADIUS_CAP}]. */
+    public double allyRadius() {
+        return allyRadius == null || !Double.isFinite(allyRadius) ? DEFAULT_ALLY_RADIUS
+                : Math.max(0.0, Math.min(ALLY_RADIUS_CAP, allyRadius));
+    }
+
+    /** Is {@code AllyRadius} written? */
+    public boolean allyRadiusWritten() {
+        return allyRadius != null;
+    }
+
+    /** True: only a block that would break the guard; false: only one that would not; null: either. */
+    @Nullable
+    public Boolean wouldBreakGuard() {
+        return wouldBreakGuard;
     }
 
     @Nullable

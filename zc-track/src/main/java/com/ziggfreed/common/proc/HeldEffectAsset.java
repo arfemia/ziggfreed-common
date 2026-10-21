@@ -9,6 +9,7 @@ import com.hypixel.hytale.assetstore.map.DefaultAssetMap;
 import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
+import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
 import com.hypixel.hytale.server.core.modules.entity.condition.Condition;
@@ -38,6 +39,9 @@ import com.ziggfreed.common.progress.gate.StoreGates;
  * the effect's own {@code ApplyConditions}, which the engine checks every tick. {@code Hold} makes the hold stand a
  * while before the effect goes on (a stance planted), {@code Linger} keeps it on a while after (a cover that fades).
  * Only an effect worn with no end is taken off, so a timed apply of the same effect by something else is left alone.
+ * {@code Reach} makes it an aura: while it is on, the holder's allies (or the creatures their taunt holds) in reach
+ * wear it too, applied a moment at a time with the holder as its owner and kept up while they stay, so nothing is
+ * left on anyone once they step away, the hold ends or the holder leaves.
  */
 public final class HeldEffectAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, HeldEffectAsset>> {
 
@@ -55,7 +59,127 @@ public final class HeldEffectAsset implements JsonAssetWithMap<String, DefaultAs
     @Nullable protected Condition[] holder;
     @Nullable protected FactorFormula hold;
     @Nullable protected FactorFormula linger;
+    @Nullable protected Reach reach;
     @Nullable private volatile GateSpec[] live;
+
+    /**
+     * The Reach group: the others the effect reaches while it is on, an aura: the holder's allies, or the creatures
+     * their taunt holds, in reach and meeting the group's conditions, each wearing the effect for a moment at a time,
+     * kept up while they stay in reach and it stays on, so it comes off on its own soon after either ends (or the
+     * holder goes).
+     */
+    public static final class Reach {
+
+        /** The radius in blocks unless written. */
+        public static final double DEFAULT_RADIUS = 8.0;
+
+        /** The farthest it reaches, whatever {@code Radius} says. */
+        public static final double RADIUS_CAP = 64.0;
+
+        /** How many it reaches unless written. */
+        public static final int DEFAULT_MAX = 8;
+
+        /** The most it ever reaches, whatever {@code Max} says. */
+        public static final int MAX_CAP = 32;
+
+        @Nullable protected Boolean allies;
+        @Nullable protected Boolean taunted;
+        @Nullable protected Double radius;
+        @Nullable protected Integer max;
+        @Nullable protected Integer min;
+        @Nullable protected Boolean behind;
+        @Nullable protected Boolean self;
+        @Nullable protected Condition[] conditions;
+
+        public static final BuilderCodec<Reach> CODEC = BuilderCodec.builder(Reach.class, Reach::new)
+                .appendInherited(new KeyedCodec<>("Allies", Codec.BOOLEAN, false),
+                        (o, v) -> o.allies = v, o -> o.allies, (o, p) -> o.allies = p.allies)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("True: the holder's allies in reach (the members of their party, or with no party "
+                        + "every other player while the world's PvP is off). False when unauthored.").add()
+                .appendInherited(new KeyedCodec<>("Taunted", Codec.BOOLEAN, false),
+                        (o, v) -> o.taunted = v, o -> o.taunted, (o, p) -> o.taunted = p.taunted)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("True: the creatures in reach the holder's taunt holds right now (pinned onto them, "
+                        + "or locked on them while their area taunt is open). False when unauthored.").add()
+                .appendInherited(new KeyedCodec<>("Radius", Codec.DOUBLE, false),
+                        (o, v) -> o.radius = v, o -> o.radius, (o, p) -> o.radius = p.radius)
+                .metadata(EditorSchema.defaultValue(DEFAULT_RADIUS))
+                .documentation("How far, in blocks, from the holder, never past 64. 8 when unauthored.").add()
+                .appendInherited(new KeyedCodec<>("Max", Codec.INTEGER, false),
+                        (o, v) -> o.max = v, o -> o.max, (o, p) -> o.max = p.max)
+                .metadata(EditorSchema.defaultValue((long) DEFAULT_MAX))
+                .documentation("The most it reaches, nearest first, never past 32. 8 when unauthored.").add()
+                .appendInherited(new KeyedCodec<>("Min", Codec.INTEGER, false),
+                        (o, v) -> o.min = v, o -> o.min, (o, p) -> o.min = p.min)
+                .metadata(EditorSchema.defaultValue(0L))
+                .documentation("How many others must be in reach (meeting the conditions) for the hold to stand at "
+                        + "all (2: with two or more allies near), the holder not counted. 0 when unauthored.").add()
+                .appendInherited(new KeyedCodec<>("Behind", Codec.BOOLEAN, false),
+                        (o, v) -> o.behind = v, o -> o.behind, (o, p) -> o.behind = p.behind)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("True: only those behind the holder (on the far side of the way they look). False "
+                        + "when unauthored: all around.").add()
+                .appendInherited(new KeyedCodec<>("Self", Codec.BOOLEAN, false),
+                        (o, v) -> o.self = v, o -> o.self, (o, p) -> o.self = p.self)
+                .metadata(EditorSchema.defaultValue(true))
+                .documentation("False: only the others wear it, never the holder. True when unauthored: the holder "
+                        + "wears it too, as every held effect is worn.").add()
+                .appendInherited(new KeyedCodec<>("Conditions",
+                                new ArrayCodec<>(Condition.CODEC, Condition[]::new), false),
+                        (o, v) -> o.conditions = v, o -> o.conditions, (o, p) -> o.conditions = p.conditions)
+                .documentation("Entity conditions each one reached must meet (Sprinting: only allies who sprint). "
+                        + "None when unauthored.").add()
+                .build();
+
+        public Reach() {
+        }
+
+        public boolean allies() {
+            return Boolean.TRUE.equals(allies);
+        }
+
+        public boolean taunted() {
+            return Boolean.TRUE.equals(taunted);
+        }
+
+        /** The reach in blocks, held to [0, {@value #RADIUS_CAP}]. */
+        public double radius() {
+            return radius == null || !Double.isFinite(radius) ? DEFAULT_RADIUS
+                    : Math.max(0.0, Math.min(RADIUS_CAP, radius));
+        }
+
+        /** Is {@code Radius} written past {@value #RADIUS_CAP}, so it is held there? */
+        public boolean radiusPastCap() {
+            return radius != null && Double.isFinite(radius) && radius > RADIUS_CAP;
+        }
+
+        public int max() {
+            return Math.max(0, Math.min(MAX_CAP, max == null ? DEFAULT_MAX : max));
+        }
+
+        public int min() {
+            return Math.max(0, min == null ? 0 : min);
+        }
+
+        public boolean behind() {
+            return Boolean.TRUE.equals(behind);
+        }
+
+        public boolean self() {
+            return self == null || self;
+        }
+
+        @Nonnull
+        public Condition[] conditions() {
+            return conditions == null ? new Condition[0] : conditions;
+        }
+
+        /** Does it name no one to reach (neither allies nor the taunted)? */
+        public boolean reachesNoKind() {
+            return !allies() && !taunted();
+        }
+    }
 
     public static final AssetBuilderCodec<String, HeldEffectAsset> CODEC = AssetBuilderCodec.builder(
                     HeldEffectAsset.class,
@@ -98,6 +222,11 @@ public final class HeldEffectAsset implements JsonAssetWithMap<String, DefaultAs
             .documentation("Seconds the effect stays on after the hold stops standing, a formula; a hold that "
                     + "stands again inside them keeps it on. Off at once when unauthored. A file switched off, or "
                     + "whose Requires fails, takes it off at once.").add()
+            .appendInherited(new KeyedCodec<>("Reach", Reach.CODEC, false),
+                    (a, v) -> a.reach = v, a -> a.reach, (a, p) -> a.reach = p.reach)
+            .documentation("Make it an aura: while it is on, the holder's allies (or the creatures their taunt "
+                    + "holds) in reach wear it too, a moment at a time, so it leaves them soon after they step out of "
+                    + "reach or it goes off. Worn by the holder alone when unauthored.").add()
             .build();
 
     public HeldEffectAsset() {
@@ -155,5 +284,11 @@ public final class HeldEffectAsset implements JsonAssetWithMap<String, DefaultAs
     @Nullable
     public FactorFormula linger() {
         return linger;
+    }
+
+    /** The others it reaches as an aura, or null when only the holder wears it. */
+    @Nullable
+    public Reach reach() {
+        return reach;
     }
 }

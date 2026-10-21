@@ -8,6 +8,7 @@ import com.hypixel.hytale.protocol.MovementStates;
 import com.hypixel.hytale.server.core.entity.movement.MovementStatesComponent;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.health.ZigHealGivenEvent;
 import com.ziggfreed.common.progress.runtime.Moment;
 import com.ziggfreed.common.progress.runtime.MomentListener;
 import com.ziggfreed.common.track.source.ExactAmountPayload;
@@ -19,7 +20,8 @@ import com.ziggfreed.common.track.source.VictimPayload;
  * creature ({@code DEAL_DAMAGE}: Hit, and SprintHit while they sprint), a kill ({@code KILL_ENTITY}), a block broken
  * ({@code BREAK_BLOCK}) and a harvest ({@code PICKUP_ITEM}). A hit counts for the player who struck it, never for an
  * owner a turret's hit was credited to; it also marks the foe struck for the effect moments' watch
- * ({@link EffectWatch}). World thread, inside the producer's own dispatch.
+ * ({@link EffectWatch}). World thread, inside the producer's own dispatch. A heal given (HealGiven) rides zc-core's
+ * one heal the same way, through its native event ({@link #onHealGiven}).
  */
 public final class ProcMoments implements MomentListener {
 
@@ -99,5 +101,23 @@ public final class ProcMoments implements MomentListener {
             double amount, @Nullable String blockId) {
         Procs.fire(new ProcMoment(trigger, moment.store(), moment.commandBuffer(), moment.ref(), target, damage, amount,
                 blockId));
+    }
+
+    /**
+     * A heal a player gives is landing (zc-core's {@code ZigHealGivenEvent}, fired by the one heal): a HealGiven
+     * moment for the healer, about the one healed (no one on a self-heal), its amount what the heal restores. A heal a
+     * proc's own actions gave runs once that proc is done ({@link Procs#fire}). World thread, inside the heal.
+     */
+    static void onHealGiven(@Nonnull ZigHealGivenEvent event) {
+        try {
+            if (!Procs.listens(ProcTrigger.HEAL_GIVEN) || !event.healer().isValid()) {
+                return;
+            }
+            Ref<EntityStore> target = event.selfHeal() ? null : event.target();
+            Procs.fire(new ProcMoment(ProcTrigger.HEAL_GIVEN, event.store(), null, event.healer(), target, null,
+                    event.amount(), null));
+        } catch (Throwable t) {
+            Procs.failed("a heal given", t);
+        }
     }
 }

@@ -16,6 +16,7 @@ import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
 import com.hypixel.hytale.server.core.modules.entitystats.modifier.Modifier;
 import com.hypixel.hytale.server.core.modules.entitystats.modifier.StaticModifier;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.event.NativeEventSeam;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -58,6 +59,13 @@ public final class HealthUtil {
     /** The one term, or null for none (no conditional healing on a server whose modules add none). */
     @Nullable
     private static volatile HealingTerm healingTerm;
+
+    /**
+     * Where a heal a player gives is announced ({@link ZigHealGivenEvent}): the engine bus, unless a host or a test
+     * routes it elsewhere ({@link NativeEventSeam#publishTo}).
+     */
+    @Nonnull
+    public static final NativeEventSeam HEAL_EVENTS = new NativeEventSeam("[health]");
 
     private HealthUtil() {
     }
@@ -109,7 +117,9 @@ public final class HealthUtil {
      * to {@code target}'s {@code Health} through {@link #heal(Store, Ref, float)}. Every heal a player GIVES, on
      * themselves or on someone else, goes through here with the giver as {@code healer}; a heal with no giver (a
      * drain such as lifesteal, a regeneration, a full restore) passes {@code null} and is paid as asked. One read
-     * of the healer's stat and one multiply on top of the plain heal; nothing extra for a null healer.
+     * of the healer's stat and one multiply on top of the plain heal; nothing extra for a null healer. A heal with a
+     * healer that finds room is announced as it lands ({@link ZigHealGivenEvent}, before the health moves), so a
+     * reader of heals given (a heal-given proc, healing XP) hears every one through this one door.
      *
      * @return {@code true} if any health was added; {@code false} otherwise
      */
@@ -118,7 +128,39 @@ public final class HealthUtil {
         if (amount <= 0f) {
             return false;
         }
-        return heal(store, target, scaledHeal(amount, healingPower(store, healer) + termPoints(store, healer, target)));
+        float scaled = scaledHeal(amount, healingPower(store, healer) + termPoints(store, healer, target));
+        if (healer != null && healer.isValid() && HEAL_EVENTS.listening(ZigHealGivenEvent.class)) {
+            float restores = restores(store, target, scaled);
+            if (restores > 0f) {
+                HEAL_EVENTS.fire("heal given", ZigHealGivenEvent.class,
+                        () -> new ZigHealGivenEvent(store, healer, target, restores));
+            }
+        }
+        return heal(store, target, scaled);
+    }
+
+    /**
+     * What a heal of {@code amount} would restore on {@code target} now: the amount held to the room under its
+     * maximum, 0 when it is full, unreadable or the ref is gone.
+     */
+    private static float restores(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> target, float amount) {
+        try {
+            EntityStatValue health = target.isValid() ? healthStat(store, target) : null;
+            if (health == null) {
+                return 0f;
+            }
+            return roomFor(health.get(), health.getMax(), amount);
+        } catch (Throwable t) {
+            return 0f;
+        }
+    }
+
+    /** A heal of {@code amount} on {@code current} of {@code max}: what it restores, never past full. Pure. */
+    static float roomFor(float current, float max, float amount) {
+        if (!(amount > 0f) || !Float.isFinite(current) || !Float.isFinite(max)) {
+            return 0f;
+        }
+        return Math.max(0f, Math.min(amount, max - current));
     }
 
     /** The installed term's points for a heal by {@code healer} on {@code target}; 0 with no healer or no term. */

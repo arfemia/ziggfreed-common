@@ -31,6 +31,11 @@ class ProcValidatorTest {
             id -> id.equalsIgnoreCase("Known_Line"),
             (track, pick) -> track.equalsIgnoreCase("Swords") && pick.equalsIgnoreCase("Flow"));
 
+    /** The same vocabulary, with the damage causes a server has (Void only). */
+    private static final ProcValidator.Vocabulary KNOWN_CAUSES = new ProcValidator.Vocabulary(KNOWN.effect(),
+            KNOWN.stat(), KNOWN.interaction(), KNOWN.family(), KNOWN.line(), KNOWN.pick(),
+            id -> id.equalsIgnoreCase("Void"));
+
     @Test
     void wellFormedFiles_sayNothing() throws IOException {
         ProcAsset proc = proc("{ \"Trigger\": \"Hit\", \"Like\": \"Known_Line\","
@@ -126,6 +131,51 @@ class ProcValidatorTest {
                 ProcValidator.AREA_NO_REACH, ProcValidator.UNKNOWN_AROUND, ProcValidator.PUSH_NOTHING,
                 ProcValidator.EFFECT_UNNAMED, ProcValidator.PER_TARGET_ROWS), codes(warnings, Severity.WARNING));
         assertTrue(codes(warnings, Severity.ERROR).isEmpty());
+    }
+
+    @Test
+    void theThirdRoundsFields_wellFormed_sayNothing() throws IOException {
+        ProcAsset coming = proc("{ \"Trigger\": \"HitIncoming\", \"LeavesUnder\": 25,"
+                + " \"Actions\": [ { \"Soak\": { \"Share\": { \"Base\": 0.5 }, \"Onto\": \"Known_Stat\","
+                + " \"PerPoint\": { \"Base\": 2 }, \"Leave\": { \"Base\": 1 } } } ] }");
+        ProcAsset ally = proc("{ \"Trigger\": \"AllyHitIncoming\", \"AllyRadius\": 12, \"LeavesUnder\": 0,"
+                + " \"Actions\": [ { \"Soak\": { \"LeavePercent\": { \"Base\": 30 } } } ] }");
+        ProcAsset block = proc("{ \"Trigger\": \"Blocked\", \"WouldBreakGuard\": true,"
+                + " \"Actions\": [ { \"GuardCost\": { \"Cut\": { \"Base\": 1 } } },"
+                + " { \"ChangeStat\": { \"Stat\": \"Known_Stat\", \"OnSelf\": true, \"ByCost\": true,"
+                + " \"Amount\": { \"Base\": 0.5 }, \"Scaled\": false } } ] }");
+        ProcAsset healed = proc("{ \"Trigger\": \"HealGiven\", \"Actions\": [ { \"Heal\": { \"Amount\": { \"Base\": 2 },"
+                + " \"OnSelf\": true } } ] }");
+        ProcAsset broke = proc("{ \"Trigger\": \"GuardBroke\", \"Actions\": [ { \"Push\": { \"Force\": { \"Base\": 4 },"
+                + " \"Aim\": true } } ] }");
+        CounterAsset perFoe = counter("{ \"PerTarget\": true, \"OnFoe\": { \"Effects\": [ \"Known_Effect\" ],"
+                + " \"Weakness\": { \"Causes\": [ \"Void\" ], \"PerStack\": { \"Base\": 2 } } } }");
+        HeldEffectAsset aura = held("{ \"Effect\": \"Known_Effect\", \"Reach\": { \"Allies\": true, \"Radius\": 8,"
+                + " \"Min\": 2, \"Behind\": true, \"Self\": false } }");
+        List<Finding> findings = ProcValidator.audit(
+                Map.of("coming", coming, "ally", ally, "block", block, "healed", healed, "broke", broke),
+                Map.of("per_foe", perFoe), Map.of("aura", aura), KNOWN);
+        assertEquals(List.of(), findings);
+    }
+
+    @Test
+    void theThirdRoundsFields_onTheWrongMoment_orMissing_areFound() throws IOException {
+        ProcAsset soakAfter = proc("{ \"Trigger\": \"HitTaken\", \"LeavesUnder\": 25, \"AllyRadius\": 6,"
+                + " \"Actions\": [ { \"Soak\": { \"Onto\": \"Missing_Stat\", \"Share\": { \"Base\": 1 } } } ] }");
+        ProcAsset costOnHit = proc("{ \"Trigger\": \"Hit\", \"WouldBreakGuard\": true,"
+                + " \"Actions\": [ { \"GuardCost\": { } }, { \"Heal\": { \"OnSelf\": true } } ] }");
+        ProcAsset idleSoak = proc("{ \"Trigger\": \"HitIncoming\", \"Actions\": [ { \"Soak\": { \"Onto\": \"Known_Stat\" } } ] }");
+        CounterAsset holderMarks = counter("{ \"OnFoe\": { \"Effects\": [ \"Missing_Effect\" ],"
+                + " \"Weakness\": { \"Causes\": [ \"Missing_Cause\" ] } } }");
+        HeldEffectAsset nobody = held("{ \"Effect\": \"Known_Effect\", \"Reach\": { \"Radius\": 100 } }");
+        List<Finding> findings = ProcValidator.audit(
+                Map.of("a", soakAfter, "b", costOnHit, "c", idleSoak), Map.of("d", holderMarks),
+                Map.of("e", nobody), KNOWN_CAUSES);
+        assertEquals(Set.of(ProcValidator.UNKNOWN_STAT, ProcValidator.UNKNOWN_EFFECT, ProcValidator.UNKNOWN_CAUSE),
+                codes(findings, Severity.ERROR));
+        assertEquals(Set.of(ProcValidator.COMING_ONLY, ProcValidator.BLOCK_ONLY, ProcValidator.GROUP_NOTHING,
+                ProcValidator.ON_FOE_NOT_PER_TARGET, ProcValidator.REACH_NOBODY, ProcValidator.AREA_TOO_WIDE),
+                codes(findings, Severity.WARNING));
     }
 
     @Test

@@ -40,6 +40,9 @@ public final class ZigFoeFamilyCondition extends Condition {
     /** The authored {@code "Id"} name. */
     public static final String TYPE_NAME = "ZigFoeFamily";
 
+    /** The library's NPC group of every boss and elite the foe families leave out. */
+    public static final String BOSS_OR_ELITE_GROUP = "Zig_Boss_Or_Elite";
+
     @Nullable
     private String[] groups;
 
@@ -77,10 +80,9 @@ public final class ZigFoeFamilyCondition extends Condition {
                 return false;
             }
             int role = npc.getNPCTypeIndex();
-            TagSetPlugin.TagSetLookup lookup = TagSetPlugin.get(NPCGroup.class);
             int[] indexes = indexes();
             for (int index : indexes) {
-                if (index != AssetMapWithIndexes.NOT_FOUND && lookup.tagInSet(index, role)) {
+                if (inSet(index, role)) {
                     return true;
                 }
             }
@@ -88,6 +90,25 @@ public final class ZigFoeFamilyCondition extends Condition {
         } catch (Throwable t) {
             return false;
         }
+    }
+
+    /**
+     * Is {@code ref} a creature in the NPC group {@code groupId} (a player, or a group this server does not have:
+     * no)? The same read as the condition's, for code that asks one group without an authored condition.
+     */
+    public static boolean inGroup(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
+            @Nonnull String groupId) {
+        try {
+            NPCEntity npc = accessor.getComponent(ref, NPCEntity.getComponentType());
+            return npc != null && inSet(NPCGroup.getAssetMap().getIndex(groupId), npc.getNPCTypeIndex());
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /** Is the role {@code role} in the group at {@code groupIndex} (not found: no)? */
+    private static boolean inSet(int groupIndex, int role) {
+        return groupIndex != AssetMapWithIndexes.NOT_FOUND && TagSetPlugin.get(NPCGroup.class).tagInSet(groupIndex, role);
     }
 
     /** The groups' indexes, looked up again while any is still missing (a group a later pack ships). */

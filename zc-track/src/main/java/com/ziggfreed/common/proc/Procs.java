@@ -1,6 +1,7 @@
 package com.ziggfreed.common.proc;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -22,6 +23,7 @@ import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageCause;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
+import com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntityStatTypes;
 import com.hypixel.hytale.server.core.modules.physics.component.Velocity;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
@@ -97,7 +99,14 @@ public final class Procs {
     /** The vocabulary a proc's numbers and gates read first: the engine readings (stats, the held item). */
     private static final FactorRegistry FACTORS = factors();
 
-    private static final ThreadLocal<int[]> DEPTH = ThreadLocal.withInitial(() -> new int[1]);
+    /** Per thread: how deep inside a proc's actions it is ([0]), and whether it is running the moments held back ([1]). */
+    private static final ThreadLocal<int[]> DEPTH = ThreadLocal.withInitial(() -> new int[2]);
+
+    /** Per thread: the moments a proc's own actions raised (a heal it gave), run once it is done. */
+    private static final ThreadLocal<List<ProcMoment>> LATER = ThreadLocal.withInitial(ArrayList::new);
+
+    /** The most moments held back for after one proc run. */
+    private static final int LATER_CAP = 16;
 
     private static final AtomicBoolean FAILURE_WARNED = new AtomicBoolean();
 
@@ -134,8 +143,41 @@ public final class Procs {
     public static void fire(@Nonnull ProcMoment moment) {
         int[] depth = DEPTH.get();
         if (depth[0] > 0) {
+            // Inside a proc's actions no proc runs; a heal those actions gave is still a heal given, so it runs once
+            // that proc is done (never one a held-back moment's own actions raise).
+            if (depth[1] == 0 && runsAfter(moment.trigger())) {
+                List<ProcMoment> later = LATER.get();
+                if (later.size() < LATER_CAP) {
+                    later.add(moment);
+                }
+            }
             return;
         }
+        fireNow(moment, depth);
+        List<ProcMoment> later = LATER.get();
+        if (depth[1] != 0 || later.isEmpty()) {
+            return;
+        }
+        List<ProcMoment> held = List.copyOf(later);
+        later.clear();
+        depth[1] = 1;
+        try {
+            for (ProcMoment next : held) {
+                fireNow(next, depth);
+            }
+        } finally {
+            depth[1] = 0;
+            LATER.get().clear();
+        }
+    }
+
+    /** Is a moment a proc's actions raise held back and run once that proc is done (else dropped)? */
+    static boolean runsAfter(@Nonnull ProcTrigger trigger) {
+        return trigger == ProcTrigger.HEAL_GIVEN;
+    }
+
+    /** One moment's run: its clears, then every proc answering it. */
+    private static void fireNow(@Nonnull ProcMoment moment, @Nonnull int[] depth) {
         List<ProcConfig.Def> procs = ProcConfig.getInstance().forTrigger(moment.trigger());
         List<CounterConfig.Def> clears = CounterConfig.getInstance().clearedBy(moment.trigger());
         if ((procs.isEmpty() && clears.isEmpty()) || ProcMarks.fromProc(moment.damage())) {
@@ -222,7 +264,8 @@ public final class Procs {
         if (minAmount != null && moment.amount() < minAmount) {
             return;
         }
-        if (!effectPasses(proc, moment) || !hitPasses(proc, moment, accessor) || !movePasses(proc, moment, accessor)) {
+        if (!effectPasses(proc, moment) || !hitPasses(proc, moment, accessor) || !movePasses(proc, moment, accessor)
+                || !comingPasses(proc, moment, accessor) || !blockPasses(proc, moment, accessor)) {
             return;
         }
         Instant now = ConditionalStats.now(accessor);
@@ -279,11 +322,13 @@ public final class Procs {
             @Nonnull ComponentAccessor<EntityStore> accessor) {
         ConditionalStatAsset.Hit hit = proc.hit();
         Damage damage = moment.damage();
-        if (damage == null) {
+        if (damage == null || !moment.trigger().struck()) {
             return proc.like() == null && (hit == null || hit.isEmpty());
         }
-        boolean overTime = hit != null && Boolean.TRUE.equals(hit.overTime());
-        if (overTime != HitReads.isOverTime(damage)) {
+        // A coming hit (a burn tick that would kill as well as a blow) asks OverTime only when it is written.
+        Boolean overTimeWanted = hit == null ? null : hit.overTime();
+        if ((overTimeWanted != null || !moment.trigger().incoming())
+                && Boolean.TRUE.equals(overTimeWanted) != HitReads.isOverTime(damage)) {
             return false;
         }
         Ref<EntityStore> attacker = moment.trigger().taken() ? moment.target() : moment.holder();
@@ -328,6 +373,77 @@ public final class Procs {
         String root = ability.roots().isEmpty() ? null : ChainRoots.rootOf(attacker, damage);
         String named = ability.names().isEmpty() ? null : ProcAbilities.hitAbility(accessor, attacker, damage);
         return ability.matches(root, named);
+    }
+
+    /**
+     * Does a coming hit pass the proc's {@code LeavesUnder} (it would drop the one it lands on from above that share of
+     * their health to it or under; 0: it would kill them) and, on an ally's, its {@code AllyRadius}? Every other
+     * moment passes; a proc asking {@code LeavesUnder} of a moment that is no coming hit never runs.
+     */
+    private static boolean comingPasses(@Nonnull ProcAsset proc, @Nonnull ProcMoment moment,
+            @Nonnull ComponentAccessor<EntityStore> accessor) {
+        ProcTrigger trigger = moment.trigger();
+        Double under = proc.leavesUnder();
+        if (!trigger.incoming()) {
+            return under == null;
+        }
+        Ref<EntityStore> struck = moment.struck();
+        Damage damage = moment.damage();
+        if (struck == null || !struck.isValid() || damage == null || damage.isCancelled()) {
+            return false;
+        }
+        if (trigger == ProcTrigger.ALLY_HIT_INCOMING) {
+            Vector3d holderAt = Nearby.positionOf(accessor, moment.holder());
+            Vector3d allyAt = Nearby.positionOf(accessor, struck);
+            double reach = proc.allyRadius();
+            if (holderAt == null || allyAt == null || holderAt.distanceSquared(allyAt) > reach * reach) {
+                return false;
+            }
+        }
+        if (under == null) {
+            return true;
+        }
+        EntityStatMap stats = accessor.getComponent(struck, EntityStatMap.getComponentType());
+        EntityStatValue health = stats == null ? null : stats.get(DefaultEntityStatTypes.getHealth());
+        return health != null && dropsUnder(health.get(), health.getMin(), health.getMax(), damage.getAmount(), under);
+    }
+
+    /**
+     * Would a hit of {@code hit} (rounded to whole points, as the engine lands it) drop health at {@code current},
+     * between {@code min} and {@code max}, from above {@code percent} of the maximum to it or under? A percent of 0 or
+     * less asks whether it would kill (health at its minimum or under). Pure.
+     */
+    static boolean dropsUnder(double current, double min, double max, double hit, double percent) {
+        double after = current - Math.round(hit);
+        if (!(percent > 0.0)) {
+            return current > min && after <= min;
+        }
+        double line = Math.max(min, max * percent / 100.0);
+        return current > line && after <= line;
+    }
+
+    /**
+     * Does a block pass the proc's {@code WouldBreakGuard}: its stamina cost more than the holder has left (the
+     * guard's own drain would take it under nothing, which breaks it), or not? Every other moment passes; a proc
+     * asking it of a moment that is no block never runs.
+     */
+    private static boolean blockPasses(@Nonnull ProcAsset proc, @Nonnull ProcMoment moment,
+            @Nonnull ComponentAccessor<EntityStore> accessor) {
+        Boolean wanted = proc.wouldBreakGuard();
+        if (wanted == null) {
+            return true;
+        }
+        if (moment.trigger() != ProcTrigger.BLOCKED) {
+            return false;
+        }
+        EntityStatMap stats = accessor.getComponent(moment.holder(), EntityStatMap.getComponentType());
+        EntityStatValue stamina = stats == null ? null : stats.get(DefaultEntityStatTypes.getStamina());
+        return stamina != null && breaksGuard(stamina.get(), moment.cost()) == wanted;
+    }
+
+    /** Would a block costing {@code cost} stamina, with {@code stamina} left, break the guard? Pure. */
+    static boolean breaksGuard(double stamina, double cost) {
+        return cost > 0.0 && stamina - cost < 0.0;
     }
 
     /**
@@ -392,6 +508,7 @@ public final class Procs {
         try {
             long nanos = System.nanoTime();
             MoveProofs.check(store, commandBuffer, holder, nanos);
+            GuardBreaks.check(store, commandBuffer, holder, nanos);
             EffectWatch.checkOwn(store, commandBuffer, holder);
             PassState state = PASSES.computeIfAbsent(holder, r -> new PassState());
             if (nanos < state.nextNanos) {
@@ -442,6 +559,7 @@ public final class Procs {
         ChainRoots.forget(ref);
         EffectWatch.forget(ref);
         HeldEffects.forget(ref);
+        GuardBreaks.forget(ref);
     }
 
     // ==================== The reads every part shares ====================

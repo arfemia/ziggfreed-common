@@ -21,18 +21,21 @@ import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.factor.FactorFormula;
 
 /**
- * One entry of a proc's {@code Actions}: one or more of its groups, run in a fixed order: the groups aimed at the
- * holder ({@code OnSelf} true: {@code RemoveEffect}, {@code ApplyEffect}, {@code ChangeStat}, {@code Push}), then those
- * aimed at the target ({@code RemoveEffect}, {@code ApplyEffect}, {@code ChangeStat}, {@code Push}, {@code Taunt},
- * {@code BreakGuard}), then {@code Counter}, then {@code RunInteraction}; entries run in the order written. A group
- * aims at the moment's target unless it writes {@code OnSelf} true; one aimed at a target the moment has none of does
- * nothing. An entry's {@code Area} aims its target groups at every foe (or every ally) in reach instead, each in turn,
- * and runs its {@code RunInteraction} once for each; its {@code OnSelf} groups and its {@code Counter} still run once.
+ * One entry of a proc's {@code Actions}: one or more of its groups, run in a fixed order: the groups on the moment
+ * itself ({@code Soak} on a coming hit, {@code GuardCost} on a block), then those aimed at the holder ({@code OnSelf}
+ * true: {@code RemoveEffect}, {@code ApplyEffect}, {@code ChangeStat}, {@code Heal}, {@code Push}), then those aimed at
+ * the target ({@code RemoveEffect}, {@code ApplyEffect}, {@code ChangeStat}, {@code Heal}, {@code Push},
+ * {@code Taunt}, {@code BreakGuard}), then {@code Counter}, then {@code RunInteraction}; entries run in the order
+ * written. A group aims at the moment's target unless it writes {@code OnSelf} true; one aimed at a target the moment
+ * has none of does nothing. An entry's {@code Area} aims its target groups at every foe (or every ally) in reach
+ * instead, each in turn, and runs its {@code RunInteraction} once for each; its {@code OnSelf} groups run once, and its
+ * {@code Counter} once too, except a per-foe ({@code PerTarget}) counter's, which changes the stacks about each one
+ * reached.
  *
  * <p><b>Strength.</b> The proc's strength scales what an action gives the world, once: an applied effect's damage
- * multiplier and a stat change (unless it writes {@code Scaled: false}, as a refund of a cost does). A counter's add is
- * never scaled (a stack counts a moment; a stored share of a hit is scaled where it is spent, by the effect that
- * spends it), nor is a push (a distance) or a taunt's time.
+ * multiplier, a stat change and a heal (unless it writes {@code Scaled: false}, as a refund of a cost does). A counter's
+ * add is never scaled (a stack counts a moment; a stored share of a hit is scaled where it is spent, by the effect that
+ * spends it), nor is a push (a distance), a taunt's time, a soak or a guard's cost (shares of what the moment is).
  *
  * <pre>{@code
  * "Actions": [
@@ -54,6 +57,9 @@ public final class ProcAction {
     @Nullable protected Taunt taunt;
     @Nullable protected Boolean breakGuard;
     @Nullable protected RunInteraction runInteraction;
+    @Nullable protected Heal heal;
+    @Nullable protected Soak soak;
+    @Nullable protected GuardCost guardCost;
 
     public static final BuilderCodec<ProcAction> CODEC = BuilderCodec.builder(ProcAction.class, ProcAction::new)
             .appendInherited(new KeyedCodec<>("Area", Area.CODEC, false),
@@ -93,6 +99,19 @@ public final class ProcAction {
                     (o, v) -> o.runInteraction = v, o -> o.runInteraction,
                     (o, p) -> o.runInteraction = p.runInteraction)
             .documentation("Run a native RootInteraction chain on the holder or the target. Runs last.").add()
+            .appendInherited(new KeyedCodec<>("Heal", Heal.CODEC, false),
+                    (o, v) -> o.heal = v, o -> o.heal, (o, p) -> o.heal = p.heal)
+            .documentation("Heal the holder or the target through CommonLib's one heal, given by the holder, so "
+                    + "their healing power raises it and it counts as a heal they gave (a HealGiven moment, run once "
+                    + "this proc is done).").add()
+            .appendInherited(new KeyedCodec<>("Soak", Soak.CODEC, false),
+                    (o, v) -> o.soak = v, o -> o.soak, (o, p) -> o.soak = p.soak)
+            .documentation("For HitIncoming and AllyHitIncoming: lower the coming hit before it lands, or stop it, "
+                    + "or leave the one it lands on standing. Runs first.").add()
+            .appendInherited(new KeyedCodec<>("GuardCost", GuardCost.CODEC, false),
+                    (o, v) -> o.guardCost = v, o -> o.guardCost, (o, p) -> o.guardCost = p.guardCost)
+            .documentation("For Blocked: cut the stamina the holder's guard is about to pay for this block, through "
+                    + "the engine's own stamina drain, before it is paid. Runs first.").add()
             .build();
 
     public ProcAction() {
@@ -107,11 +126,164 @@ public final class ProcAction {
     @Nullable public Taunt taunt() { return taunt; }
     public boolean breakGuard() { return Boolean.TRUE.equals(breakGuard); }
     @Nullable public RunInteraction runInteraction() { return runInteraction; }
+    @Nullable public Heal heal() { return heal; }
+    @Nullable public Soak soak() { return soak; }
+    @Nullable public GuardCost guardCost() { return guardCost; }
 
     /** Does it name no group at all (an Area alone does nothing)? */
     public boolean isEmpty() {
         return applyEffect == null && removeEffect == null && changeStat == null && counter == null
-                && push == null && taunt == null && !breakGuard() && runInteraction == null;
+                && push == null && taunt == null && !breakGuard() && runInteraction == null && heal == null
+                && soak == null && guardCost == null;
+    }
+
+    /** The Heal group: health given through CommonLib's one heal, the holder its giver. */
+    public static final class Heal {
+
+        @Nullable protected FactorFormula amount;
+        @Nullable protected Boolean byAmount;
+        @Nullable protected Boolean onSelf;
+        @Nullable protected Boolean scaled;
+
+        public static final BuilderCodec<Heal> CODEC = BuilderCodec.builder(Heal.class, Heal::new)
+                .appendInherited(new KeyedCodec<>("Amount", FactorFormula.codec(EditorDataSets.FACTORS), false),
+                        (o, v) -> o.amount = v, o -> o.amount, (o, p) -> o.amount = p.amount)
+                .documentation("The health given, a formula, times the proc's strength unless Scaled says not, then "
+                        + "raised by the holder's healing power as every heal they give is. Nothing when "
+                        + "unauthored.").add()
+                .appendInherited(new KeyedCodec<>("ByAmount", Codec.BOOLEAN, false),
+                        (o, v) -> o.byAmount = v, o -> o.byAmount, (o, p) -> o.byAmount = p.byAmount)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("True: Amount is multiplied by the moment's amount (the damage of a hit dealt), so "
+                        + "0.25 heals a quarter of it. False when unauthored.").add()
+                .appendInherited(new KeyedCodec<>("OnSelf", Codec.BOOLEAN, false),
+                        (o, v) -> o.onSelf = v, o -> o.onSelf, (o, p) -> o.onSelf = p.onSelf)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("True: heal the holder. False: heal the moment's target (with an Area of Allies, each "
+                        + "ally reached). False when unauthored.").add()
+                .appendInherited(new KeyedCodec<>("Scaled", Codec.BOOLEAN, false),
+                        (o, v) -> o.scaled = v, o -> o.scaled, (o, p) -> o.scaled = p.scaled)
+                .metadata(EditorSchema.defaultValue(true))
+                .documentation("False: the amount is never multiplied by the proc's strength. True when "
+                        + "unauthored.").add()
+                .build();
+
+        public Heal() {
+        }
+
+        @Nullable
+        public FactorFormula amount() {
+            return amount;
+        }
+
+        public boolean byAmount() {
+            return Boolean.TRUE.equals(byAmount);
+        }
+
+        public boolean onSelf() {
+            return Boolean.TRUE.equals(onSelf);
+        }
+
+        public boolean scaled() {
+            return scaled == null || scaled;
+        }
+    }
+
+    /**
+     * The Soak group: what a coming hit loses before it lands on the one it would strike (the holder on HitIncoming,
+     * the ally on AllyHitIncoming). Its {@code Share} comes off first (out of {@code Onto} when that is written), then
+     * the hit is lowered so it leaves them at least {@code Leave} health and {@code LeavePercent} of their maximum
+     * (a hit that cannot leave them that much is stopped and the rest healed up to it). A hit lowered to nothing is
+     * stopped. Never scaled by the proc's strength.
+     */
+    public static final class Soak {
+
+        @Nullable protected FactorFormula share;
+        @Nullable protected String onto;
+        @Nullable protected FactorFormula perPoint;
+        @Nullable protected FactorFormula leave;
+        @Nullable protected FactorFormula leavePercent;
+
+        public static final BuilderCodec<Soak> CODEC = BuilderCodec.builder(Soak.class, Soak::new)
+                .appendInherited(new KeyedCodec<>("Share", FactorFormula.codec(EditorDataSets.FACTORS), false),
+                        (o, v) -> o.share = v, o -> o.share, (o, p) -> o.share = p.share)
+                .documentation("The share of the hit taken off, a formula held to [0, 1] (1: the whole hit, which "
+                        + "stops it). Nothing taken off when unauthored.").add()
+                .appendInherited(new KeyedCodec<>("Onto", Codec.STRING, false),
+                        (o, v) -> o.onto = v, o -> o.onto, (o, p) -> o.onto = p.onto)
+                .metadata(EditorSchema.assetRef(EntityStatType.class))
+                .documentation("A native stat of the one struck (Mana) that pays for the Share instead of their "
+                        + "health, PerPoint of it for each point of damage taken off, and only as much as it holds. "
+                        + "The Share simply comes off when unauthored.").add()
+                .appendInherited(new KeyedCodec<>("PerPoint", FactorFormula.codec(EditorDataSets.FACTORS), false),
+                        (o, v) -> o.perPoint = v, o -> o.perPoint, (o, p) -> o.perPoint = p.perPoint)
+                .documentation("How much of the Onto stat one point of damage taken off costs, a formula. 1 when "
+                        + "unauthored.").add()
+                .appendInherited(new KeyedCodec<>("Leave", FactorFormula.codec(EditorDataSets.FACTORS), false),
+                        (o, v) -> o.leave = v, o -> o.leave, (o, p) -> o.leave = p.leave)
+                .documentation("The least health the hit leaves the one struck with, a formula (1: they are left "
+                        + "standing). Not asked when unauthored.").add()
+                .appendInherited(new KeyedCodec<>("LeavePercent", FactorFormula.codec(EditorDataSets.FACTORS),
+                                false),
+                        (o, v) -> o.leavePercent = v, o -> o.leavePercent, (o, p) -> o.leavePercent = p.leavePercent)
+                .documentation("The least share of their maximum health the hit leaves the one struck with, a "
+                        + "percent, a formula. Not asked when unauthored.").add()
+                .build();
+
+        public Soak() {
+        }
+
+        @Nullable
+        public FactorFormula share() {
+            return share;
+        }
+
+        @Nullable
+        public String onto() {
+            return onto == null || onto.isBlank() ? null : onto.trim();
+        }
+
+        @Nullable
+        public FactorFormula perPoint() {
+            return perPoint;
+        }
+
+        @Nullable
+        public FactorFormula leave() {
+            return leave;
+        }
+
+        @Nullable
+        public FactorFormula leavePercent() {
+            return leavePercent;
+        }
+
+        /** Does it ask nothing at all? */
+        public boolean isEmpty() {
+            return share == null && leave == null && leavePercent == null;
+        }
+    }
+
+    /** The GuardCost group: the share of a block's stamina cost the holder's guard is spared. */
+    public static final class GuardCost {
+
+        @Nullable protected FactorFormula cut;
+
+        public static final BuilderCodec<GuardCost> CODEC = BuilderCodec.builder(GuardCost.class, GuardCost::new)
+                .appendInherited(new KeyedCodec<>("Cut", FactorFormula.codec(EditorDataSets.FACTORS), false),
+                        (o, v) -> o.cut = v, o -> o.cut, (o, p) -> o.cut = p.cut)
+                .documentation("The share of the block's stamina cost taken off, a formula held to [0, 1] (1: the "
+                        + "block costs nothing, so it can never break the guard). Never scaled by the proc's "
+                        + "strength. 1 when unauthored.").add()
+                .build();
+
+        public GuardCost() {
+        }
+
+        @Nullable
+        public FactorFormula cut() {
+            return cut;
+        }
     }
 
     /** The Area group: every foe or ally in reach of the holder or of the moment's target. */
@@ -228,6 +400,7 @@ public final class ProcAction {
         @Nullable protected FactorFormula force;
         @Nullable protected FactorFormula up;
         @Nullable protected Boolean onSelf;
+        @Nullable protected Boolean aim;
 
         public static final BuilderCodec<Push> CODEC = BuilderCodec.builder(Push.class, Push::new)
                 .appendInherited(new KeyedCodec<>("Force", FactorFormula.codec(EditorDataSets.FACTORS), false),
@@ -243,9 +416,20 @@ public final class ProcAction {
                 .metadata(EditorSchema.defaultValue(false))
                 .documentation("True: the holder moves instead, away from the moment's target (a leap back). False "
                         + "when unauthored.").add()
+                .appendInherited(new KeyedCodec<>("Aim", Codec.BOOLEAN, false),
+                        (o, v) -> o.aim = v, o -> o.aim, (o, p) -> o.aim = p.aim)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("True: Force runs along the way the holder looks (level with the ground) instead of "
+                        + "away from the other one: with OnSelf the holder is carried forward, else the target is "
+                        + "carried the way the holder looks. False when unauthored.").add()
                 .build();
 
         public Push() {
+        }
+
+        /** Does Force run along the holder's look instead of away from the other one? */
+        public boolean aim() {
+            return Boolean.TRUE.equals(aim);
         }
 
         @Nullable
@@ -417,6 +601,7 @@ public final class ProcAction {
         @Nullable protected FactorFormula amount;
         @Nullable protected Boolean onSelf;
         @Nullable protected Boolean scaled;
+        @Nullable protected Boolean byCost;
 
         public static final BuilderCodec<ChangeStat> CODEC = BuilderCodec.builder(ChangeStat.class, ChangeStat::new)
                 .appendInherited(new KeyedCodec<>("Stat", Codec.STRING, false),
@@ -437,9 +622,20 @@ public final class ProcAction {
                 .documentation("False: the amount is never multiplied by the proc's strength. Write it on a refund "
                         + "that gives back a cost (a dodge's stamina), so gear raising ProcStrength never pays back "
                         + "more than was spent. True when unauthored.").add()
+                .appendInherited(new KeyedCodec<>("ByCost", Codec.BOOLEAN, false),
+                        (o, v) -> o.byCost = v, o -> o.byCost, (o, p) -> o.byCost = p.byCost)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("True: Amount is multiplied by what the moment costs the holder (on Blocked, the "
+                        + "stamina their guard pays for the block), so 0.5 is half of it. False when "
+                        + "unauthored.").add()
                 .build();
 
         public ChangeStat() {
+        }
+
+        /** Is the amount multiplied by the moment's cost? */
+        public boolean byCost() {
+            return Boolean.TRUE.equals(byCost);
         }
 
         /** Is the amount multiplied by the proc's strength? True unless written false. */

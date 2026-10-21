@@ -38,7 +38,7 @@ public final class ProcConfig extends AbstractKeyedAssetConfig<ProcAsset> {
      * effect groups the effect moments watch on the holder and on the foes they struck.
      */
     record Folded(@Nonnull Map<ProcTrigger, List<Def>> byTrigger, boolean asksRoots,
-            @Nonnull List<ProcAsset.Effect> ownWatch, @Nonnull List<ProcAsset.Effect> foeWatch) {
+            @Nonnull List<ProcAsset.Effect> ownWatch, @Nonnull List<ProcAsset.Effect> foeWatch, double allyReach) {
     }
 
     private volatile Folded folded;
@@ -89,6 +89,11 @@ public final class ProcConfig extends AbstractKeyedAssetConfig<ProcAsset> {
         return onFoe ? local.foeWatch() : local.ownWatch();
     }
 
+    /** The farthest any live AllyHitIncoming proc asks an ally to stand, in blocks; 0 for none. */
+    public double allyReach() {
+        return folded().allyReach();
+    }
+
     @Nonnull
     private Folded folded() {
         Folded local = folded;
@@ -115,6 +120,7 @@ public final class ProcConfig extends AbstractKeyedAssetConfig<ProcAsset> {
         }
         Map<ProcTrigger, List<Def>> out = new EnumMap<>(ProcTrigger.class);
         boolean asksRoots = false;
+        double allyReach = 0.0;
         List<ProcAsset.Effect> own = new ArrayList<>();
         List<ProcAsset.Effect> foe = new ArrayList<>();
         for (Map.Entry<String, ProcAsset> entry : sorted.entrySet()) {
@@ -124,6 +130,9 @@ public final class ProcConfig extends AbstractKeyedAssetConfig<ProcAsset> {
                 continue;
             }
             out.computeIfAbsent(trigger, t -> new ArrayList<>()).add(new Def(entry.getKey(), proc));
+            if (trigger == ProcTrigger.ALLY_HIT_INCOMING) {
+                allyReach = Math.max(allyReach, proc.allyRadius());
+            }
             ProcAsset.Ability ability = proc.ability();
             asksRoots |= ability != null && !ability.roots().isEmpty();
             ProcAsset.Effect effect = proc.effect();
@@ -135,6 +144,6 @@ public final class ProcConfig extends AbstractKeyedAssetConfig<ProcAsset> {
         for (Map.Entry<ProcTrigger, List<Def>> entry : out.entrySet()) {
             frozen.put(entry.getKey(), List.copyOf(entry.getValue()));
         }
-        return new Folded(frozen, asksRoots, List.copyOf(own), List.copyOf(foe));
+        return new Folded(frozen, asksRoots, List.copyOf(own), List.copyOf(foe), allyReach);
     }
 }

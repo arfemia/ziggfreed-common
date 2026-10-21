@@ -11,6 +11,7 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.assetstore.map.AssetMapWithIndexes;
 import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
+import com.hypixel.hytale.server.core.modules.entity.damage.DamageCause;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.RootInteraction;
 import com.ziggfreed.common.factor.FactorCondition;
@@ -25,13 +26,15 @@ import com.ziggfreed.common.validation.Finding;
 
 /**
  * The audit of procs, counters and held effects (zc's boot audit runs it, {@value #LOG_LABEL}). An ERROR: a proc
- * naming no known trigger, or any file naming an effect, a stat, a RootInteraction, an effect family or a counter this
- * server does not have (each would do nothing where it should act). A WARNING: a proc that can never run as written
- * (no actions, a {@code Hit} or {@code Like} on a moment that carries no hit, an {@code Ability} on one that names no
- * move, an effect trigger naming no effect, a {@code Like} no damage line names, an unknown {@code Overlap}), a group
- * that does nothing as written (an {@code Area} reaching no one, a {@code Push} moving nothing, an {@code Effect} on a
- * trigger that never reads it, a per-foe counter's rows), and a proc or held effect whose
- * {@code ziggfreedcommon:track_pick} names no pick on its track, which no player can take, so nothing reaches it.
+ * naming no known trigger, or any file naming an effect, a stat, a RootInteraction, an effect family, a counter or a
+ * damage cause this server does not have (each would do nothing where it should act). A WARNING: a proc that can
+ * never run as written (no actions, a {@code Hit} or {@code Like} on a moment that carries no hit, an {@code Ability}
+ * on one that names no move, an effect trigger naming no effect, a {@code Like} no damage line names, an unknown
+ * {@code Overlap}, a coming hit's or a block's field on another moment), a group that does nothing as written (an
+ * {@code Area} reaching no one, a {@code Push} moving nothing, an {@code Effect} on a trigger that never reads it, a
+ * per-foe counter's rows, a {@code Soak}, {@code Heal} or {@code GuardCost} with nothing to do, a {@code Reach} or
+ * {@code OnFoe} no one ever wears), and a proc or held effect whose {@code ziggfreedcommon:track_pick} names no pick
+ * on its track, which no player can take, so nothing reaches it.
  */
 public final class ProcValidator {
 
@@ -60,11 +63,25 @@ public final class ProcValidator {
     public static final String UNKNOWN_AROUND = "UNKNOWN_AROUND";
     public static final String PUSH_NOTHING = "PUSH_NOTHING";
     public static final String PER_TARGET_ROWS = "PER_TARGET_ROWS";
+    public static final String UNKNOWN_CAUSE = "UNKNOWN_CAUSE";
+    public static final String COMING_ONLY = "COMING_ONLY";
+    public static final String BLOCK_ONLY = "BLOCK_ONLY";
+    public static final String GROUP_NOTHING = "GROUP_NOTHING";
+    public static final String ON_FOE_NOT_PER_TARGET = "ON_FOE_NOT_PER_TARGET";
+    public static final String REACH_NOBODY = "REACH_NOBODY";
 
     /** What the audit asks of the server: each answers whether an id is known here. */
     public record Vocabulary(@Nonnull Predicate<String> effect, @Nonnull Predicate<String> stat,
             @Nonnull Predicate<String> interaction, @Nonnull Predicate<String> family,
-            @Nonnull Predicate<String> line, @Nonnull BiPredicate<String, String> pick) {
+            @Nonnull Predicate<String> line, @Nonnull BiPredicate<String, String> pick,
+            @Nonnull Predicate<String> cause) {
+
+        /** A vocabulary that knows every damage cause (one that asks nothing of a weakness's causes). */
+        public Vocabulary(@Nonnull Predicate<String> effect, @Nonnull Predicate<String> stat,
+                @Nonnull Predicate<String> interaction, @Nonnull Predicate<String> family,
+                @Nonnull Predicate<String> line, @Nonnull BiPredicate<String, String> pick) {
+            this(effect, stat, interaction, family, line, pick, id -> true);
+        }
     }
 
     private ProcValidator() {
@@ -80,7 +97,8 @@ public final class ProcValidator {
                     id -> RootInteraction.getAssetMap().getAsset(id) != null,
                     id -> EffectFamilyConfig.getInstance().has(id),
                     TypedDamageBonuses::hasLine,
-                    TrackPicks::knownOnTrack);
+                    TrackPicks::knownOnTrack,
+                    id -> DamageCause.getAssetMap().getAsset(id) != null);
             return audit(ProcConfig.getInstance().all(), CounterConfig.getInstance().all(),
                     HeldEffectConfig.getInstance().all(), vocabulary);
         } catch (Throwable t) {
@@ -120,6 +138,7 @@ public final class ProcValidator {
                 out.add(Finding.error(DOMAIN, UNKNOWN_STAT, "held effect '" + id + "' holds on the stat '"
                         + file.stat() + "', which this server does not have", id));
             }
+            auditReach(id, file.reach(), out);
             auditPicks("held effect", id, file.requires(), known, out);
         }
         return out;
@@ -140,11 +159,13 @@ public final class ProcValidator {
                     + proc.like() + "', which no damage source names, so it runs on no hit", id));
         }
         auditMoveAndEffect(id, proc, trigger, known, out);
+        auditMomentFields(id, proc, trigger, out);
         if (proc.actions().isEmpty()) {
             out.add(Finding.warning(DOMAIN, NO_ACTIONS, "proc '" + id + "' has no actions, so it does nothing", id));
         }
         for (ProcAction action : proc.actions()) {
             auditNewGroups(id, action, out);
+            auditThirdRoundGroups(id, action, trigger, known, out);
             ProcAction.ApplyEffect apply = action.applyEffect();
             if (apply != null) {
                 effect(id, apply.effect(), known, out);
@@ -252,11 +273,110 @@ public final class ProcValidator {
         }
     }
 
+    /**
+     * The fields only one kind of moment reads: {@code LeavesUnder} and {@code AllyRadius} a coming hit's,
+     * {@code WouldBreakGuard} a block's (WARNING on any other trigger: the proc never runs, or the field is idle).
+     */
+    private static void auditMomentFields(@Nonnull String id, @Nonnull ProcAsset proc, @Nullable ProcTrigger trigger,
+            @Nonnull List<Finding> out) {
+        if (trigger == null) {
+            return;
+        }
+        if (!trigger.incoming() && proc.leavesUnder() != null) {
+            out.add(Finding.warning(DOMAIN, COMING_ONLY, "proc '" + id + "' asks LeavesUnder on " + trigger.id()
+                    + ", which is no coming hit (HitIncoming, AllyHitIncoming), so it never runs", id));
+        }
+        if (trigger != ProcTrigger.ALLY_HIT_INCOMING && proc.allyRadiusWritten()) {
+            out.add(Finding.warning(DOMAIN, COMING_ONLY, "proc '" + id + "' writes AllyRadius on " + trigger.id()
+                    + ", which only AllyHitIncoming reads: it is ignored", id));
+        }
+        if (trigger != ProcTrigger.BLOCKED && proc.wouldBreakGuard() != null) {
+            out.add(Finding.warning(DOMAIN, BLOCK_ONLY, "proc '" + id + "' asks WouldBreakGuard on " + trigger.id()
+                    + ", which is no block, so it never runs", id));
+        }
+    }
+
+    /**
+     * An entry's Heal, Soak and GuardCost groups and a stat change by a moment's cost: a stat a soak pays out of that
+     * the server lacks (ERROR), a group on a moment that never feeds it or one that does nothing (WARNING).
+     */
+    private static void auditThirdRoundGroups(@Nonnull String id, @Nonnull ProcAction action,
+            @Nullable ProcTrigger trigger, @Nonnull Vocabulary known, @Nonnull List<Finding> out) {
+        ProcAction.Soak soak = action.soak();
+        if (soak != null) {
+            if (soak.onto() != null && !known.stat().test(soak.onto())) {
+                out.add(Finding.error(DOMAIN, UNKNOWN_STAT, "proc '" + id + "' soaks a hit onto the stat '"
+                        + soak.onto() + "', which this server does not have", id));
+            }
+            if (trigger != null && !trigger.incoming()) {
+                out.add(Finding.warning(DOMAIN, COMING_ONLY, "proc '" + id + "' has a Soak on " + trigger.id()
+                        + ", whose hit has landed already (only HitIncoming and AllyHitIncoming can lower one): it "
+                        + "does nothing", id));
+            }
+            if (soak.isEmpty()) {
+                out.add(Finding.warning(DOMAIN, GROUP_NOTHING, "proc '" + id + "' has a Soak with no Share, Leave or "
+                        + "LeavePercent, so it lowers nothing", id));
+            }
+        }
+        if (trigger != null && trigger != ProcTrigger.BLOCKED
+                && (action.guardCost() != null || (action.changeStat() != null && action.changeStat().byCost()))) {
+            out.add(Finding.warning(DOMAIN, BLOCK_ONLY, "proc '" + id + "' reads a block's stamina cost (GuardCost, "
+                    + "ChangeStat ByCost) on " + trigger.id() + ", which costs nothing: it does nothing", id));
+        }
+        if (action.heal() != null && action.heal().amount() == null) {
+            out.add(Finding.warning(DOMAIN, GROUP_NOTHING, "proc '" + id + "' has a Heal with no Amount, so it heals "
+                    + "nothing", id));
+        }
+    }
+
+    /** A held effect's Reach: one that names no kind to reach, or none at all as written (WARNING). */
+    private static void auditReach(@Nonnull String id, @Nullable HeldEffectAsset.Reach reach,
+            @Nonnull List<Finding> out) {
+        if (reach == null) {
+            return;
+        }
+        if (reach.reachesNoKind() || !(reach.radius() > 0.0) || Math.max(reach.max(), reach.min()) <= 0) {
+            out.add(Finding.warning(DOMAIN, REACH_NOBODY, "held effect '" + id + "' has a Reach naming neither "
+                    + "Allies nor Taunted, or with no radius or a Max of 0, so it reaches no one", id));
+        }
+        if (reach.radiusPastCap()) {
+            out.add(Finding.warning(DOMAIN, AREA_TOO_WIDE, "held effect '" + id + "' reaches past "
+                    + (int) HeldEffectAsset.Reach.RADIUS_CAP + " blocks: it is held there", id));
+        }
+    }
+
     private static void auditCounter(@Nonnull String id, @Nonnull CounterAsset counter, @Nonnull Vocabulary known,
             @Nonnull List<Finding> out) {
         if (counter.perTarget() && (!counter.perStack().isEmpty() || !counter.effects().isEmpty())) {
             out.add(Finding.warning(DOMAIN, PER_TARGET_ROWS, "counter '" + id + "' keeps its stacks per foe "
                     + "(PerTarget), so its PerStack rows and its Effects are never given or shown", id));
+        }
+        CounterAsset.OnFoe onFoe = counter.rawOnFoe();
+        if (onFoe != null) {
+            if (!counter.perTarget()) {
+                out.add(Finding.warning(DOMAIN, ON_FOE_NOT_PER_TARGET, "counter '" + id + "' has OnFoe marks but "
+                        + "keeps one count for the holder, not one per foe (PerTarget), so no foe ever wears them",
+                        id));
+            }
+            for (String effect : onFoe.effects()) {
+                if (!known.effect().test(effect)) {
+                    out.add(Finding.error(DOMAIN, UNKNOWN_EFFECT, "counter '" + id + "' marks its foes with the "
+                            + "effect '" + effect + "', which this server does not have", id));
+                }
+            }
+            CounterAsset.Weakness weakness = onFoe.weakness();
+            if (weakness != null) {
+                for (String cause : weakness.causes()) {
+                    if (!known.cause().test(cause)) {
+                        out.add(Finding.error(DOMAIN, UNKNOWN_CAUSE, "counter '" + id + "' weakens its foes to the "
+                                + "damage cause '" + cause + "', which this server does not have", id));
+                    }
+                }
+                if (weakness.causes().isEmpty() || weakness.perStack() == null) {
+                    out.add(Finding.warning(DOMAIN, GROUP_NOTHING, "counter '" + id + "' has a Weakness with no "
+                            + "Causes or no PerStack, so its foes take nothing more", id));
+                }
+            }
         }
         for (CounterAsset.PerStack row : counter.perStack()) {
             if (!known.stat().test(row.stat())) {

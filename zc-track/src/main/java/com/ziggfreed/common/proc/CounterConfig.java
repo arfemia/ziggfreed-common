@@ -36,6 +36,9 @@ public final class CounterConfig extends AbstractKeyedAssetConfig<CounterAsset> 
 
     private volatile Folded folded;
 
+    /** Moves on every layer merge, so a reader of a counter's files (a foe's weakness bodies) knows to read again. */
+    private volatile int generation;
+
     private CounterConfig() {
         super(MOD_GATE_STORE);
     }
@@ -49,18 +52,26 @@ public final class CounterConfig extends AbstractKeyedAssetConfig<CounterAsset> 
     public synchronized void loadDefaults(@Nonnull Map<String, CounterAsset> jarDefaults) {
         super.loadDefaults(jarDefaults);
         folded = null;
+        generation++;
     }
 
     @Override
     public synchronized void mergePackLayer(@Nonnull Map<String, CounterAsset> layer) {
         super.mergePackLayer(layer);
         folded = null;
+        generation++;
     }
 
     @Override
     public synchronized void mergeOwnerLayer(@Nonnull Map<String, CounterAsset> layer) {
         super.mergeOwnerLayer(layer);
         folded = null;
+        generation++;
+    }
+
+    /** The fold's generation: it moves on every layer merge. */
+    int generation() {
+        return generation;
     }
 
     /** The live counter {@code id} names (any case), or null. */

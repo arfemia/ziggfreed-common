@@ -7,7 +7,8 @@ import javax.annotation.Nullable;
 
 /**
  * The moments a proc ({@link ProcAsset}) answers, a closed vocabulary: each is produced in one place, for players
- * only ({@link ProcSystems}, {@link ProcMoments}, and {@link Procs#crit} for the one a consumer decides).
+ * only ({@link ProcSystems}, {@link ProcMoments}, {@link GuardBreaks}, and {@link Procs#crit} for the one a consumer
+ * decides).
  */
 public enum ProcTrigger {
 
@@ -34,7 +35,19 @@ public enum ProcTrigger {
     EFFECT_LANDED("EffectLanded", "An effect the proc names lands: on the holder, or with Effect OnFoe, the "
             + "holder's own on a foe they struck", false, false),
     EFFECT_ENDED("EffectEnded", "An effect the proc names comes off (it ran out, or was taken off): the holder's, "
-            + "or with Effect OnFoe, the holder's own on a foe they struck", false, false);
+            + "or with Effect OnFoe, the holder's own on a foe they struck", false, false),
+    HIT_INCOMING("HitIncoming", "A hit about to land on the holder, asked after every armor, guard and resistance "
+            + "step and just before it comes off their health, so a Soak can still lower or stop it (the moment's "
+            + "amount is the damage it would deal, its target the attacker; a fall or a burn has none)", true, true),
+    ALLY_HIT_INCOMING("AllyHitIncoming", "A hit about to land on one of the holder's allies within the proc's "
+            + "AllyRadius, asked the same way (the moment's target is the ally, its amount the damage it would "
+            + "deal)", false, false),
+    HEAL_GIVEN("HealGiven", "A heal the holder gives through CommonLib's heal (a talent's, an ability's), as it "
+            + "lands (the moment's amount is the health it restores, its target the one healed; none when the holder "
+            + "heals themselves)", false, false),
+    GUARD_BROKE("GuardBroke", "A foe's guard broken under the holder: a hit of theirs it blocked drained it (the "
+            + "engine's guard break landed on it soon after), or a proc of theirs broke it (the foe is the moment's "
+            + "target)", false, false);
 
     @Nonnull private final String id;
     @Nonnull private final String meaning;
@@ -72,6 +85,14 @@ public enum ProcTrigger {
     /** Can the moment name the move behind it (so a proc's {@code Ability} group is read): a hit, or a cast? */
     public boolean namesMove() {
         return struck || this == CAST;
+    }
+
+    /**
+     * Is the moment a hit that has not landed yet (so a {@code Soak} may still lower it and {@code LeavesUnder} reads
+     * it): one on the holder, or on an ally of theirs?
+     */
+    public boolean incoming() {
+        return this == HIT_INCOMING || this == ALLY_HIT_INCOMING;
     }
 
     /** The trigger {@code raw} names (any case), or null when blank or unknown. */

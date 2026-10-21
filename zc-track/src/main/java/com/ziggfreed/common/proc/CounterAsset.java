@@ -15,6 +15,7 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
+import com.hypixel.hytale.server.core.modules.entity.damage.DamageCause;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
 import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.asset.EditorSchema;
@@ -133,7 +134,89 @@ public final class CounterAsset implements JsonAssetWithMap<String, DefaultAsset
     @Nullable protected Boolean perTarget;
     @Nullable protected PerStack[] perStack;
     @Nullable protected String[] effects;
+    @Nullable protected OnFoe onFoe;
     @Nullable private volatile GateSpec[] live;
+
+    /**
+     * The OnFoe group of a {@code PerTarget} counter: how the stacks about a foe show on that foe, a moment at a time
+     * and kept up while they last (so they leave it soon after the stacks go, the holder goes or the foe does): a look
+     * by count, and a weakness to named damage causes that grows with the stacks.
+     */
+    public static final class OnFoe {
+
+        @Nullable protected String[] effects;
+        @Nullable protected Weakness weakness;
+
+        public static final BuilderCodec<OnFoe> CODEC = BuilderCodec.builder(OnFoe.class, OnFoe::new)
+                .appendInherited(new KeyedCodec<>("Effects", Codec.STRING_ARRAY, false),
+                        (o, v) -> o.effects = v, o -> o.effects, (o, p) -> o.effects = p.effects)
+                .metadata(EditorSchema.assetRef(EntityEffect.class))
+                .documentation("The native effect the foe wears while it carries stacks, owned by the holder: the "
+                        + "first at one stack, the second at two, the last for every count past the list (a look and "
+                        + "its icon; what it does to the foe is the Weakness). Nothing shown when unauthored.").add()
+                .appendInherited(new KeyedCodec<>("Weakness", Weakness.CODEC, false),
+                        (o, v) -> o.weakness = v, o -> o.weakness, (o, p) -> o.weakness = p.weakness)
+                .documentation("The foe takes more of the named damage causes while it carries stacks: PerStack "
+                        + "percent for each stack, from anyone; never a boss or an elite. None when unauthored.").add()
+                .build();
+
+        public OnFoe() {
+        }
+
+        @Nonnull
+        public List<String> effects() {
+            return ProcAction.trimmed(effects);
+        }
+
+        @Nullable
+        public Weakness weakness() {
+            return weakness;
+        }
+
+        public boolean isEmpty() {
+            return effects().isEmpty() && (weakness == null || weakness.causes().isEmpty());
+        }
+    }
+
+    /**
+     * The Weakness group: the damage causes a foe takes more of, and how much a stack. A boss or an elite (zc-entity's
+     * {@code Zig_Boss_Or_Elite} NPC group) never wears one: the look still shows on it, the weakness does not.
+     */
+    public static final class Weakness {
+
+        /** The most a weakness ever adds, a percent, whatever its stacks say. */
+        public static final int MAX_PERCENT = 50;
+
+        @Nullable protected String[] causes;
+        @Nullable protected FactorFormula perStack;
+
+        public static final BuilderCodec<Weakness> CODEC = BuilderCodec.builder(Weakness.class, Weakness::new)
+                .appendInherited(new KeyedCodec<>("Causes", Codec.STRING_ARRAY, false),
+                        (o, v) -> o.causes = v, o -> o.causes, (o, p) -> o.causes = p.causes)
+                .metadata(EditorSchema.assetRef(DamageCause.class))
+                .documentation("The damage causes the foe takes more of, by id, each exactly (the engine looks a "
+                        + "hit's cause up as written, so Void covers Void hits only). None when unauthored.").add()
+                .appendInherited(new KeyedCodec<>("PerStack", FactorFormula.codec(EditorDataSets.FACTORS), false),
+                        (o, v) -> o.perStack = v, o -> o.perStack, (o, p) -> o.perStack = p.perStack)
+                .documentation("The percent more each stack makes the foe take, a formula read on the holder (a "
+                        + "talent's rank raises it); the whole is rounded to a whole percent and never passes 50. A "
+                        + "boss or an elite (the Zig_Boss_Or_Elite NPC group) is never weakened. Nothing when "
+                        + "unauthored.").add()
+                .build();
+
+        public Weakness() {
+        }
+
+        @Nonnull
+        public List<String> causes() {
+            return ProcAction.trimmed(causes);
+        }
+
+        @Nullable
+        public FactorFormula perStack() {
+            return perStack;
+        }
+    }
 
     public static final AssetBuilderCodec<String, CounterAsset> CODEC = AssetBuilderCodec.builder(
                     CounterAsset.class,
@@ -197,6 +280,10 @@ public final class CounterAsset implements JsonAssetWithMap<String, DefaultAsset
             .metadata(EditorSchema.assetRef(EntityEffect.class))
             .documentation("The native effect shown while it holds stacks: the first at one stack, the second at "
                     + "two, the last for every count past the list. Nothing shown when unauthored.").add()
+            .appendInherited(new KeyedCodec<>("OnFoe", OnFoe.CODEC, false),
+                    (a, v) -> a.onFoe = v, a -> a.onFoe, (a, p) -> a.onFoe = p.onFoe)
+            .documentation("For a PerTarget counter: how the stacks about a foe show on that foe (a look by count, a "
+                    + "weakness that grows with the stacks). Nothing on the foe when unauthored.").add()
             .build();
 
     public CounterAsset() {
@@ -290,5 +377,17 @@ public final class CounterAsset implements JsonAssetWithMap<String, DefaultAsset
     @Nonnull
     public List<String> effects() {
         return ProcAction.trimmed(effects);
+    }
+
+    /** How a per-foe counter's stacks show on the foe, or null when nothing does. */
+    @Nullable
+    public OnFoe onFoe() {
+        return onFoe == null || onFoe.isEmpty() ? null : onFoe;
+    }
+
+    /** The OnFoe group exactly as written, for the audit. */
+    @Nullable
+    public OnFoe rawOnFoe() {
+        return onFoe;
     }
 }

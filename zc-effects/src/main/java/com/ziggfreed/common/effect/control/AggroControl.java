@@ -6,6 +6,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.npc.role.support.MarkedEntitySupport;
 
 /**
  * Who the creatures near an entity go after, the one way the family does it (the {@code ZigTaunt},
@@ -127,6 +128,37 @@ public final class AggroControl {
     public static boolean isSuppressed(@Nonnull ComponentAccessor<EntityStore> accessor,
             @Nullable Ref<EntityStore> source) {
         return openKind(accessor, source) == AggroWindow.Kind.SUPPRESS;
+    }
+
+    /**
+     * Whether {@code creature} is held on {@code taunter} by a taunt of theirs right now: pinned onto them
+     * ({@link #tauntOne}, a pin the creature took), or marking them in its default target slot while their area taunt
+     * ({@link #taunt}) is open. False whenever it cannot tell.
+     */
+    public static boolean tauntedBy(@Nonnull ComponentAccessor<EntityStore> accessor,
+            @Nullable Ref<EntityStore> taunter, @Nullable Ref<EntityStore> creature) {
+        if (creature == null || !creature.isValid() || AggroWindows.sameEntity(taunter, creature)) {
+            return false;
+        }
+        try {
+            AggroWindows windows = windowsFor(accessor, taunter);
+            if (windows == null) {
+                return false;
+            }
+            AggroWindows.Pin pin = windows.pinOn(creature);
+            if (pin != null && AggroWindows.sameEntity(pin.taunter(), taunter)) {
+                return pin.taken();
+            }
+            AggroWindow open = windows.get(taunter);
+            if (open == null || open.kind() != AggroWindow.Kind.TAUNT || !open.isLive(System.nanoTime())) {
+                return false;
+            }
+            MarkedEntitySupport marked = accessor.getComponent(creature, MarkedEntitySupport.getComponentType());
+            return marked != null && AggroWindows.sameEntity(
+                    marked.getMarkedEntityRef(MarkedEntitySupport.DEFAULT_TARGET_SLOT), taunter);
+        } catch (Throwable t) {
+            return false;
+        }
     }
 
     /** The seconds left on {@code source}'s open taunt or suppress, 0 when it has none. */

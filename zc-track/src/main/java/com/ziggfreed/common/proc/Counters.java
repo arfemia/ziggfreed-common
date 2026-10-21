@@ -30,6 +30,9 @@ import com.ziggfreed.common.stats.condition.Nearby;
  * at 0, and emptied when the holder dies ({@code ProcSystems.Died}); the modifiers and the shown effect are saved with
  * the entity like any other, so a holder's first pass sweeps every one an earlier session left.
  *
+ * <p>A {@code PerTarget} counter keeps stacks per foe and gives the holder nothing; its {@code OnFoe} marks (a look by
+ * count, a weakness) go on each foe its stacks are about, kept up by the holder pass while they last ({@link FoeMarks}).
+ *
  * <p>A counter's modifiers are keyed {@value #MODIFIER_PREFIX}{@code <id>}: under the track grants' owner, because a
  * counter may raise a stat 1.7.x knows (a crit chance), and the 1.7.x rollback sweep clears every {@code zigtrack:}
  * key a player carries (R755); the {@code @} keeps it clear of every grant key, and the stat grant writer leaves
@@ -54,6 +57,8 @@ public final class Counters {
         volatile boolean targetGone;
         /** The index of the effect shown, or -1 for none. */
         int shown = -1;
+        /** A per-foe count's marks on its foe ({@link FoeMarks}). */
+        @Nonnull final FoeMarks.Shown onFoe = new FoeMarks.Shown();
     }
 
     /**
@@ -144,8 +149,9 @@ public final class Counters {
     }
 
     /**
-     * The same change on a {@code PerTarget} counter: only the stacks about {@code target}. Such a counter gives no
-     * modifiers and shows nothing (its stacks are about one foe, the holder's stats are not), so nothing is written.
+     * The same change on a {@code PerTarget} counter: only the stacks about {@code target}. Such a counter gives the
+     * holder no modifiers and shows them nothing (its stacks are about one foe, the holder's stats are not); its
+     * {@code OnFoe} marks go on that foe instead ({@link FoeMarks}).
      */
     private static void changePerTarget(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Holder h,
             @Nonnull Ref<EntityStore> holder, @Nullable Ref<EntityStore> target, @Nonnull CounterConfig.Def def,
@@ -170,6 +176,36 @@ public final class Counters {
         if (!(state.stacks > 0.0)) {
             byTarget.remove(target);
         }
+        markFoe(accessor, holder, target, def, state, context);
+    }
+
+    /** Bring a per-foe count's marks on its foe in line with its stacks (none: off). */
+    private static void markFoe(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> holder,
+            @Nonnull Ref<EntityStore> foe, @Nonnull CounterConfig.Def def, @Nonnull State state,
+            @Nonnull FactorContext context) {
+        if (def.asset().onFoe() == null) {
+            return;
+        }
+        try {
+            if (state.stacks > 0.0) {
+                FoeMarks.show(accessor, holder, foe, def, state.stacks, context, state.onFoe);
+            } else {
+                FoeMarks.hide(accessor, holder, foe, def, state.onFoe);
+            }
+        } catch (Throwable t) {
+            Procs.failed("marking a foe with a counter", t);
+        }
+    }
+
+    /** Take every mark of a per-foe counter's stacks off their foes (the stacks are gone). */
+    private static void unmarkAll(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> holder,
+            @Nullable CounterConfig.Def def, @Nullable Map<Ref<EntityStore>, State> byTarget) {
+        if (def == null || byTarget == null || def.asset().onFoe() == null) {
+            return;
+        }
+        for (Map.Entry<Ref<EntityStore>, State> one : byTarget.entrySet()) {
+            FoeMarks.hide(accessor, holder, one.getKey(), def, one.getValue().onFoe);
+        }
     }
 
     /**
@@ -187,7 +223,7 @@ public final class Counters {
             if (overTime && !def.asset().clearOverTime()) {
                 continue;
             }
-            h.perTarget.remove(def.key());
+            unmarkAll(moment.accessor(), moment.holder(), def, h.perTarget.remove(def.key()));
             State state = h.states.get(def.key());
             if (state != null && state.stacks > 0.0) {
                 empty(moment.accessor(), moment.holder(), def, state);
@@ -200,6 +236,9 @@ public final class Counters {
         Holder h = HOLDERS.get(holder);
         if (h == null) {
             return;
+        }
+        for (Map.Entry<String, Map<Ref<EntityStore>, State>> entry : h.perTarget.entrySet()) {
+            unmarkAll(accessor, holder, CounterConfig.getInstance().live(entry.getKey()), entry.getValue());
         }
         h.perTarget.clear();
         for (Map.Entry<String, State> entry : h.states.entrySet()) {
@@ -236,7 +275,7 @@ public final class Counters {
             @Nonnull FactorContext context, long nanos) {
         Holder h = holderOf(accessor, holder);
         if (!h.perTarget.isEmpty()) {
-            passPerTarget(h, context, nanos);
+            passPerTarget(accessor, holder, h, context, nanos);
         }
         if (h.states.isEmpty()) {
             return;
@@ -273,13 +312,15 @@ public final class Counters {
 
     /**
      * The holder pass over the {@code PerTarget} counters: the stacks about each foe decay as a counter's do, about a
-     * foe gone they go, and every foe's go when the counter's file is gone or its {@code Requires} fails.
+     * foe gone they go, and every foe's go when the counter's file is gone or its {@code Requires} fails; the marks a
+     * counter puts on its foes follow (kept up while the stacks last, taken off when they go).
      */
-    private static void passPerTarget(@Nonnull Holder h, @Nonnull FactorContext context, long nanos) {
+    private static void passPerTarget(@Nonnull ComponentAccessor<EntityStore> accessor,
+            @Nonnull Ref<EntityStore> holder, @Nonnull Holder h, @Nonnull FactorContext context, long nanos) {
         for (Map.Entry<String, Map<Ref<EntityStore>, State>> entry : h.perTarget.entrySet()) {
             CounterConfig.Def def = CounterConfig.getInstance().live(entry.getKey());
             if (def == null || !def.asset().perTarget() || !Procs.gatePasses(def.asset().liveRequires(), context)) {
-                h.perTarget.remove(entry.getKey());
+                unmarkAll(accessor, holder, def, h.perTarget.remove(entry.getKey()));
                 continue;
             }
             CounterAsset.Decay decay = def.asset().decay();
@@ -288,8 +329,9 @@ public final class Counters {
             Map<Ref<EntityStore>, State> byTarget = entry.getValue();
             for (Map.Entry<Ref<EntityStore>, State> one : byTarget.entrySet()) {
                 State state = one.getValue();
-                if (!one.getKey().isValid()) {
-                    byTarget.remove(one.getKey());
+                Ref<EntityStore> foe = one.getKey();
+                if (!foe.isValid()) {
+                    byTarget.remove(foe);
                     continue;
                 }
                 if (decay != null) {
@@ -297,8 +339,9 @@ public final class Counters {
                             decayed(state.baseStacks, nanos - state.baseNanos, after, every, decay.lose()));
                 }
                 if (!(state.stacks > 0.0)) {
-                    byTarget.remove(one.getKey());
+                    byTarget.remove(foe);
                 }
+                markFoe(accessor, holder, foe, def, state, context.toBuilder().target(foe).build());
             }
         }
     }
