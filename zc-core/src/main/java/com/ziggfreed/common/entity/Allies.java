@@ -6,6 +6,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -66,6 +69,19 @@ public final class Allies {
             }
         }
         return decide(same, pvpOn);
+    }
+
+    /**
+     * Is PvP on in {@code store}'s world, the second half of {@link #areAllies}? Read as on when it cannot be read, so
+     * no stranger becomes an ally. World thread.
+     */
+    public static boolean pvpOn(@Nonnull Store<EntityStore> store) {
+        try {
+            World world = store.getExternalData().getWorld();
+            return world == null || world.getWorldConfig().isPvpEnabled();
+        } catch (Throwable t) {
+            return true;
+        }
     }
 
     /** The rule itself: a group answer wins whole; with no group, every other player is an ally while PvP is off. */

@@ -47,6 +47,7 @@ import com.ziggfreed.common.objectives.producer.ZigCraftProducer;
 import com.ziggfreed.common.objectives.producer.ZigDamageProducer;
 import com.ziggfreed.common.objectives.producer.ZigEncounterProducer;
 import com.ziggfreed.common.objectives.producer.ZigGearSetProducer;
+import com.ziggfreed.common.objectives.producer.ZigHealProducer;
 import com.ziggfreed.common.objectives.producer.ZigInstanceRoundProducer;
 import com.ziggfreed.common.objectives.producer.ZigLootReceivedProducer;
 import com.ziggfreed.common.objectives.producer.ZigMobKillProducer;
@@ -201,11 +202,11 @@ public final class ProgressionDefaults {
 
     /**
      * Register everything that has to exist whoever ends up owning the runtime: the player lifecycle
-     * listeners, the five producer systems plus the seven producers that are event-bus listeners
+     * listeners, the five producer systems plus the eight producers that are event-bus listeners
      * (a finished instance round, a boss fight's beat, a calendar attendance, the items a reward
-     * payout handed over, a collected quest, the ranks a reputation check credited and a gear-set
-     * tier coming on are announced about players rather than happening to an entity, so each
-     * arrives on the shared bus), the
+     * payout handed over, a collected quest, the ranks a reputation check credited, a gear-set
+     * tier coming on and a heal given are announced about players rather than happening to an
+     * entity, so each arrives on the shared bus), the
      * library's talk-credit sink (a conversation is credited by an authored beat through
      * zc-dialogue's {@code TalkCredits}, and this sink always runs, beside any sink a consumer
      * registers), the moment listener that meets a dungeon's {@code Complete.Objective}
@@ -228,6 +229,8 @@ public final class ProgressionDefaults {
         plugin.getEntityStoreRegistry().registerSystem(new ZigMobKillProducer());
         // DEAL_DAMAGE, every hit a player is credited with, once, to the reactions and both engines.
         ZigDamageProducer.install(plugin);
+        // HEAL_GIVEN, a heal on oneself or an ally, credited for the creature damage it gives back.
+        ZigHealProducer.install(plugin);
         plugin.getEntityStoreRegistry().registerSystem(new ZigCraftProducer());
         plugin.getEntityStoreRegistry().registerSystem(new ZigPickupProducer());
         plugin.getEntityStoreRegistry().registerSystem(new ZigPlaceBlockProducer());
@@ -272,7 +275,8 @@ public final class ProgressionDefaults {
                 ZigEncounterProducer.KIND_PHASE, ZigEncounterProducer.KIND_FEAT, ZigCalendarProducer.KIND,
                 ZigLootReceivedProducer.KIND,
                 ZigQuestCompletionProducer.KIND, ZigReputationProducer.KIND, ZigGearSetProducer.KIND,
-                TrackObjectives.LEVEL, TrackObjectives.TIER, ZigTalkProducer.KIND, ZigDamageProducer.KIND);
+                TrackObjectives.LEVEL, TrackObjectives.TIER, ZigTalkProducer.KIND, ZigDamageProducer.KIND,
+                ZigHealProducer.KIND);
     }
 
     // ==================== persistence notifications ====================

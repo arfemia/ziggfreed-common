@@ -1,6 +1,7 @@
 package com.ziggfreed.common.health;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
@@ -13,7 +14,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
  * health moves, so a listener still reads the target's health as the heal found it; {@code amount} is what the heal
  * restores (the asked amount raised by the healer's healing power, held to the room the target had). A heal with no
  * giver (a drain, a regeneration, a full restore) fires none, nor does one on a target already full. The healer may be
- * the target (a self-heal).
+ * the target (a self-heal). {@code source} names what raised the heal, when its giver said ({@link #source}).
  *
  * <p>Dispatched synchronously on the world thread that healed, inside whatever system or interaction asked for the
  * heal, so a listener reads and writes only that world's entities and never blocks.
@@ -24,13 +25,30 @@ public final class ZigHealGivenEvent implements IEvent<Void> {
     @Nonnull private final Ref<EntityStore> healer;
     @Nonnull private final Ref<EntityStore> target;
     private final float amount;
+    @Nullable private final String source;
 
+    /** A heal that names no source. */
     public ZigHealGivenEvent(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> healer,
             @Nonnull Ref<EntityStore> target, float amount) {
+        this(store, healer, target, amount, null);
+    }
+
+    public ZigHealGivenEvent(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> healer,
+            @Nonnull Ref<EntityStore> target, float amount, @Nullable String source) {
         this.store = store;
         this.healer = healer;
         this.target = target;
         this.amount = amount;
+        this.source = source;
+    }
+
+    /**
+     * What raised the heal, as its giver names it: a proc's heal the track its talent sits on, a consumer's spell the
+     * skill it trains (a name a track source's {@code When.Qualifier} matches); null when the giver named nothing.
+     */
+    @Nullable
+    public String source() {
+        return source;
     }
 
     /** The store both entities live in, the world the heal lands in. */

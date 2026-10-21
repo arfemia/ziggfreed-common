@@ -45,6 +45,7 @@ import com.ziggfreed.common.effect.duration.DurationBootstrap;
 import com.ziggfreed.common.effect.movement.MovementBootstrap;
 import com.ziggfreed.common.effect.outgoing.OutgoingBootstrap;
 import com.ziggfreed.common.effect.resist.ResistBootstrap;
+import com.ziggfreed.common.health.HealCreditBootstrap;
 import com.ziggfreed.common.health.RegenBootstrap;
 import com.ziggfreed.common.encounter.EncounterBootstrap;
 import com.ziggfreed.common.encounter.seam.EncounterSeams;
@@ -301,6 +302,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // Health and mana regeneration: the Regen_Health and Regen_Mana stats paid every tick, health paused for
         // 15 seconds after a hit.
         RegenBootstrap.install(this);
+        // Recent hostile damage: what creatures' hits took from each player in the last ten seconds, the most a heal
+        // given there is credited for (healing XP, a quest's health healed), forgotten at death and departure.
+        HealCreditBootstrap.install(this);
         PlacedBlockBootstrap.setupPlacedBlockLedger(this);
         BlockStashBootstrap.registerBlockStash(this);
         // A gameplay config's ZigBlockRules group (CreativeOnlyBreaking, which zc's dungeon config writes)

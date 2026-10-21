@@ -34,7 +34,6 @@ import com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntitySta
 import com.hypixel.hytale.server.core.modules.interaction.InteractionModule;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.Interaction;
 import com.hypixel.hytale.server.core.modules.physics.component.Velocity;
-import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.effect.EffectAdds;
 import com.ziggfreed.common.effect.control.AggroControl;
@@ -75,6 +74,8 @@ final class ProcActions {
     /** Run every action of {@code proc} on {@code moment} (its target already sought) at {@code strength}. */
     static void run(@Nonnull ProcAsset proc, @Nonnull ProcMoment moment, double strength,
             @Nonnull FactorContext context) {
+        // A heal this proc gives names the track its talent sits on, so that track's healing source can pay it.
+        String healSource = proc.track();
         for (ProcAction action : proc.actions()) {
             if (action.soak() != null) {
                 guarded("Soak", () -> soak(moment, action.soak(), context));
@@ -83,11 +84,11 @@ final class ProcActions {
                 guarded("GuardCost", () -> guardCost(moment, action.guardCost(), context));
             }
             List<Ref<EntityStore>> aims = aims(moment, action.area());
-            runSelf(action, moment, strength, context);
+            runSelf(action, moment, strength, context, healSource);
             for (Ref<EntityStore> aim : aims) {
                 ProcMoment about = aim == moment.target() ? moment : moment.about(aim);
                 FactorContext aimContext = aim == moment.target() ? context : Procs.context(moment, aim);
-                runAimed(action, about, strength, aimContext);
+                runAimed(action, about, strength, aimContext, healSource);
             }
             ProcAction.CounterChange change = action.counter();
             if (change != null) {
@@ -117,7 +118,7 @@ final class ProcActions {
 
     /** The entry's groups aimed at the holder, once. */
     private static void runSelf(@Nonnull ProcAction action, @Nonnull ProcMoment moment, double strength,
-            @Nonnull FactorContext context) {
+            @Nonnull FactorContext context, @Nullable String healSource) {
         if (action.removeEffect() != null && action.removeEffect().onSelf()) {
             guarded("RemoveEffect", () -> removeEffect(moment, moment.holder(), action.removeEffect()));
         }
@@ -129,7 +130,7 @@ final class ProcActions {
             guarded("ChangeStat", () -> changeStat(moment, moment.holder(), action.changeStat(), strength, context));
         }
         if (action.heal() != null && action.heal().onSelf()) {
-            guarded("Heal", () -> heal(moment, moment.holder(), action.heal(), strength, context));
+            guarded("Heal", () -> heal(moment, moment.holder(), action.heal(), strength, context, healSource));
         }
         if (action.push() != null && action.push().onSelf()) {
             guarded("Push", () -> push(moment, moment.holder(), moment.target(), action.push(), context));
@@ -138,7 +139,7 @@ final class ProcActions {
 
     /** The entry's groups aimed at one target ({@code moment.target()}). */
     private static void runAimed(@Nonnull ProcAction action, @Nonnull ProcMoment moment, double strength,
-            @Nonnull FactorContext context) {
+            @Nonnull FactorContext context, @Nullable String healSource) {
         Ref<EntityStore> on = moment.target();
         if (on == null || !on.isValid()) {
             return;
@@ -153,7 +154,7 @@ final class ProcActions {
             guarded("ChangeStat", () -> changeStat(moment, on, action.changeStat(), strength, context));
         }
         if (action.heal() != null && !action.heal().onSelf()) {
-            guarded("Heal", () -> heal(moment, on, action.heal(), strength, context));
+            guarded("Heal", () -> heal(moment, on, action.heal(), strength, context, healSource));
         }
         if (action.push() != null && !action.push().onSelf()) {
             guarded("Push", () -> push(moment, on, moment.holder(), action.push(), context));
@@ -245,12 +246,7 @@ final class ProcActions {
 
     /** Is PvP on in {@code store}'s world? Read as on when it cannot be read, so no stranger becomes an ally. */
     static boolean pvpOn(@Nonnull Store<EntityStore> store) {
-        try {
-            World world = store.getExternalData().getWorld();
-            return world == null || world.getWorldConfig().isPvpEnabled();
-        } catch (Throwable t) {
-            return true;
-        }
+        return Allies.pvpOn(store);
     }
 
     // ==================== The groups ====================
@@ -358,17 +354,18 @@ final class ProcActions {
      * Heal {@code on} through CommonLib's one heal, the holder its giver ({@code HealthUtil.heal}): the authored
      * amount, times the moment's amount when {@code ByAmount}, times the strength unless {@code Scaled} is false, then
      * raised by the holder's healing power as every heal they give is. The heal counts as one the holder gave, so its
-     * HealGiven moment runs once this proc is done ({@link Procs#fire}).
+     * HealGiven moment runs once this proc is done ({@link Procs#fire}), and it names {@code source}, the proc's own
+     * track ({@link ProcAsset#track}), so that track's healing source can pay it.
      */
     private static void heal(@Nonnull ProcMoment moment, @Nonnull Ref<EntityStore> on,
-            @Nonnull ProcAction.Heal heal, double strength, @Nonnull FactorContext context) {
+            @Nonnull ProcAction.Heal heal, double strength, @Nonnull FactorContext context, @Nullable String source) {
         if (!on.isValid() || heal.amount() == null) {
             return;
         }
         double amount = Procs.evaluate(heal.amount(), context) * (heal.byAmount() ? moment.amount() : 1.0);
         amount = statAmount(amount, heal.scaled(), strength);
         if (amount > 0.0 && Double.isFinite(amount)) {
-            HealthUtil.heal(moment.store(), moment.holder(), on, (float) amount);
+            HealthUtil.heal(moment.store(), moment.holder(), on, (float) amount, source);
         }
     }
 

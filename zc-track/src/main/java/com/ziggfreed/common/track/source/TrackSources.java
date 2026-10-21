@@ -29,7 +29,7 @@ import com.ziggfreed.common.track.asset.TrackConfig;
  * <p><b>What it costs when nothing listens.</b> {@link #listens} is one lookup in a map of the kinds some source
  * names; the reaction ({@link TrackSourceReactions}) asks it before reading anything off the moment.
  *
- * <p><b>Summed kinds.</b> A kind fired many times a second ({@link #batches}: {@code DEAL_DAMAGE},
+ * <p><b>Summed kinds.</b> A kind fired many times a second ({@link #batches}: {@code DEAL_DAMAGE}, {@code HEAL_GIVEN},
  * {@code SPRINT_DISTANCE} and {@code SWIM_DISTANCE}, plus any {@link #batchKind} adds) is summed per player and
  * track and paid once a tick ({@link SourceBatch}), the same totals as one gain a moment, so the gain pipeline and
  * {@code ZigTrackChangedEvent} run once per batch.
@@ -38,6 +38,19 @@ public final class TrackSources {
 
     /** The damage a player deals a creature: the kind zc's damage producer fires for every credited hit. */
     public static final String DEAL_DAMAGE = "DEAL_DAMAGE";
+
+    /**
+     * A heal a player gives themselves or an ally: the kind zc's heal producer fires, Target {@value #HEAL_SELF} or
+     * {@value #HEAL_PLAYER}, Qualifier the heal's source (the track or skill it names), its amount the health it
+     * restored out of the healed player's recent creature damage.
+     */
+    public static final String HEAL_GIVEN = "HEAL_GIVEN";
+
+    /** A {@value #HEAL_GIVEN} moment's Target for a heal on oneself. */
+    public static final String HEAL_SELF = "Self";
+
+    /** A {@value #HEAL_GIVEN} moment's Target for a heal on an allied player. */
+    public static final String HEAL_PLAYER = "Player";
 
     /** What every gain a source pays is labelled with, before the source's id. */
     public static final String SOURCE_PREFIX = "tracksource:";
@@ -48,6 +61,7 @@ public final class TrackSources {
 
     static {
         BATCHED.add(DEAL_DAMAGE);
+        BATCHED.add(HEAL_GIVEN);
         BATCHED.add("SPRINT_DISTANCE");
         BATCHED.add("SWIM_DISTANCE");
     }

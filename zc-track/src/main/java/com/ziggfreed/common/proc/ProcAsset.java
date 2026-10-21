@@ -20,10 +20,13 @@ import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.RootInteraction;
 import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.asset.EditorSchema;
+import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorFormula;
+import com.ziggfreed.common.progress.gate.GateClause;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.progress.gate.StoreGates;
 import com.ziggfreed.common.stats.condition.ConditionalStatAsset;
+import com.ziggfreed.common.track.TrackFactors;
 
 /**
  * A proc: when a moment happens to a player who meets its {@code Requires} (a talent through
@@ -242,6 +245,7 @@ public final class ProcAsset implements JsonAssetWithMap<String, DefaultAssetMap
     @Nullable protected Cooldown cooldown;
     @Nullable protected ProcAction[] actions;
     @Nullable private volatile GateSpec[] live;
+    @Nullable private volatile String[] track;
 
     public static final AssetBuilderCodec<String, ProcAsset> CODEC = AssetBuilderCodec.builder(
                     ProcAsset.class,
@@ -378,6 +382,61 @@ public final class ProcAsset implements JsonAssetWithMap<String, DefaultAssetMap
             live = held;
         }
         return held[0];
+    }
+
+    /**
+     * The track this proc's talent sits on: the track the first {@code ziggfreedcommon:track_pick} it asks for names
+     * ({@code Param} {@code <Track>/<Pick>}, a {@code Min} of 1 or more, at the top of its {@code Requires} or in an
+     * {@code AllOf} group), lifted once; null for a proc gated on no pick. What a heal the proc gives names as its
+     * source, so that track's healing source can pay it.
+     */
+    @Nullable
+    public String track() {
+        String[] held = track;
+        if (held == null) {
+            held = new String[] {trackOf(requires)};
+            track = held;
+        }
+        return held[0];
+    }
+
+    /** The track of the first pick {@code requires} asks for, or null. */
+    @Nullable
+    static String trackOf(@Nullable GateSpec requires) {
+        for (FactorCondition condition : askedPicks(requires)) {
+            String param = condition.getParam();
+            int slash = param == null ? -1 : param.indexOf('/');
+            if (slash > 0) {
+                return param.substring(0, slash).trim();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Every {@code ziggfreedcommon:track_pick} condition with a {@code Min} of 1 or more at the top of
+     * {@code requires} or in one of its {@code AllOf} groups, in order: the picks it asks for (the validator's reach
+     * audit and {@link #track} read the same list).
+     */
+    @Nonnull
+    static List<FactorCondition> askedPicks(@Nullable GateSpec requires) {
+        if (requires == null) {
+            return List.of();
+        }
+        List<FactorCondition> asked = new ArrayList<>(List.of(requires.factorsOrEmpty()));
+        for (GateClause clause : requires.allOfOrEmpty()) {
+            if (clause != null) {
+                asked.addAll(List.of(clause.factorsOrEmpty()));
+            }
+        }
+        List<FactorCondition> picks = new ArrayList<>(asked.size());
+        for (FactorCondition condition : asked) {
+            if (condition != null && TrackFactors.PICK.equalsIgnoreCase(condition.getFactor())
+                    && condition.getMin() != null && condition.getMin() >= 1.0) {
+                picks.add(condition);
+            }
+        }
+        return picks;
     }
 
     @Nullable

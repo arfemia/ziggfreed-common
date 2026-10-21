@@ -119,12 +119,26 @@ public final class HealthUtil {
      * drain such as lifesteal, a regeneration, a full restore) passes {@code null} and is paid as asked. One read
      * of the healer's stat and one multiply on top of the plain heal; nothing extra for a null healer. A heal with a
      * healer that finds room is announced as it lands ({@link ZigHealGivenEvent}, before the health moves), so a
-     * reader of heals given (a heal-given proc, healing XP) hears every one through this one door.
+     * reader of heals given (a heal-given proc, healing XP) hears every one through this one door. It names no source:
+     * a heal that earns its giver's skill passes one ({@link #heal(Store, Ref, Ref, float, String)}).
      *
      * @return {@code true} if any health was added; {@code false} otherwise
      */
     public static boolean heal(@Nonnull Store<EntityStore> store, @Nullable Ref<EntityStore> healer,
             @Nonnull Ref<EntityStore> target, float amount) {
+        return heal(store, healer, target, amount, null);
+    }
+
+    /**
+     * {@link #heal(Store, Ref, Ref, float)}, naming what raised the heal: {@code source} rides the heal's
+     * {@link ZigHealGivenEvent}, so a reader can credit the skill that healed (a proc's heal names its talent's track,
+     * a consumer's spell the skill it trains), the way a hit's weapon names the skill its damage trains. Null names
+     * nothing: such a heal pays only a source that asks no qualifier. Ignored for a heal with no healer.
+     *
+     * @return {@code true} if any health was added; {@code false} otherwise
+     */
+    public static boolean heal(@Nonnull Store<EntityStore> store, @Nullable Ref<EntityStore> healer,
+            @Nonnull Ref<EntityStore> target, float amount, @Nullable String source) {
         if (amount <= 0f) {
             return false;
         }
@@ -132,8 +146,9 @@ public final class HealthUtil {
         if (healer != null && healer.isValid() && HEAL_EVENTS.listening(ZigHealGivenEvent.class)) {
             float restores = restores(store, target, scaled);
             if (restores > 0f) {
+                String named = source == null || source.isBlank() ? null : source.trim();
                 HEAL_EVENTS.fire("heal given", ZigHealGivenEvent.class,
-                        () -> new ZigHealGivenEvent(store, healer, target, restores));
+                        () -> new ZigHealGivenEvent(store, healer, target, restores, named));
             }
         }
         return heal(store, target, scaled);

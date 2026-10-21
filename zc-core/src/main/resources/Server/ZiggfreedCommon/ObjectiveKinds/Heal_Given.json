@@ -1,0 +1,10 @@
+{
+  "$Comment": "Healing yourself or an ally, counted in health points. It counts only the health a heal gives back out of what creatures' hits took from the healed player in the last ten seconds, so healing back a fall, fire or another player's hit counts nothing, and healing past full never counts. Target is Self for a heal on yourself and Player for one on an ally (a party member, or another player while PvP is off); the Qualifier is what healed, as the mod that cast it names it (a track or skill id). A step reads {\"Kind\": \"HEAL_GIVEN\", \"Amount\": 500}.",
+  "ValueBased": false,
+  "Producible": true,
+  "Presentation": {
+    "Icon": {
+      "ItemId": "Potion_Health_Greater"
+    }
+  }
+}

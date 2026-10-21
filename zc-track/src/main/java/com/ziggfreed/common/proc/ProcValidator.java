@@ -15,11 +15,9 @@ import com.hypixel.hytale.server.core.modules.entity.damage.DamageCause;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.RootInteraction;
 import com.ziggfreed.common.factor.FactorCondition;
-import com.ziggfreed.common.progress.gate.GateClause;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.stats.condition.EffectFamilyConfig;
 import com.ziggfreed.common.stats.damage.TypedDamageBonuses;
-import com.ziggfreed.common.track.TrackFactors;
 import com.ziggfreed.common.track.pick.TrackPicks;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
@@ -428,20 +426,7 @@ public final class ProcValidator {
      */
     private static void auditPicks(@Nonnull String noun, @Nonnull String id, @Nullable GateSpec requires,
             @Nonnull Vocabulary known, @Nonnull List<Finding> out) {
-        if (requires == null) {
-            return;
-        }
-        List<FactorCondition> asked = new ArrayList<>(List.of(requires.factorsOrEmpty()));
-        for (GateClause clause : requires.allOfOrEmpty()) {
-            if (clause != null) {
-                asked.addAll(List.of(clause.factorsOrEmpty()));
-            }
-        }
-        for (FactorCondition condition : asked) {
-            if (condition == null || !TrackFactors.PICK.equalsIgnoreCase(condition.getFactor())
-                    || condition.getMin() == null || condition.getMin() < 1.0) {
-                continue;
-            }
+        for (FactorCondition condition : ProcAsset.askedPicks(requires)) {
             String param = condition.getParam();
             int slash = param == null ? -1 : param.indexOf('/');
             if (slash <= 0 || slash == param.length() - 1
