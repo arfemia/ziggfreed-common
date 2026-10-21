@@ -8,7 +8,7 @@ import javax.annotation.Nullable;
 import com.ziggfreed.common.event.NativeEventSeam;
 
 /**
- * Where the encounter family's six native events go: the shared engine event bus, under the
+ * Where the encounter family's seven native events go: the shared engine event bus, under the
  * library-wide contract ({@link NativeEventSeam}). Each event is built only when somebody is
  * listening, dispatched synchronously on the calling (world) thread, and can never take the run
  * that fired it down with it.
@@ -58,5 +58,9 @@ public final class Encounters {
 
     public static void fireSignal(@Nonnull Supplier<EncounterSignalEvent> build) {
         SEAM.fire("EncounterSignal", EncounterSignalEvent.class, build);
+    }
+
+    public static void fireWaveCleared(@Nonnull Supplier<EncounterWaveClearedEvent> build) {
+        SEAM.fire("EncounterWaveCleared", EncounterWaveClearedEvent.class, build);
     }
 }

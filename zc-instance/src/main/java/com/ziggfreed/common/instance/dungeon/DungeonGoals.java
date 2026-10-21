@@ -36,6 +36,8 @@ import com.ziggfreed.common.util.SafeLog;
  *   <li>the rules follow whatever the goal's source: the run's {@code TimeLimitSeconds}, and the wipe that fails
  *       it under {@code FailOnWipe}.</li>
  * </ul>
+ * An endless run ({@code Run.Endless}) says instead to last as long as they can, each wave cleared adding to their
+ * chest, then how its run ends and that they keep their chest however it does.
  * A dungeon with nothing to say (no goal line, nothing in {@code Complete}, no rule) shows nothing.
  *
  * <p>{@link DungeonRuns} queues it at the arrival, like a round moment, and it shows {@link #DELAY_MS} later, so
@@ -64,9 +66,12 @@ final class DungeonGoals {
      * @param surviveSeconds {@code Complete.SurviveTimer}, 0 for none
      * @param limitSeconds   {@code Run.TimeLimitSeconds}, 0 for none
      * @param failOnWipe     {@code Run.FailOnWipe}
+     * @param endless        whether the run is an endless wave run ({@code Run.Endless}): its goal is to last, and
+     *                       its end is how it pays
      */
     record Goal(@Nonnull String dungeonId, @Nullable String nameKey, @Nullable String goalKey, int bosses,
-                boolean allBosses, boolean objective, long surviveSeconds, long limitSeconds, boolean failOnWipe) {
+                boolean allBosses, boolean objective, long surviveSeconds, long limitSeconds, boolean failOnWipe,
+                boolean endless) {
     }
 
     private DungeonGoals() {
@@ -131,6 +136,8 @@ final class DungeonGoals {
         List<ToastLine> rows = new ArrayList<>();
         if (goal.goalKey() != null) {
             rows.add(ToastLine.text(ContentKeys.tr(goal.goalKey())));
+        } else if (goal.endless()) {
+            rows.add(line("goal.endless"));
         } else {
             if (goal.bosses() > 0) {
                 rows.add(line(goal.allBosses() && goal.bosses() > 1 ? "goal.all_bosses" : "goal.boss"));
@@ -141,6 +148,13 @@ final class DungeonGoals {
             if (goal.surviveSeconds() > 0) {
                 rows.add(line("goal.survive", duration(goal.surviveSeconds())));
             }
+        }
+        if (goal.endless()) {
+            if (goal.limitSeconds() > 0) {
+                rows.add(line("goal.endless_limit", duration(goal.limitSeconds())));
+            }
+            rows.add(line("goal.endless_end"));
+            return rows;
         }
         if (goal.limitSeconds() > 0) {
             rows.add(line("goal.time_limit", duration(goal.limitSeconds())));

@@ -17,6 +17,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import org.joml.Vector3d;
+
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
@@ -25,9 +27,12 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.codec.Vec3;
 import com.ziggfreed.common.encounter.event.EncounterDefeatedEvent;
+import com.ziggfreed.common.encounter.event.EncounterWaveClearedEvent;
 import com.ziggfreed.common.encounter.payout.EncounterClaims;
 import com.ziggfreed.common.encounter.seam.RunTag;
+import com.ziggfreed.common.encounter.wave.WaveRules;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.instance.metadata.InstanceRoundCompletedEvent;
 import com.ziggfreed.common.instance.metadata.InstanceRoundStartedEvent;
@@ -81,6 +86,16 @@ import com.ziggfreed.common.util.SafeLog;
  * counted at the end and each player counted at the end was counted at a start, once however often they leave
  * and come back.
  *
+ * <p><b>An endless run</b> ({@code Run.Endless}, {@link DungeonEndless}) is never cleared: it ends when every member
+ * in the area is down at once, its time limit passes, or everyone leaves, and every ending pays. Each wave its fight
+ * beats ({@link #onWaveCleared}, located by where the fight stands) banks one wave, a boss wave as one, for every
+ * member standing in the area whose part has not ended, who is then told the next wave's number and that they may
+ * leave with their chest. A member who leaves while it goes on is paid what they banked as they go, on the Claims
+ * tab, and banks nothing more that run; the members still in the area when it ends are paid from one chest stood
+ * where they came in ({@link DungeonResults#endlessPaid}). Its round is a win for every participant who banked a
+ * wave. The fight asks this list for its rules ({@link #rulesAt}, zc-encounter's wave seam) while the run goes on,
+ * and halts once it answers none.
+ *
  * <p><b>The run tag.</b> A boss fight inside an area belongs to the area's run (R105): zc-encounter asks
  * {@link #runOf} through its run-tag seam at the defeat, which files the fight's records under
  * {@code dungeon:<id>} and lets a payout name the run.
@@ -132,16 +147,33 @@ public final class DungeonRuns {
     private record Knobs(@Nonnull String mode, @Nullable String nameKey, @Nullable String goalKey, long limitMs,
                          boolean failOnWipe, @Nonnull Set<String> bosses, boolean allBosses,
                          @Nullable DungeonObjective objective, long surviveMs, @Nullable String lootable,
-                         @Nullable DiminishSpec diminish, boolean inChest, @Nullable String chestKey) {
+                         @Nullable DiminishSpec diminish, boolean inChest, @Nullable String chestKey,
+                         @Nullable Endless endless) {
 
         /** A dungeon no longer loaded: no limit, no clear, no reward, nothing to tell an arrival. */
         static final Knobs BARE = new Knobs("", null, null, 0L, false, Set.of(), false, null, 0L, null, null, false,
-                null);
+                null, null);
 
-        /** Whether anything can clear the run. */
+        /** Whether anything can clear the run: never an endless one, which ends only by a wipe, the limit or leaving. */
         boolean canClear() {
-            return !bosses.isEmpty() || objective != null || surviveMs > 0;
+            return endless == null && (!bosses.isEmpty() || objective != null || surviveMs > 0);
         }
+    }
+
+    /**
+     * An endless run's knobs ({@code Run.Endless}): its schedule and ramp, the tables a cleared wave banks, and the
+     * chest its end stands.
+     */
+    private record Endless(@Nonnull WaveRules rules, @Nullable String perWave, @Nullable String perBossWave,
+                           @Nonnull String chestFile, @Nullable Vec3 chestOffset) {
+    }
+
+    /** What one member of an endless run has banked: the waves cleared while they stood in the area. */
+    private static final class Bank {
+        int waves;
+        int bossWaves;
+        /** Their part has ended and been paid (they left, or the run ended): nothing more banks. */
+        boolean paid;
     }
 
     /** One run. Guarded by the list's lock, but for the fields its constructor sets. */
@@ -176,6 +208,12 @@ public final class DungeonRuns {
         boolean wipeCheckQueued;
         /** A wipe check has already warned that it failed. */
         boolean wipeCheckWarned;
+        /** Where the copy's areas sit, so a fight's position finds its area's run. */
+        final AreaLayout layout;
+        /** An endless run's banks, by member, in the order they first banked a wave. */
+        final Map<UUID, Bank> banks = new LinkedHashMap<>();
+        /** How many waves an endless run has cleared. */
+        int reach;
 
         Run(CopyKey area, World world, String dungeon, Knobs knobs, long startedAtMs) {
             this.area = area;
@@ -184,6 +222,7 @@ public final class DungeonRuns {
             this.dungeon = dungeon;
             this.knobs = knobs;
             this.startedAtMs = startedAtMs;
+            this.layout = AreaLayout.ofCopy(world);
         }
 
         boolean objectiveOpen() {
@@ -198,7 +237,13 @@ public final class DungeonRuns {
         /** What a player arriving in the run is told to do there ({@link DungeonGoals}). */
         DungeonGoals.Goal goal() {
             return new DungeonGoals.Goal(dungeon, knobs.nameKey, knobs.goalKey, knobs.bosses.size(), knobs.allBosses,
-                    knobs.objective != null, knobs.surviveMs / 1000L, knobs.limitMs / 1000L, knobs.failOnWipe);
+                    knobs.objective != null, knobs.surviveMs / 1000L, knobs.limitMs / 1000L, knobs.failOnWipe,
+                    knobs.endless != null);
+        }
+
+        /** Whether {@code at} in world {@code worldUuid} stands in this run's area. */
+        boolean holdsSpot(@Nullable UUID worldUuid, @Nonnull Vector3d at) {
+            return worldUuid != null && worldUuid.equals(worldId) && layout.inCell(area.area(), at.x, at.z);
         }
     }
 
@@ -289,7 +334,7 @@ public final class DungeonRuns {
                 + (run.knobs.limitMs > 0 ? "; it fails after " + run.knobs.limitMs / 1000L + " s"
                         : "; it has no time limit")
                 + "; " + clearWords(run.knobs)
-                + (run.knobs.failOnWipe ? "; a wipe fails it" : "")
+                + (run.knobs.failOnWipe && run.knobs.endless == null ? "; a wipe fails it" : "")
                 + (run.knobs.lootable == null ? "" : "; a clear pays " + run.knobs.lootable);
     }
 
@@ -319,13 +364,22 @@ public final class DungeonRuns {
     }
 
     /**
-     * {@code player} left {@code area}; they stay a participant of its run. Under AreaMembers' lock, which
-     * calls {@link #freed} next when nobody is left in the area or on the way.
+     * {@code player} left {@code area}; they stay a participant of its run. In an endless run still going their part
+     * ends here: what they banked is paid now (queued, as every payout is), and nothing more banks for them, even
+     * should they come back. Under AreaMembers' lock, which calls {@link #freed} next when nobody is left in the area
+     * or on the way.
      */
     synchronized void left(@Nonnull CopyKey area, @Nonnull UUID player) {
         Run run = runs.get(area);
         if (run != null) {
             run.members.leave(player);
+            if (run.knobs.endless != null && !run.ended) {
+                Bank bank = run.banks.computeIfAbsent(player, k -> new Bank());
+                if (!bank.paid) {
+                    bank.paid = true;
+                    queueEndlessPay(run, List.of(player), true);
+                }
+            }
         }
     }
 
@@ -347,7 +401,7 @@ public final class DungeonRuns {
      * Once a second, on the members' ticker thread and outside its lock: clear each run whose survive timer ran
      * out, with someone in the area and the rest of its {@code Complete} met, fail each run past its time limit
      * (a clear due on the same tick wins), queue a wipe check on the world thread for each run that fails on a
-     * wipe, and post everything queued. Never throws.
+     * wipe or is endless (whose wipe is its end), and post everything queued. Never throws.
      */
     void tick(long nowMs) {
         try {
@@ -366,8 +420,8 @@ public final class DungeonRuns {
                         end(run, Ending.TIME_LIMIT, nowMs, null);
                         continue;
                     }
-                    if (run.knobs.failOnWipe && !run.wipeCheckQueued && run.members.anyPresent()
-                            && run.world.isAlive()) {
+                    if ((run.knobs.failOnWipe || run.knobs.endless != null) && !run.wipeCheckQueued
+                            && run.members.anyPresent() && run.world.isAlive()) {
                         run.wipeCheckQueued = true;
                         wipeChecks.add(run);
                     }
@@ -509,6 +563,121 @@ public final class DungeonRuns {
         drain();
     }
 
+    // ==================== an endless run's waves (the copy's world thread) ====================
+
+    /**
+     * The bus listener for a wave clear ({@code zc:cleared}): it banks the wave for the endless run of the area the
+     * fight stands in. Registered at setup; guarded whole.
+     */
+    public static void onWaveCleared(@Nonnull EncounterWaveClearedEvent event) {
+        try {
+            SHARED.waveCleared(event.worldUuid(), event.position(), event.wave());
+        } catch (Throwable t) {
+            SafeLog.warn(LOG + "a wave clear could not be banked for its dungeon run", t);
+        }
+    }
+
+    /**
+     * Wave {@code wave} fell to the fight at {@code at} in world {@code worldUuid}: in the endless run of the area it
+     * stands in, still going, each member standing in the area whose part has not ended banks it (a boss wave as one,
+     * by the run's own schedule), the run's reach becomes it, and each of them is told the next wave's number and
+     * that they may leave now with their chest. Nothing for a fight in no endless run.
+     */
+    void waveCleared(@Nullable UUID worldUuid, @Nonnull Vector3d at, int wave) {
+        String line;
+        synchronized (this) {
+            Run run = runAt(worldUuid, at);
+            if (run == null || run.ended || run.knobs.endless == null) {
+                return;
+            }
+            boolean boss = run.knobs.endless.rules().at(wave).boss();
+            run.reach = Math.max(run.reach, wave);
+            List<UUID> banked = new ArrayList<>();
+            for (UUID member : run.members.present()) {
+                Bank bank = run.banks.computeIfAbsent(member, k -> new Bank());
+                if (bank.paid) {
+                    continue;
+                }
+                bank.waves++;
+                if (boss) {
+                    bank.bossWaves++;
+                }
+                banked.add(member);
+            }
+            if (!banked.isEmpty()) {
+                DungeonResults.Breather breather = new DungeonResults.Breather(run.dungeon, run.knobs.nameKey, wave,
+                        wave + 1, List.copyOf(banked));
+                outbox.add(new Fire(run.world, () -> DungeonResults.breather(breather)));
+            }
+            line = "the endless run " + run.runId + " in " + run.where() + " cleared wave " + wave
+                    + (boss ? " (a boss wave)" : "") + "; " + banked.size() + " member(s) banked it";
+        }
+        SafeLog.info(LOG + line);
+        drain();
+    }
+
+    /**
+     * The seam zc-encounter asks about once a second for a fight whose script runs endless waves: the rules of the
+     * endless run of the area the fight at {@code at} stands in, while that run is going; null otherwise, which halts
+     * a fight that ran under them. Quick, and under this list's leaf lock only.
+     */
+    @Nullable
+    public synchronized WaveRules rulesAt(@Nullable UUID worldUuid, @Nonnull Vector3d at) {
+        Run run = runAt(worldUuid, at);
+        return run == null || run.ended || run.knobs.endless == null ? null : run.knobs.endless.rules();
+    }
+
+    /** Whether dungeon {@code dungeonId} is an endless wave run as loaded now. */
+    public static boolean isEndless(@Nullable String dungeonId) {
+        if (dungeonId == null || dungeonId.isBlank()) {
+            return false;
+        }
+        DungeonAsset dungeon = DungeonConfig.getInstance().resolve(dungeonId.trim().toLowerCase(Locale.ROOT));
+        return dungeon != null && dungeon.isEndless();
+    }
+
+    /** The run of the area holding the spot {@code at} in world {@code worldUuid}, or null. Under this list's lock. */
+    @Nullable
+    private Run runAt(@Nullable UUID worldUuid, @Nonnull Vector3d at) {
+        if (worldUuid == null) {
+            return null;
+        }
+        for (Run run : runs.values()) {
+            if (run.holdsSpot(worldUuid, at)) {
+                return run;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Queue the payout of what each of {@code players} banked in endless {@code run} (their banks already marked paid):
+     * a member who {@code left} collects theirs on the Claims tab, one still in the area at the run's end from the
+     * chest the end stands where they came in. A member who banked nothing is paid nothing and counts no reach. Under
+     * this list's lock.
+     */
+    private void queueEndlessPay(@Nonnull Run run, @Nonnull List<UUID> players, boolean left) {
+        Endless endless = run.knobs.endless;
+        if (endless == null) {
+            return;
+        }
+        List<DungeonResults.Banked> banked = new ArrayList<>();
+        for (UUID player : players) {
+            Bank bank = run.banks.get(player);
+            if (bank != null && bank.waves > 0) {
+                banked.add(new DungeonResults.Banked(player, bank.waves, bank.bossWaves));
+            }
+        }
+        if (banked.isEmpty()) {
+            return;
+        }
+        DungeonResults.EndlessPay pay = new DungeonResults.EndlessPay(run.dungeon, run.runId.toString(),
+                run.knobs.mode, run.knobs.nameKey, run.knobs.diminish, endless.perWave(), endless.perBossWave(),
+                List.copyOf(banked), left, left ? null : endless.chestFile(), run.worldId,
+                run.layout.chestSpot(run.area.area(), endless.chestOffset()));
+        outbox.add(new Fire(run.world, () -> DungeonResults.endlessPaid(pay)));
+    }
+
     // ==================== the run tag (the copy's world thread) ====================
 
     /**
@@ -623,19 +792,39 @@ public final class DungeonRuns {
         return new Run(area, world, preset, dungeon == null ? Knobs.BARE : knobsOf(dungeon), nowMs);
     }
 
-    /** What a run needs of {@code dungeon}, read once. */
+    /**
+     * What a run needs of {@code dungeon}, read once. An endless dungeon's run reads no {@code Complete} (nothing
+     * clears it) and always ends on a wipe; one whose {@code Run.Endless} names no band runs as a plain dungeon, which
+     * its audit's ERROR keeps anyone from entering.
+     */
     @Nonnull
     private static Knobs knobsOf(@Nonnull DungeonAsset dungeon) {
+        Endless endless = endlessOf(dungeon);
         Set<String> bosses = new LinkedHashSet<>();
-        for (String boss : dungeon.completeBosses()) {
-            bosses.add(boss.toLowerCase(Locale.ROOT));
+        if (endless == null) {
+            for (String boss : dungeon.completeBosses()) {
+                bosses.add(boss.toLowerCase(Locale.ROOT));
+            }
         }
         Integer limit = dungeon.timeLimitSeconds();
-        Integer survive = dungeon.surviveTimerSeconds();
+        Integer survive = endless == null ? dungeon.surviveTimerSeconds() : null;
         return new Knobs(dungeon.difficulty(), dungeon.nameKey(), dungeon.goalKey(),
-                limit == null ? 0L : limit * 1000L, dungeon.failOnWipe(), Set.copyOf(bosses),
-                dungeon.completeAllBosses(), dungeon.completeObjective(), survive == null ? 0L : survive * 1000L,
-                dungeon.rewardsLootable(), dungeon.rewardsDiminish(), dungeon.rewardsInChest(), dungeon.chestKey());
+                limit == null ? 0L : limit * 1000L, endless != null || dungeon.failOnWipe(), Set.copyOf(bosses),
+                dungeon.completeAllBosses(), endless == null ? dungeon.completeObjective() : null,
+                survive == null ? 0L : survive * 1000L, dungeon.rewardsLootable(), dungeon.rewardsDiminish(),
+                dungeon.rewardsInChest(), dungeon.chestKey(), endless);
+    }
+
+    /** {@code dungeon}'s endless knobs, or null when it is no endless run (or names no band, so nothing rises). */
+    @Nullable
+    private static Endless endlessOf(@Nonnull DungeonAsset dungeon) {
+        DungeonEndless spec = dungeon.endless();
+        WaveRules rules = spec == null ? null : spec.rules();
+        if (rules == null) {
+            return null;
+        }
+        return new Endless(rules, spec.perWaveLootable(), spec.perBossWaveLootable(), spec.chestFile(),
+                spec.chestOffset());
     }
 
     /**
@@ -657,6 +846,11 @@ public final class DungeonRuns {
     /** How a run's log line says what clears it. */
     @Nonnull
     private static String clearWords(@Nonnull Knobs knobs) {
+        if (knobs.endless != null) {
+            return "it is endless and ends when every member is down at once"
+                    + (knobs.endless.rules().bossEvery() == null ? ""
+                            : ", a boss every " + knobs.endless.rules().bossEvery() + " waves");
+        }
         if (!knobs.canClear()) {
             return "nothing clears it";
         }
@@ -692,6 +886,10 @@ public final class DungeonRuns {
      * still in the area why. {@code why} names what cleared it, for the log.
      */
     private void end(@Nonnull Run run, @Nonnull Ending ending, long nowMs, @Nullable String why) {
+        if (run.knobs.endless != null) {
+            endEndless(run, ending, nowMs);
+            return;
+        }
         run.ended = true;
         noteObjectives();
         boolean cleared = ending == Ending.CLEARED;
@@ -719,6 +917,43 @@ public final class DungeonRuns {
         SafeLog.info(LOG + "the run " + run.runId + " in " + run.where() + " " + ending.words
                 + (why == null ? "" : " (" + why + ")") + " after " + seconds + " s: "
                 + participants.size() + " took part, " + winners.size() + " won");
+    }
+
+    /**
+     * End endless {@code run} (under this list's lock): however it ends (every member down at once, its time limit,
+     * or everyone gone) it is no failure. Each member still in the area whose part has not ended is paid what they
+     * banked, from one chest stood where they came in; the round's winners are every participant who banked a wave
+     * (those who left before it ended were paid as they went), a win when there is one.
+     */
+    private void endEndless(@Nonnull Run run, @Nonnull Ending ending, long nowMs) {
+        run.ended = true;
+        noteObjectives();
+        long seconds = Math.max(0L, nowMs - run.startedAtMs) / 1000L;
+        List<UUID> participants = run.members.participants();
+        List<UUID> stayers = new ArrayList<>();
+        for (UUID member : run.members.present()) {
+            Bank bank = run.banks.computeIfAbsent(member, k -> new Bank());
+            if (!bank.paid) {
+                bank.paid = true;
+                stayers.add(member);
+            }
+        }
+        List<UUID> winners = new ArrayList<>();
+        for (UUID participant : participants) {
+            Bank bank = run.banks.get(participant);
+            if (bank != null && bank.waves > 0) {
+                winners.add(participant);
+            }
+        }
+        InstanceRoundCompletedEvent event = new InstanceRoundCompletedEvent(
+                metadata(run, participants.size(), seconds, winners.isEmpty() ? ResultKind.LOSS : ResultKind.WIN),
+                participants, winners);
+        outbox.add(new Fire(run.world, () -> InstanceRounds.fireCompleted(event)));
+        queueEndlessPay(run, stayers, false);
+        SafeLog.info(LOG + "the endless run " + run.runId + " in " + run.where() + " ended ("
+                + ending.name().toLowerCase(Locale.ROOT).replace('_', ' ') + ") after " + seconds + " s and "
+                + run.reach + " cleared waves: " + participants.size() + " took part, " + winners.size()
+                + " banked a wave, " + stayers.size() + " still in the area");
     }
 
     /** The round's envelope under the dungeon contract. */

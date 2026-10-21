@@ -5,6 +5,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -35,8 +36,12 @@ public final class RoundBestTimes {
 
     private static final String LOG = "[stats]";
 
-    /** Stat id (as written) -> the mod id (lower-cased) whose won rounds it times. */
-    private static final Map<String, String> TRACKED = new ConcurrentHashMap<>();
+    /** What one stat times: a mod's won rounds (its id lower-cased), those {@code times} keeps. */
+    private record Tracked(@Nonnull String mod, @Nonnull Predicate<RoundMetadata> times) {
+    }
+
+    /** Stat id (as written) -> what it times. */
+    private static final Map<String, Tracked> TRACKED = new ConcurrentHashMap<>();
 
     private RoundBestTimes() {
     }
@@ -46,7 +51,15 @@ public final class RoundBestTimes {
      * it timed before. Callable at setup from whoever ships the stat file.
      */
     public static void track(@Nonnull String statId, @Nonnull String modId) {
-        TRACKED.put(statId, modId.trim().toLowerCase(Locale.ROOT));
+        track(statId, modId, metadata -> true);
+    }
+
+    /**
+     * {@link #track(String, String)}, timing only the won rounds {@code times} keeps: the library's dungeon times
+     * leave out an endless run, which nobody wins fastest.
+     */
+    public static void track(@Nonnull String statId, @Nonnull String modId, @Nonnull Predicate<RoundMetadata> times) {
+        TRACKED.put(statId, new Tracked(modId.trim().toLowerCase(Locale.ROOT), times));
     }
 
     /** The bus entry point, guarded whole: a listener that throws must never take the round's end down with it. */
@@ -58,8 +71,8 @@ public final class RoundBestTimes {
                 return;
             }
             String mod = metadata.modId().trim().toLowerCase(Locale.ROOT);
-            for (Map.Entry<String, String> tracked : TRACKED.entrySet()) {
-                if (tracked.getValue().equals(mod)) {
+            for (Map.Entry<String, Tracked> tracked : TRACKED.entrySet()) {
+                if (tracked.getValue().mod().equals(mod) && tracked.getValue().times().test(metadata)) {
                     count(tracked.getKey(), metadata, seconds, event.winners());
                 }
             }

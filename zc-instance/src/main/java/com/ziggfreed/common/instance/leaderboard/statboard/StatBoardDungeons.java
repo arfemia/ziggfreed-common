@@ -46,11 +46,29 @@ public final class StatBoardDungeons {
     private StatBoardDungeons() {
     }
 
+    /**
+     * The section the Endless Runs tab is: the best wave a player reached in any endless run, and a picked endless
+     * dungeon's own. Only an endless run writes its lines, so its dungeons are the endless ones alone.
+     */
+    public static final String ENDLESS_SECTION = "endless_runs";
+
     /** The Dungeons tab's split, registered once at setup for {@value #SECTION}; its columns are the section's. */
     @Nonnull
     public static StatSplit split() {
+        return splitOf(SECTION);
+    }
+
+    /** The Endless Runs tab's split, registered once at setup for {@value #ENDLESS_SECTION}, read as the Dungeons tab. */
+    @Nonnull
+    public static StatSplit endlessSplit() {
+        return splitOf(ENDLESS_SECTION);
+    }
+
+    /** A split of {@code section} into the dungeons its recorded lines name, each difficulty a variant. */
+    @Nonnull
+    private static StatSplit splitOf(@Nonnull String section) {
         Message all = StatBoardMessages.line("dungeons.all");
-        return new StatSplit(List.of(), all, all, () -> RecordedThings.groups(SECTION, Dungeons.READING),
+        return new StatSplit(List.of(), all, all, () -> RecordedThings.groups(section, Dungeons.READING),
                 LeaderboardSplit.EVERYONE).withVariantAllLabel(StatBoardMessages.line("dungeons.difficulties.all"));
     }
 

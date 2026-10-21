@@ -101,6 +101,21 @@ goal.wipe = If everyone falls at once, the run fails.
 goal.time.seconds = {0, number} {0, plural, one {second} other {seconds}}
 goal.time.minutes = {0, number} {0, plural, one {minute} other {minutes}}
 goal.time.minutes_seconds = {0, number} {0, plural, one {minute} other {minutes}} and {1, number} {1, plural, one {second} other {seconds}}
+# An endless dungeon's arrival lines, in place of the ones above (Run.Endless). {0} in goal.endless_limit is a
+# goal.time.* length.
+goal.endless = Hold out as long as you can. Every wave you clear adds to your chest.
+goal.endless_limit = The run ends after {0}.
+goal.endless_end = The run ends when everyone is down at once, and you keep your chest. You can also leave between waves and take it with you.
+
+# An endless run's waves. The toast after each cleared wave: {0} in endless.breather.title is the wave that fell, {0}
+# in endless.breather the next one to rise.
+endless.breather.title = Wave {0, number} cleared
+endless.breather = Wave {0, number} is next. You can leave now and keep your chest.
+# What a player still in the area reads when the run ends: {0} is the dungeon's name, {1} how many waves they cleared.
+# Under it, endless.chest when their reward waits in the chest, endless.claims when it waits in Claims.
+endless.over = {0}: {1, number} {1, plural, one {wave} other {waves}} cleared
+endless.chest = Your chest waits where you came in.
+endless.claims = Your reward waits in Claims.
 
 # What each member still in the area is told when their run fails. {0} is the dungeon's name.
 run.failed.time_limit = Time ran out in {0}. The run failed.

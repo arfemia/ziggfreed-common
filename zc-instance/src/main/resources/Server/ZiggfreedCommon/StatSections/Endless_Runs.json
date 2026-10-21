@@ -1,0 +1,11 @@
+{
+  "$Comment": "Records' Endless Runs tab: how far each player got in a dungeon whose run never runs out (Run.Endless). The plain stat is the column of its first choice, All dungeons: the most waves a player cleared in one run of any endless dungeon. The Stat/* entry is one endless dungeon's own column, picked from the list, read over its own runs (dungeon:<difficulty>@<dungeon id>). Only an endless run counts these, so a server with no endless dungeon shows no tab. Icon pictures the tab; HintKey is the line a player with no place on the board reads.",
+  "NameKey": "ziggfreedcommon.statboard.section.endless_runs",
+  "Order": 36,
+  "Icon": "Furniture_Dungeon_Chest_Epic",
+  "HintKey": "ziggfreedcommon.statboard.section.endless_runs.hint",
+  "Stats": [
+    "Dungeon_Best_Wave",
+    "Dungeon_Best_Wave/*"
+  ]
+}

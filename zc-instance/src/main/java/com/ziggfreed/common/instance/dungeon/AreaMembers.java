@@ -20,7 +20,6 @@ import org.joml.Vector3d;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.spawn.ISpawnProvider;
 import com.ziggfreed.common.instance.world.CopyKey;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -360,11 +359,7 @@ public final class AreaMembers {
     /** The copy's area layout, from the spawn provider it opened with; a copy without one is a single area. */
     @Nonnull
     private static AreaLayout layoutOf(@Nonnull World world) {
-        ISpawnProvider provider = world.getWorldConfig().getSpawnProvider();
-        if (provider instanceof AreaSpawnProvider areas) {
-            return areas.layout();
-        }
-        return new AreaLayout(Areas.nameOf(world), 1, DungeonAsset.DEFAULT_SPACING, 0.0, 0.0, 0.0, 0f);
+        return AreaLayout.ofCopy(world);
     }
 
     /** Why a player on the way never arrived, for the log. */

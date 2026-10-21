@@ -12,6 +12,7 @@ import com.ziggfreed.common.encounter.event.EncounterDefeatedEvent;
 import com.ziggfreed.common.encounter.event.EncounterWipedEvent;
 import com.ziggfreed.common.factor.CounterFactors;
 import com.ziggfreed.common.instance.dungeon.DungeonRuns;
+import com.ziggfreed.common.instance.dungeon.DungeonWavesEvent;
 import com.ziggfreed.common.instance.leaderboard.statboard.StatBoard;
 import com.ziggfreed.common.instance.metadata.InstanceRoundCompletedEvent;
 import com.ziggfreed.common.playerstats.asset.StatValidator;
@@ -21,6 +22,7 @@ import com.ziggfreed.common.playerstats.command.ZigStatsCommand;
 import com.ziggfreed.common.playerstats.encounter.EncounterBoardImport;
 import com.ziggfreed.common.playerstats.encounter.EncounterStats;
 import com.ziggfreed.common.playerstats.reader.ObjectiveCompletionsReader;
+import com.ziggfreed.common.playerstats.round.EndlessBestWaves;
 import com.ziggfreed.common.playerstats.round.RoundBestTimes;
 import com.ziggfreed.common.playerstats.system.PlayerDeathStatSystem;
 import com.ziggfreed.common.playerstats.system.PlaytimeStatSystem;
@@ -72,9 +74,11 @@ public final class StatsBootstrap {
             SafeLog.warn("[stats] the encounter stats could not be registered", t);
         }
         try {
-            // A won round's length is a best time in each stat that times its mod: the library times dungeon runs.
-            RoundBestTimes.track(ZcStats.DUNGEON_BEST_TIME, DungeonRuns.MOD_ID);
+            // A won round's length is a best time in each stat that times its mod: the library times dungeon runs,
+            // all but an endless one, whose reach is its best wave instead.
+            RoundBestTimes.track(ZcStats.DUNGEON_BEST_TIME, DungeonRuns.MOD_ID, EndlessBestWaves::timed);
             plugin.getEventRegistry().registerGlobal(InstanceRoundCompletedEvent.class, RoundBestTimes::onCompleted);
+            plugin.getEventRegistry().registerGlobal(DungeonWavesEvent.class, EndlessBestWaves::onWaves);
         } catch (Throwable t) {
             SafeLog.warn("[stats] the round best times could not be registered", t);
         }

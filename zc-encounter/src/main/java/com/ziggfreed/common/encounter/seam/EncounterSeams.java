@@ -8,25 +8,30 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import org.joml.Vector3d;
+
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.encounter.event.Encounters;
+import com.ziggfreed.common.encounter.wave.WaveRules;
 import com.ziggfreed.common.subject.PlayerRefSubjectHandle;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * The four questions this module cannot answer alone, and what it does until somebody answers them.
+ * The five questions this module cannot answer alone, and what it does until somebody answers them.
  *
  * <p>Each is a SEAM filled at setup: who a non-player attacker acts for ({@link EncounterAttribution}),
  * how much power a party has ({@link EncounterPowerSource}), who a player is to the engines that pay
- * and notify them ({@link EncounterSubjectSource}), and which zc run a fight belongs to
- * ({@link EncounterRunTag}, filled by the instance module from its dungeon runs). Each has a posture for a
+ * and notify them ({@link EncounterSubjectSource}), which zc run a fight belongs to
+ * ({@link EncounterRunTag}, filled by the instance module from its dungeon runs), and whether a fight is an
+ * endless wave run ({@link EncounterWaveSource}, filled the same way). Each has a posture for a
  * server nothing filled it on, and each REPORTS ON ITSELF, once, the first time it has to fall back: the
  * fall-back is invisible from every other side (a turret's hits simply credit nobody, a boss simply does
- * not harden, a notice simply reads no preference, a fight in a dungeon is filed under no run), so this
+ * not harden, a notice simply reads no preference, a fight in a dungeon is filed under no run, an endless
+ * wave chain raises nothing), so this
  * layer says so rather than leaving the omission to be discovered as a bug report. An offline player
  * needs no seam: every payout is a Claim, which waits for them.
  *
@@ -39,11 +44,13 @@ public final class EncounterSeams {
     private static final AtomicReference<EncounterPowerSource> POWER = new AtomicReference<>();
     private static final AtomicReference<EncounterSubjectSource> SUBJECTS = new AtomicReference<>();
     private static final AtomicReference<EncounterRunTag> RUN_TAG = new AtomicReference<>();
+    private static final AtomicReference<EncounterWaveSource> WAVES = new AtomicReference<>();
 
     private static final AtomicBoolean WARNED_ATTRIBUTION = new AtomicBoolean();
     private static final AtomicBoolean WARNED_POWER = new AtomicBoolean();
     private static final AtomicBoolean WARNED_SUBJECTS = new AtomicBoolean();
     private static final AtomicBoolean WARNED_RUN_TAG = new AtomicBoolean();
+    private static final AtomicBoolean WARNED_WAVES = new AtomicBoolean();
 
     private EncounterSeams() {
     }
@@ -66,16 +73,22 @@ public final class EncounterSeams {
         RUN_TAG.set(runTag);
     }
 
+    public static void fillWaveSource(@Nullable EncounterWaveSource source) {
+        WAVES.set(source);
+    }
+
     /** Drop every fill and every once-only report; for a test starting from nothing. */
     public static void resetForTests() {
         ATTRIBUTION.set(null);
         POWER.set(null);
         SUBJECTS.set(null);
         RUN_TAG.set(null);
+        WAVES.set(null);
         WARNED_ATTRIBUTION.set(false);
         WARNED_POWER.set(false);
         WARNED_SUBJECTS.set(false);
         WARNED_RUN_TAG.set(false);
+        WARNED_WAVES.set(false);
     }
 
     public static boolean isAttributionFilled() {
@@ -92,6 +105,10 @@ public final class EncounterSeams {
 
     public static boolean isRunTagFilled() {
         return RUN_TAG.get() != null;
+    }
+
+    public static boolean isWaveSourceFilled() {
+        return WAVES.get() != null;
     }
 
     // ==================== asking ====================
@@ -170,6 +187,25 @@ public final class EncounterSeams {
         }
     }
 
+    /**
+     * The endless rules of the run the fight at {@code at} in {@code worldUuid} belongs to while it takes waves, or
+     * null when it is in none (or the fill fails, which costs only this ask); consulting the unfilled seam reports once.
+     */
+    @Nullable
+    public static WaveRules waveRulesAt(@Nullable UUID worldUuid, @Nonnull Vector3d at) {
+        EncounterWaveSource filled = waveSourceOrWarn();
+        if (filled == null) {
+            return null;
+        }
+        try {
+            return filled.rulesAt(worldUuid, at);
+        } catch (Throwable t) {
+            SafeLog.warn(Encounters.LOG_PREFIX + " the endless-run fill failed, so this fight reads no endless run "
+                    + "this time: " + t.getMessage());
+            return null;
+        }
+    }
+
     // ==================== the seam's own reports ====================
 
     /** The attribution fill, or null having REPORTED once that there is none. */
@@ -216,6 +252,17 @@ public final class EncounterSeams {
         return filled;
     }
 
+    /** The endless-run fill, or null having REPORTED once that there is none. */
+    @Nullable
+    static EncounterWaveSource waveSourceOrWarn() {
+        EncounterWaveSource filled = WAVES.get();
+        if (filled == null) {
+            warnOnce(WARNED_WAVES, "nothing says which endless run a fight belongs to, so an endless wave chain "
+                    + "raises nothing");
+        }
+        return filled;
+    }
+
     /** The once-only latch behind {@code seam}, for the test that pins each report fires once. */
     @Nonnull
     static AtomicBoolean latchForTests(@Nonnull String seam) {
@@ -224,6 +271,7 @@ public final class EncounterSeams {
             case "power" -> WARNED_POWER;
             case "subjects" -> WARNED_SUBJECTS;
             case "runtag" -> WARNED_RUN_TAG;
+            case "waves" -> WARNED_WAVES;
             default -> throw new IllegalArgumentException("no seam called " + seam);
         };
     }

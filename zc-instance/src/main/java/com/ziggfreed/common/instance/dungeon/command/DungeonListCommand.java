@@ -60,7 +60,7 @@ final class DungeonListCommand extends AbstractAsyncCommand {
         DungeonCommandMessages.detail(ctx, "list.run", entry.effectiveX(), entry.effectiveY(), entry.effectiveZ(),
                 limit == null ? DungeonCommandMessages.word("run.no_limit")
                         : DungeonCommandMessages.word("run.limit", limit),
-                DungeonCommandMessages.word(dungeon.failOnWipe() ? "wipe.fails" : "wipe.ignored"),
+                DungeonCommandMessages.word(dungeon.failOnWipe() || dungeon.isEndless() ? "wipe.fails" : "wipe.ignored"),
                 dungeon.emptyCloseSeconds());
     }
 }

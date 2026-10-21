@@ -36,6 +36,7 @@ import com.ziggfreed.common.encounter.event.EncounterEngagedEvent;
 import com.ziggfreed.common.encounter.event.EncounterPhaseChangedEvent;
 import com.ziggfreed.common.encounter.event.EncounterResetEvent;
 import com.ziggfreed.common.encounter.event.EncounterSignalEvent;
+import com.ziggfreed.common.encounter.event.EncounterWaveClearedEvent;
 import com.ziggfreed.common.encounter.event.EncounterWipedEvent;
 import com.ziggfreed.common.encounter.event.Encounters;
 import com.ziggfreed.common.encounter.event.ResetReason;
@@ -110,6 +111,27 @@ public final class EncounterLifecycle {
         EncounterFeedback.fire(store, feedbackId(row, EncounterBindingAsset.Feedback::phaseChanged,
                 EncounterBindingAsset.DEFAULT_PHASE_MOMENT), members, args);
         EncounterLoot.dropPhase(store, encounterRef, run, row, state);
+    }
+
+    /**
+     * The wave standing has fallen ({@code zc:cleared}): counted on the run's own count, which the endless readings
+     * and an endless run's ramp read, and announced with where the fight stands, so a dungeon's endless run banks it
+     * for each member in the area. Whether it was a boss wave is the run's endless schedule's say, read off the wave
+     * that just fell; a fight in no endless run calls none a boss wave.
+     */
+    public static void waveCleared(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> encounterRef,
+            @Nonnull ZigEncounterRun run, @Nonnull String encounterId) {
+        run.wantEndless();
+        int wave = run.countCleared();
+        boolean boss = run.endless() != null && run.endless().at(wave).boss();
+        List<UUID> members = EncounterRuns.memberIds(store, encounterRef);
+        TransformComponent at = store.getComponent(encounterRef, TransformComponent.getComponentType());
+        Vector3d position = at == null ? new Vector3d() : new Vector3d(at.getPosition());
+        SafeLog.info(Encounters.LOG_PREFIX + " cleared run=" + EncounterRun.shortId(run.runId()) + " encounter="
+                + encounterId + " wave #" + wave + (boss ? " (a boss wave)" : "") + " members=" + members.size());
+        UUID worldUuid = run.worldUuid() != null ? run.worldUuid() : worldUuid(store);
+        Encounters.fireWaveCleared(() -> new EncounterWaveClearedEvent(run.runId(), encounterId, worldUuid, wave, boss,
+                position, members));
     }
 
     /** A wave beat, or the author's own beat: counted where it is a wave, announced either way. */

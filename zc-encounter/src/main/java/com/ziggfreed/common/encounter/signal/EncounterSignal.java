@@ -14,6 +14,7 @@ import javax.annotation.Nullable;
  *   <li>{@code zc:phase:<State>} - the fight entered the named phase (beside a ChangeTargetRole or
  *       State step);</li>
  *   <li>{@code zc:wave[:<label>]} - adds were summoned (beside a TriggerSpawners);</li>
+ *   <li>{@code zc:cleared} - the wave standing has fallen: an endless wave run counts its waves by it;</li>
  *   <li>{@code zc:defeated} - the subject is down (beside ClearEncounterBossBar); with a subject
  *       bound that still lives, the library reads it as a leash and pays nothing;</li>
  *   <li>{@code zc:reset} - the script re-armed for the next run.</li>
@@ -41,7 +42,9 @@ public record EncounterSignal(@Nonnull Moment moment, @Nullable String detail, @
         WAVE("wave"),
         DEFEATED("defeated"),
         RESET("reset"),
-        CUSTOM("");
+        CUSTOM(""),
+        /** Last, so the moments before it keep their places. */
+        CLEARED("cleared");
 
         private final String word;
 

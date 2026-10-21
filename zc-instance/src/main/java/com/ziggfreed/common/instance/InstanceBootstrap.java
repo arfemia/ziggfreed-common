@@ -12,6 +12,7 @@ import com.hypixel.hytale.server.core.universe.world.spawn.ISpawnProvider;
 import com.ziggfreed.common.cast.WorldEvictors;
 import com.ziggfreed.common.encounter.asset.EncounterOwnerLayers;
 import com.ziggfreed.common.encounter.event.EncounterDefeatedEvent;
+import com.ziggfreed.common.encounter.event.EncounterWaveClearedEvent;
 import com.ziggfreed.common.encounter.seam.EncounterSeams;
 import com.ziggfreed.common.encounter.validate.EncounterAudit;
 import com.ziggfreed.common.instance.claims.ClaimNotices;
@@ -84,8 +85,8 @@ public final class InstanceBootstrap {
     /**
      * Open the stat board ({@code stats-board.json}) beside the library's owner files and put it on
      * Records. It shows nothing until the store that keeps the stats fills its source
-     * ({@code StatBoard.setSource}), so until then Records shows no tab. Split the Bosses and Dungeons sections
-     * into their bosses and dungeons, and hand the encounter audit the records groups a binding row may name.
+     * ({@code StatBoard.setSource}), so until then Records shows no tab. Split the Bosses, Dungeons and Endless Runs
+     * sections into their bosses and dungeons, and hand the encounter audit the records groups a binding row may name.
      */
     public static void installStatBoard() {
         try {
@@ -97,6 +98,7 @@ public final class InstanceBootstrap {
         try {
             StatSectionConfig.getInstance().split(StatBoardBossFights.SECTION, StatBoardBossFights.split());
             StatSectionConfig.getInstance().split(StatBoardDungeons.SECTION, StatBoardDungeons.split());
+            StatSectionConfig.getInstance().split(StatBoardDungeons.ENDLESS_SECTION, StatBoardDungeons.endlessSplit());
             EncounterAudit.recordGroups(RecordGroupConfig.getInstance()::has);
         } catch (Throwable t) {
             SafeLog.warn("[statboard] the Bosses and Dungeons tabs could not be split", t);
@@ -205,8 +207,10 @@ public final class InstanceBootstrap {
      * provider codec so a copy's config saves and loads; and a player's two ways in, the {@code ZigEnterDungeon}
      * interaction Type and the {@code Dungeon} destination, both before any asset decodes (an item, block or
      * placement naming either fails to load otherwise); the runs' ear for a boss defeat, which may clear the
-     * run of each participant's area; and the encounter module's run-tag seam, filled from the runs, so a fight
-     * inside an area is filed under the area's run. Their store registers with the other framework stores.
+     * run of each participant's area; the encounter module's run-tag seam, filled from the runs, so a fight
+     * inside an area is filed under the area's run; and an endless run's two ties to its fight, the ear for a wave
+     * clear that banks it and the wave seam the fight reads its rules through. Their store registers with the other
+     * framework stores.
      * Registration only.
      */
     public static void registerDungeons(@Nonnull JavaPlugin plugin) {
@@ -239,6 +243,12 @@ public final class InstanceBootstrap {
         } catch (Throwable t) {
             SafeLog.warn("[dungeon] the encounter run-tag seam could not be filled, so a fight inside a dungeon is "
                     + "filed under no run", t);
+        }
+        try {
+            plugin.getEventRegistry().registerGlobal(EncounterWaveClearedEvent.class, DungeonRuns::onWaveCleared);
+            EncounterSeams.fillWaveSource(DungeonRuns.shared()::rulesAt);
+        } catch (Throwable t) {
+            SafeLog.warn("[dungeon] the endless runs could not be wired, so an endless dungeon raises no wave", t);
         }
     }
 

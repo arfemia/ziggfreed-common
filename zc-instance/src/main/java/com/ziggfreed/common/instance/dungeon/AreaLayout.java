@@ -9,6 +9,8 @@ import org.joml.Vector3d;
 import org.joml.Vector3i;
 
 import com.hypixel.hytale.math.vector.Transform;
+import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.spawn.ISpawnProvider;
 import com.ziggfreed.common.codec.Vec3;
 import com.ziggfreed.common.world.Facing;
 
@@ -56,6 +58,38 @@ public record AreaLayout(@Nonnull String dungeon, int areas, int spacing, double
         Vec3 entry = dungeon.entryOffset();
         return new AreaLayout(dungeonId, dungeon.areasPerCopy(), dungeon.spacing(), entry.effectiveX(),
                 entry.effectiveY(), entry.effectiveZ(), dungeon.entryYaw());
+    }
+
+    /**
+     * The layout copy {@code world} opened with, from its spawn provider; a world without one is a single area, the
+     * whole world.
+     */
+    @Nonnull
+    static AreaLayout ofCopy(@Nonnull World world) {
+        ISpawnProvider provider = world.getWorldConfig().getSpawnProvider();
+        if (provider instanceof AreaSpawnProvider areas) {
+            return areas.layout();
+        }
+        return new AreaLayout(Areas.nameOf(world), 1, DungeonAsset.DEFAULT_SPACING, 0.0, 0.0, 0.0, 0f);
+    }
+
+    /**
+     * Where an endless run's chest stands in {@code area}: {@code offset} from the spot its prefab is pasted at, or
+     * with none written, {@link DungeonEndless#DEFAULT_CHEST_AHEAD} blocks in front of where a player arrives, on the
+     * way they face.
+     */
+    @Nonnull
+    Vector3d chestSpot(int area, @Nullable Vec3 offset) {
+        Vector3i origin = origin(area);
+        if (offset != null) {
+            return new Vector3d(origin.x + 0.5 + offset.effectiveX(), origin.y + offset.effectiveY(),
+                    origin.z + 0.5 + offset.effectiveZ());
+        }
+        double yaw = Math.toRadians(entryYaw);
+        // Yaw 0 faces north (negative Z) and 90 west (negative X).
+        double ahead = DungeonEndless.DEFAULT_CHEST_AHEAD;
+        return new Vector3d(origin.x + 0.5 + entryX - Math.sin(yaw) * ahead, origin.y + entryY,
+                origin.z + 0.5 + entryZ - Math.cos(yaw) * ahead);
     }
 
     /** Several parties share the copy, so each area is a cell of it rather than the whole world. */

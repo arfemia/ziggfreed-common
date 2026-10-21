@@ -24,6 +24,7 @@ import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatsModule;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntityStatTypes;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.spawning.SpawnLineage;
 import com.ziggfreed.common.encounter.asset.EncounterBindingAsset;
@@ -39,8 +40,12 @@ import com.ziggfreed.common.encounter.run.EncounterRun;
 import com.ziggfreed.common.encounter.run.EncounterRuns;
 import com.ziggfreed.common.encounter.run.EncounterScaling;
 import com.ziggfreed.common.encounter.run.EncounterSubjects;
+import com.ziggfreed.common.encounter.run.EncounterWaves;
 import com.ziggfreed.common.encounter.run.ZigEncounterRun;
 import com.ziggfreed.common.encounter.validate.EncounterScripts;
+import com.ziggfreed.common.encounter.wave.WaveDamage;
+import com.ziggfreed.common.encounter.wave.WaveRamp;
+import com.ziggfreed.common.encounter.wave.WaveRules;
 import com.ziggfreed.common.util.EntityIdentifierUtil;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -166,6 +171,9 @@ public final class EncounterTickSystem extends EntityTickingSystem<EntityStore> 
             scale(store, subject, run, row, memberRefs);
         }
 
+        // An endless wave run's rules, asked of its dungeon once a second; the halt the moment its run ends.
+        EncounterWaves.refresh(store, ref, run, encounterId, now);
+
         // The adds the encounter's spawners raised since the last tick, each scaled once.
         scaleAdds(store, run, row, subject, memberRefs);
 
@@ -235,6 +243,11 @@ public final class EncounterTickSystem extends EntityTickingSystem<EntityStore> 
      * encounter's lineage, noted by {@code EncounterAddSystem}): once each, by the row's
      * {@code Scale.Adds}, never the subject (checked by reference and by uuid, since an in-place role
      * change reissues the boss's reference). An add whose health is not built yet waits for a later tick.
+     *
+     * <p>In an endless wave run each add also takes its wave's ramp ({@link WaveRamp}): its health step multiplies
+     * the party scale into the one modifier (the engine sums multiplicative modifiers, so a second key would add to
+     * the party scale rather than grow it), and its damage step goes on as a native outgoing-damage effect
+     * ({@link WaveDamage}). The wave is the one standing as the add is scaled, a boss wave's by its return.
      */
     private static void scaleAdds(@Nonnull Store<EntityStore> store, @Nonnull ZigEncounterRun run,
             @Nullable EncounterBindingAsset row, @Nullable Ref<EntityStore> subject,
@@ -246,9 +259,14 @@ public final class EncounterTickSystem extends EntityTickingSystem<EntityStore> 
         EncounterBindingAsset.AddScale spec = row == null || row.getScale() == null ? null : row.getScale().getAdds();
         int members = EncounterScaling.memberCount(memberRefs, run);
         double perPower = spec == null ? 0.0 : spec.healthPerPowerPoint();
-        double factor = run.isConcluded() ? 1.0
+        double party = run.isConcluded() ? 1.0
                 : EncounterScaling.addFactor(spec, members, EncounterScaling.powerFor(store, subject, memberRefs, perPower));
-        boolean scales = factor != 1.0;
+        WaveRules.Wave wave = EncounterWaves.standing(run);
+        WaveRamp ramp = wave == null || run.endless() == null ? WaveRamp.NONE : run.endless().ramp();
+        double factor = wave == null ? party : party * ramp.health(wave);
+        int damagePercent = wave == null ? 0 : WaveDamage.percentOf(ramp.damage(wave));
+        boolean scales = factor != 1.0 || damagePercent > 0;
+        World world = damagePercent > 0 ? store.getExternalData().getWorld() : null;
         int scaled = 0;
         for (Map.Entry<Ref<EntityStore>, Integer> waiting : pending.entrySet()) {
             Ref<EntityStore> add = waiting.getKey();
@@ -257,15 +275,21 @@ public final class EncounterTickSystem extends EntityTickingSystem<EntityStore> 
                     || (run.subjectUuid() != null && run.subjectUuid().equals(EncounterSubjects.uuidOf(store, add))));
             AddScaling.Step step = AddScaling.step(scales, present, isSubject, present && statsReady(store, add),
                     waiting.getValue());
-            if (step == AddScaling.Step.APPLY && EncounterScaling.applyToAdd(store, add, factor)) {
-                scaled++;
+            if (step == AddScaling.Step.APPLY) {
+                boolean health = factor != 1.0 && EncounterScaling.applyToAdd(store, add, factor);
+                boolean damage = world != null && WaveDamage.apply(store, add, damagePercent, world);
+                if (health || damage) {
+                    scaled++;
+                }
             } else if (step == AddScaling.Step.WAIT) {
                 EncounterRuns.requeuePendingAdd(run.runId(), add, waiting.getValue() + 1);
             }
         }
         if (scaled > 0) {
             SafeLog.info(Encounters.LOG_PREFIX + " adds run=" + EncounterRun.shortId(run.runId()) + " scaled="
-                    + scaled + " factor=" + Math.round(factor * 100.0) / 100.0 + " members=" + members);
+                    + scaled + " factor=" + Math.round(factor * 100.0) / 100.0 + " members=" + members
+                    + (wave == null ? "" : " wave=" + wave.number() + (wave.boss() ? " (boss return "
+                            + wave.returns() + ")" : "") + " damage=+" + damagePercent + "%"));
         }
     }
 

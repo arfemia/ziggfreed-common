@@ -278,6 +278,17 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
         return v != null && v;
     }
 
+    /** {@code Run.Endless}, or null when the dungeon is no endless wave run. */
+    @Nullable
+    public DungeonEndless endless() {
+        return run == null ? null : run.endless;
+    }
+
+    /** Whether the dungeon is an endless wave run ({@code Run.Endless}). */
+    public boolean isEndless() {
+        return endless() != null;
+    }
+
     /**
      * {@code Complete.Bosses}: the encounter script ids whose defeat clears a run, trimmed, blanks and repeats
      * dropped, in the order written; empty when the file names none, and then no boss clears a run.
@@ -554,6 +565,7 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
 
         @Nullable protected Integer timeLimitSeconds;
         @Nullable protected Boolean failOnWipe;
+        @Nullable protected DungeonEndless endless;
 
         public static final BuilderCodec<Run> CODEC = BuilderCodec.builder(Run.class, Run::new)
                 .appendInherited(new KeyedCodec<>("TimeLimitSeconds", Codec.INTEGER, false),
@@ -566,6 +578,15 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
                 .metadata(EditorSchema.defaultValue(false))
                 .documentation("Whether a run fails the moment every member is dead at once. Unauthored means "
                         + "false: the party respawns and carries on.").add()
+                .appendInherited(new KeyedCodec<>("Endless", DungeonEndless.CODEC, false),
+                        (o, v) -> o.endless = v, o -> o.endless, (o, p) -> o.endless = p.endless)
+                .documentation("Makes the dungeon an endless wave run: one run per visit, waves that never run out "
+                        + "and grow tougher, a boss wave every few, and a chest that grows with every wave cleared. "
+                        + "Its run lasts until every member in the area is down at once (as FailOnWipe reads it, "
+                        + "whatever FailOnWipe says), its time limit passes, or everyone leaves, and every way it "
+                        + "ends pays each member what they banked; nothing in Complete clears it. The prefab's "
+                        + "encounter script is a Variant of Zc_Encounter_Endless. Unauthored, the dungeon runs as "
+                        + "Complete says.").add()
                 .build();
 
         public Run() {

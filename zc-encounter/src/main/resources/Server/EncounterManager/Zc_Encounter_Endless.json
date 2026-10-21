@@ -1,0 +1,692 @@
+{
+  "$Comment": [
+    "The base of an endless wave run: waves that never run out, each a little tougher than the last,",
+    "a boss wave every few, and a breather between them. It is Abstract, so it never spawns on its own:",
+    "a run is a Variant of it (Type Variant, Reference Zc_Encounter_Endless) that names what each band",
+    "slot raises, stamped into the prefab of a dungeon whose Run.Endless says the schedule, the ramp and",
+    "the chest. Give the Variant a binding row under Server/ZiggfreedCommon/Encounters, or the library",
+    "keeps no run for it and nothing rises.",
+    "",
+    "  { \"Class\": \"EncounterManager\", \"Type\": \"Variant\", \"Reference\": \"Zc_Encounter_Endless\",",
+    "    \"Modify\": { \"Band1\": \"Zc_Wave_Rise\", \"Band2\": \"Zc_Wave_Rise\", \"BossWave\": \"Zc_Wave_Rise\",",
+    "      \"Groups\": [ \"Undead\" ],",
+    "      \"_ForwardedModifiers\": {",
+    "        \"Band1\": { \"Role\": \"Skeleton_Fighter\", \"FarRole\": \"Skeleton_Archer\", \"NearDistance\": [ 5, 8 ] },",
+    "        \"Band2\": { \"Role\": \"Zombie\", \"FarRole\": \"Zombie\", \"NearDistance\": [ 5, 8 ] },",
+    "        \"BossWave\": { \"Role\": \"My_Boss\", \"FarRole\": \"Skeleton_Archer\", \"NearCount\": [ 1, 1 ] } } } }",
+    "",
+    "_ForwardedModifiers sits inside Modify, as every Variant's does; outside it the engine ignores it.",
+    "",
+    "In order. A player comes within PlayerRange of the script's entity and Delay starts (long enough",
+    "for an arrival's intro camera to end). Then a wave rises: the dungeon's schedule says which band",
+    "slot raises it and at which size, read through the ziggfreedcommon:encounter_wave_band and",
+    "encounter_wave_size readings, and on a boss wave (encounter_wave_boss) the BossWave slot raises it",
+    "instead. A size is how many times the band's slot rises at once, so give a band's rows a range of",
+    "distances (NearDistance [5, 8]) and a bigger size spreads out rather than stacking. Once one of the",
+    "wave is seen and none of Groups is left alive within Range, the wave is beaten: zc:cleared tells the",
+    "library, which banks it into each member's chest and shows them the next wave's number with the",
+    "word that they may leave and keep their chest, and Breather seconds later the next wave rises. A",
+    "wave none of which is ever seen (every spot blocked) is not beaten: after WatchSeconds the breather",
+    "runs and the same wave rises again, so a failed spawn pays nothing. Players who fall come back for",
+    "the next wave; nothing here resets on a death.",
+    "",
+    "The run ends when the dungeon says so (every member down at once, its time limit, or everyone gone):",
+    "encounter_endless then reads 0, and every creature of Groups within Range is removed, so the party",
+    "rises to a quiet area and their chest. Groups must hold everything the bands and the boss wave",
+    "raise. Each raised creature takes the dungeon's ramp for the wave it rose in, a boss by his return;",
+    "Mob Scaling and the binding row's Scale.Adds still apply to it."
+  ],
+  "Class": "EncounterManager",
+  "Type": "Abstract",
+  "StartState": "Waves",
+  "CleanupOnRemove": true,
+  "Parameters": {
+    "Band1": {
+      "Value": "$Null",
+      "Description": "A macro on the Hytale.Instruction.Encounter.Phase.Behavior interface that raises band slot 1, such as Zc_Wave_Rise, or $Null for none. The dungeon's Run.Endless.Bands says when each slot takes its turn."
+    },
+    "Band2": {
+      "Value": "$Null",
+      "Description": "The macro that raises band slot 2, or $Null for none."
+    },
+    "Band3": {
+      "Value": "$Null",
+      "Description": "The macro that raises band slot 3, or $Null for none."
+    },
+    "Band4": {
+      "Value": "$Null",
+      "Description": "The macro that raises band slot 4, or $Null for none."
+    },
+    "BossWave": {
+      "Value": "$Null",
+      "Description": "The macro that raises a boss wave, or $Null for none. The dungeon's Run.Endless.BossEvery says which waves are boss waves."
+    },
+    "Groups": {
+      "Value": [ "Skeleton" ],
+      "TypeHint": "String",
+      "Description": "NPC groups holding everything the bands and the boss wave raise: while one of them lives within Range the wave stands, and when the run ends every one within Range is removed."
+    },
+    "Range": {
+      "Value": 40,
+      "Description": "How far from the script's entity a living creature of Groups keeps its wave standing. Cover the whole arena."
+    },
+    "PlayerRange": {
+      "Value": 40,
+      "Description": "How close to the script's entity a player must come to start the run, and to count as one of its members."
+    },
+    "Delay": {
+      "Value": [ 3, 3 ],
+      "Description": "Seconds from the first player in PlayerRange to the first wave."
+    },
+    "Breather": {
+      "Value": [ 10, 10 ],
+      "Description": "Seconds between a wave's last creature falling and the next wave: the time a party has to leave with its chest."
+    },
+    "WatchSeconds": {
+      "Value": [ 3, 3 ],
+      "Description": "Seconds a wave waits to see one of its creatures before the same wave rises again."
+    }
+  },
+  "Instructions": [
+    {
+      "$Comment": "The run ended: everything of Groups within Range goes, once.",
+      "Continue": true,
+      "Sensor": {
+        "Type": "And",
+        "Sensors": [
+          {
+            "Type": "ZigFactor",
+            "Factor": "ziggfreedcommon:encounter_endless",
+            "Value": [ 0, 0 ]
+          },
+          {
+            "Type": "Flag",
+            "Name": "Zc_Endless_Halted",
+            "Set": false
+          }
+        ]
+      },
+      "Instructions": [
+        {
+          "Continue": true,
+          "Sensor": {
+            "Type": "Mob",
+            "Range": { "Compute": "Range" },
+            "MultiTarget": true,
+            "Filters": [
+              {
+                "Type": "NPCGroup",
+                "IncludeGroups": { "Compute": "Groups" }
+              }
+            ]
+          },
+          "Actions": [
+            {
+              "Type": "ForEach",
+              "Actions": [
+                {
+                  "Type": "Remove",
+                  "UseTarget": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "Continue": true,
+          "Sensor": {
+            "Type": "Any"
+          },
+          "Actions": [
+            {
+              "Type": "SetFlag",
+              "Name": "Zc_Endless_Halted"
+            },
+            {
+              "Type": "SetFlag",
+              "Name": "Zc_Endless_Up",
+              "SetTo": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Sensor": {
+        "Type": "Player",
+        "Range": { "Compute": "PlayerRange" },
+        "Collector": {
+          "Type": "EncounterMembers"
+        }
+      },
+      "Instructions": [
+        {
+          "Sensor": {
+            "Type": "State",
+            "State": "Waves"
+          },
+          "Instructions": [
+            {
+              "$Comment": "A player arrives: the wait before the first wave starts.",
+              "Continue": true,
+              "Sensor": {
+                "Type": "Flag",
+                "Name": "Zc_Endless_Waiting",
+                "Set": false
+              },
+              "Actions": [
+                {
+                  "Type": "SetFlag",
+                  "Name": "Zc_Endless_Waiting"
+                },
+                {
+                  "$Comment": "A timer starts only once in the script's life, so it is re-armed with TimerRestart.",
+                  "Type": "TimerStart",
+                  "Name": "Zc_Endless_Delay",
+                  "StartValueRange": { "Compute": "Delay" },
+                  "RestartValueRange": { "Compute": "Delay" },
+                  "Repeating": false
+                },
+                {
+                  "Type": "TimerRestart",
+                  "Name": "Zc_Endless_Delay"
+                }
+              ]
+            },
+            {
+              "$Comment": "A wave rises: the first once Delay runs out, each next once the breather runs out, while the run takes waves.",
+              "Continue": true,
+              "Sensor": {
+                "Type": "And",
+                "Sensors": [
+                  {
+                    "Type": "ZigFactor",
+                    "Factor": "ziggfreedcommon:encounter_endless",
+                    "Value": [ 1, 1 ]
+                  },
+                  {
+                    "Type": "Flag",
+                    "Name": "Zc_Endless_Waiting"
+                  },
+                  {
+                    "Type": "Flag",
+                    "Name": "Zc_Endless_Up",
+                    "Set": false
+                  },
+                  {
+                    "Type": "Or",
+                    "Sensors": [
+                      {
+                        "Type": "And",
+                        "Sensors": [
+                          {
+                            "Type": "Flag",
+                            "Name": "Zc_Endless_Cleared",
+                            "Set": false
+                          },
+                          {
+                            "Type": "Timer",
+                            "Name": "Zc_Endless_Delay",
+                            "State": "Stopped"
+                          }
+                        ]
+                      },
+                      {
+                        "Type": "And",
+                        "Sensors": [
+                          {
+                            "Type": "Flag",
+                            "Name": "Zc_Endless_Cleared"
+                          },
+                          {
+                            "Type": "Timer",
+                            "Name": "Zc_Endless_Breather",
+                            "State": "Stopped"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              "Instructions": [
+                {
+                  "$Comment": "Band slot 1 at size 1 and up.",
+                  "Continue": true,
+                  "Sensor": {
+                    "Type": "And",
+                    "Sensors": [
+                      { "Type": "ZigFactor", "Factor": "ziggfreedcommon:encounter_wave_band", "Value": [ 1, 1 ] },
+                      { "Type": "ZigFactor", "Factor": "ziggfreedcommon:encounter_wave_size", "Value": [ 1, 3 ] }
+                    ]
+                  },
+                  "Instructions": [
+                    {
+                      "Continue": true,
+                      "Reference": { "Compute": "Band1" },
+                      "Interfaces": [ "Hytale.Instruction.Encounter.Phase.Behavior" ],
+                      "AcceptsForward": true,
+                      "Nullable": true
+                    }
+                  ]
+                },
+                {
+                  "$Comment": "Band slot 1 again at size 2 and up.",
+                  "Continue": true,
+                  "Sensor": {
+                    "Type": "And",
+                    "Sensors": [
+                      { "Type": "ZigFactor", "Factor": "ziggfreedcommon:encounter_wave_band", "Value": [ 1, 1 ] },
+                      { "Type": "ZigFactor", "Factor": "ziggfreedcommon:encounter_wave_size", "Value": [ 2, 3 ] }
+                    ]
+                  },
+                  "Instructions": [
+                    {
+                      "Continue": true,
+                      "Reference": { "Compute": "Band1" },
+                      "Interfaces": [ "Hytale.Instruction.Encounter.Phase.Behavior" ],
+                      "AcceptsForward": true,
+                      "Nullable": true
+                    }
+                  ]
+                },
+                {
+                  "$Comment": "Band slot 1 again at size 3.",
+                  "Continue": true,
+                  "Sensor": {
+                    "Type": "And",
+                    "Sensors": [
+                      { "Type": "ZigFactor", "Factor": "ziggfreedcommon:encounter_wave_band", "Value": [ 1, 1 ] },
+                      { "Type": "ZigFactor", "Factor": "ziggfreedcommon:encounter_wave_size", "Value": [ 3, 3 ] }
+                    ]
+                  },
+                  "Instructions": [
+                    {
+                      "Continue": true,
+                      "Reference": { "Compute": "Band1" },
+                      "Interfaces": [ "Hytale.Instruction.Encounter.Phase.Behavior" ],
+                      "AcceptsForward": true,
+                      "Nullable": true
+                    }
+                  ]
+                },
+                {
+                  "$Comment": "Band slot 2 at size 1 and up.",
+                  "Continue": true,
+                  "Sensor": {
+                    "Type": "And",
+                    "Sensors": [
+                      { "Type": "ZigFactor", "Factor": "ziggfreedcommon:encounter_wave_band", "Value": [ 2, 2 ] },
+                      { "Type": "ZigFactor", "Factor": "ziggfreedcommon:encounter_wave_size", "Value": [ 1, 3 ] }
+                    ]
+                  },
+                  "Instructions": [
+                    {
+                      "Continue": true,
+                      "Reference": { "Compute": "Band2" },
+                      "Interfaces": [ "Hytale.Instruction.Encounter.Phase.Behavior" ],
+                      "AcceptsForward": true,
+                      "Nullable": true
+                    }
+                  ]
+                },
+                {
+                  "$Comment": "Band slot 2 again at size 2 and up.",
+                  "Continue": true,
+                  "Sensor": {
+                    "Type": "And",
+                    "Sensors": [
+                      { "Type": "ZigFactor", "Factor": "ziggfreedcommon:encounter_wave_band", "Value": [ 2, 2 ] },
+                      { "Type": "ZigFactor", "Factor": "ziggfreedcommon:encounter_wave_size", "Value": [ 2, 3 ] }
+                    ]
+                  },
+                  "Instructions": [
+                    {
+                      "Continue": true,
+                      "Reference": { "Compute": "Band2" },
+                      "Interfaces": [ "Hytale.Instruction.Encounter.Phase.Behavior" ],
+                      "AcceptsForward": true,
+                      "Nullable": true
+                    }
+                  ]
+                },
+                {
+                  "$Comment": "Band slot 2 again at size 3.",
+                  "Continue": true,
+                  "Sensor": {
+                    "Type": "And",
+                    "Sensors": [
+                      { "Type": "ZigFactor", "Factor": "ziggfreedcommon:encounter_wave_band", "Value": [ 2, 2 ] },
+                      { "Type": "ZigFactor", "Factor": "ziggfreedcommon:encounter_wave_size", "Value": [ 3, 3 ] }
+                    ]
+                  },
+                  "Instructions": [
+                    {
+                      "Continue": true,
+                      "Reference": { "Compute": "Band2" },
+                      "Interfaces": [ "Hytale.Instruction.Encounter.Phase.Behavior" ],
+                      "AcceptsForward": true,
+                      "Nullable": true
+                    }
+                  ]
+                },
+                {
+                  "$Comment": "Band slot 3 at size 1 and up.",
+                  "Continue": true,
+                  "Sensor": {
+                    "Type": "And",
+                    "Sensors": [
+                      { "Type": "ZigFactor", "Factor": "ziggfreedcommon:encounter_wave_band", "Value": [ 3, 3 ] },
+                      { "Type": "ZigFactor", "Factor": "ziggfreedcommon:encounter_wave_size", "Value": [ 1, 3 ] }
+                    ]
+                  },
+                  "Instructions": [
+                    {
+                      "Continue": true,
+                      "Reference": { "Compute": "Band3" },
+                      "Interfaces": [ "Hytale.Instruction.Encounter.Phase.Behavior" ],
+                      "AcceptsForward": true,
+                      "Nullable": true
+                    }
+                  ]
+                },
+                {
+                  "$Comment": "Band slot 3 again at size 2 and up.",
+                  "Continue": true,
+                  "Sensor": {
+                    "Type": "And",
+                    "Sensors": [
+                      { "Type": "ZigFactor", "Factor": "ziggfreedcommon:encounter_wave_band", "Value": [ 3, 3 ] },
+                      { "Type": "ZigFactor", "Factor": "ziggfreedcommon:encounter_wave_size", "Value": [ 2, 3 ] }
+                    ]
+                  },
+                  "Instructions": [
+                    {
+                      "Continue": true,
+                      "Reference": { "Compute": "Band3" },
+                      "Interfaces": [ "Hytale.Instruction.Encounter.Phase.Behavior" ],
+                      "AcceptsForward": true,
+                      "Nullable": true
+                    }
+                  ]
+                },
+                {
+                  "$Comment": "Band slot 3 again at size 3.",
+                  "Continue": true,
+                  "Sensor": {
+                    "Type": "And",
+                    "Sensors": [
+                      { "Type": "ZigFactor", "Factor": "ziggfreedcommon:encounter_wave_band", "Value": [ 3, 3 ] },
+                      { "Type": "ZigFactor", "Factor": "ziggfreedcommon:encounter_wave_size", "Value": [ 3, 3 ] }
+                    ]
+                  },
+                  "Instructions": [
+                    {
+                      "Continue": true,
+                      "Reference": { "Compute": "Band3" },
+                      "Interfaces": [ "Hytale.Instruction.Encounter.Phase.Behavior" ],
+                      "AcceptsForward": true,
+                      "Nullable": true
+                    }
+                  ]
+                },
+                {
+                  "$Comment": "Band slot 4 at size 1 and up.",
+                  "Continue": true,
+                  "Sensor": {
+                    "Type": "And",
+                    "Sensors": [
+                      { "Type": "ZigFactor", "Factor": "ziggfreedcommon:encounter_wave_band", "Value": [ 4, 4 ] },
+                      { "Type": "ZigFactor", "Factor": "ziggfreedcommon:encounter_wave_size", "Value": [ 1, 3 ] }
+                    ]
+                  },
+                  "Instructions": [
+                    {
+                      "Continue": true,
+                      "Reference": { "Compute": "Band4" },
+                      "Interfaces": [ "Hytale.Instruction.Encounter.Phase.Behavior" ],
+                      "AcceptsForward": true,
+                      "Nullable": true
+                    }
+                  ]
+                },
+                {
+                  "$Comment": "Band slot 4 again at size 2 and up.",
+                  "Continue": true,
+                  "Sensor": {
+                    "Type": "And",
+                    "Sensors": [
+                      { "Type": "ZigFactor", "Factor": "ziggfreedcommon:encounter_wave_band", "Value": [ 4, 4 ] },
+                      { "Type": "ZigFactor", "Factor": "ziggfreedcommon:encounter_wave_size", "Value": [ 2, 3 ] }
+                    ]
+                  },
+                  "Instructions": [
+                    {
+                      "Continue": true,
+                      "Reference": { "Compute": "Band4" },
+                      "Interfaces": [ "Hytale.Instruction.Encounter.Phase.Behavior" ],
+                      "AcceptsForward": true,
+                      "Nullable": true
+                    }
+                  ]
+                },
+                {
+                  "$Comment": "Band slot 4 again at size 3.",
+                  "Continue": true,
+                  "Sensor": {
+                    "Type": "And",
+                    "Sensors": [
+                      { "Type": "ZigFactor", "Factor": "ziggfreedcommon:encounter_wave_band", "Value": [ 4, 4 ] },
+                      { "Type": "ZigFactor", "Factor": "ziggfreedcommon:encounter_wave_size", "Value": [ 3, 3 ] }
+                    ]
+                  },
+                  "Instructions": [
+                    {
+                      "Continue": true,
+                      "Reference": { "Compute": "Band4" },
+                      "Interfaces": [ "Hytale.Instruction.Encounter.Phase.Behavior" ],
+                      "AcceptsForward": true,
+                      "Nullable": true
+                    }
+                  ]
+                },
+                {
+                  "$Comment": "A boss wave.",
+                  "Continue": true,
+                  "Sensor": {
+                    "Type": "ZigFactor",
+                    "Factor": "ziggfreedcommon:encounter_wave_boss",
+                    "Value": [ 1, 1 ]
+                  },
+                  "Instructions": [
+                    {
+                      "Continue": true,
+                      "Reference": { "Compute": "BossWave" },
+                      "Interfaces": [ "Hytale.Instruction.Encounter.Phase.Behavior" ],
+                      "AcceptsForward": true,
+                      "Nullable": true
+                    }
+                  ]
+                },
+                {
+                  "$Comment": "The wave stands: its watch starts.",
+                  "Continue": true,
+                  "Sensor": {
+                    "Type": "Any"
+                  },
+                  "Actions": [
+                    {
+                      "Type": "SetFlag",
+                      "Name": "Zc_Endless_Up"
+                    },
+                    {
+                      "Type": "SetFlag",
+                      "Name": "Zc_Endless_Seen",
+                      "SetTo": false
+                    },
+                    {
+                      "Type": "SetFlag",
+                      "Name": "Zc_Endless_Cleared",
+                      "SetTo": false
+                    },
+                    {
+                      "Type": "TimerStart",
+                      "Name": "Zc_Endless_Watch",
+                      "StartValueRange": { "Compute": "WatchSeconds" },
+                      "RestartValueRange": { "Compute": "WatchSeconds" },
+                      "Repeating": false
+                    },
+                    {
+                      "Type": "TimerRestart",
+                      "Name": "Zc_Endless_Watch"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "$Comment": "One of the standing wave is seen.",
+              "Continue": true,
+              "Sensor": {
+                "Type": "And",
+                "Sensors": [
+                  {
+                    "Type": "Flag",
+                    "Name": "Zc_Endless_Up"
+                  },
+                  {
+                    "Type": "Flag",
+                    "Name": "Zc_Endless_Seen",
+                    "Set": false
+                  },
+                  {
+                    "Type": "Mob",
+                    "Range": { "Compute": "Range" },
+                    "Filters": [
+                      {
+                        "Type": "NPCGroup",
+                        "IncludeGroups": { "Compute": "Groups" }
+                      }
+                    ]
+                  }
+                ]
+              },
+              "Actions": [
+                {
+                  "Type": "SetFlag",
+                  "Name": "Zc_Endless_Seen"
+                }
+              ]
+            },
+            {
+              "$Comment": "The wave is beaten: none of it is left alive. The library banks it, and the breather starts.",
+              "Continue": true,
+              "Sensor": {
+                "Type": "And",
+                "Sensors": [
+                  {
+                    "Type": "ZigFactor",
+                    "Factor": "ziggfreedcommon:encounter_endless",
+                    "Value": [ 1, 1 ]
+                  },
+                  {
+                    "Type": "Flag",
+                    "Name": "Zc_Endless_Up"
+                  },
+                  {
+                    "Type": "Flag",
+                    "Name": "Zc_Endless_Seen"
+                  },
+                  {
+                    "Type": "Not",
+                    "Sensor": {
+                      "Type": "Mob",
+                      "Range": { "Compute": "Range" },
+                      "Filters": [
+                        {
+                          "Type": "NPCGroup",
+                          "IncludeGroups": { "Compute": "Groups" }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              "Actions": [
+                {
+                  "Type": "SignalWorldEvent",
+                  "SignalId": "zc:cleared"
+                },
+                {
+                  "Type": "SetFlag",
+                  "Name": "Zc_Endless_Up",
+                  "SetTo": false
+                },
+                {
+                  "Type": "SetFlag",
+                  "Name": "Zc_Endless_Cleared"
+                },
+                {
+                  "Type": "TimerStart",
+                  "Name": "Zc_Endless_Breather",
+                  "StartValueRange": { "Compute": "Breather" },
+                  "RestartValueRange": { "Compute": "Breather" },
+                  "Repeating": false
+                },
+                {
+                  "Type": "TimerRestart",
+                  "Name": "Zc_Endless_Breather"
+                }
+              ]
+            },
+            {
+              "$Comment": "None of the wave was ever seen (every spot blocked): it is not beaten, and after the breather the same wave rises again.",
+              "Continue": true,
+              "Sensor": {
+                "Type": "And",
+                "Sensors": [
+                  {
+                    "Type": "Flag",
+                    "Name": "Zc_Endless_Up"
+                  },
+                  {
+                    "Type": "Flag",
+                    "Name": "Zc_Endless_Seen",
+                    "Set": false
+                  },
+                  {
+                    "Type": "Timer",
+                    "Name": "Zc_Endless_Watch",
+                    "State": "Stopped"
+                  }
+                ]
+              },
+              "Actions": [
+                {
+                  "Type": "SetFlag",
+                  "Name": "Zc_Endless_Up",
+                  "SetTo": false
+                },
+                {
+                  "Type": "SetFlag",
+                  "Name": "Zc_Endless_Cleared"
+                },
+                {
+                  "Type": "TimerStart",
+                  "Name": "Zc_Endless_Breather",
+                  "StartValueRange": { "Compute": "Breather" },
+                  "RestartValueRange": { "Compute": "Breather" },
+                  "Repeating": false
+                },
+                {
+                  "Type": "TimerRestart",
+                  "Name": "Zc_Endless_Breather"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "$Comment": "A player's best run of an endless dungeon (Run.Endless): the most waves they cleared while standing in one run, with one line per difficulty and dungeon (dungeon:<difficulty>@<dungeon id>, an empty difficulty for normal), the same lines the Dungeon_Runs stats keep; the total is their best in any endless dungeon. Higher is better. A run counts for each player as their part in it ends, whether they left between waves or were there when it ended. The library counts it itself off each run, so it lists no From; Breakdown names the line it files under. An achievement reads it through ziggfreedcommon:counter, Param Dungeon_Best_Wave/dungeon:@<dungeon id>.",
+  "NameKey": "ziggfreedcommon.stats.dungeon_best_wave",
+  "Kind": "Max",
+  "Format": "Count",
+  "Breakdown": "TargetAtQualifier"
+}

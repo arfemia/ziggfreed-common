@@ -19,6 +19,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.encounter.event.Encounters;
 import com.ziggfreed.common.encounter.ledger.FeatTally;
 import com.ziggfreed.common.encounter.ledger.ParticipationShares;
+import com.ziggfreed.common.encounter.wave.WaveRules;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -67,6 +68,7 @@ public final class ZigEncounterRun implements Component<EntityStore> {
     @Nullable private String phase;
     private int phaseIndex;
     private int waves;
+    private int wavesCleared;
     private boolean concluded;
     private boolean defeated;
     private boolean ended;
@@ -88,6 +90,12 @@ public final class ZigEncounterRun implements Component<EntityStore> {
     // discovery
     private boolean markerPlaced;
     private long markerMovedAtMs;
+
+    // an endless wave run: asked for once the script reads it, its rules from the seam, halted once its run ends
+    private boolean endlessWanted;
+    @Nullable private WaveRules endless;
+    private boolean endlessHalted;
+    private long endlessAskedAtMs;
 
     public ZigEncounterRun() {
     }
@@ -251,6 +259,65 @@ public final class ZigEncounterRun implements Component<EntityStore> {
 
     public void countWave() {
         waves++;
+    }
+
+    /** How many {@code zc:cleared} beats the run has heard: the waves it has beaten, on its own count. */
+    public int wavesCleared() {
+        return wavesCleared;
+    }
+
+    /** One more wave beaten; answers the new count. */
+    public int countCleared() {
+        return ++wavesCleared;
+    }
+
+    // ==================== an endless wave run ====================
+
+    /** The script asked about its endless run: the tick starts asking the seam for its rules. */
+    public void wantEndless() {
+        endlessWanted = true;
+    }
+
+    public boolean endlessWanted() {
+        return endlessWanted;
+    }
+
+    /** The endless rules the seam last answered while the run took waves, or null; none once halted. */
+    @Nullable
+    public WaveRules endless() {
+        return endlessHalted ? null : endless;
+    }
+
+    /** Whether the seam ever answered rules for this run. */
+    public boolean wasEndless() {
+        return endless != null;
+    }
+
+    public void bindEndless(@Nonnull WaveRules rules) {
+        if (!endlessHalted) {
+            endless = rules;
+        }
+    }
+
+    /** The endless run ended: no wave rises again on this run. Answers true only for the call that halted it. */
+    public boolean haltEndless() {
+        if (endlessHalted) {
+            return false;
+        }
+        endlessHalted = true;
+        return true;
+    }
+
+    public boolean isEndlessHalted() {
+        return endlessHalted;
+    }
+
+    public long endlessAskedAtMs() {
+        return endlessAskedAtMs;
+    }
+
+    public void noteEndlessAsked(long nowMs) {
+        endlessAskedAtMs = nowMs;
     }
 
     public boolean isConcluded() {
@@ -424,6 +491,11 @@ public final class ZigEncounterRun implements Component<EntityStore> {
         phase = null;
         phaseIndex = 0;
         waves = 0;
+        wavesCleared = 0;
+        endlessWanted = false;
+        endless = null;
+        endlessHalted = false;
+        endlessAskedAtMs = 0L;
         concluded = false;
         defeated = false;
         lastHitter = null;

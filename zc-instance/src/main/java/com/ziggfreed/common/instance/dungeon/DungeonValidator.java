@@ -30,6 +30,8 @@ import com.hypixel.hytale.server.core.asset.type.portalworld.PortalType;
 import com.hypixel.hytale.server.core.prefab.PrefabStore;
 import com.ziggfreed.common.encounter.validate.EncounterScriptScan;
 import com.ziggfreed.common.encounter.validate.EncounterScripts;
+import com.ziggfreed.common.encounter.wave.WaveRamp;
+import com.ziggfreed.common.encounter.wave.WaveRules;
 import com.ziggfreed.common.loot.LootableConfig;
 import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.util.SafeLog;
@@ -51,7 +53,11 @@ import com.ziggfreed.common.validation.TextKeyAudit;
  *       template's {@code InstanceKey} on one world, which a copy zc names must never share), {@link #SPACING_TOO_SMALL}
  *       (areas closer than twice the view distance see each other), {@link #PACKED_PORTAL_TIMER} and
  *       {@link #PACKED_WORLD_EVENTS} (a portal's timer and world events belong to the whole world, so a copy
- *       shared by several parties would share them);</li>
+ *       shared by several parties would share them), and for an endless run ({@code Run.Endless})
+ *       {@link #ENDLESS_NO_WAVE_POOL} (no band names a slot, so no wave could rise and every empty wave would be
+ *       beaten at once), {@link #ENDLESS_BOSS_EVERY_TOO_LOW} (a boss every wave, or a spacing of none, is no wave
+ *       run) and {@link #ENDLESS_RAMP_UNCAPPED} (a ramp with a step and no {@code Max} grows until the library's
+ *       ceiling);</li>
  *   <li>WARNING {@link #UNKNOWN_DUNGEON_TEMPLATE}, {@link #UNKNOWN_DUNGEON_PREFAB},
  *       {@link #NO_DUNGEON_PREFAB}, {@link #UNKNOWN_DUNGEON_BOSS}, {@link #UNKNOWN_DUNGEON_LOOTABLE} and
  *       {@link #UNKNOWN_DUNGEON_COST_ITEM} (an id may belong to a pack this server does not run; an
@@ -80,6 +86,9 @@ public final class DungeonValidator {
     public static final String UNKNOWN_DUNGEON_BOSS = "UNKNOWN_DUNGEON_BOSS";
     public static final String UNKNOWN_DUNGEON_LOOTABLE = "UNKNOWN_DUNGEON_LOOTABLE";
     public static final String UNKNOWN_DUNGEON_COST_ITEM = "UNKNOWN_DUNGEON_COST_ITEM";
+    public static final String ENDLESS_NO_WAVE_POOL = "ENDLESS_NO_WAVE_POOL";
+    public static final String ENDLESS_BOSS_EVERY_TOO_LOW = "ENDLESS_BOSS_EVERY_TOO_LOW";
+    public static final String ENDLESS_RAMP_UNCAPPED = "ENDLESS_RAMP_UNCAPPED";
 
     /** The template's config file, inside its folder under {@code Server/Instances/}. */
     static final String TEMPLATE_CONFIG = "instance.bson";
@@ -246,11 +255,15 @@ public final class DungeonValidator {
                     + "its pack may not be installed here), so its areas stay empty", id));
         }
 
-        // What clears a run: every Complete leaf written (Bosses, Objective, SurviveTimer) must hold.
+        // What clears a run: every Complete leaf written (Bosses, Objective, SurviveTimer) must hold. An endless run
+        // is never cleared: its own checks stand in for these.
         List<String> bosses = dungeon.completeBosses();
         Integer survive = dungeon.surviveTimerSeconds();
         Integer limit = dungeon.timeLimitSeconds();
-        if (!dungeon.hasClear()) {
+        DungeonEndless endless = dungeon.endless();
+        if (endless != null) {
+            auditEndless(endless, id, where, lootableKnown, out);
+        } else if (!dungeon.hasClear()) {
             out.add(Finding.warning(DOMAIN, NO_DUNGEON_CLEAR, where + " writes nothing in Complete that can clear "
                     + "a run (no Bosses, no Objective with a Kind, no SurviveTimer), so a run there can never be "
                     + "cleared: every run ends failed, once its party leaves or its time limit passes. Name the fight, "
@@ -261,7 +274,7 @@ public final class DungeonValidator {
                     + "(Run.TimeLimitSeconds), so the limit fails every run first. Shorten the timer or raise the "
                     + "limit", id));
         }
-        for (String boss : bosses) {
+        for (String boss : endless != null ? List.<String>of() : bosses) {
             if (!asks(scriptKnown, boss)) {
                 out.add(Finding.warning(DOMAIN, UNKNOWN_DUNGEON_BOSS, where + " is cleared by beating the "
                         + "encounter script '" + boss + "', which no loaded pack ships (its pack may not be "
@@ -415,6 +428,40 @@ public final class DungeonValidator {
             return false;
         } catch (Throwable t) {
             return true; // cannot tell is not "missing"
+        }
+    }
+
+    /**
+     * An endless run's own checks: a band to raise, a boss spacing of 2 or more, a ramp with a cap, and loot tables
+     * that load.
+     */
+    private static void auditEndless(@Nonnull DungeonEndless endless, @Nonnull String id, @Nonnull String where,
+            @Nonnull Predicate<String> lootableKnown, @Nonnull List<Finding> out) {
+        if (endless.bandSlots().isEmpty()) {
+            out.add(Finding.error(DOMAIN, ENDLESS_NO_WAVE_POOL, where + " is an endless run (Run.Endless) whose wave "
+                    + "pool names no band slot from 1 to " + WaveRules.MAX_SLOTS + " (Run.Endless.Bands, "
+                    + endless.bandsAuthored() + "), so no wave could rise in it. Name at least one band with the "
+                    + "Slot of the encounter script's band that raises it", id));
+        }
+        Integer bossEvery = endless.bossEveryAuthored();
+        if (bossEvery != null && bossEvery < WaveRules.MIN_BOSS_EVERY) {
+            out.add(Finding.error(DOMAIN, ENDLESS_BOSS_EVERY_TOO_LOW, where + " sets Run.Endless.BossEvery "
+                    + bossEvery + ", under " + WaveRules.MIN_BOSS_EVERY + ": a boss wave needs waves between them. "
+                    + "Write 2 or more, or leave it out for no boss waves", id));
+        }
+        Double cap = endless.rampMax();
+        if (endless.rampSteps() && (cap == null || !Double.isFinite(cap))) {
+            out.add(Finding.error(DOMAIN, ENDLESS_RAMP_UNCAPPED, where + " ramps its waves (Run.Endless.Ramp) with "
+                    + "no Max, so each wave's creatures would grow until the library's own ceiling of x"
+                    + WaveRamp.CEILING + ". Name the Max the ramp stops at, such as 4", id));
+        }
+        for (String table : new String[] {endless.perWaveLootable(), endless.perBossWaveAuthored()}) {
+            if (table != null && !asks(lootableKnown, table)) {
+                out.add(Finding.warning(DOMAIN, UNKNOWN_DUNGEON_LOOTABLE, where + " banks its endless waves from the "
+                        + "loot table '" + table + "' (Run.Endless.Chest), which no loaded file defines under "
+                        + "Server/ZiggfreedCommon/Lootables/ (its pack may not be installed here), so those waves "
+                        + "bank nothing", id));
+            }
         }
     }
 

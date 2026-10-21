@@ -46,6 +46,12 @@ public final class ZcStats {
      */
     public static final String DUNGEON_BEST_TIME = "Dungeon_Best_Time";
 
+    /**
+     * An endless dungeon run's best reach, the most waves a player cleared standing in one run, one line per difficulty
+     * and dungeon ({@code dungeon:<difficulty>@<dungeon id>}), a Max, counted as each player's part in a run ends.
+     */
+    public static final String DUNGEON_BEST_WAVE = "Dungeon_Best_Wave";
+
     private ZcStats() {
     }
 }

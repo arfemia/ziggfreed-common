@@ -2,6 +2,7 @@ package com.ziggfreed.common.instance.dungeon;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -11,6 +12,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
+import org.joml.Vector3d;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
@@ -43,6 +46,7 @@ import com.ziggfreed.common.loot.diminish.DiminishSpec;
 import com.ziggfreed.common.loot.reward.RewardChip;
 import com.ziggfreed.common.ui.toast.ToastDelivery;
 import com.ziggfreed.common.ui.toast.ToastKind;
+import com.ziggfreed.common.ui.toast.ToastLine;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -159,16 +163,7 @@ public final class DungeonResults {
     /** The dungeon's loot table, or null when it names none or none of that id is loaded (logged once per id). */
     @Nullable
     private static LootableAsset table(@Nonnull Clear clear) {
-        String id = clear.lootable();
-        if (id == null) {
-            return null;
-        }
-        LootableAsset table = LootableConfig.getInstance().resolve(id);
-        if (table == null && WARNED_TABLES.add(id.toLowerCase(Locale.ROOT))) {
-            SafeLog.warn(LOG + "the dungeon '" + clear.dungeonId() + "' pays its clears from the loot table '" + id
-                    + "', which no loaded file defines, so its clears pay nothing");
-        }
-        return table;
+        return table(clear.dungeonId(), clear.lootable(), "pays its clears", "its clears pay nothing");
     }
 
     /**
@@ -319,6 +314,195 @@ public final class DungeonResults {
         }
         return new MatchResult(ResultKind.WIN, (int) Math.min(Integer.MAX_VALUE, clear.seconds()),
                 List.of(TeamResult.single(total, rows)), 0, chips, null);
+    }
+
+    // ==================== an endless run ====================
+
+    /**
+     * A wave an endless run cleared, as the members who banked it are told.
+     *
+     * @param cleared the wave that fell
+     * @param next    the wave that rises after the breather
+     * @param members every member who banked it
+     */
+    record Breather(@Nonnull String dungeonId, @Nullable String nameKey, int cleared, int next,
+                    @Nonnull List<UUID> members) {
+    }
+
+    /** What one member of an endless run banked: their waves, the boss waves among them. */
+    record Banked(@Nonnull UUID player, int waves, int bossWaves) {
+    }
+
+    /**
+     * What an endless run pays whose part ended: those who {@code left}, on the Claims tab; those still in the area
+     * at its end, from the chest {@code chestFile} stood at {@code chestAt}.
+     */
+    record EndlessPay(@Nonnull String dungeonId, @Nonnull String runId, @Nonnull String difficulty,
+                      @Nullable String nameKey, @Nullable DiminishSpec diminish, @Nullable String perWave,
+                      @Nullable String perBossWave, @Nonnull List<Banked> banked, boolean left,
+                      @Nullable String chestFile, @Nonnull UUID worldUuid, @Nonnull Vector3d chestAt) {
+    }
+
+    /**
+     * Tell each member who banked the wave that fell: a toast where they are looking, the wave cleared over the next
+     * wave's number and the word that they may leave now and keep their chest. Never throws.
+     */
+    static void breather(@Nonnull Breather breather) {
+        try {
+            Universe universe = Universe.get();
+            if (universe == null) {
+                return;
+            }
+            ToastSpec spec = ToastSpec.of(ToastKind.INFO, Msg.key(PREFIX + "endless.breather.title",
+                            breather.cleared()))
+                    .withLines(List.of(ToastLine.text(Msg.key(PREFIX + "endless.breather", breather.next()))))
+                    .withPriority(ToastSpec.PRIORITY_PROGRESS);
+            for (UUID member : breather.members()) {
+                PlayerRef playerRef = universe.getPlayer(member);
+                if (playerRef != null) {
+                    ToastDelivery.deliverWhenSettled(playerRef, spec, null);
+                }
+            }
+        } catch (Throwable t) {
+            SafeLog.warn(LOG + "the members of an endless run of " + breather.dungeonId() + " could not be told the "
+                    + "next wave", t);
+        }
+    }
+
+    /**
+     * Pay each member of {@code pay} what they banked: {@code Chest.PerWave} rolled once for each mob wave they
+     * cleared and {@code Chest.PerBossWave} once for each boss wave, into one Claim written through
+     * {@link ClaimStore#award}, counted against {@code Rewards.Diminish} as one run (full pay once a window, then
+     * less). At a run's end their Claims fill one chest stood where they came in, and each is told how many waves
+     * they cleared over the chest's line; a member who left finds theirs on the Claims tab. Each member's reach goes
+     * out as a {@link DungeonWavesEvent}, Claim or none. Never throws.
+     */
+    static void endlessPaid(@Nonnull EndlessPay pay) {
+        try {
+            LootableAsset perWave = table(pay.dungeonId(), pay.perWave());
+            LootableAsset perBoss = table(pay.dungeonId(), pay.perBossWave());
+            String chest = null;
+            if (!pay.left() && pay.chestFile() != null && (perWave != null || perBoss != null)) {
+                Set<UUID> credited = new LinkedHashSet<>();
+                for (Banked banked : pay.banked()) {
+                    credited.add(banked.player());
+                }
+                String key = ENDLESS_CHEST_PREFIX + pay.runId();
+                SpoilsChests.Stood stood = SpoilsChests.stand(SpoilsChests.Stand.of(pay.chestFile(), key,
+                        pay.worldUuid(), pay.chestAt(), credited, nameOf(pay.dungeonId(), pay.nameKey()),
+                        "dungeon=" + pay.dungeonId()));
+                chest = stood.noted() ? key : null;
+            }
+            long now = System.currentTimeMillis();
+            int paid = 0;
+            for (Banked banked : pay.banked()) {
+                Claim written = null;
+                try {
+                    written = awardBanked(pay, banked, perWave, perBoss, chest, now);
+                } catch (Throwable t) {
+                    SafeLog.warn(LOG + "the endless Claim of " + pay.dungeonId() + " could not be written for "
+                            + banked.player(), t);
+                }
+                if (written != null) {
+                    paid++;
+                }
+                if (!pay.left()) {
+                    tellEnded(pay, banked, written != null, chest != null && written != null ? chest : null);
+                }
+                DungeonWavesEvent.fire(new DungeonWavesEvent(pay.dungeonId(), pay.difficulty(), pay.runId(),
+                        banked.player(), banked.waves(), banked.bossWaves(), pay.left()));
+            }
+            SafeLog.info(LOG + "the endless run " + pay.runId() + " of " + pay.dungeonId() + " paid " + paid + " of "
+                    + pay.banked().size() + " member(s) what they banked" + (pay.left() ? " as they left"
+                            : chest == null ? " on the Claims tab" : " in a chest at " + Math.round(pay.chestAt().x)
+                                    + " " + Math.round(pay.chestAt().y) + " " + Math.round(pay.chestAt().z)));
+        } catch (Throwable t) {
+            SafeLog.warn(LOG + "an endless run of " + pay.dungeonId() + " could not be paid", t);
+        }
+    }
+
+    /** What a key of an endless run's chest starts with: one chest per run end, filed under the run. */
+    static final String ENDLESS_CHEST_PREFIX = "endless:";
+
+    /**
+     * Roll what {@code banked} cleared and award it as their Claim, filed under {@code chest} when one stands (null:
+     * the Claims tab alone); the Claim as written, or null when nothing was.
+     */
+    @Nullable
+    private static Claim awardBanked(@Nonnull EndlessPay pay, @Nonnull Banked banked, @Nullable LootableAsset perWave,
+            @Nullable LootableAsset perBoss, @Nullable String chest, long now) {
+        String source = DungeonRuns.SOURCE_PREFIX + pay.dungeonId();
+        List<InstanceReward> rewards = new ArrayList<>();
+        int mobWaves = Math.max(0, banked.waves() - banked.bossWaves());
+        for (int i = 0; perWave != null && i < mobWaves; i++) {
+            rewards.addAll(ClaimRolls.roll(perWave, banked.player(), source, message -> SafeLog.warn(LOG + message)));
+        }
+        for (int i = 0; perBoss != null && i < banked.bossWaves(); i++) {
+            rewards.addAll(ClaimRolls.roll(perBoss, banked.player(), source, message -> SafeLog.warn(LOG + message)));
+        }
+        if (rewards.isEmpty()) {
+            return null;
+        }
+        String claimId = claimId(pay.dungeonId(), pay.runId(), banked.player());
+        Claim claim = new Claim(claimId, source, pay.nameKey(), List.of(),
+                pay.difficulty().isBlank() ? null : pay.difficulty(), rewards, now,
+                chest != null && SpoilsChests.takes(chest, banked.player()) ? chest : null);
+        if (!ClaimStore.shared().award(banked.player(), claim, pay.diminish(),
+                diminishKey(pay.dungeonId(), pay.difficulty()), now)) {
+            return null;
+        }
+        for (Claim held : ClaimStore.shared().list(banked.player())) {
+            if (held.is(claimId)) {
+                return held;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Tell a member still in the area that the run is over: its name and how many waves they cleared, over the line
+     * that their chest waits where they came in when it holds their Claim, else that it waits on the Claims tab when
+     * one was {@code written}, else nothing under it.
+     */
+    private static void tellEnded(@Nonnull EndlessPay pay, @Nonnull Banked banked, boolean written,
+            @Nullable String chest) {
+        Universe universe = Universe.get();
+        PlayerRef playerRef = universe == null ? null : universe.getPlayer(banked.player());
+        if (playerRef == null) {
+            return;
+        }
+        Message headline = Msg.key(PREFIX + "endless.over", nameOf(pay.dungeonId(), pay.nameKey()), banked.waves());
+        if (chest != null) {
+            SpoilsChests.tellInChest(playerRef, chest, headline, PREFIX + "endless.chest");
+            return;
+        }
+        ToastSpec spec = ToastSpec.of(ToastKind.INFO, headline);
+        ToastDelivery.deliverWhenSettled(playerRef, written
+                ? spec.withLines(List.of(ToastLine.text(Msg.key(PREFIX + "endless.claims")))) : spec, null);
+    }
+
+    /** An endless run's loot table {@code id}, or null (logged once per id when none of that id is loaded). */
+    @Nullable
+    private static LootableAsset table(@Nonnull String dungeonId, @Nullable String id) {
+        return table(dungeonId, id, "banks its endless waves", "those waves bank nothing");
+    }
+
+    /**
+     * Loot table {@code id} a dungeon pays from, or null when it names none or none of that id is loaded, which is
+     * logged once per id: the dungeon {@code does} from it, which no file defines, so {@code outcome}.
+     */
+    @Nullable
+    private static LootableAsset table(@Nonnull String dungeonId, @Nullable String id, @Nonnull String does,
+            @Nonnull String outcome) {
+        if (id == null) {
+            return null;
+        }
+        LootableAsset table = LootableConfig.getInstance().resolve(id);
+        if (table == null && WARNED_TABLES.add(id.toLowerCase(Locale.ROOT))) {
+            SafeLog.warn(LOG + "the dungeon '" + dungeonId + "' " + does + " from the loot table '" + id
+                    + "', which no loaded file defines, so " + outcome);
+        }
+        return table;
     }
 
     // ==================== a failure ====================
