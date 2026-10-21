@@ -77,7 +77,9 @@ import com.ziggfreed.common.util.SafeLog;
  * picked-up item lands ({@link GroundSpillSinks.Builder#pickedUpFirst}), where the player's own
  * pickup settings route it, with the game's own pickup notice and sound for what went in, and
  * whatever does not fit to the {@link #overflow(Overflow) overflow policy}. Its receipt rows are
- * {@link RewardSpec#pickupNoticed() pickup-noticed}, so the corner feed does not repeat them.
+ * {@link RewardSpec#pickupNoticed() pickup-noticed}, so the corner feed does not repeat them. A payout
+ * that must land in the bag or not at all (a capped item currency) takes its bag-only form,
+ * {@link #handIntoBag}, the same pickup with no overflow.
  *
  * <p>The library installs a default policy at boot ({@link FeetDropOverflow}: the rest lands on the
  * ground at the player's feet, through the same tick-safe spawn seam every ground drop uses), so out
@@ -677,6 +679,24 @@ public final class LootRewardKinds {
                 .pickedUpFirst(playerOf(subject))
                 .warn(warn);
     }
+
+    /**
+     * {@link #handToPlayer} with no overflow: each stack goes where the player's own pickup settings
+     * route it, with the game's own pickup notice and sound for what went in, and what the bag cannot
+     * take is not handed over at all, so {@link GroundSpillSinks#spill} answers only what went in. The
+     * form for a payout that must land in the bag or not at all: a capped item currency, whose cap
+     * reads the bag and so cannot see a pile at the player's feet. A subject with no live player gets
+     * nothing. {@code warn} hears a stack the hand-over could not place.
+     */
+    @Nonnull
+    public static GroundSpillSinks.Builder handIntoBag(@Nonnull Subject subject, @Nonnull Consumer<String> warn) {
+        return GroundSpillSinks.at(NO_GROUND)
+                .pickedUpFirst(playerOf(subject))
+                .warn(warn);
+    }
+
+    /** {@link #handIntoBag}'s ground: it lands nothing, so the part the bag would not take is never counted. */
+    private static final GroundSpillSinks.Ground NO_GROUND = pile -> false;
 
     /** The installed overflow policy as a ground-spill ground, warning about a pile it lost. */
     @Nonnull

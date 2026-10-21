@@ -37,7 +37,8 @@ import com.ziggfreed.common.subject.Subject;
  * currency lands through the library's one delivery for items handed to a player (the bag with the
  * game's pickup notice, the rest at the player's feet), so its row counts both parts and is marked
  * {@link RewardSpec#asPickupNoticed() pickup-noticed}, like an {@code Item} reward's, and the corner
- * feed does not repeat the game's own notice.
+ * feed does not repeat the game's own notice. A capped item currency lands in the bag alone, so its
+ * row names only what went in, and what the bag could not take is cut like the part past a cap.
  *
  * <p><b>A failed payout is replayable</b>: {@link #retryCommand} answers the admin command line that
  * would credit the same wallet the same amount, so a consumer's retry queue hands it over on the
@@ -121,8 +122,8 @@ public final class CurrencyRewardKind implements RewardHandler {
         }
         long landed = engine.creditLanded(subject, currencyId, amount);
         if (landed <= 0L) {
-            // Nothing moved (a wallet already at its ceiling, or an item currency with no live player
-            // to hand it to), so nothing is receipted.
+            // Nothing moved (a wallet already at its ceiling, a capped item currency whose bag is
+            // full, or an item currency with no live player to hand it to), so nothing is receipted.
             return;
         }
         RewardSpec row = landed == amount ? spec : spec.with(PARAM_AMOUNT, Long.toString(landed));

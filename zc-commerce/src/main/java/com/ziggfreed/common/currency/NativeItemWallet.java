@@ -11,6 +11,7 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.inventory.InventoryUtil;
+import com.ziggfreed.common.loot.GroundSpillSinks;
 import com.ziggfreed.common.loot.reward.LootRewardKinds;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
@@ -37,6 +38,11 @@ import com.ziggfreed.common.util.SafeLog;
  * at their feet, where picking it up notices it the normal way). {@link #give} counts both parts as
  * landed, so a caller's receipt names the whole hand-over even though the balance, which reads the
  * bag, sees only the part that went in.
+ *
+ * <p><b>A capped currency lands in the bag only.</b> {@link #giveIntoBag} is the same pickup with no
+ * overflow ({@link LootRewardKinds#handIntoBag}): what the bag cannot take is never handed over, so
+ * the balance a cap is checked against sees every coin a credit landed, and a run of credits into a
+ * full bag cannot leave piles at the player's feet that would carry it past the cap.
  *
  * <p><b>World-thread reads and writes.</b> A take is verified against the same view it removes
  * from, so a short balance costs nothing and nothing is ever found in one place and taken from
@@ -91,6 +97,25 @@ public final class NativeItemWallet implements ItemWallet {
      */
     @Override
     public long give(@Nonnull Subject subject, @Nonnull String itemId, long amount) {
+        return handOverAll(subject, itemId, amount, true);
+    }
+
+    /**
+     * Hand {@code amount} of {@code itemId} into the bag alone ({@link LootRewardKinds#handIntoBag}:
+     * the same pickup routing and notice as {@link #give}, with no overflow) and answer how much went
+     * in. What the bag cannot take is not handed over anywhere, so nothing lands where the balance
+     * cannot see it.
+     */
+    @Override
+    public long giveIntoBag(@Nonnull Subject subject, @Nonnull String itemId, long amount) {
+        return handOverAll(subject, itemId, amount, false);
+    }
+
+    /**
+     * {@link #give} and {@link #giveIntoBag}: {@code amount} handed over in passes, the rest to the
+     * overflow policy when {@code overflow} is true and nowhere when it is false.
+     */
+    private static long handOverAll(@Nonnull Subject subject, @Nonnull String itemId, long amount, boolean overflow) {
         if (amount <= 0L || refOf(subject) == null) {
             return 0L;
         }
@@ -100,7 +125,7 @@ public final class NativeItemWallet implements ItemWallet {
         // moment a pass could not land everything (nowhere left to put the rest).
         while (remaining > 0L) {
             int chunk = (int) Math.min(MAX_MOVE, remaining);
-            int handed = handOver(subject, itemId, chunk);
+            int handed = handOver(subject, itemId, chunk, overflow);
             landed += handed;
             remaining -= chunk;
             if (handed < chunk) {
@@ -111,12 +136,13 @@ public final class NativeItemWallet implements ItemWallet {
     }
 
     /**
-     * Hand {@code count} of {@code itemId} to the subject's player through
-     * {@link LootRewardKinds#handToPlayer}: the bag first, with the game's pickup notice, and the rest
-     * to the overflow policy as one pile. Answers how many landed in either place; 0 when the stack
+     * Hand {@code count} of {@code itemId} to the subject's player: the bag first, with the game's
+     * pickup notice, and the rest to the overflow policy as one pile through
+     * {@link LootRewardKinds#handToPlayer} when {@code overflow} is true, or nowhere through
+     * {@link LootRewardKinds#handIntoBag} when it is false. Answers how many landed; 0 when the stack
      * cannot even be built.
      */
-    private static int handOver(@Nonnull Subject subject, @Nonnull String itemId, int count) {
+    private static int handOver(@Nonnull Subject subject, @Nonnull String itemId, int count, boolean overflow) {
         ItemStack stack;
         try {
             stack = new ItemStack(itemId, count);
@@ -124,9 +150,11 @@ public final class NativeItemWallet implements ItemWallet {
             SafeLog.warn("[currency] " + count + " x " + itemId + " could not be handed over: " + t.getMessage());
             return 0;
         }
+        GroundSpillSinks.Builder delivery = overflow
+                ? LootRewardKinds.handToPlayer(subject, SOURCE, SafeLog::warn)
+                : LootRewardKinds.handIntoBag(subject, SafeLog::warn);
         int landed = 0;
-        for (int quantity : LootRewardKinds.handToPlayer(subject, SOURCE, SafeLog::warn).build()
-                .spill(List.of(stack)).values()) {
+        for (int quantity : delivery.build().spill(List.of(stack)).values()) {
             landed += quantity;
         }
         return Math.min(count, Math.max(0, landed));
