@@ -18,6 +18,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.asset.type.attitude.Attitude;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
+import com.hypixel.hytale.server.core.modules.entity.damage.DeathComponent;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.blackboard.Blackboard;
 import com.hypixel.hytale.server.npc.blackboard.view.attitude.AttitudeView;
@@ -29,7 +30,9 @@ import com.ziggfreed.common.util.SafeLog;
  * Runs the world's open aggro windows once per tick ({@link AggroControl}): it walks the world's creatures once and,
  * for every window that reaches one, re-points a taunted creature at its taunter or wipes a suppressed or dropped
  * source from its target slots, target memory and combat evaluator. It records which creatures each window reached,
- * which is what the attitude provider ({@link AggroAttitudes}) answers from between sweeps.
+ * which is what the attitude provider ({@link AggroAttitudes}) answers from between sweeps. A creature pinned onto one
+ * taunter ({@link AggroControl#tauntOne}) is re-pointed at it every sweep, ahead of any window's taunt, and let go
+ * (its default slot cleared if it still holds the taunter) the sweep its pin ends.
  *
  * <p>The engine's query-less {@link TickingSystem}, called once per world store per tick; a world with no window
  * open costs one resource read. Every write here is a field of a component the creature already has (its
@@ -44,12 +47,15 @@ public final class AggroSweepSystem extends TickingSystem<EntityStore> {
     @Override
     public void tick(float dt, int systemIndex, @Nonnull Store<EntityStore> store) {
         AggroWindows windows = AggroWindows.of(store);
-        if (windows == null || windows.isEmpty()) {
+        if (windows == null || (windows.isEmpty() && !windows.hasPins())) {
             return;
         }
-        List<AggroWindow> live = windows.live(System.nanoTime());
-        if (!live.isEmpty()) {
+        long now = System.nanoTime();
+        List<AggroWindow> live = windows.live(now);
+        List<AggroWindows.Pin> ended = windows.endedPins(now, taunter -> isDown(store, taunter));
+        if (!live.isEmpty() || windows.hasPins() || !ended.isEmpty()) {
             try {
+                letGo(store, ended);
                 sweep(store, windows, live);
             } catch (Throwable t) {
                 // The first failure is named at WARN so a systematic misuse shows at the default level.
@@ -64,8 +70,33 @@ public final class AggroSweepSystem extends TickingSystem<EntityStore> {
         windows.closeDrops();
     }
 
+    /**
+     * A pin that has ended lets its creature go: its default target slot is cleared if it still holds the taunter,
+     * so the creature picks its next target on its own.
+     */
+    private static void letGo(@Nonnull Store<EntityStore> store, @Nonnull List<AggroWindows.Pin> ended) {
+        if (ended.isEmpty()) {
+            return;
+        }
+        ComponentType<EntityStore, MarkedEntitySupport> markedType = MarkedEntitySupport.getComponentType();
+        for (AggroWindows.Pin pin : ended) {
+            try {
+                MarkedEntitySupport marked = store.getComponent(pin.creature(), markedType);
+                if (marked != null && AggroWindows.sameEntity(
+                        marked.getMarkedEntityRef(MarkedEntitySupport.DEFAULT_TARGET_SLOT), pin.taunter())) {
+                    marked.setMarkedEntity(MarkedEntitySupport.DEFAULT_TARGET_SLOT, null);
+                }
+            } catch (Throwable t) {
+                SafeLog.fine("[control] a taunt could not let its creature go: " + t.getMessage());
+            }
+        }
+    }
+
     private static void sweep(@Nonnull Store<EntityStore> store, @Nonnull AggroWindows windows,
             @Nonnull List<AggroWindow> live) {
+        if (live.isEmpty() && !windows.hasPins()) {
+            return;
+        }
         ComponentType<EntityStore, NPCEntity> npcType = NPCEntity.getComponentType();
         if (npcType == null) {
             return;
@@ -86,10 +117,23 @@ public final class AggroSweepSystem extends TickingSystem<EntityStore> {
             @Nonnull AggroWindows windows, @Nonnull List<AggroWindow> live, @Nonnull Parts parts,
             @Nonnull ComponentType<EntityStore, NPCEntity> npcType) {
         Ref<EntityStore> creature = chunk.getReferenceTo(index);
+        AggroWindows.Pin pin = windows.pinOn(creature);
+        if (pin != null) {
+            try {
+                NPCEntity npc = chunk.getComponent(index, npcType);
+                boolean took = takesTaunt(store, windows, parts, creature, npc, pin.taunter());
+                pin.taken(took);
+                if (took) {
+                    pointAt(chunk, index, parts, pin.taunter());
+                }
+            } catch (Throwable t) {
+                SafeLog.fine("[control] the aggro sweep skipped a pinned creature: " + t.getMessage());
+            }
+        }
         TransformComponent transform = chunk.getComponent(index, TransformComponent.getComponentType());
         Vector3d position = transform == null ? null : transform.getPosition();
         for (AggroWindow window : live) {
-            if (!window.reaches(creature, position)) {
+            if (!window.reaches(creature, position) || (pin != null && window.kind() == AggroWindow.Kind.TAUNT)) {
                 continue;
             }
             try {
@@ -172,6 +216,15 @@ public final class AggroSweepSystem extends TickingSystem<EntityStore> {
         CombatActionEvaluator evaluator = parts.evaluator == null ? null : chunk.getComponent(index, parts.evaluator);
         if (evaluator != null && AggroWindows.sameEntity(evaluator.getPrimaryTarget(), source)) {
             evaluator.clearPrimaryTarget();
+        }
+    }
+
+    /** Is {@code ref} down (dead) or gone? A pin onto it ends. */
+    private static boolean isDown(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
+        try {
+            return !ref.isValid() || store.getComponent(ref, DeathComponent.getComponentType()) != null;
+        } catch (Throwable t) {
+            return false;
         }
     }
 

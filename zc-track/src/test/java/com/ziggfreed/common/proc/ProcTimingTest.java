@@ -60,4 +60,28 @@ class ProcTimingTest {
         assertEquals(0.0, Counters.decayed(0.0, 0L, 8.0, 1.0, 1.0));
         assertEquals(1.5, Counters.decayed(3.5, 0L, 0.0, 2.0, 2.0), "fractional stacks fall the same way");
     }
+
+    @Test
+    void aHeldEffectWaitsOutItsHold_thenLingersAfterItsHoldStops() {
+        HeldEffects.Times times = new HeldEffects.Times();
+        long hold = 2 * SECOND;
+        long linger = SECOND;
+        assertFalse(HeldEffects.step(times, true, 0L, hold, linger), "the hold has only begun");
+        assertFalse(HeldEffects.step(times, true, 2 * SECOND - 1, hold, linger));
+        assertTrue(HeldEffects.step(times, true, 2 * SECOND, hold, linger), "on once the hold has stood");
+        assertTrue(HeldEffects.step(times, false, 3 * SECOND, hold, linger), "the hold stops: it lingers");
+        assertTrue(HeldEffects.step(times, false, 4 * SECOND - 1, hold, linger));
+        assertTrue(HeldEffects.step(times, true, 4 * SECOND - 1, hold, linger), "standing again keeps it on");
+        assertTrue(HeldEffects.step(times, false, 5 * SECOND, hold, linger), "a new stop lingers anew");
+        assertFalse(HeldEffects.step(times, false, 6 * SECOND, hold, linger), "off once the linger is out");
+        assertFalse(HeldEffects.step(times, true, 6 * SECOND, hold, linger), "and the next hold waits again");
+    }
+
+    @Test
+    void aHeldEffectWithNoHoldAndNoLinger_followsItsHoldAtOnce() {
+        HeldEffects.Times times = new HeldEffects.Times();
+        assertTrue(HeldEffects.step(times, true, 0L, 0L, 0L));
+        assertFalse(HeldEffects.step(times, false, 1L, 0L, 0L));
+        assertTrue(HeldEffects.step(times, true, 2L, 0L, 0L));
+    }
 }

@@ -27,9 +27,11 @@ import com.ziggfreed.common.validation.Finding;
  * The audit of procs, counters and held effects (zc's boot audit runs it, {@value #LOG_LABEL}). An ERROR: a proc
  * naming no known trigger, or any file naming an effect, a stat, a RootInteraction, an effect family or a counter this
  * server does not have (each would do nothing where it should act). A WARNING: a proc that can never run as written
- * (no actions, a {@code Hit} or {@code Like} on a moment that carries no hit, a {@code Like} no damage line names, an
- * unknown {@code Overlap}) and a proc or held effect whose {@code ziggfreedcommon:track_pick} names no pick on its
- * track, which no player can take, so nothing reaches it.
+ * (no actions, a {@code Hit} or {@code Like} on a moment that carries no hit, an {@code Ability} on one that names no
+ * move, an effect trigger naming no effect, a {@code Like} no damage line names, an unknown {@code Overlap}), a group
+ * that does nothing as written (an {@code Area} reaching no one, a {@code Push} moving nothing, an {@code Effect} on a
+ * trigger that never reads it, a per-foe counter's rows), and a proc or held effect whose
+ * {@code ziggfreedcommon:track_pick} names no pick on its track, which no player can take, so nothing reaches it.
  */
 public final class ProcValidator {
 
@@ -50,6 +52,14 @@ public final class ProcValidator {
     public static final String LIKE_NO_LINE = "LIKE_NO_LINE";
     public static final String UNKNOWN_OVERLAP = "UNKNOWN_OVERLAP";
     public static final String UNREACHABLE_PICK = "UNREACHABLE_PICK";
+    public static final String ABILITY_WITHOUT_MOVE = "ABILITY_WITHOUT_MOVE";
+    public static final String EFFECT_UNNAMED = "EFFECT_UNNAMED";
+    public static final String EFFECT_WITHOUT_MOMENT = "EFFECT_WITHOUT_MOMENT";
+    public static final String AREA_NO_REACH = "AREA_NO_REACH";
+    public static final String AREA_TOO_WIDE = "AREA_TOO_WIDE";
+    public static final String UNKNOWN_AROUND = "UNKNOWN_AROUND";
+    public static final String PUSH_NOTHING = "PUSH_NOTHING";
+    public static final String PER_TARGET_ROWS = "PER_TARGET_ROWS";
 
     /** What the audit asks of the server: each answers whether an id is known here. */
     public record Vocabulary(@Nonnull Predicate<String> effect, @Nonnull Predicate<String> stat,
@@ -129,10 +139,12 @@ public final class ProcValidator {
             out.add(Finding.warning(DOMAIN, LIKE_NO_LINE, "proc '" + id + "' follows the damage line of '"
                     + proc.like() + "', which no damage source names, so it runs on no hit", id));
         }
+        auditMoveAndEffect(id, proc, trigger, known, out);
         if (proc.actions().isEmpty()) {
             out.add(Finding.warning(DOMAIN, NO_ACTIONS, "proc '" + id + "' has no actions, so it does nothing", id));
         }
         for (ProcAction action : proc.actions()) {
+            auditNewGroups(id, action, out);
             ProcAction.ApplyEffect apply = action.applyEffect();
             if (apply != null) {
                 effect(id, apply.effect(), known, out);
@@ -172,8 +184,80 @@ public final class ProcValidator {
         auditPicks("proc", id, proc.requires(), known, out);
     }
 
+    /**
+     * The proc's {@code Ability} and {@code Effect} groups: each root and effect a server must have (ERROR), an
+     * {@code Ability} on a moment that names no move, an effect trigger naming no effect, and an {@code Effect} on
+     * another trigger (WARNING).
+     */
+    private static void auditMoveAndEffect(@Nonnull String id, @Nonnull ProcAsset proc, @Nullable ProcTrigger trigger,
+            @Nonnull Vocabulary known, @Nonnull List<Finding> out) {
+        ProcAsset.Ability ability = proc.ability();
+        if (ability != null) {
+            if (trigger != null && !trigger.namesMove()) {
+                out.add(Finding.warning(DOMAIN, ABILITY_WITHOUT_MOVE, "proc '" + id + "' asks which move a "
+                        + trigger.id() + " came from, a moment that names none (only a hit or a cast does), so it "
+                        + "never runs", id));
+            }
+            for (String root : ability.roots()) {
+                if (!known.interaction().test(root)) {
+                    out.add(Finding.error(DOMAIN, UNKNOWN_INTERACTION, "proc '" + id + "' asks for a move from the "
+                            + "RootInteraction '" + root + "', which this server does not have", id));
+                }
+            }
+        }
+        ProcAsset.Effect effect = proc.effect();
+        if (trigger != null && trigger.aboutEffect() && effect == null) {
+            out.add(Finding.warning(DOMAIN, EFFECT_UNNAMED, "proc '" + id + "' answers " + trigger.id()
+                    + " but its Effect names no effect or family, so it never runs", id));
+        }
+        if (effect == null) {
+            return;
+        }
+        if (trigger != null && !trigger.aboutEffect()) {
+            out.add(Finding.warning(DOMAIN, EFFECT_WITHOUT_MOMENT, "proc '" + id + "' names an Effect, which only "
+                    + "EffectLanded and EffectEnded read, on " + trigger.id() + ": it is ignored", id));
+        }
+        for (String watched : effect.effects()) {
+            effect(id, watched, known, out);
+        }
+        for (String family : effect.families()) {
+            if (!known.family().test(family)) {
+                out.add(Finding.error(DOMAIN, UNKNOWN_FAMILY, "proc '" + id + "' watches the effect family '"
+                        + family + "', which this server does not have", id));
+            }
+        }
+    }
+
+    /** An entry's Area, Push and the rest: a reach of nothing, an unknown centre, a push that moves nothing. */
+    private static void auditNewGroups(@Nonnull String id, @Nonnull ProcAction action, @Nonnull List<Finding> out) {
+        ProcAction.Area area = action.area();
+        if (area != null) {
+            if (!(area.radius() > 0.0) || area.max() <= 0) {
+                out.add(Finding.warning(DOMAIN, AREA_NO_REACH, "proc '" + id + "' has an Area with no radius or a "
+                        + "Max of 0, so its target groups reach no one", id));
+            }
+            if (area.radiusPastCap()) {
+                out.add(Finding.warning(DOMAIN, AREA_TOO_WIDE, "proc '" + id + "' reaches an Area past "
+                        + (int) ProcAction.Area.RADIUS_CAP + " blocks: it is held there", id));
+            }
+            if (area.aroundUnknown()) {
+                out.add(Finding.warning(DOMAIN, UNKNOWN_AROUND, "proc '" + id + "' centres an Area on '"
+                        + area.rawAround() + "' (Holder or Target): it is centred on the holder", id));
+            }
+        }
+        ProcAction.Push push = action.push();
+        if (push != null && push.force() == null && push.up() == null) {
+            out.add(Finding.warning(DOMAIN, PUSH_NOTHING, "proc '" + id + "' has a Push with no Force and no Up, so "
+                    + "it moves nothing", id));
+        }
+    }
+
     private static void auditCounter(@Nonnull String id, @Nonnull CounterAsset counter, @Nonnull Vocabulary known,
             @Nonnull List<Finding> out) {
+        if (counter.perTarget() && (!counter.perStack().isEmpty() || !counter.effects().isEmpty())) {
+            out.add(Finding.warning(DOMAIN, PER_TARGET_ROWS, "counter '" + id + "' keeps its stacks per foe "
+                    + "(PerTarget), so its PerStack rows and its Effects are never given or shown", id));
+        }
         for (CounterAsset.PerStack row : counter.perStack()) {
             if (!known.stat().test(row.stat())) {
                 out.add(Finding.error(DOMAIN, UNKNOWN_STAT, "counter '" + id + "' raises the stat '" + row.stat()

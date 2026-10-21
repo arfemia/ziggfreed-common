@@ -14,8 +14,10 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
+import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
 import com.hypixel.hytale.server.core.modules.entity.condition.Condition;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
+import com.hypixel.hytale.server.core.modules.interaction.interaction.config.RootInteraction;
 import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.factor.FactorFormula;
@@ -44,7 +46,12 @@ import com.ziggfreed.common.stats.condition.ConditionalStatAsset;
  * weapon's head branch), read as the hit's attacker dealt it, and {@code OverTime} is false unless written (a
  * damage-over-time tick never procs by accident); {@code Like} counts it only where a damage line counts.
  * {@code Holder} conditions are asked of the holder, {@code Target} conditions of the moment's target (a foe family,
- * an effect family, a health band); a moment with no target of its own finds one through {@code Seek}.
+ * an effect family, a health band, the engine's own {@code Wielding} for a guard that is up); a moment with no target
+ * of its own finds one through {@code Seek}. {@code Ability} asks which move a hit or a cast came from, and
+ * {@code Effect} names what an effect moment watches.
+ *
+ * <p><b>Order.</b> The procs on one moment run in the order of their ids, compared lower-cased ({@link ProcConfig}),
+ * so a proc that must act before another on the same moment takes an id that sorts first.
  */
 public final class ProcAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, ProcAsset>> {
 
@@ -106,6 +113,104 @@ public final class ProcAsset implements JsonAssetWithMap<String, DefaultAssetMap
         }
     }
 
+    /**
+     * The Ability group: which move a hit or a cast must come from, by the RootInteraction its chain started from or
+     * by the ability a mod names for its own moves. Either list matching passes; neither written asks nothing.
+     */
+    public static final class Ability {
+
+        @Nullable protected String[] roots;
+        @Nullable protected String[] names;
+
+        public static final BuilderCodec<Ability> CODEC = BuilderCodec.builder(Ability.class, Ability::new)
+                .appendInherited(new KeyedCodec<>("Roots", Codec.STRING_ARRAY, false),
+                        (o, v) -> o.roots = v, o -> o.roots, (o, p) -> o.roots = p.roots)
+                .metadata(EditorSchema.assetRef(RootInteraction.class))
+                .documentation("RootInteraction ids: a hit counts when the chain that dealt it started from one of "
+                        + "these (a direct hit, while that chain still runs; a projectile's hit lands after it), a "
+                        + "cast when its chain did. None when unauthored.").add()
+                .appendInherited(new KeyedCodec<>("Names", Codec.STRING_ARRAY, false),
+                        (o, v) -> o.names = v, o -> o.names, (o, p) -> o.names = p.names)
+                .documentation("Ability ids a mod names for its own moves (MMO Skill Tree's abilities, Fireball "
+                        + "or Berserker_Charge), any case: a hit that mod says one of these dealt (a damage-over-time "
+                        + "tick of it included), a cast of one of these. None when unauthored.").add()
+                .build();
+
+        public Ability() {
+        }
+
+        @Nonnull
+        public List<String> roots() {
+            return ProcAction.trimmed(roots);
+        }
+
+        @Nonnull
+        public List<String> names() {
+            return ProcAction.trimmed(names);
+        }
+
+        public boolean isEmpty() {
+            return roots().isEmpty() && names().isEmpty();
+        }
+
+        /** Does a move from {@code root}, or named {@code ability}, match (any case)? True when nothing is asked. */
+        public boolean matches(@Nullable String root, @Nullable String ability) {
+            List<String> wantedRoots = roots();
+            List<String> wantedNames = names();
+            if (wantedRoots.isEmpty() && wantedNames.isEmpty()) {
+                return true;
+            }
+            return containsIgnoreCase(wantedRoots, root) || containsIgnoreCase(wantedNames, ability);
+        }
+    }
+
+    /** The Effect group: which effects an EffectLanded or EffectEnded proc watches, and on whom. */
+    public static final class Effect {
+
+        @Nullable protected String[] effects;
+        @Nullable protected String[] families;
+        @Nullable protected Boolean onFoe;
+
+        public static final BuilderCodec<Effect> CODEC = BuilderCodec.builder(Effect.class, Effect::new)
+                .appendInherited(new KeyedCodec<>("Effects", Codec.STRING_ARRAY, false),
+                        (o, v) -> o.effects = v, o -> o.effects, (o, p) -> o.effects = p.effects)
+                .metadata(EditorSchema.assetRef(EntityEffect.class))
+                .documentation("Native effects watched, by id. None when unauthored.").add()
+                .appendInherited(new KeyedCodec<>("Families", Codec.STRING_ARRAY, false),
+                        (o, v) -> o.families = v, o -> o.families, (o, p) -> o.families = p.families)
+                .documentation("Effect families (Server/ZiggfreedCommon/EffectFamilies: Stunned, Frozen) whose "
+                        + "effects are watched. None when unauthored.").add()
+                .appendInherited(new KeyedCodec<>("OnFoe", Codec.BOOLEAN, false),
+                        (o, v) -> o.onFoe = v, o -> o.onFoe, (o, p) -> o.onFoe = p.onFoe)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("True: watch the effects the holder put on a foe they struck in the last half "
+                        + "minute (or that a proc of theirs put on), the foe the moment's target. False: watch the "
+                        + "holder's own, whoever put them on (that one the moment's target). False when "
+                        + "unauthored.").add()
+                .build();
+
+        public Effect() {
+        }
+
+        @Nonnull
+        public List<String> effects() {
+            return ProcAction.trimmed(effects);
+        }
+
+        @Nonnull
+        public List<String> families() {
+            return ProcAction.trimmed(families);
+        }
+
+        public boolean onFoe() {
+            return Boolean.TRUE.equals(onFoe);
+        }
+
+        public boolean isEmpty() {
+            return effects().isEmpty() && families().isEmpty();
+        }
+    }
+
     private String id;
     private AssetExtraInfo.Data data;
 
@@ -115,6 +220,8 @@ public final class ProcAsset implements JsonAssetWithMap<String, DefaultAssetMap
     @Nullable protected GateSpec requires;
     @Nullable protected ConditionalStatAsset.Hit hit;
     @Nullable protected String like;
+    @Nullable protected Ability ability;
+    @Nullable protected Effect effect;
     @Nullable protected Condition[] holder;
     @Nullable protected Condition[] target;
     @Nullable protected Seek seek;
@@ -158,6 +265,15 @@ public final class ProcAsset implements JsonAssetWithMap<String, DefaultAssetMap
             .metadata(EditorSchema.assetRef(EntityStatType.class))
             .documentation("A damage stat: count only a hit on which that stat's own damage line counts (a weapon "
                     + "skill's line, which counts only with its weapon). Every hit when unauthored.").add()
+            .appendInherited(new KeyedCodec<>("Ability", Ability.CODEC, false),
+                    (a, v) -> a.ability = v, a -> a.ability, (a, p) -> a.ability = p.ability)
+            .documentation("For a hit or a cast: which move it must come from, by the RootInteraction its chain "
+                    + "started from (Roots) or the ability a mod names for its own moves (Names). Any move when "
+                    + "unauthored.").add()
+            .appendInherited(new KeyedCodec<>("Effect", Effect.CODEC, false),
+                    (a, v) -> a.effect = v, a -> a.effect, (a, p) -> a.effect = p.effect)
+            .documentation("For EffectLanded and EffectEnded: the effects (by id or family) watched, on the holder "
+                    + "or on the foes they struck. An effect proc naming none never runs.").add()
             .appendInherited(new KeyedCodec<>("Holder", new ArrayCodec<>(Condition.CODEC, Condition[]::new), false),
                     (a, v) -> a.holder = v, a -> a.holder, (a, p) -> a.holder = p.holder)
             .documentation("Entity conditions every one of which must hold on the holder (Sprinting, "
@@ -247,6 +363,16 @@ public final class ProcAsset implements JsonAssetWithMap<String, DefaultAssetMap
         return like == null || like.isBlank() ? null : like.trim();
     }
 
+    @Nullable
+    public Ability ability() {
+        return ability == null || ability.isEmpty() ? null : ability;
+    }
+
+    @Nullable
+    public Effect effect() {
+        return effect == null || effect.isEmpty() ? null : effect;
+    }
+
     @Nonnull
     public Condition[] holderConditions() {
         return holder == null ? new Condition[0] : holder;
@@ -294,5 +420,18 @@ public final class ProcAsset implements JsonAssetWithMap<String, DefaultAssetMap
             }
         }
         return List.copyOf(out);
+    }
+
+    private static boolean containsIgnoreCase(@Nonnull List<String> values, @Nullable String value) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        String wanted = value.trim();
+        for (String candidate : values) {
+            if (candidate.equalsIgnoreCase(wanted)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

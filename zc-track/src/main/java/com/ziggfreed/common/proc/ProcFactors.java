@@ -8,8 +8,9 @@ import com.ziggfreed.common.factor.FactorContributions;
 
 /**
  * The counters' reading, contributed once at setup so every factor vocabulary resolves it:
- * {@value #COUNTER_STACKS} (Param a counter's id), the stacks the asking player holds of it right now, 0 for none,
- * null with no player. It moves outside every moment (an add, a decay), so no gate keeps a verdict over it.
+ * {@value #COUNTER_STACKS} (Param a counter's id), the stacks the asking player holds of it right now (of a
+ * {@code PerTarget} counter, the stacks about the context's target), 0 for none, null with no player. It moves
+ * outside every moment (an add, a decay), so no gate keeps a verdict over it.
  */
 public final class ProcFactors {
 
@@ -30,6 +31,6 @@ public final class ProcFactors {
         if (counter == null || counter.isBlank() || context.subject() == null) {
             return null;
         }
-        return Counters.stacks(context.subject(), counter);
+        return Counters.stacks(context.subject(), counter, context.target());
     }
 }

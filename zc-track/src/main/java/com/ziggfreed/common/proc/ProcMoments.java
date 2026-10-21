@@ -18,7 +18,8 @@ import com.ziggfreed.common.track.source.VictimPayload;
  * The triggers that ride the library's own moments, a library-default {@link MomentListener}: a player's hit on a
  * creature ({@code DEAL_DAMAGE}: Hit, and SprintHit while they sprint), a kill ({@code KILL_ENTITY}), a block broken
  * ({@code BREAK_BLOCK}) and a harvest ({@code PICKUP_ITEM}). A hit counts for the player who struck it, never for an
- * owner a turret's hit was credited to. World thread, inside the producer's own dispatch.
+ * owner a turret's hit was credited to; it also marks the foe struck for the effect moments' watch
+ * ({@link EffectWatch}). World thread, inside the producer's own dispatch.
  */
 public final class ProcMoments implements MomentListener {
 
@@ -55,7 +56,8 @@ public final class ProcMoments implements MomentListener {
     private static void onHit(@Nonnull Moment moment) {
         boolean hit = Procs.listens(ProcTrigger.HIT);
         boolean sprint = Procs.listens(ProcTrigger.SPRINT_HIT);
-        if (!hit && !sprint) {
+        boolean watch = !ProcConfig.getInstance().watched(true).isEmpty();
+        if (!hit && !sprint && !watch) {
             return;
         }
         HitPayload payload = moment.payload(HitPayload.class);
@@ -70,6 +72,9 @@ public final class ProcMoments implements MomentListener {
         ExactAmountPayload exact = moment.payload(ExactAmountPayload.class);
         double amount = exact == null ? moment.amount() : exact.exactAmount();
         Ref<EntityStore> victim = payload.victimRef();
+        if (watch) {
+            EffectWatch.noteFoe(moment.ref(), victim, System.nanoTime());
+        }
         if (hit) {
             fire(moment, ProcTrigger.HIT, victim, damage, amount, null);
         }

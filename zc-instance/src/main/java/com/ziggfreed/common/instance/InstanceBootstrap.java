@@ -15,6 +15,7 @@ import com.ziggfreed.common.encounter.event.EncounterDefeatedEvent;
 import com.ziggfreed.common.encounter.event.EncounterWaveClearedEvent;
 import com.ziggfreed.common.encounter.seam.EncounterSeams;
 import com.ziggfreed.common.encounter.validate.EncounterAudit;
+import com.ziggfreed.common.entity.Allies;
 import com.ziggfreed.common.instance.claims.ClaimNotices;
 import com.ziggfreed.common.instance.claims.ClaimsDestinations;
 import com.ziggfreed.common.instance.claims.RewardChestConfig;
@@ -46,6 +47,7 @@ import com.ziggfreed.common.interaction.type.InteractionTypes;
 import com.ziggfreed.common.loot.claim.ClaimAddedEvent;
 import com.ziggfreed.common.loot.claim.ClaimStore;
 import com.ziggfreed.common.loot.diminish.DiminishLedger;
+import com.ziggfreed.common.party.PartyAllies;
 import com.ziggfreed.common.party.ZcParty;
 import com.ziggfreed.common.party.command.ZigPartyCommand;
 import com.ziggfreed.common.ui.menu.MenuSlot;
@@ -191,7 +193,7 @@ public final class InstanceBootstrap {
 
     /**
      * The library's party command, {@code /zigparty}, over its one default party ({@code ZcParty}, built on first
-     * use). Registration only.
+     * use), and that party as the party half of zc-core's ally rule ({@code Allies}). Registration only.
      */
     public static void registerParty(@Nonnull JavaPlugin plugin) {
         try {
@@ -199,6 +201,7 @@ public final class InstanceBootstrap {
         } catch (Throwable t) {
             SafeLog.warn("[party] /zigparty could not be registered", t);
         }
+        Allies.installGroups(PartyAllies::sameGroup);
     }
 
     /**

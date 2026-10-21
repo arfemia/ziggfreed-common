@@ -130,6 +130,7 @@ public final class CounterAsset implements JsonAssetWithMap<String, DefaultAsset
     @Nullable protected String[] clearedBy;
     @Nullable protected Boolean clearOverTime;
     @Nullable protected Boolean oneTarget;
+    @Nullable protected Boolean perTarget;
     @Nullable protected PerStack[] perStack;
     @Nullable protected String[] effects;
     @Nullable private volatile GateSpec[] live;
@@ -180,6 +181,13 @@ public final class CounterAsset implements JsonAssetWithMap<String, DefaultAsset
             .metadata(EditorSchema.defaultValue(false))
             .documentation("True: its stacks are about one foe: an add from a moment about another foe starts it "
                     + "over. False when unauthored.").add()
+            .appendInherited(new KeyedCodec<>("PerTarget", Codec.BOOLEAN, false),
+                    (a, v) -> a.perTarget = v, a -> a.perTarget, (a, p) -> a.perTarget = p.perTarget)
+            .metadata(EditorSchema.defaultValue(false))
+            .documentation("True: a count kept for each foe apart (the third hit on the same foe): a change adds to "
+                    + "or takes from the stacks about the moment's target, ziggfreedcommon:counter_stacks reads the "
+                    + "stacks about the asking moment's target, and the stacks about a foe go when it does. Such a "
+                    + "counter gives no PerStack modifiers and shows no Effects. False when unauthored.").add()
             .appendInherited(new KeyedCodec<>("PerStack", new ArrayCodec<>(PerStack.CODEC, PerStack[]::new), false),
                     (a, v) -> a.perStack = v, a -> a.perStack, (a, p) -> a.perStack = p.perStack)
             .documentation("What each stack gives its holder, as native stat modifiers. Nothing when "
@@ -259,6 +267,11 @@ public final class CounterAsset implements JsonAssetWithMap<String, DefaultAsset
 
     public boolean oneTarget() {
         return Boolean.TRUE.equals(oneTarget);
+    }
+
+    /** Is a count kept for each foe apart? */
+    public boolean perTarget() {
+        return Boolean.TRUE.equals(perTarget);
     }
 
     @Nonnull

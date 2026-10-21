@@ -658,6 +658,11 @@ class AssetCodecInitTest {
         assertNotNull(ProcAsset.CODEC, "ProcAsset.CODEC must static-init (PascalCase keys)");
         assertNotNull(ProcAsset.Cooldown.CODEC, "ProcAsset.Cooldown.CODEC must static-init");
         assertNotNull(ProcAsset.Seek.CODEC, "ProcAsset.Seek.CODEC must static-init");
+        assertNotNull(ProcAsset.Ability.CODEC, "ProcAsset.Ability.CODEC must static-init");
+        assertNotNull(ProcAsset.Effect.CODEC, "ProcAsset.Effect.CODEC must static-init");
+        assertNotNull(ProcAction.Area.CODEC, "ProcAction.Area.CODEC must static-init");
+        assertNotNull(ProcAction.Push.CODEC, "ProcAction.Push.CODEC must static-init");
+        assertNotNull(ProcAction.Taunt.CODEC, "ProcAction.Taunt.CODEC must static-init");
         assertNotNull(ProcAction.CODEC, "ProcAction.CODEC must static-init");
         assertNotNull(ProcAction.ApplyEffect.CODEC, "ProcAction.ApplyEffect.CODEC must static-init");
         assertNotNull(ProcAction.RemoveEffect.CODEC, "ProcAction.RemoveEffect.CODEC must static-init");

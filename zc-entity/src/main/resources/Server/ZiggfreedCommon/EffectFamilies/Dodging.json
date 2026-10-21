@@ -1,0 +1,8 @@
+{
+  "$Comment": "What a dodge that went through puts on: the game's side dodges and the moment of invulnerability they give. CommonLib's procs read it twice: a Dodge proc runs once one of these lands after the dodge key (so a refused dodge, or a forward or back press that dashes nowhere, never counts), and a Dodged proc runs when a foe's hit lands while one of these that makes you invulnerable is on. A mod's own dodge joins by tagging its effects ZigEffectFamily Dodging.",
+  "Effects": [
+    "Dodge_Invulnerability",
+    "Dodge_Left",
+    "Dodge_Right"
+  ]
+}

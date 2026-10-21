@@ -1,0 +1,27 @@
+{
+  "$Comment": "Every boss and elite the foe families leave out, as one group: the game's boss and encounter groups and the roles named like a boss or an elite, and the foes as strong as one (the Shadow Knight, the two larger Aberrant zombies and the Void Spawn). It holds no foe family and no family holds it. Ask it with Inverse true to keep bosses and elites out of a proc's Area or a Target: { \"Id\": \"ZigFoeFamily\", \"Groups\": [ \"Zig_Boss_Or_Elite\" ], \"Inverse\": true }. Add a role to IncludeRoles to count it as one too, and the same role to the families' ExcludeRoles.",
+  "IncludeGroups": [
+    "Goblin_Gobliterator_Boss_Group",
+    "Skeleton_Elite_Encounter_Target",
+    "Trork_Chieftain",
+    "Dungeon_Feastmaster_Group",
+    "Hunt_Predators",
+    "Bear_Voidtaken_Family"
+  ],
+  "IncludeRoles": [
+    "*Boss*",
+    "*Elite*",
+    "*Gobliterator*",
+    "*Chieftain*",
+    "*Praetorian*",
+    "*Captain*",
+    "*Broodmother*",
+    "Goblin_Duke*",
+    "Goblin_Pilot*",
+    "Bear_Voidtaken*",
+    "Shadow_Knight",
+    "Zombie_Aberrant",
+    "Zombie_Aberrant_Big",
+    "Void_Spawn*"
+  ]
+}

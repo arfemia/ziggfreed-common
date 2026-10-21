@@ -29,6 +29,9 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
  * ({@code IAttitudeProvider.OVERRIDE_PRIORITY} minus one), the seam the game's reputation attitude uses, never a write
  * into a creature's private override memory. A creature's cached attitude refreshes within a tenth of a second.
  *
+ * <p>A fourth call, {@link #tauntOne}, pins one creature onto a taunter for a while (a hit's taunt), kept beside the
+ * windows and swept with them.
+ *
  * <p>Reach is a radius in blocks around where the source stands each tick; 0 or less is the whole world. Each tick
  * {@code AggroSweepSystem} walks the world's creatures once for every open window, so the windows follow their
  * source as it moves. The window is kept in the world's own store and nothing goes on the source entity, so a
@@ -50,6 +53,29 @@ public final class AggroControl {
     public static boolean taunt(@Nonnull ComponentAccessor<EntityStore> accessor, @Nullable Ref<EntityStore> taunter,
             float seconds, double radius) {
         return openTimed(accessor, taunter, AggroWindow.Kind.TAUNT, seconds, radius);
+    }
+
+    /**
+     * Pull one creature onto {@code taunter} for {@code seconds}: like {@link #taunt}, but only {@code creature},
+     * wherever either goes, and a pin of its own, so a taunter holds several creatures at once and an area taunt
+     * leaves them be. When the time is up the creature's default target slot is cleared if it still holds the
+     * taunter, so it picks its next target on its own. A newer pin on the same creature replaces the older one. A
+     * creature friendly toward the taunter is left alone, as {@link #taunt} leaves one.
+     *
+     * @return true when the pin was set
+     */
+    public static boolean tauntOne(@Nonnull ComponentAccessor<EntityStore> accessor,
+            @Nullable Ref<EntityStore> taunter, @Nullable Ref<EntityStore> creature, float seconds) {
+        if (!(seconds > 0f) || creature == null || !creature.isValid() || AggroWindows.sameEntity(taunter, creature)) {
+            return false;
+        }
+        AggroWindows windows = windowsFor(accessor, taunter);
+        if (windows == null) {
+            return false;
+        }
+        long endsAt = System.nanoTime() + (long) (seconds * 1_000_000_000.0);
+        windows.pin(new AggroWindows.Pin(creature, taunter, endsAt));
+        return true;
     }
 
     /**

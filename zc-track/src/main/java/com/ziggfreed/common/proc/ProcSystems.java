@@ -9,6 +9,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.component.AddReason;
 import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
+import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
@@ -22,7 +23,12 @@ import com.hypixel.hytale.component.system.RefSystem;
 import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
 import com.hypixel.hytale.protocol.InteractionType;
 import com.hypixel.hytale.protocol.MovementStates;
+import com.hypixel.hytale.server.core.entity.InteractionChain;
+import com.hypixel.hytale.server.core.entity.effect.ActiveEntityEffect;
+import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.modules.entity.component.Intangible;
+import com.hypixel.hytale.server.core.modules.entity.component.Invulnerable;
 import com.hypixel.hytale.server.core.entity.movement.MovementStatesComponent;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageEventSystem;
@@ -35,16 +41,19 @@ import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatsSystems;
 import com.hypixel.hytale.server.core.modules.interaction.event.InteractionChainStartEvent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.stats.condition.EffectFamilies;
 import com.ziggfreed.common.stats.condition.Nearby;
 
 /**
  * The systems behind the triggers the family had no moment for, registered once by {@link ProcBootstrap} (the system
- * registry is class-keyed): a hit taken and a hit blocked ({@link Taken}), the holder's own dodge, guard and cast
- * ({@link ChainStarts}), a landing ({@link Landing}), the holder pass ({@link HolderPass}, which reads a crouch held
+ * registry is class-keyed): a hit taken, a hit blocked and a hit dodged ({@link Taken}), the holder's own dodge and
+ * cast started and every chain's root ({@link ChainStarts}), a landing ({@link Landing}), the holder pass
+ * ({@link HolderPass}, which proves the dodges and casts, reads a guard going up, the watched effects and a crouch held
  * still), a player's death emptying their counters ({@link Died}), and the forgetting of an entity that left its
- * store ({@link Left}). Hit, Kill, BlockBreak and Harvest ride
- * the library's own moments ({@link ProcMoments}); Crit is a consumer's ({@link Procs#crit}).
+ * store ({@link Left}). Hit, Kill, BlockBreak and Harvest ride the library's own moments ({@link ProcMoments}); Crit
+ * is a consumer's ({@link Procs#crit}), and so is a consumer's own Cast ({@link Procs#cast}).
  */
 public final class ProcSystems {
 
@@ -52,9 +61,12 @@ public final class ProcSystems {
     }
 
     /**
-     * A hit a foe landed on a player (HitTaken, the damage as applied its amount) and a hit their guard blocked
-     * ({@code Damage.BLOCKED}, Blocked), in the Inspect group, once the hit is applied. Only a hit an entity dealt
-     * counts (a fall, the fire you stand in, never).
+     * A hit a foe landed on a player (HitTaken, the damage as applied its amount), a hit their guard blocked
+     * ({@code Damage.BLOCKED}, Blocked), and a hit their dodge slipped (Dodged: the engine cancelled it because an
+     * effect of the dodge family made them invulnerable, and for no other reason it has, the amount the hit would
+     * have dealt), in the Inspect group,
+     * once the hit is applied. This one system also hears cancelled hits (its {@code shouldProcessEvent}), for the
+     * dodge; every other path skips them. Only a hit an entity dealt counts (a fall, the fire you stand in, never).
      */
     public static final class Taken extends DamageEventSystem {
 
@@ -70,11 +82,21 @@ public final class ProcSystems {
             return PlayerRef.getComponentType();
         }
 
+        /** Hear a cancelled hit too: a dodge's invulnerability cancels the hit it slips. */
+        @Override
+        protected boolean shouldProcessEvent(@Nonnull Damage event) {
+            return true;
+        }
+
         @Override
         public void handle(int index, @Nonnull ArchetypeChunk<EntityStore> chunk, @Nonnull Store<EntityStore> store,
                 @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull Damage damage) {
             try {
-                if (damage.isCancelled() || !(damage.getSource() instanceof Damage.EntitySource source)) {
+                if (damage.isCancelled()) {
+                    dodged(chunk.getReferenceTo(index), store, commandBuffer, damage);
+                    return;
+                }
+                if (!(damage.getSource() instanceof Damage.EntitySource source)) {
                     return;
                 }
                 boolean taken = Procs.listens(ProcTrigger.HIT_TAKEN);
@@ -99,12 +121,85 @@ public final class ProcSystems {
                 Procs.failed("a hit taken", t);
             }
         }
+
+        /**
+         * A cancelled hit from a foe on a player whom only their dodge's invulnerability spared: Dodged. The engine
+         * names no reason for a cancel, so every other reason it has is ruled out first (the player dead, immune or
+         * intangible, under spawn protection, a player's hit in a world with PvP off, incoming damage switched off by
+         * the world's combat config); what is left with a dodge effect of the family on is the dodge's.
+         */
+        private static void dodged(@Nonnull Ref<EntityStore> victim, @Nonnull Store<EntityStore> store,
+                @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull Damage damage) {
+            if (!Procs.listens(ProcTrigger.DODGED) || !(damage.getSource() instanceof Damage.EntitySource source)) {
+                return;
+            }
+            Ref<EntityStore> attacker = source.getRef();
+            if (attacker == null || !attacker.isValid() || Nearby.same(attacker, victim)
+                    || !dodgeInvulnerable(commandBuffer, victim)
+                    || cancelledOtherwise(store, commandBuffer, victim, attacker)) {
+                return;
+            }
+            Procs.fire(new ProcMoment(ProcTrigger.DODGED, store, commandBuffer, victim, attacker, damage,
+                    damage.getAmount(), null));
+        }
+
+        /**
+         * Would the engine have cancelled the hit for a reason other than the dodge's invulnerability? True when it
+         * cannot tell, so no other cancel ever reads as a dodge.
+         */
+        private static boolean cancelledOtherwise(@Nonnull Store<EntityStore> store,
+                @Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> victim,
+                @Nonnull Ref<EntityStore> attacker) {
+            try {
+                Player player = accessor.getComponent(victim, Player.getComponentType());
+                World world = store.getExternalData().getWorld();
+                boolean attackerIsPlayer = accessor.getComponent(attacker, Player.getComponentType()) != null;
+                return otherCancel(accessor.getComponent(victim, DeathComponent.getComponentType()) != null
+                                || accessor.getComponent(victim, Invulnerable.getComponentType()) != null
+                                || accessor.getComponent(victim, Intangible.getComponentType()) != null,
+                        player != null && player.hasSpawnProtection(),
+                        attackerIsPlayer, world != null && world.getWorldConfig().isPvpEnabled(),
+                        world != null && world.getGameplayConfig().getCombatConfig().isPlayerIncomingDamageDisabled());
+            } catch (Throwable t) {
+                return true;
+            }
+        }
+
+        /**
+         * The engine's other reasons to cancel a hit on a player: the player dead, immune or intangible; spawn
+         * protection; a player's hit while PvP is off; incoming damage switched off. Pure.
+         */
+        static boolean otherCancel(boolean deadImmuneOrIntangible, boolean spawnProtected, boolean attackerIsPlayer,
+                boolean pvpOn, boolean incomingDisabled) {
+            return deadImmuneOrIntangible || spawnProtected || (attackerIsPlayer && !pvpOn) || incomingDisabled;
+        }
+
+        /** Does {@code ref} wear an effect of the dodge family that makes it invulnerable? */
+        private static boolean dodgeInvulnerable(@Nonnull ComponentAccessor<EntityStore> accessor,
+                @Nonnull Ref<EntityStore> ref) {
+            EffectControllerComponent controller =
+                    accessor.getComponent(ref, EffectControllerComponent.getComponentType());
+            if (controller == null || !controller.isInvulnerable()) {
+                return false;
+            }
+            for (ActiveEntityEffect active : controller.getActiveEffects().values()) {
+                if (active.isInvulnerable()
+                        && EffectFamilies.contains(MoveProofs.DODGE_FAMILY, active.getEntityEffectIndex())) {
+                    return true;
+                }
+            }
+            return false;
+        }
     }
 
     /**
-     * A chain the player's own input started (a client chain: the engine numbers server chains below 0): Dodge, a
-     * Wielding chain (GuardStart), Ability1 to Ability4 (Cast). A chain a mod fires from the server under one of those
-     * labels (an ability body, a proc's own chain) never counts. Only an uncancelled start.
+     * A player's chain starting. Every one is recorded by its root while a proc asks which move a hit came from
+     * ({@link ChainRoots}); one the player's own input started (a client chain: the engine numbers server chains
+     * below 0) under Dodge or Ability1 to Ability4 opens a wait for its proof ({@link MoveProofs}), which the holder
+     * pass settles into a Dodge or a Cast moment once the move truly went off. A chain a mod fires from the server
+     * under one of those labels (an ability body, a proc's own chain) never counts, unless the mod handed the
+     * player's press back to it ({@link Procs#handBack}), nor does one whose root a consumer says starts its own
+     * casts. Only an uncancelled start. The guard is read off the holder, never a chain.
      */
     public static final class ChainStarts extends EntityEventSystem<EntityStore, InteractionChainStartEvent> {
 
@@ -122,21 +217,34 @@ public final class ProcSystems {
         public void handle(int index, @Nonnull ArchetypeChunk<EntityStore> chunk, @Nonnull Store<EntityStore> store,
                 @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull InteractionChainStartEvent event) {
             try {
-                if (event.isCancelled() || event.getChain().getChainId() < 0) {
+                if (event.isCancelled()) {
+                    return;
+                }
+                InteractionChain chain = event.getChain();
+                Ref<EntityStore> holder = chunk.getReferenceTo(index);
+                long nanos = System.nanoTime();
+                String root = event.getRootInteractionId();
+                if (ProcConfig.getInstance().asksRoots()) {
+                    ChainRoots.started(holder, chain, root, nanos);
+                }
+                if (chain.getChainId() < 0 && !MoveProofs.takeHandedBack(holder, root, nanos)) {
                     return;
                 }
                 ProcTrigger trigger = triggerOf(event.getType());
                 if (trigger == null || !Procs.listens(trigger)) {
                     return;
                 }
-                Procs.fire(new ProcMoment(trigger, store, commandBuffer, chunk.getReferenceTo(index), null, null, 1.0,
-                        null));
+                if (trigger == ProcTrigger.DODGE) {
+                    MoveProofs.dodgeStarted(commandBuffer, holder, chain, nanos);
+                } else if (!ProcAbilities.castsItself(root)) {
+                    MoveProofs.castStarted(holder, chain, root, nanos);
+                }
             } catch (Throwable t) {
                 Procs.failed("a chain start", t);
             }
         }
 
-        /** The trigger a chain of {@code type} is, or null. */
+        /** The trigger a chain of {@code type} waits to prove, or null. */
         @Nullable
         static ProcTrigger triggerOf(@Nullable InteractionType type) {
             if (type == null) {
@@ -144,7 +252,6 @@ public final class ProcSystems {
             }
             return switch (type) {
                 case Dodge -> ProcTrigger.DODGE;
-                case Wielding -> ProcTrigger.GUARD_START;
                 case Ability1, Ability2, Ability3, Ability4 -> ProcTrigger.CAST;
                 default -> null;
             };

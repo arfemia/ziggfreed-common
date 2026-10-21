@@ -129,8 +129,23 @@ public final class Nearby {
             @Nonnull Ref<EntityStore> holder, double radius, @Nullable Condition[] conditions, @Nonnull Instant now,
             int limit) {
         try {
-            Vector3d at = positionOf(accessor, holder);
-            if (at == null || !(radius > 0.0)) {
+            return foesAround(accessor, holder, positionOf(accessor, holder), radius, conditions, now, limit);
+        } catch (Throwable t) {
+            return List.of();
+        }
+    }
+
+    /**
+     * The foes of {@code holder} within {@code radius} blocks of {@code center} (another creature's spot, say) that
+     * meet every one of {@code conditions}, nearest the center first, no more than {@code limit} (0 or less: no
+     * limit). A foe is one of the holder's, as {@link #foesWithin} reads it. Empty, never null.
+     */
+    @Nonnull
+    public static List<Ref<EntityStore>> foesAround(@Nonnull ComponentAccessor<EntityStore> accessor,
+            @Nonnull Ref<EntityStore> holder, @Nullable Vector3d center, double radius,
+            @Nullable Condition[] conditions, @Nonnull Instant now, int limit) {
+        try {
+            if (center == null || !(radius > 0.0)) {
                 return List.of();
             }
             SpatialResource<Ref<EntityStore>, EntityStore> npcs = accessor.getResource(NPCPlugin.get().getNpcSpatialResource());
@@ -138,7 +153,7 @@ public final class Nearby {
                 return List.of();
             }
             List<Ref<EntityStore>> found = new ArrayList<>();
-            npcs.getSpatialStructure().collect(at, radius, found);
+            npcs.getSpatialStructure().collect(center, radius, found);
             if (found.isEmpty()) {
                 return List.of();
             }
@@ -152,22 +167,69 @@ public final class Nearby {
                         || !allHold(accessor, creature, conditions, now)) {
                     continue;
                 }
-                Vector3d there = positionOf(accessor, creature);
-                double distance = there == null ? Double.MAX_VALUE : there.distanceSquared(at);
-                int slot = 0;
-                while (slot < distances.size() && distances.get(slot) <= distance) {
-                    slot++;
-                }
-                foes.add(slot, creature);
-                distances.add(slot, distance);
+                nearestFirst(foes, distances, creature, positionOf(accessor, creature), center);
             }
-            if (limit > 0 && foes.size() > limit) {
-                return List.copyOf(foes.subList(0, limit));
-            }
-            return List.copyOf(foes);
+            return capped(foes, limit);
         } catch (Throwable t) {
             return List.of();
         }
+    }
+
+    /**
+     * The other living players within {@code radius} blocks of {@code center} that meet every one of
+     * {@code conditions}, {@code holder} left out, nearest the center first, no more than {@code limit} (0 or less:
+     * no limit). Whether one is the holder's ally is the caller's question (zc-core's {@code Allies}). Empty, never
+     * null.
+     */
+    @Nonnull
+    public static List<Ref<EntityStore>> playersAround(@Nonnull ComponentAccessor<EntityStore> accessor,
+            @Nonnull Ref<EntityStore> holder, @Nullable Vector3d center, double radius,
+            @Nullable Condition[] conditions, @Nonnull Instant now, int limit) {
+        try {
+            if (center == null || !(radius > 0.0)) {
+                return List.of();
+            }
+            SpatialResource<Ref<EntityStore>, EntityStore> players =
+                    accessor.getResource(EntityModule.get().getPlayerSpatialResourceType());
+            if (players == null) {
+                return List.of();
+            }
+            List<Ref<EntityStore>> found = new ArrayList<>();
+            players.getSpatialStructure().collect(center, radius, found);
+            List<Ref<EntityStore>> out = new ArrayList<>();
+            List<Double> distances = new ArrayList<>();
+            for (Ref<EntityStore> other : found) {
+                if (other == null || !other.isValid() || Targets.same(other, holder)
+                        || accessor.getComponent(other, DeathComponent.getComponentType()) != null
+                        || !allHold(accessor, other, conditions, now)) {
+                    continue;
+                }
+                nearestFirst(out, distances, other, positionOf(accessor, other), center);
+            }
+            return capped(out, limit);
+        } catch (Throwable t) {
+            return List.of();
+        }
+    }
+
+    /** Put {@code ref} into {@code into} by its distance from {@code center} (unplaced last). */
+    private static void nearestFirst(@Nonnull List<Ref<EntityStore>> into, @Nonnull List<Double> distances,
+            @Nonnull Ref<EntityStore> ref, @Nullable Vector3d there, @Nonnull Vector3d center) {
+        double distance = there == null ? Double.MAX_VALUE : there.distanceSquared(center);
+        int slot = 0;
+        while (slot < distances.size() && distances.get(slot) <= distance) {
+            slot++;
+        }
+        into.add(slot, ref);
+        distances.add(slot, distance);
+    }
+
+    @Nonnull
+    private static List<Ref<EntityStore>> capped(@Nonnull List<Ref<EntityStore>> refs, int limit) {
+        if (limit > 0 && refs.size() > limit) {
+            return List.copyOf(refs.subList(0, limit));
+        }
+        return List.copyOf(refs);
     }
 
     /** Are two refs one live entity (the same slot of the same store)? */
@@ -191,14 +253,24 @@ public final class Nearby {
         return attitudes.getAttitude(creature, npc.getRoleIndex(), holder, accessor) == Attitude.HOSTILE;
     }
 
-    /** Do all of {@code conditions} hold on {@code ref}? True for none. */
+    /**
+     * Do all of {@code conditions} hold on {@code ref}? True for none. A condition that throws on an entity it
+     * cannot read (the engine's {@code Wielding} on an entity with no damage data) does not hold.
+     */
     public static boolean allHold(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
             @Nullable Condition[] conditions, @Nonnull Instant now) {
         if (conditions == null || conditions.length == 0) {
             return true;
         }
         for (Condition condition : conditions) {
-            if (condition != null && !condition.eval(accessor, ref, now)) {
+            if (condition == null) {
+                continue;
+            }
+            try {
+                if (!condition.eval(accessor, ref, now)) {
+                    return false;
+                }
+            } catch (Throwable t) {
                 return false;
             }
         }

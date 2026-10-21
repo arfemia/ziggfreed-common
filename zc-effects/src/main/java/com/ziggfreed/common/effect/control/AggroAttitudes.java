@@ -30,8 +30,12 @@ final class AggroAttitudes {
     static Attitude attitude(@Nonnull Ref<EntityStore> creature, int roleIndex, @Nonnull Ref<EntityStore> target,
             @Nonnull ComponentAccessor<EntityStore> accessor) {
         AggroWindows windows = AggroWindows.of(accessor);
-        if (windows == null || windows.muted || windows.isEmpty()) {
+        if (windows == null || windows.muted || (windows.isEmpty() && !windows.hasPins())) {
             return null;
+        }
+        AggroWindows.Pin pin = windows.pinOn(creature);
+        if (pin != null && pin.taken() && AggroWindows.sameEntity(pin.taunter(), target)) {
+            return Attitude.HOSTILE;
         }
         AggroWindow window = windows.get(target);
         return window == null ? null : window.attitudeOf(creature);

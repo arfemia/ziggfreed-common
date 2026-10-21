@@ -17,6 +17,7 @@ import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageCause;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
@@ -175,6 +176,39 @@ public final class Procs {
                 null));
     }
 
+    /**
+     * The seam a consumer that casts abilities of its own calls when one of the player {@code holder}'s casts truly
+     * goes off (past its cost and its checks), naming it {@code ability}: a Cast moment a proc's {@code Ability.Names}
+     * can ask for. World thread, from the consumer's cast step; pass its command buffer when it has one. A consumer
+     * that calls this for the casts its own keys start says so through {@link ProcAbilities.Namer#castsItself}, so the
+     * chain those keys start never counts as a second cast.
+     */
+    public static void cast(@Nonnull Store<EntityStore> store, @Nullable CommandBuffer<EntityStore> commandBuffer,
+            @Nonnull Ref<EntityStore> holder, @Nullable String ability) {
+        if (!listens(ProcTrigger.CAST)) {
+            return;
+        }
+        fire(new ProcMoment(ProcTrigger.CAST, store, commandBuffer, holder, null, null, 1.0, null, null,
+                ability == null || ability.isBlank() ? null : ability.trim(), null));
+    }
+
+    /**
+     * The seam a consumer that took the player {@code holder}'s ability key calls when it hands a press back to the
+     * move the key displaced (the held item's own, a slotted rune's), just before it runs that move's {@code root} as
+     * a server chain: that chain counts as the player's own press, so its Cast is proven like any other (it finished,
+     * or still runs half a second on), never on the press alone. World thread.
+     */
+    public static void handBack(@Nonnull Ref<EntityStore> holder, @Nullable String root) {
+        if (root == null || root.isBlank() || !listens(ProcTrigger.CAST)) {
+            return;
+        }
+        try {
+            MoveProofs.handBack(holder, root, System.nanoTime());
+        } catch (Throwable t) {
+            failed("a press handed back", t);
+        }
+    }
+
     /** One proc on one moment. */
     private static void run(@Nonnull ProcConfig.Def def, @Nonnull ProcMoment moment) {
         ProcAsset proc = def.asset();
@@ -188,7 +222,7 @@ public final class Procs {
         if (minAmount != null && moment.amount() < minAmount) {
             return;
         }
-        if (!hitPasses(proc, moment, accessor)) {
+        if (!effectPasses(proc, moment) || !hitPasses(proc, moment, accessor) || !movePasses(proc, moment, accessor)) {
             return;
         }
         Instant now = ConditionalStats.now(accessor);
@@ -270,6 +304,48 @@ public final class Procs {
         return true;
     }
 
+    /**
+     * Does the move behind the moment pass the proc's {@code Ability} group? A cast reads the root its chain started
+     * from and the ability its consumer named; a hit reads the root of the attacker's chain that dealt it
+     * ({@link ChainRoots}) and the ability a consumer names for it ({@link ProcAbilities}). A proc that asks it of a
+     * moment that names no move never runs.
+     */
+    private static boolean movePasses(@Nonnull ProcAsset proc, @Nonnull ProcMoment moment,
+            @Nonnull ComponentAccessor<EntityStore> accessor) {
+        ProcAsset.Ability ability = proc.ability();
+        if (ability == null) {
+            return true;
+        }
+        ProcTrigger trigger = moment.trigger();
+        if (trigger == ProcTrigger.CAST) {
+            return ability.matches(moment.root(), moment.ability());
+        }
+        Damage damage = moment.damage();
+        if (!trigger.struck() || damage == null) {
+            return false;
+        }
+        Ref<EntityStore> attacker = trigger.taken() ? moment.target() : moment.holder();
+        String root = ability.roots().isEmpty() ? null : ChainRoots.rootOf(attacker, damage);
+        String named = ability.names().isEmpty() ? null : ProcAbilities.hitAbility(accessor, attacker, damage);
+        return ability.matches(root, named);
+    }
+
+    /**
+     * Does an effect moment's effect pass the proc's {@code Effect} group (on the same side, named by id or family)?
+     * Every other moment passes. An effect proc naming no effect never runs.
+     */
+    private static boolean effectPasses(@Nonnull ProcAsset proc, @Nonnull ProcMoment moment) {
+        if (!moment.trigger().aboutEffect()) {
+            return true;
+        }
+        ProcAsset.Effect wanted = proc.effect();
+        ProcMoment.EffectSeen seen = moment.effect();
+        if (wanted == null || seen == null || wanted.onFoe() != seen.onFoe()) {
+            return false;
+        }
+        return EffectWatch.matches(wanted, seen.id(), EntityEffect.getAssetMap().getIndex(seen.id()));
+    }
+
     /** The nearest foe within the proc's {@code Seek} radius that meets its Target conditions and is off its wait. */
     @Nullable
     private static Ref<EntityStore> seekTarget(@Nonnull ComponentAccessor<EntityStore> accessor,
@@ -305,14 +381,18 @@ public final class Procs {
     // ==================== The holder pass ====================
 
     /**
-     * The holder pass, every tick for every living player, reading again a few times a second
-     * ({@value #PASS_EVERY_NANOS} ns): the counters' sweep and decay, the held effects, and the crouch a
-     * {@code CrouchStill} proc answers (its amount the seconds held). World thread; never throws.
+     * The holder pass, every tick for every living player: the moves waiting for their proof and a guard going up
+     * ({@link MoveProofs}) and the holder's own watched effects ({@link EffectWatch}) each tick; then, a few times a
+     * second ({@value #PASS_EVERY_NANOS} ns), the counters' sweep and decay, the held effects, the watched effects on
+     * the foes they struck, and the crouch a {@code CrouchStill} proc answers (its amount the seconds held). World
+     * thread; never throws.
      */
     static void holderPass(@Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer,
             @Nonnull Ref<EntityStore> holder) {
         try {
             long nanos = System.nanoTime();
+            MoveProofs.check(store, commandBuffer, holder, nanos);
+            EffectWatch.checkOwn(store, commandBuffer, holder);
             PassState state = PASSES.computeIfAbsent(holder, r -> new PassState());
             if (nanos < state.nextNanos) {
                 return;
@@ -322,7 +402,8 @@ public final class Procs {
                     null);
             FactorContext context = context(self, null);
             Counters.pass(commandBuffer, holder, context, nanos);
-            HeldEffects.pass(commandBuffer, holder, context, ConditionalStats.now(store));
+            HeldEffects.pass(commandBuffer, holder, context, ConditionalStats.now(store), nanos);
+            EffectWatch.checkFoes(store, commandBuffer, holder, nanos);
             if (!listens(ProcTrigger.CROUCH_STILL)) {
                 state.crouchSince = -1L;
                 return;
@@ -357,6 +438,10 @@ public final class Procs {
         Counters.forget(ref);
         Counters.targetGone(ref);
         ProcCooldowns.forgetTarget(ref);
+        MoveProofs.forget(ref);
+        ChainRoots.forget(ref);
+        EffectWatch.forget(ref);
+        HeldEffects.forget(ref);
     }
 
     // ==================== The reads every part shares ====================

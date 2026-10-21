@@ -15,17 +15,26 @@ public enum ProcTrigger {
     CRIT("Crit", "A hit the holder lands that a mod decided was critical (never on a server with no crit roll)",
             true, false),
     KILL("Kill", "A creature the holder is credited with killing", false, false),
-    DODGE("Dodge", "The holder's own dodge (a Dodge chain from their input)", false, false),
-    GUARD_START("GuardStart", "The holder raises a guard (a Wielding chain from their input)", false, false),
+    DODGE("Dodge", "The holder's own dodge once it went through (a dodge effect landed after their dodge key: a "
+            + "refused dodge, or a forward or back press, never counts)", false, false),
+    GUARD_START("GuardStart", "The holder's guard goes up (they start wielding a block)", false, false),
     BLOCKED("Blocked", "A hit on the holder that their guard blocked", true, true),
     HIT_TAKEN("HitTaken", "A hit a foe lands on the holder", true, true),
     SPRINT_HIT("SprintHit", "A direct hit the holder lands while sprinting", true, false),
     LANDING("Landing", "The holder lands after a fall (the moment's amount is the fall in blocks)", false, false),
     CROUCH_STILL("CrouchStill", "The holder crouches and stands still (asked a few times a second while they do; "
             + "the moment's amount is the seconds held)", false, false),
-    CAST("Cast", "The holder starts an ability (an Ability1 to Ability4 chain from their input)", false, false),
+    CAST("Cast", "The holder casts an ability: a mod's own cast as it goes off, or an Ability1 to Ability4 chain "
+            + "from their input once it got past its opening (it finished, or still runs half a second on)",
+            false, false),
     BLOCK_BREAK("BlockBreak", "A block the holder broke (zc's BREAK_BLOCK moment)", false, false),
-    HARVEST("Harvest", "Something the holder harvested (zc's PICKUP_ITEM moment)", false, false);
+    HARVEST("Harvest", "Something the holder harvested (zc's PICKUP_ITEM moment)", false, false),
+    DODGED("Dodged", "A foe's hit that came to nothing because the holder's dodge made them invulnerable",
+            true, true),
+    EFFECT_LANDED("EffectLanded", "An effect the proc names lands: on the holder, or with Effect OnFoe, the "
+            + "holder's own on a foe they struck", false, false),
+    EFFECT_ENDED("EffectEnded", "An effect the proc names comes off (it ran out, or was taken off): the holder's, "
+            + "or with Effect OnFoe, the holder's own on a foe they struck", false, false);
 
     @Nonnull private final String id;
     @Nonnull private final String meaning;
@@ -53,6 +62,16 @@ public enum ProcTrigger {
     /** Is the hit one the holder took (its attacker is the moment's target)? */
     public boolean taken() {
         return taken;
+    }
+
+    /** Is the moment about an effect landing or ending (so a proc's {@code Effect} group is read)? */
+    public boolean aboutEffect() {
+        return this == EFFECT_LANDED || this == EFFECT_ENDED;
+    }
+
+    /** Can the moment name the move behind it (so a proc's {@code Ability} group is read): a hit, or a cast? */
+    public boolean namesMove() {
+        return struck || this == CAST;
     }
 
     /** The trigger {@code raw} names (any case), or null when blank or unknown. */

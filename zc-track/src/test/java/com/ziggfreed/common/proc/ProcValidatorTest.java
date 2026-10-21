@@ -82,6 +82,62 @@ class ProcValidatorTest {
     }
 
     @Test
+    void theSecondRoundsFields_wellFormed_sayNothing() throws IOException {
+        ProcAsset cast = proc("{ \"Trigger\": \"Cast\", \"Ability\": { \"Roots\": [ \"Known_Root\" ],"
+                + " \"Names\": [ \"Fireball\" ] },"
+                + " \"Actions\": [ { \"Area\": { \"Radius\": 4, \"Around\": \"Holder\", \"Max\": 3, \"Allies\": true },"
+                + " \"ChangeStat\": { \"Stat\": \"Known_Stat\", \"Amount\": { \"Base\": 2 } } } ] }");
+        ProcAsset landed = proc("{ \"Trigger\": \"EffectLanded\", \"Effect\": { \"Effects\": [ \"Known_Effect\" ],"
+                + " \"Families\": [ \"Burning\" ], \"OnFoe\": true },"
+                + " \"Actions\": [ { \"Push\": { \"Force\": { \"Base\": -6 } }, \"Taunt\": { },"
+                + " \"BreakGuard\": true } ] }");
+        ProcAsset dodged = proc("{ \"Trigger\": \"Dodged\", \"Ability\": { \"Names\": [ \"Slash\" ] },"
+                + " \"Actions\": [ { \"Counter\": { \"Of\": \"Per_Foe\", \"Add\": { \"Base\": 1 } } } ] }");
+        CounterAsset perFoe = counter("{ \"PerTarget\": true, \"Size\": { \"Base\": 3 } }");
+        HeldEffectAsset held = held("{ \"Effect\": \"Known_Effect\", \"Hold\": { \"Base\": 2 },"
+                + " \"Linger\": { \"Base\": 1 } }");
+        List<Finding> findings = ProcValidator.audit(Map.of("cast", cast, "landed", landed, "dodged", dodged),
+                Map.of("per_foe", perFoe), Map.of("held", held), KNOWN);
+        assertEquals(List.of(), findings);
+    }
+
+    @Test
+    void theSecondRoundsFields_missingOrIdle_areFoundAsTheFirstRoundsAre() throws IOException {
+        ProcAsset badRoots = proc("{ \"Trigger\": \"Hit\", \"Ability\": { \"Roots\": [ \"Missing_Root\" ] },"
+                + " \"Actions\": [ { \"ApplyEffect\": { \"Effect\": \"Known_Effect\" } } ] }");
+        ProcAsset badWatch = proc("{ \"Trigger\": \"EffectEnded\", \"Effect\": { \"Effects\": [ \"Missing_Effect\" ],"
+                + " \"Families\": [ \"Missing_Family\" ] },"
+                + " \"Actions\": [ { \"ApplyEffect\": { \"Effect\": \"Known_Effect\" } } ] }");
+        List<Finding> errors = ProcValidator.audit(Map.of("a", badRoots, "b", badWatch), Map.of(), Map.of(), KNOWN);
+        assertEquals(Set.of(ProcValidator.UNKNOWN_INTERACTION, ProcValidator.UNKNOWN_EFFECT,
+                ProcValidator.UNKNOWN_FAMILY), codes(errors, Severity.ERROR));
+
+        ProcAsset abilityOnLanding = proc("{ \"Trigger\": \"Landing\", \"Ability\": { \"Names\": [ \"Slam\" ] },"
+                + " \"Effect\": { \"Effects\": [ \"Known_Effect\" ] },"
+                + " \"Actions\": [ { \"Area\": { \"Radius\": 0, \"Around\": \"Nowhere\" },"
+                + " \"Push\": { } } ] }");
+        ProcAsset unnamed = proc("{ \"Trigger\": \"EffectLanded\","
+                + " \"Actions\": [ { \"ApplyEffect\": { \"Effect\": \"Known_Effect\" } } ] }");
+        CounterAsset perFoeRows = counter("{ \"PerTarget\": true, \"PerStack\": [ { \"Stat\": \"Known_Stat\","
+                + " \"Amount\": 1 } ] }");
+        List<Finding> warnings = ProcValidator.audit(Map.of("c", abilityOnLanding, "d", unnamed),
+                Map.of("e", perFoeRows), Map.of(), KNOWN);
+        assertEquals(Set.of(ProcValidator.ABILITY_WITHOUT_MOVE, ProcValidator.EFFECT_WITHOUT_MOMENT,
+                ProcValidator.AREA_NO_REACH, ProcValidator.UNKNOWN_AROUND, ProcValidator.PUSH_NOTHING,
+                ProcValidator.EFFECT_UNNAMED, ProcValidator.PER_TARGET_ROWS), codes(warnings, Severity.WARNING));
+        assertTrue(codes(warnings, Severity.ERROR).isEmpty());
+    }
+
+    @Test
+    void anAreaPastItsCap_isWarnedAndHeldThere() throws IOException {
+        ProcAsset wide = proc("{ \"Trigger\": \"Landing\", \"Actions\": [ { \"Area\": { \"Radius\": 200 },"
+                + " \"ApplyEffect\": { \"Effect\": \"Known_Effect\" } } ] }");
+        List<Finding> findings = ProcValidator.audit(Map.of("a", wide), Map.of(), Map.of(), KNOWN);
+        assertEquals(Set.of(ProcValidator.AREA_TOO_WIDE), codes(findings, Severity.WARNING));
+        assertEquals(ProcAction.Area.RADIUS_CAP, wide.actions().get(0).area().radius());
+    }
+
+    @Test
     void aSwitchedOffOrSkeletonFile_isNotAudited() throws IOException {
         ProcAsset off = proc("{ \"Trigger\": \"Sneeze\", \"Enabled\": false }");
         ProcAsset skeleton = proc("{ \"Abstract\": true }");

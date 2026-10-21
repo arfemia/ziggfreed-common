@@ -59,11 +59,13 @@ public final class Counters {
     /**
      * One holder's counters, and whether its first pass has swept what an earlier session left. The states are a
      * concurrent map: the holder's world thread adds to it while another world's thread walks it when a target there
-     * leaves ({@link #targetGone}).
+     * leaves ({@link #targetGone}). A {@code PerTarget} counter keeps a state per foe ({@code perTarget}, by counter
+     * key, then by the foe's ref), concurrent for the same reason.
      */
     private static final class Holder {
         boolean swept;
         @Nonnull final Map<String, State> states = new ConcurrentHashMap<>();
+        @Nonnull final Map<String, Map<Ref<EntityStore>, State>> perTarget = new ConcurrentHashMap<>();
     }
 
     private static final Map<Ref<EntityStore>, Holder> HOLDERS = new ConcurrentHashMap<>();
@@ -73,24 +75,47 @@ public final class Counters {
 
     /** The stacks {@code holder} holds of the counter {@code counterId} (any case); 0 for none. */
     public static double stacks(@Nullable Ref<EntityStore> holder, @Nullable String counterId) {
+        return stacks(holder, counterId, null);
+    }
+
+    /**
+     * The stacks {@code holder} holds of the counter {@code counterId} (any case): of a {@code PerTarget} counter, the
+     * stacks about {@code target} (0 with no target); of any other, its one count. 0 for none.
+     */
+    public static double stacks(@Nullable Ref<EntityStore> holder, @Nullable String counterId,
+            @Nullable Ref<EntityStore> target) {
         if (holder == null || counterId == null || counterId.isBlank()) {
             return 0.0;
         }
         Holder h = HOLDERS.get(holder);
-        State state = h == null ? null : h.states.get(counterId.trim().toLowerCase(Locale.ROOT));
+        if (h == null) {
+            return 0.0;
+        }
+        String key = counterId.trim().toLowerCase(Locale.ROOT);
+        Map<Ref<EntityStore>, State> byTarget = h.perTarget.get(key);
+        if (byTarget != null) {
+            State state = target == null ? null : byTarget.get(target);
+            return state == null ? 0.0 : state.stacks;
+        }
+        State state = h.states.get(key);
         return state == null ? 0.0 : state.stacks;
     }
 
     /**
      * Add {@code add} stacks (up to the counter's size), take {@code consume} away, then clear them all when
      * {@code clear}, on the moment's holder; an add about another target than a {@code OneTarget} counter's starts it
-     * over. Writes the modifiers and the shown effect when the stacks moved.
+     * over, and a {@code PerTarget} counter changes only the stacks about the moment's target (none: nothing).
+     * Writes the modifiers and the shown effect when the stacks moved.
      */
     static void change(@Nonnull ProcMoment moment, @Nonnull CounterConfig.Def def, double add, double consume,
             boolean clear, @Nonnull FactorContext context) {
         ComponentAccessor<EntityStore> accessor = moment.accessor();
         Ref<EntityStore> holder = moment.holder();
         Holder h = holderOf(accessor, holder);
+        if (def.asset().perTarget()) {
+            changePerTarget(accessor, h, holder, moment.target(), def, add, consume, clear, context);
+            return;
+        }
         State state = h.states.computeIfAbsent(def.key(), k -> new State());
         double before = state.stacks;
         if (add > 0.0) {
@@ -119,9 +144,38 @@ public final class Counters {
     }
 
     /**
-     * Empty every one of {@code defs} the moment's holder holds stacks of (a moment that clears them). A
-     * damage-over-time tick (a foe's burn or poison on the holder) clears only a counter that writes
-     * {@code ClearOverTime}.
+     * The same change on a {@code PerTarget} counter: only the stacks about {@code target}. Such a counter gives no
+     * modifiers and shows nothing (its stacks are about one foe, the holder's stats are not), so nothing is written.
+     */
+    private static void changePerTarget(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Holder h,
+            @Nonnull Ref<EntityStore> holder, @Nullable Ref<EntityStore> target, @Nonnull CounterConfig.Def def,
+            double add, double consume, boolean clear, @Nonnull FactorContext context) {
+        if (target == null || !target.isValid()) {
+            return;
+        }
+        Map<Ref<EntityStore>, State> byTarget = h.perTarget.computeIfAbsent(def.key(), k -> new ConcurrentHashMap<>());
+        State state = byTarget.computeIfAbsent(target, t -> new State());
+        if (add > 0.0) {
+            state.stacks = Math.min(sizeOf(def, accessor, holder, context), state.stacks + add);
+        }
+        if (consume > 0.0) {
+            state.stacks = Math.max(0.0, state.stacks - consume);
+        }
+        if (clear) {
+            state.stacks = 0.0;
+        }
+        state.stacks = Math.max(0.0, state.stacks);
+        state.baseStacks = state.stacks;
+        state.baseNanos = System.nanoTime();
+        if (!(state.stacks > 0.0)) {
+            byTarget.remove(target);
+        }
+    }
+
+    /**
+     * Empty every one of {@code defs} the moment's holder holds stacks of (a moment that clears them), a
+     * {@code PerTarget} counter's stacks about every foe. A damage-over-time tick (a foe's burn or poison on the
+     * holder) clears only a counter that writes {@code ClearOverTime}.
      */
     static void clearOn(@Nonnull ProcMoment moment, @Nonnull List<CounterConfig.Def> defs) {
         Holder h = HOLDERS.get(moment.holder());
@@ -133,6 +187,7 @@ public final class Counters {
             if (overTime && !def.asset().clearOverTime()) {
                 continue;
             }
+            h.perTarget.remove(def.key());
             State state = h.states.get(def.key());
             if (state != null && state.stacks > 0.0) {
                 empty(moment.accessor(), moment.holder(), def, state);
@@ -146,6 +201,7 @@ public final class Counters {
         if (h == null) {
             return;
         }
+        h.perTarget.clear();
         for (Map.Entry<String, State> entry : h.states.entrySet()) {
             State state = entry.getValue();
             if (!(state.stacks > 0.0)) {
@@ -179,6 +235,9 @@ public final class Counters {
     static void pass(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> holder,
             @Nonnull FactorContext context, long nanos) {
         Holder h = holderOf(accessor, holder);
+        if (!h.perTarget.isEmpty()) {
+            passPerTarget(h, context, nanos);
+        }
         if (h.states.isEmpty()) {
             return;
         }
@@ -208,6 +267,38 @@ public final class Counters {
             if (next < state.stacks) {
                 state.stacks = next;
                 write(accessor, holder, def, state);
+            }
+        }
+    }
+
+    /**
+     * The holder pass over the {@code PerTarget} counters: the stacks about each foe decay as a counter's do, about a
+     * foe gone they go, and every foe's go when the counter's file is gone or its {@code Requires} fails.
+     */
+    private static void passPerTarget(@Nonnull Holder h, @Nonnull FactorContext context, long nanos) {
+        for (Map.Entry<String, Map<Ref<EntityStore>, State>> entry : h.perTarget.entrySet()) {
+            CounterConfig.Def def = CounterConfig.getInstance().live(entry.getKey());
+            if (def == null || !def.asset().perTarget() || !Procs.gatePasses(def.asset().liveRequires(), context)) {
+                h.perTarget.remove(entry.getKey());
+                continue;
+            }
+            CounterAsset.Decay decay = def.asset().decay();
+            double after = decay == null || decay.after() == null ? 0.0 : Procs.evaluate(decay.after(), context);
+            double every = decay == null || decay.every() == null ? 0.0 : Procs.evaluate(decay.every(), context);
+            Map<Ref<EntityStore>, State> byTarget = entry.getValue();
+            for (Map.Entry<Ref<EntityStore>, State> one : byTarget.entrySet()) {
+                State state = one.getValue();
+                if (!one.getKey().isValid()) {
+                    byTarget.remove(one.getKey());
+                    continue;
+                }
+                if (decay != null) {
+                    state.stacks = Math.min(state.stacks,
+                            decayed(state.baseStacks, nanos - state.baseNanos, after, every, decay.lose()));
+                }
+                if (!(state.stacks > 0.0)) {
+                    byTarget.remove(one.getKey());
+                }
             }
         }
     }
@@ -247,7 +338,10 @@ public final class Counters {
         HOLDERS.remove(ref);
     }
 
-    /** A target left its store: a {@code OneTarget} counter about it starts over at its holder's next add. */
+    /**
+     * A target left its store: a {@code OneTarget} counter about it starts over at its holder's next add, and a
+     * {@code PerTarget} counter's stacks about it go.
+     */
     static void targetGone(@Nonnull Ref<EntityStore> ref) {
         for (Holder h : HOLDERS.values()) {
             for (State state : h.states.values()) {
@@ -255,6 +349,9 @@ public final class Counters {
                     state.targetGone = true;
                     state.target = null;
                 }
+            }
+            for (Map<Ref<EntityStore>, State> byTarget : h.perTarget.values()) {
+                byTarget.remove(ref);
             }
         }
     }
