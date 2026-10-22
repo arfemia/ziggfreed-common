@@ -92,7 +92,7 @@ command.desc.family = Read and move players' tracks.
 command.desc.add = Move a player's track, the way a reward would.
 command.desc.show = Show a player's tracks, online or not.
 command.desc.prestige = Start a player's climb on a track again.
-command.desc.pick = Make a pick on a player's track: choose an offered option, or take a pick bought outright.
+command.desc.pick = Make a pick on a player's track: choose an offered option, or give a pick bought outright, past its level, wherever it is taught and without charging its price.
 command.desc.undo = Undo a player's latest pick that can still be undone.
 command.desc.respec = Clear every pick a player made on a track and give back the points. What a trainer taught stays.
 command.desc.savebuild = Save the picks a player has in use on a track as one of their saved builds.
@@ -151,6 +151,7 @@ command.pick.spend_cap = {1} has spent all {2} allows from that pool.
 command.pick.maxed = {1} has taken {2} as often as it can be taken.
 command.pick.elsewhere = {2} is taken at a trainer, not here.
 command.pick.node_taken = {1} already took the other side of that choice on {0}, so {2} is closed off.
+command.pick.cannot_pay = {1} cannot pay for {2} yet.
 command.pick.nothing = Nothing changed for {1} on {0}.
 # /zigtrack undo: {0} the track, {1} the player, {2} what was undone; in command.undo.none {0} is the player and {1}
 # the most minutes a pick stays undoable. /zigtrack respec: {2} how many picks cleared.

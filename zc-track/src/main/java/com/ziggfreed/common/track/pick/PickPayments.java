@@ -24,7 +24,8 @@ import com.ziggfreed.common.track.TrackDef;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * What a pick service charges (a saved build's swap, a respec), through the library's one price: the track's authored
+ * What a pick service charges (a pick's own {@code Cost.Price}, a saved build's swap, a respec), through the library's
+ * one price: the authored
  * {@link CostAsset}, folded by {@link CommerceFold#cost} and checked, drained and refunded by
  * {@link CommerceEngines#costs()}, so it is payable in whatever wallet or item the owner names (R733, R736). Refund
  * the receipt a charge hands back, never the price. World thread.
@@ -95,6 +96,25 @@ final class PickPayments {
             return Math.multiplyExact(amount, (long) times);
         } catch (ArithmeticException e) {
             return Long.MAX_VALUE;
+        }
+    }
+
+    /**
+     * Could the player at {@code ref} pay {@code cost} now, read without charging: true for a free price, false when
+     * they cannot be read. What a page's status reads before a press charges.
+     */
+    static boolean canPay(@Nonnull Ref<EntityStore> ref, @Nonnull Cost cost) {
+        if (cost.isFree()) {
+            return true;
+        }
+        try {
+            Store<EntityStore> store = ref.getStore();
+            Subject subject = Subject.of(store.getComponent(ref, PlayerRef.getComponentType()),
+                    store.getComponent(ref, Player.getComponentType()));
+            return subject != null && CommerceEngines.costs().canPay(subject, cost);
+        } catch (Throwable t) {
+            SafeLog.fine("[track] whether a player can pay a price could not be read: " + t.getMessage());
+            return false;
         }
     }
 

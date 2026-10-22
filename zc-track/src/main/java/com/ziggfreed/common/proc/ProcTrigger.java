@@ -7,8 +7,8 @@ import javax.annotation.Nullable;
 
 /**
  * The moments a proc ({@link ProcAsset}) answers, a closed vocabulary: each is produced in one place, for players
- * only ({@link ProcSystems}, {@link ProcMoments}, {@link GuardBreaks}, and {@link Procs#crit} for the one a consumer
- * decides).
+ * only ({@link ProcSystems}, {@link ProcMoments}, {@link GuardBreaks}, and {@link Procs#crit} and
+ * {@link Procs#finisher} for the two a consumer decides).
  */
 public enum ProcTrigger {
 
@@ -47,7 +47,9 @@ public enum ProcTrigger {
             + "heals themselves)", false, false),
     GUARD_BROKE("GuardBroke", "A foe's guard broken under the holder: a hit of theirs it blocked drained it (the "
             + "engine's guard break landed on it soon after), or a proc of theirs broke it (the foe is the moment's "
-            + "target)", false, false);
+            + "target)", false, false),
+    FINISHER("Finisher", "A hit the holder lands that a mod decided closed a combo, the last swing of a chain (never "
+            + "on a server with no mod deciding combos)", true, false);
 
     @Nonnull private final String id;
     @Nonnull private final String meaning;

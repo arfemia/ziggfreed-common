@@ -60,8 +60,9 @@ import com.ziggfreed.common.util.SafeLog;
  * {@value #COOLDOWN_CUT_STAT} (percent off a wait, held at {@value #COOLDOWN_CUT_MAX_STAT}) and
  * {@value #COUNTER_SIZE_STAT} (percent on a counter's size). Each reads off its stat's maximum.
  *
- * <p><b>Crit.</b> The library has no critical roll, so {@link ProcTrigger#CRIT} fires only when a consumer that decides
- * crits says one landed ({@link #crit}); on a server with none, Crit procs never run.
+ * <p><b>Crit and Finisher.</b> The library has no critical roll and counts no combo, so {@link ProcTrigger#CRIT} and
+ * {@link ProcTrigger#FINISHER} fire only when a consumer that decides them says one landed ({@link #crit},
+ * {@link #finisher}); on a server with none, those procs never run.
  *
  * <p>No proc runs inside another proc's actions (a guard per thread), and a hit a proc dealt itself (an effect it put
  * on, a chain it ran: {@link ProcMarks}) is no moment for any proc or counter clear, so content can never build a proc
@@ -215,6 +216,21 @@ public final class Procs {
             return;
         }
         fire(new ProcMoment(ProcTrigger.CRIT, store, commandBuffer, attacker, target, damage, damage.getAmount(),
+                null));
+    }
+
+    /**
+     * The seam a consumer that decides combos calls when one closes: the player {@code attacker}'s hit {@code damage}
+     * on {@code target} was the finishing hit of a combo (the last swing of a chain). World thread, from the
+     * consumer's damage step; pass its command buffer. The library counts no combo itself, so on a server with no
+     * consumer calling this Finisher procs never run.
+     */
+    public static void finisher(@Nonnull Store<EntityStore> store, @Nullable CommandBuffer<EntityStore> commandBuffer,
+            @Nonnull Ref<EntityStore> attacker, @Nullable Ref<EntityStore> target, @Nonnull Damage damage) {
+        if (!listens(ProcTrigger.FINISHER)) {
+            return;
+        }
+        fire(new ProcMoment(ProcTrigger.FINISHER, store, commandBuffer, attacker, target, damage, damage.getAmount(),
                 null));
     }
 

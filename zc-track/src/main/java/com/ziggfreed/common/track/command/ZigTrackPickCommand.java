@@ -15,10 +15,12 @@ import com.ziggfreed.common.track.pick.PickService;
 
 /**
  * {@code pick [--player=<name>] --track=<id> (--option=<id> [--level=<n>] | --pick=<id>)}: make a pick for an online
- * player as the track's own page would ({@code PickService}): with {@code --option}, choose it at the lowest
- * waiting slot that offers it (or the slot at {@code --level}); with {@code --pick} alone, take that pick bought
- * outright. Every rule applies (the slot open, the option offered, Requires, prerequisites, points, the spend cap),
- * the grants are rebuilt, and the pick can be undone ({@code undo}). Left out, the sender is the player.
+ * player. With {@code --option}, choose it at the lowest waiting slot that offers it (or the slot at {@code --level})
+ * as the track's own page would ({@code PickService.choose}: the slot open, the option offered, Requires,
+ * prerequisites, points, the spend cap), and the choice can be undone ({@code undo}). With {@code --pick} alone, give
+ * that pick bought outright as an admin's teach ({@code PickService.teach}): past the level it opens at and wherever
+ * its trainer stands, its price never charged, every other rule still asked, and no undo, since the player made no
+ * pick. Either way the grants are rebuilt. Left out, the sender is the player.
  */
 final class ZigTrackPickCommand extends TrackTargetCommand {
 
@@ -56,7 +58,8 @@ final class ZigTrackPickCommand extends TrackTargetCommand {
             }
             result = PickService.choose(target.id(), def.id(), slot, List.of(option), null);
         } else {
-            result = PickService.take(target.id(), def.id(), pick, null);
+            // An admin's teach: no price charged, never refused as taught elsewhere or not open yet.
+            result = PickService.teach(target.id(), def.id(), pick);
         }
         String named = option != null ? option : pick;
         if (result.done()) {

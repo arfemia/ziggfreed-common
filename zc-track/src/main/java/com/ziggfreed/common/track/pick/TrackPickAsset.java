@@ -24,6 +24,7 @@ import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.codec.InheritMapCodec;
+import com.ziggfreed.common.commerce.asset.CostAsset;
 import com.ziggfreed.common.codec.JsonTreeCodec;
 import com.ziggfreed.common.grant.BuiltInGrants;
 import com.ziggfreed.common.grant.Grant;
@@ -179,8 +180,9 @@ public final class TrackPickAsset implements JsonAssetWithMap<String, DefaultAss
                     + "the drawn offer back. Merges level by level under Parent and in the owner file.").add()
             .appendInherited(new KeyedCodec<>("Cost", Cost.CODEC, false),
                     (a, v) -> a.cost = v, a -> a.cost, (a, p) -> a.cost = p.cost)
-            .documentation("What each take of this pick costs (each level of a choice made), in a track's points. "
-                    + "Leave it out for a free pick.").add()
+            .documentation("What each take of this pick costs (each level of a choice made), in a track's points, "
+                    + "and for a pick bought outright a Price in any wallet or item besides. Leave it out for a free "
+                    + "pick.").add()
             .appendInherited(new KeyedCodec<>("Prerequisites", Codec.STRING_ARRAY, false),
                     (a, v) -> a.prerequisites = v, a -> a.prerequisites, (a, p) -> a.prerequisites = p.prerequisites)
             .documentation("Picks (by id) or options (by id) on the same track that must each have been taken at "
@@ -398,6 +400,12 @@ public final class TrackPickAsset implements JsonAssetWithMap<String, DefaultAss
     public String costTrack() {
         String own = cost == null ? null : blankToNull(cost.track);
         return own != null ? own : trackId();
+    }
+
+    /** What each take also costs in wallets or items ({@code Cost.Price}) as written, or null for none. */
+    @Nullable
+    public CostAsset price() {
+        return cost == null || cost.price == null || cost.price.isFree() ? null : cost.price;
     }
 
     /** The prerequisite ids, lower-cased, blanks left out. */
@@ -688,11 +696,12 @@ public final class TrackPickAsset implements JsonAssetWithMap<String, DefaultAss
         }
     }
 
-    /** The Cost group: points of a track each take spends. */
+    /** The Cost group: points of a track each take spends, and a price in any wallet or item besides. */
     public static final class Cost {
 
         @Nullable protected Integer points;
         @Nullable protected String track;
+        @Nullable protected CostAsset price;
 
         public static final BuilderCodec<Cost> CODEC = BuilderCodec.builder(Cost.class, Cost::new)
                 .appendInherited(new KeyedCodec<>("Points", Codec.INTEGER, false),
@@ -705,6 +714,13 @@ public final class TrackPickAsset implements JsonAssetWithMap<String, DefaultAss
                 .metadata(EditorSchema.assetRef(TrackAsset.class))
                 .documentation("The track whose points are spent, by id: a pick on a skill's tree priced in that "
                         + "skill's Mastery points names the Mastery track here. Unauthored, the pick's own track.")
+                .add()
+                .appendInherited(new KeyedCodec<>("Price", CostAsset.CODEC, false),
+                        (o, v) -> o.price = v, o -> o.price, (o, p) -> o.price = p.price)
+                .documentation("What each take also costs in any wallet or item (the one price shape shops use), "
+                        + "charged as the pick is taken and given back if that take is undone; an admin's teach "
+                        + "is free, and a walk that spends picks for the player (a starter build, a re-spend) "
+                        + "passes a priced pick over. Free when unauthored.")
                 .add()
                 .build();
 

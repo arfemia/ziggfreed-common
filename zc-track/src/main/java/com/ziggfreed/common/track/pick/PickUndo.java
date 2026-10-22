@@ -34,16 +34,23 @@ final class PickUndo {
      * put aside there, given back on undo), a pick bought outright ({@code slot} null), or a batch of takes made in
      * one go ({@code batch}: each take's pick id in the order made, a repeat for each further rank; a re-spend of
      * remembered takes also lists them in {@code remembered}, put back at the head of what is remembered on undo), so
-     * one undo gives back the whole batch, however long.
+     * one undo gives back the whole batch, however long. A take that was paid for keeps its charge ({@code paid}),
+     * whose receipt the undo gives back; null for one that cost no price.
      */
     record Entry(@Nonnull String trackId, @Nonnull String pickId, @Nullable String slot,
                  @Nonnull List<String> options, @Nonnull List<String> remembered, long atMs,
-                 @Nonnull List<String> batch) {
+                 @Nonnull List<String> batch, @Nullable PickPayments.Paid paid) {
 
         Entry {
             options = List.copyOf(options);
             remembered = List.copyOf(remembered);
             batch = List.copyOf(batch);
+        }
+
+        /** A choice, a free take or a batch: nothing was charged. */
+        Entry(@Nonnull String trackId, @Nonnull String pickId, @Nullable String slot, @Nonnull List<String> options,
+                @Nonnull List<String> remembered, long atMs, @Nonnull List<String> batch) {
+            this(trackId, pickId, slot, options, remembered, atMs, batch, null);
         }
 
         /** One choice or one take (no batch). */

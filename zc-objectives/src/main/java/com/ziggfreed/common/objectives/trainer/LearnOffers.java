@@ -7,6 +7,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.Message;
+import com.ziggfreed.common.commerce.page.CommerceChips;
 import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.track.TrackText;
@@ -32,8 +33,10 @@ import com.ziggfreed.common.ui.toast.ToastKind;
 
 /**
  * The Learn part: every pick bought outright whose {@code Where} names this trainer ({@code PickService.trainerPicks}),
- * each with the level it opens at, what it costs, and Learn, the level still needed, or Learned. Learn takes it
- * through {@code PickService.take} at this placement, which asks every rule again.
+ * each with the level it opens at, what it costs (its points, and its price in wallets or items,
+ * {@code PickService.price}), and Learn, the level still needed, or Learned. Learn takes it through
+ * {@code PickService.take} at this placement, which asks every rule again and charges the price; a Learn with a price
+ * pays only on its second press ({@link TrainerEntry#confirmed}).
  */
 final class LearnOffers {
 
@@ -64,15 +67,22 @@ final class LearnOffers {
         Picture picture = asset == null ? Picture.NONE : Picture.item(asset.icon());
         Tone tone = tone(pick);
         Message word = word(pick);
-        Message cost = pick.costPoints() > 0 ? TrainerText.line("learn.cost", pick.costPoints()) : null;
+        List<DetailLine> price = CommerceChips.priceLines(PickService.price(pick.pickId()));
+        Message cost = pick.costPoints() > 0 ? TrainerText.line("learn.cost", pick.costPoints())
+                : price.size() == 1 ? price.get(0).text() : null;
         LedgerRow row = new LedgerRow(pick.pickId(), name, TrainerText.line("learn.meta", track, pick.opensAt()),
                 picture, tone, word, cost, null, Mark.NONE, pick.learned());
 
         List<DetailLine> needs = new ArrayList<>();
         needs.add(new DetailLine(Picture.NONE, TrainerText.line("learn.need.level", pick.opensAt(), track), null,
                 null, pick.level() >= pick.opensAt() ? Tick.DONE : Tick.LOCKED, null, false));
-        needs.add(DetailLine.of(Picture.NONE, cost == null ? TrainerText.line("learn.need.free")
-                : TrainerText.line("learn.need.points", pick.costPoints(), costName(pick))));
+        if (pick.costPoints() > 0) {
+            needs.add(DetailLine.of(Picture.NONE,
+                    TrainerText.line("learn.need.points", pick.costPoints(), costName(pick))));
+        } else if (price.isEmpty()) {
+            needs.add(DetailLine.of(Picture.NONE, TrainerText.line("learn.need.free")));
+        }
+        needs.addAll(price);
         if (pick.max() > 1 && pick.max() != Integer.MAX_VALUE) {
             needs.add(DetailLine.of(Picture.NONE, TrainerText.line("learn.taken", pick.taken(), pick.max())));
         }
@@ -84,7 +94,12 @@ final class LearnOffers {
                 List.of(learn), learnable ? null : refusal(pick.status(), pick.opensAt(), track));
         String trackId = pick.trackId();
         String pickId = pick.pickId();
-        return TrainerEntry.of(row, page, at -> learn(at, trackId, pickId));
+        // A Learn that charges a price arms on its first press and pays on the second: a respec keeps what a trainer
+        // taught, so only the undo window would give back a misclick. Decided from the price itself, never its
+        // rendered lines, so a line that fails to render never lets a charge through on one press.
+        return PickService.price(pickId).isFree() ? TrainerEntry.of(row, page, at -> learn(at, trackId, pickId))
+                : TrainerEntry.confirmed(row, page, at -> learn(at, trackId, pickId),
+                        TrainerText.line("learn.confirm"));
     }
 
     /** Take the pick at this trainer, and say what happened. */
@@ -111,6 +126,7 @@ final class LearnOffers {
             case SPEND_CAP -> TrainerText.line("learn.refused.cap");
             case MAXED -> TrainerText.line("learn.refused.learned");
             case ELSEWHERE -> TrainerText.line("learn.refused.elsewhere");
+            case CANNOT_PAY -> TrainerText.line("learn.refused.pay");
             default -> TrainerText.line("learn.refused.other");
         };
     }

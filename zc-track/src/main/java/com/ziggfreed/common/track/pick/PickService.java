@@ -18,6 +18,8 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.commerce.asset.CostAsset;
+import com.ziggfreed.common.commerce.fold.CommerceFold;
 import com.ziggfreed.common.cost.Cost;
 import com.ziggfreed.common.encounter.run.EncounterRuns;
 import com.ziggfreed.common.entity.CombatState;
@@ -315,9 +317,10 @@ public final class PickService {
                                 Math.min(group.choose(), offer.size())));
                     }
                 }
-            } else if (!costed && pick.asset().repeatMax() != Integer.MAX_VALUE
+            } else if (!costed && pick.asset().price() == null && pick.asset().repeatMax() != Integer.MAX_VALUE
                     && state.takesOf(pick.id()) < pick.asset().repeatMax()) {
-                // A free pick with no limit is always there to take, so it is never owed.
+                // A free pick with no limit is always there to take, so it is never owed; a priced one is bought,
+                // never owed.
                 owed.add(new Owed(id, pick.id(), null, pick.asset().opensAt(), List.of(), List.of(), 1));
             }
         }
@@ -560,8 +563,10 @@ public final class PickService {
     }
 
     /**
-     * Take the pick bought outright {@code pickId} on {@code trackId} once more, paying its {@code Cost}.
-     * {@code placement} is the trainer the page belongs to (null for the track's own page). World thread.
+     * Take the pick bought outright {@code pickId} on {@code trackId} once more, paying its {@code Cost}: its points,
+     * and its {@code Cost.Price} charged through the library's one price ({@link Status#CANNOT_PAY} when it cannot be
+     * paid, nothing taken), given back if the take cannot be kept or is undone. {@code placement} is the trainer the
+     * page belongs to (null for the track's own page). World thread.
      */
     @Nonnull
     public static Result take(@Nonnull UUID player, @Nullable String trackId, @Nullable String pickId,
@@ -578,12 +583,17 @@ public final class PickService {
         if (status != Status.DONE) {
             return Result.of(status);
         }
+        PickPayments.Paid paid = PickPayments.charge(climb.ref(), priceOf(pick), "the pick " + pick.id());
+        if (paid == null) {
+            return Result.of(Status.CANNOT_PAY);
+        }
         PickState state = climb.record().picks();
         if (!climb.store().put(climb.key(), climb.record().withPicks(state.withTakes(pick.id(), 1)))) {
+            paid.refund();
             return Result.of(Status.NOT_LIVE);
         }
         PickUndo.record(player, new PickUndo.Entry(climb.def().id(), pick.id(), null, List.of(), List.of(),
-                System.currentTimeMillis()));
+                System.currentTimeMillis(), List.of(), paid));
         changed(player, climb, ZigTrackPicksChangedEvent.Change.TAKEN, pick.id(), null, List.of());
         return new Result(Status.DONE, climb.def().id(), pick.id(), null, List.of(), 1);
     }
@@ -592,7 +602,8 @@ public final class PickService {
      * An admin's teach: take the pick bought outright {@code pickId} on {@code trackId} for {@code player} once more,
      * by every rule {@link #take} obeys (its rank, its choice node, its {@code Requires}, its prerequisites, its
      * points) but two: the level it opens at and where it is taught, so an admin hands a player a pick their level
-     * has not reached, wherever they stand (a trainer's pick included). Kept, the epoch moved, the grants rebuilt and
+     * has not reached, wherever they stand (a trainer's pick included); its {@code Cost.Price} is never charged.
+     * Kept, the epoch moved, the grants rebuilt and
      * {@code ZigTrackPicksChangedEvent} fired ({@code TAKEN}) as a take is; it leaves no undo, since the player made no
      * pick to take back. Only an admin's path calls it, never a player's page. World thread.
      */
@@ -675,6 +686,10 @@ public final class PickService {
         if (entry.isBatch()) {
             changed(player, climb, ZigTrackPicksChangedEvent.Change.UNDONE, null, null, List.of());
             return new Result(Status.DONE, climb.def().id(), null, null, List.of(), entry.batch().size());
+        }
+        if (entry.paid() != null) {
+            // A take that was paid for gives back what its charge took, never its price as it reads now.
+            entry.paid().refund();
         }
         changed(player, climb, ZigTrackPicksChangedEvent.Change.UNDONE, entry.pickId(), entry.slot(),
                 entry.options());
@@ -1114,7 +1129,40 @@ public final class PickService {
         if (!taught && !at(pick, placement)) {
             return Status.ELSEWHERE;
         }
-        return costStatus(player, pick, records);
+        Status cost = costStatus(player, pick, records);
+        return cost != Status.DONE || taught ? cost : priceStatus(player, pick);
+    }
+
+    /**
+     * Can {@code player} pay {@code pick}'s {@code Cost.Price} now, read without charging: {@link Status#DONE} for a
+     * free price, or for a player who is not live here (the write itself answers that), else
+     * {@link Status#CANNOT_PAY} while their wallets or bags fall short.
+     */
+    @Nonnull
+    private static Status priceStatus(@Nonnull UUID player, @Nonnull TrackPicks.PickDef pick) {
+        Cost price = priceOf(pick);
+        if (price.isFree()) {
+            return Status.DONE;
+        }
+        Ref<EntityStore> ref = PlayerAccess.liveRef(player);
+        return ref == null || PickPayments.canPay(ref, price) ? Status.DONE : Status.CANNOT_PAY;
+    }
+
+    /**
+     * What one take of the pick {@code pickId} costs in wallets and items besides its points ({@code Cost.Price},
+     * folded through the library's one price): what a trainer's page and a track's page show beside the points.
+     * {@link Cost#FREE} for a pick with none, or none of that id.
+     */
+    @Nonnull
+    public static Cost price(@Nullable String pickId) {
+        return priceOf(TrackPicks.pick(pickId));
+    }
+
+    /** {@link #price} of a folded pick. */
+    @Nonnull
+    private static Cost priceOf(@Nullable TrackPicks.PickDef pick) {
+        CostAsset price = pick == null ? null : pick.asset().price();
+        return price == null ? Cost.FREE : CommerceFold.cost(price, "the pick " + pick.id());
     }
 
     /** {@link #takeStatus(UUID, TrackDef, TrackRecord, TrackPicks.PickDef, String, GateQuery, Map)} on a live climb. */
@@ -1160,11 +1208,15 @@ public final class PickService {
 
     /**
      * Take {@code pick} once more on {@code climb} when every rule allows it, keep it and move the gate epoch so the
-     * next ask reads it; no undo, grant or event (the caller's, once, after a walk). Null when it was not taken.
+     * next ask reads it; no undo, grant or event (the caller's, once, after a walk). Null when it was not taken. A walk
+     * never charges, so a pick with a {@code Cost.Price} is passed over: the player buys it themselves.
      */
     @Nullable
     private static Climb takeInto(@Nonnull UUID player, @Nonnull Climb climb, @Nullable TrackPicks.PickDef pick,
             @Nullable GateQuery query) {
+        if (pick == null || pick.asset().price() != null) {
+            return null;
+        }
         if (takeStatus(player, climb, pick, null, query) != Status.DONE) {
             return null;
         }

@@ -344,7 +344,7 @@ What this world does to tracks: whether gains land and at what multiplier, and w
 | `Groups` | array of [Group](#field-trackpickasset-groups-item) | `null` | The choice groups: each opens one slot at each of its levels, where the player chooses from the options offered there. Leave it out for a pick bought outright, which grants its own Grants. Under Parent this list replaces the parent's whole. |
 | `Vars` | `json` | `null` | The values this pick's options are filled with: an option file writing {Held} or {Cause} in its Grants reads them from here (a group's own Vars win), so one option serves every track. Each value is a string, number or true/false. |
 | `Offers` | map of array of `string` | `null` | Levels whose offer is written out, by level: { "10": [ "Your_Edge", "Your_Keen" ] } offers those options at level 10, with the Core line, in place of what the Deck would draw there. Every other level is drawn from these files alone, the same on every server, so friends and guides can compare. Each group offers only the written options it lists that are switched on and read; a group listing none of them keeps its drawn offer there, and an empty list puts the drawn offer back. Merges level by level under Parent and in the owner file. |
-| `Cost` | [Cost](#field-trackpickasset-cost) | `null` | What each take of this pick costs (each level of a choice made), in a track's points. Leave it out for a free pick. |
+| `Cost` | [Cost](#field-trackpickasset-cost) | `null` | What each take of this pick costs (each level of a choice made), in a track's points, and for a pick bought outright a Price in any wallet or item besides. Leave it out for a free pick. |
 | `Prerequisites` | array of `string` | `null` | Picks (by id) or options (by id) on the same track that must each have been taken at least once before this one opens. |
 | `Requires` | [Requires](#type-requires) | `null` | What a player must meet to take this pick, in the Requires shape quests use, every condition read. A plain { "Factor": "hytale:mod_installed", "Param": "Group:Name", "Min": 1 } keeps the file out entirely where that mod is not installed. A choice whose Requires the player does not meet is not owed to them. |
 | `Repeat` | [Repeat](#field-trackpickasset-repeat) | `null` | How many times a pick bought outright may be taken. Leave it out to take it once. |
@@ -379,6 +379,7 @@ What this world does to tracks: whether gains land and at what multiplier, and w
 |---|---|---|---|
 | `Points` | `integer` | `null` | The points each take spends. A track earns Points.PerLevel points for each level past the first; what is spent comes back on a respec. 0 when unauthored. |
 | `Track` | `string` | `null` | The track whose points are spent, by id: a pick on a skill's tree priced in that skill's Mastery points names the Mastery track here. Unauthored, the pick's own track. |
+| `Price` | [Cost](#type-cost) | `null` | What each take also costs in any wallet or item (the one price shape shops use), charged as the pick is taken and given back if that take is undone; an admin's teach is free, and a walk that spends picks for the player (a starter build, a re-spend) passes a priced pick over. Free when unauthored. |
 
 <a id="field-trackpickasset-repeat"></a>
 ### TrackPickAsset.Repeat

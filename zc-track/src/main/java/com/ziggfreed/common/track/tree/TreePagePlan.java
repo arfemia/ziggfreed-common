@@ -272,8 +272,10 @@ final class TreePagePlan {
 
         @Nonnull
         LedgerRow ledgerRow() {
-            Message cost = node.cost() <= 0 ? TreeText.line("node.meta.free")
-                    : TreeText.line(ranked() ? "node.meta.rank" : "node.meta.once", node.cost());
+            List<DetailLine> price = node.cost() <= 0 ? CommerceChips.priceLines(PickService.price(node.pickId()))
+                    : List.of();
+            Message cost = node.cost() > 0 ? TreeText.line(ranked() ? "node.meta.rank" : "node.meta.once", node.cost())
+                    : price.isEmpty() ? TreeText.line("node.meta.free") : price.get(0).text();
             Message meta = node.isFace() ? TreeText.line("node.meta.face", cost) : cost;
             Message value = ranked() ? KitText.count(node.taken(), node.ranks())
                     : node.ranks() == Integer.MAX_VALUE && node.taken() > 0 ? Msg.num(node.taken()) : null;
@@ -335,7 +337,13 @@ final class TreePagePlan {
             Map<ActionSlot, Press> presses = new EnumMap<>(ActionSlot.class);
             presses.put(ActionSlot.PRIMARY, () -> take(player, trackId, pickId));
             presses.put(ActionSlot.SECONDARY, () -> undo(player));
-            return new Entry(id(), page, presses, Map.of());
+            // A take that charges a price arms on its first press and pays on the second: a respec keeps what it
+            // bought, so only the undo window would give back a misclick.
+            // Decided from the price itself, never its rendered lines, so a line that fails to render never lets a
+            // charge through on one press.
+            Map<ActionSlot, Message> confirms = PickService.price(pickId).isFree()
+                    ? Map.of() : Map.of(ActionSlot.PRIMARY, TreeText.line("take.confirm"));
+            return new Entry(id(), page, presses, confirms);
         }
 
         /** What the pick needs: its row's points, its level, what comes first, its points; each ticked when met. */
@@ -355,14 +363,19 @@ final class TreePagePlan {
             if (node.status() == Status.LOCKED && row.open()) {
                 lines.add(ticked(TreeText.line("need.other"), false));
             }
+            List<DetailLine> price = CommerceChips.priceLines(PickService.price(node.pickId()));
             if (node.cost() <= 0) {
-                lines.add(DetailLine.of(Picture.NONE, TreeText.line("need.free")));
+                if (price.isEmpty()) {
+                    lines.add(DetailLine.of(Picture.NONE, TreeText.line("need.free")));
+                }
             } else if (node.costTrack() == null || node.costTrack().equals(view.def().id())) {
                 lines.add(ticked(TreeText.line("need.points", node.cost()), view.left() >= node.cost()));
             } else {
                 lines.add(ticked(TreeText.line("need.points.from", node.cost(), trackName(node.costTrack())),
                         node.status() != Status.NO_POINTS && node.status() != Status.SPEND_CAP));
             }
+            // Its price in wallets or items besides its points, each line in the price's own colours.
+            lines.addAll(price);
             return lines;
         }
 
@@ -407,6 +420,7 @@ final class TreePagePlan {
                 case NODE_TAKEN -> TreeText.line("refused.node", takenFace());
                 case NO_POINTS -> TreeText.line("refused.points");
                 case SPEND_CAP -> TreeText.line("refused.cap");
+                case CANNOT_PAY -> TreeText.line("toast.pay");
                 case MAXED -> TreeText.line("hint.maxed");
                 default -> TreeText.line("refused.other");
             };

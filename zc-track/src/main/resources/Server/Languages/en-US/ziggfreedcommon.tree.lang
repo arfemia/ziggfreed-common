@@ -54,6 +54,8 @@ need.free = Free to take
 tag.taken = Taken
 tag.this = This one
 action.take = Take
+# A take that charges a price, after its first press: a second press pays.
+take.confirm = Press again to pay
 action.undo = Undo last
 hint.undo = Undo last takes back the newest pick you made, here or anywhere else. Closing this page ends it.
 hint.maxed = You have taken every rank of this.

@@ -21,6 +21,7 @@ learn.need.free = Free to learn
 learn.need.points = {0, number} {0, plural, one {point} other {points}} from {1}
 learn.taken = Learned {0, number} of {1, number} times
 learn.action = Learn
+learn.confirm = Press again to pay
 learn.done = You learned {0}.
 learn.state.learn = Learn
 learn.state.learned = Learned
@@ -34,6 +35,7 @@ learn.refused.points = You need more points to learn this.
 learn.refused.cap = You have spent all the points you can here.
 learn.refused.learned = You already know this.
 learn.refused.elsewhere = Another trainer teaches this.
+learn.refused.pay = You cannot pay for this yet.
 learn.refused.other = This cannot be learned right now.
 
 quest.meta = Quest
