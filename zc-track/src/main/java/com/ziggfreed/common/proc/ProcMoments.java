@@ -106,11 +106,13 @@ public final class ProcMoments implements MomentListener {
     /**
      * A heal a player gives is landing (zc-core's {@code ZigHealGivenEvent}, fired by the one heal): a HealGiven
      * moment for the healer, about the one healed (no one on a self-heal), its amount what the heal restores. A heal a
-     * proc's own actions gave runs once that proc is done ({@link Procs#fire}). World thread, inside the heal.
+     * proc's own actions gave runs once that proc is done ({@link Procs#fire}). A tick of a heal over time is no
+     * moment ({@code ZigHealGivenEvent.overTime}): it still earns healing credit, but a knack answering heals given
+     * never hears every tick of a running heal. World thread, inside the heal.
      */
     static void onHealGiven(@Nonnull ZigHealGivenEvent event) {
         try {
-            if (!Procs.listens(ProcTrigger.HEAL_GIVEN) || !event.healer().isValid()) {
+            if (event.overTime() || !Procs.listens(ProcTrigger.HEAL_GIVEN) || !event.healer().isValid()) {
                 return;
             }
             Ref<EntityStore> target = event.selfHeal() ? null : event.target();

@@ -26,6 +26,7 @@ public final class ZigHealGivenEvent implements IEvent<Void> {
     @Nonnull private final Ref<EntityStore> target;
     private final float amount;
     @Nullable private final String source;
+    private final boolean overTime;
 
     /** A heal that names no source. */
     public ZigHealGivenEvent(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> healer,
@@ -33,13 +34,30 @@ public final class ZigHealGivenEvent implements IEvent<Void> {
         this(store, healer, target, amount, null);
     }
 
+    /** A heal given at once (not a tick of a heal over time). */
     public ZigHealGivenEvent(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> healer,
             @Nonnull Ref<EntityStore> target, float amount, @Nullable String source) {
+        this(store, healer, target, amount, source, false);
+    }
+
+    /** {@code overTime}: is this one tick of a heal over time ({@link #overTime})? */
+    public ZigHealGivenEvent(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> healer,
+            @Nonnull Ref<EntityStore> target, float amount, @Nullable String source, boolean overTime) {
         this.store = store;
         this.healer = healer;
         this.target = target;
         this.amount = amount;
         this.source = source;
+        this.overTime = overTime;
+    }
+
+    /**
+     * Is this one tick of a heal over time (a regeneration an ability or effect left running), the way a damage over
+     * time's tick is a hit over time? Such a tick still earns its giver's healing credit, but a reader that answers
+     * a heal as a moment (a talent's HealGiven proc) skips it, so a heal over time never sets off a knack every tick.
+     */
+    public boolean overTime() {
+        return overTime;
     }
 
     /**

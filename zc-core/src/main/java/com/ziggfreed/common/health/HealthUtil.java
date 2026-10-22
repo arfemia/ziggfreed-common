@@ -139,6 +139,19 @@ public final class HealthUtil {
      */
     public static boolean heal(@Nonnull Store<EntityStore> store, @Nullable Ref<EntityStore> healer,
             @Nonnull Ref<EntityStore> target, float amount, @Nullable String source) {
+        return heal(store, healer, target, amount, source, false);
+    }
+
+    /**
+     * {@link #heal(Store, Ref, Ref, float, String)}, saying whether this is one tick of a heal over time
+     * ({@code overTime}): its {@link ZigHealGivenEvent} carries the mark, as a damage over time's tick carries its own,
+     * so healing credit still pays it and a talent that answers a heal given (a HealGiven proc) skips it. Each tick
+     * passes its giver and source, so the giver's healing power raises it as the tick lands.
+     *
+     * @return {@code true} if any health was added; {@code false} otherwise
+     */
+    public static boolean heal(@Nonnull Store<EntityStore> store, @Nullable Ref<EntityStore> healer,
+            @Nonnull Ref<EntityStore> target, float amount, @Nullable String source, boolean overTime) {
         if (amount <= 0f) {
             return false;
         }
@@ -148,7 +161,7 @@ public final class HealthUtil {
             if (restores > 0f) {
                 String named = source == null || source.isBlank() ? null : source.trim();
                 HEAL_EVENTS.fire("heal given", ZigHealGivenEvent.class,
-                        () -> new ZigHealGivenEvent(store, healer, target, restores, named));
+                        () -> new ZigHealGivenEvent(store, healer, target, restores, named, overTime));
             }
         }
         return heal(store, target, scaled);

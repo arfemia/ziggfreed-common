@@ -44,7 +44,7 @@ public enum ProcTrigger {
             + "deal)", false, false),
     HEAL_GIVEN("HealGiven", "A heal the holder gives through CommonLib's heal (a talent's, an ability's), as it "
             + "lands (the moment's amount is the health it restores, its target the one healed; none when the holder "
-            + "heals themselves)", false, false),
+            + "heals themselves); a tick of a heal over time never counts", false, false),
     GUARD_BROKE("GuardBroke", "A foe's guard broken under the holder: a hit of theirs it blocked drained it (the "
             + "engine's guard break landed on it soon after), or a proc of theirs broke it (the foe is the moment's "
             + "target)", false, false),

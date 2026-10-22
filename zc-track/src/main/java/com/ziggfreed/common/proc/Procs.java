@@ -18,6 +18,7 @@ import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.protocol.InteractionType;
 import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageCause;
@@ -265,6 +266,16 @@ public final class Procs {
         } catch (Throwable t) {
             failed("a press handed back", t);
         }
+    }
+
+    /**
+     * Is a chain of {@code type} one a proc ran? Every chain a proc's {@code RunInteraction} starts runs as one label
+     * (the engine's own server-run {@code EntityStatEffect}), so a consumer's step inside it (an ability cast it starts)
+     * asks this and keeps its own moments from feeding a proc again: a cast a proc made is never a Cast for a proc, so
+     * no proc can set itself off through one. Any thread; null is no proc's.
+     */
+    public static boolean ranByProc(@Nullable InteractionType type) {
+        return type != null && type == ProcActions.CHAIN_TYPE;
     }
 
     /** One proc on one moment. */
