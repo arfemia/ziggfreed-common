@@ -50,7 +50,8 @@ import com.ziggfreed.common.stats.gearset.GearSetConfig;
  * StatDisplays, ObjectiveKinds, OverheadIndicators, QuestIndicators, RewardKinds, BandedEffects,
  * PrefabPlacements, Leaderboard, Arenas, Party, Dungeons, RewardChests, DialogueOptionTheme, NpcIdentities, Factors,
  * FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, PlayerSettings, AchievementCategories,
- * QuestCategories, AchievementMilestones, Almanac, ShopPools, EncounterBindings,
+ * QuestCategories, AchievementMilestones, Almanac (a collection slot gates on its own {@code Requires}: absent
+ * where its mod is missing, read inline and never counted), ShopPools, EncounterBindings,
  * EncounterParticipation, EncounterRules, CalendarEvents, CalendarSpawns, Titles, Reputations and Gateways. A
  * store that gains a
  * top-level {@code Requires} moves from this paragraph into {@code GATED}, and into {@code OWNER_READERS}

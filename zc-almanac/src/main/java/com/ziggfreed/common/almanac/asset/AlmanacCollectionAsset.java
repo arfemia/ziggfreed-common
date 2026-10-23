@@ -12,6 +12,8 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.asset.EditorSchema;
+import com.ziggfreed.common.asset.PresenceRequiresCodec;
+import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.text.ContentTextAsset;
 
 /**
@@ -19,10 +21,18 @@ import com.ziggfreed.common.text.ContentTextAsset;
  * shows its own picture once the player has obtained it once (any route into any of their inventory
  * sections, recorded for good), or while it is not {@code Hidden}; a hidden one shows a '?' until then.
  *
+ * <p>A slot may carry its own {@code Requires}, the mod gate a file's top-level block writes (zc-core's
+ * {@code PresenceRequiresCodec}, read through {@code ModGates}): where its plain {@code hytale:mod_installed}
+ * condition ({@code Min: 1}) names a mod that reads a definite 0, the slot is not on this server at all
+ * ({@link #slots()} leaves it out, so the grid, the audit and the owned marks never see it, and nothing
+ * counts or names it). Any other condition there is not read: the page's own findings warn about it.
+ *
  * <pre>{@code
  * { "Collection": { "Text": { "TitleKey": "almanac.spring_fair.items.title" },
  *     "Items": [ { "Item": "Spring_Fair_Ribbon", "SourceKey": "almanac.spring_fair.source.stall" },
- *                { "Item": "Spring_Fair_Kite_Gold", "Hidden": true } ],
+ *                { "Item": "Spring_Fair_Kite_Gold", "Hidden": true },
+ *                { "Item": "Yourmod_Kite", "Requires": { "Factors": [
+ *                    { "Factor": "hytale:mod_installed", "Param": "Yourgroup:Yourmod", "Min": 1 } ] } } ],
  *     "Button": { "TextKey": "almanac.spring_fair.items.stall",
  *                 "Destination": { "Type": "Shop", "Shop": "Spring_Fair_Stall" } } } }
  * }</pre>
@@ -41,7 +51,8 @@ public final class AlmanacCollectionAsset {
                     .append(new KeyedCodec<>("Items", new ArrayCodec<>(Slot.CODEC, Slot[]::new), false),
                             (c, v) -> c.items = v, c -> c.items)
                     .documentation("The items a player can find this season, drawn in the order written, at most "
-                            + "45, nine a row. An item the server does not have is left out.").add()
+                            + "45, nine a row. An item the server does not have is left out, and so is a slot "
+                            + "whose Requires names a mod this server does not run.").add()
                     .append(new KeyedCodec<>("Button", AlmanacLinkAsset.CODEC, false),
                             (c, v) -> c.button = v, c -> c.button)
                     .documentation("A button under the grid: its words and what it opens, in the shared "
@@ -53,7 +64,11 @@ public final class AlmanacCollectionAsset {
     public AlmanacCollectionAsset() {
     }
 
-    /** The entries that name an item, in the order written (the reader caps and checks them). */
+    /**
+     * The entries on this server that name an item, in the order written (the reader caps and checks them): a
+     * slot whose own {@code Requires} names a missing mod is not among them, so it takes no place in the grid's
+     * 45 and no reader (the view, the audit, the owned marks) sees it.
+     */
     @Nonnull
     public List<Slot> slots() {
         if (items == null) {
@@ -61,7 +76,7 @@ public final class AlmanacCollectionAsset {
         }
         List<Slot> out = new ArrayList<>();
         for (Slot slot : items) {
-            if (slot != null && slot.item() != null) {
+            if (slot != null && slot.item() != null && slot.passesModGate()) {
                 out.add(slot);
             }
         }
@@ -91,12 +106,24 @@ public final class AlmanacCollectionAsset {
         return button != null && !button.usable();
     }
 
-    /** One item of the grid: which item, whether it hides until obtained once, and where it comes from. */
+    /**
+     * One item of the grid: which item, whether it hides until obtained once, where it comes from, and the mod it
+     * needs on this server.
+     */
     public static final class Slot {
+
+        /** The sentence the Asset Editor shows beside a slot's {@code Requires}. */
+        private static final String REQUIRES_DOCUMENTATION = "Whether this slot is on this server at all. A "
+                + "condition { \"Factor\": \"hytale:mod_installed\", \"Param\": \"Group:Name\", \"Min\": 1 } "
+                + "leaves the slot out of the grid where that mod is not installed, as if it were never written, "
+                + "while the rest of the grid shows. Write Min 1: a condition with no bound is satisfied by a "
+                + "missing mod too. A slot reads nothing else here: any other condition is ignored, and the "
+                + "page's audit says so.";
 
         @Nullable private String item;
         @Nullable private Boolean hidden;
         @Nullable private String sourceKey;
+        @Nullable private PresenceRequiresCodec.Block requires;
 
         public static final BuilderCodec<Slot> CODEC = BuilderCodec.builder(Slot.class, Slot::new)
                 .append(new KeyedCodec<>("Item", Codec.STRING, false), (s, v) -> s.item = v, s -> s.item)
@@ -111,9 +138,35 @@ public final class AlmanacCollectionAsset {
                         (s, v) -> s.sourceKey = v, s -> s.sourceKey)
                 .documentation("Where the item comes from, as a localization key, shown in its tooltip once it "
                         + "is shown.").add()
+                .append(new KeyedCodec<>("Requires", PresenceRequiresCodec.CODEC, false),
+                        (s, v) -> s.requires = v, s -> s.requires)
+                .documentation(REQUIRES_DOCUMENTATION).add()
                 .build();
 
         public Slot() {
+        }
+
+        /**
+         * The mod ({@code Group:Name}) that keeps this slot off this server, or null when it is here (it writes no
+         * {@code Requires}, or its mods are installed, or the server cannot tell yet).
+         */
+        @Nullable
+        public String missingMod() {
+            return PresenceRequiresCodec.missingMod(requires);
+        }
+
+        /** Is this slot on this server? False only when its own {@code Requires} names a missing mod. */
+        public boolean passesModGate() {
+            return missingMod() == null;
+        }
+
+        /**
+         * The conditions of its {@code Requires} a slot does not read: every one but the plain mod presence gate.
+         * Empty when it writes none; never modify it.
+         */
+        @Nonnull
+        FactorCondition[] ignoredConditions() {
+            return PresenceRequiresCodec.liveFactors(requires);
         }
 
         /** The item id, trimmed, or null when blank. */

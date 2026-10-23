@@ -43,9 +43,11 @@ import com.ziggfreed.common.validation.TextKeyAudit;
  * {@code LINK_LEFT_OUT}, {@code HERO_ITEMS_OVER_CAP}, {@code PICTURE_HAS_TWO} (a hero's or a banner's picture
  * naming both an {@code Item} and an {@code Npc}: the item is drawn), and over its {@code Sections}
  * {@code SECTION_EMPTY}, {@code SECTION_HAS_TWO}, {@code SECTION_REPEATED}, {@code SECTIONS_OVER_CAP},
- * {@code BANNER_EMPTY}, {@code BANNER_ITEMS_OVER_CAP}, {@code COLLECTION_ITEMS_OVER_CAP} and
- * {@code COLLECTION_ITEM_REPEATED}, each a warning) are folded in as they are. The codes this audit adds, each a stable machine token a
- * consumer may filter on:
+ * {@code BANNER_EMPTY}, {@code BANNER_ITEMS_OVER_CAP}, {@code COLLECTION_ITEMS_OVER_CAP},
+ * {@code COLLECTION_ITEM_REPEATED} and {@code COLLECTION_SLOT_CONDITION_IGNORED}, each a warning) are folded in as
+ * they are. A collection slot gated on a mod this server lacks is not here at all
+ * ({@code AlmanacCollectionAsset.slots()}), so nothing below asks it. The codes this audit adds, each a stable
+ * machine token a consumer may filter on:
  * <ul>
  *   <li>ERROR {@link #PAGE_ID_UNUSABLE} (the page is skipped whole, so nothing more is asked of it),
  *       {@link #STAT_ID_UNUSABLE}, {@link #MISSING_KIND} and {@link #UNPRODUCIBLE_KIND} (the tally line can

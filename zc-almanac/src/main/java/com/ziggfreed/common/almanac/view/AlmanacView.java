@@ -883,7 +883,8 @@ public final class AlmanacView {
      * A collection's grid for one player: the first {@link #COLLECTION_MAX_ITEMS} slots written, in order (the
      * rule {@code COLLECTION_ITEMS_OVER_CAP} counts by), each item once (matched without case), each the server has
      * a picture for, each owned when the player has had it once. A repeat or an item the server lacks among those
-     * slots draws nothing and gives its place to no later slot. Null when no item draws.
+     * slots draws nothing and gives its place to no later slot; a slot gated on a missing mod is not written as far
+     * as this server is concerned ({@code AlmanacCollectionAsset.slots()}). Null when no item draws.
      */
     @Nullable
     static CollectionSection collection(@Nullable AlmanacCollectionAsset authored, @Nonnull CounterMap tallies,

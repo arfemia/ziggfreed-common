@@ -28,7 +28,7 @@ The family's shared library of mod-agnostic Hytale primitives and engines. It de
 - The library registers every framework store (`asset/FrameworkAssetRegistrar`). A consumer authors JSON under `Server/ZiggfreedCommon/<Type>/` and reads the resolved config lazily, after `LoadedAssetsEvent`; it never registers a framework store again (the engine throws on a second registration).
 - A content-like default (words, colours, sounds, icons, item lists) ships as JSON in the owning module's resources; a structural default (what the mechanism does when nothing is registered) stays code.
 - A content validator reports an unknown id as a `WARNING`, never an `ERROR`: its owner may register later, or be a mod this server does not run.
-- A store whose files may carry a top-level `Requires` follows the mod gate (M295): the fold, the owner reader and the drop line are in `zc-core/src/main/java/com/ziggfreed/common/asset/CLAUDE.md`, the `ModGates` API in `factor/CLAUDE.md`, a reward row's own gate in zc-progression's `progress/asset/CLAUDE.md`; read the first before adding or changing a gated store.
+- A store whose files may carry a top-level `Requires` follows the mod gate (M295): the fold, the owner reader and the drop line are in `zc-core/src/main/java/com/ziggfreed/common/asset/CLAUDE.md`, the `ModGates` API in `factor/CLAUDE.md`, a reward row's own gate in zc-progression's `progress/asset/CLAUDE.md`, an Almanac collection slot's in zc-almanac's `almanac/asset/CLAUDE.md`; read the first before adding or changing a gated store.
 
 ## Code
 
