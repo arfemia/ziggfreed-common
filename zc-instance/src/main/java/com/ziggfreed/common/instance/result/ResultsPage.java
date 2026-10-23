@@ -220,12 +220,17 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
         ResultsActions actions = deps.actions();
         String action = data.action == null ? "" : data.action;
         if (actions != null && "claim".equals(action)) {
-            boolean allClaimed = actions.claimRewards(ref, store);
+            ResultsActions.Claimed press = actions.claim(ref, store);
             claimed = true;
-            claimAllSucceeded = allClaimed;
-            // Re-render in the claimed state (button gone, note shown); prime the toast so this build paints it.
-            primeToast(ToastSpec.of(ToastKind.REWARD,
-                    allClaimed ? deps.text().claimedNote() : deps.text().pendingNote()));
+            claimAllSucceeded = press.allClaimed();
+            // Re-render in the claimed state (button gone, note shown). The press's own toast (what landed) shows as
+            // the Claims tab's does; without one, prime the page's line so this build paints it.
+            if (press.toast() != null) {
+                showToast(press.toast());
+            } else {
+                primeToast(ToastSpec.of(ToastKind.REWARD,
+                        press.allClaimed() ? deps.text().claimedNote() : deps.text().pendingNote()));
+            }
             player.getPageManager().openCustomPage(ref, store, this);
             return;
         }

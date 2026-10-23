@@ -9,7 +9,7 @@ $ZW = "../Common/ZigKit.ui";
 // section's #SecGrid and addressed by index as "#SecGrid[i] #ItemCard" or "#SecGrid[i] #PlainCard". In the style of
 // vanilla's Memories page (Pages/Memories/Memory.ui): the whole card is one button, and it shows exactly one of its two
 // faces. An item's card is 140 x 172 as written here, four a row in a 596px wrapping grid; the painter gives any other
-// card the gold size as one whole Anchor (TilePainter.GOLD_CARD_WIDTH x GOLD_CARD_HEIGHT, 110 x 154), five a row, so
+// card the gold size as one whole Anchor (TilePainter.GOLD_CARD_WIDTH x GOLD_CARD_HEIGHT, 110 x 168), five a row, so
 // #PlainBody below is laid out for that size.
 //
 //   #ItemCard   an item handed over: an ItemSlotButton on the Memories tile (ZigTileStyle's look, lit under the cursor)
@@ -25,7 +25,8 @@ $ZW = "../Common/ZigKit.ui";
 //               kit's gold (ZigTileWarmStyle), so it reads apart from an item at a glance; the same three parts in
 //               the same places (#PlainSource, #PlainSlotBack behind the reward's own 64px picture #Pic, painted
 //               through IconRenderer.applyPlainIcon, #PlainRarity), the rarity read the one way an item's is, and the
-//               reward's own line, which carries its amount ("+50 Sweets", #PlainName, two lines). The tooltip Java
+//               reward's own line, which carries its amount ("+50 Sweets", #PlainName: three lines a step under an
+//               item's name, so a reputation's whole name fits the narrower card). The tooltip Java
 //               sets on #PlainCard draws in the game's tooltip; nothing inside carries one, so a click anywhere
 //               reaches the card.
 //
@@ -172,10 +173,12 @@ Group #ZigRewardCard {
         }
       }
 
+      // The caption step, three lines: on the gold card's 98px a reputation's name ("+50 Old Jack's Favor") runs past
+      // two lines of the item card's step and ended in "...".
       Label #PlainName {
-        Anchor: (Height: 34);
+        Anchor: (Height: 48);
         Text: "";
-        Style: (...$ZX.@ZigTileNameStyle, FontSize: $ZT.@ZigFontBody, HorizontalAlignment: Center, VerticalAlignment: Start, WrapMaxLines: 2);
+        Style: (...$ZX.@ZigTileNameStyle, FontSize: $ZT.@ZigFontCaption, HorizontalAlignment: Center, VerticalAlignment: Start, WrapMaxLines: 3);
       }
 
       Group {

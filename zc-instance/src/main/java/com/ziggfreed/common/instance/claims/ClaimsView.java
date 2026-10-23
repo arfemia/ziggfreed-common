@@ -451,12 +451,30 @@ public final class ClaimsView {
     @Nullable
     static ToastSpec pressToast(@Nonnull ClaimGrants.Result result, @Nonnull ClaimsText text, boolean all,
             boolean summed) {
+        return pressToast(result, text, all, summed, text.line("toast.kept"));
+    }
+
+    /**
+     * {@link #pressToast(ClaimGrants.Result, ClaimsText, boolean)} for one Claim pressed away from the Claims tab (a
+     * dungeon's results screen), where what a full bag keeps does not wait on the page it was pressed on:
+     * {@code kept} is the line saying where it waits. Public so that surface tells its press as the tab does.
+     */
+    @Nullable
+    public static ToastSpec pressToast(@Nonnull ClaimGrants.Result result, @Nonnull ClaimsText text,
+            @Nonnull Message kept) {
+        return pressToast(result, text, false, false, kept);
+    }
+
+    /** The one press toast the overloads above word, {@code kept} the line a press a full bag kept part of reads. */
+    @Nullable
+    private static ToastSpec pressToast(@Nonnull ClaimGrants.Result result, @Nonnull ClaimsText text, boolean all,
+            boolean summed, @Nonnull Message kept) {
         if (result.nothing()) {
             return null;
         }
         List<ToastLine> landed = summed ? summedLines(result.collected()) : landedLines(result.collected());
         if (result.anyKept()) {
-            return ToastSpec.of(ToastKind.WARNING, text.line("toast.kept")).withLines(landed);
+            return ToastSpec.of(ToastKind.WARNING, kept).withLines(landed);
         }
         if (result.failed() > 0) {
             return ToastSpec.of(ToastKind.WARNING, text.line("toast.failed")).withLines(landed);

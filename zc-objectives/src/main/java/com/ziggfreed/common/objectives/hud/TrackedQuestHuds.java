@@ -349,7 +349,9 @@ public final class TrackedQuestHuds {
      *
      * <p><b>The tick that FINISHES a step still announces.</b> A finish is a result rather than a
      * reading, and all the panel does for it is tick a box, so silencing it would leave the moment a
-     * player most wants to see as the quietest thing on screen.
+     * player most wants to see as the quietest thing on screen. (The shipped moment file draws no
+     * toast for a hand-in's finish at all, since the hand-in's own notice says it; that is the file's
+     * choice, not this reader's.)
      *
      * <p>The library's own quest toasts are marked {@code PlayerLevel}, so for them a stronger rule
      * answers first: {@link TrackedQuestFeedback} marks every moment about a quest drawn here, the finish,

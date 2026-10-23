@@ -51,10 +51,11 @@ public final class TilePainter {
     /**
      * A gold card's size (a reward card showing its gold face): five a row in a reward chest's 596px grid with the
      * template's 8px gaps, where an item's card keeps the template's own 140 x 172, four a row. The gold face's parts
-     * ({@code #PlainBody} in {@code Pages/ZigRewardCard.ui}) are laid out for it.
+     * ({@code #PlainBody} in {@code Pages/ZigRewardCard.ui}) are laid out for it: its height holds the reward's own
+     * line on three lines.
      */
     public static final int GOLD_CARD_WIDTH = 110;
-    public static final int GOLD_CARD_HEIGHT = 154;
+    public static final int GOLD_CARD_HEIGHT = 168;
 
     /** The game's item qualities a reward card wears the looping sheen ({@code #Shine}) between, both in, by rank. */
     static final String SHINE_FROM = DropRarity.EPIC;

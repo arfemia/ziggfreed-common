@@ -6,6 +6,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.ui.toast.ToastSpec;
 
 /**
  * The consumer's handlers for the results-screen footer CTAs (the explicit "CTA to
@@ -43,5 +44,22 @@ public interface ResultsActions {
     default boolean claimRewards(@Nonnull Ref<EntityStore> ref,
                                  @Nonnull Store<EntityStore> store) {
         return true;
+    }
+
+    /**
+     * What a Claim press did: whether everything was delivered ({@link #claimRewards}'s answer), and the toast it
+     * raises over the page, or null for the page's own claimed or pending line.
+     */
+    record Claimed(boolean allClaimed, @Nullable ToastSpec toast) {
+    }
+
+    /**
+     * Claim the run's pending spoils as {@link #claimRewards} does, answering the toast the press raises too. The
+     * default claims through {@link #claimRewards} and raises none of its own, so the page shows its own line; a
+     * consumer whose press hands over the library's Claims answers the Claims tab's own toast, naming what landed.
+     */
+    @Nonnull
+    default Claimed claim(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store) {
+        return new Claimed(claimRewards(ref, store), null);
     }
 }
