@@ -5,24 +5,34 @@ $ZX = "../Common/ZigText.ui";
 $ZS = "../Common/ZigStyles.ui";
 $ZW = "../Common/ZigKit.ui";
 
-// One reward as a card (a reward chest's page), 140 x 172, four a row in a 596px wrapping grid, appended by
-// com.ziggfreed.common.ui.kit.TilePainter.rewardCards into a section's #SecGrid and addressed by index as
-// "#SecGrid[i] #ItemCard" or "#SecGrid[i] #PlainCard". In the style of vanilla's Memories page
-// (Pages/Memories/Memory.ui): the whole card is one button, and it shows exactly one of its two faces.
+// One reward as a card (a reward chest's page), appended by com.ziggfreed.common.ui.kit.TilePainter.rewardCards into a
+// section's #SecGrid and addressed by index as "#SecGrid[i] #ItemCard" or "#SecGrid[i] #PlainCard". In the style of
+// vanilla's Memories page (Pages/Memories/Memory.ui): the whole card is one button, and it shows exactly one of its two
+// faces. An item's card is 140 x 172 as written here, four a row in a 596px wrapping grid; the painter gives any other
+// card the gold size as one whole Anchor (TilePainter.GOLD_CARD_WIDTH x GOLD_CARD_HEIGHT, 110 x 154), five a row, so
+// #PlainBody below is laid out for that size.
 //
 //   #ItemCard   an item handed over: an ItemSlotButton on the Memories tile (ZigTileStyle's look, lit under the cursor)
 //               holding the item on a rarity slot: an AssetImage (#SlotBack, hidden until Java sets its .AssetPath to
 //               a quality's own SlotTexture, the art the game draws behind an item) under an ItemSlot with no quality
 //               background of its own whose .ItemId Java sets, as vanilla's barter page does
 //               (Pages/BarterTradeRow.ui); hovering it shows the item's own tooltip. The quality is the one the line
-//               names (its drop's chance), else the item's own. Under it the item's name (#ItemName, three lines,
+//               names (its drop's chance), else the item's own. Over it the word for where the reward came from
+//               (#Source, hidden when the line names none, in #SourceRow, which keeps its 18px either way so no card's
+//               picture sits higher than its neighbours'); under it the item's name (#ItemName, three lines,
 //               centred) and the engine's word for that quality (#Rarity, in its colour; hidden where it shows none).
 //   #PlainCard  anything else (a currency, experience, reputation): a Button on the Memories tile warmed by the
-//               kit's gold (ZigTileWarmStyle), so it reads apart from an item at a glance; the reward's own 64px
-//               picture (#Pic, painted through IconRenderer.applyPlainIcon) over its own line, which carries its
-//               amount ("+50 Sweets", #PlainName, at the item name's place), and the word for the quality the line
-//               names (#PlainRarity, in its colour; hidden when it names none). The tooltip Java sets on #PlainCard
-//               draws in the game's tooltip; nothing inside carries one, so a click anywhere reaches the card.
+//               kit's gold (ZigTileWarmStyle), so it reads apart from an item at a glance; the same three parts in
+//               the same places (#PlainSource, #PlainSlotBack behind the reward's own 64px picture #Pic, painted
+//               through IconRenderer.applyPlainIcon, #PlainRarity), the rarity read the one way an item's is, and the
+//               reward's own line, which carries its amount ("+50 Sweets", #PlainName, two lines). The tooltip Java
+//               sets on #PlainCard draws in the game's tooltip; nothing inside carries one, so a click anywhere
+//               reaches the card.
+//
+// #Shine and #PlainShine are a looping sheen (Common/Kit/RewardShine.png, 30 frames of 32 x 32 at 20 a second: a
+// 0.6 s sweep, then a pause; tools/ui/make_reward_sprites.py draws it) between the slot art and the picture, which the
+// painter shows on a card whose quality is Epic or Legendary. A Sprite with no RepeatCount loops, as vanilla's
+// Common.ui @DefaultSpinner does; the client plays it on its own and the server sends nothing for it.
 //
 // Both faces ship hidden; the painter shows one and binds it.
 
@@ -46,19 +56,41 @@ Group #ZigRewardCard {
     Group #ItemBody {
       Anchor: (Full: 0);
       LayoutMode: Top;
-      Padding: (Top: 12, Horizontal: 6, Bottom: 8);
+      Padding: (Top: 8, Horizontal: 6, Bottom: 6);
+
+      // The row holds its height whether the word shows or not, so every card's picture sits at the same height.
+      Group #SourceRow {
+        LayoutMode: Top;
+        Anchor: (Height: 16, Bottom: 2);
+
+        Label #Source {
+          Anchor: (Height: 16);
+          Text: "";
+          Visible: false;
+          Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: Center, Wrap: true, WrapMaxLines: 1);
+        }
+      }
 
       Group #SlotRow {
         LayoutMode: Center;
         Anchor: (Height: $ZK.@ZigPicLarge, Bottom: 6);
 
-        // The slot art and the item stacked, as the barter card stacks its slot's layers: the later one draws on top.
+        // The slot art, the sheen and the item stacked, as the barter card stacks its slot's layers: the later one
+        // draws on top, so the item and its own tooltip stay over the sheen.
         Group #SlotStack {
           Anchor: (Width: $ZK.@ZigPicLarge, Height: $ZK.@ZigPicLarge);
 
           AssetImage #SlotBack {
             Anchor: (Full: 0);
             FallbackTexturePath: "UI/Custom/Common/Glyphs/Blank.png";
+            Visible: false;
+          }
+
+          Sprite #Shine {
+            Anchor: (Full: 0);
+            TexturePath: "../Common/Kit/RewardShine.png";
+            Frame: (Width: 32, Height: 32, PerRow: 6, Count: 30);
+            FramesPerSecond: 20;
             Visible: false;
           }
 
@@ -99,21 +131,51 @@ Group #ZigRewardCard {
     Group #PlainBody {
       Anchor: (Full: 0);
       LayoutMode: Top;
-      Padding: (Top: 12, Horizontal: 6, Bottom: 8);
+      Padding: (Top: 8, Horizontal: 6, Bottom: 6);
+
+      Group #PlainSourceRow {
+        LayoutMode: Top;
+        Anchor: (Height: 16, Bottom: 2);
+
+        Label #PlainSource {
+          Anchor: (Height: 16);
+          Text: "";
+          Visible: false;
+          Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: Center, Wrap: true, WrapMaxLines: 1);
+        }
+      }
 
       Group #PicRow {
         LayoutMode: Center;
         Anchor: (Height: $ZK.@ZigPicLarge, Bottom: 6);
 
-        $ZW.@ZigPicture #Pic {
-          @Size = $ZK.@ZigPicLarge;
+        Group #PicStack {
+          Anchor: (Width: $ZK.@ZigPicLarge, Height: $ZK.@ZigPicLarge);
+
+          AssetImage #PlainSlotBack {
+            Anchor: (Full: 0);
+            FallbackTexturePath: "UI/Custom/Common/Glyphs/Blank.png";
+            Visible: false;
+          }
+
+          Sprite #PlainShine {
+            Anchor: (Full: 0);
+            TexturePath: "../Common/Kit/RewardShine.png";
+            Frame: (Width: 32, Height: 32, PerRow: 6, Count: 30);
+            FramesPerSecond: 20;
+            Visible: false;
+          }
+
+          $ZW.@ZigPicture #Pic {
+            @Size = $ZK.@ZigPicLarge;
+          }
         }
       }
 
       Label #PlainName {
-        Anchor: (Height: 51);
+        Anchor: (Height: 34);
         Text: "";
-        Style: (...$ZX.@ZigTileNameStyle, FontSize: $ZT.@ZigFontBody, HorizontalAlignment: Center, VerticalAlignment: Start, WrapMaxLines: 3);
+        Style: (...$ZX.@ZigTileNameStyle, FontSize: $ZT.@ZigFontBody, HorizontalAlignment: Center, VerticalAlignment: Start, WrapMaxLines: 2);
       }
 
       Group {

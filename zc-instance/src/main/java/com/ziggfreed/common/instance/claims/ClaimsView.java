@@ -23,6 +23,7 @@ import com.ziggfreed.common.instance.reward.DropRarity;
 import com.ziggfreed.common.instance.reward.InstanceReward;
 import com.ziggfreed.common.instance.reward.InstanceRewardGranter;
 import com.ziggfreed.common.loot.claim.Claim;
+import com.ziggfreed.common.loot.claim.ClaimKinds;
 import com.ziggfreed.common.loot.reward.RewardChip;
 import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardSpec;
@@ -182,12 +183,12 @@ public final class ClaimsView {
      * A reward chest's one page ({@link RewardChestPage}), over {@code claims} in the order given: the chest's picture,
      * "Your share" and how many cards it shows, the difficulty of the first Claim that names one as a pill, the
      * chest's own line ({@code lead}), and one list of cards across every Claim ({@link #chestCards}, a
-     * {@link DetailBlock#cards} block): what is not an item first (a currency, experience, reputation; alike ones
-     * summed into one card, its own line carrying the amount, the rarity its drop's chance reads as named when rarer
-     * than Common), then the items, best quality first, each on that quality's slot: the one its drop's chance reads
-     * as ({@link DropRarity}), else the item's own. Every
-     * card is a click whose select id names its first reward ({@link Taken#selectId}); the gold Take All takes
-     * everything, over a hint saying so.
+     * {@link DetailBlock#cards} block): what is not an item first (a currency, experience, reputation; alike ones of
+     * one payout kind summed into one card, its own line carrying the amount), then the items, best quality first.
+     * Every card names where it came from (its Claim's payout kind, {@link ClaimKinds}) and reads its rarity one way,
+     * gold or item: the one its drop's chance reads as ({@link DropRarity}, Common included), else for an item its
+     * own, else none. Every card is a click whose select id names its first reward ({@link Taken#selectId}); the gold
+     * Take All takes everything, over a hint saying so.
      */
     @Nonnull
     static DetailView chestDetail(@Nonnull List<Claim> claims, @Nonnull ClaimsText text, @Nonnull Message lead) {
@@ -239,11 +240,12 @@ public final class ClaimsView {
     }
 
     /**
-     * One card of a reward chest's page: the reward it shows and every reward its click takes ({@code takes}, in the
-     * order the Claims hold them). A run of alike rewards that are not items shows as one at their summed amount; an
-     * item is one card per stack.
+     * One card of a reward chest's page: the reward it shows, every reward its click takes ({@code takes}, in the
+     * order the Claims hold them), and the payout kind of the Claims it came from ({@link ClaimKinds}; null for a
+     * source no kind names). A run of alike rewards of one kind that are not items shows as one at their summed
+     * amount; an item is one card per stack.
      */
-    record ChestCard(@Nonnull InstanceReward shown, @Nonnull List<Taken> takes) {
+    record ChestCard(@Nonnull InstanceReward shown, @Nonnull List<Taken> takes, @Nullable String kind) {
 
         ChestCard {
             takes = List.copyOf(takes);
@@ -255,21 +257,22 @@ public final class ClaimsView {
             List<Taken> all = new ArrayList<>(takes);
             all.add(take);
             long sum = (long) shown.quantity() + reward.quantity();
-            return new ChestCard(shown.withQuantity((int) Math.min(sum, Integer.MAX_VALUE)), all);
+            return new ChestCard(shown.withQuantity((int) Math.min(sum, Integer.MAX_VALUE)), all, kind);
         }
 
         /**
          * The card as a line: the reward's chip, its own line carrying the amount ("+50 Sweets"), an item's picture
          * keeping its own tooltip and any other picture drawn plain with the chip's words on hover (a borrowed item's
-         * tooltip would name the wrong thing), the first take as its select id, and the quality its drop's chance
-         * reads as ({@link #cardQuality}).
+         * tooltip would name the wrong thing), the word for where it came from as its tag (none for no kind), the
+         * first take as its select id, and the quality its drop's chance reads as ({@link #cardQuality}).
          */
         @Nonnull
         DetailLine line() {
             RewardChip chip = chip(shown);
             Picture picture = !chip.hasIcon() ? Picture.NONE
                     : shown.isItem() ? Picture.tooltipItem(chip.iconItemId()) : Picture.item(chip.iconItemId());
-            return new DetailLine(picture, chip.label(), null, null, Tick.NONE, takes.get(0).selectId(), false,
+            Pill from = kind == null ? null : Pill.of(ContentKeys.tr(kind), Tone.NEUTRAL);
+            return new DetailLine(picture, chip.label(), null, from, Tick.NONE, takes.get(0).selectId(), false,
                     shown.isItem() ? null : chip.tooltip(), cardQuality(shown));
         }
     }
@@ -280,10 +283,11 @@ public final class ClaimsView {
 
     /**
      * Every card a reward chest's page shows for {@code claims} (oldest first): what is not an item first, in the
-     * order the Claims hold it, alike rewards from any Claim summed into the first one's card ({@link #alike}); then
-     * each item stack its own card, best quality first (the quality its drop's chance reads as, {@link DropRarity},
-     * else the item's own; an item this server does not ship last), the rarer drop first within a quality (a stack
-     * with no chance after those with one), Claim order kept after that.
+     * order the Claims hold it, alike rewards ({@link #alike}) from Claims of one payout kind ({@link ClaimKinds})
+     * summed into the first one's card, so a boss's Sweets and a dungeon clear's are two cards; then each item stack
+     * its own card, best quality first (the quality its drop's chance reads as, {@link DropRarity}, else the item's
+     * own; an item this server does not ship last), the rarer drop first within a quality (a stack with no chance
+     * after those with one), Claim order kept after that.
      */
     @Nonnull
     static List<ChestCard> chestCards(@Nonnull List<Claim> claims) {
@@ -291,22 +295,24 @@ public final class ClaimsView {
         Map<String, Integer> byAlike = new HashMap<>();
         List<ChestCard> items = new ArrayList<>();
         for (Claim claim : claims) {
+            String kind = ClaimKinds.kindOf(claim);
             for (InstanceReward reward : claim.rewards()) {
                 Taken take = new Taken(claim.id(), ClaimGrants.rewardKey(reward));
                 if (reward.isItem()) {
-                    items.add(new ChestCard(reward, List.of(take)));
+                    items.add(new ChestCard(reward, List.of(take), kind));
                     continue;
                 }
                 String alike = alike(reward);
-                Integer at = alike == null ? null : byAlike.get(alike);
+                String sum = alike == null ? null : Objects.toString(kind, "") + '\n' + alike;
+                Integer at = sum == null ? null : byAlike.get(sum);
                 if (at != null) {
                     plain.set(at, plain.get(at).plus(reward, take));
                     continue;
                 }
-                if (alike != null) {
-                    byAlike.put(alike, plain.size());
+                if (sum != null) {
+                    byAlike.put(sum, plain.size());
                 }
-                plain.add(new ChestCard(reward, List.of(take)));
+                plain.add(new ChestCard(reward, List.of(take), kind));
             }
         }
         // Each card ranked once, then a stable sort, so stacks of one quality and one chance keep the Claims' order.
@@ -325,14 +331,31 @@ public final class ClaimsView {
     }
 
     /**
-     * The quality a reward's card shows ({@link DetailLine#quality}): for an item, the one its drop's chance reads as
-     * ({@link DropRarity}), null for a reward with no chance, whose card shows the item's own; for anything else the
-     * same only when rarer than Common, so a gold card names a rarity only for a rare roll.
+     * The quality a reward's card shows ({@link DetailLine#quality}), the one reading every card takes, gold or item:
+     * the one its drop's chance reads as ({@link DropRarity}, Common included); null for a reward with no chance,
+     * whose card shows an item's own quality and nothing for anything else.
      */
     @Nullable
     static String cardQuality(@Nonnull InstanceReward reward) {
-        String quality = DropRarity.qualityOf(reward.dropChance());
-        return reward.isItem() || !DropRarity.COMMON.equals(quality) ? quality : null;
+        return DropRarity.qualityOf(reward.dropChance());
+    }
+
+    /**
+     * The rarest reward in {@code claims} as its drop's chance reads ({@link DropRarity}: the band of the least chance
+     * any reward carries), what the chest's opening sound is picked by; null when no reward carries a chance.
+     */
+    @Nullable
+    static String chestRarity(@Nonnull List<Claim> claims) {
+        Double least = null;
+        for (Claim claim : claims) {
+            for (InstanceReward reward : claim.rewards()) {
+                Double chance = reward.dropChance();
+                if (chance != null && Double.isFinite(chance) && (least == null || chance < least)) {
+                    least = chance;
+                }
+            }
+        }
+        return DropRarity.qualityOf(least);
     }
 
     /**
@@ -423,7 +446,7 @@ public final class ClaimsView {
     /**
      * {@link #pressToast(ClaimGrants.Result, ClaimsText, boolean)}, or for a summed card's take ({@code summed}) the
      * same toast whose rows add alike rewards into one, with no heading per Claim ({@link #summedLines}): the card
-     * named no source, so neither does its toast.
+     * named no Claim's title, so neither does its toast.
      */
     @Nullable
     static ToastSpec pressToast(@Nonnull ClaimGrants.Result result, @Nonnull ClaimsText text, boolean all,

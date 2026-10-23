@@ -1,6 +1,8 @@
 package com.ziggfreed.common.instance.claims;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -18,7 +20,9 @@ import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.feedback.moment.FeedbackEngine;
 import com.ziggfreed.common.loot.claim.Claim;
+import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.kit.ActionSlot;
 import com.ziggfreed.common.ui.kit.DetailBindings;
 import com.ziggfreed.common.ui.kit.DetailBlock;
@@ -43,6 +47,10 @@ import com.ziggfreed.common.util.SafeLog;
  * With nothing left the page says the player took everything and stays open, so the toast is seen; the chest goes
  * at its next upkeep ({@link SpoilsChestSystems}). {@link SpoilsView#open} is the one place that opens it.
  *
+ * <p>Its first build is the chest opening: a gold flash behind its picture that the client plays once on its own, and
+ * one sound ({@link #OPENED_MOMENT}) picked by the rarest reward in it. That is the whole of what an open sends beyond
+ * the page itself: the cards' sheen and the flash run on the client, and a press's rebuild repeats neither.
+ *
  * <p>Every event is answered exactly once through {@link RewardChestActions#event}: a press repaints, the close
  * button closes, anything else gets an empty update.
  */
@@ -51,6 +59,18 @@ public final class RewardChestPage extends ToastablePage<ClaimsEventData> {
     static final String PAGE_TEMPLATE = "Pages/ZigRewardChestPage.ui";
     static final String DETAIL = "#Page";
     static final String EMPTY = "#ChestEmpty";
+
+    /** The gold flash behind the chest's picture, which the client plays once; shown on the page's first build only. */
+    static final String BURST = "#OpenBurst";
+
+    /**
+     * The feedback moment the chest's opening fires, once per open, carrying {@link #RARITY_ARG}: its shipped file
+     * plays one sound picked by the rarest reward in the chest, and a pack's same-named file changes it.
+     */
+    public static final String OPENED_MOMENT = "Reward_Chest_Opened";
+
+    /** The rarest reward's rarity as its drop's chance reads ({@code Legendary}); absent when none carries a chance. */
+    public static final String RARITY_ARG = "rarity";
 
     /**
      * A card's click takes it: its select id names its first reward's Claim and key ({@link ClaimsView.Taken}), sent
@@ -78,6 +98,9 @@ public final class RewardChestPage extends ToastablePage<ClaimsEventData> {
     /** True once this page handed something over, so a page with nothing left says the player took everything. */
     private boolean took;
 
+    /** True once the page has been built: its opening (the flash and the sound) happens on the first build alone. */
+    private boolean opened;
+
     /**
      * @param fight the chest's key ({@link Claim#fight}): a boss fight's run id, or a {@code chest:} key
      */
@@ -91,8 +114,13 @@ public final class RewardChestPage extends ToastablePage<ClaimsEventData> {
     public void build(@Nonnull Ref<EntityStore> ref, @Nonnull UICommandBuilder cmd,
             @Nonnull UIEventBuilder events, @Nonnull Store<EntityStore> store) {
         cmd.append(PAGE_TEMPLATE);
+        boolean first = !opened;
+        opened = true;
         try {
-            paint(cmd, events);
+            List<Claim> shown = paint(cmd, events);
+            if (first && !shown.isEmpty()) {
+                open(cmd, ref, store, shown);
+            }
         } catch (Throwable t) {
             // build() must not throw: a reading that fails leaves the page as far as it got.
             SafeLog.warn(SpoilsChests.LOG + "the chest's page could not be built", t);
@@ -101,7 +129,9 @@ public final class RewardChestPage extends ToastablePage<ClaimsEventData> {
         renderToastInto(cmd);
     }
 
-    private void paint(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events) {
+    /** Paint the page; the Claims whose cards it shows (none when it shows the empty state). */
+    @Nonnull
+    private List<Claim> paint(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events) {
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton",
                 EventData.of("Action", RewardChestActions.CLOSE));
         // The action bar's Take All is a live element, bound once per build.
@@ -113,10 +143,35 @@ public final class RewardChestPage extends ToastablePage<ClaimsEventData> {
             cmd.set(DETAIL + ".Visible", false);
             cmd.set(EMPTY + ".Visible", true);
             EmptyStatePainter.paint(cmd, events, EMPTY, ClaimsView.chestEmpty(text, took), null);
-            return;
+            return List.of();
         }
         DetailPainter.paint(cmd, events, DETAIL, ClaimsView.chestDetail(claims, text, SpoilsChests.leadOf(fight)),
                 LINES, playerRef);
+        return claims;
+    }
+
+    /**
+     * The chest opening, on the page's first build: the gold flash behind its picture, which the client plays once
+     * on its own, and the {@link #OPENED_MOMENT} sound, picked by the rarest reward in {@code claims}. Nothing here
+     * runs again while the page stays open: a press's rebuild leaves the flash hidden and plays no sound.
+     */
+    private void open(@Nonnull UICommandBuilder cmd, @Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
+            @Nonnull List<Claim> claims) {
+        cmd.set(BURST + ".Visible", true);
+        try {
+            Subject subject = Subject.of(playerRef, store.getComponent(ref, Player.getComponentType()));
+            if (subject == null) {
+                return;
+            }
+            Map<String, Object> args = new HashMap<>();
+            String rarity = ClaimsView.chestRarity(claims);
+            if (rarity != null) {
+                args.put(RARITY_ARG, rarity);
+            }
+            FeedbackEngine.fire(OPENED_MOMENT, subject.withFacets(playerRef), args);
+        } catch (Throwable t) {
+            SafeLog.fine(SpoilsChests.LOG + "the chest's opening sound could not play: " + t.getMessage());
+        }
     }
 
     @Override

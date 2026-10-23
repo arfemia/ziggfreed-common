@@ -51,13 +51,13 @@ class ShippedFeedbackMomentsTest {
      * The moments the two progression engines, the claim table, the encounter framework and the
      * gear-set engine announce today (the encounter four are the binding row's own default moment
      * ids; the gear-set two are what the root's notice bridge fires on a tier flip and on a piece
-     * going on with no flip).
+     * going on with no flip), and the reward chest's page as it opens.
      */
     private static final Set<String> ANNOUNCED = Set.of(
             "Quest_Completed", "Quest_Parked", "Quest_Claimed", "Quest_Objective_Progressed",
             "Achievement_Unlocked", "Achievement_Claimed", "Achievement_Server_First_Lost",
             "Encounter_Engaged", "Encounter_Phase_Changed", "Encounter_Defeated", "Encounter_Wiped",
-            "Gear_Set_Tier", "Gear_Set_Piece");
+            "Gear_Set_Tier", "Gear_Set_Piece", "Reward_Chest_Opened");
 
     @Test
     void everyAnnouncedMomentShipsADefaultThatDecodes() throws IOException {
