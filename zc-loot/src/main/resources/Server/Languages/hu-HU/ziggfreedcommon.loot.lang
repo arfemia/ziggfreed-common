@@ -6,3 +6,10 @@ preview.chance = {0, number}%:
 preview.sometimes = Néha:
 preview.more = Meg egy kevés más.
 preview.hidden = És néhány ritka lelet még.
+
+claim.kind.boss = Boss-legyőzés
+claim.kind.dungeon = Kazamata-teljesítés
+claim.kind.bonus = Bónusz
+claim.kind.quest = Küldetés
+claim.kind.event = Esemény
+claim.kind.admin = Ajándék

@@ -6,3 +6,10 @@ preview.chance = {0, number}%:
 preview.sometimes = A veces:
 preview.more = Y algo más.
 preview.hidden = Y unos pocos hallazgos raros más.
+
+claim.kind.boss = Jefe derrotado
+claim.kind.dungeon = Mazmorra superada
+claim.kind.bonus = Extra
+claim.kind.quest = Misión
+claim.kind.event = Evento
+claim.kind.admin = Regalo

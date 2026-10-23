@@ -7,3 +7,11 @@ preview.chance = {0, number}%:
 preview.sometimes = Às vezes:
 preview.more = E mais um pouco.
 preview.hidden = E alguns outros achados raros.
+
+# De onde veio uma recompensa, uma palavra por tipo de pagamento: o cartão de um baú de recompensas mostra isso sobre a recompensa.
+claim.kind.boss = Chefe Derrotado
+claim.kind.dungeon = Masmorra Concluída
+claim.kind.bonus = Bônus
+claim.kind.quest = Missão
+claim.kind.event = Evento
+claim.kind.admin = Presente
