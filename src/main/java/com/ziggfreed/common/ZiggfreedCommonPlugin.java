@@ -133,6 +133,7 @@ import com.ziggfreed.common.world.BlockRulesBootstrap;
 import com.ziggfreed.common.world.gather.GatherBootstrap;
 import com.ziggfreed.common.world.placed.PlacedBlockBootstrap;
 import com.ziggfreed.common.world.stash.BlockStashBootstrap;
+import com.ziggfreed.common.world.temp.TempBlocksBootstrap;
 
 /**
  * Entry point for Ziggfreed Common, a shared, mod-agnostic Hytale utility mod.
@@ -307,6 +308,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         HealCreditBootstrap.install(this);
         PlacedBlockBootstrap.setupPlacedBlockLedger(this);
         BlockStashBootstrap.registerBlockStash(this);
+        // Temporary blocks (a wall of cover put down through the engine's own place path): their per-block record,
+        // registered before any world loads, and the sweep that crumbles each one when its time is up.
+        TempBlocksBootstrap.install(this);
         // A gameplay config's ZigBlockRules group (CreativeOnlyBreaking, which zc's dungeon config writes)
         // registers before any gameplay config decodes, with the systems that enforce it.
         BlockRulesBootstrap.registerBlockRules(this);

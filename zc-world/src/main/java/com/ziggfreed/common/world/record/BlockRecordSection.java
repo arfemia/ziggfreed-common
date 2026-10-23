@@ -246,6 +246,15 @@ public final class BlockRecordSection<T> implements Component<ChunkStore> {
             return type != null;
         }
 
+        /**
+         * The registered component type, for a chunk-store system that visits only the sections holding a record
+         * (its query); null when registration failed.
+         */
+        @Nullable
+        public ComponentType<ChunkStore, BlockRecordSection<T>> componentType() {
+            return type;
+        }
+
         /** The record at this position, or null. The caller who mutates it calls {@link #markDirty}. */
         @Nullable
         public T get(@Nonnull ComponentAccessor<ChunkStore> accessor,
