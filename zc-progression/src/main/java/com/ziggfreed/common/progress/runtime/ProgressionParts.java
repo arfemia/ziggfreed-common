@@ -17,6 +17,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.achievement.AchievementGates;
+import com.ziggfreed.common.achievement.AchievementMilestone;
 import com.ziggfreed.common.achievement.AchievementProgressStore;
 import com.ziggfreed.common.achievement.AchievementStatus;
 import com.ziggfreed.common.achievement.InMemoryAchievementProgressStore;
@@ -493,6 +494,12 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
         }
 
         @Override
+        public boolean canReceiveMilestoneRewards(@Nonnull Subject subject,
+                @Nonnull AchievementMilestone milestone) {
+            return ProgressionRuntime.parts().achievementGates().canReceiveMilestoneRewards(subject, milestone);
+        }
+
+        @Override
         public boolean visible(@Nonnull Subject subject, @Nonnull Achievement achievement) {
             return ProgressionRuntime.parts().achievementGates().visible(subject, achievement);
         }
@@ -634,6 +641,17 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
             public boolean canReceiveRewards(@Nonnull Subject subject, @Nonnull Achievement achievement) {
                 for (AchievementGates gate : frozen) {
                     if (!gate.canReceiveRewards(subject, achievement)) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            @Override
+            public boolean canReceiveMilestoneRewards(@Nonnull Subject subject,
+                    @Nonnull AchievementMilestone milestone) {
+                for (AchievementGates gate : frozen) {
+                    if (!gate.canReceiveMilestoneRewards(subject, milestone)) {
                         return false;
                     }
                 }

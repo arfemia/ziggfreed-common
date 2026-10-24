@@ -6,11 +6,7 @@ import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.hypixel.hytale.component.Ref;
-import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
-import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.npc.NpcNames;
@@ -24,8 +20,8 @@ import com.ziggfreed.common.ui.kit.Tone;
 
 /**
  * What a consumer says about how a quest reads, as the {@link QuestReader} asks it: whether a board manages the
- * quest (and the pills and hint its page wears then), the requirements line, a tag's name, the claim pre-check, how
- * a reward reads, what a character is called and any extra page blocks. Every answer is guarded by the adapter that
+ * quest (and the pills and hint its page wears then), the requirements line, a tag's name, how a reward reads, what
+ * a character is called and any extra page blocks. Every answer is guarded by the adapter that
  * builds it, so a consumer's seam that throws costs its own answer, never the page.
  *
  * <p>The book reads it from its {@link ObjectiveBookDeps} ({@link #of(ObjectiveBookDeps)}); the NPC quest page from
@@ -52,11 +48,6 @@ public interface QuestPresentation {
     /** A tag's name. */
     @Nonnull
     Message tagLabel(@Nonnull String tag);
-
-    /** The consumer's refusal of a Collect before the engine is asked (a full inventory); null lets it through. */
-    @Nullable
-    Message claimPreCheck(@Nonnull Quest q, @Nonnull Store<EntityStore> s, @Nonnull Ref<EntityStore> r,
-            @Nonnull Player p);
 
     /** How one reward reads, ahead of the generic reading ({@link RewardChips#chipsFor}). */
     @Nonnull
@@ -170,13 +161,6 @@ public interface QuestPresentation {
         @Override
         public Message tagLabel(@Nonnull String tag) {
             return deps.tagLabelGuarded(tag);
-        }
-
-        @Nullable
-        @Override
-        public Message claimPreCheck(@Nonnull Quest q, @Nonnull Store<EntityStore> s, @Nonnull Ref<EntityStore> r,
-                @Nonnull Player p) {
-            return deps.claimPreCheckGuarded(q, s, r, p);
         }
 
         @Nonnull

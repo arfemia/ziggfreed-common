@@ -8,6 +8,7 @@ import javax.annotation.Nullable;
 
 import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.achievement.AchievementGates;
+import com.ziggfreed.common.achievement.AchievementMilestone;
 import com.ziggfreed.common.achievement.FirstClaims;
 import com.ziggfreed.common.achievement.UnlockOccasion;
 import com.ziggfreed.common.loot.reward.LootRewardKinds;
@@ -220,6 +221,17 @@ public final class RequiresGates implements QuestGates, AchievementGates {
     public boolean canReceiveRewards(@Nonnull Subject subject, @Nonnull Achievement achievement) {
         return LootRewardKinds.canAddAll(achievement.claimRewards(), subject,
                 "achievement:" + achievement.id());
+    }
+
+    /**
+     * Whether a points milestone's waiting rewards fit, asked of its {@code claimRewards} under the
+     * same source label the payout pays them under, so a reward that names where it came from reads
+     * one way in the check and at the payout.
+     */
+    @Override
+    public boolean canReceiveMilestoneRewards(@Nonnull Subject subject, @Nonnull AchievementMilestone milestone) {
+        return LootRewardKinds.canAddAll(milestone.claimRewards(), subject,
+                "milestone:" + milestone.threshold());
     }
 
     // ==================== internals ====================

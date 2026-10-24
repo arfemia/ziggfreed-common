@@ -30,7 +30,6 @@ book.toast.abandon_failed = That quest cannot be abandoned.
 
 book.toast.accepted = Quest accepted.
 book.toast.accept_failed = That quest cannot be accepted right now.
-book.toast.claimed = Rewards collected.
 book.toast.claim_failed = Nothing to collect right now.
 book.toast.turned_in = Handed in.
 book.toast.turn_in_failed = That cannot be handed in here.
@@ -81,7 +80,6 @@ book.quests.turn_in_fail = Not enough {0} ({1}/{2})
 book.quests.claim_at_site = This quest is handed in at a specific place - collect the reward there.
 book.toast.tracked = Tracking: {0}
 book.toast.untracked = Untracked: {0}
-book.toast.quest_complete = Quest complete: {0}!
 book.toast.turn_in = Handed in {0}/{1} {2}
 
 # The lifted achievements browser (filter strip, rows, the detail column, the overview).
@@ -117,6 +115,7 @@ book.achievements.stat.next = Next milestone
 book.achievements.hero.waiting = {0, number} {0, plural, one {reward} other {rewards}} waiting
 book.achievements.hero.show = Show
 book.achievements.milestone.title = {0, number} points: {1}
+book.achievements.milestone.title_plain = {0, number} points
 book.achievements.milestone.all_collected = All milestones collected
 book.achievements.milestone.more_after = {0, number} more after this
 book.achievements.overview.nearly = Nearly there

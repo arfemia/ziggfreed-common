@@ -1,8 +1,6 @@
 package com.ziggfreed.common.objectives.questlist;
 
-import java.util.List;
 import java.util.Set;
-import java.util.function.IntFunction;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -17,16 +15,10 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.dialogue.DialogueEngine;
 import com.ziggfreed.common.dialogue.quest.QuestCompletionRouting;
 import com.ziggfreed.common.loot.reward.RewardChips;
-import com.ziggfreed.common.loot.reward.RewardGrants;
-import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.npc.NpcIdentities;
 import com.ziggfreed.common.npc.NpcNames;
 import com.ziggfreed.common.objectives.book.ObjectiveBookPages;
 import com.ziggfreed.common.objectives.journal.QuestPresentation;
-import com.ziggfreed.common.objectives.render.ClaimToasts;
-import com.ziggfreed.common.quest.Quest;
-import com.ziggfreed.common.ui.toast.ToastKind;
-import com.ziggfreed.common.ui.toast.ToastSpec;
 
 /**
  * What a consumer may say about {@link ZigNpcQuestPage} without owning it.
@@ -52,17 +44,14 @@ import com.ziggfreed.common.ui.toast.ToastSpec;
  *       policy (authored, somebody in front of the player, something installed that can open it),
  *       so the giver's closing conversation plays for every quest-bearing consumer without a fill;
  *       the page merely HOSTS the beat.</li>
- *   <li>{@link CompletionToast} - the toast a consumer floats when a quest PAYS OUT here, so a
- *       hand-in made on this page reads exactly like one made in that mod's own menu. It is asked
- *       with the rows the page decided on (what the hand-in actually handed over), through
- *       {@link #resolveCompletionToast}; a hand-in that only parked the quest is the library's own
- *       line ({@link #handInToast}), because nothing was paid for a consumer to announce.</li>
  *   <li>{@link PageTheme} - how the page frame is painted, for a consumer shipping a theme.</li>
  * </ul>
  *
  * <p>How a quest READS here is not a seam of this record: it is the objective book's reading
  * ({@link #presentation()}), so a quest reads at its giver exactly as it reads in the book, with this record's reward
- * reading and character names.
+ * reading and character names. Nor is what a quest finishing or being collected here SAYS: the engine's quest notices
+ * ({@code Quest_Completed}, {@code Quest_Parked}, {@code Quest_Claimed}) are the one announcement on every surface,
+ * drawn into the page as they fire.
  *
  * <p>Immutable; build one at setup and hand the same instance back on every open.
  */
@@ -123,29 +112,6 @@ public final class NpcQuestPageDeps {
                 @Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref, @Nonnull Player player);
     }
 
-    /**
-     * The toast a consumer floats when a quest settles here; null for the library's own line. The
-     * page asks {@link #forCompleted(Quest, List)} with the rows the toast should list; its default
-     * hands off to the one-argument form, so a fill that composes its own rows keeps working.
-     */
-    @FunctionalInterface
-    public interface CompletionToast {
-
-        @Nullable
-        ToastSpec forCompleted(@Nonnull Quest quest);
-
-        /**
-         * The same toast, handed what it should list: what the hand-in actually handed over when
-         * the quest paid out here (a rolled table as the items it produced), and nothing at all
-         * when it parked for collecting somewhere else, because nothing has been paid. A fill that
-         * paints rows paints these rather than reading the quest's own list.
-         */
-        @Nullable
-        default ToastSpec forCompleted(@Nonnull Quest quest, @Nonnull List<RewardSpec> rewards) {
-            return forCompleted(quest);
-        }
-    }
-
     /** Append and nothing else: the honest default for a server shipping no theme. */
     public static final PageTheme PLAIN_THEME = (cmd, template, frameSelectors) -> cmd.append(template);
 
@@ -178,9 +144,6 @@ public final class NpcQuestPageDeps {
             QuestCompletionRouting.handOff(questId, npcId, DialogueEngine.shared().quests(),
                     store, ref, player);
 
-    /** No consumer toast, so the page floats its own line. */
-    public static final CompletionToast NO_COMPLETION_TOAST = quest -> null;
-
     /** Everything at its library default: a page that works on a server running nothing else. */
     public static final NpcQuestPageDeps DEFAULTS = builder().build();
 
@@ -189,7 +152,6 @@ public final class NpcQuestPageDeps {
     @Nonnull private final AnswerSetSource answerSets;
     @Nonnull private final RewardChipSource rewardChips;
     @Nonnull private final CompletionHandOff completion;
-    @Nonnull private final CompletionToast completionToast;
 
     private NpcQuestPageDeps(@Nonnull Builder builder) {
         this.theme = builder.theme;
@@ -197,7 +159,6 @@ public final class NpcQuestPageDeps {
         this.answerSets = builder.answerSets;
         this.rewardChips = builder.rewardChips;
         this.completion = builder.completion;
-        this.completionToast = builder.completionToast;
     }
 
     @Nonnull
@@ -230,14 +191,9 @@ public final class NpcQuestPageDeps {
         return completion;
     }
 
-    @Nonnull
-    public CompletionToast completionToast() {
-        return completionToast;
-    }
-
     /**
      * How a quest reads on the page, as the objective book reads it: the book's consumer seams (a board's quests and
-     * their pills, the requirements line, tag names, the claim pre-check, extra page blocks) from the deps the book
+     * their pills, the requirements line, tag names, extra page blocks) from the deps the book
      * runs on ({@link ObjectiveBookPages#resolvedDeps}, guarded), with this record's reward reading and character
      * names.
      */
@@ -283,53 +239,6 @@ public final class NpcQuestPageDeps {
         }
     }
 
-    /**
-     * The toast for a hand-in that finished a quest here, split by what {@code paid} says
-     * happened. PAID here ({@code paid} non-null): the gold reward line under {@code paidHeadline}
-     * with the payout's receipt as its rows, through {@link #resolveCompletionToast(Quest, List,
-     * Message, IntFunction)}. PARKED ({@code paid} null, a full bag or a quest that collects
-     * somewhere else): the plain success line {@code parkedHeadline} and no rows at all. Gold is
-     * the payout colour and a "complete" headline over an empty receipt reads as a payout that
-     * paid nothing, when in truth nothing has been paid yet; the moment the engine fires alongside
-     * says where it waits, so this line does not, and plays the sound, so this line is silent.
-     */
-    @Nonnull
-    public ToastSpec handInToast(@Nonnull Quest quest, @Nullable RewardGrants.GrantOutcome paid,
-            @Nonnull Message paidHeadline, @Nonnull Message parkedHeadline,
-            @Nullable IntFunction<Message> overflow) {
-        if (paid == null) {
-            // Silent: the engine's Quest_Parked moment for the same press owns the sound.
-            return ToastSpec.of(ToastKind.SUCCESS, parkedHeadline).silent()
-                    .withPriority(ClaimToasts.CLAIM_PRIORITY);
-        }
-        return resolveCompletionToast(quest, paid.receipt(), paidHeadline, overflow);
-    }
-
-    /**
-     * The toast for a quest that just finished here, guarded: the consumer's own when it answers
-     * one (asked with {@code rewards}, so a fill that paints rows paints these), else the library's
-     * gold line under {@code headline} with one row per entry of {@code rewards} through the
-     * consumer chip reading, capped on the caller's {@code overflow} line. A consumer toast that
-     * throws costs its own line, never the hand-in that earned it.
-     *
-     * <p>{@code rewards} is what the toast lists: what was actually handed over, which is the
-     * payout's receipt. A hand-in that may have parked the quest instead goes through
-     * {@link #handInToast}, which decides whether there was a payout to list at all.
-     */
-    @Nonnull
-    public ToastSpec resolveCompletionToast(@Nonnull Quest quest, @Nonnull List<RewardSpec> rewards,
-            @Nonnull Message headline, @Nullable IntFunction<Message> overflow) {
-        try {
-            ToastSpec spec = completionToast.forCompleted(quest, rewards);
-            if (spec != null) {
-                return spec;
-            }
-        } catch (Throwable ignored) {
-            // A consumer's toast failing costs its own line, never the hand-in that earned it.
-        }
-        return ClaimToasts.rewardToast(headline, rewards, rewardChips, overflow);
-    }
-
     /** Immutable-by-copy assembly; every knob defaults to the library's own answer. */
     public static final class Builder {
 
@@ -338,7 +247,6 @@ public final class NpcQuestPageDeps {
         @Nonnull private AnswerSetSource answerSets = ASSET_ANSWER_SETS;
         @Nonnull private RewardChipSource rewardChips = GENERIC_CHIPS;
         @Nonnull private CompletionHandOff completion = ENGINE_HAND_OFF;
-        @Nonnull private CompletionToast completionToast = NO_COMPLETION_TOAST;
 
         private Builder() {
         }
@@ -370,12 +278,6 @@ public final class NpcQuestPageDeps {
         @Nonnull
         public Builder completion(@Nullable CompletionHandOff value) {
             this.completion = value != null ? value : ENGINE_HAND_OFF;
-            return this;
-        }
-
-        @Nonnull
-        public Builder completionToast(@Nullable CompletionToast value) {
-            this.completionToast = value != null ? value : NO_COMPLETION_TOAST;
             return this;
         }
 

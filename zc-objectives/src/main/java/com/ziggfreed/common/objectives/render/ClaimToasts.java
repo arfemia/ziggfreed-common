@@ -17,15 +17,18 @@ import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 
 /**
- * The ONE claim-toast reading for every surface a payout is collected on - the book's three claim
- * verbs (a quest's Claim, an achievement's Claim, a milestone's Claim) and the same collection made
- * standing in front of a character: a gold headline plus one row per reward just handed over, read
- * through the shared chip bridge so the toast and the panel that previewed the claim can never
- * disagree, capped with the caller's overflow line.
+ * The ONE claim-toast reading for every surface a payout is collected on and no engine notice
+ * announces (an achievement's Claim, a milestone's Claim, a conversation's or a used item's payout):
+ * a gold headline plus one row per reward just handed over, read through the shared chip bridge so
+ * the toast and the panel that previewed the claim can never disagree, capped with the caller's
+ * overflow line. A quest's completion and collect are the engine's notices alone
+ * ({@code Quest_Completed}, {@code Quest_Parked}, {@code Quest_Claimed}), which list their own rows,
+ * so no surface composes a quest's here; every surface answers a refused Collect through
+ * {@link #refusedToast}.
  *
  * <p>A player who presses Collect is told WHAT they collected. A bare headline leaves the payout to
- * be guessed at, which is why every collecting surface composes its toast here rather than sending
- * a line of its own.
+ * be guessed at, which is why a collecting surface composes its toast here rather than sending a
+ * line of its own.
  *
  * <p>Pure and page-free on purpose: what a claim toast says is decided (and testable) with no page
  * or server anywhere; a page only shows what this composes.
@@ -36,9 +39,9 @@ public final class ClaimToasts {
     }
 
     /**
-     * The in-page rank of a completion or claim toast built on a page, the same rank the library's
-     * {@code Quest_Completed}, {@code Quest_Parked} and claim moments ship with, so a step's progress
-     * notice fired in the same moment never replaces it ({@link ToastSpec#withPriority}).
+     * The in-page rank of a claim toast built on a page, the same rank the library's completion and
+     * claim moments ship with, so a step's progress notice fired in the same moment never replaces it
+     * ({@link ToastSpec#withPriority}).
      */
     public static final int CLAIM_PRIORITY = ToastSpec.PRIORITY_CLAIM;
 

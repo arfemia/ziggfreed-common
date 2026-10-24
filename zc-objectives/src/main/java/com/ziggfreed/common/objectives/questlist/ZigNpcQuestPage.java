@@ -31,8 +31,6 @@ import com.ziggfreed.common.commerce.page.CommerceChips;
 import com.ziggfreed.common.commerce.page.CommercePages;
 import com.ziggfreed.common.commerce.page.ConfirmArm;
 import com.ziggfreed.common.i18n.Msg;
-import com.ziggfreed.common.loot.reward.RewardGrants;
-import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.npc.NpcNames;
 import com.ziggfreed.common.objectives.book.ObjectiveBookMenu;
 import com.ziggfreed.common.objectives.journal.QuestActions;
@@ -43,7 +41,6 @@ import com.ziggfreed.common.objectives.render.ClaimToasts;
 import com.ziggfreed.common.progress.ClaimAttempt;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
-import com.ziggfreed.common.progress.runtime.ProgressionTexts;
 import com.ziggfreed.common.quest.NpcOfferProviders;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
@@ -68,7 +65,6 @@ import com.ziggfreed.common.ui.kit.Picture;
 import com.ziggfreed.common.ui.kit.RowSize;
 import com.ziggfreed.common.ui.kit.SegmentPainter;
 import com.ziggfreed.common.ui.toast.ToastKind;
-import com.ziggfreed.common.ui.toast.ToastSpec;
 import com.ziggfreed.common.ui.toast.ToastablePage;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.world.WhereValidator.LoadedWorld;
@@ -832,10 +828,9 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
      * ({@link QuestVerbs#acceptAt}), so a quest whose steps a standing value already met settles here at once, as it
      * does from the book or a conversation.
      *
-     * <p>One that PAID on the spot is answered with the gold "quest complete" line listing what it handed over (its
-     * receipt, reputation among it), never the plain "accepted" line: this page's toast is the only place a payout
-     * made under a page shows, and the plain line would replace the completion notice drawn into the page a moment
-     * earlier.
+     * <p>One that FINISHED at once (it paid out or parked in the same press) raises nothing here: the engine's
+     * completion notice, drawn into the page as it fired, is the one announcement, and the plain "accepted" line
+     * would only replace it.
      *
      * <p>A contract a board this character hosts has posted is taken through the BOARD's own accept
      * ({@link QuestVerbs#acceptPosting}), recording the board as where it was taken, so every gate the board asks
@@ -853,11 +848,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
             return;
         }
         QuestVerbs.Accepted accepted = QuestVerbs.acceptAt(subject, quest, hostId());
-        List<RewardSpec> paid = RewardGrants.GrantOutcome.receiptOf(accepted.settled());
-        if (accepted.accepted() && !paid.isEmpty()) {
-            showToast(ClaimToasts.rewardToast(
-                    text("book.toast.quest_complete", ProgressionTexts.titleOrUntitled(quest.id())), paid,
-                    deps.rewardChips(), dropped -> text("book.more", dropped)));
+        if (accepted.finished()) {
             return;
         }
         boolean ok = accepted.accepted();
@@ -887,10 +878,11 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
     }
 
     /**
-     * Collect a finished quest AT the id this character answered under, and answer the player one way or another on
-     * every path. The consumer's pre-check (the book's, so a full bag refuses here as it does there) is asked first;
-     * the engine re-checks the site itself, so a quest belonging somewhere else refuses here even if a stale screen
-     * offered it.
+     * Collect a finished quest AT the id this character answered under, through the engine's own claim, which
+     * re-checks the site and the room itself, so a quest belonging somewhere else, or one whose rewards will not fit,
+     * refuses here even if a stale screen offered it; the refusal reads the engine's reason, as in the book. A collect
+     * that paid raises no toast here: the engine's {@code Quest_Claimed} notice, drawn into the page as the claim
+     * lands, names the quest and lists what was handed over.
      *
      * <p>Collecting is the moment a quest's closing conversation is FOR: a quest that names one has it played here,
      * through the same hand-off the hand-in uses, and only where there is somebody in front of the player to speak
@@ -899,41 +891,18 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
     private void claim(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull Player player,
             @Nonnull Subject subject, @Nonnull QuestEngine engine, @Nonnull CharacterQuestListing listing,
             @Nonnull Quest quest) {
-        Message refusal = preCheck(quest, store, ref, player);
-        if (refusal != null) {
-            showToast(ToastKind.ERROR, refusal);
-            refresh(ref, store, player);
-            return;
-        }
         String site = listing.collectionSite(quest);
         ClaimAttempt claimed = ProgressionRuntime.questScope()
                 .around(subject, s -> engine.attemptClaim(s, quest, site));
-        RewardGrants.GrantOutcome paid = ClaimAttempt.paidOf(claimed);
-        if (paid == null) {
+        if (ClaimAttempt.paidOf(claimed) == null) {
             // The engine's own refusal picks the line, as in the book: make room, where to collect it, or nothing
             // to collect.
             showToast(ClaimToasts.refusedToast(claimed));
             refresh(ref, store, player);
             return;
         }
-        // ORDER IS LOAD-BEARING, exactly as on the hand-in below: the toast goes up FIRST, because whatever the
-        // hand-off opens repaints the shared per-player toast state. The toast NAMES what was collected, one row per
-        // thing actually handed over (the claim's RECEIPT), through the same chip reading the page previewed it with.
-        showToast(ClaimToasts.rewardToast(text("book.toast.claimed"), paid.receipt(),
-                deps.rewardChips(), dropped -> text("book.more", dropped)));
         if (!handOff(quest, store, ref, player)) {
             refresh(ref, store, player);
-        }
-    }
-
-    /** The consumer's refusal of a Collect before the engine is asked; guarded: a seam that throws refuses nothing. */
-    @Nullable
-    private Message preCheck(@Nonnull Quest quest, @Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
-            @Nonnull Player player) {
-        try {
-            return deps.presentation().claimPreCheck(quest, store, ref, player);
-        } catch (Throwable t) {
-            return null;
         }
     }
 
@@ -987,33 +956,17 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
             refresh(ref, store, player);
             return;
         }
-        // What this press PAID: the settle inside the hand-in when the quest paid out here, else the collect right
-        // behind it. A hand-in made HERE also COLLECTS here, in the SAME call scope; a refusal (no room, or the quest
-        // wants collecting somewhere else) simply leaves it parked with nothing paid.
-        RewardGrants.GrantOutcome paid = handed.paid();
+        // The hand-in FINISHED the quest. A hand-in made HERE also COLLECTS here, in the SAME call scope; a refusal (no
+        // room, or the quest wants collecting somewhere else) simply leaves it parked. Either way the page raises no
+        // toast of its own: the engine's notices for this press (Quest_Completed, or Quest_Parked and then
+        // Quest_Claimed for the collect behind it) are drawn into the page as they fire. False from the hand-off
+        // means nothing else took the screen, so this page repaints to show them.
         if (engine.status(subject, quest) == QuestStatus.COMPLETED_UNCLAIMED) {
-            paid = ProgressionRuntime.questScope().around(subject,
-                    s -> engine.tryClaim(s, quest, turnIn.atId()));
+            ProgressionRuntime.questScope().around(subject, s -> engine.attemptClaim(s, quest, turnIn.atId()));
         }
-        // ORDER IS LOAD-BEARING: the toast goes up FIRST, because whatever the hand-off opens repaints the shared
-        // per-player toast state. False from the hand-off means nothing was painted, so this page still owes the
-        // player a response.
-        showToast(handInToast(quest, paid));
         if (!handOff(quest, store, ref, player)) {
             refresh(ref, store, player);
         }
-    }
-
-    /**
-     * The toast for a quest this hand-in finished: the gold "quest complete" line listing what was actually handed
-     * over when it paid out here, the plain "Handed in." line when it only parked. The split is the deps' to apply.
-     */
-    @Nonnull
-    private ToastSpec handInToast(@Nonnull Quest quest, @Nullable RewardGrants.GrantOutcome paid) {
-        return deps.handInToast(quest, paid,
-                text("book.toast.quest_complete", ProgressionTexts.titleOrUntitled(quest.id())),
-                text("book.toast.turned_in"),
-                dropped -> text("book.more", dropped));
     }
 
     private boolean handOff(@Nonnull Quest quest, @Nonnull Store<EntityStore> store,

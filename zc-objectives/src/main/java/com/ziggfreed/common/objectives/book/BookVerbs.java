@@ -1,17 +1,21 @@
 package com.ziggfreed.common.objectives.book;
 
 import java.util.List;
+import java.util.function.Consumer;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
+import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.achievement.AchievementEngine;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.i18n.NativeNames;
-import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.npc.NpcNames;
@@ -28,14 +32,19 @@ import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.quest.QuestStatus;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.toast.ToastKind;
+import com.ziggfreed.common.ui.toast.ToastSounds;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The book's verbs, acting for the context's player over THE shared progression runtime: every mutating call
  * runs inside the registered {@link ProgressionCallScope}, so a quest accepted here fires exactly what the
- * owning mod's own menu would have fired, and the consumer's seams ({@link ObjectiveBookDeps}: the claim
- * pre-check, the accept and abandon announcements, the milestone claim) speak as they always have.
+ * owning mod's own menu would have fired, and the consumer's seams ({@link ObjectiveBookDeps}: the accept and
+ * abandon announcements, the milestone claim) speak as they always have.
+ *
+ * <p>A quest's completion, its waiting to be collected and its collect are announced by the engine's notices
+ * alone ({@code Quest_Completed}, {@code Quest_Parked}, {@code Quest_Claimed}), drawn into the open book as they
+ * fire; no verb here raises a toast of its own for any of them, so one press is one toast on every surface.
  *
  * <p>A verb acts and raises its toast; it never answers the event. The shell answers a verb by reopening on
  * the same state (the selection rides it, so Accept, Abandon and Collect land back on the same row in its new
@@ -87,52 +96,45 @@ public final class BookVerbs {
             return false;
         }
         // The giver is the accept site, as the engine's own auto-accept pass records it; a quest with no giver
-        // records none. What the settle right behind the accept paid, when a standing value already met every
-        // step, rides the result: the feedback seam lists that receipt rather than the promise.
+        // records none.
         QuestVerbs.Accepted accepted = QuestVerbs.acceptAt(subject, quest, quest.npcViewId());
         if (!accepted.accepted()) {
             return false;
         }
-        try {
-            ctx.deps().actionFeedback().accepted(quest, ctx.store(), ctx.ref(), ctx.player(), accepted.settled());
-        } catch (Throwable ignored) {
-            // A consumer's feedback failing costs its own moment, never the page.
-        }
-        if (!ctx.deps().announcesActions()) {
-            // A filled feedback seam owns the announcement; two toasts for one accept would double-report it.
-            ctx.toast(acceptedToast(quest, accepted.settled(), ctx.deps().rewardChips()));
-        }
+        announceAccepted(ctx.deps(), quest, accepted, ctx.store(), ctx.ref(), ctx.player(), ctx::toast);
         return true;
     }
 
     /**
-     * The library's own word for an accept no consumer announces ({@link ObjectiveBookDeps#announcesActions}
-     * false): the plain "accepted" line, or, when the settle right behind the accept paid on the spot, the gold
-     * line a Collect raises listing what it handed over ({@code settled}'s receipt, reputation among it), since a
-     * toast under a page is the one place a payout made there shows. {@code chips} is the consumer's own chip
-     * reading. The book's accept and a conversation's accept both raise it.
+     * The ONE accept announcement, for the book and the library's conversation binding alike. An accept that
+     * finished the quest at once ({@link QuestVerbs.Accepted#finished}) says nothing here: the engine's completion
+     * notice ({@code Quest_Completed} or {@code Quest_Parked}) is its one announcement on every surface. Otherwise
+     * the consumer's {@link ObjectiveBookDeps.ActionFeedback} hears it, and only where no consumer filled that seam
+     * does the library's own "accepted" line go to {@code toast}: a filled seam owns the announcement, and two
+     * toasts for one accept would double-report it. Guarded: a consumer's feedback failing costs its own moment.
      */
-    @Nonnull
-    public static ToastSpec acceptedToast(@Nonnull Quest quest, @Nullable RewardGrants.GrantOutcome settled,
-            @Nullable RewardChips.Source chips) {
-        List<RewardSpec> paid = RewardGrants.GrantOutcome.receiptOf(settled);
-        if (paid.isEmpty()) {
-            return ToastSpec.of(ToastKind.SUCCESS, BookContext.libraryText("book.toast.accepted"));
+    public static void announceAccepted(@Nonnull ObjectiveBookDeps deps, @Nonnull Quest quest,
+            @Nonnull QuestVerbs.Accepted accepted, @Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+            @Nonnull Player player, @Nonnull Consumer<ToastSpec> toast) {
+        if (!accepted.accepted() || accepted.finished()) {
+            return;
         }
-        return ClaimToasts.rewardToast(BookContext.libraryText("book.toast.quest_complete", questName(quest)), paid,
-                chips, BookVerbs::more);
-    }
-
-    /** "+N more", the book's own overflow line. */
-    @Nonnull
-    public static Message more(int dropped) {
-        return BookContext.libraryText("book.more", dropped);
+        try {
+            deps.actionFeedback().accepted(quest, store, ref, player);
+        } catch (Throwable t) {
+            SafeLog.warn("[progression] the accept announcement for '" + quest.id() + "' failed: " + t.getMessage());
+        }
+        if (!deps.announcesActions()) {
+            toast.accept(ToastSpec.of(ToastKind.SUCCESS, BookContext.libraryText("book.toast.accepted")));
+        }
     }
 
     /**
-     * Collect a finished quest's rewards. A consumer's pre-check may refuse first (an error toast, the engine
-     * never asked); the engine refuses a placeless payout for a site-bound quest, said as where to collect it,
-     * and rewards that will not fit, said as make room ({@link ClaimToasts#refusedToast}).
+     * Collect a finished quest's rewards through the engine's own claim. A refusal is answered off the engine's
+     * reason ({@link ClaimToasts#refusedToast}): rewards that will not fit say make room, a site-bound quest says
+     * where to collect it. A collect that paid raises nothing here: the engine's {@code Quest_Claimed} notice,
+     * drawn into the open book as the claim lands, names the quest, lists what this press handed over and plays
+     * the chest, the one announcement of a collect on every surface.
      */
     public boolean collect(@Nonnull Quest quest) {
         QuestEngine engine = ProgressionRuntime.quests();
@@ -140,23 +142,14 @@ public final class BookVerbs {
         if (subject == null || engine.status(subject, quest) != QuestStatus.COMPLETED_UNCLAIMED) {
             return false;
         }
-        Message refusal = ctx.deps().claimPreCheckGuarded(quest, ctx.store(), ctx.ref(), ctx.player());
-        if (refusal != null) {
-            toast(ToastKind.ERROR, refusal);
-            return false;
-        }
         ClaimAttempt claimed = ProgressionRuntime.questScope().around(subject, s -> engine.attemptClaim(s, quest));
-        RewardGrants.GrantOutcome paid = ClaimAttempt.paidOf(claimed);
-        if (paid == null) {
+        if (ClaimAttempt.paidOf(claimed) == null) {
             // The engine's own refusal picks the line: rewards that will not fit say make room, a quest the engine
             // still binds to a site says where to collect it (a site that is gone binds nothing), anything else
             // says there is nothing to collect.
             ctx.toast(ClaimToasts.refusedToast(claimed));
             return false;
         }
-        // The rows are what THIS press handed over (the claim rewards' receipt, so a rolled table lists what it
-        // produced), never the auto ones the quest settled with earlier: listing a payout twice reads as double.
-        rewardToast(ctx.text("book.toast.quest_complete", questName(quest)), paid.receipt());
         return true;
     }
 
@@ -188,11 +181,11 @@ public final class BookVerbs {
         int required = objective == null ? 0 : objective.amountAsInt();
         if (handed > 0) {
             // Counts are data; the item name is a nested client-resolved Message. A hand-in that finished the
-            // quest fires its completion moment (Quest_Completed or Quest_Parked), which plays the sound for this
-            // press, so the line is silent then.
-            ToastSpec line = ToastSpec.of(ToastKind.SUCCESS,
-                    ctx.text("book.toast.turn_in", handed, required, itemName));
-            ctx.toast(engine.status(subject, quest) == QuestStatus.ACTIVE ? line : line.silent());
+            // quest raises nothing here: its completion notice (Quest_Completed or Quest_Parked), drawn into the
+            // book as it fires, is the one announcement of that press.
+            if (engine.status(subject, quest) == QuestStatus.ACTIVE) {
+                ctx.toast(ToastSpec.of(ToastKind.SUCCESS, ctx.text("book.toast.turn_in", handed, required, itemName)));
+            }
         } else {
             ObjectiveProgressState progress = engine.progressOf(subject, quest.id(), step);
             int current = progress != null ? progress.current() : 0;
@@ -294,11 +287,15 @@ public final class BookVerbs {
             return false;
         }
         // The rows are what the claim just handed over; a rolled table lists what it rolled.
-        rewardToast(ctx.text("book.achievements.claim_success"), paid.receipt());
+        ctx.toast(rewardToast(ctx.text("book.achievements.claim_success"), paid.receipt()));
         return true;
     }
 
-    /** Collect the consumer's points milestone at {@code threshold}, through its claim seam. */
+    /**
+     * Collect the points milestone at {@code threshold}, through the claim seam (the engine's own collect unless a
+     * consumer filled it). No engine moment announces a rung's collect, so the success toast carries the chest
+     * every collect plays ({@link ToastSounds#COLLECT}).
+     */
     @Nonnull
     public ObjectiveBookDeps.MilestoneClaimOutcome claimMilestone(int threshold) {
         Subject subject = ctx.achievementSubject();
@@ -322,7 +319,8 @@ public final class BookVerbs {
             result = ObjectiveBookDeps.MilestoneClaimResult.of(ObjectiveBookDeps.MilestoneClaimOutcome.NOT_READY);
         }
         switch (result.outcome()) {
-            case SUCCESS -> rewardToast(ctx.text("book.achievements.claim_success"), result.rowsOr(authored));
+            case SUCCESS -> ctx.toast(rewardToast(ctx.text("book.achievements.claim_success"), result.rowsOr(authored))
+                    .withSound(ToastSounds.COLLECT));
             case INVENTORY_FULL -> ctx.toast(ClaimToasts.noRoomToast());
             case NOT_READY -> ctx.toast(ClaimToasts.nothingToCollectToast());
         }
@@ -395,8 +393,9 @@ public final class BookVerbs {
     }
 
     /** {@link ClaimToasts#rewardToast} through the consumer's chip source and the book's overflow line. */
-    private void rewardToast(@Nonnull Message headline, @Nonnull List<RewardSpec> rewards) {
-        ctx.toast(ClaimToasts.rewardToast(headline, rewards, ctx.deps().rewardChips(),
-                dropped -> ctx.text("book.more", dropped)));
+    @Nonnull
+    private ToastSpec rewardToast(@Nonnull Message headline, @Nonnull List<RewardSpec> rewards) {
+        return ClaimToasts.rewardToast(headline, rewards, ctx.deps().rewardChips(),
+                dropped -> ctx.text("book.more", dropped));
     }
 }

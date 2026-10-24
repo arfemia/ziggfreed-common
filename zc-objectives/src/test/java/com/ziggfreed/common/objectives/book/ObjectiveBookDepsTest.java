@@ -1,6 +1,5 @@
 package com.ziggfreed.common.objectives.book;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +18,7 @@ import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardSpec;
+import com.ziggfreed.common.progress.ClaimAttempt;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.kit.DetailBlock;
@@ -47,7 +47,9 @@ class ObjectiveBookDepsTest {
         assertNotNull(deps.tagLabelGuarded("wilds_side"));
         assertEquals(ObjectiveBookDeps.MilestoneClaimOutcome.NOT_READY,
                 ObjectiveBookDeps.NO_MILESTONE_CLAIM.claim(100, null, null, null));
-        assertNull(deps.claimPreCheckGuarded(quest, null, null, null));
+        assertSame(ObjectiveBookDeps.ENGINE_MILESTONES, deps.milestones(),
+                "the engine's own ladder, so a server running nothing else shows its rungs");
+        assertSame(ObjectiveBookDeps.ENGINE_MILESTONE_CLAIM, deps.milestoneClaim());
         assertFalse(deps.announcesActions());
         assertSame(DetailBlockSource.NONE, deps.detailBlocks());
         assertSame(SeenMarks.NONE, deps.seen());
@@ -119,7 +121,6 @@ class ObjectiveBookDepsTest {
                 .milestones(null)
                 .milestoneClaim(null)
                 .actionFeedback(null)
-                .claimPreCheck(null)
                 .detailBlocks(null)
                 .seen(null)
                 .build();
@@ -128,10 +129,9 @@ class ObjectiveBookDepsTest {
         assertSame(ObjectiveBookDeps.NO_EXT, deps.extHandler());
         assertSame(ObjectiveBookDeps.BOARD_CONTRACTS, deps.boardManaged());
         assertSame(ObjectiveBookDeps.NO_FIRST_CLAIMS, deps.firstClaims());
-        assertSame(ObjectiveBookDeps.NO_MILESTONES, deps.milestones());
-        assertSame(ObjectiveBookDeps.NO_MILESTONE_CLAIM, deps.milestoneClaim());
+        assertSame(ObjectiveBookDeps.ENGINE_MILESTONES, deps.milestones());
+        assertSame(ObjectiveBookDeps.ENGINE_MILESTONE_CLAIM, deps.milestoneClaim());
         assertSame(ObjectiveBookDeps.NO_FEEDBACK, deps.actionFeedback());
-        assertSame(ObjectiveBookDeps.NO_CLAIM_PRECHECK, deps.claimPreCheck());
     }
 
     @Test
@@ -158,9 +158,6 @@ class ObjectiveBookDepsTest {
                     throw new IllegalStateException("boom");
                 })
                 .milestones((store, ref, subject) -> {
-                    throw new IllegalStateException("boom");
-                })
-                .claimPreCheck((q, store, ref, player) -> {
                     throw new IllegalStateException("boom");
                 })
                 .detailBlocks(new DetailBlockSource() {
@@ -195,7 +192,6 @@ class ObjectiveBookDepsTest {
         assertNotNull(deps.tagLabelGuarded("epic"));
         assertNull(deps.claimOfGuarded("first_kill", null));
         assertTrue(deps.milestonesGuarded(null, null, null).isEmpty());
-        assertNull(deps.claimPreCheckGuarded(quest, null, null, null));
         assertTrue(deps.detailBlocksGuarded(quest, null).isEmpty(), "a throwing source costs its blocks");
         assertTrue(deps.detailBlocksGuarded(Achievement.builder("a").build(), null).isEmpty(),
                 "a null answer reads as none");
@@ -269,24 +265,22 @@ class ObjectiveBookDepsTest {
                 "an empty roll lists nothing, never the authored list");
     }
 
-    // ==================== the accept feedback: a fill that ignores the payout ====================
-
-    /** The book announces with the settle's outcome; a fill written for the plain form still hears it. */
+    /**
+     * The engine's collect in the book's words: what it paid when it paid, a full bag as INVENTORY_FULL (the make
+     * room line), and every other refusal, a missing attempt included, as NOT_READY.
+     */
     @Test
-    void aFeedbackFillThatIgnoresThePayoutStillHearsTheAccept() {
-        List<String> heard = new ArrayList<>();
-        ObjectiveBookDeps.ActionFeedback plain = new ObjectiveBookDeps.ActionFeedback() {
-            @Override
-            public void accepted(@Nonnull Quest quest, @Nonnull Store<EntityStore> store,
-                    @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
-                heard.add(quest.id());
-            }
-        };
-        Quest quest = Quest.builder("q_settled").build();
+    void theEngineCollectReadsTheEnginesOwnRefusal() {
+        ObjectiveBookDeps.MilestoneClaimResult paid = ObjectiveBookDeps.milestoneResult(
+                ClaimAttempt.collected(new RewardGrants.GrantOutcome(2, 0, 0, ROLLED)));
+        assertEquals(ObjectiveBookDeps.MilestoneClaimOutcome.SUCCESS, paid.outcome());
+        assertEquals(ROLLED, paid.rowsOr(AUTHORED), "the receipt, never the rung as authored");
 
-        plain.accepted(quest, null, null, null, new RewardGrants.GrantOutcome(1, 0, 0, ROLLED));
-        plain.accepted(quest, null, null, null, null);
-
-        assertEquals(List.of("q_settled", "q_settled"), heard);
+        assertEquals(ObjectiveBookDeps.MilestoneClaimOutcome.INVENTORY_FULL, ObjectiveBookDeps.milestoneResult(
+                ClaimAttempt.refused(ClaimAttempt.Refusal.NO_ROOM)).outcome());
+        assertEquals(ObjectiveBookDeps.MilestoneClaimOutcome.NOT_READY, ObjectiveBookDeps.milestoneResult(
+                ClaimAttempt.refused(ClaimAttempt.Refusal.NOT_WAITING)).outcome());
+        assertEquals(ObjectiveBookDeps.MilestoneClaimOutcome.NOT_READY,
+                ObjectiveBookDeps.milestoneResult(null).outcome());
     }
 }

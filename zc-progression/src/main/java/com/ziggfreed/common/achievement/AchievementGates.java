@@ -12,7 +12,7 @@ import com.ziggfreed.common.subject.Subject;
  * to know about the game around it is a question asked here, so the engine never grows a switch on a
  * feature being installed, a class being chosen, or a race being won.
  *
- * <p>All four default to yes, so a consumer overrides only what it actually gates. Each is called on
+ * <p>All of them default to yes, so a consumer overrides only what it actually gates. Each is called on
  * the dispatch path, so keep them cheap; a gate that throws is reported and treated as a refusal.
  */
 public interface AchievementGates {
@@ -50,6 +50,15 @@ public interface AchievementGates {
      * it - the achievement stays waiting to be collected.
      */
     default boolean canReceiveRewards(@Nonnull Subject subject, @Nonnull Achievement achievement) {
+        return true;
+    }
+
+    /**
+     * May a points milestone's waiting rewards reach this subject right now? The same question as
+     * {@link #canReceiveRewards(Subject, Achievement)}, asked of a rung's {@code claimRewards}: refusing
+     * keeps the rung waiting to be collected rather than paying it out into nowhere.
+     */
+    default boolean canReceiveMilestoneRewards(@Nonnull Subject subject, @Nonnull AchievementMilestone milestone) {
         return true;
     }
 

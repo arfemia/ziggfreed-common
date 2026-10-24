@@ -1,18 +1,18 @@
 package com.ziggfreed.common.objectives.journal;
 
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.ziggfreed.common.board.BoardEngine;
 import com.ziggfreed.common.commerce.fold.CommerceEngines;
-import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.objectives.questlist.CharacterQuestListing;
 import com.ziggfreed.common.progress.runtime.ProgressionCallScope;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
+import com.ziggfreed.common.quest.QuestStatus;
 import com.ziggfreed.common.subject.Subject;
 
 /**
@@ -31,15 +31,15 @@ import com.ziggfreed.common.subject.Subject;
 public final class QuestVerbs {
 
     /**
-     * What an accept did: whether the quest was taken on, and what the settle right behind it paid.
-     * {@code settled} is non-null only when a standing value already met every step and the quest
-     * paid out on the spot, so an announcement can list what was actually handed over; it is null
-     * for an ordinary accept and for one that finished but parked for collecting.
+     * What an accept did: whether the quest was taken on, and whether the settle right behind it
+     * {@code finished} it at once (a standing value already met every step, so it paid out or parked
+     * for collecting in the same press). A finished accept is announced by the engine's completion
+     * notice alone, so a surface raises nothing of its own for it.
      */
-    public record Accepted(boolean accepted, @Nullable RewardGrants.GrantOutcome settled) {
+    public record Accepted(boolean accepted, boolean finished) {
 
         /** The accept was refused, or there was nothing to accept. */
-        public static final Accepted REFUSED = new Accepted(false, null);
+        public static final Accepted REFUSED = new Accepted(false, false);
     }
 
     private QuestVerbs() {
@@ -58,17 +58,19 @@ public final class QuestVerbs {
     @Nonnull
     public static Accepted acceptAt(@Nonnull Subject subject, @Nonnull Quest quest, @Nullable String siteId) {
         QuestEngine engine = ProgressionRuntime.quests();
-        AtomicReference<RewardGrants.GrantOutcome> settled = new AtomicReference<>();
+        AtomicBoolean finished = new AtomicBoolean();
         boolean ok = Boolean.TRUE.equals(ProgressionRuntime.questScope().around(subject, s -> {
             boolean accepted = engine.canAccept(s, quest).allowed() && engine.accept(s, quest, siteId);
             if (accepted) {
                 // A standing value can already meet every step (a level reached, an item carried):
                 // finish it now rather than leaving a quest with nothing left to do still active.
-                settled.set(engine.trySettle(s, quest, siteId));
+                // Finished = it paid out now, or it parked to be collected (the settle answers null then).
+                boolean paid = engine.trySettle(s, quest, siteId) != null;
+                finished.set(paid || engine.status(s, quest) == QuestStatus.COMPLETED_UNCLAIMED);
             }
             return Boolean.valueOf(accepted);
         }));
-        return ok ? new Accepted(true, settled.get()) : Accepted.REFUSED;
+        return ok ? new Accepted(true, finished.get()) : Accepted.REFUSED;
     }
 
     /**

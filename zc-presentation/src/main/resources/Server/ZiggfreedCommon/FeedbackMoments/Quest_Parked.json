@@ -15,8 +15,10 @@
     "",
     "Variants is how ONE file says different things for different cases: each entry names, under",
     "When, the values it applies to and restates only the groups that differ. The first entry that",
-    "matches wins. Below, a full-bag park reads as a red Error and stays quiet (the reward is not",
-    "lost, it waits until there is room); every other park gets the same notice and jingle.",
+    "matches wins, so the full-bag entry comes before the next one. Below, a full-bag park reads as",
+    "a red Error and stays quiet (the reward is not lost, it waits until there is room); a quest",
+    "collected wherever it was taken (turnIn accept_site, a board contract among them) points the",
+    "player back there; every other park gets the plain notice. Both of those keep the jingle.",
     "",
     "PlayerLevel true hands the toast to each player's own notification level, chosen on their",
     "Settings tab: Every update, Milestones, Finishes or None. A variant replaces the whole toast,",
@@ -54,6 +56,18 @@
         "Priority": 3
       },
       "Sound": {}
+    },
+    {
+      "When": { "turnIn": "accept_site" },
+      "Toast": {
+        "Title": {
+          "Key": "ziggfreedcommon.feedback.quest.parked.accept_site",
+          "Args": ["title"]
+        },
+        "Tone": "Reward",
+        "PlayerLevel": true,
+        "Priority": 3
+      }
     }
   ]
 }
