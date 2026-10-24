@@ -51,6 +51,10 @@ import com.ziggfreed.common.instance.claims.RewardChestOwnerLayers;
 import com.ziggfreed.common.instance.dungeon.DungeonAsset;
 import com.ziggfreed.common.instance.dungeon.DungeonConfig;
 import com.ziggfreed.common.instance.dungeon.DungeonOwnerLayers;
+import com.ziggfreed.common.instance.dungeon.layout.asset.DungeonLayoutAsset;
+import com.ziggfreed.common.instance.dungeon.layout.asset.DungeonLayoutConfig;
+import com.ziggfreed.common.instance.dungeon.layout.asset.DungeonRoomAsset;
+import com.ziggfreed.common.instance.dungeon.layout.asset.DungeonRoomConfig;
 import com.ziggfreed.common.instance.effect.BandedEffectAsset;
 import com.ziggfreed.common.instance.effect.BandedEffectConfig;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardLayoutAsset;
@@ -536,6 +540,24 @@ public final class FrameworkAssetRegistrar {
                     DungeonConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
                     DungeonOwnerLayers.reload();
                 });
+
+        // --- Dungeon rooms and layouts (Pattern A) - the procedural layout's data: a room per file (its prefab
+        //     pool, box, door sockets, roles, depth range and needs; the engine's own Tags) and a layout plan per
+        //     file (the beats of a run's path, its connectors, branches, strata and bounds), which the pure
+        //     generator in instance/dungeon/layout/ reads. The library ships none yet. No owner layer, no
+        //     top-level Requires. ---
+        AssetStoreRegistrar.registerStore(DungeonRoomAsset.class,
+                new DefaultAssetMap<String, DungeonRoomAsset>(), DungeonRoomAsset.TYPE_ROOT,
+                DungeonRoomAsset::getId, DungeonRoomAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, DungeonRoomAsset.class,
+                (LoadedAssetsEvent<String, DungeonRoomAsset, DefaultAssetMap<String, DungeonRoomAsset>> ev) ->
+                        DungeonRoomConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
+        AssetStoreRegistrar.registerStore(DungeonLayoutAsset.class,
+                new DefaultAssetMap<String, DungeonLayoutAsset>(), DungeonLayoutAsset.TYPE_ROOT,
+                DungeonLayoutAsset::getId, DungeonLayoutAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, DungeonLayoutAsset.class,
+                (LoadedAssetsEvent<String, DungeonLayoutAsset, DefaultAssetMap<String, DungeonLayoutAsset>> ev) ->
+                        DungeonLayoutConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
 
         // --- Reward chests (Pattern A) - what a chest a reward source stands is: its look, who opens it, what it
         //     holds of its own, how it shows it, its banner, its words and when it goes. The library ships
@@ -1341,7 +1363,8 @@ public final class FrameworkAssetRegistrar {
         SafeLog.info("ZiggfreedCommon framework stores registered (DialogueFragments, DialogueExtensions, Dialogues, Instances, "
                         + "Lootables, RollPools, BonusRows (owner file mods/ziggfreedcommon/bonus-rows.json), "
                         + "StatDisplays, RewardKinds, BandedEffects, PrefabPlacements, Gateways, Leaderboard, "
-                        + "Arenas, Party, Dungeons (owner file mods/ziggfreedcommon/dungeons.json), "
+                        + "Arenas, Party, Dungeons (owner file mods/ziggfreedcommon/dungeons.json), DungeonRooms, "
+                        + "DungeonLayouts, "
                         + "RewardChests (owner file mods/ziggfreedcommon/reward-chests.json), "
                         + "NpcPlacements, NpcIdentities, Factors, FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, "
                         + "PlayerSettings (owner file mods/ziggfreedcommon/player-settings.json), "

@@ -52,6 +52,8 @@ import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.feedback.moment.FeedbackMomentAsset;
 import com.ziggfreed.common.instance.claims.RewardChestAsset;
 import com.ziggfreed.common.instance.dungeon.DungeonAsset;
+import com.ziggfreed.common.instance.dungeon.layout.asset.DungeonLayoutAsset;
+import com.ziggfreed.common.instance.dungeon.layout.asset.DungeonRoomAsset;
 import com.ziggfreed.common.instance.effect.BandedEffectAsset;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardLayoutAsset;
 import com.ziggfreed.common.instance.leaderboard.statboard.StatPeriodAsset;
@@ -433,6 +435,23 @@ class AssetCodecInitTest {
         assertNotNull(DungeonAsset.Run.CODEC, "the Run group codec must static-init");
         assertNotNull(DungeonAsset.Copy.CODEC, "the Copy group codec must static-init");
         assertNotNull(DungeonAsset.Text.CODEC, "the Text group codec must static-init");
+    }
+
+    @Test
+    void dungeonLayoutCodecsInitialize() {
+        assertNotNull(DungeonRoomAsset.CODEC, "DungeonRoomAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(DungeonRoomAsset.Bounds.CODEC, "the Box group codec must static-init");
+        assertNotNull(DungeonRoomAsset.Door.CODEC, "the Doors item codec must static-init");
+        assertNotNull(DungeonRoomAsset.Depth.CODEC, "the Depth group codec must static-init");
+        assertNotNull(DungeonRoomAsset.Keep.CODEC, "the Keep group codec must static-init");
+        assertNotNull(DungeonLayoutAsset.CODEC, "DungeonLayoutAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(DungeonLayoutAsset.Rooms.CODEC, "the Rooms group codec must static-init");
+        assertNotNull(DungeonLayoutAsset.Stratum.CODEC, "the Strata item codec must static-init");
+        assertNotNull(DungeonLayoutAsset.Count.CODEC, "the Count group codec must static-init");
+        assertNotNull(DungeonLayoutAsset.Beat.CODEC, "the Path item codec must static-init");
+        assertNotNull(DungeonLayoutAsset.Links.CODEC, "the Links group codec must static-init");
+        assertNotNull(DungeonLayoutAsset.Branch.CODEC, "the Branches item codec must static-init");
+        assertNotNull(DungeonLayoutAsset.Bounds.CODEC, "the Bounds group codec must static-init");
     }
 
     @Test

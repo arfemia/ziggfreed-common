@@ -57,7 +57,8 @@ import com.ziggfreed.common.world.gather.GatherShapeConfig;
  * QuestGenerators, ShopEntryGenerators and TrackPickGenerators (a family follows its {@code Base}); DialogueFragments,
  * DialogueExtensions and Dialogues (a line gates on its own {@code Conditions}); Instances, RollPools,
  * StatDisplays, ObjectiveKinds, OverheadIndicators, QuestIndicators, RewardKinds, BandedEffects,
- * PrefabPlacements, Leaderboard, Arenas, Party, Dungeons, RewardChests, DialogueOptionTheme, NpcIdentities, Factors,
+ * PrefabPlacements, Leaderboard, Arenas, Party, Dungeons, DungeonRooms, DungeonLayouts, RewardChests,
+ * DialogueOptionTheme, NpcIdentities, Factors,
  * FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, PlayerSettings, AchievementCategories,
  * QuestCategories, AchievementMilestones, Almanac (a collection slot gates on its own {@code Requires}: absent
  * where its mod is missing, read inline and never counted), ShopPools, EncounterBindings,
