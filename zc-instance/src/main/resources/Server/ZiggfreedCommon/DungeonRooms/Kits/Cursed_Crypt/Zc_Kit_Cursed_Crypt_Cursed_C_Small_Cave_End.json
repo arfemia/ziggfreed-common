@@ -5,7 +5,7 @@
     "Each door is a doorway vanilla's graph joins to another piece; a door only meets a door of its own Kind, and one left open takes a Cap room of that Kind.",
     "Box covers every variant.",
     "Vanilla pastes these pieces into solid rock, so Fill (Rock_Stone) fills the cells a piece leaves unlisted inside its Box.",
-    "As a Cap it carries the tags of every room whose doors it can close."
+    "As a Cap it carries, key by key, every tag value of the rooms whose doors it can close."
   ],
   "Box": {
     "Max": {
@@ -35,8 +35,12 @@
   "Roles": [
     "Cap"
   ],
-  "Tags": [
-    "Cursed_Crypt_Cursed",
-    "Kit_Cursed_Crypt"
-  ]
+  "Tags": {
+    "Kit": [
+      "Cursed_Crypt"
+    ],
+    "Section": [
+      "Cursed"
+    ]
+  }
 }

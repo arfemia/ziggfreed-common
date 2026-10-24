@@ -51,6 +51,11 @@ def kit_rooms(kit):
     return rooms
 
 
+def covers(cap_tags, room_tags):
+    """True when the cap's Tags map holds every key and value of the room's (the engine's map: key -> values)."""
+    return all(set(values) <= set(cap_tags.get(key, [])) for key, values in room_tags.items())
+
+
 def shipped_kits():
     return sorted(k for k in pio.load_json(CONFIG)["Kits"] if os.path.isdir(os.path.join(KITS, k)))
 
@@ -123,7 +128,7 @@ class KitDoors(unittest.TestCase):
                     partners = [p for p in doors_by_kind[d["Kind"]] if p != (rid, i)]
                     self.assertTrue(partners, where + " shares its Kind " + d["Kind"] + " with another door")
                     self.assertTrue(caps_by_kind.get(d["Kind"]), where + " has a Cap of Kind " + d["Kind"])
-                    tagged = [c for c in caps_by_kind[d["Kind"]] if set(room["Tags"]) <= set(rooms[c]["Tags"])]
+                    tagged = [c for c in caps_by_kind[d["Kind"]] if covers(rooms[c]["Tags"], room["Tags"])]
                     self.assertTrue(tagged, where + " has a Cap carrying all its room's tags, so a tag filter that "
                                                     "admits the room admits the cap")
 

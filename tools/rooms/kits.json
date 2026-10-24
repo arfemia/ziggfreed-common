@@ -4,7 +4,10 @@
     "imports, how its pools are named, tagged and given roles, and how its door classes are named.",
     "Graph: folders under CaveRoot whose .node.json files are the kit's graph. Pools: prefab-name prefixes to import (a pool",
     "outside them is skipped, and so is every join to it). PieceRoot: the prefix cut from a pool to make the piece name in",
-    "Zc_Kit_<Kit>_<Piece>. Tags: on every room; TagRules add more by pool prefix. Roles: the pool's folder path, matched on",
+    "Zc_Kit_<Kit>_<Piece>. Tags: the engine's own Tags map (key to values) on every room, Kit naming the kit; TagRules add",
+    "values by pool prefix (Section: a level or part of the kit), and a Cap takes, key by key, every value of the rooms",
+    "whose doors it can close. The engine reads a map as each key, each value and each Key=Value, so a plan filters with",
+    "Kit=Stone or Section=Tomb. Roles: the pool's folder path, matched on",
     "its longest dotted suffix. Kinds: a door class (the doors vanilla's graph joins, closed under joining) takes the Kind",
     "of the first rule naming a pool one of its doors sits on; a class no rule names takes Default. ClipDepth: how far",
     "(in blocks) a room's blocks may stand proud of a doorway's wall and be left out of its Box, so the doorway sits on",
@@ -23,11 +26,11 @@
       "PieceRoot": "Dungeon.Stone.",
       "Label": "the Stone dungeon",
       "Fill": "Rock_Stone",
-      "Tags": ["Kit_Stone"],
+      "Tags": {"Kit": ["Stone"]},
       "TagRules": [
-        {"Pools": ["Dungeon.Stone.Level_1."], "Tags": ["Stone_Level_1"]},
-        {"Pools": ["Dungeon.Stone.Level_2."], "Tags": ["Stone_Level_2"]},
-        {"Pools": ["Dungeon.Stone.Level_3."], "Tags": ["Stone_Level_3"]}
+        {"Pools": ["Dungeon.Stone.Level_1."], "Tags": {"Section": ["Level_1"]}},
+        {"Pools": ["Dungeon.Stone.Level_2."], "Tags": {"Section": ["Level_2"]}},
+        {"Pools": ["Dungeon.Stone.Level_3."], "Tags": {"Section": ["Level_3"]}}
       ],
       "Roles": {
         "Corridors": ["Corridor"],
@@ -56,10 +59,10 @@
       "PieceRoot": "Dungeon.Cursed_Crypt.",
       "Label": "the Cursed Crypt",
       "Fill": "Rock_Stone",
-      "Tags": ["Kit_Cursed_Crypt"],
+      "Tags": {"Kit": ["Cursed_Crypt"]},
       "TagRules": [
-        {"Pools": ["Dungeon.Cursed_Crypt.Cursed."], "Tags": ["Cursed_Crypt_Cursed"]},
-        {"Pools": ["Dungeon.Cursed_Crypt.Tomb."], "Tags": ["Cursed_Crypt_Tomb"]}
+        {"Pools": ["Dungeon.Cursed_Crypt.Cursed."], "Tags": {"Section": ["Cursed"]}},
+        {"Pools": ["Dungeon.Cursed_Crypt.Tomb."], "Tags": {"Section": ["Tomb"]}}
       ],
       "Roles": {
         "Short": ["Corridor"],

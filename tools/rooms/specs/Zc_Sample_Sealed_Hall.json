@@ -10,7 +10,7 @@
   "Prefab": "ZiggfreedCommon.Samples.Zc_Sample_Sealed_Hall",
   "Room": {
     "Roles": ["Combat", "Room"],
-    "Tags": ["Sample"]
+    "Tags": {"Kit": ["Sample"]}
   },
   "Shapes": [
     {"Op": "Shell", "Min": {"X": -9, "Y": 0, "Z": -18}, "Max": {"X": 9, "Y": 8, "Z": 0}},

@@ -44,8 +44,12 @@
     "Corridor",
     "Turn"
   ],
-  "Tags": [
-    "Cursed_Crypt_Cursed",
-    "Kit_Cursed_Crypt"
-  ]
+  "Tags": {
+    "Kit": [
+      "Cursed_Crypt"
+    ],
+    "Section": [
+      "Cursed"
+    ]
+  }
 }

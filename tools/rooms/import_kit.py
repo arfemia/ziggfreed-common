@@ -423,22 +423,31 @@ class KitImport:
         return sorted(set(roles))
 
     def own_tags(self, pool_name):
-        tags = list(self.cfg.get("Tags", []))
+        """The room's tags as the engine's own Tags map (key -> set of values): the kit's Tags, then every TagRule
+        whose pools name this one. The engine expands a map into each key, each value and each Key=Value."""
+        tags = {}
+
+        def add(more):
+            for key, values in more.items():
+                tags.setdefault(key, set()).update(values)
+
+        add(self.cfg.get("Tags", {}))
         for rule in self.cfg.get("TagRules", []):
             if starts_with_any(pool_name, rule["Pools"]):
-                tags.extend(rule["Tags"])
-        return set(tags)
+                add(rule["Tags"])
+        return tags
 
     def tags(self, pool_name):
-        """A room's own tags; a Cap also carries every tag of the rooms whose doors it can close (any room with a
-        door of its Kind), so a plan filtering on a level or section tag still finds a cap for each door."""
+        """A room's own tags; a Cap also carries, key by key, every tag value of the rooms whose doors it can close
+        (any room with a door of its Kind), so a plan filtering on a kit or section still finds a cap for each door."""
         tags = self.own_tags(pool_name)
         if "Cap" in self.roles(pool_name):
             kinds = {self.kind(pool_name, k) for k in self.doors[pool_name]}
             for q in self.output_pools:
                 if any(self.kind(q, k) in kinds for k in self.doors[q]):
-                    tags |= self.own_tags(q)
-        return sorted(tags)
+                    for key, values in self.own_tags(q).items():
+                        tags.setdefault(key, set()).update(values)
+        return {key: sorted(values) for key, values in sorted(tags.items())}
 
     def door_list(self, p):
         order = {f: i for i, f in enumerate(pio.FACINGS)}
@@ -473,7 +482,7 @@ class KitImport:
             comment.append("Vanilla pastes these pieces into solid rock, so Fill (%s) fills the cells a piece leaves "
                            "unlisted inside its Box." % fill)
         if "Cap" in self.roles(p):
-            comment.append("As a Cap it carries the tags of every room whose doors it can close.")
+            comment.append("As a Cap it carries, key by key, every tag value of the rooms whose doors it can close.")
         box = self.boxes[p]
         doc = {
             "$Comment": comment,

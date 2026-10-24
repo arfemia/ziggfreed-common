@@ -53,8 +53,12 @@
     "Corridor",
     "Junction"
   ],
-  "Tags": [
-    "Kit_Stone",
-    "Stone_Level_1"
-  ]
+  "Tags": {
+    "Kit": [
+      "Stone"
+    ],
+    "Section": [
+      "Level_1"
+    ]
+  }
 }

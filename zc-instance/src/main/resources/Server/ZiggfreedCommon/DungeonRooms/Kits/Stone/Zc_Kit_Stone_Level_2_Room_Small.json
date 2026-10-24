@@ -44,8 +44,12 @@
     "Combat",
     "Room"
   ],
-  "Tags": [
-    "Kit_Stone",
-    "Stone_Level_2"
-  ]
+  "Tags": {
+    "Kit": [
+      "Stone"
+    ],
+    "Section": [
+      "Level_2"
+    ]
+  }
 }

@@ -36,8 +36,12 @@
     "DeadEnd",
     "Room"
   ],
-  "Tags": [
-    "Kit_Stone",
-    "Stone_Level_3"
-  ]
+  "Tags": {
+    "Kit": [
+      "Stone"
+    ],
+    "Section": [
+      "Level_3"
+    ]
+  }
 }

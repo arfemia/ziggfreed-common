@@ -43,8 +43,12 @@
   "Roles": [
     "Room"
   ],
-  "Tags": [
-    "Cursed_Crypt_Tomb",
-    "Kit_Cursed_Crypt"
-  ]
+  "Tags": {
+    "Kit": [
+      "Cursed_Crypt"
+    ],
+    "Section": [
+      "Tomb"
+    ]
+  }
 }
