@@ -61,8 +61,8 @@ import com.ziggfreed.common.util.SafeLog;
  * and its returns key {@code dungeon:<id>:<difficulty>}. Then the member's results screen opens, a normal
  * {@link ResultsPage} built from the library's own {@link DungeonResultsMessages} and a
  * {@link DungeonResultsActions} holding their Claim: its Claim button hands the Claim over through
- * {@code ClaimGrants} (collected, never granted unasked), and whatever they leave, or a full bag keeps, waits on
- * the Claims tab. Since the screen offers that Claim itself, the new-Claim toast leaves it out
+ * {@code ClaimGrants} (collected, never granted unasked) under the Claims tab's own toast naming what landed, and
+ * whatever they leave, or a full bag keeps, waits on the Claims tab. Since the screen offers that Claim itself, the new-Claim toast leaves it out
  * ({@link ClaimNotices#offeredOnPage}). A member who is offline or dead at the clear gets no screen (the respawn
  * screen is a page of its own, which a results page would replace): their Claim waits on the tab all the same, and
  * the toast names it.

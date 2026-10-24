@@ -59,7 +59,8 @@ import com.ziggfreed.common.world.gather.GatherShapeConfig;
  * StatDisplays, ObjectiveKinds, OverheadIndicators, QuestIndicators, RewardKinds, BandedEffects,
  * PrefabPlacements, Leaderboard, Arenas, Party, Dungeons, RewardChests, DialogueOptionTheme, NpcIdentities, Factors,
  * FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, PlayerSettings, AchievementCategories,
- * QuestCategories, AchievementMilestones, Almanac, ShopPools, EncounterBindings,
+ * QuestCategories, AchievementMilestones, Almanac (a collection slot gates on its own {@code Requires}: absent
+ * where its mod is missing, read inline and never counted), ShopPools, EncounterBindings,
  * EncounterParticipation, EncounterRules, CalendarEvents, CalendarSpawns, Titles, Reputations, TrackCurves,
  * TrackCategories, TrackWorldRules, TrackPickOptions, TrackPickDecks, BoostSettings, WeakSpotSettings, EffectFamilies,
  * ConditionalStats, BlockFamilies and Gateways. A

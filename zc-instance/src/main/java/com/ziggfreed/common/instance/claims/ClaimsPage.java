@@ -41,9 +41,6 @@ import com.ziggfreed.common.ui.menu.MenuSlot;
 import com.ziggfreed.common.ui.menu.ZigMenu;
 import com.ziggfreed.common.ui.route.DestinationContext;
 import com.ziggfreed.common.ui.route.Destinations;
-import com.ziggfreed.common.ui.toast.ToastKind;
-import com.ziggfreed.common.ui.toast.ToastLine;
-import com.ziggfreed.common.ui.toast.ToastSounds;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 import com.ziggfreed.common.ui.toast.ToastablePage;
 import com.ziggfreed.common.util.SafeLog;
@@ -297,13 +294,13 @@ public final class ClaimsPage extends ToastablePage<ClaimsEventData> {
     }
 
     /**
-     * One Claim or Claim All press, told as one toast: everything handed over, a full bag keeping the rest here, or
-     * part of it not payable on this server, over a row for each reward it handed over at what really landed
-     * ({@link ClaimsView#landedLines}), since the action that paid names what it paid in its own toast: a reputation
-     * moved under a page moves no World bar (R290). Unranked, as the page's own answer to the click, so it always
-     * shows and a ranked notice the press raised first (a quest the collect completed, a Claim it arrived with) waits
-     * to come back after it, where an equal rank would replace that notice for good. A press with nothing to take (a
-     * stale page) says nothing; the reopen shows the truth.
+     * One Claim or Claim All press, told as one toast ({@link ClaimsView#pressToast}): everything handed over, a full
+     * bag keeping the rest here, or part of it not payable on this server, over a row for each reward it handed over
+     * at what really landed ({@link ClaimsView#landedLines}), since the action that paid names what it paid in its own
+     * toast: a reputation moved under a page moves no World bar (R290). Unranked, as the page's own answer to the
+     * click, so it always shows and a ranked notice the press raised first (a quest the collect completed, a Claim it
+     * arrived with) waits to come back after it, where an equal rank would replace that notice for good. A press with
+     * nothing to take (a stale page) says nothing; the reopen shows the truth.
      */
     private void press(boolean all, @Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store) {
         UUID player = playerRef.getUuid();
@@ -324,21 +321,10 @@ public final class ClaimsPage extends ToastablePage<ClaimsEventData> {
             } else {
                 result = ClaimGrants.claimFight(deps.claims(), player, fight, ref, store, deps.sink());
             }
-            ClaimsText text = deps.text();
-            if (result.nothing()) {
-                return;
-            }
-            List<ToastLine> landed = ClaimsView.landedLines(result.collected());
-            if (result.anyKept()) {
-                showToast(ToastSpec.of(ToastKind.WARNING, text.line("toast.kept")).withLines(landed));
-            } else if (result.failed() > 0) {
-                showToast(ToastSpec.of(ToastKind.WARNING, text.line("toast.failed")).withLines(landed));
-            } else {
-                // On the chest's first screen the items stay for the window, so even Take All just says Claimed.
-                showToast(ToastSpec.of(ToastKind.REWARD,
-                        text.line(all && !itemsInWindow ? "toast.claimed_all" : "toast.claimed"))
-                        .withLines(landed)
-                        .withSound(ToastSounds.RECEIPT));
+            // On the chest's first screen the items stay for the window, so even Take All just says Claimed.
+            ToastSpec toast = ClaimsView.pressToast(result, deps.text(), all && !itemsInWindow);
+            if (toast != null) {
+                showToast(toast);
             }
         } catch (Throwable t) {
             SafeLog.warn("[claims] a Claim press failed", t);

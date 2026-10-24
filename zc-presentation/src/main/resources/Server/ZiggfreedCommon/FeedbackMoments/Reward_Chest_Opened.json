@@ -1,0 +1,39 @@
+{
+  "$Comment": [
+    "What a player hears as they open a reward chest: one sound, picked by the rarest reward in it.",
+    "",
+    "This is the library's own neutral default; a mod's same-named file or the owner layer",
+    "replaces it.",
+    "",
+    "The moment fires once each time the chest's page opens, never again while it stays open, and",
+    "carries 'rarity': the rarest reward's rarity as its drop's chance reads it (Common, Uncommon,",
+    "Rare, Epic or Legendary). A chest whose rewards carry no chance carries no rarity, and plays",
+    "the Sound above the Variants, as Common and Uncommon do. 'player' is who opened it.",
+    "",
+    "It shows nothing, since the chest's page is already in front of the player; add a Toast to",
+    "say something as well."
+  ],
+  "Sound": {
+    "Id": "SFX_Chest_Wooden_Open"
+  },
+  "Variants": [
+    {
+      "When": { "rarity": "Legendary" },
+      "Sound": {
+        "Id": "SFX_Chest_Legendary_FirstOpen_Player"
+      }
+    },
+    {
+      "When": { "rarity": "Epic" },
+      "Sound": {
+        "Id": "SFX_Memories_Unlock_Local"
+      }
+    },
+    {
+      "When": { "rarity": "Rare" },
+      "Sound": {
+        "Id": "SFX_Discovery_Z1_Short"
+      }
+    }
+  ]
+}

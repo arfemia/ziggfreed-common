@@ -112,12 +112,19 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
     /** A finding's code: an item written twice in one collection; it keeps its first place. */
     public static final String FINDING_COLLECTION_ITEM_REPEATED = "COLLECTION_ITEM_REPEATED";
 
+    /**
+     * A finding's code: a collection slot whose {@code Requires} names a condition other than the plain mod presence
+     * gate, which a slot does not read, so it is ignored and the slot shows wherever its mods are installed.
+     */
+    public static final String FINDING_COLLECTION_SLOT_CONDITION_IGNORED = "COLLECTION_SLOT_CONDITION_IGNORED";
+
     /** How many {@code Sections} entries a page draws. */
     public static final int SECTIONS_MAX = 16;
 
     /**
      * How many of a collection's slots its grid reads, in the order written: five rows of nine. A repeat or an item
-     * the server lacks among them draws nothing and gives its place to no later slot.
+     * the server lacks among them draws nothing and gives its place to no later slot; a slot gated on a missing mod
+     * is not on this server, so it is never among them ({@link AlmanacCollectionAsset#slots()}).
      */
     public static final int COLLECTION_MAX_ITEMS = 45;
 
@@ -296,7 +303,9 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
      * naming both an item and an NPC; and in the {@code Sections} the page draws, an entry naming no part or
      * two, a group that is no part of the page (one warning per entry), a built-in part placed again, too many
      * entries, a banner with nothing to show or too many items, a
-     * collection repeating an item or listing too many, and a banner's or a collection's button left out.
+     * collection repeating an item or listing too many, a slot's {@code Requires} condition a slot does not read,
+     * and a banner's or a collection's button left out. A slot gated on a missing mod is not on this server, so it
+     * raises none.
      */
     @Nonnull
     public List<Finding> findings() {
@@ -438,6 +447,13 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
             if (!seen.add(slot.item().toLowerCase(Locale.ROOT))) {
                 out.add(Finding.warning(DOMAIN, FINDING_COLLECTION_ITEM_REPEATED, where + ".Items lists '"
                         + slot.item() + "' again; an item keeps its first place", source));
+            }
+            List<String> ignored = slot.ignoredConditions();
+            if (!ignored.isEmpty()) {
+                out.add(Finding.warning(DOMAIN, FINDING_COLLECTION_SLOT_CONDITION_IGNORED, where + ".Items '"
+                        + slot.item() + "' Requires names " + String.join(", ", ignored) + ", which a slot does not "
+                        + "read (it reads only a hytale:mod_installed condition with Min 1), so it is ignored",
+                        source));
             }
         }
         if (slots.size() > COLLECTION_MAX_ITEMS) {

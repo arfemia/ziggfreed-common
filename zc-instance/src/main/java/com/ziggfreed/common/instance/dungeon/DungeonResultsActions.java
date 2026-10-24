@@ -8,6 +8,8 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.instance.claims.ClaimGrants;
+import com.ziggfreed.common.instance.claims.ClaimsText;
+import com.ziggfreed.common.instance.claims.ClaimsView;
 import com.ziggfreed.common.instance.claims.ZcRewardSink;
 import com.ziggfreed.common.instance.result.ResultsActions;
 import com.ziggfreed.common.inventory.PlayerAccess;
@@ -16,9 +18,11 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * A dungeon results screen's buttons: Claim hands the viewer's completion Claim over through the shared claim
- * helper ({@link ClaimGrants}, the bag guard putting back what does not fit, so the rest waits on the Claims tab),
- * and there is no Play Again, since a dungeon is entered again at its gate. Immutable; one per screen, holding the
- * id of the Claim that screen shows (null when the clear wrote none, and then the page shows no Claim button).
+ * helper ({@link ClaimGrants}, the bag guard putting back what does not fit, so the rest waits on the Claims tab)
+ * and answers the Claims tab's own toast for the press ({@link ClaimsView#pressToast}, its full-bag line this
+ * screen's own), naming what each reward landed as, since a reputation paid under a page moves no bar; and there is
+ * no Play Again, since a dungeon is entered again at its gate. Immutable; one per screen, holding the id of the Claim
+ * that screen shows (null when the clear wrote none, and then the page shows no Claim button).
  */
 final class DungeonResultsActions implements ResultsActions {
 
@@ -33,26 +37,37 @@ final class DungeonResultsActions implements ResultsActions {
         return false;
     }
 
-    /**
-     * Take the viewer's Claim and hand it over; true when nothing was kept back for a full bag (a Claim already
-     * taken on the Claims tab counts as taken). World thread, inside the page's handler; never throws.
-     */
+    /** {@link #claim}'s answer alone. */
     @Override
     public boolean claimRewards(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store) {
+        return claim(ref, store).allClaimed();
+    }
+
+    /**
+     * Take the viewer's Claim and hand it over: all claimed when nothing was kept back for a full bag (a Claim
+     * already taken on the Claims tab counts as taken, and raises no toast of its own), with the Claims tab's toast
+     * for what the press did. World thread, inside the page's handler; never throws.
+     */
+    @Nonnull
+    @Override
+    public Claimed claim(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store) {
         if (claimId == null) {
-            return true;
+            return new Claimed(true, null);
         }
         try {
             PlayerRef player = PlayerAccess.playerRef(store, ref);
             if (player == null || player.getUuid() == null) {
-                return false;
+                return new Claimed(false, null);
             }
-            return !ClaimGrants.claim(ClaimStore.shared(), player.getUuid(), claimId, ref, store,
-                    ZcRewardSink.INSTANCE).anyKept();
+            ClaimGrants.Result result = ClaimGrants.claim(ClaimStore.shared(), player.getUuid(), claimId, ref, store,
+                    ZcRewardSink.INSTANCE);
+            // A full bag's rest waits on the Claims tab, never on this screen: the screen's own line says so.
+            return new Claimed(!result.anyKept(), ClaimsView.pressToast(result, ClaimsText.LIBRARY,
+                    DungeonResultsMessages.LIBRARY.pendingNote()));
         } catch (Throwable t) {
             SafeLog.warn("[dungeon] the completion Claim '" + claimId + "' could not be handed over from the results"
                     + " screen; it waits on the Claims tab", t);
-            return false;
+            return new Claimed(false, null);
         }
     }
 }

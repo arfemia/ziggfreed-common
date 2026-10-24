@@ -10,10 +10,13 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.server.core.Message;
+import com.hypixel.hytale.server.core.ui.Anchor;
+import com.hypixel.hytale.server.core.ui.Value;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 
+import com.ziggfreed.common.instance.reward.DropRarity;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.icon.ItemQualityLook;
 import com.ziggfreed.common.ui.menu.MenuPalette;
@@ -31,8 +34,8 @@ import com.ziggfreed.common.ui.menu.MenuPalette;
  * background layers {@code #KeepEarned}, {@code #KeepToEarn}, {@code #KeepMissed}, exactly one shown), a statistic
  * {@code grid[i] #StatTile}, an item slot {@code grid[i] #Slot} (its three background layers {@code #SlotOwned},
  * {@code #SlotSeen}, {@code #SlotHidden}, exactly one shown), a ware's button {@code grid[i] #Ware}, a reward card's
- * two faces {@code grid[i] #ItemCard} and {@code grid[i] #PlainCard} (exactly one shown), a section's grid
- * {@code list[i] #SecGrid}.
+ * two faces {@code grid[i] #ItemCard} and {@code grid[i] #PlainCard} (exactly one shown; a gold card's own size set on
+ * {@code grid[i]}'s whole Anchor), a section's grid {@code list[i] #SecGrid}.
  */
 public final class TilePainter {
 
@@ -44,6 +47,28 @@ public final class TilePainter {
     public static final String SECTION_TEMPLATE = "Pages/ZigTileSection.ui";
     public static final String REWARD_CARD_TEMPLATE = "Pages/ZigRewardCard.ui";
     public static final String REWARD_DIVIDER_TEMPLATE = "Pages/ZigRewardDivider.ui";
+
+    /**
+     * A gold card's size (a reward card showing its gold face): five a row in a reward chest's 596px grid with the
+     * template's 8px gaps, where an item's card keeps the template's own 140 x 172, four a row. The gold face's parts
+     * ({@code #PlainBody} in {@code Pages/ZigRewardCard.ui}) are laid out for it: its height holds the reward's own
+     * line on three lines.
+     */
+    public static final int GOLD_CARD_WIDTH = 110;
+    public static final int GOLD_CARD_HEIGHT = 168;
+
+    /** The game's item qualities a reward card wears the looping sheen ({@code #Shine}) between, both in, by rank. */
+    static final String SHINE_FROM = DropRarity.EPIC;
+    static final String SHINE_TO = DropRarity.LEGENDARY;
+
+    /** One reward card face's own ids for the parts both faces share ({@link #paintFace}). */
+    private record FaceIds(@Nonnull String source, @Nonnull String slotBack, @Nonnull String shine,
+            @Nonnull String word) {
+    }
+
+    private static final FaceIds ITEM_FACE = new FaceIds("#Source", "#SlotBack", "#Shine", "#Rarity");
+    private static final FaceIds PLAIN_FACE = new FaceIds("#PlainSource", "#PlainSlotBack", "#PlainShine",
+            "#PlainRarity");
 
     /**
      * Whether a category tile underway wears its completion ring ({@code #Ring}, vanilla's
@@ -257,14 +282,18 @@ public final class TilePainter {
      * in the style of vanilla's Memories page; the whole card is one button. A line whose picture keeps its item's
      * tooltip ({@link Picture#tooltipItem}) is an item: when this server ships it, the card shows its item face, the
      * item ({@code #Slot}, an {@code ItemSlot}, its {@code .ItemId} set as vanilla's barter page sets it, whose hover
-     * shows the item's own tooltip) on its quality's slot art ({@code #SlotBack}, the quality's {@code SlotTexture}),
-     * its words, and the engine's word for that quality in its colour ({@link ItemQualityLook}; hidden where the quality
-     * shows none). The quality is the one the line names ({@link DetailLine#quality}), else the item's own. Every other
-     * line, and an item this server does not ship, shows the plain face on the kit's warm plate: its picture, its words
-     * under it (a reward's own line carries its amount), the word for the quality the line names in its colour (none
-     * when it names none), its tooltip on the card; a line's count is not shown. One divider row sits before the first
-     * item that follows a line that is not one. A line whose select id is set is bound to {@code binding}'s answer
-     * (null leaves it unbound) on the face it shows.
+     * shows the item's own tooltip) and its words, four cards a row. Every other line, and an item this server does not
+     * ship, shows the gold face on the kit's warm plate, five a row (the card takes {@link #GOLD_CARD_WIDTH} x
+     * {@link #GOLD_CARD_HEIGHT} as one whole Anchor): its picture, its words under it (a reward's own line carries its
+     * amount), its tooltip on the card; a line's count is not shown.
+     *
+     * <p>Both faces read their rarity the one way: the quality the line names ({@link DetailLine#quality}), else for
+     * an item its own, drawn as that quality's slot art behind the picture, its word in its colour
+     * ({@link ItemQualityLook}; hidden where the quality shows none), and a looping sheen from the game's Epic quality
+     * to its Legendary; a gold card whose line names no quality shows none of the three. Over the picture each
+     * face names where the reward came from: the line's tag ({@link DetailLine#tag}), its word in its tone's colour,
+     * hidden for a line with none. One divider row sits before the first item that follows a line that is not one. A
+     * line whose select id is set is bound to {@code binding}'s answer (null leaves it unbound) on the face it shows.
      */
     public static void rewardCards(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
             @Nonnull String grid, @Nonnull List<DetailLine> lines, @Nonnull Function<DetailLine, EventData> binding) {
@@ -286,6 +315,7 @@ public final class TilePainter {
             @Nonnull List<DetailLine> lines, @Nonnull Function<DetailLine, EventData> binding,
             @Nonnull Function<String, ItemQualityLook> looks, @Nonnull Function<String, ItemQualityLook> qualities) {
         cmd.clear(grid);
+        ShineRanks shine = ShineRanks.of(qualities);
         int child = 0;
         boolean plainBefore = false;
         boolean divided = false;
@@ -301,10 +331,23 @@ public final class TilePainter {
             cmd.append(grid, REWARD_CARD_TEMPLATE);
             String card = KitPaint.child(grid, child++);
             ItemQualityLook named = line.quality() == null ? null : qualities.apply(line.quality());
-            ItemQualityLook look = item ? looks.apply(picture.itemId()) : null;
-            String face = look != null
-                    ? itemCard(cmd, card, picture.itemId(), line, named != null ? named : look)
-                    : plainCard(cmd, card, line, named);
+            ItemQualityLook own = item ? looks.apply(picture.itemId()) : null;
+            String face;
+            if (own != null) {
+                face = card + " #ItemCard";
+                cmd.set(card + " #PlainCard.Visible", false);
+                cmd.set(face + " #Slot.ItemId", picture.itemId());
+                KitPaint.text(cmd, face + " #ItemName", line.text());
+                paintFace(cmd, face, ITEM_FACE, line, named != null ? named : own, shine);
+            } else {
+                face = card + " #PlainCard";
+                cmd.set(card + " #ItemCard.Visible", false);
+                cmd.setObject(card + ".Anchor", goldCard());
+                KitPaint.picture(cmd, face + " #Pic", line.picture());
+                KitPaint.text(cmd, face + " #PlainName", line.text());
+                KitPaint.tooltip(cmd, face, line.tooltip());
+                paintFace(cmd, face, PLAIN_FACE, line, named, shine);
+            }
             EventData data = line.selectId() == null ? null : binding.apply(line);
             if (data != null) {
                 events.addEventBinding(CustomUIEventBindingType.Activating, face, data);
@@ -312,36 +355,65 @@ public final class TilePainter {
         }
     }
 
-    /** A card's item face: the item on its quality's slot art, the words, the quality's word. Its selector. */
-    @Nonnull
-    private static String itemCard(@Nonnull UICommandBuilder cmd, @Nonnull String card, @Nonnull String itemId,
-            @Nonnull DetailLine line, @Nonnull ItemQualityLook look) {
-        String face = card + " #ItemCard";
-        cmd.set(card + " #PlainCard.Visible", false);
+    /**
+     * What both faces of a reward card share, shown on the face at {@code face} through its own ids ({@code ids}):
+     * where the reward came from (the line's tag), and its rarity ({@link #rarity}).
+     */
+    private static void paintFace(@Nonnull UICommandBuilder cmd, @Nonnull String face, @Nonnull FaceIds ids,
+            @Nonnull DetailLine line, @Nullable ItemQualityLook look, @Nullable ShineRanks shine) {
         cmd.set(face + ".Visible", true);
-        String slot = look.slotTexture();
-        cmd.set(face + " #SlotBack.Visible", slot != null);
-        if (slot != null) {
-            cmd.set(face + " #SlotBack.AssetPath", slot);
+        Pill tag = line.tag();
+        KitPaint.optional(cmd, face + " " + ids.source(), tag == null ? null : tag.label());
+        if (tag != null) {
+            cmd.set(face + " " + ids.source() + ".Style.TextColor", tag.tone().textHex());
         }
-        cmd.set(face + " #Slot.ItemId", itemId);
-        KitPaint.text(cmd, face + " #ItemName", line.text());
-        qualityWord(cmd, face + " #Rarity", look);
-        return face;
+        rarity(cmd, face, ids, look, shine);
     }
 
-    /** A card's plain face: the picture, the words, the named quality's word, the tooltip. Its selector. */
+    /**
+     * The one rarity reading both faces of a reward card share: {@code look}'s slot art behind the picture, its word in
+     * its colour ({@link #qualityWord}), and the sheen when it ranks within {@code shine} ({@link #shines}); all three
+     * hidden for no look.
+     */
+    private static void rarity(@Nonnull UICommandBuilder cmd, @Nonnull String face, @Nonnull FaceIds ids,
+            @Nullable ItemQualityLook look, @Nullable ShineRanks shine) {
+        String slot = look == null ? null : look.slotTexture();
+        cmd.set(face + " " + ids.slotBack() + ".Visible", slot != null);
+        if (slot != null) {
+            cmd.set(face + " " + ids.slotBack() + ".AssetPath", slot);
+        }
+        qualityWord(cmd, face + " " + ids.word(), look);
+        cmd.set(face + " " + ids.shine() + ".Visible", shines(look, shine));
+    }
+
+    /**
+     * Whether a card of quality {@code look} wears the sheen: it ranks within {@code shine}, the game's Epic to its
+     * Legendary (a technical quality ranked above every rarity, such as a tool's, never does).
+     */
+    static boolean shines(@Nullable ItemQualityLook look, @Nullable ShineRanks shine) {
+        return look != null && shine != null && look.rank() >= shine.from() && look.rank() <= shine.to();
+    }
+
+    /** The quality ranks a card wears the sheen between, both in; null where the game ships either end. */
+    record ShineRanks(int from, int to) {
+
+        @Nullable
+        static ShineRanks of(@Nonnull Function<String, ItemQualityLook> qualities) {
+            ItemQualityLook from = qualities.apply(SHINE_FROM);
+            ItemQualityLook to = qualities.apply(SHINE_TO);
+            return from == null || to == null ? null : new ShineRanks(from.rank(), to.rank());
+        }
+    }
+
+    /** A gold card's size and gaps, the template's own gaps kept, as the one whole Anchor the client takes. */
     @Nonnull
-    private static String plainCard(@Nonnull UICommandBuilder cmd, @Nonnull String card, @Nonnull DetailLine line,
-            @Nullable ItemQualityLook named) {
-        String face = card + " #PlainCard";
-        cmd.set(card + " #ItemCard.Visible", false);
-        cmd.set(face + ".Visible", true);
-        KitPaint.picture(cmd, face + " #Pic", line.picture());
-        KitPaint.text(cmd, face + " #PlainName", line.text());
-        qualityWord(cmd, face + " #PlainRarity", named);
-        KitPaint.tooltip(cmd, face, line.tooltip());
-        return face;
+    private static Anchor goldCard() {
+        Anchor anchor = new Anchor();
+        anchor.setWidth(Value.of(GOLD_CARD_WIDTH));
+        anchor.setHeight(Value.of(GOLD_CARD_HEIGHT));
+        anchor.setRight(Value.of(ZigTokens.SPACE_2));
+        anchor.setBottom(Value.of(ZigTokens.SPACE_2));
+        return anchor;
     }
 
     /** {@code look}'s word on the label at {@code label} in its colour ({@link #qualityInk}); hidden with none. */

@@ -7,7 +7,8 @@
     "own pack replaces it, and a server owner can do the same from the owner layer.",
     "",
     "The moment carries 'quest' (its id), 'title' (its name in the reader's language), 'objective'",
-    "(the step's id), 'step' (the step's own sentence in the reader's language, for instance",
+    "(the step's id), 'kind' (the step's kind as the engine reads it, for instance TURN_IN or KILL_ENTITY),",
+    "'step' (the step's own sentence in the reader's language, for instance",
     "'Break 12 logs'), 'current' and 'required' (how far along, out of how many), 'finished'",
     "(true on the tick that completes the step) and 'source' (the one step this notice is about).",
     "'player' is always the name of who moved it.",
@@ -35,7 +36,12 @@
     "finish is green Success. A variant replaces the whole group rather than editing it, so every",
     "leaf it does not restate is back to its own default - which is why the finish still lands ON",
     "the counter it finishes rather than beside it. Tone colours the in-page frame and the words,",
-    "and picks the matching corner-feed style."
+    "and picks the matching corner-feed style.",
+    "",
+    "The first variant silences the finish of a hand-in step (kind TURN_IN): handing in shows its",
+    "own notice of what you handed over, and a hand-in that completes the quest shows its rewards,",
+    "so a second 'Objective complete' after them says nothing new. A toast with no Title draws",
+    "nothing. Delete that variant to show the finish of a hand-in like any other step's."
   ],
   "Toast": {
     "Title": {
@@ -48,6 +54,12 @@
     "Priority": 1
   },
   "Variants": [
+    {
+      "When": { "finished": true, "kind": "TURN_IN" },
+      "Toast": {
+        "PlayerLevel": true
+      }
+    },
     {
       "When": { "finished": true },
       "Toast": {
