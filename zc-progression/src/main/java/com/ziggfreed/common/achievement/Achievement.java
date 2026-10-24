@@ -432,7 +432,9 @@ public final class Achievement {
     /**
      * The version this was retired to a feat of strength, or null when it was never retired. A
      * LISTING fact like {@link #category()} - the engine never reads it, and a browsing surface pairs
-     * it with {@link #featOfStrength()} to show "Feat of Strength since {0}" on a retired one-off.
+     * it with {@link #featOfStrength()} to show "Feat of Strength since {0}" on a retired one-off. An
+     * authored file that writes it is also folded out of circulation, a feat whose points no longer
+     * count ({@code AchievementAsset.toDefinition}); one built in Java sets those knobs itself.
      */
     @Nullable
     public String legacySince() {

@@ -14,9 +14,10 @@ import com.hypixel.hytale.codec.schema.config.StringSchema;
 import com.ziggfreed.common.achievement.Achievement;
 
 /**
- * Two listing facts an achievement file now states for itself: that it is a feat of strength (its
- * own earned-only section rather than the browse list), and the version that retired it. Both are
- * listing leaves only, so neither touches whether the achievement's points count.
+ * Two listing facts an achievement file states for itself: that it is a feat of strength (its own
+ * earned-only section rather than the browse list), and the version that retired it. A feat alone
+ * is a listing leaf that leaves its points to Scoring; a written LegacySince is the one retirement
+ * rule, out of circulation, a feat, its points no longer counting.
  */
 class AchievementDistinctionsTest {
 
@@ -77,6 +78,21 @@ class AchievementDistinctionsTest {
         assertTrue(counted.toDefinition().achievement().countsTowardTotal(),
                 "a feat changes where it is listed, never what Scoring says");
         assertFalse(uncounted.toDefinition().achievement().countsTowardTotal());
+    }
+
+    @Test
+    void aLegacySinceRetiresTheAchievementWhateverTheOtherKnobsSay() throws Exception {
+        AchievementAsset asset = AchievementAssetCodecTest.decodeRoot(
+                "{ \"Enabled\": true, \"Listing\": { \"LegacySince\": \"2.0.0\" }, "
+                        + "\"Scoring\": { \"Points\": 15, \"CountsTowardTotal\": true }, " + ONE_STEP + " }",
+                "fixture_legacy");
+
+        Achievement achievement = asset.toDefinition().achievement();
+        assertTrue(asset.isRetired());
+        assertFalse(achievement.available(), "out of circulation, so nobody earns it again");
+        assertTrue(achievement.featOfStrength(), "listed among its earners' feats with no Feat written");
+        assertFalse(achievement.countsTowardTotal(), "its points no longer count");
+        assertEquals(15, achievement.points(), "what it was worth still reads");
     }
 
     @Test

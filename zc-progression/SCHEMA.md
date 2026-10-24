@@ -490,8 +490,8 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Hidden` | `boolean` | `null` | Keep it off open listings, for content reached some other way (a chain step, an event, a surprise). It still progresses; only the listing is affected, and anything a player already holds or has earned always shows. |
 | `RequirePrerequisites` | `boolean` | `null` | Hide it until its Requires block passes, instead of showing it locked. Unauthored means shown locked, which is usually kinder: a player can see what to work towards. |
 | `Subcategory` | `string` | `null` | A second level of grouping inside a Category, for a category big enough to need one. |
-| `Feat` | `boolean` | `null` | A feat of strength: listed in its own earned-only section instead of the browse list, for something exceptional or retired. It changes only where it is listed; whether its points count stays Scoring.CountsTowardTotal's call. Unauthored means false. |
-| `LegacySince` | `string` | `null` | The version this stopped being earnable in, shown beside a feat so a player can tell a retired achievement from one they have not reached yet. |
+| `Feat` | `boolean` | `null` | A feat of strength: listed in its own earned-only section instead of the browse list, for something exceptional that is still earnable. It changes only where it is listed; whether its points count stays Scoring.CountsTowardTotal's call. To retire an achievement write LegacySince instead, which makes it a feat on its own. Unauthored means false. |
+| `LegacySince` | `string` | `null` | Retires the achievement: the version it stopped being earnable in. Written, it is out of circulation (nobody earns it again), a feat of strength (whoever earned it keeps it among their feats, with this version beside it, and can still collect it), and its points no longer count toward any total, whatever Enabled, Feat and Scoring.CountsTowardTotal say. Unauthored means still earnable. |
 
 <a id="field-achievementasset-scoring"></a>
 ### AchievementAsset.Scoring
@@ -499,7 +499,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | Key | Type | Default | Documentation |
 |---|---|---|---|
 | `Points` | `integer` | `null` | What earning this is worth; unauthored means 10. Keep the scale consistent across a pack, since a player's total is the sum and a milestone reward is measured against it. |
-| `CountsTowardTotal` | `boolean` | `null` | Whether the points count toward a player's total; unauthored means true. Set false for something nobody can earn any more, so a total stays comparable between a long-standing player and a new one. |
+| `CountsTowardTotal` | `boolean` | `null` | Whether the points count toward a player's total; unauthored means true. A retired achievement (Listing.LegacySince) never counts, whatever this says, so a total stays comparable between a long-standing player and a new one. |
 
 <a id="field-achievementasset-occurrence"></a>
 ### AchievementAsset.Occurrence

@@ -71,7 +71,9 @@ import com.ziggfreed.common.text.ContentTextAsset;
  * <p><b>To retune one somebody else shipped</b>, override the file by id (a same-named file in a
  * later pack), or ship your own file with {@code Parent} set to theirs and author only what you
  * change. To take one out of circulation, set {@code Enabled} to false rather than deleting it, so
- * a player who already earned it keeps it.
+ * a player who already earned it keeps it. To retire one for good, write {@code Listing.LegacySince}
+ * (the version it stopped in): it becomes a feat of strength, out of circulation, still collectable
+ * by whoever earned it, and its points stop counting toward any total ({@link #toDefinition}).
  */
 public final class AchievementAsset
         implements JsonAssetWithMap<String, DefaultAssetMap<String, AchievementAsset>> {
@@ -259,6 +261,14 @@ public final class AchievementAsset
         return enabled == null || enabled;
     }
 
+    /**
+     * Retired for good: {@code Listing.LegacySince} names the version it stopped in, so it folds out of
+     * circulation, as a feat whose points no longer count ({@link #toDefinition}).
+     */
+    public boolean isRetired() {
+        return listing != null && listing.getLegacySince() != null;
+    }
+
     /** A skeleton that exists only to be inherited from, never earnable. */
     public boolean isAbstract() {
         return isAbstract != null && isAbstract;
@@ -360,6 +370,12 @@ public final class AchievementAsset
      *
      * <p>Each criterion's engine-side id is its authored KEY, which is also what its progress is
      * stored under, so what a reader sees and what a store writes cannot disagree.
+     *
+     * <p>A written {@code Listing.LegacySince} retires the achievement, the one rule for a deprecated
+     * achievement: it folds out of circulation (never earned again), a feat of strength (listed among
+     * the feats of whoever earned it, who can still collect it), and its points no longer count
+     * toward a total, whatever {@code Enabled}, {@code Listing.Feat} and
+     * {@code Scoring.CountsTowardTotal} say. A yearly base that writes it retires every copy.
      */
     @Nonnull
     public AchievementDefinition toDefinition() {
@@ -376,13 +392,14 @@ public final class AchievementAsset
     @Nonnull
     AchievementDefinition toDefinition(@Nullable OccurrenceMinting.Mint mint) {
         String achievementId = mint != null ? mint.id() : (id == null ? "" : id);
-        boolean feat = listing != null && listing.isFeat();
+        boolean retired = isRetired();
+        boolean feat = retired || (listing != null && listing.isFeat());
 
         Achievement.Builder achievement = Achievement.builder(achievementId)
                 .hidden(listing != null && listing.isHidden())
                 .requirePrerequisites(listing != null && listing.isRequirePrerequisites())
                 .points(scoring == null ? Scoring.DEFAULT_POINTS : scoring.pointsOrDefault())
-                .countsTowardTotal(scoring == null || scoring.isCountsTowardTotal())
+                .countsTowardTotal(!retired && (scoring == null || scoring.isCountsTowardTotal()))
                 .tags(listing == null ? List.of() : listing.tagList())
                 .legacySince(listing == null ? null : listing.getLegacySince())
                 .claimAddedOn(claimAddedOnDay());
@@ -391,7 +408,7 @@ public final class AchievementAsset
         FeatureLift.Result lift = FeatureLift.liftModPresence(requires);
         List<FeatureLift.Lifted> lifted = lift.lifted();
         GateSpec remaining = lifted.isEmpty() ? requires : lift.requires();
-        boolean enabled = isEnabled();
+        boolean enabled = isEnabled() && !retired;
         if (mint == null) {
             if (lifted.isEmpty()) {
                 achievement.available(enabled);
@@ -477,14 +494,19 @@ public final class AchievementAsset
                                 (o, v) -> o.feat = v, o -> o.feat, (o, p) -> o.feat = p.feat)
                         .metadata(EditorSchema.defaultValue(false))
                         .documentation("A feat of strength: listed in its own earned-only section instead "
-                                + "of the browse list, for something exceptional or retired. It changes only "
-                                + "where it is listed; whether its points count stays Scoring.CountsTowardTotal's "
-                                + "call. Unauthored means false.").add()
+                                + "of the browse list, for something exceptional that is still earnable. It changes "
+                                + "only where it is listed; whether its points count stays "
+                                + "Scoring.CountsTowardTotal's call. To retire an achievement write LegacySince "
+                                + "instead, which makes it a feat on its own. Unauthored means false.").add()
                         .appendInherited(new KeyedCodec<>("LegacySince", Codec.STRING, false),
                                 (o, v) -> o.legacySince = v, o -> o.legacySince,
                                 (o, p) -> o.legacySince = p.legacySince)
-                        .documentation("The version this stopped being earnable in, shown beside a feat so a "
-                                + "player can tell a retired achievement from one they have not reached yet.").add()
+                        .documentation("Retires the achievement: the version it stopped being earnable in. "
+                                + "Written, it is out of circulation (nobody earns it again), a feat of strength "
+                                + "(whoever earned it keeps it among their feats, with this version beside it, and "
+                                + "can still collect it), and its points no longer count toward any total, whatever "
+                                + "Enabled, Feat and Scoring.CountsTowardTotal say. Unauthored means still "
+                                + "earnable.").add()
                         .build();
 
         public Listing() {
@@ -529,9 +551,9 @@ public final class AchievementAsset
                         (o, v) -> o.countsTowardTotal = v, o -> o.countsTowardTotal,
                         (o, p) -> o.countsTowardTotal = p.countsTowardTotal)
                 .metadata(EditorSchema.defaultValue(true))
-                .documentation("Whether the points count toward a player's total; unauthored means true. Set "
-                        + "false for something nobody can earn any more, so a total stays comparable between a "
-                        + "long-standing player and a new one.").add()
+                .documentation("Whether the points count toward a player's total; unauthored means true. A "
+                        + "retired achievement (Listing.LegacySince) never counts, whatever this says, so a total "
+                        + "stays comparable between a long-standing player and a new one.").add()
                 .build();
 
         public Scoring() {
