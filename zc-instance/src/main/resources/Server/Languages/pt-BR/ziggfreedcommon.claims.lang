@@ -38,22 +38,18 @@ notice.added.spoils = Sua parte está esperando no baú onde o chefe caiu, e em 
 notice.added.spoils.named = {0} está esperando no baú onde o chefe caiu, e em Resgates no seu menu.
 
 # A boss's chest: what a won fight leaves where the boss fell, holding each player's own rewards from that fight.
-# spoils.hint is the prompt over the chest; the game fills {key} with the button to press. Opening it hands over
-# what is not an item at once (spoils.paid heads the list of it) and shows the items in the game's own chest
-# window; spoils.empty is the line for a player with nothing in it. The spoils.title to spoils.action.take_all lines
-# are the Claims page's, which the chest can show instead (the library's SpoilsView switch).
+# spoils.hint is the prompt over the chest; the game fills {key} with the button to press. Opening any reward chest
+# shows one page: spoils.title over the chest's own line (spoils.lead for a boss's), each reward a line a click
+# takes, spoils.page.hint beside the spoils.action.take_all button, and spoils.all_taken once the player has taken
+# everything. spoils.empty is the line for a player with nothing in it. spoils.banner is the line under a banner
+# telling a player their reward went into the chest, when the source's own file names no line of its own.
 spoils.hint = Pressione [{key}] para abrir
-spoils.paid = Do baú:
 spoils.title = Sua parte
 spoils.lead = O que este chefe deixou para você. O que você deixar aqui espera por você em Resgates.
-spoils.detail.lead = Resgatar pega estes. Pegar Tudo pega tudo o que aqui é seu.
-spoils.detail.hint = Os itens precisam de espaço no seu inventário. O que não couber espera em Resgates.
 spoils.action.take_all = Pegar Tudo
 spoils.page.hint = Clique em uma recompensa para pegá-la, ou em Pegar Tudo para levar tudo. Os itens precisam de espaço no seu inventário.
 spoils.all_taken = Você pegou tudo.
 spoils.empty = Nada aqui está esperando por você.
-spoils.items_left = O resto da sua parte está no baú.
-spoils.action.items = Abrir o Baú
 spoils.banner = Sua recompensa espera no baú onde o chefe caiu.
 
 # A reward chest that is not a boss's (see en-US for the full note).

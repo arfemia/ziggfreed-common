@@ -10,7 +10,8 @@ $ZW = "../Common/ZigKit.ui";
 // #SlotOwned (TileComplete) once the player has had it, #SlotSeen (TileDefault) while it is shown but not yet had,
 // #SlotHidden (TileEmpty) while it hides until found; exactly one visible. Over it the 64px picture (#Pic, painted
 // through IconRenderer.applyPlainIcon), the #Scrim that dims an item not yet had, the '?' a hidden one shows in
-// place of its picture (#Mystery), and the Memories #Check once had. The item's words show as #Slot's tooltip.
+// place of its picture (#Mystery), and the Memories #Check once had, or in its corner the kit's #Lock while
+// something the player does not meet yet keeps it from them. The item's words show as #Slot's tooltip.
 
 Group #ZigItemSlotTile {
   Anchor: (Width: 88, Height: 88, Right: $ZK.@ZigSpace2, Bottom: $ZK.@ZigSpace2);
@@ -58,6 +59,12 @@ Group #ZigItemSlotTile {
     Group #Check {
       Anchor: (Top: 6, Right: 6, Width: 16, Height: 16);
       Background: "../Pages/Memories/Checkmark.png";
+      Visible: false;
+    }
+
+    Group #Lock {
+      Anchor: (Top: 6, Right: 6, Width: 16, Height: 16);
+      Background: (TexturePath: "../Common/Glyphs/Lock.png", Color: $ZK.@ZigInkMuted);
       Visible: false;
     }
   }

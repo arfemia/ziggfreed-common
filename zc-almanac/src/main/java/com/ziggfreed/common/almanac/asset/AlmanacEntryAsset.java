@@ -112,12 +112,6 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
     /** A finding's code: an item written twice in one collection; it keeps its first place. */
     public static final String FINDING_COLLECTION_ITEM_REPEATED = "COLLECTION_ITEM_REPEATED";
 
-    /**
-     * A finding's code: a collection slot whose {@code Requires} names a condition other than the plain mod presence
-     * gate, which a slot does not read, so it is ignored and the slot shows wherever its mods are installed.
-     */
-    public static final String FINDING_COLLECTION_SLOT_CONDITION_IGNORED = "COLLECTION_SLOT_CONDITION_IGNORED";
-
     /** How many {@code Sections} entries a page draws. */
     public static final int SECTIONS_MAX = 16;
 
@@ -447,13 +441,6 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
             if (!seen.add(slot.item().toLowerCase(Locale.ROOT))) {
                 out.add(Finding.warning(DOMAIN, FINDING_COLLECTION_ITEM_REPEATED, where + ".Items lists '"
                         + slot.item() + "' again; an item keeps its first place", source));
-            }
-            List<String> ignored = slot.ignoredConditions();
-            if (!ignored.isEmpty()) {
-                out.add(Finding.warning(DOMAIN, FINDING_COLLECTION_SLOT_CONDITION_IGNORED, where + ".Items '"
-                        + slot.item() + "' Requires names " + String.join(", ", ignored) + ", which a slot does not "
-                        + "read (it reads only a hytale:mod_installed condition with Min 1), so it is ignored",
-                        source));
             }
         }
         if (slots.size() > COLLECTION_MAX_ITEMS) {

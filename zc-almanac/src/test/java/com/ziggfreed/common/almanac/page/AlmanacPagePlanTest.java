@@ -560,9 +560,9 @@ class AlmanacPagePlanTest {
     @Test
     void aCollectionCountsWhatWasFoundAndShowsAMysteryOnlyForTheHiddenNotYetFound() {
         CollectionSection items = new CollectionSection(null, null, List.of(
-                new CollectionItem("Test_Lantern", "Icons/L.png", true, true, null),
-                new CollectionItem("Test_Pumpkin", "Icons/P.png", false, true, "almanac.test.source"),
-                new CollectionItem("Test_Bomb", "Icons/B.png", false, false, "almanac.test.source")), null);
+                new CollectionItem("Test_Lantern", "Icons/L.png", true, true, null, null),
+                new CollectionItem("Test_Pumpkin", "Icons/P.png", false, true, "almanac.test.source", null),
+                new CollectionItem("Test_Bomb", "Icons/B.png", false, false, "almanac.test.source", null)), null);
         CollectionPlan grid = (CollectionPlan) plan(List.of(season(EVENT, true)), sectioned(List.of(items), null))
                 .body().sections().get(0);
 
@@ -612,7 +612,7 @@ class AlmanacPagePlanTest {
         SeasonPage page = sectioned(List.of(new TalliesSection(),
                 new BannerSection("UI/Custom/Almanac/Band.png", null, 96, null, null, stall),
                 new CollectionSection(null, null, List.of(new CollectionItem("Test_Bomb", "Icons/B.png", false, false,
-                        null)), null),
+                        null, null)), null),
                 new AchievementsSection(Almanac.of("book"), null)), new SeasonAchievements(0, 2, List.of()));
         SeasonBody body = plan(List.of(page.season()), page).body();
 

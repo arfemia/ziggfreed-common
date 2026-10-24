@@ -26,6 +26,7 @@ import javax.annotation.Nullable;
 import com.google.gson.JsonObject;
 import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.asset.common.CommonAssetRegistry;
 import com.hypixel.hytale.server.npc.NPCPlugin;
 import com.ziggfreed.common.achievement.Achievement;
@@ -47,6 +48,13 @@ import com.ziggfreed.common.icon.Portraits;
 import com.ziggfreed.common.inventory.ItemIds;
 import com.ziggfreed.common.occurrence.Occurrence;
 import com.ziggfreed.common.occurrence.Recurrence;
+import com.ziggfreed.common.progress.gate.GateEvaluator;
+import com.ziggfreed.common.progress.gate.GateQuery;
+import com.ziggfreed.common.progress.gate.GateRefusal;
+import com.ziggfreed.common.progress.gate.GateRuntime;
+import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.progress.gate.RefusalLines;
+import com.ziggfreed.common.progress.gate.StoreGates;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.kit.KeepsakeState;
 import com.ziggfreed.common.ui.kit.PlatePainter;
@@ -275,9 +283,13 @@ public final class AlmanacView {
             @Nullable String titleKey, @Nullable String flavorKey, @Nullable SeasonLink button) implements Section {
     }
 
-    /** One item of a collection: its picture, whether the player has had it once, whether it hides until then, its source line. */
+    /**
+     * One item of a collection: its picture, whether the player has had it once, whether it hides until then, its
+     * source line, and what its slot's own {@code Requires} still asks of the player ({@code lock}, the requirement's
+     * line; null when it lets them collect it or asks nothing).
+     */
     public record CollectionItem(@Nonnull String itemId, @Nonnull String iconPath, boolean owned, boolean hidden,
-            @Nullable String sourceKey) {
+            @Nullable String sourceKey, @Nullable Message lock) {
     }
 
     /** The items a player can find this season, in order, with the grid's words and its button. */
@@ -570,7 +582,37 @@ public final class AlmanacView {
                 tallies(page, eventId, tallies, scope, server), keepsakes(page, engine, subject, copies, earned, years),
                 achievements(eventId, page, engine, subject), hero(season, page, textureShips, iconPaths, portraits),
                 page == null ? null : page.accent(), links(page),
-                sections(eventId, page, tallies, textureShips, iconPaths, portraits));
+                sections(eventId, page, tallies, textureShips, iconPaths, portraits, locksFor(subject)));
+    }
+
+    /**
+     * What a collection slot's live {@code Requires} ({@code AlmanacCollectionAsset.Slot.liveRequires}) says to
+     * {@code subject}, through the server's one evaluator ({@link StoreGates#passes}): null for a slot it lets them
+     * collect, or one that asks nothing; else the line naming what it needs ({@link RefusalLines#bestLineOf}). With
+     * nobody to ask, or a reading that fails, the slot reads as shut, naming what it asks of anybody.
+     */
+    @Nonnull
+    static Function<GateSpec, Message> locksFor(@Nullable Subject subject) {
+        return gate -> {
+            if (gate == null) {
+                return null;
+            }
+            try {
+                if (subject != null) {
+                    GateQuery query = GateQuery.of(subject);
+                    if (StoreGates.passes(gate, query)) {
+                        return null;
+                    }
+                    List<GateRefusal> why = GateRuntime.evaluator().refusals(gate, query);
+                    if (!why.isEmpty()) {
+                        return RefusalLines.bestLineOf(why);
+                    }
+                }
+            } catch (Throwable t) {
+                SafeLog.fine("[almanac] a collection slot's Requires could not be asked: " + t.getMessage());
+            }
+            return RefusalLines.bestLineOf(GateEvaluator.asks(gate));
+        };
     }
 
     /** When {@code season} runs, as the calendar knows it at {@code nowMs}: its chip, row line and dates. */
@@ -772,7 +814,8 @@ public final class AlmanacView {
     @Nonnull
     static List<Section> sections(@Nonnull String eventId, @Nullable AlmanacEntryAsset page,
             @Nonnull CounterMap tallies, @Nonnull Predicate<String> textureShips,
-            @Nonnull Function<String, String> iconPaths, @Nonnull Function<String, String> portraits) {
+            @Nonnull Function<String, String> iconPaths, @Nonnull Function<String, String> portraits,
+            @Nonnull Function<GateSpec, Message> locks) {
         List<AlmanacSectionAsset> authored = page == null ? null : page.sections();
         if (authored == null) {
             return List.of(new TalliesSection(), new KeepsakesSection(), callToAction(eventId, null),
@@ -791,7 +834,7 @@ public final class AlmanacView {
             if (AlmanacSectionAsset.BANNER.equals(part)) {
                 section = banner(entry.banner(), accent, textureShips, iconPaths, portraits);
             } else if (AlmanacSectionAsset.COLLECTION.equals(part)) {
-                section = collection(entry.collection(), tallies, iconPaths);
+                section = collection(entry.collection(), tallies, iconPaths, locks);
             } else if (!drawn.add(part)) {
                 section = null;
             } else if (AlmanacSectionAsset.ACHIEVEMENTS.equals(part)) {
@@ -889,11 +932,13 @@ public final class AlmanacView {
      * rule {@code COLLECTION_ITEMS_OVER_CAP} counts by), each item once (matched without case), each the server has
      * a picture for, each owned when the player has had it once. A repeat or an item the server lacks among those
      * slots draws nothing and gives its place to no later slot; a slot gated on a missing mod is not written as far
-     * as this server is concerned ({@code AlmanacCollectionAsset.slots()}). Null when no item draws.
+     * as this server is concerned ({@code AlmanacCollectionAsset.slots()}). A slot whose own {@code Requires} shuts
+     * for the player carries what it needs ({@code locks}, {@link #locksFor}) and still counts. Null when no item
+     * draws.
      */
     @Nullable
     static CollectionSection collection(@Nullable AlmanacCollectionAsset authored, @Nonnull CounterMap tallies,
-            @Nonnull Function<String, String> iconPaths) {
+            @Nonnull Function<String, String> iconPaths, @Nonnull Function<GateSpec, Message> locks) {
         if (authored == null) {
             return null;
         }
@@ -911,7 +956,7 @@ public final class AlmanacView {
                 continue;
             }
             items.add(new CollectionItem(itemId, icon, AlmanacCollection.owned(tallies, itemId), slot.hidden(),
-                    slot.sourceKey()));
+                    slot.sourceKey(), locks.apply(slot.liveRequires())));
         }
         if (items.isEmpty()) {
             return null;

@@ -66,6 +66,9 @@ entry.copy_gone = {0} closed just as you got there. Try again.
 entry.unavailable = {0} cannot be entered right now.
 entry.unavailable.unnamed = That dungeon cannot be entered right now.
 entry.cost = You need {1} x{2, number} to go into {0}.
+# The title of the Claim that gives a dungeon's entry cost back when its area fails to open after the loading
+# screen began; {0} is the dungeon's name.
+entry.refund.title = Your entry cost for {0}
 
 # The results screen each member sees when their party clears a run. The screen paints most of these lines where
 # a value cannot be filled in; only results.time (the run's length, m:ss) and results.team_total carry one.

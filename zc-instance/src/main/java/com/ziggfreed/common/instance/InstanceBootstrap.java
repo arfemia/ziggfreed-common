@@ -155,8 +155,8 @@ public final class InstanceBootstrap {
 
     /**
      * The spoils chest a won boss fight leaves where the boss fell ({@code SpoilsChests}): its saved mark, before any
-     * world loads; the upkeep that takes a chest down, the sweep that removes one a restart left behind, and the
-     * guard that keeps an open spoils window's items off the ground; the {@code ZigOpenSpoils} interaction Type a
+     * world loads; the upkeep that takes a chest down and the sweep that removes one a restart left behind; the
+     * {@code ZigOpenSpoils} interaction Type a
      * chest's Use runs, beside {@code ZigEnterDungeon} and like it before any asset decodes (the shipped root
      * interaction names it); the ears for a boss defeat (where the chest will stand) and a new Claim (the first of a
      * fight's raises it); the world-closing eviction; and the encounter audit handed the reward chests a binding row's

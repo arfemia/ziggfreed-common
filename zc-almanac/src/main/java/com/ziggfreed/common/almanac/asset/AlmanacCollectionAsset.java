@@ -12,9 +12,8 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.asset.EditorSchema;
-import com.ziggfreed.common.factor.FactorCondition;
-import com.ziggfreed.common.factor.ModGates;
 import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.progress.gate.StoreGates;
 import com.ziggfreed.common.text.ContentTextAsset;
 import com.ziggfreed.common.ui.page.LinkAsset;
 
@@ -23,11 +22,12 @@ import com.ziggfreed.common.ui.page.LinkAsset;
  * shows its own picture once the player has obtained it once (any route into any of their inventory
  * sections, recorded for good), or while it is not {@code Hidden}; a hidden one shows a '?' until then.
  *
- * <p>A slot may carry its own {@code Requires}, in the block every store writes (zc-core's {@code GateSpec},
- * its mod gate read through {@code GateSpec.missingMod}): where its plain {@code hytale:mod_installed}
- * condition ({@code Min: 1}) names a mod that reads a definite 0, the slot is not on this server at all
- * ({@link #slots()} leaves it out, so the grid, the audit and the owned marks never see it, and nothing
- * counts or names it). Any other condition there is not read: the page's own findings warn about it.
+ * <p>A slot may carry its own {@code Requires}, in the block every store writes (zc-core's {@code GateSpec}, read
+ * whole through {@code StoreGates}): where its plain {@code hytale:mod_installed} condition ({@code Min: 1}) names a
+ * mod that reads a definite 0, the slot is not on this server at all ({@link #slots()} leaves it out, so the grid,
+ * the audit and the owned marks never see it, and nothing counts or names it); the rest of the block
+ * ({@link Slot#liveRequires}) is asked of each player who reads the grid, and a slot it shuts for them shows locked
+ * with what it needs, still counted in the grid's total.
  *
  * <pre>{@code
  * { "Collection": { "Text": { "TitleKey": "almanac.spring_fair.items.title" },
@@ -115,17 +115,21 @@ public final class AlmanacCollectionAsset {
     public static final class Slot {
 
         /** The sentence the Asset Editor shows beside a slot's {@code Requires}. */
-        private static final String REQUIRES_DOCUMENTATION = "Whether this slot is on this server at all. A "
-                + "condition { \"Factor\": \"hytale:mod_installed\", \"Param\": \"Group:Name\", \"Min\": 1 } "
-                + "leaves the slot out of the grid where that mod is not installed, as if it were never written, "
-                + "while the rest of the grid shows. Write Min 1: a condition with no bound is satisfied by a "
-                + "missing mod too. A slot reads nothing else here: any other condition is ignored, and the "
-                + "page's audit says so.";
+        private static final String REQUIRES_DOCUMENTATION = "What a player must meet to collect this slot, in the "
+                + "Requires shape quests use (Factors, Permission, Quests, Custom, AllOf, AnyOf, Not), every "
+                + "condition read. A plain { \"Factor\": \"hytale:mod_installed\", \"Param\": \"Group:Name\", "
+                + "\"Min\": 1 } leaves the slot out of the grid where that mod is not installed, as if it were never "
+                + "written; write Min 1, since a condition with no bound is met by a missing mod too. The rest is "
+                + "asked of each player who opens the page: a slot they do not meet shows locked with what it "
+                + "needs, and still counts toward the grid's total.";
 
         @Nullable private String item;
         @Nullable private Boolean hidden;
         @Nullable private String sourceKey;
         @Nullable private GateSpec requires;
+
+        /** The live part of {@link #requires}, lifted once ({@link #liveRequires}); null until first asked. */
+        @Nullable private volatile GateSpec[] live;
 
         public static final BuilderCodec<Slot> CODEC = BuilderCodec.builder(Slot.class, Slot::new)
                 .append(new KeyedCodec<>("Item", Codec.STRING, false), (s, v) -> s.item = v, s -> s.item)
@@ -163,42 +167,18 @@ public final class AlmanacCollectionAsset {
         }
 
         /**
-         * What of its {@code Requires} a slot does not read, by name: every top-level condition but the plain mod
-         * presence gate ({@code ModGates.isPresenceGate}), each as its factor id with its {@code Param} when it writes
-         * one ({@code 'hytale:permission test.node'}), then any other leaf the block writes ({@code Permission},
-         * {@code Quests}, {@code Custom}, {@code AllOf}, {@code AnyOf}, {@code Not}). Empty when it writes none.
+         * The part of its {@code Requires} asked of each player (zc-core's {@code StoreGates.live}: the block less its
+         * plain mod-presence conditions, which {@link #passesModGate} decides), lifted once; null when it asks
+         * nothing more.
          */
-        @Nonnull
-        List<String> ignoredConditions() {
-            if (requires == null) {
-                return List.of();
+        @Nullable
+        public GateSpec liveRequires() {
+            GateSpec[] held = live;
+            if (held == null) {
+                held = new GateSpec[] {StoreGates.live(requires)};
+                live = held;
             }
-            List<String> names = new ArrayList<>();
-            for (FactorCondition condition : requires.factorsOrEmpty()) {
-                if (condition != null && !condition.isBlank() && !ModGates.isPresenceGate(condition)) {
-                    String param = AlmanacHeroAsset.blankToNull(condition.getParam());
-                    names.add("'" + condition.getFactor().trim() + (param == null ? "" : " " + param) + "'");
-                }
-            }
-            if (AlmanacHeroAsset.blankToNull(requires.getPermission()) != null) {
-                names.add("Permission");
-            }
-            if (requires.questsOrEmpty().length > 0) {
-                names.add("Quests");
-            }
-            if (!requires.customOrEmpty().isEmpty()) {
-                names.add("Custom");
-            }
-            if (requires.allOfOrEmpty().length > 0) {
-                names.add("AllOf");
-            }
-            if (requires.anyOfOrEmpty().length > 0) {
-                names.add("AnyOf");
-            }
-            if (requires.notOrEmpty().length > 0) {
-                names.add("Not");
-            }
-            return List.copyOf(names);
+            return held[0];
         }
 
         /** The item id, trimmed, or null when blank. */

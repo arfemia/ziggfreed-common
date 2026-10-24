@@ -141,7 +141,10 @@ public final class DropContext {
         breaking(who, who == null ? Set.of() : dropListsOf(block));
     }
 
-    /** A break nobody is credited with (a block its breaker placed, or one no moment credits): forgets the last. */
+    /**
+     * A break nobody is credited with (a block its breaker placed, a gather shape's further block, or one no moment
+     * credits): forgets the last.
+     */
     public static void breakingForNobody() {
         if (!live) {
             return;

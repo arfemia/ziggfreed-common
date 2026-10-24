@@ -7,6 +7,7 @@ import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorProvider;
 import com.ziggfreed.common.factor.FactorRegistry;
+import com.ziggfreed.common.progress.gate.GateQuery;
 
 /**
  * The two readings an instance-style payout offers the factor vocabulary: how well the player did,
@@ -76,15 +77,36 @@ public final class LootFactors {
      */
     @Nonnull
     public static FactorLookup lookupFor(int score, boolean win) {
-        Outcome outcome = new Outcome(score, win);
-        return (factorId, param) -> {
-            if (INSTANCE_SCORE.equalsIgnoreCase(factorId)) {
-                return (double) outcome.effectiveScore();
+        return over(FactorLookup.none(), new Outcome(score, win));
+    }
+
+    /**
+     * {@code about} with these two readings laid over it: {@code instance_score} and {@code instance_win} answer from
+     * {@code outcome}, every other id as {@code about} answers it, and a table's {@code Requires} is put as
+     * {@code about}'s own question ({@link FactorLookup#gateQuery}). How a payout that knows both a run's result and
+     * the player it pays rolls (zc-instance's Claim rolls); with {@link FactorLookup#none()} it is
+     * {@link #lookupFor}.
+     */
+    @Nonnull
+    public static FactorLookup over(@Nonnull FactorLookup about, @Nonnull Outcome outcome) {
+        return new FactorLookup() {
+            @Nullable
+            @Override
+            public Double resolve(@Nonnull String factorId, @Nullable String param) {
+                if (INSTANCE_SCORE.equalsIgnoreCase(factorId)) {
+                    return (double) outcome.effectiveScore();
+                }
+                if (INSTANCE_WIN.equalsIgnoreCase(factorId)) {
+                    return outcome.win() ? 1.0 : 0.0;
+                }
+                return about.resolve(factorId, param);
             }
-            if (INSTANCE_WIN.equalsIgnoreCase(factorId)) {
-                return outcome.win() ? 1.0 : 0.0;
+
+            @Nullable
+            @Override
+            public GateQuery gateQuery() {
+                return about.gateQuery();
             }
-            return null;
         };
     }
 

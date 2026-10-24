@@ -353,11 +353,14 @@ public final class EncounterValidator {
             }
             EncounterBindingAsset.Subject subject = row.getSubject();
             String slot = subject == null ? EncounterBindingAsset.DEFAULT_TARGET_SLOT : subject.targetSlot();
-            // An endless wave run (it beats zc:cleared, Zc_Encounter_Endless) binds no subject on purpose: its boss
-            // wave stands in a slot of its own so the per-return ramp reaches him and his death settles no defeat.
+            // An endless wave run (it beats zc:cleared and never zc:defeated, Zc_Encounter_Endless) binds no subject
+            // on purpose: its boss wave stands in a slot of its own so the per-return ramp reaches him and his death
+            // settles no defeat. A boss fight that runs Zc_Wave_Chain's guard waves beats zc:cleared too, but also
+            // its boss's zc:defeated, so its subject is still checked.
             if (!scan.targetSlots().isEmpty() && !scan.targetSlots().contains(slot)
                     && (subject == null || !subject.anyOccupiedSlot())
-                    && !scan.authors(EncounterSignal.Moment.CLEARED)) {
+                    && !(scan.authors(EncounterSignal.Moment.CLEARED)
+                            && !scan.authors(EncounterSignal.Moment.DEFEATED))) {
                 findings.add(Finding.warning(DOMAIN, SUBJECT_SLOT_UNKNOWN, "Subject.TargetSlot '" + slot
                         + "' is a slot the script never names (it names " + String.join(", ", scan.targetSlots())
                         + "), so no subject would bind; name the script's slot, or set AnyOccupiedSlot.", id));

@@ -54,18 +54,8 @@ import com.ziggfreed.common.util.SafeLog;
  * hands the rewards over through {@link ClaimGrants}, a full bag keeping the rest here, and reopens the page with
  * a toast saying how it went and naming what landed. Picking a row reopens the page, so every build is a full one.
  * It sits in the shared menu frame with the Claims tab selected on the rail. Every {@code handleDataEvent} exit
- * opens a page, closes this one, or sends an empty answer, so the client is never left waiting.
- *
- * <p><b>Spoils.</b> Built with a fight ({@link SpoilsView}), it is that fight's spoils chest: only the player's Claims
- * the fight paid, under the spoils' own words, and Take All taking just those ({@link ClaimGrants#claimFight}). With
- * none left it says so in one line.
- *
- * <p><b>The chest's first screen, which no chest opens now ({@link RewardChestPage} is every chest's one page).</b>
- * Built with a fight and {@code itemsInWindow}, it is what opening the chest showed while something that is not an item waits: those Claims with their items left out, Claim and Take All
- * handing over only what is not an item ({@link ClaimGrants#claimExceptItems},
- * {@link ClaimGrants#claimFightExceptItems}), each press told by the page's own toast. Once nothing but items is left,
- * the page says the rest is in the chest and its one button opens the chest's item window
- * ({@link SpoilsView#openItems}); with no item left either it says so in one line.
+ * opens a page, closes this one, or sends an empty answer, so the client is never left waiting. A reward chest's own
+ * page is {@link RewardChestPage}.
  */
 public final class ClaimsPage extends ToastablePage<ClaimsEventData> {
 
@@ -107,12 +97,6 @@ public final class ClaimsPage extends ToastablePage<ClaimsEventData> {
 
     @Nonnull private final ClaimsPageDeps deps;
 
-    /** The fight whose spoils this page shows, or null for every Claim waiting. */
-    @Nullable private final String fight;
-
-    /** True on a chest's first screen: only what is not an item is offered here, the items in the chest's window. */
-    private final boolean itemsInWindow;
-
     @Nullable
     private String selected;
 
@@ -120,27 +104,9 @@ public final class ClaimsPage extends ToastablePage<ClaimsEventData> {
     @Nonnull private MenuRail rail = MenuRail.EMPTY;
 
     public ClaimsPage(@Nonnull PlayerRef playerRef, @Nonnull ClaimsPageDeps deps, @Nullable String selectedId) {
-        this(playerRef, deps, selectedId, null);
-    }
-
-    /** @param fight the fight whose spoils to show alone, or null for every Claim waiting */
-    public ClaimsPage(@Nonnull PlayerRef playerRef, @Nonnull ClaimsPageDeps deps, @Nullable String selectedId,
-            @Nullable String fight) {
-        this(playerRef, deps, selectedId, fight, false);
-    }
-
-    /**
-     * @param fight         the fight whose spoils to show alone, or null for every Claim waiting
-     * @param itemsInWindow with a fight, the chest's first screen: only what is not an item here, the items after it
-     *                      in the chest's window
-     */
-    public ClaimsPage(@Nonnull PlayerRef playerRef, @Nonnull ClaimsPageDeps deps, @Nullable String selectedId,
-            @Nullable String fight, boolean itemsInWindow) {
         super(playerRef, CustomPageLifetime.CanDismissOrCloseThroughInteraction, ClaimsEventData.CODEC);
         this.deps = deps;
         this.selected = selectedId;
-        this.fight = fight == null || fight.isBlank() ? null : fight.trim();
-        this.itemsInWindow = this.fight != null && itemsInWindow;
     }
 
     @Override
@@ -163,34 +129,25 @@ public final class ClaimsPage extends ToastablePage<ClaimsEventData> {
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton", EventData.of("Action", "close"));
         // The action bar's buttons are live elements, bound once per build.
         DetailPainter.bindActionsOnce(events, DETAIL, ClaimsPage::actionFor, null);
-        cmd.set("#ClaimsTitle.TextSpans", text.line(fight == null ? "page.title" : "spoils.title"));
-        // A chest's page reads its own file's line (Text.LeadKey), the boss chest's spoils.lead by default.
-        cmd.set("#ClaimsLead.TextSpans", fight == null ? text.line("page.lead") : SpoilsChests.leadOf(fight));
+        cmd.set("#ClaimsTitle.TextSpans", text.line("page.title"));
+        cmd.set("#ClaimsLead.TextSpans", text.line("page.lead"));
         // The shared menu's rail, the Claims tab selected; painted before the empty-list early return.
         rail = ZigMenu.paint(cmd, events, store, ref, store.getComponent(ref, Player.getComponentType()),
                 MenuSlot.CLAIMS.id(), false);
 
         List<Claim> claims = ClaimsView.newestFirst(waiting());
-        // What other modules list on the tab (a track's choices not made yet): only on the plain tab, never a chest.
-        ContributedLedger contributed = fight == null ? contributed(store, ref) : null;
-        DetailView page = contributed == null || !contributed.hasRow(selected) ? null
-                : contributed.page(selected, context(store, ref));
+        // What other modules list on the tab (a track's choices not made yet).
+        ContributedLedger contributed = contributed(store, ref);
+        DetailView page = !contributed.hasRow(selected) ? null : contributed.page(selected, context(store, ref));
         Claim claim = page != null ? null : ClaimsView.pick(claims, selected);
-        if (claim == null && page == null && contributed != null && !contributed.isEmpty()) {
+        if (claim == null && page == null && !contributed.isEmpty()) {
             selected = contributed.firstRow();
             page = contributed.page(selected, context(store, ref));
         }
         if (claim == null && page == null) {
             cmd.set(DETAIL + ".Visible", false);
             cmd.set(EMPTY + ".Visible", true);
-            if (itemsInWindow && itemsLeft()) {
-                // Nothing but items is left: the button opens the chest's item window.
-                EmptyStatePainter.paint(cmd, events, EMPTY, ClaimsView.spoilsItemsLeft(text),
-                        EventData.of("Action", ClaimsView.ACTION_ITEMS));
-                return;
-            }
-            EmptyStatePainter.paint(cmd, events, EMPTY,
-                    fight == null ? ClaimsView.empty(text) : ClaimsView.spoilsEmpty(text), null);
+            EmptyStatePainter.paint(cmd, events, EMPTY, ClaimsView.empty(text), null);
             return;
         }
         if (claim != null) {
@@ -199,8 +156,8 @@ public final class ClaimsPage extends ToastablePage<ClaimsEventData> {
         try {
             LedgerPainter.paint(cmd, events, LIST, ClaimsView.ledger(claims, text, contributed), Set.of(), selected,
                     ROWS, RowSize.STANDARD, playerRef);
-            DetailPainter.paint(cmd, events, DETAIL, claim != null ? ClaimsView.detail(claim, text, fight != null)
-                    : page, DETAIL_BINDINGS, playerRef);
+            DetailPainter.paint(cmd, events, DETAIL, claim != null ? ClaimsView.detail(claim, text) : page,
+                    DETAIL_BINDINGS, playerRef);
         } catch (Throwable t) {
             // build() must not throw: a reading that fails leaves the page as far as it got.
             SafeLog.warn("[claims] the page could not paint the row " + selected, t);
@@ -254,19 +211,6 @@ public final class ClaimsPage extends ToastablePage<ClaimsEventData> {
             player.getPageManager().openCustomPage(ref, store, this);
             return;
         }
-        if (ClaimsView.ACTION_ITEMS.equals(data.action) && itemsInWindow) {
-            UUID uuid = playerRef.getUuid();
-            boolean opened = false;
-            try {
-                opened = uuid != null && SpoilsView.openItems(store, ref, player, playerRef, uuid, fight);
-            } catch (Throwable t) {
-                SafeLog.warn("[claims] the chest's items could not open; they wait under Claims", t);
-            }
-            if (!opened) {
-                player.getPageManager().openCustomPage(ref, store, this);
-            }
-            return;
-        }
         player.getPageManager().setPage(ref, store, Page.None);
     }
 
@@ -274,11 +218,11 @@ public final class ClaimsPage extends ToastablePage<ClaimsEventData> {
      * A press on a contributed row's page (a track's choices waiting) whose button in {@code slot} names a destination
      * (the track's tree): that screen opened through {@link Destinations}, so the source's own page opens with no
      * module edge. True when it took the screen; false leaves the press to the Claims (a contributed row holds none, so
-     * it hands nothing over) and the reopen. Never on a chest.
+     * it hands nothing over) and the reopen.
      */
     private boolean openContributed(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
             @Nonnull Player player, @Nonnull ActionSlot slot) {
-        if (fight != null || selected == null) {
+        if (selected == null) {
             return false;
         }
         try {
@@ -309,20 +253,9 @@ public final class ClaimsPage extends ToastablePage<ClaimsEventData> {
             return;
         }
         try {
-            ClaimGrants.Result result;
-            if (itemsInWindow) {
-                result = all ? ClaimGrants.claimFightExceptItems(deps.claims(), player, fight, ref, store,
-                        deps.sink()).result()
-                        : ClaimGrants.claimExceptItems(deps.claims(), player, claimId, ref, store, deps.sink());
-            } else if (!all) {
-                result = ClaimGrants.claim(deps.claims(), player, claimId, ref, store, deps.sink());
-            } else if (fight == null) {
-                result = ClaimGrants.claimAll(deps.claims(), player, ref, store, deps.sink());
-            } else {
-                result = ClaimGrants.claimFight(deps.claims(), player, fight, ref, store, deps.sink());
-            }
-            // On the chest's first screen the items stay for the window, so even Take All just says Claimed.
-            ToastSpec toast = ClaimsView.pressToast(result, deps.text(), all && !itemsInWindow);
+            ClaimGrants.Result result = all ? ClaimGrants.claimAll(deps.claims(), player, ref, store, deps.sink())
+                    : ClaimGrants.claim(deps.claims(), player, claimId, ref, store, deps.sink());
+            ToastSpec toast = ClaimsView.pressToast(result, deps.text(), all);
             if (toast != null) {
                 showToast(toast);
             }
@@ -331,39 +264,15 @@ public final class ClaimsPage extends ToastablePage<ClaimsEventData> {
         }
     }
 
-    /**
-     * The Claims waiting for this player, the fight's alone on its spoils; on the chest's first screen only those
-     * holding something that is not an item, shown without their items. A failed read shows none.
-     */
+    /** The Claims waiting for this player. A failed read shows none. */
     @Nonnull
     private List<Claim> waiting() {
         try {
             UUID player = playerRef.getUuid();
-            List<Claim> all = player == null ? List.of() : deps.claims().list(player);
-            if (fight == null) {
-                return all;
-            }
-            List<Claim> spoils = all.stream().filter(claim -> claim.fromFight(fight)).toList();
-            if (!itemsInWindow) {
-                return spoils;
-            }
-            return spoils.stream().filter(ClaimGrants::hasNonItem)
-                    .map(claim -> claim.withRewards(claim.rewards().stream().filter(r -> !r.isItem()).toList()))
-                    .toList();
+            return player == null ? List.of() : deps.claims().list(player);
         } catch (Throwable t) {
             SafeLog.warn("[claims] the page could not read the Claims waiting", t);
             return List.of();
-        }
-    }
-
-    /** Whether an item from the fight still waits for this player, for the chest's window; false on a failed read. */
-    private boolean itemsLeft() {
-        try {
-            UUID player = playerRef.getUuid();
-            return player != null && fight != null && SpoilsView.hasItems(deps.claims(), player, fight);
-        } catch (Throwable t) {
-            SafeLog.warn("[claims] the page could not read the items waiting", t);
-            return false;
         }
     }
 

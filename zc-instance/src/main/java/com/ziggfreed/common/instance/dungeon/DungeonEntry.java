@@ -50,15 +50,15 @@ import com.ziggfreed.common.util.SafeLog;
  *   <li>a new copy is spawned through {@code InstanceWorlds.spawn}, its config step setting the area-aware
  *       spawn provider over the copy's {@link AreaLayout}; or the copy is joined, live or still spawning;</li>
  *   <li>the cost is spent ({@link DungeonEntryCost#spend}), the last step before the teleport, so every refusal
- *       above spends nothing, and a teleport the engine refuses gives it back;</li>
+ *       above spends nothing, a teleport the engine refuses gives it back on the spot, and a copy or paste that
+ *       fails once the loading screen has begun gives it back as a Claim ({@link DungeonEntryCost#refundAsClaim});</li>
  *   <li>the player goes through the engine's loading teleport with a future that completes once the copy is up
  *       and their area pasted ({@link Areas#prepare}), landing at their area's entry point, with their own
  *       return point where they stood.</li>
  * </ol>
  *
  * <p><b>Who pays.</b> Every way a player takes ({@link #enterWithParty}, {@link #enter}) charges the cost;
- * {@link #enterAlone}, the admin's, never does. Known limit: a copy or a paste that fails after the loading
- * screen has begun (a server-side error the log names) keeps what was spent.
+ * {@link #enterAlone}, the admin's, never does.
  *
  * <p><b>A copy still spawning takes parties.</b> The router fills only copies it is told are live, so the
  * router asks through {@link #PROBE}, which also counts a copy this class is still spawning: a party arriving
@@ -335,6 +335,15 @@ public final class DungeonEntry {
         if (pays) {
             SafeLog.info(LOG + uuid + " paid the entry cost " + cost + " to open " + area.world() + " area "
                     + area.area() + " for their party");
+            // The player is in the loading screen now: a copy or paste that fails from here on gives the cost back
+            // as a Claim, since they may be anywhere by the time it is known.
+            String paidFor = dungeon.getId() == null ? id : dungeon.getId();
+            String nameKey = dungeon.nameKey();
+            ready.whenComplete((world, error) -> {
+                if (error != null) {
+                    DungeonEntryCost.refundAsClaim(uuid, paidFor, nameKey, cost, error);
+                }
+            });
         } else if (key != null) {
             SafeLog.info(LOG + uuid + " opened " + area.world() + " area " + area.area() + " for their party with"
                     + " the key " + key + ", which they keep");

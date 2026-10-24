@@ -33,6 +33,7 @@ import com.ziggfreed.common.objectives.producer.ZigMobKillProducer;
 import com.ziggfreed.common.progress.runtime.Moment;
 import com.ziggfreed.common.progress.runtime.MomentListener;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.world.gather.ShapedBreaks;
 
 /**
  * Who a native drop list rolls for, said to zc-loot's {@link DropContext} off the produced moments, so a
@@ -43,7 +44,9 @@ import com.ziggfreed.common.util.SafeLog;
  *   <li>A break ({@code BREAK_BLOCK}): {@link ZigBlockBreakProducer} says nobody first for every break it sees, then
  *       fires inside the engine's break event, and the engine rolls the block's drops straight after it, so a
  *       credited break is said there and then ({@link DropContext#breaking}) and answers that one roll. A block the
- *       breaker placed fires no moment, so its drops roll for nobody.</li>
+ *       breaker placed fires no moment, so its drops roll for nobody, and so do a vein's or a felled tree's further
+ *       blocks unless the shape lets them roll rows ({@link ShapedBreaks#rowsAllowed}), so a player-only row pays
+ *       once, on the block in hand, as a bonus row does.</li>
  *   <li>A kill ({@code KILL_ENTITY}): the producer fires when the death lands, crediting the player its attribution
  *       answered once, at fire time, and the engine drops the corpse's items a tick or a few seconds later. The credit
  *       is kept per victim until then. {@link Stamp}, just before the engine's death-drop pass and after its corpse
@@ -84,6 +87,12 @@ public final class DropCredit implements MomentListener {
 
     private static void onBreak(@Nonnull Moment moment, @Nullable BlockBreakPayload payload) {
         if (payload == null) {
+            return;
+        }
+        // A further block a vein or fell shape breaks for the player credits nobody unless the shape lets its blocks
+        // roll (its Rows), as a bonus row reads it: a player-only row pays once, on the block in hand.
+        if (!ShapedBreaks.rowsAllowed()) {
+            DropContext.breakingForNobody();
             return;
         }
         DropContext.breaking(new DropContext.Who(BonusRowReactions.subjectOf(moment), moment.ref(), null,

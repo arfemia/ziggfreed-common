@@ -10,9 +10,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.instance.reward.InstanceReward;
 import com.ziggfreed.common.inventory.PlayerAccess;
-import com.ziggfreed.common.loot.claim.ClaimStore;
 import com.ziggfreed.common.ui.toast.ToastDelivery;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastSpec;
@@ -26,11 +24,7 @@ import com.ziggfreed.common.util.SafeLog;
  * <p><b>One page</b> ({@link RewardChestPage}), for every reward chest: everything of the player's in it on one page
  * with no menu rail, what is not an item first and then the items, a click on a line taking that one reward and Take
  * All taking everything, each told by the page's own toast, so nothing is paid unasked; whatever is left in it waits
- * under Claims. A player with nothing waiting reads one line saying so, and no page opens. The chest's file's
- * {@code View.ItemsWindow} no longer changes the view.
- *
- * <p>The game's chest window ({@link SpoilsWindow}, {@link #openItems}) is no longer how a chest opens; it is what
- * {@link ClaimsPage}'s chest mode still offers, which nothing in the library opens now.
+ * under Claims. A player with nothing waiting reads one line saying so, and no page opens.
  */
 public final class SpoilsView {
 
@@ -70,40 +64,5 @@ public final class SpoilsView {
     private static void tellEmpty(@Nonnull PlayerRef playerRef, @Nonnull ClaimsPageDeps deps) {
         ToastDelivery.deliver(playerRef, ToastSpec.of(ToastKind.INFO, deps.text().line("spoils.empty"))
                 .withIcon(ClaimsDestinations.ICON), null);
-    }
-
-    /**
-     * The items {@code fight} left the player, in the game's chest window; the Claims page filtered to the fight when
-     * the window will not open; one line when no item waits. True when a window or page opened, false when only the
-     * line was told. World thread. {@link ClaimsPage}'s chest mode is its one caller.
-     */
-    static boolean openItems(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref, @Nonnull Player player,
-            @Nonnull PlayerRef playerRef, @Nonnull UUID uuid, @Nonnull String fight) {
-        ClaimsPageDeps deps = ClaimsPageDeps.library();
-        ClaimStore claims = deps.claims();
-        if (!hasItems(claims, uuid, fight)) {
-            tellEmpty(playerRef, deps);
-            return false;
-        }
-        if (SpoilsWindow.open(store, ref, player, uuid, fight, claims)) {
-            return true;
-        }
-        // The window would not open (or holds no item this server knows): the same Claims, on the Claims page.
-        SafeLog.info(SpoilsChests.LOG + "no window for run=" + fight + "; the Claims page shows the spoils instead");
-        return openClaimsPage(store, ref, player, playerRef, fight);
-    }
-
-    /** Whether any of {@code player}'s Claims from {@code fight} holds an item. */
-    static boolean hasItems(@Nonnull ClaimStore claims, @Nonnull UUID player, @Nonnull String fight) {
-        return claims.list(player).stream().anyMatch(claim -> claim.fromFight(fight)
-                && claim.rewards().stream().anyMatch(InstanceReward::isItem));
-    }
-
-    /** The Claims page, filtered to the fight. */
-    private static boolean openClaimsPage(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
-            @Nonnull Player player, @Nonnull PlayerRef playerRef, @Nonnull String fight) {
-        player.getPageManager().openCustomPage(ref, store,
-                new ClaimsPage(playerRef, ClaimsPageDeps.library(), null, fight));
-        return true;
     }
 }

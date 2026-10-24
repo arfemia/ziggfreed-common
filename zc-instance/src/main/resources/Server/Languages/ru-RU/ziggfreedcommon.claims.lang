@@ -38,22 +38,18 @@ notice.added.spoils = Ваша доля ждёт в сундуке там, гд�
 notice.added.spoils.named = {0} ждёт в сундуке там, где упал босс, и в разделе «Награды» вашего меню.
 
 # A boss's chest: what a won fight leaves where the boss fell, holding each player's own rewards from that fight.
-# spoils.hint is the prompt over the chest; the game fills {key} with the button to press. Opening it hands over
-# what is not an item at once (spoils.paid heads the list of it) and shows the items in the game's own chest
-# window; spoils.empty is the line for a player with nothing in it. The spoils.title to spoils.action.take_all lines
-# are the Claims page's, which the chest can show instead (the library's SpoilsView switch).
+# spoils.hint is the prompt over the chest; the game fills {key} with the button to press. Opening any reward chest
+# shows one page: spoils.title over the chest's own line (spoils.lead for a boss's), each reward a line a click
+# takes, spoils.page.hint beside the spoils.action.take_all button, and spoils.all_taken once the player has taken
+# everything. spoils.empty is the line for a player with nothing in it. spoils.banner is the line under a banner
+# telling a player their reward went into the chest, when the source's own file names no line of its own.
 spoils.hint = Нажмите [{key}], чтобы открыть
-spoils.paid = Из сундука:
 spoils.title = Ваша доля
 spoils.lead = Что оставил для вас этот босс. Что вы оставите здесь, будет ждать вас в разделе «Награды».
-spoils.detail.lead = «Забрать» берёт эти награды. «Взять всё» берёт всё, что здесь ваше.
-spoils.detail.hint = Для предметов нужно место в сумках. Что не поместится, ждёт в разделе «Награды».
 spoils.action.take_all = Взять всё
 spoils.page.hint = Нажмите на награду, чтобы забрать её, или на «Взять всё», чтобы забрать всё. Для предметов нужно место в сумках.
 spoils.all_taken = Вы забрали всё.
 spoils.empty = Здесь для вас ничего нет.
-spoils.items_left = Остальная часть вашей доли лежит в сундуке.
-spoils.action.items = Открыть сундук
 spoils.banner = Ваша награда ждёт в сундуке, где пал босс.
 
 # A reward chest that is not a boss's: one a rare kill, a rare break or another source leaves, holding each player's

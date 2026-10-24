@@ -12,17 +12,17 @@
     "In order. A player comes within PlayerRange of the script's entity and Delay starts (long enough",
     "for an arrival's intro camera to end). The first wave rises (Zc_Wave_Rise: the near and far",
     "rows, Signal, and Moment with the wave count). Once one of them is seen and none of Groups is",
-    "left alive within Range, the wave is cleared; if none is ever seen (every spot blocked), it counts",
-    "as cleared after WatchSeconds, so a failed spawn never holds the chain. Gap seconds after a",
-    "clear the next wave rises, until the run has counted Waves wave beats; then DoneFlag goes up and",
-    "PendingFlag comes down. Players who fall mid-wave come back to the same wave: nothing here",
-    "resets on a death.",
+    "left alive within Range, the wave is cleared and the chain beats zc:cleared; if none is ever seen",
+    "(every spot blocked), it counts as cleared after WatchSeconds, so a failed spawn never holds the",
+    "chain. Gap seconds after a clear the next wave rises, until the run has counted Waves clears;",
+    "then DoneFlag goes up and PendingFlag comes down. Players who fall mid-wave come back to the same",
+    "wave: nothing here resets on a death.",
     "",
-    "The count is the library's own reading of the run (ziggfreedcommon:encounter_waves, every",
-    "zc:wave beat the run has heard), so run the chain as the fight's first waves, before any other",
-    "wave beat, and keep Signal a wave beat. It fails open rather than looping: a script the library",
-    "keeps no run for, or a count that never moved off zero, ends the chain after its first wave, so",
-    "a fight the library does not follow still lets its boss rise.",
+    "The count is the library's own reading of the run (ziggfreedcommon:encounter_waves_cleared, every",
+    "zc:cleared beat the run has heard), so run the chain before anything else in the fight beats",
+    "zc:cleared. Signal is only what each rise announces, a wave beat by default. It fails open rather",
+    "than looping: a script the library keeps no run for ends the chain after its first wave, so a",
+    "fight the library does not follow still lets its boss rise.",
     "",
     "Every flag and timer is named in the Parameters, so give each chain in a script its own names.",
     "To raise the chain again (after a fight's reset, say), clear DoneFlag, WaitingFlag, UpFlag,",
@@ -43,7 +43,7 @@
     },
     "Waves": {
       "Value": 3,
-      "Description": "How many waves rise, 1 or more: the chain ends once the run has counted this many wave beats."
+      "Description": "How many waves rise, 1 or more: the chain ends once the run has counted this many clears."
     },
     "NearCount": {
       "Value": [ 2, 2 ],
@@ -96,7 +96,7 @@
     },
     "Signal": {
       "Value": "zc:wave",
-      "Description": "The beat sent as each wave rises: zc:wave, or zc:wave:<label>. Either counts toward Waves."
+      "Description": "The beat sent as each wave rises: zc:wave, or zc:wave:<label>. The chain counts its clears, never this beat."
     },
     "Moment": {
       "Value": "",
@@ -348,7 +348,7 @@
         ]
       },
       {
-        "$Comment": "The wave is cleared (none left alive, or none ever seen once the watch runs out) and the run's count says more are to come: the Gap starts. More are to come while the count reads at least 1 and below Waves.",
+        "$Comment": "The wave is cleared (none left alive, or none ever seen once the watch runs out) and the run's count says more are to come: the clear is beaten and the Gap starts. The count reads the clears before this one, so more are to come while it reads below Waves - 1.",
         "Continue": true,
         "Sensor": {
           "Type": "And",
@@ -391,20 +391,24 @@
             },
             {
               "Type": "ZigFactor",
-              "Factor": "ziggfreedcommon:encounter_waves",
-              "Value": [ 1, 1000000 ]
+              "Factor": "ziggfreedcommon:encounter_waves_cleared",
+              "Value": [ 0, 1000000 ]
             },
             {
               "Type": "Not",
               "Sensor": {
                 "Type": "ZigFactor",
-                "Factor": "ziggfreedcommon:encounter_waves",
-                "Value": { "Compute": "[Waves, 1000000]" }
+                "Factor": "ziggfreedcommon:encounter_waves_cleared",
+                "Value": { "Compute": "[Waves - 1, 1000000]" }
               }
             }
           ]
         },
         "Actions": [
+          {
+            "Type": "SignalWorldEvent",
+            "SignalId": "zc:cleared"
+          },
           {
             "Type": "SetFlag",
             "Name": { "Compute": "UpFlag" },
@@ -428,7 +432,7 @@
         ]
       },
       {
-        "$Comment": "The wave is cleared and no more are to come (the count reached Waves, or there is no count to read): the chain is done and lets go of PendingFlag.",
+        "$Comment": "The wave is cleared and no more are to come (this clear is the last of Waves, or there is no count to read): the clear is beaten, and the chain is done and lets go of PendingFlag.",
         "Continue": true,
         "Sensor": {
           "Type": "And",
@@ -476,20 +480,24 @@
                   "Type": "Not",
                   "Sensor": {
                     "Type": "ZigFactor",
-                    "Factor": "ziggfreedcommon:encounter_waves",
-                    "Value": [ 1, 1000000 ]
+                    "Factor": "ziggfreedcommon:encounter_waves_cleared",
+                    "Value": [ 0, 1000000 ]
                   }
                 },
                 {
                   "Type": "ZigFactor",
-                  "Factor": "ziggfreedcommon:encounter_waves",
-                  "Value": { "Compute": "[Waves, 1000000]" }
+                  "Factor": "ziggfreedcommon:encounter_waves_cleared",
+                  "Value": { "Compute": "[Waves - 1, 1000000]" }
                 }
               ]
             }
           ]
         },
         "Actions": [
+          {
+            "Type": "SignalWorldEvent",
+            "SignalId": "zc:cleared"
+          },
           {
             "Type": "SetFlag",
             "Name": { "Compute": "DoneFlag" }

@@ -20,19 +20,19 @@ import com.ziggfreed.common.inventory.PlayerAccess;
 import com.ziggfreed.common.loot.LootableAsset;
 import com.ziggfreed.common.loot.LootableConfig;
 import com.ziggfreed.common.loot.claim.Claim;
-import com.ziggfreed.common.loot.claim.ClaimStore;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
  * {@code give --player=<name> --lootable=<id>}: roll a loot table for a player and put what it lands in their
  * Claims, as a boss's payout would, so the Claims tab can be seen and tested on any server. The table is decided
- * here, once, the way Kweebec Nightmare decides a round's payout ({@link ClaimRolls#roll}: decided once, kept as
- * rewards to pay later), and the Claim pays exactly that when it is taken. It rolls as a won run with no score, so a
- * table gated on a win pays its floor. A roll that lands nothing
- * writes no Claim. The source is {@code admin:<lootable>}, and every give is a Claim of its own.
+ * here, once, through the one Claim roll ({@link ClaimRolls#award}: decided once, kept as rewards to pay later), and
+ * the Claim pays exactly that when it is taken. It rolls as a won run with no score, so a table gated on a win pays
+ * its floor, and as the player while they are online. A roll that lands nothing writes no Claim. The source is
+ * {@code admin:<lootable>}, and every give is a Claim of its own.
  *
  * <p>{@code --player} names a player online or not ({@link ClaimTargets}); one who is not online finds the Claim
- * waiting, and the notice, at their next login. Left out, the sender is the player.
+ * waiting, and the notice, at their next login, and their roll asks nothing of them, so a row gated on anything about
+ * a player pays nothing for them. Left out, the sender is the player.
  */
 final class ZigClaimsGiveCommand extends AbstractTargetPlayerCommand<ZigClaimsGiveCommand.Target> {
 
@@ -96,13 +96,15 @@ final class ZigClaimsGiveCommand extends AbstractTargetPlayerCommand<ZigClaimsGi
         }
         long now = System.currentTimeMillis();
         String source = SOURCE_PREFIX + tableId;
-        Claim claim = new Claim(source + ":" + target.id() + ":" + now, source,
-                ClaimsText.PREFIX + "title.admin", List.of(tableId), null,
-                ClaimRolls.roll(table, target.id(), source, SafeLog::warn), now);
-        if (ClaimStore.shared().award(target.id(), claim, null, source, now)) {
-            ClaimsCommandMessages.done(ctx, "give.done", tableId, target.name(), claim.rewards().size());
-        } else {
-            ClaimsCommandMessages.detail(ctx, "give.nothing", tableId, target.name());
-        }
+        Claim draft = new Claim(source + ":" + target.id() + ":" + now, source,
+                ClaimsText.PREFIX + "title.admin", List.of(tableId), null, List.of(), now);
+        ClaimRolls.award(new ClaimRolls.Payout(target.id(), draft, List.of(ClaimRolls.Draw.once(table)), null,
+                source, SafeLog::warn), written -> {
+                    if (written != null) {
+                        ClaimsCommandMessages.done(ctx, "give.done", tableId, target.name(), written.rewards().size());
+                    } else {
+                        ClaimsCommandMessages.detail(ctx, "give.nothing", tableId, target.name());
+                    }
+                });
     }
 }

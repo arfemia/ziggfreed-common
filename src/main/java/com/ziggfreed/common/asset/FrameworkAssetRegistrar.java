@@ -76,6 +76,9 @@ import com.ziggfreed.common.loot.reward.RewardKindAsset;
 import com.ziggfreed.common.loot.reward.RewardKindConfig;
 import com.ziggfreed.common.loot.reward.RewardKindFold;
 import com.ziggfreed.common.loot.reward.RewardKinds;
+import com.ziggfreed.common.instance.reward.DropRarityAsset;
+import com.ziggfreed.common.instance.reward.DropRarityConfig;
+import com.ziggfreed.common.instance.reward.DropRarityOwnerLayers;
 import com.ziggfreed.common.loot.stamp.RollPoolAsset;
 import com.ziggfreed.common.loot.stamp.RollPoolConfig;
 import com.ziggfreed.common.loot.stamp.StatDisplayAsset;
@@ -319,6 +322,19 @@ public final class FrameworkAssetRegistrar {
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, RollPoolAsset.class,
                 (LoadedAssetsEvent<String, RollPoolAsset, DefaultAssetMap<String, RollPoolAsset>> ev) ->
                         RollPoolConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
+
+        // --- Drop rarities (Pattern A) - the rarity bands a reward reads as from its drop's chance, one
+        //     file per item quality id with its AtMostPercent; zc-loot ships the five vanilla qualities
+        //     (instance/reward/DropRarity reads them). Owner layer mods/ziggfreedcommon/drop-rarities.json,
+        //     read here once the packs have landed. No top-level Requires. ---
+        AssetStoreRegistrar.registerStore(DropRarityAsset.class,
+                new DefaultAssetMap<String, DropRarityAsset>(), DropRarityAsset.TYPE_ROOT,
+                DropRarityAsset::getId, DropRarityAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, DropRarityAsset.class,
+                (LoadedAssetsEvent<String, DropRarityAsset, DefaultAssetMap<String, DropRarityAsset>> ev) -> {
+                    DropRarityConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    DropRarityOwnerLayers.reload();
+                });
 
         // --- Bonus rows (Pattern A) - the library's moment-keyed bonus table: one row per file, a
         //     BreakBlock, KillMob or PickupItem moment plus a name pattern, a percent Chance and a
@@ -1361,7 +1377,8 @@ public final class FrameworkAssetRegistrar {
                         HitTags.effectsRemoved(ev.getRemovedAssets()));
 
         SafeLog.info("ZiggfreedCommon framework stores registered (DialogueFragments, DialogueExtensions, Dialogues, Instances, "
-                        + "Lootables, RollPools, BonusRows (owner file mods/ziggfreedcommon/bonus-rows.json), "
+                        + "Lootables, RollPools, DropRarities (owner file mods/ziggfreedcommon/drop-rarities.json), "
+                        + "BonusRows (owner file mods/ziggfreedcommon/bonus-rows.json), "
                         + "StatDisplays, RewardKinds, BandedEffects, PrefabPlacements, Gateways, Leaderboard, "
                         + "Arenas, Party, Dungeons (owner file mods/ziggfreedcommon/dungeons.json), DungeonRooms, "
                         + "DungeonLayouts, "

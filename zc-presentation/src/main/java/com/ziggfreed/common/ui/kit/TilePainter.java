@@ -16,7 +16,6 @@ import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 
-import com.ziggfreed.common.instance.reward.DropRarity;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.icon.ItemQualityLook;
 import com.ziggfreed.common.ui.menu.MenuPalette;
@@ -57,9 +56,12 @@ public final class TilePainter {
     public static final int GOLD_CARD_WIDTH = 110;
     public static final int GOLD_CARD_HEIGHT = 168;
 
-    /** The game's item qualities a reward card wears the looping sheen ({@code #Shine}) between, both in, by rank. */
-    static final String SHINE_FROM = DropRarity.EPIC;
-    static final String SHINE_TO = DropRarity.LEGENDARY;
+    /**
+     * The game's item qualities, by their own ids, a reward card wears the looping sheen ({@code #Shine}) between, both
+     * in, by rank.
+     */
+    static final String SHINE_FROM = "Epic";
+    static final String SHINE_TO = "Legendary";
 
     /** One reward card face's own ids for the parts both faces share ({@link #paintFace}). */
     private record FaceIds(@Nonnull String source, @Nonnull String slotBack, @Nonnull String shine,
@@ -180,7 +182,8 @@ public final class TilePainter {
     /**
      * Item slots into {@code grid}, each showing exactly one of its three layers: owned (the complete tile, its check),
      * shown but not yet had (the default tile, the picture under the scrim), or a mystery (the empty tile, its glyph,
-     * no picture). The tooltip sits on {@code #Slot}.
+     * no picture); a locked one wears the lock glyph ({@code #Lock}) over whichever it shows. The tooltip sits on
+     * {@code #Slot}.
      */
     public static void itemSlots(@Nonnull UICommandBuilder cmd, @Nonnull String grid, @Nonnull List<ItemSlotTile> tiles) {
         cmd.clear(grid);
@@ -195,6 +198,7 @@ public final class TilePainter {
             KitPaint.picture(cmd, s + " #Pic", tile.mystery() ? Picture.NONE : tile.picture());
             cmd.set(s + " #Scrim.Visible", seen);
             cmd.set(s + " #Check.Visible", tile.owned());
+            cmd.set(s + " #Lock.Visible", tile.locked());
             cmd.set(s + " #Mystery.Visible", tile.mystery() && tile.glyph() != null);
             if (tile.mystery() && tile.glyph() != null) {
                 KitPaint.text(cmd, s + " #Mystery", tile.glyph());

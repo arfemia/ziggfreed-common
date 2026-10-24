@@ -465,9 +465,9 @@ public final class QuestItemDrops implements MomentListener {
     }
 
     /**
-     * A Claim was collected, by a press or out of a spoils chest's window: when it was a step's Claim and the step
-     * counts its item arriving, what reached the bag is credited to it as picked up, on a later task of the player's
-     * world (the press or the window's change is still running). A quest finished, abandoned or gone credits nothing,
+     * A Claim was collected by a press: when it was a step's Claim and the step counts its item arriving, what
+     * reached the bag is credited to it as picked up, on a later task of the player's world (the press is still
+     * running). A quest finished, abandoned or gone credits nothing,
      * and the item stays the player's. Registered by {@code ProgressionDefaults.install}; never throws.
      */
     public static void onCollected(@Nonnull ClaimCollectedEvent event) {

@@ -1,0 +1,4 @@
+{
+  "$Comment": "A reward whose drop had a chance of 20 percent or less per chest, and more than the Epic band's, reads as Rare on a reward chest's card.",
+  "AtMostPercent": 20
+}

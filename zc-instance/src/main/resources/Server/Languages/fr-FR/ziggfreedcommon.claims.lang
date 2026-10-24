@@ -38,22 +38,18 @@ notice.added.spoils = Votre part vous attend dans le coffre où le boss est tomb
 notice.added.spoils.named = {0} vous attend dans le coffre où le boss est tombé, et sous « À réclamer » dans votre menu.
 
 # A boss's chest: what a won fight leaves where the boss fell, holding each player's own rewards from that fight.
-# spoils.hint is the prompt over the chest; the game fills {key} with the button to press. Opening it hands over
-# what is not an item at once (spoils.paid heads the list of it) and shows the items in the game's own chest
-# window; spoils.empty is the line for a player with nothing in it. The spoils.title to spoils.action.take_all lines
-# are the Claims page's, which the chest can show instead (the library's SpoilsView switch).
+# spoils.hint is the prompt over the chest; the game fills {key} with the button to press. Opening any reward chest
+# shows one page: spoils.title over the chest's own line (spoils.lead for a boss's), each reward a line a click
+# takes, spoils.page.hint beside the spoils.action.take_all button, and spoils.all_taken once the player has taken
+# everything. spoils.empty is the line for a player with nothing in it. spoils.banner is the line under a banner
+# telling a player their reward went into the chest, when the source's own file names no line of its own.
 spoils.hint = Appuyez sur [{key}] pour ouvrir
-spoils.paid = Du coffre :
 spoils.title = Votre part
 spoils.lead = Ce que ce boss a laissé pour vous. Ce que vous laissez ici vous attend sous « À réclamer ».
-spoils.detail.lead = Réclamer prend celles-ci. Tout prendre prend tout ce qui est à vous ici.
-spoils.detail.hint = Les objets ont besoin de place dans vos sacs. Ce qui ne rentre pas attend sous « À réclamer ».
 spoils.action.take_all = Tout prendre
 spoils.page.hint = Cliquez sur une récompense pour la prendre, ou sur Tout prendre pour tout récupérer. Les objets ont besoin de place dans vos sacs.
 spoils.all_taken = Vous avez tout pris.
 spoils.empty = Rien ici ne vous attend.
-spoils.items_left = Le reste de votre part est dans le coffre.
-spoils.action.items = Ouvrir le coffre
 spoils.banner = Votre récompense vous attend dans le coffre où le boss est tombé.
 chest.lead = Ce qui vous a été laissé. Ce que vous laissez ici vous attend sous « À réclamer ».
 chest.banner.title = {0} a laissé un coffre

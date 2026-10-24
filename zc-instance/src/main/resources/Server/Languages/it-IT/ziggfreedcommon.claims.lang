@@ -38,22 +38,18 @@ notice.added.spoils = La tua parte ti aspetta nel forziere dove è caduto il bos
 notice.added.spoils.named = {0} ti aspetta nel forziere dove è caduto il boss, e sotto Ricompense nel tuo menu.
 
 # A boss's chest: what a won fight leaves where the boss fell, holding each player's own rewards from that fight.
-# spoils.hint is the prompt over the chest; the game fills {key} with the button to press. Opening it hands over
-# what is not an item at once (spoils.paid heads the list of it) and shows the items in the game's own chest
-# window; spoils.empty is the line for a player with nothing in it. The spoils.title to spoils.action.take_all lines
-# are the Claims page's, which the chest can show instead (the library's SpoilsView switch).
+# spoils.hint is the prompt over the chest; the game fills {key} with the button to press. Opening any reward chest
+# shows one page: spoils.title over the chest's own line (spoils.lead for a boss's), each reward a line a click
+# takes, spoils.page.hint beside the spoils.action.take_all button, and spoils.all_taken once the player has taken
+# everything. spoils.empty is the line for a player with nothing in it. spoils.banner is the line under a banner
+# telling a player their reward went into the chest, when the source's own file names no line of its own.
 spoils.hint = Premi [{key}] per aprire
-spoils.paid = Dal forziere:
 spoils.title = La tua parte
 spoils.lead = Quello che questo boss ha lasciato per te. Quello che lasci qui ti aspetta sotto Ricompense.
-spoils.detail.lead = Ritira prende queste. Prendi Tutto prende tutto ciò che qui è tuo.
-spoils.detail.hint = Gli oggetti hanno bisogno di spazio nelle borse. Quello che non entra aspetta sotto Ricompense.
 spoils.action.take_all = Prendi Tutto
 spoils.page.hint = Clicca su una ricompensa per prenderla, o su Prendi Tutto per averle tutte. Gli oggetti hanno bisogno di spazio nelle borse.
 spoils.all_taken = Hai preso tutto.
 spoils.empty = Qui dentro non c'è niente che ti aspetti.
-spoils.items_left = Il resto della tua parte è nel forziere.
-spoils.action.items = Apri il Forziere
 spoils.banner = La tua ricompensa ti aspetta nel forziere dove è caduto il boss.
 
 # A reward chest that is not a boss's: one a rare kill, a rare break or another source leaves, holding each player's

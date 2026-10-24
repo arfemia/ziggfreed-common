@@ -53,6 +53,7 @@ import com.ziggfreed.common.encounter.validate.EncounterAudit;
 import com.ziggfreed.common.entity.EntityBootstrap;
 import com.ziggfreed.common.entity.overhead.OverheadIndicators;
 import com.ziggfreed.common.instance.InstanceBootstrap;
+import com.ziggfreed.common.instance.claims.RewardChestValidator;
 import com.ziggfreed.common.instance.dungeon.DungeonValidator;
 import com.ziggfreed.common.factor.DerivedFactorConfig;
 import com.ziggfreed.common.factor.FactorRegistry;
@@ -700,7 +701,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
      * loot, gear sets, calendar events and their spawns, titles (the walk that builds the progression
      * runtime first, so no Title reward goes unchecked), Almanac pages, stats and the board sections that
      * name them, derived factors, NPC identities,
-     * NPC placements (claiming the first join's once-per-boot run, as commerce does), dungeons, the
+     * NPC placements (claiming the first join's once-per-boot run, as commerce does), dungeons, reward chests, the
      * conversations (claiming the first join's run too, as placements do), reputations and tracks (whose own
      * boot hooks then stand down, so an error prints once); and, always,
      * the once-per-boot warning for a loaded pack whose ziggfreed-common range this version fails
@@ -725,6 +726,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
                     new BootAudit.Pass(NpcPlacementConfig.LOG_LABEL,
                             () -> NpcPlacementConfig.getInstance().claimLateFindings()),
                     new BootAudit.Pass(DungeonValidator.LOG_LABEL, DungeonValidator::audit),
+                    new BootAudit.Pass(RewardChestValidator.LOG_LABEL, RewardChestValidator::audit),
                     new BootAudit.Pass(DialogueAudit.LOG_LABEL, DialogueAudit::claimLateFindings),
                     new BootAudit.Pass(ReputationValidator.LOG_LABEL, ReputationValidator::audit),
                     new BootAudit.Pass(TrackValidator.LOG_LABEL, TrackValidator::audit),

@@ -38,22 +38,18 @@ notice.added.spoils = Dein Anteil wartet in der Truhe, wo der Boss gefallen ist,
 notice.added.spoils.named = {0} wartet in der Truhe, wo der Boss gefallen ist, und unter Abholungen in deinem Menü.
 
 # A boss's chest: what a won fight leaves where the boss fell, holding each player's own rewards from that fight.
-# spoils.hint is the prompt over the chest; the game fills {key} with the button to press. Opening it hands over
-# what is not an item at once (spoils.paid heads the list of it) and shows the items in the game's own chest
-# window; spoils.empty is the line for a player with nothing in it. The spoils.title to spoils.action.take_all lines
-# are the Claims page's, which the chest can show instead (the library's SpoilsView switch).
+# spoils.hint is the prompt over the chest; the game fills {key} with the button to press. Opening any reward chest
+# shows one page: spoils.title over the chest's own line (spoils.lead for a boss's), each reward a line a click
+# takes, spoils.page.hint beside the spoils.action.take_all button, and spoils.all_taken once the player has taken
+# everything. spoils.empty is the line for a player with nothing in it. spoils.banner is the line under a banner
+# telling a player their reward went into the chest, when the source's own file names no line of its own.
 spoils.hint = Drücke [{key}] zum Öffnen
-spoils.paid = Aus der Truhe:
 spoils.title = Dein Anteil
 spoils.lead = Was dieser Boss für dich hinterlassen hat. Was du hier liegen lässt, wartet unter Abholungen auf dich.
-spoils.detail.lead = Abholen nimmt diese. Alles nehmen nimmt alles hier, was dir gehört.
-spoils.detail.hint = Gegenstände brauchen Platz in deinen Taschen. Was nicht hineinpasst, wartet unter Abholungen.
 spoils.action.take_all = Alles nehmen
 spoils.page.hint = Klick auf eine Belohnung, um sie zu nehmen, oder auf Alles nehmen für alles. Gegenstände brauchen Platz in deinen Taschen.
 spoils.all_taken = Du hast alles genommen.
 spoils.empty = Hier wartet nichts auf dich.
-spoils.items_left = Der Rest deines Anteils liegt in der Truhe.
-spoils.action.items = Truhe öffnen
 spoils.banner = Deine Belohnung wartet in der Truhe, wo der Boss gefallen ist.
 
 # Eine Belohnungstruhe, die kein Boss hinterlässt: eine seltene Beute, ein seltener Abbau oder eine andere Quelle lässt sie zurück, mit dem eigenen Anteil jedes Spielers.

@@ -40,22 +40,18 @@ notice.added.chest = Tu parte te espera en el cofre cercano, y en Pendientes, en
 notice.added.chest.named = {0} te espera en el cofre cercano, y en Pendientes, en tu menú.
 
 # A boss's chest: what a won fight leaves where the boss fell, holding each player's own rewards from that fight.
-# spoils.hint is the prompt over the chest; the game fills {key} with the button to press. Opening it hands over
-# what is not an item at once (spoils.paid heads the list of it) and shows the items in the game's own chest
-# window; spoils.empty is the line for a player with nothing in it. The spoils.title to spoils.action.take_all lines
-# are the Claims page's, which the chest can show instead (the library's SpoilsView switch).
+# spoils.hint is the prompt over the chest; the game fills {key} with the button to press. Opening any reward chest
+# shows one page: spoils.title over the chest's own line (spoils.lead for a boss's), each reward a line a click
+# takes, spoils.page.hint beside the spoils.action.take_all button, and spoils.all_taken once the player has taken
+# everything. spoils.empty is the line for a player with nothing in it. spoils.banner is the line under a banner
+# telling a player their reward went into the chest, when the source's own file names no line of its own.
 spoils.hint = Pulsa [{key}] para abrir
-spoils.paid = Del cofre:
 spoils.title = Tu parte
 spoils.lead = Lo que este jefe dejó para ti. Lo que dejes aquí te espera en Pendientes.
-spoils.detail.lead = Reclamar coge estas. Coger todo coge todo lo que aquí es tuyo.
-spoils.detail.hint = Los objetos necesitan sitio en tus bolsas. Lo que no quepa espera en Pendientes.
 spoils.action.take_all = Coger todo
 spoils.page.hint = Haz clic en una recompensa para cogerla, o en Coger todo para llevártelo todo. Los objetos necesitan sitio en tus bolsas.
 spoils.all_taken = Lo cogiste todo.
 spoils.empty = Aquí no hay nada esperándote.
-spoils.items_left = El resto de tu parte está en el cofre.
-spoils.action.items = Abrir el Cofre
 spoils.banner = Tu recompensa te espera en el cofre donde cayó el jefe.
 
 # Un cofre de recompensa que no es de un jefe.
