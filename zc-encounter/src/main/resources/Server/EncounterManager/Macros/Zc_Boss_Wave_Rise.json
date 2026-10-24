@@ -1,0 +1,136 @@
+{
+  "$Comment": [
+    "Raise a boss wave now: the boss rides out of a manual spawn marker standing in the arena's prefab,",
+    "the game's own boss bar points at him, and the library hears a wave went out. It is",
+    "Zc_Encounter_Endless's BossWave unless a run names another, so a dungeon that stamps a ManualTrigger",
+    "marker near its run's entity has a boss wave with nothing written; name the marker and the bar's words",
+    "through the Variant's _ForwardedModifiers:",
+    "",
+    "  \"_ForwardedModifiers\": { \"BossWave\": { \"SpawnMarker\": \"My_Boss_Marker\",",
+    "    \"BarName\": \"npcs.My_Boss.name\", \"Moment\": \"My_Boss_Rides\" } }",
+    "",
+    "In order, all in the one tick the wave rises. The spawn marker standing within SummonRange of the",
+    "script's entity fires, and the creature it raises is bound into Slot: the one named SpawnMarker, or,",
+    "left empty, any manual marker in range. A marker fires only once the creature it raised last has died,",
+    "which by a boss wave he always has, since no wave is beaten while one of the run's creatures lives.",
+    "Then, with him bound, the bar points at him under BarName (left empty, his own name as the server",
+    "spells it), shown to every player in the run; it follows him and goes away once his body does. Then",
+    "Signal goes out (zc:wave, as every wave of the run sends), and when Moment names a FeedbackMoment each",
+    "member is shown it, carrying the run's wave count as wave.",
+    "",
+    "Slot is never Boss on purpose: the library reads a fight's Boss slot as the subject it credits, scales",
+    "and pays for, and an endless run has none. Bound anywhere else he is one of the run's creatures, so each",
+    "return takes the dungeon's per-return ramp and the binding row's Scale.Adds grows him with the party.",
+    "Groups in Zc_Encounter_Endless must hold him, or his wave is beaten the moment it rises. Since he comes",
+    "from a spawn marker rather than the Spawn action, a mod that scales spawned creatures leaves him alone.",
+    "For a boss raised on the spot instead, hand the slot Zc_Wave_Rise with the boss as Role."
+  ],
+  "Class": "Instruction",
+  "Type": "Component",
+  "Interface": "Hytale.Instruction.Encounter.Phase.Behavior",
+  "Parameters": {
+    "SpawnMarker": {
+      "Value": "",
+      "Description": "The manual spawn marker in the arena's prefab that raises the boss. Empty fires any manual marker within SummonRange."
+    },
+    "SummonRange": {
+      "Value": 30,
+      "Description": "How far from the script's entity the spawn marker may stand to be fired."
+    },
+    "Slot": {
+      "Value": "Zc_Boss_Wave",
+      "Description": "The target slot the boss is bound into. Never Boss, which the library reads as the fight's subject."
+    },
+    "BarName": {
+      "Value": "",
+      "Description": "The lang key the boss bar shows, resolved on each player's own client. Empty shows the boss's own name, untranslated."
+    },
+    "BarRange": {
+      "Value": 80,
+      "Description": "How far from the script's entity the bound boss may stand to be given the bar."
+    },
+    "Signal": {
+      "Value": "zc:wave",
+      "Description": "The beat sent as the wave rises: zc:wave, or zc:wave:<label>."
+    },
+    "Moment": {
+      "Value": "",
+      "Description": "The FeedbackMoment each member is shown as he rises, carrying the run's wave count as wave. Empty shows nothing."
+    }
+  },
+  "Content": {
+    "Continue": true,
+    "Sensor": {
+      "Type": "Any"
+    },
+    "Instructions": [
+      {
+        "$Comment": "He rides out of his marker, bound into Slot: the named marker, or any manual marker in range.",
+        "Continue": true,
+        "Sensor": {
+          "Type": "Any"
+        },
+        "Actions": [
+          {
+            "Enabled": { "Compute": "!isEmpty(SpawnMarker)" },
+            "Type": "TriggerSpawners",
+            "Count": 1,
+            "Range": { "Compute": "SummonRange" },
+            "SpawnMarker": { "Compute": "SpawnMarker" },
+            "TargetSlot": { "Compute": "Slot" },
+            "Rebind": true
+          },
+          {
+            "Enabled": { "Compute": "isEmpty(SpawnMarker)" },
+            "Type": "TriggerSpawners",
+            "Count": 1,
+            "Range": { "Compute": "SummonRange" },
+            "TargetSlot": { "Compute": "Slot" },
+            "Rebind": true
+          }
+        ]
+      },
+      {
+        "$Comment": "With him bound, the bar points at him.",
+        "Continue": true,
+        "Sensor": {
+          "Type": "Target",
+          "TargetSlot": { "Compute": "Slot" },
+          "Range": { "Compute": "BarRange" }
+        },
+        "Actions": [
+          {
+            "Enabled": { "Compute": "!isEmpty(BarName)" },
+            "Type": "SetEncounterBossBar",
+            "Name": { "Compute": "BarName" },
+            "HardMode": false
+          },
+          {
+            "Enabled": { "Compute": "isEmpty(BarName)" },
+            "Type": "SetEncounterBossBar",
+            "HardMode": false
+          }
+        ]
+      },
+      {
+        "$Comment": "The wave's beat, then the banner, after the signal so the wave count it carries counts this wave.",
+        "Continue": true,
+        "Sensor": {
+          "Type": "Any"
+        },
+        "Actions": [
+          {
+            "Type": "SignalWorldEvent",
+            "SignalId": { "Compute": "Signal" }
+          },
+          {
+            "Enabled": { "Compute": "!isEmpty(Moment)" },
+            "Type": "ZigFeedback",
+            "Moment": { "Compute": "Moment" },
+            "ToMembers": true
+          }
+        ]
+      }
+    ]
+  }
+}
