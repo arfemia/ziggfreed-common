@@ -1,5 +1,6 @@
 # currency/asset/ - a wallet as a file
 
+- The library ships one wallet, `Life_Essence` (`src/main/resources/Server/ZiggfreedCommon/Currencies/ZiggfreedCommon/`, the game's own `Ingredient_Life_Essence` as an item-backed wallet), so every mod prices in the same one; a consumer names it in its prices and ships no copy, since a second file with the id reads over this one (the MMO's `LifeEssenceWalletTest` fails a family member that ships one).
 - A share leaf (`OnDeath.LossPercent`, `Decay.PerDayPercent`) is a fraction from 0 to 1, clamped and reported: 10 would wipe a wallet.
 - `Requires` on a wallet gates whether the balance is shown, never whether it is earned.
 - A knob only one mod understands goes in `Meta` under that mod's namespace; a new economy knob is a nested nullable group beside `OnDeath` and `Decay`.
