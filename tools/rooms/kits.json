@@ -1,0 +1,102 @@
+{
+  "$Comment": [
+    "The per-kit mapping import_kit.py reads: which vanilla cave-node graph a kit's pieces come from, which prefab pools it",
+    "imports, how its pools are named, tagged and given roles, and how its door classes are named.",
+    "Graph: folders under CaveRoot whose .node.json files are the kit's graph. Pools: prefab-name prefixes to import (a pool",
+    "outside them is skipped, and so is every join to it). PieceRoot: the prefix cut from a pool to make the piece name in",
+    "Zc_Kit_<Kit>_<Piece>. Tags: on every room; TagRules add more by pool prefix. Roles: the pool's folder path, matched on",
+    "its longest dotted suffix. Kinds: a door class (the doors vanilla's graph joins, closed under joining) takes the Kind",
+    "of the first rule naming a pool one of its doors sits on; a class no rule names takes Default. ClipDepth: how far",
+    "(in blocks) a room's blocks may stand proud of a doorway's wall and be left out of its Box, so the doorway sits on",
+    "the Box's face; a room whose doorway stays inside its Box is not imported (PD1's box test could never join it).",
+    "Fill: the block written as every room's Fill. Vanilla pastes these pieces into solid rock, and the painter fills the",
+    "cells a piece leaves unlisted inside its Box with it. Rock_Stone for both kits: the most common solid block across",
+    "the Cursed Crypt's pieces (about twice the next), the most common block facing the Stone kit's carved air (just",
+    "ahead of Rock_Quartzite), and the natural rock of the zone vanilla digs both into."
+  ],
+  "ClipDepth": 1,
+  "CaveRoot": "Server/World/Default/Zones/Zone1_Tier1/Cave",
+  "Kits": {
+    "Stone": {
+      "Graph": ["Dungeons/Dungeon"],
+      "Pools": ["Dungeon.Stone.Level_1.", "Dungeon.Stone.Level_2.", "Dungeon.Stone.Level_3."],
+      "PieceRoot": "Dungeon.Stone.",
+      "Label": "the Stone dungeon",
+      "Fill": "Rock_Stone",
+      "Tags": ["Kit_Stone"],
+      "TagRules": [
+        {"Pools": ["Dungeon.Stone.Level_1."], "Tags": ["Stone_Level_1"]},
+        {"Pools": ["Dungeon.Stone.Level_2."], "Tags": ["Stone_Level_2"]},
+        {"Pools": ["Dungeon.Stone.Level_3."], "Tags": ["Stone_Level_3"]}
+      ],
+      "Roles": {
+        "Corridors": ["Corridor"],
+        "Turn_Left": ["Corridor", "Turn"],
+        "Turn_Right": ["Corridor", "Turn"],
+        "Turn_T": ["Corridor", "Junction"],
+        "Stairs": ["Corridor", "Stairs"],
+        "Room_Small": ["Combat", "Room"],
+        "Room_Small_Left": ["Combat", "Room", "Turn"],
+        "Room_Small_Right": ["Combat", "Room", "Turn"],
+        "Room_Small_TurnX": ["Combat", "Junction", "Room"],
+        "Room_Large": ["Combat", "Room"],
+        "Walls": ["Cap"]
+      },
+      "Kinds": {"Default": "Stone", "Rules": []}
+    },
+    "Cursed_Crypt": {
+      "$Comment": [
+        "Not imported: Cursed.Transition_Cursed.Stairs. Its West and South doors sit inside its own Box (the stair's",
+        "upper body stands over them), so no neighbour or cap could meet them. It was vanilla's only join between the",
+        "Cursed section (Kind Cursed_Crypt) and the Tomb section (Kind Cursed_Crypt_Tomb), so a script-built adapter",
+        "room (PD7) must make that join: a door of each Kind."
+      ],
+      "Graph": ["Dungeons/Dungeon_Cursed_Crypt"],
+      "Pools": ["Dungeon.Cursed_Crypt.Cursed.", "Dungeon.Cursed_Crypt.Tomb."],
+      "PieceRoot": "Dungeon.Cursed_Crypt.",
+      "Label": "the Cursed Crypt",
+      "Fill": "Rock_Stone",
+      "Tags": ["Kit_Cursed_Crypt"],
+      "TagRules": [
+        {"Pools": ["Dungeon.Cursed_Crypt.Cursed."], "Tags": ["Cursed_Crypt_Cursed"]},
+        {"Pools": ["Dungeon.Cursed_Crypt.Tomb."], "Tags": ["Cursed_Crypt_Tomb"]}
+      ],
+      "Roles": {
+        "Short": ["Corridor"],
+        "Medium": ["Corridor"],
+        "Long": ["Corridor"],
+        "C_Large.Corner": ["Corridor", "Turn"],
+        "C_Large_Cave.Corner": ["Corridor", "Turn"],
+        "C_Small.Corner": ["Corridor", "Turn"],
+        "C_Small_Cave.Corner": ["Corridor", "Turn"],
+        "C_Small.End": ["Cap"],
+        "C_Small_Cave.End": ["Cap"],
+        "Rooms.Corner": ["Combat", "Room", "Turn"],
+        "Rooms.End_Small": ["Room"],
+        "Rooms.Hall": ["Combat", "Room"],
+        "Rooms.Hub": ["Combat", "Junction", "Room"],
+        "Rooms.Library": ["Combat", "Room"],
+        "Rooms.Secret_Path": ["Room", "Secret"],
+        "Rooms.T": ["Combat", "Junction", "Room"],
+        "Transition_Cursed.Stairs": ["Corridor", "Stairs"],
+        "Transition_Cursed.End": ["Cap"],
+        "Tomb.Corridors.Corner": ["Corridor", "Turn"],
+        "Tomb.Corridors.Long": ["Corridor"],
+        "Tomb.Corridors.Medium": ["Corridor"],
+        "Tomb.Hallway": ["Combat", "Junction", "Room"],
+        "Tomb.Side": ["Room"],
+        "Tomb.End": ["Room"],
+        "Tomb.End_Small": ["Room"],
+        "Tomb.Entrance": ["Corridor", "Stairs"],
+        "Tomb.Boss_Entrance": ["BossPrep", "Room"],
+        "Tomb.Boss": ["Boss", "Room"]
+      },
+      "Kinds": {
+        "Default": "Cursed_Crypt",
+        "Rules": [
+          {"Kind": "Cursed_Crypt_Tomb", "Pools": ["Dungeon.Cursed_Crypt.Tomb."]}
+        ]
+      }
+    }
+  }
+}

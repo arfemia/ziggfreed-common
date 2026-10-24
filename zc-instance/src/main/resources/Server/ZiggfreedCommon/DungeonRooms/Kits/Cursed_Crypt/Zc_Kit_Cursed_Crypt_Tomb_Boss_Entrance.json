@@ -1,0 +1,51 @@
+{
+  "$Comment": [
+    "The Cursed Crypt kit, piece Tomb_Boss_Entrance: every prefab under Dungeon.Cursed_Crypt.Tomb.Boss_Entrance, 1 interchangeable variant.",
+    "Imported from vanilla's cave-node graph Dungeons/Dungeon_Cursed_Crypt (1 node use this pool) by tools/rooms/import_kit.py. Re-run the importer when Hytale changes the kit instead of editing this file.",
+    "Each door is a doorway vanilla's graph joins to another piece; a door only meets a door of its own Kind, and one left open takes a Cap room of that Kind.",
+    "Box covers every variant.",
+    "Vanilla pastes these pieces into solid rock, so Fill (Rock_Stone) fills the cells a piece leaves unlisted inside its Box."
+  ],
+  "Box": {
+    "Max": {
+      "X": 6,
+      "Y": 12,
+      "Z": 5
+    },
+    "Min": {
+      "X": -6,
+      "Y": -3,
+      "Z": -17
+    }
+  },
+  "Doors": [
+    {
+      "At": {
+        "X": 1,
+        "Y": -2,
+        "Z": -17
+      },
+      "Facing": "North",
+      "Kind": "Cursed_Crypt_Tomb"
+    },
+    {
+      "At": {
+        "X": 0,
+        "Y": 0,
+        "Z": 5
+      },
+      "Facing": "South",
+      "Kind": "Cursed_Crypt_Tomb"
+    }
+  ],
+  "Fill": "Rock_Stone",
+  "Prefab": "Dungeon.Cursed_Crypt.Tomb.Boss_Entrance.*",
+  "Roles": [
+    "BossPrep",
+    "Room"
+  ],
+  "Tags": [
+    "Cursed_Crypt_Tomb",
+    "Kit_Cursed_Crypt"
+  ]
+}

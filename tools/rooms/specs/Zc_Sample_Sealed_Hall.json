@@ -1,0 +1,47 @@
+{
+  "$Comment": [
+    "The sample script room for build_room.py: a sealed combat hall. Entering seals the south and east doorways with",
+    "bars and wakes the three manual spawn markers; when no foe is left the bars drop. A lever by the north wall opens",
+    "the barred north doorway, and anyone who drops into the pit in the middle is put back by the south door.",
+    "Cells are relative to the prefab anchor, the south doorway's floor cell; North is -Z."
+  ],
+  "Id": "Zc_Sample_Sealed_Hall",
+  "Label": "Sample sealed hall",
+  "Prefab": "ZiggfreedCommon.Samples.Zc_Sample_Sealed_Hall",
+  "Room": {
+    "Roles": ["Combat", "Room"],
+    "Tags": ["Sample"]
+  },
+  "Shapes": [
+    {"Op": "Shell", "Min": {"X": -9, "Y": 0, "Z": -18}, "Max": {"X": 9, "Y": 8, "Z": 0}},
+    {"Op": "Fill", "Slot": "Wall", "Min": {"X": -2, "Y": -3, "Z": -11}, "Max": {"X": 2, "Y": -1, "Z": -7}},
+    {"Op": "Fill", "Slot": "Floor", "Min": {"X": -2, "Y": -4, "Z": -11}, "Max": {"X": 2, "Y": -4, "Z": -7}},
+    {"Op": "Carve", "Min": {"X": -1, "Y": -3, "Z": -10}, "Max": {"X": 1, "Y": 0, "Z": -8}},
+    {"Op": "Fill", "Slot": "Pillar", "Min": {"X": -5, "Y": 1, "Z": -5}, "Max": {"X": -5, "Y": 7, "Z": -5}},
+    {"Op": "Fill", "Slot": "Pillar", "Min": {"X": 5, "Y": 1, "Z": -5}, "Max": {"X": 5, "Y": 7, "Z": -5}},
+    {"Op": "Fill", "Slot": "Pillar", "Min": {"X": -5, "Y": 1, "Z": -13}, "Max": {"X": -5, "Y": 7, "Z": -13}},
+    {"Op": "Fill", "Slot": "Pillar", "Min": {"X": 5, "Y": 1, "Z": -13}, "Max": {"X": 5, "Y": 7, "Z": -13}}
+  ],
+  "Doors": [
+    {"At": {"X": 0, "Y": 0, "Z": 0}, "Facing": "South", "Kind": "Sample", "Width": 3, "Height": 3},
+    {"At": {"X": 0, "Y": 0, "Z": -18}, "Facing": "North", "Kind": "Sample", "Width": 3, "Height": 3, "Closed": "Bars"},
+    {"At": {"X": 9, "Y": 0, "Z": -9}, "Facing": "East", "Kind": "Sample", "Width": 3, "Height": 3}
+  ],
+  "Props": [
+    {"Slot": "Light", "At": {"X": -8, "Y": 1, "Z": -1}},
+    {"Slot": "Light", "At": {"X": 8, "Y": 1, "Z": -1}},
+    {"Slot": "Light", "At": {"X": -8, "Y": 1, "Z": -17}},
+    {"Slot": "Light", "At": {"X": 8, "Y": 1, "Z": -17}},
+    {"Slot": "Lever", "At": {"X": -3, "Y": 1, "Z": -17}}
+  ],
+  "Spawns": [
+    {"At": {"X": -4, "Y": 1, "Z": -12}, "Marker": "Skeleton_Soldier_Manual"},
+    {"At": {"X": 4, "Y": 1, "Z": -12}, "Marker": "Skeleton_Soldier_Manual"},
+    {"At": {"X": 0, "Y": 1, "Z": -15}, "Marker": "Skeleton_Archer_Manual"}
+  ],
+  "Logic": [
+    {"Template": "SealedCombat", "Interior": {"Min": {"X": -8, "Y": 1, "Z": -17}, "Max": {"X": 8, "Y": 7, "Z": -1}}, "Doors": [0, 2]},
+    {"Template": "LeverDoor", "Lever": {"X": -3, "Y": 1, "Z": -17}, "Door": 1},
+    {"Template": "FallRescue", "Region": {"Min": {"X": -1, "Y": -3, "Z": -10}, "Max": {"X": 1, "Y": -2, "Z": -8}}, "Return": {"X": 0, "Y": 1, "Z": -2}, "Yaw": 0}
+  ]
+}

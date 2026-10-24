@@ -1,0 +1,24 @@
+{
+  "$Comment": [
+    "A theme palette for build_room.py: the block each material slot of a room spec becomes. A slot names one block,",
+    "or a weighted list picked per cell by a stable hash, so a rebuild writes the same blocks. Copy this file with",
+    "other blocks to re-skin every spec that uses these slots."
+  ],
+  "Id": "Crypt_Stone",
+  "Slots": {
+    "Floor": [
+      {"Block": "Rock_Stone_Brick", "Weight": 3},
+      {"Block": "Rock_Stone_Cobble", "Weight": 1}
+    ],
+    "Wall": [
+      {"Block": "Rock_Stone_Brick", "Weight": 4},
+      {"Block": "Rock_Stone_Cobble", "Weight": 1},
+      {"Block": "Rock_Stone", "Weight": 1}
+    ],
+    "Ceiling": "Rock_Stone",
+    "Pillar": "Rock_Stone_Brick_Smooth",
+    "Bars": "Deco_Iron_Bars",
+    "Light": "Furniture_Ancient_Torch",
+    "Lever": "Deco_Lever"
+  }
+}

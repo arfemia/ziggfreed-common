@@ -1,0 +1,60 @@
+{
+  "$Comment": [
+    "The Cursed Crypt kit, piece Cursed_Rooms_Hall: every prefab under Dungeon.Cursed_Crypt.Cursed.Rooms.Hall, 1 interchangeable variant.",
+    "Imported from vanilla's cave-node graph Dungeons/Dungeon_Cursed_Crypt (2 nodes use this pool) by tools/rooms/import_kit.py. Re-run the importer when Hytale changes the kit instead of editing this file.",
+    "Each door is a doorway vanilla's graph joins to another piece; a door only meets a door of its own Kind, and one left open takes a Cap room of that Kind.",
+    "Box covers every variant except 364 blocks standing one block proud of a doorway's wall, left out so the doorway sits on the Box's face.",
+    "Vanilla pastes these pieces into solid rock, so Fill (Rock_Stone) fills the cells a piece leaves unlisted inside its Box."
+  ],
+  "Box": {
+    "Max": {
+      "X": 8,
+      "Y": 16,
+      "Z": 0
+    },
+    "Min": {
+      "X": -26,
+      "Y": -4,
+      "Z": -22
+    }
+  },
+  "Doors": [
+    {
+      "At": {
+        "X": -18,
+        "Y": 0,
+        "Z": -22
+      },
+      "Facing": "North",
+      "Kind": "Cursed_Crypt"
+    },
+    {
+      "At": {
+        "X": 8,
+        "Y": 0,
+        "Z": -8
+      },
+      "Facing": "East",
+      "Kind": "Cursed_Crypt"
+    },
+    {
+      "At": {
+        "X": 0,
+        "Y": 0,
+        "Z": 0
+      },
+      "Facing": "South",
+      "Kind": "Cursed_Crypt"
+    }
+  ],
+  "Fill": "Rock_Stone",
+  "Prefab": "Dungeon.Cursed_Crypt.Cursed.Rooms.Hall.*",
+  "Roles": [
+    "Combat",
+    "Room"
+  ],
+  "Tags": [
+    "Cursed_Crypt_Cursed",
+    "Kit_Cursed_Crypt"
+  ]
+}

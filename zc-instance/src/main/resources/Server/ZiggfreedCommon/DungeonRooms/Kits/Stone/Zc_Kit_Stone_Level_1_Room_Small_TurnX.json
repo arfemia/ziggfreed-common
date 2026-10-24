@@ -1,0 +1,70 @@
+{
+  "$Comment": [
+    "The Stone dungeon kit, piece Level_1_Room_Small_TurnX: every prefab under Dungeon.Stone.Level_1.Room_Small_TurnX, 5 interchangeable variants.",
+    "Imported from vanilla's cave-node graph Dungeons/Dungeon (2 nodes use this pool) by tools/rooms/import_kit.py. Re-run the importer when Hytale changes the kit instead of editing this file.",
+    "Each door is a doorway vanilla's graph joins to another piece; a door only meets a door of its own Kind, and one left open takes a Cap room of that Kind.",
+    "Box covers every variant.",
+    "Vanilla pastes these pieces into solid rock, so Fill (Rock_Stone) fills the cells a piece leaves unlisted inside its Box."
+  ],
+  "Box": {
+    "Max": {
+      "X": 8,
+      "Y": 9,
+      "Z": 0
+    },
+    "Min": {
+      "X": -8,
+      "Y": -2,
+      "Z": -16
+    }
+  },
+  "Doors": [
+    {
+      "At": {
+        "X": 0,
+        "Y": 0,
+        "Z": -16
+      },
+      "Facing": "North",
+      "Kind": "Stone"
+    },
+    {
+      "At": {
+        "X": 8,
+        "Y": 0,
+        "Z": -8
+      },
+      "Facing": "East",
+      "Kind": "Stone"
+    },
+    {
+      "At": {
+        "X": 0,
+        "Y": 0,
+        "Z": 0
+      },
+      "Facing": "South",
+      "Kind": "Stone"
+    },
+    {
+      "At": {
+        "X": -8,
+        "Y": 0,
+        "Z": -8
+      },
+      "Facing": "West",
+      "Kind": "Stone"
+    }
+  ],
+  "Fill": "Rock_Stone",
+  "Prefab": "Dungeon.Stone.Level_1.Room_Small_TurnX.*",
+  "Roles": [
+    "Combat",
+    "Junction",
+    "Room"
+  ],
+  "Tags": [
+    "Kit_Stone",
+    "Stone_Level_1"
+  ]
+}
