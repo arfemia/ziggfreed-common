@@ -39,7 +39,7 @@ import com.ziggfreed.common.instance.dungeon.layout.PlacedRoom.Part;
  * plan that cannot be met says why; and a door turned four quarter turns comes home, each turn the engine's own
  * prefab turn. Untagged: nothing here builds an engine item.
  */
-class LayoutGeneratorTest {
+public class LayoutGeneratorTest {
 
     private static final int SWEEP = 10_000;
 
@@ -214,9 +214,13 @@ class LayoutGeneratorTest {
                 () -> "it names the role: " + none.failure());
     }
 
-    /** Everything wrong with {@code layout}, checked from its own data. */
+    /**
+     * Everything wrong with {@code layout}, checked from its own data. Public for the shipped kits' test
+     * ({@code layout/asset/ShippedDungeonRoomsTest}), which holds a kit's layouts to the same rules.
+     */
     @Nonnull
-    static List<String> problemsOf(@Nonnull Layout layout, @Nonnull LayoutPlan plan, @Nonnull RoomCatalogue catalogue) {
+    public static List<String> problemsOf(@Nonnull Layout layout, @Nonnull LayoutPlan plan,
+            @Nonnull RoomCatalogue catalogue) {
         List<String> out = new ArrayList<>();
         List<PlacedRoom> rooms = layout.rooms();
         Box bounds = Box.ofSize(plan.bounds());
