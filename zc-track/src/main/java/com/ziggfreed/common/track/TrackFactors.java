@@ -1,6 +1,7 @@
 package com.ziggfreed.common.track;
 
 import java.util.UUID;
+import java.util.function.ToIntFunction;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -34,7 +35,8 @@ import com.ziggfreed.common.track.pick.TrackPicks;
  *       row opens on (R736): {@code Min 5} for the second row.</li>
  * </ul>
  * Null (fail closed) for an unknown, switched-off or curve-less track, an unknown tier, or no live player; a
- * usable track the player never touched reads level 1 (and 0 picks). Each reading changes only through the player's
+ * usable track the player never touched reads level 1 (and 0 picks). {@value #LEVEL} and {@value #CLIMB} alone also
+ * read an alias a consumer registered ({@link TrackAliases}: a retired track's id, read as the best of its successors). Each reading changes only through the player's
  * own track writes, which move their gate epoch (a pick, its undo and a respec move it too), or a track, curve or
  * pick reload ({@code TrackPicks.invalidate}: a branch's points read the picks' {@code Branch} and {@code Cost}),
  * which moves the server epoch, so each declares {@code Volatility Player} in its Factors file and a verdict over it
@@ -69,11 +71,11 @@ public final class TrackFactors {
         FactorContributions.register(BRANCH_SPENT, OWNER, TrackFactors::branchSpent);
         FactorNames.registerParamNamer(BRANCH_SPENT, TrackFactors::branchLockName);
         FactorContributions.register(LEVEL, OWNER, ctx -> {
-            TrackReading reading = reading(ctx, ctx.param());
+            TrackReading reading = gateReading(ctx, ctx.param(), TrackReading::best);
             return reading == null ? null : (double) reading.best();
         });
         FactorContributions.register(CLIMB, OWNER, ctx -> {
-            TrackReading reading = reading(ctx, ctx.param());
+            TrackReading reading = gateReading(ctx, ctx.param(), TrackReading::level);
             return reading == null ? null : (double) reading.level();
         });
         FactorContributions.register(PRESTIGE, OWNER, ctx -> {
@@ -160,6 +162,20 @@ public final class TrackFactors {
         return new String[] {param.substring(0, cut).trim(), param.substring(cut + 1).trim()};
     }
 
+    /**
+     * The climb a level or climb gate on {@code trackId} reads: the track's, else, for an alias
+     * ({@link TrackAliases}), the best of its tracks by {@code rank}; null when neither reads.
+     */
+    @Nullable
+    private static TrackReading gateReading(@Nonnull FactorContext ctx, @Nullable String trackId,
+            @Nonnull ToIntFunction<TrackReading> rank) {
+        if (TrackAliases.isAlias(trackId)) {
+            UUID playerId = playerOf(ctx.store(), ctx.subject());
+            return playerId == null ? null : TrackAliases.best(playerId, trackId, rank);
+        }
+        return reading(ctx, trackId);
+    }
+
     /** The asking player's climb on {@code trackId}, read live, or null. */
     @Nullable
     private static TrackReading reading(@Nonnull FactorContext ctx, @Nullable String trackId) {
@@ -196,10 +212,16 @@ public final class TrackFactors {
         return new String[] {param.substring(0, slash).trim(), param.substring(slash + 1).trim()};
     }
 
-    /** A lock line's name for a reading on the track {@code param} names, or null when no track has that id. */
+    /**
+     * A lock line's name for a reading on the track {@code param} names (an alias's for an alias, {@link TrackAliases}),
+     * or null when no track has that id.
+     */
     @Nullable
     private static Message trackLine(@Nonnull String key, @Nonnull String param) {
         Message name = TrackText.nameOf(param);
+        if (name == null) {
+            name = TrackAliases.name(param);
+        }
         return name == null ? null : TrackText.line(key, name);
     }
 

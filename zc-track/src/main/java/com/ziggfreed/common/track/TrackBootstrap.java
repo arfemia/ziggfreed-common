@@ -146,7 +146,7 @@ public final class TrackBootstrap {
      */
     public static void registerVocabulary() {
         TrackFactors.contribute();
-        ItemLevelTags.trackLookup(TrackService::isUsable);
+        ItemLevelTags.trackLookup(TrackAliases::readable);
         TrackRewardKind.registerInto(RewardKinds.shared());
         RewardChips.contribute(TrackRewardKind.chips());
         ObjectiveTargetNames.register(TrackObjectives.LEVEL, TrackObjectives::levelTargetName);
