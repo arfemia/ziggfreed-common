@@ -7,16 +7,18 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.ziggfreed.common.util.SafeLog;
+
 /**
  * Each player's last few placements, for the rules that read where and when they built: a shaped placement (a block
- * continuing a straight run of three, or placed within {@link #FLOW_MS} of one), which {@code BuildThrift_Shaped}
- * reads, and "a block this player placed within N seconds", which a gather shape's {@code Origin.PlacedWithin} reads.
- * In memory only and per player, the newest {@link #HELD} placements kept; thread-safe, the clock passed in.
+ * continuing a straight run of three, or placed within the gather rules' flow ({@link GatherRulesAsset#shapedFlowMs})
+ * of one), which {@code BuildThrift_Shaped} reads, and "a block this player placed within N seconds", which a gather
+ * shape's {@code Origin.PlacedWithin} reads. In memory only and per player, the newest {@link #HELD} placements kept,
+ * forgotten when the player leaves; thread-safe, the clock passed in.
  */
 public final class RecentPlacements {
-
-    /** How long after a shaped placement every placement still counts as shaped. */
-    public static final long FLOW_MS = 10_000L;
 
     /** How many placements a player's memory holds. */
     public static final int HELD = 64;
@@ -42,8 +44,8 @@ public final class RecentPlacements {
         int count;
         long lastShapedAt = Long.MIN_VALUE;
 
-        /** Record a placement; true when it is shaped. */
-        synchronized boolean place(@Nonnull UUID world, int x, int y, int z, long nowMs) {
+        /** Record a placement; true when it is shaped (a straight run of three, or within {@code flowMs} of one). */
+        synchronized boolean place(@Nonnull UUID world, int x, int y, int z, long nowMs, long flowMs) {
             boolean straight = false;
             if (count >= 2) {
                 int last = (next - 1 + HELD) % HELD;
@@ -58,7 +60,7 @@ public final class RecentPlacements {
             at[next] = nowMs;
             next = (next + 1) % HELD;
             count = Math.min(HELD, count + 1);
-            boolean flowing = lastShapedAt != Long.MIN_VALUE && nowMs - lastShapedAt <= FLOW_MS;
+            boolean flowing = lastShapedAt != Long.MIN_VALUE && nowMs - lastShapedAt <= flowMs;
             if (straight) {
                 lastShapedAt = nowMs;
             }
@@ -83,13 +85,15 @@ public final class RecentPlacements {
 
     /**
      * {@code playerId} placed a block at the position at {@code nowMs}; answers whether that placement is shaped (it
-     * continues a straight run of three, or comes within {@link #FLOW_MS} of one that did).
+     * continues a straight run of three, or comes within the gather rules' flow of one that did).
      */
     public static boolean place(@Nullable UUID playerId, @Nullable UUID worldId, int x, int y, int z, long nowMs) {
         if (playerId == null || worldId == null) {
             return false;
         }
-        boolean shaped = MEMORIES.computeIfAbsent(playerId, id -> new Memory()).place(worldId, x, y, z, nowMs);
+        long flowMs = GatherRulesConfig.getInstance().rules().shapedFlowMs();
+        boolean shaped = MEMORIES.computeIfAbsent(playerId, id -> new Memory()).place(worldId, x, y, z, nowMs,
+                flowMs);
         if (MEMORIES.size() > SWEEP_AT) {
             MEMORIES.values().removeIf(memory -> nowMs - memory.newest() > SWEEP_IDLE_MS);
         }
@@ -116,6 +120,18 @@ public final class RecentPlacements {
     public static void clear(@Nullable UUID playerId) {
         if (playerId != null) {
             MEMORIES.remove(playerId);
+        }
+    }
+
+    /** A player left the server: their placements go. */
+    public static void onDisconnect(@Nonnull PlayerDisconnectEvent event) {
+        try {
+            PlayerRef player = event.getPlayerRef();
+            if (player != null) {
+                clear(player.getUuid());
+            }
+        } catch (Throwable t) {
+            SafeLog.fine("[gather] a departing player's placements could not be forgotten: " + t.getMessage());
         }
     }
 

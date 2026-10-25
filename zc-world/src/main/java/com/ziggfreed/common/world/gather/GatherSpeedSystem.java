@@ -33,8 +33,9 @@ import com.ziggfreed.common.world.placed.PlacedBlockLedger;
 /**
  * The gather step: a player's hit on a block deals {@code 1 + P/100} times the engine's damage, P being the sum of
  * their {@code GatherSpeed}, each {@code GatherSpeed_<Family>} whose block family holds the block, {@code
- * GatherSpeed_Placed} on a placed block, {@code GatherSpeed_Tall_Tree} on a log of a tall tree, the {@code
- * GatherRhythm} chain's steps and each stat a mod counts for the block ({@link GatherSpeedSources}), held at their
+ * GatherSpeed_Placed} on a block a player placed (the placed-block ledger's placed-by answer, whatever its guard
+ * says), {@code GatherSpeed_Tall_Tree} on a log of a tall tree (the gather rules' {@code TallTree.Logs}), the {@code
+ * GatherRhythm} chain's steps and each stat a mod counts for the block ({@link GatherStatSources}), held at their
  * {@code GatherSpeedMax} (and never below {@value #MIN_PERCENT}). The engine's damage is its tool spec's power, so a
  * hit the tool cannot make (a tier it lacks, R625) is 0 and stays 0: speed never breaks a block early. A gather shape
  * that breaks its first block at once ({@link GatherShapes#instantFor}) raises the hit to the block's whole health.
@@ -67,9 +68,6 @@ public final class GatherSpeedSystem extends EntityEventSystem<EntityStore, Dama
     public static final String LOG_FAMILY = "Log";
 
     private static final String LOG_FAMILY_KEY = LOG_FAMILY.toLowerCase(Locale.ROOT);
-
-    /** A tree is tall when its column of one log reaches this many blocks. */
-    public static final int TALL_TREE_LOGS = 10;
 
     /** The ceiling a player reads when the ceiling stat cannot be read. */
     public static final double FALLBACK_CEILING = 200.0;
@@ -139,7 +137,7 @@ public final class GatherSpeedSystem extends EntityEventSystem<EntityStore, Dama
         for (String family : held) {
             sum += GatherReads.max(stats, FAMILY_PREFIX + families.displayId(family));
         }
-        for (String stat : GatherSpeedSources.statsFor(blockId)) {
+        for (String stat : GatherStatSources.statsFor(GatherStatSources.SPEED, GatherStatSources.On.BREAK, blockId)) {
             sum += GatherReads.max(stats, stat);
         }
         if (pos != null) {
@@ -149,7 +147,7 @@ public final class GatherSpeedSystem extends EntityEventSystem<EntityStore, Dama
             }
             double tall = GatherReads.max(stats, TALL_TREE_STAT);
             if (tall != 0.0 && held.contains(LOG_FAMILY_KEY)
-                    && columnOf(store, blockId, pos) >= TALL_TREE_LOGS) {
+                    && columnOf(store, blockId, pos) >= GatherRulesConfig.getInstance().rules().tallTreeLogs()) {
                 sum += tall;
             }
         }
@@ -165,18 +163,20 @@ public final class GatherSpeedSystem extends EntityEventSystem<EntityStore, Dama
         return Math.max(MIN_PERCENT, Math.min(ceiling, sum));
     }
 
-    /** Whether the block at {@code pos} in the breaker's world was placed by a player. */
+    /**
+     * Whether the block at {@code pos} in the breaker's world was placed by a player: the ledger's placed-by answer,
+     * which its anti-exploit guard never touches.
+     */
     private static boolean placed(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull Vector3i pos) {
         PlayerRef player = store.getComponent(ref, PlayerRef.getComponentType());
         UUID worldId = player == null ? null : player.getWorldUuid();
-        return worldId != null
-                && PlacedBlockLedger.getInstance().isPlaced(player.getUuid(), worldId, pos.x, pos.y, pos.z);
+        return worldId != null && PlacedBlockLedger.getInstance().wasPlaced(worldId, pos.x, pos.y, pos.z);
     }
 
     /**
      * How tall the column of {@code blockId} through {@code pos} stands: the block itself and the run of the same
-     * block straight above and below it, at most 64.
+     * block straight above and below it, at most 65.
      */
     static int columnOf(@Nonnull Store<EntityStore> store, @Nonnull String blockId, @Nonnull Vector3i pos) {
         World world = store.getExternalData().getWorld();

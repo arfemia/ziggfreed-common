@@ -42,10 +42,49 @@ public interface FactorLookup {
         return null;
     }
 
+    /**
+     * Percent points this moment adds to every roll's written {@code Chance} ({@link RollEvaluator#effectiveChancePercent}),
+     * before the 0..100 hold: a gathering moment's yield, say. 0 for an ordinary lookup; a roll that writes no
+     * {@code Chance} is certain and takes nothing from it.
+     */
+    default double chanceBonusPercent() {
+        return 0.0;
+    }
+
     /** A lookup that answers nothing, so every gate over it fails closed and every sum reads 0. */
     @Nonnull
     static FactorLookup none() {
         return (factorId, param) -> null;
+    }
+
+    /**
+     * {@code base}, answering the same readings and table question, with {@code percent} points added to every roll's
+     * written {@code Chance} ({@link #chanceBonusPercent}). {@code base} itself when the bonus is 0 or not a number.
+     */
+    @Nonnull
+    static FactorLookup withChanceBonus(@Nonnull FactorLookup base, double percent) {
+        if (!Double.isFinite(percent) || percent == 0.0) {
+            return base;
+        }
+        double bonus = base.chanceBonusPercent() + percent;
+        return new FactorLookup() {
+            @Nullable
+            @Override
+            public Double resolve(@Nonnull String factorId, @Nullable String param) {
+                return base.resolve(factorId, param);
+            }
+
+            @Nullable
+            @Override
+            public GateQuery gateQuery() {
+                return base.gateQuery();
+            }
+
+            @Override
+            public double chanceBonusPercent() {
+                return bonus;
+            }
+        };
     }
 
     /** A live lookup straight through {@code registry}, re-scoping {@code ctx} to each term's own param. */

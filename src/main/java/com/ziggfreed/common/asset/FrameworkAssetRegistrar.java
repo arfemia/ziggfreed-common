@@ -203,6 +203,8 @@ import com.ziggfreed.common.world.WeightedPrefabPlacementConfig;
 import com.ziggfreed.common.world.gather.BlockFamilyAsset;
 import com.ziggfreed.common.world.gather.BlockFamilyConfig;
 import com.ziggfreed.common.world.gather.BlockFamilyOwnerLayers;
+import com.ziggfreed.common.world.gather.GatherRulesAsset;
+import com.ziggfreed.common.world.gather.GatherRulesConfig;
 import com.ziggfreed.common.world.gather.GatherShapeAsset;
 import com.ziggfreed.common.world.gather.GatherShapeConfig;
 import com.ziggfreed.common.world.gather.GatherShapeOwnerLayers;
@@ -464,6 +466,18 @@ public final class FrameworkAssetRegistrar {
                     GatherShapeConfig.getInstance().mergePackLayer(AssetMergeAdapter.gate(GatherShapeConfig.MOD_GATE_STORE,
                             ev.getAssetMap(), s -> GateSpec.missingMod(s.requires())));
                     GatherShapeOwnerLayers.reload();
+                });
+
+        // --- Gather rules (Pattern A) - the gather steps' own numbers no stat carries: when a tree is tall, the
+        //     break chain's window and step cap, the shaped-placement flow. The library ships Default.json. Owner
+        //     file mods/ziggfreedcommon/gather-rules.json, re-read on this same event. No top-level Requires. ---
+        AssetStoreRegistrar.registerStore(GatherRulesAsset.class,
+                new DefaultAssetMap<String, GatherRulesAsset>(), GatherRulesAsset.TYPE_ROOT,
+                GatherRulesAsset::getId, GatherRulesAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, GatherRulesAsset.class,
+                (LoadedAssetsEvent<String, GatherRulesAsset, DefaultAssetMap<String, GatherRulesAsset>> ev) -> {
+                    GatherRulesConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    GatherRulesConfig.reloadOwner();
                 });
 
         // --- Gateways: where the way into another world stands, so a tracked quest whose character
@@ -1403,6 +1417,7 @@ public final class FrameworkAssetRegistrar {
                         + "Boosts (owner file mods/ziggfreedcommon/boosts.json), "
                         + "BoostSettings (owner file mods/ziggfreedcommon/boost-settings.json), "
                         + "WeakSpotSettings (owner file mods/ziggfreedcommon/weak-spots.json), "
+                        + "GatherRules (owner file mods/ziggfreedcommon/gather-rules.json), "
                         + "EffectFamilies (owner file mods/ziggfreedcommon/effect-families.json), "
                         + "ConditionalStats (owner file mods/ziggfreedcommon/conditional-stats.json), "
                         + "Procs (owner file mods/ziggfreedcommon/procs.json), "

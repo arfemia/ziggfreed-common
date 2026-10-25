@@ -109,8 +109,9 @@ public final class GatherShapeAsset implements JsonAssetWithMap<String, DefaultA
                         + "either.").add()
                 .appendInherited(new KeyedCodec<>("Placed", Codec.BOOLEAN, false),
                         (o, v) -> o.placed = v, o -> o.placed, (o, p) -> o.placed = p.placed)
-                .documentation("True: only a block a player placed (the placed-block ledger, or a log the engine "
-                        + "marks as placed). False: only a block nobody placed. Left out: either.").add()
+                .documentation("True: only a block a player placed (the placed-block ledger's record of who placed "
+                        + "it, kept for every placement whatever its anti-exploit guard says). False: only a block "
+                        + "nobody placed. Left out: either.").add()
                 .appendInherited(new KeyedCodec<>("PlacedWithin", FactorFormula.codec(EditorDataSets.FACTORS), false),
                         (o, v) -> o.placedWithin = v, o -> o.placedWithin, (o, p) -> o.placedWithin = p.placedWithin)
                 .documentation("Seconds: only a block this player placed this recently. A formula, so a talent's "
@@ -120,8 +121,9 @@ public final class GatherShapeAsset implements JsonAssetWithMap<String, DefaultA
                 .documentation("True: only when the block below is not the same block (a tree's lowest log).").add()
                 .appendInherited(new KeyedCodec<>("Own", Codec.BOOLEAN, false),
                         (o, v) -> o.own = v, o -> o.own, (o, p) -> o.own = p.own)
-                .documentation("True: only a block this player placed: the placed-block ledger's placer, or the "
-                        + "engine's own record on a farming block (a crop, a sapling or a trap they set down).").add()
+                .documentation("True: only a block this player placed, as the placed-block ledger answers it: the "
+                        + "engine's own record on a block that keeps one (a crop, a sapling, a trap, a chest), the "
+                        + "ledger's own elsewhere, whatever its anti-exploit guard says.").add()
                 .build();
 
         public Origin() {

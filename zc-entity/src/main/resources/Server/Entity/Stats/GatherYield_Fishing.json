@@ -1,0 +1,8 @@
+{
+  "$Comment": "Percent points added to the chance of a bonus find on a catch, in whole percent points: the fishing line of GatherYield, counted where a mod names it for a catch (ziggfreed-common's gather stat sources), beside GatherYield itself, so it raises a find's odds and never rolls a second time. Any item's StatModifiers raise it like any stat, and so does an effect's RawStatModifiers. Base 0; Min is a generous negative so a subtractive modifier never clamps.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

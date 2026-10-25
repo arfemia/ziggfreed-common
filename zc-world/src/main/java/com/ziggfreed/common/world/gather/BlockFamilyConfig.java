@@ -2,6 +2,9 @@ package com.ziggfreed.common.world.gather;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -9,6 +12,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -142,23 +146,84 @@ public final class BlockFamilyConfig extends AbstractKeyedAssetConfig<BlockFamil
 
     /**
      * The lower-cased ids of the families in {@code families} holding the block {@code blockId} whose item reads
-     * {@code rawTags}. Pure, so a test reads it with no engine.
+     * {@code rawTags}, a family a selector names through {@code Families} worked out once for the block and shared by
+     * every family naming it; a family that reaches itself that way names nothing through the loop. Pure, so a test
+     * reads it with no engine.
      */
     @Nonnull
     static Set<String> membership(@Nonnull String blockId, @Nullable Map<String, String[]> rawTags,
             @Nonnull Map<String, BlockFamilyAsset> families) {
-        Set<String> out = null;
+        Map<String, BlockFamilyAsset> byId = new LinkedHashMap<>();
         for (Map.Entry<String, BlockFamilyAsset> entry : families.entrySet()) {
-            BlockFamilyAsset family = entry.getValue();
-            String id = family == null || family.getId() == null ? entry.getKey() : family.getId();
-            if (family != null && family.holds(id, blockId, rawTags)) {
+            if (entry.getKey() != null && entry.getValue() != null) {
+                byId.put(entry.getKey().toLowerCase(Locale.ROOT), entry.getValue());
+            }
+        }
+        Membership walk = new Membership(blockId, rawTags, byId);
+        Set<String> out = null;
+        for (String id : byId.keySet()) {
+            if (walk.test(id)) {
                 if (out == null) {
                     out = new TreeSet<>();
                 }
-                out.add(entry.getKey().toLowerCase(Locale.ROOT));
+                out.add(id);
             }
         }
         return out == null ? Set.of() : Collections.unmodifiableSet(out);
+    }
+
+    /**
+     * One block's answer per family, each worked out once, a family reaching itself answering no along the loop. An
+     * answer worked out through a loop is not kept, so every family's answer is the one asking it first would give,
+     * whatever order the families are asked in.
+     */
+    private static final class Membership implements Predicate<String> {
+
+        @Nonnull private final String blockId;
+        @Nullable private final Map<String, String[]> rawTags;
+        @Nonnull private final Map<String, BlockFamilyAsset> byId;
+        @Nonnull private final Map<String, Boolean> known = new HashMap<>();
+        @Nonnull private final Set<String> walking = new HashSet<>();
+
+        /** Whether the answer being worked out met a family already being walked (a loop). */
+        private boolean looped;
+
+        Membership(@Nonnull String blockId, @Nullable Map<String, String[]> rawTags,
+                @Nonnull Map<String, BlockFamilyAsset> byId) {
+            this.blockId = blockId;
+            this.rawTags = rawTags;
+            this.byId = byId;
+        }
+
+        @Override
+        public boolean test(@Nonnull String familyId) {
+            String key = familyId.trim().toLowerCase(Locale.ROOT);
+            Boolean answer = known.get(key);
+            if (answer != null) {
+                return answer;
+            }
+            BlockFamilyAsset family = byId.get(key);
+            if (family == null) {
+                return false;
+            }
+            if (!walking.add(key)) {
+                looped = true;
+                return false;
+            }
+            boolean outer = looped;
+            looped = false;
+            try {
+                String id = family.getId() == null ? key : family.getId();
+                boolean holds = family.holds(id, blockId, rawTags, this);
+                if (!looped) {
+                    known.put(key, holds);
+                }
+                return holds;
+            } finally {
+                walking.remove(key);
+                looped = outer || looped;
+            }
+        }
     }
 
     private void invalidate() {

@@ -34,14 +34,19 @@ import com.ziggfreed.common.world.BuildPermission;
  * later, handing the item back. {@link BuildPermission} asks those two questions here, which is what
  * stops a player standing in such a place from clicking a stack of stone into free credit forever.
  *
- * <p><b>A CREATIVE-mode placement is not recorded.</b> An admin walling in an ore vein for survival
+ * <p><b>Every placement that lands is recorded with its placer</b>, whatever the policy says, so
+ * "who built this" has one answer ({@link PlacedBlockLedger#placedBy}) with the guard off or the
+ * builder exempt. What the policy and the game mode decide is only whether the guard holds the
+ * placement, which is all credit reads:
+ *
+ * <p><b>A CREATIVE-mode placement is not guarded.</b> An admin walling in an ore vein for survival
  * players to mine is doing the opposite of the exploit this guards against, and the block carries
  * no signal at break time about who put it there, so the decision has to be made now.
  *
  * <p><b>Nor is a placement by anyone the policy exempts.</b> Same case, for a builder who is in
  * survival rather than creative: {@link PlacedBlockLedger.Policy#guardsPlacementsBy} lets the
- * consumer name them (typically by permission). An exempt placement is simply never remembered, so
- * whoever breaks it later earns from it as they would from any other block. It still counts as a
+ * consumer name them (typically by permission). An exempt placement is recorded outside the guard,
+ * so whoever breaks it later earns from it as they would from any other block. It still counts as a
  * placement for everything else, including whatever the placer earns for making it.
  */
 public final class PlacedBlockRecorder extends EntityEventSystem<EntityStore, PlaceBlockEvent> {
@@ -67,7 +72,8 @@ public final class PlacedBlockRecorder extends EntityEventSystem<EntityStore, Pl
         var placed = event.getItemInHand();
         String itemId = placed == null ? null : placed.getItemId();
         Ref<EntityStore> ref = archetypeChunk.getReferenceTo(index);
-        if (!placementCounts(store, ref, event)) {
+        GameMode gameMode = gameModeOf(store, ref);
+        if (!placementLands(store, event, gameMode)) {
             return;
         }
         PlayerRef playerRef = store.getComponent(ref, PlayerRef.getComponentType());
@@ -75,21 +81,21 @@ public final class PlacedBlockRecorder extends EntityEventSystem<EntityStore, Pl
             return;
         }
         PlacedBlockLedger ledger = PlacedBlockLedger.getInstance();
-        if (!ledger.policy().guardsPlacementsBy(playerRef)) {
-            // Somebody building FOR other players to work: what they put down is meant to pay out,
-            // so it is left unrecorded and reads as an ordinary block from here on. They still earn
-            // for placing it - this decides only whether the block is remembered.
-            return;
-        }
+        // Somebody building FOR other players to work (exempt, or in creative): what they put down is meant to pay
+        // out, so the guard leaves it alone and it earns as an ordinary block does. It is still recorded with its
+        // placer, and they still earn for placing it: this decides only credit.
+        boolean guarded = gameMode != GameMode.Creative && ledger.policy().guardsPlacementsBy(playerRef);
         var position = event.getTargetBlock();
         ledger.trackPlacement(playerRef.getUuid(), playerRef.getWorldUuid(),
-                position.x, position.y, position.z);
-        ledger.trackPlacedItem(playerRef.getUuid(), itemId);
+                position.x, position.y, position.z, guarded);
+        if (guarded) {
+            ledger.trackPlacedItem(playerRef.getUuid(), itemId);
+        }
     }
 
     /**
      * The whole question for one native placement event, and the ONE reading of it shared with the
-     * library's own {@code PLACE_BLOCK} producer, so what is recorded here and what is produced as
+     * library's own {@code PLACE_BLOCK} producer, so what the guard holds here and what is produced as
      * a moment can never drift apart: a placement one of them counts is a placement the other
      * counts. It is the three filters in the class javadoc PLUS the engine's own build permission
      * for the spot ({@link BuildPermission}), because the native event is dispatched BEFORE the
@@ -102,16 +108,31 @@ public final class PlacedBlockRecorder extends EntityEventSystem<EntityStore, Pl
      */
     public static boolean placementCounts(@Nonnull Store<EntityStore> store,
             @Nonnull Ref<EntityStore> ref, @Nonnull PlaceBlockEvent event) {
+        GameMode gameMode = gameModeOf(store, ref);
+        return gameMode != GameMode.Creative && placementLands(store, event, gameMode);
+    }
+
+    /**
+     * Whether one native placement event puts a block down at all, whoever places it and in whatever game mode: not
+     * cancelled, something in hand, and a spot the world lets them build on ({@link BuildPermission}). Every such
+     * placement is recorded with its placer.
+     */
+    private static boolean placementLands(@Nonnull Store<EntityStore> store, @Nonnull PlaceBlockEvent event,
+            @Nullable GameMode gameMode) {
         var placed = event.getItemInHand();
         String itemId = placed == null ? null : placed.getItemId();
-        Player player = store.getComponent(ref, Player.getComponentType());
-        GameMode gameMode = player == null ? null : player.getGameMode();
-        if (!placementCounts(event.isCancelled(), itemId, gameMode)) {
+        if (!placementCounts(event.isCancelled(), itemId, null)) {
             return false;
         }
         var position = event.getTargetBlock();
         return BuildPermission.allowsPlacement(store.getExternalData().getWorld(), gameMode,
                 position.x(), position.y(), position.z());
+    }
+
+    @Nullable
+    private static GameMode gameModeOf(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
+        Player player = store.getComponent(ref, Player.getComponentType());
+        return player == null ? null : player.getGameMode();
     }
 
     /**

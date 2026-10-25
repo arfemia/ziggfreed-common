@@ -2,6 +2,7 @@ package com.ziggfreed.common.world.gather;
 
 import javax.annotation.Nonnull;
 
+import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -25,6 +26,14 @@ public final class GatherBootstrap {
         } catch (Throwable t) {
             SafeLog.warn("[gather] the gather speed step could not be registered: no GatherSpeed stat speeds a block"
                     + " this boot", t);
+        }
+        try {
+            // A player's break chain and recent placements are forgotten when they leave.
+            plugin.getEventRegistry().register(PlayerDisconnectEvent.class, GatherChains::onDisconnect);
+            plugin.getEventRegistry().register(PlayerDisconnectEvent.class, RecentPlacements::onDisconnect);
+        } catch (Throwable t) {
+            SafeLog.warn("[gather] the leave-time clear could not be registered: a departed player's break chain and"
+                    + " placements stay in memory until the sweep this boot", t);
         }
         try {
             plugin.getEntityStoreRegistry().registerSystem(new GatherCareSystem());

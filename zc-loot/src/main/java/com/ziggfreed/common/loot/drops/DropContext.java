@@ -67,11 +67,19 @@ public final class DropContext {
     }
 
     /**
-     * Who a drop is for: the player its table's gates and chances are asked about (and its cues played to), and what
-     * the moment was about, the entity that died or the block that broke, each when known.
+     * Who a drop is for: the player its table's gates and chances are asked about (and its cues played to), what the
+     * moment was about, the entity that died or the block that broke, each when known, and the percent points the
+     * moment adds to every roll's written {@code Chance} ({@code chanceBonus}: a broken block's gathering yield, 0 for
+     * none).
      */
     public record Who(@Nonnull Subject subject, @Nonnull Ref<EntityStore> player, @Nullable Ref<EntityStore> target,
-            @Nullable String blockId) {
+            @Nullable String blockId, double chanceBonus) {
+
+        /** A drop with no chance bonus. */
+        public Who(@Nonnull Subject subject, @Nonnull Ref<EntityStore> player, @Nullable Ref<EntityStore> target,
+                @Nullable String blockId) {
+            this(subject, player, target, blockId, 0.0);
+        }
 
         /** The factor context this drop's table reads: the player, the entity it happened to, the block it was. */
         @Nonnull

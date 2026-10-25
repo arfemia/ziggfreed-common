@@ -1,0 +1,6 @@
+{
+  "$Comment": "The gather steps' own rules on this server, the numbers no stat carries. TallTree.Logs is how many blocks one column of the same log must stand for its tree to be tall (GatherSpeed_Tall_Tree speeds those logs). Rhythm is the break chain GatherRhythm reads: a break within WindowSeconds of the last adds a step, up to MaxSteps. Shaped.FlowSeconds is how long after a placement continuing a straight run of three every placement still counts as shaped (BuildThrift_Shaped spares those). Change any of them in mods/ziggfreedcommon/gather-rules.json, under the id Default.",
+  "TallTree": { "Logs": 10 },
+  "Rhythm": { "WindowSeconds": 2, "MaxSteps": 5 },
+  "Shaped": { "FlowSeconds": 10 }
+}

@@ -215,6 +215,41 @@ class PlacedBlockSectionTest {
     }
 
     /**
+     * Whether the anti-exploit guard holds a placement is kept per block beside its placer (R879): a placement the
+     * guard leaves alone still names its placer, both survive a chunk save, and a mark kept before the guard state
+     * was (no palette at all) reads guarded, as every mark was then.
+     */
+    @Test
+    void theGuardStateSurvivesASaveBesideThePlacer() throws Exception {
+        PlacedBlockSection section = new PlacedBlockSection();
+        UUID builder = new UUID(3L, 4L);
+        int guarded = ChunkUtil.indexBlock(1, 1, 1);
+        int open = ChunkUtil.indexBlock(2, 1, 1);
+        section.setMarked(guarded, true, builder, true);
+        section.setMarked(open, true, builder, false);
+        assertTrue(section.guardedAt(guarded));
+        assertFalse(section.guardedAt(open));
+        assertEquals(builder, section.placerAt(open), "a placement the guard leaves alone still names its placer");
+
+        PlacedBlockSection restored = roundTrip(section);
+        assertTrue(restored.guardedAt(guarded));
+        assertFalse(restored.guardedAt(open));
+        assertEquals(builder, restored.placerAt(guarded));
+        assertEquals(builder, restored.placerAt(open));
+
+        PlacedBlockSection lone = new PlacedBlockSection();
+        lone.setMarked(open, true, builder, false);
+        PlacedBlockSection loneRestored = roundTrip(lone);
+        assertFalse(loneRestored.guardedAt(open), "a section one exempt builder built in keeps that through a save");
+        assertEquals(builder, loneRestored.placerAt(open));
+        assertFalse(loneRestored.guardedAt(guarded), "an unmarked block is not guarded");
+
+        PlacedBlockSection legacy = new PlacedBlockSection();
+        legacy.setMarked(guarded, true);
+        assertTrue(roundTrip(legacy).guardedAt(guarded), "a mark with no placer kept reads guarded");
+    }
+
+    /**
      * The spared mark is its own record: it survives a save with what each spared block was, beside
      * the placers, and an emptied section drops it.
      */

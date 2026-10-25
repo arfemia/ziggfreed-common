@@ -139,6 +139,7 @@ import com.ziggfreed.common.ui.hud.card.HudCardAsset;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.world.WeightedPrefabPlacementAsset;
 import com.ziggfreed.common.world.gather.BlockFamilyAsset;
+import com.ziggfreed.common.world.gather.GatherRulesAsset;
 import com.ziggfreed.common.world.gather.GatherShapeAsset;
 import com.ziggfreed.common.world.WorldSelector;
 import com.ziggfreed.common.worldmap.GatewayAsset;
@@ -675,6 +676,10 @@ class AssetCodecInitTest {
         assertNotNull(GatherShapeAsset.Shape.CODEC, "GatherShapeAsset.Shape.CODEC must static-init");
         assertNotNull(GatherShapeAsset.Offset.CODEC, "GatherShapeAsset.Offset.CODEC must static-init");
         assertNotNull(GatherShapeAsset.Canopy.CODEC, "GatherShapeAsset.Canopy.CODEC must static-init");
+        assertNotNull(GatherRulesAsset.CODEC, "GatherRulesAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(GatherRulesAsset.TallTree.CODEC, "GatherRulesAsset.TallTree.CODEC must static-init");
+        assertNotNull(GatherRulesAsset.Rhythm.CODEC, "GatherRulesAsset.Rhythm.CODEC must static-init");
+        assertNotNull(GatherRulesAsset.Shaped.CODEC, "GatherRulesAsset.Shaped.CODEC must static-init");
     }
 
     @Test

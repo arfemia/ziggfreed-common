@@ -73,4 +73,40 @@ class BlockFamilyAssetTest {
                 BlockFamilyConfig.membership("Rock_Basalt", tags("Type", "Rock"), families));
         assertEquals(Set.of(), BlockFamilyConfig.membership("Soil_Dirt", tags("Type", "Soil"), families));
     }
+
+    /**
+     * A selector's {@code Families} names other families by id, so a family is written once: the soft woods are the
+     * logs the hard woods leave, and a family that reaches itself names nothing through the loop rather than recursing.
+     */
+    @Test
+    void aFamilyNamesOtherFamiliesAndALoopNamesNothing() throws IOException {
+        Map<String, BlockFamilyAsset> families = new LinkedHashMap<>();
+        families.put("log", decode("Log", "{\"Match\": {\"Tags\": {\"Type\": [\"Trunk\"]}}}"));
+        families.put("hard_wood", decode("Hard_Wood", "{\"Match\": {\"Blocks\": [\"Wood_Ice_*\"]}}"));
+        families.put("soft_wood", decode("Soft_Wood",
+                "{\"Match\": {\"Families\": [\"Log\"]}, \"Exclude\": {\"Families\": [\"hard_wood\"]}}"));
+        families.put("loop", decode("Loop", "{\"Match\": {\"Families\": [\"Loop\"], \"Blocks\": [\"Wood_Oak_*\"]}}"));
+        assertEquals(Set.of("log", "soft_wood", "loop"),
+                BlockFamilyConfig.membership("Wood_Oak_Trunk", tags("Type", "Trunk"), families));
+        assertEquals(Set.of("log", "hard_wood"),
+                BlockFamilyConfig.membership("Wood_Ice_Trunk", tags("Type", "Trunk"), families));
+        assertEquals(Set.of(), BlockFamilyConfig.membership("Rock_Stone", tags("Type", "Rock"), families),
+                "a loop with nothing else to name holds nothing");
+
+        // Two families naming each other answer the same whichever is asked first.
+        for (boolean pingFirst : new boolean[] {true, false}) {
+            Map<String, BlockFamilyAsset> pair = new LinkedHashMap<>();
+            BlockFamilyAsset ping = decode("Ping", "{\"Match\": {\"Families\": [\"Pong\"], \"Blocks\": [\"Rock_X\"]}}");
+            BlockFamilyAsset pong = decode("Pong", "{\"Match\": {\"Families\": [\"Ping\"]}}");
+            if (pingFirst) {
+                pair.put("ping", ping);
+                pair.put("pong", pong);
+            } else {
+                pair.put("pong", pong);
+                pair.put("ping", ping);
+            }
+            assertEquals(Set.of("ping", "pong"), BlockFamilyConfig.membership("Rock_X", null, pair),
+                    "ping asked " + (pingFirst ? "first" : "second"));
+        }
+    }
 }

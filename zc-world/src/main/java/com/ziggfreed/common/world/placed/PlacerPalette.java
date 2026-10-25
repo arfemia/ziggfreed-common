@@ -10,11 +10,16 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.math.util.ChunkUtil;
 
 /**
- * Who placed each marked block of one chunk section, kept as small as the section allows: a palette of the placers
- * seen in it and, only once a second one arrives, a packed index per block into that palette, the way the engine
- * keeps a section's block ids. A section one player built in holds one id and nothing per block; two placers cost a
- * bit a block (4KB), up to four two bits (8KB), up to sixteen four (16KB), and up to {@value #MAX_ENTRIES} a byte
- * (32KB). A null entry stands for a block marked before placers were kept, which nobody owns.
+ * Who placed each marked block of one chunk section, and whether the anti-exploit guard holds that placement, kept as
+ * small as the section allows: a palette of the (placer, guarded) pairs seen in it and, only once a second one arrives,
+ * a packed index per block into that palette, the way the engine keeps a section's block ids. A section one player
+ * built in holds one entry and nothing per block; two entries cost a bit a block (4KB), up to four two bits (8KB), up
+ * to sixteen four (16KB), and up to {@value #MAX_ENTRIES} a byte (32KB). A null placer stands for a block marked before
+ * placers were kept, which nobody owns; such a block is guarded, as every mark was then.
+ *
+ * <p>A placement the guard does not hold (a builder the policy exempts, a creative placement, one made while the guard
+ * was off) is its own entry beside the same player's guarded one, so a section one player builds in alike costs nothing
+ * a block either way.
  *
  * <p>The value at an unmarked block means nothing: {@link PlacedBlockSection} reads it only where its mark is set,
  * and empties the palette when its last mark is spent. World-thread only, like the section that holds it.
@@ -26,9 +31,15 @@ final class PlacerPalette {
 
     private static final UUID[] NONE = new UUID[0];
 
+    private static final boolean[] NO_FLAGS = new boolean[0];
+
     /** The placers seen here in arrival order; a null entry is the unknown placer. */
     @Nonnull
     private UUID[] entries = NONE;
+
+    /** Beside each entry: true when the guard does not hold that entry's placements. */
+    @Nonnull
+    private boolean[] unguarded = NO_FLAGS;
 
     /** Bits a block in {@link #packed}: 0 while the palette holds at most one entry, else 1, 2, 4 or 8. */
     private int bits;
@@ -61,27 +72,41 @@ final class PlacerPalette {
         if (entries.length == 0) {
             return null;
         }
-        return bits == 0 ? entries[0] : entries[read(index)];
+        return entries[slot(index)];
     }
 
     /**
-     * Record {@code placer} at section-local {@code index}. {@code othersMarked} says the section already holds marks
-     * this palette never saw (a section saved before placers were kept), so they stay unknown rather than reading as
-     * the first placer to arrive.
+     * Whether the guard holds the placement at section-local {@code index}: true for a palette that names nobody (a
+     * mark kept before placers were), as every mark was guarded then.
      */
-    void set(int index, @Nullable UUID placer, boolean othersMarked) {
-        if (entries.length == 0 && othersMarked) {
-            append(null);
+    boolean guarded(int index) {
+        if (entries.length == 0) {
+            return true;
         }
-        int value = indexOf(placer);
+        return !unguarded[slot(index)];
+    }
+
+    /**
+     * Record {@code placer} at section-local {@code index}, the guard holding the placement or not. {@code othersMarked}
+     * says the section already holds marks this palette never saw (a section saved before placers were kept), so they
+     * stay unknown (and guarded) rather than reading as the first placer to arrive.
+     */
+    void set(int index, @Nullable UUID placer, boolean guarded, boolean othersMarked) {
+        if (entries.length == 0 && othersMarked) {
+            append(null, false);
+        }
+        boolean open = !guarded;
+        int value = indexOf(placer, open);
         if (value < 0) {
-            if (placer != null && entries.length >= MAX_ENTRIES - 1 && indexOf(null) < 0) {
+            if (placer != null && entries.length == MAX_ENTRIES - 1 && unknownSlot(open) < 0) {
                 // One slot is always left for the unknown placer, so a crowded section still records something.
-                value = append(null);
+                value = append(null, open);
             } else if (entries.length >= MAX_ENTRIES) {
-                value = Math.max(0, indexOf(null));
+                // A full palette records the unknown placer, under the other guard state when only that one is left,
+                // else slot 0 whatever it says: so the guard flag of a placement in a full section may read wrong.
+                value = Math.max(0, unknownSlot(open));
             } else {
-                value = append(placer);
+                value = append(placer, open);
             }
         }
         if (bits > 0) {
@@ -92,6 +117,7 @@ final class PlacerPalette {
     /** Forget every placer: the section's last mark is gone. */
     void clear() {
         entries = NONE;
+        unguarded = NO_FLAGS;
         bits = 0;
         packed = null;
     }
@@ -100,9 +126,18 @@ final class PlacerPalette {
     PlacerPalette copy() {
         PlacerPalette copy = new PlacerPalette();
         copy.entries = entries.length == 0 ? NONE : Arrays.copyOf(entries, entries.length);
+        copy.unguarded = unguarded.length == 0 ? NO_FLAGS : Arrays.copyOf(unguarded, unguarded.length);
         copy.bits = bits;
         copy.packed = packed == null ? null : Arrays.copyOf(packed, packed.length);
         return copy;
+    }
+
+    /**
+     * Whether the palette says anything a save must keep: false when it names nobody, or only the unknown placer
+     * under the guard (what a section saved with no palette reads as anyway).
+     */
+    boolean saysAnything() {
+        return entries.length > 1 || (entries.length == 1 && (entries[0] != null || unguarded[0]));
     }
 
     // ==================== the saved form ====================
@@ -111,6 +146,11 @@ final class PlacerPalette {
     @Nonnull
     UUID[] entries() {
         return entries;
+    }
+
+    /** Whether the guard leaves entry {@code slot}'s placements alone, for the section's codec. */
+    boolean unguardedAt(int slot) {
+        return slot >= 0 && slot < unguarded.length && unguarded[slot];
     }
 
     /** The packed values, for the section's codec; null while {@link #bits} is 0. */
@@ -131,17 +171,21 @@ final class PlacerPalette {
 
     /**
      * Restore a saved palette; false (the palette left empty) when the pieces do not fit together, which a caller
-     * reads as every marked block's placer unknown.
+     * reads as every marked block's placer unknown. {@code savedUnguarded} runs beside {@code savedEntries}; null
+     * reads as every entry guarded.
      */
-    boolean restore(@Nonnull UUID[] savedEntries, int savedBits, @Nullable long[] savedPacked) {
+    boolean restore(@Nonnull UUID[] savedEntries, @Nullable boolean[] savedUnguarded, int savedBits,
+            @Nullable long[] savedPacked) {
         clear();
         if (savedEntries.length == 0 || savedEntries.length > MAX_ENTRIES || !validWidth(savedBits)
                 || widthFor(savedEntries.length) > savedBits
                 || (savedBits == 0) != (savedPacked == null)
-                || (savedPacked != null && savedPacked.length != longsFor(savedBits))) {
+                || (savedPacked != null && savedPacked.length != longsFor(savedBits))
+                || (savedUnguarded != null && savedUnguarded.length != savedEntries.length)) {
             return false;
         }
         entries = savedEntries;
+        unguarded = savedUnguarded != null ? savedUnguarded : new boolean[savedEntries.length];
         bits = savedBits;
         packed = savedPacked;
         return true;
@@ -149,19 +193,32 @@ final class PlacerPalette {
 
     // ==================== the packing ====================
 
-    private int indexOf(@Nullable UUID placer) {
+    /** The palette slot the block at section-local {@code index} reads; the palette must name somebody. */
+    private int slot(int index) {
+        return bits == 0 ? 0 : read(index);
+    }
+
+    private int indexOf(@Nullable UUID placer, boolean open) {
         for (int i = 0; i < entries.length; i++) {
-            if (Objects.equals(entries[i], placer)) {
+            if (Objects.equals(entries[i], placer) && unguarded[i] == open) {
                 return i;
             }
         }
         return -1;
     }
 
-    private int append(@Nullable UUID placer) {
+    /** The unknown placer's slot with this guard state, else the unknown placer's under either, else -1. */
+    private int unknownSlot(boolean open) {
+        int exact = indexOf(null, open);
+        return exact >= 0 ? exact : indexOf(null, !open);
+    }
+
+    private int append(@Nullable UUID placer, boolean open) {
         int value = entries.length;
         entries = Arrays.copyOf(entries, value + 1);
         entries[value] = placer;
+        unguarded = Arrays.copyOf(unguarded, value + 1);
+        unguarded[value] = open;
         int needed = widthFor(entries.length);
         if (needed > bits) {
             widen(needed);

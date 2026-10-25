@@ -53,6 +53,8 @@ import com.ziggfreed.common.progress.runtime.MomentPayload;
 import com.ziggfreed.common.subject.PlayerRefSubjectHandle;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.world.gather.GatherStatSources;
+import com.ziggfreed.common.world.gather.GatherYields;
 import com.ziggfreed.common.world.gather.ShapedBreaks;
 
 /**
@@ -60,7 +62,9 @@ import com.ziggfreed.common.world.gather.ShapedBreaks;
  * that reads only the library's own table ({@link BonusRowConfig}), never a consumer's.
  *
  * <p>No gate beyond the row's own: the producers already skip what the player placed and credit a
- * kill to a player only. A row with no {@code Chance} always fires; its odds are its rolls'. The
+ * kill to a player only. A row with no {@code Chance} always fires; its odds are its rolls'. A break's
+ * and a hand harvest's row adds the player's gathering yield ({@link GatherYields}) to a {@code Chance}
+ * it writes, so yield raises a find's odds and never rolls a second time. The
  * pass pays through the moment's own quest subject (the runtime's, so a consumer's notification
  * preferences reach a cue toast), or a subject over the player reference when the runtime has none.
  * A harvest's pass waits for one world task past the engine's own give and re-reads the event there.
@@ -152,7 +156,8 @@ public final class BonusRowReactions implements MomentListener {
         }
         Store<EntityStore> store = moment.store();
         FactorContext about = context(store, moment.ref(), null, null);
-        if (!fires(row, about)) {
+        if (!fires(row, about, GatherYields.percentFor(store, moment.ref(), GatherStatSources.On.BREAK,
+                moment.target()))) {
             return;
         }
         Subject subject = subjectOf(moment);
@@ -176,7 +181,7 @@ public final class BonusRowReactions implements MomentListener {
         Store<EntityStore> store = moment.store();
         Ref<EntityStore> victim = payload.victimRef();
         FactorContext about = context(store, moment.ref(), victim, null);
-        if (!fires(row, about)) {
+        if (!fires(row, about, 0.0)) {
             return;
         }
         Subject subject = subjectOf(moment);
@@ -270,7 +275,7 @@ public final class BonusRowReactions implements MomentListener {
                 return;
             }
             FactorContext about = context(store, ref, null, harvest);
-            if (!fires(row, about)) {
+            if (!fires(row, about, GatherYields.percentFor(store, ref, GatherStatSources.On.HARVEST, target))) {
                 return;
             }
             String sourceId = SOURCE_PREFIX + row.sourceId();
@@ -286,7 +291,11 @@ public final class BonusRowReactions implements MomentListener {
 
     // ==================== shared by the three ====================
 
-    private static boolean fires(@Nonnull BonusRow row, @Nonnull FactorContext about) {
+    /**
+     * Whether {@code row} fires for the moment: its own {@code Requires}, then its chance, with {@code yieldPercent}
+     * points (a break's or a harvest's gathering yield, {@link GatherYields}) added to a chance the row writes.
+     */
+    private static boolean fires(@Nonnull BonusRow row, @Nonnull FactorContext about, double yieldPercent) {
         // The row's own Requires first, every condition (its mod presence was decided at the fold): a
         // player it refuses takes no chance draw. The loot vocabulary answers first for its own ids. A row with
         // no live Requires builds no query.
@@ -295,8 +304,8 @@ public final class BonusRowReactions implements MomentListener {
                 && !StoreGates.passes(live, GateQuery.builder().context(about).local(factors()).build())) {
             return false;
         }
-        double chance = BonusChance.fraction(row.chance(), UNWRITTEN_CHANCE, factors(), about, row.sourceId(),
-                SafeLog::warn);
+        double chance = BonusChance.fraction(row.chance(), UNWRITTEN_CHANCE, yieldPercent, factors(), about,
+                row.sourceId(), SafeLog::warn);
         return BonusChance.fires(chance, ThreadLocalRandom.current()::nextDouble);
     }
 
