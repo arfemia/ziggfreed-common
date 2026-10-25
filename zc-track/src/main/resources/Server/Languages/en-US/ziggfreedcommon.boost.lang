@@ -35,6 +35,14 @@ refused.cooldown = You can start {0} again in {1}.
 refused.stack = {0} is already running as many times as it can.
 refused.personal_full = You already have {0, number} {0, plural, one {boost} other {boosts}} running, the most you can have at once.
 refused.server_full = The server already has {0, number} {0, plural, one {boost} other {boosts}} running, the most it can have at once.
+refused.needs_player = {0} lifts one player, so it has to be started by a player.
+
+# A boost token's tooltip, when the token carries its own numbers. {0} what it starts, as a reward reads.
+token.description = Use it to start {0}.
+
+# The library's boost token item (Zig_Boost_Token), before a token's own tooltip line says what it starts.
+item.name = Boost Token
+item.description = Hold right-click to use it and start the boost it carries.
 
 # A boost reward that could not start yet. {0} the boost.
 waits = {0} could not start yet, so it is waiting in your Claims.
@@ -45,15 +53,31 @@ claim.reward = {0}
 
 # /zigboost, the admin family. The command.desc.* keys are what the engine's own help resolves a command or an
 # argument's description from.
-command.desc.family = Start boosts for players.
+command.desc.family = Start boosts for players, give boost tokens, or start a boost of your own.
 command.desc.start = Start a boost for a player, the way a boost item would.
 command.desc.arg.player = The player, who has to be online. Defaults to you.
 command.desc.arg.boost = The boost, by its id.
 command.desc.arg.percent = How much it lifts by, as a percent, in place of the boost's own.
 command.desc.arg.seconds = How long it runs, in seconds, in place of the boost's own.
+command.desc.arg.track = The one track it lifts, out of those the boost lifts. Leave it out for all of them.
 command.player.needed = Name a player with --player=<name>.
 command.player.offline = That player is not in a world right now. Try again in a moment.
 command.boost.needed = Name a boost with --boost=<id>.
 # In command.start.done {0} is the boost and {1} the player; in command.start.refused {0} is the player.
 command.start.done = Started {0} for {1}.
 command.start.refused = Could not start that boost for {0}.
+command.desc.give = Give a player boost tokens that start a boost when used.
+command.desc.arg.quantity = How many tokens, up to one full stack. Defaults to 1.
+# In command.give.done {0} is how many, {1} the boost and {2} the player.
+command.give.done = Gave {0, number} {0, plural, one {token} other {tokens}} for {1} to {2}.
+command.give.unknown = That boost is not on this server, or it runs on its own, so no token can start it.
+command.give.refused = Could not give {0} the tokens. Their bag may be full, and nothing landed at their feet.
+command.desc.own = Start a boost you may start yourself, or list them.
+command.desc.arg.own = The boost, by its id. Leave it out to list the boosts you may start.
+command.own.needs_player = Only a player can start a boost of their own.
+command.own.none = There is no boost you can start yourself right now.
+command.own.list = Boosts you can start with /zigboost own --boost=<id>:
+# In command.own.line {0} is the boost and {1} its id; in command.own.line_wait {2} is how long is left.
+command.own.line = {0} ({1})
+command.own.line_wait = {0} ({1}), ready again in {2}
+command.own.refused = That boost did not start.

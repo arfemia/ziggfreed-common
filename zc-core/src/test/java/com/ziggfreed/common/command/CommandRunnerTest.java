@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -54,6 +55,15 @@ class CommandRunnerTest {
             // mistake visible in whatever ran.
             assertEquals("give Bob {itme}",
                     CommandRunner.substitute("give {player} {itme}", Map.of("player", "Bob")));
+        }
+
+        @Test
+        void aValueIsNeverSubstitutedAgain() {
+            // A player named "{boost}" must reach the command as written, whatever order the keys come in.
+            Map<String, String> values = new LinkedHashMap<>();
+            values.put("player", "{boost}");
+            values.put("boost", "op me");
+            assertEquals("say {boost} started op me", CommandRunner.substitute("say {player} started {boost}", values));
         }
 
         @Test

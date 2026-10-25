@@ -29,7 +29,8 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The reward kind that starts a boost: {@code {"Kind": "Boost", "Params": {"Boost": "<Id>"}}}, with an optional
- * {@code Percent} and {@code Seconds} in place of the boost's own. UNPREFIXED because the library owns the starter
+ * {@code Percent} and {@code Seconds} in place of the boost's own, and a {@code Track} pointing it at one track of
+ * those the boost lifts. UNPREFIXED because the library owns the starter
  * behind it, and registered once into the shared vocabulary, so a quest, a board contract, an achievement, a shop
  * entry, a lootable and a track's unlock row all pay it, and each of those sites parks it as a Claim (M428): the
  * boost starts when the player collects it, never before.
@@ -51,6 +52,7 @@ final class BoostRewardKind implements RewardHandler {
     static final String PARAM_BOOST = "boost";
     static final String PARAM_PERCENT = "percent";
     static final String PARAM_SECONDS = "seconds";
+    static final String PARAM_TRACK = "track";
 
     /** What a waiting Claim's id and source start with. */
     private static final String WAITING_SOURCE = "boost:";
@@ -91,8 +93,14 @@ final class BoostRewardKind implements RewardHandler {
         Double percent = percentOf(spec);
         Long seconds = secondsOf(spec);
         return RewardChip.picture(boost.icon(), BoostText.rewardLine(boost,
-                percent == null ? boost.percent() : percent, seconds == null ? boost.seconds() : seconds),
-                BoostText.name(boost));
+                percent == null ? boost.percent() : percent, seconds == null ? boost.seconds() : seconds,
+                trackOf(spec)), BoostText.name(boost));
+    }
+
+    /** The one track it points the boost at, trimmed, or null for all the boost lifts. */
+    @Nullable
+    public static String trackOf(@Nonnull RewardSpec spec) {
+        return BoostAsset.blankToNull(spec.param(PARAM_TRACK));
     }
 
     /** Which boost {@code spec} starts, trimmed; empty when it names none. */
@@ -142,7 +150,8 @@ final class BoostRewardKind implements RewardHandler {
         if (boostId.isEmpty()) {
             throw new IllegalStateException("a reward of kind '" + KIND + "' needs a 'Boost'");
         }
-        Boosts.Start start = Boosts.start(subject.id(), boostId, percentOf(spec), secondsOf(spec), sourceId);
+        Boosts.Start start = Boosts.start(subject.id(), boostId, percentOf(spec), secondsOf(spec), trackOf(spec),
+                sourceId);
         if (start.started()) {
             receipt.accept(spec);
             return;
@@ -175,6 +184,10 @@ final class BoostRewardKind implements RewardHandler {
         String seconds = spec.param(PARAM_SECONDS);
         if (secondsOf(spec) != null && seconds != null) {
             line += " --seconds=" + seconds.trim();
+        }
+        String track = trackOf(spec);
+        if (track != null) {
+            line += " --track=" + track;
         }
         return line;
     }

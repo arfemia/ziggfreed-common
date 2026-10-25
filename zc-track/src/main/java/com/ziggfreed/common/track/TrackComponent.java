@@ -282,8 +282,8 @@ public final class TrackComponent implements Component<EntityStore> {
     }
 
     /**
-     * The saved shape of the player's own boosts: {@code Runs} (each start's boost, percent, start, end and who
-     * started it) and {@code Cooldowns} (per boost id, when its next start may come, in epoch milliseconds). A new
+     * The saved shape of the player's own boosts: {@code Runs} (each start's boost, percent, start, end, who
+     * started it and the one track it names, if any) and {@code Cooldowns} (per boost id, when its next start may come, in epoch milliseconds). A new
      * fact is a new leaf, never a rename.
      */
     static final class BoostsSave {
@@ -336,7 +336,7 @@ public final class TrackComponent implements Component<EntityStore> {
                     if (row != null && row.boost != null && !row.boost.isBlank()) {
                         runs.add(new BoostRun(row.boost, row.percent == null ? 0.0 : row.percent,
                                 row.startedAt == null ? 0L : row.startedAt, row.endsAt == null ? 0L : row.endsAt,
-                                row.by == null ? "" : row.by));
+                                row.by == null ? "" : row.by, row.track));
                     }
                 }
             }
@@ -345,7 +345,7 @@ public final class TrackComponent implements Component<EntityStore> {
         }
     }
 
-    /** One saved start of a boost. */
+    /** One saved start of a boost; {@code Track} only when the start names one. */
     static final class RunSave {
 
         @Nullable String boost;
@@ -353,6 +353,7 @@ public final class TrackComponent implements Component<EntityStore> {
         @Nullable Long startedAt;
         @Nullable Long endsAt;
         @Nullable String by;
+        @Nullable String track;
 
         static final BuilderCodec<RunSave> CODEC = BuilderCodec.builder(RunSave.class, RunSave::new)
                 .append(new KeyedCodec<>("Boost", Codec.STRING, false), (o, v) -> o.boost = v, o -> o.boost)
@@ -365,6 +366,8 @@ public final class TrackComponent implements Component<EntityStore> {
                 .append(new KeyedCodec<>("EndsAt", Codec.LONG, false), (o, v) -> o.endsAt = v, o -> o.endsAt)
                 .add()
                 .append(new KeyedCodec<>("By", Codec.STRING, false), (o, v) -> o.by = v, o -> o.by)
+                .add()
+                .append(new KeyedCodec<>("Track", Codec.STRING, false), (o, v) -> o.track = v, o -> o.track)
                 .add()
                 .build();
 
@@ -379,6 +382,7 @@ public final class TrackComponent implements Component<EntityStore> {
             row.startedAt = run.startedAt();
             row.endsAt = run.endsAt();
             row.by = run.by().isEmpty() ? null : run.by();
+            row.track = run.track();
             return row;
         }
     }

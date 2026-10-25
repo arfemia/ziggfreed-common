@@ -124,8 +124,26 @@ public final class BoostFactor implements GainFactor {
     /** Every boost lifting {@code scope}'s track at {@code nowMs}. */
     @Nonnull
     private static Lifts collect(@Nonnull GainScope scope, long nowMs) {
-        String trackId = scope.trackId();
-        String categoryId = scope.categoryId();
+        TrackStore store = scope.playerId() == null ? null : TrackStores.forKey(scope.key());
+        HeldBoosts held = store == null ? null : store.boosts(scope.key().subject());
+        return collect(scope.trackId(), scope.categoryId(), held, nowMs);
+    }
+
+    /**
+     * The multiplier every boost lifting {@code trackId} (in {@code categoryId}, null for none) would apply now for
+     * the player {@code held} belongs to (their own starts, null for none) at {@code ref} (asked a conditional boost's
+     * {@code Requires}; null passes none of them): the standing boosts, the server's starts and theirs, summed and
+     * capped as a gain's {@code Boost} step does, with no prestige extra. What {@link Boosts#multiplier} answers.
+     */
+    static double multiplier(@Nonnull String trackId, @Nullable String categoryId, @Nullable HeldBoosts held,
+            @Nullable Ref<EntityStore> ref) {
+        return collect(trackId, categoryId, held, System.currentTimeMillis()).multiplier(ref, 0.0);
+    }
+
+    /** Every boost lifting {@code trackId} at {@code nowMs}, the player's own starts read off {@code held}. */
+    @Nonnull
+    private static Lifts collect(@Nonnull String trackId, @Nullable String categoryId, @Nullable HeldBoosts held,
+            long nowMs) {
         List<Candidate> candidates = new ArrayList<>();
         // A standing boost lifts every player its Requires lets in, so it counts as the server's (the bucket
         // HighestOnly keeps), whatever its Scope says.
@@ -137,8 +155,6 @@ public final class BoostFactor implements GainFactor {
         for (BoostRun run : ServerBoosts.shared().live(nowMs)) {
             addRun(candidates, run, BoostScope.SERVER, trackId, categoryId);
         }
-        TrackStore store = scope.playerId() == null ? null : TrackStores.forKey(scope.key());
-        HeldBoosts held = store == null ? null : store.boosts(scope.key().subject());
         if (held != null) {
             for (BoostRun run : held.runs()) {
                 if (run.liveAt(nowMs)) {
@@ -158,7 +174,8 @@ public final class BoostFactor implements GainFactor {
     private static void addRun(@Nonnull List<Candidate> into, @Nonnull BoostRun run, @Nonnull BoostScope scope,
             @Nonnull String trackId, @Nullable String categoryId) {
         BoostAsset boost = BoostConfig.getInstance().live(run.boost());
-        if (boost != null && !boost.isStanding() && boost.lifts(trackId, categoryId)) {
+        // A start naming one track lifts that one alone, and only inside what its boost lifts.
+        if (boost != null && !boost.isStanding() && run.names(trackId) && boost.lifts(trackId, categoryId)) {
             into.add(new Candidate(boost, run.percent(), scope, run.endsAt()));
         }
     }

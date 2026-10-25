@@ -18,6 +18,7 @@ import com.ziggfreed.common.track.asset.TrackCategoryAsset;
 import com.ziggfreed.common.track.asset.TrackCurveAsset;
 import com.ziggfreed.common.track.boost.BoostAsset;
 import com.ziggfreed.common.track.boost.BoostSettingsAsset;
+import com.ziggfreed.common.track.boost.BoostToken;
 import com.ziggfreed.common.track.boost.ZigBoostReward;
 import com.ziggfreed.common.track.pick.PickOptionAsset;
 import com.ziggfreed.common.track.pick.TrackPickAsset;
@@ -70,11 +71,16 @@ public final class TrackSchemaDocs {
                     + "One boost (a percent more on every gain on the tracks it names) is one file under "
                     + "`Server/ZiggfreedCommon/Boosts/`, retuned in `mods/ziggfreedcommon/boosts.json`; how boosts add "
                     + "up and how many may run is the one `Server/ZiggfreedCommon/BoostSettings/Default.json` record, "
-                    + "retuned in `boost-settings.json`. A boost starts from a boost item's native `ZigBoost` "
-                    + "interaction (`Boost`, and optional `Percent` and `Seconds`, then a `Next` that consumes the "
-                    + "item, run only when the boost started), from a `Boost` reward (`Params`: `Boost`, `Percent`, "
-                    + "`Seconds`) or a native `ZigBoost` reward file when its Claim is collected, or from "
-                    + "`/zigboost start`.\n\n"
+                    + "retuned in `boost-settings.json`, whose `OnStart` group runs a server command whenever a boost "
+                    + "starts. A boost starts from a boost item's native `ZigBoost` interaction (`Boost`, and "
+                    + "optional `Percent`, `Seconds` and `Track`, the one track it lifts out of those the boost "
+                    + "lifts, then a `Next` that consumes the item, run only when the boost started), from a `Boost` "
+                    + "reward (`Params`: `Boost`, `Percent`, `Seconds`, `Track`) or a native `ZigBoost` reward file "
+                    + "when its Claim is collected, or from `/zigboost start`. A stack carrying `ZigBoost` metadata "
+                    + "(the `BoostToken` shape, minted by `/zigboost give` onto the library's `Zig_Boost_Token` item "
+                    + "or by a mod onto its own) starts what the stack says in place of the interaction's own leaves. "
+                    + "A boost with a `Reusable` group is one a player may start themselves (`/zigboost own`, or a "
+                    + "mod's page), its `Reusable.Requires` asked only then.\n\n"
                     + "Every field is optional and defaults to `null` unless its Default column reads "
                     + "*(required)*.\n\n")
             .register("TrackAsset", TrackAsset.CODEC)
@@ -92,6 +98,7 @@ public final class TrackSchemaDocs {
             .register("BoostAsset", BoostAsset.CODEC)
             .register("BoostSettingsAsset", BoostSettingsAsset.CODEC)
             .register("ZigBoostReward", ZigBoostReward.CODEC)
+            .register("BoostToken", BoostToken.CODEC)
             .register("When", When.CODEC)
             .register("SourceRow", SourceRow.CODEC)
             .register("Where", WorldSelector.CODEC)

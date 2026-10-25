@@ -1,6 +1,13 @@
 {
-  "$Comment": "How boosts add up on this server. Cap is the most every boost on one track adds up to, as a percent (200 is three times a gain); HighestOnly counts only the strongest server boost and the strongest personal one; Limits are how many may run at once. Change any of them in mods/ziggfreedcommon/boost-settings.json, under the id Default.",
+  "$Comment": "How boosts add up on this server. Cap is the most every boost on one track adds up to, as a percent (200 is three times a gain); HighestOnly counts only the strongest server boost and the strongest personal one; Limits are how many may run at once. OnStart runs a server command as the console whenever a boost starts, any mod's: set Enabled true to use it, Personal and Server say which starts run it, and ReplacesAnnouncement keeps the library's own line to everyone off for a server boost whose command announces it. The command's placeholders are {player}, {multiplier}, {target}, {duration}, {scope} and {boost}. Change any of them in mods/ziggfreedcommon/boost-settings.json, under the id Default.",
   "Cap": 200,
   "HighestOnly": false,
-  "Limits": { "Personal": 3, "Server": 3 }
+  "Limits": { "Personal": 3, "Server": 3 },
+  "OnStart": {
+    "Enabled": false,
+    "Command": "say {player} started a {scope} {multiplier}x {target} boost for {duration}m!",
+    "Personal": false,
+    "Server": true,
+    "ReplacesAnnouncement": true
+  }
 }

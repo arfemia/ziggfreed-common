@@ -6,7 +6,7 @@ One track is one file under `Server/ZiggfreedCommon/Tracks/` (subfolders are the
 
 One pick (the one shape every choice, Mastery node, trainer offer and prestige perk is) is one file under `Server/ZiggfreedCommon/TrackPicks/`, and one option a choice may offer one file under `Server/ZiggfreedCommon/TrackPickOptions/`. One pick generator (a family of picks from one template: `Base`, `IdPattern`, `ForEach` axes and a `Child` pick body, each row's tokens filled in; `Base` may carry tokens too) is one file under `Server/ZiggfreedCommon/TrackPickGenerators/`, and a pick file of a generated id replaces that pick. A pick with `Abstract` true is a skeleton picks inherit from, and one switched off switches off every pick under it. The server owner retunes a pick in `track-picks.json` and an option in `track-pick-options.json`. A grant (`Grants`) names its `Kind`: the library ships `Stat` (the `StatGrant` shape; a conditional bonus is a stat of its own, R757); other mods register their own kinds. A track's swap and respec prices are the library's one price shape (`Cost`), the one shops use.
 
-One boost (a percent more on every gain on the tracks it names) is one file under `Server/ZiggfreedCommon/Boosts/`, retuned in `mods/ziggfreedcommon/boosts.json`; how boosts add up and how many may run is the one `Server/ZiggfreedCommon/BoostSettings/Default.json` record, retuned in `boost-settings.json`. A boost starts from a boost item's native `ZigBoost` interaction (`Boost`, and optional `Percent` and `Seconds`, then a `Next` that consumes the item, run only when the boost started), from a `Boost` reward (`Params`: `Boost`, `Percent`, `Seconds`) or a native `ZigBoost` reward file when its Claim is collected, or from `/zigboost start`.
+One boost (a percent more on every gain on the tracks it names) is one file under `Server/ZiggfreedCommon/Boosts/`, retuned in `mods/ziggfreedcommon/boosts.json`; how boosts add up and how many may run is the one `Server/ZiggfreedCommon/BoostSettings/Default.json` record, retuned in `boost-settings.json`, whose `OnStart` group runs a server command whenever a boost starts. A boost starts from a boost item's native `ZigBoost` interaction (`Boost`, and optional `Percent`, `Seconds` and `Track`, the one track it lifts out of those the boost lifts, then a `Next` that consumes the item, run only when the boost started), from a `Boost` reward (`Params`: `Boost`, `Percent`, `Seconds`, `Track`) or a native `ZigBoost` reward file when its Claim is collected, or from `/zigboost start`. A stack carrying `ZigBoost` metadata (the `BoostToken` shape, minted by `/zigboost give` onto the library's `Zig_Boost_Token` item or by a mod onto its own) starts what the stack says in place of the interaction's own leaves. A boost with a `Reusable` group is one a player may start themselves (`/zigboost own`, or a mod's page), its `Reusable.Requires` asked only then.
 
 Every field is optional and defaults to `null` unless its Default column reads *(required)*.
 
@@ -27,6 +27,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 - [BoostAsset](#type-boostasset)
 - [BoostSettingsAsset](#type-boostsettingsasset)
 - [ZigBoostReward](#type-zigboostreward)
+- [BoostToken](#type-boosttoken)
 - [When](#type-when)
 - [SourceRow](#type-sourcerow)
 - [Where](#type-where)
@@ -484,13 +485,14 @@ A native stat raised while the grant is held: a flat amount, a percent of the st
 |---|---|---|---|
 | `Tags` | map of array of `string` | `null` | Tags are a general way to describe an asset that can be interpreted by other systems in a way they see fit.<br><br>For example you could tag something with a **Material** tag with the values **Solid** and **Stone**, And another single tag **Ore**.<br><br>Tags will be expanded into a single list of tags automatically. Using the above example with **Material** and **Ore** the end result would be the following list of tags: **Ore**, **Material**, **Solid**, **Stone**, **Material=Solid** and **Material=Stone**. |
 | `Enabled` | `boolean` | `null` | Whether this boost exists on this server; unauthored means true. False makes it absent: nothing can start it, a standing one stops, and a running one stops lifting and leaves the buff bar. |
-| `Text` | [ContentText](#type-contenttext) | `null` | What the boost is called (TitleKey) in the line a player reads when it starts and on a reward, as a localization key in your own lang file. Without a TitleKey it is named by what it lifts and by how much. |
+| `Text` | [ContentText](#type-contenttext) | `null` | What the boost is called (TitleKey) in the line a player reads when it starts and on a reward, as a localization key in your own lang file. Without a TitleKey it is named by what it lifts and by how much. FlavorKey words what it lifts (every skill) in place of the first track or category it names; a start that names one track reads as that track. |
 | `Icon` | `string` | `null` | The item whose picture stands for the boost on a reward that starts it. Leave it out for no picture. |
 | `Tracks` | [Tracks](#field-boostasset-tracks) | `null` | The tracks the boost lifts: by id, by category, or All. A boost naming none lifts nothing. |
 | `Percent` | `double` | `null` | How much more every gain on those tracks earns while the boost runs, as a percent: 50 is half as much again, 100 doubles it. Every boost running on a track adds up, under the server's cap. A start can ask for its own percent (a reward's Percent). |
 | `Scope` | `string` | `null` | Who the boost lifts: Personal lifts the player who started it, Server lifts every player on the server. Personal when unauthored. |
 | `Seconds` | `long` | `null` | How long the boost runs once started, in seconds, counted on the clock: it keeps running while the player is away and across a restart. A start can ask for its own length (a reward's Seconds). Leave it out only on a Standing boost. |
 | `Standing` | `boolean` | `null` | True makes this a standing boost: nobody starts it and it keeps no timer, it lifts every gain on its tracks for every player whenever it is switched on, in season and its Requires passes (a bonus weekend, with a Season), and it shows no tile. It counts as a server boost whatever its Scope says. Unauthored means false. |
+| `Reusable` | [Reusable](#field-boostasset-reusable) | `null` | Lets a player start this timed boost themselves, as often as its Stack.Cooldown allows: a mod's boosts page lists it, with a button that starts it, for every player who meets Reusable.Requires (a permission, say), asked only when they start it, so a server boost one player starts still lifts everyone. Leave it out and only an item, a reward or a command starts it. |
 | `Stack` | [Stack](#field-boostasset-stack) | `null` | How this boost stacks with itself: how many may run at once and how long a player waits between starts. Leave it out for no limit of its own (the server's limits on how many boosts run still hold) and no wait. |
 | `Effect` | `string` | `null` | The EntityEffect whose tile shows the boost on the buff bar while it runs: give it an effect of its own whose Name says what it lifts and by how much (Gathering +50%), and its ring counts down the boost's real time. Nothing else may apply that effect: the bar takes it off whenever no boost names it. Leave it out, or name one no pack ships, for the shared Personal Boost or Server Boost tile. |
 | `Requires` | [Requires](#type-requires) | `null` | What a player must meet for this file to pay or apply, in the Requires shape quests use (Factors, Permission, Quests, Custom, AllOf, AnyOf, Not), every condition read. A plain { "Factor": "hytale:mod_installed", "Param": "Group:Name", "Min": 1 } keeps the file out entirely where that mod is not installed; the rest is asked of the player each time. Write Min 1 on a presence check: a condition with no bound is met by a missing mod too. Asked of the player who starts the boost, and of each player at every gain it would lift. |
@@ -504,6 +506,13 @@ A native stat raised while the grant is held: a flat amount, a percent of the st
 | `All` | `boolean` | `null` | True lifts every track, whatever Ids and Categories say. |
 | `Ids` | array of `string` | `null` | The tracks it lifts, by id (files under Server/ZiggfreedCommon/Tracks), in any case. |
 | `Categories` | array of `string` | `null` | The categories whose every track it lifts, by id (Combat, Gathering, Crafting, or a pack's own). |
+
+<a id="field-boostasset-reusable"></a>
+### BoostAsset.Reusable
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Requires` | [Requires](#type-requires) | `null` | Who may start it themselves, in the shared Requires grammar (a Permission node, a level), asked only when a player starts it from a page: never at a gain, and never of the players a server boost lifts. Leave it out for anyone. |
 
 <a id="field-boostasset-stack"></a>
 ### BoostAsset.Stack
@@ -522,6 +531,7 @@ A native stat raised while the grant is held: a flat amount, a percent of the st
 | `Cap` | `double` | `null` | The most every boost on one track adds up to, as a percent: with 200, a +100% server boost beside a +150% personal one pays +200%, three times a gain. 200 when unauthored; 0 turns every boost off. A mod's own bonus is not counted against it. |
 | `HighestOnly` | `boolean` | `null` | True counts only the strongest server boost and the strongest personal boost on a track, added together, rather than every boost running. Unauthored means false. |
 | `Limits` | [Limits](#field-boostsettingsasset-limits) | `null` | How many boosts may run at once: a player's own, and the server's. A start past either is refused, and a boost item is kept. |
+| `OnStart` | [OnStart](#field-boostsettingsasset-onstart) | `null` | A server command that runs as the console whenever a boost starts, any mod's boost: an announcement, a webhook, a reward of your own. Off unless Enabled is true. |
 
 <a id="field-boostsettingsasset-limits"></a>
 ### BoostSettingsAsset.Limits
@@ -531,6 +541,17 @@ A native stat raised while the grant is held: a flat amount, a percent of the st
 | `Personal` | `integer` | `null` | How many personal boosts one player may have running at once. 3 when unauthored; 0 lets nobody start one. |
 | `Server` | `integer` | `null` | How many server boosts may run at once. 3 when unauthored; 0 lets nobody start one. |
 
+<a id="field-boostsettingsasset-onstart"></a>
+### BoostSettingsAsset.OnStart
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Enabled` | `boolean` | `null` | True runs Command whenever a boost starts. Unauthored means false. |
+| `Command` | `string` | `null` | The command, run as the console, without the leading slash. Placeholders: {player} (who started it; for a server boost with no player, what started it), {multiplier} (1.5 for +50%), {target} (what it lifts, in the server's language), {duration} (minutes), {scope} (Global or Personal) and {boost} (the boost's id), each one line of plain text and filled in one pass, so a name holding a placeholder is never filled again. An unknown placeholder stays as written. |
+| `Personal` | `boolean` | `null` | Run it when a personal boost starts. Unauthored means true. |
+| `Server` | `boolean` | `null` | Run it when a server boost starts. Unauthored means true. |
+| `ReplacesAnnouncement` | `boolean` | `null` | True keeps the library's own line to every player online off when a server boost starts and the Command was handed to the console, for a Command that announces it instead; a Command that could not run leaves the line on. A personal boost's starter is always told. Unauthored means false. |
+
 <a id="type-zigboostreward"></a>
 ## ZigBoostReward
 
@@ -539,7 +560,18 @@ A native stat raised while the grant is held: a flat amount, a percent of the st
 | `Boost` | `string` | `null` | The boost the reward starts once collected, by id (a file under Server/ZiggfreedCommon/Boosts). Unauthored, the reward pays nothing. |
 | `Percent` | `double` | `null` | How much this reward's boost lifts by, as a percent, in place of the boost's own. Leave it out for the boost's own. |
 | `Seconds` | `long` | `null` | How long this reward's boost runs, in seconds, in place of the boost's own. Leave it out for the boost's own. |
+| `Track` | `string` | `null` | The one track this reward's boost lifts, out of those the boost lifts. Leave it out for all of them. |
 | `TitleKey` | `string` | `null` | The lang key the Claim's row is titled with on the Claims tab. Unauthored, the boost's own name titles it. |
+
+<a id="type-boosttoken"></a>
+## BoostToken
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Boost` | `string` | `null` | The boost the token starts, by id (a file under Server/ZiggfreedCommon/Boosts). |
+| `Percent` | `double` | `null` | How much it lifts by, as a percent, in place of the boost's own. Absent for the boost's own. |
+| `Seconds` | `long` | `null` | How long it runs, in seconds, in place of the boost's own. Absent for the boost's own. |
+| `Track` | `string` | `null` | The one track it lifts, out of those the boost lifts. Absent for all of them. |
 
 <a id="type-when"></a>
 ## When

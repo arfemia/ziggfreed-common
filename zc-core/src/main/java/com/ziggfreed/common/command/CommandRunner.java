@@ -39,8 +39,9 @@ import com.ziggfreed.common.util.CommandExecutor;
  * not be limited to what the player who happened to trigger it may do.
  *
  * <p>Failures go to a caller-supplied {@link Consumer} rather than a logger, so a consumer routes
- * them into its own guarded log seam, a validation report, or a test list. World-thread, like the
- * engine command manager it dispatches through.
+ * them into its own guarded log seam, a validation report, or a test list. Any thread: the engine's
+ * command manager runs a handed-over line on its own pool ({@code CommandManager.handleCommand}), so a
+ * caller off a world thread (a console start, a boot task) dispatches exactly as one on it does.
  */
 public final class CommandRunner {
 
@@ -81,20 +82,36 @@ public final class CommandRunner {
      * Replace each {@code {key}} in {@code raw} with its value. A key the map does not carry is left
      * standing rather than blanked, so a typo shows up in the command that ran instead of quietly
      * becoming an empty argument; a null value substitutes as empty.
+     *
+     * <p>One pass over {@code raw}, left to right: a value is written as it is and never read again, so a
+     * value that itself holds a {@code {key}} (a player's name, an item's text) is never substituted a
+     * second time, and the order the map lists its keys in changes nothing.
      */
     @Nonnull
     public static String substitute(@Nullable String raw, @Nullable Map<String, String> placeholders) {
         if (raw == null || raw.isEmpty() || placeholders == null || placeholders.isEmpty()) {
             return raw == null ? "" : raw;
         }
-        String out = raw;
-        for (Map.Entry<String, String> e : placeholders.entrySet()) {
-            if (e.getKey() == null || e.getKey().isBlank()) {
-                continue;
+        StringBuilder out = new StringBuilder(raw.length());
+        int i = 0;
+        while (i < raw.length()) {
+            char c = raw.charAt(i);
+            if (c == '{') {
+                int close = raw.indexOf('}', i + 1);
+                if (close > i) {
+                    String key = raw.substring(i + 1, close);
+                    if (!key.isBlank() && placeholders.containsKey(key)) {
+                        String value = placeholders.get(key);
+                        out.append(value == null ? "" : value);
+                        i = close + 1;
+                        continue;
+                    }
+                }
             }
-            out = out.replace("{" + e.getKey() + "}", e.getValue() == null ? "" : e.getValue());
+            out.append(c);
+            i++;
         }
-        return out;
+        return out.toString();
     }
 
     // ==================== the give-quantity fix ====================

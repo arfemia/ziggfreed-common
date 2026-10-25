@@ -15,8 +15,9 @@ import com.ziggfreed.common.track.asset.TrackCategoryConfig;
 
 /**
  * Every word a boost says: its lines are keys in {@code ziggfreedcommon.boost.lang}, a boost is called by its own
- * authored {@code Text.TitleKey} (else the plain word for its scope), and what it lifts by the tracks and
- * categories it names. A number binds typed, so the reader's client writes its digits.
+ * authored {@code Text.TitleKey} (else the plain word for its scope), and what it lifts by its own
+ * {@code Text.FlavorKey}, else the tracks and categories it names, a start naming one track by that track. A number
+ * binds typed, so the reader's client writes its digits.
  */
 public final class BoostText {
 
@@ -49,11 +50,28 @@ public final class BoostText {
     }
 
     /**
-     * What {@code boost} lifts: every track, or the first track or category it names (by its own name), with
-     * "and more" when it names several.
+     * What a start of {@code boost} naming {@code track} lifts: that track's own name (else its id) when it names one,
+     * else what the boost lifts ({@link #target(BoostAsset)}).
+     */
+    @Nonnull
+    public static Message target(@Nonnull BoostAsset boost, @Nullable String track) {
+        if (track == null || track.isBlank()) {
+            return target(boost);
+        }
+        Message named = TrackText.nameOf(track.trim());
+        return named == null ? Msg.raw(track.trim()) : named;
+    }
+
+    /**
+     * What {@code boost} lifts: its own words for it ({@code Text.FlavorKey}), else every track, or the first track
+     * or category it names (by its own name), with "and more" when it names several.
      */
     @Nonnull
     public static Message target(@Nonnull BoostAsset boost) {
+        String own = boost.liftsKey();
+        if (own != null) {
+            return ContentKeys.tr(own);
+        }
         if (boost.liftsAll()) {
             return line("target.all");
         }
@@ -108,14 +126,20 @@ public final class BoostText {
     @Nonnull
     public static Message started(@Nonnull BoostAsset boost, @Nonnull BoostRun run) {
         String key = boost.scope() == BoostScope.SERVER ? "started.server" : "started.personal";
-        return line(key, name(boost), percentArg(run.percent()), target(boost),
+        return line(key, name(boost), percentArg(run.percent()), target(boost, run.track()),
                 duration(run.endsAt() - run.startedAt()));
     }
 
     /** How a {@code Boost} reward reads: the percent, what it lifts and for how long. */
     @Nonnull
     public static Message rewardLine(@Nonnull BoostAsset boost, double percent, long seconds) {
-        return line("reward.line", percentArg(percent), target(boost), duration(seconds * 1000L));
+        return rewardLine(boost, percent, seconds, null);
+    }
+
+    /** How a {@code Boost} reward or a boost token reads, its start naming {@code track} (null for none). */
+    @Nonnull
+    public static Message rewardLine(@Nonnull BoostAsset boost, double percent, long seconds, @Nullable String track) {
+        return line("reward.line", percentArg(percent), target(boost, track), duration(seconds * 1000L));
     }
 
     /** Why {@code start} did not start, as the player who asked reads it; null for one that started. */
@@ -135,6 +159,7 @@ public final class BoostText {
             case STACK_FULL -> line("refused.stack", name);
             case PERSONAL_FULL -> line("refused.personal_full", start.limit());
             case SERVER_FULL -> line("refused.server_full", start.limit());
+            case NEEDS_PLAYER -> line("refused.needs_player", name);
         };
     }
 

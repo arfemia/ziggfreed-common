@@ -15,7 +15,8 @@ import com.ziggfreed.common.track.boost.BoostText;
 import com.ziggfreed.common.track.boost.Boosts;
 
 /**
- * {@code start [--player=<name>] --boost=<id> [--percent=<n>] [--seconds=<n>]}: start a boost for an online player
+ * {@code start [--player=<name>] --boost=<id> [--percent=<n>] [--seconds=<n>] [--track=<id>]}: start a boost for an
+ * online player
  * through the one starter a boost item and a reward use ({@code Boosts.start}), so the limits, the wait, the season
  * and the {@code Requires} all apply; a server boost lifts everyone. The line a Boost reward's Claim replays where
  * the reward kind itself cannot pay. Left out, the sender is the player.
@@ -28,6 +29,7 @@ final class ZigBoostStartCommand extends AbstractTargetPlayerCommand<TrackTarget
     private final OptionalArg<String> boostArg;
     private final OptionalArg<Double> percentArg;
     private final OptionalArg<Integer> secondsArg;
+    private final OptionalArg<String> trackArg;
 
     ZigBoostStartCommand() {
         super(ZigBoostCommand.START, BoostCommandMessages.desc(ZigBoostCommand.START),
@@ -35,6 +37,7 @@ final class ZigBoostStartCommand extends AbstractTargetPlayerCommand<TrackTarget
         this.boostArg = withOptionalArg("boost", BoostCommandMessages.desc("arg.boost"), ArgTypes.STRING);
         this.percentArg = withOptionalArg("percent", BoostCommandMessages.desc("arg.percent"), ArgTypes.DOUBLE);
         this.secondsArg = withOptionalArg("seconds", BoostCommandMessages.desc("arg.seconds"), ArgTypes.INTEGER);
+        this.trackArg = withOptionalArg("track", BoostCommandMessages.desc("arg.track"), ArgTypes.STRING);
     }
 
     @Override
@@ -53,8 +56,9 @@ final class ZigBoostStartCommand extends AbstractTargetPlayerCommand<TrackTarget
         }
         Double percent = percentArg.provided(ctx) ? percentArg.get(ctx) : null;
         Integer seconds = secondsArg.provided(ctx) ? secondsArg.get(ctx) : null;
+        String track = trackArg.provided(ctx) ? trackArg.get(ctx) : null;
         Boosts.Start start = Boosts.start(target.id(), typed.trim(), percent,
-                seconds == null ? null : (long) Math.max(0, seconds), BY);
+                seconds == null ? null : (long) Math.max(0, seconds), track, BY);
         if (start.started() && start.boost() != null) {
             BoostCommandMessages.done(ctx, "start.done", BoostText.name(start.boost()), target.name());
             return;

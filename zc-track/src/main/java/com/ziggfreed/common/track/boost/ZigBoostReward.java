@@ -21,6 +21,7 @@ import com.ziggfreed.common.loot.claim.ClaimStore;
 import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.track.asset.TrackAsset;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -52,6 +53,7 @@ public final class ZigBoostReward extends RewardAsset {
     @Nullable private String boost;
     @Nullable private Double percent;
     @Nullable private Long seconds;
+    @Nullable private String track;
     @Nullable private String titleKey;
 
     public static final BuilderCodec<ZigBoostReward> CODEC =
@@ -69,6 +71,11 @@ public final class ZigBoostReward extends RewardAsset {
                             (o, v) -> o.seconds = v, o -> o.seconds, (o, p) -> o.seconds = p.seconds)
                     .documentation("How long this reward's boost runs, in seconds, in place of the boost's own. "
                             + "Leave it out for the boost's own.").add()
+                    .appendInherited(new KeyedCodec<>("Track", Codec.STRING, false),
+                            (o, v) -> o.track = v, o -> o.track, (o, p) -> o.track = p.track)
+                    .metadata(EditorSchema.assetRef(TrackAsset.class))
+                    .documentation("The one track this reward's boost lifts, out of those the boost lifts. Leave it "
+                            + "out for all of them.").add()
                     .appendInherited(new KeyedCodec<>("TitleKey", Codec.STRING, false),
                             (o, v) -> o.titleKey = v, o -> o.titleKey, (o, p) -> o.titleKey = p.titleKey)
                     .documentation("The lang key the Claim's row is titled with on the Claims tab. Unauthored, "
@@ -103,6 +110,10 @@ public final class ZigBoostReward extends RewardAsset {
             if (seconds != null && seconds > 0L) {
                 params.put("Seconds", Long.toString(seconds));
             }
+            String lifts = BoostAsset.blankToNull(track);
+            if (lifts != null) {
+                params.put("Track", lifts);
+            }
             String source = SOURCE_PREFIX + rewardId;
             List<InstanceReward> rewards = DeferredRewards.fromSpecs(
                     List.of(RewardSpec.of(BoostRewardKind.KIND, params)), RewardKinds.shared(),
@@ -120,7 +131,7 @@ public final class ZigBoostReward extends RewardAsset {
     @Nonnull
     @Override
     public String toString() {
-        return "ZigBoostReward{boost=" + boost + ", percent=" + percent + ", seconds=" + seconds + ", titleKey="
-                + titleKey + "} " + super.toString();
+        return "ZigBoostReward{boost=" + boost + ", percent=" + percent + ", seconds=" + seconds + ", track=" + track
+                + ", titleKey=" + titleKey + "} " + super.toString();
     }
 }
