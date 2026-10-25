@@ -134,6 +134,7 @@ import com.ziggfreed.common.ui.hud.panel.HudSpotAsset;
 import com.ziggfreed.common.ui.hud.panel.HudSpotConfig;
 import com.ziggfreed.common.ui.hud.command.ZigHudCommand;
 import com.ziggfreed.common.ui.menu.command.ZigMenuCommand;
+import com.ziggfreed.common.util.RetiredLibrarySettings;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.BootAudit;
 import com.ziggfreed.common.world.BlockRulesBootstrap;
@@ -233,6 +234,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
 
     @Override
     protected void setup() {
+        // Settings this release no longer reads come out of the owner's files once, before anything reads one.
+        RetiredLibrarySettings.run();
+
         // Seed the shared destination vocabulary before the stores whose assets embed it, so no
         // read can reach a half-built vocabulary.
         registerDestinations();

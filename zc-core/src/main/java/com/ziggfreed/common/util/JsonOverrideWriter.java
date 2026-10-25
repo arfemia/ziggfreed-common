@@ -333,8 +333,11 @@ public final class JsonOverrideWriter {
         return new JsonPrimitive(String.valueOf(value)); // defensive; callers pass String/Boolean/Number
     }
 
-    /** Atomic write (temp sibling + move) so a crash mid-write cannot corrupt the owner file. */
-    private static boolean write(@Nonnull Path file, @Nonnull JsonObject root) {
+    /**
+     * Atomic write (temp sibling + move) so a crash mid-write cannot corrupt the owner file. Package-visible
+     * for {@link RetiredSettings}, which rewrites an owner file through this same write.
+     */
+    static boolean write(@Nonnull Path file, @Nonnull JsonObject root) {
         try {
             Path parent = file.toAbsolutePath().getParent();
             if (parent != null) {
