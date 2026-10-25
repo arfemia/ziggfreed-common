@@ -1,5 +1,6 @@
 package com.ziggfreed.common.reputation;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -97,7 +98,9 @@ public final class ReputationTracks {
         Map<String, TrackAsset> tracks = new LinkedHashMap<>();
         Map<String, TrackCurveAsset> curves = new LinkedHashMap<>();
         Set<String> ids = new HashSet<>();
+        List<String> known = new ArrayList<>();
         for (ReputationDef def : service.all()) {
+            known.add(def.id());
             ReputationLadder ladder = service.ladderFor(def);
             if (!ladder.usable() || !TrackAsset.usableId(def.id())) {
                 continue;
@@ -107,6 +110,7 @@ public final class ReputationTracks {
             tracks.put(def.id(), trackOf(def, curveId, ladder));
             ids.add(def.id().trim().toLowerCase(Locale.ROOT));
         }
+        ReputationGain.registerRetiredAliases(known);
         TrackCurveConfig.getInstance().provide(OWNER, curves);
         TrackConfig.getInstance().provide(OWNER, tracks);
         Set<String> before = provided;
@@ -167,9 +171,10 @@ public final class ReputationTracks {
 
     /**
      * The gain factors a reputation's track runs: the world's rules, the boosts, the prestige extra and the rested
-     * pool, never the library's {@code Bonus} (the {@code TrackGain} stats), since {@code ReputationService.change}
-     * already raises a gain by the reputation's own {@code ReputationGain} stats, so a Bonus XP meal speeds skills and
-     * not standing. An owner adds Bonus back in {@code tracks.json}.
+     * pool, never the library's {@code Bonus}, since {@code ReputationService.change} already raises a gain by the
+     * reputation's own gain stats ({@code CategoryGain_Reputation} and {@code TrackGain_<Id>}, {@link ReputationGain})
+     * before the Cap, so a Bonus XP meal (the all-track {@code TrackGain}) speeds skills and not standing. An owner who
+     * adds Bonus back in {@code tracks.json} adds {@code TrackGain} and counts the reputation's own stats a second time.
      */
     public static final List<String> GAIN_FACTORS = List.of(GainFactors.WORLD, GainFactors.BOOST, GainFactors.PRESTIGE,
             GainFactors.RESTED);

@@ -4,7 +4,7 @@ apply from: "$rootDir/gradle/zc-module.gradle"
 // rank ladder (seven native ReputationRank files), the companion asset zc keeps beside a native
 // ReputationGroup of the same id (names, cap, rank names, kill standing, the payout past the top rank), each
 // reputation as a track whose climb holds the standing (the native value a copy kept in step), the
-// one writer (which raises a gain by the worn ReputationGain stats), two readings,
+// one writer (which raises a gain by the worn CategoryGain_Reputation and TrackGain_<Id> stats), two readings,
 // the Reputation reward kind, the change
 // event, the World bar (out in the world only: a change made in a page shows in that page's toast), the
 // rank notice, the kill table and the rail tab.

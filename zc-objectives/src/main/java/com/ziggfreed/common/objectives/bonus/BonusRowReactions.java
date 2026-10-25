@@ -64,7 +64,8 @@ import com.ziggfreed.common.world.gather.ShapedBreaks;
  * <p>No gate beyond the row's own: the producers already skip what the player placed and credit a
  * kill to a player only. A row with no {@code Chance} always fires; its odds are its rolls'. A break's
  * and a hand harvest's row adds the player's gathering yield ({@link GatherYields}) to a {@code Chance}
- * it writes, so yield raises a find's odds and never rolls a second time. The
+ * it writes, and a kill's the killer's kill yield ({@link KillYields}), so yield raises a find's odds and never
+ * rolls a second time. The
  * pass pays through the moment's own quest subject (the runtime's, so a consumer's notification
  * preferences reach a cue toast), or a subject over the player reference when the runtime has none.
  * A harvest's pass waits for one world task past the engine's own give and re-reads the event there.
@@ -181,7 +182,7 @@ public final class BonusRowReactions implements MomentListener {
         Store<EntityStore> store = moment.store();
         Ref<EntityStore> victim = payload.victimRef();
         FactorContext about = context(store, moment.ref(), victim, null);
-        if (!fires(row, about, 0.0)) {
+        if (!fires(row, about, KillYields.percentFor(store, moment.ref()))) {
             return;
         }
         Subject subject = subjectOf(moment);
@@ -293,7 +294,8 @@ public final class BonusRowReactions implements MomentListener {
 
     /**
      * Whether {@code row} fires for the moment: its own {@code Requires}, then its chance, with {@code yieldPercent}
-     * points (a break's or a harvest's gathering yield, {@link GatherYields}) added to a chance the row writes.
+     * points (a break's or a harvest's gathering yield, {@link GatherYields}; a kill's kill yield, {@link KillYields})
+     * added to a chance the row writes.
      */
     private static boolean fires(@Nonnull BonusRow row, @Nonnull FactorContext about, double yieldPercent) {
         // The row's own Requires first, every condition (its mod presence was decided at the fold): a
