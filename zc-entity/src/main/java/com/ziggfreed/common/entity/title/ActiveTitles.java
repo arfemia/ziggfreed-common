@@ -19,6 +19,8 @@ import java.util.concurrent.Executor;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.google.gson.JsonObject;
+import com.ziggfreed.common.util.RecordFile;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -62,24 +64,25 @@ public final class ActiveTitles {
     /** Keeps {@link #USERNAMES} and {@link #BY_USERNAME} agreeing that a name has one holder; reads take no lock. */
     private static final Object NAMES_LOCK = new Object();
 
-    private static final RecordFile FILE = new RecordFile("the shown titles",
-            "a restart may show an offline player an older title until they connect again", new RecordFile.Body() {
+    private static final RecordFile FILE = RecordFile.builder("title", "the shown titles", new RecordFile.Body() {
                 @Override
                 @Nonnull
-                public String write() {
+                public JsonObject write() {
                     return writeDoc();
                 }
 
                 @Override
-                public void read(@Nonnull String text) {
-                    readDoc(text);
+                public void read(@Nonnull JsonObject doc, int version) {
+                    readDoc(doc);
                 }
 
                 @Override
                 public void forget() {
                     forgetAll();
                 }
-            });
+            })
+            .lostWrite("a restart may show an offline player an older title until they connect again")
+            .build();
 
     /**
      * On-disk shape: a player's id to the lower-cased id of the title they show, to the ids they have
@@ -209,7 +212,7 @@ public final class ActiveTitles {
     }
 
     @Nonnull
-    private static String writeDoc() {
+    private static JsonObject writeDoc() {
         Doc doc = new Doc();
         doc.shownTitles = new TreeMap<>();
         for (Map.Entry<UUID, String> e : BY_PLAYER.entrySet()) {
@@ -223,11 +226,11 @@ public final class ActiveTitles {
         for (Map.Entry<UUID, String> e : USERNAMES.entrySet()) {
             doc.usernames.put(e.getKey().toString(), e.getValue());
         }
-        return RecordFile.GSON.toJson(doc);
+        return RecordFile.gson().toJsonTree(doc).getAsJsonObject();
     }
 
-    private static void readDoc(@Nonnull String text) {
-        Doc doc = RecordFile.GSON.fromJson(text, Doc.class);
+    private static void readDoc(@Nonnull JsonObject saved) {
+        Doc doc = RecordFile.gson().fromJson(saved, Doc.class);
         forgetAll();
         if (doc == null) {
             return;

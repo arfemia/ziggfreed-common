@@ -52,6 +52,9 @@ public final class PlayerStatsComponent implements Component<EntityStore>, Count
     /** The engine registry id, and the save key. */
     public static final String REGISTRY_ID = "ZiggfreedCommon:Stats";
 
+    /** The save's {@code Version} leaf: a save from before it reads as version 0, unchanged (zc-core's {@code codec/} router). */
+    public static final int VERSION = 1;
+
     /** Joins one claim id to the next in {@code Imports}. Reserved inside a claim id. */
     public static final char CLAIM_SEPARATOR = ',';
 
@@ -70,6 +73,7 @@ public final class PlayerStatsComponent implements Component<EntityStore>, Count
 
     static {
         var builder = BuilderCodec.builder(PlayerStatsComponent.class, PlayerStatsComponent::new);
+        builder.versioned().codecVersion(VERSION);
         builder.append(new KeyedCodec<>("Tallies", Codec.STRING, false),
                 (c, v, info) -> c.loadTallies(v),
                 (c, info) -> PackedTallies.serialize(c.tallies())).add();

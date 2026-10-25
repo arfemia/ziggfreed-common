@@ -42,6 +42,9 @@ public final class BuffSlotsComponent implements Component<EntityStore> {
     /** The engine registry id; the persisted save key for this component. */
     public static final String REGISTRY_ID = "ZiggfreedCommon:BuffSlots";
 
+    /** The save's {@code Version} leaf: a save from before it reads as version 0, unchanged (zc-core's {@code codec/} router). */
+    public static final int VERSION = 1;
+
     /** One scope's record: buff key to effect id. */
     private static final Codec<Map<String, String>> SLOTS = new MapCodec<>(Codec.STRING, LinkedHashMap::new, false);
 
@@ -52,6 +55,8 @@ public final class BuffSlotsComponent implements Component<EntityStore> {
     @Nonnull
     public static final BuilderCodec<BuffSlotsComponent> CODEC = BuilderCodec
             .builder(BuffSlotsComponent.class, BuffSlotsComponent::new)
+            .versioned()
+            .codecVersion(VERSION)
             .append(new KeyedCodec<>("Personal", SLOTS),
                     (c, v) -> c.personal = copyOf(v),
                     c -> c.personal).add()

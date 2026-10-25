@@ -55,11 +55,16 @@ public final class TrackComponent implements Component<EntityStore> {
     /** The engine registry id, and the save key. */
     public static final String REGISTRY_ID = "ZiggfreedCommon:Track";
 
+    /** The save's {@code Version} leaf: a save from before it reads as version 0, unchanged (zc-core's {@code codec/} router). */
+    public static final int VERSION = 1;
+
     @Nullable
     public static ComponentType<EntityStore, TrackComponent> TYPE;
 
     public static final BuilderCodec<TrackComponent> CODEC = BuilderCodec.builder(TrackComponent.class,
                     TrackComponent::new)
+            .versioned()
+            .codecVersion(VERSION)
             .append(new KeyedCodec<>("Tracks", new ArrayCodec<>(Entry.CODEC, Entry[]::new), false),
                     (c, v, info) -> c.load(v), (c, info) -> c.save())
             .add()

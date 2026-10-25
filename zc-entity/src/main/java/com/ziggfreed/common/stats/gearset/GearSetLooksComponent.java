@@ -57,6 +57,9 @@ public final class GearSetLooksComponent implements Component<EntityStore> {
     /** The engine registry id; the persisted save key for this component. */
     public static final String REGISTRY_ID = "ZiggfreedCommon:GearSetLooks";
 
+    /** The save's {@code Version} leaf: a save from before it reads as version 0, unchanged (zc-core's {@code codec/} router). */
+    public static final int VERSION = 1;
+
     /** The registered type, or null until {@link #register} runs (or when it failed). */
     @Nullable
     private static volatile ComponentType<EntityStore, GearSetLooksComponent> type;
@@ -64,6 +67,8 @@ public final class GearSetLooksComponent implements Component<EntityStore> {
     @Nonnull
     public static final BuilderCodec<GearSetLooksComponent> CODEC = BuilderCodec
             .builder(GearSetLooksComponent.class, GearSetLooksComponent::new)
+            .versioned()
+            .codecVersion(VERSION)
             .append(new KeyedCodec<>("Effects", Codec.STRING_ARRAY),
                     (c, v) -> c.effects = copyOf(v == null ? List.of() : Arrays.asList(v)),
                     c -> c.effects.toArray(String[]::new)).add()

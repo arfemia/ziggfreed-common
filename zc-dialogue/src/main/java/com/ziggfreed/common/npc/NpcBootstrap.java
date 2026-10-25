@@ -10,6 +10,7 @@ import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.events.AddWorldEvent;
+import com.hypixel.hytale.server.core.universe.world.events.AllWorldsLoadedEvent;
 import com.hypixel.hytale.server.core.universe.world.events.RemoveWorldEvent;
 import com.ziggfreed.common.cast.WorldEvictors;
 import com.ziggfreed.common.icon.Portraits;
@@ -152,12 +153,15 @@ public final class NpcBootstrap {
                         return;
                     }
                     WorldEvictors.onWorldAdded(added);
-                    NpcPlacementReconciler.clearDebounce(added);
-                    NpcPlacementReconciler.requestSweep(added, added.getEntityStore().getStore());
+                    NpcPlacementReconciler.onWorldAdded(added);
                 } catch (Throwable t) {
                     SafeLog.warn("[placement] world-add handling failed: " + t.getMessage());
                 }
             });
+            // Once the start has loaded every world (and deleted the ones flagged to go at a start), the
+            // ledger drops the rows of worlds that no longer exist anywhere.
+            plugin.getEventRegistry().registerGlobal(AllWorldsLoadedEvent.class,
+                    event -> NpcPlacementLedger.getInstance().pruneVanishedWorlds());
             plugin.getEventRegistry().registerGlobal(RemoveWorldEvent.class, event -> {
                 try {
                     if (event.isCancelled()) {

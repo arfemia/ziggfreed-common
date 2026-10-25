@@ -67,6 +67,9 @@ public class ReputationComponent implements Component<EntityStore> {
     /** The key suffix marking a reputation whose engine copy did not take the track's last move (1 until it does). */
     static final String UNSYNCED = "/unsynced";
 
+    /** The save's {@code Version} leaf: a save from before it reads as version 0, unchanged (zc-core's {@code codec/} router). */
+    public static final int VERSION = 1;
+
     @Nullable
     public static ComponentType<EntityStore, ReputationComponent> TYPE;
 
@@ -78,6 +81,7 @@ public class ReputationComponent implements Component<EntityStore> {
 
     static {
         var builder = BuilderCodec.builder(ReputationComponent.class, ReputationComponent::new);
+        builder.versioned().codecVersion(VERSION);
         builder.append(new KeyedCodec<>("Beyond", Codec.STRING),
                 (c, v, info) -> c.beyond = deserialize(v),
                 (c, info) -> serialize(c.beyond.all())).add();

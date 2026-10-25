@@ -48,6 +48,9 @@ public final class CommerceComponent implements Component<EntityStore> {
     /** The registration id (namespaced, stable - it is persisted in every saved world). */
     public static final String REGISTRY_ID = "ZiggfreedCommon:Commerce";
 
+    /** The save's {@code Version} leaf: a save from before it reads as version 0, unchanged (zc-core's {@code codec/} router). */
+    public static final int VERSION = 1;
+
     /** The registered type, or {@code null} until {@link #register} runs. */
     @Nullable
     public static ComponentType<EntityStore, CommerceComponent> TYPE;
@@ -61,6 +64,8 @@ public final class CommerceComponent implements Component<EntityStore> {
     @Nonnull
     public static final BuilderCodec<CommerceComponent> CODEC = BuilderCodec
             .builder(CommerceComponent.class, CommerceComponent::new)
+            .versioned()
+            .codecVersion(VERSION)
             .append(new KeyedCodec<>("Balances", Codec.STRING),
                     (c, v) -> c.balances = CommerceBlob.deserializeLongs(v),
                     c -> CommerceBlob.serializeLongs(CommerceBlob.ordered(c.balances))).add()

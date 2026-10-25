@@ -54,9 +54,14 @@ public final class PerformerIdentityComponent implements Component<EntityStore> 
     /** The registration id (namespaced, stable). */
     public static final String REGISTRY_ID = "ZiggfreedCommon:PerformerIdentity";
 
+    /** The save's {@code Version} leaf: a save from before it reads as version 0, unchanged (zc-core's {@code codec/} router). */
+    public static final int VERSION = 1;
+
     @Nonnull
     public static final BuilderCodec<PerformerIdentityComponent> CODEC = BuilderCodec
             .builder(PerformerIdentityComponent.class, PerformerIdentityComponent::new)
+            .versioned()
+            .codecVersion(VERSION)
             .append(new KeyedCodec<>("OwnerUuid", Codec.STRING),
                     (c, v) -> c.ownerUuid = v,
                     c -> c.ownerUuid).add()

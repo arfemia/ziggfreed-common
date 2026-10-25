@@ -1,7 +1,5 @@
 package com.ziggfreed.common.track.boost;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -12,19 +10,22 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.hypixel.hytale.server.core.event.events.BootEvent;
-import com.hypixel.hytale.server.core.util.io.FileUtil;
 import com.ziggfreed.common.track.gain.GainPlans;
+import com.ziggfreed.common.util.RecordFile;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The server boosts running, kept across a restart in {@value #FILE_NAME} beside the library's owner files
  * ({@code mods/ziggfreedcommon/}). Read once at boot ({@link #onBoot}, through {@link #init}); every start and clear
- * rewrites it at once, atomically through the engine's writer with the previous write kept as {@code .bak}, since a
- * server boost starts rarely. A start that ran out is dropped at the next write; one read back after a restart runs on to its
- * own end, the clock having kept counting. A file that will not read falls back to its {@code .bak}, then to none
- * running; a server with no folder keeps them in memory only. Reads are lock-free; writes one at a time.
+ * rewrites it at once through zc-core's {@code util/RecordFile} (the engine's atomic write with the previous write
+ * kept as {@code .bak}, a {@code version} leaf), since a server boost starts rarely. A start that ran out is dropped
+ * at the next write; one read back after a restart runs on to its own end, the clock having kept counting. A file
+ * that will not read falls back to its {@code .bak}, then to none running (the unreadable file kept aside as
+ * {@code .unreadable}); a file from a newer build is left unread and unwritten; a server with no folder keeps them in
+ * memory only. Reads are lock-free; writes one at a time.
  *
  * <p>A consumer carrying server boosts over from an older system of its own hands them to {@link #seed}, which may
  * come before the boot's read: what it seeds before then waits and joins what the file kept, so neither replaces the
@@ -37,12 +38,11 @@ final class ServerBoosts {
 
     private static final String LOG_TAG = "boost";
 
+    private static final Gson GSON = RecordFile.gson();
+
     private static final ServerBoosts SHARED = new ServerBoosts();
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-
     @Nonnull private volatile List<BoostRun> runs = List.of();
-    @Nullable private volatile Path file;
 
     /** Has the boot's read run ({@link #init})? Until it has, a seed waits in {@link #pending}. */
     private boolean read;
@@ -53,9 +53,36 @@ final class ServerBoosts {
     /** Who waits to hear whether the boot's read wrote what they seeded before it. */
     @Nonnull private final List<Consumer<Boolean>> pendingWritten = new ArrayList<>();
 
-    /** The file's shape: a version for a later reader, and every start kept. */
+    /** The file: the starts still running when it is read, every start kept when it is written. */
+    private final RecordFile file = RecordFile.builder(LOG_TAG, "the server boosts", new RecordFile.Body() {
+                @Override
+                @Nonnull
+                public JsonObject write() {
+                    return toDoc(runs);
+                }
+
+                @Override
+                public void read(@Nonnull JsonObject doc, int version) {
+                    long now = System.currentTimeMillis();
+                    List<BoostRun> live = new ArrayList<>();
+                    for (BoostRun run : fromDoc(doc)) {
+                        if (run.liveAt(now)) {
+                            live.add(run);
+                        }
+                    }
+                    runs = List.copyOf(live);
+                }
+
+                @Override
+                public void forget() {
+                    runs = List.of();
+                }
+            })
+            .lostWrite("a restart may lose them")
+            .build();
+
+    /** The file's shape: every start kept (the record file adds the version). */
     static final class Dto {
-        int version = 1;
         List<Run> runs;
     }
 
@@ -96,17 +123,15 @@ final class ServerBoosts {
      * handed over before this joins the starts read, and the file is written with them.
      */
     public synchronized void init(@Nullable Path dir) {
-        Path target = dir == null ? null : dir.resolve(FILE_NAME);
-        file = target;
-        List<BoostRun> loaded = new ArrayList<>(target == null ? List.of() : load(target));
+        file.persistTo(dir == null ? null : dir.resolve(FILE_NAME), null);
         read = true;
         List<Consumer<Boolean>> waiting = List.copyOf(pendingWritten);
         pendingWritten.clear();
         if (pending.isEmpty()) {
-            runs = List.copyOf(loaded);
-            tell(waiting, target != null);
+            tell(waiting, holdsFile());
             return;
         }
+        List<BoostRun> loaded = new ArrayList<>(runs);
         long now = System.currentTimeMillis();
         boolean added = false;
         for (BoostRun run : pending) {
@@ -118,7 +143,7 @@ final class ServerBoosts {
         }
         pending.clear();
         runs = List.copyOf(loaded);
-        boolean written = added ? save() : target != null;
+        boolean written = added ? save() : holdsFile();
         tell(waiting, written);
     }
 
@@ -129,8 +154,8 @@ final class ServerBoosts {
      * keeps nothing new. How many were kept or wait.
      *
      * @param written told once whether the file now holds them (true when nothing was left to write): at once after
-     *                the boot's read, at it before; false when the file could not be written or the server keeps
-     *                them in memory only. Null for nobody.
+     *                the boot's read, at it before; false when the file could not be written, was refused (a newer
+     *                build's) or the server keeps them in memory only. Null for nobody.
      */
     public synchronized int seed(@Nonnull Collection<BoostRun> carried, @Nullable Consumer<Boolean> written) {
         long now = System.currentTimeMillis();
@@ -160,7 +185,7 @@ final class ServerBoosts {
             runs = List.copyOf(next);
             saved = save();
         } else {
-            saved = file != null;
+            saved = holdsFile();
         }
         tell(written == null ? List.of() : List.of(written), saved);
         return kept;
@@ -206,9 +231,20 @@ final class ServerBoosts {
         return running;
     }
 
-    /** {@code runs} as the file writes them. Pure. */
+    /** {@code runs} as the file writes them, without the version leaf the record file adds. Pure. */
     @Nonnull
     static String encode(@Nonnull List<BoostRun> runs) {
+        return GSON.toJson(toDoc(runs));
+    }
+
+    /** The starts {@code json} keeps, a row naming no boost left out; empty for none. Pure; throws on bad JSON. */
+    @Nonnull
+    static List<BoostRun> decode(@Nonnull String json) {
+        return fromDoc(JsonParser.parseString(json).getAsJsonObject());
+    }
+
+    @Nonnull
+    private static JsonObject toDoc(@Nonnull List<BoostRun> runs) {
         Dto dto = new Dto();
         dto.runs = new ArrayList<>(runs.size());
         for (BoostRun run : runs) {
@@ -221,13 +257,12 @@ final class ServerBoosts {
             row.track = run.track();
             dto.runs.add(row);
         }
-        return GSON.toJson(dto);
+        return GSON.toJsonTree(dto).getAsJsonObject();
     }
 
-    /** The starts {@code json} keeps, a row naming no boost left out; empty for none. Pure; throws on bad JSON. */
     @Nonnull
-    static List<BoostRun> decode(@Nonnull String json) {
-        Dto dto = GSON.fromJson(json, Dto.class);
+    private static List<BoostRun> fromDoc(@Nonnull JsonObject doc) {
+        Dto dto = GSON.fromJson(doc, Dto.class);
         List<BoostRun> out = new ArrayList<>();
         if (dto == null || dto.runs == null) {
             return out;
@@ -241,44 +276,13 @@ final class ServerBoosts {
         return out;
     }
 
-    /** Write the file; false when it could not be written or the server keeps them in memory only. */
-    private boolean save() {
-        Path target = file;
-        if (target == null) {
-            return false;
-        }
-        try {
-            if (target.getParent() != null) {
-                Files.createDirectories(target.getParent());
-            }
-            FileUtil.writeStringAtomic(target, encode(runs), true);
-            return true;
-        } catch (Throwable t) {
-            SafeLog.warn("[" + LOG_TAG + "] the server boosts could not be written to " + target
-                    + ", so a restart may lose them: " + t.getMessage());
-            return false;
-        }
+    /** Whether the file holds what memory holds once nothing is left to write: a file kept, and not refused. */
+    private boolean holdsFile() {
+        return file.file() != null && !file.refused();
     }
 
-    @Nonnull
-    private static List<BoostRun> load(@Nonnull Path target) {
-        long now = System.currentTimeMillis();
-        for (Path candidate : List.of(target, target.resolveSibling(target.getFileName() + ".bak"))) {
-            if (!Files.exists(candidate)) {
-                continue;
-            }
-            try {
-                List<BoostRun> read = new ArrayList<>();
-                for (BoostRun run : decode(Files.readString(candidate, StandardCharsets.UTF_8))) {
-                    if (run.liveAt(now)) {
-                        read.add(run);
-                    }
-                }
-                return List.copyOf(read);
-            } catch (Throwable t) {
-                SafeLog.warn("[" + LOG_TAG + "] " + candidate + " will not read (" + t.getMessage() + ")");
-            }
-        }
-        return List.of();
+    /** Write the file now; false when it could not be written, was refused, or the server keeps them in memory only. */
+    private boolean save() {
+        return file.writeNow();
     }
 }

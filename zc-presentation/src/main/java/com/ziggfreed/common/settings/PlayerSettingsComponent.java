@@ -44,6 +44,12 @@ public class PlayerSettingsComponent implements Component<EntityStore> {
     /** The engine registry id and save key, kept from 2.1.0. */
     public static final String REGISTRY_ID = "ZiggfreedCommon:HudPreferences";
 
+    /**
+     * The save's {@code Version} leaf: a save from before it (2.1.0's flat shape among them) reads as version 0
+     * through the same leaves, unchanged (zc-core's {@code codec/} router).
+     */
+    public static final int VERSION = 1;
+
     /** The registered type, or null until {@link #register} runs. */
     @Nullable
     public static ComponentType<EntityStore, PlayerSettingsComponent> TYPE;
@@ -105,6 +111,7 @@ public class PlayerSettingsComponent implements Component<EntityStore> {
 
     static {
         var builder = BuilderCodec.builder(PlayerSettingsComponent.class, PlayerSettingsComponent::new);
+        builder.versioned().codecVersion(VERSION);
         builder.append(new KeyedCodec<>("Hud", HudGroup.CODEC),
                 (c, g, info) -> c.readHud(g), (c, info) -> c.hudGroup()).add();
         builder.append(new KeyedCodec<>("Notifications", NotificationsGroup.CODEC),

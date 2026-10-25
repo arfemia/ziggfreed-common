@@ -32,9 +32,14 @@ public final class SpoilsChest implements Component<EntityStore> {
     /** The registration id (namespaced, stable). */
     public static final String REGISTRY_ID = "ZiggfreedCommon:SpoilsChest";
 
+    /** The save's {@code Version} leaf: a save from before it reads as version 0, unchanged (zc-core's {@code codec/} router). */
+    public static final int VERSION = 1;
+
     @Nonnull
     public static final BuilderCodec<SpoilsChest> CODEC = BuilderCodec
             .builder(SpoilsChest.class, SpoilsChest::new)
+            .versioned()
+            .codecVersion(VERSION)
             .append(new KeyedCodec<>("Fight", Codec.STRING), (c, v) -> c.fight = v, c -> c.fight)
             .documentation("The fight whose Claims this chest offers: the boss fight's run id.")
             .add()

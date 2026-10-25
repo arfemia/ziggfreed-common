@@ -54,6 +54,9 @@ public class ZigTitleComponent implements Component<EntityStore> {
     /** The engine registry id; the persisted save key for this component. */
     public static final String REGISTRY_ID = "ZiggfreedCommon:Titles";
 
+    /** The save's {@code Version} leaf: a save from before it reads as version 0, unchanged (zc-core's {@code codec/} router). */
+    public static final int VERSION = 1;
+
     /** The registered type, or null until {@link #register} runs (or when it failed). */
     @Nullable
     public static ComponentType<EntityStore, ZigTitleComponent> TYPE;
@@ -76,6 +79,7 @@ public class ZigTitleComponent implements Component<EntityStore> {
 
     static {
         var builder = BuilderCodec.builder(ZigTitleComponent.class, ZigTitleComponent::new);
+        builder.versioned().codecVersion(VERSION);
         builder.append(new KeyedCodec<>("UnlockedTitles", Codec.STRING),
                 (c, v, info) -> c.unlockedTitles = deserializeStringSet(v),
                 (c, info) -> serializeStringSet(c.unlockedTitles)).add();

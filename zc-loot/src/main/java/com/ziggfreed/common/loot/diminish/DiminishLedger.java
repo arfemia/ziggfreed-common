@@ -1,6 +1,5 @@
 package com.ziggfreed.common.loot.diminish;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -14,8 +13,8 @@ import javax.annotation.Nullable;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.hypixel.hytale.server.core.util.io.FileUtil;
-import com.ziggfreed.common.util.SafeLog;
+import com.google.gson.JsonObject;
+import com.ziggfreed.common.util.RecordFile;
 
 /**
  * How many times each player has earned each diminishing reward in its current window, kept across a
@@ -27,11 +26,11 @@ import com.ziggfreed.common.util.SafeLog;
  * when a payout is written (a new Claim, or a top-up of a held one), so a second write {@code award} refuses
  * never counts.
  *
- * <p>The file carries a {@code "version"}; a file declaring a newer version than this build reads is left
- * unread, and unwritten, with one warning, and so is a file this build cannot read at all (a damaged or
- * cut-short one), so one bad read never wipes the counts on disk. A missing or empty file is a fresh start,
- * not a refusal. The atomic write goes through the engine's {@code FileUtil}, as {@code PendingRewardStore}'s
- * does; a write that fails keeps the count in memory.
+ * <p>The file is kept through zc-core's {@code util/RecordFile} and carries a {@code "version"}; a file
+ * declaring a newer version than this build reads is left unread, and unwritten, with one warning, a torn file
+ * reads its {@code .bak}, and a file this build cannot read at all, backup included (a damaged or cut-short
+ * one), is left unread and unwritten too, so one bad read never wipes the counts on disk. A missing or empty
+ * file is a fresh start, not a refusal. A write that fails keeps the count in memory.
  */
 public final class DiminishLedger {
 
@@ -43,9 +42,8 @@ public final class DiminishLedger {
     private final String fileName;
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     private final ConcurrentHashMap<UUID, Map<String, Count>> counts = new ConcurrentHashMap<>();
-    @Nullable private volatile Path file;
-    /** True once a newer or unreadable file was found: it is never overwritten by this build. */
-    private volatile boolean refused;
+    /** The file, kept the one library way: a newer or unreadable file is never overwritten by this build. */
+    private final RecordFile file;
 
     /** Gson-friendly persisted shape of one key's count. */
     private static final class Count {
@@ -54,13 +52,35 @@ public final class DiminishLedger {
         int clears;
     }
 
+    /** The file's leaves; its {@code version} is the record file's. */
     private static final class Dto {
-        int version;
         Map<String, Map<String, Count>> players;
     }
 
     public DiminishLedger(@Nonnull String name) {
         this.fileName = name.endsWith(".json") ? name : name + ".json";
+        this.file = RecordFile.builder("claims", "the diminishing-return counts in " + fileName,
+                        new RecordFile.Body() {
+                            @Override
+                            @Nonnull
+                            public JsonObject write() {
+                                return writeDoc();
+                            }
+
+                            @Override
+                            public void read(@Nonnull JsonObject doc, int version) {
+                                readDoc(doc);
+                            }
+
+                            @Override
+                            public void forget() {
+                                counts.clear();
+                            }
+                        })
+                .version(SCHEMA_VERSION)
+                .lostWrite("a restart may forget a clear counted this window")
+                .refuseUnreadable()
+                .build();
     }
 
     /** The library's one ledger, the one the library's claim store counts through. */
@@ -74,9 +94,8 @@ public final class DiminishLedger {
         if (dataDir == null) {
             return;
         }
-        this.file = dataDir.resolve(fileName);
-        refused = false;
-        load(System.currentTimeMillis());
+        file.persistTo(dataDir.resolve(fileName), null);
+        prune(System.currentTimeMillis());
     }
 
     /**
@@ -103,42 +122,35 @@ public final class DiminishLedger {
 
     // ==================== persistence ====================
 
-    private void load(long nowMs) {
-        Path f = file;
-        if (f == null || !Files.exists(f)) {
+    private void readDoc(@Nonnull JsonObject doc) {
+        Dto dto = gson.fromJson(doc, Dto.class);
+        counts.clear();
+        if (dto == null || dto.players == null) {
             return;
         }
-        try {
-            Dto dto = gson.fromJson(Files.readString(f), Dto.class);
-            if (dto != null && dto.version > SCHEMA_VERSION) {
-                refused = true;
-                SafeLog.warn("[claims] " + fileName + " declares version " + dto.version + ", newer than the "
-                        + SCHEMA_VERSION + " this build reads; leaving it unread and unwritten rather than "
-                        + "misreading it");
-                return;
+        for (Map.Entry<String, Map<String, Count>> e : dto.players.entrySet()) {
+            UUID player = uuid(e.getKey());
+            if (player == null || e.getValue() == null) {
+                continue;
             }
-            counts.clear();
-            if (dto != null && dto.players != null) {
-                for (Map.Entry<String, Map<String, Count>> e : dto.players.entrySet()) {
-                    UUID player = uuid(e.getKey());
-                    if (player == null || e.getValue() == null) {
-                        continue;
-                    }
-                    Map<String, Count> mine = new HashMap<>();
-                    for (Map.Entry<String, Count> c : e.getValue().entrySet()) {
-                        if (c.getKey() != null && c.getValue() != null) {
-                            mine.put(fold(c.getKey()), c.getValue());
-                        }
-                    }
-                    counts.put(player, mine);
+            Map<String, Count> mine = new HashMap<>();
+            for (Map.Entry<String, Count> c : e.getValue().entrySet()) {
+                if (c.getKey() != null && c.getValue() != null) {
+                    mine.put(fold(c.getKey()), c.getValue());
                 }
             }
-            prune(nowMs);
-        } catch (Throwable t) {
-            refused = true;
-            SafeLog.warn("[claims] " + fileName + " unreadable; starting with no counts and leaving it unread and "
-                    + "unwritten: " + t.getMessage());
+            counts.put(player, mine);
         }
+    }
+
+    @Nonnull
+    private JsonObject writeDoc() {
+        Dto dto = new Dto();
+        dto.players = new HashMap<>();
+        for (Map.Entry<UUID, Map<String, Count>> e : counts.entrySet()) {
+            dto.players.put(e.getKey().toString(), new HashMap<>(e.getValue()));
+        }
+        return gson.toJsonTree(dto).getAsJsonObject();
     }
 
     /** Drop every count whose window has passed, and every player left with none. */
@@ -159,26 +171,10 @@ public final class DiminishLedger {
         return window != null && count.period == window.periodIndex(nowMs);
     }
 
+    /** Prune and write every count now; a refused file, or no data folder, writes nothing. */
     private void flush(long nowMs) {
-        Path f = file;
-        if (f == null || refused) {
-            return;
-        }
-        try {
-            prune(nowMs);
-            Dto dto = new Dto();
-            dto.version = SCHEMA_VERSION;
-            dto.players = new HashMap<>();
-            for (Map.Entry<UUID, Map<String, Count>> e : counts.entrySet()) {
-                dto.players.put(e.getKey().toString(), new HashMap<>(e.getValue()));
-            }
-            if (f.getParent() != null) {
-                Files.createDirectories(f.getParent());
-            }
-            FileUtil.writeStringAtomic(f, gson.toJson(dto), true);
-        } catch (Throwable t) {
-            SafeLog.warn("[claims] " + fileName + " could not be written: " + t.getMessage());
-        }
+        prune(nowMs);
+        file.writeNow();
     }
 
     @Nonnull
