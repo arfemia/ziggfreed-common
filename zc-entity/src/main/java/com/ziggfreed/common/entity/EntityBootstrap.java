@@ -111,18 +111,19 @@ public final class EntityBootstrap {
     }
 
     /**
-     * Register the per-type damage bonus hit step ({@link TypedDamageBonusSystem}): any attacker's direct hit
-     * takes every source's flat stat, and a hit a consumer's route source names (through
-     * {@link TypedDamageBonuses#registerRouteSource}) takes that source's stats, inside the engine's own
-     * outgoing sum. The every-hit percent sources (the library's {@code DamageBonus_<Type>} and
+     * Register the per-type damage bonus hit step ({@link TypedDamageBonusSystem}): a hit a consumer's route source
+     * names (through {@link TypedDamageBonuses#registerRouteSource}) takes that source's stats, inside the engine's
+     * own outgoing sum. The every-hit percent sources (the library's {@code DamageBonus_<Type>} and
      * {@link TypedDamageBonuses#registerSource}'s) reach a hit through the engine itself, from zc-effects'
      * native outgoing effects. A consumer whose own damage fold must see these orders itself AFTER the
      * system class; it never registers a second one. The damage and resistance types are read off the loaded
-     * stat and cause files ({@link DamageTypes}), read again whenever either store loads. A failed registration
-     * rethrows (R700): every flat and route line would be gone.
+     * stat and cause files ({@link DamageTypes}), read again whenever either store loads; the retired flat stats
+     * alias onto their type's percent ({@link TypedDamageBonuses#registerRetiredFlatAliases}). A failed
+     * registration rethrows (R700): every route line would be gone.
      */
     public static void installTypedDamageBonuses(@Nonnull PluginBase plugin) {
         try {
+            TypedDamageBonuses.registerRetiredFlatAliases();
             plugin.getEventRegistry().register(LoadedAssetsEvent.class, EntityStatType.class,
                     (LoadedAssetsEvent<String, EntityStatType, IndexedLookupTableAssetMap<String, EntityStatType>> ev) ->
                             DamageTypes.invalidate());

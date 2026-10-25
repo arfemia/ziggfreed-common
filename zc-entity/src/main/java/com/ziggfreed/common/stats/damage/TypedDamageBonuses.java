@@ -24,26 +24,27 @@ import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.damage.HitTags;
+import com.ziggfreed.common.stats.StatAliases;
 import com.ziggfreed.common.stats.StatIndexCache;
 
 /**
  * Per-damage-type bonus damage an attacker deals, read from stats any gear can raise: a damage type is any
  * loaded cause with a loaded percent stat {@code DamageBonus_<Type>} (whole percent points, 10 is +10%;
- * {@link DamageTypes#bonusTypes}, read off the loaded files, never a list here, R858), beside its flat stat
- * {@code DamageBonusFlat_<Type>}, and {@value #EVERY_TYPE_STAT_ID} raises every type at once, so an item's
- * native {@code StatModifiers} on a server running this library and nothing else make its wearer or wielder
- * hit harder. Any attacker carries them, a creature as much as a player (R860). A mod adds its own stats
- * for a type with {@link #registerSource} (only what it adds, never a second copy of the library's), or for
- * every type at once under {@link #EVERY_TYPE}.
+ * {@link DamageTypes#bonusTypes}, read off the loaded files, never a list here, R858), and
+ * {@value #EVERY_TYPE_STAT_ID} raises every type at once, so an item's native {@code StatModifiers} on a server
+ * running this library and nothing else make its wearer or wielder hit harder. Any attacker carries them, a
+ * creature as much as a player (R860). A mod adds its own stats for a type with {@link #registerSource} (only
+ * what it adds, never a second copy of the library's), or for every type at once under {@link #EVERY_TYPE}.
+ * There are no flat damage stats: a flat amount is an ability's or a talent's own modifier, never a stat, and
+ * the retired {@code DamageBonusFlat_<Type>} ids read as their type's percent ({@link #RETIRED_FLAT_PERCENT}
+ * points each, {@link #registerRetiredFlatAliases}).
  *
- * <p><b>Summed as the engine sums Enrage</b> (R567), {@code (amount + flat) * (1 + every percent summed)}:
- * zc-effects' {@code DamageBonusReconciler} keeps each carrier's summed PERCENT sources on hidden native
- * {@code OutgoingDamage} effects the engine applies, and {@link TypedDamageBonusSystem} adds the FLAT
- * sources ({@link #flatFor}) into that same sum on a direct hit, never a damage-over-time tick.
- * A type key covers its children (the engine's outgoing walk follows a hit's {@code Inherits} chain), so a
- * {@code Fire} bonus reaches a hit filed under Fire. Each type's summed percent is held to the attacker's
- * {@value #CEILING_STAT_ID} stat (its asset's {@code Max} is the ceiling every player starts with) and to
- * {@link #FLOOR_PERCENT} below.
+ * <p><b>Summed as the engine sums Enrage</b> (R567), {@code amount * (1 + every percent summed)}: zc-effects'
+ * {@code DamageBonusReconciler} keeps each carrier's summed PERCENT sources on hidden native
+ * {@code OutgoingDamage} effects the engine applies. A type key covers its children (the engine's outgoing
+ * walk follows a hit's {@code Inherits} chain), so a {@code Fire} bonus reaches a hit filed under Fire. Each
+ * type's summed percent is held to the attacker's {@value #CEILING_STAT_ID} stat (its asset's {@code Max} is
+ * the ceiling every player starts with) and to {@link #FLOOR_PERCENT} below.
  *
  * <p><b>Route sources</b> ({@link #registerRouteSource}) count only on the hits a {@link Route} names (a
  * hit's {@code Tags.Hit} value, a projectile): a line that belongs to how a hit was dealt rather than to
@@ -63,8 +64,15 @@ public final class TypedDamageBonuses {
     /** The percent stat id prefix: {@code DamageBonus_<Type>}, whole percent points. */
     public static final String PERCENT_PREFIX = "DamageBonus_";
 
-    /** The flat stat id prefix: {@code DamageBonusFlat_<Type>}, damage points. */
-    public static final String FLAT_PREFIX = "DamageBonusFlat_";
+    /** The retired flat stats' id prefix: {@code DamageBonusFlat_<Type>}, read only through their aliases. */
+    public static final String RETIRED_FLAT_PREFIX = "DamageBonusFlat_";
+
+    /** The types the library shipped a flat stat for, the ids {@link #registerRetiredFlatAliases} retires. */
+    private static final List<String> RETIRED_FLAT_TYPES = List.of("Physical", "Projectile", "Fire", "Ice",
+            "Lightning", "Water", "Wind", "Earth", "Poison", "Arcane", "Void", "Life");
+
+    /** What one point of a retired flat stat is worth on its type's percent stat, in whole percent points. */
+    public static final double RETIRED_FLAT_PERCENT = 4.0;
 
     /**
      * The type id a source registers under to count toward every damage type ({@link DamageTypes#bonusTypes})
@@ -134,21 +142,21 @@ public final class TypedDamageBonuses {
                 @Nullable Ref<EntityStore> target, @Nonnull Damage damage, @Nullable String causeId);
     }
 
-    /** One registered stat pair for one type; either stat may be absent. */
-    public record Source(@Nullable String percentStatId, @Nullable String flatStatId, @Nullable Gate gate) {
+    /** One registered percent stat for one type. */
+    public record Source(@Nonnull String percentStatId, @Nullable Gate gate) {
     }
 
-    /** One registered route stat pair for one type; either stat may be absent. */
-    public record RouteSource(@Nullable String percentStatId, @Nullable String flatStatId, @Nonnull Route route) {
+    /** One registered route percent stat for one type. */
+    public record RouteSource(@Nonnull String percentStatId, @Nonnull Route route) {
     }
 
-    /** One attacker's summed bonus: whole percent points and flat damage. */
-    public record Sums(double percentPoints, double flat) {
+    /** One attacker's summed bonus, in whole percent points. */
+    public record Sums(double percentPoints) {
 
-        public static final Sums NONE = new Sums(0.0, 0.0);
+        public static final Sums NONE = new Sums(0.0);
 
         public boolean isZero() {
-            return percentPoints == 0.0 && flat == 0.0;
+            return percentPoints == 0.0;
         }
     }
 
@@ -181,13 +189,13 @@ public final class TypedDamageBonuses {
     private static volatile List<String> sourcedRoster = List.of();
 
     static {
-        registerSource(EVERY_TYPE, EVERY_TYPE_STAT_ID, null, null);
+        registerSource(EVERY_TYPE, EVERY_TYPE_STAT_ID, null);
     }
 
     /**
-     * Register the library's own pair, {@code DamageBonus_<Type>} and {@code DamageBonusFlat_<Type>}, for every
-     * damage type the loaded files name, once per roster ({@link DamageTypes}): a type a pack adds is sourced the
-     * first read after its files load. One volatile read when nothing moved.
+     * Register the library's own {@code DamageBonus_<Type>} for every damage type the loaded files name, once per
+     * roster ({@link DamageTypes}): a type a pack adds is sourced the first read after its files load. One
+     * volatile read when nothing moved.
      */
     private static void sourceRoster() {
         List<String> roster = DamageTypes.bonusTypes();
@@ -195,44 +203,52 @@ public final class TypedDamageBonuses {
             return;
         }
         for (String type : roster) {
-            registerSource(type, PERCENT_PREFIX + type, FLAT_PREFIX + type, null);
+            registerSource(type, PERCENT_PREFIX + type, null);
         }
         sourcedRoster = roster;
     }
 
     /**
-     * Count {@code percentStatId} (whole percent points) and {@code flatStatId} (damage points) toward
-     * hits of {@code typeId} and every cause filed under it ({@link #EVERY_TYPE}: every library type),
-     * while {@code gate} allows (always, when null). Registering the same stat pair for the same type
-     * again replaces the earlier registration, so a late re-entry (a skill a pack folds in) is safe.
+     * Retire the flat stats the library shipped, {@code DamageBonusFlat_<Type>}, onto their type's percent stat at
+     * {@link #RETIRED_FLAT_PERCENT} points a flat point, so a roll a stack saved under one still raises that type.
+     * Call once at setup.
      */
-    public static void registerSource(@Nonnull String typeId, @Nullable String percentStatId,
-            @Nullable String flatStatId, @Nullable Gate gate) {
-        if (typeId.isBlank() || (blank(percentStatId) && blank(flatStatId))) {
+    public static void registerRetiredFlatAliases() {
+        for (String type : RETIRED_FLAT_TYPES) {
+            StatAliases.registerScaled(RETIRED_FLAT_PREFIX + type, RETIRED_FLAT_PERCENT, PERCENT_PREFIX + type);
+        }
+    }
+
+    /**
+     * Count {@code percentStatId} (whole percent points) toward hits of {@code typeId} and every cause filed under
+     * it ({@link #EVERY_TYPE}: every library type), while {@code gate} allows (always, when null). Registering the
+     * same stat for the same type again replaces the earlier registration, so a late re-entry (a skill a pack folds
+     * in) is safe.
+     */
+    public static void registerSource(@Nonnull String typeId, @Nullable String percentStatId, @Nullable Gate gate) {
+        if (typeId.isBlank() || blank(percentStatId)) {
             return;
         }
-        Source source = new Source(blank(percentStatId) ? null : percentStatId, blank(flatStatId) ? null : flatStatId,
-                gate);
+        Source source = new Source(percentStatId, gate);
         List<Source> list = SOURCES.computeIfAbsent(key(typeId), k -> new CopyOnWriteArrayList<>());
-        list.removeIf(s -> sameStats(s.percentStatId(), s.flatStatId(), source.percentStatId(), source.flatStatId()));
+        list.removeIf(s -> s.percentStatId().equalsIgnoreCase(percentStatId));
         list.add(source);
         noteSpelling(typeId);
     }
 
     /**
-     * Count {@code percentStatId} and {@code flatStatId} toward hits of {@code typeId} ({@link #EVERY_TYPE}:
-     * every library type) that {@code route} names, on top of the engine's sum for that hit
-     * ({@link TypedDamageBonusSystem}). The same stat pair for the same type again replaces the earlier one.
+     * Count {@code percentStatId} toward hits of {@code typeId} ({@link #EVERY_TYPE}: every library type) that
+     * {@code route} names, on top of the engine's sum for that hit ({@link TypedDamageBonusSystem}). The same stat
+     * for the same type again replaces the earlier one.
      */
     public static void registerRouteSource(@Nonnull String typeId, @Nullable String percentStatId,
-            @Nullable String flatStatId, @Nonnull Route route) {
-        if (typeId.isBlank() || (blank(percentStatId) && blank(flatStatId))) {
+            @Nonnull Route route) {
+        if (typeId.isBlank() || blank(percentStatId)) {
             return;
         }
-        RouteSource source = new RouteSource(blank(percentStatId) ? null : percentStatId,
-                blank(flatStatId) ? null : flatStatId, route);
+        RouteSource source = new RouteSource(percentStatId, route);
         List<RouteSource> list = ROUTES.computeIfAbsent(key(typeId), k -> new CopyOnWriteArrayList<>());
-        list.removeIf(s -> sameStats(s.percentStatId(), s.flatStatId(), source.percentStatId(), source.flatStatId()));
+        list.removeIf(s -> s.percentStatId().equalsIgnoreCase(percentStatId));
         list.add(source);
         noteSpelling(typeId);
     }
@@ -264,7 +280,10 @@ public final class TypedDamageBonuses {
         return gate == null || gate.allows(accessor, attacker);
     }
 
-    /** The bonus step: {@code (amount + flat) * (1 + percentPoints / 100)}, floored at zero. */
+    /**
+     * The bonus step: {@code (amount + flat) * (1 + percentPoints / 100)}, floored at zero. The flat is an
+     * ability's or a talent's own flat modifier, added before the percents as the engine adds it.
+     */
     public static double apply(double amount, double percentPoints, double flat) {
         if ((percentPoints == 0.0 && flat == 0.0) || !Double.isFinite(percentPoints) || !Double.isFinite(flat)) {
             return amount;
@@ -325,33 +344,11 @@ public final class TypedDamageBonuses {
             return Sums.NONE;
         }
         sourceRoster();
-        double[] sum = new double[2];
-        addSources(accessor, attacker, stats, SOURCES.get(EVERY_TYPE), excludeStatIds, sum);
+        double sum = addSources(accessor, attacker, stats, SOURCES.get(EVERY_TYPE), excludeStatIds);
         for (String type : typesFor(causeId)) {
-            addSources(accessor, attacker, stats, SOURCES.get(key(type)), excludeStatIds, sum);
+            sum += addSources(accessor, attacker, stats, SOURCES.get(key(type)), excludeStatIds);
         }
-        return new Sums(sum[0], sum[1]);
-    }
-
-    /**
-     * The attacker's summed FLAT bonus for a hit of {@code causeId}: the flat stat of every
-     * {@link #EVERY_TYPE} source and of every matched type's sources whose gate allows. Only the flat
-     * stats are read, and a gate is asked only of a nonzero one. The route step adds it to a direct hit.
-     */
-    public static double flatFor(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> attacker,
-            @Nullable String causeId) {
-        if (!attackerAllowed(accessor, attacker)) {
-            return 0.0;
-        }
-        EntityStatMap stats = accessor.getComponent(attacker, EntityStatMap.getComponentType());
-        if (stats == null) {
-            return 0.0;
-        }
-        double flat = addFlats(accessor, attacker, stats, SOURCES.get(EVERY_TYPE));
-        for (String type : typesFor(causeId)) {
-            flat += addFlats(accessor, attacker, stats, SOURCES.get(key(type)));
-        }
-        return flat;
+        return new Sums(sum);
     }
 
     /**
@@ -362,9 +359,8 @@ public final class TypedDamageBonuses {
     public static Sums sumsOfType(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> attacker,
             @Nonnull String typeId, @Nonnull EntityStatMap stats) {
         sourceRoster();
-        double[] sum = new double[2];
-        addSources(accessor, attacker, stats, SOURCES.get(key(typeId)), List.of(), sum);
-        return sum[0] == 0.0 && sum[1] == 0.0 ? Sums.NONE : new Sums(sum[0], sum[1]);
+        double sum = addSources(accessor, attacker, stats, SOURCES.get(key(typeId)), List.of());
+        return sum == 0.0 ? Sums.NONE : new Sums(sum);
     }
 
     /**
@@ -392,18 +388,17 @@ public final class TypedDamageBonuses {
         if (stats == null) {
             return Sums.NONE;
         }
-        double[] sum = new double[2];
-        addRoutes(accessor, attacker, damage, stats, ROUTES.get(EVERY_TYPE), sum);
+        double sum = addRoutes(accessor, attacker, damage, stats, ROUTES.get(EVERY_TYPE));
         for (String type : typesFor(causeId)) {
-            addRoutes(accessor, attacker, damage, stats, ROUTES.get(key(type)), sum);
+            sum += addRoutes(accessor, attacker, damage, stats, ROUTES.get(key(type)));
         }
         for (RouteTerm term : TERMS.values()) {
             double points = term.percentPoints(accessor, attacker, target, damage, causeId);
             if (Double.isFinite(points)) {
-                sum[0] += points;
+                sum += points;
             }
         }
-        return sum[0] == 0.0 && sum[1] == 0.0 ? Sums.NONE : new Sums(sum[0], sum[1]);
+        return sum == 0.0 ? Sums.NONE : new Sums(sum);
     }
 
     /**
@@ -436,14 +431,14 @@ public final class TypedDamageBonuses {
         sourceRoster();
         for (List<Source> sources : SOURCES.values()) {
             for (Source source : sources) {
-                if (statId.equalsIgnoreCase(source.percentStatId()) || statId.equalsIgnoreCase(source.flatStatId())) {
+                if (statId.equalsIgnoreCase(source.percentStatId())) {
                     return true;
                 }
             }
         }
         for (List<RouteSource> sources : ROUTES.values()) {
             for (RouteSource source : sources) {
-                if (statId.equalsIgnoreCase(source.percentStatId()) || statId.equalsIgnoreCase(source.flatStatId())) {
+                if (statId.equalsIgnoreCase(source.percentStatId())) {
                     return true;
                 }
             }
@@ -458,7 +453,7 @@ public final class TypedDamageBonuses {
             return false;
         }
         for (Source source : sources) {
-            if ((statId.equalsIgnoreCase(source.percentStatId()) || statId.equalsIgnoreCase(source.flatStatId()))
+            if (statId.equalsIgnoreCase(source.percentStatId())
                     && (source.gate() == null || source.gate().allows(accessor, attacker))) {
                 return true;
             }
@@ -474,7 +469,7 @@ public final class TypedDamageBonuses {
             return false;
         }
         for (RouteSource source : sources) {
-            if ((statId.equalsIgnoreCase(source.percentStatId()) || statId.equalsIgnoreCase(source.flatStatId()))
+            if (statId.equalsIgnoreCase(source.percentStatId())
                     && source.route().matches(accessor, attacker, damage)) {
                 return true;
             }
@@ -530,65 +525,42 @@ public final class TypedDamageBonuses {
         return Double.isFinite(max) ? max : 0.0;
     }
 
-    /** Adds each source's reading to {@code sum} ({percent, flat}); a gate is asked only of a nonzero one. */
-    private static void addSources(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> attacker,
-            @Nonnull EntityStatMap stats, @Nullable List<Source> sources, @Nonnull Collection<String> excludeStatIds,
-            @Nonnull double[] sum) {
-        if (sources == null) {
-            return;
-        }
-        for (Source source : sources) {
-            double percent = source.percentStatId() != null && !excludeStatIds.contains(source.percentStatId())
-                    ? readMax(stats, source.percentStatId()) : 0.0;
-            double flat = source.flatStatId() != null && !excludeStatIds.contains(source.flatStatId())
-                    ? readMax(stats, source.flatStatId()) : 0.0;
-            if (percent == 0.0 && flat == 0.0) {
-                continue;
-            }
-            if (source.gate() != null && !source.gate().allows(accessor, attacker)) {
-                continue;
-            }
-            sum[0] += percent;
-            sum[1] += flat;
-        }
-    }
-
-    /** The flat stats of {@code sources} summed; a gate is asked only of a nonzero one. */
-    private static double addFlats(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> attacker,
-            @Nonnull EntityStatMap stats, @Nullable List<Source> sources) {
+    /** The sources' summed percent; a gate is asked only of a nonzero one. */
+    private static double addSources(@Nonnull ComponentAccessor<EntityStore> accessor,
+            @Nonnull Ref<EntityStore> attacker, @Nonnull EntityStatMap stats, @Nullable List<Source> sources,
+            @Nonnull Collection<String> excludeStatIds) {
         if (sources == null) {
             return 0.0;
         }
         double sum = 0.0;
         for (Source source : sources) {
-            double flat = source.flatStatId() != null ? readMax(stats, source.flatStatId()) : 0.0;
-            if (flat == 0.0 || (source.gate() != null && !source.gate().allows(accessor, attacker))) {
+            if (excludeStatIds.contains(source.percentStatId())) {
                 continue;
             }
-            sum += flat;
+            double percent = readMax(stats, source.percentStatId());
+            if (percent == 0.0 || (source.gate() != null && !source.gate().allows(accessor, attacker))) {
+                continue;
+            }
+            sum += percent;
         }
         return sum;
     }
 
-    /** Adds each route source's reading whose route names {@code damage}; a route is asked only of a nonzero one. */
-    private static void addRoutes(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> attacker,
-            @Nonnull Damage damage, @Nonnull EntityStatMap stats, @Nullable List<RouteSource> sources,
-            @Nonnull double[] sum) {
+    /** The route sources' summed percent whose route names {@code damage}; a route is asked only of a nonzero one. */
+    private static double addRoutes(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> attacker,
+            @Nonnull Damage damage, @Nonnull EntityStatMap stats, @Nullable List<RouteSource> sources) {
         if (sources == null) {
-            return;
+            return 0.0;
         }
+        double sum = 0.0;
         for (RouteSource source : sources) {
-            double percent = source.percentStatId() != null ? readMax(stats, source.percentStatId()) : 0.0;
-            double flat = source.flatStatId() != null ? readMax(stats, source.flatStatId()) : 0.0;
-            if (percent == 0.0 && flat == 0.0) {
+            double percent = readMax(stats, source.percentStatId());
+            if (percent == 0.0 || !source.route().matches(accessor, attacker, damage)) {
                 continue;
             }
-            if (!source.route().matches(accessor, attacker, damage)) {
-                continue;
-            }
-            sum[0] += percent;
-            sum[1] += flat;
+            sum += percent;
         }
+        return sum;
     }
 
     private static double held(double points, double ceiling) {
@@ -604,15 +576,6 @@ public final class TypedDamageBonuses {
                 registeredTypes = List.copyOf(TYPE_SPELLING.values());
             }
         }
-    }
-
-    private static boolean sameStats(@Nullable String percentA, @Nullable String flatA, @Nullable String percentB,
-            @Nullable String flatB) {
-        return same(percentA, percentB) && same(flatA, flatB);
-    }
-
-    private static boolean same(@Nullable String a, @Nullable String b) {
-        return a == null ? b == null : a.equalsIgnoreCase(b);
     }
 
     @Nonnull

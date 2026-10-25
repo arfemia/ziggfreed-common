@@ -19,8 +19,8 @@ import javax.annotation.Nullable;
  * of them in full (a retired stat that covered two of today's), never split between them. An alias
  * registered with a scale ({@link #registerScaled}) counts the old value times that scale, for a stat
  * whose successor counts in another unit (a flat bonus onto a percent one, a percent onto seconds). Ids
- * match case-insensitively, as the engine keys its assets. A consumer registers only its own retired ids,
- * at setup; the library registers none.
+ * match case-insensitively, as the engine keys its assets. Each owner registers only its own retired ids, at
+ * setup: the library its own (the flat damage stats, zc-entity's {@code TypedDamageBonuses}), a consumer its.
  *
  * <p>{@link StackStats} reads and merges through {@link #normalize}, so a saved stack's old entries
  * apply under their new ids, and a stack stamped again stores the new ids.

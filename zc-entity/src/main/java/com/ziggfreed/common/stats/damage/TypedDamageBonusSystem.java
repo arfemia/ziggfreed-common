@@ -19,26 +19,22 @@ import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageCause;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageEventSystem;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageModule;
-import com.hypixel.hytale.server.core.modules.entity.damage.DamageSourceType;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageSystems;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * The per-hit step of {@link TypedDamageBonuses}, for any attacker's hits (a creature's as a player's, R860). Two
- * things join the engine's own
- * outgoing sum here ({@link NativeOutgoing#addToSum}), so they add to Enrage and every native percent line
- * rather than multiplying on top of them: the route sources a registered {@link TypedDamageBonuses.Route}
- * names (a tagged bomb's burst, a thrown spear) with every registered {@link TypedDamageBonuses.RouteTerm}'s percent
- * (the conditional stats, read against this hit's target), and on a DIRECT hit every source's flat stat
- * ({@link TypedDamageBonuses#flatFor}), as {@code (a + flat) * (1 + P)}. A damage-over-time tick
- * ({@code DamageSourceType.DoT}) takes no flat. The every-hit percent lines are not here: the engine
+ * The per-hit step of {@link TypedDamageBonuses}, for any attacker's hits (a creature's as a player's, R860): the
+ * route sources a registered {@link TypedDamageBonuses.Route} names (a tagged bomb's burst, a thrown spear) with
+ * every registered {@link TypedDamageBonuses.RouteTerm}'s percent (the conditional stats, read against this hit's
+ * target) join the engine's own outgoing sum here ({@link NativeOutgoing#addToSum}), so they add to Enrage and every
+ * native percent line rather than multiplying on top of them. The every-hit percent lines are not here: the engine
  * applies those itself, from the native effects zc-effects' {@code DamageBonusReconciler} keeps in step.
  *
  * <p>In the Filter damage group, after the engine's outgoing step; a consumer whose own fold must see
  * these in the hit's sum orders itself {@code AFTER} this class. A projectile hit counts its shooter's
- * stats. A hit costs one stat read per flat and route source, a gate or route asked only of a nonzero one.
+ * stats. A hit costs one stat read per route source, a route asked only of a nonzero one.
  */
 public final class TypedDamageBonusSystem extends DamageEventSystem {
 
@@ -83,23 +79,18 @@ public final class TypedDamageBonusSystem extends DamageEventSystem {
             if (cause == null) {
                 return;
             }
-            // A flat line lands on a direct hit, never on a damage-over-time tick (a burn's one-point
-            // tick would otherwise take a weapon's whole flat each tick).
-            boolean directHit = source.getSourceType() != DamageSourceType.DoT;
-            TypedDamageBonuses.Sums route = TypedDamageBonuses.routeSumsFor(store, attacker,
-                    chunk.getReferenceTo(index), damage, cause.getId());
-            double flat = directHit ? TypedDamageBonuses.flatFor(store, attacker, cause.getId()) + route.flat() : 0.0;
-            double percentPoints = route.percentPoints();
-            if (percentPoints == 0.0 && flat == 0.0) {
+            double percentPoints = TypedDamageBonuses.routeSumsFor(store, attacker,
+                    chunk.getReferenceTo(index), damage, cause.getId()).percentPoints();
+            if (percentPoints == 0.0) {
                 return;
             }
             EntityStatMap stats = store.getComponent(attacker, EntityStatMap.getComponentType());
-            if (stats != null && percentPoints != 0.0) {
+            if (stats != null) {
                 double nativePoints = TypedDamageBonuses.sumsFor(store, attacker, cause.getId(), List.of()).percentPoints();
                 percentPoints = TypedDamageBonuses.heldToCeiling(nativePoints, percentPoints,
                         TypedDamageBonuses.ceilingPercent(stats));
             }
-            NativeOutgoing.addToSum(damage, store, attacker, percentPoints / 100.0, flat);
+            NativeOutgoing.addToSum(damage, store, attacker, percentPoints / 100.0, 0.0);
         } catch (Throwable t) {
             SafeLog.warn("[damage-bonus] route step failed: " + t.getMessage());
         }
