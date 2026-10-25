@@ -16,29 +16,43 @@ import javax.annotation.Nullable;
  * an asset named or a mod still writes lands on its successor.
  *
  * <p>An alias maps one old id to one or more new ids. With several, the old value counts toward EACH
- * of them in full (a retired stat that covered two of today's), never split between them. Ids match
- * case-insensitively, as the engine keys its assets. A consumer registers only its own retired ids, at
- * setup; the library registers none.
+ * of them in full (a retired stat that covered two of today's), never split between them. An alias
+ * registered with a scale ({@link #registerScaled}) counts the old value times that scale, for a stat
+ * whose successor counts in another unit (a flat bonus onto a percent one, a percent onto seconds). Ids
+ * match case-insensitively, as the engine keys its assets. A consumer registers only its own retired ids,
+ * at setup; the library registers none.
  *
  * <p>{@link StackStats} reads and merges through {@link #normalize}, so a saved stack's old entries
  * apply under their new ids, and a stack stamped again stores the new ids.
  */
 public final class StatAliases {
 
-    /** Old id, lower-cased, to its successors in registration order. */
+    /** One retirement: its successors in registration order, and what one old point is worth on each. */
+    private record Alias(@Nonnull List<String> targets, double scale) {
+    }
+
+    /** Old id, lower-cased, to its retirement. */
     @Nonnull
-    private static final Map<String, List<String>> ALIASES = new ConcurrentHashMap<>();
+    private static final Map<String, Alias> ALIASES = new ConcurrentHashMap<>();
 
     private StatAliases() {
     }
 
     /**
-     * Retire {@code oldId} in favour of {@code newIds} (one or more). A second registration of the same
-     * old id replaces the first. Blank ids, an empty successor list or an id aliased to itself register
-     * nothing.
+     * Retire {@code oldId} in favour of {@code newIds} (one or more), each taking the old value in full. A
+     * second registration of the same old id replaces the first. Blank ids, an empty successor list or an id
+     * aliased to itself register nothing.
      */
     public static void register(@Nonnull String oldId, @Nonnull String... newIds) {
-        if (oldId.isBlank() || newIds.length == 0) {
+        registerScaled(oldId, 1.0, newIds);
+    }
+
+    /**
+     * Retire {@code oldId} in favour of {@code newIds}, each taking the old value times {@code scale}. A scale
+     * that is not a finite number above zero registers nothing; otherwise as {@link #register}.
+     */
+    public static void registerScaled(@Nonnull String oldId, double scale, @Nonnull String... newIds) {
+        if (oldId.isBlank() || newIds.length == 0 || !Double.isFinite(scale) || !(scale > 0.0)) {
             return;
         }
         List<String> targets = new ArrayList<>(newIds.length);
@@ -48,7 +62,7 @@ public final class StatAliases {
             }
         }
         if (!targets.isEmpty()) {
-            ALIASES.put(oldId.toLowerCase(Locale.ROOT), List.copyOf(targets));
+            ALIASES.put(oldId.toLowerCase(Locale.ROOT), new Alias(List.copyOf(targets), scale));
         }
     }
 
@@ -60,14 +74,20 @@ public final class StatAliases {
     /** The ids {@code id} counts toward now: its successors when retired, else itself. */
     @Nonnull
     public static List<String> resolve(@Nonnull String id) {
-        List<String> targets = ALIASES.get(id.toLowerCase(Locale.ROOT));
-        return targets != null ? targets : List.of(id);
+        Alias alias = ALIASES.get(id.toLowerCase(Locale.ROOT));
+        return alias != null ? alias.targets() : List.of(id);
+    }
+
+    /** What one point of {@code id} is worth on each id {@link #resolve} answers: its alias's scale, else 1. */
+    public static double scale(@Nonnull String id) {
+        Alias alias = ALIASES.get(id.toLowerCase(Locale.ROOT));
+        return alias != null ? alias.scale() : 1.0;
     }
 
     /**
      * {@code entries} with every retired id replaced by its successors, each successor taking the old
-     * value in full and summing with whatever already sat under it; first-seen order is kept and null
-     * keys or values are dropped. Answers the same map when nothing in it is retired.
+     * value times the alias's scale and summing with whatever already sat under it; first-seen order is
+     * kept and null keys or values are dropped. Answers the same map when nothing in it is retired.
      */
     @Nonnull
     public static Map<String, Double> normalize(@Nonnull Map<String, Double> entries) {
@@ -79,8 +99,9 @@ public final class StatAliases {
             if (e.getKey() == null || e.getValue() == null) {
                 continue;
             }
+            double value = e.getValue() * scale(e.getKey());
             for (String target : resolve(e.getKey())) {
-                out.merge(target, e.getValue(), Double::sum);
+                out.merge(target, value, Double::sum);
             }
         }
         return out;
