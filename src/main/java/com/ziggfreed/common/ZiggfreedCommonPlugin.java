@@ -14,6 +14,7 @@ import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.ziggfreed.common.almanac.AlmanacBootstrap;
+import com.ziggfreed.common.authoring.AuthoringBootstrap;
 import com.ziggfreed.common.almanac.asset.AlmanacValidator;
 import com.ziggfreed.common.asset.AssetStoreWriter;
 import com.ziggfreed.common.asset.EditorDataSets;
@@ -414,6 +415,10 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // typed words registered before the start's catalogue load, the /zigpack family, and its load order kept
         // after every other pack at boot. A pack made this session registers at start().
         ServerContentBootstrap.install(this);
+        // The authoring kit every in-game editor builds on: the ZigAuthoringTool interaction Type the creative
+        // Authoring Tools tab's tools run (registered before any item decodes), the Inspect Tool and its wizard, and
+        // /zigauthor. The tab, the tools and their root interaction are assets zc-presentation ships.
+        AuthoringBootstrap.install(this);
         // The once-at-boot checks (the boot audit a headless dev boot asks for), on BootEvent: every
         // store has folded and every mod has registered its vocabulary by then.
         registerBootChecks();

@@ -1,0 +1,73 @@
+# The authoring kit (zc-presentation authoring/): the creative Authoring Tools tab, the wizard every in-game
+# editor opens in, the Inspect Tool and /zigauthor.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.authoring.<key>.
+
+# The creative tab (Server/Item/Category/CreativeLibrary/Zig_Authoring.json) and its two groups.
+category.tools = Authoring Tools
+category.inspect.name = Inspect
+category.inspect.description = Point at a block, creature or item to see the names you write in quests and other content.
+category.editors.name = Editors
+category.editors.description = Point at a block, creature or NPC to start making something with it.
+
+# When a tool refuses. {0} is the permission node the tool needs.
+tool.creative = Authoring tools only work in creative mode.
+tool.permission = You need the {0} permission to use this tool.
+tool.nothing = This tool has nothing to open on this server.
+
+# The wizard frame. In wizard.step, {2} is the step's name.
+wizard.step = Step {0, number} of {1, number}: {2}
+wizard.search = Search the lists below
+wizard.back = Back
+wizard.next = Next
+wizard.save = Save
+wizard.close = Close
+wizard.on = On
+wizard.off = Off
+wizard.preview = Preview
+wizard.preview.empty = Nothing to show yet.
+wizard.pick = Pick in the world: {0}
+wizard.save_failed = That couldn't be saved. The server log says why.
+wizard.nothing = There's nothing to save yet.
+wizard.busy = Still saving. Give it a second.
+# {0} is the permission node the save needs.
+wizard.save_permission = You need the {0} permission to save this.
+
+# Picking from the world. {0} is the field being filled.
+pick.start = Click a block or creature with an authoring tool to fill in {0}. Click the air to go back without picking.
+pick.done = Filled in {0}.
+pick.miss = That doesn't fit {0}, so nothing changed.
+pick.cancelled = Nothing picked, so nothing changed.
+
+# The Inspect Tool's wizard.
+inspect.title = Inspect
+inspect.step.block = Block
+inspect.step.creature = Creature
+inspect.step.item = Item
+inspect.note.block = A block's id, and the block families and item tags it's in. Type an id, or pick a block in the world.
+inspect.note.creature = A creature's NPC role, and the NPC groups it's in. Type a role, or pick a creature in the world.
+inspect.note.item = An item's id, and the item tags it carries. Choose one from the list (search above to narrow it down), or pick an item lying in the world.
+inspect.field.block = Block id
+inspect.field.role = NPC role
+inspect.field.item = Item
+inspect.preview.block = Block {0}
+inspect.preview.no_block = {0} isn't a block on this server.
+inspect.preview.families = Block families: {0}
+inspect.preview.tags = Item tags: {0}
+inspect.preview.role = NPC role {0}
+inspect.preview.groups = NPC groups: {0}
+inspect.preview.item = Item {0}
+inspect.preview.no_item = {0} isn't an item on this server.
+inspect.preview.none = none
+
+# /zigauthor. The desc.* entries are what the engine's help shows.
+admin.desc.family = Open the in-game editors and list the authoring tools.
+admin.desc.list = List the editors and authoring tools on this server.
+admin.desc.open = Open an editor.
+admin.desc.arg.wizard = The editor to open (see /zigauthor list).
+admin.list.wizards = Editors: {0}
+admin.list.tools = Tools:
+admin.list.no_tools = Tools: none
+admin.list.tool = {0}, which needs {1} and creative mode
+admin.list.none = none
+admin.open.unknown = There's no editor called {0}. Try /zigauthor list.
+admin.open.failed = {0} couldn't be opened. The server log says why.

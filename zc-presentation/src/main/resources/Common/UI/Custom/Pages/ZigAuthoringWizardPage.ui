@@ -1,0 +1,149 @@
+$C = "../Common.ui";
+$F = "../Common/ZigFrames.ui";
+$S = "../Common/ZigSearchRow.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
+
+// The authoring wizard (com.ziggfreed.common.authoring.AuthoringWizardPage): the one frame every in-game editor
+// opens in, a numbered step at a time, with the step's settings rows on the left and what is being made on the
+// right.
+//
+//   #Title          the wizard's name
+//   #StepLine       "Step 2 of 3: Rewards"
+//   #PickerSearch   the shared search row, shown only on a step with a picker: it narrows every picker's list
+//   #Form           the step's Pages/ZigForm*Row.ui rows, appended by SettingsForm (MUST stay childless: rows are
+//                   addressed by indexed parent, "#Form[2] #Field")
+//   #Picks          one Pages/ZigAuthoringPickRow.ui per field the world can fill ("Pick in the world: Giver")
+//   #Preview        the wizard's preview lines, one Pages/ZigFormNoteRow.ui each (childless, like #Form)
+//   #Status         why Next or Save refused, hidden until there is something to say
+//   #Actions        Close, Back (not on the first step), Next (not on the last), Save (the last step of a wizard
+//                   that saves)
+//
+// Every word is set from Java on .TextSpans (each button is a Button holding Label #Label), so nothing here is a
+// literal. Shipped once in ziggfreed-common; neutral Zig* ids. Smoke-test in game.
+
+$C.@PageOverlay {}
+$F.@ZigDecoratedFrame {
+  @CloseButton = true;
+  Anchor: (Width: 1040, Height: 720);
+
+  #Content {
+    Label #Title {
+      Anchor: (Bottom: $ZK.@ZigSpace1);
+      Text: "";
+      Style: $ZX.@ZigTitleStyle;
+    }
+
+    Label #StepLine {
+      Anchor: (Bottom: $ZK.@ZigSpace2);
+      Text: "";
+      Style: $ZX.@ZigCaptionStyle;
+    }
+
+    Group #TitleRule {
+      Anchor: (Height: 1, Bottom: $ZK.@ZigSpace3);
+      Background: (Color: $ZK.@ZigDivider);
+    }
+
+    Group #Body {
+      FlexWeight: 1;
+      LayoutMode: Left;
+
+      Group #FormColumn {
+        FlexWeight: 1;
+        LayoutMode: Top;
+
+        $S.@ZigSearchRow #PickerSearch {
+          @Anchor = (Bottom: $ZK.@ZigSpace2);
+          @Height = 30;
+          @Placeholder = %ziggfreedcommon.authoring.wizard.search;
+        }
+
+        Group #Form {
+          FlexWeight: 1;
+          LayoutMode: TopScrolling;
+          ScrollbarStyle: $C.@DefaultScrollbarStyle;
+          Padding: (Right: 4);
+        }
+
+        Group #Picks {
+          LayoutMode: Top;
+          Anchor: (Top: $ZK.@ZigSpace2);
+        }
+      }
+
+      Group #PreviewColumn {
+        Anchor: (Width: 360, Left: $ZK.@ZigSpace4);
+        LayoutMode: Top;
+        Padding: (Full: $ZK.@ZigSpace3);
+        Background: (Color: $ZK.@ZigSurfacePane);
+
+        Label #PreviewTitle {
+          Anchor: (Bottom: $ZK.@ZigSpace2);
+          Text: "";
+          Style: $ZX.@ZigSectionLabelStyle;
+        }
+
+        Group #Preview {
+          FlexWeight: 1;
+          LayoutMode: TopScrolling;
+          ScrollbarStyle: $C.@DefaultScrollbarStyle;
+          Padding: (Right: 4);
+        }
+      }
+    }
+
+    Label #Status {
+      Visible: false;
+      Anchor: (Top: $ZK.@ZigSpace2);
+      Text: "";
+      Style: (...$ZX.@ZigBodyStyle, Wrap: true);
+    }
+
+    Group #Actions {
+      LayoutMode: Center;
+      Anchor: (Height: $ZK.@ZigActionHeight, Top: $ZK.@ZigSpace3);
+
+      Button #CloseAction {
+        Anchor: (Width: 150, Height: $ZK.@ZigActionHeight, Right: $ZK.@ZigSpace3);
+        Style: $ZS.@ZigButtonSecondaryStyle;
+        Label #Label {
+          FlexWeight: 1;
+          Text: "";
+          Style: $ZX.@ZigButtonLabelStyle;
+        }
+      }
+
+      Button #BackAction {
+        Anchor: (Width: 150, Height: $ZK.@ZigActionHeight, Right: $ZK.@ZigSpace3);
+        Style: $ZS.@ZigButtonSecondaryStyle;
+        Label #Label {
+          FlexWeight: 1;
+          Text: "";
+          Style: $ZX.@ZigButtonLabelStyle;
+        }
+      }
+
+      Button #NextAction {
+        Anchor: (Width: 180, Height: $ZK.@ZigActionHeight);
+        Style: $ZS.@ZigButtonPrimaryStyle;
+        Label #Label {
+          FlexWeight: 1;
+          Text: "";
+          Style: $ZX.@ZigButtonLabelStyle;
+        }
+      }
+
+      Button #SaveAction {
+        Anchor: (Width: 180, Height: $ZK.@ZigActionHeight);
+        Style: $ZS.@ZigButtonPrimaryStyle;
+        Label #Label {
+          FlexWeight: 1;
+          Text: "";
+          Style: $ZX.@ZigButtonLabelStyle;
+        }
+      }
+    }
+  }
+}

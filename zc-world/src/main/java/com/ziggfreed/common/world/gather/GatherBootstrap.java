@@ -22,10 +22,12 @@ public final class GatherBootstrap {
     /** Register the gather and build systems. */
     public static void install(@Nonnull PluginBase plugin) {
         // The shared matcher's BlockFamily: key (zc-core's MatchSets seam) reads the families this module folds, so a
-        // track source or bonus row naming a family works on any server running the library.
+        // track source or bonus row naming a family works on any server running the library, and lists them, so an
+        // in-game editor offers the families and says which hold a block.
         BlockFamilyConfig families = BlockFamilyConfig.getInstance();
         MatchSets.families(MatchSets.reader((block, family) -> families.holds(family, block),
-                family -> families.resolve(family) != null, families::generation));
+                family -> families.resolve(family) != null, families::generation, families::displayFamiliesOf,
+                families::displayIds));
         try {
             plugin.getEntityStoreRegistry().registerSystem(new GatherSpeedSystem());
             plugin.getEntityStoreRegistry().registerSystem(new GatherChainSystem());

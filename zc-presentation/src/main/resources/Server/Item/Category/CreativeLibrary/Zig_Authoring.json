@@ -1,0 +1,27 @@
+{
+  "$Comment": "The creative library's Authoring Tools tab: the library's authoring tools, each an item under Server/Item/Items/Authoring/ that takes Zig_Author_Tool as its Parent and names Zig_Authoring.Tools in its Categories. Inspect holds the tools that only show what a thing is called; Editors holds the tools that open an in-game editor on what they point at. The creative library only shows in creative mode, and the server sends every category to every client, so any creative player sees this tab; each tool checks its ziggfreedcommon.author.<tool> permission and creative mode on the server when it is used. The shape is vanilla's CreativeLibrary/Tool.json; the icon is vanilla's editor tab icon (a root tab's icon needs its Active twin, which only the root icons have).",
+  "Icon": "Icons/ItemCategories/Editor.png",
+  "Order": 10,
+  "Children": [
+    {
+      "Id": "Tools",
+      "Name": "ziggfreedcommon.authoring.category.tools",
+      "Icon": "Icons/ItemCategories/Builder Tools.png",
+      "InfoDisplayMode": "Adjacent",
+      "SubCategories": [
+        {
+          "Id": "Inspect",
+          "Name": "ziggfreedcommon.authoring.category.inspect.name",
+          "Order": 10,
+          "Description": "ziggfreedcommon.authoring.category.inspect.description"
+        },
+        {
+          "Id": "Editors",
+          "Name": "ziggfreedcommon.authoring.category.editors.name",
+          "Order": 20,
+          "Description": "ziggfreedcommon.authoring.category.editors.description"
+        }
+      ]
+    }
+  ]
+}

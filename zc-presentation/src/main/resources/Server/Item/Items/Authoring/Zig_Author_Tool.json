@@ -1,0 +1,29 @@
+{
+  "$Comment": "The library's base authoring tool, never a tool itself: every authoring tool takes it as its Parent and adds its name, icon, its place in the Authoring Tools tab (Categories Zig_Authoring.Tools, SubCategory Inspect or Editors) and the ZigAuthorTool tag naming the tool (the editor it opens and its permission, ziggfreedcommon.author.<tool>). A click, left or right, runs Zig_Authoring_Tool on whatever the player points at up to 128 blocks away; the check for creative mode and the permission is made on the server at that moment. Template quality keeps this base out of the creative search, and it names no category, so it never shows in a tab. The art is vanilla's builder brush; point Icon, Model or Texture elsewhere in a tool's own file to reskin it.",
+  "TranslationProperties": {
+    "Name": "items.Zig_Author_Tool.name",
+    "Description": "items.Zig_Author_Tool.description"
+  },
+  "Icon": "Icons/Items/EditorTools/Point.png",
+  "Model": "Items/Tools/Brush/Brush.blockymodel",
+  "Texture": "Items/Tools/Brush/Brush_Texture.png",
+  "MaxStack": 1,
+  "PlayerAnimationsId": "Item",
+  "Quality": "Template",
+  "Interactions": {
+    "Primary": "Zig_Authoring_Tool",
+    "Secondary": "Zig_Authoring_Tool"
+  },
+  "InteractionConfig": {
+    "UseDistance": {
+      "Adventure": 128,
+      "Creative": 128
+    },
+    "AllEntities": true
+  },
+  "Tags": {
+    "Family": [
+      "ZiggfreedCommon"
+    ]
+  }
+}

@@ -1,11 +1,18 @@
 package com.ziggfreed.common.match;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiPredicate;
+import java.util.function.Function;
 import java.util.function.LongSupplier;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -56,12 +63,32 @@ public final class MatchSets {
 
         /** A counter that moves whenever an answer may change. Only ever grows. */
         long generation();
+
+        /** The sets holding {@code targetId}, as their files spell them; empty when this reader cannot list them. */
+        @Nonnull
+        default Collection<String> setsOf(@Nonnull String targetId) {
+            return List.of();
+        }
+
+        /** Every set this reader knows, as their files spell them; empty when it cannot list them. */
+        @Nonnull
+        default Collection<String> ids() {
+            return List.of();
+        }
     }
 
-    /** A {@link Reader} from its parts (a module filling the seam from its own config). */
+    /** A {@link Reader} from its parts (a module filling the seam from its own config), which lists no sets. */
     @Nonnull
     public static Reader reader(@Nonnull BiPredicate<String, String> inSet, @Nonnull Predicate<String> known,
             @Nonnull LongSupplier generation) {
+        return reader(inSet, known, generation, target -> List.of(), List::of);
+    }
+
+    /** A {@link Reader} from its parts that also lists its sets: those holding a target, and all of them. */
+    @Nonnull
+    public static Reader reader(@Nonnull BiPredicate<String, String> inSet, @Nonnull Predicate<String> known,
+            @Nonnull LongSupplier generation, @Nonnull Function<String, ? extends Collection<String>> setsOf,
+            @Nonnull Supplier<? extends Collection<String>> ids) {
         return new Reader() {
             @Override
             public boolean inSet(@Nonnull String targetId, @Nonnull String setId) {
@@ -76,6 +103,20 @@ public final class MatchSets {
             @Override
             public long generation() {
                 return generation.getAsLong();
+            }
+
+            @Nonnull
+            @Override
+            public Collection<String> setsOf(@Nonnull String targetId) {
+                Collection<String> sets = setsOf.apply(targetId);
+                return sets == null ? List.of() : sets;
+            }
+
+            @Nonnull
+            @Override
+            public Collection<String> ids() {
+                Collection<String> all = ids.get();
+                return all == null ? List.of() : all;
             }
         };
     }
@@ -158,6 +199,109 @@ public final class MatchSets {
         } catch (Throwable t) {
             return null;
         }
+    }
+
+    /**
+     * The sets of {@code form} holding {@code targetId}, sorted without regard to case: the tag words an item (or a
+     * block's item) carries ({@link #tagWords}), the block families holding a block, the NPC groups holding a role.
+     * The words an author writes after the form's prefix. Empty for a name form, a blank id, or nothing to read.
+     */
+    @Nonnull
+    public static List<String> setsOf(@Nonnull MatchKey.Form form, @Nullable String targetId) {
+        if (targetId == null || targetId.isBlank()) {
+            return List.of();
+        }
+        try {
+            return switch (form) {
+                case ITEM_TAG -> tagWords(rawTagsOf(targetId));
+                case BLOCK_FAMILY -> {
+                    Reader family = familyReader();
+                    yield family == null ? List.of() : sorted(family.setsOf(targetId));
+                }
+                case NPC_GROUP -> groupsOf(targetId);
+                case NAME -> List.of();
+            };
+        } catch (Throwable t) {
+            return List.of();
+        }
+    }
+
+    /**
+     * Every set of {@code form} this server has, sorted without regard to case: every tag word any item carries,
+     * every block family, every NPC group. What a picker offers. Empty for a name form or nothing to read.
+     */
+    @Nonnull
+    public static List<String> ids(@Nonnull MatchKey.Form form) {
+        try {
+            return switch (form) {
+                case ITEM_TAG -> allTagWords();
+                case BLOCK_FAMILY -> {
+                    Reader family = familyReader();
+                    yield family == null ? List.of() : sorted(family.ids());
+                }
+                case NPC_GROUP -> sorted(NPCGroup.getAssetMap().getAssetMap().keySet());
+                case NAME -> List.of();
+            };
+        } catch (Throwable t) {
+            return List.of();
+        }
+    }
+
+    /**
+     * The tag words a raw tag map carries, sorted without regard to case: every key the engine keeps (each value,
+     * and each {@code Key=Value} pair) except an authored category key that holds values ({@code Type} in
+     * {@code "Type": ["Consumable"]}), which names a group of tags rather than one. Pure: the seam a unit test drives.
+     */
+    @Nonnull
+    public static List<String> tagWords(@Nullable Map<String, String[]> rawTags) {
+        if (rawTags == null || rawTags.isEmpty()) {
+            return List.of();
+        }
+        Set<String> words = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        for (Map.Entry<String, String[]> e : rawTags.entrySet()) {
+            String key = e.getKey();
+            String[] values = e.getValue();
+            if (key != null && !key.isBlank() && (values == null || values.length == 0)) {
+                words.add(key);
+            }
+        }
+        return new ArrayList<>(words);
+    }
+
+    @Nonnull
+    private static List<String> allTagWords() {
+        Set<String> words = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        for (Item item : Item.getAssetMap().getAssetMap().values()) {
+            AssetExtraInfo.Data data = item == null ? null : item.getData();
+            words.addAll(tagWords(data == null ? null : data.getRawTags()));
+        }
+        return new ArrayList<>(words);
+    }
+
+    /** The NPC groups holding the role {@code roleName}, as their files spell them, sorted. */
+    @Nonnull
+    private static List<String> groupsOf(@Nonnull String roleName) {
+        Set<String> groups = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        for (String id : NPCGroup.getAssetMap().getAssetMap().keySet()) {
+            if (id != null && inGroup(roleName, id)) {
+                groups.add(id);
+            }
+        }
+        return new ArrayList<>(groups);
+    }
+
+    @Nonnull
+    private static List<String> sorted(@Nullable Collection<String> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        Set<String> out = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        for (String id : ids) {
+            if (id != null && !id.isBlank()) {
+                out.add(id);
+            }
+        }
+        return new ArrayList<>(out);
     }
 
     /**

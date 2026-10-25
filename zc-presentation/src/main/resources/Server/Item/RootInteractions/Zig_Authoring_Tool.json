@@ -1,0 +1,9 @@
+{
+  "$Comment": "What an authoring tool runs on a click, left or right (Zig_Author_Tool's Primary and Secondary name this file): the ZigAuthoringTool step, which reads what the player points at (the block, the creature or NPC, an item lying on the ground) and opens the editor the held tool names in its ZigAuthorTool tag, after checking on the server that the player is in creative mode and holds the tool's ziggfreedcommon.author.<tool> permission. A click while an editor waits on a pick from the world fills that pick instead. One click opens one editor: holding the button does not repeat it.",
+  "RequireNewClick": true,
+  "Interactions": [
+    {
+      "Type": "ZigAuthoringTool"
+    }
+  ]
+}

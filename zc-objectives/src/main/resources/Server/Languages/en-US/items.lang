@@ -1,2 +1,8 @@
 Ziggfreed_Objective_Book.name = Objective Book
 Ziggfreed_Objective_Book.description = Opens your quests and achievements.
+# The authoring tools (zc-presentation, Server/Item/Items/Authoring/) take the native items.<Id>.name keys, and
+# the jar keeps one copy of each resource path, so their names and descriptions live in this one items.lang.
+Zig_Author_Tool.name = Authoring Tool
+Zig_Author_Tool.description = What every authoring tool is made from. Take a tool from the Authoring Tools tab instead.
+Zig_Author_Inspect.name = Inspect Tool
+Zig_Author_Inspect.description = Click a block, creature or item to see its id and the families, groups and tags it's in.
