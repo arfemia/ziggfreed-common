@@ -18,6 +18,7 @@ import com.hypixel.hytale.server.core.modules.entitystats.modifier.Modifier;
 import com.hypixel.hytale.server.core.modules.entitystats.modifier.StaticModifier;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.stats.StatIndexCache;
+import com.ziggfreed.common.stats.condition.BoundGrants;
 import com.ziggfreed.common.stats.condition.ConditionalStats;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -26,9 +27,11 @@ import com.ziggfreed.common.util.SafeLog;
  * amounts of every placement under that key summed (times how often each is held). It reads back every modifier it
  * finds under the owner's prefix on the entity's stat map (the map is saved with the entity, so what an earlier
  * session wrote is found too), plans the difference ({@link StatGrantPlan}) and writes only that, through the stat
- * map's keyed put and remove. The keys under an owner's prefix it never owns are a runtime writer's, an {@code @}
- * straight after the prefix: the conditional fold's ({@code ConditionalStats.MODIFIER_PREFIX}) and a counter's stacks
- * (zc-track's {@code proc/}), both under {@code zigtrack:} for the rollback sweep. World thread.
+ * map's keyed put and remove. A grant bound to a condition ({@code While}) is handed to {@code BoundGrants} instead,
+ * whose holder pass puts or takes off its modifier as the condition holds. The keys under an owner's prefix it never
+ * owns are a runtime writer's, an {@code @} straight after the prefix: the conditional fold's
+ * ({@code ConditionalStats.MODIFIER_PREFIX}), a bound grant's ({@code BoundGrants.MODIFIER_PREFIX}) and a counter's
+ * stacks (zc-track's {@code proc/}), all under {@code zigtrack:} for the rollback sweep. World thread.
  */
 public final class StatGrantWriter implements GrantWriter {
 
@@ -56,14 +59,40 @@ public final class StatGrantWriter implements GrantWriter {
             stats.putModifier(put.getKey().stat(), put.getKey().key(), new StaticModifier(Modifier.ModifierTarget.MAX,
                     StaticModifier.CalculationType.ADDITIVE, put.getValue()));
         }
+        BoundGrants.set(stats, ref, owner, bound(placed, prefix));
     }
 
-    /** What {@code placed} wants on the stat map: per stat and key, the summed amount. */
+    /**
+     * What {@code placed} binds to a condition (a grant with {@code While}): one bound amount per placement and
+     * grant, its id the placement's key past the owner's prefix, the stat and the grant's place among that key's
+     * bound grants, so a rebuild names the same amount the same way. The holder pass writes them ({@link BoundGrants}).
+     */
+    @Nonnull
+    static List<BoundGrants.Bound> bound(@Nonnull List<Placed> placed, @Nonnull String prefix) {
+        List<BoundGrants.Bound> out = new ArrayList<>();
+        Map<String, Integer> seen = new LinkedHashMap<>();
+        for (Placed one : placed) {
+            if (!(one.grant() instanceof StatGrant grant) || !grant.bound() || one.count() <= 0
+                    || grant.stat() == null) {
+                continue;
+            }
+            int index = StatIndexCache.resolve(grant.stat());
+            double amount = index == StatIndexCache.UNRESOLVED ? 0.0 : grant.amountOn(baseMax(index)) * one.count();
+            String key = one.key().startsWith(prefix) ? one.key().substring(prefix.length()) : one.key();
+            int place = seen.merge(key, 1, Integer::sum);
+            out.add(new BoundGrants.Bound(key + ":" + grant.stat() + ":" + place, grant.stat(), amount,
+                    grant.whileConditions()));
+        }
+        return out;
+    }
+
+    /** What {@code placed} wants on the stat map: per stat and key, the summed amount. A bound grant is never here. */
     @Nonnull
     static Map<StatGrantPlan.Target, Float> wanted(@Nonnull List<Placed> placed) {
         Map<StatGrantPlan.Target, Float> out = new LinkedHashMap<>();
         for (Placed one : placed) {
-            if (!(one.grant() instanceof StatGrant grant) || one.count() <= 0 || grant.stat() == null) {
+            if (!(one.grant() instanceof StatGrant grant) || one.count() <= 0 || grant.stat() == null
+                    || grant.bound()) {
                 continue;
             }
             int index = StatIndexCache.resolve(grant.stat());
@@ -110,7 +139,7 @@ public final class StatGrantWriter implements GrantWriter {
      * owner's prefix ({@code zigtrack:@cond:}, {@code zigtrack:@counter:}), or the conditional fold's own prefix?
      */
     static boolean isRuntimeKey(@Nonnull String key, @Nonnull String prefix) {
-        return ConditionalStats.writesKey(key)
+        return ConditionalStats.writesKey(key) || BoundGrants.writesKey(key)
                 || (key.length() > prefix.length() && key.startsWith(prefix) && key.charAt(prefix.length()) == '@');
     }
 

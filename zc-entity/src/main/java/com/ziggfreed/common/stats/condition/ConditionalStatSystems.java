@@ -1,5 +1,6 @@
 package com.ziggfreed.common.stats.condition;
 
+import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
 
@@ -77,8 +78,14 @@ public final class ConditionalStatSystems {
             if (stats == null || !StatCarriers.due(store, archetypeChunk, index)) {
                 return;
             }
-            ConditionalStats.evaluate(store, archetypeChunk.getReferenceTo(index), stats, ConditionalStats.now(store),
-                    System.nanoTime(), StatCarriers.isPlayer(archetypeChunk));
+            Ref<EntityStore> ref = archetypeChunk.getReferenceTo(index);
+            boolean player = StatCarriers.isPlayer(archetypeChunk);
+            Instant now = ConditionalStats.now(store);
+            ConditionalStats.evaluate(store, ref, stats, now, System.nanoTime(), player);
+            // A player's bound grants (a talent counting while its weapon is held), and its first pass's sweep.
+            if (player || BoundGrants.has(ref)) {
+                BoundGrants.evaluate(store, ref, stats, now);
+            }
         }
     }
 
@@ -145,6 +152,7 @@ public final class ConditionalStatSystems {
                 @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer) {
             FirstHits.forget(ref);
             ConditionalStats.forget(ref);
+            BoundGrants.forget(ref);
         }
     }
 }

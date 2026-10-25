@@ -8,6 +8,8 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
+import com.hypixel.hytale.server.core.modules.entity.condition.Condition;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
 import com.ziggfreed.common.asset.EditorSchema;
 
@@ -25,6 +27,17 @@ import com.ziggfreed.common.asset.EditorSchema;
  * amount: the engine sums every multiplying modifier on a stat into one factor (two times 1.5 make times 3), so a
  * second multiplier beside gear's or an effect's would multiply wrong, while flat amounts always add up.
  *
+ * <p>{@code While} binds the grant to its holder's state (R933): a list of the engine's own entity conditions (an
+ * effect's {@code ApplyConditions} kind, the library's {@code ZigHolding} or {@code ZigFoesNear}, or one a mod
+ * registers), every one of which must hold for the grant to count, so a weapon talent raises the shared
+ * {@code CritChance} only while its weapon is in hand. Such a grant is a bound grant ({@link #bound()}): its writer
+ * hands it to {@code stats.condition.BoundGrants}, which puts or takes off its modifier as the conditions start or
+ * stop holding, read a few times a second.
+ *
+ * <pre>{@code
+ * { "Kind": "Stat", "Stat": "CritChance", "Add": 2, "While": [ { "Id": "MmoHolding", "Skill": "Swords" } ] }
+ * }</pre>
+ *
  * <p>A world rule switches it off by its kind, {@value #KIND}, or by any family its stat's own
  * {@value GrantFamilies#TAG} tag names ({@link #families()}; the library's damage and resistance stats say
  * {@value GrantFamilies#COMBAT}).
@@ -37,6 +50,7 @@ public final class StatGrant extends Grant {
     @Nullable protected String stat;
     @Nullable protected Double add;
     @Nullable protected Double percent;
+    @Nullable protected Condition[] whileHolds;
 
     public static final BuilderCodec<StatGrant> CODEC = BuilderCodec.builder(StatGrant.class, StatGrant::new)
             .documentation("A native stat raised while the grant is held: a flat amount, a percent of the stat's "
@@ -59,6 +73,12 @@ public final class StatGrant extends Grant {
             .documentation("A percent of the stat's base maximum (its asset's Max) added each time the grant is "
                     + "held: 5 on Health with a base of 100 adds 5. It adds as a flat amount, so it never multiplies "
                     + "what gear or an effect adds. 0 when unauthored.").add()
+            .appendInherited(new KeyedCodec<>("While", new ArrayCodec<>(Condition.CODEC, Condition[]::new), false),
+                    (o, v) -> o.whileHolds = v, o -> o.whileHolds, (o, p) -> o.whileHolds = p.whileHolds)
+            .documentation("Entity conditions every one of which must hold on the grant's holder for it to count "
+                    + "(the engine's own, or ZigHolding, ZigFoesNear or one a mod registers), read a few times a "
+                    + "second: a weapon talent counts only while its weapon is in hand. Unauthored, the grant always "
+                    + "counts.").add()
             .build();
 
     public StatGrant() {
@@ -101,6 +121,17 @@ public final class StatGrant extends Grant {
     /** The percent of the base, 0 when unauthored or not a number. */
     public double percent() {
         return percent == null || !Double.isFinite(percent) ? 0.0 : percent;
+    }
+
+    /** The conditions the grant counts under, never null: empty for a grant that always counts. */
+    @Nonnull
+    public Condition[] whileConditions() {
+        return whileHolds == null ? new Condition[0] : whileHolds;
+    }
+
+    /** Whether the grant counts only while its {@code While} conditions hold. */
+    public boolean bound() {
+        return whileHolds != null && whileHolds.length > 0;
     }
 
     /** What one hold of this grant adds to a stat whose base maximum is {@code baseMax}. */
