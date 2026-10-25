@@ -14,8 +14,9 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
  * <p>Synchronous {@code IEvent<Void>} POJO on the shared engine event bus; see {@link TitleEvents}.
  * It fires from every write path the library owns (the {@code Title} reward kind, the
  * {@code /zigtitle} verbs, the picker all go through {@link TitleUnlocks}) and NEVER for a write
- * that changed nothing. A listener persisting player data elsewhere marks the player dirty off it;
- * a renderer refreshes what it shows.
+ * that changed nothing. A listener persisting player data elsewhere marks the player dirty off it, and
+ * off {@code ZigPlayerRecordChangedEvent} naming {@code ZiggfreedCommon:Titles}, which a Show none fires
+ * alone when it changed only the saved choice (nothing was shown); a renderer refreshes what it shows.
  */
 public final class ZigTitleChangedEvent implements IEvent<Void> {
 

@@ -15,6 +15,7 @@ import com.ziggfreed.common.loot.reward.LootRewardKinds;
 import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.loot.reward.RewardSpec;
+import com.ziggfreed.common.playerdata.PlayerRecords;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
@@ -99,6 +100,7 @@ public final class ReputationBeyond {
         }
         long parked = record.climbed(id, change.earnedBefore(), change.earnedAfter(), floor,
                 change.reputation().beyondEvery());
+        PlayerRecords.changed(store, ref, ReputationComponent.REGISTRY_ID);
         Long highest = record.highest(id);
         if (highest != null) {
             ReputationTracks.markBeyond(change.playerId(), change.reputation(), highest);
@@ -145,6 +147,7 @@ public final class ReputationBeyond {
             return Collected.of(Status.FAILED, owed);
         }
         record.paid(id, times);
+        PlayerRecords.changed(store, ref, ReputationComponent.REGISTRY_ID);
         return new Collected(Status.PAID, times, record.owed(id), outcome.receipt());
     }
 

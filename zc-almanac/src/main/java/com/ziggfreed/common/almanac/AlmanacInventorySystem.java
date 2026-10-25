@@ -17,6 +17,7 @@ import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.almanac.asset.AlmanacEntryConfig;
+import com.ziggfreed.common.playerdata.PlayerRecords;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -59,11 +60,15 @@ public final class AlmanacInventorySystem extends EntityEventSystem<EntityStore,
                 return;
             }
             short capacity = container.getCapacity();
+            boolean marked = false;
             for (short slot = 0; slot < capacity; slot++) {
                 ItemStack stack = container.getItemStack(slot);
                 if (!ItemStack.isEmpty(stack)) {
-                    AlmanacCollection.markIfTracked(record.tallies, tracked, stack.getItemId());
+                    marked |= AlmanacCollection.markIfTracked(record.tallies, tracked, stack.getItemId());
                 }
+            }
+            if (marked) {
+                PlayerRecords.changed(store, chunk.getReferenceTo(index), AlmanacComponent.REGISTRY_ID);
             }
         } catch (Throwable t) {
             if (WARNED.compareAndSet(false, true)) {

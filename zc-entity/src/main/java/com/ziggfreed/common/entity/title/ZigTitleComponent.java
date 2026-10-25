@@ -16,12 +16,15 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.component.ComponentType;
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.HytaleServer;
 import com.hypixel.hytale.server.core.event.events.player.PlayerConnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.inventory.PlayerAccess;
+import com.ziggfreed.common.playerdata.ZigPlayerRecordsRestoredEvent;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -156,7 +159,8 @@ public class ZigTitleComponent implements Component<EntityStore> {
     /**
      * Read back the record of players' titles and the queue of changes owed to offline players (each
      * written a moment after a change, on the server's scheduler), then hang the connect hook (attach
-     * and seed the record) and the disconnect hook (write both down).
+     * and seed the record), the disconnect hook (write both down) and the restore hook (seed again from a
+     * record a consumer's own store put in place).
      */
     public static void install(@Nonnull PluginBase plugin) {
         Executor later = flush -> HytaleServer.SCHEDULED_EXECUTOR.schedule(
@@ -165,6 +169,28 @@ public class ZigTitleComponent implements Component<EntityStore> {
         PendingTitles.persistTo(PendingTitles.DEFAULT_FILE, later);
         plugin.getEventRegistry().register(PlayerConnectEvent.class, ZigTitleComponent::onPlayerConnect);
         plugin.getEventRegistry().register(PlayerDisconnectEvent.class, ZigTitleComponent::onPlayerDisconnect);
+        plugin.getEventRegistry().registerGlobal(ZigPlayerRecordsRestoredEvent.class,
+                ZigTitleComponent::onRecordsRestored);
+    }
+
+    /**
+     * A store outside the engine's save put this record in place after the connect seeded {@link ActiveTitles} from
+     * the engine's own copy (a consumer's database at a world entry): seed it again from the record as restored, so the
+     * shown title and the earned set every row reads are the restored ones. On the player's world thread.
+     */
+    private static void onRecordsRestored(@Nonnull ZigPlayerRecordsRestoredEvent event) {
+        try {
+            if (TYPE == null || !event.restored(REGISTRY_ID)) {
+                return;
+            }
+            Ref<EntityStore> ref = PlayerAccess.liveRef(event.playerId());
+            if (ref == null) {
+                return;
+            }
+            seed(event.playerId(), ref.getStore().getComponent(ref, TYPE));
+        } catch (Throwable t) {
+            SafeLog.warn("[title] could not seed a restored title record: " + t.getMessage());
+        }
     }
 
     private static void onPlayerConnect(@Nonnull PlayerConnectEvent event) {

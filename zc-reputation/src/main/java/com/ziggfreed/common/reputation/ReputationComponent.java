@@ -1,5 +1,6 @@
 package com.ziggfreed.common.reputation;
 
+import java.util.Collection;
 import java.util.Map;
 
 import javax.annotation.Nonnull;
@@ -184,6 +185,23 @@ public class ReputationComponent implements Component<EntityStore> {
     /** Mark the copy of {@code reputationId} behind its track, or (false) caught up, which drops the key. */
     public void unsynced(@Nonnull String reputationId, boolean behind) {
         beyond.set(reputationId.trim() + UNSYNCED, behind ? 1L : 0L);
+    }
+
+    /**
+     * Mark the copy of each of {@code reputationIds} (the engine's spellings) behind its track, so each is written from
+     * the track at the next chance and never folded back: what a restore of the player's climbs from outside the
+     * engine's save means for the copies this server holds. An id the save cannot keep is passed over. True when any
+     * mark is new.
+     */
+    public boolean markBehind(@Nonnull Collection<String> reputationIds) {
+        boolean marked = false;
+        for (String id : reputationIds) {
+            if (keeps(id) && !unsynced(id)) {
+                unsynced(id, true);
+                marked = true;
+            }
+        }
+        return marked;
     }
 
     /** The save string: {@code key:value|key:value}, keys sorted; an empty record is an empty string. */
