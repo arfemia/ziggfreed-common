@@ -27,7 +27,8 @@ import com.ziggfreed.common.match.NamePattern;
  *   <li><b>band 1</b> - {@link #EXACT_NAME_BAND}: the pattern equals the world name.</li>
  *   <li><b>band 2</b> - {@link #PARTIAL_BAND}: prefix / suffix / contains, the LONGER literal core
  *       winning and anchoring only breaking a tie.</li>
- *   <li><b>band 3</b> - {@link #ANY_BAND}: the bare {@code *} catch-all.</li>
+ *   <li><b>band 4</b> - {@link #ANY_BAND}: the bare {@code *} catch-all. (The shared ladder's band 3, a set key
+ *       such as a block family, names no world, so a world selector never ranks there.)</li>
  * </ol>
  *
  * <p><b>Natural order is most-specific-first</b>: {@code a.compareTo(b) < 0} means {@code a} is the
@@ -64,7 +65,7 @@ public record MatchRank(@Nonnull NameMatchRank shared) implements Comparable<Mat
         return new MatchRank(NameMatchRank.ofPattern(pattern));
     }
 
-    /** The ladder band, ascending = more specific (0..3). */
+    /** The ladder band, lower = more specific (0, 1, 2 or 4). */
     public int band() {
         return shared.band();
     }

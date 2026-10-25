@@ -61,7 +61,7 @@ import com.ziggfreed.common.stats.condition.Nearby;
  * death emptying their counters ({@link Died}), and the forgetting of an entity that left its store ({@link Left}). Hit, Kill, BlockBreak and Harvest ride the library's own moments ({@link ProcMoments}), Crit
  * zc-entity's crit step's event ({@link Procs#crit}); a consumer's own Cast is the consumer's ({@link Procs#cast}).
  */
-public final class ProcSystems {
+final class ProcSystems {
 
     private ProcSystems() {
     }

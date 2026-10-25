@@ -19,7 +19,6 @@ import com.ziggfreed.common.track.asset.TrackCurveAsset;
 import com.ziggfreed.common.track.boost.BoostAsset;
 import com.ziggfreed.common.track.boost.BoostSettingsAsset;
 import com.ziggfreed.common.track.boost.ZigBoostReward;
-import com.ziggfreed.common.track.pick.PickDeckAsset;
 import com.ziggfreed.common.track.pick.PickOptionAsset;
 import com.ziggfreed.common.track.pick.TrackPickAsset;
 import com.ziggfreed.common.track.pick.TrackPickGeneratorAsset;
@@ -56,9 +55,8 @@ public final class TrackSchemaDocs {
                     + "that world. A `ZigTrack` reward is a native reward file under `Server/Rewards/`, which an "
                     + "encounter script's `GrantReward` pays as a Claim.\n\n"
                     + "One pick (the one shape every choice, Mastery node, trainer offer and prestige perk is) is one "
-                    + "file under `Server/ZiggfreedCommon/TrackPicks/`, one option a choice may offer one file under "
-                    + "`Server/ZiggfreedCommon/TrackPickOptions/`, and one deck (how a group's offers are drawn) one "
-                    + "file under `Server/ZiggfreedCommon/TrackPickDecks/`. One pick generator (a family of picks "
+                    + "file under `Server/ZiggfreedCommon/TrackPicks/`, and one option a choice may offer one file "
+                    + "under `Server/ZiggfreedCommon/TrackPickOptions/`. One pick generator (a family of picks "
                     + "from one template: `Base`, `IdPattern`, `ForEach` axes and a `Child` pick body, each row's "
                     + "tokens filled in; `Base` may carry tokens too) is one file under "
                     + "`Server/ZiggfreedCommon/TrackPickGenerators/`, and a pick file of a generated id replaces "
@@ -88,7 +86,6 @@ public final class TrackSchemaDocs {
             .register("TrackPickAsset", TrackPickAsset.CODEC)
             .register("TrackPickGeneratorAsset", TrackPickGeneratorAsset.CODEC)
             .register("PickOptionAsset", PickOptionAsset.CODEC)
-            .register("PickDeckAsset", PickDeckAsset.CODEC)
             .register("StatGrant", StatGrant.CODEC)
             .register("Cost", CostAsset.CODEC)
             .register("ZigTrackReward", ZigTrackReward.CODEC)

@@ -39,6 +39,7 @@ import com.ziggfreed.common.track.TrackService;
 import com.ziggfreed.common.track.TrackStore;
 import com.ziggfreed.common.track.TrackStores;
 import com.ziggfreed.common.track.asset.PrestigeBuild;
+import com.ziggfreed.common.track.asset.TrackAsset;
 import com.ziggfreed.common.track.event.TrackEvents;
 import com.ziggfreed.common.track.event.ZigTrackPicksChangedEvent;
 import com.ziggfreed.common.util.SafeLog;
@@ -65,8 +66,8 @@ import com.ziggfreed.common.util.SafeLog;
  * each level past the first, up to its {@code Points.To}.
  *
  * <p><b>A tree</b> (R736): a pick's {@code Branch} counts its points toward that branch, which a later row's
- * {@code Requires} reads; the picks sharing a {@code Node} on a track are one choice, so taking one face locks the
- * others ({@link Status#NODE_TAKEN}) until it is undone or the track is respecced.
+ * {@code Requires} reads; the picks sharing a {@code Node} are one choice, on one track or across several (R859), so
+ * taking one face locks the others ({@link Status#NODE_TAKEN}) until it is undone or its track is respecced.
  *
  * <p><b>Undo</b> (R650): every choice and take can be undone until the page it was made on closes
  * ({@link #closeUndo}), never more than five minutes after, newest first; the server holds that state
@@ -75,14 +76,17 @@ import com.ziggfreed.common.util.SafeLog;
  * taken (its {@code Requires} or prerequisites) is refused ({@link Status#NEEDED}), so no gate is ever left unmet.
  *
  * <p><b>A respec</b> ({@link #respec}, {@link #buyRespec}) keeps only what a trainer taught (a pick whose
- * {@code Where} names placements, its gate a level that stays met): every pick bought with points, Mastery and
- * {@code KeptThroughPrestige} picks included, is cleared and its points come back to spend again.
- * {@code KeptThroughPrestige} governs a prestige alone, where a kept pick stays held by design even when a gate it
- * once met (a branch's points) no longer is: nothing re-gates a pick already held.
+ * {@code Where} names placements, its gate a level that stays met): every pick bought with points, the Mastery row
+ * included, is cleared and its points come back to spend again. What a Remember or Clear prestige keeps is the
+ * track's {@code Prestige.Resets} group's word, kind by kind (a pick's {@code ResetsAs}, R852, R876,
+ * {@link #keptThroughPrestige}; a Keep prestige moves nothing, R895), and governs a prestige alone, where a kept pick
+ * stays held by design even when a gate it once met (a branch's points) no longer is: nothing re-gates a pick already
+ * held.
  *
  * <p><b>Saved builds</b> (R736): a track's {@code Loadouts.Max} builds, saved ({@link #saveLoadout}) and swapped
- * ({@link #swapLoadout}) for the track's swap price, never in combat or mid-encounter. A pick a prestige keeps (a
- * trainer's, or one whose file keeps it) stays in use through every swap and is never saved into a build. A swap
+ * ({@link #swapLoadout}) for the track's swap price, never in combat or mid-encounter. A pick a trainer taught, or one
+ * with a price, stays in use through every swap and is never saved into a build ({@link #keptInUse}, read off the
+ * pick files alone, never the prestige settings). A swap
  * away from the build in use writes the picks in use back over it first, keeping every saved pick that could not be
  * loaded ({@code PickState.Loadout.writtenOver}), so a swap never loses a saved pick; with no build in use it is
  * refused ({@link Status#UNSAVED}) while picks no build holds would be lost, unless the caller forces it. A build is
@@ -292,8 +296,9 @@ public final class PickService {
         Map<String, TrackRecord> records = new HashMap<>();
         records.put(id, climb.record());
         List<Owed> owed = new ArrayList<>();
+        Function<String, PickState> elsewhere = statesOf(player, records);
         for (TrackPicks.PickDef pick : TrackPicks.onTrack(id)) {
-            if (!PickTrainers.of(pick.asset()).isEmpty() || open(pick, state, level, query) != Status.DONE) {
+            if (!PickTrainers.of(pick.asset()).isEmpty() || open(pick, state, level, query, elsewhere) != Status.DONE) {
                 continue;
             }
             boolean costed = pick.asset().costPoints() > 0;
@@ -370,8 +375,8 @@ public final class PickService {
 
     /**
      * The starter build of {@code trackId}: pick ids in the order they are spent, a repeat for each further rank
-     * ({@code Starter}). Read only by a one-time claim of points earned before the tree existed (R727), which spends
-     * it through {@link #spendInOrder}; empty for none or no such track.
+     * ({@code Starter}). Read by a one-time claim of points earned before the tree existed (R727) and by a trainer's
+     * suggested build, each spending it through {@link #spendInOrder}; empty for none or no such track.
      */
     @Nonnull
     public static List<String> starter(@Nullable String trackId) {
@@ -479,22 +484,40 @@ public final class PickService {
     }
 
     /**
-     * Which of {@code def}'s picks a prestige leaves be, whatever the track's Build says (R641), read off the folded
-     * pick files: a pick whose {@code Where} names a trainer, one whose {@code KeptThroughPrestige} says so, and one
-     * the fold does not know on this track (switched off or gone, so nothing is lost while it cannot be read). Takes
-     * a pick id in any case. The same picks stay in use through every swap of a saved build. A respec reads
-     * {@link #taughtByTrainer} instead.
+     * Which of {@code def}'s picks a prestige leaves be, whatever the track's Build says (R641, R852): a pick whose kind
+     * ({@code ResetsAs}, else a trainer's or the tree's own) the track's {@code Prestige.Resets} says a prestige keeps
+     * (by default the Mastery row, what a trainer taught and learned abilities, R876), and one the fold does not know
+     * on this track (switched off or gone, so nothing is lost while it cannot be read). Takes a pick id in any case.
+     * A respec reads {@link #taughtByTrainer} instead, and a saved build {@link #keptInUse}.
      */
     @Nonnull
     public static Predicate<String> keptThroughPrestige(@Nonnull TrackDef def) {
-        return byPick(def, pick -> pick.asset().keptThroughPrestige());
+        TrackAsset track = def.asset();
+        return byPick(def, pick -> !track.prestigeResets(pick.asset().resetsAs()));
+    }
+
+    /**
+     * Which of {@code def}'s picks stay in use through every swap of a saved build and are never saved into one: what
+     * a trainer taught (its {@code Where} names placements, learned at the trainer and never re-spent by a swap), a
+     * pick with a {@code Cost.Price} (bought, and a swap's walk never charges), and one the fold does not know on this
+     * track. Read off the pick files alone, never the track's prestige settings: what a prestige resets shapes a
+     * prestige, never a saved build. Takes a pick id in any case.
+     */
+    @Nonnull
+    public static Predicate<String> keptInUse(@Nonnull TrackDef def) {
+        return byPick(def, pick -> staysInUse(pick.asset()));
+    }
+
+    /** Does {@code pick} stay in use through every swap: taught at a trainer, or priced? */
+    static boolean staysInUse(@Nonnull TrackPickAsset pick) {
+        return !pick.placements().isEmpty() || pick.price() != null;
     }
 
     /**
      * Which of {@code def}'s picks a respec leaves be, read off the folded pick files: a pick a trainer taught (its
      * {@code Where} names placements, its gate a level that stays met), and one the fold does not know on this track
-     * (switched off or gone, so nothing is lost while it cannot be read). Every other pick, Mastery and
-     * {@code KeptThroughPrestige} picks included, is cleared by a respec. Takes a pick id in any case.
+     * (switched off or gone, so nothing is lost while it cannot be read). Every other pick, the Mastery row included,
+     * is cleared by a respec. Takes a pick id in any case.
      */
     @Nonnull
     public static Predicate<String> taughtByTrainer(@Nonnull TrackDef def) {
@@ -565,8 +588,9 @@ public final class PickService {
     /**
      * Take the pick bought outright {@code pickId} on {@code trackId} once more, paying its {@code Cost}: its points,
      * and its {@code Cost.Price} charged through the library's one price ({@link Status#CANNOT_PAY} when it cannot be
-     * paid, nothing taken), given back if the take cannot be kept or is undone. {@code placement} is the trainer the
-     * page belongs to (null for the track's own page). World thread.
+     * paid, nothing taken), given back if the take cannot be kept or is undone. A rank of it a Remember prestige set
+     * aside is held again, so the take leaves what is remembered (the oldest such take; an undo puts it back at the
+     * head). {@code placement} is the trainer the page belongs to (null for the track's own page). World thread.
      */
     @Nonnull
     public static Result take(@Nonnull UUID player, @Nullable String trackId, @Nullable String pickId,
@@ -588,11 +612,15 @@ public final class PickService {
             return Result.of(Status.CANNOT_PAY);
         }
         PickState state = climb.record().picks();
-        if (!climb.store().put(climb.key(), climb.record().withPicks(state.withTakes(pick.id(), 1)))) {
+        PickState next = state.withTakes(pick.id(), 1).withoutRememberedTake(pick.id());
+        // A rank a prestige put aside, bought again, leaves what is remembered; its undo puts it back at the head.
+        List<String> remembered = next.rememberedTakes().size() < state.rememberedTakes().size()
+                ? List.of(pick.id()) : List.of();
+        if (!climb.store().put(climb.key(), climb.record().withPicks(next))) {
             paid.refund();
             return Result.of(Status.NOT_LIVE);
         }
-        PickUndo.record(player, new PickUndo.Entry(climb.def().id(), pick.id(), null, List.of(), List.of(),
+        PickUndo.record(player, new PickUndo.Entry(climb.def().id(), pick.id(), null, List.of(), remembered,
                 System.currentTimeMillis(), List.of(), paid));
         changed(player, climb, ZigTrackPicksChangedEvent.Change.TAKEN, pick.id(), null, List.of());
         return new Result(Status.DONE, climb.def().id(), pick.id(), null, List.of(), 1);
@@ -623,7 +651,8 @@ public final class PickService {
             return Result.of(status);
         }
         PickState state = climb.record().picks();
-        if (!climb.store().put(climb.key(), climb.record().withPicks(state.withTakes(pick.id(), 1)))) {
+        PickState next = state.withTakes(pick.id(), 1).withoutRememberedTake(pick.id());
+        if (!climb.store().put(climb.key(), climb.record().withPicks(next))) {
             return Result.of(Status.NOT_LIVE);
         }
         changed(player, climb, ZigTrackPicksChangedEvent.Change.TAKEN, pick.id(), null, List.of());
@@ -713,8 +742,8 @@ public final class PickService {
 
     /**
      * Respec {@code player}'s picks on {@code trackId}, for free: only what a trainer taught stays
-     * ({@link #taughtByTrainer}); every other pick, Mastery and {@code KeptThroughPrestige} picks included, is
-     * cleared, each slot reopening with the same offer it had (the road reads the files alone, R724), and every point
+     * ({@link #taughtByTrainer}); every other pick, the Mastery row included, is cleared, each slot reopening with the
+     * same offer it had (an offer reads the files alone, R724), and every point
      * they spent comes back to spend again. What a prestige put aside and every saved build stay, and the picks in
      * use no longer count as any saved build's. A player's own respec is {@link #buyRespec}, at the track's price;
      * this is the clearing alone (an admin's). World thread.
@@ -801,8 +830,8 @@ public final class PickService {
 
     /**
      * Save the picks {@code player} has in use on {@code trackId} as the build {@code slot} (1 to the track's
-     * {@code Loadouts.Max}), replacing what was saved there, and mark it the build in use. A pick a prestige keeps
-     * is never saved: it stays in use through every swap. Free. World thread.
+     * {@code Loadouts.Max}), replacing what was saved there, and mark it the build in use. A pick a trainer taught or
+     * a priced one ({@link #keptInUse}) is never saved: it stays in use through every swap. Free. World thread.
      *
      * @return the result, its {@code count} the picks saved
      */
@@ -820,7 +849,7 @@ public final class PickService {
             return Result.of(Status.NO_LOADOUT);
         }
         PickState state = climb.record().picks();
-        PickState.Loadout build = state.snapshot(keptThroughPrestige(def));
+        PickState.Loadout build = state.snapshot(keptInUse(def));
         if (!climb.store().put(climb.key(), climb.record().withPicks(state.withLoadout(slot, build)
                 .withActiveLoadout(slot)))) {
             return Result.of(Status.NOT_LIVE);
@@ -837,9 +866,10 @@ public final class PickService {
      * a pick switched off kept from loading), so a swap never loses a saved pick. With no build in use (never saved,
      * or unlinked by a respec or a prestige) a swap would lose the picks in use, so it is refused
      * ({@link Status#UNSAVED}, nothing charged) while any would be lost, unless {@code force} says to swap anyway (a
-     * page asks the player first). Then every pick a prestige would not keep is cleared and the build is spent again
-     * in the order its picks were made, choices and takes interleaved as they were made, each by every rule a pick
-     * obeys, so a pick the track no longer allows is passed over and no gate is left unmet. An unsaved slot is an
+     * page asks the player first). Then every pick not kept in use ({@link #keptInUse}) is cleared and the build is
+     * spent again in the order its picks were made, choices and takes interleaved as they were made, each by every
+     * rule a pick obeys, so a pick the track no longer allows is passed over and no gate is left unmet. An unsaved
+     * slot is an
      * empty build. A swap to the build in use, unchanged since it was saved, does nothing and costs nothing
      * ({@link Status#NOTHING}); changed since, it puts that build back as it was saved, for free (nothing is gained
      * by paying). The track's undo window closes. World thread.
@@ -866,7 +896,7 @@ public final class PickService {
         if (refused != null) {
             return Result.of(refused);
         }
-        Predicate<String> kept = keptThroughPrestige(def);
+        Predicate<String> kept = keptInUse(def);
         PickState state = climb.record().picks();
         int active = state.activeLoadout();
         PickState.Loadout inUse = state.snapshot(kept);
@@ -919,8 +949,9 @@ public final class PickService {
      * that have come back allow: each is taken by every rule a pick obeys, and the walk stops at the first that must
      * wait (for points, a level, a gate or a prerequisite), keeping it and every later one for the next time; one
      * that can never come back as it was (taken as often as it may be, or its node taken another way) is dropped,
-     * and one switched off is kept and passed over. A choice the player confirms, never automatic (R598); the whole
-     * re-spend is one undo, every take back to the head of what is remembered in its order. World thread.
+     * and one switched off or priced is kept and passed over (a priced one comes back when the player buys it again,
+     * {@link #take}, which takes it off what is remembered). A choice the player confirms, never automatic (R598);
+     * the whole re-spend is one undo, every take back to the head of what is remembered in its order. World thread.
      *
      * @return the result, its {@code count} the takes re-spent ({@link Status#NOTHING} when none could be)
      */
@@ -958,8 +989,9 @@ public final class PickService {
     /**
      * Take each of {@code picks} (pick ids bought outright, a repeat for each further rank) once on
      * {@code trackId}, in order, by every rule a pick obeys, stopping at the first that must wait (for points, a
-     * level, a gate or a prerequisite) and passing over one that can never be taken (unknown here, taken as often as
-     * it may be, its node taken another way, or a trainer's): the walk a one-time claim of points earned before the
+     * level, a gate or a prerequisite) and passing over one that can never be taken here (unknown here, taken as often
+     * as it may be, its node taken another way, a trainer's, or a priced one): the walk a one-time claim of points
+     * earned before the
      * tree existed spends a track's {@link #starter} with (R727). The whole walk is one undo, however many takes it
      * made, so a 99-point starter build comes back in one press. World thread.
      *
@@ -992,8 +1024,10 @@ public final class PickService {
      * Take each of {@code picks} once on {@code climb}, in order, keeping each take: one taken goes; one that must
      * wait (points, a level, a gate, a prerequisite, a store that would not keep it) stops the walk, it and every
      * later one left; one that can never come back as it is (taken as often as it may be, its node taken another
-     * way) is dropped; one unknown here or a trainer's is left and passed over. No undo, grant or event: the caller's,
-     * once.
+     * way) is dropped; one unknown here, a trainer's, or one with a {@code Cost.Price} (a walk never charges) is left
+     * and passed over. So a priced pick a prestige set aside (a Technique) never comes back on its own as the player
+     * levels: it comes back when they buy it again ({@link #take}), which takes it off what is remembered. No undo,
+     * grant or event: the caller's, once.
      */
     @Nonnull
     private static Walk walk(@Nonnull UUID player, @Nonnull Climb climb, @Nonnull List<String> picks) {
@@ -1010,6 +1044,11 @@ public final class PickService {
                 continue;
             }
             if (status == Status.MAXED || status == Status.NODE_TAKEN) {
+                continue;
+            }
+            if (pick.asset().price() != null) {
+                // A walk never charges: a priced pick (a Technique bought with a wallet) is the player's to buy again.
+                left.add(node);
                 continue;
             }
             Climb after = status == Status.DONE ? takeInto(player, now, pick, query) : null;
@@ -1046,21 +1085,35 @@ public final class PickService {
     // ==================== the pieces ====================
 
     /**
-     * Is {@code pick} open to a record at {@code level}: its level reached, no other face of its node taken, its
-     * Requires met, its prerequisites taken.
+     * Is {@code pick} open to a record at {@code level}: its level reached, no other face of its node taken (on its
+     * own track, read off {@code state}, or on another, read off {@code elsewhere} by lower-cased track id, null for a
+     * track the player holds nothing on), its Requires met, its prerequisites taken.
      */
     @Nonnull
     static Status open(@Nonnull TrackPicks.PickDef pick, @Nonnull PickState state, int level,
-            @Nullable GateQuery query) {
+            @Nullable GateQuery query, @Nonnull Function<String, PickState> elsewhere) {
         if (level < pick.asset().opensAt()) {
             return Status.NOT_OPEN;
         }
         for (String face : pick.otherFaces()) {
-            if (state.count(face) > 0) {
+            TrackPicks.PickDef other = TrackPicks.pick(face);
+            PickState holder = other == null || other.trackId().equals(pick.trackId()) ? state
+                    : elsewhere.apply(other.trackId());
+            if (holder != null && holder.count(face) > 0) {
                 return Status.NODE_TAKEN;
             }
         }
         return gates(pick, state, query);
+    }
+
+    /** Each track's picks {@code player} holds, by lower-cased track id, read once through {@code records}. */
+    @Nonnull
+    private static Function<String, PickState> statesOf(@Nonnull UUID player,
+            @Nonnull Map<String, TrackRecord> records) {
+        return trackId -> {
+            TrackRecord record = record(player, trackId, records);
+            return record == null ? null : record.picks();
+        };
     }
 
     /**
@@ -1122,7 +1175,8 @@ public final class PickService {
         if (state.takesOf(pick.id()) >= pick.asset().repeatMax()) {
             return Status.MAXED;
         }
-        Status open = open(pick, state, taught ? Integer.MAX_VALUE : pickLevel(def, record), query);
+        Status open = open(pick, state, taught ? Integer.MAX_VALUE : pickLevel(def, record), query,
+                statesOf(player, records));
         if (open != Status.DONE) {
             return open;
         }
@@ -1189,7 +1243,8 @@ public final class PickService {
         if (!state.chosen(pick.slotKey(group, parts.level())).isEmpty()) {
             return Status.ALREADY_MADE;
         }
-        Status open = open(pick, state, level, query);
+        Map<String, TrackRecord> records = new HashMap<>();
+        Status open = open(pick, state, level, query, statesOf(player, records));
         if (open != Status.DONE) {
             return open;
         }
@@ -1203,7 +1258,7 @@ public final class PickService {
         if (!offer.containsAll(wanted)) {
             return Status.NOT_OFFERED;
         }
-        return costStatus(player, pick, new HashMap<>());
+        return costStatus(player, pick, records);
     }
 
     /**

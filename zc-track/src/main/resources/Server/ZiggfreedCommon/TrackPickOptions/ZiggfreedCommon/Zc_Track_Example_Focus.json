@@ -1,9 +1,7 @@
 {
-  "$Comment": "One of the sample pick's options: each time it is chosen it raises the player's maximum mana by the naming pick's Step. It is offered from level 5 on (From), and the sample deck brings it round about one level in three (Bag Sometimes); Turn 2 makes it the second slot of each round of three. Leave Turn out and the options of one Bag word take turns in the order the pick lists them.",
+  "$Comment": "One of the sample pick's options: each time it is chosen it raises the player's maximum mana by the naming pick's Step. It is offered from level 5 on (From); below that the sample pick's slots offer only the other two.",
   "Text": { "TitleKey": "ziggfreedcommon.track.example.option.focus", "FlavorKey": "ziggfreedcommon.track.example.option.focus.desc" },
   "Icon": "Ingredient_Crystal_Purple",
-  "Bag": "Sometimes",
-  "Turn": 2,
   "From": 5,
   "Grants": [ { "Kind": "Stat", "Stat": "Mana", "Add": "{Step}" } ]
 }

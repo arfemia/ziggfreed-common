@@ -39,12 +39,12 @@ import com.ziggfreed.common.util.SafeLog;
  *   <li>Its {@code Beyond.Every} is the curve's Beyond, so each payout step past the top rank is one level past
  *       the top. A reputation with no Beyond still climbs past its top rank, with no level past it
  *       ({@link #OPEN_TOP}).</li>
- *   <li>The track sits in the {@value #CATEGORY} category and does not prestige (R643): its Prestige group
- *       allows no rank, with {@code Base} one below the top rank's level, so an owner who turns it on in
- *       {@code tracks.json} ({@code "Prestige": { "Ranks": 1 }}) asks the top rank for the first prestige and
- *       one level more for each one after it. A prestiged standing earns nothing on top of a gain
- *       ({@code GainPercent} 0: R642's bonus is a skill's, and a quest's reputation lands as written) unless the
- *       owner writes {@code GainPercent} too.</li>
+ *   <li>The track sits in the {@value #CATEGORY} category and prestiges only where the reputation's own file writes
+ *       a {@code Prestige} group (R852, R643; {@link #prestigeOf}), its {@code Base} one below the top rank's level
+ *       unless written, so the first prestige asks the top rank and each one after it one level more; a file with
+ *       no group gives a track whose Prestige group allows no rank, which an owner may still turn on in
+ *       {@code tracks.json}. A prestiged standing earns nothing on top of a gain (the track's default
+ *       {@code GainPercent} 0, so a quest's reputation lands as written) unless the group writes one.</li>
  * </ul>
  * The tracks and curves are provided to the track stores under {@value #OWNER} ({@link #refresh}), at boot and
  * after every companion fold, so a pack's file and the owner's word still outrank them.
@@ -90,7 +90,8 @@ public final class ReputationTracks {
      * Derive every switched-on reputation's track and curve from what {@code service} reads now and hand them to
      * the track stores, replacing the last set; then read the owner's {@code tracks.json} again, so an entry there
      * (an owner turning prestige on) retunes a reputation's track leaf by leaf. A reputation whose ladder has
-     * fewer than two ranks gets none, and keeps its standing in the engine's own value.
+     * fewer than two ranks gets none, and keeps its standing in the engine's own value. Each track's prestige comes
+     * from its reputation's own file ({@link #prestigeOf}).
      */
     public static void refresh(@Nonnull ReputationService service) {
         Map<String, TrackAsset> tracks = new LinkedHashMap<>();
@@ -174,8 +175,8 @@ public final class ReputationTracks {
             GainFactors.RESTED);
 
     /**
-     * {@code def}'s track: its name, picture and place, its curve, the category, prestige off, and
-     * {@link #GAIN_FACTORS}.
+     * {@code def}'s track: its name, picture and place, its curve, the category, {@link #GAIN_FACTORS}, and its
+     * prestige ({@link #prestigeOf}).
      */
     @Nonnull
     static TrackAsset trackOf(@Nonnull ReputationDef def, @Nonnull String curveId, @Nonnull ReputationLadder ladder) {
@@ -184,9 +185,22 @@ public final class ReputationTracks {
         ContentTextAsset text = title == null && flavor == null ? null
                 : ContentTextAsset.of(title == null ? null : ContentKeys.resolved(title),
                         flavor == null ? null : ContentKeys.resolved(flavor), null);
-        return TrackAsset.of(def.id(), text, def.icon(), def.order(), CATEGORY, curveId,
-                TrackAsset.Prestige.of(0, null, Math.max(0, ladder.ranks().size() - 1), null, 0.0))
+        return TrackAsset.of(def.id(), text, def.icon(), def.order(), CATEGORY, curveId, prestigeOf(def, ladder))
                 .withGainFactors(GAIN_FACTORS);
+    }
+
+    /**
+     * {@code def}'s Prestige group as its track carries it (R852, R643): the reputation file's own {@code Prestige}
+     * group, its {@code Base} defaulting to one below the top rank's level so the first prestige asks the top rank;
+     * with no group written, prestige off (no rank allowed), with the same Base, so an owner who turns it on in
+     * {@code tracks.json} asks the top rank too. Every other leaf reads as written, else the track's default (no
+     * extra after a prestige, the Resets defaults).
+     */
+    @Nonnull
+    static TrackAsset.Prestige prestigeOf(@Nonnull ReputationDef def, @Nonnull ReputationLadder ladder) {
+        int base = Math.max(0, ladder.ranks().size() - 1);
+        TrackAsset.Prestige own = def.prestige();
+        return own == null ? TrackAsset.Prestige.of(0, null, base, null) : own.withDefaults(null, base);
     }
 
     /** {@code def}'s ladder as a curve: its floors, its Beyond step, a tier per rank. */

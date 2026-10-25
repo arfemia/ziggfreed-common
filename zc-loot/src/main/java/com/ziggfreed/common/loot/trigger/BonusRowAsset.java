@@ -36,8 +36,11 @@ import com.ziggfreed.common.season.SeasonGate;
  * }</pre>
  *
  * <p>A row fires on every matching moment with no other gate: any block a player breaks that they
- * did not place, any kill credited to a player, any item a player harvests by hand. Where several
- * rows match one name the one pinning down the most characters wins; a calendar event's run is the
+ * did not place, any kill credited to a player, any item a player harvests by hand. {@code Match} is
+ * a name pattern or a set the thing's own files put it in ({@code ItemTag:Type=Ore},
+ * {@code BlockFamily:Ore}, {@code NpcGroup:Goblin}; zc-core's {@code match.MatchKey}). Where several
+ * rows match one name the exact name wins, then the pattern pinning down the most characters, then a
+ * set key, then {@code *}; a calendar event's run is the
  * row's own {@code Season}; anything else more selective than a name (a skill, a held tool) belongs in
  * a roll's own {@code Conditions}. A row with no {@code Loot} is a deliberate hole that stops a
  * broader pattern covering the name; {@code Enabled: false} takes the row out entirely, and so does
@@ -90,9 +93,10 @@ public final class BonusRowAsset implements JsonAssetWithMap<String, DefaultAsse
                         (o, v) -> o.match = v, o -> o.match, (o, p) -> o.match = p.match)
                 .documentation("Which block, mob or item, as a name pattern: \"Rock_Stone\" exactly, "
                         + "\"Rock_*\" starting with, \"*_Cracked\" ending with, \"*Geode*\" anywhere in the "
-                        + "name, \"*\" everything. Case is ignored, and where several rows match one name "
-                        + "the one pinning down the most characters wins. Omit it to cover everything in "
-                        + "the moment.").add()
+                        + "name, \"*\" everything. "
+                        + com.ziggfreed.common.match.When.MATCH_FORMS // FQN-OK: this nested class is also named When
+                        + " Where several pattern rows match one name the one pinning down the most "
+                        + "characters wins. Omit it to cover everything in the moment.").add()
                 .build();
 
         public When() {
@@ -135,7 +139,7 @@ public final class BonusRowAsset implements JsonAssetWithMap<String, DefaultAsse
             return kind == null ? "" : kind.trim();
         }
 
-        /** The name pattern, trimmed; blank means everything in the moment. */
+        /** The key (a name pattern or a set key), trimmed; blank means everything in the moment. */
         @Nonnull
         public String match() {
             return match == null ? "" : match.trim();
@@ -153,7 +157,8 @@ public final class BonusRowAsset implements JsonAssetWithMap<String, DefaultAsse
             .appendInherited(new KeyedCodec<>("When", When.CODEC, false),
                     (a, v) -> a.when = v, a -> a.when, (a, p) -> a.when = p.when)
             .documentation("Which moments this row answers for: the Kind of moment, and the name pattern "
-                    + "within it. A row that names no moment never fires.").add()
+                    + "or the ItemTag, BlockFamily or NpcGroup key within it. A row that names no moment never "
+                    + "fires.").add()
             .appendInherited(new KeyedCodec<>("Chance", FactorFormula.codec(EditorDataSets.FACTORS), false),
                     (a, v) -> a.chance = v, a -> a.chance, (a, p) -> a.chance = p.chance)
             .documentation("How likely the row is, as a PERCENT: Base plus each factor's value * Weight, "
@@ -210,7 +215,7 @@ public final class BonusRowAsset implements JsonAssetWithMap<String, DefaultAsse
         return when == null ? null : when.moment();
     }
 
-    /** The name pattern; blank means everything in its moment. */
+    /** The key (a name pattern or a set key); blank means everything in its moment. */
     @Nonnull
     public String match() {
         return when == null ? "" : when.match();

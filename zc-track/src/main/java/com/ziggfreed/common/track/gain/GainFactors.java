@@ -11,7 +11,7 @@ import javax.annotation.Nullable;
 
 /**
  * The open registry of gain factors, by id (matched without regard to case): the seam a consumer adds a factor
- * through (a class multiplier, a gear bonus, a permission level cap), and the one the boosts fill. A track runs
+ * through (a multiplier of its own, a gear bonus, a permission level cap), and the one the boosts fill. A track runs
  * the factors its {@code Gain.Factors} names, in that order ({@link #DEFAULT_ORDER} when it names none), the ones
  * its {@code Gain.Additive} names adding together ({@link #DEFAULT_ADDITIVE} when it names none); an id nobody
  * registered changes nothing.
@@ -20,15 +20,13 @@ import javax.annotation.Nullable;
  * ({@code world.TrackWorldRules}), {@value #BONUS} reads the player's gain stats ({@link BonusGainFactor}, R734; a
  * consumer adds its own stats to it through {@link TrackGainStats#registerSource}, never by registering over it),
  * {@value #BOOST} holds the neutral factor until the boost module registers over it at setup
- * ({@code boost.BoostBootstrap}), {@value #PRESTIGE} pays a prestiged track's constant extra (R642) and
+ * ({@code boost.BoostBootstrap}), {@value #PRESTIGE} pays a prestiged track's constant extra (R642, R852) and
  * {@value #RESTED} spends a track's rested pool where its {@code Gain.Rested} group turns one on (off on every
- * track until written). {@value #CLASS} is a consumer's to register. Registering again replaces, and every compiled
- * plan is built again.
+ * track until written). Any other id is a consumer's to register and name in its tracks' {@code Gain.Factors}.
+ * Registering again replaces, and every compiled plan is built again.
  */
 public final class GainFactors {
 
-    /** A consumer's class multiplier. */
-    public static final String CLASS = "Class";
     /** The world's track rules: its gain switch and multiplier for the track or its category. */
     public static final String WORLD = "World";
     /** The player's gain stats: TrackGain, TrackGain_<Category>, TrackGain_<Track> and a consumer's sources (R734). */
@@ -41,14 +39,14 @@ public final class GainFactors {
     public static final String RESTED = "Rested";
 
     /**
-     * The order a track without a {@code Gain.Factors} list runs: the MMO's award order to date, with the
-     * prestige extra after the boosts and before the rested pool, which pays on top of everything before it.
+     * The order a track without a {@code Gain.Factors} list runs: the world's rules, the bonus, the boosts, the
+     * prestige extra after them, and last the rested pool, which pays on top of everything before it.
      */
-    public static final List<String> DEFAULT_ORDER = List.of(CLASS, WORLD, BONUS, BOOST, PRESTIGE, RESTED);
+    public static final List<String> DEFAULT_ORDER = List.of(WORLD, BONUS, BOOST, PRESTIGE, RESTED);
 
     /**
      * The factors a track without a {@code Gain.Additive} list adds together rather than multiplying: the bonus
-     * and the boosts, as the MMO has always stacked them ({@code bonus + (boost - 1)}).
+     * and the boosts ({@code bonus + (boost - 1)}).
      */
     public static final List<String> DEFAULT_ADDITIVE = List.of(BONUS, BOOST);
 

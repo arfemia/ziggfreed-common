@@ -1,7 +1,8 @@
 package com.ziggfreed.common.grant;
 
+import java.util.List;
+
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.codec.lookup.CodecMapCodec;
@@ -20,8 +21,10 @@ import com.hypixel.hytale.codec.lookup.CodecMapCodec;
  * JVM; resistances, outgoing
  * damage, abilities, titles and cosmetics are kinds a later module registers the same way.
  *
- * <p>A kind's {@link #kind()} is the word a world rule names to switch it off where a player stands, and its
- * {@link #family()} a broader word several kinds may share (the combat bonuses), so one switch can name them all.
+ * <p>A kind's {@link #kind()} is the word a world rule names to switch it off where a player stands, and a grant's
+ * {@link #families()} the broader words it also answers to (the combat bonuses' {@value GrantFamilies#COMBAT}), so
+ * one switch can name every grant of a family whatever its kind. A {@code Stat} grant's families are its stat's own
+ * {@value GrantFamilies#TAG} tag ({@link GrantFamilies}).
  */
 public abstract class Grant {
 
@@ -39,11 +42,12 @@ public abstract class Grant {
     public abstract String kind();
 
     /**
-     * The broader word a world rule may also name for this kind (the combat bonuses' {@code Combat}), or null when
-     * only the kind's own id switches it.
+     * The broader words a world rule may also name to switch this grant off (the combat bonuses'
+     * {@value GrantFamilies#COMBAT}), as written; empty when only the kind's own id switches it. A kind reads them
+     * off the asset the grant raises, never from a list of its own (R858).
      */
-    @Nullable
-    public String family() {
-        return null;
+    @Nonnull
+    public List<String> families() {
+        return List.of();
     }
 }

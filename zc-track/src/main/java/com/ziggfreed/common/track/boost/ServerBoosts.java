@@ -24,7 +24,7 @@ import com.ziggfreed.common.util.SafeLog;
  * own end, the clock having kept counting. A file that will not read falls back to its {@code .bak}, then to none
  * running; a server with no folder keeps them in memory only. Reads are lock-free; writes one at a time.
  */
-public final class ServerBoosts {
+final class ServerBoosts {
 
     /** The file, beside the library's owner files. */
     public static final String FILE_NAME = "server-boosts.json";

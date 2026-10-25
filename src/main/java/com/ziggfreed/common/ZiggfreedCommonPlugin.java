@@ -81,6 +81,7 @@ import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.loot.stamp.StackStatsStamper;
 import com.ziggfreed.common.loot.stamp.StampFactors;
 import com.ziggfreed.common.loot.stamp.StamperRegistry;
+import com.ziggfreed.common.match.MatchBootstrap;
 import com.ziggfreed.common.npc.NpcBootstrap;
 import com.ziggfreed.common.npc.NpcDestinations;
 import com.ziggfreed.common.npc.NpcIdentityConfig;
@@ -155,8 +156,8 @@ import com.ziggfreed.common.world.temp.TempBlocksBootstrap;
  *
  * <p>The static primitives register nothing (a consumer calls them directly), and the library's own
  * registrations live in per-module bootstraps this class calls in one authoritative order:
- * {@code GateBootstrap} (zc-core), {@code LootDropsBootstrap} (zc-loot), {@code EntityBootstrap} (zc-entity),
- * {@code NpcBootstrap} (zc-dialogue),
+ * {@code GateBootstrap} + {@code MatchBootstrap} (zc-core), {@code LootDropsBootstrap} (zc-loot),
+ * {@code EntityBootstrap} (zc-entity), {@code NpcBootstrap} (zc-dialogue),
  * {@code PlacedBlockBootstrap} + {@code BlockStashBootstrap} + {@code BlockRulesBootstrap} (zc-world), {@code CalendarBootstrap}
  * (zc-calendar), {@code ProgressionBootstrap} + {@code DialogueBootstrap} + {@code BonusRowBootstrap}
  * + {@code CalendarSweepBootstrap} + {@code ObjectiveBookBootstrap} + {@code TrainerBootstrap} (zc-objectives), and
@@ -245,6 +246,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // The gate epochs a kept requirement verdict is checked against: the boot that starts keeping, a
         // departing player, every permission change.
         GateBootstrap.install(this);
+        // The shared matcher's ItemTag: and NpcGroup: keys: an item, NPC group or role load moves their answers, so a
+        // track source or bonus row reads the assets as they stand.
+        MatchBootstrap.install(this);
         registerLootVocabulary();
         // Our loot tables inside native drop lists: the ZigLootable container Type, before any drop list decodes.
         LootDropsBootstrap.install(this);

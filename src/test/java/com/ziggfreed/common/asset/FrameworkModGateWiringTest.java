@@ -63,7 +63,7 @@ import com.ziggfreed.common.world.gather.GatherShapeConfig;
  * QuestCategories, AchievementMilestones, Almanac (a collection slot gates on its own {@code Requires}: absent
  * where its mod is missing, asked of each viewer otherwise), ShopPools, EncounterBindings,
  * EncounterParticipation, EncounterRules, CalendarEvents, CalendarSpawns, Titles, Reputations, TrackCurves,
- * TrackCategories, TrackWorldRules, TrackPickOptions, TrackPickDecks, BoostSettings, WeakSpotSettings, EffectFamilies,
+ * TrackCategories, TrackWorldRules, TrackPickOptions, BoostSettings, WeakSpotSettings, EffectFamilies,
  * ConditionalStats, BlockFamilies, GatherRules and Gateways. A
  * store that gains a
  * top-level {@code Requires} moves from this paragraph into {@code GATED}, and into {@code OWNER_READERS}

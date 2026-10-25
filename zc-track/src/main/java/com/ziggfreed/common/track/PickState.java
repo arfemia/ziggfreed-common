@@ -51,7 +51,7 @@ public record PickState(@Nonnull Map<String, List<String>> slots, @Nonnull Map<S
 
     /**
      * One saved build: the choices made at slots, and every choice and take in the order it was made. A build never
-     * holds a pick a prestige keeps (a trainer's, or one whose file keeps it): those stay in use through every swap.
+     * holds a pick that stays in use (a trainer's, or a priced one): those stay in use through every swap.
      *
      * @param slots per choice slot, the options chosen there
      * @param order every choice and take, oldest first, as {@link PickState#order} keeps them: a slot key once for
@@ -330,6 +330,21 @@ public record PickState(@Nonnull Map<String, List<String>> slots, @Nonnull Map<S
         return new PickState(slots, this.takes, remembered, order, takes, loadouts, activeLoadout);
     }
 
+    /**
+     * This state with the oldest remembered take of {@code node} gone: that rank is held again, bought afresh (a
+     * priced pick, which a re-spend never buys, comes back only this way). Unchanged when none is remembered.
+     */
+    @Nonnull
+    public PickState withoutRememberedTake(@Nonnull String node) {
+        int at = rememberedTakes.indexOf(TrackKey.normalize(node));
+        if (at < 0) {
+            return this;
+        }
+        List<String> next = new ArrayList<>(rememberedTakes);
+        next.remove(at);
+        return withRememberedTakes(next);
+    }
+
     /** This state with {@code node} put back at the head of the remembered takes (an undo of a re-spent take). */
     @Nonnull
     public PickState withRememberedTakeFirst(@Nonnull String node) {
@@ -359,8 +374,8 @@ public record PickState(@Nonnull Map<String, List<String>> slots, @Nonnull Map<S
 
     /**
      * The picks in use as a saved build: every slot and every take, in the order they were made, of a pick
-     * {@code kept} answers false for (a trainer's pick, or one a prestige keeps, stays in use through every swap and
-     * is never saved).
+     * {@code kept} answers false for (a trainer's pick, or a priced one, stays in use through every swap and is never
+     * saved).
      */
     @Nonnull
     public Loadout snapshot(@Nonnull Predicate<String> kept) {
@@ -402,8 +417,8 @@ public record PickState(@Nonnull Map<String, List<String>> slots, @Nonnull Map<S
     }
 
     /**
-     * This state after a prestige under {@code build} (R641). A pick {@code kept} answers true for (by its id: a
-     * trainer's pick, one whose file keeps it through a prestige) stays exactly as it is under every build; the
+     * This state after a prestige under {@code build} (R641). A pick {@code kept} answers true for (by its id: one
+     * whose kind the track's {@code Prestige.Resets} keeps, R852) stays exactly as it is under every build; the
      * others follow it. {@code Keep} changes nothing; {@code Remember} puts each of their slots aside, so it
      * re-offers its old choice preselected as it is re-levelled, and puts their takes aside in the order they were
      * made, ahead of any an earlier prestige put aside and not yet re-spent, so they are re-spent in that order as
@@ -484,28 +499,6 @@ public record PickState(@Nonnull Map<String, List<String>> slots, @Nonnull Map<S
         for (String face : faces) {
             String id = TrackKey.normalize(face);
             if (inUse.contains(id) && !savedPicks.contains(id)) {
-                out.add(id);
-            }
-        }
-        return out;
-    }
-
-    /** Comma-joined, as a save keeps a slot's choice. */
-    @Nonnull
-    public static String join(@Nonnull List<String> options) {
-        return String.join(",", options);
-    }
-
-    /** A saved slot's choice as its options. */
-    @Nonnull
-    public static List<String> split(@Nullable String saved) {
-        if (saved == null || saved.isBlank()) {
-            return List.of();
-        }
-        List<String> out = new ArrayList<>();
-        for (String part : saved.split(",")) {
-            String id = TrackKey.normalize(part);
-            if (!id.isEmpty()) {
                 out.add(id);
             }
         }

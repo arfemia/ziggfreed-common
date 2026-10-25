@@ -1,9 +1,8 @@
 package com.ziggfreed.common.quest;
 
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -27,59 +26,69 @@ import com.ziggfreed.common.progress.runtime.ProgressionTexts;
  * factors ({@code quest_completed}, {@code achievement_earned}). {@link #install} registers all of it, once
  * and again after a reset; the class does so on first use.
  *
- * <p>Tokens come in two families. The engine's own flat tokens ({@link QuestGates}) each map to a
- * fixed line - every one of them, so a daily finished today reads "Comes back in 5h 12m" and a
- * quest already carried reads "Already in your quest log" rather than both collapsing onto the
- * catch-all. The three clock tokens ({@code on_cooldown}, {@code period_spent}, {@code run_spent})
+ * <p>Tokens come in two families. The engine's own flat tokens ({@link QuestGates}, listed once, in this
+ * class's one table of them) each map to a fixed line - every one of them, so a daily finished today reads "Comes back
+ * in 5h 12m" and a quest already carried reads "Already in your quest log" rather than both collapsing onto
+ * the catch-all. The three clock tokens ({@code on_cooldown}, {@code period_spent}, {@code run_spent})
  * quote WHEN when the caller hands over the remaining wait beside the tokens
  * ({@link #lines(List, long)} and its siblings, or the {@link QuestEngine.AcceptCheck} forms that
- * carry it already), and fall back to their no-clock twins when a caller has no wait to hand over
- * (a token lifted from somewhere with no record behind it). The wait is composed by
- * {@link #waitLine} as its own translatable line, whole numbers bound as typed params so each client
- * writes its own digits, and rides the lock line as a NESTED param. This class holds no clock: the
- * wait is always passed in, never read here. The requirement evaluator's tokens
- * ({@link GateEvaluator}) are STRUCTURED - {@code
- * quest:<id>}, {@code factor:<id>}, {@code gate:<kind>} - and several render as the actual ask
- * rather than being discarded: a quest requirement names the quest ("Complete quest: X"), and a
- * FACTOR requirement whose factor has a naming overlay (the
- * {@code Server/ZiggfreedCommon/Factors/} assets) names the factor - with its bound, when the
- * caller holds the {@link GateRefusal} record that carries one, and with the "(currently N)"
- * readout when that record also carries the value the evaluation resolved. The two membership
- * factor spellings ({@code ziggfreedcommon:quest_completed} / {@code achievement_earned}) name
- * their content's own title, and a permission refusal reads with its own fixed sentence - a
- * missing permission is a different kind of answer from a numeric bound - whether it was spelled
- * as the {@code Permission} leaf or as a {@code hytale:permission} factor condition, so one
- * requirement is one sentence however content spells it. A COMPOSITE record renders what its
- * group asks for: an {@code AnyOf}'s routes read as one either-or list ("Unlocked by: A or B",
- * joined by a translatable joiner; a single route reads as its own line, never as a list), and a
- * {@code Not} that shut the gate by passing reads as the negated sentence naming the met asks. A
- * factor no asset names, and every remaining structured form, folds to the generic requirements
- * line; a raw token is never shown, and a token nothing here recognises reads as the generic "not
- * available" line.
+ * carry it already), which {@link RefusalLines} hands this family ({@code Family.line(token, waitMs)}),
+ * and fall back to their no-clock twins when a caller has no wait to hand over (a token lifted from
+ * somewhere with no record behind it). The wait is composed by {@link #waitLine} as its own translatable
+ * line, whole numbers bound as typed params so each client writes its own digits, and rides the lock line
+ * as a NESTED param. This class holds no clock: the wait is always passed in, never read here. The
+ * requirement evaluator's tokens ({@link GateEvaluator}) are STRUCTURED - {@code quest:<id>},
+ * {@code factor:<id>}, {@code gate:<kind>} - and read through {@link RefusalLines}, whose javadoc says what
+ * each renders as.
  *
  * <p>The evaluator reports the flat {@code prerequisites} token BESIDE its specific ones, so a
  * caller rendering the whole list would say "Requirements not met" and "Complete quest: X" about
- * the same gate. {@link #lines} therefore drops the flat token whenever a specific line made it
- * redundant, and {@link #bestLine} picks the most specific single line for a surface with room for
- * only one. The record entry points ({@link #linesOf}, {@link #line(GateRefusal)}) follow the same
- * dedupe and drop rules.
+ * the same gate. The flat token is this family's catch-all ({@code Family.generic}), so
+ * {@link RefusalLines#lines} drops it whenever a specific line made it redundant, and
+ * {@link #bestLine} picks the most specific single line for a surface with room for only one: the
+ * walk, the dedupe and the drop rules are {@link RefusalLines}', never a second copy here. The record
+ * entry points ({@link #linesOf}, {@link #line(GateRefusal)}) follow the same rules.
  */
 public final class LockReasons {
 
-    /** The engine's flat tokens, each its own sentence (the clock ones in their no-clock form). */
-    private static final List<String> ENGINE_TOKENS = List.of(QuestGates.REASON_UNAVAILABLE,
-            QuestGates.REASON_ON_COOLDOWN, QuestGates.REASON_PERIOD_SPENT, QuestGates.REASON_RUN_SPENT,
-            QuestGates.REASON_MAX_COMPLETIONS, QuestGates.REASON_ALREADY_STARTED, QuestGates.REASON_SYSTEM_DISABLED,
-            QuestGates.REASON_PREREQUISITES, QuestGates.REASON_LOG_FULL);
-
     /** The owner this family is registered under. */
     private static final String OWNER = "ziggfreedcommon";
+
+    /** One of the engine's flat tokens: its line's key, and whether that line quotes the wait (a clock token). */
+    private record EngineLine(@Nonnull String token, @Nonnull String key, boolean clock) {
+    }
+
+    /** The engine's flat tokens, each its own sentence, by token: the one list of them. */
+    private static final Map<String, EngineLine> ENGINE = engineLines(
+            new EngineLine(QuestGates.REASON_UNAVAILABLE, "lock.unavailable", false),
+            new EngineLine(QuestGates.REASON_ON_COOLDOWN, "lock.on_cooldown", true),
+            new EngineLine(QuestGates.REASON_PERIOD_SPENT, "lock.period_spent", true),
+            new EngineLine(QuestGates.REASON_RUN_SPENT, "lock.run_spent", true),
+            new EngineLine(QuestGates.REASON_MAX_COMPLETIONS, "lock.max_completions", false),
+            new EngineLine(QuestGates.REASON_ALREADY_STARTED, "lock.already_started", false),
+            new EngineLine(QuestGates.REASON_SYSTEM_DISABLED, "lock.system_disabled", false),
+            new EngineLine(QuestGates.REASON_PREREQUISITES, "lock.prerequisites", false),
+            new EngineLine(QuestGates.REASON_LOG_FULL, "lock.log_full", false));
+
+    /** A wait this short reads as "under a minute" rather than as a count of nothing. */
+    private static final long MINUTE_MS = 60_000L;
+    private static final long HOUR_MS = 60L * MINUTE_MS;
+    private static final long DAY_MS = 24L * HOUR_MS;
 
     static {
         install();
     }
 
     private LockReasons() {
+    }
+
+    @Nonnull
+    private static Map<String, EngineLine> engineLines(@Nonnull EngineLine... lines) {
+        Map<String, EngineLine> out = new LinkedHashMap<>();
+        for (EngineLine line : lines) {
+            out.put(line.token(), line);
+        }
+        return Map.copyOf(out);
     }
 
     /**
@@ -91,7 +100,12 @@ public final class LockReasons {
         RefusalLines.Family engine = new RefusalLines.Family() {
             @Override
             public Message line(@Nonnull String token) {
-                return engineLine(token, NO_WAIT);
+                return engineLine(token, RefusalLines.NO_WAIT);
+            }
+
+            @Override
+            public Message line(@Nonnull String token, long waitMs) {
+                return engineLine(token, waitMs);
             }
 
             @Override
@@ -105,21 +119,13 @@ public final class LockReasons {
                 return LockReasons.dedupeKey(token);
             }
         };
-        for (String token : ENGINE_TOKENS) {
+        for (String token : ENGINE.keySet()) {
             RefusalLines.register(token, OWNER, engine);
         }
         RefusalLines.contentTitles(ProgressionTexts::title);
         RefusalLines.memberFactor(ProgressionFactors.QUEST_COMPLETED, RefusalLines.QUEST_LINE_KEY);
         RefusalLines.memberFactor(ProgressionFactors.ACHIEVEMENT_EARNED, "ziggfreedcommon.progress.lock.achievement");
     }
-
-    /** A wait this short reads as "under a minute" rather than as a count of nothing. */
-    private static final long MINUTE_MS = 60_000L;
-    private static final long HOUR_MS = 60L * MINUTE_MS;
-    private static final long DAY_MS = 24L * HOUR_MS;
-
-    /** No wait to quote: the clock tokens read their no-clock twins. */
-    private static final long NO_WAIT = 0L;
 
     /**
      * Every refusal as its own line: deduplicated (several tokens can fold to one sentence, and a
@@ -129,7 +135,7 @@ public final class LockReasons {
      */
     @Nonnull
     public static List<Message> lines(@Nonnull List<String> reasons) {
-        return lines(reasons, NO_WAIT);
+        return RefusalLines.lines(reasons);
     }
 
     /**
@@ -141,21 +147,7 @@ public final class LockReasons {
      */
     @Nonnull
     public static List<Message> lines(@Nonnull List<String> reasons, long waitMs) {
-        boolean specific = false;
-        for (String reason : reasons) {
-            specific |= isSpecific(reason);
-        }
-        Set<String> seen = new LinkedHashSet<>();
-        List<Message> lines = new ArrayList<>();
-        for (String reason : reasons) {
-            if (specific && QuestGates.REASON_PREREQUISITES.equals(reason)) {
-                continue;
-            }
-            if (seen.add(dedupeKey(reason))) {
-                lines.add(line(reason, waitMs));
-            }
-        }
-        return lines;
+        return RefusalLines.lines(reasons, waitMs);
     }
 
     /** {@link #lines(List, long)} straight off the engine's answer, wait included. */
@@ -181,18 +173,13 @@ public final class LockReasons {
      */
     @Nonnull
     public static Message bestLine(@Nonnull List<String> reasons) {
-        return bestLine(reasons, NO_WAIT);
+        return RefusalLines.bestLine(reasons);
     }
 
     /** {@link #bestLine(List)} told when the quest comes back, on the terms of {@link #lines(List, long)}. */
     @Nonnull
     public static Message bestLine(@Nonnull List<String> reasons, long waitMs) {
-        for (String reason : reasons) {
-            if (isSpecific(reason)) {
-                return line(reason, waitMs);
-            }
-        }
-        return reasons.isEmpty() ? line(null, waitMs) : line(reasons.get(0), waitMs);
+        return RefusalLines.bestLine(reasons, waitMs);
     }
 
     /** {@link #bestLine(List, long)} straight off the engine's answer, wait included. */
@@ -207,7 +194,7 @@ public final class LockReasons {
      */
     @Nonnull
     public static Message line(@Nullable String reason) {
-        return line(reason, NO_WAIT);
+        return RefusalLines.line(reason);
     }
 
     /**
@@ -219,28 +206,17 @@ public final class LockReasons {
      */
     @Nonnull
     public static Message line(@Nullable String reason, long waitMs) {
-        if (reason == null) {
-            return text("lock.other");
-        }
-        Message engine = engineLine(reason, waitMs);
-        return engine != null ? engine : RefusalLines.line(reason);
+        return RefusalLines.line(reason, waitMs);
     }
 
     /** The engine's own line for one of its flat tokens, or null for any other token. */
     @Nullable
     private static Message engineLine(@Nonnull String reason, long waitMs) {
-        return switch (reason) {
-            case QuestGates.REASON_UNAVAILABLE -> text("lock.unavailable");
-            case QuestGates.REASON_ON_COOLDOWN -> clockLine("lock.on_cooldown", waitMs);
-            case QuestGates.REASON_PERIOD_SPENT -> clockLine("lock.period_spent", waitMs);
-            case QuestGates.REASON_RUN_SPENT -> clockLine("lock.run_spent", waitMs);
-            case QuestGates.REASON_MAX_COMPLETIONS -> text("lock.max_completions");
-            case QuestGates.REASON_ALREADY_STARTED -> text("lock.already_started");
-            case QuestGates.REASON_SYSTEM_DISABLED -> text("lock.system_disabled");
-            case QuestGates.REASON_PREREQUISITES -> text("lock.prerequisites");
-            case QuestGates.REASON_LOG_FULL -> text("lock.log_full");
-            default -> null;
-        };
+        EngineLine line = ENGINE.get(reason);
+        if (line == null) {
+            return null;
+        }
+        return line.clock() ? clockLine(line.key(), waitMs) : text(line.key());
     }
 
     /**
@@ -252,7 +228,7 @@ public final class LockReasons {
         if (waitMs == Long.MAX_VALUE) {
             return text("lock.max_completions");
         }
-        return waitMs > NO_WAIT ? text(key + ".in", waitLine(waitMs)) : text(key);
+        return waitMs > RefusalLines.NO_WAIT ? text(key + ".in", waitLine(waitMs)) : text(key);
     }
 
     /**
@@ -320,33 +296,17 @@ public final class LockReasons {
         return RefusalLines.line(refusal);
     }
 
-    /** Does this token render as a line that names the concrete thing to go and do? */
-    private static boolean isSpecific(@Nullable String reason) {
-        return RefusalLines.isSpecific(reason);
-    }
-
     /**
-     * The identity a rendered line deduplicates under: a gate token's through {@link RefusalLines}, each of
-     * the engine's flat tokens its own (every one has its own sentence, so two of them are two lines), and
-     * the shared requirements bucket for the flat requirements line.
+     * The identity one of the engine's flat tokens deduplicates under: its own (every one has its own sentence, so
+     * two of them are two lines), the shared requirements bucket for the flat requirements line, and the catch-all
+     * bucket for a token this family does not word after all.
      */
     @Nonnull
-    private static String dedupeKey(@Nullable String reason) {
-        if (reason == null) {
-            return "other";
+    private static String dedupeKey(@Nonnull String token) {
+        if (QuestGates.REASON_PREREQUISITES.equals(token)) {
+            return "prerequisites";
         }
-        GateRefusal structured = GateRefusal.fromToken(reason);
-        if (structured != null) {
-            return RefusalLines.dedupeKey(structured);
-        }
-        return switch (reason) {
-            case QuestGates.REASON_UNAVAILABLE, QuestGates.REASON_ON_COOLDOWN,
-                    QuestGates.REASON_PERIOD_SPENT, QuestGates.REASON_RUN_SPENT,
-                    QuestGates.REASON_MAX_COMPLETIONS, QuestGates.REASON_ALREADY_STARTED,
-                    QuestGates.REASON_SYSTEM_DISABLED, QuestGates.REASON_LOG_FULL -> reason;
-            case QuestGates.REASON_PREREQUISITES -> "prerequisites";
-            default -> "other";
-        };
+        return ENGINE.containsKey(token) ? token : "other";
     }
 
     @Nonnull

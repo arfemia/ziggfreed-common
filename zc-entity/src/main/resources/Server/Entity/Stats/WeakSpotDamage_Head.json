@@ -4,5 +4,6 @@
   "Min": -1000.0,
   "Max": 0.0,
   "Shared": false,
-  "HideFromTooltip": false
+  "HideFromTooltip": false,
+  "Tags": { "ZigGrantFamily": [ "Combat" ] }
 }

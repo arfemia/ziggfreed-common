@@ -379,7 +379,10 @@ final class TreePagePlan {
             return lines;
         }
 
-        /** The choice this pick is one face of: this one first, then each other face, the one taken tagged. */
+        /**
+         * The choice this pick is one face of: this one first, then each other face, the one taken tagged (a face on
+         * another track too, read off that track's record).
+         */
         @Nonnull
         private List<DetailLine> faces() {
             List<DetailLine> lines = new ArrayList<>();
@@ -387,11 +390,10 @@ final class TreePagePlan {
                     node.taken() > 0 ? Pill.of(TreeText.line("tag.taken"), Tone.DONE)
                             : Pill.of(TreeText.line("tag.this"), Tone.NEUTRAL), Tick.NONE, null, true));
             for (String face : node.faces()) {
-                TrackTree.Node other = view.node(face);
                 TrackPicks.PickDef def = TrackPicks.pick(face);
                 lines.add(new DetailLine(Picture.item(def == null ? null : def.asset().icon()),
                         TrackText.pickName(face), null,
-                        other != null && other.taken() > 0 ? Pill.of(TreeText.line("tag.taken"), Tone.DONE) : null,
+                        node.holds(face) ? Pill.of(TreeText.line("tag.taken"), Tone.DONE) : null,
                         Tick.NONE, null, false));
             }
             return lines;
@@ -401,7 +403,7 @@ final class TreePagePlan {
         @Nullable
         private Message hint(boolean canUndo) {
             if (node.maxed()) {
-                return TreeText.line("hint.maxed");
+                return reason(Status.MAXED);
             }
             if (node.takeable()) {
                 return canUndo ? TreeText.line("hint.undo") : null;
@@ -409,33 +411,26 @@ final class TreePagePlan {
             return reason(node.status());
         }
 
-        /** Why a take was or would be refused, in the player's words. */
+        /**
+         * Why a take was or would be refused, in the player's words: a row still locked by its branch's points says
+         * how many more, a choice closed off names the face held and its track ({@link TrackText#nodeTaken}), and
+         * every other answer reads as every page that takes a pick says it
+         * ({@link TrackText#refusal(Status, int, Message)}).
+         */
         @Nonnull
         Message reason(@Nonnull Status status) {
-            return switch (status) {
-                case NOT_OPEN -> TreeText.line("refused.level", node.opensAt());
-                case LOCKED -> !row.open() && branchName != null
-                        ? TreeText.line("refused.row", branchName, row.missing()) : TreeText.line("refused.locked");
-                case NEEDS_PREREQUISITE -> TreeText.line("refused.before");
-                case NODE_TAKEN -> TreeText.line("refused.node", takenFace());
-                case NO_POINTS -> TreeText.line("refused.points");
-                case SPEND_CAP -> TreeText.line("refused.cap");
-                case CANNOT_PAY -> TreeText.line("toast.pay");
-                case MAXED -> TreeText.line("hint.maxed");
-                default -> TreeText.line("refused.other");
-            };
-        }
-
-        /** The other face of this pick's node that is taken, by name. */
-        @Nonnull
-        private Message takenFace() {
-            for (String face : node.faces()) {
-                TrackTree.Node other = view.node(face);
-                if (other != null && other.taken() > 0) {
-                    return TrackText.pickName(face);
+            if (status == Status.LOCKED && !row.open() && branchName != null) {
+                return TreeText.line("refused.row", branchName, row.missing());
+            }
+            if (status == Status.NODE_TAKEN && !node.heldFaces().isEmpty()) {
+                String face = node.heldFaces().get(0);
+                TrackPicks.PickDef held = TrackPicks.pick(face);
+                TrackDef holder = held == null ? null : TrackService.def(held.trackId());
+                if (holder != null) {
+                    return TrackText.nodeTaken(TrackText.pickName(face), TrackText.name(holder.asset()));
                 }
             }
-            return TrackText.pickName(node.faces().isEmpty() ? node.pickId() : node.faces().get(0));
+            return TrackText.refusal(status, node.opensAt(), TrackText.name(view.def().asset()));
         }
 
         /** Take the pick once more on the track's own page, and say how it went. */
@@ -531,8 +526,8 @@ final class TreePagePlan {
 
     /**
      * Have the picks in use moved since the build in use ({@code active}, 0 for none) was saved? What a swap to that
-     * same build compares ({@code PickService.swapLoadout}): the picks a prestige would not keep, against the build as
-     * saved. False with no build in use or nobody to read.
+     * same build compares ({@code PickService.swapLoadout}): the picks not kept in use ({@code keptInUse}), against
+     * the build as saved. False with no build in use or nobody to read.
      */
     private static boolean changedSinceSaved(@Nonnull UUID player, @Nonnull TrackDef def, int active) {
         if (active <= 0) {
@@ -543,7 +538,7 @@ final class TreePagePlan {
             return false;
         }
         PickState state = reading.record().picks();
-        return !state.snapshot(PickService.keptThroughPrestige(def)).equals(state.loadout(active));
+        return !state.snapshot(PickService.keptInUse(def)).equals(state.loadout(active));
     }
 
     /**
@@ -588,7 +583,7 @@ final class TreePagePlan {
             case DONE -> ToastSpec.of(ToastKind.SUCCESS, TreeText.line("build.toast.swapped", slot, result.count()));
             case NOTHING -> ToastSpec.of(ToastKind.INFO, TreeText.line("build.toast.in_use"));
             case UNSAVED -> ToastSpec.of(ToastKind.WARNING, TreeText.line("build.toast.unsaved"));
-            default -> refusedCharge(result.status());
+            default -> ToastSpec.of(ToastKind.WARNING, TrackText.refusal(result.status()));
         };
     }
 
@@ -617,32 +612,20 @@ final class TreePagePlan {
         DetailView page = new DetailView(picture, title, respecMeta(clears), null, List.of(), null, null, null,
                 TreeText.line("respec.lead"),
                 List.of(new DetailBlock("price", TreeText.line("respec.block.price"), null, price)),
-                List.of(respec), clears > 0 ? null : TreeText.line("respec.toast.nothing"));
+                List.of(respec),
+                clears > 0 ? null : TrackText.respecLine(Status.NOTHING, 0, TrackText.name(def.asset())));
         String trackId = def.id();
         Map<ActionSlot, Press> presses = new EnumMap<>(ActionSlot.class);
         presses.put(ActionSlot.DANGER, () -> buyRespec(player, trackId));
         return new Entry(ROW_RESPEC, page, presses, Map.of(ActionSlot.DANGER, TreeText.line("respec.confirm")));
     }
 
+    /** Buy the respec, and say what it did as every page that offers one says it ({@link TrackText#respecLine}). */
     @Nonnull
     private static ToastSpec buyRespec(@Nonnull UUID player, @Nonnull String trackId) {
         PickService.Result result = PickService.buyRespec(player, trackId);
-        return switch (result.status()) {
-            case DONE -> ToastSpec.of(ToastKind.SUCCESS, TreeText.line("respec.toast.done", result.count()));
-            case NOTHING -> ToastSpec.of(ToastKind.WARNING, TreeText.line("respec.toast.nothing"));
-            default -> refusedCharge(result.status());
-        };
-    }
-
-    /** Why a swap or a respec was refused: a fight, a boss fight, the price, or something else. */
-    @Nonnull
-    private static ToastSpec refusedCharge(@Nonnull Status status) {
-        return ToastSpec.of(ToastKind.WARNING, switch (status) {
-            case IN_COMBAT -> TreeText.line("toast.combat");
-            case IN_ENCOUNTER -> TreeText.line("toast.encounter");
-            case CANNOT_PAY -> TreeText.line("toast.pay");
-            default -> TreeText.line("action.failed");
-        });
+        return ToastSpec.of(result.done() ? ToastKind.SUCCESS : ToastKind.WARNING,
+                TrackText.respecLine(result, trackName(trackId)));
     }
 
     /** {@code price}, or one line saying it is free. */

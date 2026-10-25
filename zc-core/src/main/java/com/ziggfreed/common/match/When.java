@@ -16,7 +16,9 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
  *
  * <pre>{@code
  * "When": { "Kind": "BREAK_BLOCK", "Match": "Ore_*" }
- * "When": { "Kind": "DEAL_DAMAGE", "Qualifier": "Weapon_Sword*" }
+ * "When": { "Kind": "BREAK_BLOCK", "Match": "BlockFamily:Ore" }
+ * "When": { "Kind": "DEAL_DAMAGE", "Qualifier": "ItemTag:Family=Sword" }
+ * "When": { "Kind": "KILL_ENTITY", "Match": "NpcGroup:Goblin" }
  * }</pre>
  *
  * <ul>
@@ -25,15 +27,18 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
  *       bonus rows' first spellings ({@code BreakBlock}, {@code KillMob}, {@code PickupItem}) are aliases of
  *       {@code BREAK_BLOCK}, {@code KILL_ENTITY} and {@code PICKUP_ITEM} ({@link #normalizeKind}), so a file
  *       written either way reads the same.</li>
- *   <li>{@code Match} is a {@link NamePattern} over the moment's target (the block, mob or item id); blank
- *       covers every target.</li>
- *   <li>{@code Qualifier} is a {@link NamePattern} over the moment's qualifier (a hit's weapon, a kill's tier);
- *       blank asks nothing of it.</li>
+ *   <li>{@code Match} is a {@link MatchKey} over the moment's target (the block, mob or item id): a
+ *       {@link NamePattern}, or a set key naming what the target's own asset carries ({@code ItemTag:},
+ *       {@code BlockFamily:}, {@code NpcGroup:}); blank covers every target.</li>
+ *   <li>{@code Qualifier} is a {@link MatchKey} over the moment's qualifier (a hit's weapon, a kill's tier), in
+ *       the same forms; blank asks nothing of it.</li>
  * </ul>
  *
- * <p>Selection among several matching rows is {@link MomentTable}'s: the most specific {@code Match} wins, then
- * the most specific {@code Qualifier}, then the first folded. A consumer embeds this group under its own field
- * (its codec, its documentation); it carries no defaults, so each read site applies its own.
+ * <p>Selection among several matching rows is {@link MomentTable}'s: the most specific {@code Match} wins (an
+ * exact id, then the longest pattern, then any set key, then {@code *}), then the most specific {@code Qualifier},
+ * then the first folded. A consumer embeds this group under its own field (its codec, its documentation); it
+ * carries no defaults, so each read site applies its own. {@link #MATCH_FORMS} is the one sentence every field
+ * taking a key quotes, so the Asset Editor tells authors the forms the same way everywhere.
  */
 public class When {
 
@@ -45,6 +50,17 @@ public class When {
             "BREAKBLOCK", "BREAK_BLOCK",
             "KILLMOB", "KILL_ENTITY",
             "PICKUPITEM", "PICKUP_ITEM");
+
+    /**
+     * How a key may name its targets beyond a name pattern, and which key wins: quoted by the documentation of
+     * every field that takes a {@link MatchKey} (this group's {@code Match} and {@code Qualifier}, a track source's
+     * {@code Rows}, a bonus row's {@code Match}).
+     */
+    public static final String MATCH_FORMS = "Or by what the thing's own files say: \"ItemTag:Type=Ore\" an item, "
+            + "or a block's item, carrying that native tag (\"ItemTag:Ore\" the value Ore under any tag), "
+            + "\"BlockFamily:Ore\" a block in that block family, \"NpcGroup:Goblin\" a creature in that NPC group. "
+            + "Case is ignored. An exact name wins over everything, any pattern over an ItemTag, BlockFamily or "
+            + "NpcGroup key, and those over \"*\".";
 
     @Nullable protected String kind;
     @Nullable protected String match;
@@ -61,12 +77,13 @@ public class When {
                     (o, v) -> o.match = v, o -> o.match, (o, p) -> o.match = p.match)
             .documentation("Which block, mob or item, as a name pattern: \"Rock_Stone\" exactly, \"Rock_*\" "
                     + "starting with, \"*_Cracked\" ending with, \"*Geode*\" anywhere in the name, \"*\" "
-                    + "everything. Case is ignored. Omit it to cover everything in the moment.").add()
+                    + "everything. " + MATCH_FORMS + " Omit it to cover everything in the moment.").add()
             .appendInherited(new KeyedCodec<>("Qualifier", Codec.STRING, false),
                     (o, v) -> o.qualifier = v, o -> o.qualifier, (o, p) -> o.qualifier = p.qualifier)
             .documentation("What else the moment must carry, as a name pattern over its qualifier: for "
-                    + "DEAL_DAMAGE the weapon that hit (\"Weapon_Sword*\"), for KILL_ENTITY whatever a mod "
-                    + "qualifies a kill with. Omit it to ask nothing more.").add()
+                    + "DEAL_DAMAGE the weapon that hit (\"Weapon_Sword*\", or \"ItemTag:Family=Sword\" for every "
+                    + "weapon tagged a sword), for KILL_ENTITY whatever a mod qualifies a kill with. It takes the "
+                    + "same ItemTag, BlockFamily and NpcGroup keys as Match. Omit it to ask nothing more.").add()
             .build();
 
     public When() {

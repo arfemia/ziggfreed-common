@@ -1,5 +1,7 @@
 package com.ziggfreed.common.grant;
 
+import java.util.List;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -22,6 +24,10 @@ import com.ziggfreed.common.asset.EditorSchema;
  * <p>{@code Percent} is a percent of the stat's own base maximum (its asset's {@code Max}), written as a flat native
  * amount: the engine sums every multiplying modifier on a stat into one factor (two times 1.5 make times 3), so a
  * second multiplier beside gear's or an effect's would multiply wrong, while flat amounts always add up.
+ *
+ * <p>A world rule switches it off by its kind, {@value #KIND}, or by any family its stat's own
+ * {@value GrantFamilies#TAG} tag names ({@link #families()}; the library's damage and resistance stats say
+ * {@value GrantFamilies#COMBAT}).
  */
 public final class StatGrant extends Grant {
 
@@ -39,7 +45,9 @@ public final class StatGrant extends Grant {
                     (o, v) -> o.stat = v, o -> o.stat, (o, p) -> o.stat = p.stat)
             .metadata(EditorSchema.assetRef(EntityStatType.class))
             .documentation("The native stat raised, by its id (an EntityStatType: Health, Stamina, Mana, or one a "
-                    + "pack ships). A stat this server does not have raises nothing.").add()
+                    + "pack ships). A stat this server does not have raises nothing. The stat's own ZigGrantFamily "
+                    + "tag names the families a world rule may switch this grant off by (Combat on the damage and "
+                    + "resistance stats), beside its kind, Stat.").add()
             .appendInherited(new KeyedCodec<>("Add", Codec.DOUBLE, false),
                     (o, v) -> o.add = v, o -> o.add, (o, p) -> o.add = p.add)
             .metadata(EditorSchema.defaultValue(0.0))
@@ -70,6 +78,13 @@ public final class StatGrant extends Grant {
     @Override
     public String kind() {
         return KIND;
+    }
+
+    /** The families the raised stat's {@value GrantFamilies#TAG} tag names, read off the loaded stat. */
+    @Nonnull
+    @Override
+    public List<String> families() {
+        return GrantFamilies.ofStat(stat());
     }
 
     /** The stat id as written, trimmed, or null. */

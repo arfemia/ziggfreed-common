@@ -27,16 +27,7 @@ learn.state.learn = Learn
 learn.state.learned = Learned
 learn.state.level = Level {0, number}
 learn.state.locked = Locked
-learn.refused.level = Reach level {0, number} in {1} to learn this.
-learn.refused.locked = You do not meet what this needs yet.
-learn.refused.before = Learn what comes before it first.
-learn.refused.node = You took the other path here.
-learn.refused.points = You need more points to learn this.
-learn.refused.cap = You have spent all the points you can here.
-learn.refused.learned = You already know this.
-learn.refused.elsewhere = Another trainer teaches this.
-learn.refused.pay = You cannot pay for this yet.
-learn.refused.other = This cannot be learned right now.
+# Why a pick cannot be learned is the track module's line (ziggfreedcommon.track.lang, refused.*), as on the tree.
 
 quest.meta = Quest
 quest.action = See quest
@@ -49,21 +40,63 @@ quest.state.done = Done
 quest.state.waiting = Later
 quest.state.locked = Locked
 
+# Every service's row reads this once it can be done.
+service.state.ready = Ready
+
+# The respec: {0} the track; in service.respec.meta {0} how many picks it would clear. What a respec did, and why one
+# was refused, is the track module's line (ziggfreedcommon.track.lang, respec.* and refused.*), as on the tree.
 service.respec.title = Reset {0}
 service.respec.meta = {0, number} {0, plural, one {choice} other {choices}} to make again
 service.respec.meta.none = Nothing to reset yet
-service.respec.state.ready = Ready
 service.respec.lead = Clears every choice you made on {0} and gives back every point it cost. What a trainer taught you stays.
 service.respec.price = Price
 service.respec.free = Free
 service.respec.action = Reset
 service.respec.confirm = Press again to reset
-service.respec.done = {0} is reset: {1, number} {1, plural, one {choice is} other {choices are}} yours to make again.
-service.respec.refused.nothing = You have nothing to reset on {0}.
-service.respec.refused.pay = You cannot pay for this yet.
-service.respec.refused.combat = You cannot reset while you are fighting.
-service.respec.refused.encounter = You cannot reset during a boss fight.
-service.respec.refused.other = This cannot be done right now.
+
+# The next prestige of a track, shown once the climb has reached the level it needs: {0} the track. In
+# service.prestige.meta {0} is the prestige it starts; in service.prestige.done {1} is the prestige now; in
+# service.prestige.line.gain {0} is the percent more every gain on it pays and {1} the track.
+service.prestige.title = Prestige {0}
+service.prestige.meta = Prestige {0, number} is ready
+service.prestige.lead = Start {0} over and climb it again.
+service.prestige.block = What happens
+service.prestige.line.best = Your best level stays, and so does everything it opened.
+service.prestige.line.keep = Your picks stay as they are.
+service.prestige.line.remember = Your picks are put aside, and you can make them again as you climb back.
+service.prestige.line.clear = Your picks are cleared, so you can choose again.
+service.prestige.line.taught = What a trainer taught you stays.
+service.prestige.line.gain = From then on you gain {0, number}% more on {1}.
+service.prestige.action = Prestige
+service.prestige.confirm = Press again to prestige
+service.prestige.done = You started {0} again. This is prestige {1, number}.
+service.prestige.refused.none = {0} has no prestige left for you.
+
+# The picks a prestige put aside on a track, shown while any wait: {0} the track. In service.respend.meta {0} is how
+# many; in service.respend.done {0} is how many came back and {1} the track.
+service.respend.title = Your picks on {0}
+service.respend.meta = {0, number} {0, plural, one {pick} other {picks}} put aside
+service.respend.lead = Your last prestige put these picks aside. Take them again in the order you made them, as far as your points go.
+service.respend.block = What comes back
+service.respend.action = Take them again
+service.respend.confirm = Press again to take them
+service.respend.done = {0, number} {0, plural, one {pick is} other {picks are}} back on {1}.
+service.respend.none = None of the picks put aside on {0} can come back yet.
+
+# A track's suggested build, shown while there are points to spend on it and picks of it not taken yet: {0} the
+# track. In service.starter.meta {0} is how many picks are left of it; in service.starter.done {0} is how many were
+# taken and {1} the track.
+service.starter.title = Suggested build for {0}
+service.starter.meta = {0, number} {0, plural, one {pick} other {picks}} to go
+service.starter.lead = Spend your points on {0} the suggested way, in order, as far as they go. A respec lets you choose your own later.
+service.starter.block = The build
+service.starter.action = Spend points
+service.starter.confirm = Press again to spend them
+service.starter.done = You took {0, number} {0, plural, one {pick} other {picks}} of the suggested build on {1}.
+service.starter.none = None of the suggested build can be taken on {0} yet.
+
+# A pick a list names more than once: {0} how many times.
+service.picks.ranks = {0, number} {0, plural, one {rank} other {ranks}}
 
 example.name = Sample Trainer
 example.greet = I teach what the sample track has to offer. Come back as you climb, there is more to learn the higher you go.

@@ -40,7 +40,7 @@ import com.ziggfreed.common.util.SafeLog;
  * With no live player it fails, and {@link #retryCommand} answers the {@code /zigboost start} line a Claim keeps
  * beside the reward, which runs only where this kind could not.
  */
-public final class BoostRewardKind implements RewardHandler {
+final class BoostRewardKind implements RewardHandler {
 
     /** The kind id content writes. */
     public static final String KIND = "Boost";

@@ -15,6 +15,8 @@ import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.loot.LootableValidator;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
+import com.ziggfreed.common.match.MatchKey;
+import com.ziggfreed.common.match.MatchSets;
 import com.ziggfreed.common.match.NamePattern;
 import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.validation.Finding;
@@ -24,7 +26,8 @@ import com.ziggfreed.common.validation.Finding;
  * SILENCE, because a find that hands over nothing is the one nobody reports.
  *
  * <p>Every table audits through here with its own {@link Codes}: a row naming no moment, a pattern
- * the name grammar cannot mean, a chance that can never rise off zero, a factor nothing answers, a
+ * the name grammar cannot mean or a set key that can never match (one naming nothing, or a block
+ * family or NPC group this server does not have), a chance that can never rise off zero, a factor nothing answers, a
  * deliberate hole (a note) and two rows pinning down one name (a note). The loot half goes through
  * the shared loot validator with the row's moment's carried collectors, so a {@code Moment_Item}
  * outside a {@code PickupItem} row warns {@code PASS_ONLY_REWARD_KIND}; {@code lootFold} lets a
@@ -109,24 +112,27 @@ public final class BonusRowAudit {
     }
 
     private static <E extends BonusEntry> void auditMoment(@Nonnull BonusMoment moment,
-            @Nonnull List<Map.Entry<NamePattern, E>> rows, @Nonnull Codes codes,
+            @Nonnull List<Map.Entry<MatchKey, E>> rows, @Nonnull Codes codes,
             @Nullable RewardKindRegistry kinds, @Nullable FactorRegistry factors,
             @Nonnull UnaryOperator<List<Finding>> lootFold, @Nonnull Set<Class<?>> carried,
             @Nonnull List<Finding> findings) {
         // Two rows pinning down the same run of characters both apply somewhere, and each wins where
         // it is the more specific; worth seeing even though neither is wrong.
         Map<String, String> firstByCore = new LinkedHashMap<>();
-        for (Map.Entry<NamePattern, E> row : rows) {
-            NamePattern pattern = row.getKey();
+        for (Map.Entry<MatchKey, E> row : rows) {
+            MatchKey key = row.getKey();
             E entry = row.getValue();
             String id = entry.sourceId();
-            if (hasInteriorWildcard(pattern.raw)) {
+            NamePattern pattern = key.name();
+            if (pattern == null) {
+                auditSet(key, id, codes, findings);
+            } else if (hasInteriorWildcard(pattern.raw)) {
                 findings.add(Finding.warning(codes.domain(), codes.badPattern(),
                         "The pattern '" + pattern.raw + "' has a * in the middle, which the name grammar "
                                 + "does not read as a wildcard. Only a leading and/or trailing * is one, so "
                                 + "this matches the literal text instead.", id));
             }
-            if (!pattern.isDefaultRule()) {
+            if (pattern != null && !pattern.isDefaultRule()) {
                 String previous = firstByCore.putIfAbsent(pattern.core(), id);
                 if (previous != null && !previous.equals(id)) {
                     findings.add(Finding.info(codes.domain(), codes.overlappingPattern(),
@@ -147,6 +153,26 @@ public final class BonusRowAudit {
             // written inline pays only where that pass carries its collector. A named table stays on the
             // silent table path: the same table is rolled at other sites.
             findings.addAll(lootFold.apply(LootableValidator.auditRef(entry.loot(), id, kinds, carried)));
+        }
+    }
+
+    /**
+     * A set key that can never match: one naming nothing after its prefix, or a block family or NPC group this
+     * server does not have (a WARNING: its owner may be a mod this server does not run). An item tag is never
+     * judged, since any item may carry any tag.
+     */
+    private static void auditSet(@Nonnull MatchKey key, @Nonnull String id, @Nonnull Codes codes,
+            @Nonnull List<Finding> findings) {
+        if (key.set().isEmpty()) {
+            findings.add(Finding.warning(codes.domain(), codes.badPattern(),
+                    "The key '" + key.raw + "' names nothing after " + key.form().prefix()
+                            + ", so it matches nothing.", id));
+            return;
+        }
+        if (Boolean.FALSE.equals(MatchSets.known(key))) {
+            findings.add(Finding.warning(codes.domain(), codes.badPattern(),
+                    "The key '" + key.raw + "' names " + key.form().noun() + " this server does not have, so it "
+                            + "matches nothing. Check the spelling, or install the mod that ships it.", id));
         }
     }
 

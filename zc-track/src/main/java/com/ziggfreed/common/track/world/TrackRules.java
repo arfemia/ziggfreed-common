@@ -1,5 +1,6 @@
 package com.ziggfreed.common.track.world;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -19,14 +20,14 @@ import com.ziggfreed.common.asset.EditorSchema;
 
 /**
  * What a world does to tracks (R699: a PvP arena that strips passive stats): whether a gain lands there and at
- * what multiplier, for every track or by track and category, and which grant kinds stay on there, for every track
- * or by track and category.
+ * what multiplier, for every track or by track and category, whether hits on other players pay there, and which
+ * grants stay on there, for every track or by track and category.
  *
  * <pre>{@code
- * { "Gain": { "Multiplier": 0.5, "DisabledTracks": [ "Gathering" ],
+ * { "Gain": { "Multiplier": 0.5, "DisabledTracks": [ "Gathering" ], "PlayerHits": true,
  *             "Tracks": { "Your_Swords": { "Multiplier": 2.0 } } },
- *   "Grants": { "Kinds": { "Stat": false },
- *               "Tracks": { "Combat": { "Kinds": { "Ability": false } } } } }
+ *   "Grants": { "Kinds": { "Combat": false },
+ *               "Tracks": { "Your_Magic": { "Kinds": { "Ability": false } } } } }
  * }</pre>
  *
  * <p>Native first (R695): a world's own gameplay config carries it, written in its {@code Plugin} group under
@@ -35,18 +36,24 @@ import com.ziggfreed.common.asset.EditorSchema;
  * gameplay config cannot say, takes the same group from a {@link TrackWorldRuleAsset}. Where both apply, the
  * world's own gameplay config wins whole ({@link TrackWorldRules}).
  *
- * <p>One to one with the MMO's World Rules: its {@code XpMultiplier} is {@code Gain.Multiplier} (0 stops every
- * gain), its {@code DisabledSkills} {@code Gain.DisabledTracks} and its {@code EnabledSkills}
- * {@code Gain.EnabledTracks} (an allow list: when written, only the tracks it names gain). Each list and each
- * {@code Gain.Tracks} entry names a track id or a category id, a track entry winning over its category's. Every
- * switch only takes away: a track any of them turns off gains nothing here.
+ * <p>{@code Gain}: an XP multiplier ({@code Multiplier}, 0 stops every gain), a deny list ({@code DisabledTracks})
+ * and an allow list ({@code EnabledTracks}: when written, only the tracks it names gain). Each list and each
+ * {@code Gain.Tracks} entry names a track id or a category id, a track entry winning over its category's. Each of
+ * those switches only takes away: a track any of them turns off gains nothing here. {@code PlayerHits} is the one
+ * that gives (R864): a moment that happened to another player (a hit landed on one) pays no track source unless a
+ * world's rules write it true, so it pays nowhere a world's rules do not name.
  *
  * <p>{@code Grants} is the same for what the picks made on a track grant (R699), read by the grant rebuild at every
- * world entry: its {@code Enabled} and {@code Kinds} take away every grant or the grants of one kind (a grant kind
- * id such as {@code Stat}, or the broader word a kind declares, such as {@code Combat}), for every track, and its
- * {@code Tracks} entries the same for one track or one category. The MMO's three switches map one to one:
- * {@code StatBonusesEnabled} is {@code Kinds.Stat}, {@code CombatBonusesEnabled} {@code Kinds.Combat} (the word the
- * resistance and outgoing-damage kinds share) and {@code AbilitiesEnabled} {@code Kinds.Ability}.
+ * world entry: its {@code Enabled} and {@code Kinds} take away every grant, or the grants a word names, for every
+ * track, and its {@code Tracks} entries the same for one track or one category. A {@code Kinds} word is a grant's
+ * kind ({@code Stat}) or a family the grant belongs to ({@code Combat}: a stat grant belongs to every family its
+ * stat's {@code ZigGrantFamily} tag names, zc-entity's {@code GrantFamilies}). The most specific word decides
+ * (R895): a family word written in a switch set decides for the grants of that family over their kind's word, false
+ * winning among several written families, and the kind decides only where no family of the grant is written; so
+ * {@code Combat} false takes only the grants on a stat tagged {@code Combat}, and {@code Stat} false takes every stat
+ * grant but those a written family word keeps. Each switch set (the group's, a track's entry, a category's) only
+ * takes away. A consumer's stat, combat and ability switches map onto {@code Kinds.Stat}, {@code Kinds.Combat} and
+ * {@code Kinds.Ability}.
  */
 public final class TrackRules {
 
@@ -62,13 +69,15 @@ public final class TrackRules {
             .appendInherited(new KeyedCodec<>("Gain", GainRules.CODEC, false),
                     (o, v) -> o.gain = v, o -> o.gain, (o, p) -> o.gain = p.gain)
             .documentation("Whether a gain on a track lands in this world, and at what multiplier, for every track "
-                    + "or by track and category. Leave it out and every track gains as anywhere else.").add()
+                    + "or by track and category, and whether hits on other players pay here. Leave it out and every "
+                    + "track gains as anywhere else, and a hit on another player pays nothing.").add()
             .appendInherited(new KeyedCodec<>("Grants", GrantRules.CODEC, false),
                     (o, v) -> o.grants = v, o -> o.grants, (o, p) -> o.grants = p.grants)
             .documentation("Which of what the picks made on a track grant stay on in this world, for every track or "
                     + "by track and category: a PvP arena that strips passive stats writes { \"Kinds\": { \"Stat\": "
-                    + "false } }. Each switch only takes away, and leaving the world gives the grants back. Leave it "
-                    + "out and every grant stays on.").add()
+                    + "false } }, one that strips only the combat stats { \"Kinds\": { \"Combat\": false } }. Each "
+                    + "switch only takes away, and leaving the world gives the grants back. Leave it out and every "
+                    + "grant stays on.").add()
             .build();
 
     public TrackRules() {
@@ -104,23 +113,33 @@ public final class TrackRules {
     }
 
     /**
-     * Does a grant of {@code kind} (with its broader word {@code family}, null for none) stay on in this world, on
-     * every track? What the rules say for all tracks alike; a track or category entry may still take it away
-     * ({@link #grantsOn(String, String, String, String)}).
+     * Does a hit on another player (any moment that happened to one) pay track sources in this world? False unless
+     * {@code Gain.PlayerHits} is written true (R864).
      */
-    public boolean grantsOn(@Nullable String kind) {
-        return grantsOn(kind, null, null, null);
+    public boolean paysPlayerHits() {
+        GainRules g = gain;
+        return g != null && g.paysPlayerHits();
     }
 
     /**
-     * Does a grant of {@code kind} (and its broader word {@code family}, null for none) from a pick on track
-     * {@code trackId} (in category {@code categoryId}) stay on in this world? No unless every switch that applies
-     * leaves it on: the group's own, the track's entry and the category's entry.
+     * Does a grant of {@code word} (a kind, or a family a grant belongs to) stay on in this world, on every track?
+     * What the rules say for all tracks alike; a track or category entry may still take it away
+     * ({@link #grantsOn(String, Collection, String, String)}).
      */
-    public boolean grantsOn(@Nullable String kind, @Nullable String family, @Nullable String trackId,
+    public boolean grantsOn(@Nullable String word) {
+        return grantsOn(word, null, null, null);
+    }
+
+    /**
+     * Does a grant of {@code kind} (belonging to {@code families}, null or empty for none) from a pick on track
+     * {@code trackId} (in category {@code categoryId}) stay on in this world? No unless every switch set that applies
+     * leaves it on: the group's own, the track's entry and the category's entry, each deciding by the most specific
+     * word it writes (a family of the grant's over its kind, R895).
+     */
+    public boolean grantsOn(@Nullable String kind, @Nullable Collection<String> families, @Nullable String trackId,
             @Nullable String categoryId) {
         GrantRules g = grants;
-        return g == null || g.on(kind, family, trackId, categoryId);
+        return g == null || g.on(kind, families, trackId, categoryId);
     }
 
     /** The {@code Gain} group as written, or null. */
@@ -135,7 +154,7 @@ public final class TrackRules {
         return grants;
     }
 
-    /** One grant switch set: every grant on or off, and per grant kind (or a kind's broader word). */
+    /** One grant switch set: every grant on or off, and per grant kind or family. */
     public static class GrantRule {
 
         @Nullable protected Boolean enabled;
@@ -152,9 +171,13 @@ public final class TrackRules {
                         + "takes every grant away while a player is here.").add()
                 .appendInherited(new KeyedCodec<>("Kinds", new MapCodec<>(Codec.BOOLEAN, LinkedHashMap::new, false),
                                 false), (o, v) -> o.kinds = v, o -> o.kinds, (o, p) -> o.kinds = p.kinds)
-                .documentation("Grant kinds switched off here, by the kind's id (Stat, or one a mod registers) or "
-                        + "the broader word a kind declares (Combat): false takes those grants away while a player "
-                        + "is here. A kind it does not name stays on.").add()
+                .documentation("Grants switched off here, by a grant kind's id (Stat, or one a mod registers) or a "
+                        + "family a grant belongs to (Combat, Ability: a stat grant belongs to every family its "
+                        + "stat's ZigGrantFamily tag names): false takes those grants away while a player is here. "
+                        + "The most specific word decides: a family written here decides for its grants over their "
+                        + "kind (false among several families winning), so Stat false with Combat true takes every "
+                        + "stat grant but the combat ones, and a kind decides only for grants no written family "
+                        + "names. A grant no word names stays on.").add()
                 .build();
 
         public GrantRule() {
@@ -181,8 +204,12 @@ public final class TrackRules {
             return kinds == null ? Map.of() : Map.copyOf(kinds);
         }
 
-        /** Does this switch set leave a grant of {@code kind} (or its word {@code family}) on? */
-        boolean leavesOn(@Nullable String kind, @Nullable String family) {
+        /**
+         * Does this switch set leave a grant of {@code kind}, belonging to {@code families}, on? No when the set is
+         * switched off. Otherwise the most specific word written decides (R895): a family the grant belongs to,
+         * when this set writes one (false among them winning), else its kind; a grant no written word names stays on.
+         */
+        boolean leavesOn(@Nullable String kind, @Nullable Collection<String> families) {
             if (enabled != null && !enabled) {
                 return false;
             }
@@ -190,11 +217,29 @@ public final class TrackRules {
             if (map.isEmpty()) {
                 return true;
             }
-            return !off(map, kind) && !off(map, family);
+            boolean familyWritten = false;
+            if (families != null) {
+                for (String family : families) {
+                    Boolean word = word(map, family);
+                    if (word != null) {
+                        if (!word) {
+                            return false;
+                        }
+                        familyWritten = true;
+                    }
+                }
+            }
+            if (familyWritten) {
+                return true;
+            }
+            Boolean kindWord = word(map, kind);
+            return kindWord == null || kindWord;
         }
 
-        private static boolean off(@Nonnull Map<String, Boolean> map, @Nullable String word) {
-            return word != null && Boolean.FALSE.equals(map.get(word.trim().toLowerCase(Locale.ROOT)));
+        /** What this set writes for {@code word} (any case), or null when it writes nothing. */
+        @Nullable
+        private static Boolean word(@Nonnull Map<String, Boolean> map, @Nullable String word) {
+            return word == null ? null : map.get(word.trim().toLowerCase(Locale.ROOT));
         }
 
         @Nonnull
@@ -253,9 +298,9 @@ public final class TrackRules {
             return tracks == null ? Map.of() : Map.copyOf(tracks);
         }
 
-        boolean on(@Nullable String kind, @Nullable String family, @Nullable String trackId,
+        boolean on(@Nullable String kind, @Nullable Collection<String> families, @Nullable String trackId,
                 @Nullable String categoryId) {
-            if (!leavesOn(kind, family)) {
+            if (!leavesOn(kind, families)) {
                 return false;
             }
             Map<String, GrantRule> entries = entries();
@@ -265,8 +310,8 @@ public final class TrackRules {
             GrantRule byTrack = trackId == null ? null : entries.get(trackId.trim().toLowerCase(Locale.ROOT));
             GrantRule byCategory = categoryId == null || categoryId.isBlank() ? null
                     : entries.get(categoryId.trim().toLowerCase(Locale.ROOT));
-            return (byTrack == null || byTrack.leavesOn(kind, family))
-                    && (byCategory == null || byCategory.leavesOn(kind, family));
+            return (byTrack == null || byTrack.leavesOn(kind, families))
+                    && (byCategory == null || byCategory.leavesOn(kind, families));
         }
 
         @Nonnull
@@ -345,12 +390,16 @@ public final class TrackRules {
         }
     }
 
-    /** The {@code Gain} group: the world's switch and multiplier, its allow and deny lists, and per-id entries. */
+    /**
+     * The {@code Gain} group: the world's switch and multiplier, its allow and deny lists, per-id entries, and
+     * whether hits on other players pay.
+     */
     public static final class GainRules extends GainRule {
 
         @Nullable protected String[] enabledTracks;
         @Nullable protected String[] disabledTracks;
         @Nullable protected Map<String, GainRule> tracks;
+        @Nullable protected Boolean playerHits;
 
         /** The lists and the map lower-cased once, on first ask (a group never changes once decoded). */
         @Nullable private volatile Folded folded;
@@ -364,34 +413,63 @@ public final class TrackRules {
                 .appendInherited(new KeyedCodec<>("EnabledTracks", Codec.STRING_ARRAY, false),
                         (o, v) -> o.enabledTracks = v, o -> o.enabledTracks,
                         (o, p) -> o.enabledTracks = p.enabledTracks)
-                .documentation("An allow list of track and category ids: when it names any, only those gain here "
-                        + "(the MMO's EnabledSkills). Unauthored or empty allows every track.").add()
+                .documentation("An allow list of track and category ids: when it names any, only those gain here. "
+                        + "Unauthored or empty allows every track.").add()
                 .appendInherited(new KeyedCodec<>("DisabledTracks", Codec.STRING_ARRAY, false),
                         (o, v) -> o.disabledTracks = v, o -> o.disabledTracks,
                         (o, p) -> o.disabledTracks = p.disabledTracks)
-                .documentation("Track and category ids that gain nothing here (the MMO's DisabledSkills).").add()
+                .documentation("A deny list of track and category ids: those gain nothing here, whatever the allow "
+                        + "list says.").add()
                 .appendInherited(new KeyedCodec<>("Tracks", new MapCodec<>(GainRule.CODEC, LinkedHashMap::new, false),
                                 false), (o, v) -> o.tracks = v, o -> o.tracks, (o, p) -> o.tracks = p.tracks)
                 .documentation("A switch and multiplier for one track or one category, by its id: a track's entry "
                         + "wins over its category's, and either over the group's own Multiplier. Its Enabled "
                         + "false turns that track or category off here.").add()
+                .appendInherited(new KeyedCodec<>("PlayerHits", Codec.BOOLEAN, false),
+                        (o, v) -> o.playerHits = v, o -> o.playerHits, (o, p) -> o.playerHits = p.playerHits)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("Whether hitting another player pays XP here, as hitting a creature does (a weapon "
+                        + "skill's damage XP, or any other track source paid on a hit). Unauthored means false: a "
+                        + "hit on another player pays nothing, in every world no rule names too. Write true for "
+                        + "a PvP arena whose fights should train; the lists and multipliers above still apply.")
+                .add()
                 .build();
 
         public GainRules() {
+        }
+
+        /** Java-side construction, {@code PlayerHits} unauthored; nulls stay unauthored. */
+        @Nonnull
+        public static GainRules of(@Nullable Boolean enabled, @Nullable Double multiplier,
+                @Nullable String[] enabledTracks, @Nullable String[] disabledTracks,
+                @Nullable Map<String, GainRule> tracks) {
+            return of(enabled, multiplier, enabledTracks, disabledTracks, tracks, null);
         }
 
         /** Java-side construction; nulls stay unauthored. */
         @Nonnull
         public static GainRules of(@Nullable Boolean enabled, @Nullable Double multiplier,
                 @Nullable String[] enabledTracks, @Nullable String[] disabledTracks,
-                @Nullable Map<String, GainRule> tracks) {
+                @Nullable Map<String, GainRule> tracks, @Nullable Boolean playerHits) {
             GainRules rules = new GainRules();
             rules.enabled = enabled;
             rules.multiplier = multiplier;
             rules.enabledTracks = enabledTracks == null ? null : enabledTracks.clone();
             rules.disabledTracks = disabledTracks == null ? null : disabledTracks.clone();
             rules.tracks = tracks == null ? null : new LinkedHashMap<>(tracks);
+            rules.playerHits = playerHits;
             return rules;
+        }
+
+        /** The {@code PlayerHits} switch as written, or null when unauthored (which reads as off). */
+        @Nullable
+        public Boolean playerHits() {
+            return playerHits;
+        }
+
+        /** True only when {@code PlayerHits} is written true. */
+        boolean paysPlayerHits() {
+            return Boolean.TRUE.equals(playerHits);
         }
 
         /** The allow list as written, or an empty array. */

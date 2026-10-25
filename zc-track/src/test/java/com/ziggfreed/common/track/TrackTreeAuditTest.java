@@ -65,9 +65,9 @@ class TrackTreeAuditTest {
         picks.put("Your_Wall", "{ \"Branch\": \"Guard\", \"Cost\": { \"Points\": 1 }, \"Repeat\": { \"Max\": 3 },"
                 + " \"Grants\": [ { \"Kind\": \"Stat\", \"Stat\": \"Health\", \"Add\": 2 } ] }");
         picks.put("Your_Grit", "{ \"Branch\": \"Guard\", \"Cost\": { \"Points\": 1 }, \"Repeat\": { \"Max\": 2 } }");
-        picks.put("Your_Stand", gated("Guard", 4, "\"Node\": \"Your_Stance\", \"Cost\": { \"Points\": 2 }"));
-        picks.put("Your_Rush", gated("Guard", 4, "\"Node\": \"Your_Stance\", \"Cost\": { \"Points\": 2 }"));
-        picks.put("Your_Dash", gated("Swift", 3, "\"Cost\": { \"Points\": 1 }, \"Node\": \"Your_Lonely\","
+        picks.put("Your_Stand", gated("Guard", 4, "\"Node\": [ \"Your_Stance\" ], \"Cost\": { \"Points\": 2 }"));
+        picks.put("Your_Rush", gated("Guard", 4, "\"Node\": [ \"Your_Stance\" ], \"Cost\": { \"Points\": 2 }"));
+        picks.put("Your_Dash", gated("Swift", 3, "\"Cost\": { \"Points\": 1 }, \"Node\": [ \"Your_Lonely\" ],"
                 + " \"Grants\": [ { \"Kind\": \"Test_Marker\" } ]"));
         Map<String, Integer> codes = codes(TrackTreeAudit.audit(List.of(track(TRACK)), fold(picks)));
         assertEquals(Integer.valueOf(2), codes.get(TrackTreeAudit.BRANCH_POINTS_OFF), "Guard adds up to 7, Swift to 1");
@@ -93,8 +93,8 @@ class TrackTreeAuditTest {
         picks.put("Your_Wall", "{ \"Branch\": \"Guard\", \"Cost\": { \"Points\": 1 }, \"Repeat\": { \"Max\": 3 },"
                 + " \"Grants\": [ { \"Kind\": \"Stat\", \"Stat\": \"Health\", \"Add\": 2 } ] }");
         picks.put("Your_Grit", "{ \"Branch\": \"Guard\", \"Cost\": { \"Points\": 1 }, \"Repeat\": { \"Max\": 2 } }");
-        picks.put("Your_Stand", gated("Guard", 4, "\"Node\": \"Your_Stance\", \"Cost\": { \"Points\": 2 }"));
-        picks.put("Your_Rush", gated("Guard", 4, "\"Node\": \"Your_Stance\", \"Cost\": { \"Points\": 2 }"));
+        picks.put("Your_Stand", gated("Guard", 4, "\"Node\": [ \"Your_Stance\" ], \"Cost\": { \"Points\": 2 }"));
+        picks.put("Your_Rush", gated("Guard", 4, "\"Node\": [ \"Your_Stance\" ], \"Cost\": { \"Points\": 2 }"));
         picks.put("Your_Root", "{ \"Cost\": { \"Points\": 1 }, \"Repeat\": { \"Max\": 4 } }");
         List<Finding> findings = TrackTreeAudit.audit(List.of(track(track)), fold(picks));
         assertTrue(findings.isEmpty(), () -> "a tree within every rule: " + findings);
@@ -155,7 +155,7 @@ class TrackTreeAuditTest {
 
     private static List<TrackPicks.PickDef> fold(Map<String, String> files) throws IOException {
         TrackAsset sample = track(TRACK);
-        return List.copyOf(TrackPicks.fold(decode(files), id -> null, id -> null,
+        return List.copyOf(TrackPicks.fold(decode(files), id -> null,
                 id -> "your_sample".equals(TrackKey.normalize(id)) ? sample : null).byId().values());
     }
 
@@ -163,7 +163,7 @@ class TrackTreeAuditTest {
     private static List<TrackPicks.PickDef> foldAuthored(Map<String, String> files, Predicate<String> offInOwnFile)
             throws IOException {
         TrackAsset sample = track(TRACK);
-        return List.copyOf(TrackPicks.foldAuthored(decode(files), id -> null, id -> null,
+        return List.copyOf(TrackPicks.foldAuthored(decode(files), id -> null,
                 id -> "your_sample".equals(TrackKey.normalize(id)) ? sample : null, offInOwnFile).byId().values());
     }
 

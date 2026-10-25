@@ -23,6 +23,7 @@ import com.ziggfreed.common.progress.runtime.MomentListener;
 import com.ziggfreed.common.track.TrackKey;
 import com.ziggfreed.common.track.TrackReading;
 import com.ziggfreed.common.track.TrackService;
+import com.ziggfreed.common.track.world.TrackWorldRules;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -31,7 +32,8 @@ import com.ziggfreed.common.util.SafeLog;
  * level has reached (a row's {@code Level} is a soft gate: below it the next matching row pays), its source's knobs
  * asked in turn (a spawner's mob, its live {@code Requires}, its diminishing returns), onto the player's default
  * climb through {@link TrackService#add} and its gain pipeline, or into the tick's sum for a frequent kind
- * ({@link SourceBatch}).
+ * ({@link SourceBatch}). A moment that happened to another player ({@link VictimPayload#victimIsPlayer}) pays
+ * nothing unless the world's rules write {@code Gain.PlayerHits} true (R864).
  *
  * <p>Called on the world thread inside the producing system's dispatch, like every reaction; what it writes it
  * writes through the track service, which the moment's own player owns.
@@ -63,7 +65,7 @@ public final class TrackSourceReactions implements MomentListener {
                 }
                 if (player == null) {
                     player = playerOf(moment.store(), moment.ref());
-                    if (player == null) {
+                    if (player == null || refusedAsPlayerHit(moment)) {
                         return;
                     }
                 }
@@ -148,6 +150,23 @@ public final class TrackSourceReactions implements MomentListener {
         }
         float max = HealthUtil.max(victim.getStore(), victim);
         return Float.isFinite(max) && max > 0f ? max : 0.0;
+    }
+
+    /**
+     * Did the moment happen to another player in a world whose rules leave {@code Gain.PlayerHits} off (R864)? Asked
+     * once a moment, before either the direct pay or the tick's sum, so no source pays a hit on a player there.
+     */
+    private static boolean refusedAsPlayerHit(@Nonnull Moment moment) {
+        VictimPayload payload = moment.payload(VictimPayload.class);
+        if (payload == null || !payload.victimIsPlayer()) {
+            return false;
+        }
+        try {
+            return !TrackWorldRules.paysPlayerHits(moment.store().getExternalData().getWorld());
+        } catch (Throwable t) {
+            // The world cannot be read, so its rules cannot turn the hit on.
+            return true;
+        }
     }
 
     /** Did a spawn marker or a spawn beacon stand up the entity the moment happened to? */

@@ -114,7 +114,6 @@ import com.ziggfreed.common.proc.ProcAsset;
 import com.ziggfreed.common.stats.condition.ConditionalStatAsset;
 import com.ziggfreed.common.stats.condition.EffectFamilyAsset;
 import com.ziggfreed.common.track.ZigTrackReward;
-import com.ziggfreed.common.track.pick.PickDeckAsset;
 import com.ziggfreed.common.track.pick.PickOptionAsset;
 import com.ziggfreed.common.track.pick.TrackPickAsset;
 import com.ziggfreed.common.track.pick.TrackPickGeneratorAsset;
@@ -280,8 +279,6 @@ class AssetCodecInitTest {
                 "TrackPickGeneratorAsset.CODEC must static-init (PascalCase keys)");
         assertNotNull(TrackAsset.Tree.CODEC, "the track's Tree group codec must static-init");
         assertNotNull(PickOptionAsset.CODEC, "PickOptionAsset.CODEC must static-init (PascalCase keys)");
-        assertNotNull(PickDeckAsset.CODEC, "PickDeckAsset.CODEC must static-init (PascalCase keys)");
-        assertNotNull(PickDeckAsset.Foes.CODEC, "the deck's Foes group codec must static-init");
         // The grant kind registers into the grant union every pick reads, so a lower-case key in it would fail
         // inside a pack's pick instead of at this build.
         assertNotNull(StatGrant.CODEC, "StatGrant.CODEC must static-init (PascalCase keys)");

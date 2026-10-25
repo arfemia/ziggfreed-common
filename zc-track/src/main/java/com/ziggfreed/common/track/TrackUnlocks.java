@@ -44,7 +44,7 @@ import com.ziggfreed.common.util.SafeLog;
  * Claim that cannot be written puts its row's mark back to the last level that row did write (or where it stood
  * before the pass) and leaves the rest of that row for the next pass; the caller saves that record again.
  */
-public final class TrackUnlocks {
+final class TrackUnlocks {
 
     /** The most Claims one pass writes. */
     public static final int MAX_CLAIMS_PER_PASS = 50;

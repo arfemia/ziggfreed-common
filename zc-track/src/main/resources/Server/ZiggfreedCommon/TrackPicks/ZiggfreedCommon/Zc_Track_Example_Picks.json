@@ -1,5 +1,5 @@
 {
-  "$Comment": "The library's sample pick, switched off like its track: one choice at every level from 2 on, out of three shared option files drawn by the sample deck, the main line (Vigor) always offered. The offers come from these files alone, so every player on every server sees the same choice at the same level. Offers writes out one level exactly: level 10 offers Vigor, Focus and Wind whatever the deck would draw; an owner pins or unpins a level the same way in track-picks.json. Turn both on (tracks.json { \"Zc_Track_Example\": { \"Enabled\": true } } and track-picks.json { \"Zc_Track_Example_Picks\": { \"Enabled\": true } }) and every level the track reaches waits on the Claims tab until it is chosen; /zigtrack pick --track=Zc_Track_Example --option=Zc_Track_Example_Vigor chooses it as the track's page would. Step is what each option's {Step} reads as: change it here and every option follows.",
+  "$Comment": "The library's sample pick, switched off like its track: one choice at every level from 2 on, choose one of the three shared option files open at that level (Focus opens at level 5). The offers come from these files alone, so every player on every server sees the same choice at the same level. Turn both on (tracks.json { \"Zc_Track_Example\": { \"Enabled\": true } } and track-picks.json { \"Zc_Track_Example_Picks\": { \"Enabled\": true } }) and every level the track reaches waits on the Claims tab until it is chosen; /zigtrack pick --track=Zc_Track_Example --option=Zc_Track_Example_Vigor chooses it as the track's page would. Step is what each option's {Step} reads as: change it here and every option follows.",
   "Enabled": false,
   "Track": "Zc_Track_Example",
   "Text": { "TitleKey": "ziggfreedcommon.track.example.picks" },
@@ -11,12 +11,7 @@
       "From": 2,
       "Every": 1,
       "Choose": 1,
-      "Core": "Zc_Track_Example_Vigor",
-      "Options": [ "Zc_Track_Example_Vigor", "Zc_Track_Example_Wind", "Zc_Track_Example_Focus" ],
-      "Deck": "Zc_Track_Example_Deck"
+      "Options": [ "Zc_Track_Example_Vigor", "Zc_Track_Example_Wind", "Zc_Track_Example_Focus" ]
     }
-  ],
-  "Offers": {
-    "10": [ "Zc_Track_Example_Focus", "Zc_Track_Example_Wind" ]
-  }
+  ]
 }

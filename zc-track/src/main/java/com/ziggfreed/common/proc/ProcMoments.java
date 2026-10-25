@@ -24,7 +24,7 @@ import com.ziggfreed.common.track.source.VictimPayload;
  * ({@link EffectWatch}). World thread, inside the producer's own dispatch. A heal given (HealGiven) rides zc-core's
  * one heal the same way, through its native event ({@link #onHealGiven}).
  */
-public final class ProcMoments implements MomentListener {
+final class ProcMoments implements MomentListener {
 
     /** The one instance, registered at library-default rank. */
     public static final ProcMoments INSTANCE = new ProcMoments();

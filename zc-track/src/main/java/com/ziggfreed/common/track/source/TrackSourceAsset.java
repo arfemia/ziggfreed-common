@@ -31,12 +31,18 @@ import com.ziggfreed.common.track.asset.TrackAsset;
  *   "Rows": { "Ore_Iron*": { "Xp": 50, "Level": 10 }, "Ore_*": 6, "Rock_*": 3 } }
  *
  * { "Track": "Your_Swords",
- *   "When": { "Kind": "DEAL_DAMAGE", "Qualifier": "Weapon_Sword*" },
+ *   "When": { "Kind": "DEAL_DAMAGE", "Qualifier": "ItemTag:Family=Sword" },
  *   "PerAmount": 1 }
+ *
+ * { "Track": "Your_Hunting",
+ *   "When": { "Kind": "KILL_ENTITY" },
+ *   "Rows": { "Goblin_Boss": 200, "NpcGroup:Goblin": 20, "*": 5 } }
  * }</pre>
  *
  * <p>{@code When} names the moment (an objective kind id), and optionally a {@code Qualifier} every row asks of it
- * (a hit's weapon); each {@code Rows} key is a name pattern over the moment's target (the block, mob or item). The
+ * (a hit's weapon); each {@code Rows} key is zc-core's {@code MatchKey} over the moment's target (the block, mob or
+ * item): a name pattern, or a set its own asset puts it in ({@code ItemTag:}, {@code BlockFamily:},
+ * {@code NpcGroup:}), which ranks under every pattern and over {@code *}, so a named id still beats its set. The
  * top-level {@code Xp}, {@code PerAmount} and {@code PerMaxHealth} are a row of their own at {@code When.Match}
  * ({@code *} unwritten), held at the top-level {@code Max}, which also caps every row writing no {@code Max} of its
  * own ({@code { "When": { "Kind": "KILL_ENTITY" }, "PerMaxHealth": 1, "Max": 500 }} pays a kill its creature's
@@ -96,9 +102,9 @@ public final class TrackSourceAsset implements JsonAssetWithMap<String, DefaultA
             .appendInherited(new KeyedCodec<>("When", When.CODEC, false),
                     (a, v) -> a.when = v, a -> a.when, (a, p) -> a.when = p.when)
             .documentation("Which moment pays: its Kind (BREAK_BLOCK, KILL_ENTITY, PICKUP_ITEM, DEAL_DAMAGE, ...), "
-                    + "a Qualifier every row asks of it (DEAL_DAMAGE's is the weapon that hit), and a Match "
-                    + "naming the targets the top-level Xp and PerAmount pay for. A source naming no Kind pays "
-                    + "nothing.").add()
+                    + "a Qualifier every row asks of it (DEAL_DAMAGE's is the weapon that hit, by name or by "
+                    + "\"ItemTag:Family=Sword\"), and a Match naming the targets the top-level Xp and PerAmount pay "
+                    + "for, written as a Rows key is. A source naming no Kind pays nothing.").add()
             .appendInherited(new KeyedCodec<>("Xp", Codec.DOUBLE, false),
                     (a, v) -> a.xp = v, a -> a.xp, (a, p) -> a.xp = p.xp)
             .documentation("What a moment When.Match covers pays, once per moment, when no more specific row "
@@ -121,9 +127,13 @@ public final class TrackSourceAsset implements JsonAssetWithMap<String, DefaultA
             .appendInherited(new KeyedCodec<>("Rows", new InheritMapCodec<>(SourceRow.NUMBER_OR_ROW), false),
                     (a, v) -> a.rows = v, a -> a.rows, (a, p) -> a.rows = p.rows)
             .documentation("What each target pays, by name pattern (\"Ore_Iron\" exactly, \"Ore_*\" starting with, "
-                    + "\"*_Cracked\" ending with, \"*Gem*\" anywhere, \"*\" everything): a number is the Xp, or a "
-                    + "group with Xp, PerAmount and Level. The most specific pattern the player's level has "
-                    + "reached pays. Under Parent, rows merge by pattern.").add()
+                    + "\"*_Cracked\" ending with, \"*Gem*\" anywhere, \"*\" everything) or by what the target's own "
+                    + "files say (\"ItemTag:Type=Ore\" an item, or a block's item, carrying that native tag, "
+                    + "\"BlockFamily:Ore\" a block in that block family, \"NpcGroup:Goblin\" a creature in that NPC "
+                    + "group): a number is the Xp, or a group with Xp, PerAmount and Level. The most specific key "
+                    + "the player's level has reached pays: an exact name, then the pattern pinning down the most "
+                    + "characters, then an ItemTag, BlockFamily or NpcGroup key, then \"*\". Case is ignored. Under "
+                    + "Parent, rows merge by key.").add()
             .appendInherited(new KeyedCodec<>("Requires", GateSpec.CODEC, false),
                     (a, v) -> a.requires = v, a -> a.requires, (a, p) -> a.requires = p.requires)
             .documentation(StoreGates.DOCUMENTATION).add()

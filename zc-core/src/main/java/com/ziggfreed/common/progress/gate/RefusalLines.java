@@ -39,7 +39,10 @@ import com.ziggfreed.common.util.SafeLog;
  * <p><b>Consumers add their own families</b> ({@link #register}): a token equal to, or starting with, a
  * registered prefix reads through that family's renderer, whose keys live in the owner's own lang files. A
  * gate token is never handed to a family. A refusal outside {@code Requires} (a cooldown, a cost, a choice
- * already taken) is such a family.
+ * already taken) is such a family. A caller holding the refusal's remaining wait passes it beside the tokens
+ * ({@link #lines(List, long)}, {@link #bestLine(List, long)}, {@link #line(String, long)}), and a family whose lines
+ * quote a wait reads it in {@link Family#line(String, long)}; the walk, the dedupe and the drop rules are the same
+ * with or without one.
  *
  * <p><b>Two seams</b> the content's owner fills: {@link #contentTitles} names a piece of content by id (a
  * prerequisite's title; unfilled, the id itself), and {@link #memberFactor} declares a factor whose Param
@@ -55,6 +58,18 @@ public final class RefusalLines {
         /** The line for {@code token}, or null when this family has none for it after all (the generic line then). */
         @Nullable
         Message line(@Nonnull String token);
+
+        /**
+         * The line for {@code token} told how long the refusal has left to run: {@code waitMs}, the remaining wait a
+         * caller hands over beside its tokens (a cooldown's, a spent window's), {@link RefusalLines#NO_WAIT} for none
+         * to quote,
+         * {@link Long#MAX_VALUE} for one that never ends. For a family whose lines quote a wait; every other family
+         * answers its plain {@link #line(String)}, the default.
+         */
+        @Nullable
+        default Message line(@Nonnull String token, long waitMs) {
+            return line(token);
+        }
 
         /**
          * Does {@code token}'s line name the concrete thing to go and do, so a surface with room for one line
@@ -91,6 +106,9 @@ public final class RefusalLines {
 
     /** The key a prerequisite on a piece of content reads with; a member factor registered with it shares it. */
     public static final String QUEST_LINE_KEY = NS + DOMAIN + "lock.quest";
+
+    /** No wait to quote: what every entry point without a wait hands a family ({@link Family#line(String, long)}). */
+    public static final long NO_WAIT = 0L;
 
     private static final Map<String, Registered> FAMILIES = new ConcurrentHashMap<>();
 
@@ -162,6 +180,15 @@ public final class RefusalLines {
      */
     @Nonnull
     public static List<Message> lines(@Nonnull List<String> tokens) {
+        return lines(tokens, NO_WAIT);
+    }
+
+    /**
+     * {@link #lines(List)} told the remaining wait the refusal carries ({@code waitMs}, on the terms of
+     * {@link Family#line(String, long)}), handed to every family's line; a gate token never reads it.
+     */
+    @Nonnull
+    public static List<Message> lines(@Nonnull List<String> tokens, long waitMs) {
         boolean specific = false;
         for (String token : tokens) {
             specific |= isSpecific(token);
@@ -173,7 +200,7 @@ public final class RefusalLines {
                 continue;
             }
             if (seen.add(dedupeKey(token))) {
-                lines.add(line(token));
+                lines.add(line(token, waitMs));
             }
         }
         return lines;
@@ -182,17 +209,29 @@ public final class RefusalLines {
     /** The single most specific line, for a surface with room for only one. */
     @Nonnull
     public static Message bestLine(@Nonnull List<String> tokens) {
+        return bestLine(tokens, NO_WAIT);
+    }
+
+    /** {@link #bestLine(List)} told the remaining wait the refusal carries, as {@link #lines(List, long)} is. */
+    @Nonnull
+    public static Message bestLine(@Nonnull List<String> tokens, long waitMs) {
         for (String token : tokens) {
             if (isSpecific(token)) {
-                return line(token);
+                return line(token, waitMs);
             }
         }
-        return tokens.isEmpty() ? line((String) null) : line(tokens.get(0));
+        return tokens.isEmpty() ? line((String) null, waitMs) : line(tokens.get(0), waitMs);
     }
 
     /** The line for one token; never null and never the raw token. */
     @Nonnull
     public static Message line(@Nullable String token) {
+        return line(token, NO_WAIT);
+    }
+
+    /** {@link #line(String)} told the remaining wait the refusal carries, as {@link #lines(List, long)} is. */
+    @Nonnull
+    public static Message line(@Nullable String token, long waitMs) {
         if (token == null || token.isBlank()) {
             return text("lock.other");
         }
@@ -202,7 +241,7 @@ public final class RefusalLines {
         }
         Registered family = familyOf(token);
         if (family != null) {
-            Message line = ask(family, token);
+            Message line = ask(family, token, waitMs);
             if (line != null) {
                 return line;
             }
@@ -450,9 +489,9 @@ public final class RefusalLines {
     }
 
     @Nullable
-    private static Message ask(@Nonnull Registered family, @Nonnull String token) {
+    private static Message ask(@Nonnull Registered family, @Nonnull String token, long waitMs) {
         try {
-            return family.family().line(token);
+            return family.family().line(token, waitMs);
         } catch (Throwable t) {
             SafeLog.warn("[gate] the refusal lines of '" + family.owner() + "' failed for '" + token + "': "
                     + t.getMessage());

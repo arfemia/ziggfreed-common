@@ -36,7 +36,6 @@ import com.ziggfreed.common.track.world.TrackRules;
 import com.ziggfreed.common.track.world.TrackWorldRules;
 import com.ziggfreed.common.ui.kit.LedgerContributions;
 import com.ziggfreed.common.usegate.ItemLevelTags;
-import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Registers the track module at library setup, called once from the wiring root's {@code setup()}: the
@@ -46,7 +45,7 @@ import com.ziggfreed.common.util.SafeLog;
  * gameplay config group, the track sources' reaction on the produced moments, the gain plans' epoch hooks, the
  * picks waiting on the Claims tab, the undo window's close at a departure and the boosts
  * ({@code boost.BoostBootstrap}). The ten stores (tracks, curves, categories, sources, world rules, picks, pick
- * options, pick decks, boosts, boost settings) are registered with the other framework stores. Registration only
+ * generators, pick options, boosts, boost settings) are registered with the other framework stores. Registration only
  * ({@code RootRegistrationOnlyTest}).
  */
 public final class TrackBootstrap {
@@ -92,43 +91,39 @@ public final class TrackBootstrap {
      * beside it), the gain plans' epoch on a world change, a departure and every permission change (each concrete
      * event the engine dispatches, since the bus delivers a listener only the exact class it registered for), the
      * world rules read again when the gameplay configs load, and a frequent source's sums carried out of a world a
-     * player leaves (those two hooks not guarded: a failed registration throws here, at setup).
+     * player leaves. Not guarded: a failed registration throws here, at setup.
      */
     private static void registerGrowth(@Nonnull JavaPlugin plugin) {
-        try {
-            ProgressionRuntime.defaults(OWNER).momentListener(TrackSourceReactions.INSTANCE);
-        } catch (Throwable t) {
-            SafeLog.warn("[track] the track sources could not be hung on the produced moments, so no source pays "
-                    + "this boot", t);
-        }
-        try {
-            EventRegistry events = plugin.getEventRegistry();
-            events.registerGlobal(AddPlayerToWorldEvent.class, GainPlans::onWorldChange);
-            events.registerGlobal(PlayerReadyEvent.class, GainPlans::onPlayerReady);
-            events.register(PlayerDisconnectEvent.class, GainPlans::onDisconnect);
-            events.register(PlayerPermissionChangeEvent.PermissionsAdded.class, GainPlans::onPlayerPermissions);
-            events.register(PlayerPermissionChangeEvent.PermissionsRemoved.class, GainPlans::onPlayerPermissions);
-            events.register(PlayerPermissionChangeEvent.GroupAdded.class, GainPlans::onPlayerPermissions);
-            events.register(PlayerPermissionChangeEvent.GroupRemoved.class, GainPlans::onPlayerPermissions);
-            events.register(PlayerGroupEvent.Added.class, GainPlans::onPlayerPermissions);
-            events.register(PlayerGroupEvent.Removed.class, GainPlans::onPlayerPermissions);
-            events.register(GroupPermissionChangeEvent.Added.class, GainPlans::onGroupPermissions);
-            events.register(GroupPermissionChangeEvent.Removed.class, GainPlans::onGroupPermissions);
-            events.register(LoadedAssetsEvent.class, GameplayConfig.class,
-                    (LoadedAssetsEvent<String, GameplayConfig, AssetMap<String, GameplayConfig>> event) ->
-                            TrackWorldRules.invalidate());
-            // The Bonus factor resolves the gain stats when a plan is built, so a stat loaded later (a pack's
-            // TrackGain_<Track>, a mod's runtime stat) builds every plan again.
-            events.register(LoadedAssetsEvent.class, EntityStatType.class,
-                    (LoadedAssetsEvent<String, EntityStatType, IndexedLookupTableAssetMap<String, EntityStatType>> event) ->
-                            GainPlans.invalidateAll());
-        } catch (Throwable t) {
-            SafeLog.warn("[track] could not hang the gain plans' epoch hooks, so a world change or a permission "
-                    + "change may keep the old rules on a gain until the next fold", t);
-        }
-        // Not guarded: a failed registration throws here, at setup.
+        ProgressionRuntime.defaults(OWNER).momentListener(TrackSourceReactions.INSTANCE);
+        EventRegistry events = plugin.getEventRegistry();
+        events.registerGlobal(AddPlayerToWorldEvent.class, GainPlans::onWorldChange);
+        events.registerGlobal(PlayerReadyEvent.class, GainPlans::onPlayerReady);
+        events.register(PlayerDisconnectEvent.class, GainPlans::onDisconnect);
+        events.register(PlayerPermissionChangeEvent.PermissionsAdded.class, GainPlans::onPlayerPermissions);
+        events.register(PlayerPermissionChangeEvent.PermissionsRemoved.class, GainPlans::onPlayerPermissions);
+        events.register(PlayerPermissionChangeEvent.GroupAdded.class, GainPlans::onPlayerPermissions);
+        events.register(PlayerPermissionChangeEvent.GroupRemoved.class, GainPlans::onPlayerPermissions);
+        events.register(PlayerGroupEvent.Added.class, GainPlans::onPlayerPermissions);
+        events.register(PlayerGroupEvent.Removed.class, GainPlans::onPlayerPermissions);
+        events.register(GroupPermissionChangeEvent.Added.class, GainPlans::onGroupPermissions);
+        events.register(GroupPermissionChangeEvent.Removed.class, GainPlans::onGroupPermissions);
+        events.register(LoadedAssetsEvent.class, GameplayConfig.class,
+                (LoadedAssetsEvent<String, GameplayConfig, AssetMap<String, GameplayConfig>> event) ->
+                        TrackWorldRules.invalidate());
+        // The Bonus factor resolves the gain stats when a plan is built, so a stat loaded later (a pack's
+        // TrackGain_<Track>, a mod's runtime stat) builds every plan again; and a grant's family is its stat's tag,
+        // read at the rebuild, so every online player's grants are rebuilt too.
+        events.register(LoadedAssetsEvent.class, EntityStatType.class,
+                (LoadedAssetsEvent<String, EntityStatType, IndexedLookupTableAssetMap<String, EntityStatType>> event) ->
+                        statsLoaded());
         plugin.getEventRegistry().registerGlobal(RemovedPlayerFromWorldEvent.class, SourceBatch::onLeftWorld);
         plugin.getEventRegistry().register(PlayerDisconnectEvent.class, SourceBatch::onDisconnect);
+    }
+
+    /** A stat load: every compiled gain plan built again and every online player's grants rebuilt. */
+    private static void statsLoaded() {
+        GainPlans.invalidateAll();
+        TrackDerived.rebuildAllOnline();
     }
 
     /**
@@ -146,19 +141,16 @@ public final class TrackBootstrap {
     /**
      * The plugin-free half: the readings, the reward kind and its chip, the objective target names, and the track
      * lookup the {@code ZigLevel} item tag asks (zc-entity's {@code ItemLevelTags}), so a tag naming a track this
-     * server does not run asks nothing.
+     * server does not run asks nothing. Not guarded: a failed registration throws here, at setup, rather than as a
+     * reading or a reward kind an owner's file names and nothing answers later.
      */
     public static void registerVocabulary() {
-        try {
-            TrackFactors.contribute();
-            ItemLevelTags.trackLookup(TrackService::isUsable);
-            TrackRewardKind.registerInto(RewardKinds.shared());
-            RewardChips.contribute(TrackRewardKind.chips());
-            ObjectiveTargetNames.register(TrackObjectives.LEVEL, TrackObjectives::levelTargetName);
-            ObjectiveTargetNames.register(TrackObjectives.TIER, TrackObjectives::tierTargetName);
-        } catch (Throwable t) {
-            SafeLog.warn("[track] could not declare the track readings, reward kind and objective names", t);
-        }
+        TrackFactors.contribute();
+        ItemLevelTags.trackLookup(TrackService::isUsable);
+        TrackRewardKind.registerInto(RewardKinds.shared());
+        RewardChips.contribute(TrackRewardKind.chips());
+        ObjectiveTargetNames.register(TrackObjectives.LEVEL, TrackObjectives::levelTargetName);
+        ObjectiveTargetNames.register(TrackObjectives.TIER, TrackObjectives::tierTargetName);
         BoostBootstrap.registerVocabulary();
     }
 
@@ -172,14 +164,11 @@ public final class TrackBootstrap {
                 ZigTrackReward.CODEC);
     }
 
+    /** The hooks and the {@code /zigtrack} family. Not guarded: a failed registration throws here, at setup. */
     private static void registerHooks(@Nonnull JavaPlugin plugin) {
-        try {
-            EditorDataSets.live(plugin.getEventRegistry(), TRACKS_DATA_SET, TrackConfig.getInstance()::ids);
-            plugin.getEventRegistry().registerGlobal(PlayerReadyEvent.class, TrackLogin::onPlayerReady);
-            plugin.getEventRegistry().register(BootEvent.class, event -> TrackValidator.logErrorsOnce());
-            plugin.getCommandRegistry().registerCommand(new ZigTrackCommand());
-        } catch (Throwable t) {
-            SafeLog.warn("[track] could not hang the track hooks and the /zigtrack family", t);
-        }
+        EditorDataSets.live(plugin.getEventRegistry(), TRACKS_DATA_SET, TrackConfig.getInstance()::ids);
+        plugin.getEventRegistry().registerGlobal(PlayerReadyEvent.class, TrackLogin::onPlayerReady);
+        plugin.getEventRegistry().register(BootEvent.class, event -> TrackValidator.logErrorsOnce());
+        plugin.getCommandRegistry().registerCommand(new ZigTrackCommand());
     }
 }

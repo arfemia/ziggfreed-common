@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -23,6 +24,9 @@ import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.grant.Grant;
 import com.ziggfreed.common.grant.StatGrant;
 import com.ziggfreed.common.loot.reward.RewardKinds;
+import com.ziggfreed.common.match.MatchKey;
+import com.ziggfreed.common.match.MatchSets;
+import com.ziggfreed.common.match.When;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.progress.gate.GateClause;
 import com.ziggfreed.common.progress.gate.GateRuntime;
@@ -73,8 +77,14 @@ import com.ziggfreed.common.validation.Severity;
  *       findings over a track's {@code Requires};</li>
  *   <li>WARNING, for derived tracks ({@link #auditDerived}): {@link #DERIVED_WITHOUT_SOURCES},
  *       {@link #UNKNOWN_DERIVED_SOURCE}, {@link #DERIVED_FROM_DERIVED};</li>
- *   <li>WARNING, for growth ({@link #auditGrowth}): {@link #UNKNOWN_GAIN_FACTOR}, {@link #SOURCE_WITHOUT_TRACK},
+ *   <li>WARNING, for growth ({@link #auditGrowth}): {@link #UNKNOWN_GAIN_FACTOR}, {@link #PRESTIGE_GAIN_UNPAID} (a
+ *       prestiging track whose {@code Prestige.GainPercent} is above 0 and whose {@code Gain.Factors} names no
+ *       factor to pay it: {@code Prestige}, or {@code Boost} under {@code Prestige.InBoostCap}),
+ *       {@link #SOURCE_WITHOUT_TRACK},
  *       {@link #UNKNOWN_SOURCE_TRACK}, {@link #SOURCE_WITHOUT_KIND}, {@link #UNKNOWN_SOURCE_KIND},
+ *       {@link #UNKNOWN_SOURCE_SET} (a {@code BlockFamily:} or {@code NpcGroup:} key in a source's {@code Rows},
+ *       {@code When.Match} or {@code When.Qualifier} naming a set this server does not have, or a set key naming
+ *       nothing, which matches nothing; an {@code ItemTag:} key is never judged, since any item may carry any tag),
  *       {@link #SOURCE_PAYS_NOTHING}, {@link #RULE_WITHOUT_WHERE}, {@link #UNKNOWN_RULE_TRACK},
  *       {@link #DUPLICATE_RULE_WHERE} (two rule files naming the same worlds: one shadows the other),
  *       {@link #CONFLICTING_RULE_TRACK} (one id both allowed and turned off: it stays off), the gate audit over a
@@ -82,15 +92,14 @@ import com.ziggfreed.common.validation.Severity;
  *       is the rules' part alone, for a consumer's own audit);</li>
  *   <li>for picks: the fold's own findings ({@code TrackPicks}: ERROR {@code UNRESOLVED_PICK_TOKEN} and
  *       {@code UNREADABLE_PICK_GRANTS}, an option left out; WARNING {@code PICK_WITHOUT_TRACK},
- *       {@code UNKNOWN_PICK_TRACK}, {@code UNKNOWN_PICK_OPTION}, {@code UNKNOWN_PICK_DECK},
- *       {@code GROUP_WITHOUT_LEVEL}, {@code GROUP_WITHOUT_OPTIONS}), then WARNING
+ *       {@code UNKNOWN_PICK_TRACK}, {@code UNKNOWN_PICK_OPTION}, {@code GROUP_WITHOUT_LEVEL},
+ *       {@code GROUP_WITHOUT_OPTIONS}), then WARNING
  *       {@link #UNKNOWN_PICK_PREREQUISITE}, {@link #UNKNOWN_COST_TRACK}, {@link #COST_WITHOUT_POINTS},
  *       {@link #WHERE_ON_CHOICE} (a choice naming trainers, which no trainer's page offers),
  *       {@link #PRICE_ON_CHOICE} (a choice with a {@code Cost.Price}, which only a pick bought outright is charged),
  *       {@link #UNKNOWN_GRANT_STAT} ({@link #auditPicks}; also over a track's {@code Points.Grants}) and the gate
  *       audit over a pick's {@code Requires};</li>
- *   <li>WARNING, for trees ({@link #auditTrees}): {@link #UNDECLARED_BRANCH}, {@link #NODE_ACROSS_TRACKS},
- *       {@link #UNKNOWN_GATE_BRANCH}, {@link #UNKNOWN_STARTER_PICK}, {@link #RESERVED_PICK_ID}; then the shape audit
+ *   <li>WARNING, for trees ({@link #auditTrees}): {@link #UNDECLARED_BRANCH}, {@link #UNKNOWN_GATE_BRANCH}, {@link #UNKNOWN_STARTER_PICK}, {@link #RESERVED_PICK_ID}; then the shape audit
  *       ({@link TrackTreeAudit}: branches, row gates and their slack, branch totals, node faces, the starter build
  *       walked to the whole pool, stat ceilings, grant kinds) and the pick generators' findings
  *       ({@code TrackPickGenerators}, with zc-progression's {@code GeneratorCore}'s own).</li>
@@ -122,10 +131,12 @@ public final class TrackValidator {
     public static final String TIER_PAST_TOP = "TIER_PAST_TOP";
     public static final String DUPLICATE_UNLOCK_KEY = "DUPLICATE_UNLOCK_KEY";
     public static final String UNKNOWN_GAIN_FACTOR = "UNKNOWN_GAIN_FACTOR";
+    public static final String PRESTIGE_GAIN_UNPAID = "PRESTIGE_GAIN_UNPAID";
     public static final String SOURCE_WITHOUT_TRACK = "SOURCE_WITHOUT_TRACK";
     public static final String UNKNOWN_SOURCE_TRACK = "UNKNOWN_SOURCE_TRACK";
     public static final String SOURCE_WITHOUT_KIND = "SOURCE_WITHOUT_KIND";
     public static final String UNKNOWN_SOURCE_KIND = "UNKNOWN_SOURCE_KIND";
+    public static final String UNKNOWN_SOURCE_SET = "UNKNOWN_SOURCE_SET";
     public static final String SOURCE_PAYS_NOTHING = "SOURCE_PAYS_NOTHING";
     public static final String RULE_WITHOUT_WHERE = "RULE_WITHOUT_WHERE";
     public static final String UNKNOWN_RULE_TRACK = "UNKNOWN_RULE_TRACK";
@@ -138,7 +149,6 @@ public final class TrackValidator {
     public static final String PRICE_ON_CHOICE = "PRICE_ON_CHOICE";
     public static final String UNKNOWN_GRANT_STAT = "UNKNOWN_GRANT_STAT";
     public static final String UNDECLARED_BRANCH = "UNDECLARED_BRANCH";
-    public static final String NODE_ACROSS_TRACKS = "NODE_ACROSS_TRACKS";
     public static final String UNKNOWN_GATE_BRANCH = "UNKNOWN_GATE_BRANCH";
     public static final String UNKNOWN_STARTER_PICK = "UNKNOWN_STARTER_PICK";
     public static final String RESERVED_PICK_ID = "RESERVED_PICK_ID";
@@ -398,7 +408,11 @@ public final class TrackValidator {
             @Nonnull Predicate<String> kindKnown, @Nonnull Predicate<String> factorKnown) {
         List<Finding> out = new ArrayList<>();
         for (TrackAsset track : tracks) {
-            if (track == null || !track.isEnabled() || !track.writesGainFactors()) {
+            if (track == null || !track.isEnabled()) {
+                continue;
+            }
+            auditPrestigeGain(track, out);
+            if (!track.writesGainFactors()) {
                 continue;
             }
             for (String factor : track.gainFactors()) {
@@ -416,6 +430,27 @@ public final class TrackValidator {
         }
         out.addAll(auditWorldRules(rules, trackKnown, categoryKnown));
         return out;
+    }
+
+    /**
+     * {@link #PRESTIGE_GAIN_UNPAID}: a track that prestiges and writes a {@code Prestige.GainPercent} above 0 pays it
+     * only through a factor its {@code Gain.Factors} runs ({@code Prestige}, or {@code Boost} when
+     * {@code Prestige.InBoostCap} counts it with the boosts), so a list leaving that factor out pays nothing, silently.
+     */
+    private static void auditPrestigeGain(@Nonnull TrackAsset track, @Nonnull List<Finding> out) {
+        if (track.isDerived() || !track.prestiges() || !(track.prestigeGainPercent() > 0.0)) {
+            return;
+        }
+        String needed = track.prestigeInBoostCap() ? GainFactors.BOOST : GainFactors.PRESTIGE;
+        for (String factor : track.gainFactors()) {
+            if (factor.equalsIgnoreCase(needed)) {
+                return;
+            }
+        }
+        out.add(Finding.warning(DOMAIN, PRESTIGE_GAIN_UNPAID, "track '" + track.getId() + "' gives a prestiged "
+                + "climb " + track.prestigeGainPercent() + " percent more (Prestige.GainPercent), but its Gain.Factors "
+                + "names no " + needed + " factor, so it is never paid; add " + needed + " to Gain.Factors",
+                track.getId()));
     }
 
     /**
@@ -494,6 +529,7 @@ public final class TrackValidator {
             out.add(Finding.warning(DOMAIN, UNKNOWN_SOURCE_KIND, where + " answers the moment '" + kind
                     + "', which no objective kind registered here is, so it pays nothing until one is", id));
         }
+        auditSetKeys(source, where, out);
         boolean pays = source.baseRow() != null && source.baseRow().pays();
         for (SourceRow row : source.rows().values()) {
             pays |= row != null && row.pays();
@@ -501,6 +537,44 @@ public final class TrackValidator {
         if (!pays) {
             out.add(Finding.warning(DOMAIN, SOURCE_PAYS_NOTHING, where + " writes no Xp or PerAmount above 0, "
                     + "so it pays nothing (a row of 0 only stops a broader pattern)", id));
+        }
+    }
+
+    /**
+     * {@link #UNKNOWN_SOURCE_SET}: each set key a source writes ({@code Rows}, {@code When.Match},
+     * {@code When.Qualifier}), parsed as the table parses it ({@code MatchKey}), that can never match: one naming
+     * nothing after its prefix, or a block family or NPC group this server does not have ({@code MatchSets.known}
+     * false; a set it cannot tell, an item tag among them, passes). A WARNING: its owner may be a mod this server does
+     * not run.
+     */
+    private static void auditSetKeys(@Nonnull TrackSourceAsset source, @Nonnull String where,
+            @Nonnull List<Finding> out) {
+        Map<String, String> keys = new LinkedHashMap<>();
+        for (String row : source.rows().keySet()) {
+            keys.putIfAbsent(row, "Rows");
+        }
+        When when = source.when();
+        if (when != null) {
+            keys.putIfAbsent(when.match(), "When.Match");
+            if (when.qualifier() != null) {
+                keys.putIfAbsent(when.qualifier(), "When.Qualifier");
+            }
+        }
+        for (Map.Entry<String, String> entry : keys.entrySet()) {
+            MatchKey key = MatchKey.parse(entry.getKey());
+            if (!key.isSet()) {
+                continue;
+            }
+            if (key.set().isEmpty()) {
+                out.add(Finding.warning(DOMAIN, UNKNOWN_SOURCE_SET, where + " writes the key '" + key.raw + "' in "
+                        + entry.getValue() + ", which names nothing after " + key.form().prefix()
+                        + ", so it matches nothing", source.getId()));
+            } else if (Boolean.FALSE.equals(MatchSets.known(key))) {
+                out.add(Finding.warning(DOMAIN, UNKNOWN_SOURCE_SET, where + " writes the key '" + key.raw + "' in "
+                        + entry.getValue() + ", which names " + key.form().noun() + " this server does not have, so "
+                        + "it matches nothing; check the spelling, or install the mod that ships it",
+                        source.getId()));
+            }
         }
     }
 
@@ -613,8 +687,7 @@ public final class TrackValidator {
 
     /**
      * The pure core of the trees' audit, over the switched-on tracks and the folded picks: a pick's {@code Branch}
-     * its track's {@code Branches} does not declare ({@link #UNDECLARED_BRANCH}), a {@code Node} written by picks on
-     * different tracks, which never lock each other ({@link #NODE_ACROSS_TRACKS}), a branch gate
+     * its track's {@code Branches} does not declare ({@link #UNDECLARED_BRANCH}), a branch gate
      * ({@code ziggfreedcommon:track_branch_spent}) naming a branch no pick on its track sits in, which never opens
      * ({@link #UNKNOWN_GATE_BRANCH}), a {@code Starter} entry that is no pick bought outright on its track
      * ({@link #UNKNOWN_STARTER_PICK}; one naming a pick switched off is passed over quietly), and a pick whose id
@@ -635,7 +708,6 @@ public final class TrackValidator {
             }
         }
         Map<String, Set<String>> branchesInUse = new TreeMap<>();
-        Map<String, Set<String>> nodeTracks = new TreeMap<>();
         Map<String, Set<String>> boughtOn = new TreeMap<>();
         for (TrackPicks.PickDef pick : picks) {
             if (!pick.isChoice()) {
@@ -657,18 +729,7 @@ public final class TrackValidator {
                             + "' does not declare in Branches, so the branch is named by its id", pick.asset().getId()));
                 }
             }
-            String node = pick.asset().node();
-            if (node != null) {
-                nodeTracks.computeIfAbsent(node, k -> new TreeSet<>()).add(pick.trackId());
-            }
         }
-        nodeTracks.forEach((node, onTracks) -> {
-            if (onTracks.size() > 1) {
-                out.add(Finding.warning(DOMAIN, NODE_ACROSS_TRACKS, "the choice node '" + node + "' has faces on "
-                        + "the tracks " + String.join(", ", onTracks) + "; a node joins picks on one track only, so "
-                        + "faces on different tracks never lock each other", node));
-            }
-        });
         for (TrackPicks.PickDef pick : picks) {
             GateSpec requires = pick.asset().requires();
             if (requires == null) {

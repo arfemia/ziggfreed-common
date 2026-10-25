@@ -142,9 +142,9 @@ public final class ProcAsset implements JsonAssetWithMap<String, DefaultAssetMap
                         + "cast when its chain did. None when unauthored.").add()
                 .appendInherited(new KeyedCodec<>("Names", Codec.STRING_ARRAY, false),
                         (o, v) -> o.names = v, o -> o.names, (o, p) -> o.names = p.names)
-                .documentation("Ability ids a mod names for its own moves (MMO Skill Tree's abilities, Fireball "
-                        + "or Berserker_Charge), any case: a hit that mod says one of these dealt (a damage-over-time "
-                        + "tick of it included), a cast of one of these. None when unauthored.").add()
+                .documentation("Ability ids a mod names for its own moves (its abilities' ids, such as Fireball or "
+                        + "Leap_Strike), any case: a hit that mod says one of these dealt (a damage-over-time tick of "
+                        + "it included), a cast of one of these. None when unauthored.").add()
                 .build();
 
         public Ability() {

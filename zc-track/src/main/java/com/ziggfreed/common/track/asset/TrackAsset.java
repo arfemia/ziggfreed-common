@@ -72,8 +72,11 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
     /** The level the nth prestige needs is this plus n, unless a track's Prestige group says otherwise. */
     public static final int DEFAULT_PRESTIGE_BASE = 100;
 
-    /** What a prestiged climb earns on top of every gain, as a percent, unless its Prestige group says otherwise (R642). */
-    public static final double DEFAULT_PRESTIGE_GAIN_PERCENT = 10.0;
+    /**
+     * What a prestiged climb earns on top of every gain, as a percent, unless its Prestige group says otherwise: none.
+     * A consumer's own tracks write theirs (a skill's +10%, R642, is its own file's word).
+     */
+    public static final double DEFAULT_PRESTIGE_GAIN_PERCENT = 0.0;
 
     /** The sentence the Asset Editor shows beside a track's own {@code Requires}. */
     static final String REQUIRES_DOCUMENTATION = "What a player must meet for this track to be theirs, in the "
@@ -172,8 +175,9 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
             .appendInherited(new KeyedCodec<>("Starter", Codec.STRING_ARRAY, false),
                     (a, v) -> a.starter = v, a -> a.starter, (a, p) -> a.starter = p.starter)
             .documentation("The starter build: pick ids in the order they are spent, a pick written again for each "
-                    + "further rank. Read only by a one-time claim of points a player earned before the tree "
-                    + "existed; nothing else suggests it.").add()
+                    + "further rank. Read by a one-time claim of points a player earned before the tree existed, and "
+                    + "offered at a trainer teaching the track as its suggested build, which spends what of it the "
+                    + "player has not taken yet.").add()
             .appendInherited(new KeyedCodec<>("Tree", Tree.CODEC, false),
                     (a, v) -> a.tree = v, a -> a.tree, (a, p) -> a.tree = p.tree)
             .documentation("What the track audit holds this track's tree to: what each branch's nodes add up to, the "
@@ -209,8 +213,8 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
                     (a, v) -> a.gain = v, a -> a.gain, (a, p) -> a.gain = p.gain)
             .documentation("How a gain on this track is worked out before it lands: the named factors it runs, "
                     + "in order, the ones that add together, and the rested pool. Leave it out for the usual order "
-                    + "(Class, World, Bonus, Boost, Prestige, Rested), Bonus and Boost adding together, and no "
-                    + "rested pool.").add()
+                    + "(World, Bonus, Boost, Prestige, Rested), Bonus and Boost adding together, and no rested "
+                    + "pool.").add()
             .appendInherited(new KeyedCodec<>("Derived", Derived.CODEC, false),
                     (a, v) -> a.derived = v, a -> a.derived, (a, p) -> a.derived = p.derived)
             .documentation("Makes this track a reading of other tracks instead of a climb of its own: its level, "
@@ -558,8 +562,8 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
     }
 
     /**
-     * What a prestiged climb earns on top of every gain, as a percent ({@code Prestige.GainPercent}): 10 unless
-     * written (R642), 0 for a track with no Prestige group.
+     * What a prestiged climb earns on top of every gain, as a percent ({@code Prestige.GainPercent}): none unless
+     * written ({@link #DEFAULT_PRESTIGE_GAIN_PERCENT}), and none for a track with no Prestige group.
      */
     public double prestigeGainPercent() {
         if (prestige == null) {
@@ -567,6 +571,26 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
         }
         Double percent = prestige.gainPercent;
         return percent == null || !Double.isFinite(percent) ? DEFAULT_PRESTIGE_GAIN_PERCENT : percent;
+    }
+
+    /**
+     * Does the prestige extra count inside the boosts' cap ({@code Prestige.InBoostCap})? Then the {@code Boost}
+     * factor adds it to the boosts it sums, under the cap, and the {@code Prestige} factor pays nothing of its own.
+     * Unauthored: no, the extra runs as its own factor outside the cap.
+     */
+    public boolean prestigeInBoostCap() {
+        return prestige != null && Boolean.TRUE.equals(prestige.inBoostCap);
+    }
+
+    /**
+     * Does a Remember or Clear prestige of this track reset picks of {@code kind} ({@code Prestige.Resets}, R852)? The
+     * group's leaf for that kind as written, else the kind's own default (R876: the tree's picks and Techniques reset,
+     * the Mastery row, what a trainer taught and learned abilities stay). A Keep build resets nothing whatever this
+     * answers (R895). A track with no Prestige group answers the default too, though it never prestiges.
+     */
+    public boolean prestigeResets(@Nonnull PrestigeReset kind) {
+        Boolean written = prestige == null || prestige.resets == null ? null : prestige.resets.leaf(kind);
+        return written == null ? kind.resetByDefault() : written;
     }
 
     /** The rested pool's settings when this track turns one on, else null: off unless written (R572). */
@@ -830,14 +854,19 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
         }
     }
 
-    /** The Prestige group: whether, how often and when a player may start the climb again. */
+    /**
+     * The Prestige group: whether, how often and when a player may start the climb again, what a prestige resets,
+     * and what a prestiged climb earns on top.
+     */
     public static final class Prestige {
 
         @Nullable protected Integer ranks;
         @Nullable protected Boolean unlimited;
         @Nullable protected Integer base;
         @Nullable protected String build;
+        @Nullable protected Resets resets;
         @Nullable protected Double gainPercent;
+        @Nullable protected Boolean inBoostCap;
 
         public static final BuilderCodec<Prestige> CODEC = BuilderCodec.builder(Prestige.class, Prestige::new)
                 .appendInherited(new KeyedCodec<>("Ranks", Codec.INTEGER, false),
@@ -858,14 +887,30 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
                 .appendInherited(new KeyedCodec<>("Build", Codec.STRING, false),
                         (o, v) -> o.build = v, o -> o.build, (o, p) -> o.build = p.build)
                 .metadata(PrestigeBuild.editorHint())
-                .documentation(PrestigeBuild.DOCUMENTATION + " Unauthored, the track's category decides "
-                        + "(Combat keeps, Gathering and Crafting remember), and Keep where it says nothing.").add()
+                .documentation(PrestigeBuild.DOCUMENTATION + " Keep resets nothing, whatever Resets says; "
+                        + "Remember and Clear act on the picks Resets says a prestige resets, and the rest stay as "
+                        + "they are. Unauthored, the track's category decides (Combat keeps, Gathering and Crafting "
+                        + "remember), and Keep where it says nothing.").add()
+                .appendInherited(new KeyedCodec<>("Resets", Resets.CODEC, false),
+                        (o, v) -> o.resets = v, o -> o.resets, (o, p) -> o.resets = p.resets)
+                .documentation("Which picks a Remember or Clear prestige resets, kind by kind (a pick names its "
+                        + "kind in its own ResetsAs): the ones it resets follow Build, the others stay exactly as "
+                        + "they are. Under a Keep build nothing resets, whatever this says. Each leaf left out keeps "
+                        + "its default: the tree's picks and Techniques reset, the Mastery row, what a trainer taught "
+                        + "and learned abilities stay.").add()
                 .appendInherited(new KeyedCodec<>("GainPercent", Codec.DOUBLE, false),
                         (o, v) -> o.gainPercent = v, o -> o.gainPercent, (o, p) -> o.gainPercent = p.gainPercent)
                 .metadata(EditorSchema.defaultValue(DEFAULT_PRESTIGE_GAIN_PERCENT))
                 .documentation("What a player who has prestiged this track earns on top of every gain on it, as a "
-                        + "percent: the same after one prestige or ten. 10 when unauthored; 0 turns it off. It "
-                        + "runs as the Prestige gain factor.").add()
+                        + "percent: the same after one prestige or ten. 0 when unauthored, which pays nothing extra. "
+                        + "It runs as the Prestige gain factor, so the track's Gain.Factors must name Prestige, "
+                        + "unless InBoostCap puts it with the boosts.").add()
+                .appendInherited(new KeyedCodec<>("InBoostCap", Codec.BOOLEAN, false),
+                        (o, v) -> o.inBoostCap = v, o -> o.inBoostCap, (o, p) -> o.inBoostCap = p.inBoostCap)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("True counts GainPercent as one more boost: the Boost factor adds it to the boosts "
+                        + "it sums, under the boosts' cap, and the Prestige factor pays nothing of its own. False, or "
+                        + "unauthored, pays it as its own factor, outside the cap.").add()
                 .build();
 
         public Prestige() {
@@ -883,13 +928,81 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
             return p;
         }
 
-        /** {@link #of(Integer, Boolean, Integer, String)} with {@code GainPercent} as well, null leaving it unauthored. */
+        /**
+         * This group as written, with {@code ranks} and {@code base} filling the two leaves when it leaves them out
+         * (each null leaves its leaf to the usual default): what a module providing its tracks in code
+         * ({@code TrackConfig.provide}) hands over when its own file writes the group and its own rules give those
+         * two leaves another default (a reputation never prestiges unless its file says so, and its first prestige
+         * asks its top rank). Every other leaf is shared with this group, never copied, so it is read as written.
+         */
         @Nonnull
-        public static Prestige of(@Nullable Integer ranks, @Nullable Boolean unlimited, @Nullable Integer base,
-                @Nullable String build, @Nullable Double gainPercent) {
-            Prestige p = of(ranks, unlimited, base, build);
-            p.gainPercent = gainPercent;
+        public Prestige withDefaults(@Nullable Integer ranks, @Nullable Integer base) {
+            Prestige p = new Prestige();
+            p.ranks = this.ranks != null ? this.ranks : ranks;
+            p.unlimited = this.unlimited;
+            p.base = this.base != null ? this.base : base;
+            p.build = this.build;
+            p.resets = this.resets;
+            p.gainPercent = this.gainPercent;
+            p.inBoostCap = this.inBoostCap;
             return p;
+        }
+    }
+
+    /**
+     * The Resets group of a track's Prestige: which kinds of pick a Remember or Clear prestige resets
+     * ({@link PrestigeReset}, R852), one switch each; a Keep prestige resets nothing (R895). A leaf left out keeps
+     * its kind's default (R876).
+     */
+    public static final class Resets {
+
+        @Nullable protected Boolean picks;
+        @Nullable protected Boolean mastery;
+        @Nullable protected Boolean trainerPicks;
+        @Nullable protected Boolean abilities;
+        @Nullable protected Boolean techniques;
+
+        public static final BuilderCodec<Resets> CODEC = BuilderCodec.builder(Resets.class, Resets::new)
+                .appendInherited(new KeyedCodec<>(PrestigeReset.PICKS.word(), Codec.BOOLEAN, false),
+                        (o, v) -> o.picks = v, o -> o.picks, (o, p) -> o.picks = p.picks)
+                .metadata(EditorSchema.defaultValue(PrestigeReset.PICKS.resetByDefault()))
+                .documentation("Does a prestige reset the tree's own picks (every pick naming no other kind)? True "
+                        + "when unauthored.").add()
+                .appendInherited(new KeyedCodec<>(PrestigeReset.MASTERY.word(), Codec.BOOLEAN, false),
+                        (o, v) -> o.mastery = v, o -> o.mastery, (o, p) -> o.mastery = p.mastery)
+                .metadata(EditorSchema.defaultValue(PrestigeReset.MASTERY.resetByDefault()))
+                .documentation("Does a prestige reset the Mastery row (picks writing ResetsAs Mastery)? False when "
+                        + "unauthored.").add()
+                .appendInherited(new KeyedCodec<>(PrestigeReset.TRAINER_PICKS.word(), Codec.BOOLEAN, false),
+                        (o, v) -> o.trainerPicks = v, o -> o.trainerPicks, (o, p) -> o.trainerPicks = p.trainerPicks)
+                .metadata(EditorSchema.defaultValue(PrestigeReset.TRAINER_PICKS.resetByDefault()))
+                .documentation("Does a prestige reset what a trainer taught (a pick whose Where names a trainer and "
+                        + "which names no other kind)? False when unauthored.").add()
+                .appendInherited(new KeyedCodec<>(PrestigeReset.ABILITIES.word(), Codec.BOOLEAN, false),
+                        (o, v) -> o.abilities = v, o -> o.abilities, (o, p) -> o.abilities = p.abilities)
+                .metadata(EditorSchema.defaultValue(PrestigeReset.ABILITIES.resetByDefault()))
+                .documentation("Does a prestige reset learned abilities (picks writing ResetsAs Abilities)? False "
+                        + "when unauthored.").add()
+                .appendInherited(new KeyedCodec<>(PrestigeReset.TECHNIQUES.word(), Codec.BOOLEAN, false),
+                        (o, v) -> o.techniques = v, o -> o.techniques, (o, p) -> o.techniques = p.techniques)
+                .metadata(EditorSchema.defaultValue(PrestigeReset.TECHNIQUES.resetByDefault()))
+                .documentation("Does a prestige reset Techniques (picks writing ResetsAs Techniques)? True when "
+                        + "unauthored.").add()
+                .build();
+
+        public Resets() {
+        }
+
+        /** The leaf for {@code kind} as written, or null when unauthored. */
+        @Nullable
+        Boolean leaf(@Nonnull PrestigeReset kind) {
+            return switch (kind) {
+                case PICKS -> picks;
+                case MASTERY -> mastery;
+                case TRAINER_PICKS -> trainerPicks;
+                case ABILITIES -> abilities;
+                case TECHNIQUES -> techniques;
+            };
         }
     }
 
@@ -905,15 +1018,15 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
                         (o, v) -> o.factors = v, o -> o.factors, (o, p) -> o.factors = p.factors)
                 .documentation("The named factors every gain on this track runs through, in this order: World "
                         + "(the world's track rules), Bonus (the player's TrackGain stats), Boost (boosts), Prestige "
-                        + "(the extra a prestiged climb earns), Rested (the rested pool below), and any a mod "
-                        + "registers, such as Class. A name nothing registered changes nothing. Leave it out for "
-                        + "Class, World, Bonus, Boost, Prestige, Rested. A loss is never changed.").add()
+                        + "(the extra a prestiged climb earns), Rested (the rested pool below), and any another mod "
+                        + "registers. A name nothing registered changes nothing. Leave it out for World, Bonus, "
+                        + "Boost, Prestige, Rested. A loss is never changed.").add()
                 .appendInherited(new KeyedCodec<>("Additive", Codec.STRING_ARRAY, false),
                         (o, v) -> o.additive = v, o -> o.additive, (o, p) -> o.additive = p.additive)
                 .documentation("The factors whose extras add together rather than multiplying, run where the first "
                         + "of them stands in Factors: with a Bonus of 1.2 and a Boost of 1.5 a gain pays 1.7 times "
-                        + "(1 + 0.2 + 0.5), not 1.8. Leave it out for Bonus and Boost, the way skills have always "
-                        + "stacked them; an empty list multiplies every factor.").add()
+                        + "(1 + 0.2 + 0.5), not 1.8. Leave it out for Bonus and Boost; an empty list multiplies every "
+                        + "factor.").add()
                 .appendInherited(new KeyedCodec<>("Rested", Rested.CODEC, false),
                         (o, v) -> o.rested = v, o -> o.rested, (o, p) -> o.rested = p.rested)
                 .documentation("A rested pool for this track: while a player is away it fills, and gains pay "
@@ -1020,7 +1133,7 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
         public static final int DEFAULT_MIN_OFFLINE_MINUTES = 30;
         /** The longest time away that counts, unauthored. */
         public static final int DEFAULT_MAX_OFFLINE_HOURS = 168;
-        /** The most the pool holds, unauthored: the MMO's own rested cap. */
+        /** The most the pool holds, unauthored. */
         public static final long DEFAULT_MAX_POOL = 50_000L;
 
         @Nullable protected Boolean enabled;
@@ -1056,8 +1169,7 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
                 .appendInherited(new KeyedCodec<>("MaxPool", Codec.LONG, false),
                         (o, v) -> o.maxPool = v, o -> o.maxPool, (o, p) -> o.maxPool = p.maxPool)
                 .metadata(EditorSchema.defaultValue(DEFAULT_MAX_POOL))
-                .documentation("The most the pool holds. 50000 when unauthored, the MMO's own cap; 0 or less sets "
-                        + "no limit.").add()
+                .documentation("The most the pool holds. 50000 when unauthored; 0 or less sets no limit.").add()
                 .appendInherited(new KeyedCodec<>("MinOfflineMinutes", Codec.INTEGER, false),
                         (o, v) -> o.minOfflineMinutes = v, o -> o.minOfflineMinutes,
                         (o, p) -> o.minOfflineMinutes = p.minOfflineMinutes)

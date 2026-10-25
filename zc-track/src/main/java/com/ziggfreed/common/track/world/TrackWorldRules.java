@@ -1,6 +1,7 @@
 package com.ziggfreed.common.track.world;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -31,7 +32,8 @@ import com.ziggfreed.common.world.MatchRank;
  * ({@link TrackWorldRuleConfig#ENABLED_KEY}), every world runs under none.
  *
  * <p>The gain pipeline's {@code World} factor reads it when a plan is built, which happens again after every world
- * change; the grant rebuild ({@code TrackDerived}) asks {@link #grantsOn} of every grant at every world entry.
+ * change; the grant rebuild ({@code TrackDerived}) asks {@link #grantsOn} of every grant at every world entry; the
+ * damage producer and the source reactions ask {@link #paysPlayerHits} of a hit on another player.
  */
 public final class TrackWorldRules {
 
@@ -70,24 +72,37 @@ public final class TrackWorldRules {
     }
 
     /**
-     * Does a grant of {@code kind} stay on in {@code world}, for every track alike? Yes wherever no rules say
-     * otherwise. A track or category entry may still take it away for one track
-     * ({@link #grantsOn(World, String, String, String, String)}).
+     * Does a grant of {@code word} (a kind, or a family a grant belongs to) stay on in {@code world}, for every
+     * track alike? Yes wherever no rules say otherwise. A track or category entry may still take it away for one
+     * track ({@link #grantsOn(World, String, Collection, String, String)}).
      */
-    public static boolean grantsOn(@Nullable World world, @Nullable String kind) {
+    public static boolean grantsOn(@Nullable World world, @Nullable String word) {
         TrackRules rules = forWorld(world);
-        return rules == null || rules.grantsOn(kind);
+        return rules == null || rules.grantsOn(word);
     }
 
     /**
-     * Does a grant of {@code kind} (and its broader word {@code family}) from a pick on {@code trackId} (in
-     * {@code categoryId}) stay on in {@code world}? What the grant rebuild asks of every grant at every world entry.
-     * World thread.
+     * Does a grant of {@code kind} (belonging to {@code families}, a grant's {@code families()}) from a pick on
+     * {@code trackId} (in {@code categoryId}) stay on in {@code world}? What the grant rebuild asks of every grant at
+     * every world entry: off where the most specific word written says so (a family of the grant's over its kind,
+     * R895). World thread.
      */
-    public static boolean grantsOn(@Nullable World world, @Nullable String kind, @Nullable String family,
-            @Nullable String trackId, @Nullable String categoryId) {
+    public static boolean grantsOn(@Nullable World world, @Nullable String kind,
+            @Nullable Collection<String> families, @Nullable String trackId, @Nullable String categoryId) {
         TrackRules rules = forWorld(world);
-        return rules == null || rules.grantsOn(kind, family, trackId, categoryId);
+        return rules == null || rules.grantsOn(kind, families, trackId, categoryId);
+    }
+
+    /**
+     * Does a hit on another player (any moment that happened to one) count in {@code world}? False wherever no rules
+     * apply or they leave {@code Gain.PlayerHits} unwritten (R864): what zc-objectives' damage producer asks before it
+     * fires a hit on a player at all (for track sources, quests and statistics alike, R895), what the source reactions
+     * ask again before paying a moment whose victim is a player, and what a consumer paying its own hit awards asks
+     * first. World thread.
+     */
+    public static boolean paysPlayerHits(@Nullable World world) {
+        TrackRules rules = forWorld(world);
+        return rules != null && rules.paysPlayerHits();
     }
 
     /**

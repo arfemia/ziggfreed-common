@@ -26,6 +26,7 @@ import com.ziggfreed.common.entity.HeldItemUtil;
 import com.ziggfreed.common.health.HealthUtil;
 import com.ziggfreed.common.stats.condition.ConditionalStatSystems;
 import com.ziggfreed.common.track.source.TrackSources;
+import com.ziggfreed.common.track.world.TrackWorldRules;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -46,14 +47,20 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p>Target the creature's id (as a kill names it), Qualifier the attacker's held item (a sword, the bow that shot
  * the arrow; none for a turret), credited the way a kill is (the attacker when it is a player, else whoever the
- * composed {@code KillAttribution} says it acts for). A player hit, an invulnerable creature, a cancelled or empty
- * hit and a self-hit fire nothing, nor does a hit a consumer's {@link DamageHitFilters} filter keeps out (a training
- * dummy, a passive animal its own combat does not count).
+ * composed {@code KillAttribution} says it acts for). A hit on another player fires only in a world whose track
+ * rules write {@code Gain.PlayerHits} true ({@link TrackWorldRules#paysPlayerHits}, R864, R895), Target
+ * {@value #PLAYER_TARGET}, and then for every reader alike (a track source, a quest, a statistic); anywhere else it
+ * fires nothing, the default. An invulnerable victim, a cancelled or empty hit and a self-hit fire nothing, nor does
+ * a hit a consumer's {@link DamageHitFilters} filter keeps out (a training dummy, a passive animal its own combat does
+ * not count).
  */
 public final class ZigDamageProducer {
 
     /** The objective kind this producer feeds. */
     public static final String KIND = TrackSources.DEAL_DAMAGE;
+
+    /** The Target of a hit on another player, where a world's rules let one count. */
+    public static final String PLAYER_TARGET = "Player";
 
     /** The creature's health before the hit, noted on the damage in the Filter group. */
     @Nonnull
@@ -86,13 +93,13 @@ public final class ZigDamageProducer {
         public void handle(int index, @Nonnull ArchetypeChunk<EntityStore> chunk, @Nonnull Store<EntityStore> store,
                 @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull Damage damage) {
             // Only a hit the Inspect half could credit is worth noting: one struck by an entity (no fall, no
-            // fire), on a creature (never a player). Every other hit stops here at an instanceof and one lookup.
+            // fire), on a creature, or on a player where the world's rules count one. Every other hit stops here.
             if (damage.isCancelled() || ZigMobKillProducer.resolveAttackerRef(damage) == null) {
                 return;
             }
             try {
                 Ref<EntityStore> victim = chunk.getReferenceTo(index);
-                if (store.getComponent(victim, Player.getComponentType()) != null) {
+                if (!counts(store, victim)) {
                     return;
                 }
                 float health = HealthUtil.current(store, victim);
@@ -150,8 +157,8 @@ public final class ZigDamageProducer {
                 @Nonnull Damage damage) {
             Ref<EntityStore> victim = chunk.getReferenceTo(index);
             float amount = damage.getAmount();
-            if (!(amount > 0f) || store.getComponent(victim, Player.getComponentType()) != null
-                    || store.getComponent(victim, Invulnerable.getComponentType()) != null) {
+            if (!(amount > 0f) || store.getComponent(victim, Invulnerable.getComponentType()) != null
+                    || !counts(store, victim)) {
                 return;
             }
             Ref<EntityStore> attacker = ZigMobKillProducer.resolveAttackerRef(damage);
@@ -164,9 +171,21 @@ public final class ZigDamageProducer {
             }
             Float before = damage.getIfPresentMetaObject(HEALTH_BEFORE);
             double dealt = before == null || !(before > 0f) ? amount : Math.min(amount, before);
+            String target = isPlayer(store, victim) ? PLAYER_TARGET : ZigMobKillProducer.victimId(store, victim);
             DamageMoments.fire(new DamageHit(chunk, index, store, victim, attacker, credited, damage), commandBuffer,
-                    ZigMobKillProducer.victimId(store, victim), HeldItemUtil.heldItemId(store, attacker), dealt,
-                    new DamagePayload(victim, damage, dealt));
+                    target, HeldItemUtil.heldItemId(store, attacker), dealt, new DamagePayload(victim, damage, dealt));
         }
+    }
+
+    /**
+     * Does a hit on {@code victim} count at all: always on a creature, and on a player only where the world's track
+     * rules turn {@code Gain.PlayerHits} on (R864, R895; off by default).
+     */
+    static boolean counts(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> victim) {
+        return !isPlayer(store, victim) || TrackWorldRules.paysPlayerHits(store.getExternalData().getWorld());
+    }
+
+    private static boolean isPlayer(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> victim) {
+        return store.getComponent(victim, Player.getComponentType()) != null;
     }
 }

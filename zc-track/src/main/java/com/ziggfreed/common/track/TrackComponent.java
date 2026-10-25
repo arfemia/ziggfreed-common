@@ -37,14 +37,14 @@ import com.ziggfreed.common.util.SafeLog;
  * climb with nothing on record is not saved at all, and an entry for a track that is switched off or gone is
  * kept, unread, until it comes back. How far each unlock row has paid is {@code PaidThrough}, a map from the
  * row's key to its level, so a row added, removed or moved on a live track keeps its own mark. The picks made on a
- * climb are {@code Picks} (slot to the options chosen, comma-joined), {@code Takes} (bought pick to its count) and
- * the slot choices a Remember prestige put aside ({@code Remembered}); after them, appended, every choice and take
- * in the order it was made ({@code TakeOrder}: a slot key for a choice, a pick id for each take), the takes a
- * Remember prestige put aside in order ({@code RememberedTakes}), the saved builds ({@code Loadouts}, each its
- * {@code Slot}, {@code Picks} and {@code Takes}, the build's choices and takes in the order they were made, as
- * {@code TakeOrder} writes them) and the saved build the picks in use came from ({@code ActiveLoadout}). The
- * player's own boosts ride beside the climbs ({@code Boosts}: each running start and each wait before the next
- * start of a boost), absent when they hold none, so a save from before boosts reads as none held.
+ * climb are its one {@code Build} leaf ({@link BuildSave}): {@code Choices} (each slot made, to the options chosen
+ * there, in the order chosen), {@code Order} (every choice and take in the order it was made: a slot key for a choice,
+ * a pick id once for each take, so a pick taken three times is in it three times and its count is read off it),
+ * {@code Remembered} (what a Remember prestige put aside: its {@code Choices} and its {@code Takes} in order),
+ * {@code Loadouts} (each saved build: its {@code Slot}, {@code Choices} and {@code Order}, as the picks in use write
+ * them) and {@code Active} (the saved build the picks in use came from). The player's own boosts ride beside the
+ * climbs ({@code Boosts}: each running start and each wait before the next start of a boost), absent when they hold
+ * none, so a save from before boosts reads as none held.
  *
  * <p>{@link #register} runs once at library setup, before any world loads (a component type registered later
  * cannot be read off entities saved carrying it), and {@link #install} hangs the connect hook that attaches one
@@ -179,37 +179,35 @@ public final class TrackComponent implements Component<EntityStore> {
             TrackRecord record = new TrackRecord(entry.value == null ? 0L : entry.value,
                     entry.fraction == null ? 0.0 : entry.fraction, entry.best == null ? 0 : entry.best,
                     entry.prestige == null ? 0 : entry.prestige, paid, entry.rested == null ? 0L : entry.rested,
-                    new PickState(choices(entry.picks), entry.takes == null ? Map.of() : entry.takes,
-                            choices(entry.remembered), list(entry.takeOrder), list(entry.rememberedTakes),
-                            loadouts(entry.loadouts), entry.activeLoadout == null ? 0 : entry.activeLoadout));
+                    BuildSave.read(entry.build));
             keep(TrackKey.normalize(entry.namespace), TrackKey.normalize(entry.track),
                     TrackKey.normalize(entry.run), record);
         }
     }
 
-    /** Saved slot choices (comma-joined) as lists; a missing leaf reads as none. */
+    /** Saved slot choices as lists; a missing leaf reads as none. */
     @Nonnull
-    private static Map<String, List<String>> choices(@Nullable Map<String, String> saved) {
+    private static Map<String, List<String>> choices(@Nullable Map<String, String[]> saved) {
         if (saved == null || saved.isEmpty()) {
             return Map.of();
         }
         Map<String, List<String>> out = new HashMap<>();
         saved.forEach((slot, options) -> {
-            if (slot != null) {
-                out.put(slot, PickState.split(options));
+            if (slot != null && options != null) {
+                out.put(slot, Arrays.asList(options));
             }
         });
         return out;
     }
 
-    /** Slot choices as a save keeps them (comma-joined, sorted), or null for none. */
+    /** Slot choices as a save keeps them (sorted by slot), or null for none. */
     @Nullable
-    private static Map<String, String> saved(@Nonnull Map<String, List<String>> choices) {
+    private static Map<String, String[]> saved(@Nonnull Map<String, List<String>> choices) {
         if (choices.isEmpty()) {
             return null;
         }
-        Map<String, String> out = new LinkedHashMap<>();
-        new TreeMap<>(choices).forEach((slot, options) -> out.put(slot, PickState.join(options)));
+        Map<String, String[]> out = new LinkedHashMap<>();
+        new TreeMap<>(choices).forEach((slot, options) -> out.put(slot, options.toArray(new String[0])));
         return out;
     }
 
@@ -225,36 +223,16 @@ public final class TrackComponent implements Component<EntityStore> {
         return ids.isEmpty() ? null : ids.toArray(new String[0]);
     }
 
-    /** Saved builds as builds by slot; a missing leaf reads as none. */
+    /** How many times each pick id is taken in {@code order} (every entry that is no slot key). */
     @Nonnull
-    private static Map<Integer, PickState.Loadout> loadouts(@Nullable LoadoutEntry[] saved) {
-        if (saved == null || saved.length == 0) {
-            return Map.of();
-        }
-        Map<Integer, PickState.Loadout> out = new HashMap<>();
-        for (LoadoutEntry entry : saved) {
-            if (entry != null && entry.slot != null) {
-                out.put(entry.slot, new PickState.Loadout(choices(entry.picks), list(entry.takes)));
+    private static Map<String, Integer> takesIn(@Nonnull List<String> order) {
+        Map<String, Integer> out = new HashMap<>();
+        for (String step : order) {
+            if (step != null && !PickState.isSlotKey(step)) {
+                out.merge(step, 1, Integer::sum);
             }
         }
         return out;
-    }
-
-    /** Saved builds as a save keeps them (by slot), or null for none. */
-    @Nullable
-    private static LoadoutEntry[] savedLoadouts(@Nonnull Map<Integer, PickState.Loadout> builds) {
-        if (builds.isEmpty()) {
-            return null;
-        }
-        List<LoadoutEntry> out = new ArrayList<>();
-        new TreeMap<>(builds).forEach((slot, build) -> {
-            LoadoutEntry entry = new LoadoutEntry();
-            entry.slot = slot;
-            entry.picks = saved(build.slots());
-            entry.takes = savedIds(build.order());
-            out.add(entry);
-        });
-        return out.toArray(new LoadoutEntry[0]);
     }
 
     @Nonnull
@@ -266,17 +244,15 @@ public final class TrackComponent implements Component<EntityStore> {
         return out.toArray(new Entry[0]);
     }
 
-    /** Register the type with the entity-store registry, once, at library setup. Never throws. */
-    @Nullable
+    /**
+     * Register the type with the entity-store registry, once, at library setup. Not guarded: a failed registration
+     * throws here, at setup, rather than as every climb going unsaved later.
+     */
+    @Nonnull
     public static ComponentType<EntityStore, TrackComponent> register(
             @Nonnull ComponentRegistryProxy<EntityStore> registry) {
-        try {
-            TYPE = registry.registerComponent(TrackComponent.class, REGISTRY_ID, CODEC);
-            return TYPE;
-        } catch (Throwable t) {
-            SafeLog.warn("[track] could not register the track record", t);
-            return null;
-        }
+        TYPE = registry.registerComponent(TrackComponent.class, REGISTRY_ID, CODEC);
+        return TYPE;
     }
 
     /** Hang the connect hook that attaches a record to every player. */
@@ -419,13 +395,7 @@ public final class TrackComponent implements Component<EntityStore> {
         @Nullable Integer prestige;
         @Nullable Map<String, Integer> paidThrough;
         @Nullable Long rested;
-        @Nullable Map<String, String> picks;
-        @Nullable Map<String, Integer> takes;
-        @Nullable Map<String, String> remembered;
-        @Nullable String[] takeOrder;
-        @Nullable String[] rememberedTakes;
-        @Nullable LoadoutEntry[] loadouts;
-        @Nullable Integer activeLoadout;
+        @Nullable BuildSave build;
 
         static final BuilderCodec<Entry> CODEC = BuilderCodec.builder(Entry.class, Entry::new)
                 .append(new KeyedCodec<>("Track", Codec.STRING, false), (o, v) -> o.track = v, o -> o.track)
@@ -450,31 +420,8 @@ public final class TrackComponent implements Component<EntityStore> {
                 .add()
                 .append(new KeyedCodec<>("Rested", Codec.LONG, false), (o, v) -> o.rested = v, o -> o.rested)
                 .add()
-                // The picks: per choice slot the options chosen, comma-joined; per bought pick its count;
-                // and the slot choices a Remember prestige put aside, comma-joined.
-                .append(new KeyedCodec<>("Picks", new MapCodec<>(Codec.STRING, LinkedHashMap::new, false), false),
-                        (o, v) -> o.picks = v, o -> o.picks)
-                .add()
-                .append(new KeyedCodec<>("Takes", new MapCodec<>(Codec.INTEGER, LinkedHashMap::new, false), false),
-                        (o, v) -> o.takes = v, o -> o.takes)
-                .add()
-                .append(new KeyedCodec<>("Remembered", new MapCodec<>(Codec.STRING, LinkedHashMap::new, false),
-                        false), (o, v) -> o.remembered = v, o -> o.remembered)
-                .add()
-                // Appended for the tree (SK24): every choice (its slot key) and take in the order it was made; the
-                // takes a Remember prestige put aside, in order; the saved builds; and which saved build the picks
-                // in use came from.
-                .append(new KeyedCodec<>("TakeOrder", Codec.STRING_ARRAY, false),
-                        (o, v) -> o.takeOrder = v, o -> o.takeOrder)
-                .add()
-                .append(new KeyedCodec<>("RememberedTakes", Codec.STRING_ARRAY, false),
-                        (o, v) -> o.rememberedTakes = v, o -> o.rememberedTakes)
-                .add()
-                .append(new KeyedCodec<>("Loadouts", new ArrayCodec<>(LoadoutEntry.CODEC, LoadoutEntry[]::new),
-                        false), (o, v) -> o.loadouts = v, o -> o.loadouts)
-                .add()
-                .append(new KeyedCodec<>("ActiveLoadout", Codec.INTEGER, false),
-                        (o, v) -> o.activeLoadout = v, o -> o.activeLoadout)
+                // The picks made on the climb, every one of them in this one leaf.
+                .append(new KeyedCodec<>("Build", BuildSave.CODEC, false), (o, v) -> o.build = v, o -> o.build)
                 .add()
                 .build();
 
@@ -498,39 +445,145 @@ public final class TrackComponent implements Component<EntityStore> {
                 // Sorted, so a save is stable.
                 e.paidThrough = new LinkedHashMap<>(new TreeMap<>(record.paid()));
             }
-            PickState picks = record.picks();
-            e.picks = saved(picks.slots());
-            e.takes = picks.takes().isEmpty() ? null : new LinkedHashMap<>(new TreeMap<>(picks.takes()));
-            e.remembered = saved(picks.remembered());
-            e.takeOrder = savedIds(picks.order());
-            e.rememberedTakes = savedIds(picks.rememberedTakes());
-            e.loadouts = savedLoadouts(picks.loadouts());
-            e.activeLoadout = picks.activeLoadout() == 0 ? null : picks.activeLoadout();
+            e.build = BuildSave.of(record.picks());
             return e;
         }
     }
 
     /**
-     * One saved build: its slot, its slot choices (comma-joined) and its choices (slot keys) and takes in the order
-     * they were made.
+     * The saved shape of the picks made on one climb, every one of them in one leaf ({@code Build}): {@code Choices}
+     * (each slot made, to the options chosen there, in the order chosen), {@code Order} (every choice, as its slot
+     * key, and every take, as its pick id, once per take, in the order made: a take's count is read off it),
+     * {@code Remembered} (what a Remember prestige put aside), {@code Loadouts} (the saved builds) and {@code Active}
+     * (the saved build the picks in use came from). Absent when nothing is picked, remembered or saved. A new fact
+     * is a new leaf, never a rename.
      */
-    static final class LoadoutEntry {
+    static final class BuildSave {
 
-        @Nullable Integer slot;
-        @Nullable Map<String, String> picks;
+        @Nullable Map<String, String[]> choices;
+        @Nullable String[] order;
+        @Nullable RememberedSave remembered;
+        @Nullable LoadoutSave[] loadouts;
+        @Nullable Integer active;
+
+        static final BuilderCodec<BuildSave> CODEC = BuilderCodec.builder(BuildSave.class, BuildSave::new)
+                .append(new KeyedCodec<>("Choices", new MapCodec<>(Codec.STRING_ARRAY, LinkedHashMap::new, false),
+                        false), (o, v) -> o.choices = v, o -> o.choices)
+                .add()
+                .append(new KeyedCodec<>("Order", Codec.STRING_ARRAY, false), (o, v) -> o.order = v, o -> o.order)
+                .add()
+                .append(new KeyedCodec<>("Remembered", RememberedSave.CODEC, false),
+                        (o, v) -> o.remembered = v, o -> o.remembered)
+                .add()
+                .append(new KeyedCodec<>("Loadouts", new ArrayCodec<>(LoadoutSave.CODEC, LoadoutSave[]::new),
+                        false), (o, v) -> o.loadouts = v, o -> o.loadouts)
+                .add()
+                .append(new KeyedCodec<>("Active", Codec.INTEGER, false), (o, v) -> o.active = v, o -> o.active)
+                .add()
+                .build();
+
+        BuildSave() {
+        }
+
+        /** {@code picks} as saved, or null (the leaf left out) when nothing is picked, remembered or saved. */
+        @Nullable
+        static BuildSave of(@Nonnull PickState picks) {
+            if (picks.isEmpty()) {
+                return null;
+            }
+            BuildSave save = new BuildSave();
+            save.choices = saved(picks.slots());
+            save.order = savedIds(picks.order());
+            save.remembered = RememberedSave.of(picks);
+            if (!picks.loadouts().isEmpty()) {
+                List<LoadoutSave> builds = new ArrayList<>();
+                new TreeMap<>(picks.loadouts()).forEach((slot, build) -> builds.add(LoadoutSave.of(slot, build)));
+                save.loadouts = builds.toArray(new LoadoutSave[0]);
+            }
+            save.active = picks.activeLoadout() == 0 ? null : picks.activeLoadout();
+            return save;
+        }
+
+        /** What {@code save} holds; {@link PickState#EMPTY} for none. */
+        @Nonnull
+        static PickState read(@Nullable BuildSave save) {
+            if (save == null) {
+                return PickState.EMPTY;
+            }
+            List<String> order = list(save.order);
+            RememberedSave aside = save.remembered;
+            Map<Integer, PickState.Loadout> builds = new HashMap<>();
+            if (save.loadouts != null) {
+                for (LoadoutSave build : save.loadouts) {
+                    if (build != null && build.slot != null) {
+                        builds.put(build.slot, new PickState.Loadout(choices(build.choices), list(build.order)));
+                    }
+                }
+            }
+            return new PickState(choices(save.choices), takesIn(order),
+                    aside == null ? Map.of() : choices(aside.choices), order,
+                    aside == null ? List.of() : list(aside.takes), builds, save.active == null ? 0 : save.active);
+        }
+    }
+
+    /** What a Remember prestige put aside: its slot {@code Choices} and its {@code Takes}, oldest first. */
+    static final class RememberedSave {
+
+        @Nullable Map<String, String[]> choices;
         @Nullable String[] takes;
 
-        static final BuilderCodec<LoadoutEntry> CODEC = BuilderCodec.builder(LoadoutEntry.class, LoadoutEntry::new)
-                .append(new KeyedCodec<>("Slot", Codec.INTEGER, false), (o, v) -> o.slot = v, o -> o.slot)
-                .add()
-                .append(new KeyedCodec<>("Picks", new MapCodec<>(Codec.STRING, LinkedHashMap::new, false), false),
-                        (o, v) -> o.picks = v, o -> o.picks)
+        static final BuilderCodec<RememberedSave> CODEC = BuilderCodec.builder(RememberedSave.class,
+                        RememberedSave::new)
+                .append(new KeyedCodec<>("Choices", new MapCodec<>(Codec.STRING_ARRAY, LinkedHashMap::new, false),
+                        false), (o, v) -> o.choices = v, o -> o.choices)
                 .add()
                 .append(new KeyedCodec<>("Takes", Codec.STRING_ARRAY, false), (o, v) -> o.takes = v, o -> o.takes)
                 .add()
                 .build();
 
-        LoadoutEntry() {
+        RememberedSave() {
+        }
+
+        /** What {@code picks} holds aside, or null when nothing is. */
+        @Nullable
+        static RememberedSave of(@Nonnull PickState picks) {
+            if (picks.remembered().isEmpty() && picks.rememberedTakes().isEmpty()) {
+                return null;
+            }
+            RememberedSave save = new RememberedSave();
+            save.choices = saved(picks.remembered());
+            save.takes = savedIds(picks.rememberedTakes());
+            return save;
+        }
+    }
+
+    /** One saved build: its {@code Slot}, {@code Choices} and {@code Order}, as {@link BuildSave} writes them. */
+    static final class LoadoutSave {
+
+        @Nullable Integer slot;
+        @Nullable Map<String, String[]> choices;
+        @Nullable String[] order;
+
+        static final BuilderCodec<LoadoutSave> CODEC = BuilderCodec.builder(LoadoutSave.class, LoadoutSave::new)
+                .append(new KeyedCodec<>("Slot", Codec.INTEGER, false), (o, v) -> o.slot = v, o -> o.slot)
+                .add()
+                .append(new KeyedCodec<>("Choices", new MapCodec<>(Codec.STRING_ARRAY, LinkedHashMap::new, false),
+                        false), (o, v) -> o.choices = v, o -> o.choices)
+                .add()
+                .append(new KeyedCodec<>("Order", Codec.STRING_ARRAY, false), (o, v) -> o.order = v, o -> o.order)
+                .add()
+                .build();
+
+        LoadoutSave() {
+        }
+
+        @Nonnull
+        static LoadoutSave of(int slot, @Nonnull PickState.Loadout build) {
+            LoadoutSave save = new LoadoutSave();
+            save.slot = slot;
+            save.choices = saved(build.slots());
+            save.order = savedIds(build.order());
+            return save;
         }
     }
 }
