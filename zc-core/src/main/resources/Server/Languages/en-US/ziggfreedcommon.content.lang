@@ -1,0 +1,16 @@
+# The server content pack: what an in-game editor says beside its Save.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.content.<key>.
+
+applies.now = Saved. It's live now.
+applies.next_join = Saved. Players see it the next time they join.
+applies.restart = Saved. It shows after the server restarts.
+
+problem.pack_unavailable = Nothing can be saved: the server content pack is off or missing. Check /zigpack status.
+problem.unsupported_store = This kind of content can't be saved as a file.
+problem.bad_id = That id can't be used. Ids use only letters, numbers, _ and -.
+problem.bad_json = This content couldn't be read, so it wasn't saved.
+problem.rejected = The game couldn't load this content, so it wasn't saved. The server log says why.
+problem.not_found = The server content pack has nothing by that id.
+problem.bad_text = The text is empty or has a backslash in it, or its key isn't a text key.
+problem.text_taken = Another pack already uses this text key, so it can't be changed here.
+problem.io = The file couldn't be saved. The server log says why.

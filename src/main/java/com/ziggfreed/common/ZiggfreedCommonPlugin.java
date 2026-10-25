@@ -33,6 +33,7 @@ import com.ziggfreed.common.commerce.fold.CurrencyRewardKind;
 import com.ziggfreed.common.commerce.page.CommercePages;
 import com.ziggfreed.common.commerce.page.CurrencyChipReading;
 import com.ziggfreed.common.commerce.page.CommerceStepIcons;
+import com.ziggfreed.common.content.ServerContentBootstrap;
 import com.ziggfreed.common.progress.gate.GateBootstrap;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.currency.asset.CurrencyConfig;
@@ -409,6 +410,10 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // source and the /zigstats family. Its stat file store is registered with the other framework
         // stores.
         StatsBootstrap.install(this);
+        // The server content pack (mods/ServerContent), where every in-game editor saves: found or made here, its
+        // typed words registered before the start's catalogue load, the /zigpack family, and its load order kept
+        // after every other pack at boot. A pack made this session registers at start().
+        ServerContentBootstrap.install(this);
         // The once-at-boot checks (the boot audit a headless dev boot asks for), on BootEvent: every
         // store has folded and every mod has registered its vocabulary by then.
         registerBootChecks();
@@ -775,7 +780,15 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
     }
 
     @Override
+    protected void start() {
+        // A server content pack made at this setup registers now, after the asset pass, so the Asset Editor lists it.
+        ServerContentBootstrap.start();
+    }
+
+    @Override
     protected void shutdown() {
+        // The text pack's zip is let go on a plugin unload (never on a server stop: the engine closes it then).
+        ServerContentBootstrap.shutdown();
         CalendarBootstrap.shutdown();
         // The Almanac's server totals and the encounter board are written by a 3-second debounce the
         // server may never run before it exits, so the last counts and defeats are written here; every

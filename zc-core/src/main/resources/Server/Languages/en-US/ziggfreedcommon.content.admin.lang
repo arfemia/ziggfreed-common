@@ -1,0 +1,24 @@
+# The /zigpack admin command family: help text and its answers.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.content.admin.<key>.
+# The desc.* keys are what the engine's own help resolves a command through.
+
+desc.family = Manage this server's own content pack, where everything made in game is saved.
+desc.status = Show where the server content pack is, whether it can be saved to, and how much it holds.
+desc.export = Zip the server content pack and its text so another server can load it from its mods folder.
+
+status.pack = Server content pack {0}: {1}
+status.folder = Folder: {0}
+status.counts = {0} {0, plural, one {asset file} other {asset files}}, {1} {1, plural, one {text} other {texts}}
+status.watcher.on = File watcher: on for {0} {0, plural, one {folder} other {folders}} of the pack
+status.watcher.new = Files changed by hand in a folder made since the start, other than by an in-game editor, load at the next start.
+status.watcher.off = File watcher: off. Files changed by hand load at the next restart.
+
+state.ready = ready
+state.read_only = read-only
+state.disabled = turned off in the server config
+state.starting = starting
+state.failed = couldn't be set up, see the server log
+state.unavailable = not available on this server
+
+export.done = Exported {0} {0, plural, one {file} other {files}} and {1} {1, plural, one {text} other {texts}} to {2}. Put the zip in another server's mods folder to load it there.
+export.failed = The export failed. {0}
