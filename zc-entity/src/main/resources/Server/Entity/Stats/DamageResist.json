@@ -1,0 +1,8 @@
+{
+  "$Comment": "Resistance to every damage type the carrier takes, in whole percent points (10 resists a tenth of each hit), added to each type's own DamageResist_<Type> (every cause with a DamageBonus_<Type> stat, so never Fall). Any item's StatModifiers raise it like any stat, a creature's as a player's, and a conditional stat's Onto folds into it. ziggfreed-common carries each type's total on a hidden always-on effect keyed on exactly that type's cause, held so its sum with worn armor and every other resistance effect stays under DamageResistMax, short of immunity. Base 0; Min is a generous negative so a subtractive modifier never clamps, and a total below 0 resists nothing rather than raising the damage.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

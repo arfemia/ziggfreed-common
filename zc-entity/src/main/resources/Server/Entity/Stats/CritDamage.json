@@ -1,0 +1,8 @@
+{
+  "$Comment": "How much more a critical hit deals, in whole percent points of the hit (50 is half again, a 1.5 times hit). Any item's StatModifiers raise it like any stat, a creature's as a player's. ziggfreed-common multiplies a critical hit by one plus this, never by less than one. Base 50; Min is a generous negative so a subtractive modifier never clamps.",
+  "InitialValue": 50.0,
+  "Min": -1000.0,
+  "Max": 50.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

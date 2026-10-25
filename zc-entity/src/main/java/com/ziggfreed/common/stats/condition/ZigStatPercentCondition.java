@@ -12,6 +12,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.modules.entity.condition.EntityStatBoundCondition;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.factor.HytaleFactors;
 
 /**
  * An entity condition: is one of its stats inside a band of its range, in percent ({@code EntityStatValue.asPercentage},
@@ -67,9 +68,11 @@ public final class ZigStatPercentCondition extends EntityStatBoundCondition {
         return above == null || !Double.isFinite(above) || percent > above;
     }
 
+    /** The one reading of where a stat sits in its range, shared with {@code hytale:stat_percent}. */
     @Override
     public boolean eval0(@Nonnull Ref<EntityStore> ref, @Nonnull Instant currentTime,
             @Nonnull EntityStatValue statValue) {
-        return inBand(statValue.asPercentage() * 100.0, below, above);
+        Double percent = HytaleFactors.percentOf(statValue.get(), statValue.getMin(), statValue.getMax());
+        return percent != null && inBand(percent, below, above);
     }
 }

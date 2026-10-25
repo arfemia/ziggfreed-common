@@ -1,8 +1,5 @@
 package com.ziggfreed.common.damage.weakspot;
 
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -15,6 +12,7 @@ import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.stats.StatIndexCache;
+import com.ziggfreed.common.stats.damage.RoutedStats;
 import com.ziggfreed.common.stats.damage.TypedDamageBonuses;
 
 /**
@@ -65,12 +63,8 @@ public final class WeakSpots {
      */
     public static final String FOE_LOW_STAT = "WeakSpot_FoeLow";
 
-    /** One registered weak-spot source: a stat counted on the hits its route names. */
-    public record Source(@Nonnull String statId, @Nullable TypedDamageBonuses.Route route) {
-    }
-
     /** The registered sources, in registration order. */
-    private static final List<Source> SOURCES = new CopyOnWriteArrayList<>();
+    private static final RoutedStats SOURCES = new RoutedStats();
 
     /** The default ceiling, mirroring the shipped {@code WeakSpotMax.json}'s Max, for when the stat cannot be read. */
     public static final double FALLBACK_CEILING_PERCENT = 75.0;
@@ -165,35 +159,18 @@ public final class WeakSpots {
      * stat again replaces the earlier registration. Set at setup.
      */
     public static void registerSource(@Nonnull String statId, @Nullable TypedDamageBonuses.Route route) {
-        if (statId.isBlank()) {
-            return;
-        }
-        SOURCES.removeIf(s -> s.statId().equalsIgnoreCase(statId));
-        SOURCES.add(new Source(statId, route));
+        SOURCES.register(statId, route);
     }
 
-    /** Does the attacker hold any registered source's stat above 0 (before any route is asked)? */
+    /** Does the attacker hold any registered source's stat off 0 (before any route is asked)? */
     public static boolean anySource(@Nonnull EntityStatMap stats) {
-        for (Source source : SOURCES) {
-            if (readMax(stats, source.statId(), 0.0) > 0.0) {
-                return true;
-            }
-        }
-        return false;
+        return SOURCES.anyOn(stats);
     }
 
     /** The registered sources' points on this hit: each nonzero one whose route names it. */
     public static double sourcePoints(@Nonnull ComponentAccessor<EntityStore> accessor,
             @Nonnull Ref<EntityStore> attacker, @Nonnull Damage damage, @Nonnull EntityStatMap stats) {
-        double sum = 0.0;
-        for (Source source : SOURCES) {
-            double points = readMax(stats, source.statId(), 0.0);
-            if (points == 0.0 || (source.route() != null && !source.route().matches(accessor, attacker, damage))) {
-                continue;
-            }
-            sum += points;
-        }
-        return sum;
+        return SOURCES.points(accessor, attacker, damage, stats);
     }
 
     /**

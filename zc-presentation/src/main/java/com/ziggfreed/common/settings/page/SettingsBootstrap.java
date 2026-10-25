@@ -7,7 +7,7 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * The Settings tab's place in the library, called once from the wiring root's {@code setup()}: its
  * destination (before any asset decodes), its tab on the shared rail, and the library's own Notifications
- * section. Registration only ({@code RootRegistrationOnlyTest}).
+ * and Combat sections. Registration only ({@code RootRegistrationOnlyTest}).
  */
 public final class SettingsBootstrap {
 
@@ -19,6 +19,7 @@ public final class SettingsBootstrap {
             SettingsDestinations.register();
             ZigMenu.fill(MenuSlot.SETTINGS, SettingsDestinations.entry());
             ZigSettings.fill(SettingsSlot.NOTIFICATIONS, NotificationSettings::section);
+            ZigSettings.fill(SettingsSlot.COMBAT, CombatSettings::section);
         } catch (Throwable t) {
             SafeLog.warn("[settings] the Settings tab could not be registered", t);
         }

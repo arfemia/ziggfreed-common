@@ -23,9 +23,10 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * What one player chose for their own screen, kept by the library so every mod reads the same answer: per
  * surface (a HUD panel id or {@link PlayerSettings#QUEST_TRACKER}) the spot they picked and whether they
- * show it, one switch hiding every bar panel at once, and the level of their quest and achievement
- * notices. Every choice is nullable: null means "the owner's default", which {@link PlayerSettings} folds
- * in, so an owner default of hidden still lets a player turn a surface on.
+ * show it, one switch hiding every bar panel at once, the level of their quest and achievement notices,
+ * and whether they see the word over their own critical hits ({@code Combat.CritWord}). Every choice is
+ * nullable: null means "the owner's default", which {@link PlayerSettings} folds in, so an owner default
+ * of hidden still lets a player turn a surface on.
  *
  * <p><b>One record under 2.1.0's save key.</b> It replaces {@code HudPreferenceComponent} and keeps its
  * registry id {@value #REGISTRY_ID}: the engine matches a saved component by that string, so every ECS save
@@ -51,6 +52,7 @@ public class PlayerSettingsComponent implements Component<EntityStore> {
     private final Map<String, Boolean> shown = new ConcurrentHashMap<>();
     private volatile boolean hideAll;
     @Nullable private volatile NotificationLevel level;
+    @Nullable private volatile Boolean critWord;
 
     /** The {@code Hud} group as saved. */
     static final class HudGroup {
@@ -87,6 +89,18 @@ public class PlayerSettingsComponent implements Component<EntityStore> {
                 .build();
     }
 
+    /** The {@code Combat} group as saved: whether the player sees the word over their own critical hits. */
+    static final class CombatGroup {
+
+        @Nullable Boolean critWord;
+
+        static final BuilderCodec<CombatGroup> CODEC = BuilderCodec.builder(CombatGroup.class, CombatGroup::new)
+                .append(new KeyedCodec<>("CritWord", Codec.BOOLEAN),
+                        (g, v, info) -> g.critWord = v, (g, info) -> g.critWord)
+                .add()
+                .build();
+    }
+
     public static final BuilderCodec<PlayerSettingsComponent> CODEC;
 
     static {
@@ -95,6 +109,9 @@ public class PlayerSettingsComponent implements Component<EntityStore> {
                 (c, g, info) -> c.readHud(g), (c, info) -> c.hudGroup()).add();
         builder.append(new KeyedCodec<>("Notifications", NotificationsGroup.CODEC),
                 (c, g, info) -> c.readNotifications(g), (c, info) -> c.notificationsGroup()).add();
+        // Appended in 3.0.0; a getter answering null (no choice made) leaves the key out of the save.
+        builder.append(new KeyedCodec<>("Combat", CombatGroup.CODEC),
+                (c, g, info) -> c.readCombat(g), (c, info) -> c.combatGroup()).add();
         // 2.1.0's three flat leaves: READ so an old save keeps its picks and hides, never WRITTEN (a
         // getter answering null leaves the key out), so the first save after the upgrade is the move.
         builder.append(new KeyedCodec<>("Placements", Codec.STRING),
@@ -211,6 +228,21 @@ public class PlayerSettingsComponent implements Component<EntityStore> {
         return true;
     }
 
+    /** Whether the player chose to see the word over their own critical hits: true, false, or null when they never chose. */
+    @Nullable
+    public Boolean critWord() {
+        return critWord;
+    }
+
+    /** Choose to see the critical hit word or not, or clear the choice with null. True when something changed. */
+    public boolean setCritWord(@Nullable Boolean value) {
+        if (value == null ? critWord == null : value.equals(critWord)) {
+            return false;
+        }
+        critWord = value;
+        return true;
+    }
+
     // ==================== the save ====================
 
     private void readHud(@Nullable HudGroup group) {
@@ -252,6 +284,24 @@ public class PlayerSettingsComponent implements Component<EntityStore> {
         NotificationsGroup group = new NotificationsGroup();
         NotificationLevel chosen = level;
         group.level = chosen == null ? null : chosen.id();
+        return group;
+    }
+
+    private void readCombat(@Nullable CombatGroup group) {
+        if (group != null) {
+            critWord = group.critWord;
+        }
+    }
+
+    /** The {@code Combat} group to save, or null (left out) while the player made no choice in it. */
+    @Nullable
+    private CombatGroup combatGroup() {
+        Boolean chosen = critWord;
+        if (chosen == null) {
+            return null;
+        }
+        CombatGroup group = new CombatGroup();
+        group.critWord = chosen;
         return group;
     }
 
@@ -300,6 +350,7 @@ public class PlayerSettingsComponent implements Component<EntityStore> {
         copy.shown.putAll(this.shown);
         copy.hideAll = this.hideAll;
         copy.level = this.level;
+        copy.critWord = this.critWord;
         return copy;
     }
 }

@@ -2,7 +2,6 @@ package com.ziggfreed.common.proc;
 
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -49,10 +48,8 @@ import com.hypixel.hytale.server.core.modules.interaction.interaction.config.cli
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.entity.Allies;
 import com.ziggfreed.common.stats.condition.ConditionalStats;
 import com.ziggfreed.common.stats.condition.EffectFamilies;
-import com.ziggfreed.common.stats.condition.FirstHits;
 import com.ziggfreed.common.stats.condition.Nearby;
 
 /**
@@ -61,8 +58,8 @@ import com.ziggfreed.common.stats.condition.Nearby;
  * player or their ally ({@link Incoming}), the holder's own dodge and cast started and every chain's root
  * ({@link ChainStarts}), a landing ({@link Landing}), the holder pass ({@link HolderPass}, which proves the dodges and
  * casts, reads a guard going up and a foe's guard broken, the watched effects and a crouch held still), a player's
- * death emptying their counters ({@link Died}), and the forgetting of an entity that left its store ({@link Left}). Hit, Kill, BlockBreak and Harvest ride the library's own moments ({@link ProcMoments}); Crit
- * is a consumer's ({@link Procs#crit}), and so is a consumer's own Cast ({@link Procs#cast}).
+ * death emptying their counters ({@link Died}), and the forgetting of an entity that left its store ({@link Left}). Hit, Kill, BlockBreak and Harvest ride the library's own moments ({@link ProcMoments}), Crit
+ * zc-entity's crit step's event ({@link Procs#crit}); a consumer's own Cast is the consumer's ({@link Procs#cast}).
  */
 public final class ProcSystems {
 
@@ -327,22 +324,18 @@ public final class ProcSystems {
                 @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull Ref<EntityStore> victim,
                 @Nonnull Damage damage) {
             double reach = ProcConfig.getInstance().allyReach();
-            UUID victimId = FirstHits.idOf(commandBuffer, victim);
-            if (!(reach > 0.0) || victimId == null) {
+            if (!(reach > 0.0)) {
                 return;
             }
-            boolean pvp = ProcActions.pvpOn(store);
-            for (Ref<EntityStore> other : Nearby.playersAround(commandBuffer, victim,
+            // The victim's allies (zc-core's one rule, symmetric) are the players whose ally was hit.
+            for (Ref<EntityStore> other : Nearby.alliesAround(commandBuffer, victim,
                     Nearby.positionOf(commandBuffer, victim), reach, null, ConditionalStats.now(commandBuffer),
                     ALLY_LIMIT)) {
                 if (damage.isCancelled() || !(damage.getAmount() > 0f)) {
                     return;
                 }
-                UUID otherId = FirstHits.idOf(commandBuffer, other);
-                if (otherId != null && Allies.areAllies(otherId, victimId, pvp)) {
-                    Procs.fire(new ProcMoment(ProcTrigger.ALLY_HIT_INCOMING, store, commandBuffer, other, victim,
-                            damage, damage.getAmount(), null));
-                }
+                Procs.fire(new ProcMoment(ProcTrigger.ALLY_HIT_INCOMING, store, commandBuffer, other, victim,
+                        damage, damage.getAmount(), null));
             }
         }
     }

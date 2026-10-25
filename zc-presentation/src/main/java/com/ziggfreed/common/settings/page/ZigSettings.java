@@ -15,7 +15,7 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * What the Settings tab lists: one consumer's sections (one call, {@link #consumer}) above the library's
- * three slots ({@link SettingsSlot}), each filled by the module that owns it. Suppliers are asked on every
+ * four slots ({@link SettingsSlot}), each filled by the module that owns it. Suppliers are asked on every
  * open, so a section always reflects the server's current files. Written at setup, read on the world
  * thread.
  */

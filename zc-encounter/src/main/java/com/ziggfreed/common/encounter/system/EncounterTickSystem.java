@@ -24,7 +24,6 @@ import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatsModule;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntityStatTypes;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
-import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.spawning.SpawnLineage;
 import com.ziggfreed.common.encounter.asset.EncounterBindingAsset;
@@ -246,8 +245,8 @@ public final class EncounterTickSystem extends EntityTickingSystem<EntityStore> 
      *
      * <p>In an endless wave run each add also takes its wave's ramp ({@link WaveRamp}): its health step multiplies
      * the party scale into the one modifier (the engine sums multiplicative modifiers, so a second key would add to
-     * the party scale rather than grow it), and its damage step goes on as a native outgoing-damage effect
-     * ({@link WaveDamage}). The wave is the one standing as the add is scaled, a boss wave's by its return.
+     * the party scale rather than grow it), and its damage step goes on as a modifier of its every-type damage bonus
+     * stat ({@link WaveDamage}). The wave is the one standing as the add is scaled, a boss wave's by its return.
      */
     private static void scaleAdds(@Nonnull Store<EntityStore> store, @Nonnull ZigEncounterRun run,
             @Nullable EncounterBindingAsset row, @Nullable Ref<EntityStore> subject,
@@ -266,7 +265,6 @@ public final class EncounterTickSystem extends EntityTickingSystem<EntityStore> 
         double factor = wave == null ? party : party * ramp.health(wave);
         int damagePercent = wave == null ? 0 : WaveDamage.percentOf(ramp.damage(wave));
         boolean scales = factor != 1.0 || damagePercent > 0;
-        World world = damagePercent > 0 ? store.getExternalData().getWorld() : null;
         int scaled = 0;
         for (Map.Entry<Ref<EntityStore>, Integer> waiting : pending.entrySet()) {
             Ref<EntityStore> add = waiting.getKey();
@@ -277,7 +275,7 @@ public final class EncounterTickSystem extends EntityTickingSystem<EntityStore> 
                     waiting.getValue());
             if (step == AddScaling.Step.APPLY) {
                 boolean health = factor != 1.0 && EncounterScaling.applyToAdd(store, add, factor);
-                boolean damage = world != null && WaveDamage.apply(store, add, damagePercent, world);
+                boolean damage = damagePercent > 0 && WaveDamage.apply(store, add, damagePercent);
                 if (health || damage) {
                     scaled++;
                 }

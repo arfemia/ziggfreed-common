@@ -6,9 +6,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
@@ -16,23 +21,22 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 /**
- * The damage bonus stat family's shipped surface: every {@code DamageBonus_<Type>} and
- * {@code DamageBonusFlat_<Type>} the reconciler reads, and the ceiling, is a stat asset in this module with
- * an item-tooltip label in its en-US {@code client.lang}; the ceiling's Java fallback mirrors the shipped
+ * The damage bonus stat family's shipped surface: every {@code DamageBonus*} stat this module ships (each type's
+ * pair, the every-type stat and the ceiling, the files the damage types are read off) carries an item-tooltip
+ * label in its en-US {@code client.lang}; the ceiling's Java fallback mirrors the shipped
  * asset. And the two pure pieces the hit's arithmetic rests on: adding into the engine's sum, and a route's
  * share of the ceiling. No ceiling value is pinned: that is content a server retunes.
  */
 class DamageBonusStatsTest {
 
     @Test
-    void everyBonusStat_isAShippedAssetWithATooltipLabel() throws IOException {
+    void everyBonusStat_isAShippedAssetWithATooltipLabel() throws IOException, URISyntaxException {
         String clientLang = read("/Server/Languages/en-US/client.lang");
-        List<String> ids = new ArrayList<>();
-        for (String type : TypedDamageBonuses.TYPE_IDS) {
-            ids.add(TypedDamageBonuses.PERCENT_PREFIX + type);
-            ids.add(TypedDamageBonuses.FLAT_PREFIX + type);
-        }
-        ids.add(TypedDamageBonuses.CEILING_STAT_ID);
+        List<String> ids = shippedStatIds("DamageBonus");
+        assertTrue(ids.contains(TypedDamageBonuses.EVERY_TYPE_STAT_ID), "the every-type stat ships");
+        assertTrue(ids.contains(TypedDamageBonuses.CEILING_STAT_ID), "the ceiling ships");
+        assertTrue(ids.stream().anyMatch(id -> id.startsWith(TypedDamageBonuses.PERCENT_PREFIX)),
+                "the damage types are read off shipped DamageBonus_<Type> files");
         for (String id : ids) {
             JsonObject asset = JsonParser.parseString(read("/Server/Entity/Stats/" + id + ".json")).getAsJsonObject();
             assertTrue(asset.has("Max"), id + " has no Max");
@@ -73,6 +77,23 @@ class DamageBonusStatsTest {
         assertEquals(0.0, TypedDamageBonuses.heldToCeiling(1200.0, 50.0, 1000.0), 1e-9);
         assertEquals(-100.0, TypedDamageBonuses.heldToCeiling(0.0, -300.0, 1000.0), 1e-9,
                 "no route takes a hit below a whole hit off");
+    }
+
+    /** Every shipped stat file's id under {@code Server/Entity/Stats/} that starts with {@code prefix}, sorted. */
+    static List<String> shippedStatIds(String prefix) throws IOException, URISyntaxException {
+        URL dir = DamageBonusStatsTest.class.getResource("/Server/Entity/Stats");
+        assertNotNull(dir, "missing classpath folder /Server/Entity/Stats");
+        List<String> ids = new ArrayList<>();
+        try (Stream<Path> files = Files.list(Path.of(dir.toURI()))) {
+            for (Path file : files.toList()) {
+                String name = file.getFileName().toString();
+                if (name.endsWith(".json") && name.startsWith(prefix)) {
+                    ids.add(name.substring(0, name.length() - ".json".length()));
+                }
+            }
+        }
+        ids.sort(null);
+        return ids;
     }
 
     private static String read(String path) throws IOException {

@@ -7,19 +7,6 @@
     }
   ],
   "Pays": {
-    "Onto": [
-      "DamageResist_Physical",
-      "DamageResist_Projectile",
-      "DamageResist_Fire",
-      "DamageResist_Ice",
-      "DamageResist_Lightning",
-      "DamageResist_Water",
-      "DamageResist_Wind",
-      "DamageResist_Earth",
-      "DamageResist_Poison",
-      "DamageResist_Arcane",
-      "DamageResist_Void",
-      "DamageResist_Life"
-    ]
+    "Onto": [ "DamageResist" ]
   }
 }

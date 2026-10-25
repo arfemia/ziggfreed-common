@@ -6,24 +6,21 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.hypixel.hytale.assetstore.map.AssetMapWithIndexes;
 import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Ref;
-import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
 import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageCause;
-import com.hypixel.hytale.server.core.modules.entity.damage.DeathComponent;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.effect.grid.EffectBodies;
 import com.ziggfreed.common.effect.grid.RuntimeEffectGrid;
+import com.ziggfreed.common.effect.sync.StatEffectChannel;
+import com.ziggfreed.common.stats.damage.DamageTypes;
 import com.ziggfreed.common.stats.damage.TypedDamageBonuses;
-import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Keeps the ENGINE's outgoing damage in step with the per-type PERCENT damage bonus sources
@@ -33,10 +30,11 @@ import com.ziggfreed.common.util.SafeLog;
  * step adds them to a direct hit only ({@code TypedDamageBonusSystem}), so a damage-over-time tick never
  * takes a weapon's flat.
  *
- * <p>The engine reads outgoing damage only from active effects, never from a stat. So every player carries
- * hidden infinite {@code EntityEffect}s whose {@code OutgoingDamage} is their summed reading: one for the
- * every-type sources ({@link TypedDamageBonuses#EVERY_TYPE}, {@code Zig_DamageBonus_Every_<percent>}, keyed
- * on every library type) and one per type whose own sources add to that ({@code Zig_DamageBonus_<Type>_<percent>},
+ * <p>The engine reads outgoing damage only from active effects, never from a stat. So every carrier, a creature as
+ * much as a player (R860), wears hidden infinite {@code EntityEffect}s whose {@code OutgoingDamage} is its summed
+ * reading: one for the every-type sources ({@link TypedDamageBonuses#EVERY_TYPE}, {@code Zig_DamageBonus_Every_<percent>},
+ * keyed on every damage type the loaded files name) and one per type whose own sources add to that
+ * ({@code Zig_DamageBonus_<Type>_<percent>},
  * keyed on the type alone, since the engine's outgoing walk covers the causes filed under it). A type's
  * total (every-type plus its own) is held to {@code [FLOOR_PERCENT, DamageBonusMax]} before the split, so
  * the two effects a hit meets never pass the ceiling between them.
@@ -46,11 +44,12 @@ import com.ziggfreed.common.util.SafeLog;
  * shared after; a changed reading puts the new bucket on before the old comes off.
  *
  * <p><b>State lives on the entity.</b> What an entity carries is read off its own
- * {@code EffectControllerComponent} and compared with its sources, never remembered here.
- * {@link DamageBonusSyncSystem} makes that comparison every tick for every living player, right after the
- * engine recomputes item and effect stat modifiers; a tick in step costs one read per source (a gate is
- * asked only of a source reading nonzero) and a look at the active effects, and only a difference
- * reconciles. {@link #sync} is the same pass for a consumer that has just written a stat.
+ * {@code EffectControllerComponent} and compared with its sources, never remembered here. zc-effects'
+ * {@code StatEffectSync} makes that comparison through this family's {@link #CHANNEL} for every carrier, a player
+ * every tick and a creature a few times a second, right after the engine recomputes item and effect stat modifiers;
+ * a pass in step costs one read per source (a gate is asked only of a source reading nonzero) and a look at the
+ * active effects, and only a difference reconciles. {@link #sync} is the same pass for a consumer that has just
+ * written a stat.
  *
  * <p><b>Rules.</b> {@link TypedDamageBonuses#installAttackerGate} switches every bonus off for an attacker
  * (a consumer's world rule), which takes this family's effects off.
@@ -80,8 +79,17 @@ public final class DamageBonusReconciler {
     private static final RuntimeEffectGrid GRID = new RuntimeEffectGrid(EFFECT_PREFIX, PACK_KEY,
             DamageBonusReconciler::body);
 
-    /** One line per process for a pass that throws, which would otherwise repeat every tick. */
-    private static final AtomicBoolean PASS_FAILURE_WARNED = new AtomicBoolean();
+    /** This family on the one stat-to-effect pass. */
+    @Nonnull
+    public static final StatEffectChannel CHANNEL = new StatEffectChannel("[damage-bonus]",
+            "a carrier's damage bonus", GRID) {
+        @Nonnull
+        @Override
+        protected List<RuntimeEffectGrid.Bucket> wanted(@Nonnull ComponentAccessor<EntityStore> accessor,
+                @Nonnull Ref<EntityStore> ref, @Nonnull EntityStatMap stats, @Nonnull EffectControllerComponent ctrl) {
+            return DamageBonusReconciler.wanted(accessor, ref, stats);
+        }
+    };
 
     // ==================== Pure bucket math and planning (testable, no engine) ====================
 
@@ -136,42 +144,16 @@ public final class DamageBonusReconciler {
 
     /**
      * Bring {@code ref}'s outgoing bonus effects into line with its sources now: for a consumer that has
-     * just written a bonus stat and wants it counted before the next tick. Nothing for a dead or effect-less
-     * entity. World thread only; idempotent; never throws.
+     * just written a bonus stat (an endless wave's step on a creature it raised) and wants it counted before
+     * the next pass. Nothing for a dead or effect-less entity. World thread only; idempotent; never throws.
      */
     public static void sync(@Nonnull ComponentAccessor<EntityStore> accessor, @Nullable Ref<EntityStore> ref) {
-        try {
-            if (ref == null || !ref.isValid() || accessor.getComponent(ref, DeathComponent.getComponentType()) != null) {
-                return;
-            }
-            EntityStatMap stats = accessor.getComponent(ref, EntityStatMap.getComponentType());
-            EffectControllerComponent ctrl = accessor.getComponent(ref, EffectControllerComponent.getComponentType());
-            if (stats != null && ctrl != null) {
-                keepInStep(accessor, ref, stats, ctrl);
-            }
-        } catch (Throwable t) {
-            warnPassFailedOnce(t);
-        }
-    }
-
-    /** The per-tick pass: the readings and a look at the active effects, a reconcile only when they differ. */
-    static void keepInStep(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
-            @Nonnull EntityStatMap stats, @Nonnull EffectControllerComponent ctrl) {
-        try {
-            List<RuntimeEffectGrid.Bucket> wanted = wanted(accessor, ref, stats);
-            if (!inStep(ctrl, wanted)) {
-                GRID.reconcile(accessor, ref, wanted, null);
-            }
-        } catch (Throwable t) {
-            warnPassFailedOnce(t);
-        }
+        CHANNEL.sync(accessor, ref);
     }
 
     /** Take every effect of this family off the entity (a full teardown). World thread only; never throws. */
     public static void removeAll(@Nonnull ComponentAccessor<EntityStore> accessor, @Nullable Ref<EntityStore> ref) {
-        if (ref != null) {
-            GRID.removeAll(accessor, ref);
-        }
+        CHANNEL.removeAll(accessor, ref);
     }
 
     /** Re-write every bucket generated so far, so a body picks up a cause a reload added. */
@@ -203,31 +185,11 @@ public final class DamageBonusReconciler {
         return desired(every, byType, ceiling);
     }
 
-    /** Whether exactly the wanted buckets of this family are on the entity, and no other. */
-    private static boolean inStep(@Nonnull EffectControllerComponent ctrl, @Nonnull List<RuntimeEffectGrid.Bucket> wanted) {
-        var active = ctrl.getActiveEffects();
-        for (RuntimeEffectGrid.Bucket bucket : wanted) {
-            int idx = EntityEffect.getAssetMap().getIndex(GRID.effectId(bucket));
-            if (idx == AssetMapWithIndexes.NOT_FOUND || !active.containsKey(idx)) {
-                return false;
-            }
-        }
-        int owned = 0;
-        for (int idx : active.keySet()) {
-            EntityEffect effect = EntityEffect.getAssetMap().getAsset(idx);
-            if (effect != null && GRID.owns(effect.getId())) {
-                owned++;
-            }
-        }
-        return owned == wanted.size();
-    }
-
-    /** One bucket's body: its type's loaded cause (every library type for the every-type channel). */
+    /** One bucket's body: its type's loaded cause (every damage type for the every-type channel). */
     @Nonnull
     private static String body(@Nonnull RuntimeEffectGrid.Bucket bucket) {
         String type = bucket.channel();
-        List<String> keys = EVERY_CHANNEL.equals(type) ? loadedCauses(TypedDamageBonuses.TYPE_IDS)
-                : loadedCauses(List.of(type));
+        List<String> keys = EVERY_CHANNEL.equals(type) ? DamageTypes.bonusTypes() : loadedCauses(List.of(type));
         return EffectBodies.damageModifiers(EffectBodies.OUTGOING_DAMAGE, EffectBodies.rootCauses(keys),
                 EffectBodies.PERCENT, bucket.value() / 100.0, EFFECT_COMMENT, true);
     }
@@ -254,11 +216,4 @@ public final class DamageBonusReconciler {
         }
     }
 
-    private static void warnPassFailedOnce(@Nonnull Throwable t) {
-        if (PASS_FAILURE_WARNED.compareAndSet(false, true)) {
-            SafeLog.warn("[damage-bonus] keeping a player's damage bonus in step failed (named once): " + t);
-        } else {
-            SafeLog.fine("[damage-bonus] bonus pass failed: " + t.getMessage());
-        }
-    }
 }

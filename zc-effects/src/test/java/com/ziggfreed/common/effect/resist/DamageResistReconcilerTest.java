@@ -26,6 +26,10 @@ class DamageResistReconcilerTest {
 
     private static final int CEILING = 80;
 
+    /** The resistance types the library's own files name (the roster a live server reads off them). */
+    private static final List<String> SHIPPED_ROSTER = List.of("Physical", "Projectile", "Fire", "Ice", "Lightning",
+            "Water", "Wind", "Earth", "Poison", "Arcane", "Void", "Life", DamageResistances.FALL);
+
     private static Map<String, Double> points(Object... pairs) {
         Map<String, Double> out = new LinkedHashMap<>();
         for (int i = 0; i < pairs.length; i += 2) {
@@ -150,13 +154,13 @@ class DamageResistReconcilerTest {
     void plan_convergesInOnePassAcrossTheWholeRoster() {
         Map<String, Double> stats = new LinkedHashMap<>();
         double value = 3.0;
-        for (String type : DamageResistances.TYPE_IDS) {
+        for (String type : SHIPPED_ROSTER) {
             stats.put(type, value);
             value += 6.5;
         }
         Set<String> active = applyTo(new LinkedHashSet<>(), DamageResistReconciler.plan(Set.of(), stats, CEILING));
 
-        assertEquals(DamageResistances.TYPE_IDS.size(), active.size(), "one effect per type");
+        assertEquals(SHIPPED_ROSTER.size(), active.size(), "one effect per type");
         assertTrue(DamageResistReconciler.plan(active, stats, CEILING).isEmpty());
     }
 

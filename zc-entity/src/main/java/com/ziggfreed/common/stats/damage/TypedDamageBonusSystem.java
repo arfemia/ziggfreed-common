@@ -22,12 +22,12 @@ import com.hypixel.hytale.server.core.modules.entity.damage.DamageModule;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageSourceType;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageSystems;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * The per-hit step of {@link TypedDamageBonuses}, for a player's hits. Two things join the engine's own
+ * The per-hit step of {@link TypedDamageBonuses}, for any attacker's hits (a creature's as a player's, R860). Two
+ * things join the engine's own
  * outgoing sum here ({@link NativeOutgoing#addToSum}), so they add to Enrage and every native percent line
  * rather than multiplying on top of them: the route sources a registered {@link TypedDamageBonuses.Route}
  * names (a tagged bomb's burst, a thrown spear) with every registered {@link TypedDamageBonuses.RouteTerm}'s percent
@@ -38,8 +38,7 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p>In the Filter damage group, after the engine's outgoing step; a consumer whose own fold must see
  * these in the hit's sum orders itself {@code AFTER} this class. A projectile hit counts its shooter's
- * stats. A hit by a non-player returns at once; a player's hit costs one stat read per flat and route
- * source, a gate or route asked only of a nonzero one.
+ * stats. A hit costs one stat read per flat and route source, a gate or route asked only of a nonzero one.
  */
 public final class TypedDamageBonusSystem extends DamageEventSystem {
 
@@ -77,9 +76,8 @@ public final class TypedDamageBonusSystem extends DamageEventSystem {
                 return;
             }
             Ref<EntityStore> attacker = source.getRef();
-            if (attacker == null || !attacker.isValid()
-                    || store.getComponent(attacker, PlayerRef.getComponentType()) == null) {
-                return; // the lines are kept for players, as the native ones are
+            if (attacker == null || !attacker.isValid()) {
+                return; // a creature's lines count as a player's do (R860)
             }
             DamageCause cause = DamageCause.getAssetMap().getAsset(damage.getDamageCauseIndex());
             if (cause == null) {

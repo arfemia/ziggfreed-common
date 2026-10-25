@@ -1,0 +1,8 @@
+{
+  "$Comment": "The chance each direct hit the carrier deals is a critical hit, in whole percent points (10 is a 10% chance). Any item's StatModifiers raise it like any stat, and so does an effect's RawStatModifiers or a pick's grant; a creature carries it as a player does. ziggfreed-common rolls it once per hit, after the weak-spot step, and a critical hit deals CritDamage more and shows its word to the attacker. A damage-over-time tick never rolls. Base 0, so nothing crits until something raises it; Min is a generous negative so a subtractive modifier never clamps.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

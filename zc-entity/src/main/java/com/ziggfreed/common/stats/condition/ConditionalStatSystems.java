@@ -22,11 +22,11 @@ import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageEventSystem;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageModule;
-import com.hypixel.hytale.server.core.modules.entity.damage.DeathComponent;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatsSystems;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.stats.StatCarriers;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -39,15 +39,15 @@ public final class ConditionalStatSystems {
     }
 
     /**
-     * Every tick, for every living player, reads their conditional stats again when their time has come
-     * ({@link ConditionalStats#EVALUATE_EVERY_NANOS}). Ordered after the engine's stat-modifier recompute, where gear
-     * and effects reach a stat's maximum, so a reading never lags a swap.
+     * Reads every living carrier's conditional stats again when their time has come: a player every tick past
+     * {@link ConditionalStats#EVALUATE_EVERY_NANOS}, a creature on its turn of the carrier cadence
+     * ({@link StatCarriers#due}), kept as a holder only once it holds one above 0. Ordered after the engine's
+     * stat-modifier recompute, where gear and effects reach a stat's maximum, so a reading never lags a swap.
      */
     public static final class HolderPass extends EntityTickingSystem<EntityStore> {
 
         @Nonnull
-        private final Query<EntityStore> query = Query.and(PlayerRef.getComponentType(),
-                EntityStatMap.getComponentType(), Query.not(DeathComponent.getComponentType()));
+        private final Query<EntityStore> query = StatCarriers.livingWithStats();
 
         @Nonnull
         private final Set<Dependency<EntityStore>> dependencies = Set.of(
@@ -74,17 +74,18 @@ public final class ConditionalStatSystems {
         public void tick(float dt, int index, @Nonnull ArchetypeChunk<EntityStore> archetypeChunk,
                 @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer) {
             EntityStatMap stats = archetypeChunk.getComponent(index, EntityStatMap.getComponentType());
-            if (stats == null) {
+            if (stats == null || !StatCarriers.due(store, archetypeChunk, index)) {
                 return;
             }
             ConditionalStats.evaluate(store, archetypeChunk.getReferenceTo(index), stats, ConditionalStats.now(store),
-                    System.nanoTime());
+                    System.nanoTime(), StatCarriers.isPlayer(archetypeChunk));
         }
     }
 
     /**
-     * Notes every player's landed direct hit for {@code Hit.FirstHit} ({@link FirstHits}), in the Inspect damage group,
-     * so every read of the hit in the Filter group saw it as it was before.
+     * Notes every landed direct hit of a holder's (a player, or a creature holding a conditional stat) for
+     * {@code Hit.FirstHit} ({@link FirstHits}), in the Inspect damage group, so every read of the hit in the Filter
+     * group saw it as it was before.
      */
     public static final class FirstHitRecord extends DamageEventSystem {
 
@@ -109,8 +110,8 @@ public final class ConditionalStatSystems {
                     return;
                 }
                 Ref<EntityStore> attacker = source.getRef();
-                if (attacker == null || !attacker.isValid()
-                        || store.getComponent(attacker, PlayerRef.getComponentType()) == null) {
+                if (attacker == null || !attacker.isValid() || (!ConditionalStats.isHolder(attacker)
+                        && store.getComponent(attacker, PlayerRef.getComponentType()) == null)) {
                     return;
                 }
                 UUID id = FirstHits.idOf(store, attacker);

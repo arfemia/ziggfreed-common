@@ -30,7 +30,8 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The runtime of conditional stats ({@link ConditionalStatAsset}, R757): each holder's readings, kept a few times a
- * second by {@link ConditionalStatSystem}, and the reads every payout makes of them.
+ * second by {@link ConditionalStatSystems.HolderPass}, and the reads every payout makes of them. A holder is any living
+ * entity: every player, and a creature once it holds one of these stats above 0 (R860).
  *
  * <p><b>A holder's reading</b>, per stat it holds (its value off the stat's maximum, where gear, effects and grants
  * accumulate, never 0): whether its {@code Holder} conditions hold (and have held for {@code HoldSeconds}) and its
@@ -73,7 +74,7 @@ public final class ConditionalStats {
 
     /** One live file, its payouts resolved. */
     record Def(@Nonnull String fileId, @Nonnull String statId, @Nonnull ConditionalStatAsset asset,
-            @Nonnull List<String> onto, @Nullable ConditionalStatAsset.Damage damage, boolean healing) {
+            @Nonnull List<String> onto, @Nullable ConditionalStatAsset.Damage damage, boolean healing, boolean crit) {
 
         @Nonnull
         String key() {
@@ -139,7 +140,7 @@ public final class ConditionalStats {
             ConditionalStatAsset.Pays pays = asset.pays();
             List<String> onto = pays == null || asset.asksOfTarget() ? List.of() : List.copyOf(pays.onto());
             Def def = new Def(entry.getKey(), statId, asset, onto, pays == null ? null : pays.damage(),
-                    pays != null && pays.healing());
+                    pays != null && pays.healing(), pays != null && pays.critChance());
             byStat.putIfAbsent(def.key(), def);
         }
         defs = new Defs(List.copyOf(byStat.values()), Map.copyOf(byStat));
@@ -165,12 +166,17 @@ public final class ConditionalStats {
 
     /**
      * Read the holder at {@code ref} again when its time has come (or the files moved): its value for every live
-     * conditional stat, each held one's conditions and count, and the {@code Onto} modifiers that changed. World
-     * thread; never throws.
+     * conditional stat, each held one's conditions and count, and the {@code Onto} modifiers that changed. {@code keep}
+     * says whether the entity is kept as a holder whatever it holds (a player, whose first pass sweeps what an earlier
+     * session saved); otherwise (a creature) it is kept only once it holds a live conditional stat above 0, so a
+     * creature holding none costs one read per live stat and keeps nothing. World thread; never throws.
      */
     static void evaluate(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
-            @Nonnull EntityStatMap stats, @Nonnull Instant now, long nanos) {
+            @Nonnull EntityStatMap stats, @Nonnull Instant now, long nanos, boolean keep) {
         try {
+            if (!keep && !HOLDERS.containsKey(ref) && !holdsAny(stats)) {
+                return;
+            }
             HolderState state = HOLDERS.computeIfAbsent(ref, r -> new HolderState());
             if (!state.swept) {
                 sweep(stats);
@@ -282,6 +288,21 @@ public final class ConditionalStats {
         }
     }
 
+    /** Does the entity hold any live conditional stat above 0 (so a pass has anything to read)? */
+    static boolean holdsAny(@Nonnull EntityStatMap stats) {
+        for (Def def : defs.all()) {
+            if (readMax(stats, def.statId()) != 0.0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Is the entity at {@code ref} a holder this runtime keeps readings for (a player, or a creature holding one)? */
+    public static boolean isHolder(@Nullable Ref<EntityStore> ref) {
+        return ref != null && HOLDERS.containsKey(ref);
+    }
+
     /** Forget the holder at {@code ref} (it left its store). */
     public static void forget(@Nonnull Ref<EntityStore> ref) {
         HOLDERS.remove(ref);
@@ -349,6 +370,31 @@ public final class ConditionalStats {
                     continue;
                 }
                 sum += paid(reading);
+            }
+            return sum;
+        } catch (Throwable t) {
+            return 0.0;
+        }
+    }
+
+    /**
+     * The crit step's term: the summed critical chance, whole percent points, of every {@code CritChance} stat
+     * {@code attacker} holds that counts on this hit (its holder conditions holding, its target and hit reads met), each
+     * times its {@code PerFoe} count and held to its {@code Max}. 0 for a holder with none. Never throws.
+     */
+    public static double critPoints(@Nonnull ComponentAccessor<EntityStore> accessor,
+            @Nonnull Ref<EntityStore> attacker, @Nullable Ref<EntityStore> target, @Nonnull Damage damage) {
+        HolderState state = HOLDERS.get(attacker);
+        if (state == null || state.readings.isEmpty()) {
+            return 0.0;
+        }
+        try {
+            double sum = 0.0;
+            for (Reading reading : state.readings.values()) {
+                if (reading.def.crit() && reading.holds && reading.factor > 0.0
+                        && countsOnHit(accessor, attacker, target, damage, reading.def)) {
+                    sum += paid(reading);
+                }
             }
             return sum;
         } catch (Throwable t) {

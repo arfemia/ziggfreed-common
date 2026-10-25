@@ -11,13 +11,13 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 
 /**
  * A player's own settings really changed: a spot picked or cleared, a surface shown, hidden or left to the
- * owner again, the switch over every bar panel, or the notification level. It replaces 2.1.0's
+ * owner again, the switch over every bar panel, the notification level, or the critical hit word. It replaces 2.1.0's
  * {@code ZigHudPreferenceChangedEvent}.
  *
  * <p>Synchronous {@code IEvent<Void>} POJO on the shared engine bus, fired by {@link PlayerSettings} alone,
  * on the world thread, and NEVER for a write that changed nothing. {@link #setting()} names the choice in
- * the save's own words: {@code Hud.Spots.<surface>}, {@code Hud.Shown.<surface>}, {@code Hud.HideAll} or
- * {@code Notifications.Level}, the surface lower-cased. A listener that persists player data elsewhere (a
+ * the save's own words: {@code Hud.Spots.<surface>}, {@code Hud.Shown.<surface>}, {@code Hud.HideAll},
+ * {@code Notifications.Level} or {@code Combat.CritWord}, the surface lower-cased. A listener that persists player data elsewhere (a
  * database-backed consumer) marks the player dirty off this event; the surfaces repaint through the
  * facade's own watchers and need no listener. {@link #playerRef()} is the live reference every library
  * write path resolved, and is null only in a test.
@@ -26,6 +26,7 @@ public final class ZigPlayerSettingChangedEvent implements IEvent<Void> {
 
     public static final String HIDE_ALL = "Hud.HideAll";
     public static final String LEVEL = "Notifications.Level";
+    public static final String CRIT_WORD = "Combat.CritWord";
     public static final String SPOT_PREFIX = "Hud.Spots.";
     public static final String SHOWN_PREFIX = "Hud.Shown.";
 

@@ -61,9 +61,10 @@ import com.ziggfreed.common.util.SafeLog;
  * {@value #COOLDOWN_CUT_STAT} (percent off a wait, held at {@value #COOLDOWN_CUT_MAX_STAT}) and
  * {@value #COUNTER_SIZE_STAT} (percent on a counter's size). Each reads off its stat's maximum.
  *
- * <p><b>Crit and Finisher.</b> The library has no critical roll and counts no combo, so {@link ProcTrigger#CRIT} and
- * {@link ProcTrigger#FINISHER} fire only when a consumer that decides them says one landed ({@link #crit},
- * {@link #finisher}); on a server with none, those procs never run.
+ * <p><b>Crit and Finisher.</b> {@link ProcTrigger#CRIT} answers zc-entity's crit step (its {@code ZigCritEvent}, heard
+ * by {@link ProcMoments} and handed to {@link #crit}), the one critical roll every attacker takes (R865). The library
+ * counts no combo, so {@link ProcTrigger#FINISHER} fires only when a consumer that decides one says it closed
+ * ({@link #finisher}); on a server with none, those procs never run.
  *
  * <p>No proc runs inside another proc's actions (a guard per thread), and a hit a proc dealt itself (an effect it put
  * on, a chain it ran: {@link ProcMarks}) is no moment for any proc or counter clear, so content can never build a proc
@@ -207,9 +208,10 @@ public final class Procs {
     }
 
     /**
-     * The seam a consumer that decides critical hits calls when one lands: the player {@code attacker}'s hit
-     * {@code damage} on {@code target} was critical. World thread, from the consumer's damage step; pass its command
-     * buffer. The library decides no crit itself, so on a server with no consumer calling this Crit procs never run.
+     * A critical hit landed: the player {@code attacker}'s hit {@code damage} on {@code target} was critical. Called
+     * for every crit zc-entity's crit step rolls (through its {@code ZigCritEvent}); a consumer never calls it for a
+     * crit of its own, since the library's roll is the one roll (R865). World thread, from the damage step; pass its
+     * command buffer.
      */
     public static void crit(@Nonnull Store<EntityStore> store, @Nullable CommandBuffer<EntityStore> commandBuffer,
             @Nonnull Ref<EntityStore> attacker, @Nullable Ref<EntityStore> target, @Nonnull Damage damage) {

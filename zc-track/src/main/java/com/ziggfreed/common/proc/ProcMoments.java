@@ -8,6 +8,7 @@ import com.hypixel.hytale.protocol.MovementStates;
 import com.hypixel.hytale.server.core.entity.movement.MovementStatesComponent;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.damage.onhit.ZigCritEvent;
 import com.ziggfreed.common.health.ZigHealGivenEvent;
 import com.ziggfreed.common.progress.runtime.Moment;
 import com.ziggfreed.common.progress.runtime.MomentListener;
@@ -101,6 +102,18 @@ public final class ProcMoments implements MomentListener {
             double amount, @Nullable String blockId) {
         Procs.fire(new ProcMoment(trigger, moment.store(), moment.commandBuffer(), moment.ref(), target, damage, amount,
                 blockId));
+    }
+
+    /**
+     * A critical hit landed (zc-entity's crit step): the attacker's Crit procs, with the step's command buffer. Only a
+     * player's crit runs any ({@link Procs#fire}). Never throws.
+     */
+    static void onCrit(@Nonnull ZigCritEvent event) {
+        try {
+            Procs.crit(event.store(), event.commandBuffer(), event.attacker(), event.target(), event.damage());
+        } catch (Throwable t) {
+            Procs.failed("a critical hit", t);
+        }
     }
 
     /**

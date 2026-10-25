@@ -1,0 +1,8 @@
+{
+  "$Comment": "Percent bonus to every damage the carrier deals, in whole percent points (10 is +10%), whatever its type. Any item's StatModifiers raise it like any stat, a creature's as a player's; ziggfreed-common carries it on a hidden native effect keyed on every damage type (every cause with a DamageBonus_<Type> stat), so the game adds it to every hit, summed with the hit's other percent bonuses such as Enrage, each type's total up to the carrier's DamageBonusMax. An endless wave's damage step rides it. Base 0; Min is a generous negative so a subtractive modifier never clamps.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

@@ -1,0 +1,8 @@
+{
+  "$Comment": "The share of the damage each direct hit the carrier lands that comes back to them as health, in whole percent points (5 heals a twentieth of the hit). Any item's StatModifiers raise it like any stat, a creature's as a player's. ziggfreed-common heals it once the hit has landed, on the damage it dealt, through its one healing applier as a drain, so healing power never raises it. A damage-over-time tick heals nothing. Base 0; Min is a generous negative so a subtractive modifier never clamps, and a total below 0 heals nothing.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

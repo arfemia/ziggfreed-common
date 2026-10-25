@@ -27,17 +27,19 @@ import com.ziggfreed.common.damage.HitTags;
 import com.ziggfreed.common.stats.StatIndexCache;
 
 /**
- * Per-damage-type bonus damage an attacker deals, read from stats any gear can raise: for each damage
- * type the library ships a percent stat {@code DamageBonus_<Type>} (whole percent points, 10 is +10%) and
- * a flat stat {@code DamageBonusFlat_<Type>}, so an item's native {@code StatModifiers} on a server
- * running this library and nothing else make its wearer or wielder hit harder with that type. A mod adds
- * its own stats for a type with {@link #registerSource} (only what it adds, never a second copy of the
- * library's), or for every type at once under {@link #EVERY_TYPE}.
+ * Per-damage-type bonus damage an attacker deals, read from stats any gear can raise: a damage type is any
+ * loaded cause with a loaded percent stat {@code DamageBonus_<Type>} (whole percent points, 10 is +10%;
+ * {@link DamageTypes#bonusTypes}, read off the loaded files, never a list here, R858), beside its flat stat
+ * {@code DamageBonusFlat_<Type>}, and {@value #EVERY_TYPE_STAT_ID} raises every type at once, so an item's
+ * native {@code StatModifiers} on a server running this library and nothing else make its wearer or wielder
+ * hit harder. Any attacker carries them, a creature as much as a player (R860). A mod adds its own stats
+ * for a type with {@link #registerSource} (only what it adds, never a second copy of the library's), or for
+ * every type at once under {@link #EVERY_TYPE}.
  *
  * <p><b>Summed as the engine sums Enrage</b> (R567), {@code (amount + flat) * (1 + every percent summed)}:
- * zc-effects' {@code DamageBonusReconciler} keeps each player's summed PERCENT sources on hidden native
+ * zc-effects' {@code DamageBonusReconciler} keeps each carrier's summed PERCENT sources on hidden native
  * {@code OutgoingDamage} effects the engine applies, and {@link TypedDamageBonusSystem} adds the FLAT
- * sources ({@link #flatFor}) into that same sum on a player's direct hit, never a damage-over-time tick.
+ * sources ({@link #flatFor}) into that same sum on a direct hit, never a damage-over-time tick.
  * A type key covers its children (the engine's outgoing walk follows a hit's {@code Inherits} chain), so a
  * {@code Fire} bonus reaches a hit filed under Fire. Each type's summed percent is held to the attacker's
  * {@value #CEILING_STAT_ID} stat (its asset's {@code Max} is the ceiling every player starts with) and to
@@ -65,10 +67,16 @@ public final class TypedDamageBonuses {
     public static final String FLAT_PREFIX = "DamageBonusFlat_";
 
     /**
-     * The type id a source registers under to count toward every library type ({@link #TYPE_IDS}) at
-     * once: a line that raises all of an attacker's damage, whatever its cause.
+     * The type id a source registers under to count toward every damage type ({@link DamageTypes#bonusTypes})
+     * at once: a line that raises all of an attacker's damage, whatever its cause.
      */
     public static final String EVERY_TYPE = "*";
+
+    /**
+     * The every-type percent stat, whole percent points: every damage type at once, the library's own
+     * {@link #EVERY_TYPE} source (an endless wave's damage step rides it as a modifier).
+     */
+    public static final String EVERY_TYPE_STAT_ID = "DamageBonus";
 
     /** The ceiling stat: the most one type's summed percent bonus reaches, whole percent points. */
     public static final String CEILING_STAT_ID = "DamageBonusMax";
@@ -83,14 +91,6 @@ public final class TypedDamageBonuses {
 
     /** A whole hit off: the lowest a summed percent bonus goes (the engine floors the damage at zero). */
     public static final int FLOOR_PERCENT = -100;
-
-    /**
-     * The damage types the library ships a stat pair for: the game's own top-level and elemental types,
-     * and the three this library adds beside them. Disjoint, so no hit matches two of them. The
-     * resistance stats ({@link DamageResistances}) cover the same types and the resist-only Fall.
-     */
-    public static final List<String> TYPE_IDS = List.of("Physical", "Projectile", "Fire", "Ice", "Lightning",
-            "Water", "Wind", "Earth", "Poison", "Arcane", "Void", "Life");
 
     /** Whether a registered source counts for this attacker right now (a world rule, a held weapon). */
     @FunctionalInterface
@@ -124,8 +124,8 @@ public final class TypedDamageBonuses {
     /**
      * A percent a consumer works out per hit (a conditional stat read against the hit's target, the library's own
      * {@code ConditionalStats}), added by the route step beside the route sources and held with them under the
-     * ceiling. Asked of a player's hit only; it answers whole percent points, 0 when nothing applies, and must be
-     * cheap: a lookup per stat the attacker holds, never a scan.
+     * ceiling. Asked of any attacker's hit (a creature's too, R860); it answers whole percent points, 0 when nothing
+     * applies, and must be cheap: a lookup per stat the attacker holds, never a scan.
      */
     @FunctionalInterface
     public interface RouteTerm {
@@ -176,10 +176,28 @@ public final class TypedDamageBonuses {
     @Nullable
     private static volatile Gate attackerGate;
 
+    /** The damage-type roster the library's own per-type sources were last registered for (by identity). */
+    @Nonnull
+    private static volatile List<String> sourcedRoster = List.of();
+
     static {
-        for (String type : TYPE_IDS) {
+        registerSource(EVERY_TYPE, EVERY_TYPE_STAT_ID, null, null);
+    }
+
+    /**
+     * Register the library's own pair, {@code DamageBonus_<Type>} and {@code DamageBonusFlat_<Type>}, for every
+     * damage type the loaded files name, once per roster ({@link DamageTypes}): a type a pack adds is sourced the
+     * first read after its files load. One volatile read when nothing moved.
+     */
+    private static void sourceRoster() {
+        List<String> roster = DamageTypes.bonusTypes();
+        if (roster == sourcedRoster) {
+            return;
+        }
+        for (String type : roster) {
             registerSource(type, PERCENT_PREFIX + type, FLAT_PREFIX + type, null);
         }
+        sourcedRoster = roster;
     }
 
     /**
@@ -261,6 +279,7 @@ public final class TypedDamageBonuses {
      */
     @Nonnull
     public static List<String> typesFor(@Nullable String causeId) {
+        sourceRoster();
         return typesFor(causeId, TypedDamageBonuses::loadedParentOf);
     }
 
@@ -279,9 +298,13 @@ public final class TypedDamageBonuses {
         return out;
     }
 
-    /** Every type id a source or route source is registered under, in its registered spelling. */
+    /**
+     * Every type id a source or route source is registered under, in its registered spelling: every damage type the
+     * loaded files name ({@link DamageTypes#bonusTypes}) and every type a consumer registered a source for.
+     */
     @Nonnull
     public static List<String> registeredTypes() {
+        sourceRoster();
         return registeredTypes;
     }
 
@@ -301,6 +324,7 @@ public final class TypedDamageBonuses {
         if (stats == null) {
             return Sums.NONE;
         }
+        sourceRoster();
         double[] sum = new double[2];
         addSources(accessor, attacker, stats, SOURCES.get(EVERY_TYPE), excludeStatIds, sum);
         for (String type : typesFor(causeId)) {
@@ -337,6 +361,7 @@ public final class TypedDamageBonuses {
     @Nonnull
     public static Sums sumsOfType(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> attacker,
             @Nonnull String typeId, @Nonnull EntityStatMap stats) {
+        sourceRoster();
         double[] sum = new double[2];
         addSources(accessor, attacker, stats, SOURCES.get(key(typeId)), List.of(), sum);
         return sum[0] == 0.0 && sum[1] == 0.0 ? Sums.NONE : new Sums(sum[0], sum[1]);
@@ -389,6 +414,7 @@ public final class TypedDamageBonuses {
      */
     public static boolean countsOn(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> attacker,
             @Nonnull Damage damage, @Nullable String causeId, @Nonnull String statId) {
+        sourceRoster();
         if (sourceCounts(accessor, attacker, SOURCES.get(EVERY_TYPE), statId)
                 || routeCounts(accessor, attacker, damage, ROUTES.get(EVERY_TYPE), statId)) {
             return true;
@@ -407,6 +433,7 @@ public final class TypedDamageBonuses {
         if (statId == null || statId.isBlank()) {
             return false;
         }
+        sourceRoster();
         for (List<Source> sources : SOURCES.values()) {
             for (Source source : sources) {
                 if (statId.equalsIgnoreCase(source.percentStatId()) || statId.equalsIgnoreCase(source.flatStatId())) {
@@ -488,8 +515,11 @@ public final class TypedDamageBonuses {
         }
     }
 
-    /** A stat's current maximum, where native modifiers accumulate; 0 when unregistered or not finite. */
-    static double readMax(@Nonnull EntityStatMap stats, @Nonnull String statId) {
+    /**
+     * A stat's current maximum, where native modifiers accumulate; 0 when unregistered or not finite: the one read
+     * every whole-percent family here takes of its stats.
+     */
+    public static double readMax(@Nonnull EntityStatMap stats, @Nonnull String statId) {
         int idx = StatIndexCache.resolve(statId);
         if (idx < 0) {
             return 0.0;

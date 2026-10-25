@@ -36,7 +36,10 @@ import com.ziggfreed.common.commerce.page.CommerceStepIcons;
 import com.ziggfreed.common.progress.gate.GateBootstrap;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.currency.asset.CurrencyConfig;
+import com.ziggfreed.common.damage.onhit.Crits;
+import com.ziggfreed.common.damage.onhit.OnHitBootstrap;
 import com.ziggfreed.common.damage.weakspot.WeakSpotBootstrap;
+import com.ziggfreed.common.damage.weakspot.WeakSpotSettingsConfig;
 import com.ziggfreed.common.effect.NativeEffectUtil;
 import com.ziggfreed.common.effect.buff.BuffBootstrap;
 import com.ziggfreed.common.effect.control.ControlBootstrap;
@@ -45,6 +48,7 @@ import com.ziggfreed.common.effect.duration.DurationBootstrap;
 import com.ziggfreed.common.effect.movement.MovementBootstrap;
 import com.ziggfreed.common.effect.outgoing.OutgoingBootstrap;
 import com.ziggfreed.common.effect.resist.ResistBootstrap;
+import com.ziggfreed.common.effect.sync.StatSyncBootstrap;
 import com.ziggfreed.common.health.HealCreditBootstrap;
 import com.ziggfreed.common.health.RegenBootstrap;
 import com.ziggfreed.common.encounter.EncounterBootstrap;
@@ -108,6 +112,7 @@ import com.ziggfreed.common.reward.CostumeRewardKind;
 import com.ziggfreed.common.reward.EffectRewardKind;
 import com.ziggfreed.common.rotation.SelectionStrategies;
 import com.ziggfreed.common.settings.PlayerSettings;
+import com.ziggfreed.common.settings.page.CombatSettings;
 import com.ziggfreed.common.settings.page.SettingsBootstrap;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.shop.asset.ShopPoolConfig;
@@ -280,10 +285,17 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // and the ZigGrounded condition that ends Zig_Airborne on landing, before any asset decodes; it orders itself
         // after the use gate and the route step above.
         WeakSpotBootstrap.install(this);
+        // Crits and lifesteal (R865, R866): the crit step right after the weak spot's, for any attacker raising
+        // CritChance, and the lifesteal step once a hit is applied, for any attacker raising Lifesteal.
+        OnHitBootstrap.install(this);
         // Conditional stats (R757): the library's entity conditions into the engine's condition map, the holder pass,
         // the first-hit record and the damage and healing terms a conditional stat pays through, before any asset
         // decodes and after the route step it adds to.
         ConditionBootstrap.install(this);
+        // The one stat-to-effect pass every carrier takes (players every tick, creatures a few times a second, R860),
+        // ordered after the conditional holder pass registered just above: the outgoing, resistance and movement
+        // families each add their channel to it from their own bootstrap.
+        StatSyncBootstrap.install(this);
         registerGearSetSeams();
         CostumeBootstrap.registerCostumes(this);
         // Crowd control: the ZigStun, ZigTaunt, ZigAggroDrop and ZigAggroSuppress Types before any asset decodes,
@@ -356,9 +368,10 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         registerHudSettings();
         registerMenu();
         // The Settings tab: its destination, its tab on the rail after Records, and the library's own
-        // Notifications section. zc-objectives fills the quest tracker and title sections from its own
+        // Notifications and Combat sections. zc-objectives fills the quest tracker and title sections from its own
         // bootstrap; a consumer adds its sections with ZigSettings.consumer.
         SettingsBootstrap.registerPage();
+        registerCritWordSeams();
         // The Almanac: its per-player record and connect hook, the owner's switch and its feature, its
         // destination, its moment counter and the /zigalmanac family. Its page store is registered with
         // the other framework stores.
@@ -662,6 +675,20 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
             EncounterAudit.addRoleNameSource("placement", NpcPlacementConfig.getInstance()::rolesByPlacement);
         } catch (Throwable t) {
             SafeLog.warn("[encounter] seam wiring failed", t);
+        }
+    }
+
+    /**
+     * The critical hit word (R896) spans two modules that cannot see each other: the crit step (zc-entity) asks each
+     * attacker's own Settings switch (zc-presentation), and the Settings tab offers that switch only while the owner's
+     * {@code CritText} is on.
+     */
+    private void registerCritWordSeams() {
+        try {
+            Crits.installWordRule(PlayerSettings::critWord);
+            CombatSettings.installOffered(() -> WeakSpotSettingsConfig.getInstance().settings().critTextEnabled());
+        } catch (Throwable t) {
+            SafeLog.warn("[crit] the critical hit word's seams failed", t);
         }
     }
 
