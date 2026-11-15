@@ -14,11 +14,11 @@ import javax.annotation.Nullable;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.hypixel.hytale.server.core.HytaleServer;
 import com.hypixel.hytale.server.core.util.io.FileUtil;
 import com.ziggfreed.common.counter.Counters;
 import com.ziggfreed.common.util.DataFileMove;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.util.ZigScheduler;
 
 /**
  * The server's own Almanac totals: for every tally key a player's record holds ({@link AlmanacKeys}),
@@ -216,8 +216,11 @@ public final class ServerTallies {
         }
     }
 
-    /** The server's scheduler; in a JVM with no server the flush is skipped (the caller resets its flag). */
+    /**
+     * The library's scheduler; while it is not running (a JVM with no server, or after the library's stop)
+     * it throws and the flush is skipped (the caller resets its flag).
+     */
     private static void onServerScheduler(@Nonnull Runnable task, long delayMs) {
-        HytaleServer.SCHEDULED_EXECUTOR.schedule(task, delayMs, TimeUnit.MILLISECONDS);
+        ZigScheduler.schedule(task, delayMs, TimeUnit.MILLISECONDS);
     }
 }

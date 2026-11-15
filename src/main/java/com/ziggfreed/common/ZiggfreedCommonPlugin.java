@@ -106,6 +106,7 @@ import com.ziggfreed.common.ui.hud.panel.HudSpotConfig;
 import com.ziggfreed.common.ui.hud.command.ZigHudCommand;
 import com.ziggfreed.common.ui.menu.command.ZigMenuCommand;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.util.ZigScheduler;
 import com.ziggfreed.common.validation.BootAudit;
 import com.ziggfreed.common.world.BlockRulesBootstrap;
 import com.ziggfreed.common.world.placed.PlacedBlockBootstrap;
@@ -201,6 +202,8 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
 
     @Override
     protected void setup() {
+        // The family's scheduler thread first, so every setup phase and every consumer after it can schedule.
+        ZigScheduler.start();
         // Seed the shared destination vocabulary before the stores whose assets embed it, so no
         // read can reach a half-built vocabulary.
         registerDestinations();
@@ -634,6 +637,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
 
     @Override
     protected void shutdown() {
+        // The scheduler stops first (every consumer has shut down before the library), so a debounced
+        // write one of the steps below asks for finds no thread and writes at once rather than waiting.
+        ZigScheduler.shutdown();
         CalendarBootstrap.shutdown();
         // The Almanac's server totals and the encounter board are written by a 3-second debounce the
         // server may never run before it exits, so the last counts and defeats are written here; every

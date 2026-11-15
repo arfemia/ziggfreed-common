@@ -12,7 +12,6 @@ import org.joml.Vector3d;
 import org.joml.Vector3i;
 
 import com.hypixel.hytale.component.Ref;
-import com.hypixel.hytale.server.core.HytaleServer;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
@@ -21,6 +20,7 @@ import com.ziggfreed.common.camera.CameraSequenceAsset;
 import com.ziggfreed.common.camera.CameraSequences;
 import com.ziggfreed.common.instance.world.CopyKey;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.util.ZigScheduler;
 
 /**
  * The camera intro a dungeon area plays for each player as they arrive: the sequence its {@code Area.IntroCamera}
@@ -60,7 +60,7 @@ final class DungeonIntro {
             }
             Vector3i at = layout.origin(area.area());
             Vector3d origin = new Vector3d(at.x, at.y, at.z);
-            HytaleServer.SCHEDULED_EXECUTOR.schedule(() -> playIfStillThere(player, area, origin), DELAY_MS,
+            ZigScheduler.schedule(() -> playIfStillThere(player, area, origin), DELAY_MS,
                     TimeUnit.MILLISECONDS);
         } catch (Throwable t) {
             SafeLog.warn(LOG + "the intro of " + area.world() + " could not be queued for " + player, t);

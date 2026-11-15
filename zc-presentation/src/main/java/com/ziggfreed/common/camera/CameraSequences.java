@@ -16,7 +16,6 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.protocol.CameraSequenceFlags;
 import com.hypixel.hytale.protocol.EasingType;
-import com.hypixel.hytale.server.core.HytaleServer;
 import com.hypixel.hytale.server.core.modules.camera.CameraKeyframeBuilder;
 import com.hypixel.hytale.server.core.modules.camera.CameraSequenceBuilder;
 import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
@@ -28,6 +27,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.codec.Vec3;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.util.ZigScheduler;
 
 /**
  * Plays a {@link CameraSequenceAsset} on one player's client through the engine's native camera sequence, and
@@ -246,7 +246,7 @@ public final class CameraSequences {
 
     private static void schedule(@Nonnull Runnable task, long delayMs) {
         try {
-            HytaleServer.SCHEDULED_EXECUTOR.schedule(() -> {
+            ZigScheduler.schedule(() -> {
                 try {
                     task.run();
                 } catch (Throwable t) {

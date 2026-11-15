@@ -21,11 +21,11 @@ import javax.annotation.Nullable;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.hypixel.hytale.server.core.HytaleServer;
 import com.hypixel.hytale.server.core.util.io.FileUtil;
 import com.ziggfreed.common.counter.CounterMap;
 import com.ziggfreed.common.util.DataFileMove;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.util.ZigScheduler;
 
 /**
  * A generic, mod-agnostic, bucketed, UUID-keyed leaderboard persisted as JSON - the
@@ -88,7 +88,7 @@ public final class Leaderboard {
 
     /**
      * As {@link #Leaderboard(String)}, with the debounced write handed to {@code flushOn} instead of
-     * the server's scheduler (three seconds later): a test's own executor, or a consumer's.
+     * the library's scheduler (three seconds later): a test's own executor, or a consumer's.
      */
     public Leaderboard(@Nonnull String name, @Nonnull Executor flushOn) {
         this(name, flushOn, false);
@@ -472,10 +472,13 @@ public final class Leaderboard {
         }
     }
 
-    /** The server's scheduler, {@code seconds} later; in a JVM with no server it throws and the caller skips the flush. */
+    /**
+     * The library's scheduler, {@code seconds} later; while it is not running (a JVM with no server, or after
+     * the library's stop) it throws and the caller skips the flush.
+     */
     @Nonnull
     private static Executor onServerScheduler(long seconds) {
-        return task -> HytaleServer.SCHEDULED_EXECUTOR.schedule(task, seconds, TimeUnit.SECONDS);
+        return task -> ZigScheduler.schedule(task, seconds, TimeUnit.SECONDS);
     }
 
     /**
