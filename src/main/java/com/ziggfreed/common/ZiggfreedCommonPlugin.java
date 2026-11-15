@@ -639,7 +639,10 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
     protected void shutdown() {
         // The scheduler stops first (every consumer has shut down before the library), so a debounced
         // write one of the steps below asks for finds no thread and writes at once rather than waiting.
+        // The debounces it dropped are written by their owners below: the titles here, the Almanac's
+        // totals and the boards in their own steps.
         ZigScheduler.shutdown();
+        EntityBootstrap.shutdown();
         CalendarBootstrap.shutdown();
         // The Almanac's server totals and the encounter board are written by a 3-second debounce the
         // server may never run before it exits, so the last counts and defeats are written here; every
