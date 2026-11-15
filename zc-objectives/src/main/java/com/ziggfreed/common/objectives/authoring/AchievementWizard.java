@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -616,13 +617,16 @@ public final class AchievementWizard implements AuthoringWizard {
             category = Typed.blankToNull(session.value(CATEGORY));
         }
 
+        // The words each criterion line now shows, recorded only once the save is queued: a save turned away before
+        // its words were stored leaves the old ones, so a second try stores them again.
+        Map<String, String> linesShown = new HashMap<>();
         ObjectiveSlotPages.Collected collected = CRITERIA.collect(session, fileCriterionKeys, AchievementDraft.CRITERIA,
                 (n, key, line, replaced) -> {
                     String fileKey = replaced ? null : Typed.blankToNull(session.value(CRITERIA.field(n, LINE_KEY)));
                     String shown = replaced ? "" : session.value(CRITERIA.field(n, LINE_SHOWN));
                     String written = keptKey(fileKey, shown, line, store, id, "criterion." + key, texts);
                     session.put(CRITERIA.field(n, LINE_KEY), written);
-                    session.put(CRITERIA.field(n, LINE_SHOWN), written == null ? null : line.isEmpty() ? shown : line);
+                    linesShown.put(CRITERIA.field(n, LINE_SHOWN), written == null ? null : line.isEmpty() ? shown : line);
                     return written;
                 });
 
@@ -667,9 +671,7 @@ public final class AchievementWizard implements AuthoringWizard {
         original = doc;
         collected.remember(fileCriterionKeys);
         fileTitleKey = titleKey;
-        shownTitle = title;
         fileFlavorKey = flavorKey;
-        shownFlavor = flavor;
         // The save closes up an emptied reward's row, so the slots name the rows as the file now holds them.
         REWARDS.seed(session, AchievementDraft.read(doc, CRITERION_SLOTS, REWARD_SLOTS).rewards());
 
@@ -692,6 +694,9 @@ public final class AchievementWizard implements AuthoringWizard {
                 return results;
             }
         }
+        shownTitle = title;
+        shownFlavor = flavor;
+        linesShown.forEach(session::put);
         results.add(ServerContent.write(store, id, doc.toString()));
         return results;
     }
