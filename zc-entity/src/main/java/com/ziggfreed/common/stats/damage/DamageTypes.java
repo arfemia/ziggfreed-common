@@ -43,6 +43,8 @@ public final class DamageTypes {
     @Nullable
     private static volatile Roster resist;
 
+    private static volatile long generation;
+
     /** The damage types: every loaded cause with a loaded {@code DamageBonus_<Cause>} stat. */
     @Nonnull
     public static List<String> bonusTypes() {
@@ -71,6 +73,12 @@ public final class DamageTypes {
     public static void invalidate() {
         bonus = null;
         resist = null;
+        generation++;
+    }
+
+    /** Moves on every {@link #invalidate}: a reader keeping its own per-cause answer drops it when this moves. */
+    public static long generation() {
+        return generation;
     }
 
     /**

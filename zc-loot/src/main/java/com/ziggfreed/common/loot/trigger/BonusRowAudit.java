@@ -116,8 +116,8 @@ public final class BonusRowAudit {
             @Nullable RewardKindRegistry kinds, @Nullable FactorRegistry factors,
             @Nonnull UnaryOperator<List<Finding>> lootFold, @Nonnull Set<Class<?>> carried,
             @Nonnull List<Finding> findings) {
-        // Two rows pinning down the same run of characters both apply somewhere, and each wins where
-        // it is the more specific; worth seeing even though neither is wrong.
+        // Two rows of one group pinning down the same run of characters both apply somewhere, and each
+        // wins where it is the more specific; worth seeing even though neither is wrong.
         Map<String, String> firstByCore = new LinkedHashMap<>();
         for (Map.Entry<MatchKey, E> row : rows) {
             MatchKey key = row.getKey();
@@ -133,7 +133,8 @@ public final class BonusRowAudit {
                                 + "this matches the literal text instead.", id));
             }
             if (pattern != null && !pattern.isDefaultRule()) {
-                String previous = firstByCore.putIfAbsent(pattern.core(), id);
+                // Rows of two groups never compete, so only a row of the same group is an overlap.
+                String previous = firstByCore.putIfAbsent(entry.group() + '\u0001' + pattern.core(), id);
                 if (previous != null && !previous.equals(id)) {
                     findings.add(Finding.info(codes.domain(), codes.overlappingPattern(),
                             "This row and '" + previous + "' pin down the same name in the same moment, so "
@@ -141,7 +142,7 @@ public final class BonusRowAudit {
                                     + "unless they are meant to cover different names.", id));
                 }
             }
-            auditChance(entry.chance(), id, codes, factors, findings);
+            auditChance(entry.chance(), entry.addsYield(), id, codes, factors, findings);
             if (entry.handsNothingOver()) {
                 findings.add(Finding.info(codes.domain(), codes.noLoot(),
                         "This row hands nothing over, so it is a deliberate hole: it stops a broader "
@@ -176,12 +177,16 @@ public final class BonusRowAudit {
         }
     }
 
-    private static void auditChance(@Nullable FactorFormula chance, @Nonnull String id, @Nonnull Codes codes,
-            @Nullable FactorRegistry factors, @Nonnull List<Finding> findings) {
+    private static void auditChance(@Nullable FactorFormula chance, boolean addsYield, @Nonnull String id,
+            @Nonnull Codes codes, @Nullable FactorRegistry factors, @Nonnull List<Finding> findings) {
         if (chance == null || chance.isEmpty()) {
             return;
         }
         if (chance.hasNoTerms()) {
+            if (addsYield) {
+                // The moment's yield adds to it, so a constant of zero is as likely as the player's own yield.
+                return;
+            }
             double base = chance.baseOrZero();
             FactorFormula.Clamp clamp = chance.getClamp();
             double effective = clamp == null ? base : clamp.apply(base);

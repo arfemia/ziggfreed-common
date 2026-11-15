@@ -12,7 +12,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.hypixel.hytale.server.core.HytaleServer;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.ui.Anchor;
 import com.hypixel.hytale.server.core.ui.Value;
@@ -30,6 +29,7 @@ import com.ziggfreed.common.ui.hud.card.HudCardLook;
 import com.ziggfreed.common.ui.icon.IconRenderer;
 import com.ziggfreed.common.util.NumberFormatter;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.util.ZigScheduler;
 
 /**
  * One player's view of one bar panel: rows drawn only while the values behind them are moving. The
@@ -453,7 +453,7 @@ public abstract class HudPanelHud extends KeyedCustomHud {
             return;
         }
         long delay = Math.max(1L, remainingInterval(now));
-        HytaleServer.SCHEDULED_EXECUTOR.schedule(() -> {
+        ZigScheduler.schedule(() -> {
             paintDeferred.set(false);
             World world = aliveWorldOf(getPlayerRef());
             if (world != null) {
@@ -471,7 +471,7 @@ public abstract class HudPanelHud extends KeyedCustomHud {
         if (!pageWatchArmed.compareAndSet(false, true)) {
             return;
         }
-        HytaleServer.SCHEDULED_EXECUTOR.schedule(() -> {
+        ZigScheduler.schedule(() -> {
             pageWatchArmed.set(false);
             World world = aliveWorldOf(getPlayerRef());
             if (world == null) {
@@ -566,7 +566,7 @@ public abstract class HudPanelHud extends KeyedCustomHud {
             return;
         }
         long delay = Math.max(1L, expiresAt - now + SWEEP_SLACK_MS);
-        HytaleServer.SCHEDULED_EXECUTOR.schedule(() -> {
+        ZigScheduler.schedule(() -> {
             sweepArmed.set(false);
             World world = aliveWorldOf(getPlayerRef());
             if (world != null) {

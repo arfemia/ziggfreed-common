@@ -1,5 +1,7 @@
 package com.ziggfreed.common.damage.onhit;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.Nonnull;
@@ -10,11 +12,13 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.meta.MetaKey;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
+import com.hypixel.hytale.server.core.modules.entity.damage.DamageCause;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.stats.StatIndexCache;
 import com.ziggfreed.common.stats.condition.ConditionalStats;
+import com.ziggfreed.common.stats.damage.DamageTypes;
 import com.ziggfreed.common.stats.damage.RoutedStats;
 import com.ziggfreed.common.stats.damage.TypedDamageBonuses;
 import com.ziggfreed.common.util.SafeLog;
@@ -144,25 +148,86 @@ public final class Crits {
         }
     }
 
-    /** Could the attacker crit at all: a chance stat, a source or a conditional stat off 0? Cheap; asked first. */
-    static boolean mayCrit(@Nonnull Ref<EntityStore> attacker, @Nonnull EntityStatMap stats) {
+    /**
+     * Could the attacker crit this hit at all: a chance stat, a source, a conditional stat or the hit type's own chance
+     * stat off 0? Cheap; asked first.
+     */
+    static boolean mayCrit(@Nonnull Ref<EntityStore> attacker, @Nonnull EntityStatMap stats, @Nonnull Damage damage) {
         return pointsOf(stats, CHANCE_STAT, 0.0) != 0.0 || CHANCE_SOURCES.anyOn(stats)
-                || ConditionalStats.isHolder(attacker);
+                || ConditionalStats.isHolder(attacker) || pointsAt(stats, typeStats(damage).chance()) != 0.0;
     }
 
     /** The attacker's critical chance on this hit, whole percent points, before any bound. */
     public static double chancePoints(@Nonnull ComponentAccessor<EntityStore> accessor,
             @Nonnull Ref<EntityStore> attacker, @Nullable Ref<EntityStore> target, @Nonnull Damage damage,
             @Nonnull EntityStatMap stats) {
-        return pointsOf(stats, CHANCE_STAT, 0.0) + CHANCE_SOURCES.points(accessor, attacker, damage, stats)
+        return pointsOf(stats, CHANCE_STAT, 0.0) + pointsAt(stats, typeStats(damage).chance())
+                + CHANCE_SOURCES.points(accessor, attacker, damage, stats)
                 + ConditionalStats.critPoints(accessor, attacker, target, damage);
     }
 
     /** The attacker's crit damage on this hit, whole percent points. */
     public static double damagePoints(@Nonnull ComponentAccessor<EntityStore> accessor,
             @Nonnull Ref<EntityStore> attacker, @Nonnull Damage damage, @Nonnull EntityStatMap stats) {
-        return pointsOf(stats, DAMAGE_STAT, FALLBACK_DAMAGE_PERCENT)
+        return pointsOf(stats, DAMAGE_STAT, FALLBACK_DAMAGE_PERCENT) + pointsAt(stats, typeStats(damage).damage())
                 + DAMAGE_SOURCES.points(accessor, attacker, damage, stats);
+    }
+
+    /**
+     * The hit type's own crit stats (R936): {@value #CHANCE_STAT}{@code _<Type>} and {@value #DAMAGE_STAT}{@code _<Type>}
+     * for the hit's cause, else the nearest cause it inherits from that has one, so a school's talent crits only its
+     * element's hits. Shipped only for the types something grants; one map read a hit, rebuilt when a stat or cause
+     * load moves {@link DamageTypes#generation}.
+     */
+    @Nonnull
+    static TypeStats typeStats(@Nonnull Damage damage) {
+        long generation = DamageTypes.generation();
+        if (generation != typeStatsGeneration) {
+            TYPE_STATS.clear();
+            typeStatsGeneration = generation;
+        }
+        return TYPE_STATS.computeIfAbsent(damage.getDamageCauseIndex(), Crits::resolveTypeStats);
+    }
+
+    /** The two stat indices a hit of the cause at {@code causeIndex} reads, {@link StatIndexCache#UNRESOLVED} for none. */
+    @Nonnull
+    private static TypeStats resolveTypeStats(int causeIndex) {
+        int chance = StatIndexCache.UNRESOLVED;
+        int damage = StatIndexCache.UNRESOLVED;
+        try {
+            DamageCause cause = DamageCause.getAssetMap().getAsset(causeIndex);
+            for (int depth = 0; cause != null && depth < 8; depth++) {
+                if (chance == StatIndexCache.UNRESOLVED) {
+                    chance = StatIndexCache.resolve(CHANCE_STAT + "_" + cause.getId());
+                }
+                if (damage == StatIndexCache.UNRESOLVED) {
+                    damage = StatIndexCache.resolve(DAMAGE_STAT + "_" + cause.getId());
+                }
+                String parent = cause.getInherits();
+                cause = parent == null || parent.isBlank() ? null : DamageCause.getAssetMap().getAsset(parent);
+            }
+        } catch (Throwable t) {
+            SafeLog.fine("[crit] a hit type's crit stats could not be read: " + t.getMessage());
+        }
+        return new TypeStats(chance, damage);
+    }
+
+    /** A hit type's two crit stat indices. */
+    record TypeStats(int chance, int damage) {
+    }
+
+    private static final Map<Integer, TypeStats> TYPE_STATS = new ConcurrentHashMap<>();
+
+    private static volatile long typeStatsGeneration = Long.MIN_VALUE;
+
+    /** A stat's reading off its maximum at {@code index}, 0 for none, an absent stat or one that is not a number. */
+    private static double pointsAt(@Nonnull EntityStatMap stats, int index) {
+        if (index == StatIndexCache.UNRESOLVED) {
+            return 0.0;
+        }
+        EntityStatValue value = stats.get(index);
+        double max = value == null ? 0.0 : value.getMax();
+        return Double.isFinite(max) ? max : 0.0;
     }
 
     /** {@code points} of critical chance as a probability in {@code [0, 1]}; 0 for one that is not a number. Pure. */

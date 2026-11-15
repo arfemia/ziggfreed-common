@@ -18,6 +18,8 @@ import com.ziggfreed.common.entity.overhead.OverheadFollowSystem;
 import com.ziggfreed.common.entity.overhead.OverheadIndicators;
 import com.ziggfreed.common.entity.overhead.OverheadVisibilityFilter;
 import com.ziggfreed.common.entity.performer.PerformerIdentityComponent;
+import com.ziggfreed.common.entity.title.ActiveTitles;
+import com.ziggfreed.common.entity.title.PendingTitles;
 import com.ziggfreed.common.entity.title.ZigTitleComponent;
 import com.ziggfreed.common.grant.Grants;
 import com.ziggfreed.common.grant.StatGrant;
@@ -245,6 +247,21 @@ public final class EntityBootstrap {
             ZigTitleComponent.install(plugin);
         } catch (Throwable t) {
             SafeLog.warn("[title] could not register ZigTitleComponent", t);
+        }
+    }
+
+    /**
+     * Write the title record and the offline title queue still waiting on their debounce. Called from the
+     * library's {@code shutdown()} once its scheduler has stopped: every player's disconnect wrote both, but
+     * a change made since (a grant queued for an offline player) waits on a debounce the stop dropped. A
+     * stop with nothing new writes nothing, and it never throws.
+     */
+    public static void shutdown() {
+        try {
+            ActiveTitles.flush();
+            PendingTitles.flush();
+        } catch (Throwable t) {
+            SafeLog.warn("[title] the title records could not be written at shutdown", t);
         }
     }
 

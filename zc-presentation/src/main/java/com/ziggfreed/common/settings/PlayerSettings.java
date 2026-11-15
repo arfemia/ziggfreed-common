@@ -172,6 +172,25 @@ public final class PlayerSettings {
     }
 
     /**
+     * Whether this player sees the note a bonus find speaks with (zc-objectives' bonus rows, and a mod's own finds
+     * announced through it): their own choice, else yes. World thread.
+     */
+    public static boolean bonusFinds(@Nullable PlayerRef playerRef) {
+        return effectiveBonusFinds(component(playerRef));
+    }
+
+    /** {@link #bonusFinds(PlayerRef)} for a caller holding the entity handles. World thread. */
+    public static boolean bonusFinds(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
+        return effectiveBonusFinds(component(store, ref));
+    }
+
+    /** The effective bonus find note: the player's choice, else shown. */
+    public static boolean effectiveBonusFinds(@Nullable PlayerSettingsComponent settings) {
+        Boolean chosen = settings == null ? null : settings.bonusFinds();
+        return chosen == null || chosen;
+    }
+
+    /**
      * The level a toast is graded by, or null when it cannot be read here (no player, a stale reference, or
      * a caller off the player's world thread), in which case the toast keeps what its moment authored.
      */
@@ -248,6 +267,12 @@ public final class PlayerSettings {
     public static boolean setCritWord(@Nonnull PlayerRef playerRef, @Nullable Boolean shown) {
         return commit(recordFor(playerRef, "critical hit word"), playerRef.getUuid(), playerRef,
                 ZigPlayerSettingChangedEvent.CRIT_WORD, settings -> settings.setCritWord(shown));
+    }
+
+    /** Choose whether this player sees the bonus find note, or hand it back to the default with null. */
+    public static boolean setBonusFinds(@Nonnull PlayerRef playerRef, @Nullable Boolean shown) {
+        return commit(recordFor(playerRef, "bonus find note"), playerRef.getUuid(), playerRef,
+                ZigPlayerSettingChangedEvent.BONUS_FINDS, settings -> settings.setBonusFinds(shown));
     }
 
     @Nullable

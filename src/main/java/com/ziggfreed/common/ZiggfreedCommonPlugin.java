@@ -141,6 +141,7 @@ import com.ziggfreed.common.ui.hud.command.ZigHudCommand;
 import com.ziggfreed.common.ui.menu.command.ZigMenuCommand;
 import com.ziggfreed.common.util.RetiredLibrarySettings;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.util.ZigScheduler;
 import com.ziggfreed.common.validation.BootAudit;
 import com.ziggfreed.common.world.BlockRulesBootstrap;
 import com.ziggfreed.common.world.gather.GatherBootstrap;
@@ -239,6 +240,8 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
 
     @Override
     protected void setup() {
+        // The family's scheduler thread first, so every setup phase and every consumer after it can schedule.
+        ZigScheduler.start();
         // Settings this release no longer reads come out of the owner's files once, before anything reads one.
         RetiredLibrarySettings.run();
 
@@ -357,6 +360,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         ProgressionBootstrap.registerFeedbackMoments();
         BonusRowBootstrap.registerReactions();
         BonusRowBootstrap.registerDropCredit(this);
+        BonusRowBootstrap.registerFindNotes(this);
         DialogueBootstrap.registerDialogueVocabulary();
         DialogueBootstrap.registerDialogueMemories(this);
         DialogueBootstrap.registerDialogueAudit(this);
@@ -807,6 +811,12 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
 
     @Override
     protected void shutdown() {
+        // The scheduler stops first (every consumer has shut down before the library), so a debounced
+        // write one of the steps below asks for finds no thread and writes at once rather than waiting.
+        // The debounces it dropped are written by their owners below: the titles here, the Almanac's
+        // totals and the boards in their own steps.
+        ZigScheduler.shutdown();
+        EntityBootstrap.shutdown();
         // The text pack's zip is let go on a plugin unload (never on a server stop: the engine closes it then).
         ServerContentBootstrap.shutdown();
         CalendarBootstrap.shutdown();

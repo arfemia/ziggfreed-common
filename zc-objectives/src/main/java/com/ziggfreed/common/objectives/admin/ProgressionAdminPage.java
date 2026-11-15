@@ -22,6 +22,7 @@ import com.ziggfreed.common.authoring.AuthoringWizards;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.objectives.authoring.QuestWizard;
 import com.ziggfreed.common.objectives.command.ProgressAdminMessages;
+import com.ziggfreed.common.reputation.authoring.ReputationWizard;
 import com.ziggfreed.common.ui.SettingsUiUtil;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.ZigRichButton;
@@ -39,8 +40,10 @@ import com.ziggfreed.common.util.SafeLog;
  * tint (no binding) for a read-only switch, and an UNKNOWN "?" for a read that threw - never OFF,
  * because the page must not claim a state nobody could read. A write goes through
  * {@link SystemSwitches#writeGuarded}; refused or applied, the page says so in a toast and reopens
- * so every row repaints from a live read. A read-only row carries a "governed elsewhere" hint line. The footer's
- * Quest editor button opens the quest editor ({@link QuestWizard}) in its place.
+ * so every row repaints from a live read. A read-only row carries a "governed elsewhere" hint line.
+ * The footer opens the library's in-game editors (the quest editor, {@link QuestWizard}, and the reputation
+ * editor), each button shown only while its wizard is registered; the editor's own Save asks its author node,
+ * whoever opened it.
  *
  * <p>Stateless across events: the page holds nothing but the player, so every binding round-trips
  * the full state (an action and, for a toggle, the switch id). EVERY exit path sends a response;
@@ -52,6 +55,12 @@ public final class ProgressionAdminPage extends ToastablePage<ProgressionAdminEv
 
     /** The shared settings-form toggle row (zc-presentation), appended once per switch. */
     static final String ROW_TEMPLATE = "Pages/ZigFormToggleRow.ui";
+
+    /** The footer button that opens the quest editor. */
+    private static final String QUEST_EDITOR_BUTTON = "#QuestEditorButton";
+
+    /** The footer button that opens the reputation editor. */
+    private static final String EDITOR_BUTTON = "#ReputationEditorButton";
 
     // The two paints SettingsUiUtil.setToggle does not cover: a read nobody could make (amber
     // "?") and a switch this page may show but never flip (muted steel, no binding).
@@ -87,9 +96,8 @@ public final class ProgressionAdminPage extends ToastablePage<ProgressionAdminEv
         cmd.set("#Title.TextSpans", msg("page.title"));
         cmd.set("#Subtitle.TextSpans", msg("page.subtitle"));
         ZigRichButton.text(cmd, "#BackButton", msg("page.back"));
-        ZigRichButton.text(cmd, "#QuestEditorButton", msg("page.quest_editor"));
-        events.addEventBinding(CustomUIEventBindingType.Activating, "#QuestEditorButton",
-                EventData.of("Action", "quest_editor"), false);
+        paintEditor(cmd, events, QUEST_EDITOR_BUTTON, QuestWizard.ID, "page.quest_editor");
+        paintEditor(cmd, events, EDITOR_BUTTON, ReputationWizard.ID, "page.editor.reputation");
 
         List<SystemSwitch> switches = SystemSwitches.all();
         if (switches.isEmpty()) {
@@ -102,6 +110,21 @@ public final class ProgressionAdminPage extends ToastablePage<ProgressionAdminEv
             appendRow(cmd, events, "#Rows[" + i + "]", switches.get(i));
         }
         renderToastInto(cmd);
+    }
+
+    /**
+     * An in-game editor's footer button: shown, worded and bound while its wizard is registered (the editor's own
+     * Save asks its author node), hidden otherwise.
+     */
+    private static void paintEditor(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
+                                    @Nonnull String sel, @Nonnull String wizardId, @Nonnull String labelKey) {
+        boolean shown = AuthoringWizards.known(wizardId);
+        cmd.set(sel + ".Visible", shown);
+        if (shown) {
+            ZigRichButton.text(cmd, sel, msg(labelKey));
+            events.addEventBinding(CustomUIEventBindingType.Activating, sel,
+                    EventData.of("Action", "editor").append("Id", wizardId), false);
+        }
     }
 
     /** One switch, one shared toggle row: label, hint line, state paint, and (writable only) the binding. */
@@ -190,7 +213,12 @@ public final class ProgressionAdminPage extends ToastablePage<ProgressionAdminEv
                 }
             }
             case "toggle" -> handleToggle(ref, store, player, data.id);
-            case "quest_editor" -> openQuestEditor(ref, store, player);
+            case "editor" -> {
+                if (data.id == null || !AuthoringWizards.open(data.id, ref, store)) {
+                    showToast(ToastKind.ERROR, msg("page.editor.failed"));
+                    reopen(player, ref, store);
+                }
+            }
             case "close", "" -> player.getPageManager().setPage(ref, store, Page.None);
             default -> this.sendUpdate(new UICommandBuilder(), new UIEventBuilder(), false);
         }
@@ -218,18 +246,6 @@ public final class ProgressionAdminPage extends ToastablePage<ProgressionAdminEv
             showToast(ToastKind.ERROR, msg("page.refused", sw.label()));
         }
         reopen(player, ref, store);
-    }
-
-    /**
-     * Open the quest editor in place of this page. Whoever may open this page may open it; its Save asks the saving
-     * player for the editor's own author node, {@code ziggfreedcommon.author.quest}. One that cannot open says so.
-     */
-    private void openQuestEditor(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
-                                 @Nonnull Player player) {
-        if (!AuthoringWizards.open(QuestWizard.ID, ref, store)) {
-            showToast(ToastKind.ERROR, msg("page.quest_editor.failed"));
-            reopen(player, ref, store);
-        }
     }
 
     /** Reopen fresh, so every row repaints from a live read; the toast rides the rebuild. */

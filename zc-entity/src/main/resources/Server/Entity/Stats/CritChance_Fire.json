@@ -1,0 +1,13 @@
+{
+  "$Comment": "The critical chance on the carrier's direct Fire hits alone, in whole percent points (10 is 10% more chance), added to CritChance in ziggfreed-common's crit step on a hit whose damage cause is Fire or inherits from it: a school's crit talent keeps to its element. Any item's StatModifiers, an effect's RawStatModifiers or a pick's grant raise it like any stat. Base 0; Min is a generous negative so a subtractive modifier never clamps.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false,
+  "Tags": {
+    "ZigGrantFamily": [
+      "Combat"
+    ]
+  }
+}

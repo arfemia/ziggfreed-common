@@ -6,12 +6,14 @@ import com.hypixel.hytale.server.core.event.events.BootEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
+import com.ziggfreed.common.authoring.AuthoringTools;
 import com.ziggfreed.common.counter.NativeReaders;
 import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.playerdata.ZigPlayerRecordsRestoredEvent;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.reputation.asset.ReputationOwnerLayers;
+import com.ziggfreed.common.reputation.authoring.ReputationWizard;
 import com.ziggfreed.common.reputation.page.ReputationDestinations;
 import com.ziggfreed.common.reputation.page.ReputationMenuTab;
 import com.ziggfreed.common.track.event.ZigTrackChangedEvent;
@@ -26,8 +28,8 @@ import com.ziggfreed.common.util.SafeLog;
  * and how it reads, the kill table on the shared moment stream, the standing reader the stat board ranks,
  * the Reputation destination and its tab in
  * the shared menu, the rank check at login and its memory dropped at
- * disconnect, the reputations' tracks built at boot and their outside moves followed, and the once-at-boot
- * log of broken reputation files.
+ * disconnect, the reputations' tracks built at boot and their outside moves followed, the once-at-boot
+ * log of broken reputation files, and the reputation editor with the Reputation Tool.
  * The companion store is registered with the other framework stores. Registration only
  * ({@code RootRegistrationOnlyTest}).
  */
@@ -55,6 +57,7 @@ public final class ReputationBootstrap {
         registerRankChecks(plugin);
         registerTracks(plugin);
         registerAudit(plugin);
+        registerAuthoring(plugin);
     }
 
     /**
@@ -110,6 +113,20 @@ public final class ReputationBootstrap {
                     ReputationTracks::onRecordsRestored);
         } catch (Throwable t) {
             SafeLog.warn("[reputation] could not hang the reputation tracks' hooks", t);
+        }
+    }
+
+    /**
+     * The reputation editor and the Reputation Tool that opens it (its item, {@code Zig_Author_Reputation}, ships
+     * with this module), at setup so the tool's author node joins the server editor group, and the drop of a
+     * departing admin's last-worked reputation.
+     */
+    private static void registerAuthoring(@Nonnull PluginBase plugin) {
+        try {
+            AuthoringTools.wizardTool(ReputationWizard.ID, ReputationWizard::new);
+            plugin.getEventRegistry().register(PlayerDisconnectEvent.class, ReputationWizard::onDisconnect);
+        } catch (Throwable t) {
+            SafeLog.warn("[reputation] the reputation editor and its tool could not be registered", t);
         }
     }
 
