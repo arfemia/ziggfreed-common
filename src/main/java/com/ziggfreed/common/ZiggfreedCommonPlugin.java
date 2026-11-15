@@ -359,6 +359,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         ProgressionBootstrap.registerFeedbackMoments();
         BonusRowBootstrap.registerReactions();
         BonusRowBootstrap.registerDropCredit(this);
+        BonusRowBootstrap.registerFindNotes(this);
         DialogueBootstrap.registerDialogueVocabulary();
         DialogueBootstrap.registerDialogueMemories(this);
         DialogueBootstrap.registerDialogueAudit(this);

@@ -17,6 +17,8 @@ import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.assetstore.AssetExtraInfo;
+import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
 import com.ziggfreed.common.world.BlockOps;
 
@@ -147,11 +149,28 @@ public final class BlockFamilyConfig extends AbstractKeyedAssetConfig<BlockFamil
     /**
      * Which families hold {@code blockId}, from its item's merged tags (read through {@link BlockOps}), its name
      * patterns read against the block's base id so every state of one block (a stripped log, an open door) answers
-     * as the block itself.
+     * as the block itself. An id naming an item that is no block (a harvested crop's item) reads that item's own
+     * tags, so a family a hand harvest matches on takes another mod's item by its {@code ZigBlockFamily} tag too.
      */
     @Nonnull
     private Set<String> workOut(@Nonnull String blockId) {
-        return membership(BlockOps.baseItemIdOf(blockId), BlockOps.rawTagsOf(blockId), all());
+        Map<String, String[]> tags = BlockOps.rawTagsOf(blockId);
+        if (tags == null) {
+            tags = itemTagsOf(blockId);
+        }
+        return membership(BlockOps.baseItemIdOf(blockId), tags, all());
+    }
+
+    /** The merged tags of the item {@code id} names, for an id that is no block; null when none can be read. */
+    @Nullable
+    private static Map<String, String[]> itemTagsOf(@Nonnull String id) {
+        try {
+            Item item = Item.getAssetMap().getAsset(id);
+            AssetExtraInfo.Data data = item == null ? null : item.getData();
+            return data == null ? null : data.getRawTags();
+        } catch (Throwable t) {
+            return null;
+        }
     }
 
     /**

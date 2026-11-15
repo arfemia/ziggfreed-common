@@ -1,6 +1,8 @@
 package com.ziggfreed.common.objectives.bonus;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -17,6 +19,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.event.events.ecs.BreakBlockEvent;
 import com.hypixel.hytale.server.core.event.events.ecs.InteractivelyPickupItemEvent;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
@@ -53,6 +56,7 @@ import com.ziggfreed.common.progress.runtime.MomentPayload;
 import com.ziggfreed.common.subject.PlayerRefSubjectHandle;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.world.gather.BreakItems;
 import com.ziggfreed.common.world.gather.GatherStatSources;
 import com.ziggfreed.common.world.gather.GatherYields;
 import com.ziggfreed.common.world.gather.ShapedBreaks;
@@ -62,18 +66,26 @@ import com.ziggfreed.common.world.gather.ShapedBreaks;
  * that reads only the library's own table ({@link BonusRowConfig}), never a consumer's.
  *
  * <p>No gate beyond the row's own: the producers already skip what the player placed and credit a
- * kill to a player only. A row with no {@code Chance} always fires; its odds are its rolls'. A break's
- * and a hand harvest's row adds the player's gathering yield ({@link GatherYields}) to a {@code Chance}
- * it writes, and a kill's the killer's kill yield ({@link KillYields}), so yield raises a find's odds and never
- * rolls a second time. The
- * pass pays through the moment's own quest subject (the runtime's, so a consumer's notification
- * preferences reach a cue toast), or a subject over the player reference when the runtime has none.
- * A harvest's pass waits for one world task past the engine's own give and re-reads the event there.
+ * kill to a player only. Each group's row covering the target pays ({@link BonusRowConfig#answers}), so
+ * a mod's rows in a group of their own pay beside every other group's. A row with no {@code Chance}
+ * always fires; its odds are its rolls'. A break's and a hand harvest's row adds the player's gathering
+ * yield ({@link GatherYields}) to a {@code Chance} it writes, and a kill's the killer's kill yield
+ * ({@link KillYields}), unless it sets {@code AddsYield} false, so yield raises a find's odds and never
+ * rolls a second time. The pass pays through the moment's own quest subject (the runtime's, so a
+ * consumer's notification preferences reach a cue toast), or a subject over the player reference when
+ * the runtime has none. A harvest's pass waits for one world task past the engine's own give and
+ * re-reads the event there. A break's row is asked with the block in its question
+ * ({@code FactorContext.blockId}), a harvest's with the stack, a kill's with the victim.
  *
  * <p>A kill's and a break's pass carries a {@link ChestSite} ({@code BonusMoment.libraryCarries}): a
  * {@code Reward_Chest} reward it rolls stands that reward chest where the corpse lay or the block was, for the
  * player the moment credited alone ({@link SpoilsChests#stand}, under a fresh key), and the chest holds what its
- * own file's {@code Contents} rolls for them. Collected, never handed over (M428).
+ * own file's {@code Contents} rolls for them. Collected, never handed over (M428). A break's pass carries what the
+ * block breaks into ({@link BreakItems}), so a {@code Moment_Item} reward hands over another of it, as a harvest's
+ * hands over another of the harvested stack.
+ *
+ * <p>A pass that handed something over is announced by the one lucky find note ({@link BonusFindNotes}, R915),
+ * unless a roll's {@code Cue} already announced it or its find is a reward chest, which stands for itself.
  */
 public final class BonusRowReactions implements MomentListener {
 
@@ -94,18 +106,19 @@ public final class BonusRowReactions implements MomentListener {
 
     @Override
     public void react(@Nonnull Moment moment) {
-        BonusRow row = rowFor(moment);
-        if (row == null) {
+        List<BonusRow> rows = rowsFor(moment);
+        if (rows.isEmpty()) {
             return;
         }
+        BonusMoment kind = rows.get(0).moment();
         try {
-            switch (row.moment()) {
-                case BREAK_BLOCK -> onBreak(moment, row, moment.payload(BlockBreakPayload.class));
-                case KILL_MOB -> onKill(moment, row, moment.payload(MobKillPayload.class));
-                case PICKUP_ITEM -> onPickup(moment, row, moment.payload(PickupPayload.class));
+            switch (kind) {
+                case BREAK_BLOCK -> onBreak(moment, rows, moment.payload(BlockBreakPayload.class));
+                case KILL_MOB -> onKill(moment, rows, moment.payload(MobKillPayload.class));
+                case PICKUP_ITEM -> onPickup(moment, rows, moment.payload(PickupPayload.class));
             }
         } catch (Throwable t) {
-            SafeLog.warn("Bonus row '" + row.sourceId() + "' failed: " + t.getMessage());
+            SafeLog.warn("Bonus rows for '" + moment.target() + "' failed: " + t.getMessage());
         }
     }
 
@@ -133,74 +146,109 @@ public final class BonusRowReactions implements MomentListener {
     }
 
     /**
-     * The row this moment pays, or null when it pays none: a kind no bonus moment answers to, a
-     * moment fired without its producer's own record, no row covering the target, or a hole.
-     * Reads no world handle.
+     * The rows this moment pays, one per group, the shared group's first: none for a kind no bonus moment answers
+     * to, a moment fired without its producer's own record, or no row covering the target; a group whose answer is
+     * a hole pays nothing. Reads no world handle.
      */
-    @Nullable
-    static BonusRow rowFor(@Nonnull Moment moment) {
+    @Nonnull
+    static List<BonusRow> rowsFor(@Nonnull Moment moment) {
         BonusMoment kind = momentFor(moment.kindId());
         if (kind == null || moment.payload(payloadOf(kind)) == null) {
-            return null;
+            return List.of();
         }
-        BonusRow row = BonusRowConfig.getInstance().bestFor(kind, moment.target());
-        return row == null || row.handsNothingOver() ? null : row;
+        List<BonusRow> answers = BonusRowConfig.getInstance().answers(kind, moment.target());
+        if (answers.isEmpty()) {
+            return List.of();
+        }
+        List<BonusRow> paying = new ArrayList<>(answers.size());
+        for (BonusRow row : answers) {
+            if (!row.handsNothingOver()) {
+                paying.add(row);
+            }
+        }
+        return paying;
+    }
+
+    /** The first row this moment pays ({@link #rowsFor}), or null when it pays none. Reads no world handle. */
+    @Nullable
+    static BonusRow rowFor(@Nonnull Moment moment) {
+        List<BonusRow> rows = rowsFor(moment);
+        return rows.isEmpty() ? null : rows.get(0);
     }
 
     // ==================== the three moments ====================
 
-    private static void onBreak(@Nonnull Moment moment, @Nonnull BonusRow row, @Nonnull BlockBreakPayload payload) {
+    private static void onBreak(@Nonnull Moment moment, @Nonnull List<BonusRow> rows,
+            @Nonnull BlockBreakPayload payload) {
         CommandBuffer<EntityStore> buffer = moment.commandBuffer();
         // A further block a gather shape breaks for the player rolls only where that shape lets its blocks roll.
         if (buffer == null || !ShapedBreaks.rowsAllowed()) {
             return;
         }
         Store<EntityStore> store = moment.store();
-        FactorContext about = context(store, moment.ref(), null, null);
-        if (!fires(row, about, GatherYields.percentFor(store, moment.ref(), GatherStatSources.On.BREAK,
-                moment.target()))) {
-            return;
+        FactorContext about = context(store, moment.ref(), null, null, moment.target());
+        double yield = GatherYields.percentFor(store, moment.ref(), GatherStatSources.On.BREAK, moment.target());
+        BreakBlockEvent event = payload.event();
+        Vector3i block = event.getTargetBlock();
+        // What the block breaks into, the stack a Moment_Item hands another of; null for a drop list alone.
+        ItemStack broken = BreakItems.of(event.getItemInHand(), event.getBlockType());
+        Subject subject = null;
+        for (BonusRow row : rows) {
+            if (!fires(row, about, row.addsYield() ? yield : 0.0)) {
+                continue;
+            }
+            if (subject == null) {
+                subject = subjectOf(moment);
+            }
+            String sourceId = SOURCE_PREFIX + row.sourceId();
+            ChestSite chests = new ChestSite();
+            BonusPasses.Outcome pass = BonusPasses.run(BonusPasses.atBlock(store, buffer, block),
+                    BonusRowConfig.getInstance().rolls().resolved(row), new FactorSnapshot(factors(), about),
+                    ThreadLocalRandom.current()::nextDouble, broken, subject.withFacets(chests), CommandRunner.CONSOLE,
+                    placeholders(subject, "block", moment.target()), sourceId, SafeLog::warn);
+            LootCues.presentAll(pass.result().getCues(), subject, sourceId);
+            standChest(chests, store, moment.ref(), new Vector3d(block.x + 0.5, block.y, block.z + 0.5),
+                    NativeNames.targetNameMsg(moment.target()), "block=" + moment.target(), sourceId);
+            announce(store, moment.ref(), BonusMoment.BREAK_BLOCK, pass, chests);
         }
-        Subject subject = subjectOf(moment);
-        String sourceId = SOURCE_PREFIX + row.sourceId();
-        Vector3i block = payload.event().getTargetBlock();
-        ChestSite chests = new ChestSite();
-        BonusPasses.Outcome pass = BonusPasses.run(BonusPasses.atBlock(store, buffer, block),
-                BonusRowConfig.getInstance().rolls().resolved(row), new FactorSnapshot(factors(), about),
-                ThreadLocalRandom.current()::nextDouble, null, subject.withFacets(chests), CommandRunner.CONSOLE,
-                placeholders(subject, "block", moment.target()), sourceId, SafeLog::warn);
-        LootCues.presentAll(pass.result().getCues(), subject, sourceId);
-        standChest(chests, store, moment.ref(), new Vector3d(block.x + 0.5, block.y, block.z + 0.5),
-                NativeNames.targetNameMsg(moment.target()), "block=" + moment.target(), sourceId);
     }
 
-    private static void onKill(@Nonnull Moment moment, @Nonnull BonusRow row, @Nonnull MobKillPayload payload) {
+    private static void onKill(@Nonnull Moment moment, @Nonnull List<BonusRow> rows,
+            @Nonnull MobKillPayload payload) {
         CommandBuffer<EntityStore> buffer = moment.commandBuffer();
         if (buffer == null) {
             return;
         }
         Store<EntityStore> store = moment.store();
         Ref<EntityStore> victim = payload.victimRef();
-        FactorContext about = context(store, moment.ref(), victim, null);
-        if (!fires(row, about, KillYields.percentFor(store, moment.ref()))) {
-            return;
-        }
-        Subject subject = subjectOf(moment);
-        String sourceId = SOURCE_PREFIX + row.sourceId();
-        // Where the corpse lies, read before the pass hands anything over.
-        Vector3d corpse = positionOf(store, victim);
-        ChestSite chests = new ChestSite();
-        BonusPasses.Outcome pass = BonusPasses.run(BonusPasses.atCorpse(store, buffer, victim),
-                BonusRowConfig.getInstance().rolls().resolved(row), new FactorSnapshot(factors(), about),
-                ThreadLocalRandom.current()::nextDouble, null, subject.withFacets(chests), CommandRunner.CONSOLE,
-                placeholders(subject, "mob", moment.target()), sourceId, SafeLog::warn);
-        LootCues.presentAll(pass.result().getCues(), subject, sourceId);
-        if (corpse != null) {
-            standChest(chests, store, moment.ref(), corpse, NativeNames.entityNameMsg(moment.target()),
-                    "mob=" + moment.target(), sourceId);
-        } else if (chests.first() != null) {
-            SafeLog.warn("Bonus row '" + row.sourceId() + "' paid a reward chest, but the kill left no place to stand "
-                    + "it, so none goes up");
+        FactorContext about = context(store, moment.ref(), victim, null, null);
+        double yield = KillYields.percentFor(store, moment.ref());
+        Subject subject = null;
+        Vector3d corpse = null;
+        for (BonusRow row : rows) {
+            if (!fires(row, about, row.addsYield() ? yield : 0.0)) {
+                continue;
+            }
+            if (subject == null) {
+                subject = subjectOf(moment);
+                // Where the corpse lies, read before the first pass hands anything over.
+                corpse = positionOf(store, victim);
+            }
+            String sourceId = SOURCE_PREFIX + row.sourceId();
+            ChestSite chests = new ChestSite();
+            BonusPasses.Outcome pass = BonusPasses.run(BonusPasses.atCorpse(store, buffer, victim),
+                    BonusRowConfig.getInstance().rolls().resolved(row), new FactorSnapshot(factors(), about),
+                    ThreadLocalRandom.current()::nextDouble, null, subject.withFacets(chests), CommandRunner.CONSOLE,
+                    placeholders(subject, "mob", moment.target()), sourceId, SafeLog::warn);
+            LootCues.presentAll(pass.result().getCues(), subject, sourceId);
+            if (corpse != null) {
+                standChest(chests, store, moment.ref(), corpse, NativeNames.entityNameMsg(moment.target()),
+                        "mob=" + moment.target(), sourceId);
+            } else if (chests.first() != null) {
+                SafeLog.warn("Bonus row '" + row.sourceId() + "' paid a reward chest, but the kill left no place to "
+                        + "stand it, so none goes up");
+            }
+            announce(store, moment.ref(), BonusMoment.KILL_MOB, pass, chests);
         }
     }
 
@@ -253,18 +301,19 @@ public final class BonusRowReactions implements MomentListener {
         }
     }
 
-    private static void onPickup(@Nonnull Moment moment, @Nonnull BonusRow row, @Nonnull PickupPayload payload) {
+    private static void onPickup(@Nonnull Moment moment, @Nonnull List<BonusRow> rows,
+            @Nonnull PickupPayload payload) {
         Store<EntityStore> store = moment.store();
         Ref<EntityStore> ref = moment.ref();
         Subject subject = subjectOf(moment);
         String target = moment.target();
         InteractivelyPickupItemEvent event = payload.event();
-        BonusPasses.afterHarvest(store, () -> runPickup(store, ref, row, event, subject, target));
+        BonusPasses.afterHarvest(store, () -> runPickup(store, ref, rows, event, subject, target));
     }
 
-    /** The deferred harvest pass, on the world thread after the engine's own give. */
+    /** The deferred harvest passes, on the world thread after the engine's own give. */
     private static void runPickup(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
-            @Nonnull BonusRow row, @Nonnull InteractivelyPickupItemEvent event, @Nonnull Subject subject,
+            @Nonnull List<BonusRow> rows, @Nonnull InteractivelyPickupItemEvent event, @Nonnull Subject subject,
             @Nonnull String target) {
         try {
             ItemStack harvest = BonusPasses.harvestOf(event);
@@ -275,18 +324,26 @@ public final class BonusRowReactions implements MomentListener {
             if (player == null) {
                 return;
             }
-            FactorContext about = context(store, ref, null, harvest);
-            if (!fires(row, about, GatherYields.percentFor(store, ref, GatherStatSources.On.HARVEST, target))) {
-                return;
+            FactorContext about = context(store, ref, null, harvest, null);
+            double yield = GatherYields.percentFor(store, ref, GatherStatSources.On.HARVEST, target);
+            for (BonusRow row : rows) {
+                try {
+                    if (!fires(row, about, row.addsYield() ? yield : 0.0)) {
+                        continue;
+                    }
+                    String sourceId = SOURCE_PREFIX + row.sourceId();
+                    BonusPasses.Outcome pass = BonusPasses.run(BonusPasses.atHarvester(ref, player),
+                            BonusRowConfig.getInstance().rolls().resolved(row), new FactorSnapshot(factors(), about),
+                            ThreadLocalRandom.current()::nextDouble, harvest, subject, CommandRunner.CONSOLE,
+                            placeholders(subject, "item", target), sourceId, SafeLog::warn);
+                    LootCues.presentAll(pass.result().getCues(), subject, sourceId);
+                    announce(store, ref, BonusMoment.PICKUP_ITEM, pass, null);
+                } catch (Throwable t) {
+                    SafeLog.warn("Bonus row '" + row.sourceId() + "' harvest pass failed: " + t.getMessage());
+                }
             }
-            String sourceId = SOURCE_PREFIX + row.sourceId();
-            BonusPasses.Outcome pass = BonusPasses.run(BonusPasses.atHarvester(ref, player),
-                    BonusRowConfig.getInstance().rolls().resolved(row), new FactorSnapshot(factors(), about),
-                    ThreadLocalRandom.current()::nextDouble, harvest, subject, CommandRunner.CONSOLE,
-                    placeholders(subject, "item", target), sourceId, SafeLog::warn);
-            LootCues.presentAll(pass.result().getCues(), subject, sourceId);
         } catch (Throwable t) {
-            SafeLog.warn("Bonus row '" + row.sourceId() + "' harvest pass failed: " + t.getMessage());
+            SafeLog.warn("Bonus rows for the harvest of '" + target + "' failed: " + t.getMessage());
         }
     }
 
@@ -294,8 +351,8 @@ public final class BonusRowReactions implements MomentListener {
 
     /**
      * Whether {@code row} fires for the moment: its own {@code Requires}, then its chance, with {@code yieldPercent}
-     * points (a break's or a harvest's gathering yield, {@link GatherYields}; a kill's kill yield, {@link KillYields})
-     * added to a chance the row writes.
+     * points (a break's or a harvest's gathering yield, {@link GatherYields}; a kill's kill yield, {@link KillYields};
+     * none for a row that takes no yield) added to a chance the row writes.
      */
     private static boolean fires(@Nonnull BonusRow row, @Nonnull FactorContext about, double yieldPercent) {
         // The row's own Requires first, every condition (its mod presence was decided at the fold): a
@@ -311,6 +368,22 @@ public final class BonusRowReactions implements MomentListener {
         return BonusChance.fires(chance, ThreadLocalRandom.current()::nextDouble);
     }
 
+    /**
+     * The lucky find note for a pass that handed something over ({@link BonusFindNotes}): the items that landed, at
+     * least one. Not for a pass whose rolls presented a {@code Cue} (the find announced itself) or that stood a reward
+     * chest (the chest is its own announcement).
+     */
+    private static void announce(@Nullable Store<EntityStore> store, @Nullable Ref<EntityStore> player,
+            @Nonnull BonusMoment moment, @Nonnull BonusPasses.Outcome pass, @Nullable ChestSite chests) {
+        if (!(pass.landed() > 0 || pass.result().anyGranted())
+                || !pass.result().getCues().isEmpty()
+                || (chests != null && chests.first() != null)) {
+            return;
+        }
+        PlayerRef playerRef = store == null || player == null ? null : PlayerAccess.playerRef(store, player);
+        BonusFindNotes.announce(playerRef, moment, pass.landed());
+    }
+
     /** The loot vocabulary the rolling kinds read, or contributed ids only before the root installs one. */
     @Nonnull
     static FactorRegistry factors() {
@@ -318,11 +391,11 @@ public final class BonusRowReactions implements MomentListener {
         return installed != null ? installed : CONTRIBUTIONS_ONLY;
     }
 
-    /** The question a row's odds and rolls are asked: the player, a kill's victim, a harvest's stack. */
+    /** The question a row's odds and rolls are asked: the player, a kill's victim, a harvest's stack, a break's block. */
     @Nonnull
     static FactorContext context(@Nullable Store<EntityStore> store, @Nullable Ref<EntityStore> player,
-            @Nullable Ref<EntityStore> victim, @Nullable ItemStack item) {
-        FactorContext.Builder ctx = FactorContext.builder().store(store).item(item);
+            @Nullable Ref<EntityStore> victim, @Nullable ItemStack item, @Nullable String blockId) {
+        FactorContext.Builder ctx = FactorContext.builder().store(store).item(item).blockId(blockId);
         if (player != null && player.isValid()) {
             ctx.subject(player);
         }
