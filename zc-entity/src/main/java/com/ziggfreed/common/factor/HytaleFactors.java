@@ -191,10 +191,11 @@ public final class HytaleFactors {
      * player's capability rather than how hurt they are right now. Null when there is no live
      * subject, no {@code Param}, or nothing registered under that channel id. That last case is
      * the only one that is an authoring mistake rather than a normal evaluation shape, so it is
-     * named in the log once per channel id.
+     * named in the log once per channel id. Public so a consumer's own reading composed over a
+     * stat ({@code ctx.withParam(statId)}) reads it exactly as {@code hytale:stat} does.
      */
     @Nullable
-    static Double resolveStat(@Nonnull FactorContext ctx) {
+    public static Double resolveStat(@Nonnull FactorContext ctx) {
         String statId = trimmed(ctx.param());
         if (statId == null || !ctx.hasLiveSubject()) {
             return null;
