@@ -20,6 +20,7 @@ import com.google.gson.JsonParser;
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.progress.ObjectiveDef;
+import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.asset.QuestAsset;
 import com.ziggfreed.common.quest.asset.QuestDefinition;
 
@@ -114,6 +115,31 @@ class QuestDraftTest {
         QuestDefinition definition = decode(edited, "Copper_Run").toDefinition(null);
         assertNull(definition.quest().objective("collect"));
         assertEquals("BREAK_BLOCK", definition.quest().objective(key).kind());
+    }
+
+    @Test
+    void aChangedKindKeepsTheStepsPlaceInTheOrder() throws IOException {
+        JsonObject saved = JsonParser.parseString("""
+                { "Text": { "TitleKey": "server.quests.Ore_Run.title" },
+                  "Objectives": {
+                    "gather": { "Kind": "PICKUP_ITEM", "Target": "Copper_Ore", "Amount": 10, "Order": 1 },
+                    "deliver": { "Kind": "TURN_IN", "Target": "Copper_Ore", "Amount": 10, "Order": 2 } } }
+                """).getAsJsonObject();
+        QuestDraft.Loaded loaded = QuestDraft.read(saved, QuestWizard.STEP_SLOTS, QuestWizard.REWARD_SLOTS);
+        String key = QuestDraft.keyFor("gather", "PICKUP_ITEM", "BREAK_BLOCK", "Mine copper",
+                QuestDraft.taken(loaded)::contains);
+
+        List<QuestForm.Step> steps = List.of(
+                new QuestForm.Step(key, "BREAK_BLOCK", "Copper_Ore", 10L, null, null, "gather"),
+                loaded.steps().get(1));
+        JsonObject edited = QuestDraft.write(form(loaded, steps, List.of("gather")), saved);
+
+        assertEquals(List.of(key, "deliver"), new ArrayList<>(edited.getAsJsonObject("Objectives").keySet()));
+        Quest quest = decode(edited, "Ore_Run").toDefinition(null).quest();
+        ObjectiveDef first = quest.objective(key);
+        ObjectiveDef after = quest.objective("deliver");
+        assertEquals(1, first.order(), "the new step keeps the Order of the step it replaces");
+        assertTrue(after.order() > first.order(), "the step that came after the old one comes after the new key");
     }
 
     @Test

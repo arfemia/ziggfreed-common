@@ -203,7 +203,8 @@ public final class QuestDraft {
 
     /**
      * The steps, in the file's own order: each step the editor holds is written over its row by key, a step with a
-     * new key in the place of the key it replaces, an emptied one taken out, one the editor has no slot for kept,
+     * new key in the place of the key it replaces (keeping its {@code Order}, {@code Drop} and {@code Indicator},
+     * {@link #placeOf}), an emptied one taken out, one the editor has no slot for kept,
      * and any other new key after the rest in slot order. Every key taken out is retired in the file's {@code Meta}.
      */
     private static void writeObjectives(@Nonnull JsonObject doc, @Nonnull QuestForm form) {
@@ -229,7 +230,7 @@ public final class QuestDraft {
             QuestForm.Step successor = byReplaced.get(e.getKey());
             if (successor != null && byKey.remove(successor.key()) != null) {
                 retired.add(e.getKey());
-                out.add(successor.key(), stepRow(null, successor));
+                out.add(successor.key(), stepRow(placeOf(e.getValue()), successor));
             } else if (dropped.contains(e.getKey()) || successor != null) {
                 retired.add(e.getKey());
             } else {
@@ -246,6 +247,30 @@ public final class QuestDraft {
         }
         retire(doc, retired);
     }
+
+    /**
+     * What a step's successor (the same slot, now of another kind) keeps of the row it replaces: its place in the
+     * quest, {@code Order}, and its {@code Drop} and {@code Indicator} blocks, so a quest's steps run in the same
+     * order after the change. Nothing else in a quest names a step by its key (a step has no other ordering leaf, and
+     * no factor reads a step), so the file's position and these leaves are the whole of a step's place.
+     */
+    @Nullable
+    private static JsonObject placeOf(@Nonnull JsonElement replaced) {
+        if (!replaced.isJsonObject()) {
+            return null;
+        }
+        JsonObject kept = new JsonObject();
+        for (String leaf : PLACE_LEAVES) {
+            JsonElement value = replaced.getAsJsonObject().get(leaf);
+            if (value != null) {
+                kept.add(leaf, value.deepCopy());
+            }
+        }
+        return kept;
+    }
+
+    /** The leaves a successor step carries over from the row it replaces ({@link #placeOf}). */
+    private static final List<String> PLACE_LEAVES = List.of("Order", "Drop", "Indicator");
 
     /** Add {@code keys} to the file's retired step keys ({@code Meta.ziggfreedcommon.RetiredSteps}), each once. */
     private static void retire(@Nonnull JsonObject doc, @Nonnull Set<String> keys) {
