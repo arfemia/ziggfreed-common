@@ -9,6 +9,7 @@ import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.ziggfreed.common.counter.NativeReaders;
 import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardKinds;
+import com.ziggfreed.common.playerdata.ZigPlayerRecordsRestoredEvent;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.reputation.asset.ReputationOwnerLayers;
 import com.ziggfreed.common.reputation.page.ReputationDestinations;
@@ -97,13 +98,16 @@ public final class ReputationBootstrap {
 
     /**
      * Each reputation as a track: its track and curve built at boot (and after every companion fold, from the
-     * root's store wiring), the per-world warning, and every move of a reputation's track made outside the
-     * service followed (the engine's copy kept in step, the move told).
+     * root's store wiring), the per-world warning, every move of a reputation's track made outside the
+     * service followed (the engine's copy kept in step, the move told), and climbs a consumer's own store put in place
+     * marking the engine's copies behind them.
      */
     private static void registerTracks(@Nonnull PluginBase plugin) {
         try {
             plugin.getEventRegistry().register(BootEvent.class, ReputationTracks::onBoot);
             plugin.getEventRegistry().registerGlobal(ZigTrackChangedEvent.class, ReputationTracks::onTrackChanged);
+            plugin.getEventRegistry().registerGlobal(ZigPlayerRecordsRestoredEvent.class,
+                    ReputationTracks::onRecordsRestored);
         } catch (Throwable t) {
             SafeLog.warn("[reputation] could not hang the reputation tracks' hooks", t);
         }

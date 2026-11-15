@@ -295,6 +295,19 @@ public final class NpcPlacementReconciler {
     }
 
     /**
+     * A world was added: it takes ledger rows again (one of its name may have been deleted earlier this run,
+     * as a fixed-key instance is each time it empties), and it is swept for missing placements.
+     */
+    public static void onWorldAdded(@Nonnull World world) {
+        String name = NpcPlacementService.worldName(world);
+        if (!name.isEmpty()) {
+            NpcPlacementLedger.getInstance().worldAdded(name);
+        }
+        clearDebounce(world);
+        requestSweep(world, world.getEntityStore().getStore());
+    }
+
+    /**
      * Drop a removed world's sweep state, and its ledger rows and cached positions only when the world
      * is deleted with its removal ({@link #isDeleted}).
      *

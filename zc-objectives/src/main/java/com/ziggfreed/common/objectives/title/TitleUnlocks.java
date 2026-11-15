@@ -14,6 +14,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.entity.title.ActiveTitles;
 import com.ziggfreed.common.entity.title.ZigTitleComponent;
+import com.ziggfreed.common.playerdata.PlayerRecords;
 import com.ziggfreed.common.subject.PlayerRefSubjectHandle;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
@@ -23,7 +24,9 @@ import com.ziggfreed.common.util.SafeLog;
  * (activate), show none (deactivate), and read back. The {@code Title} reward kind, every
  * {@code /zigtitle} verb and the picker come through here, so a change is announced the same way
  * whoever made it: one native event, the process-wide record ({@link ActiveTitles}) refreshed, and
- * for a new unlock one notice. A write that changed nothing announces nothing.
+ * for a new unlock one notice. A write that changed nothing announces nothing; one that changed only the saved
+ * Show none choice fires the saved-record event alone ({@code ZigPlayerRecordChangedEvent}), so a store keeping the
+ * record outside the engine's save writes it.
  *
  * <p><b>World thread</b>, like every component write: the live forms take the player's own
  * {@code (store, ref)} and their {@link PlayerRef}.
@@ -188,7 +191,9 @@ public final class TitleUnlocks {
         if (!titles.hasTitle(id)) {
             return Outcome.NOT_UNLOCKED;
         }
+        boolean choseNone = titles.choseNone();
         if (!titles.activate(id)) {
+            savedOnly(titles, who, choseNone);
             return Outcome.ALREADY_ACTIVE;
         }
         changed(titles, who, id, Outcome.ACTIVATED);
@@ -201,12 +206,27 @@ public final class TitleUnlocks {
             return Outcome.NO_RECORD;
         }
         String was = titles.activeTitle();
+        boolean choseNone = titles.choseNone();
         boolean wasShowing = titles.deactivate();
         if (was == null || !wasShowing) {
+            savedOnly(titles, who, choseNone);
             return Outcome.NONE_ACTIVE;
         }
         changed(titles, who, was, Outcome.DEACTIVATED);
         return Outcome.DEACTIVATED;
+    }
+
+    /**
+     * A show or a Show none that changed nothing a player sees, though it may have changed the saved choice
+     * ({@link ZigTitleComponent#choseNone()}, which keeps a title earned later from showing itself): when it did, a
+     * store keeping the record outside the engine's save is told through the saved-record event
+     * ({@link PlayerRecords#changed}), so another server it serves keeps the choice too. No title changed, so no
+     * {@link ZigTitleChangedEvent} fires.
+     */
+    private static void savedOnly(@Nonnull ZigTitleComponent titles, @Nonnull Subject who, boolean choseNoneBefore) {
+        if (titles.choseNone() != choseNoneBefore) {
+            PlayerRecords.changed(who.id(), ZigTitleComponent.REGISTRY_ID);
+        }
     }
 
     @Nonnull

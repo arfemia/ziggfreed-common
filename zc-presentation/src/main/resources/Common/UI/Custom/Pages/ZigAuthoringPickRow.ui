@@ -1,0 +1,18 @@
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
+
+// The authoring wizard's "pick in the world" button (com.ziggfreed.common.authoring.AuthoringWizardPage), one per
+// field on the step that the world can fill. Appended into the page's #Picks and addressed by indexed parent
+// ("#Picks[0]" is this Button, "#Picks[0] #Label" its words, set from Java on .TextSpans). Pressing it closes the
+// page; the next click with an authoring tool fills the field and opens the page again.
+
+Button #ZigAuthoringPick {
+  Anchor: (Height: $ZK.@ZigControlHeight, Bottom: $ZK.@ZigSpace1);
+  Style: $ZS.@ZigButtonSecondaryStyle;
+  Label #Label {
+    FlexWeight: 1;
+    Text: "";
+    Style: $ZX.@ZigButtonLabelStyle;
+  }
+}

@@ -58,6 +58,7 @@ import com.ziggfreed.common.almanac.view.AlmanacView.Timing;
 import com.ziggfreed.common.counter.CounterMap;
 import com.ziggfreed.common.icon.Portraits;
 import com.ziggfreed.common.inventory.InventoryUtil;
+import com.ziggfreed.common.playerdata.PlayerRecords;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.UiRetint;
@@ -393,8 +394,10 @@ public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData>
     private static void markHeld(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull CounterMap tallies, @Nullable AlmanacEntryAsset page) {
         try {
-            AlmanacCollection.markHeld(tallies, AlmanacCollection.itemsOf(page),
-                    id -> InventoryUtil.has(store, ref, id, 1));
+            if (AlmanacCollection.markHeld(tallies, AlmanacCollection.itemsOf(page),
+                    id -> InventoryUtil.has(store, ref, id, 1)) > 0) {
+                PlayerRecords.changed(store, ref, AlmanacComponent.REGISTRY_ID);
+            }
         } catch (Throwable t) {
             SafeLog.fine("[almanac] the bag could not be looked at for the owned marks: " + t.getMessage());
         }

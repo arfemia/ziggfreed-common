@@ -12,9 +12,16 @@ import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.event.events.BootEvent;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.i18n.ContentKeys;
+import com.ziggfreed.common.inventory.PlayerAccess;
+import com.ziggfreed.common.playerdata.PlayerRecords;
+import com.ziggfreed.common.playerdata.ZigPlayerRecordsRestoredEvent;
 import com.ziggfreed.common.text.ContentTextAsset;
+import com.ziggfreed.common.track.TrackComponent;
 import com.ziggfreed.common.track.TrackDef;
 import com.ziggfreed.common.track.TrackKey;
 import com.ziggfreed.common.track.TrackRecord;
@@ -143,6 +150,42 @@ public final class ReputationTracks {
             ReputationRuntime.service().trackChanged(event);
         } catch (Throwable t) {
             SafeLog.warn("[reputation] a reputation's track move could not be followed: " + t.getMessage());
+        }
+    }
+
+    /**
+     * A store outside the engine's save put this player's climbs in place (a consumer's database at a world entry): the
+     * engine's own copy of each standing on this server was written from the climbs this server held, so every
+     * reputation with a track is marked behind on the player's record ({@link ReputationComponent#markBehind}). The
+     * next change or world entry then writes each copy from the restored climb, never folding the stale one back into
+     * it. On the player's world thread, as the event is fired.
+     */
+    public static void onRecordsRestored(@Nonnull ZigPlayerRecordsRestoredEvent event) {
+        if (!event.restored(TrackComponent.REGISTRY_ID)) {
+            return;
+        }
+        try {
+            Ref<EntityStore> ref = PlayerAccess.liveRef(event.playerId());
+            if (ref == null) {
+                return;
+            }
+            Store<EntityStore> store = ref.getStore();
+            ReputationComponent record = ReputationComponent.of(store, ref);
+            if (record == null) {
+                return;
+            }
+            List<String> ids = new ArrayList<>();
+            for (ReputationDef def : ReputationRuntime.service().all()) {
+                if (track(def) != null) {
+                    ids.add(def.id());
+                }
+            }
+            if (record.markBehind(ids)) {
+                PlayerRecords.changed(store, ref, ReputationComponent.REGISTRY_ID);
+            }
+        } catch (Throwable t) {
+            SafeLog.warn("[reputation] the engine's copies could not be marked behind restored climbs: "
+                    + t.getMessage());
         }
     }
 

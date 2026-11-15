@@ -41,9 +41,14 @@ public final class ZigEncounterRest implements Component<EntityStore> {
     /** The registration id (namespaced, stable). */
     public static final String REGISTRY_ID = "ZiggfreedCommon:EncounterRest";
 
+    /** The save's {@code Version} leaf: a save from before it reads as version 0, unchanged (zc-core's {@code codec/} router). */
+    public static final int VERSION = 1;
+
     @Nonnull
     public static final BuilderCodec<ZigEncounterRest> CODEC = BuilderCodec
             .builder(ZigEncounterRest.class, ZigEncounterRest::new)
+            .versioned()
+            .codecVersion(VERSION)
             .append(new KeyedCodec<>("RestUntil", Codec.INSTANT), (c, v) -> c.restUntil = v, c -> c.restUntil)
             .documentation("The world-clock instant the rest ends at; absent means the site has never rested.")
             .add()

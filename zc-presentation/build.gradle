@@ -1,7 +1,8 @@
 apply from: "$rootDir/gradle/zc-module.gradle"
 
 // Everything a player sees or hears: UI primitives (retint, theme, toast, HUD, forms, rows),
-// 3D sound, camera effects, and the notification wrappers.
+// 3D sound, camera effects, the notification wrappers, and the authoring kit (authoring/: the
+// creative authoring tools and the wizard frame every in-game editor opens in).
 //
 // The zc-loot edge exists for two things and nothing else: the reward-chip reading (RewardToastLines,
 // the bridge from chips to toast body rows, and the kit's DetailLine.reward, a chip as a detail line),
@@ -13,9 +14,11 @@ apply from: "$rootDir/gradle/zc-module.gradle"
 dependencies {
     implementation project(':zc-core')
     implementation project(':zc-loot')
-    // ModelParticleService only: the item-cost confirm page (ui/confirm) plays its caller's sparkle where the
-    // player stands when they confirm, through the one guarded particle seam. One-way: zc-cast depends on zc-core
-    // alone and never imports this module.
+    // Two things: ModelParticleService (the item-cost confirm page, ui/confirm, plays its caller's sparkle where
+    // the player stands when they confirm, through the one guarded particle seam) and the custom interaction-Type
+    // toolkit (interaction/type: the authoring kit's ZigAuthoringTool Type reads its click through InteractionCtx
+    // and resolves through InteractionOutcome). One-way: zc-cast depends on zc-core alone and never imports this
+    // module.
     implementation project(':zc-cast')
 }
 
