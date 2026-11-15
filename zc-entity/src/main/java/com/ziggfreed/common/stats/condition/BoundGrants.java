@@ -7,6 +7,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -20,12 +21,14 @@ import com.hypixel.hytale.server.core.modules.entitystats.modifier.Modifier;
 import com.hypixel.hytale.server.core.modules.entitystats.modifier.StaticModifier;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.stats.StatIndexCache;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Bound grants (R933, R934): stat modifiers that count only while their conditions hold on their holder, a talent or
  * a gear set tier bound {@code While} its weapon is in hand. A writer hands an entity's bound modifiers here per owner
  * ({@link #set}: the stat grant writer for a track's picks, the gear set engine for a tier); the conditional holder
- * pass ({@code ConditionalStatSystems.HolderPass}, a few times a second for a player) reads each one's conditions and
+ * pass ({@code ConditionalStatSystems.HolderPass}: a player every tick, so a weapon swap counts on the next swing; a
+ * creature on its {@code StatCarriers} cadence) reads each one's conditions and
  * puts its modifier on the stat under {@value #MODIFIER_PREFIX}{@code <owner>:<id>}, or takes it off, only on a
  * change, so every reader of the stat (a hit's crit step, a page) sees it as one more modifier. The conditions are
  * the engine's own entity conditions ({@code Condition.CODEC}), the one vocabulary a conditional stat's
@@ -39,12 +42,16 @@ import com.ziggfreed.common.stats.StatIndexCache;
  *
  * <p><b>Cost.</b> Nothing on a hit: a bound modifier sits on the stat like gear's, so every per-hit read stays one
  * stat read. The pass reads each distinct condition list once (a pick's grants share theirs), {@code ZigHolding}
- * answers from its per-item memo, and the stat map is written only when a condition flips.
+ * answers from its per-item memo, and the stat map is written only when a condition flips. A condition that throws
+ * counts as not holding, logged once.
  */
 public final class BoundGrants {
 
     /** The prefix of every modifier key this writes. */
     public static final String MODIFIER_PREFIX = "zigtrack:@bound:";
+
+    /** Whether a condition that threw has been logged: the pass runs every tick, so it logs once a process. */
+    private static final AtomicBoolean CONDITION_FAILED_LOGGED = new AtomicBoolean();
 
     /**
      * One bound modifier: {@code id} is unique among its owner's and stays the same across rebuilds, {@code statId}
@@ -181,6 +188,10 @@ public final class BoundGrants {
                         holds = Nearby.allHold(accessor, ref, entry.conditions, now);
                     } catch (Throwable t) {
                         holds = false;
+                        if (CONDITION_FAILED_LOGGED.compareAndSet(false, true)) {
+                            SafeLog.warn("[bound] a bound grant's condition threw; it counts as not holding (logged "
+                                    + "once): " + t);
+                        }
                     }
                     read.put(entry.conditions, holds);
                 }

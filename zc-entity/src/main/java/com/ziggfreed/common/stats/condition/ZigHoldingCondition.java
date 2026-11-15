@@ -57,7 +57,7 @@ public final class ZigHoldingCondition extends Condition {
     private volatile List<MatchKey> keys;
 
     /**
-     * Each held item id's answer, so a holder pass asking a few times a second for every bound grant costs a map
+     * Each held item id's answer, so a holder pass asking every tick for every bound grant costs a map
      * read: dropped whenever the match sets move ({@link MatchSets#generation}: an item or tag reload). Shared by
      * every entity the condition is asked about; the item ids a server holds are few.
      */

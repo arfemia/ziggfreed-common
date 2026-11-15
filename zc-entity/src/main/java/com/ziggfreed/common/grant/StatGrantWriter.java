@@ -76,10 +76,15 @@ public final class StatGrantWriter implements GrantWriter {
                     || grant.stat() == null) {
                 continue;
             }
-            int index = StatIndexCache.resolve(grant.stat());
-            double amount = index == StatIndexCache.UNRESOLVED ? 0.0 : grant.amountOn(baseMax(index)) * one.count();
             String key = one.key().startsWith(prefix) ? one.key().substring(prefix.length()) : one.key();
+            // Counted before the stat check, so a key's later grants keep their ids whether or not this stat loads.
             int place = seen.merge(key, 1, Integer::sum);
+            int index = StatIndexCache.resolve(grant.stat());
+            if (index == StatIndexCache.UNRESOLVED) {
+                StatIndexCache.warnUnknownOnce(grant.stat());
+                continue;
+            }
+            double amount = grant.amountOn(baseMax(index)) * one.count();
             out.add(BoundGrants.Bound.additive(key + ":" + grant.stat() + ":" + place, grant.stat(), amount,
                     grant.whileConditions()));
         }

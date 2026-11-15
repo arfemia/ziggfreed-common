@@ -32,7 +32,7 @@ import com.ziggfreed.common.asset.EditorSchema;
  * registers), every one of which must hold for the grant to count, so a weapon talent raises the shared
  * {@code CritChance} only while its weapon is in hand. Such a grant is a bound grant ({@link #bound()}): its writer
  * hands it to {@code stats.condition.BoundGrants}, which puts or takes off its modifier as the conditions start or
- * stop holding, read a few times a second.
+ * stop holding, read every tick for a player (a creature on its carrier cadence).
  *
  * <pre>{@code
  * { "Kind": "Stat", "Stat": "CritChance", "Add": 2,
@@ -81,8 +81,8 @@ public final class StatGrant extends Grant {
             .appendInherited(new KeyedCodec<>("While", new ArrayCodec<>(Condition.CODEC, Condition[]::new), false),
                     (o, v) -> o.whileHolds = v, o -> o.whileHolds, (o, p) -> o.whileHolds = p.whileHolds)
             .documentation("Entity conditions every one of which must hold on the grant's holder for it to count "
-                    + "(the engine's own, or ZigHolding, ZigFoesNear or one a mod registers), read a few times a "
-                    + "second: a weapon talent counts only while its weapon is in hand. Unauthored, the grant always "
+                    + "(the engine's own, or ZigHolding, ZigFoesNear or one a mod registers), read every tick for a "
+                    + "player: a weapon talent counts only while its weapon is in hand. Unauthored, the grant always "
                     + "counts.").add()
             .build();
 

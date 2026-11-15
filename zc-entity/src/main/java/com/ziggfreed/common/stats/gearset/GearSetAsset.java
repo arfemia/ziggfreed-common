@@ -379,7 +379,7 @@ public final class GearSetAsset implements JsonAssetWithMap<String, DefaultAsset
                                 com.hypixel.hytale.server.core.modules.entity.condition.Condition[]::new), false),
                         (o, v) -> o.whileHolds = v, o -> o.whileHolds)
                 .documentation("Entity conditions every one of which must hold on the wearer for this tier's "
-                        + "StatModifiers to count, read a few times a second (ZigHolding with Items names a weapon: "
+                        + "StatModifiers to count, read every tick for a player (ZigHolding with Items names a weapon: "
                         + "a set's bonus to one weapon kind, worn as armor, counts only while that weapon is in "
                         + "hand). The tier's look, badge and notice follow its pieces alone. A bound tier never "
                         + "merges with a joined set's tier. Unauthored, the tier's stats count while it holds.").add()
