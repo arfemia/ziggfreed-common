@@ -69,6 +69,8 @@ class ReputationAuthoringTest {
                 List.of("Guard_Miner", "Miner_Foreman"), saved, null, IS_ROLE, LOADED, SHARED, key -> null);
         assertEquals(List.of(ID, "Goblin"), ReputationDraft.npcGroupsOf(edit.group()),
                 "an NPC group the engine has not loaded never reaches a written group");
+        assertEquals(List.of("Gone_Group"), ReputationDraft.unloadedGroups(saved, LOADED),
+                "the preview names what a save leaves out, never the member group it writes");
         assertEquals(500, edit.group().get("InitialReputationValue").getAsInt(), "the group's own leaves stay");
         assertTrue(edit.memberGroup().has("ExcludeRoles"), "the member group's own leaves stay");
 
@@ -99,7 +101,6 @@ class ReputationAuthoringTest {
 
         ReputationDraft.Plan plan = ReputationDraft.plan(ID, values, List.of("Guard_Miner"), null, ID, IS_ROLE,
                 LOADED, SHARED, key -> null);
-        assertTrue(plan.ranksChanged(), "a rank of its own is new: it applies after a restart");
         assertEquals("Trusted_Partner", plan.minted().get(ReputationDraft.rankId(1)), "a rank's id is minted once");
         assertEquals("Miners Guild", plan.texts().get("reputations.Miners_Guild.name"));
         assertEquals("Trusted Partner", plan.texts().get("reputations.Miners_Guild.rank.Trusted_Partner"));
@@ -155,7 +156,6 @@ class ReputationAuthoringTest {
         ReputationDraft.Form form = ReputationDraft.read(saved, words);
         ReputationDraft.Plan plan = ReputationDraft.plan(ID, form.values(), form.members(), saved, null, IS_ROLE,
                 LOADED, SHARED, words);
-        assertFalse(plan.ranksChanged(), "an unchanged rank of its own needs no restart");
         assertTrue(plan.minted().isEmpty(), "a kept rank keeps its id");
         JsonObject written = plan.companion();
         assertEquals(40000, written.get("Cap").getAsInt());

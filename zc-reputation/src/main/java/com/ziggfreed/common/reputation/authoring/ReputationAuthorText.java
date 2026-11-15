@@ -32,7 +32,7 @@ public final class ReputationAuthorText {
             "author.note.members", "author.field.add", "author.field.remove",
             "author.preview.name", "author.preview.unnamed", "author.preview.new", "author.preview.id",
             "author.preview.members", "author.preview.members.none", "author.preview.kill.gain",
-            "author.preview.kill.loss", "author.preview.rank", "author.preview.beyond", "author.preview.kept",
+            "author.preview.kill.loss", "author.preview.rank", "author.preview.beyond", "author.preview.kept", "author.preview.dropped",
             "author.check.edit", "author.check.name", "author.check.backslash", "author.check.whole",
             "author.check.item", "author.check.kill.group", "author.check.kill.amount", "author.check.kill.unknown",
             "author.check.rank.from", "author.check.rank.name", "author.check.rank.range", "author.check.rank.same",

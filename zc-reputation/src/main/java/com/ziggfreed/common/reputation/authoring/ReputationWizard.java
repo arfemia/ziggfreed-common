@@ -14,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nonnull;
@@ -24,6 +25,8 @@ import com.hypixel.hytale.builtin.tagset.config.NPCGroup;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.npc.NPCPlugin;
 import com.ziggfreed.common.authoring.AuthoringUse;
 import com.ziggfreed.common.authoring.AuthoringWizard;
@@ -42,6 +45,7 @@ import com.ziggfreed.common.reputation.ReputationNative;
 import com.ziggfreed.common.reputation.ReputationRuntime;
 import com.ziggfreed.common.reputation.ReputationText;
 import com.ziggfreed.common.ui.form.FieldSpec;
+import com.ziggfreed.common.ui.hud.KeyedCustomHud;
 
 /**
  * The reputation editor, on the authoring kit's wizard frame, and what the Reputation Tool opens: it makes a
@@ -56,9 +60,10 @@ import com.ziggfreed.common.ui.form.FieldSpec;
  * ({@link ReputationMembers}), checked on Who belongs and again at Save, and the group a save writes never names an
  * NPC group the engine lacks.
  *
- * <p><b>When it applies.</b> A new reputation, its kills, its words and its payouts work at once (a changed word
- * after a restart, as for every typed word); a character spawned from then on follows it, one standing in the world
- * from its next spawn; ranks of its own apply after a restart, which the save says.
+ * <p><b>When it applies.</b> A new reputation, its kills, its ranks of its own, its words and its payouts work at
+ * once (a changed word after a restart, as for every typed word): its own ranks are tiers of the library's ladder,
+ * which the companion's fold rebuilds, never native ranks. A character spawned from then on follows it, one standing
+ * in the world from its next spawn. A refused save puts the form back as it stood before it.
  *
  * <p>One instance per open; the frame keeps it in the session across a pick from the world. World thread.
  */
@@ -78,6 +83,7 @@ public final class ReputationWizard implements AuthoringWizard {
     private static final Map<UUID, String> LAST = new ConcurrentHashMap<>();
 
     @Nullable private final UUID admin;
+    @Nonnull private final PlayerRef adminRef;
 
     /** The {@link ReputationDraft#EDIT} value the form was last filled for; null before the first fill. */
     @Nullable private String filledFor;
@@ -96,6 +102,7 @@ public final class ReputationWizard implements AuthoringWizard {
     @Nullable private String newMemberGroupId;
 
     public ReputationWizard(@Nonnull AuthoringUse use) {
+        this.adminRef = use.playerRef();
         this.admin = use.playerRef().getUuid();
     }
 
@@ -328,6 +335,11 @@ public final class ReputationWizard implements AuthoringWizard {
             if (kept > 0) {
                 lines.add(ReputationAuthorText.line("preview.kept", kept));
             }
+            List<String> dropped = ReputationDraft.unloadedGroups(saved,
+                    ReputationRuntime.service().engine()::npcGroupExists);
+            if (!dropped.isEmpty()) {
+                lines.add(ReputationAuthorText.line("preview.dropped", String.join(", ", dropped)));
+            }
         }
         for (ReputationMembers.Problem problem : memberProblems()) {
             lines.add(problemLine(problem));
@@ -531,17 +543,57 @@ public final class ReputationWizard implements AuthoringWizard {
         if (!plan.texts().isEmpty()) {
             results.add(ServerContent.setTexts(plan.texts()));
         }
-        results.add(new ServerContent.Result(id, plan.ranksChanged() ? AppliesWhen.RESTART : AppliesWhen.NOW,
-                ReputationFiles.write(plan)));
-        // From here the form changes what it just saved, under the same id, however the save lands.
-        saved = plan.asSaved();
+        CompletableFuture<Void> files = ReputationFiles.write(plan);
+        results.add(new ServerContent.Result(id, AppliesWhen.NOW, files));
+        // From here the form changes what it is saving, under the same id; a refused save puts the form back.
+        Before before = new Before(saved, filledFor, session.value(EDIT), List.copyOf(carried),
+                admin == null ? null : LAST.get(admin));
+        ReputationDraft.Saved attempt = plan.asSaved();
+        saved = attempt;
         filledFor = id;
         session.put(EDIT, id);
         carried.clear();
         if (admin != null) {
             LAST.put(admin, id);
         }
+        files.whenComplete((done, failure) -> {
+            World world = failure == null ? null : KeyedCustomHud.aliveWorldOf(adminRef);
+            if (world != null) {
+                world.execute(() -> undo(session, attempt, before));
+            }
+        });
         return results;
+    }
+
+    /** The form as it stood before a save, which a refused save puts back. */
+    private record Before(@Nullable ReputationDraft.Saved saved, @Nullable String filledFor, @Nonnull String edit,
+            @Nonnull List<String> carried, @Nullable String last) {
+    }
+
+    /**
+     * World thread, once a save of {@code attempt} was refused: put the form back as it stood before it, so an id
+     * the pack never took is not treated as a saved reputation (the next save tries the same id again). A form that
+     * moved on since (another save, another reputation picked) is left alone.
+     */
+    private void undo(@Nonnull WizardSession session, @Nonnull ReputationDraft.Saved attempt, @Nonnull Before before) {
+        if (saved != attempt) {
+            return;
+        }
+        saved = before.saved();
+        filledFor = before.filledFor();
+        session.put(EDIT, before.edit().isEmpty() ? null : before.edit());
+        before.carried().forEach(role -> {
+            if (carried.stream().noneMatch(role::equalsIgnoreCase)) {
+                carried.add(role);
+            }
+        });
+        if (admin != null) {
+            if (before.last() == null) {
+                LAST.remove(admin);
+            } else {
+                LAST.put(admin, before.last());
+            }
+        }
     }
 
     // ---------------------------------------------------------------- engine readings

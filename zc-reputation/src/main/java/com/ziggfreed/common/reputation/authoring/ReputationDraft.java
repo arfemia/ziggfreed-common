@@ -79,12 +79,13 @@ public final class ReputationDraft {
 
     /**
      * What one save writes: the member group (null: none to write), the group and the companion, the English by
-     * text key, the field values the save minted ({@code rank<n>Id}, blank for a slot it emptied), and whether the
-     * reputation's own ranks changed (the engine's caches read them at start).
+     * text key, and the field values the save minted ({@code rank<n>Id}, blank for a slot it emptied). Every part
+     * is live once it lands: a rank of the reputation's own is a tier of the library's ladder, which the companion's
+     * fold rebuilds, never a native rank the engine caches at start.
      */
     public record Plan(@Nonnull String id, @Nullable String memberGroupId, @Nullable JsonObject memberGroup,
             @Nonnull JsonObject group, @Nonnull JsonObject companion, @Nonnull Map<String, String> texts,
-            @Nonnull Map<String, String> minted, boolean ranksChanged) {
+            @Nonnull Map<String, String> minted) {
 
         /** The files as this plan writes them, for the next save of the same editor to start from. */
         @Nonnull
@@ -308,9 +309,7 @@ public final class ReputationDraft {
         }
         writeKills(companion, values, split, npcGroupKnown);
         writeEarn(companion, id, values, texts, split);
-        Map<String, Integer> before = floors(object(companion.get("Ranks")));
         writeRanks(companion, id, values, texts, minted, split, sharedRankIds);
-        boolean ranksChanged = !before.equals(floors(object(companion.get("Ranks"))));
         writeBeyond(companion, values, split);
 
         List<String> roles = ReputationMembers.knownRoles(members, isRole);
@@ -336,7 +335,24 @@ public final class ReputationDraft {
         if (!group.has("InitialReputationValue")) {
             group.addProperty("InitialReputationValue", 0);
         }
-        return new Plan(id, memberGroupId, memberGroup, group, companion, texts, minted, ranksChanged);
+        return new Plan(id, memberGroupId, memberGroup, group, companion, texts, minted);
+    }
+
+    /**
+     * The NPC groups {@code saved}'s group names, its member group aside, that the engine has not loaded (a group
+     * from a mod this server is not running right now): what a save leaves out of the written group, since the
+     * engine throws on every NPC added while a group names one it lacks. Empty for none.
+     */
+    @Nonnull
+    public static List<String> unloadedGroups(@Nonnull Saved saved, @Nonnull Predicate<String> npcGroupKnown) {
+        List<String> out = new ArrayList<>();
+        for (String entry : strings(saved.group().get(NPC_GROUPS))) {
+            if (!entry.equalsIgnoreCase(nonNull(saved.memberGroupId())) && !npcGroupKnown.test(entry)
+                    && out.stream().noneMatch(entry::equalsIgnoreCase)) {
+                out.add(entry);
+            }
+        }
+        return out;
     }
 
     /** {@code Text}: the typed name and description as keys; a blank one drops a key of ours and keeps another's. */
@@ -502,21 +518,6 @@ public final class ReputationDraft {
         row.addProperty("Kind", kind);
         row.add("Params", params);
         return row;
-    }
-
-    /** Each rank of its own in {@code ranks} (an entry with a whole {@code From}), lower-cased id to floor. */
-    @Nonnull
-    private static Map<String, Integer> floors(@Nullable JsonObject ranks) {
-        Map<String, Integer> out = new LinkedHashMap<>();
-        if (ranks != null) {
-            for (Map.Entry<String, JsonElement> e : ranks.entrySet()) {
-                JsonObject entry = object(e.getValue());
-                if (entry != null && isWholeNumber(entry.get("From"))) {
-                    out.put(e.getKey().toLowerCase(Locale.ROOT), number(entry.get("From")));
-                }
-            }
-        }
-        return out;
     }
 
     // ---------------------------------------------------------------- what the form shows of a saved file

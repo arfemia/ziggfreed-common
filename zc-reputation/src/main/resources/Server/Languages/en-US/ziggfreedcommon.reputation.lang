@@ -127,7 +127,7 @@ author.note.lines = Up to three lines for the How to earn part of the Reputation
 author.field.earn.1 = First line
 author.field.earn.2 = Second line
 author.field.earn.3 = Third line
-author.note.ranks = Every reputation shares the seven ranks from Hated to Exalted. You can add up to three ranks of its own above Exalted, each starting at the standing you set. Ranks of its own apply after a restart.
+author.note.ranks = Every reputation shares the seven ranks from Hated to Exalted. You can add up to three ranks of its own above Exalted, each starting at the standing you set. A new rank shows on the Reputation page as soon as you save.
 author.field.rank.1 = First rank above Exalted
 author.field.rank.2 = Second rank above Exalted
 author.field.rank.3 = Third rank above Exalted
@@ -160,6 +160,8 @@ author.preview.rank = {0} from {1, number}
 author.preview.beyond = Past the top rank, every {0, number}: {1, number} {1, plural, one {reward} other {rewards}}
 # {0} how many rows, lines and ranks the editor doesn't show.
 author.preview.kept = {0, number} more {0, plural, one {setting} other {settings}} from its files stay as they are.
+# {0} the NPC groups its file names that this server hasn't loaded, listed.
+author.preview.dropped = Saving leaves out {0}: this server hasn't loaded them, and a reputation naming a missing group stops characters from spawning.
 
 # Why a step can't go on. {0} what was typed or picked.
 author.check.edit = {0} isn't a reputation made here.
