@@ -60,6 +60,15 @@ public record ProcMoment(@Nonnull ProcTrigger trigger, @Nonnull Store<EntityStor
         return trigger == ProcTrigger.ALLY_HIT_INCOMING ? target : holder;
     }
 
+    /**
+     * The hit the holder dealt on this moment (one that carries a hit the holder landed: Hit, Crit, SprintHit,
+     * Finisher), or null: what a hit-aware {@code Holder} condition and a bound grant's hit term are asked on.
+     */
+    @Nullable
+    Damage dealt() {
+        return trigger.struck() && !trigger.taken() ? damage : null;
+    }
+
     /** The same moment about {@code other} (the target a proc sought, or one foe of an area). */
     @Nonnull
     ProcMoment about(@Nullable Ref<EntityStore> other) {

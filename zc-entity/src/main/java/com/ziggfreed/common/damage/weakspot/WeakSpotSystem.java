@@ -32,6 +32,7 @@ import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntityStatTypes;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.damage.onhit.HitWords;
+import com.ziggfreed.common.stats.condition.BoundGrants;
 import com.ziggfreed.common.stats.damage.TypedDamageBonusSystem;
 import com.ziggfreed.common.stats.damage.TypedDamageBonuses;
 import com.ziggfreed.common.usegate.UseGateDamageSystem;
@@ -43,8 +44,10 @@ import com.ziggfreed.common.util.SafeLog;
  * already cancelled), so the bonus multiplies the whole hit, flats included, on top as a crit does. A consumer
  * whose fold must see the weak-spot amount (a lifesteal read off the hit) orders itself {@code AFTER} this class.
  *
- * <p><b>Cost.</b> A hit by an entity whose weak-spot stats are all 0 (every one until something raises them) pays
- * one component read and a stat read each and returns. A damage-over-time tick never asks. Only a nonzero attacker
+ * <p><b>Cost.</b> A hit by an entity whose weak-spot stats are all 0 (every one until something raises them) and who
+ * holds no bound grant a hit may pay ({@code BoundGrants.hasHitTerms}) pays one component read and a stat read each and
+ * returns; one who holds such a grant has each stat read again with its hit term once the hit is known to land. A
+ * damage-over-time tick never asks. Only a nonzero attacker
  * asks the ways in, cheapest first: vanilla's own headshot or backstab branch (a meta read, decided once a hit and
  * applied to each of its causes), the target's window effects (one pass over its active effects against a table), the
  * rear arc (two transform reads), the head box (the target's detail boxes), and last the target's health against the
@@ -103,12 +106,20 @@ public final class WeakSpotSystem extends DamageEventSystem {
             // of the same hit (another cause) takes the same answer, even when the first was refused.
             VanillaWeakSpots.Paid vanilla = VanillaWeakSpots.paidForHit(damage, target);
             Ways ways = Ways.of(stats);
-            if (ways.base() <= 0.0 && !ways.anyWay() && !ways.sourcesMayPay()) {
+            boolean bound = BoundGrants.hasHitTerms(attacker);
+            if (!ways.mayPay() && !bound) {
                 return;
             }
             if (damage.isCancelled() || damage.getAmount() <= 0f
                     || target.equals(attacker) || !TypedDamageBonuses.attackerAllowed(store, attacker)) {
                 return;
+            }
+            if (bound) {
+                // A bound grant that is off may still count on this hit (R945): read once the hit is known to land.
+                ways = ways.withHitTerms(store, attacker, damage);
+                if (!ways.mayPay()) {
+                    return;
+                }
             }
             double base = ways.base() + WeakSpots.sourcePoints(store, attacker, damage, stats);
             WeakSpotSettingsAsset settings = WeakSpotSettingsConfig.getInstance().settings();
@@ -170,6 +181,26 @@ public final class WeakSpotSystem extends DamageEventSystem {
         /** Does a way of its own pay more on top (a head, back or window stat raised)? */
         boolean anyWay() {
             return head > 0.0 || back > 0.0 || staggered > 0.0;
+        }
+
+        /** Could a weak spot pay anything: the bonus, a way of its own or a source raised? */
+        boolean mayPay() {
+            return base > 0.0 || anyWay() || sourcesMayPay;
+        }
+
+        /**
+         * These stats on this hit: each with the attacker's bound grants on it that are off but hold on the hit
+         * ({@link BoundGrants#hitPoints}, R945).
+         */
+        @Nonnull
+        Ways withHitTerms(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> attacker,
+                @Nonnull Damage damage) {
+            return new Ways(base + BoundGrants.hitPoints(accessor, attacker, WeakSpots.DAMAGE_STAT, damage),
+                    head + BoundGrants.hitPoints(accessor, attacker, WeakSpots.HEAD_STAT, damage),
+                    back + BoundGrants.hitPoints(accessor, attacker, WeakSpots.BACK_STAT, damage),
+                    staggered + BoundGrants.hitPoints(accessor, attacker, WeakSpots.STAGGERED_STAT, damage),
+                    foeLow + BoundGrants.hitPoints(accessor, attacker, WeakSpots.FOE_LOW_STAT, damage),
+                    sourcesMayPay);
         }
     }
 

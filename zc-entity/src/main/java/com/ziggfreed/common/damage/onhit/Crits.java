@@ -17,6 +17,7 @@ import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.stats.StatIndexCache;
+import com.ziggfreed.common.stats.condition.BoundGrants;
 import com.ziggfreed.common.stats.condition.ConditionalStats;
 import com.ziggfreed.common.stats.damage.DamageTypes;
 import com.ziggfreed.common.stats.damage.RoutedStats;
@@ -33,7 +34,9 @@ import com.ziggfreed.common.util.SafeLog;
  * <p><b>What the chance adds up</b>: {@value #CHANCE_STAT}, every conditional stat whose file pays {@code CritChance}
  * and counts on this hit ({@code ConditionalStats.critPoints}: a frozen foe, say), and every stat a consumer registers
  * as a source ({@link #registerChanceSource}: a weapon skill's own share, counted where its line counts). The crit
- * damage adds {@value #DAMAGE_STAT} and every {@link #registerDamageSource}. A chance at or past 100 crits every hit,
+ * damage adds {@value #DAMAGE_STAT} and every {@link #registerDamageSource}. Each library stat (the two and the hit
+ * type's own) also takes the bound grants on it that are off but hold on this hit ({@code BoundGrants.hitPoints}, R945:
+ * a weapon talent on a hit that earns its skill with another item in hand). A chance at or past 100 crits every hit,
  * a semantic bound and no balance number. One consumer rule may refuse a hit the step ({@link #installHitRule}).
  *
  * <p><b>The word</b> shows only to the attacker (R896), and only while the owner's {@code CritText} is on and the
@@ -150,26 +153,40 @@ public final class Crits {
 
     /**
      * Could the attacker crit this hit at all: a chance stat, a source, a conditional stat or the hit type's own chance
-     * stat off 0? Cheap; asked first.
+     * stat off 0, or a bound grant a hit may pay ({@link BoundGrants#hasHitTerms})? Cheap; asked first.
      */
     static boolean mayCrit(@Nonnull Ref<EntityStore> attacker, @Nonnull EntityStatMap stats, @Nonnull Damage damage) {
         return pointsOf(stats, CHANCE_STAT, 0.0) != 0.0 || CHANCE_SOURCES.anyOn(stats)
-                || ConditionalStats.isHolder(attacker) || pointsAt(stats, typeStats(damage).chance()) != 0.0;
+                || ConditionalStats.isHolder(attacker) || pointsAt(stats, typeStats(damage).chance()) != 0.0
+                || BoundGrants.hasHitTerms(attacker);
     }
 
-    /** The attacker's critical chance on this hit, whole percent points, before any bound. */
+    /**
+     * The attacker's critical chance on this hit, whole percent points, before any bound: {@value #CHANCE_STAT} and the
+     * hit type's own, each with the off bound grants that hold on this hit ({@link BoundGrants#hitPoints}), the sources
+     * and the conditional stats.
+     */
     public static double chancePoints(@Nonnull ComponentAccessor<EntityStore> accessor,
             @Nonnull Ref<EntityStore> attacker, @Nullable Ref<EntityStore> target, @Nonnull Damage damage,
             @Nonnull EntityStatMap stats) {
-        return pointsOf(stats, CHANCE_STAT, 0.0) + pointsAt(stats, typeStats(damage).chance())
+        int typeChance = typeStats(damage).chance();
+        return pointsOf(stats, CHANCE_STAT, 0.0) + pointsAt(stats, typeChance)
+                + BoundGrants.hitPoints(accessor, attacker, CHANCE_STAT, damage)
+                + BoundGrants.hitPoints(accessor, attacker, typeChance, damage)
                 + CHANCE_SOURCES.points(accessor, attacker, damage, stats)
                 + ConditionalStats.critPoints(accessor, attacker, target, damage);
     }
 
-    /** The attacker's crit damage on this hit, whole percent points. */
+    /**
+     * The attacker's crit damage on this hit, whole percent points: {@value #DAMAGE_STAT} and the hit type's own, each
+     * with the off bound grants that hold on this hit, and the sources.
+     */
     public static double damagePoints(@Nonnull ComponentAccessor<EntityStore> accessor,
             @Nonnull Ref<EntityStore> attacker, @Nonnull Damage damage, @Nonnull EntityStatMap stats) {
-        return pointsOf(stats, DAMAGE_STAT, FALLBACK_DAMAGE_PERCENT) + pointsAt(stats, typeStats(damage).damage())
+        int typeDamage = typeStats(damage).damage();
+        return pointsOf(stats, DAMAGE_STAT, FALLBACK_DAMAGE_PERCENT) + pointsAt(stats, typeDamage)
+                + BoundGrants.hitPoints(accessor, attacker, DAMAGE_STAT, damage)
+                + BoundGrants.hitPoints(accessor, attacker, typeDamage, damage)
                 + DAMAGE_SOURCES.points(accessor, attacker, damage, stats);
     }
 

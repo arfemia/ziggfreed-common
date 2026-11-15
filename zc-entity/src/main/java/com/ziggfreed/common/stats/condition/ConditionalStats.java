@@ -34,9 +34,11 @@ import com.ziggfreed.common.util.SafeLog;
  * entity: every player, and a creature once it holds one of these stats above 0 (R860).
  *
  * <p><b>A holder's reading</b>, per stat it holds (its value off the stat's maximum, where gear, effects and grants
- * accumulate, never 0): whether its {@code Holder} conditions hold (and have held for {@code HoldSeconds}) and its
- * {@code PerFoe} count. Only a stat the holder holds is asked anything, so a player with none costs one stat read per
- * conditional stat each pass. The readings are transient and single-process, dropped when the holder leaves its store.
+ * accumulate, never 0, unless a bound grant that is off may raise it on a hit, {@link BoundGrants#hitPoints}): whether
+ * its {@code Holder} conditions hold (and have held for {@code HoldSeconds}) and its {@code PerFoe} count. Only a stat
+ * the holder holds is asked anything, so a player with none costs one stat read per conditional stat each pass. A hit
+ * payout adds the bound hit term to the value it reads. The readings are transient and single-process, dropped when
+ * the holder leaves its store.
  *
  * <p><b>The payouts.</b> {@code Onto} is written here, on the pass: one native {@code StaticModifier} keyed
  * {@value #MODIFIER_PREFIX}{@code <stat>} on each named stat, written or removed only when it changes, so whatever
@@ -174,7 +176,8 @@ public final class ConditionalStats {
     static void evaluate(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
             @Nonnull EntityStatMap stats, @Nonnull Instant now, long nanos, boolean keep) {
         try {
-            if (!keep && !HOLDERS.containsKey(ref) && !holdsAny(stats)) {
+            // A creature is kept once it holds a live stat above 0, or a bound grant a hit may raise one by (R945).
+            if (!keep && !HOLDERS.containsKey(ref) && !holdsAny(stats) && !BoundGrants.hasHitTerms(ref)) {
                 return;
             }
             HolderState state = HOLDERS.computeIfAbsent(ref, r -> new HolderState());
@@ -193,7 +196,9 @@ public final class ConditionalStats {
             Map<OntoKey, Float> wanted = new HashMap<>();
             for (Def def : defs.all()) {
                 double value = readMax(stats, def.statId());
-                if (value == 0.0) {
+                // A stat reading 0 is still read when a bound grant may raise it on a hit (R945), so the hit finds its
+                // holder conditions and count ready.
+                if (value == 0.0 && !BoundGrants.mayPayOnHit(ref, def.statId())) {
                     continue;
                 }
                 Reading reading = previous.get(def.key());
@@ -202,7 +207,7 @@ public final class ConditionalStats {
                 }
                 read(accessor, ref, reading, value, now, nanos);
                 next.put(def.key(), reading);
-                if (!def.onto().isEmpty() && reading.holds && reading.factor > 0.0) {
+                if (value != 0.0 && !def.onto().isEmpty() && reading.holds && reading.factor > 0.0) {
                     float amount = (float) paid(reading);
                     String key = MODIFIER_PREFIX + def.key();
                     for (String onto : def.onto()) {
@@ -335,7 +340,7 @@ public final class ConditionalStats {
                 if (like != null && !TypedDamageBonuses.countsOn(accessor, attacker, damage, causeId, like)) {
                     continue;
                 }
-                sum += paid(reading);
+                sum += paidOnHit(accessor, attacker, damage, reading);
             }
             return sum;
         } catch (Throwable t) {
@@ -393,7 +398,7 @@ public final class ConditionalStats {
             for (Reading reading : state.readings.values()) {
                 if (reading.def.crit() && reading.holds && reading.factor > 0.0
                         && countsOnHit(accessor, attacker, target, damage, reading.def)) {
-                    sum += paid(reading);
+                    sum += paidOnHit(accessor, attacker, damage, reading);
                 }
             }
             return sum;
@@ -416,7 +421,8 @@ public final class ConditionalStats {
             return 0.0;
         }
         try {
-            return countsOnHit(accessor, attacker, target, damage, reading.def) ? paid(reading) : 0.0;
+            return countsOnHit(accessor, attacker, target, damage, reading.def)
+                    ? paidOnHit(accessor, attacker, damage, reading) : 0.0;
         } catch (Throwable t) {
             return 0.0;
         }
@@ -428,7 +434,28 @@ public final class ConditionalStats {
      * every payout holds it here.
      */
     private static double paid(@Nonnull Reading reading) {
-        return Math.min(reading.value * reading.factor, reading.def.asset().max());
+        return paidAt(reading, reading.value);
+    }
+
+    /**
+     * What a reading pays on this hit: {@link #paid}, its value raised by the off bound grants on its stat that hold on
+     * the hit ({@link BoundGrants#hitPoints}, R945). 0 for a value of 0.
+     */
+    private static double paidOnHit(@Nonnull ComponentAccessor<EntityStore> accessor,
+            @Nonnull Ref<EntityStore> attacker, @Nonnull Damage damage, @Nonnull Reading reading) {
+        if (!BoundGrants.hasHitTerms(attacker)) {
+            return paid(reading);
+        }
+        // The stat read live, not the reading's cached value: a swap flips a bound modifier between two reads, and the
+        // hit term pays only an off one, so a cached value still holding it would pay it twice.
+        EntityStatMap stats = accessor.getComponent(attacker, EntityStatMap.getComponentType());
+        double value = stats == null ? reading.value : readMax(stats, reading.def.statId());
+        return paidAt(reading, value + BoundGrants.hitPoints(accessor, attacker, reading.def.statId(), damage));
+    }
+
+    /** {@code value} times the reading's count, held to its file's {@code Max}; 0 for a value of 0. */
+    private static double paidAt(@Nonnull Reading reading, double value) {
+        return value == 0.0 ? 0.0 : Math.min(value * reading.factor, reading.def.asset().max());
     }
 
     /** Do a file's target conditions and hit reads all hold on this hit? */
