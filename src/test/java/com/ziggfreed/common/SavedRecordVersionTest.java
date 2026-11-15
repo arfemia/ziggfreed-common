@@ -26,6 +26,7 @@ import com.ziggfreed.common.npc.placement.runtime.PlacedNpcComponent;
 import com.ziggfreed.common.objectives.store.ZigProgressComponent;
 import com.ziggfreed.common.playerstats.PlayerStatsComponent;
 import com.ziggfreed.common.reputation.ReputationComponent;
+import com.ziggfreed.common.rune.RuneSockets;
 import com.ziggfreed.common.settings.PlayerSettingsComponent;
 import com.ziggfreed.common.stats.gearset.GearSetLooksComponent;
 import com.ziggfreed.common.track.TrackComponent;
@@ -43,7 +44,7 @@ class SavedRecordVersionTest {
             PerformerIdentityComponent.CODEC, ZigTitleComponent.CODEC, SpoilsChest.CODEC,
             PlacedNpcComponent.CODEC, ZigProgressComponent.CODEC, PlayerStatsComponent.CODEC,
             ReputationComponent.CODEC, PlayerSettingsComponent.CODEC, GearSetLooksComponent.CODEC,
-            TrackComponent.CODEC);
+            TrackComponent.CODEC, RuneSockets.CODEC);
 
     @Test
     void everySavedRecordWritesItsVersionReadsAnOlderSaveAndRefusesANewerOne() {
