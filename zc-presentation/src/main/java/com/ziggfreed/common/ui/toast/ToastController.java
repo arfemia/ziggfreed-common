@@ -7,8 +7,8 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 
-import com.hypixel.hytale.server.core.HytaleServer;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
+import com.ziggfreed.common.util.ZigScheduler;
 
 /**
  * Transport-agnostic toast engine. Binds a player (a {@link UUID} supplier) and a
@@ -100,7 +100,7 @@ public final class ToastController {
      */
     private void scheduleHide(@Nonnull UUID id, @Nonnull ToastSpec spec, long gen) {
         long ttl = spec.durationMs() > 0 ? spec.durationMs() : DEFAULT_TTL_MS;
-        HytaleServer.SCHEDULED_EXECUTOR.schedule(() -> {
+        ZigScheduler.schedule(() -> {
             ToastStore.Next next = ToastStore.clearIfCurrent(id, gen, showing.test(id));
             if (!next.cleared()) {
                 return;

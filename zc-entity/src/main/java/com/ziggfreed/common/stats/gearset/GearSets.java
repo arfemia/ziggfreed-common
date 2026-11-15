@@ -48,6 +48,7 @@ import com.ziggfreed.common.stats.condition.BoundGrants;
 import com.ziggfreed.common.stats.gearset.GearSetDecision.SlotCounts;
 import com.ziggfreed.common.stats.gearset.GearSetKeys.TierRef;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.util.ZigScheduler;
 
 /**
  * The gear-set ENGINE: asset-driven set bonuses over the one {@link EquipStatBridge}.
@@ -310,7 +311,8 @@ public final class GearSets {
             long tick = world.getTick();
             Long last = RECHECKED_AT.put(playerId, tick);
             if (last != null && last == tick) {
-                world.scheduleAfter(() -> recheck(world, ref, playerId), world.getTickStepNanos(), TimeUnit.NANOSECONDS);
+                ZigScheduler.schedule(() -> recheck(world, ref, playerId), world.getTickStepNanos(), TimeUnit.NANOSECONDS,
+                        world);
                 waiting = true;
                 return;
             }

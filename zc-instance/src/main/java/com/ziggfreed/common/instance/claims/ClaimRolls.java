@@ -13,7 +13,6 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.server.core.HytaleServer;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -32,6 +31,7 @@ import com.ziggfreed.common.loot.reward.LootRewardKinds;
 import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.util.ZigScheduler;
 
 /**
  * The one way a payout writes a Claim from loot tables (a dungeon's clear, an endless run's waves, a reward chest's
@@ -186,7 +186,7 @@ public final class ClaimRolls {
         if (ref == null) {
             if (hops > 0 && connected(player)) {
                 try {
-                    HytaleServer.SCHEDULED_EXECUTOR.schedule(() -> onPlayersThread(player, hops - 1, task),
+                    ZigScheduler.schedule(() -> onPlayersThread(player, hops - 1, task),
                             BETWEEN_WORLDS_RETRY_MS, TimeUnit.MILLISECONDS);
                     return false;
                 } catch (Throwable t) {
