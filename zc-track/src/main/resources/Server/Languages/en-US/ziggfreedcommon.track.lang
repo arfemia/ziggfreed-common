@@ -34,6 +34,26 @@ claims.tag.remembered = Your last pick
 # Under the page when more wait than it lists: {0} how many more.
 claims.page.more = {0, number} more {0, plural, one {choice waits} other {choices wait}} after these.
 
+# Why a pick could not be taken, or a respec or a build swap could not be done, on every page that offers one (a
+# track's tree, a trainer). In refused.level {0} is the level it needs and {1} the track.
+refused.level = Reach level {0, number} in {1} first.
+refused.locked = You do not meet what this needs yet.
+refused.before = You need what comes before it first.
+refused.node = You took the other side of this choice. Undo it, or respec, to choose again.
+# The same where a page knows which side: {0} the side taken, {1} the track it was taken on.
+refused.node.face = You took {0} in {1}, the other side of this choice. Undo it, or respec {1}, to choose again.
+refused.points = You need more points for this.
+refused.cap = You have spent all the points you can on this.
+refused.maxed = You already have this.
+refused.elsewhere = A trainer elsewhere teaches this.
+refused.pay = You cannot pay for this yet.
+refused.combat = You cannot do this while you are fighting.
+refused.encounter = You cannot do this during a boss fight.
+refused.other = This cannot be done right now.
+# What a player's own respec did: {0} the track, {1} how many picks it cleared.
+respec.done = {0} is reset: {1, number} {1, plural, one {pick is} other {picks are}} cleared and the points are yours to spend again.
+respec.nothing = You have nothing to clear on {0}.
+
 # A Track reward as it reads in a reward list: {0} the amount, {1} the track's name.
 reward.gain = +{0, number} {1}
 reward.loss = {0, number} {1}

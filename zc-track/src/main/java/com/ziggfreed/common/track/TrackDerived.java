@@ -42,9 +42,10 @@ import com.ziggfreed.common.util.SafeLog;
  * {@value #POINTS} would share its track's points key (the validator's {@code RESERVED_PICK_ID}).
  *
  * <p><b>When it runs</b>: at every world entry (the ready settle, so a world's {@code Grants} rules apply where the
- * player now stands and leaving an arena gives the grants back), after every pick, undo and respec
+ * player now stands, by each grant's kind and families, and leaving an arena gives the grants back), after every
+ * pick, undo and respec
  * ({@code PickService}) and every prestige ({@code TrackService.prestige}), and for every online player after a
- * pick, option, deck, track or world rule fold ({@link #rebuildAllOnline}). Running it twice changes nothing.
+ * pick, option, track, stat or world rule fold ({@link #rebuildAllOnline}). Running it twice changes nothing.
  *
  * <p>The grants themselves are the native kinds a mod registered ({@code grant.Grants}): the library's
  * {@code Stat} writes native stat modifiers; resistances, outgoing damage and abilities are kinds later modules
@@ -58,7 +59,7 @@ public final class TrackDerived {
     /** What a track's {@code Points.Grants} are written under, after the track: {@code zigtrack:<track>:points}. */
     public static final String POINTS = "points";
 
-    /** Whether a grant stays on: the world rules' answer for its kind on its track. */
+    /** Whether a grant stays on: the world rules' answer for its kind and its families on its track. */
     @FunctionalInterface
     public interface GrantFilter {
         boolean keeps(@Nonnull Grant grant, @Nonnull String trackId, @Nullable String categoryId);
@@ -98,7 +99,7 @@ public final class TrackDerived {
                         TrackReading reading = TrackService.read(TrackKey.player(id, trackId));
                         return reading == null ? null : reading.record();
                     },
-                    (grant, trackId, categoryId) -> TrackWorldRules.grantsOn(world, grant.kind(), grant.family(),
+                    (grant, trackId, categoryId) -> TrackWorldRules.grantsOn(world, grant.kind(), grant.families(),
                             trackId, categoryId));
             Grants.apply(store, ref, OWNER, placed);
         } catch (Throwable t) {

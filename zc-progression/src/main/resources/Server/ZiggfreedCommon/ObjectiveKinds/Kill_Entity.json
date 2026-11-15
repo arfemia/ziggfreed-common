@@ -2,6 +2,7 @@
   "$Comment": "Defeating a creature. A step naming one is drawn with that creature's own portrait; name a family here to point it at whichever member represents it.",
   "ValueBased": false,
   "Producible": true,
+  "Pick": { "List": "ziggfreedcommon:ids/NPCRole" },
   "TargetNames": {
     "Entity": true
   },

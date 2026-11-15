@@ -57,10 +57,6 @@ class BonusRowAuditTest {
         return findings.stream().anyMatch(f -> code.equals(f.code()) && sourceId.equals(f.sourceId()));
     }
 
-    private static boolean warnsPassOnly(List<Finding> findings, String rowId) {
-        return findings.stream().anyMatch(f -> LootableValidator.PASS_ONLY_REWARD_KIND.equals(f.code())
-                && f.sourceId().startsWith(rowId));
-    }
 
     @Test
     void aRowNamingNoMomentIsAnErrorStampedWithTheTablesDomain() {
@@ -78,13 +74,6 @@ class BonusRowAuditTest {
         assertTrue(has(audit(Map.of("fixture_middle",
                 BonusRowAsset.of(BonusMoment.BREAK_BLOCK, "Ore_*_Cracked", null, commanding(), null))),
                 BonusRowAudit.BAD_PATTERN, "fixture_middle"));
-    }
-
-    @Test
-    void aChanceThatCanNeverRiseOffZeroIsAnError() {
-        assertTrue(has(audit(Map.of("fixture_never",
-                BonusRowAsset.of(BonusMoment.BREAK_BLOCK, "Rock_*", FactorFormula.of(0.0, null, null), commanding(), null))),
-                BonusRowAudit.IMPOSSIBLE_CHANCE, "fixture_never"));
     }
 
     @Test
@@ -117,15 +106,12 @@ class BonusRowAuditTest {
     }
 
     @Test
-    void aMomentItemPaysOnlyInAPickupRow() {
+    void aMomentItemInAKillRowIsWarned() {
         List<Finding> findings = audit(Map.of(
-                "fixture_break", BonusRowAsset.of(BonusMoment.BREAK_BLOCK, "*Test_Name*", null, momentItem(), null),
-                "fixture_kill", BonusRowAsset.of(BonusMoment.KILL_MOB, "*Test_Name*", null, momentItem(), null),
-                "fixture_pickup", BonusRowAsset.of(BonusMoment.PICKUP_ITEM, "*Test_Name*", null, momentItem(), null)));
+                "fixture_kill", BonusRowAsset.of(BonusMoment.KILL_MOB, "*Test_Name*", null, momentItem(), null)));
 
-        assertTrue(warnsPassOnly(findings, "fixture_break"), findings::toString);
-        assertTrue(warnsPassOnly(findings, "fixture_kill"), findings::toString);
-        assertFalse(warnsPassOnly(findings, "fixture_pickup"), findings::toString);
+        assertTrue(findings.stream().anyMatch(f -> LootableValidator.PASS_ONLY_REWARD_KIND.equals(f.code())
+                && f.sourceId().startsWith("fixture_kill")), findings::toString);
     }
 
     @Test

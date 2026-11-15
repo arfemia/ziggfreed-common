@@ -119,6 +119,11 @@ page.readonly = Governed elsewhere; shown here read-only.
 page.changed = {0} is now {1}.
 page.refused = {0} could not be changed and keeps its state.
 page.back = Back
+# The buttons that open an in-game editor, and what the page says when one can't open.
+page.quest_editor = Quest Editor
+page.editor.reputation = Reputation Editor
+page.editor.achievement = Achievement Editor
+page.editor.failed = That editor couldn't open. The server log says why.
 
 usegates.title = Use Gates
 usegates.subtitle = What a player must meet to break a block, hit a creature or use a piece of gear. Switch a gate off and it asks nothing.

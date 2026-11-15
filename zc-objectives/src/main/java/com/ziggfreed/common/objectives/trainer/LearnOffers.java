@@ -91,7 +91,7 @@ final class LearnOffers {
                 ActionLook.NORMAL, "learn", null, learnable, null);
         DetailView page = new DetailView(picture, name, track, null, List.of(Pill.of(word, tone)), null, null, null,
                 flavor(asset), List.of(new DetailBlock("needs", TrainerText.line("learn.block"), null, needs)),
-                List.of(learn), learnable ? null : refusal(pick.status(), pick.opensAt(), track));
+                List.of(learn), learnable ? null : TrackText.refusal(pick.status(), pick.opensAt(), track));
         String trackId = pick.trackId();
         String pickId = pick.pickId();
         // A Learn that charges a price arms on its first press and pays on the second: a respec keeps what a trainer
@@ -111,24 +111,8 @@ final class LearnOffers {
         }
         TrackPicks.PickDef def = TrackPicks.pick(pickId);
         int opensAt = def == null ? 1 : def.asset().opensAt();
-        return TrainerResult.toast(ToastKind.WARNING, refusal(result.status(), opensAt, trackName(trackId)));
-    }
-
-    /** Why a take was or would be refused, in the player's words. */
-    @Nonnull
-    static Message refusal(@Nonnull Status status, int opensAt, @Nonnull Message track) {
-        return switch (status) {
-            case NOT_OPEN -> TrainerText.line("learn.refused.level", opensAt, track);
-            case LOCKED -> TrainerText.line("learn.refused.locked");
-            case NEEDS_PREREQUISITE -> TrainerText.line("learn.refused.before");
-            case NODE_TAKEN -> TrainerText.line("learn.refused.node");
-            case NO_POINTS -> TrainerText.line("learn.refused.points");
-            case SPEND_CAP -> TrainerText.line("learn.refused.cap");
-            case MAXED -> TrainerText.line("learn.refused.learned");
-            case ELSEWHERE -> TrainerText.line("learn.refused.elsewhere");
-            case CANNOT_PAY -> TrainerText.line("learn.refused.pay");
-            default -> TrainerText.line("learn.refused.other");
-        };
+        return TrainerResult.toast(ToastKind.WARNING,
+                TrackText.refusal(result.status(), opensAt, trackName(trackId)));
     }
 
     /** The row's state: learned, ready to learn, a level away, or held back by something else. */

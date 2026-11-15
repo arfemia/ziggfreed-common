@@ -11,6 +11,8 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.board.BoardStreak;
+import com.ziggfreed.common.playerdata.PlayerRecords;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -34,7 +36,8 @@ import com.ziggfreed.common.util.SafeLog;
  * refused rather than silently dropped somewhere it will not be read back from.
  *
  * <p>{@code flush} stays the interface no-op: the component's own codec persists a live component
- * with its world, so there is no transaction boundary to report.
+ * with its world, so there is no transaction boundary to report. Every write that lands says so
+ * ({@code PlayerRecords.changed}), so a consumer keeping the record elsewhere saves it too.
  */
 public final class ComponentCommerceStore implements CommerceStore {
 
@@ -86,6 +89,11 @@ public final class ComponentCommerceStore implements CommerceStore {
                 + "': no commerce component");
     }
 
+    /** A write landed on the subject's record: said once, for a consumer keeping the record elsewhere. */
+    private static void wrote(@Nonnull Subject subject) {
+        PlayerRecords.changed(subject.id(), CommerceComponent.REGISTRY_ID);
+    }
+
     // ==================== the wallet ====================
 
     @Override
@@ -102,6 +110,7 @@ public final class ComponentCommerceStore implements CommerceStore {
             return;
         }
         component.setBalance(currencyId, value);
+        wrote(subject);
     }
 
     @Override
@@ -119,6 +128,7 @@ public final class ComponentCommerceStore implements CommerceStore {
             return;
         }
         component.addLifetimeSpent(currencyId, amount);
+        wrote(subject);
     }
 
     @Override
@@ -135,6 +145,7 @@ public final class ComponentCommerceStore implements CommerceStore {
             return;
         }
         component.refundLifetimeSpent(currencyId, amount);
+        wrote(subject);
     }
 
     @Override
@@ -145,6 +156,7 @@ public final class ComponentCommerceStore implements CommerceStore {
             return;
         }
         component.setLifetimeSpent(currencyId, amount);
+        wrote(subject);
     }
 
     // ==================== purchase limits ====================
@@ -169,6 +181,7 @@ public final class ComponentCommerceStore implements CommerceStore {
             return;
         }
         component.recordPurchase(offerId, epochDay);
+        wrote(subject);
     }
 
     @Override
@@ -180,6 +193,7 @@ public final class ComponentCommerceStore implements CommerceStore {
             return;
         }
         component.setPurchases(offerId, epochDay, today, total);
+        wrote(subject);
     }
 
     @Override
@@ -190,6 +204,7 @@ public final class ComponentCommerceStore implements CommerceStore {
             return;
         }
         component.clearPurchases();
+        wrote(subject);
     }
 
     /** Every offer this subject has a purchase record for, for an admin listing. */
@@ -238,7 +253,11 @@ public final class ComponentCommerceStore implements CommerceStore {
             dropped(subject, "reroll");
             return false;
         }
-        return component.commitReroll(poolId, period, maxPerPeriod, position, replacedId, newId);
+        boolean committed = component.commitReroll(poolId, period, maxPerPeriod, position, replacedId, newId);
+        if (committed) {
+            wrote(subject);
+        }
+        return committed;
     }
 
     @Override
@@ -257,6 +276,7 @@ public final class ComponentCommerceStore implements CommerceStore {
             return;
         }
         component.setRerolls(poolId, state);
+        wrote(subject);
     }
 
     @Override
@@ -267,6 +287,7 @@ public final class ComponentCommerceStore implements CommerceStore {
             return;
         }
         component.clearRerolls();
+        wrote(subject);
     }
 
     /** Every pool this subject has reroll state in, for an admin listing. */
@@ -280,6 +301,26 @@ public final class ComponentCommerceStore implements CommerceStore {
     public long rerollPeriod(@Nonnull Subject subject, @Nonnull String poolId) {
         CommerceComponent component = componentOf(subject);
         return component == null ? 0L : component.rerollPeriod(poolId);
+    }
+
+    // ==================== the board streak ====================
+
+    @Override
+    @Nonnull
+    public BoardStreak boardStreak(@Nonnull Subject subject) {
+        CommerceComponent component = componentOf(subject);
+        return component == null ? BoardStreak.NONE : component.boardStreak();
+    }
+
+    @Override
+    public void setBoardStreak(@Nonnull Subject subject, @Nonnull BoardStreak streak) {
+        CommerceComponent component = componentOf(subject);
+        if (component == null) {
+            dropped(subject, "board streak");
+            return;
+        }
+        component.setBoardStreak(streak);
+        wrote(subject);
     }
 
     // ==================== one-time migrations ====================
@@ -298,6 +339,10 @@ public final class ComponentCommerceStore implements CommerceStore {
             dropped(subject, "migration claim");
             return false;
         }
-        return component.claimMigration(migrationId);
+        boolean claimed = component.claimMigration(migrationId);
+        if (claimed) {
+            wrote(subject);
+        }
+        return claimed;
     }
 }

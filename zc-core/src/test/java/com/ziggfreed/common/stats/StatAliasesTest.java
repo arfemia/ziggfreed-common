@@ -51,6 +51,18 @@ class StatAliasesTest {
     }
 
     @Test
+    void aScaledAliasCountsTheOldValueTimesItsScale() {
+        StatAliases.registerScaled("Old_Flat", 4.0, "New_Percent");
+        Map<String, Double> saved = new LinkedHashMap<>();
+        saved.put("Old_Flat", 2.0);
+        saved.put("New_Percent", 1.0);
+        Map<String, Double> read = StatAliases.normalize(saved);
+        assertEquals(9.0, read.get("New_Percent"));
+        assertEquals(4.0, StatAliases.scale("old_flat"));
+        assertEquals(1.0, StatAliases.scale("New_Percent"));
+    }
+
+    @Test
     void nothingRetiredLeavesTheMapAsItIs() {
         StatAliases.register("Old_Fire", "New_Fire");
         Map<String, Double> saved = Map.of("Kept", 3.0);

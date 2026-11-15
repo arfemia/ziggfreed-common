@@ -54,15 +54,30 @@ public final class BoostOwnerLayers {
         return directory;
     }
 
+    /**
+     * The owner file over the boosts ({@value #FILE}), for an admin page or a one-time move that writes it (through
+     * zc-core's {@code JsonOverrideWriter}, which never overwrites a file it cannot read) and then {@link #reload}s.
+     */
+    @Nonnull
+    public static Path file() {
+        return directory.resolve(FILE);
+    }
+
+    /** The owner file over the server-wide settings ({@value #SETTINGS_FILE}); written as {@link #file} is. */
+    @Nonnull
+    public static Path settingsFile() {
+        return directory.resolve(SETTINGS_FILE);
+    }
+
     /** (Re)read {@code boosts.json} into the boost fold's owner layer. */
     public static void reload() {
-        OwnerLayerReader.apply(LOG_TAG, directory.resolve(FILE), BoostAsset.class, BoostAsset.CODEC,
+        OwnerLayerReader.apply(LOG_TAG, file(), BoostAsset.class, BoostAsset.CODEC,
                 BoostConfig.getInstance(), "boost", b -> GateSpec.missingMod(b.requires()));
     }
 
     /** (Re)read {@code boost-settings.json} into the settings fold's owner layer. */
     public static void reloadSettings() {
-        OwnerLayerReader.apply(LOG_TAG, directory.resolve(SETTINGS_FILE), BoostSettingsAsset.class,
+        OwnerLayerReader.apply(LOG_TAG, settingsFile(), BoostSettingsAsset.class,
                 BoostSettingsAsset.CODEC, BoostSettingsConfig.getInstance(), "boost settings");
     }
 }

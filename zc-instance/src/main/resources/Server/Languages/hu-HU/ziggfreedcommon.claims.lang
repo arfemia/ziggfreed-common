@@ -38,22 +38,18 @@ notice.added.spoils = A részed ott vár a ládában, ahol a főellenség eleset
 notice.added.spoils.named = {0} ott vár a ládában, ahol a főellenség elesett, és a menüben az Átvehetők alatt.
 
 # A boss's chest: what a won fight leaves where the boss fell, holding each player's own rewards from that fight.
-# spoils.hint is the prompt over the chest; the game fills {key} with the button to press. Opening it hands over
-# what is not an item at once (spoils.paid heads the list of it) and shows the items in the game's own chest
-# window; spoils.empty is the line for a player with nothing in it. The spoils.title to spoils.action.take_all lines
-# are the Claims page's, which the chest can show instead (the library's SpoilsView switch).
+# spoils.hint is the prompt over the chest; the game fills {key} with the button to press. Opening any reward chest
+# shows one page: spoils.title over the chest's own line (spoils.lead for a boss's), each reward a line a click
+# takes, spoils.page.hint beside the spoils.action.take_all button, and spoils.all_taken once the player has taken
+# everything. spoils.empty is the line for a player with nothing in it. spoils.banner is the line under a banner
+# telling a player their reward went into the chest, when the source's own file names no line of its own.
 spoils.hint = Nyomd meg: [{key}] a megnyitáshoz
-spoils.paid = A ládából:
 spoils.title = A részed
 spoils.lead = Ezt hagyta neked ez a főellenség. Ami itt marad, az az Átvehetők alatt vár rád.
-spoils.detail.lead = Az Átvétel ezeket veszi át. Az Összes elvétele mindent, ami itt a tiéd.
-spoils.detail.hint = A tárgyaknak hely kell a zsákodban. Ami nem fér el, az Átvehetők alatt vár.
 spoils.action.take_all = Összes elvétele
 spoils.page.hint = Kattints egy jutalomra, hogy elvedd, vagy az Összes elvétele gombra mindenért. A tárgyaknak hely kell a zsákodban.
 spoils.all_taken = Mindent elvettél.
 spoils.empty = Nincs itt semmi, ami rád várna.
-spoils.items_left = A részed többi része a ládában van.
-spoils.action.items = Láda megnyitása
 spoils.banner = A jutalmad abban a ládában vár, ahol a főellenség elesett.
 
 # A reward chest that is not a boss's: one a rare kill, a rare break or another source leaves, holding each player's

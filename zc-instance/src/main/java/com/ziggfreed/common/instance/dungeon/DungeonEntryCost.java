@@ -3,6 +3,7 @@ package com.ziggfreed.common.instance.dungeon;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -13,7 +14,10 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.instance.reward.InstanceReward;
 import com.ziggfreed.common.inventory.InventoryUtil;
+import com.ziggfreed.common.loot.claim.Claim;
+import com.ziggfreed.common.loot.claim.ClaimStore;
 import com.ziggfreed.common.loot.reward.LootRewardKinds;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
@@ -37,7 +41,9 @@ import com.ziggfreed.common.util.SafeLog;
  * {@link #refund} gives back goes through {@link LootRewardKinds#handToPlayer}: where the player's own pickup settings
  * route it, with the game's own pickup notice and sound for what went in, and whatever the bag cannot take to the
  * server's overflow policy (by default the ground at their feet). That delivery reads the same bag through the
- * player's own store, on the same world thread.
+ * player's own store, on the same world thread. A cost the player paid for an area whose copy or paste fails once
+ * the loading screen has begun comes back as a Claim instead ({@link #refundAsClaim}), since by then they may be in
+ * any world.
  */
 public final class DungeonEntryCost {
 
@@ -141,6 +147,38 @@ public final class DungeonEntryCost {
         }
         if (!stacks.isEmpty()) {
             LootRewardKinds.handToPlayer(subject, REFUND_SOURCE, SafeLog::warn).build().spill(stacks);
+        }
+    }
+
+    /**
+     * Give {@code cost} back to {@code player} as a Claim, for an entry the player paid whose copy or paste failed
+     * ({@code why}) once the loading screen had begun, by when they may be in any world or none: one Claim per failed
+     * entry ({@code dungeon:<id>:refund:<player>:<millis>}, source {@code dungeon:<id>}), titled
+     * {@code entry.refund.title} over the dungeon's name, counted against no returns, waiting under Claims until
+     * they take it (M428). Any thread; never throws.
+     */
+    public static void refundAsClaim(@Nonnull UUID player, @Nonnull String dungeonId, @Nullable String nameKey,
+            @Nonnull List<Item> cost, @Nullable Throwable why) {
+        if (cost.isEmpty()) {
+            return;
+        }
+        try {
+            List<InstanceReward> rewards = new ArrayList<>(cost.size());
+            for (Item item : cost) {
+                rewards.add(InstanceReward.item(item.itemId(), item.count(), null));
+            }
+            long now = System.currentTimeMillis();
+            String source = DungeonRuns.SOURCE_PREFIX + dungeonId;
+            String name = nameKey == null || nameKey.isBlank() ? dungeonId : Claim.keyArg(nameKey);
+            Claim claim = new Claim(source + ":refund:" + player + ":" + now, source,
+                    DungeonRefusals.PREFIX + "entry.refund.title", List.of(name), null, rewards, now);
+            boolean written = ClaimStore.shared().award(player, claim, null, source, now);
+            SafeLog.info(LOG + "the copy or paste of " + dungeonId + " failed after " + player + " paid " + cost
+                    + (why == null ? "" : " (" + why.getMessage() + ")")
+                    + (written ? "; the cost waits for them under Claims" : "; the refund could not be written"));
+        } catch (Throwable t) {
+            SafeLog.warn(LOG + cost + " taken for " + dungeonId + "'s entry could not be given back as a Claim to "
+                    + player, t);
         }
     }
 

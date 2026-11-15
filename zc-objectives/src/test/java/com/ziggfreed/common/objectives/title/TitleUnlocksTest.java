@@ -22,6 +22,8 @@ import com.ziggfreed.common.entity.title.ActiveTitles;
 import com.ziggfreed.common.entity.title.ZigTitleComponent;
 import com.ziggfreed.common.event.NativeEventSeam;
 import com.ziggfreed.common.objectives.title.TitleUnlocks.Outcome;
+import com.ziggfreed.common.playerdata.PlayerRecords;
+import com.ziggfreed.common.playerdata.ZigPlayerRecordChangedEvent;
 import com.ziggfreed.common.subject.Subject;
 
 /**
@@ -50,6 +52,7 @@ class TitleUnlocksTest {
     @AfterEach
     void restore() {
         TitleEvents.publishTo(null);
+        PlayerRecords.publishTo(null);
         ActiveTitles.clear();
     }
 
@@ -92,6 +95,29 @@ class TitleUnlocksTest {
 
         assertEquals(Outcome.NONE_ACTIVE, TitleUnlocks.deactivateWrite(titles, player));
         assertEquals(1, announced.size());
+    }
+
+    @Test
+    void showNoneWithNothingShownTellsAStoreElsewhereThroughTheRecordEventAlone() {
+        List<ZigPlayerRecordChangedEvent> saved = new ArrayList<>();
+        PlayerRecords.publishTo(new NativeEventSeam.Publisher() {
+            @Override
+            public <E extends IEvent<Void>> void publish(@Nonnull Class<E> type, @Nonnull Supplier<E> build) {
+                if (build.get() instanceof ZigPlayerRecordChangedEvent event) {
+                    saved.add(event);
+                }
+            }
+        });
+
+        assertEquals(Outcome.NONE_ACTIVE, TitleUnlocks.deactivateWrite(titles, player));
+        assertTrue(titles.choseNone());
+        assertTrue(announced.isEmpty(), "nothing shown changed, so no title event");
+        assertEquals(1, saved.size(), "the choice is saved, so a database is told to write it");
+        assertEquals(player.id(), saved.get(0).playerId());
+        assertEquals(ZigTitleComponent.REGISTRY_ID, saved.get(0).recordId());
+
+        TitleUnlocks.deactivateWrite(titles, player);
+        assertEquals(1, saved.size(), "a second Show none changes nothing saved");
     }
 
     @Test

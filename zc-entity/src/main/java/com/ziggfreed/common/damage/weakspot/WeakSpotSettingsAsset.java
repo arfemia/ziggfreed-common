@@ -48,6 +48,9 @@ public final class WeakSpotSettingsAsset implements JsonAssetWithMap<String, Def
     /** The combat text's colour unless the record says otherwise. */
     public static final String DEFAULT_TEXT_COLOR = "#FF9A2E";
 
+    /** The critical hit's word's colour unless the record says otherwise. */
+    public static final String DEFAULT_CRIT_TEXT_COLOR = "#FF3B3B";
+
     private String id;
     private AssetExtraInfo.Data data;
 
@@ -55,6 +58,7 @@ public final class WeakSpotSettingsAsset implements JsonAssetWithMap<String, Def
     @Nullable protected Backstab backstab;
     @Nullable protected Windows windows;
     @Nullable protected Text combatText;
+    @Nullable protected CritText critText;
 
     public static final AssetBuilderCodec<String, WeakSpotSettingsAsset> CODEC = AssetBuilderCodec.builder(
                     WeakSpotSettingsAsset.class,
@@ -79,6 +83,10 @@ public final class WeakSpotSettingsAsset implements JsonAssetWithMap<String, Def
             .appendInherited(new KeyedCodec<>("CombatText", Text.CODEC, false),
                     (a, v) -> a.combatText = v, a -> a.combatText, (a, p) -> a.combatText = p.combatText)
             .documentation("The floating word the attacker sees over a weak-spot hit.").add()
+            .appendInherited(new KeyedCodec<>("CritText", CritText.CODEC, false),
+                    (a, v) -> a.critText = v, a -> a.critText, (a, p) -> a.critText = p.critText)
+            .documentation("The floating word the attacker sees over a critical hit (the library's crit step, "
+                    + "which rolls the attacker's CritChance), beside the weak spot's.").add()
             .build();
 
     public WeakSpotSettingsAsset() {
@@ -136,6 +144,18 @@ public final class WeakSpotSettingsAsset implements JsonAssetWithMap<String, Def
     public String textColor() {
         String color = combatText == null ? null : combatText.color;
         return color == null || color.isBlank() ? DEFAULT_TEXT_COLOR : color.trim();
+    }
+
+    /** Is the critical hit's word shown? */
+    public boolean critTextEnabled() {
+        return critText == null || critText.enabled == null || critText.enabled;
+    }
+
+    /** The critical hit's word's colour as written, else {@link #DEFAULT_CRIT_TEXT_COLOR}. */
+    @Nonnull
+    public String critTextColor() {
+        String color = critText == null ? null : critText.color;
+        return color == null || color.isBlank() ? DEFAULT_CRIT_TEXT_COLOR : color.trim();
     }
 
     /** The Head group. */
@@ -222,6 +242,28 @@ public final class WeakSpotSettingsAsset implements JsonAssetWithMap<String, Def
                 .build();
 
         public Text() {
+        }
+    }
+
+    /** The CritText group: the critical hit's word. */
+    public static final class CritText {
+
+        @Nullable protected Boolean enabled;
+        @Nullable protected String color;
+
+        public static final BuilderCodec<CritText> CODEC = BuilderCodec.builder(CritText.class, CritText::new)
+                .appendInherited(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false),
+                        (o, v) -> o.enabled = v, o -> o.enabled, (o, p) -> o.enabled = p.enabled)
+                .metadata(EditorSchema.defaultValue(true))
+                .documentation("Whether the attacker sees a word over a critical hit. Unauthored means true.")
+                .add()
+                .appendInherited(new KeyedCodec<>("Color", Codec.STRING, false),
+                        (o, v) -> o.color = v, o -> o.color, (o, p) -> o.color = p.color)
+                .metadata(EditorSchema.defaultValue(DEFAULT_CRIT_TEXT_COLOR))
+                .documentation("The word's colour, as #RRGGBB. #FF3B3B when unauthored.").add()
+                .build();
+
+        public CritText() {
         }
     }
 }

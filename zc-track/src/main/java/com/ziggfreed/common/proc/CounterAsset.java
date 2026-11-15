@@ -15,6 +15,7 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
+import com.hypixel.hytale.server.core.modules.entity.condition.Condition;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageCause;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
 import com.ziggfreed.common.asset.EditorDataSets;
@@ -42,8 +43,10 @@ import com.ziggfreed.common.progress.gate.StoreGates;
  *
  * <p>Each stack gives its {@code PerStack} amounts as one native modifier per stat on the holder, keyed
  * {@value Counters#MODIFIER_PREFIX}{@code <id>} (under the track grants' owner, so the 1.7.x rollback sweep clears one
- * left on a stat that release knows, R755). Its stacks read as {@code ziggfreedcommon:counter_stacks} (Param the id),
- * and show to the player through {@code Effects}.
+ * left on a stat that release knows, R755). A row with {@code While} is a bound grant instead (zc-entity's
+ * {@code BoundGrants}, owner {@value Counters#BOUND_OWNER_PREFIX}{@code <id>}): its amount counts only while its
+ * conditions hold, and on a hit that earns a hit-aware one. Its stacks read as {@code ziggfreedcommon:counter_stacks}
+ * (Param the id), and show to the player through {@code Effects}.
  */
 public final class CounterAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, CounterAsset>> {
 
@@ -90,11 +93,16 @@ public final class CounterAsset implements JsonAssetWithMap<String, DefaultAsset
         }
     }
 
-    /** One {@code PerStack} row: a stat and what one stack adds to its maximum. */
+    /**
+     * One {@code PerStack} row: a stat, what one stack adds to its maximum, and the conditions it counts under
+     * ({@code While}: a weapon's counter lifts only while that weapon counts, a bound grant of zc-entity's
+     * {@code BoundGrants}).
+     */
     public static final class PerStack {
 
         @Nullable protected String stat;
         @Nullable protected Double amount;
+        @Nullable protected Condition[] whileHolds;
 
         public static final BuilderCodec<PerStack> CODEC = BuilderCodec.builder(PerStack.class, PerStack::new)
                 .appendInherited(new KeyedCodec<>("Stat", Codec.STRING, false),
@@ -105,6 +113,12 @@ public final class CounterAsset implements JsonAssetWithMap<String, DefaultAsset
                         (o, v) -> o.amount = v, o -> o.amount, (o, p) -> o.amount = p.amount)
                 .documentation("What one stack adds, in the stat's own units (2 is +2 on a whole percent "
                         + "stat).").add()
+                .appendInherited(new KeyedCodec<>("While", new ArrayCodec<>(Condition.CODEC, Condition[]::new), false),
+                        (o, v) -> o.whileHolds = v, o -> o.whileHolds, (o, p) -> o.whileHolds = p.whileHolds)
+                .documentation("Entity conditions every one of which must hold on the holder for the stacks to "
+                        + "raise this stat (the engine's own, or ZigHolding or one a mod registers), read every tick, "
+                        + "as a bound Stat grant's While is: a weapon's counter lifts only while that weapon counts. "
+                        + "The stacks are kept either way. Unauthored, the stacks always raise it.").add()
                 .build();
 
         public PerStack() {
@@ -117,6 +131,17 @@ public final class CounterAsset implements JsonAssetWithMap<String, DefaultAsset
 
         public double amount() {
             return amount == null || !Double.isFinite(amount) ? 0.0 : amount;
+        }
+
+        /** The conditions the row counts under, never null: empty for a row that always counts. */
+        @Nonnull
+        public Condition[] whileConditions() {
+            return whileHolds == null ? new Condition[0] : whileHolds;
+        }
+
+        /** Whether the row counts only while its {@code While} conditions hold. */
+        public boolean bound() {
+            return whileHolds != null && whileHolds.length > 0;
         }
     }
 

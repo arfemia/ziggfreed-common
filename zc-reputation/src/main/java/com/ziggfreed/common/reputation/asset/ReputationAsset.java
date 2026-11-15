@@ -26,6 +26,7 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.text.ContentTextAsset;
+import com.ziggfreed.common.track.asset.TrackAsset;
 
 /**
  * What zc adds to one native reputation, at {@code Server/ZiggfreedCommon/Reputations/<Owner>/<Id>.json}.
@@ -47,10 +48,10 @@ import com.ziggfreed.common.text.ContentTextAsset;
  * }</pre>
  *
  * <p>A native group with no file here still works: it reads by its id, with no cap and no kills. Gear that
- * speeds a reputation needs no leaf here: an item raises the stat {@code ReputationGain_<Id>} (or the global
- * {@code ReputationGain}), which the library reads by that name ({@code ReputationGain}).
+ * speeds a reputation needs no leaf here: an item raises the stat {@code TrackGain_<Id>} (or the shared
+ * {@code CategoryGain_Reputation}), which the library reads by that name ({@code ReputationGain}).
  * A {@code Kills} row with a {@code Season} (a calendar event's id) counts kills only while that event runs,
- * read on each kill ({@link Kill#live}); the other rows count all year as before, and an id no calendar event
+ * read on each kill ({@link Kill#live}); the other rows count all year, and an id no calendar event
  * defines is a warning in the audit, its row never counting.
  * {@code Enabled: false} makes the reputation ABSENT (its readings answer nothing, rewards naming it
  * are refused, the page hides it); the standing players hold is never touched. Every leaf is nullable and
@@ -62,8 +63,9 @@ import com.ziggfreed.common.text.ContentTextAsset;
  *
  * <p>A player's standing is kept on the reputation's track, of the same id, whose curve this file and the
  * shared ranks make ({@code ReputationTracks}): its ranks are the track's tiers and its {@code Beyond.Every} the
- * track's Beyond. A reputation never prestiges unless the server owner turns it on for it in
- * {@code mods/ziggfreedcommon/tracks.json} ({@code "<Id>": { "Prestige": { "Ranks": 1 } }}).
+ * track's Beyond. A reputation never prestiges unless this file writes a {@code Prestige} group (R852, R643; the
+ * group a track writes, {@code "Prestige": { "Ranks": 1 }}), which the server owner retunes in
+ * {@code mods/ziggfreedcommon/reputation.json} like any leaf here.
  */
 public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, ReputationAsset>> {
 
@@ -82,6 +84,7 @@ public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAs
     @Nullable protected Kill[] kills;
     @Nullable protected Beyond beyond;
     @Nullable protected Earn earn;
+    @Nullable protected TrackAsset.Prestige prestige;
 
     public static final AssetBuilderCodec<String, ReputationAsset> CODEC = AssetBuilderCodec.builder(
                     ReputationAsset.class,
@@ -139,6 +142,14 @@ public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAs
             .documentation("How a player earns this reputation, in your own words, for the Reputation page's "
                     + "How to earn block. Leave it out and the page says only what the library can see "
                     + "(kills that count).").add()
+            .appendInherited(new KeyedCodec<>("Prestige", TrackAsset.Prestige.CODEC, false),
+                    (a, v) -> a.prestige = v, a -> a.prestige, (a, p) -> a.prestige = p.prestige)
+            .documentation("Lets a player prestige this reputation: start the standing again from the bottom, "
+                    + "keeping the best rank ever reached, so every unlock and NPC attitude it opened stays and no "
+                    + "Beyond payout pays twice. The same group a track writes: Ranks (10 when unauthored, once this "
+                    + "group is written), Unlimited, Base (unauthored, the first prestige asks the top rank), "
+                    + "GainPercent (0 when unauthored: no extra standing after a prestige) and InBoostCap. Leave it "
+                    + "out and the reputation never prestiges.").add()
             .build();
 
     public ReputationAsset() {
@@ -187,6 +198,12 @@ public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAs
     @Nullable
     public Integer cap() {
         return cap;
+    }
+
+    /** The {@code Prestige} group as written, or null when the reputation never prestiges. */
+    @Nullable
+    public TrackAsset.Prestige prestige() {
+        return prestige;
     }
 
     /** Every rank this file names: the rank id as authored to its name key, blank keys dropped. */
@@ -434,7 +451,7 @@ public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAs
                 .documentation("How much earned standing past the top rank's floor each payout takes. Zero or "
                         + "less, or unauthored, pays nothing.").add()
                 .appendInherited(new KeyedCodec<>("Rewards",
-                                new ArrayCodec<>(RewardEntryAsset.CODEC, RewardEntryAsset[]::new), false),
+                                RewardEntryAsset.rows(), false),
                         (o, v) -> o.rewards = v, o -> o.rewards, (o, p) -> o.rewards = p.rewards)
                 .documentation("What each crossing pays: the same reward entries a quest pays.").add()
                 .appendInherited(new KeyedCodec<>("Collect", Codec.BOOLEAN, false),

@@ -9,7 +9,6 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
-import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 
 /**
@@ -46,14 +45,14 @@ public final class ContentRewardsAsset {
     public static final BuilderCodec<ContentRewardsAsset> CODEC =
             BuilderCodec.builder(ContentRewardsAsset.class, ContentRewardsAsset::new)
                     .appendInherited(new KeyedCodec<>("Auto",
-                                    new ArrayCodec<>(RewardEntryAsset.CODEC, RewardEntryAsset[]::new), false),
+                                    RewardEntryAsset.rows(), false),
                             (o, v) -> o.auto = v, o -> o.auto, (o, p) -> o.auto = p.auto)
                     .documentation("Paid the instant the content settles, wherever the player is. Keep it to "
                             + "things that need no bag room. This is ONE leaf: author it and an inherited list "
                             + "is replaced whole.")
                     .add()
                     .appendInherited(new KeyedCodec<>("Claim",
-                                    new ArrayCodec<>(RewardEntryAsset.CODEC, RewardEntryAsset[]::new), false),
+                                    RewardEntryAsset.rows(), false),
                             (o, v) -> o.claim = v, o -> o.claim, (o, p) -> o.claim = p.claim)
                     .documentation("Waits on a surface for the player to collect; the bucket a reward belongs "
                             + "in unless it must land on the spot. Where anything needing backpack room goes, "

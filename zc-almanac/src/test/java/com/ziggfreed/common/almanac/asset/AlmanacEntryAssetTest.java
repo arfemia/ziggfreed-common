@@ -549,8 +549,8 @@ class AlmanacEntryAssetTest {
 
     /**
      * A slot's own {@code Requires} is the file-level mod gate's block: a slot gated on a mod this server lacks is not
-     * on the page at all, one gated on a mod it runs stays, and a condition a slot does not read warns and never
-     * fails the file. The editor lists the leaf.
+     * on the page at all, one gated on a mod it runs stays, and the rest of a block is what each viewer is asked
+     * ({@code liveRequires}). The editor lists the leaf.
      */
     @Test
     void aSlotGatedOnAMissingModIsLeftOutAndOneGatedOnAPresentModStays() throws Exception {
@@ -570,9 +570,8 @@ class AlmanacEntryAssetTest {
         assertEquals(List.of("Test_Plain", "Test_Present", "Test_Asked"),
                 slots.stream().map(AlmanacCollectionAsset.Slot::item).toList());
         assertTrue(slots.get(1).hidden(), "a gated slot keeps its other leaves");
-        assertEquals(List.of(AlmanacEntryAsset.FINDING_COLLECTION_SLOT_CONDITION_IGNORED),
-                page.findings().stream().map(Finding::code).toList(),
-                "a condition a slot does not read warns; the absent slot raises nothing");
+        assertNull(slots.get(1).liveRequires(), "a slot gated on mod presence alone asks its viewer nothing");
+        assertNotNull(slots.get(2).liveRequires(), "any other condition is asked of each viewer");
         assertTrue(AlmanacCollectionAsset.Slot.CODEC.toSchema(new SchemaContext()).getProperties()
                 .containsKey("Requires"), "the editor lists the leaf");
     }

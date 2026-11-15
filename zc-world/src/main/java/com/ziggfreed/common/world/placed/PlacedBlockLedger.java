@@ -11,10 +11,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
+import com.hypixel.hytale.server.core.modules.block.BlockModule;
+import com.hypixel.hytale.server.core.modules.interaction.components.PlacedByInteractionComponent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
@@ -35,8 +38,16 @@ import com.ziggfreed.common.world.ChunkSections;
  *
  * <p><b>Nobody earns from a placement, whoever breaks it.</b> Anything else is a two-player version
  * of the same exploit, with one player standing ore up for another to mine. A placement that SHOULD
- * pay - an admin building a mine for players to work - is settled when the block goes down, by not
- * recording it at all: see {@link PlacedBlockRecorder} for which placements count.
+ * pay - an admin building a mine for players to work - is settled when the block goes down, by
+ * recording it outside the guard: see {@link PlacedBlockRecorder} for which placements the guard holds.
+ *
+ * <p><b>Who placed a block is one answer, kept apart from credit.</b> Every real placement is recorded
+ * with its placer whatever the {@link Policy} says ({@link #placedBy}, {@link #wasPlaced}): the game's own
+ * record ({@code PlacedByInteractionComponent}) on a block that keeps one (a crop, a chest, a bench), the
+ * section's own palette elsewhere (stone, soil, planks, which the game never records). The policy decides
+ * only credit, what {@link #isPlaced} and {@link #consumePlacement} answer for XP and loot; a rule about who
+ * built a block (a shape that tears down only your own walls, growth for the planter) asks the placed-by
+ * answer, so it works with the guard off or the builder exempt.
  *
  * <p><b>Where a placement is kept.</b> A block's mark lives on its own chunk section, one bit per
  * block, saved and loaded with the chunk by the engine ({@link PlacedBlockSection}). Only loaded
@@ -88,24 +99,27 @@ public final class PlacedBlockLedger {
         Policy DEFAULT = new Policy() {
         };
 
-        /** Record placements at all. False makes every ask answer "not placed". */
+        /**
+         * Guard placements at all. False makes every credit ask ({@link #isPlaced}, {@link #consumePlacement},
+         * {@link #consumePlacedItem}) answer "not placed"; who placed a block is still recorded and answered.
+         */
         default boolean enabled() {
             return true;
         }
 
         /**
          * Should this player's placements be guarded? False leaves whatever they put down
-         * indistinguishable from a block that was always there, so anybody who breaks it earns
-         * from it normally.
+         * earning as a block that was always there does, so anybody who breaks it earns from it
+         * normally.
          *
          * <p>This is for the case the guard would otherwise get backwards: someone standing up an
          * ore vein, a farm or a quarry FOR other players to work. Creative-mode placements are
          * already exempt without asking (see {@link PlacedBlockRecorder}); this is how a consumer
          * exempts a builder who is in survival, typically by asking whether they hold a permission.
          *
-         * <p>It decides only whether the placement is REMEMBERED. Whether the placer earns for
-         * placing is a separate question that this never touches, so an exempt builder still gets
-         * whatever their placement is normally worth.
+         * <p>It decides only CREDIT: the placement is still recorded with its placer ({@link #placedBy}).
+         * Whether the placer earns for placing is a separate question that this never touches, so an
+         * exempt builder still gets whatever their placement is normally worth.
          */
         default boolean guardsPlacementsBy(@Nonnull PlayerRef placer) {
             return true;
@@ -135,8 +149,8 @@ public final class PlacedBlockLedger {
     public record BlockPosition(@Nonnull UUID worldUuid, int x, int y, int z) {
     }
 
-    /** A mark spent at {@code at}, and who had placed it, kept for the grace window. */
-    private record Spent(long at, @Nullable UUID placer) {
+    /** A mark spent at {@code at}, who had placed it, and whether the guard held it, kept for the grace window. */
+    private record Spent(long at, @Nullable UUID placer, boolean guarded) {
     }
 
     /** Placer uuid to item id to how many of that item they put down. */
@@ -196,45 +210,110 @@ public final class PlacedBlockLedger {
     // ==================== placements ====================
 
     /**
-     * Remember that a player put a block down at this position, and who: the guard refuses credit
-     * for a placement whoever breaks it, so it never reads the placer, but a rule that takes only a
-     * player's own blocks does ({@link #placedBy}).
+     * Remember that a player put a block down at this position, the guard holding it while the policy is on: the
+     * form for a library writer whose placement the guard always holds (a temporary block).
      */
     public void trackPlacement(@Nonnull UUID placerUuid, @Nonnull UUID worldUuid, int x, int y, int z) {
-        if (!policy.enabled()) {
-            return;
-        }
+        trackPlacement(placerUuid, worldUuid, x, y, z, true);
+    }
+
+    /**
+     * Remember that a player put a block down at this position, and who, whatever the policy says: the placed-by
+     * answer ({@link #placedBy}, {@link #wasPlaced}) reads it for every real placement. {@code guarded} says whether
+     * the anti-exploit guard holds it (the placer is neither exempt nor building in creative); a placement made while
+     * the policy is off is never guarded, so turning the guard on later refuses no credit for it.
+     */
+    public void trackPlacement(@Nonnull UUID placerUuid, @Nonnull UUID worldUuid, int x, int y, int z,
+            boolean guarded) {
+        boolean held = guarded && policy.enabled();
         withSection(worldUuid, x, y, z, (store, sectionRef) -> {
-            PlacedBlockSection.mark(store, sectionRef, x, y, z, placerUuid);
+            PlacedBlockSection.mark(store, sectionRef, x, y, z, placerUuid, held);
             return true;
         });
     }
 
     /**
-     * Who placed the block at this position: the player the ledger recorded, also for a mark spent
-     * by a reader of the same break inside {@link #READ_GRACE_MS}; null for a block nobody placed, one
-     * placed before placers were kept, or a placement left unrecorded.
+     * Who placed the block at this position, whatever the policy says: the game's own record where the block keeps one
+     * (its block entity's {@code PlacedByInteractionComponent}: a crop, a chest, a bench), else the player this ledger
+     * recorded, also for a mark spent by a reader of the same break inside {@link #READ_GRACE_MS}; null for a block
+     * nobody placed or one placed before placers were kept. The one answer every "who built this" rule reads.
      */
     @Nullable
     public UUID placedBy(@Nonnull UUID worldUuid, int x, int y, int z) {
-        if (!policy.enabled()) {
-            return null;
-        }
         UUID[] found = new UUID[1];
         boolean marked = withSection(worldUuid, x, y, z, (store, sectionRef) -> {
-            found[0] = PlacedBlockSection.placerOf(store, sectionRef, x, y, z);
-            return PlacedBlockSection.isPlaced(store, sectionRef, x, y, z);
+            found[0] = placerAt(store, sectionRef, blockEntity(store, sectionRef, x, y, z), x, y, z);
+            return found[0] != null || PlacedBlockSection.isPlaced(store, sectionRef, x, y, z);
         });
         if (marked) {
             return found[0];
         }
-        Spent spent = recentlySpent.get(new BlockPosition(worldUuid, x, y, z));
-        return spent != null && System.currentTimeMillis() - spent.at() <= READ_GRACE_MS ? spent.placer() : null;
+        Spent spent = spentWithinGrace(worldUuid, x, y, z);
+        return spent == null ? null : spent.placer();
+    }
+
+    /**
+     * Was the block at this position put there by a player, whoever and whatever the policy says? The placed-by
+     * answer's yes or no ({@link #placedBy}), true also for a block placed before placers were kept and for a mark
+     * spent by a reader of the same break inside {@link #READ_GRACE_MS}. Never spends anything; credit is
+     * {@link #isPlaced} and {@link #consumePlacement}.
+     */
+    public boolean wasPlaced(@Nonnull UUID worldUuid, int x, int y, int z) {
+        boolean marked = withSection(worldUuid, x, y, z, (store, sectionRef) ->
+                PlacedBlockSection.isPlaced(store, sectionRef, x, y, z)
+                        || nativePlacer(store, blockEntity(store, sectionRef, x, y, z)) != null);
+        return marked || spentWithinGrace(worldUuid, x, y, z) != null;
     }
 
     /** Whether {@code playerUuid} placed the block at this position, as {@link #placedBy} reads it. */
     public boolean isPlacedBy(@Nonnull UUID playerUuid, @Nonnull UUID worldUuid, int x, int y, int z) {
         return playerUuid.equals(placedBy(worldUuid, x, y, z));
+    }
+
+    /**
+     * {@link #placedBy}'s answer for a caller already holding the chunk store on the world thread (a chunk-store
+     * system walking block entities): the game's own record on {@code block} (the cell's block entity, null for none),
+     * else the placer the section at {@code sectionRef} recorded at the cell. Answers no spent mark: a block a system
+     * walks is still standing.
+     */
+    @Nullable
+    public static UUID placerAt(@Nonnull ComponentAccessor<ChunkStore> chunks, @Nonnull Ref<ChunkStore> sectionRef,
+            @Nullable Ref<ChunkStore> block, int x, int y, int z) {
+        UUID recorded = nativePlacer(chunks, block);
+        return recorded != null ? recorded : PlacedBlockSection.placerOf(chunks, sectionRef, x, y, z);
+    }
+
+    /** The game's own placer on a block entity, or null for none, no block entity, or a read that failed. */
+    @Nullable
+    private static UUID nativePlacer(@Nonnull ComponentAccessor<ChunkStore> chunks, @Nullable Ref<ChunkStore> block) {
+        if (block == null || !block.isValid()) {
+            return null;
+        }
+        try {
+            PlacedByInteractionComponent placed = chunks.getComponent(block,
+                    PlacedByInteractionComponent.getComponentType());
+            return placed == null ? null : placed.getWhoPlacedUuid();
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /** The cell's block entity, or null when it keeps none. */
+    @Nullable
+    private static Ref<ChunkStore> blockEntity(@Nonnull ComponentAccessor<ChunkStore> chunks,
+            @Nonnull Ref<ChunkStore> sectionRef, int x, int y, int z) {
+        try {
+            return BlockModule.getBlockEntity(chunks, sectionRef, x, y, z);
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /** The mark spent at this position inside {@link #READ_GRACE_MS}, or null for none. */
+    @Nullable
+    private Spent spentWithinGrace(@Nonnull UUID worldUuid, int x, int y, int z) {
+        Spent spent = recentlySpent.get(new BlockPosition(worldUuid, x, y, z));
+        return spent != null && System.currentTimeMillis() - spent.at() <= READ_GRACE_MS ? spent : null;
     }
 
     // ==================== spared placements ====================
@@ -294,14 +373,12 @@ public final class PlacedBlockLedger {
     }
 
     /**
-     * Did this break take away something that had been placed? A true answer clears the mark, which
-     * is correct however many readers follow: the block itself is gone. This is the question a
-     * break-time handler asks.
+     * Does this break earn no credit, because it takes away a placement the guard holds? The question a
+     * break-time handler asks. The block's record is spent whatever the answer and whatever the policy, which is
+     * correct however many readers follow: the block itself is gone, and every reader of the same break inside
+     * {@link #READ_GRACE_MS} is told the same thing (this answer, and who placed it).
      */
     public boolean consumePlacement(@Nonnull UUID breakerUuid, @Nonnull UUID worldUuid, int x, int y, int z) {
-        if (!policy.enabled()) {
-            return false;
-        }
         maybeCleanup();
         long now = System.currentTimeMillis();
         sweepRecentlySpent(now);
@@ -310,31 +387,43 @@ public final class PlacedBlockLedger {
         if (spent != null) {
             if (now - spent.at() <= READ_GRACE_MS) {
                 // Somebody else already read this same break. Same answer, nothing spent twice.
-                return true;
+                return credits(spent.guarded());
             }
             recentlySpent.remove(position, spent);
         }
-        UUID[] placer = new UUID[1];
+        Spent[] taken = new Spent[1];
         boolean placed = withSection(worldUuid, x, y, z, (store, sectionRef) -> {
-            placer[0] = PlacedBlockSection.placerOf(store, sectionRef, x, y, z);
-            return PlacedBlockSection.consume(store, sectionRef, x, y, z);
+            UUID placer = placerAt(store, sectionRef, blockEntity(store, sectionRef, x, y, z), x, y, z);
+            boolean guarded = PlacedBlockSection.isGuarded(store, sectionRef, x, y, z);
+            if (!PlacedBlockSection.consume(store, sectionRef, x, y, z)) {
+                return false;
+            }
+            taken[0] = new Spent(now, placer, guarded);
+            return true;
         });
-        if (placed) {
-            recentlySpent.put(position, new Spent(now, placer[0]));
+        if (!placed || taken[0] == null) {
+            return false;
         }
-        return placed;
+        recentlySpent.put(position, taken[0]);
+        return credits(taken[0].guarded());
     }
 
     /**
      * The same question WITHOUT clearing anything: the read for a caller that is only LOOKING.
-     * A break-time handler always wants {@link #consumePlacement}.
+     * A break-time handler always wants {@link #consumePlacement}. A rule about who built a block
+     * reads {@link #wasPlaced} or {@link #placedBy} instead, which the policy never touches.
      */
     public boolean isPlaced(@Nonnull UUID breakerUuid, @Nonnull UUID worldUuid, int x, int y, int z) {
         if (!policy.enabled()) {
             return false;
         }
         return withSection(worldUuid, x, y, z,
-                (store, sectionRef) -> PlacedBlockSection.isPlaced(store, sectionRef, x, y, z));
+                (store, sectionRef) -> PlacedBlockSection.isGuarded(store, sectionRef, x, y, z));
+    }
+
+    /** Whether a placement the guard did or did not hold refuses credit now: only while the policy is on. */
+    private boolean credits(boolean guarded) {
+        return guarded && policy.enabled();
     }
 
     /** What a caller wants done once the block's chunk section has been resolved. */

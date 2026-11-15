@@ -5,12 +5,16 @@ import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.asset.EditorPick;
+import com.ziggfreed.common.commerce.asset.CommerceEditorDataSets;
 import com.ziggfreed.common.commerce.command.CommerceCommandLine;
 import com.ziggfreed.common.currency.CurrencyDef;
 import com.ziggfreed.common.currency.CurrencyEngine;
 import com.ziggfreed.common.instance.reward.InstanceReward;
 import com.ziggfreed.common.loot.reward.RewardHandler;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
+import com.ziggfreed.common.loot.reward.RewardParam;
+import com.ziggfreed.common.loot.reward.RewardParams;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.subject.Subject;
 
@@ -72,9 +76,13 @@ public final class CurrencyRewardKind implements RewardHandler {
     private CurrencyRewardKind() {
     }
 
-    /** Register the currency kind into {@code kinds}. */
+    /** Register the currency kind into {@code kinds}, with the parameters the Asset Editor shows for it. */
     public static void registerInto(@Nonnull RewardKindRegistry kinds) {
         kinds.register(KIND, OWNER, new CurrencyRewardKind());
+        kinds.describe(KIND, RewardParams.of("Pays currency into one of the player's wallets.",
+                RewardParam.text("Currency", "The wallet paid, by id.").asRequired()
+                        .withPick(EditorPick.list(CommerceEditorDataSets.CURRENCIES)),
+                RewardParam.integer("Amount", "How much. A wallet at its cap takes only what fits.").asRequired()));
     }
 
     /**

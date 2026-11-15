@@ -1,0 +1,13 @@
+# The note a bonus find speaks with (objectives/bonus/BonusFindNotes): a block a player breaks, a hand harvest or a
+# kill that drops something extra, from any mod's bonus row. find.stacked counts a burst of finds, {0} items in all.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.bonus.<key>.
+find = Lucky find!
+find.stacked = Lucky find! (+{0, number})
+find.block = Something extra came out of that block
+find.harvest = Something extra came with your harvest
+find.kill = Something extra dropped from your kill
+
+# The Settings tab's card for the note (objectives/bonus/BonusFindSettings).
+settings.heading = Lucky finds
+settings.note = Lucky find notes
+settings.note.hint = Shows a note when a block you break, a harvest or a kill drops something extra. Only you see it.

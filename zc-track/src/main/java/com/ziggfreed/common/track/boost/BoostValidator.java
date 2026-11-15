@@ -59,6 +59,10 @@ public final class BoostValidator {
                 if (boost != null && boost.isEnabled()) {
                     out.addAll(GateValidator.validate(boost.requires(), DOMAIN, boost.getId(), "boost",
                             GateRuntime.kinds(), GateRuntime.vocabulary()::isRegistered, null));
+                    if (boost.reusableRequires() != null) {
+                        out.addAll(GateValidator.validate(boost.reusableRequires(), DOMAIN, boost.getId(), "boost",
+                                GateRuntime.kinds(), GateRuntime.vocabulary()::isRegistered, null));
+                    }
                     SeasonGate.checkKnown(out, DOMAIN, boost.season(), boost.getId());
                 }
             }

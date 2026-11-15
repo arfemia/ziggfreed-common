@@ -7,19 +7,18 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.ziggfreed.common.util.SafeLog;
+
 /**
- * Each player's break chain, which the {@code GatherRhythm} stat reads: a break within {@link #WINDOW_MS} of the last
- * one adds a step, up to {@link #MAX_STEPS}, and a longer pause starts the chain again. In memory only (a chain lasts
- * seconds, so a restart costs nothing), pruned as it grows. Thread-safe; the clock is passed in, so the rule is pure
- * to test.
+ * Each player's break chain, which the {@code GatherRhythm} stat reads: a break within the gather rules' rhythm window
+ * ({@link GatherRulesAsset#rhythmWindowMs}) of the last one adds a step, up to their step cap
+ * ({@link GatherRulesAsset#rhythmMaxSteps}), and a longer pause starts the chain again. In memory only (a chain lasts
+ * seconds, so a restart costs nothing), forgotten when the player leaves and pruned as it grows. Thread-safe; the
+ * clock and the rules are passed in, so the rule is pure to test.
  */
 public final class GatherChains {
-
-    /** How long after one break the next still continues the chain. */
-    public static final long WINDOW_MS = 2_000L;
-
-    /** The most steps a chain counts. */
-    public static final int MAX_STEPS = 5;
 
     /** Past this many players held, chains older than the window are swept. */
     private static final int SWEEP_AT = 512;
@@ -34,16 +33,23 @@ public final class GatherChains {
         if (playerId == null) {
             return;
         }
-        CHAINS.compute(playerId, (id, chain) -> next(chain, nowMs));
+        GatherRulesAsset rules = GatherRulesConfig.getInstance().rules();
+        long window = rules.rhythmWindowMs();
+        int max = rules.rhythmMaxSteps();
+        CHAINS.compute(playerId, (id, chain) -> next(chain, nowMs, window, max));
         if (CHAINS.size() > SWEEP_AT) {
-            CHAINS.values().removeIf(chain -> nowMs - chain[0] > WINDOW_MS);
+            CHAINS.values().removeIf(chain -> nowMs - chain[0] > window);
         }
     }
 
     /** The steps {@code playerId}'s chain counts at {@code nowMs}: 0 once the window since their last break passed. */
     public static int steps(@Nullable UUID playerId, long nowMs) {
         long[] chain = playerId == null ? null : CHAINS.get(playerId);
-        return steps(chain, nowMs);
+        if (chain == null) {
+            return 0;
+        }
+        GatherRulesAsset rules = GatherRulesConfig.getInstance().rules();
+        return steps(chain, nowMs, rules.rhythmWindowMs(), rules.rhythmMaxSteps());
     }
 
     /** Forget a player's chain (they left). */
@@ -53,20 +59,32 @@ public final class GatherChains {
         }
     }
 
-    /** The chain {@code {lastBreakMs, steps}} after a break at {@code nowMs}. Pure. */
-    @Nonnull
-    static long[] next(@Nullable long[] chain, long nowMs) {
-        if (chain == null || nowMs - chain[0] > WINDOW_MS) {
-            return new long[] {nowMs, 0L};
+    /** A player left the server: their chain goes. */
+    public static void onDisconnect(@Nonnull PlayerDisconnectEvent event) {
+        try {
+            PlayerRef player = event.getPlayerRef();
+            if (player != null) {
+                clear(player.getUuid());
+            }
+        } catch (Throwable t) {
+            SafeLog.fine("[gather] a departing player's break chain could not be forgotten: " + t.getMessage());
         }
-        return new long[] {nowMs, Math.min(MAX_STEPS, chain[1] + 1)};
     }
 
-    /** The steps a chain counts at {@code nowMs}. Pure. */
-    static int steps(@Nullable long[] chain, long nowMs) {
-        if (chain == null || nowMs - chain[0] > WINDOW_MS) {
+    /** The chain {@code {lastBreakMs, steps}} after a break at {@code nowMs}, under a window and step cap. Pure. */
+    @Nonnull
+    static long[] next(@Nullable long[] chain, long nowMs, long windowMs, int maxSteps) {
+        if (chain == null || nowMs - chain[0] > windowMs) {
+            return new long[] {nowMs, 0L};
+        }
+        return new long[] {nowMs, Math.min(maxSteps, chain[1] + 1)};
+    }
+
+    /** The steps a chain counts at {@code nowMs}, under a window and step cap. Pure. */
+    static int steps(@Nullable long[] chain, long nowMs, long windowMs, int maxSteps) {
+        if (chain == null || nowMs - chain[0] > windowMs) {
             return 0;
         }
-        return (int) Math.min(MAX_STEPS, chain[1]);
+        return (int) Math.min(maxSteps, chain[1]);
     }
 }

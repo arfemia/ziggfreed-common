@@ -22,8 +22,8 @@ import com.ziggfreed.common.util.SafeLog;
  * placement teaches, as a pick's {@code Where} has always read. The library's trainer bootstrap fills it with the
  * placement store's answer (a placement that exists, is switched on and carries a trainer block). A respec and a
  * prestige still read the authored {@code Where} ({@link PickService#taughtByTrainer},
- * {@link TrackPickAsset#keptThroughPrestige}): a trainer pick learned on the track's page while its trainer was away
- * is still what a trainer teaches.
+ * {@link TrackPickAsset#resetsAs}): a trainer pick learned on the track's page while its trainer was away is still
+ * what a trainer teaches.
  */
 public final class PickTrainers {
 

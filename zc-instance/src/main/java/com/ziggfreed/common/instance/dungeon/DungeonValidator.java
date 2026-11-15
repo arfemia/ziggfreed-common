@@ -32,6 +32,7 @@ import com.ziggfreed.common.encounter.validate.EncounterScriptScan;
 import com.ziggfreed.common.encounter.validate.EncounterScripts;
 import com.ziggfreed.common.encounter.wave.WaveRamp;
 import com.ziggfreed.common.encounter.wave.WaveRules;
+import com.ziggfreed.common.loot.LootableAsset;
 import com.ziggfreed.common.loot.LootableConfig;
 import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.util.SafeLog;
@@ -64,8 +65,10 @@ import com.ziggfreed.common.validation.TextKeyAudit;
  *       {@code EntryCost} item no loaded item answers to is one nobody can pay, so the dungeon refuses everyone who
  *       would open an area, and such a key in {@code EntryCost.Keys} one nobody can hold),
  *       {@link #NO_DUNGEON_CLEAR} (nothing in {@code Complete} can
- *       clear a run, or its survive timer outlasts its time limit, so every run ends failed), and the shared
- *       {@code UNKNOWN_SEASON} and {@code UNKNOWN_TEXT_KEY}.</li>
+ *       clear a run, or its survive timer outlasts its time limit, so every run ends failed),
+ *       {@link #GATED_DUNGEON_LOOTABLE} (a table it pays from asks something of the player beyond mod presence,
+ *       which a member who is offline when it rolls never meets), and the shared {@code UNKNOWN_SEASON} and
+ *       {@code UNKNOWN_TEXT_KEY}.</li>
  * </ul>
  */
 public final class DungeonValidator {
@@ -85,6 +88,7 @@ public final class DungeonValidator {
     public static final String NO_DUNGEON_CLEAR = "NO_DUNGEON_CLEAR";
     public static final String UNKNOWN_DUNGEON_BOSS = "UNKNOWN_DUNGEON_BOSS";
     public static final String UNKNOWN_DUNGEON_LOOTABLE = "UNKNOWN_DUNGEON_LOOTABLE";
+    public static final String GATED_DUNGEON_LOOTABLE = "GATED_DUNGEON_LOOTABLE";
     public static final String UNKNOWN_DUNGEON_COST_ITEM = "UNKNOWN_DUNGEON_COST_ITEM";
     public static final String ENDLESS_NO_WAVE_POOL = "ENDLESS_NO_WAVE_POOL";
     public static final String ENDLESS_BOSS_EVERY_TOO_LOW = "ENDLESS_BOSS_EVERY_TOO_LOW";
@@ -159,6 +163,7 @@ public final class DungeonValidator {
                     DungeonValidator::prefabKnown,
                     loadedScripts(),
                     DungeonValidator::lootableKnown,
+                    DungeonValidator::lootableGated,
                     DungeonValidator::itemKnown,
                     minimumSpacing(),
                     TextKeyAudit.liveCatalogue());
@@ -184,27 +189,28 @@ public final class DungeonValidator {
             @Nonnull Predicate<String> templateKnown, @Nonnull Function<String, TemplateFacts> templateFacts,
             @Nonnull Predicate<String> prefabKnown, @Nonnull Predicate<String> scriptKnown,
             @Nonnull Predicate<String> lootableKnown, int minimumSpacing, @Nonnull Predicate<String> textShipped) {
-        return audit(dungeons, templateKnown, templateFacts, prefabKnown, scriptKnown, lootableKnown, item -> true,
-                minimumSpacing, textShipped);
+        return audit(dungeons, templateKnown, templateFacts, prefabKnown, scriptKnown, lootableKnown, table -> false,
+                item -> true, minimumSpacing, textShipped);
     }
 
     /**
-     * The pure core, with {@code itemKnown} answering whether an id names a loaded item (an {@code EntryCost}
-     * item); the form without it reads every item as known.
+     * The pure core, with {@code lootableGated} answering whether a loaded table asks something of the player beyond
+     * mod presence (zc-loot's {@code LootableAsset.gatesOnPlayer}) and {@code itemKnown} whether an id names a loaded
+     * item (an {@code EntryCost} item); the form without them reads no table as gated and every item as known.
      */
     @Nonnull
     public static List<Finding> audit(@Nonnull Collection<DungeonAsset> dungeons,
             @Nonnull Predicate<String> templateKnown, @Nonnull Function<String, TemplateFacts> templateFacts,
             @Nonnull Predicate<String> prefabKnown, @Nonnull Predicate<String> scriptKnown,
-            @Nonnull Predicate<String> lootableKnown, @Nonnull Predicate<String> itemKnown, int minimumSpacing,
-            @Nonnull Predicate<String> textShipped) {
+            @Nonnull Predicate<String> lootableKnown, @Nonnull Predicate<String> lootableGated,
+            @Nonnull Predicate<String> itemKnown, int minimumSpacing, @Nonnull Predicate<String> textShipped) {
         List<Finding> out = new ArrayList<>();
         for (DungeonAsset dungeon : dungeons) {
             if (dungeon == null || dungeon.getId() == null || !dungeon.isEnabled()) {
                 continue;
             }
-            auditOne(dungeon, templateKnown, templateFacts, prefabKnown, scriptKnown, lootableKnown, itemKnown,
-                    minimumSpacing, textShipped, out);
+            auditOne(dungeon, templateKnown, templateFacts, prefabKnown, scriptKnown, lootableKnown, lootableGated,
+                    itemKnown, minimumSpacing, textShipped, out);
         }
         return out;
     }
@@ -212,8 +218,8 @@ public final class DungeonValidator {
     private static void auditOne(@Nonnull DungeonAsset dungeon, @Nonnull Predicate<String> templateKnown,
             @Nonnull Function<String, TemplateFacts> templateFacts, @Nonnull Predicate<String> prefabKnown,
             @Nonnull Predicate<String> scriptKnown, @Nonnull Predicate<String> lootableKnown,
-            @Nonnull Predicate<String> itemKnown, int minimumSpacing, @Nonnull Predicate<String> textShipped,
-            @Nonnull List<Finding> out) {
+            @Nonnull Predicate<String> lootableGated, @Nonnull Predicate<String> itemKnown, int minimumSpacing,
+            @Nonnull Predicate<String> textShipped, @Nonnull List<Finding> out) {
         String id = dungeon.getId();
         String where = "dungeon '" + id + "'";
         boolean shared = dungeon.areasPerCopy() > 1;
@@ -262,7 +268,7 @@ public final class DungeonValidator {
         Integer limit = dungeon.timeLimitSeconds();
         DungeonEndless endless = dungeon.endless();
         if (endless != null) {
-            auditEndless(endless, id, where, lootableKnown, out);
+            auditEndless(endless, id, where, lootableKnown, lootableGated, out);
         } else if (!dungeon.hasClear()) {
             out.add(Finding.warning(DOMAIN, NO_DUNGEON_CLEAR, where + " writes nothing in Complete that can clear "
                     + "a run (no Bosses, no Objective with a Kind, no SurviveTimer), so a run there can never be "
@@ -288,6 +294,9 @@ public final class DungeonValidator {
                     + lootable + "' (Rewards.Lootable), which no loaded file defines under "
                     + "Server/ZiggfreedCommon/Lootables/ (its pack may not be installed here), so a clear pays "
                     + "nothing", id));
+        } else if (lootable != null && gated(lootableGated, lootable)) {
+            out.add(gatedTable(where + " pays its clears from the loot table '" + lootable + "' (Rewards.Lootable)",
+                    "each member as the clear rolls for them", id));
         }
 
         for (DungeonEntryCost.Item item : dungeon.entryCostItems()) {
@@ -436,7 +445,8 @@ public final class DungeonValidator {
      * that load.
      */
     private static void auditEndless(@Nonnull DungeonEndless endless, @Nonnull String id, @Nonnull String where,
-            @Nonnull Predicate<String> lootableKnown, @Nonnull List<Finding> out) {
+            @Nonnull Predicate<String> lootableKnown, @Nonnull Predicate<String> lootableGated,
+            @Nonnull List<Finding> out) {
         if (endless.bandSlots().isEmpty()) {
             out.add(Finding.error(DOMAIN, ENDLESS_NO_WAVE_POOL, where + " is an endless run (Run.Endless) whose wave "
                     + "pool names no band slot from 1 to " + WaveRules.MAX_SLOTS + " (Run.Endless.Bands, "
@@ -461,8 +471,38 @@ public final class DungeonValidator {
                         + "loot table '" + table + "' (Run.Endless.Chest), which no loaded file defines under "
                         + "Server/ZiggfreedCommon/Lootables/ (its pack may not be installed here), so those waves "
                         + "bank nothing", id));
+            } else if (table != null && gated(lootableGated, table)) {
+                out.add(gatedTable(where + " banks its endless waves from the loot table '" + table
+                        + "' (Run.Endless.Chest)", "each member as their waves roll", id));
             }
         }
+    }
+
+    /**
+     * The {@link #GATED_DUNGEON_LOOTABLE} warning: {@code what} names the table and where the dungeon pays from it,
+     * {@code whom} who its {@code Requires} is asked of.
+     */
+    @Nonnull
+    private static Finding gatedTable(@Nonnull String what, @Nonnull String whom, @Nonnull String id) {
+        return Finding.warning(DOMAIN, GATED_DUNGEON_LOOTABLE, what + ", whose Requires asks more of a player than "
+                + "mod presence. It is asked of " + whom + ", so a member who is offline then is paid nothing it "
+                + "covers. Gate the rows on what the run itself reads (instance_win, instance_score), or keep the "
+                + "table's Requires to mod presence", id);
+    }
+
+    /** {@code test}'s answer; one that throws reads as no, since cannot tell is not a finding. */
+    private static boolean gated(@Nonnull Predicate<String> test, @Nonnull String table) {
+        try {
+            return test.test(table);
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /** Does the loaded table of this id ask something of the player beyond mod presence? No when none is loaded. */
+    private static boolean lootableGated(@Nonnull String id) {
+        LootableAsset table = LootableConfig.getInstance().resolve(id);
+        return table != null && table.gatesOnPlayer();
     }
 
     /**

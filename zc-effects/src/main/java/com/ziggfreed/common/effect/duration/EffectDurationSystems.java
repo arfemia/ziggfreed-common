@@ -19,27 +19,28 @@ import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageEventSystem;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageModule;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageSourceType;
-import com.hypixel.hytale.server.core.modules.entity.damage.DeathComponent;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.stats.StatCarriers;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The systems behind {@link EffectDurations}, registered once by {@link DurationBootstrap} (the system registry is
- * class-keyed): the player pass, the hit-target pass, the watch a player's hit puts on its target, and the forgetting
- * of an entity that left its store.
+ * class-keyed): the carrier pass, the hit-target pass, the watch a hit puts on its target, and the forgetting of an
+ * entity that left its store.
  */
 public final class EffectDurationSystems {
 
     private EffectDurationSystems() {
     }
 
-    /** Every tick, every living player's effects (a heal over time a friend put on, a stun on them). */
-    public static final class Players extends EntityTickingSystem<EntityStore> {
+    /**
+     * Every living carrier's effects (a heal over time a friend put on, a stun on them, a burn a creature put on
+     * another): a player every tick, a creature on its turn of the carrier cadence ({@link StatCarriers#due}, R860).
+     */
+    public static final class Carriers extends EntityTickingSystem<EntityStore> {
 
         @Nonnull
-        private final Query<EntityStore> query = Query.and(PlayerRef.getComponentType(),
-                EffectControllerComponent.getComponentType(), Query.not(DeathComponent.getComponentType()));
+        private final Query<EntityStore> query = StatCarriers.livingWithEffects();
 
         @Nonnull
         @Override
@@ -55,11 +56,16 @@ public final class EffectDurationSystems {
         @Override
         public void tick(float dt, int index, @Nonnull ArchetypeChunk<EntityStore> archetypeChunk,
                 @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer) {
-            EffectDurations.adjust(store, archetypeChunk.getReferenceTo(index));
+            if (StatCarriers.due(store, archetypeChunk, index)) {
+                EffectDurations.adjust(store, archetypeChunk.getReferenceTo(index));
+            }
         }
     }
 
-    /** Once per world tick, every entity a player's hit landed on lately (a burn, a slow, a root you put on it). */
+    /**
+     * Once per world tick, every creature a hit landed on lately (a burn, a slow, a root put on it), so its effects
+     * are read as they land rather than on its next turn of the cadence.
+     */
     public static final class Watched extends TickingSystem<EntityStore> {
 
         @Override
@@ -70,7 +76,10 @@ public final class EffectDurationSystems {
         }
     }
 
-    /** A player's landed direct hit puts its target under watch, in the Inspect damage group. */
+    /**
+     * Any attacker's landed direct hit on a creature puts the creature under watch, in the Inspect damage group (a
+     * player is read every tick already).
+     */
     public static final class Watch extends DamageEventSystem {
 
         @Nonnull
@@ -94,8 +103,7 @@ public final class EffectDurationSystems {
                     return;
                 }
                 Ref<EntityStore> attacker = source.getRef();
-                if (attacker == null || !attacker.isValid()
-                        || store.getComponent(attacker, PlayerRef.getComponentType()) == null) {
+                if (attacker == null || !attacker.isValid() || StatCarriers.isPlayer(chunk)) {
                     return;
                 }
                 EffectDurations.watch(chunk.getReferenceTo(index), System.nanoTime());

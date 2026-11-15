@@ -1,0 +1,4 @@
+{
+  "$Comment": "A reward whose drop had a chance of 5 percent or less per chest, and more than the Legendary band's, reads as Epic on a reward chest's card.",
+  "AtMostPercent": 5
+}

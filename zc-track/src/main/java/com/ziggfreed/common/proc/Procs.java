@@ -37,9 +37,11 @@ import com.ziggfreed.common.progress.gate.GateQuery;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.progress.gate.StoreGates;
 import com.ziggfreed.common.stats.StatIndexCache;
+import com.ziggfreed.common.stats.condition.BoundGrants;
 import com.ziggfreed.common.stats.condition.ConditionalStatAsset;
 import com.ziggfreed.common.stats.condition.ConditionalStats;
 import com.ziggfreed.common.stats.condition.FirstHits;
+import com.ziggfreed.common.stats.condition.HitAwareCondition;
 import com.ziggfreed.common.stats.condition.HitReads;
 import com.ziggfreed.common.stats.condition.Nearby;
 import com.ziggfreed.common.stats.condition.ZigCrouchingCondition;
@@ -61,9 +63,16 @@ import com.ziggfreed.common.util.SafeLog;
  * {@value #COOLDOWN_CUT_STAT} (percent off a wait, held at {@value #COOLDOWN_CUT_MAX_STAT}) and
  * {@value #COUNTER_SIZE_STAT} (percent on a counter's size). Each reads off its stat's maximum.
  *
- * <p><b>Crit and Finisher.</b> The library has no critical roll and counts no combo, so {@link ProcTrigger#CRIT} and
- * {@link ProcTrigger#FINISHER} fire only when a consumer that decides them says one landed ({@link #crit},
- * {@link #finisher}); on a server with none, those procs never run.
+ * <p><b>A hit the holder dealt</b> (Hit, Crit, SprintHit, Finisher; {@code ProcMoment.dealt}). A {@code Holder}
+ * condition that is a {@link HitAwareCondition} (a consumer's "while this weapon counts") answers for that hit, so a
+ * proc counts on a hit that earns a weapon's credit with another item in hand (R945); every other condition, and every
+ * other moment, reads the holder as it stands. Each family above adds the holder's bound grants on it that are off but
+ * hold on that hit ({@code BoundGrants.hitPoints}).
+ *
+ * <p><b>Crit and Finisher.</b> {@link ProcTrigger#CRIT} answers zc-entity's crit step (its {@code ZigCritEvent}, heard
+ * by {@link ProcMoments} and handed to {@link #crit}), the one critical roll every attacker takes (R865). The library
+ * counts no combo, so {@link ProcTrigger#FINISHER} fires only when a consumer that decides one says it closed
+ * ({@link #finisher}); on a server with none, those procs never run.
  *
  * <p>No proc runs inside another proc's actions (a guard per thread), and a hit a proc dealt itself (an effect it put
  * on, a chain it ran: {@link ProcMarks}) is no moment for any proc or counter clear, so content can never build a proc
@@ -207,9 +216,10 @@ public final class Procs {
     }
 
     /**
-     * The seam a consumer that decides critical hits calls when one lands: the player {@code attacker}'s hit
-     * {@code damage} on {@code target} was critical. World thread, from the consumer's damage step; pass its command
-     * buffer. The library decides no crit itself, so on a server with no consumer calling this Crit procs never run.
+     * A critical hit landed: the player {@code attacker}'s hit {@code damage} on {@code target} was critical. Called
+     * for every crit zc-entity's crit step rolls (through its {@code ZigCritEvent}); a consumer never calls it for a
+     * crit of its own, since the library's roll is the one roll (R865). World thread, from the damage step; pass its
+     * command buffer.
      */
     public static void crit(@Nonnull Store<EntityStore> store, @Nullable CommandBuffer<EntityStore> commandBuffer,
             @Nonnull Ref<EntityStore> attacker, @Nullable Ref<EntityStore> target, @Nonnull Damage damage) {
@@ -296,7 +306,9 @@ public final class Procs {
             return;
         }
         Instant now = ConditionalStats.now(accessor);
-        if (!Nearby.allHold(accessor, holder, proc.holderConditions(), now)) {
+        // On a hit the holder dealt, a hit-aware Holder condition answers for that hit (R945); else as it stands.
+        Damage dealt = moment.dealt();
+        if (!HitAwareCondition.allHold(accessor, holder, proc.holderConditions(), dealt, now)) {
             return;
         }
         UUID holderId = FirstHits.idOf(accessor, holder);
@@ -322,14 +334,14 @@ public final class Procs {
         if (!ProcCooldowns.ready(holderId, def.key(), perTarget ? target : null, nanos)) {
             return;
         }
-        if (!rolls(proc, accessor, holder, context)) {
+        if (!rolls(proc, accessor, holder, context, dealt)) {
             return;
         }
         double strength = proc.strength() == null ? 1.0 : evaluate(proc.strength(), context);
         if (!(strength > 0.0)) {
             return;
         }
-        strength *= 1.0 + statPoints(accessor, holder, STRENGTH_STAT) / 100.0;
+        strength *= 1.0 + statPoints(accessor, holder, STRENGTH_STAT, dealt) / 100.0;
         if (!(strength > 0.0)) {
             return;
         }
@@ -337,7 +349,7 @@ public final class Procs {
         if (cooldown != null && cooldown.seconds() != null) {
             double seconds = evaluate(cooldown.seconds(), context);
             ProcCooldowns.stamp(holderId, def.key(), perTarget ? target : null, nanos, seconds,
-                    statPoints(accessor, holder, COOLDOWN_CUT_STAT), cooldownCeiling(accessor, holder));
+                    statPoints(accessor, holder, COOLDOWN_CUT_STAT, dealt), cooldownCeiling(accessor, holder));
         }
     }
 
@@ -509,7 +521,7 @@ public final class Procs {
 
     /** Does the proc's chance come up? Always with no {@code Chance}; never at 0 or less. */
     private static boolean rolls(@Nonnull ProcAsset proc, @Nonnull ComponentAccessor<EntityStore> accessor,
-            @Nonnull Ref<EntityStore> holder, @Nonnull FactorContext context) {
+            @Nonnull Ref<EntityStore> holder, @Nonnull FactorContext context, @Nullable Damage dealt) {
         if (proc.chance() == null) {
             return true;
         }
@@ -517,7 +529,7 @@ public final class Procs {
         if (!(chance > 0.0)) {
             return false;
         }
-        chance += statPoints(accessor, holder, CHANCE_STAT);
+        chance += statPoints(accessor, holder, CHANCE_STAT, dealt);
         return chance >= 100.0 || ThreadLocalRandom.current().nextDouble() * 100.0 < chance;
     }
 
@@ -634,6 +646,16 @@ public final class Procs {
         } catch (Throwable t) {
             return 0.0;
         }
+    }
+
+    /**
+     * {@link #statPoints(ComponentAccessor, Ref, String)} on a moment: on a hit {@code ref} dealt ({@code dealt}, else
+     * null), with its bound grants on the stat that are off but hold on that hit ({@code BoundGrants.hitPoints}, R945).
+     */
+    static double statPoints(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
+            @Nonnull String statId, @Nullable Damage dealt) {
+        double points = statPoints(accessor, ref, statId);
+        return dealt == null ? points : points + BoundGrants.hitPoints(accessor, ref, statId, dealt);
     }
 
     /** The holder's cooldown-cut ceiling: its {@value #COOLDOWN_CUT_MAX_STAT}, else the shipped default. */

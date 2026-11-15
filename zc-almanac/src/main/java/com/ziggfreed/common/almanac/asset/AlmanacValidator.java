@@ -48,8 +48,7 @@ import com.ziggfreed.common.validation.TextKeyAudit;
  * {@code SECTION_EMPTY}, {@code SECTION_UNKNOWN_PART}, {@code SECTION_HAS_TWO}, {@code SECTION_REPEATED},
  * {@code SECTIONS_OVER_CAP},
  * {@code BANNER_EMPTY}, {@code BANNER_ITEMS_OVER_CAP}, {@code COLLECTION_ITEMS_OVER_CAP},
- * {@code COLLECTION_ITEM_REPEATED} and {@code COLLECTION_SLOT_CONDITION_IGNORED}, each a warning) are folded in as
- * they are. A collection slot gated on a mod this server lacks is not here at all
+ * and {@code COLLECTION_ITEM_REPEATED}, each a warning) are folded in as they are. A collection slot gated on a mod this server lacks is not here at all
  * ({@code AlmanacCollectionAsset.slots()}), so nothing below asks it. The codes this audit adds, each a stable
  * machine token a consumer may filter on:
  * <ul>

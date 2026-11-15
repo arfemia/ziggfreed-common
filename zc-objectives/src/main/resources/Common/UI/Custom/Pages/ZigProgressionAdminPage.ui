@@ -10,8 +10,9 @@ $ZT = "../Common/ZigType.ui";
 //
 // #Rows is the appendable list container and MUST stay childless here: rows are addressed by
 // indexed parent ("#Rows[0] #Toggle"), so a pre-authored child would shift every index. #Empty is
-// the page-level note an empty registry shows instead of rows. All text is set from Java on
-// .TextSpans (no inline %key; placeholders), and every labeled button is a Button + inner #Label.
+// the page-level note an empty registry shows instead of rows. #QuestEditorButton, #ReputationEditorButton and
+// #AchievementEditorButton, in the #Editors row, open the library's in-game editors (authoring wizards). All text
+// is set from Java on .TextSpans (no inline %key; placeholders), and every labeled button is a Button + inner #Label.
 //
 // Shipped once in ziggfreed-common; neutral Zig* ids. Smoke-test in-game.
 
@@ -62,8 +63,48 @@ $F.@ZigDecoratedFrame {
       }
     }
 
-    Group #Footer {
+    // The in-game editors this page opens, a row of their own above the footer, each button shown from Java only
+    // while its wizard is registered.
+    Group #Editors {
       Anchor: (Height: 36, Top: 12);
+      LayoutMode: Left;
+
+      Button #QuestEditorButton {
+        Visible: false;
+        Style: $Z.@ZigRichRowBtnStyle;
+        Anchor: (Width: 180, Height: 32, Right: 8);
+        Label #Label {
+          FlexWeight: 1;
+          Text: "";
+          Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+        }
+      }
+
+      Button #ReputationEditorButton {
+        Visible: false;
+        Style: $Z.@ZigRichRowBtnStyle;
+        Anchor: (Width: 200, Height: 32, Right: 8);
+        Label #Label {
+          FlexWeight: 1;
+          Text: "";
+          Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+        }
+      }
+
+      Button #AchievementEditorButton {
+        Visible: false;
+        Style: $Z.@ZigRichRowBtnStyle;
+        Anchor: (Width: 200, Height: 32);
+        Label #Label {
+          FlexWeight: 1;
+          Text: "";
+          Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+        }
+      }
+    }
+
+    Group #Footer {
+      Anchor: (Height: 36, Top: 8);
       LayoutMode: Left;
 
       Group { FlexWeight: 1; }

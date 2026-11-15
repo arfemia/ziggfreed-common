@@ -11,6 +11,7 @@ import com.hypixel.hytale.codec.schema.config.NumberSchema;
 import com.hypixel.hytale.codec.schema.config.Schema;
 import com.hypixel.hytale.codec.schema.config.StringSchema;
 import com.hypixel.hytale.codec.schema.metadata.Metadata;
+import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
 
 /**
  * Schema-only hints for the in-game Asset Editor, attached to a codec field with
@@ -145,11 +146,38 @@ public final class EditorSchema {
      */
     @Nonnull
     public static Metadata assetRef(@Nonnull Class<? extends JsonAsset<?>> assetClass) {
-        String assetType = assetClass.getSimpleName();
+        return assetRef(assetClass.getSimpleName());
+    }
+
+    /**
+     * As {@link #assetRef(Class)}, for an asset type named the way the editor names it: a store's asset
+     * class simple name, or a type with no asset class of its own to hand ({@code NPCRole}, which the
+     * engine's NPC editor serves, as vanilla's own spawn fields name it).
+     */
+    @Nonnull
+    public static Metadata assetRef(@Nonnull String assetType) {
         return schema -> {
             StringSchema s = stringLeaf(schema);
             if (s != null) {
                 s.setHytaleAssetRef(assetType);
+            }
+        };
+    }
+
+    /**
+     * Offer {@code dataSet}'s values as suggestions on a text leaf (or on each entry of a text-array
+     * leaf), the engine's own text box with a pick list beside it ({@code UIEditor.TextField}, as a
+     * block's {@code Group} offers the block groups): unlike a dropdown, a value the list does not hold
+     * can still be typed, so it fits an open vocabulary, a name pattern, or a word the reader accepts
+     * beside the listed ids. On a leaf of any other shape this is a no-op.
+     */
+    @Nonnull
+    public static Metadata suggest(@Nonnull String dataSet) {
+        UIEditor editor = new UIEditor(new UIEditor.TextField(dataSet));
+        return schema -> {
+            StringSchema s = stringLeaf(schema);
+            if (s != null) {
+                editor.modify(s);
             }
         };
     }

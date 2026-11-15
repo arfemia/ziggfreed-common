@@ -21,6 +21,7 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
+import com.ziggfreed.common.asset.EditorPick;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.codec.InheritMapCodec;
 
@@ -76,6 +77,11 @@ import com.ziggfreed.common.codec.InheritMapCodec;
  *
  * <p>An optional parameter with no default substitutes as EMPTY. Author a {@code Default} for every
  * optional parameter the command names unless an empty argument is genuinely what you want there.
+ *
+ * <p>Three more leaves describe a parameter to the in-game Asset Editor and change nothing at payout:
+ * {@code Type} (Text, Integer, Number or Boolean, the box a reward row shows for it), {@code Description}
+ * (one sentence beside it) and {@code Pick} (the editor's own picker over an asset type, or a pick list).
+ * Together the declared parameters are the form a reward row of this kind shows ({@link RewardParams}).
  *
  * <h2>How a reward of this kind READS</h2>
  *
@@ -176,6 +182,7 @@ public final class RewardKindAsset implements JsonAssetWithMap<String, DefaultAs
     private AssetExtraInfo.Data data;
 
     @Nullable private String authoredId;
+    @Nullable private String name;
     @Nullable private Map<String, Param> params;
     @Nullable private String command;
     @Nullable private Presentation presentation;
@@ -193,10 +200,11 @@ public final class RewardKindAsset implements JsonAssetWithMap<String, DefaultAs
                     (a, extra) -> a.data = extra,
                     a -> a.data)
             .append(new KeyedCodec<>("Name", Codec.STRING, false),
-                    (a, name) -> { /* display only - the id comes from the filename */ },
-                    a -> a.id)
-            .documentation("A human-readable label for editors. The kind's id comes from the filename, so "
-                    + "changing this changes nothing at runtime.").add()
+                    (a, name) -> a.name = name,
+                    a -> a.name)
+            .documentation("A human-readable label for editors, shown in the Asset Editor beside a reward of this "
+                    + "kind. The kind's id comes from the filename, so changing this changes nothing at "
+                    + "runtime.").add()
             .appendInherited(new KeyedCodec<>("Params",
                             new InheritMapCodec<>(Param.CODEC, LinkedHashMap::new), false),
                     (a, v) -> a.params = v, a -> a.params, (a, parent) -> a.params = parent.params)
@@ -264,6 +272,12 @@ public final class RewardKindAsset implements JsonAssetWithMap<String, DefaultAs
     @Nonnull
     public String authoredId() {
         return authoredId != null && !authoredId.isBlank() ? authoredId : (id == null ? "" : id);
+    }
+
+    /** The file's {@code Name}, a label for editors, or null when it writes none. */
+    @Nullable
+    public String getName() {
+        return name == null || name.isBlank() ? null : name.trim();
     }
 
     @Nullable
@@ -481,16 +495,40 @@ public final class RewardKindAsset implements JsonAssetWithMap<String, DefaultAs
 
         @Nullable protected Boolean required;
         @Nullable protected String defaultValue;
+        @Nullable protected String type;
+        @Nullable protected String description;
+        @Nullable protected EditorPick pick;
 
         public static final BuilderCodec<Param> CODEC = BuilderCodec.builder(Param.class, Param::new)
                 .appendInherited(new KeyedCodec<>("Required", Codec.BOOLEAN, false),
                         (o, v) -> o.required = v, o -> o.required, (o, p) -> o.required = p.required)
+                .metadata(EditorSchema.defaultValue(false))
                 .documentation("When true, a reward that does not name this parameter refuses to pay out and "
                         + "says so, instead of running a half-written command. Omit for false.").add()
                 .appendInherited(new KeyedCodec<>("Default", Codec.STRING, false),
                         (o, v) -> o.defaultValue = v, o -> o.defaultValue, (o, p) -> o.defaultValue = p.defaultValue)
                 .documentation("What stands in when a reward leaves this parameter out. Author one for every "
                         + "optional parameter the command names, or it substitutes as empty.").add()
+                .appendInherited(new KeyedCodec<>("Type", Codec.STRING, false),
+                        (o, v) -> o.type = v, o -> o.type, (o, p) -> o.type = p.type)
+                .metadata(EditorSchema.oneOfDocumented(
+                        RewardParam.Type.TEXT.authored(), "Any text: an id, a word, a list",
+                        RewardParam.Type.INTEGER.authored(), "A whole number",
+                        RewardParam.Type.NUMBER.authored(), "A number that may have a fraction",
+                        RewardParam.Type.BOOLEAN.authored(), "True or false"))
+                .metadata(EditorSchema.defaultValue(RewardParam.Type.TEXT.authored()))
+                .documentation("The shape of the value, which picks the box the Asset Editor shows for it on a "
+                        + "reward of this kind: Text, Integer, Number or Boolean. Omit for Text. It changes "
+                        + "nothing at payout: the value still reaches the command as written.").add()
+                .appendInherited(new KeyedCodec<>("Description", Codec.STRING, false),
+                        (o, v) -> o.description = v, o -> o.description, (o, p) -> o.description = p.description)
+                .documentation("What the parameter means in game, one sentence the Asset Editor shows beside it on "
+                        + "a reward of this kind.").add()
+                .appendInherited(new KeyedCodec<>("Pick", EditorPick.CODEC, false),
+                        (o, v) -> o.pick = v, o -> o.pick, (o, p) -> o.pick = p.pick)
+                .documentation("How the Asset Editor offers a Text value: Asset for the editor's own picker over an "
+                        + "asset type (Item, EntityEffect), or List for a pick list this server serves. Omit for "
+                        + "a plain text box.").add()
                 .build();
 
         public Param() {
@@ -513,6 +551,24 @@ public final class RewardKindAsset implements JsonAssetWithMap<String, DefaultAs
         @Nullable
         public String getDefault() {
             return defaultValue;
+        }
+
+        /** The authored {@code Type} word, unparsed; {@link RewardParam.Type#fromAuthored} reads it. */
+        @Nullable
+        public String getType() {
+            return type;
+        }
+
+        /** The authored sentence, or null when the file writes none. */
+        @Nullable
+        public String getDescription() {
+            return description == null || description.isBlank() ? null : description.trim();
+        }
+
+        /** How the editor offers the value, or null for a plain text box. */
+        @Nullable
+        public EditorPick getPick() {
+            return pick == null || pick.isEmpty() ? null : pick;
         }
 
         /** {@link #required}, reader-defaulted to false. */

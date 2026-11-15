@@ -1,0 +1,10 @@
+{
+  "$Comment": "Days in a row (UTC) with at least one board contract collected; a missed day starts the run again at 1. Progress is a high-water mark: the longest streak reached, which a broken streak does not undo.",
+  "ValueBased": true,
+  "Producible": true,
+  "Presentation": {
+    "Icon": {
+      "ItemId": "Objective_Bounty"
+    }
+  }
+}

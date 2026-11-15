@@ -54,7 +54,9 @@ public final class ContentMeta {
      * per key under {@code Parent} rather than being replaced whole.
      */
     public static final Codec<Map<String, JsonElement>> CODEC =
-            new InheritMapCodec<>(JsonTreeCodec.object());
+            new InheritMapCodec<>(JsonTreeCodec.object()).documented(null,
+                    "One mod's own block, under that mod's namespace: read only by that mod, and kept exactly as "
+                            + "written for every other.");
 
     /** What the field is called in every asset that carries one. */
     public static final String KEY = "Meta";

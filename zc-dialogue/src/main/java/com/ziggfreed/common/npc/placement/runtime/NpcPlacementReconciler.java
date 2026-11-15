@@ -32,6 +32,7 @@ import com.ziggfreed.common.npc.placement.asset.NpcPlacementConfig;
 import com.ziggfreed.common.npc.placement.registry.PlacementGate.GateVerdict;
 import com.ziggfreed.common.npc.placement.registry.PlacementGates;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.util.ZigScheduler;
 import com.ziggfreed.common.world.TickingSections;
 import com.ziggfreed.common.world.TickingSections.SectionPos;
 
@@ -295,6 +296,19 @@ public final class NpcPlacementReconciler {
     }
 
     /**
+     * A world was added: it takes ledger rows again (one of its name may have been deleted earlier this run,
+     * as a fixed-key instance is each time it empties), and it is swept for missing placements.
+     */
+    public static void onWorldAdded(@Nonnull World world) {
+        String name = NpcPlacementService.worldName(world);
+        if (!name.isEmpty()) {
+            NpcPlacementLedger.getInstance().worldAdded(name);
+        }
+        clearDebounce(world);
+        requestSweep(world, world.getEntityStore().getStore());
+    }
+
+    /**
      * Drop a removed world's sweep state, and its ledger rows and cached positions only when the world
      * is deleted with its removal ({@link #isDeleted}).
      *
@@ -392,10 +406,10 @@ public final class NpcPlacementReconciler {
      * straight onto the world's own task deque, which {@code consumeTaskQueue()} drains in a
      * {@code while (poll() != null)} loop - a task that calls {@code execute()} on itself from
      * inside that loop feeds right back into the SAME drain and runs again in the SAME tick, so a
-     * bare requeue gives the engine's async work zero real time to finish. {@code World
-     * .scheduleAfter} times the wait off the shared server scheduler first and only reaches the
-     * task queue once the delay has genuinely elapsed, which is why every retry below goes
-     * through it instead of a second {@code execute()} call.
+     * bare requeue gives the engine's async work zero real time to finish. zc-core's {@code
+     * ZigScheduler.schedule(task, delay, unit, world)} times the wait off the library's scheduler
+     * thread first and only reaches the task queue once the delay has genuinely elapsed, which is
+     * why every retry below goes through it instead of a second {@code execute()} call.
      */
     private static final long RETRY_DELAY_MS = 500L;
 
@@ -476,8 +490,8 @@ public final class NpcPlacementReconciler {
             // null until that settles, which a one-shot sweep can easily lose the race against,
             // especially for a just-created instance world. requestSweep's debounce means nothing
             // else will naturally retry this world, so retry it ourselves - on a real delay.
-            world.scheduleAfter(() -> runSweepAndMaybeRetry(world, retriesLeft - 1),
-                    RETRY_DELAY_MS, TimeUnit.MILLISECONDS);
+            ZigScheduler.schedule(() -> runSweepAndMaybeRetry(world, retriesLeft - 1),
+                    RETRY_DELAY_MS, TimeUnit.MILLISECONDS, world);
         } catch (Throwable t) {
             releasePump(world);
             SafeLog.warn("[placement] sweep failed for world '"

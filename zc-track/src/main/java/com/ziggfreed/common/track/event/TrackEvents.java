@@ -39,8 +39,8 @@ public final class TrackEvents {
                 () -> new ZigTrackPicksChangedEvent(playerId, trackId, change, pickId, slot, options));
     }
 
-    /** A boost started: {@code boostId}, of {@code scope}'s word, by the player {@code playerId}. */
-    public static void fireBoostStarted(@Nonnull String boostId, @Nonnull String scope, @Nonnull UUID playerId,
+    /** A boost started: {@code boostId}, of {@code scope}'s word, by the player {@code playerId} (null for nobody). */
+    public static void fireBoostStarted(@Nonnull String boostId, @Nonnull String scope, @Nullable UUID playerId,
             @Nonnull BoostRun run) {
         SEAM.fire("ZigBoostStarted", ZigBoostStartedEvent.class, () -> new ZigBoostStartedEvent(boostId, scope,
                 playerId, run.percent(), run.startedAt(), run.endsAt(), run.by()));

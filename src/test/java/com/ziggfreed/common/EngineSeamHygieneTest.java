@@ -21,13 +21,17 @@ import org.junit.jupiter.api.Test;
 /**
  * Every library main source keeps the engine seams: the engine's event-title util is called only from
  * zc-presentation's {@code feedback/EventTitles}, the engine's in-place page update only from
- * {@code ui/toast/ToastablePage} (its {@code writeInPlace}), and the two names Update 7 renamed
- * ({@code PageManager.updateCustomPage}, {@code protocol.DurabilityOperator}) appear nowhere.
+ * {@code ui/toast/ToastablePage} (its {@code writeInPlace}), the two names Update 7 renamed
+ * ({@code PageManager.updateCustomPage}, {@code protocol.DurabilityOperator}) appear nowhere, and neither
+ * do the engine's two schedulers Update 8 removes ({@code HytaleServer.SCHEDULED_EXECUTOR},
+ * {@code World.scheduleAfter}): delayed work goes through zc-core's {@code util/ZigScheduler}.
  *
  * <p><b>Why it is worth a build failure.</b> Each seam is where the next engine rename lands: the
  * banner's boolean overloads and the page update moved under Update 7, and a second caller is a second
  * place that move breaks, silently, since every caller sits in a catch. The renamed names fail the
- * compile on Update 7 anyway; the scan says what to use instead.
+ * compile on Update 7 anyway; the scan says what to use instead. The Update 8 schedulers still compile on
+ * Update 7, so on the live line this scan is the only thing that stops a new call the port would have to
+ * find again.
  *
  * <p><b>What is scanned</b>: every {@code .java} file under the wiring root's and every module's
  * {@code src/main/java}, found by walking, so a new module is covered the day it appears. Comments,
@@ -58,7 +62,13 @@ class EngineSeamHygieneTest {
                     "write an in-place page update through ToastablePage.writeInPlace"),
             new Rule("protocol.DurabilityOperator, which Update 7 renamed",
                     Pattern.compile("\\bDurabilityOperator\\b"), Set.of(),
-                    "name ComparisonOperator, the type of DurabilityConditionInteraction.operator"));
+                    "name ComparisonOperator, the type of DurabilityConditionInteraction.operator"),
+            new Rule("HytaleServer.SCHEDULED_EXECUTOR, which Update 8 removes",
+                    Pattern.compile("\\bSCHEDULED_EXECUTOR\\b"), Set.of(),
+                    "schedule through zc-core's util/ZigScheduler"),
+            new Rule("World.scheduleAfter, which Update 8 removes",
+                    Pattern.compile("\\.scheduleAfter\\s*\\("), Set.of(),
+                    "hop after a delay through ZigScheduler.schedule(task, delay, unit, world)"));
 
     private static final String ELSEWHERE = "zc-instance/src/main/java/com/ziggfreed/common/lobby/Elsewhere.java";
 
@@ -101,6 +111,16 @@ class EngineSeamHygieneTest {
         assertEquals(1, violations(ELSEWHERE, List.of("import com.hypixel.hytale.protocol.DurabilityOperator;")).size());
         assertEquals(1, violations(ELSEWHERE, List.of("        DurabilityOperator operator = wear.operator;")).size());
         assertEquals(0, violations(ELSEWHERE, List.of("        ComparisonOperator operator = wear.operator;")).size());
+    }
+
+    @Test
+    void theSchedulersUpdate8RemovesAreFlaggedAndTheLibrarysOnePasses() {
+        assertEquals(1, violations(ELSEWHERE,
+                List.of("        HytaleServer.SCHEDULED_EXECUTOR.schedule(task, 3, TimeUnit.SECONDS);")).size());
+        assertEquals(1, violations(ELSEWHERE,
+                List.of("        world.scheduleAfter(() -> recheck(world), 50, TimeUnit.MILLISECONDS);")).size());
+        assertEquals(0, violations(ELSEWHERE,
+                List.of("        ZigScheduler.schedule(() -> recheck(world), 50, TimeUnit.MILLISECONDS, world);")).size());
     }
 
     @Test

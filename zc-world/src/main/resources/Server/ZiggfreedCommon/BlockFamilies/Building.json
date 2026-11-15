@@ -1,0 +1,15 @@
+{
+  "$Comment": "The blocks a build's walls, floors and roofs are made of: stone, soil and wood of every kind (items tagged Type Rock, Soil or Wood) and the lights on them (the Light family: torches, lanterns, lamps, braziers). Furniture, benches, chests and decoration are never tagged Rock, Soil or Wood, so a shape that takes this family leaves them standing. A block joins any family by naming it in its own item Tags under ZigBlockFamily, so another mod opts its blocks in from its own files. Retune or switch it off by id in mods/ziggfreedcommon/block-families.json.",
+  "Match": {
+    "Tags": {
+      "Type": [
+        "Rock",
+        "Soil",
+        "Wood"
+      ]
+    },
+    "Families": [
+      "Light"
+    ]
+  }
+}

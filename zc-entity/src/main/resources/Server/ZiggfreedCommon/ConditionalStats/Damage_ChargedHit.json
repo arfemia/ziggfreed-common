@@ -1,0 +1,11 @@
+{
+  "$Comment": "Makes Damage_ChargedHit conditional: A conditional damage bonus in whole percent points (10 is +10%) on its holder's charged attacks (an attack whose interaction is tagged Charged: a held swing, a full draw).",
+  "Hit": {
+    "Classes": [
+      "Charged"
+    ]
+  },
+  "Pays": {
+    "Damage": {}
+  }
+}

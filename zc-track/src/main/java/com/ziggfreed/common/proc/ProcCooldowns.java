@@ -20,7 +20,7 @@ import com.ziggfreed.common.util.SafeLog;
  * store, {@link ProcSystems.Left}). Transient and single-process: nothing is saved, and a player's waits go when they
  * disconnect. The engine keeps no per-player cooldown service a mod can reach, so this is the library's one.
  */
-public final class ProcCooldowns {
+final class ProcCooldowns {
 
     /** One wait: a proc, and the target it is kept for (null: the player's own). */
     private record Key(@Nonnull String proc, @Nullable Ref<EntityStore> target) {

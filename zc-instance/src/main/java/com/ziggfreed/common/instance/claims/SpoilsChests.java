@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -42,7 +43,6 @@ import com.ziggfreed.common.feedback.EventTitles;
 import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.i18n.NativeNames;
-import com.ziggfreed.common.instance.reward.InstanceReward;
 import com.ziggfreed.common.loot.LootableAsset;
 import com.ziggfreed.common.loot.LootableConfig;
 import com.ziggfreed.common.loot.claim.Claim;
@@ -174,7 +174,8 @@ public final class SpoilsChests {
      * What a stand did.
      *
      * @param noted   whether the chest was noted, to go up at its first Claim
-     * @param written how many Claims its own {@code Contents} wrote, one per credited player at most
+     * @param written how many Claims its own {@code Contents} wrote by the time it answered, one per credited player
+     *                at most; a credited player standing in another world rolls on that world's thread, after it
      */
     public record Stood(boolean noted, int written) {
 
@@ -311,26 +312,25 @@ public final class SpoilsChests {
             return 0;
         }
         String source = KEY_PREFIX + spoils.chestId.toLowerCase(Locale.ROOT);
-        int written = 0;
+        AtomicInteger written = new AtomicInteger();
+        int away = 0;
         for (UUID player : spoils.credited) {
-            try {
-                List<InstanceReward> rewards = ClaimRolls.roll(table, player, source,
-                        message -> SafeLog.warn(LOG + message));
-                if (rewards.isEmpty()) {
-                    continue;
+            Claim draft = new Claim(contentsClaimId(spoils.fight, player), source, file.contentsTitleKey(),
+                    List.of(), null, List.of(), now, spoils.fight);
+            ClaimRolls.Payout payout = new ClaimRolls.Payout(player, draft, List.of(ClaimRolls.Draw.once(table)),
+                    file.diminish(), source, message -> SafeLog.warn(LOG + message));
+            if (!ClaimRolls.award(payout, claim -> {
+                if (claim != null) {
+                    written.incrementAndGet();
                 }
-                Claim claim = new Claim(contentsClaimId(spoils.fight, player), source, file.contentsTitleKey(),
-                        List.of(), null, rewards, now, spoils.fight);
-                if (ClaimStore.shared().award(player, claim, file.diminish(), source, now)) {
-                    written++;
-                }
-            } catch (Throwable t) {
-                SafeLog.warn(LOG + "the chest " + spoils.head() + " could not roll its contents for " + player, t);
+            })) {
+                away++;
             }
         }
         SafeLog.info(LOG + "chest " + spoils.head() + " rolled " + tableId + " for " + spoils.credited.size()
-                + " credited: " + written + " Claim(s) written");
-        return written;
+                + " credited: " + written.get() + " Claim(s) written"
+                + (away > 0 ? ", " + away + " more rolling on their own world" : ""));
+        return written.get();
     }
 
     // ==================== the events ====================

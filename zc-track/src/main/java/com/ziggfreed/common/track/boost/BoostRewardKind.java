@@ -12,6 +12,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.asset.EditorPick;
 import com.ziggfreed.common.instance.reward.DeferredRewards;
 import com.ziggfreed.common.instance.reward.InstanceReward;
 import com.ziggfreed.common.inventory.PlayerAccess;
@@ -22,14 +23,18 @@ import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardHandler;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardKinds;
+import com.ziggfreed.common.loot.reward.RewardParam;
+import com.ziggfreed.common.loot.reward.RewardParams;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.track.TrackBootstrap;
 import com.ziggfreed.common.track.command.ZigBoostCommand;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The reward kind that starts a boost: {@code {"Kind": "Boost", "Params": {"Boost": "<Id>"}}}, with an optional
- * {@code Percent} and {@code Seconds} in place of the boost's own. UNPREFIXED because the library owns the starter
+ * {@code Percent} and {@code Seconds} in place of the boost's own, and a {@code Track} pointing it at one track of
+ * those the boost lifts. UNPREFIXED because the library owns the starter
  * behind it, and registered once into the shared vocabulary, so a quest, a board contract, an achievement, a shop
  * entry, a lootable and a track's unlock row all pay it, and each of those sites parks it as a Claim (M428): the
  * boost starts when the player collects it, never before.
@@ -40,7 +45,7 @@ import com.ziggfreed.common.util.SafeLog;
  * With no live player it fails, and {@link #retryCommand} answers the {@code /zigboost start} line a Claim keeps
  * beside the reward, which runs only where this kind could not.
  */
-public final class BoostRewardKind implements RewardHandler {
+final class BoostRewardKind implements RewardHandler {
 
     /** The kind id content writes. */
     public static final String KIND = "Boost";
@@ -51,6 +56,7 @@ public final class BoostRewardKind implements RewardHandler {
     static final String PARAM_BOOST = "boost";
     static final String PARAM_PERCENT = "percent";
     static final String PARAM_SECONDS = "seconds";
+    static final String PARAM_TRACK = "track";
 
     /** What a waiting Claim's id and source start with. */
     private static final String WAITING_SOURCE = "boost:";
@@ -64,9 +70,16 @@ public final class BoostRewardKind implements RewardHandler {
     private BoostRewardKind() {
     }
 
-    /** Register the kind into {@code kinds}. */
+    /** Register the kind into {@code kinds}, with the parameters the Asset Editor shows for it. */
     public static void registerInto(@Nonnull RewardKindRegistry kinds) {
         kinds.register(KIND, OWNER, new BoostRewardKind());
+        kinds.describe(KIND, RewardParams.of("Starts a boost for the player when they collect it.",
+                RewardParam.text("Boost", "The boost started, by id.").asRequired()
+                        .withPick(EditorPick.asset(BoostAsset.class)),
+                RewardParam.number("Percent", "How much it lifts, in percent. Leave it out for the boost's own."),
+                RewardParam.integer("Seconds", "How long it runs, in seconds. Leave it out for the boost's own."),
+                RewardParam.text("Track", "One track, among those the boost lifts, it lifts alone. Leave it out "
+                        + "for all of them.").withPick(EditorPick.list(TrackBootstrap.TRACKS_DATA_SET))));
     }
 
     /** How a Boost reward reads in a reward list, for {@code RewardChips.contribute}. */
@@ -91,8 +104,14 @@ public final class BoostRewardKind implements RewardHandler {
         Double percent = percentOf(spec);
         Long seconds = secondsOf(spec);
         return RewardChip.picture(boost.icon(), BoostText.rewardLine(boost,
-                percent == null ? boost.percent() : percent, seconds == null ? boost.seconds() : seconds),
-                BoostText.name(boost));
+                percent == null ? boost.percent() : percent, seconds == null ? boost.seconds() : seconds,
+                trackOf(spec)), BoostText.name(boost));
+    }
+
+    /** The one track it points the boost at, trimmed, or null for all the boost lifts. */
+    @Nullable
+    public static String trackOf(@Nonnull RewardSpec spec) {
+        return BoostAsset.blankToNull(spec.param(PARAM_TRACK));
     }
 
     /** Which boost {@code spec} starts, trimmed; empty when it names none. */
@@ -142,7 +161,8 @@ public final class BoostRewardKind implements RewardHandler {
         if (boostId.isEmpty()) {
             throw new IllegalStateException("a reward of kind '" + KIND + "' needs a 'Boost'");
         }
-        Boosts.Start start = Boosts.start(subject.id(), boostId, percentOf(spec), secondsOf(spec), sourceId);
+        Boosts.Start start = Boosts.start(subject.id(), boostId, percentOf(spec), secondsOf(spec), trackOf(spec),
+                sourceId);
         if (start.started()) {
             receipt.accept(spec);
             return;
@@ -175,6 +195,10 @@ public final class BoostRewardKind implements RewardHandler {
         String seconds = spec.param(PARAM_SECONDS);
         if (secondsOf(spec) != null && seconds != null) {
             line += " --seconds=" + seconds.trim();
+        }
+        String track = trackOf(spec);
+        if (track != null) {
+            line += " --track=" + track;
         }
         return line;
     }

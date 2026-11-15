@@ -6,10 +6,11 @@ import com.hypixel.hytale.assetstore.event.LoadedAssetsEvent;
 import com.hypixel.hytale.assetstore.map.IndexedLookupTableAssetMap;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageCause;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
+import com.ziggfreed.common.effect.sync.StatEffectSync;
 
 /**
- * Registers the per-type damage resistance ({@link DamageResistReconciler}): the per-tick system that keeps
- * every living player's resistance effects in step with their {@code DamageResist_<Type>} stats, the
+ * Registers the per-type damage resistance ({@link DamageResistReconciler}): its channel on the one stat-to-effect
+ * pass, which keeps every living carrier's resistance effects in step with its {@code DamageResist_<Type>} stats, the
  * after-armor step ({@link ResistAfterArmorSystem}: armor penetration, a rolled landing, the 1-point
  * minimum), and the re-write of the effect bodies whenever the damage causes load. Registration only.
  * Nothing to wire for a consumer: a server running the library alone gets the stats' resistance, and a
@@ -24,7 +25,7 @@ public final class ResistBootstrap {
     /** Call once from plugin {@code setup()}. A failed registration rethrows (R700): every resistance would be gone. */
     public static void install(@Nonnull PluginBase plugin) {
         try {
-            plugin.getEntityStoreRegistry().registerSystem(new DamageResistSyncSystem());
+            StatEffectSync.register(DamageResistReconciler.CHANNEL);
             plugin.getEntityStoreRegistry().registerSystem(new ResistAfterArmorSystem());
             plugin.getEventRegistry().register(LoadedAssetsEvent.class, DamageCause.class,
                     (LoadedAssetsEvent<String, DamageCause, IndexedLookupTableAssetMap<String, DamageCause>> ev) ->

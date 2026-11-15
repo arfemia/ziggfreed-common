@@ -1,0 +1,9 @@
+{
+  "$Comment": "A conditional critical chance in whole percent points (3 is +3%) on hits on a slowed, rooted, frozen or withered foe, added to the attacker's CritChance by ziggfreed-common's crit step (its ConditionalStats file says when it counts). Any item's StatModifiers, an effect's RawStatModifiers or a pick's grant raise it like any stat, a creature's as a player's. Base 0; Min is a generous negative so a subtractive modifier never clamps.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false,
+  "Tags": { "ZigGrantFamily": [ "Combat" ] }
+}

@@ -9,6 +9,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -54,8 +56,9 @@ import com.ziggfreed.common.util.SafeLog;
  * What a dungeon run's end shows its members, handed over by {@link DungeonRuns} once the run's lock is let go.
  *
  * <p><b>A clear.</b> Each member in the area at the clear earns the dungeon's completion Claim: its
- * {@code Rewards.Lootable} rolled once for them ({@link ClaimRolls#roll}, as a won round with no score), kept as
- * rewards to hand over later, and written through {@link ClaimStore#award}, which counts
+ * {@code Rewards.Lootable} rolled once for them ({@link ClaimRolls#award}: as themselves while they are online, a
+ * won round with no score laid over it), kept as rewards to hand over later, and written through
+ * {@link ClaimStore#award}, which counts
  * it against {@code Rewards.Diminish} (absent, every clear pays in full) and writes nothing a second time or for a
  * roll that landed nothing. The Claim's id is {@code dungeon:<id>:<run>:<player>}, its source {@code dungeon:<id>}
  * and its returns key {@code dungeon:<id>:<difficulty>}. Then the member's results screen opens, a normal
@@ -128,32 +131,37 @@ public final class DungeonResults {
 
     // ==================== a clear ====================
 
-    /** Pay each winner of {@code clear} their Claim and open their results screen. Never throws. */
+    /**
+     * Pay each winner of {@code clear} their Claim and open their results screen, each once their roll is written
+     * (on their own world's thread, {@link ClaimRolls#award}). Never throws.
+     */
     static void cleared(@Nonnull Clear clear) {
         try {
             LootableAsset table = table(clear);
             long now = System.currentTimeMillis();
-            int paid = 0;
+            AtomicInteger paid = new AtomicInteger();
+            int away = 0;
             for (UUID player : clear.winners()) {
-                Claim written = null;
                 String fight = SpoilsChests.takes(clear.chestFight(), player) ? clear.chestFight() : null;
-                try {
-                    written = award(clear, table, player, now, fight);
+                Consumer<Claim> told = written -> {
                     if (written != null) {
-                        paid++;
+                        paid.incrementAndGet();
                     }
-                } catch (Throwable t) {
-                    SafeLog.warn(LOG + "the completion Claim of " + clear.dungeonId() + " could not be written for "
-                            + player, t);
-                }
-                if (fight != null && written != null) {
-                    tellInChest(clear, player);
-                } else {
-                    show(clear, player, written);
+                    if (fight != null && written != null) {
+                        tellInChest(clear, player);
+                    } else {
+                        show(clear, player, written);
+                    }
+                };
+                if (table == null) {
+                    told.accept(null);
+                } else if (!ClaimRolls.award(payout(clear, table, player, now, fight), told)) {
+                    away++;
                 }
             }
             SafeLog.info(LOG + "the clear of " + clear.dungeonId() + " (run " + clear.runId() + ") wrote "
-                    + paid + " of " + clear.winners().size() + " member(s) a Claim"
+                    + paid.get() + " of " + clear.winners().size() + " member(s) a Claim"
+                    + (away > 0 ? ", " + away + " more rolling on their own world" : "")
                     + (clear.lootable() == null ? "; it names no Rewards.Lootable" : " from " + clear.lootable()));
         } catch (Throwable t) {
             SafeLog.warn(LOG + "the clear of " + clear.dungeonId() + " could not be paid or shown", t);
@@ -167,34 +175,17 @@ public final class DungeonResults {
     }
 
     /**
-     * Roll {@code table} for {@code player} and award what it lands as their completion Claim, filed under
-     * {@code fight} when a chest takes it (null: the Claims tab alone); the Claim as written (scaled by its returns),
-     * or null when nothing was written.
+     * {@code player}'s completion Claim of {@code clear}: {@code table} rolled once, filed under {@code fight} when a
+     * chest takes it (null: the Claims tab alone), counted against the dungeon's returns.
      */
-    @Nullable
-    private static Claim award(@Nonnull Clear clear, @Nullable LootableAsset table, @Nonnull UUID player, long now,
-            @Nullable String fight) {
-        if (table == null) {
-            return null;
-        }
-        String source = DungeonRuns.SOURCE_PREFIX + clear.dungeonId();
-        List<InstanceReward> rewards = ClaimRolls.roll(table, player, source, message -> SafeLog.warn(LOG + message));
-        if (rewards.isEmpty()) {
-            return null;
-        }
-        String claimId = claimId(clear.dungeonId(), clear.runId(), player);
-        Claim claim = new Claim(claimId, source, clear.nameKey(), List.of(),
-                clear.difficulty().isBlank() ? null : clear.difficulty(), rewards, now, fight);
-        if (!ClaimStore.shared().award(player, claim, clear.diminish(),
-                diminishKey(clear.dungeonId(), clear.difficulty()), now)) {
-            return null;
-        }
-        for (Claim held : ClaimStore.shared().list(player)) {
-            if (held.is(claimId)) {
-                return held;
-            }
-        }
-        return null;
+    @Nonnull
+    private static ClaimRolls.Payout payout(@Nonnull Clear clear, @Nonnull LootableAsset table, @Nonnull UUID player,
+            long now, @Nullable String fight) {
+        Claim draft = new Claim(claimId(clear.dungeonId(), clear.runId(), player),
+                DungeonRuns.SOURCE_PREFIX + clear.dungeonId(), clear.nameKey(), List.of(),
+                clear.difficulty().isBlank() ? null : clear.difficulty(), List.of(), now, fight);
+        return new ClaimRolls.Payout(player, draft, List.of(ClaimRolls.Draw.once(table)), clear.diminish(),
+                diminishKey(clear.dungeonId(), clear.difficulty()), message -> SafeLog.warn(LOG + message));
     }
 
     /** {@code dungeon:<id>:<run>:<player>}: one completion Claim per run, per player. */
@@ -394,26 +385,31 @@ public final class DungeonResults {
                 chest = stood.noted() ? key : null;
             }
             long now = System.currentTimeMillis();
-            int paid = 0;
+            AtomicInteger paid = new AtomicInteger();
+            int away = 0;
+            String inChest = chest;
             for (Banked banked : pay.banked()) {
-                Claim written = null;
-                try {
-                    written = awardBanked(pay, banked, perWave, perBoss, chest, now);
-                } catch (Throwable t) {
-                    SafeLog.warn(LOG + "the endless Claim of " + pay.dungeonId() + " could not be written for "
-                            + banked.player(), t);
-                }
-                if (written != null) {
-                    paid++;
-                }
-                if (!pay.left()) {
-                    tellEnded(pay, banked, written != null, chest != null && written != null ? chest : null);
+                Consumer<Claim> told = written -> {
+                    if (written != null) {
+                        paid.incrementAndGet();
+                    }
+                    if (!pay.left()) {
+                        tellEnded(pay, banked, written != null, inChest != null && written != null ? inChest : null);
+                    }
+                };
+                ClaimRolls.Payout payout = payout(pay, banked, perWave, perBoss, chest, now);
+                if (payout == null) {
+                    told.accept(null);
+                } else if (!ClaimRolls.award(payout, told)) {
+                    away++;
                 }
                 DungeonWavesEvent.fire(new DungeonWavesEvent(pay.dungeonId(), pay.difficulty(), pay.runId(),
                         banked.player(), banked.waves(), banked.bossWaves(), pay.left()));
             }
-            SafeLog.info(LOG + "the endless run " + pay.runId() + " of " + pay.dungeonId() + " paid " + paid + " of "
-                    + pay.banked().size() + " member(s) what they banked" + (pay.left() ? " as they left"
+            SafeLog.info(LOG + "the endless run " + pay.runId() + " of " + pay.dungeonId() + " paid " + paid.get()
+                    + " of " + pay.banked().size() + " member(s) what they banked"
+                    + (away > 0 ? " (" + away + " more rolling on their own world)" : "")
+                    + (pay.left() ? " as they left"
                             : chest == null ? " on the Claims tab" : " in a chest at " + Math.round(pay.chestAt().x)
                                     + " " + Math.round(pay.chestAt().y) + " " + Math.round(pay.chestAt().z)));
         } catch (Throwable t) {
@@ -425,38 +421,30 @@ public final class DungeonResults {
     static final String ENDLESS_CHEST_PREFIX = "endless:";
 
     /**
-     * Roll what {@code banked} cleared and award it as their Claim, filed under {@code chest} when one stands (null:
-     * the Claims tab alone); the Claim as written, or null when nothing was.
+     * What {@code banked} cleared, as their Claim: {@code perWave} rolled once for each mob wave and {@code perBoss}
+     * once for each boss wave, filed under {@code chest} when one stands and takes them (null: the Claims tab alone),
+     * counted against the dungeon's returns as one run; null when there is nothing to roll.
      */
     @Nullable
-    private static Claim awardBanked(@Nonnull EndlessPay pay, @Nonnull Banked banked, @Nullable LootableAsset perWave,
-            @Nullable LootableAsset perBoss, @Nullable String chest, long now) {
-        String source = DungeonRuns.SOURCE_PREFIX + pay.dungeonId();
-        List<InstanceReward> rewards = new ArrayList<>();
+    private static ClaimRolls.Payout payout(@Nonnull EndlessPay pay, @Nonnull Banked banked,
+            @Nullable LootableAsset perWave, @Nullable LootableAsset perBoss, @Nullable String chest, long now) {
+        List<ClaimRolls.Draw> draws = new ArrayList<>(2);
         int mobWaves = Math.max(0, banked.waves() - banked.bossWaves());
-        for (int i = 0; perWave != null && i < mobWaves; i++) {
-            rewards.addAll(ClaimRolls.roll(perWave, banked.player(), source, message -> SafeLog.warn(LOG + message)));
+        if (perWave != null && mobWaves > 0) {
+            draws.add(new ClaimRolls.Draw(perWave, mobWaves));
         }
-        for (int i = 0; perBoss != null && i < banked.bossWaves(); i++) {
-            rewards.addAll(ClaimRolls.roll(perBoss, banked.player(), source, message -> SafeLog.warn(LOG + message)));
+        if (perBoss != null && banked.bossWaves() > 0) {
+            draws.add(new ClaimRolls.Draw(perBoss, banked.bossWaves()));
         }
-        if (rewards.isEmpty()) {
+        if (draws.isEmpty()) {
             return null;
         }
-        String claimId = claimId(pay.dungeonId(), pay.runId(), banked.player());
-        Claim claim = new Claim(claimId, source, pay.nameKey(), List.of(),
-                pay.difficulty().isBlank() ? null : pay.difficulty(), rewards, now,
+        Claim draft = new Claim(claimId(pay.dungeonId(), pay.runId(), banked.player()),
+                DungeonRuns.SOURCE_PREFIX + pay.dungeonId(), pay.nameKey(), List.of(),
+                pay.difficulty().isBlank() ? null : pay.difficulty(), List.of(), now,
                 chest != null && SpoilsChests.takes(chest, banked.player()) ? chest : null);
-        if (!ClaimStore.shared().award(banked.player(), claim, pay.diminish(),
-                diminishKey(pay.dungeonId(), pay.difficulty()), now)) {
-            return null;
-        }
-        for (Claim held : ClaimStore.shared().list(banked.player())) {
-            if (held.is(claimId)) {
-                return held;
-            }
-        }
-        return null;
+        return new ClaimRolls.Payout(banked.player(), draft, draws, pay.diminish(),
+                diminishKey(pay.dungeonId(), pay.difficulty()), message -> SafeLog.warn(LOG + message));
     }
 
     /**
