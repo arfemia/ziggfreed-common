@@ -106,55 +106,61 @@ public final class WeakSpotSystem extends DamageEventSystem {
             // Read before the cancel check: only a hit's first damage names vanilla's branch, and every later damage
             // of the same hit (another cause) takes the same answer, even when the first was refused.
             VanillaWeakSpots.Paid vanilla = VanillaWeakSpots.paidForHit(damage, target);
-            Ways ways = Ways.of(stats);
-            boolean bound = BoundGrants.hasHitTerms(attacker);
-            if (!ways.mayPay() && !bound) {
-                return;
-            }
-            if (damage.isCancelled() || damage.getAmount() <= 0f
-                    || target.equals(attacker) || !TypedDamageBonuses.attackerAllowed(store, attacker)) {
-                return;
-            }
-            if (bound) {
-                // A bound grant that is off may still count on this hit (R945): read once the hit is known to land.
-                ways = ways.withHitTerms(store, attacker, damage);
-                if (!ways.mayPay()) {
+            double paid = vanilla == null ? 0.0 : vanilla.share();
+            // The whole weak-spot multiplier this hit carries, recorded once on every way out below (R992): vanilla's
+            // own headshot or backstab share is in the base whether or not ours pays, so a flat a later step adds
+            // takes it too; where ours pays, the larger of the two.
+            double whole = WeakSpots.wholeFactor(0.0, paid);
+            try {
+                Ways ways = Ways.of(stats);
+                boolean bound = BoundGrants.hasHitTerms(attacker);
+                if (!ways.mayPay() && !bound) {
                     return;
                 }
-            }
-            double base = ways.base() + WeakSpots.sourcePoints(store, attacker, damage, stats);
-            WeakSpotSettingsAsset settings = WeakSpotSettingsConfig.getInstance().settings();
-            // Vanilla's own headshot or backstab branch is a weak spot (when that way counts here) and, either way,
-            // the bonus it already paid counts against ours: one weak-spot bonus a hit, the larger of the two.
-            boolean vanillaHead = vanilla != null && vanilla.head() && settings.headEnabled();
-            boolean vanillaBack = vanilla != null && vanilla.backstab() && settings.backstabEnabled();
-            int found = waysOf(store, damage, target, attacker, settings, ways, vanillaHead || vanillaBack);
-            if (vanillaHead) {
-                found |= HEAD;
-            }
-            if (vanillaBack) {
-                found |= BACK;
-            }
-            if (found == 0) {
-                return;
-            }
-            double points = base + ((found & HEAD) != 0 ? ways.head() : 0.0) + ((found & BACK) != 0 ? ways.back() : 0.0)
-                    + ((found & WINDOW) != 0 ? ways.staggered() : 0.0);
-            if (points <= 0.0) {
-                return;
-            }
-            double ours = WeakSpots.bonusFraction(points, WeakSpots.ceilingPercent(stats));
-            double paid = vanilla == null ? 0.0 : vanilla.share();
-            double factor = WeakSpots.factorOver(ours, paid);
-            if (factor > 1.0) {
-                damage.setAmount((float) (damage.getAmount() * factor));
-            }
-            damage.putMetaObject(WeakSpots.hitKey(), (float) Math.max(0.0, ours - paid));
-            // A flat a later step adds takes the whole weak-spot bonus the hit carries, vanilla's headshot share
-            // included, as the rest of the hit did (R992).
-            NativeOutgoing.scaleHit(damage, WeakSpots.wholeFactor(ours, paid));
-            if (settings.textEnabled()) {
-                HitWords.show(store, attacker, target, TEXT_KEY, settings.textColor(), TEXT_ANGLE);
+                if (damage.isCancelled() || damage.getAmount() <= 0f
+                        || target.equals(attacker) || !TypedDamageBonuses.attackerAllowed(store, attacker)) {
+                    return;
+                }
+                if (bound) {
+                    // A bound grant that is off may still count on this hit (R945): read once the hit is known to land.
+                    ways = ways.withHitTerms(store, attacker, damage);
+                    if (!ways.mayPay()) {
+                        return;
+                    }
+                }
+                double base = ways.base() + WeakSpots.sourcePoints(store, attacker, damage, stats);
+                WeakSpotSettingsAsset settings = WeakSpotSettingsConfig.getInstance().settings();
+                // Vanilla's own headshot or backstab branch is a weak spot (when that way counts here) and, either
+                // way, the bonus it already paid counts against ours: one weak-spot bonus a hit, the larger of the two.
+                boolean vanillaHead = vanilla != null && vanilla.head() && settings.headEnabled();
+                boolean vanillaBack = vanilla != null && vanilla.backstab() && settings.backstabEnabled();
+                int found = waysOf(store, damage, target, attacker, settings, ways, vanillaHead || vanillaBack);
+                if (vanillaHead) {
+                    found |= HEAD;
+                }
+                if (vanillaBack) {
+                    found |= BACK;
+                }
+                if (found == 0) {
+                    return;
+                }
+                double points = base + ((found & HEAD) != 0 ? ways.head() : 0.0)
+                        + ((found & BACK) != 0 ? ways.back() : 0.0) + ((found & WINDOW) != 0 ? ways.staggered() : 0.0);
+                if (points <= 0.0) {
+                    return;
+                }
+                double ours = WeakSpots.bonusFraction(points, WeakSpots.ceilingPercent(stats));
+                double factor = WeakSpots.factorOver(ours, paid);
+                if (factor > 1.0) {
+                    damage.setAmount((float) (damage.getAmount() * factor));
+                }
+                damage.putMetaObject(WeakSpots.hitKey(), (float) Math.max(0.0, ours - paid));
+                whole = WeakSpots.wholeFactor(ours, paid);
+                if (settings.textEnabled()) {
+                    HitWords.show(store, attacker, target, TEXT_KEY, settings.textColor(), TEXT_ANGLE);
+                }
+            } finally {
+                NativeOutgoing.scaleHit(damage, whole);
             }
         } catch (Throwable t) {
             SafeLog.warn("[weakspot] the weak-spot step failed: " + t.getMessage());
