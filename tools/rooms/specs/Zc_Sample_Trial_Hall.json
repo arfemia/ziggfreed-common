@@ -64,6 +64,6 @@
      "Respawn": {"X": 0, "Y": 1, "Z": -2}, "Yaw": 180, "TitleKey": "server.sample.checkpoint.title",
      "SubtitleKey": "server.sample.checkpoint.subtitle", "Statue": {"X": -2, "Y": 1, "Z": -3}},
     {"Template": "SkillLock", "Lock": {"Min": {"X": -15, "Y": 1, "Z": -21}, "Max": {"X": -15, "Y": 3, "Z": -19}},
-     "Param": "MMO_Level_Mining", "Min": 30, "HintKey": "server.sample.skill_lock.mining"}
+     "Param": "MMO_Level_MINING", "Min": 30, "HintKey": "server.sample.skill_lock.mining"}
   ]
 }

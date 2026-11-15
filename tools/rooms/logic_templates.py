@@ -283,6 +283,18 @@ def controller_cell(params, fallback):
     return cell_of(params["Controller"]) if params.get("Controller") else fallback
 
 
+def all_at_once(params, ctx, label, cell, key, value, signal_key, member_key, tag, want, also=()):
+    """The controller every all-of-them-at-once puzzle shares (braziers, plates, levers): a volume at `cell`, carrying
+    `key`, that on a signal carrying `signal_key`, while it is Ready and every volume carrying `member_key` has `tag` at
+    `want`, writes Solved, runs `also`, then what solved() makes of the params."""
+    effects = [set_own_tag("SIGNAL_RECEIVED", "State", "Solved")] + list(also)
+    effects += solved(params, ctx, "SIGNAL_RECEIVED", cell)
+    conditions = [event_tag_is("SIGNAL_RECEIVED", signal_key),
+                  tag_is("SIGNAL_RECEIVED", "State", "Ready"),
+                  all_tagged("SIGNAL_RECEIVED", member_key, tag, want)]
+    return cell_volume(ctx["name"] + label, cell, effects, conditions, {key: value, "State": "Ready"})
+
+
 # ---------------------------------------------------------------------------------------------------------------
 # The shared pulse (every hazard): a controller sends Fire on a rhythm, each cell warns, burns, then rests
 
@@ -495,12 +507,8 @@ def brazier_relay(params, ctx):
         tags = {brazier_key: "Brazier", "Lit": "No", "Fuel": "Cold", "Solved": "No"}
         out.entities.append(cell_volume("%sBrazier_%d" % (ctx["name"], i + 1), c, effects, conditions, tags))
     ctl = controller_cell(params, (braziers[0][0], braziers[0][1] + 1, braziers[0][2]))
-    effects = [set_own_tag("SIGNAL_RECEIVED", "State", "Solved"),
-               set_tags("SIGNAL_RECEIVED", brazier_key, "Solved", "Yes")] + solved(params, ctx, "SIGNAL_RECEIVED", ctl)
-    conditions = [event_tag_is("SIGNAL_RECEIVED", "Lit"),
-                  tag_is("SIGNAL_RECEIVED", "State", "Ready"),
-                  all_tagged("SIGNAL_RECEIVED", brazier_key, "Lit", "Yes")]
-    out.entities.append(cell_volume(ctx["name"] + "Relay", ctl, effects, conditions, {key: "Relay", "State": "Ready"}))
+    out.entities.append(all_at_once(params, ctx, "Relay", ctl, key, "Relay", "Lit", brazier_key, "Lit", "Yes",
+                                    also=[set_tags("SIGNAL_RECEIVED", brazier_key, "Solved", "Yes")]))
     return out
 
 
@@ -535,21 +543,26 @@ def carried_core_socket(params, ctx):
 
     params: Region {Min, Max} (where a carrier must stand), Socket {X, Y, Z} (the cell the core appears in, air
     until then), Core (palette slot; default Core), Item (the carried item's id; default the Core slot's block),
-    HintKey (a lang key said to a player who arrives without it; optional), and the solved params."""
+    HintKey (a lang key said to a player who arrives without it while the socket is still empty; optional), and the
+    solved params. Entry 0 fills the socket; entry 1, only while it is Empty and the player carries no core, says the
+    hint, so nobody is told to fetch a core the socket already holds."""
     lo, hi = region(params["Region"])
     socket = cell_of(params["Socket"])
     core = ctx["slot"](params.get("Core", "Core"))
     item = params.get("Item", str(core))
+
+    def carried(entry, comparison, consume):
+        return condition("ItemCondition", "ENTER", entry, Item=item, Location="Carried", Quantity=1, Consume=consume,
+                         Comparison=comparison, EmptyInventory=False, MetadataKey="", MetadataValue="")
+
     effects = [set_own_tag("ENTER", "State", "Filled"), place_block("ENTER", lo, socket, core)]
     effects += cue("ENTER", params, "Fill", lo, socket) + solved(params, ctx, "ENTER", lo)
-    conditions = [
-        tag_is("ENTER", "State", "Empty"),
-        condition("ItemCondition", "ENTER", Item=item, Location="Carried", Quantity=1, Consume=True,
-                  Comparison="AtLeast", EmptyInventory=False, MetadataKey="", MetadataValue=""),
-    ]
-    rejections = [message("ENTER", params["HintKey"])] if params.get("HintKey") else []
+    conditions = [tag_is("ENTER", "State", "Empty"), carried(0, "AtLeast", True)]
+    if params.get("HintKey"):
+        effects.append(message("ENTER", params["HintKey"], entry=1))
+        conditions += [tag_is("ENTER", "State", "Empty", entry=1), carried(1, "LessThan", False)]
     return Logic([volume_entity(ctx["name"] + "Core_Socket", lo, box_size(lo, hi), effects, conditions,
-                                {"State": "Empty"}, rejections=rejections)])
+                                {"State": "Empty"})])
 
 
 def pressure_plates(params, ctx):
@@ -614,11 +627,7 @@ def pressure_plates(params, ctx):
         out.entities.append(volume_entity("%sPlate_%d" % (ctx["name"], i + 1), c, (1, 3, 1), effects, conditions,
                                           {plate_key: "Plate", "Pressed": "No"}, targets=targets or ["Player"]))
     ctl = controller_cell(params, (plates[0][0], plates[0][1] + 3, plates[0][2]))
-    effects = [set_own_tag("SIGNAL_RECEIVED", "State", "Solved")] + solved(params, ctx, "SIGNAL_RECEIVED", ctl)
-    conditions = [event_tag_is("SIGNAL_RECEIVED", "Pressed"),
-                  tag_is("SIGNAL_RECEIVED", "State", "Ready"),
-                  all_tagged("SIGNAL_RECEIVED", plate_key, "Pressed", "Yes")]
-    out.entities.append(cell_volume(ctx["name"] + "Plates", ctl, effects, conditions, {key: "Lock", "State": "Ready"}))
+    out.entities.append(all_at_once(params, ctx, "Plates", ctl, key, "Lock", "Pressed", plate_key, "Pressed", "Yes"))
     return out
 
 
@@ -834,12 +843,8 @@ def lever_logic(params, ctx):
         out.entities.append(cell_volume("%sLever_%d" % (ctx["name"], i + 1), c, effects, conditions, tags))
     first = cell_of(levers[0]["At"])
     ctl = controller_cell(params, (first[0], first[1] + 2, first[2]))
-    effects = [set_own_tag("SIGNAL_RECEIVED", "State", "Solved")] + solved(params, ctx, "SIGNAL_RECEIVED", ctl)
-    conditions = [event_tag_is("SIGNAL_RECEIVED", "Lever"),
-                  tag_is("SIGNAL_RECEIVED", "State", "Ready"),
-                  all_tagged("SIGNAL_RECEIVED", lever_key, "Correct", "Yes")]
-    out.entities.append(cell_volume(ctx["name"] + "Generator", ctl, effects, conditions,
-                                    {key: "Generator", "State": "Ready"}))
+    out.entities.append(all_at_once(params, ctx, "Generator", ctl, key, "Generator", "Lever", lever_key, "Correct",
+                                    "Yes"))
     return out
 
 
@@ -934,12 +939,14 @@ def skill_lock(params, ctx):
     it is told what opens it.
 
     params: Lock {Min, Max}, or a list of them (the lock's cells, fitted round a doorway's shape; the template
-    places them; a usable block), Lock_Slot (palette slot;
-    default Lock), Opened (the slot the cells become; default air), Factor (default hytale:stat), Param (such as
-    MMO_Level_Mining), Min (the level), or Requires (a whole Requires block instead), HintKey (the lang key naming what
-    opens it, required), Milestone (default Secret_Found), Signal, OpenSound, OpenVfx."""
-    pieces = params["Lock"] if isinstance(params["Lock"], list) else [params["Lock"]]
-    cells = sorted({c for piece in pieces for c in box_cells(*region(piece))})
+    places them; a usable block), Lock_Slot (palette slot; default Lock), Opened (the slot the cells become; default
+    air), Factor (default hytale:stat), Param (the stat a skill's level reads as, upper case after its prefix, such as
+    MMO_Level_MINING), Min (the level), or Requires (a whole Requires block instead), HintKey (the lang key naming what
+    opens it, required), Milestone (default Secret_Found), Signal, OpenSound, OpenVfx.
+    Opening swaps each Lock piece on its own, so a block of the lock's kind the room already has beside the lock
+    stays put."""
+    pieces = [region(piece) for piece in (params["Lock"] if isinstance(params["Lock"], list) else [params["Lock"]])]
+    cells = sorted({c for piece in pieces for c in box_cells(*piece)})
     lo = tuple(min(c[i] for c in cells) for i in range(3))
     hi = tuple(max(c[i] for c in cells) for i in range(3))
     slot = params.get("Lock_Slot", "Lock")
@@ -952,8 +959,8 @@ def skill_lock(params, ctx):
                                  "Min": params["Min"]}]}
     if not params.get("HintKey"):
         raise ValueError("SkillLock: HintKey (the lang key naming what opens it) is required")
-    effects = [set_own_tag("BLOCK_USED", "State", "Open"),
-               swap_cells("BLOCK_USED", lo, lo, hi, [lock], opened)]
+    effects = [set_own_tag("BLOCK_USED", "State", "Open")]
+    effects += [swap_cells("BLOCK_USED", lo, plo, phi, [lock], opened) for plo, phi in pieces]
     effects += cue("BLOCK_USED", params, "Open", lo, lo)
     if params.get("Signal"):
         effects.append(send_signal("BLOCK_USED", scoped(params["Signal"], "Signal"), ["Opened"]))

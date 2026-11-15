@@ -12,6 +12,7 @@ import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import org.bson.BsonDocument;
 import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
@@ -55,9 +56,12 @@ class DungeonRoomAssetCodecTest {
         DungeonRoomAsset read = decode("Stone_Room", STONE_ROOM, null);
         assertStoneRoom(read.toSpec());
 
-        DungeonRoomAsset again = decode("Stone_Room",
-                DungeonRoomAsset.CODEC.encode(read, new ExtraInfo()).toJson(), null);
+        BsonDocument written = DungeonRoomAsset.CODEC.encode(read, new ExtraInfo()).asDocument();
+        assertTrue(written.containsKey("Overlay"), "the overlay leaf is written back");
+        DungeonRoomAsset again = decode("Stone_Room", written.toJson(), null);
         assertEquals(read.toSpec(), again.toSpec(), "written back, the file reads the same");
+        assertEquals("ZiggfreedCommon.Rooms.Stone_Room_Overlay", again.toSpec().overlay(),
+                "and the overlay reads back from it");
         ObjectSchema schema = (ObjectSchema) DungeonRoomAsset.CODEC.toSchema(new SchemaContext());
         assertNotNull(schema.getProperties().get("Doors"), "the schema the Asset Editor loads declares the doors");
         assertNotNull(schema.getProperties().get("Fill"), "and the fill block");
