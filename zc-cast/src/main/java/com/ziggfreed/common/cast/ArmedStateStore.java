@@ -44,7 +44,10 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
  * {@link ArmedState#attributions} for the CONSUMER to fold (union, pick-first, or whatever its
  * attribution semantics require - the fold is deliberately consumer-side so no consumer-domain
  * vocabulary lives in this class). The consumer applies the product multiplier to outgoing
- * damage; its own pre-defense multiplier cap prevents stack abuse.
+ * damage; its own pre-defense multiplier cap prevents stack abuse. An arm may carry a second
+ * multiplier and flat for a hit on a boss or an elite (composed the same way); this store never
+ * sees the struck foe, so the consumer picks between the pairs as the hit lands
+ * ({@link ArmedState#multiplierFor}).
  *
  * <h2>Invulnerability</h2>
  *
@@ -137,17 +140,38 @@ public final class ArmedStateStore {
                            double multiplier, double flatDamage, long durationMs,
                            @Nullable BiConsumer<Store<EntityStore>, Ref<EntityStore>> onHitConsumer,
                            @Nullable Object attribution) {
+        armNextHit(casterId, abilityId, slot, multiplier, flatDamage, multiplier, flatDamage, durationMs,
+                onHitConsumer, attribution);
+    }
+
+    /**
+     * {@link #armNextHit(UUID, String, String, double, double, long, BiConsumer, Object)} with a second pair of
+     * numbers for a hit that lands on a boss or an elite: {@code bossMultiplier} and {@code bossFlatDamage}, what the
+     * arm gives without whatever a consumer's own rules keep from one (bosses stay bosses: a talent that raised the
+     * arm never reaches one). This store never sees the struck foe, so the consumer picks the pair as the hit lands
+     * ({@link ArmedState#multiplierFor}, {@link ArmedState#flatDamageFor}).
+     *
+     * <p>Replaces any prior value in {@code slot} for this player.
+     */
+    public void armNextHit(UUID casterId, @Nullable String abilityId, @Nonnull String slot,
+                           double multiplier, double flatDamage, double bossMultiplier, double bossFlatDamage,
+                           long durationMs,
+                           @Nullable BiConsumer<Store<EntityStore>, Ref<EntityStore>> onHitConsumer,
+                           @Nullable Object attribution) {
         if (casterId == null) return;
         // An armed slot is meaningful if it carries any of: a damage multiplier > 1,
         // additive flat damage > 0, or an on-hit chain (e.g. a stun payload).
         // Stun-only / status-only abilities arm with multiplier=1.0 and flatDamage=0,
         // relying entirely on the onHitConsumer payload.
-        if (multiplier <= 1.0 && flatDamage <= 0.0 && onHitConsumer == null) return;
+        if (multiplier <= 1.0 && flatDamage <= 0.0 && bossMultiplier <= 1.0 && bossFlatDamage <= 0.0
+                && onHitConsumer == null) return;
         ArmedState state = new ArmedState(
                 abilityId,
                 slot,
                 multiplier <= 1.0 ? 1.0 : multiplier,
                 Math.max(0.0, flatDamage),
+                bossMultiplier <= 1.0 ? 1.0 : bossMultiplier,
+                Math.max(0.0, bossFlatDamage),
                 System.currentTimeMillis() + Math.max(1L, durationMs),
                 onHitConsumer,
                 attribution != null ? List.of(attribution) : Collections.emptyList());
@@ -214,6 +238,8 @@ public final class ArmedStateStore {
 
         double productMultiplier = 1.0;
         double summedFlat = 0.0;
+        double bossProduct = 1.0;
+        double bossSummed = 0.0;
         BiConsumer<Store<EntityStore>, Ref<EntityStore>> chainedConsumer = null;
         List<Object> mergedAttributions = null;
         String firstAbilityId = null;
@@ -224,6 +250,8 @@ public final class ArmedStateStore {
             anyLive = true;
             productMultiplier *= state.multiplier;
             summedFlat += state.flatDamage;
+            bossProduct *= state.bossMultiplier;
+            bossSummed += state.bossFlatDamage;
             if (firstAbilityId == null) firstAbilityId = state.abilityId;
             if (state.onHitConsumer != null) {
                 chainedConsumer = (chainedConsumer == null)
@@ -240,13 +268,16 @@ public final class ArmedStateStore {
         // Keep the composite alive if any slot carries an on-hit chain even when no
         // damage benefit is armed - stun-only / status-only abilities arm with
         // multiplier=1.0 and flatDamage=0 and rely entirely on the chained consumer.
-        if (productMultiplier <= 1.0 && summedFlat <= 0.0 && chainedConsumer == null) return null;
+        if (productMultiplier <= 1.0 && summedFlat <= 0.0 && bossProduct <= 1.0 && bossSummed <= 0.0
+                && chainedConsumer == null) return null;
 
         return new ArmedState(
                 firstAbilityId,
                 DEFAULT_SLOT,
                 productMultiplier,
                 summedFlat,
+                bossProduct,
+                bossSummed,
                 Long.MAX_VALUE,
                 chainedConsumer,
                 mergedAttributions != null
@@ -403,6 +434,14 @@ public final class ArmedStateStore {
          * Never null (empty when nothing was attributed).
          */
         @Nonnull public final List<Object> attributions;
+        /**
+         * The multiplier a hit on a boss or an elite takes ({@link #armNextHit(UUID, String, String, double, double,
+         * double, double, long, BiConsumer, Object)}); the same as {@link #multiplier} for an arm that gave no second
+         * pair. For a composite, the product over its live slots.
+         */
+        public final double bossMultiplier;
+        /** The flat bonus a hit on a boss or an elite takes; the same as {@link #flatDamage} unless armed apart. */
+        public final double bossFlatDamage;
 
         public ArmedState(@Nullable String abilityId,
                           @Nonnull String slot,
@@ -411,13 +450,38 @@ public final class ArmedStateStore {
                           long expiresAtMs,
                           @Nullable BiConsumer<Store<EntityStore>, Ref<EntityStore>> onHitConsumer,
                           @Nonnull List<Object> attributions) {
+            this(abilityId, slot, multiplier, flatDamage, multiplier, flatDamage, expiresAtMs, onHitConsumer,
+                    attributions);
+        }
+
+        public ArmedState(@Nullable String abilityId,
+                          @Nonnull String slot,
+                          double multiplier,
+                          double flatDamage,
+                          double bossMultiplier,
+                          double bossFlatDamage,
+                          long expiresAtMs,
+                          @Nullable BiConsumer<Store<EntityStore>, Ref<EntityStore>> onHitConsumer,
+                          @Nonnull List<Object> attributions) {
             this.abilityId = abilityId;
             this.slot = slot;
             this.multiplier = multiplier;
             this.flatDamage = flatDamage;
+            this.bossMultiplier = bossMultiplier;
+            this.bossFlatDamage = bossFlatDamage;
             this.expiresAtMs = expiresAtMs;
             this.onHitConsumer = onHitConsumer;
             this.attributions = attributions;
+        }
+
+        /** The multiplier the struck foe takes: {@link #bossMultiplier} for a boss or an elite, else {@link #multiplier}. */
+        public double multiplierFor(boolean bossOrElite) {
+            return bossOrElite ? bossMultiplier : multiplier;
+        }
+
+        /** The flat bonus the struck foe takes: {@link #bossFlatDamage} for a boss or an elite, else {@link #flatDamage}. */
+        public double flatDamageFor(boolean bossOrElite) {
+            return bossOrElite ? bossFlatDamage : flatDamage;
         }
     }
 }

@@ -15,6 +15,7 @@ import com.hypixel.hytale.server.core.entity.InteractionChain;
 import com.hypixel.hytale.server.core.entity.InteractionManager;
 import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
+import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatsModule;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
 import com.hypixel.hytale.server.core.modules.interaction.InteractionModule;
@@ -54,7 +55,9 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p>The native diminishing ramp (vanilla's bomb shape: an {@code Immune} target is skipped and a landed stun adds
  * {@code Immunity}, whose {@code MaxValueEffects} put {@code Immune} on at its {@code Max}) is the caller's to ask
- * for, through {@link #isImmune} and {@link #rampImmunity}; {@code ZigStun} does both.
+ * for, through {@link #isImmune} and {@link #rampImmunity}; {@code ZigStun} does both. A control that also shrinks on
+ * repeat (a slow, a proc's {@code ApplyEffect} with {@code Control}) reads {@link #immunityShare} before it lands and
+ * lasts {@link #diminished} by it.
  *
  * <p>World thread only. Every call takes a {@link ComponentAccessor} (a system's or an interaction's
  * {@code CommandBuffer}, or the {@code Store} outside a tick) and degrades to a false or zero answer, never a throw.
@@ -220,6 +223,43 @@ public final class StunControl {
             SafeLog.fine("[control] the immunity ramp failed: " + t.getMessage());
             return false;
         }
+    }
+
+    /**
+     * How far {@code target}'s {@value #IMMUNITY_STAT} stat has filled, from 0 (none) to 1 (at its {@code Max}, where
+     * the game puts {@value #IMMUNE_EFFECT} on): the read a control that shrinks on repeat ({@link #diminished}) takes
+     * before its landing ramps the stat. 0 whenever it cannot tell (no stat map, a server without the stat).
+     */
+    public static float immunityShare(@Nonnull ComponentAccessor<EntityStore> accessor,
+            @Nullable Ref<EntityStore> target) {
+        if (!usable(target)) {
+            return 0f;
+        }
+        try {
+            int index = EntityStatType.getAssetMap().getIndex(IMMUNITY_STAT);
+            if (index < 0) {
+                return 0f;
+            }
+            EntityStatMap stats = accessor.getComponent(target, EntityStatsModule.get().getEntityStatMapComponentType());
+            EntityStatValue value = stats == null ? null : stats.get(index);
+            return value == null ? 0f : Math.max(0f, Math.min(1f, value.asPercentage()));
+        } catch (Throwable t) {
+            SafeLog.fine("[control] the immunity read failed: " + t.getMessage());
+            return 0f;
+        }
+    }
+
+    /**
+     * {@code seconds} shrunk by the share of {@value #IMMUNITY_STAT} a foe already carries ({@link #immunityShare}):
+     * {@code seconds * (1 - share)}, so a control landed again soon on the same foe lasts less each time until the ramp
+     * fills and the foe turns {@value #IMMUNE_EFFECT}. Pure; never below 0.
+     */
+    public static float diminished(float seconds, float share) {
+        if (!(seconds > 0f)) {
+            return 0f;
+        }
+        float kept = 1f - Math.max(0f, Math.min(1f, share));
+        return seconds * kept;
     }
 
     private static boolean apply(@Nonnull ComponentAccessor<EntityStore> accessor, @Nullable Ref<EntityStore> target,
