@@ -1,0 +1,44 @@
+{
+  "$Comment": [
+    "The Magic Ruins kit, plug for its Magic_Ruins_Cave doors: vanilla's empty prefab Dungeon.Dungeon_Empty, which the painter fills with Rock_Stone over the whole Box.",
+    "Vanilla's graph Dungeons/Dungeon_Magic_Ruins ships no wall cap for this Kind: vanilla digs the kit into rock, so a doorway its graph leaves open runs into rock. The plug is that rock, a slab one block deep over the widest doorway of the Kind (57 doorways measured across every variant), the shape of the Stone kit's own Walls caps. Written by tools/rooms/import_kit.py; re-run the importer instead of editing this file.",
+    "As a Cap it carries, key by key, every tag value of the rooms whose doors it can close."
+  ],
+  "Box": {
+    "Max": {
+      "X": 2,
+      "Y": 7,
+      "Z": 0
+    },
+    "Min": {
+      "X": -2,
+      "Y": 0,
+      "Z": 0
+    }
+  },
+  "Doors": [
+    {
+      "At": {
+        "X": 0,
+        "Y": 0,
+        "Z": 0
+      },
+      "Facing": "South",
+      "Kind": "Magic_Ruins_Cave"
+    }
+  ],
+  "Fill": "Rock_Stone",
+  "Prefab": "Dungeon.Dungeon_Empty",
+  "Roles": [
+    "Cap"
+  ],
+  "Tags": {
+    "Kit": [
+      "Magic_Ruins"
+    ],
+    "Section": [
+      "Ruins",
+      "Structured_Cave"
+    ]
+  }
+}

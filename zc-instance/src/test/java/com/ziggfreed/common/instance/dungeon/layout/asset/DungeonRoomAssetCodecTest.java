@@ -35,6 +35,7 @@ class DungeonRoomAssetCodecTest {
     private static final String STONE_ROOM = """
             {
               "Prefab": " Dungeon.Stone.Level_1.Room_Small.* ",
+              "Overlay": " ZiggfreedCommon.Rooms.Stone_Room_Overlay ",
               "Box": { "Min": { "X": -8, "Z": -8 }, "Max": { "X": 8, "Y": 9, "Z": 8 } },
               "Doors": [ { "At": { "Z": -8 }, "Facing": "north", "Kind": "Stone_Small" },
                          { "At": { "X": 8 }, "Facing": "East" },
@@ -60,6 +61,7 @@ class DungeonRoomAssetCodecTest {
         ObjectSchema schema = (ObjectSchema) DungeonRoomAsset.CODEC.toSchema(new SchemaContext());
         assertNotNull(schema.getProperties().get("Doors"), "the schema the Asset Editor loads declares the doors");
         assertNotNull(schema.getProperties().get("Fill"), "and the fill block");
+        assertNotNull(schema.getProperties().get("Overlay"), "and the overlay prefab");
     }
 
     @Test
@@ -78,6 +80,7 @@ class DungeonRoomAssetCodecTest {
         assertFalse(bare.keepMarkers(), "Keep defaults to neither");
         assertFalse(bare.keepContainers());
         assertNull(bare.fill(), "no Fill: the stratum's, else none");
+        assertNull(bare.overlay(), "no Overlay: the prefab is the whole room");
     }
 
     @Test
@@ -89,6 +92,7 @@ class DungeonRoomAssetCodecTest {
         assertEquals(5.0, child.weight());
         assertEquals("Rock_Basalt", child.fill());
         assertEquals(base.prefab(), child.prefab());
+        assertEquals(base.overlay(), child.overlay(), "the overlay is inherited");
         assertEquals(base.box(), child.box());
         assertEquals(base.doors(), child.doors());
         assertEquals(base.roles(), child.roles());
@@ -103,6 +107,7 @@ class DungeonRoomAssetCodecTest {
         assertEquals("stone_room", spec.id(), "the id is folded");
         assertEquals("Dungeon.Stone.Level_1.Room_Small.*", spec.prefab(), "the prefab is trimmed, never folded");
         assertTrue(spec.isPool());
+        assertEquals("ZiggfreedCommon.Rooms.Stone_Room_Overlay", spec.overlay(), "the overlay is trimmed, never folded");
         assertEquals(new Box(new Cell(-8, 0, -8), new Cell(8, 9, 8)), spec.box(), "an unauthored axis is 0");
         assertEquals(List.of(
                         new DoorSpec(new Cell(0, 0, -8), Facing.NORTH, "stone_small"),
