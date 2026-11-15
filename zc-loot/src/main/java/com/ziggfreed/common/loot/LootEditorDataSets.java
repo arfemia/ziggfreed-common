@@ -25,7 +25,7 @@ public final class LootEditorDataSets {
     /** Every loaded roll pool id. */
     public static final String ROLL_POOLS = RollPoolAsset.EDITOR_DATASET;
 
-    /** Every reward kind something on this server pays out. */
+    /** Every reward kind something on this server pays out (the one list, zc-progression's too). */
     public static final String REWARD_KINDS = "ziggfreedcommon:reward_kinds";
 
     private LootEditorDataSets() {
@@ -41,8 +41,9 @@ public final class LootEditorDataSets {
         return RollPoolConfig.getInstance().all().keySet();
     }
 
+    /** Every reward kind in the shared vocabulary, spelled as its owner writes it. */
     @Nonnull
     public static Collection<String> rewardKindIds() {
-        return RewardKinds.shared().ids();
+        return RewardKinds.shared().spelledIds();
     }
 }

@@ -24,7 +24,7 @@ import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.farming.FarmingData;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.farming.FarmingStageData;
 import com.hypixel.hytale.server.core.modules.block.BlockModule;
-import com.hypixel.hytale.server.core.modules.interaction.components.PlacedByInteractionComponent;
+import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.time.WorldTimeResource;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockSection;
@@ -32,31 +32,35 @@ import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.inventory.PlayerAccess;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.world.placed.PlacedBlockLedger;
 
 /**
- * The growth step: a farming block a player placed (a crop, a sapling, a fishing trap; the engine records its placer
- * on the block, {@code PlacedByInteractionComponent}) grows {@code GrowthSpeed} percent faster while that player is
- * in the same world. Every {@value #INTERVAL_SEC} seconds the step credits that share of the game time that passed to
- * the block's own growth clock (it moves the block's last growth tick back by it) and asks the engine to tick the
- * block now, so the engine's own farming tick grows it, through every stage rule and modifier it applies, only
- * sooner. A block already at its last stage is left alone, so nothing is banked while a crop waits to be picked.
+ * The growth step: a farming block a player placed (a crop, a sapling, a fishing trap; who placed it is the
+ * placed-block ledger's one answer, {@link PlacedBlockLedger#placerAt}: the engine's own record on the block, the
+ * ledger's elsewhere) grows {@code GrowthSpeed} percent faster, held at the placer's {@code GrowthSpeedMax}, while
+ * that player is in the same world. Every {@value #INTERVAL_SEC} seconds the step credits that share of the game time
+ * that passed to the block's own growth clock (it moves the block's last growth tick back by it) and asks the engine to
+ * tick the block now, so the engine's own farming tick grows it, through every stage rule and modifier it applies,
+ * only sooner. A block already at its last stage is left alone, so nothing is banked while a crop waits to be picked.
  *
- * <p>Runs on the chunk store over farming blocks that carry a placer, on the world thread. A server without the
- * engine's farming module registers nothing ({@link #create}).
+ * <p>Runs on the chunk store over farming blocks, on the world thread. A server without the engine's farming module
+ * registers nothing ({@link #create}).
  */
 public final class GrowthSpeedSystem extends EntityTickingSystem<ChunkStore> {
 
     /** The growth stat, read off the block's placer. */
     public static final String GROWTH_STAT = "GrowthSpeed";
 
+    /** Its ceiling stat. */
+    public static final String CEILING_STAT = "GrowthSpeedMax";
+
+    /** The ceiling a placer reads when the ceiling stat cannot be read: three times as fast at most. */
+    public static final double FALLBACK_CEILING = 200.0;
+
     /** How often growth is credited, in seconds of server time. */
     public static final float INTERVAL_SEC = 5.0f;
 
-    /** The most growth one credit grants, as a share of the time that passed: three times as fast at most. */
-    public static final double MAX_PERCENT = 200.0;
-
     @Nonnull private final ComponentType<ChunkStore, FarmingBlock> farmingType;
-    @Nonnull private final ComponentType<ChunkStore, PlacedByInteractionComponent> placedType;
     @Nonnull private final ComponentType<ChunkStore, BlockModule.BlockStateInfo> stateType;
     @Nonnull private final Query<ChunkStore> query;
 
@@ -72,24 +76,21 @@ public final class GrowthSpeedSystem extends EntityTickingSystem<ChunkStore> {
     private final Map<Store<ChunkStore>, Run> runs = Collections.synchronizedMap(new WeakHashMap<>());
 
     private GrowthSpeedSystem(@Nonnull ComponentType<ChunkStore, FarmingBlock> farmingType,
-            @Nonnull ComponentType<ChunkStore, PlacedByInteractionComponent> placedType,
             @Nonnull ComponentType<ChunkStore, BlockModule.BlockStateInfo> stateType) {
         this.farmingType = farmingType;
-        this.placedType = placedType;
         this.stateType = stateType;
-        this.query = Query.and(farmingType, placedType, stateType);
+        this.query = Query.and(farmingType, stateType);
     }
 
     /** The system, or null when the engine's farming or block components are not registered on this server. */
     @Nullable
     public static GrowthSpeedSystem create() {
         ComponentType<ChunkStore, FarmingBlock> farming = FarmingBlock.getComponentType();
-        ComponentType<ChunkStore, PlacedByInteractionComponent> placed = PlacedByInteractionComponent.getComponentType();
         ComponentType<ChunkStore, BlockModule.BlockStateInfo> state = BlockModule.BlockStateInfo.getComponentType();
-        if (farming == null || placed == null || state == null) {
+        if (farming == null || state == null) {
             return null;
         }
-        return new GrowthSpeedSystem(farming, placed, state);
+        return new GrowthSpeedSystem(farming, state);
     }
 
     @Nonnull
@@ -123,9 +124,21 @@ public final class GrowthSpeedSystem extends EntityTickingSystem<ChunkStore> {
             @Nonnull Store<ChunkStore> store, @Nonnull CommandBuffer<ChunkStore> commandBuffer) {
         try {
             Run run = runs.get(store);
-            PlacedByInteractionComponent placed = archetypeChunk.getComponent(index, placedType);
-            UUID planter = placed == null ? null : placed.getWhoPlacedUuid();
-            if (run == null || run.now == null || planter == null) {
+            BlockModule.BlockStateInfo state = archetypeChunk.getComponent(index, stateType);
+            if (run == null || run.now == null || state == null) {
+                return;
+            }
+            Ref<ChunkStore> sectionRef = state.getSectionRef();
+            if (sectionRef == null || !sectionRef.isValid()) {
+                return;
+            }
+            int blockIndex = state.getIndex();
+            int x = ChunkUtil.xFromIndex(blockIndex);
+            int y = ChunkUtil.yFromIndex(blockIndex);
+            int z = ChunkUtil.zFromIndex(blockIndex);
+            UUID planter = PlacedBlockLedger.placerAt(commandBuffer, sectionRef, archetypeChunk.getReferenceTo(index),
+                    x, y, z);
+            if (planter == null) {
                 return;
             }
             double percent = run.rates.computeIfAbsent(planter, id -> rateOf(store, id));
@@ -133,20 +146,13 @@ public final class GrowthSpeedSystem extends EntityTickingSystem<ChunkStore> {
                 return;
             }
             FarmingBlock farming = archetypeChunk.getComponent(index, farmingType);
-            BlockModule.BlockStateInfo state = archetypeChunk.getComponent(index, stateType);
-            if (farming == null || state == null || farming.getLastTickGameTime() == null) {
+            if (farming == null || farming.getLastTickGameTime() == null) {
                 return;
             }
-            Ref<ChunkStore> sectionRef = state.getSectionRef();
-            BlockSection section = sectionRef == null || !sectionRef.isValid() ? null
-                    : commandBuffer.getComponent(sectionRef, BlockSection.getComponentType());
+            BlockSection section = commandBuffer.getComponent(sectionRef, BlockSection.getComponentType());
             if (section == null) {
                 return;
             }
-            int blockIndex = state.getIndex();
-            int x = ChunkUtil.xFromIndex(blockIndex);
-            int y = ChunkUtil.yFromIndex(blockIndex);
-            int z = ChunkUtil.zFromIndex(blockIndex);
             if (!stillGrowing(farming, section, x, y, z)) {
                 return;
             }
@@ -162,12 +168,12 @@ public final class GrowthSpeedSystem extends EntityTickingSystem<ChunkStore> {
         }
     }
 
-    /** The share of {@code elapsedNanos} that {@code percent} faster growth credits, held at {@value #MAX_PERCENT}. */
+    /** The share of {@code elapsedNanos} that {@code percent} faster growth credits (already held at its ceiling). */
     static long creditNanos(long elapsedNanos, double percent) {
         if (elapsedNanos <= 0L || !(percent > 0.0)) {
             return 0L;
         }
-        return (long) (elapsedNanos * Math.min(MAX_PERCENT, percent) / 100.0);
+        return (long) (elapsedNanos * percent / 100.0);
     }
 
     /** Whether the block has a stage left to grow into (never at its last stage, nor past its stages). */
@@ -183,7 +189,10 @@ public final class GrowthSpeedSystem extends EntityTickingSystem<ChunkStore> {
         return set != null && (int) farming.getGrowthProgress() < set.length - 1;
     }
 
-    /** The placer's growth rate in percent, when they stand in this store's world; 0 otherwise. */
+    /**
+     * The placer's growth rate in percent, held at their {@code GrowthSpeedMax}, when they stand in this store's world;
+     * 0 otherwise.
+     */
     private static double rateOf(@Nonnull Store<ChunkStore> store, @Nonnull UUID planter) {
         try {
             World world = store.getExternalData().getWorld();
@@ -195,7 +204,9 @@ public final class GrowthSpeedSystem extends EntityTickingSystem<ChunkStore> {
             if (ref.getStore() != entities) {
                 return 0.0;
             }
-            return GatherReads.max(GatherReads.stats(entities, ref), GROWTH_STAT);
+            EntityStatMap stats = GatherReads.stats(entities, ref);
+            return Math.min(GatherReads.ceiling(stats, CEILING_STAT, FALLBACK_CEILING),
+                    GatherReads.max(stats, GROWTH_STAT));
         } catch (Throwable t) {
             return 0.0;
         }

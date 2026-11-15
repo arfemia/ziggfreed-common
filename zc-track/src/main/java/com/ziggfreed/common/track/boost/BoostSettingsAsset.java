@@ -13,8 +13,9 @@ import com.ziggfreed.common.asset.EditorSchema;
 
 /**
  * The server's one word on how boosts add up and how many may run: the cap every boost on a track sums to, whether
- * only the strongest of each scope counts, and how many a player and the server may have running at once. The FILE
- * NAME is the record's id, and the record every boost reads is {@value #SHARED_ID}.
+ * only the strongest of each scope counts, how many a player and the server may have running at once, and the
+ * server command a start runs ({@code OnStart}, off unless switched on). The FILE NAME is the record's id, and the
+ * record every boost reads is {@value #SHARED_ID}.
  *
  * <p>Authored at {@code Server/ZiggfreedCommon/BoostSettings/Default.json}, which this library ships with the
  * defaults below; a pack's same-id file wins by pack order, and the owner layer is
@@ -46,6 +47,7 @@ public final class BoostSettingsAsset implements JsonAssetWithMap<String, Defaul
     @Nullable protected Double cap;
     @Nullable protected Boolean highestOnly;
     @Nullable protected Limits limits;
+    @Nullable protected OnStart onStart;
 
     public static final AssetBuilderCodec<String, BoostSettingsAsset> CODEC = AssetBuilderCodec.builder(
                     BoostSettingsAsset.class,
@@ -70,6 +72,10 @@ public final class BoostSettingsAsset implements JsonAssetWithMap<String, Defaul
                     (a, v) -> a.limits = v, a -> a.limits, (a, p) -> a.limits = p.limits)
             .documentation("How many boosts may run at once: a player's own, and the server's. A start past either "
                     + "is refused, and a boost item is kept.").add()
+            .appendInherited(new KeyedCodec<>("OnStart", OnStart.CODEC, false),
+                    (a, v) -> a.onStart = v, a -> a.onStart, (a, p) -> a.onStart = p.onStart)
+            .documentation("A server command that runs as the console whenever a boost starts, any mod's boost: "
+                    + "an announcement, a webhook, a reward of your own. Off unless Enabled is true.").add()
             .build();
 
     public BoostSettingsAsset() {
@@ -100,6 +106,86 @@ public final class BoostSettingsAsset implements JsonAssetWithMap<String, Defaul
     public int serverLimit() {
         Integer limit = limits == null ? null : limits.server;
         return limit == null ? DEFAULT_SERVER_LIMIT : Math.max(0, limit);
+    }
+
+    /** Is a start command switched on and written? */
+    public boolean startCommandOn() {
+        return onStart != null && Boolean.TRUE.equals(onStart.enabled) && startCommand() != null;
+    }
+
+    /** The start command as written ({@code OnStart.Command}), switched on or not; null when none is written. */
+    @Nullable
+    public String startCommand() {
+        String line = onStart == null ? null : onStart.command;
+        return line == null || line.isBlank() ? null : line.trim();
+    }
+
+    /** Does the start command run when a personal boost starts? True unless written false. */
+    public boolean startCommandOnPersonal() {
+        return onStart == null || !Boolean.FALSE.equals(onStart.personal);
+    }
+
+    /** Does the start command run when a server boost starts? True unless written false. */
+    public boolean startCommandOnServer() {
+        return onStart == null || !Boolean.FALSE.equals(onStart.server);
+    }
+
+    /**
+     * Does a server boost's start command take the place of the library's own line to every player online
+     * ({@code OnStart.ReplacesAnnouncement})? Only while the command runs for server boosts; a personal boost's starter
+     * is always told. The line is replaced once the command is handed to the server: a command the server takes but
+     * then refuses or does not know (it runs later, off this thread) still replaces it, its failure on the console.
+     */
+    public boolean startCommandReplacesAnnouncement() {
+        return startCommandOn() && startCommandOnServer() && onStart != null
+                && Boolean.TRUE.equals(onStart.replacesAnnouncement);
+    }
+
+    /**
+     * The OnStart group: a server owner's command run whenever a boost starts, with the placeholders
+     * {@code BoostStartCommand} fills.
+     */
+    public static final class OnStart {
+
+        @Nullable protected Boolean enabled;
+        @Nullable protected String command;
+        @Nullable protected Boolean personal;
+        @Nullable protected Boolean server;
+        @Nullable protected Boolean replacesAnnouncement;
+
+        public static final BuilderCodec<OnStart> CODEC = BuilderCodec.builder(OnStart.class, OnStart::new)
+                .appendInherited(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false),
+                        (o, v) -> o.enabled = v, o -> o.enabled, (o, p) -> o.enabled = p.enabled)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("True runs Command whenever a boost starts. Unauthored means false.").add()
+                .appendInherited(new KeyedCodec<>("Command", Codec.STRING, false),
+                        (o, v) -> o.command = v, o -> o.command, (o, p) -> o.command = p.command)
+                .documentation("The command, run as the console, without the leading slash. Placeholders: "
+                        + "{player} (who started it; for a server boost with no player, what started it), "
+                        + "{multiplier} (1.5 for +50%), {target} (what it lifts, in the server's language), "
+                        + "{duration} (minutes), {scope} (Global or Personal) and {boost} (the boost's id), each "
+                        + "one line of plain text and filled in one pass, so a name holding a placeholder is "
+                        + "never filled again. An unknown placeholder stays as written.").add()
+                .appendInherited(new KeyedCodec<>("Personal", Codec.BOOLEAN, false),
+                        (o, v) -> o.personal = v, o -> o.personal, (o, p) -> o.personal = p.personal)
+                .metadata(EditorSchema.defaultValue(true))
+                .documentation("Run it when a personal boost starts. Unauthored means true.").add()
+                .appendInherited(new KeyedCodec<>("Server", Codec.BOOLEAN, false),
+                        (o, v) -> o.server = v, o -> o.server, (o, p) -> o.server = p.server)
+                .metadata(EditorSchema.defaultValue(true))
+                .documentation("Run it when a server boost starts. Unauthored means true.").add()
+                .appendInherited(new KeyedCodec<>("ReplacesAnnouncement", Codec.BOOLEAN, false),
+                        (o, v) -> o.replacesAnnouncement = v, o -> o.replacesAnnouncement,
+                        (o, p) -> o.replacesAnnouncement = p.replacesAnnouncement)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("True keeps the library's own line to every player online off when a server boost "
+                        + "starts and the Command was handed to the console, for a Command that announces it "
+                        + "instead; a Command that could not run leaves the line on. A personal boost's starter is "
+                        + "always told. Unauthored means false.").add()
+                .build();
+
+        public OnStart() {
+        }
     }
 
     /** The Limits group: how many boosts may run at once. */

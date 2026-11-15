@@ -99,15 +99,17 @@ public final class GearSetJoins {
 
     /**
      * The position in {@code tiers} of the first tier asking exactly what {@code tier} asks, or -1
-     * when none does; a tier asking nothing matches none. The fold and the validator both ask this.
+     * when none does; a tier asking nothing matches none, and a bound tier ({@code While}) neither
+     * matches nor is matched, so bound and unbound stats never share a tier. The fold and the
+     * validator both ask this.
      */
     static int matchOf(@Nonnull List<GearSetAsset.Tier> tiers, @Nonnull GearSetAsset.Tier tier) {
-        if (!tier.hasCondition()) {
+        if (!tier.hasCondition() || tier.bound()) {
             return -1;
         }
         for (int i = 0; i < tiers.size(); i++) {
             GearSetAsset.Tier candidate = tiers.get(i);
-            if (candidate.hasCondition() && candidate.condition().equals(tier.condition())) {
+            if (candidate.hasCondition() && !candidate.bound() && candidate.condition().equals(tier.condition())) {
                 return i;
             }
         }

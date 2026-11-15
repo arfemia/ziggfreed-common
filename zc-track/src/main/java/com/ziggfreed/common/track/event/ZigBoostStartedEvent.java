@@ -3,26 +3,29 @@ package com.ziggfreed.common.track.event;
 import java.util.UUID;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.hypixel.hytale.event.IEvent;
 
 /**
  * A boost started through zc ({@code boost.Boosts.start}): a boost item, a reward, a command or a mod's own page.
  * Fired once per start, on the starter's own thread, after the start was kept and the gain plans and tiles moved,
- * so a listener reading the player's boosts sees it. A start that was refused fires none, and a boost running out
- * fires nothing.
+ * so a listener reading the player's boosts sees it. A server boost started with no player behind it
+ * ({@code Boosts.startServer}, the console) fires one with no {@link #playerId}. A start that was refused fires
+ * none, and a boost running out fires nothing.
  */
 public final class ZigBoostStartedEvent implements IEvent<Void> {
 
     private final String boostId;
     private final String scope;
+    @Nullable
     private final UUID playerId;
     private final double percent;
     private final long startedAtMs;
     private final long endsAtMs;
     private final String by;
 
-    public ZigBoostStartedEvent(@Nonnull String boostId, @Nonnull String scope, @Nonnull UUID playerId,
+    public ZigBoostStartedEvent(@Nonnull String boostId, @Nonnull String scope, @Nullable UUID playerId,
             double percent, long startedAtMs, long endsAtMs, @Nonnull String by) {
         this.boostId = boostId;
         this.scope = scope;
@@ -50,8 +53,8 @@ public final class ZigBoostStartedEvent implements IEvent<Void> {
         return "Server".equalsIgnoreCase(scope);
     }
 
-    /** The player who started it. */
-    @Nonnull
+    /** The player who started it, or null for a server boost started with no player behind it. */
+    @Nullable
     public UUID playerId() {
         return playerId;
     }

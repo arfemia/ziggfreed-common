@@ -2,6 +2,7 @@
   "$Comment": "Crafting an item.",
   "ValueBased": false,
   "Producible": true,
+  "Pick": { "List": "ziggfreedcommon:ids/Item" },
   "TargetNames": {
     "Item": true
   },

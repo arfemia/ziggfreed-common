@@ -409,15 +409,15 @@ public final class TrackService {
     /**
      * Start {@code key}'s climb again (R582, R615): the current value back to where a new climb starts, the
      * prestige count up one, the best level ever reached kept, so every gate and every unlock paid stays. The nth
-     * prestige needs the current level at the track's {@code Prestige.Base} plus n. The picks made on it follow the
-     * track's build setting ({@link TrackDef#prestigeBuild}, R641): {@code Keep} leaves them, {@code Remember} puts
-     * each slot aside to be offered again preselected as its level comes back, {@code Clear} clears them; a pick the
-     * folded files keep through a prestige (a trainer's, or one writing {@code KeptThroughPrestige},
-     * {@code PickService.keptThroughPrestige}) stays under every build, held by design even when a gate it once met
-     * (a branch's points) no longer is: nothing re-gates it, at the rebuild or after. {@code KeptThroughPrestige}
-     * governs a prestige alone; a respec clears such a pick like any other but what a trainer taught. Then the
-     * player's grants are rebuilt and the track's undo window closes ({@code PickService.prestiged}). On the live
-     * subject's own thread.
+     * prestige needs the current level at the track's {@code Prestige.Base} plus n. The picks its
+     * {@code Prestige.Resets} group resets, kind by kind (R852, R876: by default the tree's picks and Techniques),
+     * follow the track's build setting ({@link TrackDef#prestigeBuild}, R641): {@code Keep} leaves them,
+     * {@code Remember} puts each slot aside to be offered again preselected as its level comes back, {@code Clear}
+     * clears them; every other pick ({@code PickService.keptThroughPrestige}: by default the Mastery row, what a
+     * trainer taught and learned abilities) stays under every build, held by design even when a gate it once met (a
+     * branch's points) no longer is: nothing re-gates it, at the rebuild or after. The Resets group governs a
+     * prestige alone; a respec clears every pick but what a trainer taught. Then the player's grants are rebuilt and
+     * the track's undo window closes ({@code PickService.prestiged}). On the live subject's own thread.
      */
     @Nonnull
     public static Result prestige(@Nonnull TrackKey key, @Nonnull String source) {

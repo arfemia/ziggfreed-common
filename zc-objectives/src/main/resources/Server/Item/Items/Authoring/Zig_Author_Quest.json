@@ -1,0 +1,22 @@
+{
+  "$Comment": "The Quest Tool, in the creative library's Authoring Tools tab: click a character to make a quest it gives, a creature for a quest to kill it, a block for a quest to break it, or an item on the ground for a quest to pick it up, and the quest editor opens with that filled in. The editor also opens from the progression admin page and /zigauthor open Quest, and its Pick in the world buttons take the next click with any authoring tool. It needs creative mode and the ziggfreedcommon.author.quest permission, checked on the server at each click; saving a quest needs that permission too. The ZigAuthorTool tag names the tool; everything else comes from its Parent, Zig_Author_Tool.",
+  "Parent": "Zig_Author_Tool",
+  "TranslationProperties": {
+    "Name": "items.Zig_Author_Quest.name",
+    "Description": "items.Zig_Author_Quest.description"
+  },
+  "Icon": "Icons/ItemsGenerated/Deco_Scroll.png",
+  "Categories": [
+    "Zig_Authoring.Tools"
+  ],
+  "SubCategory": "Editors",
+  "Quality": "Tool",
+  "Tags": {
+    "ZigAuthorTool": [
+      "Quest"
+    ],
+    "Family": [
+      "ZiggfreedCommon"
+    ]
+  }
+}

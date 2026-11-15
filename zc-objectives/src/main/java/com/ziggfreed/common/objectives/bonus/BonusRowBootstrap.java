@@ -2,6 +2,7 @@ package com.ziggfreed.common.objectives.bonus;
 
 import javax.annotation.Nonnull;
 
+import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
@@ -22,6 +23,15 @@ public final class BonusRowBootstrap {
             ProgressionRuntime.defaults(ProgressionDefaults.OWNER).momentListener(BonusRowReactions.INSTANCE);
         } catch (Throwable t) {
             SafeLog.warn("[loot] the bonus rows could not be hung on the produced moments", t);
+        }
+    }
+
+    /** The lucky find note's bursts are forgotten when their player leaves ({@link BonusFindNotes#onDisconnect}). */
+    public static void registerFindNotes(@Nonnull JavaPlugin plugin) {
+        try {
+            plugin.getEventRegistry().register(PlayerDisconnectEvent.class, BonusFindNotes::onDisconnect);
+        } catch (Throwable t) {
+            SafeLog.warn("[loot] the lucky find note could not hear players leave, so a burst outlives its player", t);
         }
     }
 

@@ -3,9 +3,7 @@ package com.ziggfreed.common.loot.reward;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -284,22 +282,12 @@ public final class CommandRewardKind implements RewardHandler {
     }
 
     /**
-     * The two RESERVED parameter names every reward entry may write whatever its kind declares:
-     * {@link DeferredRewards#PARAM_NAME_KEY} and {@link DeferredRewards#PARAM_ICON}, the per-reward
-     * presentation pair that BEATS the kind's own {@code Presentation} defaults. They are read by
-     * the layer that draws a reward, never by a command line, so a kind has no reason to declare
-     * them and an entry writing one is authoring a supported winning form, not a mistake. Held
-     * lower-cased because {@link RewardSpec} lower-cases every parameter key it is given.
-     */
-    private static final Set<String> RESERVED_PRESENTATION_PARAMS = Set.of(
-            DeferredRewards.PARAM_NAME_KEY.toLowerCase(Locale.ROOT),
-            DeferredRewards.PARAM_ICON.toLowerCase(Locale.ROOT));
-
-    /**
      * Every parameter this reward carries that the kind does not declare, in the order the reward
      * wrote them. Each one reaches no command line, which is exactly the silence a validator exists
-     * to report - except the reserved presentation pair, which is read elsewhere by design (see
-     * {@link #RESERVED_PRESENTATION_PARAMS}).
+     * to report - except the parameters every reward may write whatever its kind declares
+     * ({@link RewardParams#rewardWide()}: the per-reward {@code NameKey} and {@code Icon} that beat the
+     * kind's own {@code Presentation} defaults, and {@code QueueIfOffline}), which the reward layer
+     * reads by design, so an entry writing one is authoring a supported form, not a mistake.
      */
     @Nonnull
     public static List<String> undeclaredParams(@Nonnull RewardKindAsset kind, @Nonnull RewardSpec spec) {
@@ -308,7 +296,7 @@ public final class CommandRewardKind implements RewardHandler {
             if (written == null || written.isBlank() || kind.declares(written)) {
                 continue;
             }
-            if (RESERVED_PRESENTATION_PARAMS.contains(written.trim().toLowerCase(Locale.ROOT))) {
+            if (RewardParams.isRewardWide(written)) {
                 continue;
             }
             unknown.add(written);

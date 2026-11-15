@@ -18,6 +18,8 @@ import javax.annotation.Nonnull;
 
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.reputation.authoring.ReputationAuthorText;
+
 /**
  * Every key the module's code speaks, and every key one of its shipped files names, is authored in the
  * English file, written without the file's own prefix.
@@ -36,6 +38,11 @@ class ReputationLangTest {
         Set<String> english = englishKeys();
         List<String> missing = new ArrayList<>();
         for (String key : ReputationText.SPOKEN) {
+            if (!english.contains(key)) {
+                missing.add(key);
+            }
+        }
+        for (String key : ReputationAuthorText.SPOKEN) {
             if (!english.contains(key)) {
                 missing.add(key);
             }

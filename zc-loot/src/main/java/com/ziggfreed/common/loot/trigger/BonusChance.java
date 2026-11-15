@@ -15,7 +15,8 @@ import com.ziggfreed.common.factor.FactorRegistry;
  *
  * <p>A row's {@code Chance} is a PERCENT ({@code {"Base": 5}} is five percent, never 0.05): Base
  * plus each factor's value times its Weight, held inside its Clamp. A row that writes none takes its
- * moment's own default, which its table decides (certainty for a library row). The answer is always
+ * moment's own default, which its table decides (certainty for a library row). A moment may add
+ * percent points to a written chance (a break's or a harvest's gathering yield). The answer is always
  * a fraction held inside 0..1, and a result that is not a number is no chance at all, never a
  * certainty. Every bonus table reads its odds through here, so the arithmetic is written once.
  */
@@ -34,12 +35,24 @@ public final class BonusChance {
     public static double fraction(@Nullable FactorFormula chance, double unwritten,
             @Nonnull FactorRegistry factors, @Nonnull FactorContext ctx, @Nonnull String sourceId,
             @Nonnull Consumer<String> warn) {
+        return fraction(chance, unwritten, 0.0, factors, ctx, sourceId, warn);
+    }
+
+    /**
+     * {@link #fraction(FactorFormula, double, FactorRegistry, FactorContext, String, Consumer)}, with
+     * {@code bonusPercent} points (a gathering moment's yield) added to a WRITTEN chance before it is held inside
+     * 0..1. The moment's default for a row that writes none takes nothing from it: it is the table's own answer.
+     */
+    public static double fraction(@Nullable FactorFormula chance, double unwritten, double bonusPercent,
+            @Nonnull FactorRegistry factors, @Nonnull FactorContext ctx, @Nonnull String sourceId,
+            @Nonnull Consumer<String> warn) {
         double fallback = clamp(unwritten);
         if (chance == null || chance.isEmpty()) {
             return fallback;
         }
         try {
-            return clamp(chance.evaluate(factors, ctx) / 100.0);
+            double bonus = Double.isFinite(bonusPercent) ? bonusPercent : 0.0;
+            return clamp((chance.evaluate(factors, ctx) + bonus) / 100.0);
         } catch (Throwable t) {
             // Defensive: evaluate is documented never to throw; a vocabulary that breaks anyway
             // costs this row its own odds and nothing else.

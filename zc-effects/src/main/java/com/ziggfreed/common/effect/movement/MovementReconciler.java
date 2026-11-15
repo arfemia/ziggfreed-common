@@ -2,7 +2,6 @@ package com.ziggfreed.common.effect.movement;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -11,29 +10,30 @@ import com.google.gson.JsonObject;
 import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
-import com.hypixel.hytale.server.core.modules.entity.damage.DeathComponent;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.effect.grid.RuntimeEffectGrid;
+import com.ziggfreed.common.effect.sync.StatEffectChannel;
 import com.ziggfreed.common.stats.StatIndexCache;
-import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Keeps the engine's speed and knockback multipliers in step with the {@link MovementStats} stats: one authority (the
  * stat), one applier (the engine), one path, the shape of {@code effect/resist/}'s reconciler.
  *
- * <p>The engine reads {@code HorizontalSpeedMultiplier} and {@code KnockbackMultiplier} only from active effects, and
- * an item's {@code StatModifiers} can only move a stat. So every player whose {@code MoveSpeed} or
+ * <p>The engine reads {@code HorizontalSpeedMultiplier} and {@code KnockbackMultiplier} only from active effects (a
+ * creature's movement reads its effects' speed multiplier too, {@code NPCEntity.getCurrentHorizontalSpeedMultiplier}),
+ * and an item's {@code StatModifiers} can only move a stat. So every carrier, a creature as much as a player (R860),
+ * whose {@code MoveSpeed} or
  * {@code KnockbackResist} reads off zero carries one hidden infinite effect per channel from a bounded grid of runtime
  * assets, {@code Zig_Movement_Speed_<percent>} and {@code Zig_Movement_Knockback_<percent>} (whole percents, held by
  * {@link MovementStats#speedBucket} and {@link MovementStats#knockbackBucket}), written the first time anyone reaches
  * them and shared after. What a player carries is read off their own {@code EffectControllerComponent}, never kept
  * here, so a death (the engine clears every effect), a world change or another mod's removal heals on the next tick.
  *
- * <p>{@link MovementSyncSystem} makes the comparison every tick for every living player, after the engine recomputes
- * item and effect stat modifiers: four stat reads and one look at the active effects, and a reconcile only on a
- * difference.
+ * <p>zc-effects' {@code StatEffectSync} makes the comparison through this family's {@link #CHANNEL} for every carrier
+ * (a player every tick, a creature a few times a second), after the engine recomputes item and effect stat
+ * modifiers: four stat reads and one look at the active effects, and a reconcile only on a difference.
  */
 public final class MovementReconciler {
 
@@ -58,7 +58,21 @@ public final class MovementReconciler {
     private static final RuntimeEffectGrid GRID = new RuntimeEffectGrid(EFFECT_PREFIX, PACK_KEY,
             bucket -> body(bucket.channel(), bucket.value()));
 
-    private static final AtomicBoolean PASS_FAILURE_WARNED = new AtomicBoolean();
+    /** This family on the one stat-to-effect pass: four stat reads, then a reconcile only on a difference. */
+    @Nonnull
+    public static final StatEffectChannel CHANNEL = new StatEffectChannel("[movement]",
+            "a carrier's speed and knockback", GRID) {
+        @Nonnull
+        @Override
+        protected List<RuntimeEffectGrid.Bucket> wanted(@Nonnull ComponentAccessor<EntityStore> accessor,
+                @Nonnull Ref<EntityStore> ref, @Nonnull EntityStatMap stats, @Nonnull EffectControllerComponent ctrl) {
+            int speed = MovementStats.speedBucket(points(stats, MovementStats.MOVE_SPEED, 0.0),
+                    points(stats, MovementStats.MOVE_SPEED_MAX, MovementStats.DEFAULT_SPEED_CEILING));
+            int knockback = MovementStats.knockbackBucket(points(stats, MovementStats.KNOCKBACK_RESIST, 0.0),
+                    points(stats, MovementStats.KNOCKBACK_RESIST_MAX, MovementStats.DEFAULT_KNOCKBACK_CEILING));
+            return desired(speed, knockback);
+        }
+    };
 
     private MovementReconciler() {
     }
@@ -106,42 +120,12 @@ public final class MovementReconciler {
      * only; idempotent; never throws.
      */
     public static void sync(@Nonnull ComponentAccessor<EntityStore> accessor, @Nullable Ref<EntityStore> ref) {
-        try {
-            if (ref == null || !ref.isValid() || accessor.getComponent(ref, DeathComponent.getComponentType()) != null) {
-                return;
-            }
-            EntityStatMap stats = accessor.getComponent(ref, EntityStatMap.getComponentType());
-            EffectControllerComponent ctrl = accessor.getComponent(ref, EffectControllerComponent.getComponentType());
-            if (stats != null && ctrl != null) {
-                keepInStep(accessor, ref, stats, ctrl);
-            }
-        } catch (Throwable t) {
-            warnPassFailedOnce(t);
-        }
-    }
-
-    /** The per-tick pass: four stat reads, one look at the active effects, a reconcile only on a difference. */
-    static void keepInStep(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
-            @Nonnull EntityStatMap stats, @Nonnull EffectControllerComponent ctrl) {
-        try {
-            int speed = MovementStats.speedBucket(points(stats, MovementStats.MOVE_SPEED, 0.0),
-                    points(stats, MovementStats.MOVE_SPEED_MAX, MovementStats.DEFAULT_SPEED_CEILING));
-            int knockback = MovementStats.knockbackBucket(points(stats, MovementStats.KNOCKBACK_RESIST, 0.0),
-                    points(stats, MovementStats.KNOCKBACK_RESIST_MAX, MovementStats.DEFAULT_KNOCKBACK_CEILING));
-            List<RuntimeEffectGrid.Bucket> wanted = desired(speed, knockback);
-            if (!GRID.carriesExactly(ctrl, wanted)) {
-                GRID.reconcile(accessor, ref, wanted, null);
-            }
-        } catch (Throwable t) {
-            warnPassFailedOnce(t);
-        }
+        CHANNEL.sync(accessor, ref);
     }
 
     /** Take every effect of this family off the entity (a full teardown). World thread only; never throws. */
     public static void removeAll(@Nonnull ComponentAccessor<EntityStore> accessor, @Nullable Ref<EntityStore> ref) {
-        if (ref != null) {
-            GRID.removeAll(accessor, ref);
-        }
+        CHANNEL.removeAll(accessor, ref);
     }
 
     /** The stat's total (its maximum with every modifier), or {@code fallback} when it is not loaded. */
@@ -152,13 +136,5 @@ public final class MovementReconciler {
         }
         EntityStatValue value = stats.get(index);
         return value == null ? fallback : value.getMax();
-    }
-
-    private static void warnPassFailedOnce(@Nonnull Throwable t) {
-        if (PASS_FAILURE_WARNED.compareAndSet(false, true)) {
-            SafeLog.warn("[movement] keeping a player's speed and knockback in step failed (named once): " + t);
-        } else {
-            SafeLog.fine("[movement] movement pass failed: " + t.getMessage());
-        }
     }
 }

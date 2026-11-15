@@ -1,0 +1,8 @@
+{
+  "$Comment": "Percent points added to the chance of a bonus find on every block break and hand harvest, in whole percent points (5 is +5 on the find's chance). ziggfreed-common adds it, with any stat a mod counts for the block or the harvest, to a bonus row's own Chance and to each roll's Chance of a ZigLootable table in a broken block's drop list, so it raises a find's odds and never rolls a second time; a find with no Chance written is certain already and takes nothing from it. A mod's own bonus finds may read it too. A holder condition pairs with it as GatherYield_While<Condition>. Any item's StatModifiers raise it like any stat, and so does an effect's RawStatModifiers. Base 0; Min is a generous negative so a subtractive modifier never clamps.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

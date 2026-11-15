@@ -36,9 +36,9 @@ class PickTreeTest {
                     + " \"Repeat\": { \"Max\": 3 } }",
             "Your_Footing", "{ \"Track\": \"Your_Sample\", \"Branch\": \"Guard\", \"Cost\": { \"Points\": 1 },"
                     + " \"Repeat\": { \"Max\": 3 } }",
-            "Your_Stand", "{ \"Track\": \"Your_Sample\", \"Branch\": \"Guard\", \"Node\": \"Your_Stance\","
+            "Your_Stand", "{ \"Track\": \"Your_Sample\", \"Branch\": \"Guard\", \"Node\": [ \"Your_Stance\" ],"
                     + " \"Cost\": { \"Points\": 2 } }",
-            "Your_Rush", "{ \"Track\": \"Your_Sample\", \"Branch\": \"Guard\", \"Node\": \"Your_Stance\","
+            "Your_Rush", "{ \"Track\": \"Your_Sample\", \"Branch\": \"Guard\", \"Node\": [ \"Your_Stance\" ],"
                     + " \"Cost\": { \"Points\": 2 } }",
             "Your_Stride", "{ \"Track\": \"Your_Sample\", \"Branch\": \"Swift\", \"Cost\": { \"Points\": 1 },"
                     + " \"Repeat\": { \"Max\": 3 } }",
@@ -194,7 +194,7 @@ class PickTreeTest {
                     pick.getValue()));
         }
         TrackAsset track = decode(TrackAsset.CODEC, TrackAsset.class, "Your_Sample", "{ \"Points\": { \"PerLevel\": 1 } }");
-        return TrackPicks.fold(picks, id -> null, id -> null,
+        return TrackPicks.fold(picks, id -> null,
                 id -> "your_sample".equals(TrackKey.normalize(id)) ? track : null);
     }
 

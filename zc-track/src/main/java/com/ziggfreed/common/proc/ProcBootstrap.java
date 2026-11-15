@@ -4,6 +4,7 @@ import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
+import com.ziggfreed.common.damage.onhit.ZigCritEvent;
 import com.ziggfreed.common.health.ZigHealGivenEvent;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.util.SafeLog;
@@ -11,7 +12,8 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * Registers the proc runtime at library setup, called once from the wiring root's {@code setup()}: the systems behind
  * the triggers the family had no moment for, the holder pass and the forgetting of an entity that left; the reaction
- * on the library's own moments (hit, kill, break, harvest) at library-default rank and on zc-core's heal given; the
+ * on the library's own moments (hit, kill, break, harvest) at library-default rank, on zc-core's heal given and on
+ * zc-entity's critical hit; the
  * counters' reading; and a departing player's waits forgotten. The three stores (procs, counters, held effects) are registered with the other
  * framework stores. Registration only ({@code RootRegistrationOnlyTest}); a failed system registration throws here,
  * at setup.
@@ -32,6 +34,7 @@ public final class ProcBootstrap {
         plugin.getEntityStoreRegistry().registerSystem(new ProcSystems.Died());
         plugin.getEventRegistry().register(PlayerDisconnectEvent.class, ProcCooldowns::onDisconnect);
         plugin.getEventRegistry().register(ZigHealGivenEvent.class, ProcMoments::onHealGiven);
+        plugin.getEventRegistry().register(ZigCritEvent.class, ProcMoments::onCrit);
         try {
             ProcFactors.contribute();
             ProgressionRuntime.defaults(Procs.OWNER).momentListener(ProcMoments.INSTANCE);

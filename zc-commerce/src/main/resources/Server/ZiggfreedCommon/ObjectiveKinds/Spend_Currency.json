@@ -1,0 +1,14 @@
+{
+  "$Comment": "Paying currency out: every charge a wallet pays in full, the amount what was paid (a loss such as decay never counts). The target is a currency id, so a step naming one is drawn with that wallet's own icon.",
+  "ValueBased": false,
+  "Producible": true,
+  "Pick": { "List": "ziggfreedcommon:currencies" },
+  "TargetNames": {
+    "Currency": true
+  },
+  "Presentation": {
+    "Icon": {
+      "ItemId": "Ingredient_Bar_Copper"
+    }
+  }
+}

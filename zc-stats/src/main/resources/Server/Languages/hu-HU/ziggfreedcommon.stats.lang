@@ -28,6 +28,9 @@ dungeon_best_time = Leggyorsabb Teljesítés
 deaths = Halálok
 playtime_seconds = Játékidő
 objectives_completed = Teljesített Célok
+items_consumed = Elfogyasztott Tárgyak
+sprint_distance = Futott Távolság
+swim_distance = Úszott Távolság
 
 # What each stat counts: the tooltip over its column on Records (a stat's name key with .tip added).
 # A tooltip prints a parameter as written, so none of these takes one.

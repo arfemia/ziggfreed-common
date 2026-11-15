@@ -1,24 +1,28 @@
 package com.ziggfreed.common.npc.placement.runtime;
 
-import java.io.Reader;
-import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import com.hypixel.hytale.server.core.universe.Universe;
+import com.ziggfreed.common.util.RecordFile;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -36,17 +40,34 @@ import com.ziggfreed.common.util.SafeLog;
  * <p>The mirror-image rule lives on {@link PlacedNpcComponent}: the component is the DESPAWN
  * authority. Neither can do the other's job, which is why there are two.
  *
- * <p>Persisted to {@code mods/ziggfreedcommon/npc-placement-ledger.json}. Reads are lock-free;
- * writes are synchronized and small. A row is dropped when its placement is removed, gate-denied,
- * or its world is deleted. A world merely removed (every world at a server stop, one an admin
- * unloads) keeps its rows, since it comes back with its NPCs.
+ * <p><b>The file.</b> Persisted to {@link #DEFAULT_FILE} through zc-core's {@code util/RecordFile}:
+ * written whole and atomically on every real change (a change that changes nothing writes nothing),
+ * the copy before it kept as {@code .bak}, a torn file read from that copy, so a cut-short write never
+ * loads as an empty ledger. Reads are lock-free; writes are serialized and small.
+ *
+ * <p><b>What it keeps, and for how long.</b> One row per placement INSTANCE (a placement in one world
+ * at one anchor), so it follows the live placements, never the spawns or the sweeps: a re-spawn or an
+ * adoption re-points the row. A row is dropped when its placement is removed, gate-denied, or its world
+ * is deleted ({@link NpcPlacementReconciler#onWorldRemoved}); a world merely removed (every world at a
+ * server stop, one an admin unloads) keeps its rows, since it comes back with its NPCs. Two things keep
+ * the file from outliving its worlds: every load compacts it (a row it cannot read, or a second spelling
+ * of one key, is dropped and the file written again), and once the universe has loaded its worlds
+ * ({@link #pruneVanishedWorlds}) every row naming a world that is neither loaded nor on disk is dropped:
+ * an instance or portal world deleted while the server was down, or one a crash left for the next start
+ * to delete. Such a world can never come back under its name, and its NPCs went with it, so no re-adopt
+ * needs its rows. A world deleted this run is remembered, so a late sweep or spawn callback for it cannot
+ * write its rows back ({@link #worldAdded} forgets that when a world of the name is added again).
  */
 public final class NpcPlacementLedger {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
+    /** The ledger's file, beside the library's owner files. */
+    public static final Path DEFAULT_FILE = Paths.get("mods", "ziggfreedcommon", "npc-placement-ledger.json");
 
     /** Joiner for the composite key; a NUL cannot appear in a world name, id, or anchor key. */
     private static final char KEY_SEP = '\0';
+
+    /** How many deleted worlds this run remembers, so a late write for one cannot bring its rows back. */
+    private static final int GONE_WORLDS_MAX = 256;
 
     private static final NpcPlacementLedger INSTANCE = new NpcPlacementLedger();
 
@@ -57,13 +78,44 @@ public final class NpcPlacementLedger {
 
     /** Gson root document; unknown fields are ignored so the shape stays additive. */
     private static final class Doc {
-        Map<String, String> uuidByKey = new HashMap<>();
+        Map<String, String> uuidByKey;
     }
 
     @Nullable
-    private volatile Path dataPath = Paths.get("mods", "ziggfreedcommon", "npc-placement-ledger.json");
+    private volatile Path dataPath = DEFAULT_FILE;
 
     private final Map<String, UUID> uuidByKey = new ConcurrentHashMap<>();
+
+    /** Lower-cased names of the worlds deleted this run, oldest first; guarded by itself. */
+    private final Set<String> goneWorlds = new LinkedHashSet<>();
+
+    /** Rows the last read dropped or folded together, so the load writes the file again without them. */
+    private int compacted;
+
+    private final RecordFile file = RecordFile.builder("placement", "the placed NPCs", new RecordFile.Body() {
+                @Override
+                @Nonnull
+                public JsonObject write() {
+                    Doc doc = new Doc();
+                    doc.uuidByKey = new TreeMap<>();
+                    for (Map.Entry<String, UUID> e : uuidByKey.entrySet()) {
+                        doc.uuidByKey.put(e.getKey(), e.getValue().toString());
+                    }
+                    return RecordFile.gson().toJsonTree(doc).getAsJsonObject();
+                }
+
+                @Override
+                public void read(@Nonnull JsonObject saved, int version) {
+                    readDoc(RecordFile.gson().fromJson(saved, Doc.class));
+                }
+
+                @Override
+                public void forget() {
+                    uuidByKey.clear();
+                }
+            })
+            .lostWrite("a restart may place an NPC that already stands, or forget one taken out")
+            .build();
 
     private NpcPlacementLedger() {
     }
@@ -90,51 +142,68 @@ public final class NpcPlacementLedger {
 
     // ==================== io ====================
 
-    /** (Re)read the ledger file. A missing file is an empty ledger; a malformed one warns and clears. */
+    /**
+     * (Re)read the ledger file and compact it. A missing file is an empty ledger; a torn one reads the
+     * copy before it; a row that cannot be read, or a second spelling of a key already read, is dropped,
+     * and the file is written again without it.
+     */
     public void load() {
-        uuidByKey.clear();
-        Path path = dataPath;
-        if (path == null || !Files.exists(path)) {
-            return;
-        }
-        try (Reader reader = Files.newBufferedReader(path)) {
-            Doc doc = GSON.fromJson(reader, Doc.class);
-            if (doc == null || doc.uuidByKey == null) {
+        synchronized (file) {
+            compacted = 0;
+            synchronized (goneWorlds) {
+                goneWorlds.clear(); // a reload is a restart's first step: this run has deleted nothing yet
+            }
+            file.persistTo(dataPath, null);
+            if (file.file() == null) {
                 return;
             }
-            for (Map.Entry<String, String> e : doc.uuidByKey.entrySet()) {
-                try {
-                    uuidByKey.put(e.getKey(), UUID.fromString(e.getValue()));
-                } catch (IllegalArgumentException ignored) {
-                    // Skip a malformed uuid rather than failing the whole load.
-                }
-            }
             SafeLog.info("[placement] ledger loaded: " + uuidByKey.size() + " placed instance(s)");
-        } catch (Exception e) {
-            SafeLog.warn("[placement] could not read " + path + ": " + e.getMessage());
+            if (compacted > 0) {
+                SafeLog.info("[placement] the ledger dropped " + compacted
+                        + " row(s) it could not read or held twice, and is written again without them");
+                file.writeNow();
+            }
         }
     }
 
-    private synchronized void save() {
-        Path path = dataPath;
-        if (path == null) {
+    /** Fill memory from a read file, folding every key to the spelling {@link #key} writes. */
+    private void readDoc(@Nullable Doc doc) {
+        uuidByKey.clear();
+        if (doc == null || doc.uuidByKey == null) {
             return;
         }
+        for (Map.Entry<String, String> e : doc.uuidByKey.entrySet()) {
+            String folded = foldedKey(e.getKey());
+            UUID uuid = uuidOrNull(e.getValue());
+            if (folded == null || uuid == null) {
+                compacted++;
+                continue;
+            }
+            if (uuidByKey.putIfAbsent(folded, uuid) != null || !folded.equals(e.getKey())) {
+                compacted++;
+            }
+        }
+    }
+
+    /** {@code raw} as {@link #key} spells it, or null for a key without its three non-blank parts. */
+    @Nullable
+    static String foldedKey(@Nullable String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String[] parts = raw.split(String.valueOf(KEY_SEP), -1);
+        if (parts.length != 3 || parts[0].isBlank() || parts[1].isBlank() || parts[2].isBlank()) {
+            return null;
+        }
+        return key(parts[0], parts[1], parts[2]);
+    }
+
+    @Nullable
+    private static UUID uuidOrNull(@Nullable String text) {
         try {
-            Path parent = path.toAbsolutePath().getParent();
-            if (parent != null) {
-                Files.createDirectories(parent);
-            }
-            Doc doc = new Doc();
-            doc.uuidByKey = new LinkedHashMap<>();
-            for (Map.Entry<String, UUID> e : uuidByKey.entrySet()) {
-                doc.uuidByKey.put(e.getKey(), e.getValue().toString());
-            }
-            try (Writer writer = Files.newBufferedWriter(path)) {
-                GSON.toJson(doc, writer);
-            }
-        } catch (Exception e) {
-            SafeLog.warn("[placement] could not write " + path + ": " + e.getMessage());
+            return text == null ? null : UUID.fromString(text.trim());
+        } catch (IllegalArgumentException e) {
+            return null;
         }
     }
 
@@ -151,17 +220,26 @@ public final class NpcPlacementLedger {
         return uuidByKey.get(key(worldName, placementId, anchorKey));
     }
 
-    /** Record (or re-point) this instance's NPC uuid and persist. */
+    /**
+     * Record (or re-point) this instance's NPC uuid and persist. A row already naming {@code uuid} writes
+     * nothing; a world deleted this run takes no row (a late sweep or spawn callback for it).
+     */
     public void record(@Nonnull String worldName, @Nonnull String placementId, @Nonnull String anchorKey,
             @Nonnull UUID uuid) {
-        uuidByKey.put(key(worldName, placementId, anchorKey), uuid);
-        save();
+        if (isGone(worldName)) {
+            SafeLog.fine("[placement] not recording '" + placementId + "' in '" + worldName
+                    + "': that world was deleted");
+            return;
+        }
+        if (!uuid.equals(uuidByKey.put(key(worldName, placementId, anchorKey), uuid))) {
+            file.writeNow();
+        }
     }
 
     /** Drop this instance's row and persist. Returns true when a row was actually removed. */
     public boolean drop(@Nonnull String worldName, @Nonnull String placementId, @Nonnull String anchorKey) {
         if (uuidByKey.remove(key(worldName, placementId, anchorKey)) != null) {
-            save();
+            file.writeNow();
             return true;
         }
         return false;
@@ -171,7 +249,7 @@ public final class NpcPlacementLedger {
     public boolean dropByUuid(@Nonnull UUID uuid) {
         boolean removed = uuidByKey.entrySet().removeIf(e -> uuid.equals(e.getValue()));
         if (removed) {
-            save();
+            file.writeNow();
         }
         return removed;
     }
@@ -212,11 +290,107 @@ public final class NpcPlacementLedger {
     /**
      * Drop every row for a world that was deleted, never one merely removed
      * ({@link NpcPlacementReconciler#onWorldRemoved}): a deleted world never comes back under its name.
+     * The world is remembered for the rest of the run, so nothing writes its rows back.
      */
     public void dropWorld(@Nonnull String worldName) {
+        markGone(worldName);
         String prefix = worldName.toLowerCase(Locale.ROOT) + KEY_SEP;
         if (uuidByKey.keySet().removeIf(k -> k.startsWith(prefix))) {
-            save();
+            file.writeNow();
+        }
+    }
+
+    /** A world of this name was added: it takes rows again, even if one of its name was deleted earlier this run. */
+    public void worldAdded(@Nonnull String worldName) {
+        synchronized (goneWorlds) {
+            goneWorlds.remove(worldName.toLowerCase(Locale.ROOT));
+        }
+    }
+
+    // ==================== pruning ====================
+
+    /**
+     * Drop every row whose world {@code worldStillThere} denies (it is given the lower-cased world name)
+     * and persist once. Returns how many rows went. The pure half of {@link #pruneVanishedWorlds}.
+     */
+    public int pruneWorlds(@Nonnull Predicate<String> worldStillThere) {
+        Set<String> vanished = new HashSet<>();
+        int removed = 0;
+        for (Iterator<String> it = uuidByKey.keySet().iterator(); it.hasNext(); ) {
+            String k = it.next();
+            int sep = k.indexOf(KEY_SEP);
+            String world = sep < 0 ? k : k.substring(0, sep);
+            if (!worldStillThere.test(world)) {
+                it.remove();
+                vanished.add(world);
+                removed++;
+            }
+        }
+        if (removed > 0) {
+            SafeLog.info("[placement] the ledger dropped " + removed + " row(s) naming " + vanished.size()
+                    + " world(s) that no longer exist (deleted while the server was down, or left by a crash"
+                    + " for this start to delete); " + uuidByKey.size() + " placed instance(s) remain");
+            file.writeNow();
+        }
+        return removed;
+    }
+
+    /**
+     * Once the universe has loaded its worlds (its {@code AllWorldsLoadedEvent}, when the start has also
+     * deleted every world flagged to go at a start): drop every row naming a world that is neither loaded
+     * nor a folder in the universe's worlds folder. Prunes nothing when it cannot tell (no universe, a
+     * worlds folder it cannot list, no world at all). Never throws.
+     */
+    public int pruneVanishedWorlds() {
+        Set<String> live = liveWorldNames();
+        if (live == null) {
+            SafeLog.fine("[placement] cannot tell which worlds exist, so the ledger keeps every row");
+            return 0;
+        }
+        return pruneWorlds(live::contains);
+    }
+
+    /** Every world loaded or on disk, lower-cased; null when that cannot be told. */
+    @Nullable
+    private static Set<String> liveWorldNames() {
+        try {
+            Universe universe = Universe.get();
+            if (universe == null) {
+                return null;
+            }
+            Set<String> live = new HashSet<>();
+            for (String name : universe.getWorlds().keySet()) {
+                live.add(name.toLowerCase(Locale.ROOT));
+            }
+            Path worlds = universe.getWorldsPath();
+            if (worlds == null || !Files.isDirectory(worlds)) {
+                return null;
+            }
+            try (Stream<Path> folders = Files.list(worlds)) {
+                folders.filter(Files::isDirectory)
+                        .forEach(folder -> live.add(folder.getFileName().toString().toLowerCase(Locale.ROOT)));
+            }
+            return live.isEmpty() ? null : live;
+        } catch (Throwable t) {
+            SafeLog.fine("[placement] could not list the worlds: " + t.getMessage());
+            return null;
+        }
+    }
+
+    private boolean isGone(@Nonnull String worldName) {
+        synchronized (goneWorlds) {
+            return goneWorlds.contains(worldName.toLowerCase(Locale.ROOT));
+        }
+    }
+
+    private void markGone(@Nonnull String worldName) {
+        synchronized (goneWorlds) {
+            goneWorlds.add(worldName.toLowerCase(Locale.ROOT));
+            while (goneWorlds.size() > GONE_WORLDS_MAX) {
+                Iterator<String> oldest = goneWorlds.iterator();
+                oldest.next();
+                oldest.remove();
+            }
         }
     }
 
@@ -228,6 +402,10 @@ public final class NpcPlacementLedger {
     /** Drop everything in memory without touching the file (tests). */
     void clearForTests() {
         uuidByKey.clear();
+        synchronized (goneWorlds) {
+            goneWorlds.clear();
+        }
+        file.clean();
     }
 
     /** One recorded placement instance. */

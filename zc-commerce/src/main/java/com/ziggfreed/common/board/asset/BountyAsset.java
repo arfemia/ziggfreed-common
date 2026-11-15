@@ -28,6 +28,7 @@ import com.ziggfreed.common.commerce.asset.HideAxis;
 import com.ziggfreed.common.progress.asset.ContentListingAsset;
 import com.ziggfreed.common.progress.asset.ContentMeta;
 import com.ziggfreed.common.progress.asset.ContentRewardsAsset;
+import com.ziggfreed.common.progress.asset.ObjectiveLeafAsset;
 import com.ziggfreed.common.progress.gate.FeatureLift;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.Quest;
@@ -167,7 +168,7 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
                     + "still finish it at its board.")
             .add()
             .appendInherited(new KeyedCodec<>("Objectives",
-                            new InheritMapCodec<>(QuestObjectiveAsset.CODEC), false),
+                            new InheritMapCodec<>(ObjectiveLeafAsset.row(QuestObjectiveAsset.CODEC)), false),
                     (a, v) -> a.objectives = v, a -> a.objectives, (a, p) -> a.objectives = p.objectives)
             .documentation("The work, keyed by step id. The key is also what progress is stored under, so "
                     + "renaming one starts that step over. A child contract may retune one step by id and keeps "

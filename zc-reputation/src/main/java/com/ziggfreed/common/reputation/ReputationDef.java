@@ -8,6 +8,7 @@ import javax.annotation.Nullable;
 
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.reputation.asset.ReputationAsset;
+import com.ziggfreed.common.track.asset.TrackAsset;
 
 /**
  * One reputation this server knows and has switched on: the native group's own id (the engine's spelling),
@@ -38,6 +39,12 @@ public record ReputationDef(@Nonnull String id, int initial, @Nullable Reputatio
     @Nullable
     public Integer cap() {
         return companion == null ? null : companion.cap();
+    }
+
+    /** The companion's {@code Prestige} group, or null when it writes none (the reputation never prestiges). */
+    @Nullable
+    public TrackAsset.Prestige prestige() {
+        return companion == null ? null : companion.prestige();
     }
 
     @Nullable

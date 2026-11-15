@@ -9,7 +9,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
-import com.hypixel.hytale.server.core.HytaleServer;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
@@ -22,6 +21,7 @@ import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastLine;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.util.ZigScheduler;
 
 /**
  * What a player reads as they arrive in a dungeon area while its run is going, so they know what to do there with
@@ -85,7 +85,7 @@ final class DungeonGoals {
         try {
             // A dungeon with a camera intro shows its goal once the intro has played (DungeonIntro).
             long delayMs = DungeonIntro.goalDelayMs(goal.dungeonId());
-            HytaleServer.SCHEDULED_EXECUTOR.schedule(() -> showIfStillThere(player, area, runId, goal), delayMs,
+            ZigScheduler.schedule(() -> showIfStillThere(player, area, runId, goal), delayMs,
                     TimeUnit.MILLISECONDS);
         } catch (Throwable t) {
             SafeLog.warn(LOG + "the goal of " + goal.dungeonId() + " could not be queued for " + player, t);

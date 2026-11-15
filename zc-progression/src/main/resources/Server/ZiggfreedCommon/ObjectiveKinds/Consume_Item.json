@@ -2,6 +2,7 @@
   "$Comment": "Eating or drinking something.",
   "ValueBased": false,
   "Producible": true,
+  "Pick": { "List": "ziggfreedcommon:ids/Item" },
   "TargetNames": {
     "Item": true
   },

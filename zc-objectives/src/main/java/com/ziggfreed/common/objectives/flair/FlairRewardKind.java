@@ -11,6 +11,8 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.entity.flair.ZigFlairComponent;
 import com.ziggfreed.common.loot.reward.RewardHandler;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
+import com.ziggfreed.common.loot.reward.RewardParam;
+import com.ziggfreed.common.loot.reward.RewardParams;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.subject.Subject;
 
@@ -54,9 +56,12 @@ public final class FlairRewardKind implements RewardHandler {
     private FlairRewardKind() {
     }
 
-    /** Register the flair kind into {@code kinds}. */
+    /** Register the flair kind into {@code kinds}, with the parameters the Asset Editor shows for it. */
     public static void registerInto(@Nonnull RewardKindRegistry kinds) {
         kinds.register(KIND, OWNER, new FlairRewardKind());
+        kinds.describe(KIND, RewardParams.of("Unlocks a cosmetic flair for the player. One they already have "
+                        + "pays nothing more.",
+                RewardParam.text("Flair", "The flair unlocked, by id.").asRequired()));
     }
 
     /**

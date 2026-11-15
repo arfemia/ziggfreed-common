@@ -63,9 +63,9 @@ class TrackComponentCodecTest {
     }
 
     /**
-     * The tree's leaves, appended after the picks: the order every take was made in, the takes a Remember prestige
-     * put aside in order, the saved builds and the build in use all survive a restart, and a save from before they
-     * were kept reads its takes in id order with no build saved.
+     * The one {@code Build} leaf: the order every take was made in, the takes a Remember prestige put aside in order,
+     * the saved builds and the build in use all survive a restart, and the leaf reads back from its written shape (a
+     * take's count read off the order, a slot's options a string array).
      */
     @Test
     void savedBuildsAndTakeOrderRoundTrip() throws IOException {
@@ -95,11 +95,19 @@ class TrackComponentCodecTest {
                 "a saved build keeps its takes in order");
         assertEquals(1, restarted.picks().activeLoadout());
 
-        TrackComponent older = TrackComponent.CODEC.decodeJson(RawJsonReader.fromJsonString(
-                "{\"Tracks\": [ { \"Track\": \"Your_Swords\", \"Takes\": { \"Your_B\": 1, \"Your_A\": 2 } } ]}"),
+        TrackComponent written = TrackComponent.CODEC.decodeJson(RawJsonReader.fromJsonString(
+                "{\"Tracks\": [ { \"Track\": \"Your_Swords\", \"Build\": {"
+                        + " \"Choices\": { \"your_swords_lines/lines/2\": [ \"Your_Keen\", \"Your_Edge\" ] },"
+                        + " \"Order\": [ \"Your_B\", \"your_swords_lines/lines/2\", \"Your_A\", \"Your_B\" ],"
+                        + " \"Remembered\": { \"Takes\": [ \"Your_C\" ] },"
+                        + " \"Loadouts\": [ { \"Slot\": 2, \"Order\": [ \"Your_A\" ] } ], \"Active\": 2 } } ]}"),
                 new ExtraInfo());
-        assertEquals(List.of("your_a", "your_a", "your_b"), older.get(swords).picks().order(),
-                "a save from before the order was kept reads its takes in id order");
-        assertEquals(PickState.Loadout.EMPTY, older.get(swords).picks().loadout(1), "and holds no saved build");
+        PickState read = written.get(swords).picks();
+        assertEquals(2, read.takesOf("your_b"), "a take's count is read off the order");
+        assertEquals(List.of("your_b", "your_swords_lines/lines/2", "your_a", "your_b"), read.order());
+        assertEquals(List.of("your_keen", "your_edge"), read.chosen("your_swords_lines/lines/2"));
+        assertEquals(List.of("your_c"), read.rememberedTakes());
+        assertEquals(List.of("your_a"), read.loadout(2).takes());
+        assertEquals(2, read.activeLoadout());
     }
 }

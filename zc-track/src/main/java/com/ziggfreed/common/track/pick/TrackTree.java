@@ -48,16 +48,25 @@ public final class TrackTree {
      * One pick of the tree as the player stands now: its id, branch (null for none), the points its row asks spent
      * in that branch, the level it opens at, how often it was taken and may be ({@link Integer#MAX_VALUE} for no
      * limit), the points one take costs and the track they come from (0 and null for a free pick), the other faces of
-     * its choice node, the picks it needs first and which of them are not taken yet, and what a take would answer.
+     * its choice node, the picks it needs first and which of them are not taken yet, what a take would answer, and
+     * which of its other faces the player holds (on this track or another, read off that track's record as a take's
+     * own check reads it).
      */
     public record Node(@Nonnull String pickId, @Nullable String branch, int gate, int opensAt, int taken, int ranks,
                        int cost, @Nullable String costTrack, @Nonnull List<String> faces,
-                       @Nonnull List<String> prerequisites, @Nonnull List<String> missing, @Nonnull Status status) {
+                       @Nonnull List<String> prerequisites, @Nonnull List<String> missing, @Nonnull Status status,
+                       @Nonnull List<String> heldFaces) {
 
         public Node {
             faces = List.copyOf(faces);
             prerequisites = List.copyOf(prerequisites);
             missing = List.copyOf(missing);
+            heldFaces = List.copyOf(heldFaces);
+        }
+
+        /** Does the player hold {@code face} (any case), one of this pick's other faces? */
+        public boolean holds(@Nullable String face) {
+            return heldFaces.contains(TrackKey.normalize(face));
         }
 
         /** Taken as often as it may be? */
@@ -218,7 +227,8 @@ public final class TrackTree {
                     state.takesOf(pick.id()), pick.asset().repeatMax(), pick.asset().costPoints(),
                     pick.asset().costPoints() > 0 ? TrackKey.normalize(pick.asset().costTrack()) : null,
                     pick.otherFaces(), pick.asset().prerequisites(), missing,
-                    PickService.takeStatus(player, def, reading.record(), pick, null, query, records));
+                    PickService.takeStatus(player, def, reading.record(), pick, null, query, records),
+                    heldFaces(player, pick, state, records));
             byBranch.computeIfAbsent(branch == null ? "" : branch, k -> new ArrayList<>()).add(node);
         }
         List<Branch> branches = new ArrayList<>();
@@ -230,6 +240,28 @@ public final class TrackTree {
             branches.add(branch(id, TrackPicks.branchSpent(onTrack, state, id), byBranch.get(id)));
         }
         return new View(def, level, earned, spent, Math.max(0, earned - spent), branches);
+    }
+
+    /**
+     * The other faces of {@code pick}'s node the player holds: one on its own track read off {@code state}, one on
+     * another off that track's record, as {@code PickService.open} reads them for a take.
+     */
+    @Nonnull
+    private static List<String> heldFaces(@Nonnull UUID player, @Nonnull TrackPicks.PickDef pick,
+            @Nonnull PickState state, @Nonnull Map<String, TrackRecord> records) {
+        List<String> held = new ArrayList<>();
+        for (String face : pick.otherFaces()) {
+            TrackPicks.PickDef other = TrackPicks.pick(face);
+            PickState holder = state;
+            if (other != null && !other.trackId().equals(pick.trackId())) {
+                TrackRecord record = record(player, other.trackId(), records);
+                holder = record == null ? null : record.picks();
+            }
+            if (holder != null && holder.count(face) > 0) {
+                held.add(face);
+            }
+        }
+        return held;
     }
 
     /**

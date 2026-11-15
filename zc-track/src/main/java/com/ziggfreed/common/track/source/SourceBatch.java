@@ -86,7 +86,10 @@ public final class SourceBatch {
      * Add {@code amount} to {@code player}'s sum on {@code trackId} from {@code label}, paid with the tick's other
      * sums as one {@link TrackService#add} labelled {@code label}: what the source reactions call for a frequent kind,
      * and what a consumer awarding a frequent gain of its own (every hit a player lands) calls instead of one add per
-     * moment, for the same totals. On {@code world}'s thread, the world {@code player} stands in.
+     * moment, for the same totals. The sum holds no moment, so whether a hit counts is asked before it is added: the
+     * source reactions refuse a hit on another player where the world's rules leave {@code Gain.PlayerHits} off,
+     * and a consumer summing its own hits asks {@code TrackWorldRules.paysPlayerHits} for one the same way (R864).
+     * On {@code world}'s thread, the world {@code player} stands in.
      */
     public static void add(@Nonnull World world, @Nonnull UUID player, @Nonnull String trackId, @Nonnull String label,
             double amount) {

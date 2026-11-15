@@ -60,6 +60,14 @@ public class GateClause {
     @Nullable protected String[] quests;
     @Nullable protected Map<String, Map<String, String>> custom;
 
+    /**
+     * What one entry of the open {@code Custom} map holds, and one parameter of it, for the Asset Editor (the
+     * field's own documentation says what the map holds).
+     */
+    private static final String CUSTOM_KIND = "One requirement kind's parameters, by the names the mod that "
+            + "registered it documents.";
+    private static final String CUSTOM_PARAM = "One parameter's value: text, a bare number, or true/false.";
+
     public static final BuilderCodec<GateClause> CODEC =
             appendLeaves(BuilderCodec.builder(GateClause.class, GateClause::new)).build();
 
@@ -89,7 +97,8 @@ public class GateClause {
                         + "quest with Claim rewards waits, does not satisfy it. Use it to chain a story in order "
                         + "instead of hiding every later step behind a separate flag.").add()
                 .appendInherited(new KeyedCodec<>("Custom",
-                                new InheritMapCodec<>(new InheritMapCodec<>(ScalarStringCodec.INSTANCE)), false),
+                                new InheritMapCodec<>(new InheritMapCodec<>(ScalarStringCodec.INSTANCE)
+                                        .documented(CUSTOM_KIND, CUSTOM_PARAM)), false),
                         (o, v) -> o.custom = v, o -> o.custom, (o, p) -> o.custom = p.custom)
                 .documentation("Requirement kinds registered by other mods, keyed by their namespaced id, each "
                         + "with that kind's own parameters. A kind nothing registered refuses. A parameter that "

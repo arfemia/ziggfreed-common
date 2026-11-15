@@ -28,6 +28,7 @@ import com.hypixel.hytale.codec.schema.SchemaContext;
 import com.hypixel.hytale.codec.schema.config.BooleanSchema;
 import com.hypixel.hytale.codec.schema.config.Schema;
 import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.asset.NestedAssetId;
 import com.ziggfreed.common.asset.SeasonLeaf;
@@ -37,6 +38,7 @@ import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.asset.ContentListingAsset;
 import com.ziggfreed.common.progress.asset.ContentMeta;
 import com.ziggfreed.common.progress.asset.ContentRewardsAsset;
+import com.ziggfreed.common.progress.asset.ObjectiveLeafAsset;
 import com.ziggfreed.common.progress.gate.FeatureLift;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.Quest;
@@ -211,7 +213,7 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                     + "quest vanishes from every listing instead of showing locked.")
             .add()
             .appendInherited(new KeyedCodec<>("Objectives",
-                            new InheritMapCodec<>(QuestObjectiveAsset.CODEC), false),
+                            new InheritMapCodec<>(ObjectiveLeafAsset.row(QuestObjectiveAsset.CODEC)), false),
                     (a, v) -> a.objectives = v, a -> a.objectives, (a, p) -> a.objectives = p.objectives)
             .documentation("The steps, keyed by objective id. The key is also what progress is stored under, so "
                     + "renaming one starts that step over. A child quest may retune one step by id and keeps every "
@@ -1175,10 +1177,12 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
         public static final BuilderCodec<Npc> CODEC = BuilderCodec.builder(Npc.class, Npc::new)
                 .appendInherited(new KeyedCodec<>("ViewId", Codec.STRING, false),
                         (o, v) -> o.viewId = v, o -> o.viewId, (o, p) -> o.viewId = p.viewId)
+                .metadata(EditorSchema.suggest(EditorDataSets.NPC_IDS))
                 .documentation("The id of whoever offers this quest, so a listing can show the right quests at "
                         + "the right character.").add()
                 .appendInherited(new KeyedCodec<>("TurnInId", Codec.STRING, false),
                         (o, v) -> o.turnInId = v, o -> o.turnInId, (o, p) -> o.turnInId = p.turnInId)
+                .metadata(EditorSchema.suggest(EditorDataSets.NPC_IDS))
                 .documentation("Where the quest is handed in. The literal 'giver' means ViewId, so moving a quest "
                         + "giver needs one edit rather than two. When no objective is a TURN_IN step, naming a "
                         + "place here adds the report-back step for you: a hand-in of nothing under the id "

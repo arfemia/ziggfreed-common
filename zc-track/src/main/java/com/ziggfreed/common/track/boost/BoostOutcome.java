@@ -23,7 +23,9 @@ public enum BoostOutcome {
     /** The player already runs as many personal boosts as the server allows. */
     PERSONAL_FULL,
     /** The server already runs as many server boosts as it allows. */
-    SERVER_FULL;
+    SERVER_FULL,
+    /** A personal boost asked to start with no player behind it ({@code Boosts.startServer}). */
+    NEEDS_PLAYER;
 
     /** Could it start later, as it is (a wait, a limit, a season, a requirement), rather than never here? */
     public boolean couldStartLater() {

@@ -3,7 +3,6 @@ package com.ziggfreed.common.proc;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -14,7 +13,6 @@ import com.hypixel.hytale.assetstore.map.AssetMapWithIndexes;
 import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Ref;
-import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.ChangeVelocityType;
 import com.hypixel.hytale.protocol.InteractionState;
 import com.hypixel.hytale.protocol.InteractionType;
@@ -37,14 +35,12 @@ import com.hypixel.hytale.server.core.modules.physics.component.Velocity;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.effect.EffectAdds;
 import com.ziggfreed.common.effect.control.AggroControl;
-import com.ziggfreed.common.entity.Allies;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.health.HealthUtil;
 import com.ziggfreed.common.interaction.NativeChainFire;
 import com.ziggfreed.common.stats.StatIndexCache;
 import com.ziggfreed.common.stats.condition.ConditionalStats;
 import com.ziggfreed.common.stats.condition.EffectFamilies;
-import com.ziggfreed.common.stats.condition.FirstHits;
 import com.ziggfreed.common.stats.condition.Nearby;
 
 /**
@@ -197,8 +193,9 @@ final class ProcActions {
             Instant now = ConditionalStats.now(accessor);
             // One more than Max, so leaving the moment's own target out still reaches Max others.
             int ask = area.max() + (area.skipTarget() ? 1 : 0);
+            // The allies are zc-core's one rule (R859), read through the one walk.
             List<Ref<EntityStore>> found = area.allies()
-                    ? allies(accessor, pvpOn(moment), holder, centre, area, now, ask)
+                    ? Nearby.alliesAround(accessor, holder, centre, area.radius(), area.conditions(), now, ask)
                     : Nearby.foesAround(accessor, holder, centre, area.radius(), area.conditions(), now, ask);
             List<Ref<EntityStore>> out = new ArrayList<>(found.size());
             for (Ref<EntityStore> one : found) {
@@ -214,39 +211,6 @@ final class ProcActions {
             Procs.failed("finding an area's targets", t);
             return List.of();
         }
-    }
-
-    /** The holder's allies in reach: the other players there the ally rule names (zc-core's {@code Allies}). */
-    @Nonnull
-    private static List<Ref<EntityStore>> allies(@Nonnull ComponentAccessor<EntityStore> accessor, boolean pvp,
-            @Nonnull Ref<EntityStore> holder, @Nonnull Vector3d centre, @Nonnull ProcAction.Area area,
-            @Nonnull Instant now, int limit) {
-        UUID holderId = FirstHits.idOf(accessor, holder);
-        if (holderId == null) {
-            return List.of();
-        }
-        List<Ref<EntityStore>> out = new ArrayList<>();
-        for (Ref<EntityStore> other : Nearby.playersAround(accessor, holder, centre, area.radius(), area.conditions(),
-                now, 0)) {
-            UUID otherId = FirstHits.idOf(accessor, other);
-            if (otherId != null && Allies.areAllies(holderId, otherId, pvp)) {
-                out.add(other);
-                if (out.size() >= limit) {
-                    break;
-                }
-            }
-        }
-        return out;
-    }
-
-    /** Is PvP on in the moment's world? Read as on when it cannot be read, so no stranger becomes an ally. */
-    private static boolean pvpOn(@Nonnull ProcMoment moment) {
-        return pvpOn(moment.store());
-    }
-
-    /** Is PvP on in {@code store}'s world? Read as on when it cannot be read, so no stranger becomes an ally. */
-    static boolean pvpOn(@Nonnull Store<EntityStore> store) {
-        return Allies.pvpOn(store);
     }
 
     // ==================== The groups ====================

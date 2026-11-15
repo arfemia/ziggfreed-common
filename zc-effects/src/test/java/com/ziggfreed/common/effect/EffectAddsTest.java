@@ -15,6 +15,7 @@ import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffec
 import com.hypixel.hytale.server.core.asset.type.entityeffect.config.OverlapBehavior;
 import com.hypixel.hytale.server.core.entity.effect.ActiveEntityEffect;
 import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
+import com.hypixel.hytale.server.core.modules.entity.damage.DamageCalculatorSystems;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.testing.EngineAssetStores;
 
@@ -65,6 +66,17 @@ class EffectAddsTest {
         return new Authored(TIMED_ID, false, 10f, OverlapBehavior.OVERWRITE);
     }
 
+    /**
+     * A worn infinite instance as the engine's short infinite constructor builds one (its 1-second default
+     * length, no debuff, no icon), through the full constructor both engine lines share: Update 8 changed
+     * the short one's parameters.
+     */
+    @Nonnull
+    private static ActiveEntityEffect wornInfinite(@Nonnull String id, int index) {
+        return new ActiveEntityEffect(id, index, 1f, 1f, true, false, "", 0f, false,
+                new DamageCalculatorSystems.Sequence(), false);
+    }
+
     /** A controller holding {@code worn}, its change queue emptied as after the viewers' first sync. */
     @Nonnull
     private static EffectControllerComponent wearing(@Nonnull ActiveEntityEffect... worn) {
@@ -78,7 +90,7 @@ class EffectAddsTest {
     void aSecondApplyOfAWornInfiniteEffectSendsItsViewersNothing() {
         EntityEffect aura = aura();
         try (EngineAssetStores.Swap ignored = EngineAssetStores.effects(aura, timed())) {
-            EffectControllerComponent ctrl = wearing(new ActiveEntityEffect(AURA_ID, AURA, true, false));
+            EffectControllerComponent ctrl = wearing(wornInfinite(AURA_ID, AURA));
 
             assertTrue(EffectAdds.asAuthored(ctrl, NO_REF, AURA, aura, NO_ACCESSOR),
                     "the repeat answers as the engine would for an effect with no conditions");
@@ -105,7 +117,7 @@ class EffectAddsTest {
             assertFalse(EffectAdds.repeatsWorn(timedAura, AURA, true),
                     "an infinite apply over a timed instance makes it infinite, so the engine takes it");
 
-            EffectControllerComponent worn = wearing(new ActiveEntityEffect(TIMED_ID, TIMED, true, false));
+            EffectControllerComponent worn = wearing(wornInfinite(TIMED_ID, TIMED));
             assertFalse(EffectAdds.repeatsWorn(worn, TIMED, timed.isInfinite()),
                     "a timed apply over a worn infinite instance is the engine's, which leaves it as it is");
         }

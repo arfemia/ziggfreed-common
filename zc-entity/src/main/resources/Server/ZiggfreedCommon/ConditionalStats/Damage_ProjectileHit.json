@@ -1,0 +1,9 @@
+{
+  "$Comment": "Makes Damage_ProjectileHit conditional: A conditional damage bonus in whole percent points (10 is +10%) on its holder's hits dealt by a projectile (a thrown spear, a shot arrow).",
+  "Hit": {
+    "Projectile": true
+  },
+  "Pays": {
+    "Damage": {}
+  }
+}

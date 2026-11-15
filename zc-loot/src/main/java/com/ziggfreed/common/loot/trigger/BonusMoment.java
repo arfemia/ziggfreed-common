@@ -19,13 +19,18 @@ import com.ziggfreed.common.match.When;
  * {@link MomentItems} only when its site hands it the harvested stack, so a new carried collector
  * changes {@link BonusPasses} too. The library's own rows carry more on some moments
  * ({@link #libraryCarries}): zc-objectives' {@code BonusRowReactions} layers a {@link ChestSite} on its kill and
- * break passes and stands the chest it collects, which a consumer's own table never does. A new moment appends
- * after the last constant, with its landing in {@link BonusPasses}, so fold and listing order never move.
+ * break passes and stands the chest it collects, and hands its break pass the broken block's own breaking item, so a
+ * {@code Moment_Item} there hands over another of what the block drops; a consumer's own table does neither. A new
+ * moment appends after the last constant, with its landing in {@link BonusPasses}, so fold and listing order never
+ * move.
  */
 public enum BonusMoment {
 
-    /** A player broke a block they did not place; a row's {@code Match} reads the block id. */
-    BREAK_BLOCK("BreakBlock", "BREAK_BLOCK", Set.of(), Set.of(ChestSite.class)),
+    /**
+     * A player broke a block they did not place; a row's {@code Match} reads the block id. The library's own pass
+     * carries a {@link MomentItems} around what the block breaks into.
+     */
+    BREAK_BLOCK("BreakBlock", "BREAK_BLOCK", Set.of(), Set.of(ChestSite.class, MomentItems.class)),
 
     /** A kill credited to a player; a row's {@code Match} reads the mob's id. */
     KILL_MOB("KillMob", "KILL_ENTITY", Set.of(), Set.of(ChestSite.class)),
@@ -94,7 +99,8 @@ public enum BonusMoment {
 
     /**
      * The collector types the library's OWN rows' pass layers for this moment ({@code BonusRowReactions}): every
-     * one {@link #carries} names, plus a {@link ChestSite} on a kill and a break, whose chest that pass stands. The
+     * one {@link #carries} names, plus a {@link ChestSite} on a kill and a break, whose chest that pass stands, and a
+     * {@link MomentItems} on a break, around what the broken block drops. The
      * audit of the library's rows judges their inline rolls against this set ({@link BonusRowAudit#auditAll}); a
      * consumer's table, whose pass is {@link BonusPasses#run} alone, keeps {@link #carries}.
      */

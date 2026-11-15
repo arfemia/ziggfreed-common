@@ -28,6 +28,9 @@ dungeon_best_time = Schnellster Abschluss
 deaths = Tode
 playtime_seconds = Spielzeit
 objectives_completed = Abgeschlossene Ziele
+items_consumed = Verbrauchte Gegenstände
+sprint_distance = Sprintstrecke
+swim_distance = Schwimmstrecke
 
 # What each stat counts: the tooltip over its column on Records (a stat's name key with .tip added).
 # A tooltip prints a parameter as written, so none of these takes one.

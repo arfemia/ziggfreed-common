@@ -85,8 +85,7 @@ public final class GrantDialogueAction {
     public static final class Grant extends DialogueAction {
 
         /** The entry list, shared by the full form's {@code Rewards} and the shorthand. */
-        static final ArrayCodec<RewardEntryAsset> REWARDS =
-                new ArrayCodec<>(RewardEntryAsset.CODEC, RewardEntryAsset[]::new);
+        static final ArrayCodec<RewardEntryAsset> REWARDS = RewardEntryAsset.rows();
 
         public static final BuilderCodec<Grant> CODEC = BuilderCodec.builder(Grant.class, Grant::new)
                 .append(new KeyedCodec<>("Rewards", REWARDS, false),

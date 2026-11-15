@@ -16,10 +16,11 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.asset.EditorSchema;
 
 /**
- * An entity condition: how many other players are near it? The game has no party or team, so every other living player
- * within {@code Radius} blocks counts as an ally, meeting every one of {@code Conditions} (each asked of that player:
- * one under half health). It holds while the count is at least {@code Min} and, when written, at most {@code Max}.
- * Registered into the engine's entity condition map as {@value #TYPE_NAME} (R700).
+ * An entity condition: how many of its allies are near it? An ally is another living player zc-core's one ally rule
+ * names (R859: the player's party, else any other player while the world's PvP is off; a creature has none), within
+ * {@code Radius} blocks, meeting every one of {@code Conditions} (each asked of that player: one under half health).
+ * It holds while the count is at least {@code Min} and, when written, at most {@code Max}. Registered into the engine's
+ * entity condition map as {@value #TYPE_NAME} (R700).
  *
  * <pre>{@code
  * { "Id": "ZigPlayersNear", "Radius": 8 }
@@ -47,23 +48,24 @@ public final class ZigPlayersNearCondition extends Condition {
     private static final class Holder {
         static final BuilderCodec<ZigPlayersNearCondition> CODEC = BuilderCodec.builder(
                         ZigPlayersNearCondition.class, ZigPlayersNearCondition::new, Condition.BASE_CODEC)
-                .documentation("Holds while the number of other players near the entity is inside a range. With no "
-                        + "party in the game, every other living player counts.")
+                .documentation("Holds while the number of the entity's allies near it is inside a range: the other "
+                        + "living players in its party, else every other player while the world's PvP is off. A "
+                        + "creature has no allies.")
                 .append(new KeyedCodec<>("Radius", Codec.DOUBLE, false), (c, v) -> c.radius = v, c -> c.radius)
                 .metadata(EditorSchema.defaultValue(DEFAULT_RADIUS))
-                .documentation("How far, in blocks, a player counts. 8 when unauthored.")
+                .documentation("How far, in blocks, an ally counts. 8 when unauthored.")
                 .add()
                 .append(new KeyedCodec<>("Min", Codec.INTEGER, false), (c, v) -> c.min = v, c -> c.min)
                 .metadata(EditorSchema.defaultValue(1L))
-                .documentation("The fewest players for it to hold. 1 when unauthored.")
+                .documentation("The fewest allies for it to hold. 1 when unauthored.")
                 .add()
                 .append(new KeyedCodec<>("Max", Codec.INTEGER, false), (c, v) -> c.max = v, c -> c.max)
-                .documentation("The most players for it to hold. No limit when unauthored.")
+                .documentation("The most allies for it to hold. No limit when unauthored.")
                 .add()
                 .append(new KeyedCodec<>("Conditions", new ArrayCodec<>(Condition.CODEC, Condition[]::new), false),
                         (c, v) -> c.conditions = v, c -> c.conditions)
-                .documentation("Entity conditions each player must meet to count, asked of that player. Every "
-                        + "player counts when unauthored.")
+                .documentation("Entity conditions each ally must meet to count, asked of that ally. Every ally "
+                        + "counts when unauthored.")
                 .add()
                 .build();
     }

@@ -34,7 +34,8 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p>The roll is the loot core's own decision ({@link LootEngine#select}: the table's rolls then its pool, its
  * {@code Requires} asked first) against a lookup about the player the drop is for
- * ({@link LootRewardKinds#lookupAbout}), drawn from the engine's random source, and each payout is then dropped as
+ * ({@link LootRewardKinds#lookupAbout}, carrying the drop's chance bonus onto every written roll {@code Chance},
+ * {@link DropContext.Who#chanceBonus}), drawn from the engine's random source, and each payout is then dropped as
  * {@link DropRows} reads it: an item into the engine's drops, a native drop list rolled into the same drops, a nested
  * table rolled the same way, and anything else not at all. A roll's {@code Cue} plays to that player when what it
  * rode on dropped, or rode on nothing, as the loot core's cue rule reads; with nobody known it plays to no one.
@@ -75,8 +76,10 @@ final class DropRoll {
             @Nonnull String tableId, @Nullable String trigger, @Nullable DropContext.Who who) {
         try {
             LootEngine.Resolved table = LootEngine.resolve(LootRef.of(new String[] {tableId}, null), null);
-            FactorLookup lookup = LootRewardKinds.lookupAbout(
+            FactorLookup about = LootRewardKinds.lookupAbout(
                     who == null ? FactorContext.about(null, null) : who.context());
+            // A broken block's gathering yield raises each written Chance, as it raises a bonus row's.
+            FactorLookup lookup = who == null ? about : FactorLookup.withChanceBonus(about, who.chanceBonus());
             Into into = new Into(drops, sample, who);
             List<String> cues = new ArrayList<>();
             for (LootEngine.Selected picked : LootEngine.select(table.rolls(), table.pools(), trigger, lookup,
