@@ -711,8 +711,9 @@ public final class DungeonAsset implements JsonAssetWithMap<String, DefaultAsset
                         + "Its run lasts until every member in the area is down at once (as FailOnWipe reads it, "
                         + "whatever FailOnWipe says), its time limit passes, or everyone leaves, and every way it "
                         + "ends pays each member what they banked; nothing in Complete clears it. The prefab's "
-                        + "encounter script is a Variant of Zc_Encounter_Endless. Unauthored, the dungeon runs as "
-                        + "Complete says.").add()
+                        + "encounter script is a Variant of Zc_Encounter_Endless. A dungeon with an Area.Layout cannot "
+                        + "be endless yet: its audit refuses the pair and nobody can enter. Unauthored, the dungeon "
+                        + "runs as Complete says.").add()
                 .build();
 
         public Run() {

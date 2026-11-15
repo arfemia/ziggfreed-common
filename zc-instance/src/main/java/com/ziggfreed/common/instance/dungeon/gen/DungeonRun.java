@@ -1,7 +1,10 @@
 package com.ziggfreed.common.instance.dungeon.gen;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -11,6 +14,7 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.server.core.prefab.PrefabRotation;
+import com.hypixel.hytale.server.core.prefab.selection.buffer.PrefabBufferUtil;
 import com.hypixel.hytale.server.core.prefab.selection.buffer.impl.IPrefabBuffer;
 import com.ziggfreed.common.instance.dungeon.layout.Box;
 import com.ziggfreed.common.instance.dungeon.layout.Cell;
@@ -64,6 +68,8 @@ final class DungeonRun {
     final AtomicLong childrenExpanded = new AtomicLong();
     final AtomicLong entitiesLeft = new AtomicLong();
     private final AtomicBoolean reported = new AtomicBoolean();
+    /** Each spawner child prefab the run's chunks have picked, loaded once for the run (an accessor holds no state). */
+    private final Map<Path, IPrefabBuffer> children = new ConcurrentHashMap<>();
 
     DungeonRun(int area, int run, long seed, @Nonnull String planId, @Nonnull Layout layout, @Nonnull Cell frame,
             @Nonnull List<Room> rooms, @Nonnull Transform arrival, double generationMs, double prepareMs) {
@@ -84,6 +90,15 @@ final class DungeonRun {
     boolean touches(int baseX, int baseZ, int size) {
         return reach.max().x() >= baseX && reach.min().x() < baseX + size
                 && reach.max().z() >= baseZ && reach.min().z() < baseZ + size;
+    }
+
+    /**
+     * The spawner child prefab at {@code prefab}, loaded the first time any of the run's chunks picks it and shared
+     * after, so every chunk a child crosses reads the one buffer; safe from any painter thread.
+     */
+    @Nonnull
+    IPrefabBuffer child(@Nonnull Path prefab) {
+        return children.computeIfAbsent(prefab, PrefabBufferUtil::getCached);
     }
 
     /** Count one chunk this run painted rooms into, and what it took. */

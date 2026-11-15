@@ -86,16 +86,25 @@ public final class ZigDungeonWorldGenProvider implements IWorldGenProvider {
     }
 
     /**
-     * Run {@code run} of lane {@code area}: the one already registered or under way, else the one {@code build} makes
-     * (called once), registered the moment it is made, before its future completes.
+     * Run {@code run} of lane {@code area}: the one already registered or under way, else the one {@code build} makes,
+     * registered the moment it is made, before its future completes. A build that fails registers nothing and is
+     * forgotten once it has failed, so a later call for the same run builds it again.
      */
     @Nonnull
     CompletableFuture<DungeonRun> open(int area, int run, @Nonnull Supplier<CompletableFuture<DungeonRun>> build) {
-        return opening.computeIfAbsent(key(area, run), k -> build.get().thenApply(made -> {
-            runs.put(k, made);
+        long k = key(area, run);
+        CompletableFuture<DungeonRun> future = opening.computeIfAbsent(k, key -> build.get().thenApply(made -> {
+            runs.put(key, made);
             current.merge(area, made, (was, now) -> now.run >= was.run ? now : was);
             return made;
         }));
+        // Outside computeIfAbsent: a build that failed at once (no painters) must not touch the map mid-compute.
+        future.whenComplete((made, error) -> {
+            if (error != null) {
+                opening.remove(k, future);
+            }
+        });
+        return future;
     }
 
     /** The copy's prefab pools, read once per copy (packs do not reload under a running copy). */

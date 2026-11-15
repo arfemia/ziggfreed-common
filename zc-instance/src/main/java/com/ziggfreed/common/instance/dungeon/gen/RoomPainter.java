@@ -8,12 +8,14 @@ import java.util.Locale;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.assetstore.map.AssetMapWithIndexes;
 import com.hypixel.hytale.builtin.blockspawner.BlockSpawnerEntry;
+import com.hypixel.hytale.builtin.blockspawner.BlockSpawnerPlugin;
 import com.hypixel.hytale.builtin.blockspawner.BlockSpawnerTable;
 import com.hypixel.hytale.builtin.blockspawner.state.BlockSpawner;
 import com.hypixel.hytale.component.ComponentType;
@@ -31,7 +33,6 @@ import com.hypixel.hytale.server.core.modules.block.components.ItemContainerBloc
 import com.hypixel.hytale.server.core.prefab.PrefabRotation;
 import com.hypixel.hytale.server.core.prefab.PrefabWeights;
 import com.hypixel.hytale.server.core.prefab.selection.buffer.PrefabBufferCall;
-import com.hypixel.hytale.server.core.prefab.selection.buffer.PrefabBufferUtil;
 import com.hypixel.hytale.server.core.prefab.selection.buffer.impl.IPrefabBuffer;
 import com.hypixel.hytale.server.core.universe.world.chunk.BlockRotationUtil;
 import com.hypixel.hytale.server.core.universe.world.chunk.section.FluidSection;
@@ -159,7 +160,7 @@ final class RoomPainter {
             Walk walk = new Walk(parent.chunk, parent.baseX, parent.baseZ, parent.clip, parent.mask, parent.run,
                     parent.room, parent.pools, child.x(), child.y(), child.z(), child.rotation(), child.depth(),
                     mix(parent.run.seed, child.x(), child.y(), child.z()), grandchildren);
-            PrefabBufferUtil.getCached(pick).forEach(COLUMNS, BLOCKS, ENTITIES, CHILDREN, walk);
+            parent.run.child(pick).forEach(COLUMNS, BLOCKS, ENTITIES, CHILDREN, walk);
             expand(grandchildren, walk);
         }
     }
@@ -442,8 +443,11 @@ final class RoomPainter {
     /** The cell's block spawner: its own block entity's, else its block type's default one; null for none. */
     @Nullable
     private static BlockSpawner spawnerOf(@Nullable BlockType type, @Nullable Holder<ChunkStore> holder) {
-        ComponentType<ChunkStore, BlockSpawner> kind = SpawnerType.KIND;
-        if (kind == null || (holder == null && type == null)) {
+        if (holder == null && type == null) {
+            return null;
+        }
+        ComponentType<ChunkStore, BlockSpawner> kind = SpawnerType.kind();
+        if (kind == null) {
             return null;
         }
         BlockSpawner own = holder == null ? null : holder.getComponent(kind);
@@ -504,19 +508,35 @@ final class RoomPainter {
         return turned == null ? RotationTuple.NONE_INDEX : turned.index();
     }
 
-    /** The block spawner's component type, read once; null when the engine's block spawner plugin is not loaded. */
+    /**
+     * The block spawner's component type, kept once it is read; while the engine's block spawner plugin is not up yet
+     * (or not loaded) it reads null, is warned about once, and is asked again on the next call.
+     */
     private static final class SpawnerType {
-        @Nullable static final ComponentType<ChunkStore, BlockSpawner> KIND = read();
+        @Nullable private static volatile ComponentType<ChunkStore, BlockSpawner> known;
+        private static final AtomicBoolean WARNED_MISSING = new AtomicBoolean();
 
         @Nullable
-        private static ComponentType<ChunkStore, BlockSpawner> read() {
+        static ComponentType<ChunkStore, BlockSpawner> kind() {
+            ComponentType<ChunkStore, BlockSpawner> kind = known;
+            if (kind != null) {
+                return kind;
+            }
             try {
-                return BlockSpawner.getComponentType();
+                BlockSpawnerPlugin plugin = BlockSpawnerPlugin.get();
+                kind = plugin == null ? null : plugin.getBlockSpawnerComponentType();
             } catch (Throwable t) {
-                SafeLog.warn(LOG + "the engine's block spawners could not be read, so a Block_Spawner_Block in a "
-                        + "generated room is painted as it stands: " + t);
+                kind = null;
+            }
+            if (kind == null) {
+                if (WARNED_MISSING.compareAndSet(false, true)) {
+                    SafeLog.warn(LOG + "the engine's block spawners cannot be read yet, so a Block_Spawner_Block in a "
+                            + "generated room is painted as it stands until they can");
+                }
                 return null;
             }
+            known = kind;
+            return kind;
         }
     }
 }

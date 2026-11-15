@@ -77,6 +77,9 @@ import com.ziggfreed.common.validation.TextKeyAudit;
  *       {@link #GATED_DUNGEON_LOOTABLE} (a table it pays from asks something of the player beyond mod presence,
  *       which a member who is offline when it rolls never meets), and the shared {@code UNKNOWN_SEASON} and
  *       {@code UNKNOWN_TEXT_KEY};</li>
+ *   <li>ERROR {@link #ENDLESS_WITH_LAYOUT}: a generated dungeon cannot be endless yet, since an endless run's chest
+ *       and every area spot it reads stand at the area's paste spot, which a generated copy leaves as void (its
+ *       runs stand further along the lane), so the entry refuses it;</li>
  *   <li>for a generated dungeon ({@code Area.Layout}): WARNING {@link #UNKNOWN_DUNGEON_LAYOUT} (no loaded file
  *       defines the plan, so nobody can enter), {@link #LAYOUT_AND_PREFAB} (it names a prefab too, which is never
  *       pasted), {@link #LANES_CLAMPED} (its copies hold fewer areas than it asks, the furthest lane kept within
@@ -112,6 +115,7 @@ public final class DungeonValidator {
     public static final String LAYOUT_AND_PREFAB = "LAYOUT_AND_PREFAB";
     public static final String LANES_CLAMPED = "LANES_CLAMPED";
     public static final String LAYOUT_TOO_TALL = "LAYOUT_TOO_TALL";
+    public static final String ENDLESS_WITH_LAYOUT = "ENDLESS_WITH_LAYOUT";
 
     /** The template's config file, inside its folder under {@code Server/Instances/}. */
     static final String TEMPLATE_CONFIG = "instance.bson";
@@ -353,6 +357,12 @@ public final class DungeonValidator {
         Integer survive = dungeon.surviveTimerSeconds();
         Integer limit = dungeon.timeLimitSeconds();
         DungeonEndless endless = dungeon.endless();
+        if (endless != null && dungeon.generated()) {
+            out.add(Finding.error(DOMAIN, ENDLESS_WITH_LAYOUT, where + " is an endless run (Run.Endless) generated from "
+                    + "the layout plan '" + dungeon.layoutId() + "' (Area.Layout), but generated dungeons cannot be "
+                    + "endless yet: an endless run's chest stands at the area's paste spot, which a generated copy "
+                    + "leaves as empty void. Remove Run.Endless or Area.Layout", id));
+        }
         if (endless != null) {
             auditEndless(endless, id, where, lootableKnown, lootableGated, out);
         } else if (!dungeon.hasClear()) {

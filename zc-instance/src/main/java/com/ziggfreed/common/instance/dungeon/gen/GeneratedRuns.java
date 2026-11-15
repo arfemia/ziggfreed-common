@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -67,7 +68,8 @@ public final class GeneratedRuns {
      * Lay out run {@code run} of {@code area} in {@code world} from {@code dungeon}'s layout plan and register it with
      * the copy, off the world thread; a member following into a run already registered or under way waits on that one.
      * Completes once the run is registered, exceptionally when the copy does not generate with {@code ZigDungeon}, the
-     * plan is not loaded, or no layout could be made.
+     * plan is not loaded, or no layout could be made; either way it completes on the copy's own world thread, so what
+     * waits on it (the entry's ready future, the engine's teleport) never runs on a painter.
      */
     @Nonnull
     public static CompletableFuture<Void> open(@Nonnull World world, @Nonnull CopyKey area, int run,
@@ -87,7 +89,12 @@ public final class GeneratedRuns {
                 }
             });
             return made;
-        }).thenApply(registered -> null);
+        }).handleAsync((registered, error) -> {
+            if (error != null) {
+                throw error instanceof CompletionException wrapped ? wrapped : new CompletionException(error);
+            }
+            return null;
+        }, world);
     }
 
     /** Where a player of lane {@code area}'s run in {@code world} lands; null when the lane has no run registered. */
