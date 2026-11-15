@@ -4,5 +4,27 @@
 # adds only new keys and never overrides one the engine owns.
 #
 # The in-game trigger-volume inspector names a condition type by
-# customUI.triggerVolumeEffectEditor.conditionType.<TypeId>.
+# customUI.triggerVolumeEffectEditor.conditionType.<TypeId>, an effect type by
+# customUI.triggerVolumeEffectEditor.effectType.<TypeId>, and each field of an effect by
+# customUI.triggerVolumeEffectEditor.field.<TypeId>.<Key>, with .tooltip for its hover text. The jar
+# keeps only the first server.lang it finds, so every module's Type names live here, zc-instance's
+# dungeon room kit included.
 customUI.triggerVolumeEffectEditor.conditionType.ZigRequires = Requires
+customUI.triggerVolumeEffectEditor.effectType.ZigCheckpoint = Dungeon Checkpoint
+customUI.triggerVolumeEffectEditor.effectType.ZigRunMilestone = Dungeon Milestone
+
+customUI.triggerVolumeEffectEditor.field.ZigCheckpoint.RespawnOffset = Respawn Offset
+customUI.triggerVolumeEffectEditor.field.ZigCheckpoint.RespawnYaw = Respawn Yaw
+customUI.triggerVolumeEffectEditor.field.ZigCheckpoint.HealEffect = Heal Effect
+customUI.triggerVolumeEffectEditor.field.ZigCheckpoint.BannerTitleKey = Banner Title Key
+customUI.triggerVolumeEffectEditor.field.ZigCheckpoint.BannerSubtitleKey = Banner Subtitle Key
+customUI.triggerVolumeEffectEditor.field.ZigCheckpoint.RespawnOffset.tooltip = Where the party respawns, in blocks from the volume's position. Leave it at 0 to use the position itself.
+customUI.triggerVolumeEffectEditor.field.ZigCheckpoint.RespawnYaw.tooltip = Which way the party faces when it respawns, in degrees. 0 faces north.
+customUI.triggerVolumeEffectEditor.field.ZigCheckpoint.HealEffect.tooltip = The effect every member gets when the checkpoint is reached. Leave it empty for the short checkpoint heal.
+customUI.triggerVolumeEffectEditor.field.ZigCheckpoint.BannerTitleKey.tooltip = A lang key for the banner's headline. Leave it empty for the default headline.
+customUI.triggerVolumeEffectEditor.field.ZigCheckpoint.BannerSubtitleKey.tooltip = A lang key for the line under the headline. Leave it empty for the default line.
+
+customUI.triggerVolumeEffectEditor.field.ZigRunMilestone.Id = Milestone
+customUI.triggerVolumeEffectEditor.field.ZigRunMilestone.Placement = Placement
+customUI.triggerVolumeEffectEditor.field.ZigRunMilestone.Id.tooltip = What happened: Room_Cleared, Puzzle_Solved or Secret_Found, which the results list, or any name of your own.
+customUI.triggerVolumeEffectEditor.field.ZigRunMilestone.Placement.tooltip = Counts once per run under this name. Leave it empty to count this volume on its own.

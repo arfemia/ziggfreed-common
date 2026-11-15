@@ -25,6 +25,7 @@ import com.ziggfreed.common.damage.weakspot.WeakSpotSettingsAsset;
 import com.ziggfreed.common.damage.weakspot.WeakSpotSettingsConfig;
 import com.ziggfreed.common.damage.weakspot.WeakSpotSystem;
 import com.ziggfreed.common.stats.condition.Nearby;
+import com.ziggfreed.common.stats.damage.NativeOutgoing;
 import com.ziggfreed.common.stats.damage.TypedDamageBonuses;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -94,6 +95,8 @@ public final class CritSystem extends DamageEventSystem {
             double multiplier = Crits.multiplier(Crits.damagePoints(store, attacker, damage, stats));
             damage.setAmount((float) (damage.getAmount() * multiplier));
             damage.putMetaObject(Crits.hitKey(), (float) multiplier);
+            // A flat a later step adds crits as the rest of the hit did (R992).
+            NativeOutgoing.scaleHit(damage, multiplier);
             OnHitEvents.fireCrit(store, commandBuffer, attacker, target, damage, multiplier);
             WeakSpotSettingsAsset settings = WeakSpotSettingsConfig.getInstance().settings();
             if (settings.critTextEnabled() && Crits.wordWanted(store, attacker)) {

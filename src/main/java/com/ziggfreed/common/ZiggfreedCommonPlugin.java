@@ -381,6 +381,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         InstanceBootstrap.installSpoils(this);
         InstanceBootstrap.registerParty(this);
         InstanceBootstrap.registerDungeons(this);
+        // The dungeon room kit: the ZigCheckpoint and ZigRunMilestone trigger-volume effects, before any volume or
+        // prefab decodes, and the death count a run's results read.
+        InstanceBootstrap.registerRoomKit(this);
         InstanceBootstrap.registerPortalDungeons(this);
         // The shared progress-bar panels on every player: a row is created by the mod that reports
         // a value moved and dressed by what it said, and this only attaches the panels and takes

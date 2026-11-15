@@ -1,0 +1,9 @@
+{
+  "$Comment": "The world's own bosses: the ones a player meets where they roam, spawned by the world rather than by a script (the two dragons and the Scarak Broodmothers). Zig_Boss_Or_Elite includes this group, so every boss rule counts them, and a mod that treats roaming bosses its own way (MMO Mob Scaling's boss tier) includes this group rather than keeping a list of its own, so the two never drift apart. Entries are role ids (the Server/NPC/Roles file names); a wildcard such as '*Broodmother' catches a whole family. Add a role here to make it a world boss everywhere at once.",
+  "IncludeRoles": [
+    "Dragon_Fire",
+    "Dragon_Frost",
+    "Scarak_Broodmother",
+    "Dungeon_Scarak_Broodmother"
+  ]
+}

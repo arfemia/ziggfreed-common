@@ -52,6 +52,12 @@ public final class ZcStats {
      */
     public static final String DUNGEON_BEST_WAVE = "Dungeon_Best_Wave";
 
+    /**
+     * Dungeon milestones a player was in the room for ({@code DungeonMilestoneEvent}: a room cleared, a puzzle solved,
+     * a secret found), one line per milestone id, a Sum, counted for every member in the run's area as each fires.
+     */
+    public static final String DUNGEON_MILESTONES = "Dungeon_Milestones";
+
     private ZcStats() {
     }
 }

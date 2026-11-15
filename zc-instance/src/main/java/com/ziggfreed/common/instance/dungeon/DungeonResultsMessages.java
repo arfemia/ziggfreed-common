@@ -116,6 +116,30 @@ public final class DungeonResultsMessages implements ResultsMessages {
         return line("results.bosses");
     }
 
+    /** The label of how many rooms the party cleared during the run ({@code Room_Cleared} milestones). */
+    @Nonnull
+    public Message roomsLabel() {
+        return line("results.rooms");
+    }
+
+    /** The label of how many puzzles the party solved during the run ({@code Puzzle_Solved} milestones). */
+    @Nonnull
+    public Message puzzlesLabel() {
+        return line("results.puzzles");
+    }
+
+    /** The label of how many secrets the party found during the run ({@code Secret_Found} milestones). */
+    @Nonnull
+    public Message secretsLabel() {
+        return line("results.secrets");
+    }
+
+    /** The label of how many times the party's members died during the run. */
+    @Nonnull
+    public Message deathsLabel() {
+        return line("results.deaths");
+    }
+
     @Nonnull
     private static Message line(@Nonnull String key) {
         return Msg.key(DungeonResults.PREFIX + key);
