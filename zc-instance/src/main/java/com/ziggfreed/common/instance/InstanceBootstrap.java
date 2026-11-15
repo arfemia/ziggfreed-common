@@ -4,6 +4,8 @@ import java.util.List;
 
 import javax.annotation.Nonnull;
 
+import com.hypixel.hytale.builtin.triggervolumes.TriggerVolumesPlugin;
+import com.hypixel.hytale.builtin.triggervolumes.effect.TriggerEffect;
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.event.events.player.RemovedPlayerFromWorldEvent;
@@ -28,8 +30,11 @@ import com.ziggfreed.common.instance.dungeon.AreaMembers;
 import com.ziggfreed.common.instance.dungeon.AreaSpawnProvider;
 import com.ziggfreed.common.instance.dungeon.DungeonDestinations;
 import com.ziggfreed.common.instance.dungeon.DungeonRuns;
+import com.ziggfreed.common.instance.dungeon.RunDeaths;
 import com.ziggfreed.common.instance.dungeon.ZigEnterDungeonInteraction;
 import com.ziggfreed.common.instance.dungeon.command.ZigDungeonCommand;
+import com.ziggfreed.common.instance.dungeon.kit.ZigCheckpointEffect;
+import com.ziggfreed.common.instance.dungeon.kit.ZigRunMilestoneEffect;
 import com.ziggfreed.common.instance.leaderboard.EncounterLeaderboardListener;
 import com.ziggfreed.common.instance.leaderboard.RecordsDestinations;
 import com.ziggfreed.common.instance.leaderboard.command.ZigLeaderboardCommand;
@@ -252,6 +257,37 @@ public final class InstanceBootstrap {
             EncounterSeams.fillWaveSource(DungeonRuns.shared()::rulesAt);
         } catch (Throwable t) {
             SafeLog.warn("[dungeon] the endless runs could not be wired, so an endless dungeon raises no wave", t);
+        }
+    }
+
+    /**
+     * The room kit every dungeon run can use: the {@code ZigCheckpoint} and {@code ZigRunMilestone} trigger-volume
+     * effect Types, before any asset decodes (a volume or a prefab naming either loads without it otherwise); the
+     * checkpoint's {@code HealEffect} as an entity-effect picker in the in-game trigger-volume inspector, as the
+     * engine's own {@code EntityEffect} effect offers one; and the death system a run's results count deaths through.
+     * The Types are not guarded: a failed registration throws here, at setup, rather than leaving a room's volumes
+     * silently without their effect. Registration only.
+     */
+    public static void registerRoomKit(@Nonnull JavaPlugin plugin) {
+        plugin.getCodecRegistry(TriggerEffect.CODEC).register(ZigCheckpointEffect.TYPE_NAME,
+                ZigCheckpointEffect.class, ZigCheckpointEffect.codec());
+        plugin.getCodecRegistry(TriggerEffect.CODEC).register(ZigRunMilestoneEffect.TYPE_NAME,
+                ZigRunMilestoneEffect.class, ZigRunMilestoneEffect.codec());
+        try {
+            TriggerVolumesPlugin volumes = TriggerVolumesPlugin.get();
+            if (volumes != null) {
+                volumes.registerAssetField(ZigCheckpointEffect.TYPE_NAME, ZigCheckpointEffect.HEAL_EFFECT_KEY,
+                        "EntityEffect");
+            }
+        } catch (Throwable t) {
+            SafeLog.warn("[dungeon] the checkpoint's heal picker could not be registered, so the trigger-volume "
+                    + "inspector shows a text box for it", t);
+        }
+        try {
+            plugin.getEntityStoreRegistry().registerSystem(new RunDeaths());
+        } catch (Throwable t) {
+            SafeLog.warn("[dungeon] the dungeon runs' death count could not be registered, so a run's results show "
+                    + "no deaths", t);
         }
     }
 

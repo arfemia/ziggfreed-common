@@ -3,6 +3,9 @@ package com.ziggfreed.common.asset;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import org.bson.BsonDocument;
+import org.bson.BsonDouble;
+
 import com.hypixel.hytale.assetstore.JsonAsset;
 import com.hypixel.hytale.codec.schema.config.ArraySchema;
 import com.hypixel.hytale.codec.schema.config.BooleanSchema;
@@ -84,6 +87,23 @@ public final class EditorSchema {
             if (schema instanceof StringSchema s) {
                 s.setDefault(value);
             }
+        };
+    }
+
+    /**
+     * Declare the effective unauthored value of a vector leaf (the engine's {@code Vector3dUtil.CODEC}, keys
+     * {@code X}, {@code Y}, {@code Z}). Such a field exports a reference to the shared vector definition, so the
+     * default goes on the field's own reference, exactly where the engine writes an object field's default, and the
+     * shared definition is never touched.
+     */
+    @Nonnull
+    public static Metadata defaultVector(double x, double y, double z) {
+        return schema -> {
+            BsonDocument vector = new BsonDocument();
+            vector.put("X", new BsonDouble(x));
+            vector.put("Y", new BsonDouble(y));
+            vector.put("Z", new BsonDouble(z));
+            schema.setDefaultRaw(vector);
         };
     }
 
