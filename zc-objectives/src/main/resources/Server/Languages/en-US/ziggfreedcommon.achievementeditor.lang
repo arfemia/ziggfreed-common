@@ -1,0 +1,158 @@
+# The achievement editor (zc-objectives objectives/authoring/): the Achievement Tool's wizard, also opened from the
+# progression admin page and /zigauthor open Achievement.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.achievementeditor.<key>.
+# The criterion and reward pages share the quest editor's key names, so steps.slot and its neighbours are criteria here.
+
+title = Achievement Editor
+
+# The pages, in order.
+page.achievement = Achievement
+page.listing = Category and points
+page.criteria = Criteria
+page.targets = Criterion details
+page.title = Title
+page.rewards = Rewards
+page.params = Reward details
+
+# Achievement
+field.edit = Open one made here
+hint.edit = Pick an achievement made on this server to change it. Leave both lists empty to make a new one.
+field.edit_shipped = Open one a pack ships
+hint.edit_shipped = Saving one of these makes this server's own copy, which replaces the pack's.
+note.achievement = Name the achievement and say what it's for. Players read these words, and the name also makes the achievement's id, which never changes after the first save.
+field.title = Name
+field.flavor = Description
+hint.flavor = What players read under its name. You can leave it empty.
+
+# Category and points
+note.listing = Pick where it's listed in the book, or make a new category for it.
+field.category = Category
+hint.category = Pick one that exists, or make a new one below.
+header.new_category = A new category
+field.new_category = Make a new category
+field.category_name = Its name
+hint.category_name = What players see on the category's tab.
+header.worth = Group and points
+field.subcategory = Group inside the category
+hint.subcategory = A word to group it with others in its category. You can leave it empty.
+field.points = Points
+hint.points = What it adds to a player's achievement points.
+note.enabled = Turn this off to stop players earning it. Players who already earned it keep it.
+field.enabled = In circulation
+
+# Criteria
+note.steps = Choose what each criterion asks for and how many. Players need all of them. Leave one empty to skip it. You pick each one's target on the next page.
+# {0} is the criterion's number.
+steps.slot = Criterion {0, number}
+field.step_kind = What counts
+field.step_amount = How many
+
+# Criterion details. In targets.slot, {1} is the criterion's kind.
+note.targets = Pick what each criterion counts. A name like Skeleton counts every kind of skeleton. Match decides how the name is compared, and the line is what players read for it.
+targets.slot = Criterion {0, number}: {1}
+field.target = Target for criterion {0, number}
+hint.target = Leave it empty to count anything.
+hint.target_place = Pick who or where this criterion names.
+hint.target_spot = Pick a block in the world to mark the spot.
+field.match = Match
+field.line = Line players read
+note.targets_none = Add a criterion on the last page first.
+
+# Title
+note.title = A title lands the moment a player earns the achievement. Pick one that exists, make a new one, or leave both empty for none.
+field.title_pick = A title that exists
+hint.title_pick = Leave it empty to make a new one below, or for no title.
+header.new_title = A new title
+field.new_title = Make a new title
+field.title_name = Its name
+hint.title_name = Like the Mason. Players can show it beside their name.
+field.title_flavor = How it's earned
+hint.title_flavor = What the title list says about it. You can leave it empty.
+field.title_place = Where it sits
+hint.title_place = AFTER reads Alex the Mason, COMMA reads Alex, the Mason, and BEFORE reads the Mason Alex.
+
+# Rewards
+note.rewards = Choose up to three rewards. Players collect every reward in their book. You fill in each reward on the next page.
+rewards.slot = Reward {0, number}
+field.reward_kind = Reward
+
+# Reward details. In params.slot, {1} is the reward's kind; in field.param, {0} is the setting's name.
+params.slot = Reward {0, number}: {1}
+field.param = {0}
+field.param_required = {0} (needed)
+field.params_free = Settings
+hint.params_free = This reward lists no settings, so write them as Name=Value, separated by commas.
+note.params_none = This reward has nothing to fill in.
+note.params_empty = Choose a reward on the last page first.
+
+# Putting a pack's achievement back, shown only on this server's copy of one.
+header.restore = The pack's version
+note.restore = This server's copy replaces an achievement a pack ships. Turn this on and save to take the copy away and use the pack's version again. Players keep what they earned.
+field.restore = Put the pack's version back
+
+# Opening a saved achievement. {0} is the achievement's id.
+load.missing = There's no achievement called {0} here anymore.
+load.unreadable = {0} couldn't be read, so it wasn't opened. The server log says why.
+load.inherits = {0} is built on another achievement, so open it in the Asset Editor instead.
+load.yearly = {0} comes back every year, so open it in the Asset Editor instead.
+load.capstone = {0} is earned by earning other achievements, so open it in the Asset Editor instead.
+load.stencil = {0} is stamped out once for every skill, so open it in the Asset Editor instead.
+load.nested = {0} takes part of its id from its folder, so open it in the Asset Editor instead.
+
+# The preview.
+preview.untitled = A new achievement
+preview.new = It gets its id from its name when you save.
+preview.editing = Editing {0}.
+preview.saved_as = Saved as {0}.
+preview.shipped = A pack ships this achievement. Saving makes this server's own copy, which replaces it and stops following the pack's updates.
+preview.server_copy = This is this server's own copy of an achievement a pack ships.
+preview.restore = Saving takes this copy away and puts the pack's version back.
+preview.category = In {0}.
+preview.category_new = In {0}, a new category.
+preview.category_new_unnamed = In a new category, once you name it.
+preview.no_category = No category yet.
+preview.subcategory = Grouped under {0}.
+preview.points = Worth {0, number} {0, plural, one {point} other {points}}.
+preview.out = Out of circulation: nobody can earn it, and players who earned it keep it.
+preview.all = Players need all of these:
+# {0} is the criterion's number, {1} its kind, {2} its target, {3} how many.
+preview.step = Criterion {0, number}: {1} {2} ({3, number})
+preview.step_any = Criterion {0, number}: {1}, anything ({2, number})
+preview.no_steps = No criteria yet.
+# {0} is the title's name.
+preview.title_new = Title: {0}, a new title.
+preview.title_new_unnamed = A new title, once you name it.
+preview.place_after = It shows after a player's name, like Alex {0}.
+preview.place_comma = It shows after a player's name and a comma, like Alex, {0}.
+preview.place_before = It shows before a player's name, like {0} Alex.
+preview.title = Title: {0}.
+preview.no_title = No title.
+preview.title_lands = The title lands the moment it's earned.
+# {0} is the reward's number, {1} its kind, {2} its settings.
+preview.reward = Reward {0, number}: {1} ({2})
+preview.reward_bare = Reward {0, number}: {1}
+preview.no_rewards = No rewards yet.
+preview.claim = Rewards are collected in the book.
+preview.earned_rewards = Players who already earned it can collect any reward you add.
+preview.earned_title = If you change its title, players who already earned it get the new one when they next log in.
+preview.earned_kind = If you change what a criterion counts, it starts over for players still working on it.
+# {0} is a reward's kind and {1} what it pays; in param_doc, {0} is a setting and {1} what it means.
+preview.kind_doc = {0}: {1}
+preview.param_doc = {0}: {1}
+
+# Why Next or Save refused.
+check.title = Give the achievement a name.
+check.backslash = Words can't hold a backslash.
+check.category = Pick a category, or make a new one.
+check.category_name = Name the new category.
+check.points = Points needs to be a whole number.
+check.amount = Criterion {0, number} needs a count of 1 or more.
+check.steps = Add at least one criterion.
+check.target_spot = Criterion {0, number} needs a spot. Pick a block in the world.
+check.target_place = Criterion {0, number} needs a target.
+check.title_both = Pick a title that exists or make a new one, not both.
+check.title_name = Name the new title.
+check.title_words = The title's words can't hold a backslash or curly braces.
+check.params_free = Reward {0, number}'s settings need to read as Name=Value, separated by commas.
+check.param_required = Reward {0, number} needs {1}.
+check.param_number = Reward {0, number}'s {1} needs to be a number.

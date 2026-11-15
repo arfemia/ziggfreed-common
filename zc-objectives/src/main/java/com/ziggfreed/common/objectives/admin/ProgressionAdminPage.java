@@ -20,6 +20,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.authoring.AuthoringWizards;
 import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.objectives.authoring.AchievementWizard;
 import com.ziggfreed.common.objectives.authoring.QuestWizard;
 import com.ziggfreed.common.objectives.command.ProgressAdminMessages;
 import com.ziggfreed.common.reputation.authoring.ReputationWizard;
@@ -41,9 +42,9 @@ import com.ziggfreed.common.util.SafeLog;
  * because the page must not claim a state nobody could read. A write goes through
  * {@link SystemSwitches#writeGuarded}; refused or applied, the page says so in a toast and reopens
  * so every row repaints from a live read. A read-only row carries a "governed elsewhere" hint line.
- * The footer opens the library's in-game editors (the quest editor, {@link QuestWizard}, and the reputation
- * editor), each button shown only while its wizard is registered; the editor's own Save asks its author node,
- * whoever opened it.
+ * A row above the footer opens the library's in-game editors (the quest editor, {@link QuestWizard}, the reputation
+ * editor and the achievement editor, {@link AchievementWizard}), each button shown only while its wizard is
+ * registered; the editor's own Save asks its author node, whoever opened it.
  *
  * <p>Stateless across events: the page holds nothing but the player, so every binding round-trips
  * the full state (an action and, for a toggle, the switch id). EVERY exit path sends a response;
@@ -56,11 +57,14 @@ public final class ProgressionAdminPage extends ToastablePage<ProgressionAdminEv
     /** The shared settings-form toggle row (zc-presentation), appended once per switch. */
     static final String ROW_TEMPLATE = "Pages/ZigFormToggleRow.ui";
 
-    /** The footer button that opens the quest editor. */
+    /** The editor row's button that opens the quest editor. */
     private static final String QUEST_EDITOR_BUTTON = "#QuestEditorButton";
 
-    /** The footer button that opens the reputation editor. */
+    /** The editor row's button that opens the reputation editor. */
     private static final String EDITOR_BUTTON = "#ReputationEditorButton";
+
+    /** The editor row's button that opens the achievement editor. */
+    private static final String ACHIEVEMENT_EDITOR_BUTTON = "#AchievementEditorButton";
 
     // The two paints SettingsUiUtil.setToggle does not cover: a read nobody could make (amber
     // "?") and a switch this page may show but never flip (muted steel, no binding).
@@ -98,6 +102,7 @@ public final class ProgressionAdminPage extends ToastablePage<ProgressionAdminEv
         ZigRichButton.text(cmd, "#BackButton", msg("page.back"));
         paintEditor(cmd, events, QUEST_EDITOR_BUTTON, QuestWizard.ID, "page.quest_editor");
         paintEditor(cmd, events, EDITOR_BUTTON, ReputationWizard.ID, "page.editor.reputation");
+        paintEditor(cmd, events, ACHIEVEMENT_EDITOR_BUTTON, AchievementWizard.ID, "page.editor.achievement");
 
         List<SystemSwitch> switches = SystemSwitches.all();
         if (switches.isEmpty()) {
@@ -113,7 +118,7 @@ public final class ProgressionAdminPage extends ToastablePage<ProgressionAdminEv
     }
 
     /**
-     * An in-game editor's footer button: shown, worded and bound while its wizard is registered (the editor's own
+     * An in-game editor's button: shown, worded and bound while its wizard is registered (the editor's own
      * Save asks its author node), hidden otherwise.
      */
     private static void paintEditor(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
