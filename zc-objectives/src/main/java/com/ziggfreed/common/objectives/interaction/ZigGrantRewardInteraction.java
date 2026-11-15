@@ -9,7 +9,6 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
-import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.protocol.InteractionType;
 import com.hypixel.hytale.server.core.entity.InteractionContext;
@@ -63,7 +62,7 @@ public final class ZigGrantRewardInteraction extends SimpleInstantInteraction {
                         ZigGrantRewardInteraction.class, ZigGrantRewardInteraction::new,
                         SimpleInstantInteraction.CODEC)
                 .appendInherited(new KeyedCodec<>("Rewards",
-                                new ArrayCodec<>(RewardEntryAsset.CODEC, RewardEntryAsset[]::new)),
+                                RewardEntryAsset.rows()),
                         (i, v) -> i.rewards = v, i -> i.rewards, (i, p) -> i.rewards = p.rewards)
                 .documentation("What one use pays the player whose chain this is, in the entry shape a "
                         + "quest pays in: a Kind plus its Params. One leaf: a child that authors it "

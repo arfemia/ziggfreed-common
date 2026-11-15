@@ -1,6 +1,5 @@
 package com.ziggfreed.common.instance.reward;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -14,8 +13,8 @@ import javax.annotation.Nullable;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.hypixel.hytale.server.core.util.io.FileUtil;
-import com.ziggfreed.common.util.SafeLog;
+import com.google.gson.JsonObject;
+import com.ziggfreed.common.util.RecordFile;
 
 /**
  * A durable per-player queue of rewards that could not be delivered yet (an item reward
@@ -24,16 +23,18 @@ import com.ziggfreed.common.util.SafeLog;
  * the blocked rewards, the player re-claims them later (the results screen's re-claim, or
  * a {@code PlayerConnectEvent} drain on next login) once they have made space.
  *
- * <p>File-backed JSON, atomic write. Thread-safe (concurrent map). The blocked-at-claim
- * guard keeps a finished round from ever silently dropping a reward.
+ * <p>File-backed JSON, kept through zc-core's {@code util/RecordFile} (atomic write with a
+ * {@code .bak}). Thread-safe (concurrent map). The blocked-at-claim guard keeps a finished round from
+ * ever silently dropping a reward.
  *
  * <p>The file carries a {@code "version"} so a later structural change can tell an old file from
  * a new one; a file with no version reads as version 1, since every file written before the marker
  * existed is a version-1 file. A file declaring a NEWER version than this build reads is left
- * unread, and unwritten, with one warning, rather than misread as today's shape; so is a file this
- * build cannot read at all. Either way the queue still answers from memory, and the file on disk
- * waits for a build that reads it (the latch {@code ClaimStore} and {@code DiminishLedger} keep).
- * Each reward is written as a {@link StoredReward}, whose optional spec is additive and moves no version.
+ * unread, and unwritten, with one warning, rather than misread as today's shape; a torn file reads
+ * its {@code .bak}; and a file this build cannot read at all, backup included, is left unread and
+ * unwritten too. Either way the queue still answers from memory, and the file on disk waits for a
+ * build that reads it (the latch {@code ClaimStore} and {@code DiminishLedger} keep). Each reward is
+ * written as a {@link StoredReward}, whose optional spec is additive and moves no version.
  */
 public final class PendingRewardStore {
 
@@ -43,18 +44,37 @@ public final class PendingRewardStore {
     private final String fileName;
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     private final ConcurrentHashMap<UUID, List<StoredReward>> pending = new ConcurrentHashMap<>();
-    @Nullable private volatile Path file;
-    /** True once a newer or unreadable file was found: it is never overwritten by this build. */
-    private volatile boolean refused;
+    /** The file, kept the one library way: a newer or unreadable file is never overwritten by this build. */
+    private final RecordFile file;
 
+    /** The file's leaves; its {@code version} is the record file's (absent in a pre-marker file: version 1). */
     private static final class Dto {
-        /** Absent in a pre-marker file, which Gson leaves at 0; read as version 1. */
-        int version;
         Map<String, List<StoredReward>> players;
     }
 
     public PendingRewardStore(@Nonnull String name) {
         this.fileName = name.endsWith(".json") ? name : name + ".json";
+        this.file = RecordFile.builder("pending", "the rewards waiting in " + fileName, new RecordFile.Body() {
+                    @Override
+                    @Nonnull
+                    public JsonObject write() {
+                        return writeDoc();
+                    }
+
+                    @Override
+                    public void read(@Nonnull JsonObject doc, int version) {
+                        readDoc(doc);
+                    }
+
+                    @Override
+                    public void forget() {
+                        pending.clear();
+                    }
+                })
+                .version(SCHEMA_VERSION)
+                .lostWrite("a restart may lose a reward still owed")
+                .refuseUnreadable()
+                .build();
     }
 
     /** Resolve the file under {@code dataDir} and load any existing queue. Call once at setup. */
@@ -62,9 +82,7 @@ public final class PendingRewardStore {
         if (dataDir == null) {
             return;
         }
-        this.file = dataDir.resolve(fileName);
-        refused = false;
-        load();
+        file.persistTo(dataDir.resolve(fileName), null);
     }
 
     /** Queue {@code rewards} for {@code uuid} (appended to any already pending). */
@@ -108,61 +126,36 @@ public final class PendingRewardStore {
 
     // ==================== persistence ====================
 
-    private void load() {
-        Path f = file;
-        if (f == null || !Files.exists(f)) {
+    private void readDoc(@Nonnull JsonObject doc) {
+        Dto dto = gson.fromJson(doc, Dto.class);
+        pending.clear();
+        if (dto == null || dto.players == null) {
             return;
         }
-        try {
-            Dto dto = gson.fromJson(Files.readString(f), Dto.class);
-            if (dto != null && dto.version > SCHEMA_VERSION) {
-                refused = true;
-                warn(fileName + " declares version " + dto.version + ", newer than the "
-                        + SCHEMA_VERSION + " this build reads; leaving it unread and unwritten rather "
-                        + "than misreading it");
-                return;
+        for (Map.Entry<String, List<StoredReward>> e : dto.players.entrySet()) {
+            if (e.getValue() == null) {
+                continue;
             }
-            pending.clear();
-            if (dto != null && dto.players != null) {
-                for (Map.Entry<String, List<StoredReward>> e : dto.players.entrySet()) {
-                    if (e.getValue() == null) {
-                        continue;
-                    }
-                    try {
-                        pending.put(UUID.fromString(e.getKey()), new ArrayList<>(e.getValue()));
-                    } catch (Throwable ignored) {
-                        // skip a malformed uuid key
-                    }
-                }
+            try {
+                pending.put(UUID.fromString(e.getKey()), new ArrayList<>(e.getValue()));
+            } catch (Throwable ignored) {
+                // skip a malformed uuid key
             }
-        } catch (Throwable t) {
-            refused = true;
-            warn(fileName + " unreadable; starting empty and leaving it unwritten: " + t.getMessage());
         }
     }
 
+    @Nonnull
+    private JsonObject writeDoc() {
+        Dto dto = new Dto();
+        dto.players = new HashMap<>();
+        for (Map.Entry<UUID, List<StoredReward>> e : pending.entrySet()) {
+            dto.players.put(e.getKey().toString(), new ArrayList<>(e.getValue()));
+        }
+        return gson.toJsonTree(dto).getAsJsonObject();
+    }
+
+    /** Write the queue now; a refused file, or no data folder, writes nothing. */
     private void flush() {
-        Path f = file;
-        if (f == null || refused) {
-            return;
-        }
-        try {
-            Dto dto = new Dto();
-            dto.version = SCHEMA_VERSION;
-            dto.players = new HashMap<>();
-            for (Map.Entry<UUID, List<StoredReward>> e : pending.entrySet()) {
-                dto.players.put(e.getKey().toString(), new ArrayList<>(e.getValue()));
-            }
-            if (f.getParent() != null) {
-                Files.createDirectories(f.getParent());
-            }
-            FileUtil.writeStringAtomic(f, gson.toJson(dto), true);
-        } catch (Throwable t) {
-            warn(fileName + " flush failed: " + t.getMessage());
-        }
-    }
-
-    private static void warn(@Nonnull String msg) {
-        SafeLog.warn(msg);
+        file.writeNow();
     }
 }

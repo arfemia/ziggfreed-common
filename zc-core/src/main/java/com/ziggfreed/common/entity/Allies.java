@@ -6,6 +6,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -76,8 +77,16 @@ public final class Allies {
      * no stranger becomes an ally. World thread.
      */
     public static boolean pvpOn(@Nonnull Store<EntityStore> store) {
+        return pvpOn((ComponentAccessor<EntityStore>) store);
+    }
+
+    /**
+     * {@link #pvpOn(Store)} through any accessor of the world's entities (a system's command buffer). Read as on when
+     * it cannot be read. World thread.
+     */
+    public static boolean pvpOn(@Nonnull ComponentAccessor<EntityStore> accessor) {
         try {
-            World world = store.getExternalData().getWorld();
+            World world = accessor.getExternalData().getWorld();
             return world == null || world.getWorldConfig().isPvpEnabled();
         } catch (Throwable t) {
             return true;

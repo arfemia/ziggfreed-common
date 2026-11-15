@@ -1,5 +1,5 @@
 {
-  "$Comment": "The blocks thrift may spare when placed: plain stone, soil and wood and torches, the cheap building blocks, so placing and breaking again never multiplies anything worth having. Ore, gems, gold and silver blocks, crystal and ornate pieces are left out, and furniture, benches, metal and decoration are never tagged Rock, Soil or Wood. A block joins any family by naming it in its own item Tags under ZigBlockFamily, so another mod opts its blocks in from its own files. Retune or switch it off by id in mods/ziggfreedcommon/block-families.json.",
+  "$Comment": "The blocks thrift may spare when placed: plain stone, soil and wood and the Light family's lights, the cheap building blocks, so placing and breaking again never multiplies anything worth having. Ore, gems, gold and silver blocks, crystal and ornate pieces are left out, and furniture, benches, metal and decoration are never tagged Rock, Soil or Wood. Thrift also never spares a block that can pop off or fall (its own Support rule, as sand, a torch on a wall and a lantern on a floor have), whatever this family holds, though one the game keeps standing once a player places it (a log, gravel) may be. A block joins any family by naming it in its own item Tags under ZigBlockFamily, so another mod opts its blocks in from its own files. Retune or switch it off by id in mods/ziggfreedcommon/block-families.json.",
   "Match": {
     "Tags": {
       "Type": [
@@ -8,8 +8,8 @@
         "Wood"
       ]
     },
-    "Blocks": [
-      "*Torch*"
+    "Families": [
+      "Light"
     ]
   },
   "Exclude": {

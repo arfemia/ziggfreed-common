@@ -1,0 +1,8 @@
+{
+  "$Comment": "The most the GrowthSpeed stats can add, in whole percent points (200 is three times as fast at most). This file's Max is the ceiling every player starts with: a server retunes it by shipping a same-id file, and an item's StatModifiers raise or lower it for its wearer like any stat.",
+  "InitialValue": 200.0,
+  "Min": -1000.0,
+  "Max": 200.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

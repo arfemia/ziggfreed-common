@@ -1,0 +1,14 @@
+{
+  "$Comment": "Makes GatherYield_WhileUnderground conditional: a conditional gathering yield in whole percent points, added to its holder's GatherYield while a block is over their head (underground, in a cave, under a roof).",
+  "Holder": [
+    {
+      "Id": "ZigOpenSky",
+      "Inverse": true
+    }
+  ],
+  "Pays": {
+    "Onto": [
+      "GatherYield"
+    ]
+  }
+}

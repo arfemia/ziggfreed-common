@@ -12,6 +12,7 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
 import com.ziggfreed.common.asset.EditorSchema;
+import com.ziggfreed.common.asset.KindSelectorCodec;
 import com.ziggfreed.common.progress.MatchMode;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveKindRegistry;
@@ -56,6 +57,10 @@ public class ObjectiveLeafAsset {
     @Nullable protected Long amount;
     @Nullable protected String zone;
     @Nullable protected String textKey;
+
+    private static final String KIND_KEY = "Kind";
+    private static final String TARGET_KEY = "Target";
+    private static final String TARGETS_KEY = "Targets";
 
     public static final BuilderCodec<ObjectiveLeafAsset> CODEC =
             appendLeaves(BuilderCodec.builder(ObjectiveLeafAsset.class, ObjectiveLeafAsset::new)).build();
@@ -136,6 +141,21 @@ public class ObjectiveLeafAsset {
     }
 
     public ObjectiveLeafAsset() {
+    }
+
+    /**
+     * {@code codec} as one objective row of a content file (a quest's {@code Objectives}, an achievement's
+     * {@code Criteria}): it decodes, encodes and inherits exactly as {@code codec}, and in the in-game Asset
+     * Editor its {@code Kind} is a dropdown of every kind content may author on the server that turns the
+     * row's {@code Target} and {@code Targets} into that kind's own suggestions (the kind file's {@code Pick}:
+     * the block ids for a block-breaking step, the NPC roles for a kill), each still free to take a name
+     * pattern. A kind with no {@code Pick} keeps the plain text box, and a kind the list does not name the
+     * row's own form ({@link ObjectiveKindPicks}).
+     */
+    @Nonnull
+    public static <T extends ObjectiveLeafAsset> KindSelectorCodec<T> row(@Nonnull BuilderCodec<T> codec) {
+        return ObjectiveKindPicks.selector(codec, KIND_KEY, ProgressEditorDataSets::objectiveKindIds,
+                List.of(TARGET_KEY), List.of(TARGETS_KEY));
     }
 
     @Nullable

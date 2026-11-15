@@ -426,6 +426,7 @@ class ZigKitDocumentsTest {
         assertEquals(172, size(leaf(anchor, "Height")));
         int gap = size(leaf(anchor, "Right"));
         assertTrue(4 * (140 + gap) <= 596, "four cards a row in the chest page's 596px");
+        assertTrue(5 * (TilePainter.GOLD_CARD_WIDTH + gap) <= 596, "five gold cards a row in the same 596px");
 
         assertEquals("ItemSlotButton", type(ui, "#ItemCard"), "an item's card is the item slot's own button");
         String item = block(ui, "#ItemCard");

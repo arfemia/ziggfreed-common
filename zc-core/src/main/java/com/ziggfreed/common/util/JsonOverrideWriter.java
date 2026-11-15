@@ -295,18 +295,28 @@ public final class JsonOverrideWriter {
 
     /**
      * Box a caller value into the JSON element {@link #setInto} stores: a {@link List} or
-     * {@code String[]} becomes a {@link JsonArray} (each element boxed through {@link #toPrimitive},
-     * so per-element type fidelity holds too); anything else is a single scalar via
-     * {@link #toPrimitive}. An array leaf REPLACES WHOLESALE - there is no per-element merge.
+     * {@code String[]} becomes a {@link JsonArray} (each element boxed the same way, so per-element type
+     * fidelity holds too); a {@link Map} with String keys becomes a {@link JsonObject} (an element of an
+     * array of objects, such as a {@code Requires} block's {@code Factors} row); anything else is a single
+     * scalar via {@link #toPrimitive}. An array leaf REPLACES WHOLESALE - there is no per-element merge.
      */
     @Nonnull
     private static JsonElement toElement(@Nonnull Object value) {
         if (value instanceof List<?> list) {
             JsonArray arr = new JsonArray();
             for (Object item : list) {
-                arr.add(toPrimitive(item));
+                arr.add(item == null ? toPrimitive(String.valueOf((Object) null)) : toElement(item));
             }
             return arr;
+        }
+        if (value instanceof Map<?, ?> map) {
+            JsonObject object = new JsonObject();
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                if (entry.getKey() != null && entry.getValue() != null) {
+                    object.add(String.valueOf(entry.getKey()), toElement(entry.getValue()));
+                }
+            }
+            return object;
         }
         if (value instanceof String[] strings) {
             JsonArray arr = new JsonArray();
@@ -333,8 +343,11 @@ public final class JsonOverrideWriter {
         return new JsonPrimitive(String.valueOf(value)); // defensive; callers pass String/Boolean/Number
     }
 
-    /** Atomic write (temp sibling + move) so a crash mid-write cannot corrupt the owner file. */
-    private static boolean write(@Nonnull Path file, @Nonnull JsonObject root) {
+    /**
+     * Atomic write (temp sibling + move) so a crash mid-write cannot corrupt the owner file. Package-visible
+     * for {@link RetiredSettings}, which rewrites an owner file through this same write.
+     */
+    static boolean write(@Nonnull Path file, @Nonnull JsonObject root) {
         try {
             Path parent = file.toAbsolutePath().getParent();
             if (parent != null) {

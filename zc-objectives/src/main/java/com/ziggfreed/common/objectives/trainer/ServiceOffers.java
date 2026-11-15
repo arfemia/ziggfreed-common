@@ -11,6 +11,7 @@ import com.ziggfreed.common.commerce.page.CommerceChips;
 import com.ziggfreed.common.track.TrackDef;
 import com.ziggfreed.common.track.TrackText;
 import com.ziggfreed.common.track.pick.PickService;
+import com.ziggfreed.common.track.pick.PickService.Status;
 import com.ziggfreed.common.ui.kit.ActionLook;
 import com.ziggfreed.common.ui.kit.ActionSlot;
 import com.ziggfreed.common.ui.kit.DetailAction;
@@ -30,8 +31,10 @@ import com.ziggfreed.common.ui.toast.ToastKind;
  * best level, R651, R665: {@code PickService.respecPrice}), which arms on its first press and charges on the second
  * ({@code PickService.buyRespec}, refused in combat or mid-encounter, which keeps what a trainer taught and gives
  * the receipt back if the clearing cannot be kept), only within the trainer's {@code Reach} ({@link TrainerReach});
- * then whatever {@link TrainerServices} a mod registered for that track (the prestige ceremony,
- * re-choosing a milestone, the update-day suggested build), none of which shows until something answers for it.
+ * then what every {@link TrainerServices} entry offers for that track (the library's prestige, re-spend of what a
+ * prestige put aside and suggested build, {@link ClimbServices}, or a mod's own in their place or beside them), each
+ * shown only where it can do something for this player. Every refusal and every respec result reads as the track's
+ * tree page says it ({@code TrackText.refusal}, {@code TrackText.respecLine}).
  */
 final class ServiceOffers {
 
@@ -63,7 +66,7 @@ final class ServiceOffers {
         LedgerRow row = new LedgerRow("respec/" + track.id(), title,
                 ready ? TrainerText.line("service.respec.meta", clears) : TrainerText.line("service.respec.meta.none"),
                 picture, ready ? Tone.AVAILABLE : Tone.NEUTRAL,
-                ready ? TrainerText.line("service.respec.state.ready") : null, value, null, Mark.NONE, !ready);
+                ready ? TrainerText.line("service.state.ready") : null, value, null, Mark.NONE, !ready);
         DetailAction reset = new DetailAction(ActionSlot.PRIMARY, TrainerText.line("service.respec.action"),
                 ActionLook.DANGER, "respec", null, ready, null);
         List<DetailLine> priceBlock = price.isEmpty()
@@ -71,28 +74,17 @@ final class ServiceOffers {
         DetailView page = new DetailView(picture, title, name, null, List.of(), null, null, null,
                 TrainerText.line("service.respec.lead", name),
                 List.of(new DetailBlock("price", TrainerText.line("service.respec.price"), null, priceBlock)),
-                List.of(reset), ready ? null : TrainerText.line("service.respec.refused.nothing", name));
+                List.of(reset), ready ? null : TrackText.respecLine(Status.NOTHING, 0, name));
         String trackId = track.id();
         return TrainerEntry.confirmed(row, page, pressed -> buy(pressed, trackId),
                 TrainerText.line("service.respec.confirm"));
     }
 
-    /** Charge the respec and clear the track's picks; say what happened. */
+    /** Charge the respec and clear the track's picks; say what happened as every page that offers one says it. */
     @Nonnull
     private static TrainerResult buy(@Nonnull TrainerAt at, @Nonnull String trackId) {
         PickService.Result result = PickService.buyRespec(at.playerId(), trackId);
-        Message name = LearnOffers.trackName(trackId);
-        return switch (result.status()) {
-            case DONE -> TrainerResult.toast(ToastKind.SUCCESS,
-                    TrainerText.line("service.respec.done", name, result.count()));
-            case NOTHING -> TrainerResult.toast(ToastKind.WARNING,
-                    TrainerText.line("service.respec.refused.nothing", name));
-            case CANNOT_PAY -> TrainerResult.toast(ToastKind.WARNING, TrainerText.line("service.respec.refused.pay"));
-            case IN_COMBAT -> TrainerResult.toast(ToastKind.WARNING,
-                    TrainerText.line("service.respec.refused.combat"));
-            case IN_ENCOUNTER -> TrainerResult.toast(ToastKind.WARNING,
-                    TrainerText.line("service.respec.refused.encounter"));
-            default -> TrainerResult.toast(ToastKind.WARNING, TrainerText.line("service.respec.refused.other"));
-        };
+        return TrainerResult.toast(result.done() ? ToastKind.SUCCESS : ToastKind.WARNING,
+                TrackText.respecLine(result, LearnOffers.trackName(trackId)));
     }
 }

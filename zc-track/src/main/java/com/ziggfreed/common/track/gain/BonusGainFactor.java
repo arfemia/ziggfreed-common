@@ -24,7 +24,7 @@ import com.ziggfreed.common.track.GainCall;
  * time with no epoch of their own. A gain costs one stat-map lookup and a read per resolved stat. With no player
  * entity (another kind of subject) it compiles to nothing.
  */
-public final class BonusGainFactor implements GainFactor {
+final class BonusGainFactor implements GainFactor {
 
     public static final BonusGainFactor INSTANCE = new BonusGainFactor();
 

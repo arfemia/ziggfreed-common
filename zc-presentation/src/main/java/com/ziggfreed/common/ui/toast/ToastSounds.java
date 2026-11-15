@@ -17,13 +17,20 @@ import com.ziggfreed.common.sound.Sound3D;
  * <p><b>Who owns the sound of a payout.</b> Where the engine announces a feedback moment for the press, the
  * moment's own {@code Sound} plays it, on every server, whatever happens to the toast: a quest's or an
  * achievement's Collect ({@code Quest_Claimed} and {@code Achievement_Claimed}, collected), a hand-in that pays
- * at once ({@code Quest_Completed}) and one that parks ({@code Quest_Parked}). The page's own toast for the
- * same press stays silent ({@link ToastKind#REWARD} has no sound, and a parked line is built
- * {@link ToastSpec#silent()}), so one press is one sound. Where no moment fires, the toast carries the sound
- * itself through {@link ToastSpec#withSound}: a receipt ({@link #RECEIPT}: a conversation's Grant, a used item's
- * payout) and a purchase ({@link #PURCHASE}).
+ * at once ({@code Quest_Completed}) and one that parks ({@code Quest_Parked}). A quest's notice is that press's
+ * only toast, and any other page toast raised for a press a moment announces stays silent
+ * ({@link ToastKind#REWARD} has no sound), so one press is one sound. Where no moment fires, the toast carries
+ * the sound itself through {@link ToastSpec#withSound}: a receipt ({@link #RECEIPT}: a conversation's Grant, a
+ * used item's payout), a purchase ({@link #PURCHASE}) and a collect no moment announces ({@link #COLLECT}: a
+ * points milestone's).
  */
 public final class ToastSounds {
+
+    /**
+     * Collecting a waiting reward: the legendary chest the library's own collect moments play
+     * ({@code Quest_Claimed}, {@code Achievement_Claimed}), for a collect no moment announces.
+     */
+    public static final String COLLECT = "SFX_Chest_Legendary_Open";
 
     /**
      * Something handed over with no quest behind it: a conversation's Grant, a used item's payout. The cue

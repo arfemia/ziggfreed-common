@@ -17,9 +17,11 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import com.hypixel.hytale.codec.schema.SchemaContext;
 import com.ziggfreed.common.almanac.AlmanacFixtures;
 import com.ziggfreed.common.almanac.AlmanacSwitch;
 import com.ziggfreed.common.almanac.page.AlmanacDestinations;
+import com.ziggfreed.common.factor.ModGates;
 import com.ziggfreed.common.progress.MatchMode;
 import com.ziggfreed.common.ui.page.BannerAsset;
 import com.ziggfreed.common.ui.page.LinkAsset;
@@ -63,6 +65,7 @@ class AlmanacEntryAssetTest {
         AlmanacSwitch.resetForTests();
         AlmanacEntryConfig.getInstance().mergeOwnerLayer(Map.of());
         AlmanacEntryConfig.getInstance().mergePackLayer(Map.of());
+        ModGates.useProbeForTests(null);
     }
 
     @Test
@@ -542,6 +545,35 @@ class AlmanacEntryAssetTest {
         assertEquals(2, page.findings().stream().filter(f -> f.code().equals(AlmanacEntryAsset.FINDING_LINK)).count(),
                 "the achievements button may write its words alone: " + page.findings());
         assertNull(page.sections().get(0).banner().button(), "a button that cannot draw is left out");
+    }
+
+    /**
+     * A slot's own {@code Requires} is the file-level mod gate's block: a slot gated on a mod this server lacks is not
+     * on the page at all, one gated on a mod it runs stays, and the rest of a block is what each viewer is asked
+     * ({@code liveRequires}). The editor lists the leaf.
+     */
+    @Test
+    void aSlotGatedOnAMissingModIsLeftOutAndOneGatedOnAPresentModStays() throws Exception {
+        ModGates.useProbeForTests(param -> "Test:Present".equals(param) ? 1.0 : 0.0);
+        AlmanacEntryAsset page = AlmanacFixtures.page("""
+                { "Sections": [ { "Collection": { "Items": [
+                  { "Item": "Test_Plain" },
+                  { "Item": "Test_Missing", "Requires": { "Factors": [
+                      { "Factor": "hytale:mod_installed", "Param": "Test:Missing", "Min": 1 } ] } },
+                  { "Item": "Test_Present", "Hidden": true, "Requires": { "Factors": [
+                      { "Factor": "hytale:mod_installed", "Param": "Test:Present", "Min": 1 } ] } },
+                  { "Item": "Test_Asked", "Requires": { "Factors": [
+                      { "Factor": "hytale:permission", "Param": "test.node", "Min": 1 } ] } } ] } } ] }
+                """, "Test_Season");
+
+        List<AlmanacCollectionAsset.Slot> slots = page.sections().get(0).collection().slots();
+        assertEquals(List.of("Test_Plain", "Test_Present", "Test_Asked"),
+                slots.stream().map(AlmanacCollectionAsset.Slot::item).toList());
+        assertTrue(slots.get(1).hidden(), "a gated slot keeps its other leaves");
+        assertNull(slots.get(1).liveRequires(), "a slot gated on mod presence alone asks its viewer nothing");
+        assertNotNull(slots.get(2).liveRequires(), "any other condition is asked of each viewer");
+        assertTrue(AlmanacCollectionAsset.Slot.CODEC.toSchema(new SchemaContext()).getProperties()
+                .containsKey("Requires"), "the editor lists the leaf");
     }
 
     /** The fixture pack season, with {@code ownerFile} written as the server owner's almanac.json. */

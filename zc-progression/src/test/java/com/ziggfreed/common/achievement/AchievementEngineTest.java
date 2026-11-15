@@ -22,6 +22,7 @@ import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.achievement.asset.AchievementAsset;
 import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardHandler;
+import com.ziggfreed.common.progress.ClaimAttempt;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.progress.MatchMode;
@@ -658,5 +659,33 @@ class AchievementEngineTest {
         assertEquals(AchievementStatus.CLAIMED, engine.milestoneStatus(ALICE, 25));
         assertEquals(null, engine.tryClaimMilestone(ALICE, 25), "collecting twice answers nothing");
         assertEquals(null, engine.tryClaimMilestone(ALICE, 999), "an unknown rung answers nothing");
+    }
+
+    /** A rung whose rewards will not fit refuses NO_ROOM through the gate and keeps waiting, paying nothing. */
+    @Test
+    void aMilestoneThatWillNotFitRefusesNoRoomAndKeepsWaiting() {
+        AtomicBoolean full = new AtomicBoolean(true);
+        AchievementEngine engine = engine()
+                .gates(new AchievementGates() {
+                    @Override
+                    public boolean canReceiveMilestoneRewards(Subject subject, AchievementMilestone milestone) {
+                        return !full.get();
+                    }
+                })
+                .milestone(AchievementMilestone.claimable(25, List.of(RewardSpec.of("test:pay", "Id", "silver"))))
+                .build();
+        engine.setAchievements(List.of(Achievement.builder("a").points(30)
+                .criterion(criterion(0, "BREAK_BLOCK", "A", 1)).build()));
+        engine.dispatch(ALICE, "BREAK_BLOCK", "A", null, 1L);
+
+        ClaimAttempt refused = engine.attemptClaimMilestone(ALICE, 25);
+        assertEquals(ClaimAttempt.Refusal.NO_ROOM, ClaimAttempt.refusalOf(refused));
+        assertEquals(null, refused.paid());
+        assertEquals(AchievementStatus.UNLOCKED, engine.milestoneStatus(ALICE, 25), "a refused collect changes nothing");
+        assertEquals(ClaimAttempt.Refusal.NOT_WAITING, ClaimAttempt.refusalOf(engine.attemptClaimMilestone(ALICE, 999)));
+
+        full.set(false);
+        assertTrue(engine.attemptClaimMilestone(ALICE, 25).paid() != null, "with room it collects");
+        assertEquals(AchievementStatus.CLAIMED, engine.milestoneStatus(ALICE, 25));
     }
 }

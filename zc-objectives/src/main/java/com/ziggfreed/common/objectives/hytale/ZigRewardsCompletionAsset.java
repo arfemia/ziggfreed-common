@@ -7,7 +7,6 @@ import com.hypixel.hytale.builtin.adventure.objectives.config.completion.Objecti
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
-import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 
 /**
@@ -34,7 +33,7 @@ public final class ZigRewardsCompletionAsset extends ObjectiveCompletionAsset {
             .documentation("Pays CommonLib rewards when the objective completes, as one Claim each participant "
                     + "collects on the Claims tab, online or not. Every ZigRewards and ZigTrack completion on one "
                     + "objective joins the same Claim.")
-            .append(new KeyedCodec<>("Rewards", new ArrayCodec<>(RewardEntryAsset.CODEC, RewardEntryAsset[]::new),
+            .append(new KeyedCodec<>("Rewards", RewardEntryAsset.rows(),
                     false), (completion, rewards) -> completion.rewards = rewards, completion -> completion.rewards)
             .documentation("What the Claim pays, in the entry shape a quest pays in: a Kind plus its Params, and a "
                     + "row's own Requires. A row whose kind cannot be handed over later is dropped with a warning. "

@@ -17,10 +17,12 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.asset.EditorPick;
 import com.ziggfreed.common.command.CommandRunner;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorRegistry;
@@ -29,6 +31,7 @@ import com.ziggfreed.common.loot.FactorLookup;
 import com.ziggfreed.common.loot.FactorSnapshot;
 import com.ziggfreed.common.loot.GroundSpillSinks;
 import com.ziggfreed.common.loot.LootCues;
+import com.ziggfreed.common.loot.LootEditorDataSets;
 import com.ziggfreed.common.loot.LootEngine;
 import com.ziggfreed.common.loot.LootRef;
 import com.ziggfreed.common.loot.stamp.StampCapEngine;
@@ -77,7 +80,9 @@ import com.ziggfreed.common.util.SafeLog;
  * picked-up item lands ({@link GroundSpillSinks.Builder#pickedUpFirst}), where the player's own
  * pickup settings route it, with the game's own pickup notice and sound for what went in, and
  * whatever does not fit to the {@link #overflow(Overflow) overflow policy}. Its receipt rows are
- * {@link RewardSpec#pickupNoticed() pickup-noticed}, so the corner feed does not repeat them.
+ * {@link RewardSpec#pickupNoticed() pickup-noticed}, so the corner feed does not repeat them. A payout
+ * that must land in the bag or not at all (a capped item currency) takes its bag-only form,
+ * {@link #handIntoBag}, the same pickup with no overflow.
  *
  * <p>The library installs a default policy at boot ({@link FeetDropOverflow}: the rest lands on the
  * ground at the player's feet, through the same tick-safe spawn seam every ground drop uses), so out
@@ -210,7 +215,7 @@ public final class LootRewardKinds {
         return FACTORS.get();
     }
 
-    /** Register all four kinds into {@code kinds}. */
+    /** Register all four kinds into {@code kinds}, each with the parameters the Asset Editor shows for it. */
     public static void registerInto(@Nonnull RewardKindRegistry kinds) {
         kinds.register(KIND_ITEM, OWNER, new ItemHandler());
         // The Lootable handler keeps the registry it was registered into: a rolled table's own
@@ -218,7 +223,46 @@ public final class LootRewardKinds {
         kinds.register(KIND_LOOTABLE, OWNER, new LootableHandler(kinds));
         kinds.register(KIND_STAMPED_ITEM, OWNER, new StampedItemHandler());
         kinds.register(KIND_COMMAND, OWNER, new CommandHandler());
+        kinds.describe(KIND_ITEM, RewardParams.of("Hands the player an item.",
+                ITEM_PARAM,
+                COUNT_PARAM,
+                RewardParam.text(StackNames.P_STACK_NAME_KEY, "A language key that names the stack, so it "
+                        + "shows that name in every player's own language wherever it goes. Leave it out for "
+                        + "the item's own name."),
+                RewardParam.text(StackNames.P_STACK_NAME_ARG, "What fills {0} in the StackNameKey line, as "
+                        + "written.")));
+        kinds.describe(KIND_LOOTABLE, RewardParams.of("Rolls a loot table for the player, paying whatever "
+                        + "it lands.",
+                RewardParam.text("Lootable", "The loot table to roll, by id.").asRequired()
+                        .withPick(EditorPick.list(LootEditorDataSets.LOOTABLES)),
+                RewardParam.text("Trigger", "Which of the table's moments to roll: a roll naming this Trigger "
+                        + "answers. Leave it out for the table's plain rolls.")));
+        kinds.describe(KIND_STAMPED_ITEM, RewardParams.of("Hands the player an item with stats already on "
+                        + "it: rolled from a pool, or written out.",
+                ITEM_PARAM,
+                COUNT_PARAM,
+                RewardParam.text("Pool", "The roll pool the stats are rolled from, by id. Leave it out when "
+                        + "Stats writes them.").withPick(EditorPick.list(LootEditorDataSets.ROLL_POOLS)),
+                RewardParam.text("Stats", "The stats written out instead of rolled, as stat:points pairs "
+                        + "separated by commas, such as Damage:5,Speed:2."),
+                RewardParam.integer("Picks", "How many of the pool's stats are rolled.").withDefault("1")));
+        kinds.describe(KIND_COMMAND, RewardParams.of("Runs a command line for the player. {player}, {uuid} "
+                        + "and any other parameter written here are filled in.",
+                RewardParam.text(P_COMMAND_NAME, "The command line, such as give {player} Coin_Gold "
+                        + "--quantity=5.").asRequired(),
+                RewardParam.text(P_RUN_AS_NAME, "Whose authority the line runs with: Console, or Player "
+                        + "for the player's own.").withDefault("Console")
+                        .withPick(EditorPick.values("Console", "Player")),
+                RewardParam.integer(P_DELAY_TICKS_NAME, "How long to wait before running it, in twentieths "
+                        + "of a second. 0 runs it at once.").withDefault("0")).allowingOthers());
     }
+
+    /** The item an item-shaped reward hands over: the one parameter both item kinds lead with. */
+    private static final RewardParam ITEM_PARAM = RewardParam.text("Item", "The item handed over, by id.")
+            .asRequired().withPick(EditorPick.asset(Item.class));
+
+    /** How many of it. */
+    private static final RewardParam COUNT_PARAM = RewardParam.integer("Count", "How many.").withDefault("1");
 
     /**
      * Would this reward's item fit in {@code subject}'s inventory right now, granting nothing?
@@ -680,6 +724,24 @@ public final class LootRewardKinds {
                 .warn(warn);
     }
 
+    /**
+     * {@link #handToPlayer} with no overflow: each stack goes where the player's own pickup settings
+     * route it, with the game's own pickup notice and sound for what went in, and what the bag cannot
+     * take is not handed over at all, so {@link GroundSpillSinks#spill} answers only what went in. The
+     * form for a payout that must land in the bag or not at all: a capped item currency, whose cap
+     * reads the bag and so cannot see a pile at the player's feet. A subject with no live player gets
+     * nothing. {@code warn} hears a stack the hand-over could not place.
+     */
+    @Nonnull
+    public static GroundSpillSinks.Builder handIntoBag(@Nonnull Subject subject, @Nonnull Consumer<String> warn) {
+        return GroundSpillSinks.at(NO_GROUND)
+                .pickedUpFirst(playerOf(subject))
+                .warn(warn);
+    }
+
+    /** {@link #handIntoBag}'s ground: it lands nothing, so the part the bag would not take is never counted. */
+    private static final GroundSpillSinks.Ground NO_GROUND = pile -> false;
+
     /** The installed overflow policy as a ground-spill ground, warning about a pile it lost. */
     @Nonnull
     private static GroundSpillSinks.Ground overflowGround(@Nonnull Subject subject, @Nonnull String sourceId,
@@ -843,6 +905,11 @@ public final class LootRewardKinds {
 
     /** How long to wait before running it, in twentieths of a second. Zero runs it now. */
     public static final String P_DELAY_TICKS = "delayticks";
+
+    /** The three as a reward writes them, for the Asset Editor's form. */
+    private static final String P_COMMAND_NAME = "Command";
+    private static final String P_RUN_AS_NAME = "RunAs";
+    private static final String P_DELAY_TICKS_NAME = "DelayTicks";
 
     /** What paid out, offered to the template as {@code {source}} whether or not it was stamped on. */
     private static final String P_SOURCE = RewardGrants.P_SOURCE;

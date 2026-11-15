@@ -48,6 +48,8 @@ import com.ziggfreed.common.util.SafeLog;
  *       those at a raw world position with no cap leaks it there forever - a positive cap
  *       force-stops it instead. A genuinely one-shot burst asset finishes well inside a modest
  *       cap on its own, so the cap is invisible for those.</li>
+ *   <li>{@link #spawnFor} - the full-arity world-positioned spawn delivered to a given list of players
+ *       only (a reveal one player sees, a marker for one party), never broadcast.</li>
  *   <li>{@link #spawnDirectional} - a rotation-aware spawn. The engine's convenience
  *       overload only handles position, so this collects nearby players itself (mirroring
  *       {@code ParticleUtil}'s own spatial lookup) to reach the rotation-aware overload;
@@ -132,6 +134,27 @@ public final class ModelParticleService {
             return true;
         } catch (Throwable t) {
             fine("particle (" + particleAsset + ") failed: " + t.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * The world-positioned spawn delivered ONLY to {@code viewers} (one packet each, through the engine overload
+     * that takes a player list and a playback cap), so a cue meant for one player (a reveal, a marker) reaches
+     * nobody else: a uniform {@code scale}, an optional {@code color} tint (null keeps the system's authored
+     * colours) and the client-playback cap {@code maxDurationSeconds} ({@code <= 0} = uncapped). An empty or null
+     * list spawns nothing. No-op ({@code false}) for a null asset id or on any error.
+     */
+    public static boolean spawnFor(@Nonnull Store<EntityStore> store, @Nullable String particleAsset,
+                                   @Nonnull Vector3d position, @Nullable List<Ref<EntityStore>> viewers,
+                                   float scale, @Nullable Color color, float maxDurationSeconds) {
+        if (particleAsset == null || viewers == null || viewers.isEmpty()) return false;
+        try {
+            ParticleUtil.spawnParticleEffect(particleAsset, position.x(), position.y(), position.z(),
+                    0f, 0f, 0f, scale, color, null, viewers, store, maxDurationSeconds);
+            return true;
+        } catch (Throwable t) {
+            fine("viewer particle (" + particleAsset + ") failed: " + t.getMessage());
             return false;
         }
     }

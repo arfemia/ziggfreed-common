@@ -2723,6 +2723,9 @@ public final class QuestEngine implements QuestStateReader {
                 "quest", quest.id(),
                 "title", (Supplier<?>) () -> quest.text().titleOr(quest.id()),
                 "objective", objective.id(),
+                // The step's kind as the engine reads it (TURN_IN, KILL_ENTITY, ...), so a file can word
+                // or silence one kind's notice: a hand-in's finish says nothing, its own receipt does.
+                "kind", objective.kind(),
                 "step", (Supplier<?>) () -> quest.text().objective(objective.id()),
                 "current", Integer.valueOf(state.current()),
                 "required", Integer.valueOf(state.required()),

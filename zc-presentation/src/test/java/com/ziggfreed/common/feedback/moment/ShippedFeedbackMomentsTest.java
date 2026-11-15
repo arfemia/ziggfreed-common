@@ -51,13 +51,13 @@ class ShippedFeedbackMomentsTest {
      * The moments the two progression engines, the claim table, the encounter framework and the
      * gear-set engine announce today (the encounter four are the binding row's own default moment
      * ids; the gear-set two are what the root's notice bridge fires on a tier flip and on a piece
-     * going on with no flip).
+     * going on with no flip), and the reward chest's page as it opens.
      */
     private static final Set<String> ANNOUNCED = Set.of(
             "Quest_Completed", "Quest_Parked", "Quest_Claimed", "Quest_Objective_Progressed",
             "Achievement_Unlocked", "Achievement_Claimed", "Achievement_Server_First_Lost",
             "Encounter_Engaged", "Encounter_Phase_Changed", "Encounter_Defeated", "Encounter_Wiped",
-            "Gear_Set_Tier", "Gear_Set_Piece");
+            "Gear_Set_Tier", "Gear_Set_Piece", "Reward_Chest_Opened");
 
     @Test
     void everyAnnouncedMomentShipsADefaultThatDecodes() throws IOException {
@@ -99,17 +99,26 @@ class ShippedFeedbackMomentsTest {
         assertTrue(problems.isEmpty(), () -> String.join("\n", problems));
     }
 
-    /** The parked default branches on the reason the engine carries, so ONE file says both things. */
+    /**
+     * The parked default branches on what the engine carries, so ONE file says three things: a full bag, a quest
+     * collected where it was taken, and the plain collect-it-later; a quest finished away from a character reads
+     * as the plain one. A variant that stops matching (a renamed argument on either side) fails here.
+     */
     @Test
-    void theParkedDefaultSaysSomethingDifferentForAFullBag() throws IOException {
+    void theParkedDefaultWordsItsThreeCasesApart() throws IOException {
         FeedbackMomentAsset parked = shipped().get("Quest_Parked");
         assertNotNull(parked);
 
-        FeedbackMomentAsset.Resolved full = parked.resolve(Map.of("reason", "no_space"));
-        FeedbackMomentAsset.Resolved collect = parked.resolve(Map.of("reason", "collect"));
+        String full = parked.resolve(Map.of("reason", "no_space", "turnIn", "accept_site"))
+                .toast().getTitle().getKey();
+        String acceptSite = parked.resolve(Map.of("reason", "collect", "turnIn", "accept_site"))
+                .toast().getTitle().getKey();
+        String plain = parked.resolve(Map.of("reason", "collect")).toast().getTitle().getKey();
+        String away = parked.resolve(Map.of("reason", "away", "turnIn", "character")).toast().getTitle().getKey();
 
-        assertFalse(full.toast().getTitle().getKey().equals(collect.toast().getTitle().getKey()),
-                "a full bag reads a different line from a quest waiting to be collected");
+        assertEquals(3, Set.of(full, acceptSite, plain).size(),
+                "three cases, three different lines, a full bag first: " + List.of(full, acceptSite, plain));
+        assertEquals(plain, away, "finished away from a character reads as the plain collect");
     }
 
     /**

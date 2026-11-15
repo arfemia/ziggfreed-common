@@ -104,10 +104,19 @@ public final class BonusRowConfig extends AbstractKeyedAssetConfig<BonusRowAsset
         return folded().seasons();
     }
 
-    /** The row covering {@code name} in {@code moment}, or null when none does. */
+    /** The shared group's row covering {@code name} in {@code moment}, or null when none does. */
     @Nullable
     public BonusRow bestFor(@Nonnull BonusMoment moment, @Nullable String name) {
         return table().bestFor(moment, name);
+    }
+
+    /**
+     * Every group's row covering {@code name} in {@code moment}, the shared group's first, then the others by
+     * group id ({@link BonusTable#answers}); empty when none does. A hole answers for its group too.
+     */
+    @Nonnull
+    public List<BonusRow> answers(@Nonnull BonusMoment moment, @Nullable String name) {
+        return table().answers(moment, name);
     }
 
     /**
@@ -211,7 +220,7 @@ public final class BonusRowConfig extends AbstractKeyedAssetConfig<BonusRowAsset
             }
             LootRef loot = asset.getLoot();
             BonusRow row = new BonusRow(moment, asset.match(), id, loot == null ? LootRef.of(null, null) : loot,
-                    asset.getChance());
+                    asset.getChance(), asset.getGroup(), asset.addsYield());
             BonusTable.Row<BonusRow> entry = BonusTable.Row.of(asset.match(), row);
             every.add(entry);
             if (inSeason) {

@@ -11,6 +11,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -22,7 +23,11 @@ import org.junit.jupiter.api.io.TempDir;
  * the next sweep which of them were placed. Dropping the rows there made every boot re-adopt the
  * world's NPCs, and a placement without {@code Respawn} whose NPC had been killed came back after a
  * restart. Only a world deleted with its removal (an instance or portal world torn down) takes its
- * rows with it, so it leaves no orphan behind.
+ * rows with it, so it leaves no orphan behind, and a world gone while nothing listened (deleted while
+ * the server was down) is pruned at the next start.
+ *
+ * <p>The ledger writes through the engine's atomic writer, which on Update 7 loads only under the engine's
+ * log manager, so the tests that read a written ledger back are tagged {@code engine-items}.
  */
 class NpcPlacementWorldRemovalTest {
 
@@ -48,6 +53,7 @@ class NpcPlacementWorldRemovalTest {
 
     // ==================== what a removal keeps ====================
 
+    @Tag("engine-items")
     @Test
     void aKeptWorldsRowsSurviveItsRemovalAndTheRestart(@TempDir Path dir) {
         NpcPlacementLedger ledger = pointAt(dir);
@@ -74,6 +80,7 @@ class NpcPlacementWorldRemovalTest {
 
     // ==================== what a deletion drops ====================
 
+    @Tag("engine-items")
     @Test
     void aDeletedWorldTakesItsRowsAndCachedPositionsWithIt(@TempDir Path dir) {
         NpcPlacementLedger ledger = pointAt(dir);
@@ -90,6 +97,35 @@ class NpcPlacementWorldRemovalTest {
         assertNull(NpcPlacementPositionCache.get(DELETED, "warden", ANCHOR));
         assertEquals(GUIDE, ledger.uuidOf(KEPT, "guide", ANCHOR), "another world's rows are not touched");
         assertNotNull(NpcPlacementPositionCache.get(KEPT, "guide", ANCHOR));
+    }
+
+    /**
+     * A world deleted while nothing listened (a crash, or the next start deleting it) never comes back, so its
+     * rows go at the next start's prune, while a world still loaded or on disk keeps every row: its NPCs sleep
+     * in its chunks and its rows are what keep them from being placed twice. A world deleted this run takes no
+     * row back from a late write until a world of its name is added again.
+     */
+    @Test
+    void onlyAVanishedWorldsRowsArePrunedAndADeletedWorldTakesNoLateRow(@TempDir Path dir) {
+        NpcPlacementLedger ledger = pointAt(dir);
+        ledger.record(KEPT, "guide", ANCHOR, GUIDE);
+        ledger.record(DELETED, "warden", ANCHOR, WARDEN);
+        ledger.record("instance-ruins-9c0d", "warden", ANCHOR, WARDEN);
+
+        int pruned = ledger.pruneWorlds(world -> world.equals(KEPT) || world.equals("instance-ruins-9c0d"));
+
+        assertEquals(1, pruned);
+        assertTrue(ledger.rowsInWorld(DELETED).isEmpty(), "a world neither loaded nor on disk loses its rows");
+        assertEquals(GUIDE, ledger.uuidOf(KEPT, "guide", ANCHOR), "a live world keeps every row");
+        assertEquals(WARDEN, ledger.uuidOf("instance-ruins-9c0d", "warden", ANCHOR),
+                "a world on disk keeps its rows, loaded or not");
+
+        NpcPlacementReconciler.forgetWorld(DELETED, true);
+        ledger.record(DELETED, "warden", ANCHOR, WARDEN);
+        assertNull(ledger.uuidOf(DELETED, "warden", ANCHOR), "a late write never brings a deleted world's row back");
+        ledger.worldAdded(DELETED);
+        ledger.record(DELETED, "warden", ANCHOR, WARDEN);
+        assertEquals(WARDEN, ledger.uuidOf(DELETED, "warden", ANCHOR), "a world added again under the name takes rows");
     }
 
     // ==================== which removal is a deletion ====================

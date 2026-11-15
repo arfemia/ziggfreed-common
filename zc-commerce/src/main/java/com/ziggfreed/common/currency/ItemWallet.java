@@ -5,7 +5,7 @@ import javax.annotation.Nonnull;
 import com.ziggfreed.common.subject.Subject;
 
 /**
- * How an ITEM-backed currency's balance is read and moved: the player's own inventory, behind three
+ * How an ITEM-backed currency's balance is read and moved: the player's own inventory, behind four
  * methods.
  *
  * <p>It is a seam for one reason. An item-backed balance is the one part of the currency engine
@@ -51,4 +51,19 @@ public interface ItemWallet {
      * to do about the remainder.
      */
     long give(@Nonnull Subject subject, @Nonnull String itemId, long amount);
+
+    /**
+     * {@link #give}, landing only where {@link #count} reads: hand over up to {@code amount} of
+     * {@code itemId} into what the balance counts and answer how much went in, handing nothing
+     * anywhere else. The currency engine gives a CAPPED item currency this way, because its cap is
+     * read off {@link #count}: a part landed somewhere the count cannot see (the ground at the
+     * player's feet) would pass every later cap check again and, picked up, carry the balance past
+     * the cap.
+     *
+     * <p>The default is {@link #give}, which is right for a wallet whose give lands only where its
+     * count reads; a wallet whose give can land elsewhere overrides it ({@link NativeItemWallet}).
+     */
+    default long giveIntoBag(@Nonnull Subject subject, @Nonnull String itemId, long amount) {
+        return give(subject, itemId, amount);
+    }
 }

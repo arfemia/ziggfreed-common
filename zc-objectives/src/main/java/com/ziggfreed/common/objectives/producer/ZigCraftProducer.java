@@ -80,6 +80,8 @@ public final class ZigCraftProducer extends EntityEventSystem<EntityStore, Craft
         }
         Ref<EntityStore> playerEntityRef = playerRef.getReference();
         Ref<EntityStore> ref = playerEntityRef == null ? subjectRef : playerEntityRef;
+        // A craft draws its ingredients from the same slots a meal leaves, so the eating producer is told first.
+        ZigConsumeItemProducer.markCraft(playerRef.getUuid());
         ProgressDispatch.fire(store, ref, commandBuffer, KIND, target, null,
                 craftBatchAmount(event.getQuantity()), new CraftPayload(event, recipeId));
     }

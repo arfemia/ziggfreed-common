@@ -20,3 +20,14 @@ preview.chance = {0, number}%:
 preview.sometimes = Sometimes:
 preview.more = Plus a little more.
 preview.hidden = And a few more rare finds.
+
+# Where a reward came from, one word per kind of payout (com.ziggfreed.common.loot.claim.ClaimKinds): a reward
+# chest's card shows it over the reward. claim.kind.boss is a boss's reward, its chest's own roll included;
+# claim.kind.bonus is what a rare kill's or break's chest holds; claim.kind.event a reward from a world event;
+# claim.kind.admin one an admin put in a player's Claims.
+claim.kind.boss = Boss Kill
+claim.kind.dungeon = Dungeon Clear
+claim.kind.bonus = Bonus
+claim.kind.quest = Quest
+claim.kind.event = Event
+claim.kind.admin = Gift

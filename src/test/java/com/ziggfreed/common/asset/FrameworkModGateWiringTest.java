@@ -55,14 +55,16 @@ import com.ziggfreed.common.world.gather.GatherShapeConfig;
  *
  * <p>Not listed, because their files carry no top-level {@code Requires} and so cannot be gated:
  * QuestGenerators, ShopEntryGenerators and TrackPickGenerators (a family follows its {@code Base}); DialogueFragments,
- * DialogueExtensions and Dialogues (a line gates on its own {@code Conditions}); Instances, RollPools,
+ * DialogueExtensions and Dialogues (a line gates on its own {@code Conditions}); Instances, RollPools, DropRarities,
  * StatDisplays, ObjectiveKinds, OverheadIndicators, QuestIndicators, RewardKinds, BandedEffects,
- * PrefabPlacements, Leaderboard, Arenas, Party, Dungeons, RewardChests, DialogueOptionTheme, NpcIdentities, Factors,
+ * PrefabPlacements, Leaderboard, Arenas, Party, Dungeons, DungeonRooms, DungeonLayouts, RewardChests,
+ * DialogueOptionTheme, NpcIdentities, Factors,
  * FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, PlayerSettings, AchievementCategories,
- * QuestCategories, AchievementMilestones, Almanac, ShopPools, EncounterBindings,
+ * QuestCategories, AchievementMilestones, Almanac (a collection slot gates on its own {@code Requires}: absent
+ * where its mod is missing, asked of each viewer otherwise), ShopPools, EncounterBindings,
  * EncounterParticipation, EncounterRules, CalendarEvents, CalendarSpawns, Titles, Reputations, TrackCurves,
- * TrackCategories, TrackWorldRules, TrackPickOptions, TrackPickDecks, BoostSettings, WeakSpotSettings, EffectFamilies,
- * ConditionalStats, BlockFamilies and Gateways. A
+ * TrackCategories, TrackWorldRules, TrackPickOptions, BoostSettings, WeakSpotSettings, EffectFamilies,
+ * ConditionalStats, BlockFamilies, GatherRules and Gateways. A
  * store that gains a
  * top-level {@code Requires} moves from this paragraph into {@code GATED}, and into {@code OWNER_READERS}
  * or {@code NO_OWNER_FILE}.

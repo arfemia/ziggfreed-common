@@ -1,0 +1,22 @@
+{
+  "$Comment": "The Reputation Tool, in the creative library's Authoring Tools tab: click a character to open the reputation editor with that character's role added to the reputation you last worked on (or the only one made here), or click anywhere else to make a new reputation or change one made here. A character joins only when the game knows its role and no other reputation already holds it. It needs creative mode and the ziggfreedcommon.author.reputation permission, checked on the server at each click. The ZigAuthorTool tag names the tool; everything else comes from its Parent, Zig_Author_Tool.",
+  "Parent": "Zig_Author_Tool",
+  "TranslationProperties": {
+    "Name": "items.Zig_Author_Reputation.name",
+    "Description": "items.Zig_Author_Reputation.description"
+  },
+  "Icon": "Icons/Items/EditorTools/Entity.png",
+  "Categories": [
+    "Zig_Authoring.Tools"
+  ],
+  "SubCategory": "Editors",
+  "Quality": "Tool",
+  "Tags": {
+    "ZigAuthorTool": [
+      "Reputation"
+    ],
+    "Family": [
+      "ZiggfreedCommon"
+    ]
+  }
+}

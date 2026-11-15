@@ -18,21 +18,24 @@ import javax.annotation.Nullable;
  * track's sources, the bonus rows), over {@link When}'s three leaves. Immutable; build a new one per fold.
  *
  * <p><b>The fold.</b> Rows group by kind id, and within a kind by their fold key (the authored {@code Match} and
- * {@code Qualifier}, lower-cased), so two rows claiming one pattern in one kind are ONE answer: the later row in
- * fold order wins it and takes the earlier one's place.
+ * {@code Qualifier} as {@link MatchKey#foldKey()} spells them), so two rows claiming one key in one kind are ONE
+ * answer: the later row in fold order wins it and takes the earlier one's place.
  *
- * <p><b>The match.</b> A row covers a moment when its {@code Match} matches the target and its {@code Qualifier},
- * when it names one, matches the moment's qualifier. Covering rows rank by the shared ladder
- * ({@link NameMatchRank}): the {@code Match} first (exact, then the longest literal core, then {@code *}), then
- * the {@code Qualifier} (a row naming one before a row naming none, then the same ladder), and two equally
- * specific rows keep the one folded first. {@link #bestFor} answers the winner; {@link #matching} the whole
- * ladder, most specific first, for a reader that walks down it (a soft gate paying the next row when the first
- * is out of reach).
+ * <p><b>The match.</b> A row covers a moment when its {@code Match} covers the target and its {@code Qualifier},
+ * when it names one, covers the moment's qualifier. Either may be a name pattern or a set key ({@link MatchKey}:
+ * {@code ItemTag:}, {@code BlockFamily:}, {@code NpcGroup:}), read off the target's own asset. Covering rows rank
+ * by the shared ladder ({@link NameMatchRank}): the {@code Match} first (exact, then the longest literal core, then
+ * any set key, then {@code *}), then the {@code Qualifier} (a row naming one before a row naming none, then the
+ * same ladder), and two equally specific rows keep the one folded first. So a specific id always beats a set, and a
+ * set beats only the catch-all. {@link #bestFor} answers the winner; {@link #matching} the whole ladder, most
+ * specific first, for a reader that walks down it (a soft gate paying the next row when the first is out of reach).
  *
  * <p><b>The memo.</b> A table is asked the same few hundred targets over and over (every block a player breaks),
- * so each kind keeps its answer per target and qualifier as asked, a hit allocating nothing; a table never changes
- * once folded, so the memo never goes stale. It stops growing at {@link #MEMO_LIMIT} targets a kind (and as many
- * qualifiers a target) and answers the rest by walking.
+ * so each kind keeps its answer per target and qualifier as asked, a hit allocating nothing. A table of name
+ * patterns alone never changes once folded, so its memo never goes stale; a table with a set key drops its memo
+ * whenever {@link MatchSets#generation()} moves (an item, block family or NPC group load), so a set's answer
+ * follows the assets. It stops growing at {@link #MEMO_LIMIT} targets a kind (and as many qualifiers a target) and
+ * answers the rest by walking.
  *
  * @param <E> the table's own row type
  */
@@ -41,8 +44,8 @@ public final class MomentTable<E> {
     /** The most (target, qualifier) answers one kind keeps. */
     public static final int MEMO_LIMIT = 8192;
 
-    /** One row as authored for the fold: its kind, its parsed patterns, the key rows collapse on, the row. */
-    public record Row<R>(@Nonnull String kindId, @Nonnull NamePattern match, @Nullable NamePattern qualifier,
+    /** One row as authored for the fold: its kind, its parsed keys, the key rows collapse on, the row. */
+    public record Row<R>(@Nonnull String kindId, @Nonnull MatchKey match, @Nullable MatchKey qualifier,
             @Nonnull String foldKey, @Nonnull R entry) {
 
         /**
@@ -62,27 +65,44 @@ public final class MomentTable<E> {
             if (kind == null) {
                 return null;
             }
-            String authored = match == null ? "" : match.trim();
+            MatchKey target = MatchKey.parse(match);
             String asked = qualifier == null ? "" : qualifier.trim();
-            return new Row<>(kind, NamePattern.parse(authored.isEmpty() ? "*" : authored),
-                    asked.isEmpty() ? null : NamePattern.parse(asked),
-                    authored.toLowerCase(Locale.ROOT) + '|' + asked.toLowerCase(Locale.ROOT), entry);
+            MatchKey qualified = asked.isEmpty() ? null : MatchKey.parse(asked);
+            return new Row<>(kind, target, qualified,
+                    target.foldKey() + '|' + (qualified == null ? "" : qualified.foldKey()), entry);
+        }
+
+        /** Does either key name a set, whose answer follows the assets? */
+        boolean readsSets() {
+            return match.isSet() || (qualifier != null && qualifier.isSet());
         }
     }
 
     /** The empty table: covers nothing. */
-    private static final MomentTable<?> EMPTY = new MomentTable<>(Map.of());
+    private static final MomentTable<?> EMPTY = new MomentTable<>(Map.of(), false);
 
     /** Per kind id, its rows in fold order. */
     @Nonnull
     private final Map<String, List<Row<E>>> rows;
 
-    /** Per kind id, the ladder already worked out per target, then per qualifier ({@code ""} for none). */
-    @Nonnull
-    private final Map<String, Map<String, Map<String, List<E>>>> memo = new ConcurrentHashMap<>();
+    /** Does any row name a set? Only then is the memo stamped against {@link MatchSets#generation()}. */
+    private final boolean readsSets;
 
-    private MomentTable(@Nonnull Map<String, List<Row<E>>> rows) {
+    /** The answers kept, with the set generation they were worked out under. Replaced whole, never cleared. */
+    @Nonnull
+    private volatile Memo<E> memo;
+
+    /**
+     * Per kind id, the ladder already worked out per target, then per qualifier ({@code ""} for none), under one set
+     * generation. An answer worked out under an older memo lands in that one, which nobody reads again.
+     */
+    private record Memo<E>(long stamp, @Nonnull Map<String, Map<String, Map<String, List<E>>>> byKind) {
+    }
+
+    private MomentTable(@Nonnull Map<String, List<Row<E>>> rows, boolean readsSets) {
         this.rows = rows;
+        this.readsSets = readsSets;
+        this.memo = new Memo<>(readsSets ? MatchSets.generation() : 0L, new ConcurrentHashMap<>());
     }
 
     /** The table that covers nothing. */
@@ -105,10 +125,15 @@ public final class MomentTable<E> {
             return empty();
         }
         Map<String, List<Row<E>>> built = new LinkedHashMap<>();
+        boolean sets = false;
         for (Map.Entry<String, Map<String, Row<E>>> e : folded.entrySet()) {
-            built.put(e.getKey(), List.copyOf(e.getValue().values()));
+            List<Row<E>> kind = List.copyOf(e.getValue().values());
+            built.put(e.getKey(), kind);
+            for (Row<E> row : kind) {
+                sets |= row.readsSets();
+            }
         }
-        return new MomentTable<>(Collections.unmodifiableMap(built));
+        return new MomentTable<>(Collections.unmodifiableMap(built), sets);
     }
 
     /** Does any row answer for {@code kindId}? */
@@ -121,6 +146,11 @@ public final class MomentTable<E> {
     @Nonnull
     public Set<String> kinds() {
         return rows.keySet();
+    }
+
+    /** Does any row of this table name a set ({@link MatchKey#isSet()})? */
+    public boolean readsSets() {
+        return readsSets;
     }
 
     /**
@@ -158,13 +188,15 @@ public final class MomentTable<E> {
         // Kept by the target and qualifier as asked (no case fold on a hit, so a hit allocates nothing); a
         // spelling in another case is one more entry with the same answer.
         String byQualifier = qualifier == null ? "" : qualifier;
-        Map<String, Map<String, List<E>>> kept = memo.computeIfAbsent(kindId, kind -> new ConcurrentHashMap<>());
+        Map<String, Map<String, List<E>>> kept = current().byKind().computeIfAbsent(kindId,
+                kind -> new ConcurrentHashMap<>());
         Map<String, List<E>> forTarget = kept.get(target);
         List<E> held = forTarget == null ? null : forTarget.get(byQualifier);
         if (held != null) {
             return held;
         }
-        List<E> ladder = ladder(candidates, target.toLowerCase(Locale.ROOT), byQualifier.toLowerCase(Locale.ROOT));
+        List<E> ladder = ladder(candidates, target, target.toLowerCase(Locale.ROOT), byQualifier,
+                byQualifier.toLowerCase(Locale.ROOT));
         if (forTarget == null && kept.size() < MEMO_LIMIT) {
             forTarget = kept.computeIfAbsent(target, t -> new ConcurrentHashMap<>());
         }
@@ -219,14 +251,30 @@ public final class MomentTable<E> {
         return true;
     }
 
+    /** The memo to read and write: a fresh one once the set generation has moved past the kept one's. */
+    @Nonnull
+    private Memo<E> current() {
+        Memo<E> held = memo;
+        if (!readsSets) {
+            return held;
+        }
+        long now = MatchSets.generation();
+        if (held.stamp() == now) {
+            return held;
+        }
+        Memo<E> fresh = new Memo<>(now, new ConcurrentHashMap<>());
+        memo = fresh;
+        return fresh;
+    }
+
     /** The covering rows of {@code candidates}, most specific first, ties in fold order (the sort is stable). */
     @Nonnull
-    private static <E> List<E> ladder(@Nonnull List<Row<E>> candidates, @Nonnull String name,
-            @Nonnull String asked) {
+    private static <E> List<E> ladder(@Nonnull List<Row<E>> candidates, @Nonnull String target,
+            @Nonnull String targetLower, @Nonnull String asked, @Nonnull String askedLower) {
         List<Row<E>> covering = new ArrayList<>(2);
         for (Row<E> row : candidates) {
-            if (row.match().matches(name) && (row.qualifier() == null
-                    || (!asked.isEmpty() && row.qualifier().matches(asked)))) {
+            if (row.match().matches(target, targetLower) && (row.qualifier() == null
+                    || (!asked.isEmpty() && row.qualifier().matches(asked, askedLower)))) {
                 covering.add(row);
             }
         }
@@ -245,13 +293,13 @@ public final class MomentTable<E> {
 
     /** Most specific first: the Match's rank, then a Qualifier named before none, then the Qualifier's rank. */
     private static final Comparator<Row<?>> SPECIFICITY = (a, b) -> {
-        int byMatch = NameMatchRank.ofPattern(a.match()).compareTo(NameMatchRank.ofPattern(b.match()));
+        int byMatch = a.match().rank().compareTo(b.match().rank());
         if (byMatch != 0) {
             return byMatch;
         }
         if (a.qualifier() == null || b.qualifier() == null) {
             return a.qualifier() == null ? (b.qualifier() == null ? 0 : 1) : -1;
         }
-        return NameMatchRank.ofPattern(a.qualifier()).compareTo(NameMatchRank.ofPattern(b.qualifier()));
+        return a.qualifier().rank().compareTo(b.qualifier().rank());
     };
 }

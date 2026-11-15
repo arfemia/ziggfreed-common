@@ -46,7 +46,7 @@ import com.ziggfreed.common.stats.StatIndexCache;
  *   <tr><td>{@code hytale:stat}</td><td>a registered {@code EntityStatType} id</td>
  *       <td>the subject's EFFECTIVE (folded max) value for that channel</td></tr>
  *   <tr><td>{@code hytale:stat_percent}</td><td>a registered {@code EntityStatType} id</td>
- *       <td>0..100: the channel's current value over that maximum</td></tr>
+ *       <td>0..100: where the channel's current value sits between its minimum and that maximum</td></tr>
  *   <tr><td>{@code hytale:tool_power}</td><td>a native {@code GatherType} name (omit for the best
  *       of any type)</td><td>the held tool's gather power</td></tr>
  *   <tr><td>{@code hytale:tool_tier}</td><td>a native {@code GatherType} name (omit for the best
@@ -118,7 +118,7 @@ public final class HytaleFactors {
     public static final String STAT = "hytale:stat";
     /**
      * {@code hytale:stat_percent} - how full the subject's {@code EntityStatType} named by Param is right now:
-     * its current value over its effective maximum, 0..100.
+     * where its current value sits between its minimum and its effective maximum, 0..100 ({@link #percentOf}).
      */
     public static final String STAT_PERCENT = "hytale:stat_percent";
     /** {@code hytale:tool_power} - the held tool's gather power for the GatherType named by Param. */
@@ -241,16 +241,21 @@ public final class HytaleFactors {
         }
         EntityStatMap stats = store.getComponent(subject, EntityStatsModule.get().getEntityStatMapComponentType());
         EntityStatValue value = stats == null ? null : stats.get(index);
-        return value == null ? null : percentOf(value.get(), value.getMax());
+        return value == null ? null : percentOf(value.get(), value.getMin(), value.getMax());
     }
 
-    /** {@code current} as a share of {@code max}, 0..100; null when {@code max} is not above 0. */
+    /**
+     * Where {@code current} sits in the range {@code min} to {@code max}, 0..100: the engine's own reading
+     * ({@code EntityStatValue.asPercentage}, 0 at the minimum and 100 at the maximum), the one the {@code ZigStatPercent}
+     * condition asks too, so a stat with a negative minimum reads alike in a formula and a condition. Null when the
+     * range is empty or the value is not a number. Pure.
+     */
     @Nullable
-    static Double percentOf(double current, double max) {
-        if (!(max > 0.0) || !Double.isFinite(current)) {
+    public static Double percentOf(double current, double min, double max) {
+        if (!(max > min) || !Double.isFinite(current) || !Double.isFinite(min) || !Double.isFinite(max)) {
             return null;
         }
-        return Math.max(0.0, Math.min(100.0, current / max * 100.0));
+        return Math.max(0.0, Math.min(100.0, (current - min) / (max - min) * 100.0));
     }
 
     /**

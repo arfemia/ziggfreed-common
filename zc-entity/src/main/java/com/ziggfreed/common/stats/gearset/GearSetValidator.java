@@ -425,7 +425,9 @@ public final class GearSetValidator {
         if (!tier.hasCondition()) {
             out.add(Finding.error(DOMAIN, TIER_WITHOUT_CONDITION, where + " authors none of Pieces, Armor, "
                     + "Held or Utility, so it can never apply", id));
-        } else {
+        } else if (!tier.bound()) {
+            // A bound tier (While) is its own tier whatever pieces it asks: its stats count only while its conditions
+            // hold, so it can never fold into an unbound one (GearSetJoins.matchOf keeps them apart the same way).
             Integer earlier = seen.putIfAbsent(tier.condition(), index);
             if (earlier != null) {
                 out.add(Finding.warning(DOMAIN, DUPLICATE_TIER, where + " asks exactly what tier " + earlier

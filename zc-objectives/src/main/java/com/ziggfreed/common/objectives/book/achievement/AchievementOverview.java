@@ -123,8 +123,11 @@ public final class AchievementOverview {
         }
         MilestoneView rung = rungs.get(next);
         int moreAfter = rungs.size() - next - 1;
-        return new MilestoneCard(rung.threshold(),
-                reader.text("book.achievements.milestone.title", rung.threshold(), rung.title()),
+        // A rung nobody named reads by its threshold alone.
+        Message title = rung.title() != null
+                ? reader.text("book.achievements.milestone.title", rung.threshold(), rung.title())
+                : reader.text("book.achievements.milestone.title_plain", rung.threshold());
+        return new MilestoneCard(rung.threshold(), title,
                 rewardsLine(reader, rung), toward(points, rung.threshold()), rung.claimable(), false, moreAfter,
                 moreAfter > 0 ? reader.text("book.achievements.milestone.more_after", moreAfter) : null,
                 thresholds);

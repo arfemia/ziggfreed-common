@@ -2,11 +2,8 @@ package com.ziggfreed.common.track.pick;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
-import java.util.TreeMap;
 import java.util.TreeSet;
 
 import javax.annotation.Nonnull;
@@ -23,7 +20,6 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.asset.EditorSchema;
-import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.commerce.asset.CostAsset;
 import com.ziggfreed.common.codec.JsonTreeCodec;
 import com.ziggfreed.common.grant.BuiltInGrants;
@@ -32,6 +28,7 @@ import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.progress.gate.StoreGates;
 import com.ziggfreed.common.text.ContentTextAsset;
 import com.ziggfreed.common.track.TrackKey;
+import com.ziggfreed.common.track.asset.PrestigeReset;
 import com.ziggfreed.common.track.asset.TrackAsset;
 
 /**
@@ -41,9 +38,9 @@ import com.ziggfreed.common.track.asset.TrackAsset;
  *
  * <ul>
  *   <li><b>A choice</b> writes {@code Groups}: each group opens a slot at its levels ({@code From}, {@code Every},
- *       {@code To}, {@code At}, less {@code Skip}), where the player chooses {@code Choose} of the options offered
- *       there (shared {@link PickOptionAsset} files, drawn by a {@link PickDeckAsset} when the group names one);
- *       what an option grants is its payload. One line covers every level:
+ *       {@code To}, {@code At}, less {@code Skip}), where the player chooses {@code Choose} of the options open
+ *       there (shared {@link PickOptionAsset} files, each open between its own {@code From} and {@code To}); what
+ *       an option grants is its payload. One line covers every level:
  *       {@code "Groups": [ { "From": 2, "Every": 1, "Choose": 1, "Options": [ ... ] } ]}.</li>
  *   <li><b>A pick bought outright</b> writes no {@code Groups}: it opens at {@code At}, may be taken up to
  *       {@code Repeat.Max} times, each take paying its {@code Cost} (none means free) and granting its own
@@ -54,12 +51,11 @@ import com.ziggfreed.common.track.asset.TrackAsset;
  * <p>Either style also reads {@code Requires} (asked of the player; a plain mod condition keeps the file out where
  * the mod is not installed), {@code Prerequisites} (picks or options on the same track taken first), {@code Where}
  * (the trainers whose page offers it; none means the track's own page), {@code SpendCap} (the most points of its
- * Cost's pool a player may have spent with this one taken) and {@code KeptThroughPrestige} (a prestige leaves it be,
- * as it always leaves what a trainer taught, R641). A choice's offers are a function of the files alone (R724): the
- * deck draws them the same way on every server, and {@code Offers} pins a level: in place of the draw, each group
- * that lists at least one of its live options offers its core and those; a group that lists none keeps its drawn
- * offer, and an empty list unpins the level. Every leaf inherits through {@code Parent}; a server owner retunes a
- * pick in {@code mods/ziggfreedcommon/track-picks.json}.
+ * Cost's pool a player may have spent with this one taken), {@code Node} (the either-or it is one face of, on any
+ * track) and {@code ResetsAs} (which of the track's {@code Prestige.Resets} switches decides what a prestige does to
+ * it, R852). A choice's offers are a function of the files alone (R724): every option open at a slot's level, the
+ * same on every server. Every leaf inherits through {@code Parent}; a server owner retunes a pick in
+ * {@code mods/ziggfreedcommon/track-picks.json}.
  *
  * <p>A file writing {@code Abstract} is a skeleton the picks under it inherit from (a tree's track and branch), never a
  * pick, and a pick lives only while every pick up its {@code Parent} chain is switched on, so a skeleton switched off
@@ -91,16 +87,15 @@ public final class TrackPickAsset implements JsonAssetWithMap<String, DefaultAss
     @Nullable protected Integer choose;
     @Nullable protected Group[] groups;
     @Nullable protected JsonElement vars;
-    @Nullable protected Map<String, String[]> offers;
     @Nullable protected Cost cost;
     @Nullable protected String[] prerequisites;
     @Nullable private GateSpec gate;
     @Nullable protected Repeat repeat;
     @Nullable protected Integer spendCap;
     @Nullable protected Where where;
-    @Nullable protected Boolean keptThroughPrestige;
+    @Nullable protected String resetsAs;
     @Nullable protected String branch;
-    @Nullable protected String node;
+    @Nullable protected String[] node;
     @Nullable protected Grant[] grants;
 
     /** The live part of the {@code Requires} block, lifted once per instance ({@link StoreGates#live}). */
@@ -170,14 +165,6 @@ public final class TrackPickAsset implements JsonAssetWithMap<String, DefaultAss
             .documentation("The values this pick's options are filled with: an option file writing {Held} or "
                     + "{Cause} in its Grants reads them from here (a group's own Vars win), so one option serves "
                     + "every track. Each value is a string, number or true/false.").add()
-            .appendInherited(new KeyedCodec<>("Offers", new InheritMapCodec<>(Codec.STRING_ARRAY), false),
-                    (a, v) -> a.offers = v, a -> a.offers, (a, p) -> a.offers = p.offers)
-            .documentation("Levels whose offer is written out, by level: { \"10\": [ \"Your_Edge\", \"Your_Keen\" ] } "
-                    + "offers those options at level 10, with the Core line, in place of what the Deck would draw "
-                    + "there. Every other level is drawn from these files alone, the same on every server, so friends "
-                    + "and guides can compare. Each group offers only the written options it lists that are switched "
-                    + "on and read; a group listing none of them keeps its drawn offer there, and an empty list puts "
-                    + "the drawn offer back. Merges level by level under Parent and in the owner file.").add()
             .appendInherited(new KeyedCodec<>("Cost", Cost.CODEC, false),
                     (a, v) -> a.cost = v, a -> a.cost, (a, p) -> a.cost = p.cost)
             .documentation("What each take of this pick costs (each level of a choice made), in a track's points, "
@@ -202,27 +189,29 @@ public final class TrackPickAsset implements JsonAssetWithMap<String, DefaultAss
                     (a, v) -> a.where = v, a -> a.where, (a, p) -> a.where = p.where)
             .documentation("Where this pick is taken: the trainers whose page offers it. Leave it out to take it on "
                     + "the track's own page; a server owner turns trainers off by giving it no Placements.").add()
-            .appendInherited(new KeyedCodec<>("KeptThroughPrestige", Codec.BOOLEAN, false),
-                    (a, v) -> a.keptThroughPrestige = v, a -> a.keptThroughPrestige,
-                    (a, p) -> a.keptThroughPrestige = p.keptThroughPrestige)
-            .metadata(EditorSchema.defaultValue(false))
-            .documentation("True keeps this pick through every prestige, whatever the track's prestige Build says: "
-                    + "abilities, techniques and Mastery picks are never lost to a prestige, and stay held even if a "
-                    + "branch's points no longer meet its Requires. A pick whose Where names a trainer is always "
-                    + "kept. False when unauthored: the pick follows the track's Build. It governs a prestige only: "
-                    + "a respec clears this pick and gives its points back, keeping only what a trainer taught.")
-            .add()
+            .appendInherited(new KeyedCodec<>("ResetsAs", Codec.STRING, false),
+                    (a, v) -> a.resetsAs = v, a -> a.resetsAs, (a, p) -> a.resetsAs = p.resetsAs)
+            .metadata(PrestigeReset.editorHint())
+            .documentation(PrestigeReset.DOCUMENTATION + " A prestige the track's Prestige.Resets says keeps this "
+                    + "kind leaves the pick exactly as it is, held even if a branch's points no longer meet its "
+                    + "Requires; one it resets follows the track's prestige Build. It governs a prestige only: a "
+                    + "respec clears every pick but what a trainer taught and gives its points back.").add()
             .appendInherited(new KeyedCodec<>("Branch", Codec.STRING, false),
                     (a, v) -> a.branch = v, a -> a.branch, (a, p) -> a.branch = p.branch)
             .documentation("The branch of the track's tree this pick sits in, by id (one its track's Branches "
                     + "names): the points spent on it count toward that branch, so a later row's Requires can "
                     + "open on them (ziggfreedcommon:track_branch_spent, Param <Track>:<Branch>, Min 5). Leave it "
                     + "out for a pick in no branch, such as a root row.").add()
-            .appendInherited(new KeyedCodec<>("Node", Codec.STRING, false),
+            .appendInherited(new KeyedCodec<>("Node", Codec.STRING_ARRAY, false),
                     (a, v) -> a.node = v, a -> a.node, (a, p) -> a.node = p.node)
-            .documentation("The choice node this pick is one face of, by an id of your own: the picks on one "
-                    + "track that write the same Node are one choice, so taking one locks the others until it is "
-                    + "undone or the track is respecced. Leave it out for a pick that stands alone.").add()
+            .documentation("The either-or groups this pick is one face of, by ids of your own: every pick that "
+                    + "writes a group's id is one choice with the others writing it, on its own track or on another "
+                    + "(a group one face of which sits on each of five tracks lets a player hold it on one of them), "
+                    + "so taking one face locks every other face of each of its groups until it is undone or its "
+                    + "track is respecced. The first id is the row's own choice, the one the tree audit weighs a row "
+                    + "by; any after it are further either-ors the pick belongs to (two picks of different rows that "
+                    + "rule each other out). Give a group an id no other track's picks use unless they belong to the "
+                    + "same choice. Leave it out for a pick that stands alone.").add()
             .appendInherited(new KeyedCodec<>("Grants", Grant.ARRAY_CODEC, false),
                     (a, v) -> a.grants = v, a -> a.grants, (a, p) -> a.grants = p.grants)
             .documentation("What a pick bought outright grants each time it is taken (a choice grants what its "
@@ -336,57 +325,17 @@ public final class TrackPickAsset implements JsonAssetWithMap<String, DefaultAss
     }
 
     /**
-     * The levels whose offer is written out ({@code Offers}), ascending, each to its option ids (lower-cased, blanks
-     * and repeats left out); a level written with no option is left out, as is a key that is no level.
+     * Which of its track's {@code Prestige.Resets} switches decides what a prestige does to this pick (R852): its
+     * {@code ResetsAs} as written, else {@link PrestigeReset#TRAINER_PICKS} for a pick whose {@code Where} names a
+     * trainer and {@link PrestigeReset#PICKS} for any other.
      */
     @Nonnull
-    public Map<Integer, List<String>> offers() {
-        Map<Integer, List<String>> out = new TreeMap<>();
-        if (offers != null) {
-            offers.forEach((key, ids) -> {
-                Integer level = offerLevel(key);
-                List<String> lowered = lowered(ids);
-                if (level != null && !lowered.isEmpty()) {
-                    out.put(level, lowered);
-                }
-            });
+    public PrestigeReset resetsAs() {
+        PrestigeReset own = PrestigeReset.of(resetsAs);
+        if (own != null) {
+            return own;
         }
-        return Collections.unmodifiableMap(out);
-    }
-
-    /** The {@code Offers} keys that are no level (1 or more), as written. */
-    @Nonnull
-    public List<String> unreadOfferLevels() {
-        List<String> out = new ArrayList<>();
-        if (offers != null) {
-            for (String key : offers.keySet()) {
-                if (offerLevel(key) == null) {
-                    out.add(key);
-                }
-            }
-        }
-        return List.copyOf(out);
-    }
-
-    @Nullable
-    private static Integer offerLevel(@Nullable String key) {
-        if (key == null) {
-            return null;
-        }
-        try {
-            int level = Integer.parseInt(key.trim());
-            return level >= 1 ? level : null;
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
-
-    /**
-     * Does a prestige leave this pick be, whatever the track's Build says (R641)? Always for a pick whose
-     * {@code Where} names a trainer, else what {@code KeptThroughPrestige} says (false unauthored).
-     */
-    public boolean keptThroughPrestige() {
-        return !placements().isEmpty() || Boolean.TRUE.equals(keptThroughPrestige);
+        return placements().isEmpty() ? PrestigeReset.PICKS : PrestigeReset.TRAINER_PICKS;
     }
 
     /** The points each take costs, 0 for a free pick. */
@@ -458,11 +407,23 @@ public final class TrackPickAsset implements JsonAssetWithMap<String, DefaultAss
         return id.isEmpty() ? null : id;
     }
 
-    /** The choice node this pick is one face of, lower-cased, or null for none. */
+    /**
+     * Every either-or group ({@code Node}) this pick is one face of, lower-cased, in written order, blanks and repeats
+     * left out; empty for a pick that stands alone (R859, R895).
+     */
+    @Nonnull
+    public List<String> nodes() {
+        return lowered(node);
+    }
+
+    /**
+     * The first group it names, lower-cased: its row's own choice, the one the tree audit weighs a row by (a branch's
+     * total at the dearest face, a node's even faces); null for none.
+     */
     @Nullable
     public String node() {
-        String id = TrackKey.normalize(node);
-        return id.isEmpty() ? null : id;
+        List<String> all = nodes();
+        return all.isEmpty() ? null : all.get(0);
     }
 
     /** The grants a pick bought outright pays (null entries left out). */
@@ -500,9 +461,9 @@ public final class TrackPickAsset implements JsonAssetWithMap<String, DefaultAss
     }
 
     /**
-     * One choice group: the levels it opens a slot at, how many options a slot takes, the options it offers and how
-     * they are drawn. A player's record knows each slot as {@code <pick>/<group key>/<level>}, the group key its
-     * {@code Id} or, unauthored, built from its own levels, never its place in the list.
+     * One choice group: the levels it opens a slot at, how many options a slot takes, and the options it offers. A
+     * player's record knows each slot as {@code <pick>/<group key>/<level>}, the group key its {@code Id} or,
+     * unauthored, built from its own levels, never its place in the list.
      */
     public static final class Group {
 
@@ -514,8 +475,6 @@ public final class TrackPickAsset implements JsonAssetWithMap<String, DefaultAss
         @Nullable protected int[] skip;
         @Nullable protected Integer choose;
         @Nullable protected String[] options;
-        @Nullable protected String core;
-        @Nullable protected String deck;
         @Nullable protected JsonElement vars;
 
         public static final BuilderCodec<Group> CODEC = BuilderCodec.builder(Group.class, Group::new)
@@ -549,20 +508,9 @@ public final class TrackPickAsset implements JsonAssetWithMap<String, DefaultAss
                 .add()
                 .appendInherited(new KeyedCodec<>("Options", Codec.STRING_ARRAY, false),
                         (o, v) -> o.options = v, o -> o.options, (o, p) -> o.options = p.options)
-                .documentation("The options this group draws from, by id (files under "
-                        + "Server/ZiggfreedCommon/TrackPickOptions), in the order the Deck takes them: of two options "
-                        + "otherwise alike, the one offered longest ago comes first, then the one listed first. "
-                        + "Without a Deck every option open at a level is offered there.").add()
-                .appendInherited(new KeyedCodec<>("Core", Codec.STRING, false),
-                        (o, v) -> o.core = v, o -> o.core, (o, p) -> o.core = p.core)
-                .documentation("The main line, by option id: offered at every slot, whatever the deck draws.").add()
-                .appendInherited(new KeyedCodec<>("Deck", Codec.STRING, false),
-                        (o, v) -> o.deck = v, o -> o.deck, (o, p) -> o.deck = p.deck)
-                .metadata(EditorSchema.assetRef(PickDeckAsset.class))
-                .documentation("The deck that draws each slot's offer from Options, by id (a file under "
-                        + "Server/ZiggfreedCommon/TrackPickDecks): how many are offered by level, how often each "
-                        + "kind comes round, the knack slot and the foe levels. Leave it out to offer every option. "
-                        + "The pick's Offers win at the levels they write, where this group lists one of them.")
+                .documentation("The options this group offers, by id (files under "
+                        + "Server/ZiggfreedCommon/TrackPickOptions), in this order: every option open at a slot's level "
+                        + "(between its own From and To) is offered there, and the player chooses Choose of them.")
                 .add()
                 .appendInherited(new KeyedCodec<>("Vars", JsonTreeCodec.object(), false),
                         (o, v) -> o.vars = v, o -> o.vars, (o, p) -> o.vars = p.vars)
@@ -575,15 +523,13 @@ public final class TrackPickAsset implements JsonAssetWithMap<String, DefaultAss
         /** Java-side factory (a test); sets the same fields the codec fills. */
         @Nonnull
         public static Group of(@Nullable String id, @Nullable Integer from, @Nullable Integer every,
-                @Nullable Integer to, @Nullable String[] options, @Nullable String core, @Nullable String deck) {
+                @Nullable Integer to, @Nullable String[] options) {
             Group group = new Group();
             group.id = id;
             group.from = from;
             group.every = every;
             group.to = to;
             group.options = options == null ? null : options.clone();
-            group.core = core;
-            group.deck = deck;
             return group;
         }
 
@@ -674,19 +620,6 @@ public final class TrackPickAsset implements JsonAssetWithMap<String, DefaultAss
         @Nonnull
         public List<String> options() {
             return lowered(options);
-        }
-
-        /** The core option id, lower-cased, or null. */
-        @Nullable
-        public String core() {
-            String id = TrackKey.normalize(core);
-            return id.isEmpty() ? null : id;
-        }
-
-        /** The deck id, trimmed, or null. */
-        @Nullable
-        public String deck() {
-            return blankToNull(deck);
         }
 
         /** The {@code Vars} object as written, or null. */

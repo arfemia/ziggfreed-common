@@ -8,14 +8,17 @@
     "keeps no run for it and nothing rises.",
     "",
     "  { \"Class\": \"EncounterManager\", \"Type\": \"Variant\", \"Reference\": \"Zc_Encounter_Endless\",",
-    "    \"Modify\": { \"Band1\": \"Zc_Wave_Rise\", \"Band2\": \"Zc_Wave_Rise\", \"BossWave\": \"Zc_Wave_Rise\",",
-    "      \"Groups\": [ \"Undead\" ],",
+    "    \"Modify\": { \"Band1\": \"Zc_Wave_Rise\", \"Band2\": \"Zc_Wave_Rise\",",
+    "      \"Groups\": [ \"Undead\", \"My_Boss_Group\" ],",
     "      \"_ForwardedModifiers\": {",
     "        \"Band1\": { \"Role\": \"Skeleton_Fighter\", \"FarRole\": \"Skeleton_Archer\", \"NearDistance\": [ 5, 8 ] },",
     "        \"Band2\": { \"Role\": \"Zombie\", \"FarRole\": \"Zombie\", \"NearDistance\": [ 5, 8 ] },",
-    "        \"BossWave\": { \"Role\": \"My_Boss\", \"FarRole\": \"Skeleton_Archer\", \"NearCount\": [ 1, 1 ] } } } }",
+    "        \"BossWave\": { \"SpawnMarker\": \"My_Boss_Marker\", \"BarName\": \"npcs.My_Boss.name\" } } } }",
     "",
     "_ForwardedModifiers sits inside Modify, as every Variant's does; outside it the engine ignores it.",
+    "BossWave is Zc_Boss_Wave_Rise unless the Variant names another: the boss rides out of a manual spawn",
+    "marker in the prefab with his name on the boss bar (its comment tells how). To raise a boss on the",
+    "spot instead, name Zc_Wave_Rise there with the boss as its Role.",
     "",
     "In order. A player comes within PlayerRange of the script's entity and Delay starts (long enough",
     "for an arrival's intro camera to end). Then a wave rises: the dungeon's schedule says which band",
@@ -58,8 +61,8 @@
       "Description": "The macro that raises band slot 4, or $Null for none."
     },
     "BossWave": {
-      "Value": "$Null",
-      "Description": "The macro that raises a boss wave, or $Null for none. The dungeon's Run.Endless.BossEvery says which waves are boss waves."
+      "Value": "Zc_Boss_Wave_Rise",
+      "Description": "The macro that raises a boss wave: Zc_Boss_Wave_Rise, the boss from a manual spawn marker in the prefab, unless written. The dungeon's Run.Endless.BossEvery says which waves are boss waves."
     },
     "Groups": {
       "Value": [ "Skeleton" ],

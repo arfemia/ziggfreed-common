@@ -23,12 +23,10 @@ import com.hypixel.hytale.server.core.entity.ItemUtils;
 import com.hypixel.hytale.server.core.event.events.ecs.UseBlockEvent;
 import com.hypixel.hytale.server.core.inventory.InventoryComponent;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
-import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.interaction.BlockHarvestUtils;
 import com.hypixel.hytale.server.core.modules.interaction.BlockInteractionUtils;
 import com.hypixel.hytale.server.core.modules.interaction.InteractionModule;
-import com.hypixel.hytale.server.core.modules.interaction.components.PlacedByInteractionComponent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.SetBlockSettings;
 import com.hypixel.hytale.server.core.universe.world.World;
@@ -85,7 +83,7 @@ public final class GatherShapes {
         }
         Moment moment = Moment.of(store, ref, blockId, pos, held(store, ref));
         for (GatherShapeAsset shape : shapes) {
-            if (startsOn(shape, moment, false)) {
+            if (startsOn(shape, moment)) {
                 return true;
             }
         }
@@ -99,8 +97,7 @@ public final class GatherShapes {
     @Nonnull
     static List<GatherShapeAsset> breakShapesFor(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull String blockId, @Nonnull Vector3i pos, @Nullable ItemStack held) {
-        return startingOf(GatherShapeConfig.getInstance().breakShapes(), Moment.of(store, ref, blockId, pos, held),
-                true);
+        return startingOf(GatherShapeConfig.getInstance().breakShapes(), Moment.of(store, ref, blockId, pos, held));
     }
 
     /** The {@code Harvest} shapes the player's harvest of {@code blockId} at {@code pos} starts. Empty, never null. */
@@ -108,18 +105,17 @@ public final class GatherShapes {
     static List<GatherShapeAsset> harvestShapesFor(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull String blockId, @Nonnull Vector3i pos) {
         return startingOf(GatherShapeConfig.getInstance().harvestShapes(),
-                Moment.of(store, ref, blockId, pos, held(store, ref)), false);
+                Moment.of(store, ref, blockId, pos, held(store, ref)));
     }
 
     @Nonnull
-    private static List<GatherShapeAsset> startingOf(@Nonnull List<GatherShapeAsset> shapes, @Nonnull Moment moment,
-            boolean breaking) {
+    private static List<GatherShapeAsset> startingOf(@Nonnull List<GatherShapeAsset> shapes, @Nonnull Moment moment) {
         if (shapes.isEmpty()) {
             return List.of();
         }
         List<GatherShapeAsset> out = new ArrayList<>(2);
         for (GatherShapeAsset shape : shapes) {
-            if (startsOn(shape, moment, breaking)) {
+            if (startsOn(shape, moment)) {
                 out.add(shape);
             }
         }
@@ -144,9 +140,10 @@ public final class GatherShapes {
 
     /**
      * Does {@code shape} start on {@code moment}? Its {@code Origin} first (cheap reads), then its {@code Requires}.
-     * {@code breaking} says the block is about to go, so a placed-block mark is spent rather than only read.
+     * Who built the block is the placed-block ledger's placed-by answer, whatever its anti-exploit guard says, and
+     * reading it spends nothing.
      */
-    private static boolean startsOn(@Nonnull GatherShapeAsset shape, @Nonnull Moment moment, boolean breaking) {
+    private static boolean startsOn(@Nonnull GatherShapeAsset shape, @Nonnull Moment moment) {
         GatherShapeAsset.Origin origin = shape.origin();
         BlockFamilyConfig families = BlockFamilyConfig.getInstance();
         if (origin.families().length > 0 && !families.holdsAny(origin.families(), moment.blockId())) {
@@ -156,7 +153,8 @@ public final class GatherShapes {
                 && origin.crouching() != GatherReads.crouching(moment.store(), moment.ref())) {
             return false;
         }
-        if (origin.placed() != null && origin.placed() != placedAt(moment, breaking)) {
+        if (origin.placed() != null && origin.placed() != wasPlaced(moment.worldId(), moment.pos().x,
+                moment.pos().y, moment.pos().z)) {
             return false;
         }
         if (origin.placedWithin() != null) {
@@ -178,21 +176,22 @@ public final class GatherShapes {
                 return false;
             }
         }
-        if (origin.own() && !ownedBy(moment.world(), moment.playerId(), moment.worldId(), moment.pos().x,
-                moment.pos().y, moment.pos().z)) {
+        if (origin.own() && !ownedBy(moment.playerId(), moment.worldId(), moment.pos().x, moment.pos().y,
+                moment.pos().z)) {
             return false;
         }
         return passes(shape.liveRequires(), moment.context());
     }
 
-    private static boolean placedAt(@Nonnull Moment moment, boolean breaking) {
-        if (moment.playerId() == null || moment.worldId() == null) {
-            return false;
-        }
-        Vector3i pos = moment.pos();
-        PlacedBlockLedger ledger = PlacedBlockLedger.getInstance();
-        return breaking ? ledger.consumePlacement(moment.playerId(), moment.worldId(), pos.x, pos.y, pos.z)
-                : ledger.isPlaced(moment.playerId(), moment.worldId(), pos.x, pos.y, pos.z);
+    /** Whether a player put the block at the cell there (the ledger's placed-by answer); false with no world known. */
+    private static boolean wasPlaced(@Nullable UUID worldId, int x, int y, int z) {
+        return worldId != null && PlacedBlockLedger.getInstance().wasPlaced(worldId, x, y, z);
+    }
+
+    /** Whether {@code playerId} placed the block at the cell (the ledger's placed-by answer). */
+    private static boolean ownedBy(@Nullable UUID playerId, @Nullable UUID worldId, int x, int y, int z) {
+        return playerId != null && worldId != null
+                && PlacedBlockLedger.getInstance().isPlacedBy(playerId, worldId, x, y, z);
     }
 
     // ==================== the further blocks ====================
@@ -363,7 +362,6 @@ public final class GatherShapes {
         Boolean placed = walk.walk() == GatherShapeAsset.Walk.TREE && walk.placed() == null ? Boolean.FALSE
                 : walk.placed();
         boolean own = walk.own();
-        PlacedBlockLedger ledger = PlacedBlockLedger.getInstance();
         return (x, y, z) -> {
             int id = cursor.blockId(x, y, z);
             if (id == BlockType.EMPTY_ID) {
@@ -372,11 +370,10 @@ public final class GatherShapes {
             if (families.length == 0 ? id != originIndex : !inFamilies(id, families)) {
                 return false;
             }
-            if (placed != null && moment.playerId() != null && moment.worldId() != null
-                    && placed != ledger.isPlaced(moment.playerId(), moment.worldId(), x, y, z)) {
+            if (placed != null && moment.worldId() != null && placed != wasPlaced(moment.worldId(), x, y, z)) {
                 return false;
             }
-            return !own || ownedBy(moment.world(), moment.playerId(), moment.worldId(), x, y, z);
+            return !own || ownedBy(moment.playerId(), moment.worldId(), x, y, z);
         };
     }
 
@@ -495,31 +492,6 @@ public final class GatherShapes {
         }
         BlockType type = BlockType.getAssetMap().getAsset(blockIndex);
         return type != null && BlockFamilyConfig.getInstance().holdsAny(families, type.getId());
-    }
-
-    /**
-     * Whether the block at the cell was placed by {@code playerId}: the placed-block ledger's placer, or the engine's own
-     * record on a block that keeps one (a farming block).
-     */
-    private static boolean ownedBy(@Nullable World world, @Nullable UUID playerId, @Nullable UUID worldId, int x,
-            int y, int z) {
-        if (world == null || playerId == null) {
-            return false;
-        }
-        if (worldId != null && PlacedBlockLedger.getInstance().isPlacedBy(playerId, worldId, x, y, z)) {
-            return true;
-        }
-        try {
-            Ref<ChunkStore> entity = BlockModule.getBlockEntity(world, x, y, z);
-            if (entity == null || !entity.isValid()) {
-                return false;
-            }
-            PlacedByInteractionComponent placed = world.getChunkStore().getStore().getComponent(entity,
-                    PlacedByInteractionComponent.getComponentType());
-            return placed != null && playerId.equals(placed.getWhoPlacedUuid());
-        } catch (Throwable t) {
-            return false;
-        }
     }
 
     @Nullable

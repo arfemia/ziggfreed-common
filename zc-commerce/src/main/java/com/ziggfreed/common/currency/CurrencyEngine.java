@@ -129,24 +129,45 @@ public final class CurrencyEngine {
      * credit that would cross it lands short and the answer says how far it got; a non-positive
      * amount changes nothing.
      *
-     * <p>Fires {@link CurrencyObserver#earned} with the delta that genuinely landed, never with
-     * what was asked for, and then the native {@link ZigCurrencyEarnedEvent} on the same terms. Use
-     * {@link #refund} instead when putting back a charge.
+     * <p>Fires {@link CurrencyObserver#earned} with what genuinely landed, never with what was asked
+     * for, and then the native {@link ZigCurrencyEarnedEvent} on the same terms: for an uncapped item
+     * currency that is everything the wallet handed over, the part a full bag sent to the player's
+     * feet included, which the balance does not see until it is picked up. A capped item currency
+     * lands in the bag alone ({@link ItemWallet#giveIntoBag}), the rest cut like any credit past the
+     * cap, because its cap is read off the bag: a pile at the feet would pass the next credit's cap
+     * check again and, picked up, carry the wallet past its cap. Use {@link #refund} instead when
+     * putting back a charge, and {@link #creditLanded} when what landed is the answer wanted.
      */
     public long credit(@Nonnull Subject subject, @Nonnull String currencyId, long amount) {
+        return creditAnnounced(subject, currencyId, amount).after();
+    }
+
+    /**
+     * {@link #credit}, answering how much LANDED rather than the new balance: the answer a payout
+     * that reports what it handed over needs (a reward's receipt), since a cap cuts a credit short
+     * (a capped item currency's to what its bag takes, too) and a full bag sends part of an uncapped
+     * item currency to the player's feet, where the balance cannot see it. Zero for an unknown
+     * currency, a wallet already at its cap, a capped item currency whose bag is full, or a
+     * non-positive amount. It announces exactly as {@link #credit} does.
+     */
+    public long creditLanded(@Nonnull Subject subject, @Nonnull String currencyId, long amount) {
+        return creditAnnounced(subject, currencyId, amount).landed();
+    }
+
+    /** The one announced credit behind {@link #credit} and {@link #creditLanded}. */
+    @Nonnull
+    private Landing creditAnnounced(@Nonnull Subject subject, @Nonnull String currencyId, long amount) {
         CurrencyDef def = catalog.get(currencyId);
         if (def == null) {
             unknown("credit", currencyId);
-            return 0L;
+            return Landing.NONE;
         }
-        long before = balance(subject, def);
-        long after = creditQuietly(subject, def, amount);
-        long delta = after - before;
-        if (delta > 0L) {
-            guarded(() -> observer.earned(subject, def, delta, after), "earned", def.id());
-            CurrencyEvents.fireEarned(subject, def, delta, after);
+        Landing landing = creditQuietly(subject, def, amount);
+        if (landing.landed() > 0L) {
+            guarded(() -> observer.earned(subject, def, landing.landed(), landing.after()), "earned", def.id());
+            CurrencyEvents.fireEarned(subject, def, landing.landed(), landing.after());
         }
-        return after;
+        return landing;
     }
 
     /**
@@ -181,7 +202,8 @@ public final class CurrencyEngine {
     /**
      * Put back {@code amount} a charge took, and undo its share of the lifetime spend. Deliberately
      * SILENT: a refund is money returning to where it was, not income, so nothing that counts
-     * earnings should see it.
+     * earnings should see it. It lands as {@link #credit} does, so a capped item currency's refund
+     * goes into the bag alone, where the room its charge freed takes it back.
      */
     public long refund(@Nonnull Subject subject, @Nonnull String currencyId, long amount) {
         CurrencyDef def = catalog.get(currencyId);
@@ -189,14 +211,15 @@ public final class CurrencyEngine {
             unknown("refund", currencyId);
             return 0L;
         }
-        long after = creditQuietly(subject, def, amount);
+        long after = creditQuietly(subject, def, amount).after();
         store.get().refundSpend(subject, def.id(), amount);
         return after;
     }
 
     /**
      * Set the balance outright, clamped to the cap. The admin operation, and the one write that is
-     * not part of an exchange, so it announces nothing.
+     * not part of an exchange, so it announces nothing. An item currency is raised the way
+     * {@link #credit} lands it, so a capped one rises only by what its bag takes.
      */
     public long set(@Nonnull Subject subject, @Nonnull String currencyId, long amount) {
         CurrencyDef def = catalog.get(currencyId);
@@ -213,7 +236,7 @@ public final class CurrencyEngine {
         if (current > target) {
             items.take(subject, def.backingItemId(), current - target);
         } else if (current < target) {
-            items.give(subject, def.backingItemId(), target - current);
+            handOver(subject, def, target - current);
         }
         return balance(subject, def);
     }
@@ -279,27 +302,51 @@ public final class CurrencyEngine {
 
     // ==================== Internals ====================
 
+    /**
+     * What one credit did: how much {@code landed} (for an uncapped item currency, all the wallet
+     * handed over, at the player's feet included; for a capped one, what went into the bag) and the
+     * balance {@code after} it.
+     */
+    private record Landing(long landed, long after) {
+
+        /** Nothing moved, for a currency nobody defines. */
+        static final Landing NONE = new Landing(0L, 0L);
+    }
+
     /** The cap-honouring add, with no announcement. Both {@link #credit} and {@link #refund} use it. */
-    private long creditQuietly(@Nonnull Subject subject, @Nonnull CurrencyDef def, long amount) {
-        if (amount <= 0L) {
-            return balance(subject, def);
-        }
+    @Nonnull
+    private Landing creditQuietly(@Nonnull Subject subject, @Nonnull CurrencyDef def, long amount) {
         long current = balance(subject, def);
+        if (amount <= 0L) {
+            return new Landing(0L, current);
+        }
         long allowed = amount;
         if (!def.isUncapped()) {
             long room = def.cap() - current;
             if (room <= 0L) {
-                return current;
+                return new Landing(0L, current);
             }
             allowed = Math.min(allowed, room);
         }
         if (def.isItemBacked()) {
-            items.give(subject, def.backingItemId(), allowed);
-            return balance(subject, def);
+            long landed = Math.max(0L, Math.min(allowed, handOver(subject, def, allowed)));
+            return new Landing(landed, balance(subject, def));
         }
         long next = current + allowed;
         store.get().setBalance(subject, def.id(), next);
-        return next;
+        return new Landing(allowed, next);
+    }
+
+    /**
+     * Hand {@code amount} of an item currency over and answer how much landed: an uncapped one the way
+     * every item handed to a player lands ({@link ItemWallet#give}, the bag first and the rest at the
+     * player's feet), a capped one into the bag alone ({@link ItemWallet#giveIntoBag}, the rest not
+     * handed over), since its cap is read off the bag and a pile at the feet would slip past it.
+     */
+    private long handOver(@Nonnull Subject subject, @Nonnull CurrencyDef def, long amount) {
+        return def.isUncapped()
+                ? items.give(subject, def.backingItemId(), amount)
+                : items.giveIntoBag(subject, def.backingItemId(), amount);
     }
 
     /** A take that is a LOSS rather than a purchase: no spend record, no observer. */

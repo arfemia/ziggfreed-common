@@ -959,7 +959,7 @@ class AlmanacViewPageTest {
         AlmanacEntryAsset page = AlmanacFixtures.page("{ \"Sections\": [ { \"Collection\": { \"Items\": [ " + items
                 + " ] } } ] }", "Test_Season");
         CollectionSection grid = AlmanacView.collection(page.sections().get(0).collection(), new CounterMap(),
-                id -> id.startsWith("Test_") ? "Icons/ItemsGenerated/" + id + ".png" : null);
+                id -> id.startsWith("Test_") ? "Icons/ItemsGenerated/" + id + ".png" : null, gate -> null);
 
         assertNotNull(grid);
         int cap = AlmanacView.COLLECTION_MAX_ITEMS;

@@ -1,6 +1,5 @@
 package com.ziggfreed.common.stats.damage;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -19,16 +18,18 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.stats.StatIndexCache;
 
 /**
- * Per-damage-type resistance, read from stats any gear can raise: for each type {@link #TYPE_IDS} names
- * (the damage bonus types, {@link TypedDamageBonuses#TYPE_IDS}, and the resist-only {@value #FALL}), the
- * library ships {@code DamageResist_<Type>} (whole percent points, 10 resists a tenth of each hit of the
- * type), so an item's native {@code StatModifiers} on a server running this library and nothing else make
- * its wearer or wielder take less of that type. Two items carrying one add up, as any stat's modifiers do,
- * and a consumer counts a stat of its own toward a type with {@link #registerSource}.
+ * Per-damage-type resistance, read from stats any gear can raise: a resistance type is any loaded cause with
+ * a loaded {@code DamageResist_<Type>} stat ({@link #types}, read off the loaded files, never a list here,
+ * R858: the damage types and the game's {@value #FALL}), whole percent points, 10 resists a tenth of each hit
+ * of the type, and {@value #EVERY_TYPE_STAT_ID} resists every damage type at once (every resistance type with
+ * a damage bonus of its own, so never {@value #FALL}). An item's native {@code StatModifiers} on a server
+ * running this library and nothing else make its wearer or wielder take less, a creature as much as a player
+ * (R860). Two items carrying one add up, as any stat's modifiers do, and a consumer counts a stat of its own
+ * toward a type, or every damage type under {@link #EVERY_TYPE}, with {@link #registerSource}.
  *
  * <p><b>The engine applies it, on the type's own cause</b> (R674): the engine reads resistance only from
  * worn armor and active effects, never from a stat, so zc-effects' {@code DamageResistReconciler} keeps one
- * hidden effect per type on each player whose native {@code DamageResistance} is that type's reading, keyed
+ * hidden effect per type on each carrier whose native {@code DamageResistance} is that type's reading, keyed
  * on exactly that cause as vanilla armor keys {@code Physical}: a Crush, Bludgeoning or Slashing hit is NOT
  * reduced by a {@code Physical} resistance, as armor's is not. The engine sums it with worn armor and every other
  * resistance effect on the key. Nothing reads these stats at a damage site: a fold that did would mitigate
@@ -53,12 +54,22 @@ public final class DamageResistances {
     /** The resistance stat id prefix: {@code DamageResist_<Type>}, whole percent points. */
     public static final String PREFIX = "DamageResist_";
 
+    /**
+     * The every-type resistance stat, whole percent points: counted toward every damage type's resistance
+     * ({@link DamageTypes#bonusTypes}), so never toward {@value #FALL}.
+     */
+    public static final String EVERY_TYPE_STAT_ID = "DamageResist";
+
+    /** The type id a source registers under to count toward every damage type's resistance at once. */
+    public static final String EVERY_TYPE = TypedDamageBonuses.EVERY_TYPE;
+
     /** The ceiling stat: the most of one type's hits the summed resistance covers, whole percent points. */
     public static final String CEILING_STAT_ID = "DamageResistMax";
 
     /**
-     * The resist-only type: the game's own {@code Fall} cause. It has a resistance stat and no damage bonus
-     * (nothing deals fall damage), so it sits in {@link #TYPE_IDS} and never in the bonus roster.
+     * The game's own {@code Fall} cause: it ships a resistance stat and no damage bonus (nothing deals fall
+     * damage), so it is a resistance type ({@link #types}) and never a damage type, and the every-type
+     * resistance never reaches it.
      */
     public static final String FALL = "Fall";
 
@@ -89,13 +100,13 @@ public final class DamageResistances {
     public static final int FALLBACK_CEILING_PERCENT = 80;
 
     /**
-     * The types the library ships a resistance stat for: the damage bonus roster, then the resist-only
-     * {@value #FALL}. Disjoint, so no hit's own cause is two of them.
+     * The resistance types: every loaded cause with a loaded {@code DamageResist_<Type>} stat, in its loaded
+     * spelling ({@link DamageTypes#resistTypes}). Empty before the stores load.
      */
-    public static final List<String> TYPE_IDS = typeIdsOf(TypedDamageBonuses.TYPE_IDS, FALL);
-
-    /** {@code DamageResist_<Type>} for each of {@link #TYPE_IDS}, in the same order. */
-    public static final List<String> STAT_IDS = statIdsOf(TYPE_IDS);
+    @Nonnull
+    public static List<String> types() {
+        return DamageTypes.resistTypes();
+    }
 
     /**
      * One consumer stat counted toward a type's resistance, whole percent points: read off the holder like
@@ -193,37 +204,46 @@ public final class DamageResistances {
     }
 
     /**
-     * Count {@code statId} (whole percent points) toward the resistance to {@code typeId} (one of
-     * {@link #TYPE_IDS}, ignoring case), held through {@code hold} when one is given: a consumer's own stat,
-     * or a retired one it keeps applying (only what it adds, never a second copy of the library's own
-     * {@code DamageResist_<Type>}). The same stat for the same type again replaces the earlier registration,
-     * so a late re-entry is safe. A type outside the roster is ignored. Set at setup.
+     * Count {@code statId} (whole percent points) toward the resistance to {@code typeId} (a resistance type,
+     * ignoring case, or {@link #EVERY_TYPE} for every damage type at once), held through {@code hold} when one
+     * is given: a consumer's own stat, or a retired one it keeps applying (only what it adds, never a second copy
+     * of the library's own {@code DamageResist_<Type>}). The same stat for the same type again replaces the
+     * earlier registration, so a late re-entry is safe. Set at setup, before the stores load: the type is matched
+     * when a reading asks for it, so a type whose files never load is never read.
      */
     public static void registerSource(@Nonnull String typeId, @Nonnull String statId, @Nullable DoubleUnaryOperator hold) {
-        String type = canonicalType(typeId);
-        if (type == null || statId.isBlank()) {
+        if (typeId.isBlank() || statId.isBlank()) {
             return;
         }
-        List<Source> list = SOURCES.computeIfAbsent(type.toLowerCase(Locale.ROOT), k -> new CopyOnWriteArrayList<>());
+        List<Source> list = SOURCES.computeIfAbsent(typeId.toLowerCase(Locale.ROOT), k -> new CopyOnWriteArrayList<>());
         list.removeIf(s -> s.statId().equalsIgnoreCase(statId));
         list.add(new Source(statId, hold));
     }
 
     /**
      * What {@code stats} asks of the resistance to {@code typeId}, whole percent points, before any ceiling:
-     * the type's own {@code DamageResist_<Type>} plus every registered source (each through its hold). A
-     * source reading zero costs one stat read.
+     * the type's own {@code DamageResist_<Type>} plus every source registered for it (each through its hold),
+     * and, for a damage type, {@value #EVERY_TYPE_STAT_ID} and every {@link #EVERY_TYPE} source. 0 for a type the
+     * loaded files name no resistance for. A source reading zero costs one stat read.
      */
     public static double pointsFor(@Nonnull EntityStatMap stats, @Nonnull String typeId) {
         String type = canonicalType(typeId);
         if (type == null) {
             return 0.0;
         }
-        double points = pointsOf(stats, PREFIX + type);
-        List<Source> sources = SOURCES.get(type.toLowerCase(Locale.ROOT));
-        if (sources == null) {
-            return points;
+        double points = pointsOf(stats, PREFIX + type) + sourcePoints(stats, SOURCES.get(type.toLowerCase(Locale.ROOT)));
+        if (DamageTypes.bonusType(type) != null) {
+            points += pointsOf(stats, EVERY_TYPE_STAT_ID) + sourcePoints(stats, SOURCES.get(EVERY_TYPE));
         }
+        return points;
+    }
+
+    /** {@code sources}' readings off {@code stats}, each through its hold; 0 for none. */
+    private static double sourcePoints(@Nonnull EntityStatMap stats, @Nullable List<Source> sources) {
+        if (sources == null) {
+            return 0.0;
+        }
+        double points = 0.0;
         for (Source source : sources) {
             double read = pointsOf(stats, source.statId());
             if (read == 0.0) {
@@ -270,44 +290,21 @@ public final class DamageResistances {
 
     /**
      * Whether a write to {@code statId} can change what an entity resists: a {@code DamageResist_<Type>}
-     * stat, a registered source of one ({@link #registerSource}) or the ceiling. A consumer writing one by
-     * hand asks this before it syncs the entity.
+     * stat, {@value #EVERY_TYPE_STAT_ID}, a registered source of one ({@link #registerSource}) or the ceiling. A
+     * consumer writing one by hand asks this before it syncs the entity.
      */
     public static boolean affectsResistance(@Nullable String statId) {
-        return typeOfStat(statId) != null || CEILING_STAT_ID.equalsIgnoreCase(statId) || isSource(statId);
+        return typeOfStat(statId) != null || EVERY_TYPE_STAT_ID.equalsIgnoreCase(statId)
+                || CEILING_STAT_ID.equalsIgnoreCase(statId) || isSource(statId);
     }
 
-    /** The {@link #TYPE_IDS} spelling of {@code typeId} (matched ignoring case), or null. */
+    /** {@code typeId} in its resistance-type spelling (matched ignoring case, {@link #types}), or null. */
     @Nullable
     public static String canonicalType(@Nullable String typeId) {
-        if (typeId == null) {
-            return null;
-        }
-        for (String type : TYPE_IDS) {
-            if (type.equalsIgnoreCase(typeId)) {
-                return type;
-            }
-        }
-        return null;
+        return DamageTypes.resistType(typeId);
     }
 
     private static double heldShortOfFull(double percent) {
         return Math.max(0.0, Math.min(HIGHEST_PERCENT, percent));
-    }
-
-    @Nonnull
-    private static List<String> typeIdsOf(@Nonnull List<String> bonusTypes, @Nonnull String resistOnly) {
-        List<String> out = new ArrayList<>(bonusTypes);
-        out.add(resistOnly);
-        return List.copyOf(out);
-    }
-
-    @Nonnull
-    private static List<String> statIdsOf(@Nonnull List<String> types) {
-        List<String> out = new ArrayList<>(types.size());
-        for (String type : types) {
-            out.add(PREFIX + type);
-        }
-        return List.copyOf(out);
     }
 }

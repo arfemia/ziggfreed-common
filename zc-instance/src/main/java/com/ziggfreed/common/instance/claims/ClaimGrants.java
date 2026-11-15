@@ -32,8 +32,8 @@ import com.ziggfreed.common.util.SafeLog;
  * (a currency on a server with none) is not put back, as Kweebec's never was; it is logged. What a press handed
  * over is announced, Claim by Claim, as a {@link ClaimCollectedEvent} once the rest is back in the store, and
  * listed on the press's {@link Result} with what each reward landed as ({@link Collected}), which the page's
- * toast names. A press may offer only part of a Claim (a reward chest's one line, {@link #claimReward}; what is not
- * an item, {@link #claimExceptItems}): the rest of it goes back where it stood.
+ * toast names. A press may offer only part of a Claim (a reward chest's one line, {@link #claimReward}): the rest of
+ * it goes back where it stood.
  *
  * <p>World thread only (the grant touches the player's inventory).
  */
@@ -133,46 +133,6 @@ public final class ClaimGrants {
     }
 
     /**
-     * What a spoils chest's page paid ({@link #claimFightExceptItems}): the press's tally of it, and every reward it
-     * really handed over, in the order the Claims held them (never one that went back to wait).
-     */
-    public record Paid(@Nonnull Result result, @Nonnull List<InstanceReward> rewards) {
-
-        /** Nothing paid. */
-        public static final Paid NOTHING = new Paid(Result.NOTHING, List.of());
-    }
-
-    /**
-     * A spoils chest page's Take All: for every Claim the fight {@code fight} paid {@code player}, hand over what is
-     * not an item (a currency, a command line such as an experience or reputation token) through the same grant a
-     * press makes, and put the Claim back holding its items alone, which the chest's window then offers. A Claim of
-     * items alone is not touched. What a non-item could not pay is dropped and logged, as a press drops it; what a
-     * throw put back waits in its Claim, and only what was handed over is listed as paid.
-     */
-    @Nonnull
-    public static Paid claimFightExceptItems(@Nonnull ClaimStore claims, @Nonnull UUID player, @Nonnull String fight,
-            @Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull InstanceRewardGranter.Sink sink) {
-        Result total = Result.NOTHING;
-        List<InstanceReward> paid = new ArrayList<>();
-        for (Claim listed : claims.list(player)) {
-            if (listed.fromFight(fight)) {
-                total = total.plus(payExceptItems(claims, player, listed.id(), ref, store, sink, paid));
-            }
-        }
-        return new Paid(total, List.copyOf(paid));
-    }
-
-    /**
-     * A spoils chest page's Claim: {@link #claimFightExceptItems} for {@code player}'s one Claim {@code claimId},
-     * handing over what is not an item and putting its items back for the chest's window.
-     */
-    @Nonnull
-    public static Result claimExceptItems(@Nonnull ClaimStore claims, @Nonnull UUID player, @Nonnull String claimId,
-            @Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull InstanceRewardGranter.Sink sink) {
-        return payExceptItems(claims, player, claimId, ref, store, sink, null);
-    }
-
-    /**
      * A reward chest's line ({@link RewardChestPage}): of {@code player}'s Claim {@code claimId}, hand over the one
      * reward {@code rewardKey} names ({@link #rewardKey}; the first of two alike) through the same grant a press
      * makes, so an item goes only when all of it fits, and leave the rest of the Claim where it stands. Nothing for a
@@ -195,7 +155,7 @@ public final class ClaimGrants {
                 }
             }
             return one;
-        }, ref, store, sink, null);
+        }, ref, store, sink);
     }
 
     /**
@@ -212,33 +172,16 @@ public final class ClaimGrants {
         return reward.kind().name().toLowerCase(Locale.ROOT) + "-" + Integer.toHexString(identity.hashCode());
     }
 
-    /** Hand over what of the Claim {@code claimId} is not an item, its items put back; nothing for items alone. */
-    @Nonnull
-    private static Result payExceptItems(@Nonnull ClaimStore claims, @Nonnull UUID player, @Nonnull String claimId,
-            @Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull InstanceRewardGranter.Sink sink,
-            @Nullable List<InstanceReward> paid) {
-        return payWhere(claims, player, claimId, rewards -> {
-            BitSet others = new BitSet();
-            for (int i = 0; i < rewards.size(); i++) {
-                if (!rewards.get(i).isItem()) {
-                    others.set(i);
-                }
-            }
-            return others;
-        }, ref, store, sink, paid);
-    }
-
     /**
      * Hand over the rewards of {@code player}'s Claim {@code claimId} that {@code pick} names, by their place in the
      * Claim, through the same grant a press makes, and put back what did not fit beside every reward it did not name,
      * each where it stood ({@link #inPlace}); nothing when the Claim is gone or {@code pick} names none of its
-     * rewards. {@code paid}, when given, receives what was handed over.
+     * rewards.
      */
     @Nonnull
     private static Result payWhere(@Nonnull ClaimStore claims, @Nonnull UUID player, @Nonnull String claimId,
             @Nonnull Function<List<InstanceReward>, BitSet> pick, @Nonnull Ref<EntityStore> ref,
-            @Nonnull Store<EntityStore> store, @Nonnull InstanceRewardGranter.Sink sink,
-            @Nullable List<InstanceReward> paid) {
+            @Nonnull Store<EntityStore> store, @Nonnull InstanceRewardGranter.Sink sink) {
         Claim listed = held(claims, player, claimId);
         if (listed == null || pick.apply(listed.rewards()).isEmpty()) {
             return Result.NOTHING;
@@ -259,7 +202,7 @@ public final class ClaimGrants {
             return Result.NOTHING;
         }
         return grant(claims, player, claim.withRewards(offered), left -> inPlace(rewards, picked, left), ref, store,
-                sink, paid);
+                sink);
     }
 
     /**
@@ -298,29 +241,23 @@ public final class ClaimGrants {
         return null;
     }
 
-    /** Whether {@code claim} holds a reward that is not an item (a currency, an experience or reputation token). */
-    public static boolean hasNonItem(@Nonnull Claim claim) {
-        return claim.rewards().stream().anyMatch(reward -> !reward.isItem());
-    }
-
-    /** {@link #grant(ClaimStore, UUID, Claim, UnaryOperator, Ref, Store, InstanceRewardGranter.Sink, List)} whole. */
+    /** {@link #grant(ClaimStore, UUID, Claim, UnaryOperator, Ref, Store, InstanceRewardGranter.Sink)} whole. */
     @Nonnull
     private static Result grant(@Nonnull ClaimStore claims, @Nonnull UUID player, @Nonnull Claim claim,
             @Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull InstanceRewardGranter.Sink sink) {
-        return grant(claims, player, claim, UnaryOperator.identity(), ref, store, sink, null);
+        return grant(claims, player, claim, UnaryOperator.identity(), ref, store, sink);
     }
 
     /**
-     * Hand one taken Claim over, putting back what did not fit, then announce what it delivered, which
-     * {@code handedOver} (when given) also receives; a throw puts back everything it was handed and hands nothing
-     * over. {@code back} turns what comes back into the Claim's whole list to put back: itself for a whole Claim,
-     * the rest of the Claim around it for a press that offered only part of one ({@link #payWhere}).
+     * Hand one taken Claim over, putting back what did not fit, then announce what it delivered; a throw puts back
+     * everything it was handed and hands nothing over. {@code back} turns what comes back into the Claim's whole list
+     * to put back: itself for a whole Claim, the rest of the Claim around it for a press that offered only part of one
+     * ({@link #payWhere}).
      */
     @Nonnull
     private static Result grant(@Nonnull ClaimStore claims, @Nonnull UUID player, @Nonnull Claim claim,
             @Nonnull UnaryOperator<List<InstanceReward>> back, @Nonnull Ref<EntityStore> ref,
-            @Nonnull Store<EntityStore> store, @Nonnull InstanceRewardGranter.Sink sink,
-            @Nullable List<InstanceReward> handedOver) {
+            @Nonnull Store<EntityStore> store, @Nonnull InstanceRewardGranter.Sink sink) {
         GrantOutcome outcome;
         List<InstanceRewardGranter.Landed> landed = new ArrayList<>();
         try {
@@ -343,23 +280,12 @@ public final class ClaimGrants {
         for (InstanceRewardGranter.Landed each : landed) {
             delivered.add(each.row());
         }
-        if (handedOver != null) {
-            handedOver.addAll(delivered);
-        }
-        announceCollected(player, ref, claim, delivered);
-        return new Result(1, kept.isEmpty() ? 1 : 0, outcome.granted(), outcome.blocked(),
-                outcome.failed(), landed.isEmpty() ? List.of() : List.of(new Collected(claim, landed)));
-    }
-
-    /**
-     * Announce that {@code player} collected {@code delivered} of {@code claim} ({@link ClaimCollectedEvent}): the
-     * one place a press and a spoils chest's window both announce it. Nothing for an empty delivery; never throws.
-     */
-    static void announceCollected(@Nonnull UUID player, @Nonnull Ref<EntityStore> ref, @Nonnull Claim claim,
-            @Nonnull List<InstanceReward> delivered) {
+        // What the press handed over, announced once per Claim; nothing for an empty delivery, and never throws.
         if (!delivered.isEmpty()) {
             EVENTS.fire("ClaimCollected", ClaimCollectedEvent.class,
                     () -> new ClaimCollectedEvent(player, ref, claim, delivered));
         }
+        return new Result(1, kept.isEmpty() ? 1 : 0, outcome.granted(), outcome.blocked(),
+                outcome.failed(), landed.isEmpty() ? List.of() : List.of(new Collected(claim, landed)));
     }
 }

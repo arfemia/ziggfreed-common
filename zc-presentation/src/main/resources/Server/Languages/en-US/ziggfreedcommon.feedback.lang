@@ -4,6 +4,7 @@
 quest.completed = Quest complete: {0}
 quest.parked = Quest complete: {0}. Come back to collect your reward.
 quest.parked.no_space = Quest complete: {0}. Make room to collect your reward.
+quest.parked.accept_site = Quest complete: {0}. Collect your reward where you picked it up.
 quest.claimed = Rewards collected: {0}
 quest.objective_progressed = {0} ({1}/{2})
 quest.objective_finished = Objective complete: {0}

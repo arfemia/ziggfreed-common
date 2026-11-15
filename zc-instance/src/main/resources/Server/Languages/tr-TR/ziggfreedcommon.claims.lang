@@ -38,22 +38,18 @@ notice.added.spoils = Payın, patronun düştüğü yerdeki sandıkta ve menünd
 notice.added.spoils.named = {0}, patronun düştüğü yerdeki sandıkta ve menündeki Alınacaklar sekmesinde bekliyor.
 
 # A boss's chest: what a won fight leaves where the boss fell, holding each player's own rewards from that fight.
-# spoils.hint is the prompt over the chest; the game fills {key} with the button to press. Opening it hands over
-# what is not an item at once (spoils.paid heads the list of it) and shows the items in the game's own chest
-# window; spoils.empty is the line for a player with nothing in it. The spoils.title to spoils.action.take_all lines
-# are the Claims page's, which the chest can show instead (the library's SpoilsView switch).
+# spoils.hint is the prompt over the chest; the game fills {key} with the button to press. Opening any reward chest
+# shows one page: spoils.title over the chest's own line (spoils.lead for a boss's), each reward a line a click
+# takes, spoils.page.hint beside the spoils.action.take_all button, and spoils.all_taken once the player has taken
+# everything. spoils.empty is the line for a player with nothing in it. spoils.banner is the line under a banner
+# telling a player their reward went into the chest, when the source's own file names no line of its own.
 spoils.hint = Açmak için [{key}] tuşuna bas
-spoils.paid = Sandıktan:
 spoils.title = Payın
 spoils.lead = Bu patronun senin için bıraktıkları. Burada bıraktığın her şey Alınacaklar sekmesinde seni bekler.
-spoils.detail.lead = Teslim Al bunları alır. Hepsini Al, buradaki senin olan her şeyi alır.
-spoils.detail.hint = Eşyalar için çantanda yer olmalı. Sığmayanlar Alınacaklar sekmesinde bekler.
 spoils.action.take_all = Hepsini Al
 spoils.page.hint = Almak için bir ödüle tıkla, hepsi için Hepsini Al'a bas. Eşyalar için çantanda yer olmalı.
 spoils.all_taken = Hepsini aldın.
 spoils.empty = Burada seni bekleyen bir şey yok.
-spoils.items_left = Payının kalanı sandıkta.
-spoils.action.items = Sandığı Aç
 spoils.banner = Ödülün, patronun düştüğü yerdeki sandıkta seni bekliyor.
 
 # Patron olmayan birinin bıraktığı ödül sandığı: nadir bir öldürme, nadir bir kırma ya da başka bir kaynak bırakır, içinde her oyuncunun kendi payı vardır. chest.lead sayfasındaki satırdır. notice.added.chest ödül içine düşünce çıkan bildirim, notice.added.chest.named kendi başlığı {0} olan ödül için aynısı. chest.banner.title yükselirken görünen başlık, {0} sandığı bırakan şey (bir yaratık, bir blok); altında chest.banner var.

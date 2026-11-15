@@ -19,6 +19,7 @@ import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.EntityEventSystem;
 import com.hypixel.hytale.protocol.GameMode;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
+import com.hypixel.hytale.server.core.asset.type.blocktype.config.SupportDropType;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.event.events.ecs.PlaceBlockEvent;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
@@ -36,7 +37,9 @@ import com.ziggfreed.common.world.placed.PlacedBlockLedger;
  * holds the block and {@code BuildThrift_Shaped} on a shaped placement ({@link RecentPlacements}), held at the
  * player's {@code BuildThriftMax}, a block a player places is not used up: the engine's own place event is told not
  * to take it ({@code PlaceBlockEvent.setConsumeItem}). Only a block the {@value #ELIGIBLE_FAMILY} family holds is
- * ever spared, the cheap building blocks. A block this step spared is marked spared in the placed-block ledger once it
+ * ever spared, the cheap building blocks, and never one that can pop off or fall ({@link #canLoseSupport}: the block's
+ * own native support rule, sand, a torch, a lantern on a floor), though one the game keeps standing once a player
+ * places it (a log, gravel) may be. A block this step spared is marked spared in the placed-block ledger once it
  * has landed, so breaking it hands nothing back ({@link ThriftDropSystem}, and a gather shape's own breaks): placing
  * and breaking again never makes an item from nothing. Only this step's own spares are marked; any other placement
  * that keeps its item (creative, a mod's own) drops as the engine has it, and clears a mark a block left behind. A
@@ -109,7 +112,10 @@ public final class ThriftSystem extends EntityEventSystem<EntityStore, PlaceBloc
         }
     }
 
-    /** Does thrift spare this placement's item: one the engine would take, of the family, on the placer's roll? */
+    /**
+     * Does thrift spare this placement's item: one the engine would take, of the family, a block that can never pop
+     * off or fall ({@link #canLoseSupport}), on the placer's roll?
+     */
     private static boolean spares(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull PlaceBlockEvent event, boolean shaped) {
         if (!event.isConsumeItem() || GatherReads.gameMode(store, ref) == GameMode.Creative) {
@@ -120,7 +126,46 @@ public final class ThriftSystem extends EntityEventSystem<EntityStore, PlaceBloc
         if (blockId == null || !BlockFamilyConfig.getInstance().holds(ELIGIBLE_FAMILY, blockId)) {
             return false;
         }
+        String blockKey = item.getBlockKey();
+        BlockType placed = blockKey == null ? null : BlockType.getAssetMap().getAsset(blockKey);
+        if (placed == null || canLoseSupport(placed, overridesPlacement(store, ref))) {
+            return false;
+        }
         return GatherReads.roll(percentFor(GatherReads.stats(store, ref), blockId, shaped));
+    }
+
+    /**
+     * Can a block of {@code type}, set down by a player, pop off or fall later (R894)? The block's own native support
+     * rule says so: it needs support ({@code BlockType.hasSupport}) and losing it breaks the block with its drop
+     * ({@code SupportDropType.BREAK}) or makes a falling block that lands as an ordinary one ({@code FALL}), with no
+     * event either way, so a spared one could come back as an item made from nothing (sand on a spared block of dirt,
+     * the dirt broken; a torch off its wall). A block destroyed outright ({@code DESTROY}) drops nothing, and one the
+     * game marks as decoration when a player places it ({@code BlockType.canBePlacedAsDeco}: a log, gravel) is left out
+     * of the game's physics, so it never falls once placed, unless the placer overrides the placement rules
+     * ({@code overrides}), when the game keeps it in. Pure over its arguments.
+     */
+    static boolean canLoseSupport(@Nonnull BlockType type, boolean overrides) {
+        if (!type.hasSupport()) {
+            return false;
+        }
+        SupportDropType drop = type.getSupportDropType();
+        if (drop != SupportDropType.BREAK && drop != SupportDropType.FALL) {
+            return false;
+        }
+        return overrides || !type.canBePlacedAsDeco();
+    }
+
+    /**
+     * Whether the placer overrides the game's placement rules, so nothing they place is marked as decoration; a
+     * placer that cannot be read is treated as overriding, so thrift refuses rather than mints.
+     */
+    private static boolean overridesPlacement(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
+        try {
+            Player player = store.getComponent(ref, Player.getComponentType());
+            return player != null && player.isOverrideBlockPlacementRestrictions();
+        } catch (Throwable t) {
+            return true;
+        }
     }
 
     /**

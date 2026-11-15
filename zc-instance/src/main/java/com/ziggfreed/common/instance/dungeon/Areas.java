@@ -310,8 +310,10 @@ public final class Areas {
             measure.containersEmptied = emptyContainers(world, Bounds.of(buffer, origin), region);
         }
         long cleared = System.nanoTime();
+        // NO_SEND_PARTICLES: under FORCE the paste hands these settings to every setBlock, and without the bit
+        // each changed block sends a particle packet to every player whose chunk tracker holds its chunk.
         PrefabUtil.paste(buffer, world, new Vector3i(origin), Rotation.None, new Random(), PrefabUtil.Flags.FORCE,
-                SetBlockSettings.NONE, region, holder -> measure.blockStatesPlaced.incrementAndGet(),
+                SetBlockSettings.NO_SEND_PARTICLES, region, holder -> measure.blockStatesPlaced.incrementAndGet(),
                 holder -> measure.entitiesPlaced.incrementAndGet(), store);
         long pasted = System.nanoTime();
         measure.clearMs = (cleared - start) / NANOS_PER_MILLI;

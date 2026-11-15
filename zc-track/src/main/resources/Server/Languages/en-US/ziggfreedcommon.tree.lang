@@ -58,17 +58,9 @@ action.take = Take
 take.confirm = Press again to pay
 action.undo = Undo last
 hint.undo = Undo last takes back the newest pick you made, here or anywhere else. Closing this page ends it.
-hint.maxed = You have taken every rank of this.
-# Why a pick cannot be taken: {0} the level it opens at; {0} the branch and {1} the points still to spend there; {0}
-# the side of its choice already taken.
-refused.level = Reach level {0, number} to take this.
+# Why a pick in a row its branch has not opened yet cannot be taken: {0} the branch and {1} the points still to spend
+# there. Every other reason a pick, a respec or a swap is refused is the track module's (ziggfreedcommon.track.lang).
 refused.row = Spend {1, number} more {1, plural, one {point} other {points}} in {0} to open this row.
-refused.locked = You do not meet what this needs yet.
-refused.before = Take what comes before it first.
-refused.node = You took {0} here. Undo it, or respec, to choose again.
-refused.points = You need more points to take this.
-refused.cap = You have spent all the points you can on this.
-refused.other = This cannot be taken right now.
 
 # What a press did, as a toast: {0} the pick.
 toast.taken = You took {0}.
@@ -80,9 +72,6 @@ toast.undo.none = There is nothing left to undo.
 toast.undo.needed = {0} cannot be undone yet: a pick you made after it still needs it. Undo that one first.
 # A batch made in one go that cannot be undone yet: {0} how many picks it holds, {1} the track.
 toast.undo.needed.batch = The {0, number} {0, plural, one {pick} other {picks}} you made in one go on {1} cannot be undone yet: a later pick still needs {0, plural, one {it} other {them}}. Undo that one first.
-toast.combat = You cannot do this while you are fighting.
-toast.encounter = You cannot do this during a boss fight.
-toast.pay = You cannot pay for this yet.
 
 # The saved builds: {0} the build's number; {0} how many picks it holds. In the toasts {0} is the build's number and
 # {1} how many picks it saved or put back.
@@ -106,7 +95,7 @@ build.toast.swapped = Build {0, number} is in use: {1, number} {1, plural, one {
 build.toast.in_use = That build is already in use, just as you saved it.
 build.toast.unsaved = Your picks are in no saved build, so a swap would lose them. Save them as a build first.
 
-# The respec: {0} how many picks it would clear, or cleared.
+# The respec: {0} how many picks it would clear. What a respec did is the track module's (respec.done, respec.nothing).
 section.respec = Start over
 respec.title = Respec
 respec.meta = {0, number} {0, plural, one {pick} other {picks}} to clear
@@ -115,8 +104,6 @@ respec.lead = Clears every pick you made here and gives back every point it cost
 respec.block.price = What it costs
 respec.action = Respec
 respec.confirm = Press again to respec
-respec.toast.done = Respec done: {0, number} {0, plural, one {pick is} other {picks are}} cleared and the points are yours to spend again.
-respec.toast.nothing = You have nothing to clear here.
 
 # What a pick gives. A stat raised or lowered reads on the stat's own item-tooltip row
 # (client.itemTooltip.stats.<StatId>, such as "Fire Resistance: {value}%"), its {value} the signed amount below

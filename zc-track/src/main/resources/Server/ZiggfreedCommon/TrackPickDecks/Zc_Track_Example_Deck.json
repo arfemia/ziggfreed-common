@@ -1,6 +1,0 @@
-{
-  "$Comment": "The sample pick's deck: two options an offer from level 2 (the main line and one more), three from level 8. An Often option comes round about every other level and never more than three levels apart, a Sometimes one about one level in three and never more than five apart. The draw reads these files alone, so every player on every server sees the same offer at the same level, and the next levels can be read ahead.",
-  "Sizes": { "2": 2, "8": 3 },
-  "Bag": { "Often": 2, "Sometimes": 3 },
-  "NoDrought": { "Often": 3, "Sometimes": 5 }
-}

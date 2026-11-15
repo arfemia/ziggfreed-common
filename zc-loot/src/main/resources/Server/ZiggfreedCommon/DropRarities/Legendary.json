@@ -1,0 +1,4 @@
+{
+  "$Comment": "A reward whose drop had a chance of 1 percent or less per chest reads as Legendary on a reward chest's card: the game's Legendary slot, word and colour. Lower AtMostPercent to make Legendary rarer to see; each band file is named after the item quality it reads as.",
+  "AtMostPercent": 1
+}

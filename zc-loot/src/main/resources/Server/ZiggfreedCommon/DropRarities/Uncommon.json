@@ -1,0 +1,4 @@
+{
+  "$Comment": "A reward whose drop had a chance of 50 percent or less per chest, and more than the Rare band's, reads as Uncommon on a reward chest's card.",
+  "AtMostPercent": 50
+}

@@ -273,6 +273,32 @@ public final class LootableAsset implements JsonAssetWithMap<String, DefaultAsse
         return held[0];
     }
 
+    /**
+     * Whether paying this table asks anything of the player beyond mod presence: its own live {@code Requires}, or a
+     * contributor's that one of its rolls or pool entries carries ({@link Roll#gates}, {@link LootPool.Entry#gates}),
+     * as the folded table resolves. A roll made with no player to ask (an offline player's) pays nothing of what such
+     * a gate covers, which is what a site's audit warns of.
+     */
+    public boolean gatesOnPlayer() {
+        if (liveRequires() != null) {
+            return true;
+        }
+        for (Roll roll : rollsOrEmpty()) {
+            if (roll != null && roll.gates().length > 0) {
+                return true;
+            }
+        }
+        LootPool.Entry[] entries = pool == null ? null : pool.getEntries();
+        if (entries != null) {
+            for (LootPool.Entry entry : entries) {
+                if (entry != null && entry.gates().length > 0) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     /** What a reward paying this table reads as (its name and hover line), or null when it authors none. */
     @Nullable
     public ContentTextAsset getText() {

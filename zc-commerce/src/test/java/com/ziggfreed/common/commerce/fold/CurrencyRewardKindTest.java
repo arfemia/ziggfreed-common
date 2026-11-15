@@ -127,6 +127,28 @@ class CurrencyRewardKindTest {
     }
 
     @Test
+    @DisplayName("a payout receipts what landed: only what fit under a cap, and nothing at the cap")
+    void aCappedPayoutReceiptsWhatLanded() {
+        engine.set(SUBJECT, "Capped_Token", 80L);
+        RewardSpec spec = RewardSpec.of(CurrencyRewardKind.KIND,
+                Map.of("Currency", "Capped_Token", "Amount", "50"));
+
+        RewardGrants.GrantOutcome cut =
+                RewardGrants.grantAll(List.of(spec), SUBJECT, "test", kinds(), null, message -> { });
+
+        assertEquals(100L, engine.balance(SUBJECT, "capped_token"));
+        assertEquals(1, cut.receipt().size());
+        assertEquals(20L, cut.receipt().get(0).longParam("Amount", 0L),
+                "the toast a payout raises reads its receipt, so it must name the 20 that fit, not the 50 authored");
+
+        RewardGrants.GrantOutcome full =
+                RewardGrants.grantAll(List.of(spec), SUBJECT, "test", kinds(), null, message -> { });
+
+        assertEquals(1, full.granted(), "a wallet at its ceiling is still not a failure");
+        assertEquals(List.of(), full.receipt(), "and a credit the cap cut to nothing adds no row");
+    }
+
+    @Test
     @DisplayName("the kind pays through the ONE issuance pass, like every other reward")
     void itPaysOutThroughTheSharedGrantPass() {
         RewardKindRegistry kinds = kinds();

@@ -1,5 +1,5 @@
 {
-  "$Comment": "Percent faster growth for the crops, saplings and fishing traps a player placed (the engine records who placed a farming block), in whole percent points. ziggfreed-common's growth step (world/gather/GrowthSpeedSystem) credits that share of the time that passes to each such block's growth while its placer is in the same world, so it grows the same way, only sooner. A holder condition pairs with it as GrowthSpeed_While<Condition>. Any item's StatModifiers raise it like any stat, and so does an effect's RawStatModifiers. Base 0; Min is a generous negative so a subtractive modifier never clamps.",
+  "$Comment": "Percent faster growth for the crops, saplings and fishing traps a player placed, in whole percent points, held at their GrowthSpeedMax. ziggfreed-common's growth step (world/gather/GrowthSpeedSystem) credits that share of the time that passes to each such block's growth while its placer is in the same world, so it grows the same way, only sooner. A holder condition pairs with it as GrowthSpeed_While<Condition>. Any item's StatModifiers raise it like any stat, and so does an effect's RawStatModifiers. Base 0; Min is a generous negative so a subtractive modifier never clamps.",
   "InitialValue": 0.0,
   "Min": -1000.0,
   "Max": 0.0,
