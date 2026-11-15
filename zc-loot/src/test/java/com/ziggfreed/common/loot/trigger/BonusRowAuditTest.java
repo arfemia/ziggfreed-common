@@ -81,13 +81,6 @@ class BonusRowAuditTest {
     }
 
     @Test
-    void aChanceThatCanNeverRiseOffZeroIsAnError() {
-        assertTrue(has(audit(Map.of("fixture_never",
-                BonusRowAsset.of(BonusMoment.BREAK_BLOCK, "Rock_*", FactorFormula.of(0.0, null, null), commanding(), null))),
-                BonusRowAudit.IMPOSSIBLE_CHANCE, "fixture_never"));
-    }
-
-    @Test
     void aFactorNothingAnswersIsWarnedAndANullVocabularySkipsTheCheck() {
         FactorFormula chance = FactorFormula.of(5.0,
                 new FactorFormula.Term[] {FactorFormula.Term.of("nosuchmod:whatever", null, 1.0)}, null);

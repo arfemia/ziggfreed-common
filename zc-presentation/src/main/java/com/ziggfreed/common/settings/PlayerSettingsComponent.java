@@ -24,7 +24,8 @@ import com.ziggfreed.common.util.SafeLog;
  * What one player chose for their own screen, kept by the library so every mod reads the same answer: per
  * surface (a HUD panel id or {@link PlayerSettings#QUEST_TRACKER}) the spot they picked and whether they
  * show it, one switch hiding every bar panel at once, the level of their quest and achievement notices,
- * and whether they see the word over their own critical hits ({@code Combat.CritWord}). Every choice is
+ * whether they see the note a bonus find speaks with ({@code Notifications.BonusFinds}), and whether they see
+ * the word over their own critical hits ({@code Combat.CritWord}). Every choice is
  * nullable: null means "the owner's default", which {@link PlayerSettings} folds in, so an owner default
  * of hidden still lets a player turn a surface on.
  *
@@ -53,6 +54,7 @@ public class PlayerSettingsComponent implements Component<EntityStore> {
     private volatile boolean hideAll;
     @Nullable private volatile NotificationLevel level;
     @Nullable private volatile Boolean critWord;
+    @Nullable private volatile Boolean bonusFinds;
 
     /** The {@code Hud} group as saved. */
     static final class HudGroup {
@@ -81,10 +83,15 @@ public class PlayerSettingsComponent implements Component<EntityStore> {
     static final class NotificationsGroup {
 
         @Nullable String level;
+        @Nullable Boolean bonusFinds;
 
         static final BuilderCodec<NotificationsGroup> CODEC = BuilderCodec
                 .builder(NotificationsGroup.class, NotificationsGroup::new)
                 .append(new KeyedCodec<>("Level", Codec.STRING), (g, v, info) -> g.level = v, (g, info) -> g.level)
+                .add()
+                // Appended in 3.0.0: whether the note a bonus find speaks with shows; null (no choice) is left out.
+                .append(new KeyedCodec<>("BonusFinds", Codec.BOOLEAN),
+                        (g, v, info) -> g.bonusFinds = v, (g, info) -> g.bonusFinds)
                 .add()
                 .build();
     }
@@ -243,6 +250,21 @@ public class PlayerSettingsComponent implements Component<EntityStore> {
         return true;
     }
 
+    /** Whether the player chose to see the bonus find note: true, false, or null when they never chose. */
+    @Nullable
+    public Boolean bonusFinds() {
+        return bonusFinds;
+    }
+
+    /** Choose to see the bonus find note or not, or clear the choice with null. True when something changed. */
+    public boolean setBonusFinds(@Nullable Boolean value) {
+        if (value == null ? bonusFinds == null : value.equals(bonusFinds)) {
+            return false;
+        }
+        bonusFinds = value;
+        return true;
+    }
+
     // ==================== the save ====================
 
     private void readHud(@Nullable HudGroup group) {
@@ -276,6 +298,7 @@ public class PlayerSettingsComponent implements Component<EntityStore> {
     private void readNotifications(@Nullable NotificationsGroup group) {
         if (group != null) {
             level = NotificationLevel.parse(group.level);
+            bonusFinds = group.bonusFinds;
         }
     }
 
@@ -284,6 +307,7 @@ public class PlayerSettingsComponent implements Component<EntityStore> {
         NotificationsGroup group = new NotificationsGroup();
         NotificationLevel chosen = level;
         group.level = chosen == null ? null : chosen.id();
+        group.bonusFinds = bonusFinds;
         return group;
     }
 
@@ -351,6 +375,7 @@ public class PlayerSettingsComponent implements Component<EntityStore> {
         copy.hideAll = this.hideAll;
         copy.level = this.level;
         copy.critWord = this.critWord;
+        copy.bonusFinds = this.bonusFinds;
         return copy;
     }
 }
