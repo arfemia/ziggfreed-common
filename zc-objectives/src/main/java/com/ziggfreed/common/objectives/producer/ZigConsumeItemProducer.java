@@ -14,6 +14,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.EntityEventSystem;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
+import com.hypixel.hytale.server.core.event.events.ecs.DropItemEvent;
 import com.hypixel.hytale.server.core.event.events.ecs.InventoryChangeEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.inventory.InventoryComponent;
@@ -39,8 +40,12 @@ import com.ziggfreed.common.util.SafeLog;
  * the hotbar, a succeeded plain {@link ActionType#REMOVE} on the ACTIVE slot taking exactly one, of an item that
  * {@link Item#isConsumable() is consumable}. A move or a clear, and any change that also adds (a stack reshuffle),
  * is not one, and nor is a removal within {@value #CRAFT_VETO_MS} ms of the player's own craft
- * ({@link #markCraft}, from {@link ZigCraftProducer}), which draws its ingredients from the same slots. Dropping
- * exactly one consumable from the active slot still reads as eating: no engine signal tells the two apart.
+ * ({@link #markCraft}, from {@link ZigCraftProducer}), which draws its ingredients from the same slots.
+ *
+ * <p><b>A drop is not a meal.</b> The engine announces a player's drop ({@link DropItemEvent.PlayerRequest}, naming
+ * the section and the slot) before it takes the item out, so {@link DropRequest} marks that hotbar slot and the
+ * next removal from it within {@value #DROP_VETO_MS} ms is the drop, never counted; the mark is spent there, so a
+ * meal right after still counts. Without it, dropping one consumable and picking it up again would farm a step.
  */
 public final class ZigConsumeItemProducer extends EntityEventSystem<EntityStore, InventoryChangeEvent> {
 
@@ -50,8 +55,18 @@ public final class ZigConsumeItemProducer extends EntityEventSystem<EntityStore,
     /** How long after a craft a removal is the craft's ingredient rather than a meal. */
     static final long CRAFT_VETO_MS = 250L;
 
+    /** How long after a drop request a removal from that slot is the drop rather than a meal. */
+    static final long DROP_VETO_MS = 2000L;
+
     /** Per player, when they last crafted. Transient and per process, dropped when they leave. */
     private static final Map<UUID, Long> LAST_CRAFT = new ConcurrentHashMap<>();
+
+    /** Per player, the hotbar slot they last asked to drop from and when. Transient and per process. */
+    private static final Map<UUID, Drop> LAST_DROP = new ConcurrentHashMap<>();
+
+    /** One drop request: the hotbar slot and when it was asked. */
+    record Drop(int slot, long at) {
+    }
 
     public ZigConsumeItemProducer() {
         super(InventoryChangeEvent.class);
@@ -60,7 +75,38 @@ public final class ZigConsumeItemProducer extends EntityEventSystem<EntityStore,
     /** Register the producer and the departure cleanup. Registration only, from {@code ProgressionDefaults.install}. */
     public static void install(@Nonnull PluginBase plugin) {
         plugin.getEntityStoreRegistry().registerSystem(new ZigConsumeItemProducer());
+        plugin.getEntityStoreRegistry().registerSystem(new DropRequest());
         plugin.getEventRegistry().register(PlayerDisconnectEvent.class, ZigConsumeItemProducer::onDisconnect);
+    }
+
+    /** Marks the hotbar slot a player asks to drop from, ahead of the removal it causes. */
+    public static final class DropRequest extends EntityEventSystem<EntityStore, DropItemEvent.PlayerRequest> {
+
+        public DropRequest() {
+            super(DropItemEvent.PlayerRequest.class);
+        }
+
+        @Nullable
+        @Override
+        public Query<EntityStore> getQuery() {
+            return PlayerRef.getComponentType();
+        }
+
+        @Override
+        public void handle(int index, @Nonnull ArchetypeChunk<EntityStore> chunk, @Nonnull Store<EntityStore> store,
+                @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull DropItemEvent.PlayerRequest event) {
+            try {
+                if (event.getInventorySectionId() != InventoryComponent.HOTBAR_SECTION_ID) {
+                    return;
+                }
+                PlayerRef player = PlayerAccess.playerRef(store, chunk.getReferenceTo(index));
+                if (player != null) {
+                    markDrop(player.getUuid(), event.getSlotId(), System.currentTimeMillis());
+                }
+            } catch (Throwable t) {
+                SafeLog.fine("[progression] a drop request could not be marked: " + t.getMessage());
+            }
+        }
     }
 
     @Nullable
@@ -73,24 +119,29 @@ public final class ZigConsumeItemProducer extends EntityEventSystem<EntityStore,
     public void handle(int index, @Nonnull ArchetypeChunk<EntityStore> chunk, @Nonnull Store<EntityStore> store,
             @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull InventoryChangeEvent event) {
         try {
-            String itemId = consumedItem(event);
-            if (itemId == null) {
+            Meal meal = consumedItem(event);
+            if (meal == null) {
                 return;
             }
             Ref<EntityStore> ref = chunk.getReferenceTo(index);
             PlayerRef player = PlayerAccess.playerRef(store, ref);
-            if (player == null || craftedJustNow(player.getUuid())) {
+            if (player == null || craftedJustNow(player.getUuid())
+                    || droppedJustNow(player.getUuid(), meal.slot(), System.currentTimeMillis())) {
                 return;
             }
-            ProgressDispatch.fire(store, ref, commandBuffer, KIND, itemId, null, 1L, null);
+            ProgressDispatch.fire(store, ref, commandBuffer, KIND, meal.itemId(), null, 1L, null);
         } catch (Throwable t) {
             SafeLog.warn("[progression] consume-item dispatch failed", t);
         }
     }
 
-    /** The id of the one consumable the change ate off the active hotbar slot, or null when it ate nothing. */
+    /** One consumable taken off the active hotbar slot: its id and the slot. */
+    record Meal(@Nonnull String itemId, int slot) {
+    }
+
+    /** The one consumable the change took off the active hotbar slot, or null when it took none. */
     @Nullable
-    private static String consumedItem(@Nonnull InventoryChangeEvent event) {
+    private static Meal consumedItem(@Nonnull InventoryChangeEvent event) {
         if (!(event.getInventory() instanceof InventoryComponent.Hotbar hotbar)) {
             return null;
         }
@@ -110,7 +161,7 @@ public final class ZigConsumeItemProducer extends EntityEventSystem<EntityStore,
             return null;
         }
         Item item = before.getItem();
-        return item != null && item.isConsumable() ? before.getItemId() : null;
+        return item != null && item.isConsumable() ? new Meal(before.getItemId(), active) : null;
     }
 
     /** Depth-first walk for a succeeded plain REMOVE on the active hotbar slot. */
@@ -179,12 +230,33 @@ public final class ZigConsumeItemProducer extends EntityEventSystem<EntityStore,
         return last != null && System.currentTimeMillis() - last < CRAFT_VETO_MS;
     }
 
-    /** A player left the server: their last craft goes. */
+    /** The player asked, at {@code now}, to drop from hotbar {@code slot}: the next removal from it is that drop. */
+    static void markDrop(@Nullable UUID playerId, int slot, long now) {
+        if (playerId != null) {
+            LAST_DROP.put(playerId, new Drop(slot, now));
+        }
+    }
+
+    /**
+     * Is this removal from {@code slot} the player's own drop? True, and the mark spent, when they asked to drop from
+     * that slot within {@value #DROP_VETO_MS} ms of {@code now}.
+     */
+    static boolean droppedJustNow(@Nullable UUID playerId, int slot, long now) {
+        Drop drop = playerId == null ? null : LAST_DROP.get(playerId);
+        if (drop == null || drop.slot() != slot || now - drop.at() >= DROP_VETO_MS) {
+            return false;
+        }
+        LAST_DROP.remove(playerId, drop);
+        return true;
+    }
+
+    /** A player left the server: their last craft and drop go. */
     static void onDisconnect(@Nonnull PlayerDisconnectEvent event) {
         try {
             PlayerRef player = event.getPlayerRef();
             if (player != null && player.getUuid() != null) {
                 LAST_CRAFT.remove(player.getUuid());
+                LAST_DROP.remove(player.getUuid());
             }
         } catch (Throwable t) {
             SafeLog.fine("[progression] a departing player's last craft could not be dropped: " + t.getMessage());

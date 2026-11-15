@@ -1,0 +1,8 @@
+{
+  "$Comment": "Whole blocks a player has covered at a sprint on the ground.",
+  "NameKey": "ziggfreedcommon.stats.sprint_distance",
+  "Kind": "Sum",
+  "Format": "Distance",
+  "From": [ { "Kind": "SPRINT_DISTANCE" } ],
+  "Breakdown": "None"
+}

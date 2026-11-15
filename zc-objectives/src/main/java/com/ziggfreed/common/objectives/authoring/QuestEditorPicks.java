@@ -20,6 +20,7 @@ import com.ziggfreed.common.asset.EditorPick;
 import com.ziggfreed.common.authoring.Pickers;
 import com.ziggfreed.common.authoring.WorldPick;
 import com.ziggfreed.common.npc.NpcIdentities;
+import com.ziggfreed.common.progress.LocationTarget;
 import com.ziggfreed.common.progress.ObjectiveKindRegistry;
 import com.ziggfreed.common.progress.asset.ObjectiveKindPicks;
 import com.ziggfreed.common.progress.asset.ProgressEditorDataSets;
@@ -224,29 +225,11 @@ final class QuestEditorPicks {
         return block == null ? null : String.format(Locale.ROOT, "%d,%d,%d", block.x, block.y + 1, block.z);
     }
 
-    /** True when {@code spot} reads as {@code x,y,z} with an optional radius (a world name before a colon allowed). */
+    /**
+     * True when {@code spot} reads as {@code x,y,z} with an optional radius (a world name before a colon allowed):
+     * the one parse the library's reach-location producer and validators read ({@link LocationTarget#parse}).
+     */
     static boolean isSpot(@Nullable String spot) {
-        if (spot == null || spot.isBlank()) {
-            return false;
-        }
-        String coords = spot.trim();
-        int colon = coords.indexOf(':');
-        if (colon >= 0) {
-            coords = coords.substring(colon + 1);
-        }
-        String[] parts = coords.split(",");
-        if (parts.length < 3 || parts.length > 4) {
-            return false;
-        }
-        try {
-            for (String part : parts) {
-                if (!Double.isFinite(Double.parseDouble(part.trim()))) {
-                    return false;
-                }
-            }
-            return parts.length == 3 || Double.parseDouble(parts[3].trim()) > 0;
-        } catch (NumberFormatException e) {
-            return false;
-        }
+        return LocationTarget.parse(spot) != null;
     }
 }

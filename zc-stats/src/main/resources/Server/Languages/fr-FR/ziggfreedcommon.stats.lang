@@ -28,6 +28,9 @@ dungeon_best_time = Meilleur temps de donjon
 deaths = Morts
 playtime_seconds = Temps de jeu
 objectives_completed = Objectifs atteints
+items_consumed = Objets consommés
+sprint_distance = Distance de sprint
+swim_distance = Distance de nage
 
 # What each stat counts: the tooltip over its column on Records (a stat's name key with .tip added).
 # A tooltip prints a parameter as written, so none of these takes one.

@@ -11,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.board.BoardStreak;
 import com.ziggfreed.common.subject.Subject;
 
 /**
@@ -36,6 +37,7 @@ public final class InMemoryCommerceStore implements CommerceStore {
     private final Map<UUID, Map<String, Purchases>> purchases = new ConcurrentHashMap<>();
     private final Map<UUID, Map<String, PeriodRerolls>> rerolls = new ConcurrentHashMap<>();
     private final Map<UUID, Set<String>> migrations = new ConcurrentHashMap<>();
+    private final Map<UUID, BoardStreak> streaks = new ConcurrentHashMap<>();
 
     private static final class Wallet {
         final Map<String, Long> balances = new ConcurrentHashMap<>();
@@ -262,6 +264,19 @@ public final class InMemoryCommerceStore implements CommerceStore {
     @Override
     public void clearRerolls(@Nonnull Subject subject) {
         rerolls.remove(subject.id());
+    }
+
+    // ==================== The board streak ====================
+
+    @Override
+    @Nonnull
+    public BoardStreak boardStreak(@Nonnull Subject subject) {
+        return streaks.getOrDefault(subject.id(), BoardStreak.NONE);
+    }
+
+    @Override
+    public void setBoardStreak(@Nonnull Subject subject, @Nonnull BoardStreak streak) {
+        streaks.put(subject.id(), streak);
     }
 
     // ==================== One-time migrations ====================
