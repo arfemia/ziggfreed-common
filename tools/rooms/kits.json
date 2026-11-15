@@ -13,11 +13,18 @@
     "(in blocks) a room's blocks may stand proud of a doorway's wall and be left out of its Box, so the doorway sits on",
     "the Box's face; a room whose doorway stays inside its Box is not imported (PD1's box test could never join it).",
     "Fill: the block written as every room's Fill. Vanilla pastes these pieces into solid rock, and the painter fills the",
-    "cells a piece leaves unlisted inside its Box with it. Rock_Stone for both kits: the most common solid block across",
-    "the Cursed Crypt's pieces (about twice the next), the most common block facing the Stone kit's carved air (just",
-    "ahead of Rock_Quartzite), and the natural rock of the zone vanilla digs both into."
+    "cells a piece leaves unlisted inside its Box with it. Rock_Stone for the Stone and Cursed Crypt kits: the most common",
+    "solid block across the Cursed Crypt's pieces (about twice the next), the most common block facing the Stone kit's",
+    "carved air (just ahead of Rock_Quartzite), and the natural rock of the zone vanilla digs both into. FillRules give a",
+    "pool prefix its own Fill, the first rule naming the pool winning. CaveRoot: the folder a kit's Graph folders and",
+    "node names are under; a kit may name its own (a graph in another zone), else this one. Plugs: true gives every",
+    "door Kind no imported Cap closes a plug cap, Zc_Kit_<Kit>_Plug[_<Kind>]: PlugPrefab (vanilla's empty prefab) over a",
+    "slab Box one block deep across the widest doorway of the Kind, filled with Fill at paint time. Vanilla digs these",
+    "kits into rock, so a doorway its graph leaves open runs into rock, and the plug is that rock, shaped like the Stone",
+    "kit's own Walls caps."
   ],
   "ClipDepth": 1,
+  "PlugPrefab": "Dungeon.Dungeon_Empty",
   "CaveRoot": "Server/World/Default/Zones/Zone1_Tier1/Cave",
   "Kits": {
     "Stone": {
@@ -100,6 +107,110 @@
           {"Kind": "Cursed_Crypt_Tomb", "Pools": ["Dungeon.Cursed_Crypt.Tomb."]}
         ]
       }
+    },
+    "Magic_Ruins": {
+      "$Comment": [
+        "Vanilla's graph has two stages: the ruins (Stage_2: the C_Large and C_Small corridors, the Rooms and the",
+        "Stairs_Normal stair) and the Structured_Cave below (Stage_3), joined by Rooms.End's stair down. The Entrance",
+        "pieces are surface buildings, not rooms, so they are left out as the other kits leave theirs. Fill follows the",
+        "section: Rock_Quartzite is the most common solid block across the ruins' pieces (about five times Rock_Stone),",
+        "Rock_Stone across the Structured_Cave's (about seventeen times the next). The graph ships a wall cap for the",
+        "ruins (C_Small.End) but none for the Structured_Cave, so the kit takes plugs."
+      ],
+      "Plugs": true,
+      "Graph": ["Dungeons/Dungeon_Magic_Ruins"],
+      "Pools": ["Dungeon.Magic_Ruins.C_Large.", "Dungeon.Magic_Ruins.C_Small.", "Dungeon.Magic_Ruins.Rooms.",
+                "Dungeon.Magic_Ruins.Stairs_Normal.", "Dungeon.Magic_Ruins.Structured_Cave."],
+      "PieceRoot": "Dungeon.Magic_Ruins.",
+      "Label": "the Magic Ruins",
+      "Fill": "Rock_Quartzite",
+      "FillRules": [
+        {"Pools": ["Dungeon.Magic_Ruins.Structured_Cave."], "Fill": "Rock_Stone"}
+      ],
+      "Tags": {"Kit": ["Magic_Ruins"]},
+      "TagRules": [
+        {"Pools": ["Dungeon.Magic_Ruins.C_Large.", "Dungeon.Magic_Ruins.C_Small.", "Dungeon.Magic_Ruins.Rooms.",
+                   "Dungeon.Magic_Ruins.Stairs_Normal."], "Tags": {"Section": ["Ruins"]}},
+        {"Pools": ["Dungeon.Magic_Ruins.Structured_Cave."], "Tags": {"Section": ["Structured_Cave"]}}
+      ],
+      "Roles": {
+        "C_Large.Short": ["Corridor"],
+        "C_Large.Medium": ["Corridor"],
+        "C_Large.Long": ["Corridor"],
+        "C_Large.Corner": ["Corridor", "Turn"],
+        "C_Small.Short": ["Corridor"],
+        "C_Small.Medium": ["Corridor"],
+        "C_Small.Long": ["Corridor"],
+        "C_Small.Corner": ["Corridor", "Turn"],
+        "C_Small.End": ["Cap"],
+        "Rooms.Corner": ["Combat", "Room", "Turn"],
+        "Rooms.End": ["Room"],
+        "Rooms.End_Small": ["Room"],
+        "Rooms.Hall": ["Combat", "Room"],
+        "Rooms.Hub": ["Combat", "Junction", "Room"],
+        "Rooms.Library": ["Combat", "Room"],
+        "Rooms.Secret_Path": ["Room", "Secret"],
+        "Rooms.T": ["Combat", "Junction", "Room"],
+        "Stairs_Normal": ["Corridor", "Stairs"],
+        "Structured_Cave.Corridors.Corner": ["Corridor", "Turn"],
+        "Structured_Cave.Corridors.Long": ["Corridor"],
+        "Structured_Cave.Corridors.Medium": ["Corridor"],
+        "Structured_Cave.Stairs": ["Corridor", "Stairs"],
+        "Structured_Cave.Entrance": ["Corridor", "Stairs"],
+        "Structured_Cave.Hallway": ["Combat", "Junction", "Room"],
+        "Structured_Cave.Side": ["Room"],
+        "Structured_Cave.End": ["Room"],
+        "Structured_Cave.End_Small": ["Room"],
+        "Structured_Cave.Boss": ["Boss", "Room"]
+      },
+      "Kinds": {
+        "Default": "Magic_Ruins",
+        "Rules": [
+          {"Kind": "Magic_Ruins_Cave", "Pools": ["Dungeon.Magic_Ruins.Structured_Cave."]}
+        ]
+      }
+    },
+    "Shale": {
+      "$Comment": [
+        "Vanilla's Shale dungeon graph is Zone 3's (Zone3_Tier1/Cave/Dungeons; the Tier2 and Tier3 copies differ only",
+        "in their Mask file), so this kit names its own CaveRoot. Its Room_Small and Room_Medium pools serve all three",
+        "levels and Room_Large the third, so they carry those levels' Section values. Its OffGrid corridors are named",
+        "in the graph under Dungeon.Shale.System_2, a folder that holds none, so vanilla pastes nothing there and they",
+        "are left out. Fill is Rock_Shale, the most common solid block across its pieces and the zone's own rock. The",
+        "graph ships no wall cap at all (its open doorways end in the zone's rock), so the kit takes plugs. Its rooms",
+        "have one door each (side rooms off the tunnels), and Corridors_Drop is a dead end whose floor falls away."
+      ],
+      "Plugs": true,
+      "CaveRoot": "Server/World/Default/Zones/Zone3_Tier1/Cave",
+      "Graph": ["Dungeons"],
+      "Pools": ["Dungeon.Shale.Level_1.", "Dungeon.Shale.Level_2.", "Dungeon.Shale.Level_3.",
+                "Dungeon.Shale.Room_Small.", "Dungeon.Shale.Room_Medium.", "Dungeon.Shale.Room_Large."],
+      "PieceRoot": "Dungeon.Shale.",
+      "Label": "the Shale mines",
+      "Fill": "Rock_Shale",
+      "Tags": {"Kit": ["Shale"]},
+      "TagRules": [
+        {"Pools": ["Dungeon.Shale.Level_1."], "Tags": {"Section": ["Level_1"]}},
+        {"Pools": ["Dungeon.Shale.Level_2."], "Tags": {"Section": ["Level_2"]}},
+        {"Pools": ["Dungeon.Shale.Level_3."], "Tags": {"Section": ["Level_3"]}},
+        {"Pools": ["Dungeon.Shale.Room_Small.", "Dungeon.Shale.Room_Medium."],
+         "Tags": {"Section": ["Level_1", "Level_2", "Level_3"]}},
+        {"Pools": ["Dungeon.Shale.Room_Large."], "Tags": {"Section": ["Level_3"]}}
+      ],
+      "Roles": {
+        "Corridors": ["Corridor"],
+        "Corridors_Drop": ["Drop"],
+        "Spacers": ["Corridor"],
+        "Turn_Left": ["Corridor", "Turn"],
+        "Turn_Right": ["Corridor", "Turn"],
+        "Turn_T": ["Corridor", "Junction"],
+        "Turn_X": ["Corridor", "Junction"],
+        "Stairs": ["Corridor", "Stairs"],
+        "Room_Small": ["Combat", "Room"],
+        "Room_Medium": ["Combat", "Room"],
+        "Room_Large": ["Combat", "Room"]
+      },
+      "Kinds": {"Default": "Shale", "Rules": []}
     }
   }
 }
