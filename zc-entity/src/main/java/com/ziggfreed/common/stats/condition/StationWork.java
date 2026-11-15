@@ -10,6 +10,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
+import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.entity.ItemReadings;
 import com.ziggfreed.common.factor.FactorContext;
@@ -26,7 +27,9 @@ import com.ziggfreed.common.util.SafeLog;
  * reads nothing.
  *
  * <p>Asked by the conditional holder pass for every holder of a grant bound to a station (a player every tick), so a
- * {@link Source} answers from a map it already keeps, never a world scan. What a piece knob reads off the piece (its
+ * {@link Source} answers from a map it already keeps, never a world scan, and only once per entity per world tick
+ * however many of its conditions ask ({@link #workAt}). A station mod calls {@link #workChanged} as a work begins and
+ * ends, so the entity's bound grants are read at once rather than on the next tick. What a piece knob reads off the piece (its
  * level, quality, wear and stamped points, {@link Piece}) is read once per piece and kept per entity until the piece
  * changes or the work ends ({@link #pieceOf}).
  */
@@ -86,6 +89,19 @@ public final class StationWork {
     /** Each working entity's piece readings, kept until its piece changes or its work ends. */
     private static final Map<Ref<EntityStore>, Piece> PIECES = new ConcurrentHashMap<>();
 
+    /** One entity's answer this world tick, so its many conditions ask the station mod once a tick. */
+    private record Asked(long tick, @Nullable Work work) {
+    }
+
+    /** No world tick could be read (no world behind the accessor, a unit test): nothing is kept. */
+    private static final long NO_TICK = Long.MIN_VALUE;
+
+    /** Each asking entity's answer for the tick it was asked in, replaced on the next tick's first ask. */
+    private static final Map<Ref<EntityStore>, Asked> ASKED = new ConcurrentHashMap<>();
+
+    /** Whether a refresh at a change of work threw: logged once a process. */
+    private static final AtomicBoolean REFRESH_FAILED_LOGGED = new AtomicBoolean();
+
     /** Whether the unfilled seam has been reported: once a process. */
     private static final AtomicBoolean UNFILLED_LOGGED = new AtomicBoolean();
 
@@ -99,6 +115,7 @@ public final class StationWork {
     public static void install(@Nullable Source answer) {
         source = answer;
         PIECES.clear();
+        ASKED.clear();
     }
 
     /** Whether a station mod answers. */
@@ -108,7 +125,9 @@ public final class StationWork {
 
     /**
      * What the entity at {@code ref} is working at now, its station id trimmed, or null when it works at none, when no
-     * station mod answers (reported once) or when the answer throws (logged once). World thread; never throws.
+     * station mod answers (reported once) or when the answer throws (logged once). The station mod is asked once per
+     * entity per world tick, however many of its conditions ask ({@link #workChanged} asks again at once). World
+     * thread; never throws.
      */
     @Nullable
     public static Work workAt(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref) {
@@ -120,6 +139,27 @@ public final class StationWork {
             }
             return null;
         }
+        long tick = tickOf(accessor);
+        if (tick != NO_TICK) {
+            Asked asked = ASKED.get(ref);
+            if (asked != null && asked.tick() == tick) {
+                return asked.work();
+            }
+        }
+        Work work = ask(answer, accessor, ref);
+        if (tick != NO_TICK) {
+            ASKED.put(ref, new Asked(tick, work));
+        }
+        return work;
+    }
+
+    /**
+     * The station mod's answer for the entity at {@code ref}, its station id trimmed; null for none or a throw. Drops
+     * the entity's piece readings when it works at nothing.
+     */
+    @Nullable
+    private static Work ask(@Nonnull Source answer, @Nonnull ComponentAccessor<EntityStore> accessor,
+            @Nonnull Ref<EntityStore> ref) {
         Work work;
         try {
             work = answer.workAt(accessor, ref);
@@ -165,9 +205,43 @@ public final class StationWork {
         return fresh;
     }
 
+    /**
+     * The entity at {@code ref} started or stopped working at a station (a station mod's call, on the world thread, as
+     * the work begins and as it ends): its answer is asked again at once and its bound grants are read now rather than
+     * on the holder pass's next tick, so the first thing the work reads (a ritual's pace, from a talent bound to the
+     * station) already counts them, and a stopped work's share is gone before anything else reads it. Never throws.
+     */
+    public static void workChanged(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref) {
+        ASKED.remove(ref);
+        try {
+            if (!ref.isValid() || !BoundGrants.has(ref)) {
+                return;
+            }
+            EntityStatMap stats = accessor.getComponent(ref, EntityStatMap.getComponentType());
+            if (stats != null) {
+                BoundGrants.evaluate(accessor, ref, stats, ConditionalStats.now(accessor));
+            }
+        } catch (Throwable t) {
+            if (REFRESH_FAILED_LOGGED.compareAndSet(false, true)) {
+                SafeLog.warn("[bound] reading an entity's bound grants as its work changed threw; the holder pass "
+                        + "reads them on its next tick instead (logged once): " + t);
+            }
+        }
+    }
+
     /** Forget the entity at {@code ref} (it left its store). */
     public static void forget(@Nonnull Ref<EntityStore> ref) {
         PIECES.remove(ref);
+        ASKED.remove(ref);
+    }
+
+    /** The accessor's world tick, or {@link #NO_TICK} where none can be read. */
+    private static long tickOf(@Nullable ComponentAccessor<EntityStore> accessor) {
+        try {
+            return accessor.getExternalData().getWorld().getTick();
+        } catch (Throwable t) {
+            return NO_TICK;
+        }
     }
 
     /** {@code stack}'s stamped points through the library's own reading, or null where nothing answers it. */
