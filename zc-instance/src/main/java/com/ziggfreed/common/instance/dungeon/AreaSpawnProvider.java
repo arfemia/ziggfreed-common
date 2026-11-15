@@ -115,6 +115,9 @@ public final class AreaSpawnProvider implements ISpawnProvider {
     /**
      * The checkpoint the player's run last reached ({@link RunCheckpoints}), else the player's own area of this copy
      * when they hold one, else the template's answer, else the first area.
+     *
+     * <p>The checkpoint answers every arrival, not only a respawn: a member who joins the run late, or comes back
+     * after leaving or reconnecting, lands at the run's current checkpoint, so they join the party where it is.
      */
     @Nonnull
     @Override

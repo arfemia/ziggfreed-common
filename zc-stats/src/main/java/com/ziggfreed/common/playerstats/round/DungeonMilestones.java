@@ -19,14 +19,34 @@ import com.ziggfreed.common.util.SafeLog;
  * A dungeon run's milestones, counted for every member in the run's area as each fires ({@link DungeonMilestoneEvent}):
  * one more in {@code Dungeon_Milestones} ({@link PlayerStats#add}), on the line the stat file's own {@code Breakdown}
  * reads off the milestone id (its target) and the dungeon id (its qualifier), so a stat filing by {@code Target}
- * keeps one line per milestone id across every dungeon. A stat no file defines writes nothing; a member who is
- * offline is skipped.
+ * keeps one line per milestone id across every dungeon. The library's three ids file under their own spelling
+ * ({@link #lineId}) whatever case a volume wrote, so their lines never split by case; any other id files trimmed and
+ * as written. A stat no file defines writes nothing; a member who is offline is skipped.
  */
 public final class DungeonMilestones {
 
     private static final String LOG = "[stats]";
 
+    /** The milestone ids the library names, in the spelling their lines file under. */
+    private static final List<String> LIBRARY_IDS = List.of(DungeonMilestoneEvent.ROOM_CLEARED,
+            DungeonMilestoneEvent.PUZZLE_SOLVED, DungeonMilestoneEvent.SECRET_FOUND);
+
     private DungeonMilestones() {
+    }
+
+    /**
+     * The milestone id as its line files it: one of the library's three in {@link DungeonMilestoneEvent}'s own
+     * spelling when it matches one without regard to case, else {@code id} trimmed, as written.
+     */
+    @Nonnull
+    static String lineId(@Nonnull String id) {
+        String trimmed = id.trim();
+        for (String known : LIBRARY_IDS) {
+            if (known.equalsIgnoreCase(trimmed)) {
+                return known;
+            }
+        }
+        return trimmed;
     }
 
     /** The bus entry point, guarded whole. */
@@ -47,10 +67,13 @@ public final class DungeonMilestones {
         }
     }
 
-    /** The line {@code stat} files {@code event} under: its Breakdown over the milestone and dungeon ids; null for the total. */
+    /**
+     * The line {@code stat} files {@code event} under: its Breakdown over the milestone id ({@link #lineId}) and the
+     * dungeon id; null for the total.
+     */
     @Nullable
     private static String lineOf(@Nonnull StatAsset stat, @Nonnull DungeonMilestoneEvent event) {
         StatBreakdown breakdown = stat.breakdown();
-        return breakdown == null ? null : breakdown.thing(event.milestoneId(), event.dungeonId());
+        return breakdown == null ? null : breakdown.thing(lineId(event.milestoneId()), event.dungeonId());
     }
 }

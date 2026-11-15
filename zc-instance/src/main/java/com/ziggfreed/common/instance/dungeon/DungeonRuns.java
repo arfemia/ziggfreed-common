@@ -981,7 +981,7 @@ public final class DungeonRuns {
      * still in the area why. {@code why} names what cleared it, for the log.
      */
     private void end(@Nonnull Run run, @Nonnull Ending ending, long nowMs, @Nullable String why) {
-        // However it ends, its checkpoint goes: the next run here, and a member still in the area, land as it lands them.
+        // However it ends, its checkpoint is let go; one it still holds answers nothing once the run is over.
         RunCheckpoints.shared().clear(run.area, run.runId);
         if (run.knobs.endless != null) {
             endEndless(run, ending, nowMs);
@@ -1018,10 +1018,11 @@ public final class DungeonRuns {
     }
 
     /**
-     * End endless {@code run} (under this list's lock; {@link #end} has let its checkpoint go): however it ends (every
-     * member down at once, its time limit, or everyone gone) it is no failure. Each member still in the area whose part has not ended is paid what they
-     * banked, from one chest stood where they came in; the round's winners are every participant who banked a wave
-     * (those who left before it ended were paid as they went), a win when there is one.
+     * End endless {@code run} (under this list's lock; {@link #end} has let its checkpoint go): however it ends
+     * (every member down at once, its time limit, or everyone gone) it is no failure. Each member still in the area
+     * whose part has not ended is paid what they banked, from one chest stood where they came in; the round's winners
+     * are every participant who banked a wave (those who left before it ended were paid as they went), a win when
+     * there is one.
      */
     private void endEndless(@Nonnull Run run, @Nonnull Ending ending, long nowMs) {
         run.ended = true;

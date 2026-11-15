@@ -26,8 +26,10 @@ import com.ziggfreed.common.instance.world.CopyKey;
  * back) is replaced by the new run's first checkpoint, and never answers meanwhile: {@link #respawnAt} hands one out
  * only while its run is still going ({@code DungeonRuns.live}).
  *
- * <p><b>Cleared</b> when the run ends ({@code DungeonRuns.end}, however it ends: a clear, a failure, everyone gone),
- * so the next run in the area, and a member still there after a clear, respawn where the area lands them.
+ * <p><b>When the run ends</b> (however it ends: a clear, a failure, everyone gone), its override stops answering,
+ * since {@link #respawnAt} checks the run is still going each time it is asked, so a member still there after a clear
+ * respawns where the area lands them; the area's next run replaces it with its own first checkpoint.
+ * {@code DungeonRuns.end} also asks {@link #clear} to let it go, but nothing here relies on that.
  *
  * <p>Thread-safe without a lock of its own: one {@link ConcurrentHashMap} whose entries are immutable and replaced
  * whole, so the run list may clear an override under its leaf lock and the spawn provider may read one from any
@@ -97,7 +99,10 @@ public final class RunCheckpoints {
         return new Transform(now.at());
     }
 
-    /** Run {@code runId} of {@code area} ended: its override goes, and with it the checkpoints it took. */
+    /**
+     * Run {@code runId} of {@code area} ended: let its override go if it still holds the area. A take racing the end
+     * can file one again; {@link #respawnAt} never answers it, and the next run's first take replaces it.
+     */
     void clear(@Nonnull CopyKey area, @Nonnull UUID runId) {
         held.computeIfPresent(area, (key, now) -> now.runId().equals(runId) ? null : now);
     }

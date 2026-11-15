@@ -1,5 +1,5 @@
 {
-  "$Comment": "The short heal a dungeon checkpoint (the ZigCheckpoint trigger-volume effect) gives every member of the run when one of them reaches it. Everything but its length comes from the game's own checkpoint heal, Dungeon_Checkpoint_Heal (its rate, green tint, sound and icon); this holds it for 8 seconds. Raise Duration for a longer heal, or point a checkpoint's Heal.Effect at an effect of your own.",
+  "$Comment": "The short heal a dungeon checkpoint (the ZigCheckpoint trigger-volume effect) gives every member of the run when one of them reaches it. Everything but its length comes from the game's own checkpoint heal, Dungeon_Checkpoint_Heal (its rate, green tint, sound and icon); this holds it for 8 seconds. Raise Duration for a longer heal, or point a checkpoint's HealEffect at an effect of your own.",
   "Parent": "Dungeon_Checkpoint_Heal",
   "Duration": 8.0
 }
