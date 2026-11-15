@@ -3,6 +3,7 @@ package com.ziggfreed.common.rune;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.ExtraInfo;
+import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.ziggfreed.common.testing.EngineAssetStores;
 
@@ -65,6 +67,31 @@ class RuneSocketsCodecTest {
             assertNull(second.get(0));
             assertEquals(pair, second.get(1), "a support keeps its socket and its count");
             assertEquals(Arrays.asList(null, null), restored.supports(EMPTIED_LINE));
+        }
+    }
+
+    /**
+     * A support whose item the server no longer has (its mod removed) is read as written and saved again, never
+     * dropped: the engine's item codec checks the id only through a late validator, which a decode never runs, and
+     * such a stack answers the engine's unknown item, which is no core. The item store here is empty, so the id is
+     * unknown exactly as it is on a live server whose item store lacks it.
+     */
+    @Test
+    void aSupportWhoseItemIsGoneIsKept() {
+        try (EngineAssetStores.Swap items = EngineAssetStores.emptyItems()) {
+            BsonDocument gone = new BsonDocument("Id", new BsonString("Gone_Mod_Rune"))
+                    .append("Quantity", new BsonInt32(1));
+            BsonDocument saved = new BsonDocument("Version", new BsonInt32(RuneSockets.VERSION))
+                    .append("Lines", new BsonDocument(FIRST_LINE, new BsonDocument("1", gone)));
+
+            RuneSockets restored = RuneSockets.CODEC.decode(saved, new ExtraInfo());
+            ItemStack kept = restored.supports(FIRST_LINE).get(0);
+            assertEquals("Gone_Mod_Rune", kept.getItemId(), "an item the server does not have is read as written");
+            assertSame(Item.UNKNOWN, kept.getItem(), "and answers the engine's unknown item");
+            assertFalse(restored.put(FIRST_LINE, restored.supports(FIRST_LINE)),
+                    "the window's write-back keeps it where it was");
+            assertEquals("Gone_Mod_Rune", RuneSockets.CODEC.encode(restored, new ExtraInfo()).getDocument("Lines")
+                    .getDocument(FIRST_LINE).getDocument("1").getString("Id").getValue(), "and the next save writes it");
         }
     }
 

@@ -41,7 +41,10 @@ import com.ziggfreed.common.util.SafeLog;
  * <p><b>Saved.</b> Each line is its sockets by number ({@code 1} and {@code 2}, the slots after the core), each a
  * whole {@link ItemStack} through the engine's own item codec, so a rune's metadata rides along. A line with
  * nothing socketed is not written. Registered at library setup, before any world loads, and attached to every
- * player on connect, so a save carrying it always reads back.
+ * player on connect, so a save carrying it always reads back. A support whose item the server no longer has (its
+ * mod removed) is read as written and saved again: the item codec checks an id only through a late validator, which
+ * a decode never runs, and such a stack answers the engine's unknown item, which is no core, so nothing here drops
+ * it ({@code RuneSocketsCodecTest} holds this).
  *
  * <p><b>One write path.</b> {@link #write} and {@link #takeAll}, on the player's world thread, are the only ways
  * the record changes, and each announces a write that changed it through {@link PlayerRecords#changed}, so a
@@ -222,7 +225,8 @@ public final class RuneSockets implements Component<EntityStore> {
 
     /**
      * The in-place step under {@link #write}: line {@code lineId} becomes {@code supports} (a core left out, the rest
-     * past {@link RuneBench#SUPPORTS_PER_LINE} ignored), answering whether that changed what it held.
+     * past {@link RuneBench#SUPPORTS_PER_LINE} ignored; anything else kept, an item the server no longer has
+     * included), answering whether that changed what it held.
      */
     boolean put(@Nonnull String lineId, @Nonnull List<ItemStack> supports) {
         ItemStack[] next = new ItemStack[RuneBench.SUPPORTS_PER_LINE];
