@@ -176,7 +176,7 @@ public final class Gateways {
             }
             List<BlockMarker> markers = new ArrayList<>();
             if (anyBlocks) {
-                BlockMapMarkersResource.of(world).getMarkers().forEach((x, y, z, data) -> {
+                BlockMapMarkersResource.get(world).forEach((x, y, z, data) -> {
                     if (data != null && data.getName() != null) {
                         markers.add(new BlockMarker(x, y, z, data.getName()));
                     }

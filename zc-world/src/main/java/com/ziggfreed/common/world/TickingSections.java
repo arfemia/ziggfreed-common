@@ -13,7 +13,6 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.chunk.section.ChunkSection;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.GetChunkFlags;
@@ -43,7 +42,7 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p><b>World thread only, and never inside a system's processing window for a wake</b>
  * ({@link #wake}, {@link #ensureTicking}, {@link #whenTicking}): a wake re-adds entities, which a store
- * refuses while it processes. {@link #holdTicking} only reads the section and resets two timers, so an
+ * refuses while it processes. {@link #holdTicking} only reads the section and resets its timer, so an
  * entity-store system may call it. Nothing here throws: a read that fails reads {@link State#ABSENT}, a
  * wake that fails answers a failed future, and a step that throws is logged. A {@code LinkageError} (a
  * member this server build does not have) logs one WARNING per server; any other failure logs at FINE.
@@ -83,7 +82,7 @@ public final class TickingSections {
         @Nonnull
         CompletableFuture<Ref<ChunkStore>> wake(@Nonnull SectionPos section);
 
-        /** Reset a ticking section's active timer, and its column's; answers whether it held one. */
+        /** Reset a ticking section's active timer; answers whether it held one. */
         boolean hold(@Nonnull SectionPos section);
     }
 
@@ -133,8 +132,8 @@ public final class TickingSections {
     }
 
     /**
-     * Keep the section holding {@code (x, y, z)} ticking a while longer: reset its active timer and its
-     * column's, the lever the engine pulls for a section a player's hot sphere covers. Answers whether the
+     * Keep the section holding {@code (x, y, z)} ticking a while longer: reset its active timer, the lever
+     * the engine pulls for a section a player's hot sphere covers. Answers whether the
      * section was ticking. Never wakes, so an entity-store system may call it.
      */
     public static boolean holdTicking(@Nonnull World world, double x, double y, double z) {
@@ -322,14 +321,8 @@ public final class TickingSections {
             if (chunkSection == null) {
                 return false;
             }
+            // On Update 8 the section owns the active timer; the column keeps none.
             chunkSection.resetActiveTimer();
-            Ref<ChunkStore> columnRef = chunks.getChunkReference(ChunkUtil.indexChunk(section.x(), section.z()));
-            if (columnRef != null && columnRef.isValid()) {
-                WorldChunk column = store.getComponent(columnRef, WorldChunk.getComponentType());
-                if (column != null) {
-                    column.resetActiveTimer();
-                }
-            }
             return true;
         }
     }
