@@ -10,9 +10,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import javax.annotation.Nonnull;
@@ -193,6 +195,66 @@ public final class ServerContent {
             String id = ContentIds.mint(typedName, candidate -> taken.contains(candidate.toLowerCase(Locale.ROOT)));
             minted.add(id.toLowerCase(Locale.ROOT));
             return id;
+        }
+    }
+
+    /**
+     * {@link #mintId(AssetStore, String)}'s rule for an id that names no asset (a rank of a reputation's own, a
+     * key inside one asset): the {@code Is_Like_This} id of {@code typedName}, with the first free {@code _2},
+     * {@code _3} suffix while {@code taken} answers true (answer without regard to case, as ids are matched).
+     * Pure; it reserves nothing.
+     */
+    @Nonnull
+    public static String mintId(@Nullable String typedName, @Nonnull Predicate<String> taken) {
+        return ContentIds.mint(typedName, taken);
+    }
+
+    // ---------------------------------------------------------------- what the pack holds
+
+    /**
+     * The id of every asset of {@code store} whose file the pack holds and the store loaded, as the store
+     * spells it, sorted without regard to case: what an editor may open again. Empty while the pack is not
+     * loaded. Never throws.
+     */
+    @Nonnull
+    public static <T extends JsonAssetWithMap<String, M>, M extends AssetMap<String, T>> List<String> ids(
+            @Nonnull AssetStore<String, T, M> store) {
+        AssetPack pack = ServerContentPack.loaded();
+        if (pack == null) {
+            return List.of();
+        }
+        Set<String> ids = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        try {
+            Map<String, Path> paths = store.getAssetMap().getPathMap(pack.getName());
+            if (paths != null) {
+                Path dir = storeDir(pack, store);
+                for (Map.Entry<String, Path> e : paths.entrySet()) {
+                    if (e.getKey() != null && e.getValue() != null
+                            && e.getValue().toAbsolutePath().normalize().startsWith(dir)) {
+                        ids.add(e.getKey());
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+            // A store that cannot list its paths offers nothing to open again.
+        }
+        return List.copyOf(ids);
+    }
+
+    /**
+     * The JSON the pack's own file holds for asset {@code id} of {@code store}, as written, or null when the
+     * pack holds no file for it (or it cannot be read): the document an editor opened on a saved asset starts
+     * from, so a save keeps every leaf the editor does not show. Never throws.
+     */
+    @Nullable
+    public static <T extends JsonAssetWithMap<String, M>, M extends AssetMap<String, T>> String read(
+            @Nonnull AssetStore<String, T, M> store, @Nonnull String id) {
+        try {
+            AssetPack pack = ServerContentPack.loaded();
+            Path file = pack == null || !ContentIds.isSafe(id) ? null : knownFile(store, pack, id);
+            return file == null || !Files.isRegularFile(file) ? null : Files.readString(file, StandardCharsets.UTF_8);
+        } catch (Throwable t) {
+            return null;
         }
     }
 
@@ -471,6 +533,19 @@ public final class ServerContent {
             return ServerContentText.set(englishByKey);
         } catch (Throwable t) {
             return refused("texts", ContentProblem.IO, String.valueOf(t.getMessage()));
+        }
+    }
+
+    /**
+     * The English the pack holds under {@code key} (a {@link #textKey}, or its {@link #storedKey}), or null when
+     * it holds none: what an editor opened on a saved asset shows in a text field.
+     */
+    @Nullable
+    public static String text(@Nullable String key) {
+        try {
+            return ServerContentText.get(key);
+        } catch (Throwable t) {
+            return null;
         }
     }
 

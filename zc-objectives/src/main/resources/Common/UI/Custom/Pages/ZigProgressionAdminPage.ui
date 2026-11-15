@@ -66,6 +66,18 @@ $F.@ZigDecoratedFrame {
       Anchor: (Height: 36, Top: 12);
       LayoutMode: Left;
 
+      // The in-game editors this page opens, each shown from Java only while its wizard is registered.
+      Button #ReputationEditorButton {
+        Visible: false;
+        Style: $Z.@ZigRichRowBtnStyle;
+        Anchor: (Width: 200, Height: 32);
+        Label #Label {
+          FlexWeight: 1;
+          Text: "";
+          Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+        }
+      }
+
       Group { FlexWeight: 1; }
 
       Button #BackButton {

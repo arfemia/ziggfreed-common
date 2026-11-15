@@ -13,6 +13,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
+import com.hypixel.hytale.server.npc.NPCPlugin;
 import com.ziggfreed.common.match.MatchKey;
 import com.ziggfreed.common.match.MatchSets;
 
@@ -63,6 +64,15 @@ public final class Pickers {
     @Nonnull
     public static Source npcGroups() {
         return () -> MatchSets.ids(MatchKey.Form.NPC_GROUP);
+    }
+
+    /** Every NPC role on this server that can stand in the world (the engine's spawnable roles). */
+    @Nonnull
+    public static Source npcRoles() {
+        return () -> {
+            NPCPlugin npcs = NPCPlugin.get();
+            return npcs == null ? List.of() : npcs.getRoleTemplateNames(true);
+        };
     }
 
     /** Every item tag word any item on this server carries. */

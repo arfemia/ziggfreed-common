@@ -6,3 +6,5 @@ Zig_Author_Tool.name = Authoring Tool
 Zig_Author_Tool.description = What every authoring tool is made from. Take a tool from the Authoring Tools tab instead.
 Zig_Author_Inspect.name = Inspect Tool
 Zig_Author_Inspect.description = Click a block, creature or item to see its id and the families, groups and tags it's in.
+Zig_Author_Reputation.name = Reputation Tool
+Zig_Author_Reputation.description = Click a character to add it to a reputation, or click anywhere to make a reputation or change one.
