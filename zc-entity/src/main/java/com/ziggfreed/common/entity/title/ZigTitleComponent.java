@@ -17,7 +17,6 @@ import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
-import com.hypixel.hytale.server.core.HytaleServer;
 import com.hypixel.hytale.server.core.event.events.player.PlayerConnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
@@ -26,6 +25,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.inventory.PlayerAccess;
 import com.ziggfreed.common.playerdata.ZigPlayerRecordsRestoredEvent;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.util.ZigScheduler;
 
 /**
  * The per-player record of the TITLES a player has earned and the one they chose to show,
@@ -162,12 +162,12 @@ public class ZigTitleComponent implements Component<EntityStore> {
 
     /**
      * Read back the record of players' titles and the queue of changes owed to offline players (each
-     * written a moment after a change, on the server's scheduler), then hang the connect hook (attach
+     * written a moment after a change, on the library's scheduler), then hang the connect hook (attach
      * and seed the record), the disconnect hook (write both down) and the restore hook (seed again from a
      * record a consumer's own store put in place).
      */
     public static void install(@Nonnull PluginBase plugin) {
-        Executor later = flush -> HytaleServer.SCHEDULED_EXECUTOR.schedule(
+        Executor later = flush -> ZigScheduler.schedule(
                 flush, ActiveTitles.FLUSH_DELAY_SECONDS, TimeUnit.SECONDS);
         ActiveTitles.persistTo(ActiveTitles.DEFAULT_FILE, later);
         PendingTitles.persistTo(PendingTitles.DEFAULT_FILE, later);
