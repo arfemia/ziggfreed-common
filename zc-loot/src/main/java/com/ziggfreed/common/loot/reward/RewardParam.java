@@ -109,9 +109,20 @@ public record RewardParam(@Nonnull String name, @Nonnull Type type, @Nullable St
         return new RewardParam(name, type, documentation, required, defaultValue, offered);
     }
 
+    /** A whole number in quotes, as {@code RewardSpec.longParam} reads one. */
+    static final String QUOTED_INTEGER = "^[-+]?[0-9]+$";
+
+    /** A number in quotes, as {@code RewardSpec.doubleParam} reads one. */
+    static final String QUOTED_NUMBER = "^[-+]?([0-9]+(\\.[0-9]*)?|\\.[0-9]+)([eE][-+]?[0-9]+)?$";
+
+    /** True or false in quotes, in any case, as {@code RewardSpec.flagParam} reads one. */
+    static final String QUOTED_BOOLEAN = "^([Tt][Rr][Uu][Ee]|[Ff][Aa][Ll][Ss][Ee])$";
+
     /**
      * The editor's control for this parameter: its shape, its sentence, its default as that shape (a
-     * default that does not read as one is left off), and its picker on a text value.
+     * default that does not read as one is left off), and its picker on a text value. A number or a
+     * true/false also takes the same value in quotes, since a reward's {@code Params} decode the two alike
+     * and most shipped rewards quote theirs ({@code "Count": "1"}).
      */
     @Nonnull
     public Schema toSchema() {
@@ -122,7 +133,7 @@ public record RewardParam(@Nonnull String name, @Nonnull Type type, @Nullable St
                 if (value != null && value >= Integer.MIN_VALUE && value <= Integer.MAX_VALUE) {
                     s.setDefault(value.intValue());
                 }
-                yield s;
+                yield orQuoted(s, QUOTED_INTEGER, true);
             }
             case NUMBER -> {
                 NumberSchema s = new NumberSchema();
@@ -130,14 +141,14 @@ public record RewardParam(@Nonnull String name, @Nonnull Type type, @Nullable St
                 if (value != null) {
                     s.setDefault(value);
                 }
-                yield s;
+                yield orQuoted(s, QUOTED_NUMBER, true);
             }
             case BOOLEAN -> {
                 BooleanSchema s = new BooleanSchema();
                 if (defaultValue != null && !defaultValue.isBlank()) {
                     s.setDefault(Boolean.parseBoolean(defaultValue.trim()));
                 }
-                yield s;
+                yield orQuoted(s, QUOTED_BOOLEAN, false);
             }
             case TEXT -> {
                 StringSchema s = new StringSchema();
@@ -158,6 +169,22 @@ public record RewardParam(@Nonnull String name, @Nonnull Type type, @Nullable St
             schema.setMarkdownDescription(sentence);
         }
         return schema;
+    }
+
+    /**
+     * {@code typed}, or the same value written in quotes as {@code pattern} spells it: the engine's own shape
+     * for a value its codec takes either way ({@code FloatCodec}: an {@code anyOf} of the number and a
+     * patterned string, the editor's number control named on it), the default kept on the typed arm.
+     */
+    @Nonnull
+    private static Schema orQuoted(@Nonnull Schema typed, @Nonnull String pattern, boolean numeric) {
+        StringSchema quoted = new StringSchema();
+        quoted.setPattern(pattern);
+        Schema either = Schema.anyOf(typed, quoted);
+        if (numeric) {
+            either.getHytale().setType("Number");
+        }
+        return either;
     }
 
     @Nullable

@@ -7,9 +7,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
 
@@ -104,7 +106,6 @@ class EditorSchemaSetTest {
                 "a parameter the kind requires is marked so");
 
         BsonDocument file = property(definitions.getDocument("RewardEntryAsset@" + FILE_KIND), "Params");
-        assertTrue(typesOf(property(file, "Amount")).contains("integer"), "a kind file's Type picks the box");
         assertTrue(property(file, "Wallet").toJson().contains("ziggfreedcommon:currencies"),
                 "a kind file's Pick offers its list");
 
@@ -113,6 +114,98 @@ class EditorSchemaSetTest {
         BsonDocument typeField = selector.getDocument("hytaleSchemaTypeField");
         assertEquals("Kind", typeField.getString("property").getValue(), "the row's Kind picks its form");
         assertTrue(typeField.getArray("values").contains(new BsonString("Item")), typeField.toJson());
+    }
+
+    /**
+     * A reward row's form takes what shipped rows write: the parameters any reward may write whatever its kind
+     * (a Lootable row naming itself, as a shipped quest's Claim row does), and a count or a flag bare or in
+     * quotes, as the row codec decodes both. A word where a count goes, or a key no reward reads, it still marks.
+     */
+    @Test
+    void aRewardRowsFormTakesWhatShippedRowsWrite() {
+        BsonDocument definitions = definitions();
+        assertTakes(definitions, "Lootable",
+                "{ \"Lootable\": \"Mmo_Temple_Offering\", \"NameKey\": \"reward.lootable.temple_offering\" }");
+        assertTakes(definitions, "Item",
+                "{ \"Item\": \"Ingredient_Fibre\", \"Count\": \"1\", \"Icon\": \"Ingredient_Fibre\", \"QueueIfOffline\": \"true\" }");
+        assertTakes(definitions, "Item", "{ \"Item\": \"Ingredient_Fibre\", \"Count\": 1, \"QueueIfOffline\": false }");
+        assertTakes(definitions, "Stamped_Item", "{ \"Item\": \"Ingredient_Fibre\", \"Picks\": \"2\", \"NameKey\": \"k\" }");
+        assertTakes(definitions, "Command", "{ \"Command\": \"say hi\", \"DelayTicks\": \"20\", \"Icon\": \"Ingredient_Fibre\" }");
+        assertTakes(definitions, FILE_KIND, "{ \"Amount\": \"250\", \"NameKey\": \"mymod.reward.coin\" }");
+        assertTakes(definitions, FILE_KIND, "{ \"Amount\": 250 }");
+
+        assertEquals(List.of("Count refuses \"many\""), formProblems(definitions, "Item",
+                "{ \"Item\": \"Ingredient_Fibre\", \"Count\": \"many\" }"), "a word is no count");
+        assertEquals(List.of("QueueIfOffline refuses \"later\""), formProblems(definitions, "Item",
+                "{ \"Item\": \"Ingredient_Fibre\", \"QueueIfOffline\": \"later\" }"), "a word is no flag");
+        assertEquals(List.of("no Sneaky"), formProblems(definitions, "Lootable",
+                "{ \"Lootable\": \"Mmo_Temple_Offering\", \"Sneaky\": \"x\" }"), "a key no reward reads is marked");
+    }
+
+    private static void assertTakes(@Nonnull BsonDocument definitions, @Nonnull String kind, @Nonnull String params) {
+        assertEquals(List.of(), formProblems(definitions, kind, params), kind + " takes " + params);
+    }
+
+    /**
+     * What {@code kind}'s {@code Params} form marks in {@code params}, read the way a JSON schema check reads the
+     * shapes a reward form uses: a key the form does not name while it takes no others, a required key left out,
+     * and a value no arm of its leaf takes (by type, and by pattern on a string).
+     */
+    @Nonnull
+    private static List<String> formProblems(@Nonnull BsonDocument definitions, @Nonnull String kind,
+            @Nonnull String params) {
+        BsonDocument form = property(definitions.getDocument("RewardEntryAsset@" + kind), "Params");
+        BsonDocument properties = form.getDocument("properties");
+        BsonValue others = form.get("additionalProperties");
+        boolean closed = others != null && others.isBoolean() && !others.asBoolean().getValue();
+        BsonDocument written = BsonDocument.parse(params);
+        List<String> problems = new ArrayList<>();
+        for (Map.Entry<String, BsonValue> entry : written.entrySet()) {
+            BsonValue leaf = properties.get(entry.getKey());
+            if (leaf == null) {
+                if (closed) {
+                    problems.add("no " + entry.getKey());
+                }
+            } else if (!accepts(leaf.asDocument(), entry.getValue())) {
+                BsonValue value = entry.getValue();
+                problems.add(entry.getKey() + " refuses "
+                        + (value.isString() ? "\"" + value.asString().getValue() + "\"" : value.toString()));
+            }
+        }
+        for (BsonValue required : form.getArray("required", new BsonArray())) {
+            if (!written.containsKey(required.asString().getValue())) {
+                problems.add("missing " + required.asString().getValue());
+            }
+        }
+        return problems;
+    }
+
+    /** Does {@code leaf} take {@code value}: any arm of a union, else its type and a string's pattern. */
+    private static boolean accepts(@Nonnull BsonDocument leaf, @Nonnull BsonValue value) {
+        BsonValue arms = leaf.get("anyOf");
+        if (arms != null) {
+            return arms.asArray().stream().anyMatch(arm -> accepts(arm.asDocument(), value));
+        }
+        List<String> types = typesOf(leaf);
+        if (!types.isEmpty() && types.stream().noneMatch(type -> isType(type, value))) {
+            return false;
+        }
+        BsonValue pattern = leaf.get("pattern");
+        return pattern == null || !value.isString()
+                || Pattern.compile(pattern.asString().getValue()).matcher(value.asString().getValue()).find();
+    }
+
+    private static boolean isType(@Nonnull String type, @Nonnull BsonValue value) {
+        return switch (type) {
+            case "string" -> value.isString();
+            case "integer" -> value.isInt32() || value.isInt64();
+            case "number" -> value.isNumber();
+            case "boolean" -> value.isBoolean();
+            case "null" -> value.isNull();
+            case "object" -> value.isDocument();
+            case "array" -> value.isArray();
+            default -> true;
+        };
     }
 
     @Test

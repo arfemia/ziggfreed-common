@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
@@ -46,7 +47,8 @@ import com.ziggfreed.common.util.SafeLog;
  * codec's own, so a file reads exactly as it always did, a value no arm names included (a kind a mod
  * this server does not run registers, which the any-other arm shows). With no arm to offer (a unit test,
  * a schema doc), the schema is
- * the wrapped object's own, unchanged. An arm source that throws is reported once and offers nothing.
+ * the wrapped object's own, unchanged. An arm source that throws is reported once and offers nothing; one
+ * arm whose form throws is reported once and left off the list, the rest offered as before.
  *
  * <p>A schema doc that walks codecs reads a row through {@link #inner()}, as its own object.
  */
@@ -75,6 +77,8 @@ public final class KindSelectorCodec<T> implements Codec<T>, InheritCodec<T>, Va
     private final String key;
     private final Supplier<? extends List<Arm>> arms;
     private volatile boolean warned;
+    /** The values whose form threw, folded, each reported once. */
+    private final Set<String> brokenArms = ConcurrentHashMap.newKeySet();
 
     /**
      * @param inner the row's own object codec, which decodes, encodes and inherits
@@ -158,17 +162,25 @@ public final class KindSelectorCodec<T> implements Codec<T>, InheritCodec<T>, Va
         }
         String baseName = baseRef.substring(baseRef.lastIndexOf('/') + 1);
         Map<String, Schema> definitions = context.getDefinitions();
-        List<Schema> refs = new ArrayList<>(offered.size());
-        String[] values = new String[offered.size()];
-        for (int i = 0; i < offered.size(); i++) {
-            Arm arm = offered.get(i);
+        List<Schema> refs = new ArrayList<>(offered.size() + 1);
+        List<String> listed = new ArrayList<>(offered.size());
+        for (Arm arm : offered) {
             String name = baseName + "@" + safeName(arm.value());
             if (!definitions.containsKey(name)) {
-                definitions.put(name, armSchema(arm, context));
+                ObjectSchema shaped = armSchema(arm, context);
+                if (shaped == null) {
+                    // A value whose form cannot be made is left off the list, and the other arm takes it as typed.
+                    continue;
+                }
+                definitions.put(name, shaped);
             }
             refs.add(Schema.ref(EditorSchemaCheck.COMMON + "#/definitions/" + name));
-            values[i] = arm.value();
+            listed.add(arm.value());
         }
+        if (listed.isEmpty()) {
+            return base;
+        }
+        String[] values = listed.toArray(String[]::new);
         // A row decodes a value no arm names too (a kind a mod this server does not run registers), so the union
         // advertises that arm as well: the wrapped object's own form, for any value but the listed ones.
         String otherName = baseName + OTHER_ARM;
@@ -183,8 +195,12 @@ public final class KindSelectorCodec<T> implements Codec<T>, InheritCodec<T>, Va
         return selector;
     }
 
-    /** The wrapped object's schema with the key fixed to the arm's value and the arm's own changes made. */
-    @Nonnull
+    /**
+     * The wrapped object's schema with the key fixed to the arm's value and the arm's own changes made, or null
+     * when the arm's changes throw: that one value is reported once and left off, so one bad form never costs
+     * the editor every other schema.
+     */
+    @Nullable
     private ObjectSchema armSchema(@Nonnull Arm arm, @Nonnull SchemaContext context) {
         ObjectSchema schema = inner.toSchema(context);
         schema.setTitle(arm.value());
@@ -203,7 +219,16 @@ public final class KindSelectorCodec<T> implements Codec<T>, InheritCodec<T>, Va
         properties.putAll(rest);
         schema.setProperties(properties);
         if (arm.shape() != null) {
-            arm.shape().shape(schema, context);
+            try {
+                arm.shape().shape(schema, context);
+            } catch (Throwable t) {
+                if (brokenArms.add(arm.value().trim().toLowerCase(Locale.ROOT))) {
+                    SafeLog.warn("[editor] the " + key + " '" + arm.value() + "' form for "
+                            + inner.getInnerClass().getSimpleName() + " could not be made, so the Asset Editor "
+                            + "leaves it off the list (typed by hand, it keeps the plain form)", t);
+                }
+                return null;
+            }
         }
         return schema;
     }

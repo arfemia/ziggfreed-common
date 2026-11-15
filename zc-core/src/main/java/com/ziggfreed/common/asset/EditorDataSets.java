@@ -100,11 +100,16 @@ public final class EditorDataSets {
      * Serve every {@link #ASSET_IDS} list from one handler, each answered at request time off the loaded assets
      * of its type (a pack loaded later simply widens the next answer). Registered once, at setup; try-guarded
      * like every dataset here.
+     *
+     * <p>The handler is the event's unhandled one, the lightest that hears names no handler is keyed to: the
+     * engine asks it for a dataset nothing answers by name, once no global handler has run
+     * ({@code AsyncEventBusRegistry.dispatchFor}), and every unhandled handler is asked in turn, so another
+     * mod's own unhandled lists still answer beside these. A global one would hide every such handler.
      */
     public static void serveAssetIds(@Nonnull EventRegistry registry) {
         assetIdsServed = true;
         try {
-            registry.registerGlobal(AssetEditorRequestDataSetEvent.class, event -> {
+            registry.registerUnhandled(AssetEditorRequestDataSetEvent.class, event -> {
                 String dataSet = event.getDataSet();
                 if (dataSet == null || !dataSet.startsWith(ASSET_IDS) || event.getResults() != null) {
                     return;
