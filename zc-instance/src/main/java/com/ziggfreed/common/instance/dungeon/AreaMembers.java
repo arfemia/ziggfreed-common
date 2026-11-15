@@ -20,6 +20,7 @@ import org.joml.Vector3d;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
+import com.ziggfreed.common.instance.dungeon.gen.GeneratedRuns;
 import com.ziggfreed.common.instance.world.CopyKey;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -40,7 +41,9 @@ import com.ziggfreed.common.util.SafeLog;
  * Each settles with the router ({@link CopyRouter#arrived}, {@link CopyRouter#failed},
  * {@link CopyRouter#left}) and with the area's run ({@link DungeonRuns}: an arrival begins or joins it, a
  * freed area ends one still going); an area whose last player left or failed is free, the router lets the
- * party holding it go, and {@link Areas} pastes it afresh for the next party. The ticker touches no store and
+ * party holding it go, and {@link Areas} pastes it afresh for the next party (a generated dungeon's lane logs its
+ * run's {@code [dungeon]} measurement line, {@code GeneratedRuns.finish}, and its next party gets a fresh run
+ * further along it). The ticker touches no store and
  * no entity, so nothing it settles needs the world thread; after each pass it hands the runs their own tick
  * ({@link DungeonRuns#tick}: time limits, wipe checks, the round moments), outside this list's lock.
  *
@@ -278,7 +281,9 @@ public final class AreaMembers {
             return;
         }
         String line;
+        String runLine = null;
         AreaLayout arrivedIn = null;
+        World arrivedWorld = null;
         synchronized (this) {
             if (members.get(member.player) != member) {
                 return;
@@ -291,6 +296,7 @@ public final class AreaMembers {
                 member.worldId = world.getWorldConfig().getUuid();
                 member.layout = layoutOf(world);
                 arrivedIn = member.layout;
+                arrivedWorld = world;
                 CopyRouter.shared().arrived(member.player);
                 DungeonRuns.shared().arrived(member.area, world, member.player, onTheWayInto(member.area), now);
                 Vector3d at = player == null ? null : player.getTransform().getPosition();
@@ -312,14 +318,20 @@ public final class AreaMembers {
                 if (nobodyIn(member.area)) {
                     Areas.shared().released(worldOf(member), member.area);
                     DungeonRuns.shared().freed(member.area, now);
-                    line += "; the area is free, and the next party there finds it cleared and pasted afresh";
+                    runLine = GeneratedRuns.finish(worldOf(member), member.area);
+                    line += runLine == null
+                            ? "; the area is free, and the next party there finds it cleared and pasted afresh"
+                            : "; the lane is free, and its next party gets a fresh run further along it";
                 }
             }
         }
         SafeLog.info(LOG + line);
+        if (runLine != null) {
+            SafeLog.info(runLine);
+        }
         // The area's camera intro, outside the lock: played on arrival, its view handed back on any way out.
         if (verdict == Verdict.ARRIVED) {
-            DungeonIntro.playSoon(member.player, member.area, arrivedIn);
+            DungeonIntro.playSoon(member.player, member.area, arrivedIn, arrivedWorld);
         } else {
             DungeonIntro.stop(member.player);
         }

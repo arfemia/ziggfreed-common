@@ -18,14 +18,16 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.camera.CameraSequenceAsset;
 import com.ziggfreed.common.camera.CameraSequences;
+import com.ziggfreed.common.instance.dungeon.gen.GeneratedRuns;
 import com.ziggfreed.common.instance.world.CopyKey;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.util.ZigScheduler;
 
 /**
  * The camera intro a dungeon area plays for each player as they arrive: the sequence its {@code Area.IntroCamera}
- * names, measured from the spot the area's prefab was pasted at, so one sequence fits every area of every copy.
- * A dungeon that names none keeps the plain arrival.
+ * names, measured from the spot the area's prefab was pasted at, so one sequence fits every area of every copy; a
+ * generated dungeon's from its run's entry room's anchor, turned with the room. A dungeon that names none keeps the
+ * plain arrival.
  *
  * <p>{@link AreaMembers} calls {@link #playSoon} when a player arrives and {@link #stop} when they leave or never
  * arrive. The intro waits {@link #DELAY_MS} so it does not play under the loading screen, then plays only if the
@@ -50,17 +52,31 @@ final class DungeonIntro {
     }
 
     /**
-     * {@code player} arrived in {@code area} of a copy laid out by {@code layout}: play its dungeon's intro, if it
-     * names one, {@link #DELAY_MS} from now. Never throws.
+     * {@code player} arrived in {@code area} of {@code world}, a copy laid out by {@code layout}: play its dungeon's
+     * intro, if it names one, {@link #DELAY_MS} from now. A generated copy's intro is measured from its run's entry
+     * room ({@link GeneratedRuns#entry}) and turned with it; with no run registered there it plays none. Never throws.
      */
-    static void playSoon(@Nonnull UUID player, @Nonnull CopyKey area, @Nullable AreaLayout layout) {
+    static void playSoon(@Nonnull UUID player, @Nonnull CopyKey area, @Nullable AreaLayout layout,
+            @Nullable World world) {
         try {
             if (layout == null || sequenceOf(area) == null) {
                 return;
             }
-            Vector3i at = layout.origin(area.area());
-            Vector3d origin = new Vector3d(at.x, at.y, at.z);
-            ZigScheduler.schedule(() -> playIfStillThere(player, area, origin), DELAY_MS,
+            Vector3d origin;
+            int turns = 0;
+            if (layout.generated()) {
+                GeneratedRuns.Entry entry = GeneratedRuns.entry(world, area.area());
+                if (entry == null) {
+                    return;
+                }
+                origin = new Vector3d(entry.anchor().x(), entry.anchor().y(), entry.anchor().z());
+                turns = entry.turns();
+            } else {
+                Vector3i at = layout.origin(area.area());
+                origin = new Vector3d(at.x, at.y, at.z);
+            }
+            int turned = turns;
+            ZigScheduler.schedule(() -> playIfStillThere(player, area, origin, turned), DELAY_MS,
                     TimeUnit.MILLISECONDS);
         } catch (Throwable t) {
             SafeLog.warn(LOG + "the intro of " + area.world() + " could not be queued for " + player, t);
@@ -89,8 +105,12 @@ final class DungeonIntro {
         }
     }
 
-    /** The delayed turn: play the intro on the player's world thread if they still stand in {@code area}. */
-    private static void playIfStillThere(@Nonnull UUID player, @Nonnull CopyKey area, @Nonnull Vector3d origin) {
+    /**
+     * The delayed turn: play the intro on the player's world thread if they still stand in {@code area}, measured from
+     * {@code origin} and turned {@code turns} quarter turns.
+     */
+    private static void playIfStillThere(@Nonnull UUID player, @Nonnull CopyKey area, @Nonnull Vector3d origin,
+            int turns) {
         try {
             if (!area.equals(AreaMembers.shared().presentArea(player))) {
                 return;
@@ -105,7 +125,7 @@ final class DungeonIntro {
             World world = ref.getStore().getExternalData().getWorld();
             world.execute(() -> {
                 if (area.equals(AreaMembers.shared().presentArea(player))
-                        && CameraSequences.play(playerRef, sequence, origin)) {
+                        && CameraSequences.play(playerRef, sequence, origin, turns)) {
                     SafeLog.info(LOG + "playing the intro " + sequence.getId() + " for " + player + " in "
                             + area.world() + " area " + area.area() + " (" + sequence.totalSeconds() + " s)");
                 }

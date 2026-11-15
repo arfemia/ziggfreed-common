@@ -1,0 +1,23 @@
+{
+  "$Comment": [
+    "An example layout plan on the Stone kit CommonLib ships (DungeonRooms/Kits/Stone): a room to arrive in, two or three fights with a corridor or none between each, and a large room to end in, every door left open closed by a Stone wall cap.",
+    "The dungeon Zc_Example_Stone runs it. Copy this file under your own pack's id to start a plan of your own: Rooms.Tags picks the kit, Path the beats in order, Links the connectors, Bounds the box a layout must fit in."
+  ],
+  "Rooms": {
+    "Tags": ["Kit=Stone"]
+  },
+  "Path": [
+    { "Role": "Room" },
+    { "Role": "Combat", "Count": { "Min": 2, "Max": 3 } },
+    { "Role": "DeadEnd" }
+  ],
+  "Links": {
+    "Role": "Corridor",
+    "Count": { "Min": 0, "Max": 1 }
+  },
+  "Bounds": {
+    "X": 512,
+    "Y": 128,
+    "Z": 512
+  }
+}

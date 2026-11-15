@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -32,6 +33,13 @@ import com.ziggfreed.common.encounter.validate.EncounterScriptScan;
 import com.ziggfreed.common.encounter.validate.EncounterScripts;
 import com.ziggfreed.common.encounter.wave.WaveRamp;
 import com.ziggfreed.common.encounter.wave.WaveRules;
+import com.ziggfreed.common.instance.dungeon.layout.Cell;
+import com.ziggfreed.common.instance.dungeon.layout.LayoutPlan;
+import com.ziggfreed.common.instance.dungeon.layout.RoomCatalogue;
+import com.ziggfreed.common.instance.dungeon.layout.RoomCatalogueAudit;
+import com.ziggfreed.common.instance.dungeon.layout.asset.DungeonLayoutConfig;
+import com.ziggfreed.common.instance.dungeon.layout.asset.DungeonRoomConfig;
+import com.ziggfreed.common.instance.dungeon.layout.asset.PrefabPoolIndex;
 import com.ziggfreed.common.loot.LootableAsset;
 import com.ziggfreed.common.loot.LootableConfig;
 import com.ziggfreed.common.season.SeasonGate;
@@ -68,7 +76,14 @@ import com.ziggfreed.common.validation.TextKeyAudit;
  *       clear a run, or its survive timer outlasts its time limit, so every run ends failed),
  *       {@link #GATED_DUNGEON_LOOTABLE} (a table it pays from asks something of the player beyond mod presence,
  *       which a member who is offline when it rolls never meets), and the shared {@code UNKNOWN_SEASON} and
- *       {@code UNKNOWN_TEXT_KEY}.</li>
+ *       {@code UNKNOWN_TEXT_KEY};</li>
+ *   <li>for a generated dungeon ({@code Area.Layout}): WARNING {@link #UNKNOWN_DUNGEON_LAYOUT} (no loaded file
+ *       defines the plan, so nobody can enter), {@link #LAYOUT_AND_PREFAB} (it names a prefab too, which is never
+ *       pasted), {@link #LANES_CLAMPED} (its copies hold fewer areas than it asks, the furthest lane kept within
+ *       {@link RunLanes#FAR_LIMIT}) and {@link #LAYOUT_TOO_TALL} (its plan reaches past the world's top); the prefab
+ *       checks are skipped; and the engine walk runs the room catalogue's own audit
+ *       ({@code layout/RoomCatalogueAudit}) once over every plan an enabled dungeon names, its findings filed under the
+ *       same domain.</li>
  * </ul>
  */
 public final class DungeonValidator {
@@ -93,6 +108,10 @@ public final class DungeonValidator {
     public static final String ENDLESS_NO_WAVE_POOL = "ENDLESS_NO_WAVE_POOL";
     public static final String ENDLESS_BOSS_EVERY_TOO_LOW = "ENDLESS_BOSS_EVERY_TOO_LOW";
     public static final String ENDLESS_RAMP_UNCAPPED = "ENDLESS_RAMP_UNCAPPED";
+    public static final String UNKNOWN_DUNGEON_LAYOUT = "UNKNOWN_DUNGEON_LAYOUT";
+    public static final String LAYOUT_AND_PREFAB = "LAYOUT_AND_PREFAB";
+    public static final String LANES_CLAMPED = "LANES_CLAMPED";
+    public static final String LAYOUT_TOO_TALL = "LAYOUT_TOO_TALL";
 
     /** The template's config file, inside its folder under {@code Server/Instances/}. */
     static final String TEMPLATE_CONFIG = "instance.bson";
@@ -153,11 +172,15 @@ public final class DungeonValidator {
         return verdict;
     }
 
-    /** The engine walk over every folded dungeon. */
+    /**
+     * The engine walk over every folded dungeon, then the room catalogue's own audit over every layout plan an enabled
+     * dungeon names.
+     */
     @Nonnull
     public static List<Finding> audit() {
         try {
-            return audit(DungeonConfig.getInstance().all().values(),
+            Collection<DungeonAsset> dungeons = DungeonConfig.getInstance().all().values();
+            List<Finding> out = new ArrayList<>(audit(dungeons,
                     DungeonValidator::templateKnown,
                     DungeonValidator::templateFacts,
                     DungeonValidator::prefabKnown,
@@ -166,11 +189,35 @@ public final class DungeonValidator {
                     DungeonValidator::lootableGated,
                     DungeonValidator::itemKnown,
                     minimumSpacing(),
-                    TextKeyAudit.liveCatalogue());
+                    TextKeyAudit.liveCatalogue(),
+                    plan -> DungeonLayoutConfig.getInstance().plan(plan)));
+            out.addAll(catalogueAudit(dungeons));
+            return out;
         } catch (Throwable t) {
             SafeLog.warn("[dungeon] the dungeon audit failed: " + t.getMessage(), t);
             return List.of();
         }
+    }
+
+    /**
+     * The room catalogue's audit ({@link RoomCatalogueAudit}) over every layout plan an enabled dungeon names and some
+     * loaded file defines, each plan once, the catalogue counted against the packs loaded now; none when no dungeon
+     * is generated.
+     */
+    @Nonnull
+    static List<Finding> catalogueAudit(@Nonnull Collection<DungeonAsset> dungeons) {
+        Map<String, LayoutPlan> plans = new LinkedHashMap<>();
+        for (DungeonAsset dungeon : dungeons) {
+            LayoutPlan plan = dungeon == null || !dungeon.isEnabled() ? null : dungeon.layoutPlan();
+            if (plan != null) {
+                plans.putIfAbsent(plan.id(), plan);
+            }
+        }
+        if (plans.isEmpty()) {
+            return List.of();
+        }
+        RoomCatalogue catalogue = DungeonRoomConfig.getInstance().catalogue(PrefabPoolIndex.live());
+        return RoomCatalogueAudit.audit(catalogue, plans.values());
     }
 
     /**
@@ -204,22 +251,45 @@ public final class DungeonValidator {
             @Nonnull Predicate<String> prefabKnown, @Nonnull Predicate<String> scriptKnown,
             @Nonnull Predicate<String> lootableKnown, @Nonnull Predicate<String> lootableGated,
             @Nonnull Predicate<String> itemKnown, int minimumSpacing, @Nonnull Predicate<String> textShipped) {
+        return audit(dungeons, templateKnown, templateFacts, prefabKnown, scriptKnown, lootableKnown, lootableGated,
+                itemKnown, minimumSpacing, textShipped, DungeonValidator::anyPlan);
+    }
+
+    /**
+     * The pure core, with {@code layoutPlans} answering the loaded layout plan an id names
+     * ({@code Server/ZiggfreedCommon/DungeonLayouts/}), or null for none; the forms without it read every plan as
+     * loaded, at the default bounds.
+     */
+    @Nonnull
+    public static List<Finding> audit(@Nonnull Collection<DungeonAsset> dungeons,
+            @Nonnull Predicate<String> templateKnown, @Nonnull Function<String, TemplateFacts> templateFacts,
+            @Nonnull Predicate<String> prefabKnown, @Nonnull Predicate<String> scriptKnown,
+            @Nonnull Predicate<String> lootableKnown, @Nonnull Predicate<String> lootableGated,
+            @Nonnull Predicate<String> itemKnown, int minimumSpacing, @Nonnull Predicate<String> textShipped,
+            @Nonnull Function<String, LayoutPlan> layoutPlans) {
         List<Finding> out = new ArrayList<>();
         for (DungeonAsset dungeon : dungeons) {
             if (dungeon == null || dungeon.getId() == null || !dungeon.isEnabled()) {
                 continue;
             }
             auditOne(dungeon, templateKnown, templateFacts, prefabKnown, scriptKnown, lootableKnown, lootableGated,
-                    itemKnown, minimumSpacing, textShipped, out);
+                    itemKnown, minimumSpacing, textShipped, layoutPlans, out);
         }
         return out;
+    }
+
+    /** A plan read as loaded at the default bounds, for the audit forms that are not asked about plans. */
+    @Nonnull
+    private static LayoutPlan anyPlan(@Nonnull String id) {
+        return new LayoutPlan(id, List.of(), List.of(), List.of(), null, List.of(), null, null, 0);
     }
 
     private static void auditOne(@Nonnull DungeonAsset dungeon, @Nonnull Predicate<String> templateKnown,
             @Nonnull Function<String, TemplateFacts> templateFacts, @Nonnull Predicate<String> prefabKnown,
             @Nonnull Predicate<String> scriptKnown, @Nonnull Predicate<String> lootableKnown,
             @Nonnull Predicate<String> lootableGated, @Nonnull Predicate<String> itemKnown, int minimumSpacing,
-            @Nonnull Predicate<String> textShipped, @Nonnull List<Finding> out) {
+            @Nonnull Predicate<String> textShipped, @Nonnull Function<String, LayoutPlan> layoutPlans,
+            @Nonnull List<Finding> out) {
         String id = dungeon.getId();
         String where = "dungeon '" + id + "'";
         boolean shared = dungeon.areasPerCopy() > 1;
@@ -252,7 +322,23 @@ public final class DungeonValidator {
         }
 
         String prefab = dungeon.prefabPath();
-        if (prefab == null) {
+        String layout = dungeon.layoutId();
+        if (layout != null) {
+            LayoutPlan plan = plan(layoutPlans, layout);
+            if (plan == null) {
+                out.add(Finding.warning(DOMAIN, UNKNOWN_DUNGEON_LAYOUT, where + " generates its runs from the layout "
+                        + "plan '" + layout + "' (Area.Layout), which no loaded file defines under "
+                        + "Server/ZiggfreedCommon/DungeonLayouts/ (its pack may not be installed here), so nobody "
+                        + "can enter it", id));
+            } else {
+                auditLanes(dungeon, plan, id, where, out);
+            }
+            if (prefab != null) {
+                out.add(Finding.warning(DOMAIN, LAYOUT_AND_PREFAB, where + " names both Area.Layout '" + layout
+                        + "' and Area.Prefab '" + prefab + "': a dungeon with a Layout is generated and never pastes "
+                        + "its Prefab. Remove one of them", id));
+            }
+        } else if (prefab == null) {
             out.add(Finding.warning(DOMAIN, NO_DUNGEON_PREFAB, where + " names no Area.Prefab, so every area "
                     + "it opens is empty void", id));
         } else if (!asks(prefabKnown, prefab)) {
@@ -437,6 +523,44 @@ public final class DungeonValidator {
             return false;
         } catch (Throwable t) {
             return true; // cannot tell is not "missing"
+        }
+    }
+
+    /**
+     * A generated dungeon's lanes against its plan: {@link #LANES_CLAMPED} when its copies hold fewer areas than
+     * {@code Share.AreasPerCopy} asks, the furthest lane at its spacing reaching past {@link RunLanes#FAR_LIMIT}; and
+     * {@link #LAYOUT_TOO_TALL} when the plan's {@code Bounds.Y}, standing from {@link AreaLayout#AREA_Y}, reaches past
+     * {@link RunLanes#WORLD_TOP}.
+     */
+    private static void auditLanes(@Nonnull DungeonAsset dungeon, @Nonnull LayoutPlan plan, @Nonnull String id,
+            @Nonnull String where, @Nonnull List<Finding> out) {
+        Cell bounds = plan.bounds();
+        int asked = dungeon.areasPerCopy();
+        int held = dungeon.areasPerCopy(bounds);
+        if (held < asked) {
+            int spacing = RunLanes.spacing(dungeon.spacing(), bounds.x());
+            out.add(Finding.warning(DOMAIN, LANES_CLAMPED, where + " asks for " + asked + " areas a copy "
+                    + "(Share.AreasPerCopy), but at its lanes' spacing of " + spacing + " blocks (its plan '" + plan.id()
+                    + "' is " + bounds.x() + " wide) only " + held + " fit within " + RunLanes.FAR_LIMIT + " blocks of "
+                    + "the world's centre, so each copy holds " + held + ". Lower Share.AreasPerCopy to " + held
+                    + " or less, or Area.Spacing", id));
+        }
+        if (!RunLanes.fitsHeight(bounds.y())) {
+            int top = AreaLayout.AREA_Y + bounds.y() - 1;
+            out.add(Finding.warning(DOMAIN, LAYOUT_TOO_TALL, where + " generates from the plan '" + plan.id()
+                    + "', whose Bounds.Y of " + bounds.y() + " stands from row " + AreaLayout.AREA_Y + " up to row "
+                    + top + ", past the world's top row " + RunLanes.WORLD_TOP + ", so a room standing that high is cut "
+                    + "off. Keep Bounds.Y at " + (RunLanes.WORLD_TOP - AreaLayout.AREA_Y + 1) + " or less", id));
+        }
+    }
+
+    /** {@code read}'s plan for {@code id}, or null when it has none or throws. */
+    @Nullable
+    private static LayoutPlan plan(@Nonnull Function<String, LayoutPlan> read, @Nonnull String id) {
+        try {
+            return read.apply(id);
+        } catch (Throwable t) {
+            return null;
         }
     }
 

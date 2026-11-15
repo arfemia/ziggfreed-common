@@ -9,12 +9,15 @@ command.desc.list = List every dungeon and how it is set up.
 command.desc.status = List the dungeon copies open right now.
 command.desc.close = Close a dungeon copy now. Everyone inside goes back where they came in.
 command.desc.enter = Go into a dungeon yourself, in an empty area.
+command.desc.layout = List the rooms a generated dungeon lays out from one seed.
 command.desc.arg.copy = The copy to close, by its world name, like crypt-1.
 command.desc.arg.dungeon = The dungeon to go into, by its id, like crypt.
+command.desc.arg.seed = The run seed, a whole number, like 42.
 command.list.none = No dungeons are loaded.
 command.list.header = {0, number} {0, plural, one {dungeon} other {dungeons}}:
 command.list.dungeon = {0} ({1}): {2}. Difficulty {3}, season {4}.
 command.list.place = Template {0}, prefab {1}.
+command.list.place.layout = Template {0}, rooms laid out from the plan {1} on every run.
 command.list.share = {0, number} {0, plural, one {area} other {areas}} a copy, {1, number} {1, plural, one {block} other {blocks}} apart, {2, number} {2, plural, one {player} other {players}} an area, {3}.
 command.list.run = Players land at {0, number}, {1, number}, {2, number} in their area. {3}. A wipe {4}. A copy closes {5, number} {5, plural, one {second} other {seconds}} after it empties.
 command.status.none = No dungeon copies are open.
@@ -27,12 +30,21 @@ command.enter.unknown = No dungeon called {0} is loaded. /zigdungeon list shows 
 command.enter.closed = {0} cannot be entered right now: it is {1}.
 command.enter.no_prefab = {0} names no prefab, so its areas would be empty void.
 command.enter.missing_prefab = {0} names the prefab {1}, which no loaded pack ships.
+command.enter.missing_layout = {0} lays its rooms out from the plan {1}, which no loaded pack defines.
 command.enter.audit_error = {0} cannot be entered: its dungeon file has an error. The server log says what to fix.
 command.enter.on_the_way = You are already on your way into a dungeon.
 command.enter.inside = You are already in a dungeon area. Leave it first.
 command.enter.full = That area is full.
 command.enter.copy_gone = That dungeon copy just closed. Try again.
 command.enter.failed = The dungeon copy could not be opened, or the teleport was refused. The server log says why.
+# /zigdungeon layout: {0} is the plan, {1} the seed, {2} the rooms, {3} the rooms on the path, {4} a layout.relax.*
+# word, {5} the milliseconds it took. Each room line: {0} its place in the list, {1} its room id, {2} the variant,
+# {3} {4} {5} its anchor in the layout's own coordinates, {6} its turn in degrees, {7} its role, {8} a layout.part.* word.
+command.layout.not_generated = {0} pastes one prefab, so it has no layout. Only a dungeon with an Area.Layout does.
+command.layout.bad_seed = {0} is not a seed. Write a whole number, like 42.
+command.layout.none = The plan {0} made no layout from seed {1} in {2, number} {2, plural, one {try} other {tries}}: {3}
+command.layout.header = Plan {0}, seed {1}: {2, number} {2, plural, one {room} other {rooms}}, {3, number} on the path, {4}, laid out in {5, number} ms.
+command.layout.room = {0, number}. {1} variant {2, number} at {3, number} {4, number} {5, number}, turned {6, number} degrees, {7} ({8})
 
 # Words the lines above nest.
 state.open = open
@@ -52,6 +64,15 @@ status.tick.unknown = Tick time not known yet
 status.taking = Taking parties
 status.empty = Empty, closes in {0, number} {0, plural, one {second} other {seconds}}
 status.closing = Closing
+layout.relax.none = as written
+layout.relax.optional_branches_dropped = its optional branches dropped
+layout.relax.counts_at_minimum = every count at its least
+layout.part.path = on the path
+layout.part.link = a link on the path
+layout.part.gate = a branch's gate
+layout.part.branch = on a branch
+layout.part.need = answering a need
+layout.part.cap = a cap
 
 # What a player is told when a way in (a block, a character, a conversation) cannot send them into a dungeon.
 # {0} is the dungeon's name, {1} its season's. In entry.cost, {1} is the item the dungeon takes on the way in and

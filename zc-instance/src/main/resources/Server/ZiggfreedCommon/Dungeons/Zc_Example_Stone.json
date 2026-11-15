@@ -1,0 +1,13 @@
+{
+  "$Comment": [
+    "An example generated dungeon: every party that enters gets a fresh layout of Stone kit rooms from the plan Zc_Example_Stone, written into the world around them as they walk, and clears it by holding out for five minutes.",
+    "It ships switched off, so no server lists it unasked. To try it, write { \"Zc_Example_Stone\": { \"Enabled\": true } } in the server's mods/ziggfreedcommon/dungeons.json and restart; nothing in the world leads here, so an admin goes in with /zigdungeon enter Zc_Example_Stone. /zigdungeon layout Zc_Example_Stone <seed> lists the rooms a seed lays out either way. A pack makes its own by naming its own plan in Area.Layout."
+  ],
+  "Enabled": false,
+  "Area": {
+    "Layout": "Zc_Example_Stone"
+  },
+  "Complete": {
+    "SurviveTimer": 300
+  }
+}

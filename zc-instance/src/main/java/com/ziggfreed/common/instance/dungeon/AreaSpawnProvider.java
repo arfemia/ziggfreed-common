@@ -17,6 +17,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.WorldConfig;
 import com.hypixel.hytale.server.core.universe.world.spawn.ISpawnProvider;
 import com.ziggfreed.common.codec.Vec3;
+import com.ziggfreed.common.instance.dungeon.gen.GeneratedRuns;
 import com.ziggfreed.common.instance.world.CopyKey;
 
 /**
@@ -41,6 +42,7 @@ public final class AreaSpawnProvider implements ISpawnProvider {
     @Nullable private Integer spacing;
     @Nullable private Vec3 entryOffset;
     @Nullable private Float entryYaw;
+    @Nullable private Integer runStride;
     @Nullable private ISpawnProvider fallback;
 
     /** The layout the fields say, built on first use. */
@@ -69,6 +71,10 @@ public final class AreaSpawnProvider implements ISpawnProvider {
                     (o, v) -> o.entryYaw = v, o -> o.entryYaw)
             .documentation("Which way a player faces in their area, in degrees, fixed when the copy opened: 0 faces "
                     + "north (toward negative Z), 180 south. Unauthored means 0.").add()
+            .append(new KeyedCodec<>("RunStride", Codec.INTEGER, false),
+                    (o, v) -> o.runStride = v, o -> o.runStride)
+            .documentation("For a generated dungeon's copy: how far apart, in blocks, two runs of one area stand "
+                    + "along it, fixed when the copy opened. Unauthored, or 0, means the copy pastes its areas.").add()
             .append(new KeyedCodec<>("Fallback", ISpawnProvider.CODEC, false),
                     (o, v) -> o.fallback = v, o -> o.fallback)
             .documentation("The template's own spawn provider, which answers a player who holds no area in the "
@@ -84,6 +90,7 @@ public final class AreaSpawnProvider implements ISpawnProvider {
         this.spacing = layout.spacing();
         this.entryOffset = Vec3.of(layout.entryX(), layout.entryY(), layout.entryZ());
         this.entryYaw = layout.entryYaw();
+        this.runStride = layout.runStride() > 0 ? layout.runStride() : null;
         this.fallback = fallback;
         this.layout = layout;
     }
@@ -106,7 +113,8 @@ public final class AreaSpawnProvider implements ISpawnProvider {
             known = new AreaLayout(dungeon == null ? "" : dungeon, areas == null ? 1 : areas,
                     spacing == null ? DungeonAsset.DEFAULT_SPACING : spacing,
                     entry == null ? 0.0 : entry.effectiveX(), entry == null ? 0.0 : entry.effectiveY(),
-                    entry == null ? 0.0 : entry.effectiveZ(), entryYaw == null ? 0f : entryYaw);
+                    entry == null ? 0.0 : entry.effectiveZ(), entryYaw == null ? 0f : entryYaw,
+                    runStride == null ? 0 : runStride);
             layout = known;
         }
         return known;
@@ -120,13 +128,23 @@ public final class AreaSpawnProvider implements ISpawnProvider {
         CopyKey area = AreaMembers.shared().areaOf(uuid);
         if (area != null && copy.has(area.area())
                 && area.world().equals(world.getName().toLowerCase(Locale.ROOT))) {
-            return CompletableFuture.completedFuture(copy.arrival(area.area()));
+            return CompletableFuture.completedFuture(areaArrival(world, copy, area.area()));
         }
         ISpawnProvider template = fallback;
         if (template != null) {
             return template.getSpawnPointAsync(world, uuid);
         }
         return CompletableFuture.completedFuture(copy.arrival(0));
+    }
+
+    /**
+     * Where a member lands in their own area: a generated copy's lane lands them at its registered run's entry room
+     * ({@link GeneratedRuns#arrival}), else (or before the run is registered) the area's own entry point.
+     */
+    @Nonnull
+    private static Transform areaArrival(@Nonnull World world, @Nonnull AreaLayout copy, int area) {
+        Transform run = copy.generated() ? GeneratedRuns.arrival(world, area) : null;
+        return run != null ? run : copy.arrival(area);
     }
 
     /** Every area's landing spot, in area order. */
