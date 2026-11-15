@@ -1,6 +1,7 @@
 package com.ziggfreed.common.track.source;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.annotation.Nonnull;
@@ -13,9 +14,11 @@ import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.ziggfreed.common.asset.EditorSchema;
+import com.ziggfreed.common.asset.KindSelectorCodec;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.loot.diminish.DiminishSpec;
 import com.ziggfreed.common.match.When;
+import com.ziggfreed.common.progress.asset.ObjectiveKindPicks;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.progress.gate.StoreGates;
 import com.ziggfreed.common.track.asset.TrackAsset;
@@ -81,6 +84,14 @@ public final class TrackSourceAsset implements JsonAssetWithMap<String, DefaultA
     /** The live part of the {@code Requires} block, lifted once per instance ({@link StoreGates#live}). */
     @Nullable private volatile GateSpec[] live;
 
+    /**
+     * The {@code When} group as a source writes it: zc-core's {@link When#CODEC}, whose {@code Kind} picks, in the
+     * Asset Editor, the suggestions its {@code Match} offers (the kind file's {@code Pick}: block ids for a
+     * break, NPC roles for a kill), every pattern and set key still typeable.
+     */
+    private static final KindSelectorCodec<When> WHEN = ObjectiveKindPicks.selector(When.CODEC, "Kind",
+            ObjectiveKindPicks::answerableKindIds, List.of("Match"), List.of());
+
     public static final AssetBuilderCodec<String, TrackSourceAsset> CODEC = AssetBuilderCodec.builder(
                     TrackSourceAsset.class,
                     TrackSourceAsset::new,
@@ -99,7 +110,7 @@ public final class TrackSourceAsset implements JsonAssetWithMap<String, DefaultA
             .metadata(EditorSchema.assetRef(TrackAsset.class))
             .documentation("The track this source pays onto, by id (any pack's track). A source naming no track, "
                     + "or one this server does not have, pays nothing.").add()
-            .appendInherited(new KeyedCodec<>("When", When.CODEC, false),
+            .appendInherited(new KeyedCodec<>("When", WHEN, false),
                     (a, v) -> a.when = v, a -> a.when, (a, p) -> a.when = p.when)
             .documentation("Which moment pays: its Kind (BREAK_BLOCK, KILL_ENTITY, PICKUP_ITEM, DEAL_DAMAGE, ...), "
                     + "a Qualifier every row asks of it (DEAL_DAMAGE's is the weapon that hit, by name or by "

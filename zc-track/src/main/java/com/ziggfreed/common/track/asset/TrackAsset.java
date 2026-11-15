@@ -1263,7 +1263,7 @@ public final class TrackAsset implements JsonAssetWithMap<String, DefaultAssetMa
                 .documentation("Pay at every multiple of this level as well (15 pays at 15, 30, 45, ...). Zero "
                         + "or less, or unauthored, adds no levels.").add()
                 .appendInherited(new KeyedCodec<>("Rewards",
-                                new ArrayCodec<>(RewardEntryAsset.CODEC, RewardEntryAsset[]::new), false),
+                                RewardEntryAsset.rows(), false),
                         (o, v) -> o.rewards = v, o -> o.rewards, (o, p) -> o.rewards = p.rewards)
                 .documentation("What each level of this row pays, as one Claim the player collects: the same "
                         + "reward entries a quest pays.").add()

@@ -79,7 +79,7 @@ public final class CritSystem extends DamageEventSystem {
                 return;
             }
             EntityStatMap stats = store.getComponent(attacker, EntityStatMap.getComponentType());
-            if (stats == null || !Crits.mayCrit(attacker, stats)) {
+            if (stats == null || !Crits.mayCrit(attacker, stats, damage)) {
                 return;
             }
             Ref<EntityStore> target = chunk.getReferenceTo(index);

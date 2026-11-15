@@ -9,6 +9,8 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.ziggfreed.common.asset.EditorDataSets;
+import com.ziggfreed.common.asset.EditorSchema;
 
 /**
  * WHICH moments something answers for: the one source matcher every moment-keyed table shares (a track's
@@ -69,6 +71,9 @@ public class When {
     public static final BuilderCodec<When> CODEC = BuilderCodec.builder(When.class, When::new)
             .appendInherited(new KeyedCodec<>("Kind", Codec.STRING, false),
                     (o, v) -> o.kind = v, o -> o.kind, (o, p) -> o.kind = p.kind)
+            // Suggestions rather than a dropdown: a table may answer a kind content cannot author (one only a
+            // consumer's own table reads), and the first spellings below still read.
+            .metadata(EditorSchema.suggest(EditorDataSets.OBJECTIVE_KINDS))
             .documentation("Which moment this answers for, as an objective kind id: BREAK_BLOCK, KILL_ENTITY, "
                     + "PICKUP_ITEM, DEAL_DAMAGE, CRAFT_ITEM and any kind a mod adds. Case is ignored, and "
                     + "BreakBlock, KillMob and PickupItem read as BREAK_BLOCK, KILL_ENTITY and PICKUP_ITEM. "
