@@ -1,0 +1,7 @@
+{
+  "$Comment": "Every dungeon milestone a player was in the room for: a ZigRunMilestone trigger volume counting once per run for each of its placements, with one line per milestone id beside the total (Room_Cleared, Puzzle_Solved, Secret_Found, or any id a pack names). It counts for every member standing in the run's area when the milestone fires. The library counts it itself off each milestone, so it lists no From; Breakdown names the line it files under, the milestone id (Target), and Qualifier or TargetAtQualifier add the dungeon id. An achievement reads it through ziggfreedcommon:counter, Param Dungeon_Milestones/Secret_Found.",
+  "NameKey": "ziggfreedcommon.stats.dungeon_milestones",
+  "Kind": "Sum",
+  "Format": "Count",
+  "Breakdown": "Target"
+}
