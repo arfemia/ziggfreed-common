@@ -35,6 +35,8 @@ import com.hypixel.hytale.server.core.modules.physics.component.Velocity;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.effect.EffectAdds;
 import com.ziggfreed.common.effect.control.AggroControl;
+import com.ziggfreed.common.effect.control.StunControl;
+import com.ziggfreed.common.effect.duration.EffectDurations;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.health.HealthUtil;
 import com.ziggfreed.common.interaction.NativeChainFire;
@@ -42,6 +44,7 @@ import com.ziggfreed.common.stats.StatIndexCache;
 import com.ziggfreed.common.stats.condition.ConditionalStats;
 import com.ziggfreed.common.stats.condition.EffectFamilies;
 import com.ziggfreed.common.stats.condition.Nearby;
+import com.ziggfreed.common.stats.condition.ZigFoeFamilyCondition;
 
 /**
  * What a proc does ({@link ProcAction}), each through the engine's own call: an effect put on with the holder as its
@@ -236,7 +239,10 @@ final class ProcActions {
             float seconds = apply.duration() == null ? effect.getDuration()
                     : (float) Math.max(0.0, Procs.evaluate(apply.duration(), context));
             OverlapBehavior overlap = apply.overlap() == null ? effect.getOverlapBehavior() : apply.overlap();
-            added = controller.addEffect(on, index, effect, seconds, overlap, accessor, moment.holder());
+            ProcAction.Control control = apply.control();
+            added = control != null && !Nearby.same(on, moment.holder())
+                    ? controlled(moment, on, index, effect, controller, seconds, overlap, control)
+                    : controller.addEffect(on, index, effect, seconds, overlap, accessor, moment.holder());
         }
         if (!added) {
             return;
@@ -250,6 +256,40 @@ final class ProcActions {
         if (!Nearby.same(on, moment.holder())) {
             EffectWatch.noteFoe(moment.holder(), on, System.nanoTime());
         }
+    }
+
+    /**
+     * An ApplyEffect with {@code Control} landing on a foe: the wait per foe a stun keeps (zc-effects'
+     * {@code StunControl}). An {@code Immune} foe is passed over; a boss or an elite takes the effect with no owner, so
+     * the holder's length stats never reach one (bosses stay bosses); the length goes through the effect families'
+     * Duration rules as it lands, then shrinks by the Immunity the foe already carries; and a landing adds the Ramp,
+     * never scaled by the proc's strength.
+     *
+     * @return true when the effect went on
+     */
+    private static boolean controlled(@Nonnull ProcMoment moment, @Nonnull Ref<EntityStore> on, int index,
+            @Nonnull EntityEffect effect, @Nonnull EffectControllerComponent controller, float seconds,
+            @Nonnull OverlapBehavior overlap, @Nonnull ProcAction.Control control) {
+        ComponentAccessor<EntityStore> accessor = moment.accessor();
+        if (StunControl.isImmune(accessor, on)) {
+            return false;
+        }
+        boolean bossOrElite = ZigFoeFamilyCondition.inGroup(accessor, on, ZigFoeFamilyCondition.BOSS_OR_ELITE_GROUP);
+        Ref<EntityStore> owner = bossOrElite ? null : moment.holder();
+        float share = control.diminish() ? StunControl.immunityShare(accessor, on) : 0f;
+        float lasting = StunControl.diminished(EffectDurations.lengthAsLanded(accessor, on, index, owner, seconds),
+                share);
+        if (!(lasting > 0f) || !controller.addEffect(on, index, effect, lasting, overlap, accessor, owner)) {
+            return false;
+        }
+        ActiveEntityEffect active = controller.getActiveEffects().get(index);
+        if (active != null) {
+            EffectDurations.markLanded(active, active.getRemainingDuration());
+        }
+        if (control.ramp() > 0.0) {
+            StunControl.rampImmunity(accessor, on, (float) control.ramp());
+        }
+        return true;
     }
 
     private static void removeEffect(@Nonnull ProcMoment moment, @Nonnull Ref<EntityStore> on,
