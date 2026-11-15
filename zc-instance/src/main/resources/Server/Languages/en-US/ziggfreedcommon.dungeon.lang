@@ -1,6 +1,6 @@
 # zc's dungeons (com.ziggfreed.common.instance.dungeon): /zigdungeon, the admin family, the words its lines
-# nest, what a player is told when a way in refuses them, what to do once inside, a run's results screen and
-# failure lines, and the Boss Fights tab of a fight fought in a dungeon. The file name is the key PREFIX: an
+# nest, what a player is told when a way in refuses them, what to do once inside, a run's results screen,
+# checkpoint banner and failure lines, and the Boss Fights tab of a fight fought in a dungeon. The file name is the key PREFIX: an
 # entry here resolves as ziggfreedcommon.dungeon.<key>.
 
 # /zigdungeon. The command.desc.* keys are what the engine's own help resolves a command or an argument through.
@@ -79,6 +79,11 @@ results.breakdown = Your run
 results.party = Your party
 results.damage = Damage to bosses
 results.bosses = Bosses defeated
+# The party's run lines under Bosses defeated: rooms, puzzles and secrets show only when the run counted one.
+results.rooms = Rooms cleared
+results.puzzles = Puzzles solved
+results.secrets = Secrets found
+results.deaths = Deaths
 results.rewards = Completion reward
 results.no_rewards = No completion reward this time.
 results.pending = Your bags are full. The rest is waiting under Claims in your menu.
@@ -119,6 +124,11 @@ endless.breather = Wave {0, number} is next. You can leave now and keep your che
 endless.over = {0}: {1, number} {1, plural, one {wave} other {waves}} cleared
 endless.chest = Your chest waits where you came in.
 endless.claims = Your reward waits in Claims.
+
+# The banner every member of a run sees when one of them reaches a checkpoint (a ZigCheckpoint volume that names
+# no Banner of its own).
+checkpoint.title = Checkpoint reached
+checkpoint.subtitle = Your party heals, and anyone who falls comes back here.
 
 # What each member still in the area is told when their run fails. {0} is the dungeon's name.
 run.failed.time_limit = Time ran out in {0}. The run failed.
