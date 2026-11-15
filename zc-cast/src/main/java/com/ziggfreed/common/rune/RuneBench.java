@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -52,11 +53,15 @@ import com.ziggfreed.common.util.SafeLog;
  * is one, is empty and shut (nothing can be added to it). Which layout draws cleanly is the client's to show.
  *
  * <p><b>A refused move.</b> The client predicts a move into or out of a bench slot by the game's own bench
- * rules, which let a core leave its slot and let any core or support into an empty line. When a locked slot
- * refuses, the window and the player's bag, hotbar, backpack and Runestone Storage are sent again, as the
- * engine does after it vetoes a move on the player's own bench, so a predicted move snaps back. The engine
- * answers a refused quick-move out of a locked slot with no transaction at all, which its caller then reads;
- * the bench container answers with a failed one instead, so a shift-click on the core is simply refused.
+ * rules, which let a core leave its slot and let any core or support into an empty line. Whenever a slot of the
+ * bench refuses a move (a locked core, the shut line, a support that does not fit), the window and the player's
+ * bag, hotbar, backpack and Runestone Storage are sent again, as the engine does after it vetoes a move on the
+ * player's own bench, so a predicted move snaps back. The engine answers a refused quick-move out of a locked
+ * slot with no transaction at all, which its caller then reads; the bench container answers with a failed one
+ * instead, so a shift-click on the core is simply refused.
+ *
+ * <p><b>One bench a player.</b> Opening a line closes the player's earlier bench first (the engine would leave
+ * it open beside the new one), so two windows never hold the same supports.
  *
  * <p><b>What a line holds.</b> The supports socketed in each line are kept in memory, per player and line id,
  * and written back on every change in the open window and again when it closes, so the open container is the
@@ -79,6 +84,15 @@ public final class RuneBench {
 
     /** Player id to line id to the supports the line holds; transient and single-process (see the class doc). */
     private static final Map<UUID, Map<String, ItemStack[]>> HELD = new ConcurrentHashMap<>();
+    /** Player id to the one bench window open for them; dropped when it closes. */
+    private static final Map<UUID, OpenBench> OPEN = new ConcurrentHashMap<>();
+
+    /** One open bench: its window, its container, its line and its change listener; retired exactly once. */
+    private record OpenBench(@Nonnull AbilityBenchWindow window, @Nonnull LineContainer container,
+                             @Nonnull String lineId,
+                             @Nonnull EventRegistration<Void, ItemContainer.ItemContainerChangeEvent> changes,
+                             @Nonnull AtomicBoolean retired) {
+    }
 
     private RuneBench() {
     }
@@ -94,6 +108,11 @@ public final class RuneBench {
      * its first slot (null leaves it empty, so no support fits), the supports the line holds behind it, laid out
      * in {@code lines} lines (clamped to 1 or 2; the second one shut). On the player's world thread. False when
      * {@code ref} is not a player or the page manager refused; the line's supports stay held either way.
+     *
+     * <p>A player has one bench at a time: the engine leaves an earlier window open when another opens, so the
+     * player's earlier bench is closed and retired first (its supports written to its line, its container
+     * emptied), and only then is the new container filled from what the lines hold. Two windows therefore never
+     * show the same supports, and an earlier window's close never writes over what the newer one changed.
      */
     public static boolean open(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
             @Nonnull String lineId, @Nullable ItemStack core, int lines) {
@@ -104,16 +123,14 @@ public final class RuneBench {
             return false;
         }
         UUID playerId = playerRef.getUuid();
+        closeEarlier(playerId, ref, store);
         LineContainer container = build(core, supports(playerId, lineId), lines);
         AbilityBenchWindow window = new AbilityBenchWindow(container);
         container.onRefused = () -> resync(ref, store, player, window);
         EventRegistration<Void, ItemContainer.ItemContainerChangeEvent> changes =
                 container.registerChangeEvent(event -> keep(playerId, lineId, container));
-        window.registerCloseEvent(event -> {
-            keep(playerId, lineId, container);
-            changes.unregister();
-            container.onRefused = null;
-        });
+        OpenBench bench = new OpenBench(window, container, lineId, changes, new AtomicBoolean());
+        window.registerCloseEvent(event -> retire(playerId, bench));
         boolean opened;
         try {
             opened = player.getPageManager().setPageWithWindows(ref, store, Page.Bench, true, window);
@@ -121,11 +138,46 @@ public final class RuneBench {
             SafeLog.warn("[runes] the rune bench for line '" + lineId + "' failed to open", t);
             opened = false;
         }
-        if (!opened) {
-            changes.unregister();
-            container.onRefused = null;
+        if (opened) {
+            OPEN.put(playerId, bench);
+        } else {
+            retire(playerId, bench);
         }
         return opened;
+    }
+
+    /**
+     * Close the player's earlier bench, if one is open, and retire it whatever the close did: its last state
+     * becomes its line's record, and its container is emptied, so a window the engine kept open anyway cannot
+     * hand a support out a second time.
+     */
+    private static void closeEarlier(@Nonnull UUID playerId, @Nonnull Ref<EntityStore> ref,
+            @Nonnull Store<EntityStore> store) {
+        OpenBench earlier = OPEN.remove(playerId);
+        if (earlier == null) {
+            return;
+        }
+        try {
+            earlier.window().close(ref, store);
+        } catch (Throwable t) {
+            SafeLog.fine("[runes] the earlier rune bench was already gone: " + t.getMessage());
+        }
+        retire(playerId, earlier);
+        earlier.container().clear();
+    }
+
+    /**
+     * Once per bench: write its supports to its line, stop listening to it, and drop it from the open benches
+     * (only if it is still the player's current one).
+     */
+    private static void retire(@Nonnull UUID playerId, @Nonnull OpenBench bench) {
+        if (!bench.retired().compareAndSet(false, true)) {
+            return;
+        }
+        keep(playerId, bench.lineId(), bench.container());
+        bench.changes().unregister();
+        bench.container().onRefused = null;
+        OPEN.remove(playerId, bench);
     }
 
     /**
@@ -224,13 +276,14 @@ public final class RuneBench {
     }
 
     /**
-     * The bench's container: the engine's own, plus two answers to a refusal from a locked slot (the core slot,
-     * and every slot of a shut second line). It resyncs the client ({@link #onRefused}), and a quick-move out
-     * of a locked slot answers with a failed transaction where the engine's own answer is null.
+     * The bench's container: the engine's own, plus two answers to a refusal. Any refusal from any of its slots
+     * (a locked core, the shut second line, a support the engine's filter turns away) resyncs the client ({@link
+     * #onRefused}), and a quick-move out of a slot that refuses removal answers with a failed transaction where
+     * the engine's own answer is null.
      */
     private static final class LineContainer extends SimpleItemContainer {
 
-        /** Set while the window is open; run on the world thread whenever a locked slot refuses. */
+        /** Set while the window is open; run on the world thread whenever a slot refuses. */
         @Nullable
         private volatile Runnable onRefused;
 
@@ -240,17 +293,17 @@ public final class RuneBench {
 
         @Override
         protected boolean cantAddToSlot(short slot, ItemStack itemStack, ItemStack slotItemStack) {
-            return refusedAt(slot, super.cantAddToSlot(slot, itemStack, slotItemStack));
+            return resyncIf(super.cantAddToSlot(slot, itemStack, slotItemStack));
         }
 
         @Override
         protected boolean cantRemoveFromSlot(short slot) {
-            return refusedAt(slot, super.cantRemoveFromSlot(slot));
+            return resyncIf(super.cantRemoveFromSlot(slot));
         }
 
         @Override
         protected boolean cantDropFromSlot(short slot) {
-            return refusedAt(slot, super.cantDropFromSlot(slot));
+            return resyncIf(super.cantDropFromSlot(slot));
         }
 
         @Override
@@ -271,9 +324,10 @@ public final class RuneBench {
             return super.internal_moveItemStackFromSlot(slot, containerTo, allOrNothing, filter);
         }
 
-        private boolean refusedAt(short slot, boolean refused) {
+        /** Resync the client when a slot of this bench refused, while its window is open; answers {@code refused}. */
+        private boolean resyncIf(boolean refused) {
             Runnable resync = onRefused;
-            if (refused && resync != null && (slot == CORE_SLOT || slot >= LINE_WIDTH)) {
+            if (refused && resync != null) {
                 resync.run();
             }
             return refused;
