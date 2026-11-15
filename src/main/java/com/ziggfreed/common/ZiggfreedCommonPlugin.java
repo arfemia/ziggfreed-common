@@ -91,6 +91,7 @@ import com.ziggfreed.common.npc.NpcIdentities;
 import com.ziggfreed.common.npc.NpcIdentityConfig;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementConfig;
 import com.ziggfreed.common.npc.placement.registry.PlacementFactorRegistry;
+import com.ziggfreed.common.objectives.authoring.AchievementEditorBootstrap;
 import com.ziggfreed.common.objectives.authoring.QuestEditorBootstrap;
 import com.ziggfreed.common.objectives.bonus.BonusRowBootstrap;
 import com.ziggfreed.common.objectives.book.ObjectiveBookBootstrap;
@@ -429,6 +430,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // The quest editor on that kit: the Quest wizard and the Quest Tool, which the progression admin page and
         // /zigauthor open too. Its tool item is an asset zc-objectives ships.
         QuestEditorBootstrap.install();
+        // The achievement editor on the same kit: the Achievement wizard and the Achievement Tool, which the
+        // progression admin page and /zigauthor open too. Its tool item is an asset zc-objectives ships.
+        AchievementEditorBootstrap.install();
         // The once-at-boot checks (the boot audit a headless dev boot asks for), on BootEvent: every
         // store has folded and every mod has registered its vocabulary by then.
         registerBootChecks();
