@@ -24,6 +24,7 @@ import com.hypixel.hytale.server.core.modules.entitystats.modifier.Modifier;
 import com.hypixel.hytale.server.core.modules.entitystats.modifier.StaticModifier;
 import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.stats.StatAliases;
 import com.ziggfreed.common.stats.StatIndexCache;
 import com.ziggfreed.common.stats.damage.TypedDamageBonuses;
 import com.ziggfreed.common.util.SafeLog;
@@ -73,6 +74,26 @@ public final class ConditionalStats {
 
     /** How often a holder's conditions are read again, in nanoseconds: four times a second. */
     public static final long EVALUATE_EVERY_NANOS = 250_000_000L;
+
+    /**
+     * The library's retired conditional stats, each old id to the plain stat that took its place (R933, R934): a held
+     * copy of a shared stat is that stat granted {@code While} the condition its file named ({@code ZigHolding} with
+     * {@code Tool}, or with {@code Block}), so neither its stat file nor its conditional file ships.
+     */
+    static final Map<String, String> RETIRED = Map.of(
+            "DamageResist_Physical_WhileHeld_Tool", "DamageResist_Physical",
+            "DamageResist_Projectile_WhileHeld_Tool", "DamageResist_Projectile",
+            "KnockbackResist_WhileHeld_Tool", "KnockbackResist",
+            "KnockbackResist_HoldingBlock", "KnockbackResist");
+
+    /**
+     * Register {@link #RETIRED} with zc-core's {@link StatAliases}, so a stack's saved roll naming an old id lands on
+     * its successor (R925); a roll carries no condition, so it counts there whatever is in hand. Called once at setup
+     * by {@link ConditionBootstrap#install}.
+     */
+    static void registerRetiredAliases() {
+        RETIRED.forEach((retired, successor) -> StatAliases.register(retired, successor));
+    }
 
     /** One live file, its payouts resolved. */
     record Def(@Nonnull String fileId, @Nonnull String statId, @Nonnull ConditionalStatAsset asset,
