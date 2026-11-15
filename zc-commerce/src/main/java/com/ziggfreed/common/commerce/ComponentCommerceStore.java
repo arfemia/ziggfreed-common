@@ -11,6 +11,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.board.BoardStreak;
 import com.ziggfreed.common.playerdata.PlayerRecords;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
@@ -300,6 +301,26 @@ public final class ComponentCommerceStore implements CommerceStore {
     public long rerollPeriod(@Nonnull Subject subject, @Nonnull String poolId) {
         CommerceComponent component = componentOf(subject);
         return component == null ? 0L : component.rerollPeriod(poolId);
+    }
+
+    // ==================== the board streak ====================
+
+    @Override
+    @Nonnull
+    public BoardStreak boardStreak(@Nonnull Subject subject) {
+        CommerceComponent component = componentOf(subject);
+        return component == null ? BoardStreak.NONE : component.boardStreak();
+    }
+
+    @Override
+    public void setBoardStreak(@Nonnull Subject subject, @Nonnull BoardStreak streak) {
+        CommerceComponent component = componentOf(subject);
+        if (component == null) {
+            dropped(subject, "board streak");
+            return;
+        }
+        component.setBoardStreak(streak);
+        wrote(subject);
     }
 
     // ==================== one-time migrations ====================

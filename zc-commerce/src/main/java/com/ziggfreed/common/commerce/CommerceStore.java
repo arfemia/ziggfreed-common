@@ -8,6 +8,7 @@ import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.board.BoardStreak;
 import com.ziggfreed.common.subject.Subject;
 
 /**
@@ -196,6 +197,21 @@ public interface CommerceStore {
 
     /** Forget every reroll this subject has made, in every pool. */
     default void clearRerolls(@Nonnull Subject subject) {
+    }
+
+    // ==================== The board streak ====================
+
+    /**
+     * This subject's run of days with a board contract collected, or {@link BoardStreak#NONE}. A store with
+     * nowhere to keep it answers none, so every streak reads as starting over.
+     */
+    @Nonnull
+    default BoardStreak boardStreak(@Nonnull Subject subject) {
+        return BoardStreak.NONE;
+    }
+
+    /** Write this subject's board streak outright (absolute, so an import that runs twice lands the same). */
+    default void setBoardStreak(@Nonnull Subject subject, @Nonnull BoardStreak streak) {
     }
 
     // ==================== One-time migrations ====================

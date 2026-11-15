@@ -587,7 +587,6 @@ public final class QuestWizard implements AuthoringWizard {
             lines.add(QuestEditorText.line("preview.return"));
         }
 
-        boolean spot = false;
         int steps = 0;
         for (int n = 1; n <= STEP_SLOTS; n++) {
             String kind = kindOf(session, n);
@@ -600,13 +599,9 @@ public final class QuestWizard implements AuthoringWizard {
             long count = amount == null ? 1L : amount;
             lines.add(target.isEmpty() ? QuestEditorText.line("preview.step_any", n, Msg.raw(kind), count)
                     : QuestEditorText.line("preview.step", n, Msg.raw(kind), Msg.raw(target), count));
-            spot |= QuestEditorPicks.namesSpot(kind);
         }
         if (steps == 0) {
             lines.add(QuestEditorText.line("preview.no_steps"));
-        }
-        if (spot) {
-            lines.add(QuestEditorText.line("preview.spot_needs_mod"));
         }
 
         int rewards = 0;

@@ -29,6 +29,9 @@ dungeon_best_wave = Best Wave
 deaths = Deaths
 playtime_seconds = Playtime
 objectives_completed = Objectives Completed
+items_consumed = Items Consumed
+sprint_distance = Sprint Distance
+swim_distance = Swim Distance
 
 # What each stat counts: the tooltip over its column on Records (a stat's name key with .tip added).
 # A tooltip prints a parameter as written, so none of these takes one.

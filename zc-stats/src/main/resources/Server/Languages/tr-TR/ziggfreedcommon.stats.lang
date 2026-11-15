@@ -28,6 +28,9 @@ dungeon_best_time = En Hızlı Bitiriş
 deaths = Ölümler
 playtime_seconds = Oyun Süresi
 objectives_completed = Tamamlanan Hedefler
+items_consumed = Tüketilen Eşyalar
+sprint_distance = Koşu Mesafesi
+swim_distance = Yüzme Mesafesi
 
 # What each stat counts: the tooltip over its column on Records (a stat's name key with .tip added).
 # A tooltip prints a parameter as written, so none of these takes one.

@@ -1,11 +1,13 @@
 package com.ziggfreed.common.objectives.producer;
 
 import java.util.UUID;
+import java.util.function.BiConsumer;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
@@ -73,6 +75,27 @@ final class PlayerMomentDispatch {
         world.execute(() -> fireFor(label, playerId, kindId, target, qualifier, amount, payload));
     }
 
+    /**
+     * Run {@code body} for {@code playerId} on their world thread, inline when that is already the thread
+     * running, with the player resolved there and the same skips as {@link #fire}: for a producer whose one
+     * moment fans out into several dispatches (a primary credit plus its aliases) or reads the player's own
+     * records first.
+     *
+     * @param what the moment's kind, for the skip lines
+     */
+    static void onPlayerThread(@Nonnull String label, @Nonnull UUID playerId, @Nonnull String what,
+            @Nonnull BiConsumer<Store<EntityStore>, Ref<EntityStore>> body) {
+        World world = liveWorldOf(label, playerId, what);
+        if (world == null) {
+            return;
+        }
+        if (world.isInThread()) {
+            runFor(label, playerId, what, body);
+            return;
+        }
+        world.execute(() -> runFor(label, playerId, what, body));
+    }
+
     /** {@link #worldOf}, with the skip said once at fine level when there is none. */
     @Nullable
     private static World liveWorldOf(@Nonnull String label, @Nonnull UUID playerId, @Nonnull String kindId) {
@@ -100,6 +123,14 @@ final class PlayerMomentDispatch {
     /** The dispatch itself, always on the owning world thread. */
     private static void fireFor(@Nonnull String label, @Nonnull UUID playerId, @Nonnull String kindId,
             @Nonnull String target, @Nullable String qualifier, long amount, @Nullable MomentPayload payload) {
+        // No command buffer: this is not an ECS system, so there is none to carry.
+        runFor(label, playerId, kindId, (store, ref) ->
+                ProgressDispatch.fire(store, ref, null, kindId, target, qualifier, amount, payload));
+    }
+
+    /** The player resolved on the owning world thread, then {@code body}; skipped clean when they are gone. */
+    private static void runFor(@Nonnull String label, @Nonnull UUID playerId, @Nonnull String kindId,
+            @Nonnull BiConsumer<Store<EntityStore>, Ref<EntityStore>> body) {
         Universe universe = Universe.get();
         PlayerRef playerRef = universe == null ? null : universe.getPlayer(playerId);
         if (playerRef == null) {
@@ -121,7 +152,6 @@ final class PlayerMomentDispatch {
                     + " - a world transfer landed before this could dispatch");
             return;
         }
-        // No command buffer: this is not an ECS system, so there is none to carry.
-        ProgressDispatch.fire(ref.getStore(), ref, null, kindId, target, qualifier, amount, payload);
+        body.accept(ref.getStore(), ref);
     }
 }

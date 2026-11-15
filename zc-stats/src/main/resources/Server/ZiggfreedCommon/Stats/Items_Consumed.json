@@ -1,0 +1,8 @@
+{
+  "$Comment": "Everything a player eats or drinks, with one line per item beside the total.",
+  "NameKey": "ziggfreedcommon.stats.items_consumed",
+  "Kind": "Sum",
+  "Format": "Count",
+  "From": [ { "Kind": "CONSUME_ITEM" } ],
+  "Breakdown": "Target"
+}

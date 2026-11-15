@@ -105,7 +105,6 @@ preview.return = The reward is collected back at the giver.
 preview.step = Step {0, number}: {1} {2} ({3, number})
 preview.step_any = Step {0, number}: {1}, anything ({2, number})
 preview.no_steps = No steps yet.
-preview.spot_needs_mod = Reaching a spot only counts on a server running a mod that watches for it.
 # {0} is the reward's number, {1} its kind, {2} its settings.
 preview.reward = Reward {0, number}: {1} ({2})
 preview.reward_bare = Reward {0, number}: {1}
