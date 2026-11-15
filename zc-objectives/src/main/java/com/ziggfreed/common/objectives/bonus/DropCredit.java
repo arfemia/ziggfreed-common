@@ -51,8 +51,9 @@ import com.ziggfreed.common.world.gather.ShapedBreaks;
  *       unless the shape lets them roll rows ({@link ShapedBreaks#rowsAllowed}), so a player-only row pays once, on
  *       the block in hand, as a bonus row does.</li>
  *   <li>A kill ({@code KILL_ENTITY}): the producer fires when the death lands, crediting the player its attribution
- *       answered once, at fire time, and the engine drops the corpse's items a tick or a few seconds later. The credit
- *       is kept per victim until then. {@link Stamp}, just before the engine's death-drop pass and after its corpse
+ *       answered once, at fire time, and the engine drops the corpse's items a tick or a few seconds later. The credit,
+ *       carrying the killer's kill yield ({@link KillYields}) onto each written roll {@code Chance}, is kept per victim
+ *       until then. {@link Stamp}, just before the engine's death-drop pass and after its corpse
  *       timers tick, names each NPC that pass may drop for this tick, with its credit or none
  *       ({@link DropContext#dying}); {@link Close}, just after, forgets this tick's stamps and every credit whose
  *       corpse is gone.</li>
@@ -111,7 +112,10 @@ public final class DropCredit implements MomentListener {
             return;
         }
         Ref<EntityStore> victim = payload.victimRef();
-        CREDITED.put(victim, new DropContext.Who(BonusRowReactions.subjectOf(moment), moment.ref(), victim, null));
+        // The killer's kill yield, read as the death lands, raises each written roll Chance of a table in the corpse's
+        // drop list, as it raises a kill row's own Chance.
+        CREDITED.put(victim, new DropContext.Who(BonusRowReactions.subjectOf(moment), moment.ref(), victim, null,
+                KillYields.percentFor(moment.store(), moment.ref())));
     }
 
     /**

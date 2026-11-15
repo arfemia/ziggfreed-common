@@ -122,6 +122,16 @@ public final class BlockFamilyConfig extends AbstractKeyedAssetConfig<BlockFamil
         return asset != null && asset.getId() != null ? asset.getId() : familyId;
     }
 
+    /** The families holding the block {@code blockId}, each as its file spells it, sorted; empty for none. */
+    @Nonnull
+    public List<String> displayFamiliesOf(@Nullable String blockId) {
+        Set<String> out = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        for (String family : familiesOf(blockId)) {
+            out.add(displayId(family));
+        }
+        return new ArrayList<>(out);
+    }
+
     /** Every family id as its file spells it, sorted. */
     @Nonnull
     public List<String> displayIds() {

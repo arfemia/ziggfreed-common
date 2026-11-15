@@ -1,24 +1,20 @@
 package com.ziggfreed.common.almanac;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 import com.hypixel.hytale.server.core.HytaleServer;
-import com.hypixel.hytale.server.core.util.io.FileUtil;
 import com.ziggfreed.common.counter.Counters;
 import com.ziggfreed.common.util.DataFileMove;
-import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.util.RecordFile;
 
 /**
  * The server's own Almanac totals: for every tally key a player's record holds ({@link AlmanacKeys}),
@@ -26,14 +22,15 @@ import com.ziggfreed.common.util.SafeLog;
  * reader's own figure. Counts only: the file names no player.
  *
  * <p>Kept the leaderboard way: {@link #add} changes the in-memory map at once (safe from the world thread
- * the moment arrives on) and asks for one debounced flush, which writes {@value #FILE_NAME} atomically
- * through {@link FileUtil#writeStringAtomic} with the previous write kept as {@code .bak}. The library's
- * stop calls {@link #flushNow} once more, so the counts of the last seconds before a server stops are
- * kept too: a write carries only what changed since the last one and writes nothing otherwise, and writes
- * run one at a time (the engine's writer shares one temp file per target), so the stop, a late debounced
- * write and a second stop never collide or rewrite the same totals. A file that will not read falls back
- * to the {@code .bak}, then to empty; a server with no data folder counts in memory and writes nothing.
- * Nothing is counted while the Almanac is switched off.
+ * the moment arrives on) and asks for one debounced flush, which writes {@value #FILE_NAME} through zc-core's
+ * {@code util/RecordFile} (the engine's atomic write, the previous write kept as {@code .bak}, a
+ * {@code version} leaf). The library's stop calls {@link #flushNow} once more, so the counts of the last
+ * seconds before a server stops are kept too: a write carries only what changed since the last one and
+ * writes nothing otherwise, and writes run one at a time (the engine's writer shares one temp file per
+ * target), so the stop, a late debounced write and a second stop never collide or rewrite the same totals.
+ * A file that will not read falls back to the {@code .bak}, then to empty (the unreadable file kept aside
+ * as {@code .unreadable}); a file from a newer build is left unread and unwritten; a server with no data
+ * folder counts in memory and writes nothing. Nothing is counted while the Almanac is switched off.
  *
  * <p>The file sits beside the library's owner files ({@code mods/ziggfreedcommon/}). The 2.2.0 builds
  * before its release kept it in the library's data folder; {@link #init(Path, Path)} moves it across
@@ -58,23 +55,39 @@ public final class ServerTallies {
     private static final ServerTallies SHARED = new ServerTallies(ServerTallies::onServerScheduler);
 
     private final Scheduler scheduler;
-    private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+    private final Gson gson = new Gson();
     private final ConcurrentHashMap<String, Long> totals = new ConcurrentHashMap<>();
-    private final AtomicBoolean flushPending = new AtomicBoolean(false);
-    /** A count memory holds that the file does not yet. */
-    private final AtomicBoolean dirty = new AtomicBoolean(false);
-    /** One write, or one re-point, at a time. */
-    private final Object writeLock = new Object();
-    @Nullable private volatile Path file;
+    /** The totals' file: one debounced write at a time, a failed one kept for the next. */
+    private final RecordFile file;
 
-    /** The file's shape: a version for a later reader, and the totals by key. */
+    /** The file's shape: the totals by key (the record file adds the version). */
     private static final class Dto {
-        int version = 1;
         Map<String, Long> totals;
     }
 
     public ServerTallies(@Nonnull Scheduler scheduler) {
         this.scheduler = scheduler;
+        this.file = RecordFile.builder(LOG_TAG, "the server totals", new RecordFile.Body() {
+                    @Override
+                    @Nonnull
+                    public JsonObject write() {
+                        Dto dto = new Dto();
+                        dto.totals = new TreeMap<>(totals);
+                        return gson.toJsonTree(dto).getAsJsonObject();
+                    }
+
+                    @Override
+                    public void read(@Nonnull JsonObject doc, int version) {
+                        populate(gson.fromJson(doc, Dto.class));
+                    }
+
+                    @Override
+                    public void forget() {
+                        totals.clear();
+                    }
+                })
+                .lostWrite("a restart may lose the latest counts")
+                .build();
     }
 
     /** The server's one set of totals, which the moment listener adds to and the page reads. */
@@ -95,17 +108,8 @@ public final class ServerTallies {
      * {@code homeDir} counts in memory and writes nothing. Once, at setup.
      */
     public void init(@Nullable Path homeDir, @Nullable Path oldDir) {
-        synchronized (writeLock) {
-            totals.clear();
-            dirty.set(false);
-            if (homeDir == null) {
-                file = null;
-                return;
-            }
-            Path target = DataFileMove.settle(LOG_TAG, homeDir, oldDir, FILE_NAME).file();
-            file = target;
-            load(target);
-        }
+        Path target = homeDir == null ? null : DataFileMove.settle(LOG_TAG, homeDir, oldDir, FILE_NAME).file();
+        file.persistTo(target, task -> scheduler.later(task, FLUSH_DEBOUNCE_MS));
     }
 
     /** What every player together has counted under {@code key}; 0 for a key nothing counted. */
@@ -124,8 +128,7 @@ public final class ServerTallies {
         }
         totals.merge(Counters.fold(key), amount, Long::sum);
         // Marked after the count lands, so a write that takes the mark also carries the count.
-        dirty.set(true);
-        scheduleFlush();
+        file.changed();
     }
 
     /**
@@ -148,60 +151,7 @@ public final class ServerTallies {
      * tries again.
      */
     public void flushNow() {
-        synchronized (writeLock) {
-            Path target = file;
-            if (target == null || !dirty.getAndSet(false)) {
-                return;
-            }
-            try {
-                Dto dto = new Dto();
-                dto.totals = new TreeMap<>(totals);
-                if (target.getParent() != null) {
-                    Files.createDirectories(target.getParent());
-                }
-                FileUtil.writeStringAtomic(target, gson.toJson(dto), true);
-            } catch (Throwable t) {
-                dirty.set(true);
-                SafeLog.warn("[" + LOG_TAG + "] the server totals could not be written to " + target + ": "
-                        + t.getMessage());
-            }
-        }
-    }
-
-    private void scheduleFlush() {
-        if (file == null || !flushPending.compareAndSet(false, true)) {
-            return;
-        }
-        try {
-            scheduler.later(() -> {
-                flushPending.set(false);
-                flushNow();
-            }, FLUSH_DEBOUNCE_MS);
-        } catch (Throwable t) {
-            flushPending.set(false);
-        }
-    }
-
-    private void load(@Nonnull Path target) {
-        if (!Files.exists(target)) {
-            return;
-        }
-        try {
-            populate(gson.fromJson(Files.readString(target, StandardCharsets.UTF_8), Dto.class));
-            return;
-        } catch (Throwable t) {
-            SafeLog.warn("[almanac] " + target + " will not read (" + t.getMessage() + "), so its backup is read");
-        }
-        Path backup = target.resolveSibling(target.getFileName() + ".bak");
-        try {
-            if (Files.exists(backup)) {
-                populate(gson.fromJson(Files.readString(backup, StandardCharsets.UTF_8), Dto.class));
-            }
-        } catch (Throwable t) {
-            totals.clear();
-            SafeLog.warn("[almanac] " + backup + " will not read either, so the server totals start empty: "
-                    + t.getMessage());
-        }
+        file.flush();
     }
 
     private void populate(@Nullable Dto dto) {
@@ -216,7 +166,7 @@ public final class ServerTallies {
         }
     }
 
-    /** The server's scheduler; in a JVM with no server the flush is skipped (the caller resets its flag). */
+    /** The server's scheduler; in a JVM with no server it throws and the record file writes at once. */
     private static void onServerScheduler(@Nonnull Runnable task, long delayMs) {
         HytaleServer.SCHEDULED_EXECUTOR.schedule(task, delayMs, TimeUnit.MILLISECONDS);
     }

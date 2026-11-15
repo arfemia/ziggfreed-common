@@ -1,0 +1,8 @@
+{
+  "$Comment": "Percent bonus to every reputation gain the carrier earns, in whole percent points (10 is +10%): the Reputation category's line of the track gain stats (CategoryGain_<Category>). Any item's StatModifiers raise it like any stat (Additive on the Max); ziggfreed-common multiplies each positive gain (a kill, a quest's or contract's reputation reward, anything that pays standing) by 1 + this plus the reputation's own TrackGain_<Id>, before the reputation's Cap, and never touches a loss. The all-track TrackGain (Bonus XP) never reaches standing. A pack that wants gear to speed one reputation alone ships its own TrackGain_<Id>.json in this shape, <Id> spelled as its ReputationGroup file is named. Base 0, so an unmodified player earns the amount written; Min -100, so a subtractive modifier can at most shrink a gain to 1.",
+  "InitialValue": 0.0,
+  "Min": -100.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

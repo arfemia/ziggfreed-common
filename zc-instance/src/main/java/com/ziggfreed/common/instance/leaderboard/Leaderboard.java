@@ -1,6 +1,5 @@
 package com.ziggfreed.common.instance.leaderboard;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -14,17 +13,16 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 import com.hypixel.hytale.server.core.HytaleServer;
-import com.hypixel.hytale.server.core.util.io.FileUtil;
 import com.ziggfreed.common.counter.CounterMap;
 import com.ziggfreed.common.util.DataFileMove;
+import com.ziggfreed.common.util.RecordFile;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -36,10 +34,12 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p><b>Durability + threading</b> (preserved verbatim from Kweebec): {@link #record}
  * mutates the in-memory {@link ConcurrentHashMap} immediately (safe from a world-thread
- * resolve path) and schedules a DEBOUNCED atomic flush off-thread
- * ({@link FileUtil#writeStringAtomic} temp-file rename + {@code .bak} fallback), so the
- * caller never blocks on disk and concurrent records coalesce into one write. A corrupt
- * file degrades to the {@code .bak}, then to an empty board.
+ * resolve path) and schedules a DEBOUNCED atomic flush off-thread, through zc-core's
+ * {@code util/RecordFile} (the engine's temp-file rename + {@code .bak} fallback, a
+ * {@code version} leaf), so the caller never blocks on disk and concurrent records coalesce
+ * into one write. A corrupt file degrades to the {@code .bak}, then to an empty board (the
+ * unreadable file kept aside as {@code .unreadable}); a file from a newer build is left unread
+ * and unwritten.
  *
  * <p><b>At a stop</b>: the debounce may never run before the server exits, so whoever owns a
  * board calls {@link #flushNow} from its own {@code shutdown()} (the library does for the
@@ -59,22 +59,19 @@ public final class Leaderboard {
     private static final long FLUSH_DEBOUNCE_SECONDS = 3L;
 
     private final String fileName;
-    private final Gson gson;
+    private final Gson gson = new Gson();
     /** bucket key -> uuid -> entry. */
     private final ConcurrentHashMap<String, ConcurrentHashMap<UUID, LeaderboardEntry>> buckets = new ConcurrentHashMap<>();
     /** Every one-time import this board has taken, by claim id. */
     private final Set<String> imports = ConcurrentHashMap.newKeySet();
-    private final AtomicBoolean flushPending = new AtomicBoolean(false);
-    /** A row memory holds that the file does not yet. */
-    private final AtomicBoolean dirty = new AtomicBoolean(false);
-    /** One write at a time. */
-    private final Object writeLock = new Object();
     private final Executor flusher;
-    @Nullable private volatile Path file;
+    /** The board's file: one debounced write at a time, a failed one kept for the next. */
+    private final RecordFile file;
 
     /**
      * On-disk shape: bucket(string) -> uuid(string) -> entry, plus the claimed imports (absent on a
-     * board that took none, so a board without them keeps the shape it always had).
+     * board that took none, so a board without them keeps the shape it always had). The record file
+     * adds its {@code version}; a board written before it reads unchanged.
      */
     private static final class Dto {
         Map<String, Map<String, LeaderboardEntry>> buckets;
@@ -107,7 +104,27 @@ public final class Leaderboard {
     public Leaderboard(@Nonnull String name, @Nonnull Executor flushOn, boolean compact) {
         this.fileName = name.endsWith(".json") ? name : name + ".json";
         this.flusher = flushOn;
-        this.gson = compact ? new Gson() : new GsonBuilder().setPrettyPrinting().create();
+        RecordFile.Builder kept = RecordFile.builder("leaderboard", "the rows of '" + fileName + "'",
+                        new RecordFile.Body() {
+                            @Override
+                            @Nonnull
+                            public JsonObject write() {
+                                return writeDoc();
+                            }
+
+                            @Override
+                            public void read(@Nonnull JsonObject doc, int version) {
+                                populate(gson.fromJson(doc, Dto.class));
+                            }
+
+                            @Override
+                            public void forget() {
+                                buckets.clear();
+                                imports.clear();
+                            }
+                        })
+                .lostWrite("a restart may lose the latest rows");
+        this.file = (compact ? kept.compact() : kept).build();
     }
 
     /** Resolve the data file under {@code dataDir} and load any existing board. Call once at setup. */
@@ -126,8 +143,7 @@ public final class Leaderboard {
             warn("leaderboard '" + fileName + "': no data directory; persistence disabled this session.");
             return;
         }
-        this.file = DataFileMove.settle("leaderboard", dataDir, oldDir, fileName).file();
-        load();
+        file.persistTo(DataFileMove.settle("leaderboard", dataDir, oldDir, fileName).file(), flusher);
     }
 
     /**
@@ -173,8 +189,7 @@ public final class Leaderboard {
             return e;
         });
         // Marked after the row lands, so a write that takes the mark also carries the row.
-        dirty.set(true);
-        scheduleFlush();
+        file.changed();
     }
 
     // ==================== stat writes ====================
@@ -251,8 +266,7 @@ public final class Leaderboard {
             e.counters = next;
             return e;
         });
-        dirty.set(true);
-        scheduleFlush();
+        file.changed();
     }
 
     /**
@@ -308,8 +322,7 @@ public final class Leaderboard {
         for (int i = 0; i < drop; i++) {
             buckets.remove(matching.get(i));
         }
-        dirty.set(true);
-        scheduleFlush();
+        file.changed();
         return drop;
     }
 
@@ -337,8 +350,7 @@ public final class Leaderboard {
             writes.run();
             imports.add(claimId);
         }
-        dirty.set(true);
-        scheduleFlush();
+        file.changed();
         return true;
     }
 
@@ -404,27 +416,6 @@ public final class Leaderboard {
 
     // ==================== persistence ====================
 
-    private void load() {
-        Path f = file;
-        if (f == null || !Files.exists(f)) {
-            return;
-        }
-        try {
-            populate(gson.fromJson(Files.readString(f), Dto.class));
-            return;
-        } catch (Throwable t) {
-            warn(fileName + " unreadable (" + t.getMessage() + "); trying .bak");
-        }
-        try {
-            Path bak = f.resolveSibling(f.getFileName().toString() + ".bak");
-            if (Files.exists(bak)) {
-                populate(gson.fromJson(Files.readString(bak), Dto.class));
-            }
-        } catch (Throwable t) {
-            warn(fileName + " .bak unreadable; starting empty: " + t.getMessage());
-        }
-    }
-
     private void populate(@Nullable Dto dto) {
         buckets.clear();
         imports.clear();
@@ -456,23 +447,7 @@ public final class Leaderboard {
         }
     }
 
-    private void scheduleFlush() {
-        if (file == null) {
-            return;
-        }
-        if (flushPending.compareAndSet(false, true)) {
-            try {
-                flusher.execute(() -> {
-                    flushPending.set(false);
-                    flushNow();
-                });
-            } catch (Throwable t) {
-                flushPending.set(false); // no server scheduler (unit JVM) -> skip persistence
-            }
-        }
-    }
-
-    /** The server's scheduler, {@code seconds} later; in a JVM with no server it throws and the caller skips the flush. */
+    /** The server's scheduler, {@code seconds} later; in a JVM with no server it throws and the record file writes at once. */
     @Nonnull
     private static Executor onServerScheduler(long seconds) {
         return task -> HytaleServer.SCHEDULED_EXECUTOR.schedule(task, seconds, TimeUnit.SECONDS);
@@ -484,35 +459,27 @@ public final class Leaderboard {
      * any thread; a write that fails is logged, never thrown, and the next one tries again.
      */
     public void flushNow() {
-        synchronized (writeLock) {
-            Path f = file;
-            if (f == null || !dirty.getAndSet(false)) {
-                return;
+        file.flush();
+    }
+
+    /** The board as its file holds it. Called under the record file's write lock. */
+    @Nonnull
+    private JsonObject writeDoc() {
+        Dto dto = new Dto();
+        dto.buckets = new HashMap<>();
+        for (Map.Entry<String, ConcurrentHashMap<UUID, LeaderboardEntry>> be : buckets.entrySet()) {
+            Map<String, LeaderboardEntry> bucket = new HashMap<>();
+            for (Map.Entry<UUID, LeaderboardEntry> pe : be.getValue().entrySet()) {
+                bucket.put(pe.getKey().toString(), pe.getValue());
             }
-            try {
-                Dto dto = new Dto();
-                dto.buckets = new HashMap<>();
-                for (Map.Entry<String, ConcurrentHashMap<UUID, LeaderboardEntry>> be : buckets.entrySet()) {
-                    Map<String, LeaderboardEntry> bucket = new HashMap<>();
-                    for (Map.Entry<UUID, LeaderboardEntry> pe : be.getValue().entrySet()) {
-                        bucket.put(pe.getKey().toString(), pe.getValue());
-                    }
-                    dto.buckets.put(be.getKey(), bucket);
-                }
-                if (!imports.isEmpty()) {
-                    List<String> claims = new ArrayList<>(imports);
-                    claims.sort(Comparator.naturalOrder());
-                    dto.imports = claims;
-                }
-                if (f.getParent() != null) {
-                    Files.createDirectories(f.getParent());
-                }
-                FileUtil.writeStringAtomic(f, gson.toJson(dto), true);
-            } catch (Throwable t) {
-                dirty.set(true);
-                warn("leaderboard '" + fileName + "' flush failed: " + t.getMessage());
-            }
+            dto.buckets.put(be.getKey(), bucket);
         }
+        if (!imports.isEmpty()) {
+            List<String> claims = new ArrayList<>(imports);
+            claims.sort(Comparator.naturalOrder());
+            dto.imports = claims;
+        }
+        return gson.toJsonTree(dto).getAsJsonObject();
     }
 
     private static void warn(@Nonnull String msg) {

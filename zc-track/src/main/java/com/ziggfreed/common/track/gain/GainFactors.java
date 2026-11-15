@@ -29,7 +29,7 @@ public final class GainFactors {
 
     /** The world's track rules: its gain switch and multiplier for the track or its category. */
     public static final String WORLD = "World";
-    /** The player's gain stats: TrackGain, TrackGain_<Category>, TrackGain_<Track> and a consumer's sources (R734). */
+    /** The player's gain stats: TrackGain, CategoryGain_<Category>, TrackGain_<Track> and a consumer's sources (R734). */
     public static final String BONUS = "Bonus";
     /** The boosts: timed ones a player or the server started, and standing ones (boost.BoostFactor). */
     public static final String BOOST = "Boost";

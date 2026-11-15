@@ -1,5 +1,6 @@
 package com.ziggfreed.common.reputation;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -11,9 +12,16 @@ import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.event.events.BootEvent;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.i18n.ContentKeys;
+import com.ziggfreed.common.inventory.PlayerAccess;
+import com.ziggfreed.common.playerdata.PlayerRecords;
+import com.ziggfreed.common.playerdata.ZigPlayerRecordsRestoredEvent;
 import com.ziggfreed.common.text.ContentTextAsset;
+import com.ziggfreed.common.track.TrackComponent;
 import com.ziggfreed.common.track.TrackDef;
 import com.ziggfreed.common.track.TrackKey;
 import com.ziggfreed.common.track.TrackRecord;
@@ -97,7 +105,9 @@ public final class ReputationTracks {
         Map<String, TrackAsset> tracks = new LinkedHashMap<>();
         Map<String, TrackCurveAsset> curves = new LinkedHashMap<>();
         Set<String> ids = new HashSet<>();
+        List<String> known = new ArrayList<>();
         for (ReputationDef def : service.all()) {
+            known.add(def.id());
             ReputationLadder ladder = service.ladderFor(def);
             if (!ladder.usable() || !TrackAsset.usableId(def.id())) {
                 continue;
@@ -107,6 +117,7 @@ public final class ReputationTracks {
             tracks.put(def.id(), trackOf(def, curveId, ladder));
             ids.add(def.id().trim().toLowerCase(Locale.ROOT));
         }
+        ReputationGain.registerRetiredAliases(known);
         TrackCurveConfig.getInstance().provide(OWNER, curves);
         TrackConfig.getInstance().provide(OWNER, tracks);
         Set<String> before = provided;
@@ -142,6 +153,42 @@ public final class ReputationTracks {
         }
     }
 
+    /**
+     * A store outside the engine's save put this player's climbs in place (a consumer's database at a world entry): the
+     * engine's own copy of each standing on this server was written from the climbs this server held, so every
+     * reputation with a track is marked behind on the player's record ({@link ReputationComponent#markBehind}). The
+     * next change or world entry then writes each copy from the restored climb, never folding the stale one back into
+     * it. On the player's world thread, as the event is fired.
+     */
+    public static void onRecordsRestored(@Nonnull ZigPlayerRecordsRestoredEvent event) {
+        if (!event.restored(TrackComponent.REGISTRY_ID)) {
+            return;
+        }
+        try {
+            Ref<EntityStore> ref = PlayerAccess.liveRef(event.playerId());
+            if (ref == null) {
+                return;
+            }
+            Store<EntityStore> store = ref.getStore();
+            ReputationComponent record = ReputationComponent.of(store, ref);
+            if (record == null) {
+                return;
+            }
+            List<String> ids = new ArrayList<>();
+            for (ReputationDef def : ReputationRuntime.service().all()) {
+                if (track(def) != null) {
+                    ids.add(def.id());
+                }
+            }
+            if (record.markBehind(ids)) {
+                PlayerRecords.changed(store, ref, ReputationComponent.REGISTRY_ID);
+            }
+        } catch (Throwable t) {
+            SafeLog.warn("[reputation] the engine's copies could not be marked behind restored climbs: "
+                    + t.getMessage());
+        }
+    }
+
     /** Is {@code trackId} (any case) a reputation's track this module provides now? */
     public static boolean provides(@Nullable String trackId) {
         return trackId != null && provided.contains(trackId.trim().toLowerCase(Locale.ROOT));
@@ -167,9 +214,10 @@ public final class ReputationTracks {
 
     /**
      * The gain factors a reputation's track runs: the world's rules, the boosts, the prestige extra and the rested
-     * pool, never the library's {@code Bonus} (the {@code TrackGain} stats), since {@code ReputationService.change}
-     * already raises a gain by the reputation's own {@code ReputationGain} stats, so a Bonus XP meal speeds skills and
-     * not standing. An owner adds Bonus back in {@code tracks.json}.
+     * pool, never the library's {@code Bonus}, since {@code ReputationService.change} already raises a gain by the
+     * reputation's own gain stats ({@code CategoryGain_Reputation} and {@code TrackGain_<Id>}, {@link ReputationGain})
+     * before the Cap, so a Bonus XP meal (the all-track {@code TrackGain}) speeds skills and not standing. An owner who
+     * adds Bonus back in {@code tracks.json} adds {@code TrackGain} and counts the reputation's own stats a second time.
      */
     public static final List<String> GAIN_FACTORS = List.of(GainFactors.WORLD, GainFactors.BOOST, GainFactors.PRESTIGE,
             GainFactors.RESTED);

@@ -48,10 +48,10 @@ import com.ziggfreed.common.track.asset.TrackAsset;
  * }</pre>
  *
  * <p>A native group with no file here still works: it reads by its id, with no cap and no kills. Gear that
- * speeds a reputation needs no leaf here: an item raises the stat {@code ReputationGain_<Id>} (or the global
- * {@code ReputationGain}), which the library reads by that name ({@code ReputationGain}).
+ * speeds a reputation needs no leaf here: an item raises the stat {@code TrackGain_<Id>} (or the shared
+ * {@code CategoryGain_Reputation}), which the library reads by that name ({@code ReputationGain}).
  * A {@code Kills} row with a {@code Season} (a calendar event's id) counts kills only while that event runs,
- * read on each kill ({@link Kill#live}); the other rows count all year as before, and an id no calendar event
+ * read on each kill ({@link Kill#live}); the other rows count all year, and an id no calendar event
  * defines is a warning in the audit, its row never counting.
  * {@code Enabled: false} makes the reputation ABSENT (its readings answer nothing, rewards naming it
  * are refused, the page hides it); the standing players hold is never touched. Every leaf is nullable and

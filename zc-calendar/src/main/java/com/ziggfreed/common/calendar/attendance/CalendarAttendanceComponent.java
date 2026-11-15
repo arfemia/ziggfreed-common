@@ -42,6 +42,9 @@ public class CalendarAttendanceComponent implements Component<EntityStore> {
     /** The engine registry id; the persisted save key. */
     public static final String REGISTRY_ID = "ZiggfreedCommon:CalendarAttendance";
 
+    /** The save's {@code Version} leaf: a save from before it reads as version 0, unchanged (zc-core's {@code codec/} router). */
+    public static final int VERSION = 1;
+
     @Nullable
     public static ComponentType<EntityStore, CalendarAttendanceComponent> TYPE;
 
@@ -55,6 +58,7 @@ public class CalendarAttendanceComponent implements Component<EntityStore> {
 
     static {
         var builder = BuilderCodec.builder(CalendarAttendanceComponent.class, CalendarAttendanceComponent::new);
+        builder.versioned().codecVersion(VERSION);
         builder.append(new KeyedCodec<>("Attended", Codec.STRING, false),
                 (c, v, info) -> c.load(v),
                 (c, info) -> c.save()).add();

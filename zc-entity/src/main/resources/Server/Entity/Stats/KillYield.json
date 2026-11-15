@@ -1,0 +1,8 @@
+{
+  "$Comment": "Percent points added to the chance of a bonus find on every kill, in whole percent points (5 is +5 on the find's chance): the combat side of GatherYield. ziggfreed-common adds it to a kill bonus row's own Chance (the killer's, read when the row rolls), so it raises a find's odds and never rolls a second time; a row with no Chance written is certain already and takes nothing from it. A mod's own kill finds may read it too. Any item's StatModifiers raise it like any stat, and so does an effect's RawStatModifiers. Base 0; Min is a generous negative so a subtractive modifier never clamps.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}
