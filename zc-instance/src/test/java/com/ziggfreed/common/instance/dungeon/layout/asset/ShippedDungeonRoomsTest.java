@@ -54,6 +54,22 @@ class ShippedDungeonRoomsTest {
     /** The Cursed Crypt kit's Cursed section (its Tomb is reached only through an adapter, PD7). */
     private static final LayoutPlan CURSED = plan("Cursed_Crypt_Kit_Check", List.of("Kit=Cursed_Crypt", "Section=Cursed"));
 
+    /** The Magic Ruins kit's ruins, capped by their own wall ends. */
+    private static final LayoutPlan RUINS = plan("Magic_Ruins_Kit_Check", List.of("Kit=Magic_Ruins", "Section=Ruins"));
+
+    /** The Magic Ruins kit's structured cave, capped by its plug. */
+    private static final LayoutPlan CAVE = plan("Magic_Ruins_Cave_Kit_Check",
+            List.of("Kit=Magic_Ruins", "Section=Structured_Cave"));
+
+    /** The Shale mines: tunnels and turns with one-door rooms off them, capped by the kit's plug. */
+    private static final LayoutPlan SHALE = new LayoutPlan("Shale_Kit_Check", List.of("Kit=Shale"), List.of(),
+            List.of(new Beat("Corridor", Count.ONE, -1), new Beat("Junction", Count.ONE, -1),
+                    new Beat("Corridor", Count.ONE, -1), new Beat("Combat", Count.ONE, -1)),
+            null, List.of(), null, null, 0);
+
+    /** Every kit's plan. */
+    private static final List<LayoutPlan> PLANS = List.of(STONE, CURSED, RUINS, CAVE, SHALE);
+
     @Test
     void everyShippedRoomDecodesKeepsItsKeysAndTheKitsSnap() throws IOException {
         List<Path> files;
@@ -82,7 +98,7 @@ class ShippedDungeonRoomsTest {
         assertTrue(problems.isEmpty(), () -> problems.size() + " of " + files.size() + " files: " + problems);
 
         RoomCatalogue catalogue = RoomCatalogue.of(specs, prefab -> 1);
-        List<Finding> findings = RoomCatalogueAudit.audit(catalogue, List.of(STONE, CURSED));
+        List<Finding> findings = RoomCatalogueAudit.audit(catalogue, PLANS);
         List<Finding> errors = new ArrayList<>();
         List<Finding> warnings = new ArrayList<>();
         for (Finding finding : findings) {
@@ -90,7 +106,7 @@ class ShippedDungeonRoomsTest {
         }
 
         List<String> layouts = new ArrayList<>();
-        for (LayoutPlan plan : List.of(STONE, CURSED)) {
+        for (LayoutPlan plan : PLANS) {
             for (int seed = 1; seed <= SEEDS; seed++) {
                 LayoutResult result = LayoutGenerator.generate(plan, catalogue, seed);
                 if (!result.ok()) {

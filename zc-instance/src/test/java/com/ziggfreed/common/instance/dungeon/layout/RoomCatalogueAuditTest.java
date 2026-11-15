@@ -21,7 +21,8 @@ import com.ziggfreed.common.validation.Severity;
 /**
  * The catalogue audit flags each way a kit can keep a plan from making layouts (an empty pool, a door facing
  * nowhere, a box that does not hold its doors, a door kind no cap closes, a cap with more than one door, a need no
- * room fills, a plan role no room fills, a plan entry outside its bounds) at its tier, and a clean kit not at all.
+ * room fills, a plan role no room fills, a plan entry outside its bounds, an overlay over a pool) at its tier, and a
+ * clean kit not at all.
  */
 class RoomCatalogueAuditTest {
 
@@ -55,6 +56,11 @@ class RoomCatalogueAuditTest {
                 List.of(), door(0, 0, -2, Facing.NORTH, "Small"), door(0, 0, 2, Facing.SOUTH, "Small")));
         rooms.add(room("riddle", "Audit.Riddle", box(-2, 0, -2, 2, 3, 2), List.of("Puzzle"), null, 1, 0, 1,
                 List.of("Answer"), door(0, 0, -2, Facing.NORTH, "Small")));
+        RoomSpec layered = room("layered", "Audit.Layered.*", box(-2, 0, -2, 2, 3, 2), List.of("Combat"), null, 1, 0,
+                1, List.of(), door(0, 0, -2, Facing.NORTH, "Small"));
+        rooms.add(new RoomSpec(layered.id(), layered.prefab(), layered.box(), layered.doors(), layered.roles(),
+                layered.tags(), layered.weight(), layered.depthMin(), layered.depthMax(), layered.needs(), false, false,
+                null, "Audit.Layered_Overlay"));
         LayoutPlan plan = new LayoutPlan("Audit_Plan", List.of(SyntheticRooms.TAG), List.of(),
                 List.of(new Beat("Entry", Count.ONE, -1), new Beat("Dragon", Count.ONE, -1)), null, List.of(),
                 null, null, 0);
@@ -74,7 +80,8 @@ class RoomCatalogueAuditTest {
         assertFlagged(findings, RoomCatalogueAudit.UNANSWERED_NEED, "riddle", Severity.WARNING);
         assertFlagged(findings, RoomCatalogueAudit.PLAN_ROLE, "audit_plan", Severity.WARNING);
         assertFlagged(findings, RoomCatalogueAudit.ENTRY_BOUNDS, "outside_plan", Severity.ERROR);
-        assertEquals(9, findings.size(), () -> "each fault once, nothing else: " + findings);
+        assertFlagged(findings, RoomCatalogueAudit.OVERLAY_POOL, "layered", Severity.ERROR);
+        assertEquals(10, findings.size(), () -> "each fault once, nothing else: " + findings);
     }
 
     /** One entry room and its cap: nothing to report. */
