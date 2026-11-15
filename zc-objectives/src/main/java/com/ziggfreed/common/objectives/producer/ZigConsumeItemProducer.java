@@ -96,7 +96,9 @@ public final class ZigConsumeItemProducer extends EntityEventSystem<EntityStore,
         public void handle(int index, @Nonnull ArchetypeChunk<EntityStore> chunk, @Nonnull Store<EntityStore> store,
                 @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull DropItemEvent.PlayerRequest event) {
             try {
-                if (event.getInventorySectionId() != InventoryComponent.HOTBAR_SECTION_ID) {
+                // A cancelled request removes nothing (the engine pre-cancels it in a game mode that
+                // prevents drops, and another mod may cancel it), so it must not veto the next real meal.
+                if (event.isCancelled() || event.getInventorySectionId() != InventoryComponent.HOTBAR_SECTION_ID) {
                     return;
                 }
                 PlayerRef player = PlayerAccess.playerRef(store, chunk.getReferenceTo(index));
