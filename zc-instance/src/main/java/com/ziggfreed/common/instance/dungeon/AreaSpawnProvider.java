@@ -120,12 +120,23 @@ public final class AreaSpawnProvider implements ISpawnProvider {
         return known;
     }
 
-    /** The player's own area of this copy when they hold one, else the template's answer, else the first area. */
+    /**
+     * The checkpoint the player's run last reached ({@link RunCheckpoints}), else the player's own area of this copy
+     * when they hold one, else the template's answer, else the first area.
+     *
+     * <p>The checkpoint answers every arrival, not only a respawn: a member who joins the run late, or comes back
+     * after leaving or reconnecting, lands at the run's current checkpoint, so they join the party where it is.
+     */
     @Nonnull
     @Override
     public CompletableFuture<Transform> getSpawnPointAsync(@Nonnull World world, @Nonnull UUID uuid) {
         AreaLayout copy = layout();
         CopyKey area = AreaMembers.shared().areaOf(uuid);
+        // A run that reached a checkpoint respawns its members there (RunCheckpoints, PD4).
+        Transform checkpoint = RunCheckpoints.shared().respawnAt(area, world);
+        if (checkpoint != null) {
+            return CompletableFuture.completedFuture(checkpoint);
+        }
         if (area != null && copy.has(area.area())
                 && area.world().equals(world.getName().toLowerCase(Locale.ROOT))) {
             return CompletableFuture.completedFuture(areaArrival(world, copy, area.area()));

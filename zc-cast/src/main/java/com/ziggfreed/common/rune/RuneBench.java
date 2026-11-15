@@ -1,7 +1,6 @@
 package com.ziggfreed.common.rune;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -63,12 +62,12 @@ import com.ziggfreed.common.util.SafeLog;
  * <p><b>One bench a player.</b> Opening a line closes the player's earlier bench first (the engine would leave
  * it open beside the new one), so two windows never hold the same supports.
  *
- * <p><b>What a line holds.</b> The supports socketed in each line are kept in memory, per player and line id,
- * and written back on every change in the open window and again when it closes, so the open container is the
- * truth and a reopen shows what was left there. That record is transient and single-process: a restart forgets
- * it, and the supports in it with it. Nothing here persists.
+ * <p><b>What a line holds.</b> The supports socketed in each line are the player's saved {@link RuneSockets}
+ * record: a window opens with what its line holds, and writes the line back through the record's one write path
+ * on every change in the window and again when it closes, so the open container is the truth while it is open,
+ * a reopen shows what was left there, and a relog or a restart keeps it.
  *
- * <p>Inert on a server where no mod opens a line: nothing is registered and nothing ticks. Every call that
+ * <p>Inert on a server where no mod opens a line: nothing ticks, and the record stays empty. Every call that
  * touches a {@link Store} or {@link Ref} runs on that entity's world thread.
  */
 public final class RuneBench {
@@ -82,14 +81,15 @@ public final class RuneBench {
     /** The consumer's line's core slot. */
     public static final short CORE_SLOT = 0;
 
-    /** Player id to line id to the supports the line holds; transient and single-process (see the class doc). */
-    private static final Map<UUID, Map<String, ItemStack[]>> HELD = new ConcurrentHashMap<>();
-    /** Player id to the one bench window open for them; dropped when it closes. */
+    /**
+     * Player id to the one bench window open for them; dropped when it closes. Transient and single-process by
+     * nature: a window lives only as long as its connection, and the engine closes every window on removal.
+     */
     private static final Map<UUID, OpenBench> OPEN = new ConcurrentHashMap<>();
 
-    /** One open bench: its window, its container, its line and its change listener; retired exactly once. */
+    /** One open bench: its window, its container, its line, its player and its change listener; retired once. */
     private record OpenBench(@Nonnull AbilityBenchWindow window, @Nonnull LineContainer container,
-                             @Nonnull String lineId,
+                             @Nonnull String lineId, @Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
                              @Nonnull EventRegistration<Void, ItemContainer.ItemContainerChangeEvent> changes,
                              @Nonnull AtomicBoolean retired) {
     }
@@ -107,7 +107,7 @@ public final class RuneBench {
      * Open the game's rune screen for the player at {@code ref} over line {@code lineId}: {@code core} locked in
      * its first slot (null leaves it empty, so no support fits), the supports the line holds behind it, laid out
      * in {@code lines} lines (clamped to 1 or 2; the second one shut). On the player's world thread. False when
-     * {@code ref} is not a player or the page manager refused; the line's supports stay held either way.
+     * {@code ref} is not a player or the page manager refused; the line's supports stay in its record either way.
      *
      * <p>A player has one bench at a time: the engine leaves an earlier window open when another opens, so the
      * player's earlier bench is closed and retired first (its supports written to its line, its container
@@ -124,12 +124,12 @@ public final class RuneBench {
         }
         UUID playerId = playerRef.getUuid();
         closeEarlier(playerId, ref, store);
-        LineContainer container = build(core, supports(playerId, lineId), lines);
+        LineContainer container = build(core, RuneSockets.supports(store, ref, lineId), lines);
         AbilityBenchWindow window = new AbilityBenchWindow(container);
         container.onRefused = () -> resync(ref, store, player, window);
         EventRegistration<Void, ItemContainer.ItemContainerChangeEvent> changes =
-                container.registerChangeEvent(event -> keep(playerId, lineId, container));
-        OpenBench bench = new OpenBench(window, container, lineId, changes, new AtomicBoolean());
+                container.registerChangeEvent(event -> keep(ref, store, lineId, container));
+        OpenBench bench = new OpenBench(window, container, lineId, ref, store, changes, new AtomicBoolean());
         window.registerCloseEvent(event -> retire(playerId, bench));
         boolean opened;
         try {
@@ -174,7 +174,7 @@ public final class RuneBench {
         if (!bench.retired().compareAndSet(false, true)) {
             return;
         }
-        keep(playerId, bench.lineId(), bench.container());
+        keep(bench.ref(), bench.store(), bench.lineId(), bench.container());
         bench.changes().unregister();
         bench.container().onRefused = null;
         OPEN.remove(playerId, bench);
@@ -190,22 +190,6 @@ public final class RuneBench {
     public static SimpleItemContainer lineContainer(@Nullable ItemStack core, @Nullable List<ItemStack> supports,
             int lines) {
         return build(core, supports, lines);
-    }
-
-    /**
-     * The supports line {@code lineId} holds for {@code playerId}, in slot order with an empty slot as null, as
-     * of the last change in an open window or its close; an empty list for a line never opened.
-     */
-    @Nonnull
-    public static List<ItemStack> supports(@Nonnull UUID playerId, @Nonnull String lineId) {
-        Map<String, ItemStack[]> lines = HELD.get(playerId);
-        ItemStack[] held = lines == null ? null : lines.get(lineId);
-        if (held == null) {
-            return List.of();
-        }
-        List<ItemStack> out = new ArrayList<>(held.length);
-        Collections.addAll(out, held);
-        return Collections.unmodifiableList(out);
     }
 
     @Nonnull
@@ -233,22 +217,22 @@ public final class RuneBench {
         return container;
     }
 
-    /** Record the support slots of the open container as what the line holds. */
-    private static void keep(@Nonnull UUID playerId, @Nonnull String lineId, @Nonnull ItemContainer container) {
-        ItemStack[] held = new ItemStack[SUPPORTS_PER_LINE];
-        boolean any = false;
+    /**
+     * Record the support slots of the open container as what the line holds, through the record's one write path
+     * (which writes and announces only a real change). Never throws: a write that cannot land (the player is being
+     * removed) leaves the record as the last change wrote it.
+     */
+    private static void keep(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
+            @Nonnull String lineId, @Nonnull ItemContainer container) {
+        List<ItemStack> held = new ArrayList<>(SUPPORTS_PER_LINE);
         for (int i = 0; i < SUPPORTS_PER_LINE; i++) {
             ItemStack stack = container.getItemStack((short) (CORE_SLOT + 1 + i));
-            if (!ItemStack.isEmpty(stack)) {
-                held[i] = stack;
-                any = true;
-            }
+            held.add(ItemStack.isEmpty(stack) ? null : stack);
         }
-        Map<String, ItemStack[]> lines = HELD.computeIfAbsent(playerId, id -> new ConcurrentHashMap<>());
-        if (any) {
-            lines.put(lineId, held);
-        } else {
-            lines.remove(lineId);
+        try {
+            RuneSockets.write(store, ref, lineId, held);
+        } catch (Throwable t) {
+            SafeLog.warn("[runes] line '" + lineId + "' could not be written to its record", t);
         }
     }
 

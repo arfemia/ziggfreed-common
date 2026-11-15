@@ -11,6 +11,7 @@ import com.ziggfreed.common.counter.NativeReaders;
 import com.ziggfreed.common.encounter.event.EncounterDefeatedEvent;
 import com.ziggfreed.common.encounter.event.EncounterWipedEvent;
 import com.ziggfreed.common.factor.CounterFactors;
+import com.ziggfreed.common.instance.dungeon.DungeonMilestoneEvent;
 import com.ziggfreed.common.instance.dungeon.DungeonRuns;
 import com.ziggfreed.common.instance.dungeon.DungeonWavesEvent;
 import com.ziggfreed.common.instance.leaderboard.statboard.StatBoard;
@@ -22,6 +23,7 @@ import com.ziggfreed.common.playerstats.command.ZigStatsCommand;
 import com.ziggfreed.common.playerstats.encounter.EncounterBoardImport;
 import com.ziggfreed.common.playerstats.encounter.EncounterStats;
 import com.ziggfreed.common.playerstats.reader.ObjectiveCompletionsReader;
+import com.ziggfreed.common.playerstats.round.DungeonMilestones;
 import com.ziggfreed.common.playerstats.round.EndlessBestWaves;
 import com.ziggfreed.common.playerstats.round.RoundBestTimes;
 import com.ziggfreed.common.playerstats.system.PlayerDeathStatSystem;
@@ -36,7 +38,8 @@ import com.ziggfreed.common.util.SafeLog;
  * counter at the library-default rank; the death and playtime systems and the playtime commit at
  * logout; the ready re-sync of the board; the library's default {@code ziggfreedcommon:counter}
  * source; the stat board's feed and source; the encounter stats' defeat and wipe listeners and the boot import of
- * the frozen encounter board; the round best times (dungeon runs' fastest clears); and the {@code /zigstats} family. The stat file store itself is registered
+ * the frozen encounter board; the round best times (dungeon runs' fastest clears); the dungeon runs' milestones; and
+ * the {@code /zigstats} family. The stat file store itself is registered
  * with the other framework stores. Registration only ({@code RootRegistrationOnlyTest}).
  */
 public final class StatsBootstrap {
@@ -81,6 +84,12 @@ public final class StatsBootstrap {
             plugin.getEventRegistry().registerGlobal(DungeonWavesEvent.class, EndlessBestWaves::onWaves);
         } catch (Throwable t) {
             SafeLog.warn("[stats] the round best times could not be registered", t);
+        }
+        try {
+            // A dungeon run's milestones (a room cleared, a puzzle solved, a secret found) count for every member.
+            plugin.getEventRegistry().registerGlobal(DungeonMilestoneEvent.class, DungeonMilestones::onMilestone);
+        } catch (Throwable t) {
+            SafeLog.warn("[stats] the dungeon milestones could not be registered", t);
         }
         try {
             plugin.getCommandRegistry().registerCommand(new ZigStatsCommand());

@@ -11,4 +11,6 @@ apply from: "$rootDir/gradle/zc-module.gradle"
 
 dependencies {
     implementation project(':zc-core')
+    // The engine asset-store swap the rune socket record's codec test builds real item stacks under.
+    testImplementation(testFixtures(project(':zc-core')))
 }

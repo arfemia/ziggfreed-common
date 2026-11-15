@@ -118,6 +118,7 @@ import com.ziggfreed.common.reputation.ReputationValidator;
 import com.ziggfreed.common.reward.CostumeRewardKind;
 import com.ziggfreed.common.reward.EffectRewardKind;
 import com.ziggfreed.common.rotation.SelectionStrategies;
+import com.ziggfreed.common.rune.RuneBootstrap;
 import com.ziggfreed.common.settings.PlayerSettings;
 import com.ziggfreed.common.settings.page.CombatSettings;
 import com.ziggfreed.common.settings.page.SettingsBootstrap;
@@ -321,6 +322,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // Timed buffs on the native buff bar: the per-player slot record (unconditional, so a saved one
         // always reads back) and the ready and respawn refreshes, inert until a consumer registers a source.
         BuffBootstrap.install(this);
+        // Rune lines a mod opens on the game's rune screen: the per-player record of the supports socketed in each,
+        // registered before any world loads so a save carrying it reads back, and its connect hook.
+        RuneBootstrap.install(this);
         // Per-type damage resistance: gear raising DamageResist_<Type> stats takes less of that type,
         // through a hidden native resistance effect kept in step with the stat every tick.
         ResistBootstrap.install(this);
@@ -377,6 +381,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         InstanceBootstrap.installSpoils(this);
         InstanceBootstrap.registerParty(this);
         InstanceBootstrap.registerDungeons(this);
+        // The dungeon room kit: the ZigCheckpoint and ZigRunMilestone trigger-volume effects, before any volume or
+        // prefab decodes, and the death count a run's results read.
+        InstanceBootstrap.registerRoomKit(this);
         InstanceBootstrap.registerPortalDungeons(this);
         // The shared progress-bar panels on every player: a row is created by the mod that reports
         // a value moved and dressed by what it said, and this only attaches the panels and takes
