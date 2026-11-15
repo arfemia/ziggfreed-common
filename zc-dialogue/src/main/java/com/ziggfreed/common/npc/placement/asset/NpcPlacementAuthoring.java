@@ -83,6 +83,19 @@ public final class NpcPlacementAuthoring {
     public static Result place(@Nonnull World world, @Nonnull Store<EntityStore> store,
             @Nonnull String role, @Nonnull String id, @Nullable String dialogue,
             @Nonnull String worldName, double x, double y, double z, double yaw) {
+        return place(world, store, role, id, null, dialogue, worldName, x, y, z, yaw);
+    }
+
+    /**
+     * As {@link #place(World, Store, String, String, String, String, double, double, double, double)}, naming
+     * who stands there: {@code npcId} is written as the placement's {@code Identity.NpcId}, so this character
+     * is its own even when another placement stands the same role (with none, the character IS its role, and
+     * every placement of that role is one character). Null or blank writes none.
+     */
+    @Nonnull
+    public static Result place(@Nonnull World world, @Nonnull Store<EntityStore> store,
+            @Nonnull String role, @Nonnull String id, @Nullable String npcId, @Nullable String dialogue,
+            @Nonnull String worldName, double x, double y, double z, double yaw) {
 
         String key = id.trim().toLowerCase(Locale.ROOT);
         if (NpcPlacementConfig.getInstance().has(key)) {
@@ -94,6 +107,9 @@ public final class NpcPlacementAuthoring {
 
         Map<String, Object> leaves = new LinkedHashMap<>();
         leaves.put(key + ".Identity.Role", role);
+        if (npcId != null && !npcId.isBlank()) {
+            leaves.put(key + ".Identity.NpcId", npcId.trim());
+        }
         leaves.put(key + ".Where.Match", List.of(worldName));
         leaves.put(key + ".Anchor.Coords.X", x);
         leaves.put(key + ".Anchor.Coords.Y", y);

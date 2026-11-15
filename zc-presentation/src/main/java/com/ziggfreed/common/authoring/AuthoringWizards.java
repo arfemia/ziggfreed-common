@@ -155,7 +155,7 @@ public final class AuthoringWizards {
         }
         WizardField field = session.field(fieldId);
         Function<WorldPick, String> reading = field == null ? null : field.fromWorld();
-        Message label = field == null ? Msg.raw(fieldId) : AuthoringWizardPage.label(field.spec().labelKey());
+        Message label = field == null ? Msg.raw(fieldId) : field.label();
         String value;
         try {
             value = reading == null ? null : reading.apply(pick);

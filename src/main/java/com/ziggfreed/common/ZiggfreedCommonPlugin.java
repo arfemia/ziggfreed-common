@@ -91,6 +91,7 @@ import com.ziggfreed.common.npc.NpcIdentities;
 import com.ziggfreed.common.npc.NpcIdentityConfig;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementConfig;
 import com.ziggfreed.common.npc.placement.registry.PlacementFactorRegistry;
+import com.ziggfreed.common.objectives.authoring.QuestEditorBootstrap;
 import com.ziggfreed.common.objectives.bonus.BonusRowBootstrap;
 import com.ziggfreed.common.objectives.book.ObjectiveBookBootstrap;
 import com.ziggfreed.common.objectives.calendar.CalendarSweepBootstrap;
@@ -421,6 +422,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // Authoring Tools tab's tools run (registered before any item decodes), the Inspect Tool and its wizard, and
         // /zigauthor. The tab, the tools and their root interaction are assets zc-presentation ships.
         AuthoringBootstrap.install(this);
+        // The quest editor on that kit: the Quest wizard and the Quest Tool, which the progression admin page and
+        // /zigauthor open too. Its tool item and its quest giver role are assets zc-objectives ships.
+        QuestEditorBootstrap.install();
         // The once-at-boot checks (the boot audit a headless dev boot asks for), on BootEvent: every
         // store has folded and every mod has registered its vocabulary by then.
         registerBootChecks();

@@ -6,6 +6,7 @@ import java.util.function.Function;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.ui.form.FieldKind;
 import com.ziggfreed.common.ui.form.FieldSpec;
 
@@ -14,25 +15,29 @@ import com.ziggfreed.common.ui.form.FieldSpec;
  * {@link Pickers.Source}'s ids), and optionally a reading the world can fill it from, which adds a "Pick in the
  * world" button under the step's rows. Immutable; the {@code with...} and {@link #fromWorld} calls return copies.
  *
- * <p>A label or hint key is a full registered lang key, resolved on the client ({@code mymod.wizard.giver}).
+ * <p>A label or hint key is a full registered lang key, resolved on the client ({@code mymod.wizard.giver}). A row
+ * whose words are built as it paints (a numbered heading, a parameter a registry names) carries its own label
+ * instead ({@link #withLabel}), with its field id as the spec's label key so no two rows share one.
  */
 public final class WizardField {
 
     @Nonnull private final FieldSpec spec;
     @Nullable private final Pickers.Source picker;
     @Nullable private final Function<WorldPick, String> fromWorld;
+    @Nullable private final Message label;
 
     private WizardField(@Nonnull FieldSpec spec, @Nullable Pickers.Source picker,
-            @Nullable Function<WorldPick, String> fromWorld) {
+            @Nullable Function<WorldPick, String> fromWorld, @Nullable Message label) {
         this.spec = spec;
         this.picker = picker;
         this.fromWorld = fromWorld;
+        this.label = label;
     }
 
     /** A settings-form row as it is: text, number, toggle, dropdown, header or note. */
     @Nonnull
     public static WizardField of(@Nonnull FieldSpec spec) {
-        return new WizardField(spec, null, null);
+        return new WizardField(spec, null, null, null);
     }
 
     /**
@@ -42,7 +47,7 @@ public final class WizardField {
     @Nonnull
     public static WizardField picker(@Nonnull String id, @Nonnull String leafPath, @Nonnull String labelKey,
             @Nonnull Pickers.Source source) {
-        return new WizardField(FieldSpec.dropdown(id, leafPath, labelKey, new String[0]), source, null);
+        return new WizardField(FieldSpec.dropdown(id, leafPath, labelKey, new String[0]), source, null, null);
     }
 
     /**
@@ -58,13 +63,34 @@ public final class WizardField {
         if (spec.kind() == FieldKind.HEADER || spec.kind() == FieldKind.NOTE) {
             throw new IllegalArgumentException("a " + spec.kind() + " row holds no value to pick: " + spec.id());
         }
-        return new WizardField(spec, picker, reading);
+        return new WizardField(spec, picker, reading, label);
     }
 
     /** This field with a hint line under it ({@link FieldSpec#withHint}). */
     @Nonnull
     public WizardField withHint(@Nonnull String hintKey) {
-        return new WizardField(spec.withHint(hintKey), picker, fromWorld);
+        return new WizardField(spec.withHint(hintKey), picker, fromWorld, label);
+    }
+
+    /**
+     * This field labelled with {@code words} in place of its spec's label key: the row, its "Pick in the world"
+     * button and the pick's notice all say them. Give the spec a label key no other row of the step uses (its field
+     * id), since the frame finds the words by it.
+     */
+    @Nonnull
+    public WizardField withLabel(@Nonnull Message words) {
+        return new WizardField(spec, picker, fromWorld, words);
+    }
+
+    /** What the row is called: its own label ({@link #withLabel}), else its spec's label key resolved on the client. */
+    @Nonnull
+    public Message label() {
+        return label != null ? label : AuthoringWizardPage.label(spec.labelKey());
+    }
+
+    /** True when the row carries its own label ({@link #withLabel}). */
+    boolean labelledOwn() {
+        return label != null;
     }
 
     @Nonnull

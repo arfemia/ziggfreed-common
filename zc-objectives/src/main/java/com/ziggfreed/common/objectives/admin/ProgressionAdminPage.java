@@ -18,7 +18,9 @@ import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
+import com.ziggfreed.common.authoring.AuthoringWizards;
 import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.objectives.authoring.QuestWizard;
 import com.ziggfreed.common.objectives.command.ProgressAdminMessages;
 import com.ziggfreed.common.ui.SettingsUiUtil;
 import com.ziggfreed.common.ui.UiRetint;
@@ -37,7 +39,8 @@ import com.ziggfreed.common.util.SafeLog;
  * tint (no binding) for a read-only switch, and an UNKNOWN "?" for a read that threw - never OFF,
  * because the page must not claim a state nobody could read. A write goes through
  * {@link SystemSwitches#writeGuarded}; refused or applied, the page says so in a toast and reopens
- * so every row repaints from a live read. A read-only row carries a "governed elsewhere" hint line.
+ * so every row repaints from a live read. A read-only row carries a "governed elsewhere" hint line. The footer's
+ * Quest editor button opens the quest editor ({@link QuestWizard}) in its place.
  *
  * <p>Stateless across events: the page holds nothing but the player, so every binding round-trips
  * the full state (an action and, for a toggle, the switch id). EVERY exit path sends a response;
@@ -84,6 +87,9 @@ public final class ProgressionAdminPage extends ToastablePage<ProgressionAdminEv
         cmd.set("#Title.TextSpans", msg("page.title"));
         cmd.set("#Subtitle.TextSpans", msg("page.subtitle"));
         ZigRichButton.text(cmd, "#BackButton", msg("page.back"));
+        ZigRichButton.text(cmd, "#QuestEditorButton", msg("page.quest_editor"));
+        events.addEventBinding(CustomUIEventBindingType.Activating, "#QuestEditorButton",
+                EventData.of("Action", "quest_editor"), false);
 
         List<SystemSwitch> switches = SystemSwitches.all();
         if (switches.isEmpty()) {
@@ -184,6 +190,7 @@ public final class ProgressionAdminPage extends ToastablePage<ProgressionAdminEv
                 }
             }
             case "toggle" -> handleToggle(ref, store, player, data.id);
+            case "quest_editor" -> openQuestEditor(ref, store, player);
             case "close", "" -> player.getPageManager().setPage(ref, store, Page.None);
             default -> this.sendUpdate(new UICommandBuilder(), new UIEventBuilder(), false);
         }
@@ -211,6 +218,18 @@ public final class ProgressionAdminPage extends ToastablePage<ProgressionAdminEv
             showToast(ToastKind.ERROR, msg("page.refused", sw.label()));
         }
         reopen(player, ref, store);
+    }
+
+    /**
+     * Open the quest editor in place of this page. Whoever may open this page may open it; its Save asks the saving
+     * player for the editor's own author node, {@code ziggfreedcommon.author.quest}. One that cannot open says so.
+     */
+    private void openQuestEditor(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
+                                 @Nonnull Player player) {
+        if (!AuthoringWizards.open(QuestWizard.ID, ref, store)) {
+            showToast(ToastKind.ERROR, msg("page.quest_editor.failed"));
+            reopen(player, ref, store);
+        }
     }
 
     /** Reopen fresh, so every row repaints from a live read; the toast rides the rebuild. */

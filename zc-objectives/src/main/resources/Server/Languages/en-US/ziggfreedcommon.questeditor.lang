@@ -1,0 +1,141 @@
+# The quest editor (zc-objectives objectives/authoring/): the Quest Tool's wizard, also opened from the progression
+# admin page and /zigauthor open Quest.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.questeditor.<key>.
+
+title = Quest Editor
+
+# The pages, in order.
+page.quest = Quest
+page.giver = Giver
+page.steps = Steps
+page.targets = Step details
+page.rewards = Rewards
+page.params = Reward details
+page.rules = Requirements and repeat
+
+# Quest
+field.edit = Open a saved quest
+hint.edit = Pick one of the quests made here to change it. Leave it empty to make a new one.
+note.quest = Name the quest and say what it's about. Players read these words, and the name also makes the quest's id, which never changes after the first save.
+field.title = Name
+field.flavor = Description
+hint.flavor = What the giver says about it. You can leave it empty.
+
+# Giver
+note.giver = Pick the character who offers this quest, or click one in the world. Leave it empty and players take it from their quest book instead.
+field.giver = Character
+hint.giver = Pressing F opens a character's quests only when its role is a quest giver.
+field.return = Collect the reward back at the giver
+header.new_giver = A new quest giver
+note.new_giver = Turn this on to stand a new quest giver for this quest when you save. It stands on the block you pick, or where you're standing.
+field.new_giver = Stand a new giver
+field.giver_role = Role
+field.giver_spot = Where it stands
+hint.giver_spot = Pick a block in the world. Leave it empty to use the spot you're standing on when you save.
+
+# Steps
+note.steps = Choose what each step asks for and how many. Leave a step empty to skip it. You pick each step's target on the next page.
+# {0} is the step's number.
+steps.slot = Step {0, number}
+field.step_kind = What counts
+field.step_amount = How many
+header.flow = How the steps run
+field.sequential = One step at a time, in order
+field.auto_track = Track it when it's taken
+
+# Step details. In targets.slot, {1} is the step's kind.
+note.targets = Pick what each step counts. A name like Skeleton counts every kind of skeleton. Match decides how the name is compared, and the line is what players read for the step.
+targets.slot = Step {0, number}: {1}
+field.target = Target for step {0, number}
+hint.target = Leave it empty to count anything.
+hint.target_place = Pick who or where this step names.
+hint.target_spot = Pick a block in the world to mark the spot.
+field.match = Match
+field.line = Line players read
+note.targets_none = Add a step on the last page first.
+
+# Rewards
+note.rewards = Choose up to three rewards. Every reward waits for the player to collect it. You fill in each reward on the next page.
+rewards.slot = Reward {0, number}
+field.reward_kind = Reward
+
+# Reward details. In params.slot, {1} is the reward's kind; in field.param, {0} is the setting's name.
+params.slot = Reward {0, number}: {1}
+field.param = {0}
+field.param_required = {0} (needed)
+field.params_free = Settings
+hint.params_free = This reward lists no settings, so write them as Name=Value, separated by commas.
+note.params_none = This reward has nothing to fill in.
+note.params_empty = Choose a reward on the last page first.
+
+# Requirements and repeat
+header.requires = Requirements
+note.requires_kept = This quest asks for more than this page shows, so its requirements stay as they are. Change them in the Asset Editor.
+field.req_quest = Finish this quest first
+field.req_permission = Permission needed
+field.req_factor = Also needs
+field.req_param = Which one
+field.req_min = At least
+header.repeat = Repeat
+field.repeat = Can be done again
+field.repeat_hours = Hours to wait
+hint.repeat_hours = How long before it can be taken again. Leave it empty for no wait.
+field.repeat_reset = Resets
+field.repeat_max = Most times each player can finish it
+hint.repeat_max = Leave it empty for no limit.
+
+# Opening a saved quest. {0} is the quest's id.
+load.missing = There's no saved quest called {0} here anymore.
+load.unreadable = {0} couldn't be read, so it wasn't opened. The server log says why.
+load.inherits = {0} is built on another quest, so open it in the Asset Editor instead.
+
+# The preview.
+preview.untitled = A new quest
+preview.new = It gets its id from its name when you save.
+preview.editing = Editing {0}.
+preview.saved_as = Saved as {0}.
+preview.giver_new = Given by a new quest giver ({0}).
+preview.giver = Given by {0}.
+preview.giver_unplaced = No placed character is called {0} yet.
+preview.book = Taken from the quest book.
+preview.return = The reward is collected back at the giver.
+# {0} is the step's number, {1} its kind, {2} its target, {3} how many.
+preview.step = Step {0, number}: {1} {2} ({3, number})
+preview.step_any = Step {0, number}: {1}, anything ({2, number})
+preview.no_steps = No steps yet.
+preview.spot_needs_mod = Reaching a spot only counts on a server running a mod that watches for it.
+# {0} is the reward's number, {1} its kind, {2} its settings.
+preview.reward = Reward {0, number}: {1} ({2})
+preview.reward_bare = Reward {0, number}: {1}
+preview.no_rewards = No rewards yet.
+preview.claim = Rewards wait for the player to collect them.
+preview.requires_kept = Requirements stay as they are.
+preview.req_quest = Needs {0} finished first.
+preview.req_permission = Needs the {0} permission.
+# {0} is the factor, {1} which one, {2} the least it must read.
+preview.req_factor = Needs {0} {1} of at least {2}.
+preview.req_none = Anyone can take it.
+preview.once = Done once.
+preview.repeat = Can be done again.
+preview.repeat_wait = Wait {0, number} {0, plural, one {hour} other {hours}} between goes.
+preview.repeat_period = Calendar reset: {0}.
+preview.repeat_max = At most {0, number} {0, plural, one {time} other {times}} per player.
+# {0} is a reward's kind and {1} what it pays; in param_doc, {0} is a setting and {1} what it means.
+preview.kind_doc = {0}: {1}
+preview.param_doc = {0}: {1}
+
+# Why Next or Save refused.
+check.title = Give the quest a name.
+check.backslash = Words can't hold a backslash.
+check.role = {0} can't stand as a quest giver. Pick another role.
+check.giver_spot = Pick the giver's spot in the world, or leave it empty.
+check.amount = Step {0, number} needs a count of 1 or more.
+check.steps = Add at least one step.
+check.target_spot = Step {0, number} needs a spot. Pick a block in the world.
+check.target_place = Step {0, number} needs a target.
+check.params_free = Reward {0, number}'s settings need to read as Name=Value, separated by commas.
+check.param_required = Reward {0, number} needs {1}.
+check.param_number = Reward {0, number}'s {1} needs to be a number.
+check.req_min = At least needs a number.
+check.repeat_hours = Hours to wait needs to be a whole number.
+check.repeat_max = Most times needs to be a whole number.

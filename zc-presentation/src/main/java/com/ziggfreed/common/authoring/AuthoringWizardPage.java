@@ -1,7 +1,9 @@
 package com.ziggfreed.common.authoring;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import javax.annotation.Nonnull;
@@ -123,14 +125,21 @@ public final class AuthoringWizardPage extends ToastablePage<AuthoringWizardEven
 
         stepFields = step.fields();
         List<FieldSpec> specs = new ArrayList<>();
+        Map<String, Message> ownLabels = new HashMap<>();
         boolean pickers = false;
         for (WizardField field : stepFields) {
             specs.add(field.specFor(session.filter(), session.value(field.id())));
             pickers |= field.picker() != null;
+            if (field.labelledOwn()) {
+                ownLabels.put(field.spec().labelKey(), field.label());
+            }
         }
         SettingsForm built = new SettingsForm(specs, AuthoringText.line("wizard.on"), AuthoringText.line("wizard.off"));
         built.seed(session.values());
-        built.buildRows(cmd, events, FORM, AuthoringWizardPage::label);
+        built.buildRows(cmd, events, FORM, key -> {
+            Message own = ownLabels.get(key);
+            return own != null ? own : label(key);
+        });
         form = built;
 
         cmd.set(SEARCH + ".Visible", pickers);
@@ -146,7 +155,7 @@ public final class AuthoringWizardPage extends ToastablePage<AuthoringWizardEven
             }
             cmd.append(PICKS, PICK_ROW);
             String sel = PICKS + "[" + picks++ + "]";
-            ZigRichButton.text(cmd, sel, AuthoringText.line("wizard.pick", label(field.spec().labelKey())));
+            ZigRichButton.text(cmd, sel, AuthoringText.line("wizard.pick", field.label()));
             events.addEventBinding(CustomUIEventBindingType.Activating, sel,
                     EventData.of("Action", WizardActions.PICK).append("Field", field.id()), false);
         }
@@ -342,7 +351,7 @@ public final class AuthoringWizardPage extends ToastablePage<AuthoringWizardEven
                 return WizardActions.Exit.ANSWER;
             }
             PendingPicks.await(playerRef.getUuid(), session, picking.id());
-            Notify.def(playerRef, AuthoringText.line("pick.start", label(picking.spec().labelKey())));
+            Notify.def(playerRef, AuthoringText.line("pick.start", picking.label()));
             return WizardActions.Exit.CLOSE;
         }
 

@@ -474,6 +474,20 @@ public final class ServerContent {
         }
     }
 
+    /**
+     * The English the pack holds under {@code key} (a {@link #textKey}, or its {@link #storedKey}): the words last
+     * saved, which an editor opened on a saved asset shows, even where players still see the first words until a
+     * restart. Null when the pack holds none.
+     */
+    @Nullable
+    public static String text(@Nonnull String key) {
+        try {
+            return ServerContentText.text(key);
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
     /** Take {@code key}'s words out of the pack; a key the server loaded keeps showing them until a restart. */
     @Nonnull
     public static Result removeText(@Nonnull String key) {

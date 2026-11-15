@@ -117,6 +117,18 @@ final class ServerContentText {
         return words.isBlank() || words.indexOf('\\') >= 0 ? null : words;
     }
 
+    /** The English the file holds under {@code key} (an entry key or its full key), or null when it holds none. */
+    @Nullable
+    static String text(@Nullable String key) {
+        String entry = entryKey(key);
+        if (entry == null) {
+            return null;
+        }
+        synchronized (LOCK) {
+            return TEXT.get(entry);
+        }
+    }
+
     /** How many entries the en-US file holds. */
     static int size() {
         synchronized (LOCK) {
