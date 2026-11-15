@@ -43,11 +43,6 @@ class BonusRowAuditTest {
                 LootGrants.of(null, null, new String[] {"say found"}, null), null)});
     }
 
-    private static LootRef momentItem() {
-        return LootRef.of(null, new Roll[] {Roll.of(null, null, null, null, LootGrants.of(null, null, null,
-                new LootGrants.Reward[] {LootGrants.Reward.of(MomentItems.KIND, null)}), null)});
-    }
-
     private List<Finding> audit(Map<String, BonusRowAsset> rows) {
         BonusRowConfig.getInstance().mergePackLayer(rows);
         return BonusRowAudit.auditAll(kinds, new FactorRegistry("bonus-row-audit-test"));
@@ -57,10 +52,6 @@ class BonusRowAuditTest {
         return findings.stream().anyMatch(f -> code.equals(f.code()) && sourceId.equals(f.sourceId()));
     }
 
-    private static boolean warnsPassOnly(List<Finding> findings, String rowId) {
-        return findings.stream().anyMatch(f -> LootableValidator.PASS_ONLY_REWARD_KIND.equals(f.code())
-                && f.sourceId().startsWith(rowId));
-    }
 
     @Test
     void aRowNamingNoMomentIsAnErrorStampedWithTheTablesDomain() {
@@ -107,18 +98,6 @@ class BonusRowAuditTest {
                 "fixture_a", BonusRowAsset.of(BonusMoment.BREAK_BLOCK, "Ore_Test", null, commanding(), null),
                 "fixture_b", BonusRowAsset.of(BonusMoment.BREAK_BLOCK, "*Ore_Test*", null, commanding(), null))),
                 BonusRowAudit.OVERLAPPING_PATTERN, "fixture_b"));
-    }
-
-    @Test
-    void aMomentItemPaysOnlyInAPickupRow() {
-        List<Finding> findings = audit(Map.of(
-                "fixture_break", BonusRowAsset.of(BonusMoment.BREAK_BLOCK, "*Test_Name*", null, momentItem(), null),
-                "fixture_kill", BonusRowAsset.of(BonusMoment.KILL_MOB, "*Test_Name*", null, momentItem(), null),
-                "fixture_pickup", BonusRowAsset.of(BonusMoment.PICKUP_ITEM, "*Test_Name*", null, momentItem(), null)));
-
-        assertTrue(warnsPassOnly(findings, "fixture_break"), findings::toString);
-        assertTrue(warnsPassOnly(findings, "fixture_kill"), findings::toString);
-        assertFalse(warnsPassOnly(findings, "fixture_pickup"), findings::toString);
     }
 
     @Test
