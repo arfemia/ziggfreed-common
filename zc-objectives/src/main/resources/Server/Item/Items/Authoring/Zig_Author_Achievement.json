@@ -1,0 +1,22 @@
+{
+  "$Comment": "The Achievement Tool, in the creative library's Authoring Tools tab: click a block for an achievement to break it, a creature for one to kill it, an item on the ground for one to pick it up, or a character for one to talk to them, and the achievement editor opens with that as its first criterion. The editor also opens from the progression admin page and /zigauthor open Achievement, and its Pick in the world buttons take the next click with any authoring tool. It needs creative mode and the ziggfreedcommon.author.achievement permission, checked on the server at each click; saving an achievement needs that permission too. The ZigAuthorTool tag names the tool; everything else comes from its Parent, Zig_Author_Tool.",
+  "Parent": "Zig_Author_Tool",
+  "TranslationProperties": {
+    "Name": "items.Zig_Author_Achievement.name",
+    "Description": "items.Zig_Author_Achievement.description"
+  },
+  "Icon": "Icons/ItemsGenerated/Deco_Orbis_Trophy.png",
+  "Categories": [
+    "Zig_Authoring.Tools"
+  ],
+  "SubCategory": "Editors",
+  "Quality": "Tool",
+  "Tags": {
+    "ZigAuthorTool": [
+      "Achievement"
+    ],
+    "Family": [
+      "ZiggfreedCommon"
+    ]
+  }
+}

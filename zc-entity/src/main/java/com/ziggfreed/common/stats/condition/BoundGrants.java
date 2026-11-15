@@ -2,12 +2,14 @@ package com.ziggfreed.common.stats.condition;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -49,6 +51,14 @@ import com.ziggfreed.common.util.SafeLog;
  * saved with the entity like any other, so an entity's first pass sweeps every one it finds that is not wanted now.
  * In memory only, keyed by the entity's reference: a holder that leaves its store is forgotten, and its next rebuild
  * (a player's ready settle, the gear set recompute) hands its modifiers over again. World thread.
+ *
+ * <p><b>The off reading</b> ({@link #offPoints}). A roll made away from the act a modifier binds to (a reward rolled
+ * when a player collects it, a payout gathered from a station nobody worked) may count a modifier that is off as if
+ * the conditions a consumer names held: a consumer's reader adds the amount of each off modifier whose list names a
+ * condition its predicate accepts and whose every other condition holds as the pass reads it. As on a hit, an on
+ * modifier is already on the stat and is never counted again, and only an additive amount on the maximum counts. Its
+ * twin {@link #onPoints} sums the on modifiers whose list names a condition a predicate accepts, so a reader can take
+ * another owner's share back out of the stat's value.
  *
  * <p><b>Cost.</b> A hit by an entity with no hit-aware bound modifier costs each reader one map read; otherwise each
  * reader walks that entity's hit-aware modifiers (a handful) and asks the conditions only of an off one on its stat.
@@ -344,6 +354,147 @@ public final class BoundGrants {
             }
         }
         return sum;
+    }
+
+    /**
+     * What the bound modifiers of the entity at {@code ref} that are OFF add to the stat at {@code stat} when each
+     * condition {@code standsIn} accepts is taken as holding: the sum of each additive amount on the stat's maximum
+     * whose condition list names at least one condition {@code standsIn} accepts and whose every other condition holds
+     * as the holder pass reads it. What a reader of the stat away from the act a modifier binds to adds to the stat's
+     * own value (a consumer counting a skill's bound shares whatever is in hand when a reward it rolls is collected).
+     * An on modifier is already on the stat, so it is never in it. 0 for an entity with none, for
+     * {@link StatIndexCache#UNRESOLVED}, or when anything throws. World thread; a walk of the entity's bound modifiers,
+     * asking the other conditions only of one {@code standsIn} names.
+     */
+    public static double offPoints(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
+            int stat, @Nonnull Predicate<Condition> standsIn) {
+        Map<String, Map<String, Entry>> owners = BY_REF.get(ref);
+        if (owners == null || stat == StatIndexCache.UNRESOLVED) {
+            return 0.0;
+        }
+        try {
+            List<Entry> entries = new ArrayList<>();
+            for (Map<String, Entry> byKey : owners.values()) {
+                entries.addAll(byKey.values());
+            }
+            Instant now = ConditionalStats.now(accessor);
+            return offSum(entries, stat, standsIn, condition -> {
+                try {
+                    return condition.eval(accessor, ref, now);
+                } catch (Throwable t) {
+                    return false;
+                }
+            });
+        } catch (Throwable t) {
+            return 0.0;
+        }
+    }
+
+    /**
+     * The on twin of {@link #offPoints}: what the bound modifiers of the entity at {@code ref} that are ON add to the
+     * stat at {@code stat} (already in its value), each additive amount on the stat's maximum whose condition list
+     * names a condition {@code names} accepts. A consumer reading a stat as one owner's grants give it takes these
+     * away for another owner's (a skill reading the shared stat without another skill's tool share in it). An off
+     * modifier is never in it, so a modifier is counted by at most one of the two. 0 for an entity with none, for
+     * {@link StatIndexCache#UNRESOLVED}, or when anything throws. World thread; no condition is asked.
+     */
+    public static double onPoints(@Nonnull Ref<EntityStore> ref, int stat, @Nonnull Predicate<Condition> names) {
+        Map<String, Map<String, Entry>> owners = BY_REF.get(ref);
+        if (owners == null || stat == StatIndexCache.UNRESOLVED) {
+            return 0.0;
+        }
+        try {
+            List<Entry> entries = new ArrayList<>();
+            for (Map<String, Entry> byKey : owners.values()) {
+                entries.addAll(byKey.values());
+            }
+            return onSum(entries, stat, names);
+        } catch (Throwable t) {
+            return 0.0;
+        }
+    }
+
+    /** {@link #onPoints(Ref, int, Predicate)} for a stat id; 0 for one not loaded. */
+    public static double onPoints(@Nonnull Ref<EntityStore> ref, @Nonnull String statId,
+            @Nonnull Predicate<Condition> names) {
+        if (!BY_REF.containsKey(ref)) {
+            return 0.0;
+        }
+        return onPoints(ref, StatIndexCache.resolve(statId), names);
+    }
+
+    /**
+     * The on reading over {@code entries}: each one that is on and an additive amount on the maximum of the stat at
+     * {@code stat}, whose list names a condition {@code names} accepts. Pure over the entries and the predicate.
+     */
+    static double onSum(@Nonnull Collection<Entry> entries, int stat, @Nonnull Predicate<Condition> names) {
+        double sum = 0.0;
+        for (Entry entry : entries) {
+            if (!entry.on || entry.stat != stat || !entry.additiveOnMax() || !namesAny(entry.conditions, names)) {
+                continue;
+            }
+            float amount = entry.modifier.getAmount();
+            if (Float.isFinite(amount)) {
+                sum += amount;
+            }
+        }
+        return sum;
+    }
+
+    /** Does {@code conditions} name one {@code names} accepts? */
+    private static boolean namesAny(@Nullable Condition[] conditions, @Nonnull Predicate<Condition> names) {
+        if (conditions != null) {
+            for (Condition condition : conditions) {
+                if (condition != null && names.test(condition)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /** {@link #offPoints(ComponentAccessor, Ref, int, Predicate)} for a stat id; 0 for one not loaded. */
+    public static double offPoints(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
+            @Nonnull String statId, @Nonnull Predicate<Condition> standsIn) {
+        if (!BY_REF.containsKey(ref)) {
+            return 0.0;
+        }
+        return offPoints(accessor, ref, StatIndexCache.resolve(statId), standsIn);
+    }
+
+    /**
+     * The off reading over {@code entries}: each one that is off and an additive amount on the maximum of the stat at
+     * {@code stat}, whose list names a condition {@code standsIn} accepts, and whose every other condition
+     * {@code holds}, asked last and only of such a modifier. Pure over the entries and the two reads.
+     */
+    static double offSum(@Nonnull Collection<Entry> entries, int stat, @Nonnull Predicate<Condition> standsIn,
+            @Nonnull Predicate<Condition> holds) {
+        double sum = 0.0;
+        for (Entry entry : entries) {
+            if (entry.on || entry.stat != stat || !entry.additiveOnMax()
+                    || !standsInFor(entry.conditions, standsIn, holds)) {
+                continue;
+            }
+            float amount = entry.modifier.getAmount();
+            if (Float.isFinite(amount)) {
+                sum += amount;
+            }
+        }
+        return sum;
+    }
+
+    /** Does {@code conditions} name one {@code standsIn} accepts, with every other one holding? */
+    private static boolean standsInFor(@Nullable Condition[] conditions, @Nonnull Predicate<Condition> standsIn,
+            @Nonnull Predicate<Condition> holds) {
+        if (!namesAny(conditions, standsIn)) {
+            return false;
+        }
+        for (Condition condition : conditions) {
+            if (condition != null && !standsIn.test(condition) && !holds.test(condition)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

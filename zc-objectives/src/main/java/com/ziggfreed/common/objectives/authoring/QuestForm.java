@@ -61,7 +61,7 @@ public record QuestForm(@Nonnull String titleKey, @Nullable String flavorKey, @N
      * @param whole   true when {@code params} replaces the row's whole {@code Params} (a kind that describes none)
      */
     public record Reward(int slot, @Nonnull String kind, @Nonnull Map<String, String> params,
-            @Nonnull Set<String> managed, boolean whole) {
+            @Nonnull Set<String> managed, boolean whole) implements ClaimSlots.Row {
 
         public Reward {
             params = new LinkedHashMap<>(params);

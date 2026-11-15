@@ -9,8 +9,8 @@ import com.ziggfreed.common.asset.OwnedSources;
 
 /**
  * Stats a mod counts toward a gathering number beyond the library's own: a consumer's skill-shaped stat for the
- * blocks and harvests its skill pays for, say ({@code GatherSpeed_Mining} on ore, {@code GatherYield_Harvesting} on a
- * crop). A source is asked for one line ({@link #SPEED} or {@link #YIELD}, the stat id's base), the moment
+ * blocks and harvests its skill pays for, say ({@code GatherYield_Harvesting} on a crop). A source is asked for one
+ * line ({@link #SPEED} or {@link #YIELD}, the stat id's base), the moment
  * ({@link On}) and the block or item id alone, so the answer never depends on who gathers; the step reading the line
  * reads that stat off the player and adds it in, before the line's ceiling where it has one.
  *
