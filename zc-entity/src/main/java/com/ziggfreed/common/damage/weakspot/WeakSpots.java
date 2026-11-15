@@ -28,7 +28,9 @@ import com.ziggfreed.common.stats.damage.TypedDamageBonuses;
  * <p><b>What a weak spot pays</b> (R757, every number a stat): {@value #DAMAGE_STAT}, plus each way's own stat when the
  * hit is a weak spot that way ({@value #HEAD_STAT} on the head, {@value #BACK_STAT} from behind,
  * {@value #STAGGERED_STAT} in a window), plus every stat a consumer registers as a source ({@link #registerSource}: a
- * weapon skill's own bonus, counted on the hits its route names), the whole held to {@value #CEILING_STAT}.
+ * weapon skill's own bonus, counted on the hits its route names), the whole held to {@value #CEILING_STAT}. Each of
+ * these library stats also takes the attacker's bound grants on it that are off but hold on this hit
+ * ({@code BoundGrants.hitPoints}, R945).
  *
  * <p><b>Never two weak-spot bonuses.</b> A vanilla weapon whose damage interaction carries a {@code Head}
  * {@code TargetedDamage} (the shortbow's full draw) or a rear {@code AngledDamage} with damage of its own (a dagger's
