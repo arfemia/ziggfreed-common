@@ -10,7 +10,8 @@ $ZT = "../Common/ZigType.ui";
 //
 // #Rows is the appendable list container and MUST stay childless here: rows are addressed by
 // indexed parent ("#Rows[0] #Toggle"), so a pre-authored child would shift every index. #Empty is
-// the page-level note an empty registry shows instead of rows. All text is set from Java on
+// the page-level note an empty registry shows instead of rows. #QuestEditorButton and #ReputationEditorButton open
+// the library's in-game editors (authoring wizards). All text is set from Java on
 // .TextSpans (no inline %key; placeholders), and every labeled button is a Button + inner #Label.
 //
 // Shipped once in ziggfreed-common; neutral Zig* ids. Smoke-test in-game.
@@ -67,6 +68,17 @@ $F.@ZigDecoratedFrame {
       LayoutMode: Left;
 
       // The in-game editors this page opens, each shown from Java only while its wizard is registered.
+      Button #QuestEditorButton {
+        Visible: false;
+        Style: $Z.@ZigRichRowBtnStyle;
+        Anchor: (Width: 180, Height: 32, Right: 8);
+        Label #Label {
+          FlexWeight: 1;
+          Text: "";
+          Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+        }
+      }
+
       Button #ReputationEditorButton {
         Visible: false;
         Style: $Z.@ZigRichRowBtnStyle;

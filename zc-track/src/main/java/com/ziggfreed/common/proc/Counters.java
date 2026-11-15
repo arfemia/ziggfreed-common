@@ -2,9 +2,11 @@ package com.ziggfreed.common.proc;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nonnull;
@@ -12,6 +14,7 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
 import com.hypixel.hytale.server.core.modules.entitystats.modifier.Modifier;
@@ -20,6 +23,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.effect.NativeEffectUtil;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.stats.StatIndexCache;
+import com.ziggfreed.common.stats.condition.BoundGrants;
 import com.ziggfreed.common.stats.condition.HitReads;
 import com.ziggfreed.common.stats.condition.Nearby;
 
@@ -36,12 +40,21 @@ import com.ziggfreed.common.stats.condition.Nearby;
  * <p>A counter's modifiers are keyed {@value #MODIFIER_PREFIX}{@code <id>}: under the track grants' owner, because a
  * counter may raise a stat 1.7.x knows (a crit chance), and the 1.7.x rollback sweep clears every {@code zigtrack:}
  * key a player carries (R755); the {@code @} keeps it clear of every grant key, and the stat grant writer leaves
- * such keys alone. World thread.
+ * such keys alone. A {@code PerStack} row with {@code While} is no such modifier: its amount at the current stacks is
+ * handed to zc-entity's {@code BoundGrants} under the owner {@value #BOUND_OWNER_PREFIX}{@code <id>} at every write,
+ * which puts it on only while its conditions hold (keyed {@code zigtrack:@bound:}, so the same sweep clears it) and pays
+ * it on a hit that earns a hit-aware one. World thread.
  */
 public final class Counters {
 
     /** The prefix of every modifier a counter writes, {@code zigtrack:@counter:<id>}. */
     public static final String MODIFIER_PREFIX = "zigtrack:@counter:";
+
+    /**
+     * The {@code BoundGrants} owner of a counter's {@code While} rows, {@code counter:<id>}: their modifiers are keyed
+     * {@code zigtrack:@bound:counter:<id>:<stat>:<n>}, under the same {@code zigtrack:} owner for the rollback sweep.
+     */
+    public static final String BOUND_OWNER_PREFIX = "counter:";
 
     /**
      * One holder's one counter. Every field but the target's is written on the holder's own world thread alone; the
@@ -118,7 +131,7 @@ public final class Counters {
         Ref<EntityStore> holder = moment.holder();
         Holder h = holderOf(accessor, holder);
         if (def.asset().perTarget()) {
-            changePerTarget(accessor, h, holder, moment.target(), def, add, consume, clear, context);
+            changePerTarget(accessor, h, holder, moment.target(), def, add, consume, clear, context, moment.dealt());
             return;
         }
         State state = h.states.computeIfAbsent(def.key(), k -> new State());
@@ -132,7 +145,7 @@ public final class Counters {
                 state.target = target;
                 state.targetGone = false;
             }
-            state.stacks = Math.min(sizeOf(def, accessor, holder, context), state.stacks + add);
+            state.stacks = Math.min(sizeOf(def, accessor, holder, context, moment.dealt()), state.stacks + add);
         }
         if (consume > 0.0) {
             state.stacks = Math.max(0.0, state.stacks - consume);
@@ -155,14 +168,14 @@ public final class Counters {
      */
     private static void changePerTarget(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Holder h,
             @Nonnull Ref<EntityStore> holder, @Nullable Ref<EntityStore> target, @Nonnull CounterConfig.Def def,
-            double add, double consume, boolean clear, @Nonnull FactorContext context) {
+            double add, double consume, boolean clear, @Nonnull FactorContext context, @Nullable Damage dealt) {
         if (target == null || !target.isValid()) {
             return;
         }
         Map<Ref<EntityStore>, State> byTarget = h.perTarget.computeIfAbsent(def.key(), k -> new ConcurrentHashMap<>());
         State state = byTarget.computeIfAbsent(target, t -> new State());
         if (add > 0.0) {
-            state.stacks = Math.min(sizeOf(def, accessor, holder, context), state.stacks + add);
+            state.stacks = Math.min(sizeOf(def, accessor, holder, context, dealt), state.stacks + add);
         }
         if (consume > 0.0) {
             state.stacks = Math.max(0.0, state.stacks - consume);
@@ -414,23 +427,39 @@ public final class Counters {
         return h;
     }
 
-    /** The counter's size for this holder: its formula, raised by the holder's {@value Procs#COUNTER_SIZE_STAT}. */
+    /**
+     * The counter's size for this holder: its formula, raised by the holder's {@value Procs#COUNTER_SIZE_STAT} (on a
+     * hit the holder dealt, {@code dealt}, with the bound grants on it that hold on that hit).
+     */
     private static double sizeOf(@Nonnull CounterConfig.Def def, @Nonnull ComponentAccessor<EntityStore> accessor,
-            @Nonnull Ref<EntityStore> holder, @Nonnull FactorContext context) {
+            @Nonnull Ref<EntityStore> holder, @Nonnull FactorContext context, @Nullable Damage dealt) {
         double size = def.asset().size() == null ? 1.0 : Procs.evaluate(def.asset().size(), context);
-        size *= 1.0 + Procs.statPoints(accessor, holder, Procs.COUNTER_SIZE_STAT) / 100.0;
+        size *= 1.0 + Procs.statPoints(accessor, holder, Procs.COUNTER_SIZE_STAT, dealt) / 100.0;
         return Double.isFinite(size) ? Math.max(0.0, size) : 0.0;
     }
 
-    /** Write the counter's modifiers and its shown effect as its stacks now stand. */
+    /**
+     * Write the counter's modifiers and its shown effect as its stacks now stand. A row with {@code While} is handed to
+     * {@code BoundGrants} under {@value #BOUND_OWNER_PREFIX}{@code <id>} instead ({@link #bound}), which puts it on
+     * only while its conditions hold.
+     */
     private static void write(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> holder,
             @Nonnull CounterConfig.Def def, @Nonnull State state) {
         EntityStatMap stats = accessor.getComponent(holder, EntityStatMap.getComponentType());
         if (stats != null) {
             String key = MODIFIER_PREFIX + def.key();
             Map<Integer, Double> sums = new HashMap<>();
+            Set<Integer> boundStats = new HashSet<>();
+            boolean anyBound = false;
             for (CounterAsset.PerStack row : def.asset().perStack()) {
                 int index = StatIndexCache.resolve(row.stat());
+                if (row.bound()) {
+                    anyBound = true;
+                    if (index != StatIndexCache.UNRESOLVED) {
+                        boundStats.add(index);
+                    }
+                    continue;
+                }
                 if (index != StatIndexCache.UNRESOLVED) {
                     sums.merge(index, row.amount() * state.stacks, Double::sum);
                 }
@@ -443,8 +472,41 @@ public final class Counters {
                     stats.removeModifier(sum.getKey(), key);
                 }
             }
+            // A row a reload bound since its last write leaves its plain key behind: take it off, unless an unbound row
+            // still writes that stat, so the stat never carries both.
+            for (Integer index : boundStats) {
+                if (!sums.containsKey(index)) {
+                    stats.removeModifier(index, key);
+                }
+            }
+            // Asked even with no While row now, so a reloaded file that dropped its While takes the old ones off.
+            BoundGrants.set(stats, holder, BOUND_OWNER_PREFIX + def.key(),
+                    anyBound ? bound(def.asset(), state.stacks) : List.of());
         }
         show(accessor, holder, def, state);
+    }
+
+    /**
+     * What a counter's {@code While} rows give at {@code stacks}: one bound amount per row, its id the row's stat and
+     * its place among the counter's bound rows (counted whatever the stat, so a row's id never moves), none at 0 stacks.
+     * Pure over the file.
+     */
+    @Nonnull
+    static List<BoundGrants.Bound> bound(@Nonnull CounterAsset counter, double stacks) {
+        List<BoundGrants.Bound> out = new ArrayList<>();
+        int place = 0;
+        for (CounterAsset.PerStack row : counter.perStack()) {
+            if (!row.bound()) {
+                continue;
+            }
+            place++;
+            double amount = row.amount() * stacks;
+            if (stacks > 0.0 && amount != 0.0 && Double.isFinite(amount)) {
+                out.add(BoundGrants.Bound.additive(row.stat() + ":" + place, row.stat(), amount,
+                        row.whileConditions()));
+            }
+        }
+        return out;
     }
 
     /** Swap the effect that shows the stacks when the count it shows moved. */
@@ -497,13 +559,17 @@ public final class Counters {
         }
     }
 
-    /** Take one counter's modifiers off (its file is gone, so its rows are unknown: every key of its name goes). */
+    /**
+     * Take one counter's modifiers off (its file is gone, so its rows are unknown: every key of its name goes, and its
+     * bound rows' owner is emptied).
+     */
     private static void clearModifiers(@Nonnull ComponentAccessor<EntityStore> accessor,
             @Nonnull Ref<EntityStore> holder, @Nonnull String counterKey) {
         EntityStatMap stats = accessor.getComponent(holder, EntityStatMap.getComponentType());
         if (stats == null) {
             return;
         }
+        BoundGrants.set(stats, holder, BOUND_OWNER_PREFIX + counterKey, List.of());
         String key = MODIFIER_PREFIX + counterKey;
         for (int i = 0; i < stats.size(); i++) {
             EntityStatValue value = stats.get(i);

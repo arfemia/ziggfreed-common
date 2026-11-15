@@ -9,6 +9,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.stats.condition.BoundGrants;
 import com.ziggfreed.common.stats.damage.RoutedStats;
 import com.ziggfreed.common.stats.damage.TypedDamageBonuses;
 import com.ziggfreed.common.util.SafeLog;
@@ -65,10 +66,13 @@ public final class Lifesteal {
         }
     }
 
-    /** The attacker's lifesteal on this hit, whole percent points: {@value #STAT} and every source its route names. */
+    /**
+     * The attacker's lifesteal on this hit, whole percent points: {@value #STAT} with the off bound grants on it that
+     * hold on this hit ({@link BoundGrants#hitPoints}, R945), and every source its route names.
+     */
     public static double points(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> attacker,
             @Nonnull Damage damage, @Nonnull EntityStatMap stats) {
-        double own = TypedDamageBonuses.readMax(stats, STAT);
+        double own = TypedDamageBonuses.readMax(stats, STAT) + BoundGrants.hitPoints(accessor, attacker, STAT, damage);
         return SOURCES.anyOn(stats) ? own + SOURCES.points(accessor, attacker, damage, stats) : own;
     }
 

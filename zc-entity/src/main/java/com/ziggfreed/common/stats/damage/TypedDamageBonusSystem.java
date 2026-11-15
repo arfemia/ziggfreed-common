@@ -28,8 +28,9 @@ import com.ziggfreed.common.util.SafeLog;
  * The per-hit step of {@link TypedDamageBonuses}, for any attacker's hits (a creature's as a player's, R860): the
  * route sources a registered {@link TypedDamageBonuses.Route} names (a tagged bomb's burst, a thrown spear) with
  * every registered {@link TypedDamageBonuses.RouteTerm}'s percent (the conditional stats, read against this hit's
- * target) join the engine's own outgoing sum here ({@link NativeOutgoing#addToSum}), so they add to Enrage and every
- * native percent line rather than multiplying on top of them. The every-hit percent lines are not here: the engine
+ * target, and the bound grants that are off but hold on this hit, R945) join the engine's own outgoing sum here
+ * ({@link NativeOutgoing#addToSum}), so they add to Enrage and every native percent line rather than multiplying on
+ * top of them. The every-hit percent lines are not here: the engine
  * applies those itself, from the native effects zc-effects' {@code DamageBonusReconciler} keeps in step.
  *
  * <p>In the Filter damage group, after the engine's outgoing step; a consumer whose own fold must see
