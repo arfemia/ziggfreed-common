@@ -18,6 +18,7 @@ import com.ziggfreed.common.stats.EquipStatBridge;
 import com.ziggfreed.common.stats.EquipStatBridge.StatKey;
 import com.ziggfreed.common.stats.EquipStatBridge.UtilityPlan;
 import com.ziggfreed.common.stats.EquipStatBridge.UtilityPut;
+import com.ziggfreed.common.stats.condition.BoundGrants;
 import com.ziggfreed.common.stats.gearset.GearSetKeys.TierRef;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
@@ -41,6 +42,36 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
  * pins it by recording every key the plan asks about.
  */
 public final class GearSetPlan {
+
+    /** The owner every bound tier's stats are handed to {@link BoundGrants} under. */
+    public static final String BOUND_OWNER = "zigset";
+
+    /**
+     * An active bound tier's stats ({@code While}) as bound modifiers: one per authored line, its id the tier's
+     * prefix, the stat and the line's place, so a recompute names the same line the same way. A blank channel or a
+     * null line is passed over; an unknown channel is {@link BoundGrants}' to name.
+     */
+    @Nonnull
+    public static List<BoundGrants.Bound> bound(@Nonnull TierRef tier, @Nonnull GearSetAsset.Tier asset) {
+        List<BoundGrants.Bound> out = new ArrayList<>();
+        for (Map.Entry<String, StatModifierSpec[]> entry : asset.statModifiers().entrySet()) {
+            String statId = entry.getKey();
+            StatModifierSpec[] specs = entry.getValue();
+            if (statId == null || statId.isBlank() || specs == null) {
+                continue;
+            }
+            int place = 0;
+            for (StatModifierSpec spec : specs) {
+                if (spec != null) {
+                    out.add(new BoundGrants.Bound(tier.setId() + ":" + tier.tierIndex() + ":" + statId.trim() + ":"
+                            + place, statId.trim(),
+                            spec.toModifier(), asset.whileConditions()));
+                    place++;
+                }
+            }
+        }
+        return out;
+    }
 
     /** One active tier and its stat block with the channels already resolved to indices. */
     public record Desired(@Nonnull TierRef tier, @Nonnull Int2ObjectMap<StaticModifier[]> byStatIndex) {

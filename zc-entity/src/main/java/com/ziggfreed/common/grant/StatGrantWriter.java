@@ -80,7 +80,7 @@ public final class StatGrantWriter implements GrantWriter {
             double amount = index == StatIndexCache.UNRESOLVED ? 0.0 : grant.amountOn(baseMax(index)) * one.count();
             String key = one.key().startsWith(prefix) ? one.key().substring(prefix.length()) : one.key();
             int place = seen.merge(key, 1, Integer::sum);
-            out.add(new BoundGrants.Bound(key + ":" + grant.stat() + ":" + place, grant.stat(), amount,
+            out.add(BoundGrants.Bound.additive(key + ":" + grant.stat() + ":" + place, grant.stat(), amount,
                     grant.whileConditions()));
         }
         return out;

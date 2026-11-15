@@ -1,0 +1,9 @@
+{
+  "$Comment": "Makes Damage_AtReach conditional: A conditional damage bonus in whole percent points (10 is +10%) on its holder's hits on a foe at least 2.5 blocks away (the far end of a melee weapon's reach).",
+  "Hit": {
+    "MinDistance": 2.5
+  },
+  "Pays": {
+    "Damage": {}
+  }
+}

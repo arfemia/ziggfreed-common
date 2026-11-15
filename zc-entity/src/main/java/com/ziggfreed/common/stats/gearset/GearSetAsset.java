@@ -324,6 +324,8 @@ public final class GearSetAsset implements JsonAssetWithMap<String, DefaultAsset
         @Nullable protected String effect;
         @Nullable protected String badge;
         @Nullable protected Map<String, StatModifierSpec[]> statModifiers;
+        // The engine's entity condition, spelt in full: Tier's own Condition (its four minimums) holds the short name.
+        @Nullable protected com.hypixel.hytale.server.core.modules.entity.condition.Condition[] whileHolds;
         /** The lines joined layers added to this tier ({@link GearSetJoins}); never authored, never encoded. */
         @Nullable private String[] joinedLines;
 
@@ -372,6 +374,15 @@ public final class GearSetAsset implements JsonAssetWithMap<String, DefaultAsset
                 .documentation("The stats this tier adds, the SAME block an item's Armor or Weapon carries: "
                         + "a stat channel id to a list of {Amount, CalculationType, Target}. A $Comment may "
                         + "sit inside it. An unregistered channel is named in the log once and skipped.").add()
+                .append(new KeyedCodec<>("While", new ArrayCodec<>(
+                                com.hypixel.hytale.server.core.modules.entity.condition.Condition.CODEC,
+                                com.hypixel.hytale.server.core.modules.entity.condition.Condition[]::new), false),
+                        (o, v) -> o.whileHolds = v, o -> o.whileHolds)
+                .documentation("Entity conditions every one of which must hold on the wearer for this tier's "
+                        + "StatModifiers to count, read a few times a second (ZigHolding with Items names a weapon: "
+                        + "a set's bonus to one weapon kind, worn as armor, counts only while that weapon is in "
+                        + "hand). The tier's look, badge and notice follow its pieces alone. A bound tier never "
+                        + "merges with a joined set's tier. Unauthored, the tier's stats count while it holds.").add()
                 .build();
 
         public Tier() {
@@ -412,6 +423,18 @@ public final class GearSetAsset implements JsonAssetWithMap<String, DefaultAsset
             Tier t = of(base.pieces, base.armor, base.held, base.utility, base.text, effect, badge, statModifiers);
             t.joinedLines = joinedLines.toArray(String[]::new);
             return t;
+        }
+
+        /** The conditions this tier's stats count under, never null: empty for an unbound tier. */
+        @Nonnull
+        public com.hypixel.hytale.server.core.modules.entity.condition.Condition[] whileConditions() {
+            return whileHolds == null ? new com.hypixel.hytale.server.core.modules.entity.condition.Condition[0]
+                    : whileHolds;
+        }
+
+        /** Whether this tier's stats count only while its {@code While} conditions hold. */
+        public boolean bound() {
+            return whileHolds != null && whileHolds.length > 0;
         }
 
         @Nullable

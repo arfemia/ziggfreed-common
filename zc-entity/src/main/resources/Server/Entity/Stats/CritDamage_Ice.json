@@ -1,0 +1,13 @@
+{
+  "$Comment": "How much more a critical Ice hit deals, in whole percent points of the hit, added to CritDamage in ziggfreed-common's crit step on a hit whose damage cause is Ice or inherits from it. Any item's StatModifiers, an effect's RawStatModifiers or a pick's grant raise it like any stat. Base 0 (CritDamage carries the base half again); Min is a generous negative so a subtractive modifier never clamps.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false,
+  "Tags": {
+    "ZigGrantFamily": [
+      "Combat"
+    ]
+  }
+}

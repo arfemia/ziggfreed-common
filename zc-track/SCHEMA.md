@@ -451,6 +451,7 @@ A native stat raised while the grant is held: a flat amount, a percent of the st
 | `Stat` | `string` | `null` | The native stat raised, by its id (an EntityStatType: Health, Stamina, Mana, or one a pack ships). A stat this server does not have raises nothing. The stat's own ZigGrantFamily tag names the families a world rule may switch this grant off by (Combat on the damage and resistance stats), beside its kind, Stat. |
 | `Add` | `double` | `null` | A flat amount added to the stat's maximum each time the grant is held (a pick taken three times adds it three times). 0 when unauthored. |
 | `Percent` | `double` | `null` | A percent of the stat's base maximum (its asset's Max) added each time the grant is held: 5 on Health with a base of 100 adds 5. It adds as a flat amount, so it never multiplies what gear or an effect adds. 0 when unauthored. |
+| `While` | array of `codecMap` | `null` | Entity conditions every one of which must hold on the grant's holder for it to count (the engine's own, or ZigHolding, ZigFoesNear or one a mod registers), read a few times a second: a weapon talent counts only while its weapon is in hand. Unauthored, the grant always counts. |
 
 <a id="type-cost"></a>
 ## Cost

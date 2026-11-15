@@ -35,8 +35,13 @@ import com.ziggfreed.common.asset.EditorSchema;
  * stop holding, read a few times a second.
  *
  * <pre>{@code
- * { "Kind": "Stat", "Stat": "CritChance", "Add": 2, "While": [ { "Id": "MmoHolding", "Skill": "Swords" } ] }
+ * { "Kind": "Stat", "Stat": "CritChance", "Add": 2,
+ *   "While": [ { "Id": "ZigHolding", "Items": [ "ItemTag:Family=Sword", "ItemTag:Family=Longsword" ] } ] }
+ * { "Kind": "Stat", "Stat": "CritChance", "Add": 1, "While": [ { "Id": "ZigHolding", "Inverse": true } ] }
  * }</pre>
+ *
+ * <p>The second holds while the hand is empty: {@code ZigHolding} with no knob holds while anything is held, and the
+ * engine's {@code Inverse} turns any condition around.
  *
  * <p>A world rule switches it off by its kind, {@value #KIND}, or by any family its stat's own
  * {@value GrantFamilies#TAG} tag names ({@link #families()}; the library's damage and resistance stats say
