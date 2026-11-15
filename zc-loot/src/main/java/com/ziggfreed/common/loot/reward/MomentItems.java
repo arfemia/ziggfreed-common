@@ -101,6 +101,10 @@ public final class MomentItems {
     /** Register the kind into {@code kinds}, attributed to the framework. Idempotent. */
     public static void registerInto(@Nonnull RewardKindRegistry kinds) {
         kinds.register(KIND, LootRewardKinds.OWNER, HANDLER);
+        kinds.describe(KIND, RewardParams.of("Hands over more of the stack the moment is about, such as another "
+                        + "of the item just picked up. Only a pass about a stack pays it.",
+                RewardParam.number("Count", "How many copies of the stack. A fraction is a chance of one more: "
+                        + "0.5 is one copy half the time.").withDefault("1")));
     }
 
     /** Every parameter key this kind reads, for a validator that wants to warn about a typo. */

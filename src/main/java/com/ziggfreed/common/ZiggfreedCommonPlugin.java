@@ -17,6 +17,7 @@ import com.ziggfreed.common.almanac.AlmanacBootstrap;
 import com.ziggfreed.common.almanac.asset.AlmanacValidator;
 import com.ziggfreed.common.asset.AssetStoreWriter;
 import com.ziggfreed.common.asset.EditorDataSets;
+import com.ziggfreed.common.asset.EditorSchemaAudit;
 import com.ziggfreed.common.asset.FrameworkAssetRegistrar;
 import com.ziggfreed.common.asset.PackRangeAudit;
 import com.ziggfreed.common.board.asset.BoardConfig;
@@ -85,6 +86,7 @@ import com.ziggfreed.common.loot.stamp.StamperRegistry;
 import com.ziggfreed.common.match.MatchBootstrap;
 import com.ziggfreed.common.npc.NpcBootstrap;
 import com.ziggfreed.common.npc.NpcDestinations;
+import com.ziggfreed.common.npc.NpcIdentities;
 import com.ziggfreed.common.npc.NpcIdentityConfig;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementConfig;
 import com.ziggfreed.common.npc.placement.registry.PlacementFactorRegistry;
@@ -458,17 +460,22 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
                 LootEditorDataSets::lootableIds);
         EditorDataSets.live(getEventRegistry(), LootEditorDataSets.ROLL_POOLS,
                 LootEditorDataSets::rollPoolIds);
-        EditorDataSets.live(getEventRegistry(), LootEditorDataSets.REWARD_KINDS,
-                LootEditorDataSets::rewardKindIds);
         EditorDataSets.live(getEventRegistry(), EditorDataSets.FACTORS,
                 ZiggfreedCommonPlugin::factorVocabulary);
-        // The quest vocabularies are per-consumer (each mod builds its own registries), so they are
-        // answered from whatever consumers have advertised, plus the engine-generic objective kinds
-        // every engine starts with.
+        // The objective and reward kinds: the one shared vocabulary of each (a kind a mod registers, or a
+        // kind file that folds, is listed with nothing more to do) plus any private registry a consumer
+        // advertises. The reward list is served once, under the one id the loot layer and the progression
+        // rows both name.
         EditorDataSets.live(getEventRegistry(), ProgressEditorDataSets.OBJECTIVE_KINDS,
                 ProgressEditorDataSets::objectiveKindIds);
         EditorDataSets.live(getEventRegistry(), ProgressEditorDataSets.REWARD_KINDS,
                 ProgressEditorDataSets::rewardKindIds);
+        // The character ids a quest's giver, its hand-in and a talk step name, off every character file and
+        // placement, so an author picks the NPC that offers a quest.
+        EditorDataSets.live(getEventRegistry(), EditorDataSets.NPC_IDS, NpcIdentities::allDeclaredNpcIds);
+        // Every asset type's loaded ids (ziggfreedcommon:ids/<Type>), the suggestions a step's Target offers, where
+        // a name pattern or a set key must stay typeable.
+        EditorDataSets.serveAssetIds(getEventRegistry());
         // The commerce pick lists answer off the folded content itself, so an author picks a wallet,
         // a storefront, a shelf or a board that this server genuinely has - and a pack loaded later
         // simply widens the next answer.
@@ -773,7 +780,11 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
                     new BootAudit.Pass(TrainerAudit.LOG_LABEL, TrainerAudit::claimLateFindings),
                     new BootAudit.Pass(ConditionalStatValidator.LOG_LABEL, ConditionalStatValidator::audit),
                     new BootAudit.Pass(StatTypeCeiling.LOG_LABEL, StatTypeCeiling::audit),
-                    new BootAudit.Pass(ProcValidator.LOG_LABEL, ProcValidator::audit))));
+                    new BootAudit.Pass(ProcValidator.LOG_LABEL, ProcValidator::audit),
+                    new BootAudit.Pass(EditorSchemaAudit.LOG_LABEL, () -> EditorSchemaAudit.audit(List.of(
+                            ProgressEditorDataSets.OBJECTIVE_KINDS, ProgressEditorDataSets.REWARD_KINDS,
+                            EditorDataSets.assetIds("BlockType"), EditorDataSets.assetIds("Item"),
+                            EditorDataSets.assetIds("NPCRole")))))));
         } catch (Throwable t) {
             SafeLog.warn("[boot] the boot checks could not be registered", t);
         }

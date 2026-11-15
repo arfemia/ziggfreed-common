@@ -159,7 +159,7 @@ public final class AchievementAsset
                     + "ordinary achievement.")
             .add()
             .appendInherited(new KeyedCodec<>("Criteria",
-                            new InheritMapCodec<>(ObjectiveLeafAsset.CODEC), false),
+                            new InheritMapCodec<>(ObjectiveLeafAsset.row(ObjectiveLeafAsset.CODEC)), false),
                     (a, v) -> a.criteria = v, a -> a.criteria, (a, p) -> a.criteria = p.criteria)
             .documentation("Everything that has to be done, ALL of it, keyed by criterion id. The key is also "
                     + "what progress is stored under, so renaming one starts that criterion over. A child "

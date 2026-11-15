@@ -12,8 +12,11 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.assetstore.AssetRegistry;
+import com.hypixel.hytale.assetstore.AssetStore;
 import com.hypixel.hytale.builtin.asseteditor.event.AssetEditorRequestDataSetEvent;
 import com.hypixel.hytale.event.EventRegistry;
+import com.hypixel.hytale.server.npc.NPCPlugin;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -50,12 +53,92 @@ public final class EditorDataSets {
     public static final String FACTORS = "ziggfreedcommon:factors";
 
     /**
+     * The objective kinds content may author, for any field naming one: an objective's {@code Kind}, a
+     * moment table's {@code When.Kind}. Served by zc-progression from the one shared objective vocabulary;
+     * named here so a field in a module below it can offer the list too.
+     */
+    public static final String OBJECTIVE_KINDS = "ziggfreedcommon:objective_kinds";
+
+    /**
+     * The character ids content names an NPC by (a quest's giver and hand-in, a talk step's target), every id
+     * a character file or placement declares. Offered as suggestions, since a role nobody wrote a character
+     * file for still answers to its own role name. Served by the wiring root, which sees the dialogue module.
+     */
+    public static final String NPC_IDS = "ziggfreedcommon:npc_ids";
+
+    /**
+     * The prefix of the lists of one asset type's loaded ids: {@code ziggfreedcommon:ids/<Type>}, the type named
+     * the way the editor names it (a store's asset class simple name, {@code BlockType}, {@code Item}, a mod's
+     * {@code TitleAsset}; {@code NPCRole} for the NPC roles). Offered as suggestions on a leaf the matcher reads
+     * as a pattern or a set key, which must stay typeable, where the editor's own picker offers one id alone
+     * ({@link #assetIds}).
+     */
+    public static final String ASSET_IDS = "ziggfreedcommon:ids/";
+
+    /** The asset type the NPC roles are named by, which no asset store holds. */
+    private static final String NPC_ROLE_TYPE = "NPCRole";
+
+    /**
      * Every dataset served through this class, by id (lower-cased), so a load check can ask what a dataset
      * holds ({@link #values}) without going through the editor's event.
      */
     private static final Map<String, Supplier<Collection<String>>> SERVED = new ConcurrentHashMap<>();
 
+    /** Whether the {@link #ASSET_IDS} family is served, so {@link #values} answers it. */
+    private static volatile boolean assetIdsServed;
+
     private EditorDataSets() {
+    }
+
+    /** The list of {@code assetType}'s loaded ids: {@code ziggfreedcommon:ids/<assetType>}. */
+    @Nonnull
+    public static String assetIds(@Nonnull String assetType) {
+        return ASSET_IDS + assetType.trim();
+    }
+
+    /**
+     * Serve every {@link #ASSET_IDS} list from one handler, each answered at request time off the loaded assets
+     * of its type (a pack loaded later simply widens the next answer). Registered once, at setup; try-guarded
+     * like every dataset here.
+     */
+    public static void serveAssetIds(@Nonnull EventRegistry registry) {
+        assetIdsServed = true;
+        try {
+            registry.registerGlobal(AssetEditorRequestDataSetEvent.class, event -> {
+                String dataSet = event.getDataSet();
+                if (dataSet == null || !dataSet.startsWith(ASSET_IDS) || event.getResults() != null) {
+                    return;
+                }
+                try {
+                    List<String> ids = new ArrayList<>(idsOf(dataSet.substring(ASSET_IDS.length())));
+                    Collections.sort(ids);
+                    event.setResults(ids.toArray(String[]::new));
+                } catch (Throwable t) {
+                    SafeLog.fine("[editor] dataset '" + dataSet + "' failed: " + t.getMessage());
+                }
+            });
+        } catch (Throwable t) {
+            SafeLog.fine("[editor] the asset id lists could not be registered (no asset editor?): " + t.getMessage());
+        }
+    }
+
+    /** The loaded ids of the asset type the editor names {@code assetType}; empty for a type nothing holds. */
+    @Nonnull
+    static Collection<String> idsOf(@Nonnull String assetType) {
+        if (NPC_ROLE_TYPE.equals(assetType)) {
+            NPCPlugin npcs = NPCPlugin.get();
+            return npcs == null ? List.of() : npcs.getRoleTemplateNames(false);
+        }
+        for (AssetStore<?, ?, ?> store : AssetRegistry.getStoreMap().values()) {
+            if (store.getAssetClass().getSimpleName().equals(assetType)) {
+                List<String> ids = new ArrayList<>();
+                for (Object key : store.getAssetMap().getAssetMap().keySet()) {
+                    ids.add(String.valueOf(key));
+                }
+                return ids;
+            }
+        }
+        return List.of();
     }
 
     /**
@@ -67,6 +150,14 @@ public final class EditorDataSets {
     public static Collection<String> values(@Nullable String dataSet) {
         if (dataSet == null || dataSet.isBlank()) {
             return null;
+        }
+        if (assetIdsServed && dataSet.trim().startsWith(ASSET_IDS)) {
+            try {
+                return List.copyOf(idsOf(dataSet.trim().substring(ASSET_IDS.length())));
+            } catch (Throwable t) {
+                SafeLog.fine("[editor] dataset '" + dataSet + "' failed: " + t.getMessage());
+                return null;
+            }
         }
         Supplier<Collection<String>> source = SERVED.get(dataSet.trim().toLowerCase(Locale.ROOT));
         if (source == null) {

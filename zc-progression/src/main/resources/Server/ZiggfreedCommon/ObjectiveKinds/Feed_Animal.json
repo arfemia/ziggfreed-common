@@ -2,6 +2,7 @@
   "$Comment": "Feeding an animal.",
   "ValueBased": false,
   "Producible": true,
+  "Pick": { "List": "ziggfreedcommon:ids/NPCRole" },
   "TargetNames": {
     "Entity": true
   },

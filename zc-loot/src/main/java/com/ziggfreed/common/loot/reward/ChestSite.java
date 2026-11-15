@@ -7,6 +7,8 @@ import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.asset.EditorPick;
+
 /**
  * The {@code Reward_Chest} reward kind and the collector it pays into: "a reward chest stands here for whoever this
  * pass is about". {@code {"Kind": "Reward_Chest", "Params": {"Chest": "Zc_Reward_Chest"}}}.
@@ -44,6 +46,12 @@ public final class ChestSite {
     /** The chest a reward that names none stands: the library's neutral reward chest. */
     public static final String DEFAULT_CHEST = "Zc_Reward_Chest";
 
+    /**
+     * The reward chest files' asset type as the Asset Editor names it (zc-instance's store, which this
+     * layer never sees): the picker a {@code Chest} parameter offers.
+     */
+    private static final String REWARD_CHEST_TYPE = "RewardChestAsset";
+
     /** The one handler, so registering twice keeps the existing entry and its failure history. */
     private static final CollectingRewardKind<ChestSite> HANDLER =
             CollectingRewardKind.of(KIND, ChestSite.class, (site, spec) -> site.add(chestOf(spec)));
@@ -58,6 +66,10 @@ public final class ChestSite {
     /** Register the kind into {@code kinds}, attributed to the framework. Idempotent. */
     public static void registerInto(@Nonnull RewardKindRegistry kinds) {
         kinds.register(KIND, LootRewardKinds.OWNER, HANDLER);
+        kinds.describe(KIND, RewardParams.of("Stands a reward chest where the kill or the break was, for the "
+                        + "player it credited. Only a kill or break pass pays it.",
+                RewardParam.text("Chest", "The reward chest file to stand, by id.").withDefault(DEFAULT_CHEST)
+                        .withPick(EditorPick.asset(REWARD_CHEST_TYPE))));
     }
 
     /** Every parameter key this kind reads, for a validator that wants to warn about a typo. */

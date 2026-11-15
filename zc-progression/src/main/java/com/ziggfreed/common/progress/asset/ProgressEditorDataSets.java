@@ -2,15 +2,21 @@ package com.ziggfreed.common.progress.asset;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.Locale;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.ziggfreed.common.progress.ObjectiveKindRegistry;
+import com.ziggfreed.common.asset.EditorDataSets;
+import com.ziggfreed.common.loot.LootEditorDataSets;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
+import com.ziggfreed.common.loot.reward.RewardKinds;
+import com.ziggfreed.common.progress.ObjectiveKind;
+import com.ziggfreed.common.progress.ObjectiveKindRegistry;
+import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 
 /**
  * The pick lists the in-game Asset Editor offers on any authored {@code Kind} field in this module,
@@ -18,14 +24,20 @@ import com.ziggfreed.common.loot.reward.RewardKindRegistry;
  * and hoping. ONE set of lists for every lifecycle engine here, so what an author may write cannot
  * drift between two kinds of content.
  *
- * <p>The vocabularies themselves are per-consumer (each mod builds its own registries and hands
- * them to its own engine), so a consumer that wants its kinds offered ADVERTISES its registries
- * here at setup:
+ * <p><b>The library lists its own vocabularies by default</b> (M513): the one objective vocabulary
+ * both engines dispatch against ({@link ProgressionRuntime#objectiveKinds()}) and the one reward
+ * vocabulary every payout shares ({@link RewardKinds#shared()}), read live at each request, so a kind
+ * a mod registers into either at setup, or a kind file that folds into either, is listed with nothing
+ * more to do. A consumer that keeps a vocabulary of its OWN beside those (a private registry its own
+ * engine reads) ADVERTISES only that one here at setup:
  * <pre>{@code
- * ProgressEditorDataSets.advertise(myObjectiveKinds, myRewardKinds);
+ * ProgressEditorDataSets.advertise(myPrivateObjectiveKinds, null);
  * }</pre>
- * Advertising is optional and additive: several consumers each add their own, and the built-in
- * objective kinds are always listed because every engine has them.
+ * Advertising is additive and never needed for the shared registries, which are always listed.
+ *
+ * <p>An objective list holds what content may author: every producible kind and every alias (sugar a
+ * mod registers for another kind), as the vocabulary spells them; a kind registered unproducible has
+ * no producer, so it is left off. A reward list holds every registered kind as its owner spells it.
  *
  * <p><b>A dropdown is authoring convenience, never validation.</b> A hand-written JSON file never
  * passes through the editor, so a content validator stays the real check and a free-typed id still
@@ -34,13 +46,13 @@ import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 public final class ProgressEditorDataSets {
 
     /** The objective kinds an authored objective's {@code Kind} may name. */
-    public static final String OBJECTIVE_KINDS = "ziggfreedcommon:objective_kinds";
+    public static final String OBJECTIVE_KINDS = EditorDataSets.OBJECTIVE_KINDS;
 
-    /** The reward kinds an authored {@code Rewards[].Kind} may name. */
-    public static final String REWARD_KINDS = "ziggfreedcommon:reward_kinds";
-
-    /** The engine-generic objective vocabulary, always offered even before anyone advertises. */
-    private static final ObjectiveKindRegistry BUILT_INS = new ObjectiveKindRegistry();
+    /**
+     * The reward kinds an authored {@code Rewards[].Kind} may name: the one reward-kind list, the same id
+     * the loot layer serves under ({@link LootEditorDataSets#REWARD_KINDS}).
+     */
+    public static final String REWARD_KINDS = LootEditorDataSets.REWARD_KINDS;
 
     private static final List<ObjectiveKindRegistry> OBJECTIVE_SOURCES = new CopyOnWriteArrayList<>();
     private static final List<RewardKindRegistry> REWARD_SOURCES = new CopyOnWriteArrayList<>();
@@ -49,8 +61,9 @@ public final class ProgressEditorDataSets {
     }
 
     /**
-     * Offer a consumer's vocabularies in the editor's pick lists. Either may be null. Registering
-     * the same registry twice is harmless: the lists are a union.
+     * Offer a consumer's own vocabularies in the editor's pick lists, beside the shared ones the library
+     * always lists. Either may be null. Registering the same registry twice, or a shared one, is
+     * harmless: the lists are a union.
      */
     public static void advertise(@Nullable ObjectiveKindRegistry objectiveKinds,
             @Nullable RewardKindRegistry rewardKinds) {
@@ -62,27 +75,54 @@ public final class ProgressEditorDataSets {
         }
     }
 
-    /** Every objective kind an author may name here: the built-ins plus every advertised registry. */
+    /**
+     * Every objective kind an author may name here: the shared vocabulary's producible kinds and aliases,
+     * plus every advertised registry's, upper-cased as the vocabulary spells them, sorted.
+     */
     @Nonnull
     public static Collection<String> objectiveKindIds() {
-        Set<String> ids = new TreeSet<>(BUILT_INS.ids());
+        Map<String, String> ids = new TreeMap<>();
+        authorable(ProgressionRuntime.objectiveKinds(), ids);
         for (ObjectiveKindRegistry registry : OBJECTIVE_SOURCES) {
-            ids.addAll(registry.ids());
+            authorable(registry, ids);
         }
-        return ids;
+        return List.copyOf(ids.values());
     }
 
-    /** Every reward kind an author may name here. Empty until a consumer advertises one. */
+    /**
+     * Every reward kind an author may name here: the shared vocabulary's, plus every advertised registry's,
+     * each spelled as its owner writes it, sorted without regard to case.
+     */
     @Nonnull
     public static Collection<String> rewardKindIds() {
-        Set<String> ids = new TreeSet<>();
+        Map<String, String> ids = new TreeMap<>();
+        spelled(RewardKinds.shared(), ids);
         for (RewardKindRegistry registry : REWARD_SOURCES) {
-            ids.addAll(registry.ids());
+            spelled(registry, ids);
         }
-        return ids;
+        return List.copyOf(ids.values());
     }
 
-    /** Forget every advertised registry (a test harness, a full reload). */
+    /** {@code registry}'s producible kinds and aliases into {@code into}, keyed by the lower-cased id. */
+    private static void authorable(@Nonnull ObjectiveKindRegistry registry, @Nonnull Map<String, String> into) {
+        for (String id : registry.ids()) {
+            ObjectiveKind kind = registry.kind(id);
+            if (kind != null && kind.producible()) {
+                into.putIfAbsent(kind.id().toLowerCase(Locale.ROOT), kind.id());
+            }
+        }
+        for (String alias : registry.aliasIds()) {
+            into.putIfAbsent(alias.toLowerCase(Locale.ROOT), alias);
+        }
+    }
+
+    private static void spelled(@Nonnull RewardKindRegistry registry, @Nonnull Map<String, String> into) {
+        for (String id : registry.spelledIds()) {
+            into.putIfAbsent(id.toLowerCase(Locale.ROOT), id);
+        }
+    }
+
+    /** Forget every advertised registry (a test harness, a full reload); the shared ones stay listed. */
     public static void clear() {
         OBJECTIVE_SOURCES.clear();
         REWARD_SOURCES.clear();

@@ -9,11 +9,14 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.Message;
+import com.ziggfreed.common.asset.EditorPick;
 import com.ziggfreed.common.instance.reward.InstanceReward;
 import com.ziggfreed.common.loot.reward.RewardChip;
 import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardHandler;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
+import com.ziggfreed.common.loot.reward.RewardParam;
+import com.ziggfreed.common.loot.reward.RewardParams;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.track.command.ZigTrackCommand;
@@ -44,9 +47,13 @@ public final class TrackRewardKind implements RewardHandler {
     private TrackRewardKind() {
     }
 
-    /** Register the kind into {@code kinds}. */
+    /** Register the kind into {@code kinds}, with the parameters the Asset Editor shows for it. */
     public static void registerInto(@Nonnull RewardKindRegistry kinds) {
         kinds.register(KIND, OWNER, new TrackRewardKind());
+        kinds.describe(KIND, RewardParams.of("Moves the player along a track, such as a skill's experience.",
+                RewardParam.text("Track", "The track, by id.").asRequired()
+                        .withPick(EditorPick.list(TrackBootstrap.TRACKS_DATA_SET)),
+                RewardParam.integer("Amount", "How much. A negative amount takes it away.").asRequired()));
     }
 
     /** How a Track reward reads in a reward list, for {@code RewardChips.contribute}. */

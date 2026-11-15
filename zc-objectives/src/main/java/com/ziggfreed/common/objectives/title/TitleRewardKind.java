@@ -13,9 +13,12 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.asset.EditorPick;
 import com.ziggfreed.common.entity.title.ZigTitleComponent;
 import com.ziggfreed.common.loot.reward.RewardHandler;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
+import com.ziggfreed.common.loot.reward.RewardParam;
+import com.ziggfreed.common.loot.reward.RewardParams;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.objectives.title.command.TitleCommandLine;
 import com.ziggfreed.common.subject.Subject;
@@ -46,9 +49,13 @@ public final class TitleRewardKind implements RewardHandler {
     private TitleRewardKind() {
     }
 
-    /** Register the title kind into {@code kinds}. */
+    /** Register the title kind into {@code kinds}, with the parameters the Asset Editor shows for it. */
     public static void registerInto(@Nonnull RewardKindRegistry kinds) {
         kinds.register(KIND, OWNER, new TitleRewardKind());
+        kinds.describe(KIND, RewardParams.of("Unlocks a title the player can choose to show. One they already "
+                        + "have pays nothing more.",
+                RewardParam.text("Title", "The title unlocked, by id.").asRequired()
+                        .withPick(EditorPick.asset(TitleAsset.class))));
     }
 
     /** Is {@code spec} a reward of this kind? The kind id matches without regard to case, as a grant matches it. */

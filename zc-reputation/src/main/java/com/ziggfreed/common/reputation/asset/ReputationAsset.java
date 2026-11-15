@@ -451,7 +451,7 @@ public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAs
                 .documentation("How much earned standing past the top rank's floor each payout takes. Zero or "
                         + "less, or unauthored, pays nothing.").add()
                 .appendInherited(new KeyedCodec<>("Rewards",
-                                new ArrayCodec<>(RewardEntryAsset.CODEC, RewardEntryAsset[]::new), false),
+                                RewardEntryAsset.rows(), false),
                         (o, v) -> o.rewards = v, o -> o.rewards, (o, p) -> o.rewards = p.rewards)
                 .documentation("What each crossing pays: the same reward entries a quest pays.").add()
                 .appendInherited(new KeyedCodec<>("Collect", Codec.BOOLEAN, false),
