@@ -24,10 +24,15 @@ import com.ziggfreed.common.util.SafeLog;
  * that reads it, so there is no registration race and one consumer's vocabulary never leaks into
  * another's.
  *
- * <p><b>Thirty-one engine-generic kinds are PRE-SEEDED</b> (see {@link #seedBuiltIns}) - the ones
+ * <p><b>Twenty-six engine-generic kinds are PRE-SEEDED</b> (see {@link #seedBuiltIns}) - the ones
  * whose meaning does not depend on any particular game's systems: breaking a block, killing an
- * entity, talking to somebody, handing something in, using an item, standing at some measured
- * value, fighting a boss, playing a round. All of them seed as producible, all but {@link #STAT_THRESHOLD}
+ * entity, talking to somebody, handing something in, using an item, eating, dying, walking somewhere,
+ * standing at some measured value, fighting a boss, playing a round. Every one of them is a kind the
+ * library completes on its own: its producer ships beside it (zc-objectives' {@code producer/}), or
+ * the engines read it themselves ({@link #STAT_THRESHOLD}), so a step of a seeded kind progresses on
+ * a server running this library alone. A kind only another mod can say happened (a catch landed
+ * through a fishing mod, an animal bred through a taming mod) is never seeded here: whoever produces
+ * it registers it. All of them seed as producible, all but {@link #STAT_THRESHOLD}
  * accumulate, none reads a ceiling, two of them ({@code TALK_TO_NPC}, {@code REACH_LOCATION}) seed
  * as place-targeted and four ({@code ENCOUNTER_DEFEATED}, {@code ENCOUNTER_PHASE},
  * {@code ENCOUNTER_ATTEMPT}, {@code ENCOUNTER_FEAT}) as encounter-targeted; a consumer that has no producer for one can
@@ -147,9 +152,8 @@ public final class ObjectiveKindRegistry {
      */
     private static final List<String> BUILT_IN_ACCUMULATING = List.of(
             "BREAK_BLOCK", "PLACE_BLOCK", "CRAFT_ITEM", "KILL_ENTITY", "DEAL_DAMAGE",
-            "PICKUP_ITEM", "TALK_TO_NPC", "CATCH_FISH", "TURN_IN", "COMPLETE_QUEST",
+            "PICKUP_ITEM", "TALK_TO_NPC", "TURN_IN", "COMPLETE_QUEST",
             "TAKE_FALL_DAMAGE", "PLAYER_DEATH", "SPRINT_DISTANCE", "SWIM_DISTANCE",
-            "BREED_ANIMAL", "FEED_ANIMAL", "HARVEST_ANIMAL", "COMPANION_COMBAT",
             "REACH_LOCATION", "CONSUME_ITEM", "USE_ITEM", "LOOT_RECEIVED",
             "INSTANCE_ROUND_WON", "INSTANCE_ROUND_ENDED", "INSTANCE_ROUND_STARTED", "INSTANCE_ROUND_LOST",
             "ENCOUNTER_DEFEATED", "ENCOUNTER_PHASE", "ENCOUNTER_ATTEMPT", "ENCOUNTER_FEAT");
@@ -180,7 +184,7 @@ public final class ObjectiveKindRegistry {
      * consumer says about it, or not at all.
      */
     private static final Set<String> BUILT_IN_ITEM_TARGETED = Set.of(
-            "BREAK_BLOCK", "PLACE_BLOCK", "CRAFT_ITEM", "PICKUP_ITEM", "CATCH_FISH",
+            "BREAK_BLOCK", "PLACE_BLOCK", "CRAFT_ITEM", "PICKUP_ITEM",
             "TURN_IN", "CONSUME_ITEM", "USE_ITEM", "LOOT_RECEIVED");
 
     /**
@@ -191,8 +195,7 @@ public final class ObjectiveKindRegistry {
      * character standing there, and is in both.
      */
     private static final Set<String> BUILT_IN_ENTITY_TARGETED = Set.of(
-            "KILL_ENTITY", "DEAL_DAMAGE", "TALK_TO_NPC", "BREED_ANIMAL", "FEED_ANIMAL",
-            "HARVEST_ANIMAL", "COMPANION_COMBAT");
+            "KILL_ENTITY", "DEAL_DAMAGE", "TALK_TO_NPC");
 
     /**
      * The pre-seeded kinds whose TARGET names another piece of CONTENT, drawn with that content's
