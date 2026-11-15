@@ -808,7 +808,10 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
     protected void shutdown() {
         // The scheduler stops first (every consumer has shut down before the library), so a debounced
         // write one of the steps below asks for finds no thread and writes at once rather than waiting.
+        // The debounces it dropped are written by their owners below: the titles here, the Almanac's
+        // totals and the boards in their own steps.
         ZigScheduler.shutdown();
+        EntityBootstrap.shutdown();
         // The text pack's zip is let go on a plugin unload (never on a server stop: the engine closes it then).
         ServerContentBootstrap.shutdown();
         CalendarBootstrap.shutdown();

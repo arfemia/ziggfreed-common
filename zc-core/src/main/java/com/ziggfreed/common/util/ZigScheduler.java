@@ -20,8 +20,9 @@ import javax.annotation.Nullable;
  *     <li>A run happens on the scheduler thread; a task that touches a world or a store hops with
  *     {@code world.execute}, or passes the world as the executor of {@link #schedule(Runnable, long,
  *     TimeUnit, Executor)}.</li>
- *     <li>A task that throws is logged once through {@link SafeLog}, and a repeating one stops, as on any
- *     {@code ScheduledExecutorService}.</li>
+ *     <li>A task that throws on the scheduler thread is logged once through {@link SafeLog}, and a repeating
+ *     one stops, as on any {@code ScheduledExecutorService}; a task handed to a world is the world's to
+ *     report.</li>
  *     <li>Every scheduling call throws {@link RejectedExecutionException} while the scheduler is not
  *     running: in a JVM with no server (a unit test, a headless tool) and after the library shuts down. A
  *     caller with a synchronous fallback (a debounced file write that writes at once) catches it.</li>
@@ -31,6 +32,9 @@ public final class ZigScheduler {
 
     /** The scheduler thread's name, in the family's {@code ziggfreed-<job>} daemon convention. */
     public static final String THREAD_NAME = "ziggfreed-scheduler";
+
+    /** How long the stop waits for a task already running to finish. */
+    static final long STOP_WAIT_SECONDS = 2L;
 
     private static final Object LOCK = new Object();
     @Nullable
@@ -58,9 +62,11 @@ public final class ZigScheduler {
     }
 
     /**
-     * Stop the scheduler thread and drop every task still waiting; the library plugin's {@code shutdown()}
-     * calls this. A scheduling call after it throws {@link RejectedExecutionException}, and a later
-     * {@link #start()} (a plugin reload) starts a fresh thread.
+     * Stop the scheduler thread: every task still waiting is dropped, and a task already running is let
+     * finish (up to {@link #STOP_WAIT_SECONDS}), never interrupted, so a record write in progress lands
+     * whole. The library plugin's {@code shutdown()} calls this first and then writes its debounced records
+     * itself, since a waiting debounce is one of the tasks dropped. A scheduling call after it throws
+     * {@link RejectedExecutionException}, and a later {@link #start()} (a plugin reload) starts a fresh thread.
      */
     public static void shutdown() {
         ScheduledThreadPoolExecutor toStop;
@@ -71,9 +77,18 @@ public final class ZigScheduler {
         if (toStop == null) {
             return;
         }
-        int dropped = toStop.shutdownNow().size();
-        if (dropped > 0) {
-            SafeLog.info("[scheduler] " + dropped + " waiting task(s) dropped at shutdown");
+        int waiting = toStop.getQueue().size();
+        toStop.shutdown();
+        try {
+            if (!toStop.awaitTermination(STOP_WAIT_SECONDS, TimeUnit.SECONDS)) {
+                SafeLog.warn("[scheduler] a task was still running " + STOP_WAIT_SECONDS
+                        + " seconds into the stop; it finishes on its own");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        if (waiting > 0) {
+            SafeLog.fine("[scheduler] " + waiting + " waiting task(s) dropped at shutdown");
         }
     }
 
@@ -95,22 +110,23 @@ public final class ZigScheduler {
     }
 
     /**
-     * Hand {@code task} to {@code executor} (a {@code World}, usually) after {@code delay}, in place of the
-     * engine's {@code World.scheduleAfter}: dropped quietly when the executor no longer takes tasks (a world
-     * shutting down). Cancelling the future stops the hand-off; once handed off, the run is the executor's.
+     * Hand {@code task} to {@code target} (a {@code World}, usually) after {@code delay}, in place of the
+     * engine's {@code World.scheduleAfter}: dropped quietly when the target no longer takes tasks (a world
+     * shutting down). Cancelling the future stops the hand-off; once handed off, the run is the target's,
+     * and so is reporting a failure (a world logs a task that throws).
      *
      * @throws RejectedExecutionException while the scheduler is not running
      */
     @Nonnull
     public static ScheduledFuture<?> schedule(@Nonnull Runnable task, long delay, @Nonnull TimeUnit unit,
-            @Nonnull Executor executor) {
+            @Nonnull Executor target) {
         Objects.requireNonNull(task, "task");
-        Objects.requireNonNull(executor, "executor");
+        Objects.requireNonNull(target, "target");
         return pool().schedule(() -> {
             try {
-                executor.execute(logged(task));
+                target.execute(task);
             } catch (Throwable t) {
-                SafeLog.fine("[scheduler] " + executor + " no longer takes tasks, so a scheduled one was dropped: "
+                SafeLog.fine("[scheduler] " + target + " no longer takes tasks, so a scheduled one was dropped: "
                         + t.getMessage());
             }
         }, delay, unit);
