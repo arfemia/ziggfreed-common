@@ -8,6 +8,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadLocalRandom;
 
 import javax.annotation.Nonnull;
@@ -94,7 +95,22 @@ public final class GeneratedRuns {
                 throw error instanceof CompletionException wrapped ? wrapped : new CompletionException(error);
             }
             return null;
-        }, world);
+        }, onWorld(world));
+    }
+
+    /**
+     * {@code world}'s own executor, except that a task the world turns away (it refuses tasks once it is shutting down)
+     * runs on the calling thread instead, so the stage still completes and nothing waiting on it is stranded.
+     */
+    @Nonnull
+    private static Executor onWorld(@Nonnull World world) {
+        return task -> {
+            try {
+                world.execute(task);
+            } catch (Throwable refused) {
+                task.run();
+            }
+        };
     }
 
     /** Where a player of lane {@code area}'s run in {@code world} lands; null when the lane has no run registered. */
