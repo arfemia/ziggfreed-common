@@ -1,0 +1,5 @@
+{
+  "$Comment": "Names the ziggfreedcommon:station_stat reading for requirement lines. Its Param is a stat and a station joined by @ (StationYield_Crafting@Sawmill), and it reads that stat as it would read at that station, counting the talents bound to working there even when the player is somewhere else: what a station's unattended pile, or an order collected away from the station, rolls with. The name covers the factor whatever stat and station a Param picks.",
+  "Factor": "ziggfreedcommon:station_stat",
+  "Text": { "TitleKey": "ziggfreedcommon.progress.factor.station_stat" }
+}
