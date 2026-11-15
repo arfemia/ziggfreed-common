@@ -33,6 +33,7 @@ import com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntitySta
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.damage.onhit.HitWords;
 import com.ziggfreed.common.stats.condition.BoundGrants;
+import com.ziggfreed.common.stats.damage.NativeOutgoing;
 import com.ziggfreed.common.stats.damage.TypedDamageBonusSystem;
 import com.ziggfreed.common.stats.damage.TypedDamageBonuses;
 import com.ziggfreed.common.usegate.UseGateDamageSystem;
@@ -149,6 +150,9 @@ public final class WeakSpotSystem extends DamageEventSystem {
                 damage.setAmount((float) (damage.getAmount() * factor));
             }
             damage.putMetaObject(WeakSpots.hitKey(), (float) Math.max(0.0, ours - paid));
+            // A flat a later step adds takes the whole weak-spot bonus the hit carries, vanilla's headshot share
+            // included, as the rest of the hit did (R992).
+            NativeOutgoing.scaleHit(damage, WeakSpots.wholeFactor(ours, paid));
             if (settings.textEnabled()) {
                 HitWords.show(store, attacker, target, TEXT_KEY, settings.textColor(), TEXT_ANGLE);
             }

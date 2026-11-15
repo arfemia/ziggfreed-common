@@ -29,10 +29,12 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
  * at {@code (1 + P + r)}. The sum so far rides the hit itself, so a second caller composes additively with
  * the first rather than multiplying on top of it.
  *
- * <p><b>What the target takes.</b> A step that scales what its target takes before a later step adds to the hit (a
- * scaled creature's toughness) records its factor through {@link #scaleTaken}, and every flat {@link #addToSum} adds
- * afterwards lands at that factor too, so a talent's flat meets the same toughness the hit met:
- * {@code (a + flat) * (1 + P) * taken}.
+ * <p><b>What multiplies the whole hit.</b> A step that multiplies the whole hit before a later step adds to it (the
+ * library's weak-spot and crit steps, a scaled creature's toughness) records its factor through {@link #scaleHit},
+ * and every flat {@link #addToSum} or {@link #withFlat} adds afterwards lands at the product too, so a talent's flat
+ * crits, takes the weak spot and meets the toughness as the rest of the hit did:
+ * {@code (a + flat) * (1 + P) * weakSpot * crit * toughness} (R992). A step that refuses a hit its crit or weak spot
+ * records nothing, so the flat is spared it as the rest of the hit is.
  */
 public final class NativeOutgoing {
 
@@ -85,11 +87,11 @@ public final class NativeOutgoing {
 
     /**
      * The hit's running sum, put there by the first {@link #sumOn} of the hit, and the product of every factor a
-     * step scaled what the target takes by ({@link #scaleTaken}).
+     * step multiplied the whole hit by ({@link #scaleHit}).
      */
     private static final class Meta {
         static final MetaKey<Double> SUM = Damage.META_REGISTRY.registerMetaObject();
-        static final MetaKey<Double> TAKEN = Damage.META_REGISTRY.registerMetaObject();
+        static final MetaKey<Double> SCALE = Damage.META_REGISTRY.registerMetaObject();
     }
 
     /** The engine's own outgoing sum for a hit of {@code cause} by {@code attacker}. */
@@ -198,7 +200,7 @@ public final class NativeOutgoing {
     /**
      * Add {@code percent} (a fraction) and {@code flat} to a hit that took the engine's outgoing step, as if
      * they had been in its sum: the hit's amount becomes {@link #addedToSum}'s, the flat taken at the hit's
-     * {@link #takenScale}, the hit's recorded sum grows by {@code percent}, and the new amount is returned. A zero
+     * {@link #hitScale}, the hit's recorded sum grows by {@code percent}, and the new amount is returned. A zero
      * pair leaves the hit untouched.
      */
     public static float addToSum(@Nonnull Damage damage, @Nonnull ComponentAccessor<EntityStore> accessor,
@@ -207,14 +209,14 @@ public final class NativeOutgoing {
             return damage.getAmount();
         }
         double sum = sumOn(damage, accessor, attacker);
-        float amount = (float) addedToSum(damage.getAmount(), sum, percent, flat * takenScale(damage));
+        float amount = (float) addedToSum(damage.getAmount(), sum, percent, flat * hitScale(damage));
         damage.setAmount(amount);
         damage.putMetaObject(Meta.SUM, sum + percent);
         return amount;
     }
 
     /**
-     * {@code amount} with {@code flat} added inside {@code damage}'s outgoing sum at its {@link #takenScale}, exactly as
+     * {@code amount} with {@code flat} added inside {@code damage}'s outgoing sum at its {@link #hitScale}, exactly as
      * {@link #addToSum} adds a flat, the hit itself left as it is: for a step folding a running amount that it writes
      * to the hit once, at its end. A zero or non-finite flat answers {@code amount}.
      */
@@ -223,25 +225,26 @@ public final class NativeOutgoing {
         if (flat == 0.0 || !Double.isFinite(flat)) {
             return amount;
         }
-        return addedToSum(amount, sumOn(damage, accessor, attacker), 0.0, flat * takenScale(damage));
+        return addedToSum(amount, sumOn(damage, accessor, attacker), 0.0, flat * hitScale(damage));
     }
 
     /**
-     * Record that a step scaled what {@code damage}'s target takes by {@code factor} (a scaled creature's toughness,
-     * applied by the caller to the hit's amount), so a flat a later {@link #addToSum} adds lands at that factor too.
-     * Factors multiply; a non-finite or negative one is ignored. Changes no amount.
+     * Record that a step multiplied the whole of {@code damage} by {@code factor} (the library's weak-spot and crit
+     * steps, a scaled creature's toughness; the caller applies it to the hit's amount), so a flat a later
+     * {@link #addToSum} or {@link #withFlat} adds lands at that factor too. Factors multiply; a non-finite or negative
+     * one is ignored. Changes no amount.
      */
-    public static void scaleTaken(@Nonnull Damage damage, double factor) {
+    public static void scaleHit(@Nonnull Damage damage, double factor) {
         if (!Double.isFinite(factor) || factor < 0.0 || factor == 1.0) {
             return;
         }
-        damage.putMetaObject(Meta.TAKEN, takenScale(damage) * factor);
+        damage.putMetaObject(Meta.SCALE, hitScale(damage) * factor);
     }
 
-    /** The product of every factor {@link #scaleTaken} recorded on {@code damage}; 1 when none was. */
-    public static double takenScale(@Nonnull Damage damage) {
-        Double taken = damage.getIfPresentMetaObject(Meta.TAKEN);
-        return taken == null ? 1.0 : taken;
+    /** The product of every factor {@link #scaleHit} recorded on {@code damage}; 1 when none was. */
+    public static double hitScale(@Nonnull Damage damage) {
+        Double scale = damage.getIfPresentMetaObject(Meta.SCALE);
+        return scale == null ? 1.0 : scale;
     }
 
     /**
