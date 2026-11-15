@@ -1,15 +1,14 @@
 package com.ziggfreed.common.objectives.authoring;
 
-import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
-import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -18,6 +17,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import com.ziggfreed.common.content.ServerContent;
 import com.ziggfreed.common.quest.asset.QuestAsset;
 import com.ziggfreed.common.quest.asset.QuestObjectiveAsset;
 
@@ -27,110 +27,74 @@ import com.ziggfreed.common.quest.asset.QuestObjectiveAsset;
  * row for (an {@code Indicator}, a step's {@code Drop}, a {@code Meta} namespace, a fourth Claim row) stays exactly as
  * it was. Pure.
  *
- * <p><b>Keys never move.</b> A step's key is what a player's progress on it is saved under, so it is minted once from
- * the words the admin typed ({@link #stepKey}) and written under that key on every save after; an edit changes the
- * step's leaves, never its key. An emptied step is taken out by its key, and a new one goes after the rest.
+ * <p><b>Keys never move, and never come back.</b> A step's key is what a player's progress on it is saved under, so it
+ * is minted once from the words the admin typed ({@link #stepKey}) and written under that key on every save after: a
+ * new count, target or line keeps it. A step whose kind changes is a new step: {@link #keyFor} mints it a new key,
+ * which takes the old one's place in the file ({@link QuestForm.Step#replaces}). An emptied step is taken out by its
+ * key. Every key taken out of the file is kept in the file's own {@code Meta} ({@link #RETIRED_STEPS} under
+ * {@link #META_NAMESPACE}: {@code "Meta": {"ziggfreedcommon": {"RetiredSteps": ["kill_skeleton"]}}}), which the quest
+ * store carries untouched, and {@link #taken} hands it to every mint, so a later step never lands on a player's old
+ * progress. A step that names no {@code Kind} is no step the editor shows: it is kept as written.
  *
  * <p>Every reward row the editor writes is a {@code Claim}, which the player collects: it writes no {@code Auto} row,
  * and leaves one the file already holds as written.
  */
 public final class QuestDraft {
 
-    /** The longest step key minted, before any suffix. */
-    static final int MAX_KEY_LENGTH = 40;
+    /** The library's namespace in a quest's {@code Meta}. */
+    public static final String META_NAMESPACE = "ziggfreedcommon";
 
-    /** The longest asset id minted, before any suffix. */
-    static final int MAX_ID_LENGTH = 48;
-
-    /** A step key minted from words with nothing usable in them. */
-    static final String FALLBACK_KEY = "step";
-
-    /** An asset id minted from words with nothing usable in them. */
-    static final String FALLBACK_ID = "Custom";
+    /** The {@code Meta} leaf listing every step key the editor took out of the file, which none is minted again. */
+    public static final String RETIRED_STEPS = "RetiredSteps";
 
     /** {@code Repeat.cooldownHours} that leaves the file's {@code Cooldown} as written (not whole hours). */
     public static final int KEEP_COOLDOWN = -1;
-
-    private static final Pattern WORD_BREAK = Pattern.compile("[^A-Za-z0-9]+");
-    private static final Pattern MARKS = Pattern.compile("\\p{M}+");
-    private static final Pattern APOSTROPHES = Pattern.compile("['`\\x{2019}\\x{02BC}]");
 
     private static final long HOUR_MS = 3_600_000L;
 
     private QuestDraft() {
     }
 
-    // ---------------------------------------------------------------- keys and ids
+    // ---------------------------------------------------------------- keys
 
     /**
-     * A step key from {@code typed} that {@code taken} does not hold: its words lower-cased and joined by {@code _}
-     * ({@code "Kill Skeleton"} is {@code kill_skeleton}), else the first free {@code _2}, {@code _3}. The report-back
-     * step's key, {@code turn_in}, is never minted.
+     * A step key from {@code typed} that {@code taken} does not hold (asked with the candidate lower-cased): the
+     * server content pack's mint lower-cased ({@code "Kill Skeleton"} is {@code kill_skeleton}), else the first free
+     * {@code _2}, {@code _3}. The report-back step's key, {@code turn_in}, is never minted.
      */
     @Nonnull
     public static String stepKey(@Nullable String typed, @Nonnull Predicate<String> taken) {
-        List<String> words = words(typed);
-        StringBuilder key = new StringBuilder();
-        for (String word : words) {
-            append(key, word.toLowerCase(Locale.ROOT), MAX_KEY_LENGTH);
-        }
-        String base = key.length() == 0 ? FALLBACK_KEY : key.toString();
-        Predicate<String> reserved = candidate -> taken.test(candidate)
-                || QuestAsset.REPORT_BACK_ID.equalsIgnoreCase(candidate);
-        return free(base, reserved);
+        return ServerContent.mintId(typed, candidate -> taken.test(candidate.toLowerCase(Locale.ROOT))
+                || QuestAsset.REPORT_BACK_ID.equalsIgnoreCase(candidate)).toLowerCase(Locale.ROOT);
     }
 
     /**
-     * An {@code Is_Like_This} id from {@code typed} that {@code taken} does not hold, as the server content pack mints
-     * an asset's: each word capitalised, joined by {@code _}, else the first free {@code _2}, {@code _3}.
+     * The key a step slot saves under: its {@code savedKey} while the step is still of the kind it was saved as
+     * ({@code savedKind}, matched without regard to case), so a new count, target or line keeps it; else a new key
+     * minted from {@code typed}, never one {@code taken} holds. A changed kind is a new step, and the caller retires
+     * the old key. Pure.
      */
     @Nonnull
-    public static String assetId(@Nullable String typed, @Nonnull Predicate<String> taken) {
-        StringBuilder id = new StringBuilder();
-        for (String word : words(typed)) {
-            append(id, word.substring(0, 1).toUpperCase(Locale.ROOT) + word.substring(1).toLowerCase(Locale.ROOT),
-                    MAX_ID_LENGTH);
+    public static String keyFor(@Nullable String savedKey, @Nullable String savedKind, @Nonnull String kind,
+            @Nullable String typed, @Nonnull Predicate<String> taken) {
+        if (savedKey != null && !savedKey.isBlank()
+                && (savedKind == null || savedKind.isBlank() || savedKind.trim().equalsIgnoreCase(kind.trim()))) {
+            return savedKey.trim();
         }
-        return free(id.length() == 0 ? FALLBACK_ID : id.toString(), taken);
+        return stepKey(typed, taken);
     }
 
-    /** The letters and digits of {@code typed}, accents and apostrophes dropped, split at anything else. */
+    /** Every key a new step may not take in {@code loaded}'s file: its steps' keys and its retired ones, lower-cased. */
     @Nonnull
-    private static List<String> words(@Nullable String typed) {
-        String plain = typed == null ? ""
-                : APOSTROPHES.matcher(MARKS.matcher(Normalizer.normalize(typed, Normalizer.Form.NFD)).replaceAll(""))
-                        .replaceAll("");
-        List<String> words = new ArrayList<>();
-        for (String word : WORD_BREAK.split(plain)) {
-            if (!word.isEmpty()) {
-                words.add(word);
-            }
+    public static Set<String> taken(@Nonnull Loaded loaded) {
+        Set<String> taken = new HashSet<>();
+        for (String key : loaded.stepKeys()) {
+            taken.add(key.toLowerCase(Locale.ROOT));
         }
-        return words;
-    }
-
-    private static void append(@Nonnull StringBuilder into, @Nonnull String word, int max) {
-        int room = max - into.length() - (into.length() == 0 ? 0 : 1);
-        if (room <= 0) {
-            return;
+        for (String key : loaded.retiredSteps()) {
+            taken.add(key.toLowerCase(Locale.ROOT));
         }
-        if (into.length() > 0) {
-            into.append('_');
-        }
-        into.append(word, 0, Math.min(word.length(), room));
-    }
-
-    @Nonnull
-    private static String free(@Nonnull String base, @Nonnull Predicate<String> taken) {
-        if (!taken.test(base)) {
-            return base;
-        }
-        for (int n = 2; ; n++) {
-            String candidate = base + "_" + n;
-            if (!taken.test(candidate)) {
-                return candidate;
-            }
-        }
+        return taken;
     }
 
     // ---------------------------------------------------------------- writing
@@ -238,23 +202,37 @@ public final class QuestDraft {
     }
 
     /**
-     * The steps, in the file's own order: each step the editor holds is written over its row by key, an emptied one
-     * is taken out, one the editor has no slot for is kept, and a new key goes after the rest in slot order.
+     * The steps, in the file's own order: each step the editor holds is written over its row by key, a step with a
+     * new key in the place of the key it replaces, an emptied one taken out, one the editor has no slot for kept,
+     * and any other new key after the rest in slot order. Every key taken out is retired in the file's {@code Meta}.
      */
     private static void writeObjectives(@Nonnull JsonObject doc, @Nonnull QuestForm form) {
         JsonObject before = doc.has("Objectives") && doc.get("Objectives").isJsonObject()
                 ? doc.getAsJsonObject("Objectives") : new JsonObject();
         Map<String, QuestForm.Step> byKey = new LinkedHashMap<>();
+        Map<String, QuestForm.Step> byReplaced = new LinkedHashMap<>();
         for (QuestForm.Step step : form.steps()) {
             byKey.put(step.key(), step);
+            if (step.replaces() != null) {
+                byReplaced.put(step.replaces(), step);
+            }
         }
         Set<String> dropped = new HashSet<>(form.droppedSteps());
+        Set<String> retired = new LinkedHashSet<>();
         JsonObject out = new JsonObject();
         for (Map.Entry<String, JsonElement> e : before.entrySet()) {
             QuestForm.Step step = byKey.remove(e.getKey());
             if (step != null) {
                 out.add(e.getKey(), stepRow(e.getValue(), step));
-            } else if (!dropped.contains(e.getKey())) {
+                continue;
+            }
+            QuestForm.Step successor = byReplaced.get(e.getKey());
+            if (successor != null && byKey.remove(successor.key()) != null) {
+                retired.add(e.getKey());
+                out.add(successor.key(), stepRow(null, successor));
+            } else if (dropped.contains(e.getKey()) || successor != null) {
+                retired.add(e.getKey());
+            } else {
                 out.add(e.getKey(), e.getValue().deepCopy());
             }
         }
@@ -266,6 +244,39 @@ public final class QuestDraft {
         } else {
             doc.add("Objectives", out);
         }
+        retire(doc, retired);
+    }
+
+    /** Add {@code keys} to the file's retired step keys ({@code Meta.ziggfreedcommon.RetiredSteps}), each once. */
+    private static void retire(@Nonnull JsonObject doc, @Nonnull Set<String> keys) {
+        if (keys.isEmpty()) {
+            return;
+        }
+        Set<String> all = new LinkedHashSet<>(retiredSteps(doc));
+        all.addAll(keys);
+        JsonArray list = new JsonArray();
+        for (String key : all) {
+            list.add(key);
+        }
+        group(group(doc, "Meta"), META_NAMESPACE).add(RETIRED_STEPS, list);
+    }
+
+    /** The step keys the file's {@code Meta} retires, as written. */
+    @Nonnull
+    private static List<String> retiredSteps(@Nonnull JsonObject doc) {
+        JsonObject meta = object(doc, "Meta");
+        JsonObject ours = meta == null ? null : object(meta, META_NAMESPACE);
+        JsonElement listed = ours == null ? null : ours.get(RETIRED_STEPS);
+        List<String> keys = new ArrayList<>();
+        if (listed != null && listed.isJsonArray()) {
+            for (JsonElement key : listed.getAsJsonArray()) {
+                String value = scalar(key);
+                if (value != null && !value.isBlank()) {
+                    keys.add(value.trim());
+                }
+            }
+        }
+        return keys;
     }
 
     @Nonnull
@@ -346,16 +357,21 @@ public final class QuestDraft {
      * @param displayName    {@code Text.DisplayName}, or null
      * @param inherits       true for a file with a {@code Parent} or {@code Abstract}: much of it lives in another file
      * @param requires       the requirements, or null when the file asks for more than the editor shows
-     * @param stepKeys       every step key the file holds, the ones past the slots included
+     * @param stepKeys       every step key the file holds, the ones past the slots and with no kind included
+     * @param retiredSteps   every step key the file's {@code Meta} retires
      */
     public record Loaded(@Nullable String titleKey, @Nullable String flavorKey, @Nullable String displayName,
             boolean inherits, @Nullable String giver, boolean returnToGiver, boolean sequential, boolean autoTrack,
             @Nonnull List<QuestForm.Step> steps, @Nonnull List<QuestForm.Reward> rewards,
             @Nullable QuestForm.Requirements requires, @Nonnull QuestForm.Repeat repeat,
-            @Nonnull Set<String> stepKeys) {
+            @Nonnull Set<String> stepKeys, @Nonnull List<String> retiredSteps) {
     }
 
-    /** Read {@code doc} as the editor shows it. */
+    /**
+     * Read {@code doc} as the editor shows it: its first {@code stepSlots} steps that name a {@code Kind} (one that
+     * names none is no step the editor shows, and the file keeps it as written) and its first {@code rewardSlots}
+     * Claim rows.
+     */
     @Nonnull
     public static Loaded read(@Nonnull JsonObject doc, int stepSlots, int rewardSlots) {
         JsonObject text = object(doc, "Text");
@@ -368,12 +384,17 @@ public final class QuestDraft {
         if (objectives != null) {
             for (Map.Entry<String, JsonElement> e : objectives.entrySet()) {
                 keys.add(e.getKey());
-                if (steps.size() < stepSlots && e.getValue().isJsonObject()) {
-                    JsonObject row = e.getValue().getAsJsonObject();
-                    Long amount = whole(row.get("Amount"));
-                    steps.add(new QuestForm.Step(e.getKey(), nonNull(text(row, "Kind")), text(row, "Target"),
-                            amount == null ? 1L : amount, text(row, "MatchMode"), text(row, "TextKey")));
+                if (steps.size() >= stepSlots || !e.getValue().isJsonObject()) {
+                    continue;
                 }
+                JsonObject row = e.getValue().getAsJsonObject();
+                String kind = text(row, "Kind");
+                if (kind == null) {
+                    continue;
+                }
+                Long amount = whole(row.get("Amount"));
+                steps.add(new QuestForm.Step(e.getKey(), kind, text(row, "Target"), amount == null ? 1L : amount,
+                        text(row, "MatchMode"), text(row, "TextKey"), null));
             }
         }
 
@@ -403,7 +424,8 @@ public final class QuestDraft {
                 text == null ? null : text(text, "DisplayName"), doc.has("Parent") || isTrue(doc.get("Abstract")),
                 npc == null ? null : text(npc, "ViewId"), turnsInAtGiver(doc.get("TurnInAt")),
                 flow != null && isTrue(flow.get("Sequential")), flow != null && isTrue(flow.get("AutoTrack")),
-                steps, rewards, simpleRequires(doc.get("Requires")), readRepeat(object(doc, "Repeat")), keys);
+                steps, rewards, simpleRequires(doc.get("Requires")), readRepeat(object(doc, "Repeat")), keys,
+                retiredSteps(doc));
     }
 
     /**

@@ -427,7 +427,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // /zigauthor. The tab, the tools and their root interaction are assets zc-presentation ships.
         AuthoringBootstrap.install(this);
         // The quest editor on that kit: the Quest wizard and the Quest Tool, which the progression admin page and
-        // /zigauthor open too. Its tool item and its quest giver role are assets zc-objectives ships.
+        // /zigauthor open too. Its tool item is an asset zc-objectives ships.
         QuestEditorBootstrap.install();
         // The once-at-boot checks (the boot audit a headless dev boot asks for), on BootEvent: every
         // store has folded and every mod has registered its vocabulary by then.

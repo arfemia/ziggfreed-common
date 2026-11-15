@@ -2,7 +2,9 @@ package com.ziggfreed.common.objectives.authoring;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -25,14 +27,15 @@ import com.ziggfreed.common.quest.asset.QuestDefinition;
  * The quest editor's file, a structural gate: what {@link QuestDraft} writes decodes in the quest store as the quest
  * the editor shows (its steps under their keys, every reward a Claim), and writing an edit over a saved file keeps
  * every step's key, the file's order and every leaf the editor has no row for, since a step's key is what a player's
- * progress on it is saved under.
+ * progress on it is saved under. A step whose kind changed, or one emptied and added again, must never take an old
+ * key, or a player's progress on the old step lands on it.
  */
 class QuestDraftTest {
 
     @Test
     void aWrittenQuestDecodesInTheQuestStore() throws IOException {
         QuestForm form = new QuestForm("server.quests.Skeleton_Trouble.title", null, "guide", false, true, true,
-                List.of(new QuestForm.Step("kill_skeleton", "KILL_ENTITY", "Skeleton", 5L, null, null)), List.of(),
+                List.of(new QuestForm.Step("kill_skeleton", "KILL_ENTITY", "Skeleton", 5L, null, null, null)), List.of(),
                 QuestWizard.REWARD_SLOTS,
                 List.of(new QuestForm.Reward(0, "Item", Map.of("Item", "Ingredient_Bar_Gold", "Count", "5"),
                         Set.of("Item", "Count"), false)),
@@ -65,9 +68,9 @@ class QuestDraftTest {
         QuestDraft.Loaded loaded = QuestDraft.read(saved, QuestWizard.STEP_SLOTS, QuestWizard.REWARD_SLOTS);
 
         List<QuestForm.Step> steps = new ArrayList<>(loaded.steps());
-        steps.set(0, new QuestForm.Step("collect", "PICKUP_ITEM", "Copper_Ore", 20L, null, null));
+        steps.set(0, new QuestForm.Step("collect", "PICKUP_ITEM", "Copper_Ore", 20L, null, null, null));
         String added = QuestDraft.stepKey("Talk to the miller", loaded.stepKeys()::contains);
-        steps.add(new QuestForm.Step(added, "TALK_TO_NPC", "miller", 1L, null, null));
+        steps.add(new QuestForm.Step(added, "TALK_TO_NPC", "miller", 1L, null, null, null));
         QuestForm form = new QuestForm(loaded.titleKey(), null, loaded.giver(), false, false, false, steps, List.of(),
                 QuestWizard.REWARD_SLOTS, loaded.rewards(), loaded.requires(), loaded.repeat());
 
@@ -86,6 +89,75 @@ class QuestDraftTest {
         assertNotNull(definition.quest().objective("hand_in"));
         assertNotNull(definition.quest().objective(added));
         assertEquals(1, definition.quest().claimRewards().size());
+    }
+
+    @Test
+    void aChangedKindTakesANewKeyInTheOldOnesPlace() throws IOException {
+        JsonObject saved = copperRun();
+        QuestDraft.Loaded loaded = QuestDraft.read(saved, QuestWizard.STEP_SLOTS, QuestWizard.REWARD_SLOTS);
+        Set<String> taken = QuestDraft.taken(loaded);
+
+        assertEquals("collect", QuestDraft.keyFor("collect", "PICKUP_ITEM", "PICKUP_ITEM", "Pick up copper",
+                taken::contains), "a new count, target or line keeps the step's key");
+        String key = QuestDraft.keyFor("collect", "PICKUP_ITEM", "BREAK_BLOCK", "Break copper", taken::contains);
+        assertNotEquals("collect", key, "a step of another kind must never carry the old step's progress");
+
+        List<QuestForm.Step> steps = List.of(
+                new QuestForm.Step(key, "BREAK_BLOCK", "Copper_Ore", 10L, null, null, "collect"),
+                loaded.steps().get(1));
+        JsonObject edited = QuestDraft.write(form(loaded, steps, List.of("collect")), saved);
+
+        assertEquals(List.of(key, "hand_in"), new ArrayList<>(edited.getAsJsonObject("Objectives").keySet()),
+                "the new step takes the old one's place, so the steps still run in the same order");
+        assertEquals(List.of("collect"), QuestDraft.read(edited, QuestWizard.STEP_SLOTS, QuestWizard.REWARD_SLOTS)
+                .retiredSteps(), "the old key is retired in the file itself");
+        QuestDefinition definition = decode(edited, "Copper_Run").toDefinition(null);
+        assertNull(definition.quest().objective("collect"));
+        assertEquals("BREAK_BLOCK", definition.quest().objective(key).kind());
+    }
+
+    @Test
+    void aDroppedKeyIsNeverMintedAgain() throws IOException {
+        JsonObject saved = JsonParser.parseString("""
+                { "Text": { "TitleKey": "server.quests.Bone_Yard.title" },
+                  "Objectives": {
+                    "kill_skeletons": { "Kind": "KILL_ENTITY", "Target": "Skeleton", "Amount": 5 },
+                    "hand_in": { "Kind": "TURN_IN", "Amount": 1 } } }
+                """).getAsJsonObject();
+        QuestDraft.Loaded loaded = QuestDraft.read(saved, QuestWizard.STEP_SLOTS, QuestWizard.REWARD_SLOTS);
+
+        JsonObject emptied = QuestDraft.write(form(loaded, List.of(loaded.steps().get(1)), List.of("kill_skeletons")),
+                saved);
+        assertFalse(emptied.getAsJsonObject("Objectives").has("kill_skeletons"));
+
+        QuestDraft.Loaded reopened = QuestDraft.read(emptied, QuestWizard.STEP_SLOTS, QuestWizard.REWARD_SLOTS);
+        String key = QuestDraft.keyFor(null, null, "KILL_ENTITY", "Kill skeletons", QuestDraft.taken(reopened)::contains);
+        assertNotEquals("kill_skeletons", key, "the same words added again must never land on the old progress");
+
+        List<QuestForm.Step> steps = new ArrayList<>(reopened.steps());
+        steps.add(new QuestForm.Step(key, "KILL_ENTITY", "Skeleton", 5L, null, null, null));
+        JsonObject readded = QuestDraft.write(form(reopened, steps, List.of()), emptied);
+
+        assertEquals(List.of("kill_skeletons"), QuestDraft.read(readded, QuestWizard.STEP_SLOTS,
+                QuestWizard.REWARD_SLOTS).retiredSteps(), "a retired key stays retired");
+        QuestDefinition definition = decode(readded, "Bone_Yard").toDefinition(null);
+        assertNull(definition.quest().objective("kill_skeletons"));
+        assertNotNull(definition.quest().objective(key));
+    }
+
+    private static JsonObject copperRun() {
+        return JsonParser.parseString("""
+                { "Text": { "TitleKey": "server.quests.Copper_Run.title" },
+                  "Objectives": {
+                    "collect": { "Kind": "PICKUP_ITEM", "Target": "Copper_Ore", "Amount": 10 },
+                    "hand_in": { "Kind": "TURN_IN", "Target": "Copper_Ore", "Amount": 10, "Order": 2 } } }
+                """).getAsJsonObject();
+    }
+
+    /** The file {@code loaded} came from, written back with {@code steps}, the keys in {@code dropped} emptied. */
+    private static QuestForm form(QuestDraft.Loaded loaded, List<QuestForm.Step> steps, List<String> dropped) {
+        return new QuestForm(loaded.titleKey(), null, loaded.giver(), false, false, false, steps, dropped,
+                QuestWizard.REWARD_SLOTS, loaded.rewards(), loaded.requires(), loaded.repeat());
     }
 
     private static QuestAsset decode(JsonObject doc, String id) throws IOException {

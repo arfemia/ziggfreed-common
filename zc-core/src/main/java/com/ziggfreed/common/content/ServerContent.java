@@ -28,6 +28,8 @@ import com.hypixel.hytale.assetstore.AssetRegistry;
 import com.hypixel.hytale.assetstore.AssetStore;
 import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.server.core.asset.AssetModule;
+import com.hypixel.hytale.server.npc.NPCPlugin;
+import com.hypixel.hytale.server.npc.asset.builder.BuilderManager;
 import com.ziggfreed.common.asset.AssetStoreWriter;
 
 import org.bson.BsonDocument;
@@ -380,6 +382,144 @@ public final class ServerContent {
         }
     }
 
+    // ---------------------------------------------------------------- NPC roles
+
+    /** Where a pack keeps its NPC roles under {@code Server/}, the engine's own folder for them. */
+    public static final String ROLES_PATH = "NPC/Roles";
+
+    /** Role ids minted this session and not yet written, lower-cased. */
+    private static final Set<String> MINTED_ROLES = ConcurrentHashMap.newKeySet();
+
+    /**
+     * An {@code Is_Like_This} id for a new NPC role made from {@code typedName}: free among the engine's roles, the
+     * pack's role files, the role ids minted this session and whatever {@code alsoTaken} answers true for (a
+     * character or a placement of that name; asked without regard to case), with the first free {@code _2},
+     * {@code _3} suffix. Mint once: a role's id is its file's name, and the characters standing as it name it.
+     */
+    @Nonnull
+    public static String mintRoleId(@Nullable String typedName, @Nonnull Predicate<String> alsoTaken) {
+        Set<String> taken = new HashSet<>();
+        try {
+            NPCPlugin npcs = NPCPlugin.get();
+            if (npcs != null) {
+                for (String name : npcs.getRoleTemplateNames(false)) {
+                    taken.add(name.toLowerCase(Locale.ROOT));
+                }
+            }
+        } catch (Throwable ignored) {
+            // With no role registry to ask, the id is minted against the pack's files and this session's ids.
+        }
+        AssetPack pack = ServerContentPack.loaded();
+        if (pack != null) {
+            taken.addAll(fileIds(rolesDir(pack), ROLE_EXTENSION));
+        }
+        synchronized (MINTED_ROLES) {
+            taken.addAll(MINTED_ROLES);
+            String id = ContentIds.mint(typedName,
+                    candidate -> taken.contains(candidate.toLowerCase(Locale.ROOT)) || alsoTaken.test(candidate));
+            MINTED_ROLES.add(id.toLowerCase(Locale.ROOT));
+            return id;
+        }
+    }
+
+    /**
+     * Save {@code json} as NPC role {@code id} in the pack ({@code Server/NPC/Roles/<id>.json}, or the pack's own
+     * file of that name) and load it live the way the Asset Editor's NPC editor does
+     * ({@code BuilderManager.assetEditorLoadFile}); the engine's own scan reads it at every start after. NPC roles
+     * keep no asset store, so this is their one writer as {@link #write} is every store's. The role must load and
+     * pass the engine's validation, or the pack's file is put back as it was and the result fails as
+     * {@link ContentProblem#REJECTED}; whatever stood as the role before stands again.
+     */
+    @Nonnull
+    public static Result writeRole(@Nonnull String id, @Nonnull String json) {
+        try {
+            if (!ContentIds.isSafe(id)) {
+                return refused(id, ContentProblem.BAD_ID, "not a file name: " + id);
+            }
+            JsonElement doc = parse(json);
+            if (doc == null || !doc.isJsonObject()) {
+                return refused(id, ContentProblem.BAD_JSON, "not a JSON object");
+            }
+            AssetPack pack = ServerContentPack.writable();
+            if (pack == null) {
+                return refused(id, ContentProblem.PACK_UNAVAILABLE, "the pack is " + ServerContentPack.state());
+            }
+            String body = ServerContentPack.pretty(doc);
+            String what = "server content NPC role " + id;
+            return new Result(id, AppliesWhen.NOW, AssetStoreWriter.offThread(what,
+                    () -> writeRoleNow(what, pack, id, body)));
+        } catch (Throwable t) {
+            return refused(id, ContentProblem.IO, String.valueOf(t.getMessage()));
+        }
+    }
+
+    private static void writeRoleNow(@Nonnull String what, @Nonnull AssetPack pack, @Nonnull String id,
+            @Nonnull String body) {
+        NPCPlugin npcs = NPCPlugin.get();
+        if (npcs == null) {
+            throw new ContentRefusedException(ContentProblem.UNSUPPORTED_STORE, what + ": the NPC plugin is not running");
+        }
+        Path dir = rolesDir(pack);
+        Path known = knownFile(dir, id + ROLE_EXTENSION);
+        Path file = known != null ? known : dir.resolve(id + ROLE_EXTENSION);
+        byte[] before;
+        try {
+            before = Files.isRegularFile(file) ? Files.readAllBytes(file) : null;
+            ServerContentPack.writeAtomically(file, body);
+        } catch (IOException e) {
+            throw new ContentRefusedException(ContentProblem.IO, what + ": " + file + " could not be written", e);
+        }
+        BuilderManager builders = npcs.getBuilderManager();
+        builders.assetEditorLoadFile(file);
+        if (!validRole(npcs, id)) {
+            try {
+                if (before == null) {
+                    Files.deleteIfExists(file);
+                    builders.assetEditorRemoveFile(file);
+                } else {
+                    ServerContentPack.writeAtomically(file, new String(before, StandardCharsets.UTF_8));
+                    builders.assetEditorLoadFile(file);
+                }
+            } catch (IOException e) {
+                throw new ContentRefusedException(ContentProblem.IO, what + ": " + file + " could not be put back", e);
+            }
+            throw new ContentRefusedException(ContentProblem.REJECTED, what + ": the game did not load it as a valid role");
+        }
+        MINTED_ROLES.remove(id.toLowerCase(Locale.ROOT));
+    }
+
+    /** True when the engine holds role {@code id} and it passes the engine's own validation. */
+    private static boolean validRole(@Nonnull NPCPlugin npcs, @Nonnull String id) {
+        try {
+            int index = npcs.getIndex(id);
+            return index >= 0 && npcs.testAndValidateRole(npcs.getRoleBuilderInfo(index));
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /** A role file's extension: the engine reads every {@code .json} under the roles folder. */
+    private static final String ROLE_EXTENSION = ".json";
+
+    @Nonnull
+    private static Path rolesDir(@Nonnull AssetPack pack) {
+        return pack.getRoot().resolve("Server").resolve(ROLES_PATH).toAbsolutePath().normalize();
+    }
+
+    /** The file named {@code name} (any case) anywhere under {@code dir}, or null. */
+    @Nullable
+    private static Path knownFile(@Nonnull Path dir, @Nonnull String name) {
+        if (!Files.isDirectory(dir)) {
+            return null;
+        }
+        try (Stream<Path> files = Files.walk(dir)) {
+            return files.filter(p -> p.getFileName().toString().equalsIgnoreCase(name) && Files.isRegularFile(p))
+                    .findFirst().orElse(null);
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
     /**
      * The pack's own file for {@code id}: the path the store recorded when it loaded the pack's copy,
      * else a file of that name under the store's folder; null when the pack has none.
@@ -400,16 +540,7 @@ public final class ServerContent {
         } catch (Throwable ignored) {
             // A store that cannot list its paths is searched on disk below.
         }
-        String name = id + extension(store);
-        if (!Files.isDirectory(dir)) {
-            return null;
-        }
-        try (Stream<Path> files = Files.walk(dir)) {
-            return files.filter(p -> p.getFileName().toString().equalsIgnoreCase(name) && Files.isRegularFile(p))
-                    .findFirst().orElse(null);
-        } catch (IOException e) {
-            return null;
-        }
+        return knownFile(dir, id + extension(store));
     }
 
     private static void forgetMinted(@Nonnull AssetStore<?, ?, ?> store, @Nonnull String id) {

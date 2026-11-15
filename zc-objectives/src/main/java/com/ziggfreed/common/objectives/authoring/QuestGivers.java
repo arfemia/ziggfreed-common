@@ -9,6 +9,7 @@ import javax.annotation.Nullable;
 
 import org.joml.Vector3d;
 
+import com.google.gson.JsonObject;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
@@ -26,24 +27,30 @@ import com.ziggfreed.common.npc.placement.runtime.NpcPlacementService;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * A new quest giver the editor stands for its quest, through the one placement writer
- * ({@link NpcPlacementAuthoring#place}): an ordinary placement in the owner's {@code npc-placements.json}, its own
- * character ({@code Identity.NpcId}, the id the quest names as its giver), stood once the quest itself has saved, so a
- * refused quest leaves nobody standing. The library's {@link #DEFAULT_ROLE} opens its quests on a press of F.
+ * A new quest giver the editor stands for its quest, with a name of its own. Its character type is a role written into
+ * the server content pack ({@link ServerContent#writeRole}): a {@code Variant} of the library's
+ * {@code Template_Zig_QuestGiver} naming only its nameplate ({@link #roleJson}), the way a pack writes each of its
+ * givers, its words the language key {@code npcs.<Id>.name}. The giver then stands through the one placement writer
+ * ({@link NpcPlacementAuthoring#place}), an ordinary placement in the owner's {@code npc-placements.json} named for
+ * that role, once the role and the quest have both landed, so a refused save leaves nobody standing. Its id names the
+ * role, the placement and the character the quest's {@code Npc.ViewId} names.
  */
 final class QuestGivers {
 
-    /** The library's quest giver role, a Variant of {@code Template_Zig_QuestGiver} this module ships. */
-    static final String DEFAULT_ROLE = "Zig_QuestGiver";
+    /** The library's quest giver template, whose press of F opens the quests of whoever stands there. */
+    static final String TEMPLATE = "Template_Zig_QuestGiver";
+
+    /** The text key family a giver's nameplate is filed under: {@code npcs.<Id>.name}, as every pack's npcs.lang. */
+    static final String NAME_STORE = "npcs";
 
     private QuestGivers() {
     }
 
-    /** A character id for the giver of the quest named {@code questName}, free among every placement and character. */
+    /** An id for a giver named {@code name}, free among every role, placement and character. */
     @Nonnull
-    static String mintId(@Nonnull String questName) {
+    static String mintId(@Nonnull String name) {
         Set<String> declared = NpcIdentities.allDeclaredNpcIds();
-        return QuestDraft.assetId(questName + " Giver", candidate -> placed(candidate)
+        return ServerContent.mintRoleId(name, candidate -> placed(candidate)
                 || declared.stream().anyMatch(candidate::equalsIgnoreCase));
     }
 
@@ -54,6 +61,22 @@ final class QuestGivers {
         } catch (Throwable t) {
             return false;
         }
+    }
+
+    /**
+     * The giver's role: a {@code Variant} of {@link #TEMPLATE} whose {@code Modify} names only the template's own
+     * {@code NameTranslationKey} (the engine refuses a whole role whose variant names anything the template does not
+     * declare), so it looks as the template does and reads {@code nameKey}.
+     */
+    @Nonnull
+    static String roleJson(@Nonnull String nameKey) {
+        JsonObject modify = new JsonObject();
+        modify.addProperty("NameTranslationKey", nameKey);
+        JsonObject role = new JsonObject();
+        role.addProperty("Type", "Variant");
+        role.addProperty("Reference", TEMPLATE);
+        role.add("Modify", modify);
+        return role.toString();
     }
 
     /** The block cell {@code "x y z"} a pick wrote, or null when it does not read as one. */
@@ -74,21 +97,23 @@ final class QuestGivers {
     }
 
     /**
-     * Stand the giver {@code giverId} as {@code role} once {@code quest} has landed: on top of the block {@code spot}
-     * names (facing back the way the admin looks), else where the admin stands (facing the way they look). Its result
-     * fails, with the quest still saved, when the admin has gone or the placement is refused.
+     * Stand giver {@code giverId} as its own role once {@code role} and {@code quest} have both landed: on top of the
+     * block {@code spot} names (facing back the way the admin looks), else where the admin stands (facing the way
+     * they look). Its result fails, with the quest still saved, when the role or the quest was refused, the admin has
+     * gone or the placement is refused.
      */
     @Nonnull
-    static ServerContent.Result placeAfter(@Nonnull ServerContent.Result quest, @Nonnull PlayerRef admin,
-            @Nonnull String role, @Nonnull String giverId, @Nullable String spot) {
-        CompletableFuture<Void> stood = quest.completion().thenCompose(v -> stand(admin, role, giverId, cell(spot)));
+    static ServerContent.Result placeAfter(@Nonnull ServerContent.Result role, @Nonnull ServerContent.Result quest,
+            @Nonnull PlayerRef admin, @Nonnull String giverId, @Nullable String spot) {
+        CompletableFuture<Void> stood = CompletableFuture.allOf(role.completion(), quest.completion())
+                .thenCompose(v -> stand(admin, giverId, cell(spot)));
         return new ServerContent.Result(giverId, AppliesWhen.NOW, stood);
     }
 
     /** Hop to the admin's world thread and place the giver there. */
     @Nonnull
-    private static CompletableFuture<Void> stand(@Nonnull PlayerRef admin, @Nonnull String role,
-            @Nonnull String giverId, @Nullable int[] cell) {
+    private static CompletableFuture<Void> stand(@Nonnull PlayerRef admin, @Nonnull String giverId,
+            @Nullable int[] cell) {
         CompletableFuture<Void> done = new CompletableFuture<>();
         World world;
         try {
@@ -104,7 +129,7 @@ final class QuestGivers {
         World here = world;
         here.execute(() -> {
             try {
-                standNow(here, admin, role, giverId, cell, done);
+                standNow(here, admin, giverId, cell, done);
             } catch (Throwable t) {
                 SafeLog.warn("[quest-editor] the new quest giver " + giverId + " could not be placed", t);
                 done.completeExceptionally(refused(giverId, String.valueOf(t.getMessage())));
@@ -113,8 +138,8 @@ final class QuestGivers {
         return done;
     }
 
-    private static void standNow(@Nonnull World world, @Nonnull PlayerRef admin, @Nonnull String role,
-            @Nonnull String giverId, @Nullable int[] cell, @Nonnull CompletableFuture<Void> done) {
+    private static void standNow(@Nonnull World world, @Nonnull PlayerRef admin, @Nonnull String giverId,
+            @Nullable int[] cell, @Nonnull CompletableFuture<Void> done) {
         Ref<EntityStore> ref = admin.getReference();
         if (ref == null || !ref.isValid()) {
             done.completeExceptionally(refused(giverId, "the admin who saved it has left"));
@@ -141,7 +166,7 @@ final class QuestGivers {
             y = position.y();
             z = position.z();
         }
-        NpcPlacementAuthoring.Result result = NpcPlacementAuthoring.place(world, store, role, giverId, giverId, null,
+        NpcPlacementAuthoring.Result result = NpcPlacementAuthoring.place(world, store, giverId, giverId, null,
                 NpcPlacementService.worldName(world), NpcPlacementAuthoring.round(x, 2),
                 NpcPlacementAuthoring.round(y, 2), NpcPlacementAuthoring.round(z, 2),
                 NpcPlacementAuthoring.round(yaw, 1));

@@ -1,9 +1,0 @@
-{
-  "$Comment": "The library's own quest giver, ready to stand: a Variant of Template_Zig_QuestGiver, so it stays put, cannot be hurt, and pressing F opens the quests of whoever its placement says it is. The quest editor stands one when you ask it for a new giver, each with a character id of its own, so two givers of this role never share their quests. Name it from your own NPC placement's Identity.Role (with an Identity.NpcId of your own) to stand one by hand. It looks like a Kweebec Rootling and reads Quest Giver; a giver with its own look or nameplate is a Variant of your own on the template.",
-  "Type": "Variant",
-  "Reference": "Template_Zig_QuestGiver",
-  "Modify": {
-    "Appearance": "Kweebec_Rootling",
-    "NameTranslationKey": "npcs.Zig_QuestGiver.name"
-  }
-}

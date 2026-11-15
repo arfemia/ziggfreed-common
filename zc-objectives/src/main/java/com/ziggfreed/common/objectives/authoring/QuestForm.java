@@ -21,7 +21,7 @@ import javax.annotation.Nullable;
  * @param sequential     {@code Flow.Sequential}
  * @param autoTrack      {@code Flow.AutoTrack}
  * @param steps          the steps, each under the key it was minted with, in slot order
- * @param droppedSteps   keys of steps the editor emptied, taken out of the file
+ * @param droppedSteps   keys of steps the editor emptied, taken out of the file and retired
  * @param rewardSlots    how many reward rows the editor shows: {@code Rewards.Claim} rows past them are kept as written
  * @param rewards        the reward rows the editor filled, each at its slot (from 0)
  * @param requires       the requirements, or null to leave the file's {@code Requires} as written
@@ -44,9 +44,11 @@ public record QuestForm(@Nonnull String titleKey, @Nullable String flavorKey, @N
      * @param target    {@code Target}, or null for any
      * @param matchMode {@code MatchMode}, or null for the default
      * @param textKey   {@code TextKey}, or null for none
+     * @param replaces  the key of the step this one takes the place of (the same slot, saved as another kind), which
+     *                  is retired; null for none
      */
     public record Step(@Nonnull String key, @Nonnull String kind, @Nullable String target, long amount,
-            @Nullable String matchMode, @Nullable String textKey) {
+            @Nullable String matchMode, @Nullable String textKey, @Nullable String replaces) {
     }
 
     /**

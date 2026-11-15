@@ -121,7 +121,6 @@ page.refused = {0} could not be changed and keeps its state.
 page.back = Back
 # The footer buttons that open an in-game editor, and what the page says when one can't open.
 page.quest_editor = Quest Editor
-page.quest_editor.failed = The quest editor couldn't be opened. The server log says why.
 page.editor.reputation = Reputation Editor
 page.editor.failed = That editor couldn't open. The server log says why.
 

@@ -42,7 +42,6 @@ import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.loot.reward.RewardParam;
 import com.ziggfreed.common.loot.reward.RewardParams;
 import com.ziggfreed.common.npc.NpcIdentities;
-import com.ziggfreed.common.npc.placement.asset.NpcPlacementAuthoring;
 import com.ziggfreed.common.npc.placement.runtime.PlacedNpcComponent;
 import com.ziggfreed.common.quest.asset.QuestAsset;
 import com.ziggfreed.common.ui.form.FieldSpec;
@@ -89,7 +88,7 @@ public final class QuestWizard implements AuthoringWizard {
     static final String GIVER = "giver";
     static final String RETURN = "returnToGiver";
     static final String NEW_GIVER = "newGiver";
-    static final String GIVER_ROLE = "giverRole";
+    static final String GIVER_NAME = "giverName";
     static final String GIVER_SPOT = "giverSpot";
     static final String SEQUENTIAL = "sequential";
     static final String AUTO_TRACK = "autoTrack";
@@ -103,8 +102,11 @@ public final class QuestWizard implements AuthoringWizard {
     static final String REPEAT_RESET = "repeatReset";
     static final String REPEAT_MAX = "repeatMax";
 
-    /** No row: the new giver's character id, minted once for the session. */
+    /** No row: the new giver's id (its role's, its placement's and its character's), minted once for the session. */
     static final String NEW_GIVER_ID = "newGiverId";
+
+    /** No row, per step slot: the kind its key was saved under, so a changed kind takes a new key. */
+    static final String KEY_KIND = "keyKind";
 
     private static final String KILL = "KILL_ENTITY";
     private static final String BREAK = "BREAK_BLOCK";
@@ -132,7 +134,7 @@ public final class QuestWizard implements AuthoringWizard {
     private boolean requiresKept;
     /** True when the file's wait is not whole hours, so a save leaves it as written while the hours stay empty. */
     private boolean cooldownKept;
-    /** Every step key the file holds, lower-cased, which a new step's key never takes. */
+    /** Every step key the file holds or retires, lower-cased, which a new step's key never takes. */
     @Nonnull private Set<String> fileStepKeys = new HashSet<>();
 
     QuestWizard(@Nonnull AuthoringUse use) {
@@ -204,7 +206,7 @@ public final class QuestWizard implements AuthoringWizard {
                 header("newGiverHeader", "header.new_giver"),
                 note("newGiverNote", "note.new_giver"),
                 toggle(NEW_GIVER, "field.new_giver"),
-                picker(GIVER_ROLE, "field.giver_role", QuestEditorPicks.roles()),
+                text(GIVER_NAME, "field.giver_name").withHint(QuestEditorText.key("hint.giver_name")),
                 text(GIVER_SPOT, "field.giver_spot").fromWorld(WorldPick::position)
                         .withHint(QuestEditorText.key("hint.giver_spot")));
     }
@@ -344,7 +346,6 @@ public final class QuestWizard implements AuthoringWizard {
     public void begin(@Nonnull WizardSession session, @Nonnull AuthoringUse use) {
         session.put(AUTO_TRACK, "on");
         session.put(SEQUENTIAL, "on");
-        session.put(GIVER_ROLE, QuestGivers.DEFAULT_ROLE);
         for (int n = 1; n <= STEP_SLOTS; n++) {
             session.put(step(n, "amount"), "1");
         }
@@ -452,9 +453,7 @@ public final class QuestWizard implements AuthoringWizard {
 
     /** Every page's values from a saved quest. */
     private void fill(@Nonnull WizardSession session, @Nonnull QuestDraft.Loaded loaded) {
-        for (String key : loaded.stepKeys()) {
-            fileStepKeys.add(key.toLowerCase(Locale.ROOT));
-        }
+        fileStepKeys.addAll(QuestDraft.taken(loaded));
         requiresKept = loaded.requires() == null;
         cooldownKept = loaded.repeat().cooldownHours() == QuestDraft.KEEP_COOLDOWN;
 
@@ -467,7 +466,7 @@ public final class QuestWizard implements AuthoringWizard {
         flag(session, AUTO_TRACK, loaded.autoTrack());
 
         for (int n = 1; n <= STEP_SLOTS; n++) {
-            for (String part : List.of("kind", "target", "match", "line", "key", "keep")) {
+            for (String part : List.of("kind", "target", "match", "line", "key", "keep", KEY_KIND)) {
                 session.put(step(n, part), null);
             }
             session.put(step(n, "amount"), "1");
@@ -476,6 +475,7 @@ public final class QuestWizard implements AuthoringWizard {
             QuestForm.Step step = loaded.steps().get(i);
             int n = i + 1;
             session.put(step(n, "key"), step.key());
+            session.put(step(n, KEY_KIND), step.kind());
             session.put(step(n, "kind"), step.kind());
             session.put(step(n, "amount"), Long.toString(step.amount()));
             session.put(step(n, "target"), step.target());
@@ -488,12 +488,34 @@ public final class QuestWizard implements AuthoringWizard {
             }
         }
 
+        seedRewards(session, loaded.rewards());
+
+        QuestForm.Requirements requires = loaded.requires();
+        if (requires != null) {
+            session.put(REQ_QUEST, requires.quest());
+            session.put(REQ_PERMISSION, requires.permission());
+            session.put(REQ_FACTOR, requires.factor());
+            session.put(REQ_PARAM, requires.param());
+            session.put(REQ_MIN, requires.min() == null ? null : number(requires.min()));
+        }
+        QuestForm.Repeat repeat = loaded.repeat();
+        flag(session, REPEAT, repeat.on());
+        session.put(REPEAT_HOURS, repeat.cooldownHours() > 0 ? Integer.toString(repeat.cooldownHours()) : null);
+        session.put(REPEAT_RESET, repeat.period());
+        session.put(REPEAT_MAX, repeat.maxCompletions() > 0 ? Integer.toString(repeat.maxCompletions()) : null);
+    }
+
+    /**
+     * The reward slots from a file's Claim rows, each slot the row at its place: at an open, and again after every
+     * save, since a save closes up an emptied slot's row and the slots must name the rows the next save writes over.
+     */
+    private static void seedRewards(@Nonnull WizardSession session, @Nonnull List<QuestForm.Reward> rewards) {
         for (String id : new ArrayList<>(session.values().keySet())) {
             if (REWARD_FIELD.matcher(id).matches()) {
                 session.put(id, null);
             }
         }
-        for (QuestForm.Reward reward : loaded.rewards()) {
+        for (QuestForm.Reward reward : rewards) {
             int n = reward.slot() + 1;
             session.put(reward(n, "kind"), reward.kind());
             RewardParams described = described(reward.kind());
@@ -509,20 +531,6 @@ public final class QuestWizard implements AuthoringWizard {
                 }
             }
         }
-
-        QuestForm.Requirements requires = loaded.requires();
-        if (requires != null) {
-            session.put(REQ_QUEST, requires.quest());
-            session.put(REQ_PERMISSION, requires.permission());
-            session.put(REQ_FACTOR, requires.factor());
-            session.put(REQ_PARAM, requires.param());
-            session.put(REQ_MIN, requires.min() == null ? null : number(requires.min()));
-        }
-        QuestForm.Repeat repeat = loaded.repeat();
-        flag(session, REPEAT, repeat.on());
-        session.put(REPEAT_HOURS, repeat.cooldownHours() > 0 ? Integer.toString(repeat.cooldownHours()) : null);
-        session.put(REPEAT_RESET, repeat.period());
-        session.put(REPEAT_MAX, repeat.maxCompletions() > 0 ? Integer.toString(repeat.maxCompletions()) : null);
     }
 
     /** The English a key holds: the words this pack saved, else what the server loaded, else {@code fallback}. */
@@ -564,7 +572,9 @@ public final class QuestWizard implements AuthoringWizard {
         String giver = session.value(GIVER).trim();
         boolean newGiver = session.isOn(NEW_GIVER);
         if (newGiver) {
-            lines.add(QuestEditorText.line("preview.giver_new", Msg.raw(session.value(GIVER_ROLE).trim())));
+            String name = session.value(GIVER_NAME).trim();
+            lines.add(name.isEmpty() ? QuestEditorText.line("preview.giver_new_unnamed")
+                    : QuestEditorText.line("preview.giver_new", Msg.raw(name)));
         } else if (!giver.isEmpty()) {
             lines.add(QuestEditorText.line("preview.giver", Msg.raw(giver)));
             if (NpcIdentities.allDeclaredNpcIds().stream().noneMatch(giver::equalsIgnoreCase)) {
@@ -719,9 +729,12 @@ public final class QuestWizard implements AuthoringWizard {
         if (!session.isOn(NEW_GIVER)) {
             return null;
         }
-        String role = session.value(GIVER_ROLE).trim();
-        if (role.isEmpty() || !NpcPlacementAuthoring.isSpawnable(role)) {
-            return QuestEditorText.line("check.role", Msg.raw(role));
+        String name = session.value(GIVER_NAME);
+        if (name.isBlank()) {
+            return QuestEditorText.line("check.giver_name");
+        }
+        if (hasBackslash(name)) {
+            return QuestEditorText.line("check.backslash");
         }
         String spot = session.value(GIVER_SPOT);
         return !spot.isBlank() && QuestGivers.cell(spot) == null ? QuestEditorText.line("check.giver_spot") : null;
@@ -845,21 +858,30 @@ public final class QuestWizard implements AuthoringWizard {
         List<String> dropped = new ArrayList<>();
         for (int n = 1; n <= STEP_SLOTS; n++) {
             String kind = kindOf(session, n);
-            String key = session.value(step(n, "key")).trim();
+            String saved = blankToNull(session.value(step(n, "key")));
             if (kind == null) {
-                if (!key.isEmpty()) {
-                    dropped.add(key);
+                if (saved != null) {
+                    // An emptied step leaves the file and its key is retired; the slot starts afresh.
+                    dropped.add(saved);
+                    forgetKey(session, n);
                 }
                 continue;
             }
             String target = session.value(step(n, "target")).trim();
             String line = session.value(step(n, "line")).trim();
-            if (key.isEmpty()) {
-                key = QuestDraft.stepKey(line.isEmpty() ? kind + " " + target : line,
-                        candidate -> taken.contains(candidate.toLowerCase(Locale.ROOT)));
-                taken.add(key.toLowerCase(Locale.ROOT));
-                session.put(step(n, "key"), key);
+            String key = QuestDraft.keyFor(saved, blankToNull(session.value(step(n, KEY_KIND))), kind,
+                    line.isEmpty() ? kind + " " + target : line, taken::contains);
+            String replaces = null;
+            if (saved != null && !saved.equals(key)) {
+                // A changed kind is a new step: it takes a new key in the old one's place, which is retired, so no
+                // player's progress on the old step carries onto it.
+                replaces = saved;
+                dropped.add(saved);
+                session.put(step(n, "keep"), null);
             }
+            taken.add(key.toLowerCase(Locale.ROOT));
+            session.put(step(n, "key"), key);
+            session.put(step(n, KEY_KIND), kind);
             String textKey;
             if (!line.isEmpty()) {
                 String lineKey = ServerContent.textKey(store, id, "step." + key);
@@ -870,7 +892,7 @@ public final class QuestWizard implements AuthoringWizard {
             }
             Long amount = amountOf(session, n);
             steps.add(new QuestForm.Step(key, kind, blankToNull(target), amount == null ? 1L : amount,
-                    blankToNull(session.value(step(n, "match"))), textKey));
+                    blankToNull(session.value(step(n, "match"))), textKey, replaces));
         }
 
         List<QuestForm.Reward> rewards = new ArrayList<>();
@@ -908,12 +930,17 @@ public final class QuestWizard implements AuthoringWizard {
 
         boolean newGiver = session.isOn(NEW_GIVER);
         String giver;
+        String giverNameKey = null;
         if (newGiver) {
+            String giverName = session.value(GIVER_NAME).trim();
             giver = blankToNull(session.value(NEW_GIVER_ID));
             if (giver == null) {
-                giver = QuestGivers.mintId(title);
+                giver = QuestGivers.mintId(giverName);
                 session.put(NEW_GIVER_ID, giver);
             }
+            String nameKey = ServerContent.textKey(QuestGivers.NAME_STORE, giver, "name");
+            texts.put(nameKey, giverName);
+            giverNameKey = ServerContent.storedKey(nameKey);
         } else {
             giver = blankToNull(session.value(GIVER));
         }
@@ -926,16 +953,32 @@ public final class QuestWizard implements AuthoringWizard {
         for (QuestForm.Step written : steps) {
             fileStepKeys.add(written.key().toLowerCase(Locale.ROOT));
         }
+        for (String retired : dropped) {
+            fileStepKeys.add(retired.toLowerCase(Locale.ROOT));
+        }
+        // The save closes up an emptied reward's row, so the slots name the rows as the file now holds them.
+        seedRewards(session, QuestDraft.read(doc, STEP_SLOTS, REWARD_SLOTS).rewards());
 
         List<ServerContent.Result> results = new ArrayList<>();
         results.add(ServerContent.setTexts(texts));
+        ServerContent.Result role = null;
+        if (newGiver && giverNameKey != null && !QuestGivers.placed(giver)) {
+            role = ServerContent.writeRole(giver, QuestGivers.roleJson(giverNameKey));
+            results.add(role);
+        }
         ServerContent.Result quest = ServerContent.write(store, id, doc.toString());
         results.add(quest);
-        if (newGiver && !QuestGivers.placed(giver)) {
-            results.add(QuestGivers.placeAfter(quest, admin, session.value(GIVER_ROLE).trim(), giver,
-                    session.value(GIVER_SPOT)));
+        if (role != null) {
+            results.add(QuestGivers.placeAfter(role, quest, admin, giver, session.value(GIVER_SPOT)));
         }
         return results;
+    }
+
+    /** Step slot {@code n} holds no saved key any more: its next step mints a new one. */
+    private static void forgetKey(@Nonnull WizardSession session, int n) {
+        session.put(step(n, "key"), null);
+        session.put(step(n, KEY_KIND), null);
+        session.put(step(n, "keep"), null);
     }
 
     // ---------------------------------------------------------------- reads

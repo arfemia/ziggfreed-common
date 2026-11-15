@@ -20,7 +20,6 @@ import com.ziggfreed.common.asset.EditorPick;
 import com.ziggfreed.common.authoring.Pickers;
 import com.ziggfreed.common.authoring.WorldPick;
 import com.ziggfreed.common.npc.NpcIdentities;
-import com.ziggfreed.common.npc.placement.asset.NpcPlacementAuthoring;
 import com.ziggfreed.common.progress.ObjectiveKindRegistry;
 import com.ziggfreed.common.progress.asset.ObjectiveKindPicks;
 import com.ziggfreed.common.progress.asset.ProgressEditorDataSets;
@@ -32,7 +31,7 @@ import com.ziggfreed.common.util.SafeLog;
  * What the quest editor's lists offer and what its "Pick in the world" buttons read, each from the live registries
  * at the moment the step paints: the objective and reward kinds from the shared vocabularies, a step's targets from
  * its kind file's {@code Pick} (the one the Asset Editor offers), a reward parameter's from its kind's description,
- * the characters, the roles a giver can stand as, the quests and the factors.
+ * the characters, the quests and the factors.
  */
 final class QuestEditorPicks {
 
@@ -60,12 +59,6 @@ final class QuestEditorPicks {
     @Nonnull
     static Pickers.Source characters() {
         return Pickers.of(NpcIdentities::allDeclaredNpcIds);
-    }
-
-    /** Every role a placement can stand up. */
-    @Nonnull
-    static Pickers.Source roles() {
-        return Pickers.of(NpcPlacementAuthoring::spawnableRoles);
     }
 
     /** Every quest on this server, by id. */
