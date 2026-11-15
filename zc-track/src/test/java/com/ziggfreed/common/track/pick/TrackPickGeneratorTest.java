@@ -94,7 +94,7 @@ class TrackPickGeneratorTest {
             assertEquals("your_tree", TrackKey.normalize(config.resolve("your_tree_swords").parentId()),
                     "and its Parent");
 
-            TrackPicks.Folded folded = TrackPicks.fold(config.all(), id -> null, id -> null, TrackPickGeneratorTest::track);
+            TrackPicks.Folded folded = TrackPicks.fold(config.all(), id -> null, TrackPickGeneratorTest::track);
             assertNull(folded.byId().get("your_swords_hardy"), "an owner switching the Swords skeleton off takes "
                     + "every Swords pick away, though the pick itself was decoded switched on");
             assertNotNull(folded.byId().get("your_axes_hardy"), "the Axes tree stands");
@@ -122,7 +122,7 @@ class TrackPickGeneratorTest {
         picks.put("your_tree_swords", swords);
         picks.put("your_swords_edge", node);
         picks.put("your_swords_keen", forced);
-        TrackPicks.Folded folded = TrackPicks.fold(picks, id -> null, id -> null, TrackPickGeneratorTest::track);
+        TrackPicks.Folded folded = TrackPicks.fold(picks, id -> null, TrackPickGeneratorTest::track);
         assertTrue(folded.byId().isEmpty(), "one switched-off skeleton takes the whole tree, even a pick that writes "
                 + "Enabled itself");
     }

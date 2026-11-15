@@ -1,5 +1,5 @@
 {
-  "$Comment": "Where a hit is a weak spot on this server. Head counts a hit inside the target's Head box (only creatures whose model has one), Margin blocks outside it still counting; Backstab counts a hit from within Arc degrees of straight behind the target; Windows.Effects lists the game's own effects under which every hit is a weak spot (a stun, a flinch's lockout, a freeze, a boss stunned or broken down), beside every effect tagged ZigWeakSpot in its own file; CombatText is the word the attacker sees. What a weak spot pays is the attacker's WeakSpotDamage stat, up to their WeakSpotMax. Change any of these in mods/ziggfreedcommon/weak-spots.json, under the id Default.",
+  "$Comment": "Where a hit is a weak spot on this server. Head counts a hit inside the target's Head box (only creatures whose model has one), Margin blocks outside it still counting; Backstab counts a hit from within Arc degrees of straight behind the target; Windows.Effects lists the game's own effects under which every hit is a weak spot (a stun, a flinch's lockout, a freeze, a boss stunned or broken down), beside every effect tagged ZigWeakSpot in its own file; CombatText is the word the attacker sees, and CritText the word over a critical hit. What a weak spot pays is the attacker's WeakSpotDamage stat, up to their WeakSpotMax; a critical hit rolls their CritChance and pays their CritDamage. Change any of these in mods/ziggfreedcommon/weak-spots.json, under the id Default.",
   "Head": { "Enabled": true, "Margin": 0.1 },
   "Backstab": { "Enabled": true, "Arc": 160 },
   "Windows": {
@@ -11,5 +11,6 @@
       "Goblin_Feastmaster_Stunned"
     ]
   },
-  "CombatText": { "Enabled": true, "Color": "#FF9A2E" }
+  "CombatText": { "Enabled": true, "Color": "#FF9A2E" },
+  "CritText": { "Enabled": true, "Color": "#FF3B3B" }
 }

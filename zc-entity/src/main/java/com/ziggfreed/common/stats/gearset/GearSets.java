@@ -44,9 +44,11 @@ import com.ziggfreed.common.stats.EquipStatBridge.StatKey;
 import com.ziggfreed.common.stats.EquipStatBridge.UtilityPut;
 import com.ziggfreed.common.stats.EquippedSnapshot;
 import com.ziggfreed.common.stats.StatIndexCache;
+import com.ziggfreed.common.stats.condition.BoundGrants;
 import com.ziggfreed.common.stats.gearset.GearSetDecision.SlotCounts;
 import com.ziggfreed.common.stats.gearset.GearSetKeys.TierRef;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.util.ZigScheduler;
 
 /**
  * The gear-set ENGINE: asset-driven set bonuses over the one {@link EquipStatBridge}.
@@ -309,7 +311,8 @@ public final class GearSets {
             long tick = world.getTick();
             Long last = RECHECKED_AT.put(playerId, tick);
             if (last != null && last == tick) {
-                world.scheduleAfter(() -> recheck(world, ref, playerId), world.getTickStepNanos(), TimeUnit.NANOSECONDS);
+                ZigScheduler.schedule(() -> recheck(world, ref, playerId), world.getTickStepNanos(), TimeUnit.NANOSECONDS,
+                        world);
                 waiting = true;
                 return;
             }
@@ -372,6 +375,7 @@ public final class GearSets {
 
             // Decide.
             List<GearSetPlan.Desired> desired = new ArrayList<>();
+            List<BoundGrants.Bound> bound = new ArrayList<>();
             Set<String> desiredEffects = new LinkedHashSet<>();
             Set<TierRef> active = new LinkedHashSet<>();
             Map<String, SlotCounts> countsBySet = new LinkedHashMap<>();
@@ -401,8 +405,13 @@ public final class GearSets {
                     GearSetAsset.Tier tier = tiers.get(tierIndex);
                     TierRef tierRef = new TierRef(set.getId(), tierIndex);
                     active.add(tierRef);
-                    desired.add(new GearSetPlan.Desired(tierRef,
-                            GearSetPlan.resolve(tier, StatIndexCache::resolve, StatIndexCache::warnUnknownOnce)));
+                    if (tier.bound()) {
+                        // Its stats count only while its While conditions hold: the holder pass writes them.
+                        bound.addAll(GearSetPlan.bound(tierRef, tier));
+                    } else {
+                        desired.add(new GearSetPlan.Desired(tierRef,
+                                GearSetPlan.resolve(tier, StatIndexCache::resolve, StatIndexCache::warnUnknownOnce)));
+                    }
                     String effect = tier.effectId();
                     if (effect != null) {
                         desiredEffects.add(effect);
@@ -432,6 +441,7 @@ public final class GearSets {
             for (StatKey remove : plan.removes()) {
                 statMap.removeModifier(remove.statIndex, remove.key);
             }
+            BoundGrants.set(statMap, ref, GearSetPlan.BOUND_OWNER, bound);
 
             // Effects: see effectChanges. A hydrate cannot trust memory, so it answers for every
             // effect id any folded set names (looks and badges), the default tiles, and every id the

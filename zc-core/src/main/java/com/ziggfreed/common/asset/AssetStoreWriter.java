@@ -1,5 +1,6 @@
 package com.ziggfreed.common.asset;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -12,6 +13,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.assetstore.AssetLoadResult;
 import com.hypixel.hytale.assetstore.AssetMap;
 import com.hypixel.hytale.assetstore.AssetRegistry;
 import com.hypixel.hytale.assetstore.AssetStore;
@@ -166,6 +168,39 @@ public final class AssetStoreWriter {
             @Nonnull String what, @Nonnull AssetStore<K, T, M> store, @Nonnull String packKey,
             @Nonnull List<RawAsset<K>> buffers) {
         return write(what, () -> store.loadBuffersWithKeys(packKey, buffers, AssetUpdateQuery.DEFAULT, false));
+    }
+
+    /**
+     * {@link #write} of asset files already on disk into {@code store} under {@code packKey} through
+     * {@code AssetStore.loadAssetsFromPaths}, exactly as the engine's own file watcher reloads a pack
+     * file (the default update query, every file loaded): an existing id is overwritten in place, a
+     * new one is appended, and the store records each file's path for the asset. A file the store
+     * refuses fails the write, its keys and paths named in the cause.
+     */
+    @Nonnull
+    public static <K, T extends JsonAssetWithMap<K, M>, M extends AssetMap<K, T>> Result writePaths(
+            @Nonnull String what, @Nonnull AssetStore<K, T, M> store, @Nonnull String packKey,
+            @Nonnull List<Path> paths) {
+        return write(what, () -> {
+            AssetLoadResult<K, T> loaded = store.loadAssetsFromPaths(packKey, paths, AssetUpdateQuery.DEFAULT, true);
+            if (loaded.hasFailed()) {
+                throw new IllegalStateException("the store refused " + loaded.getFailedToLoadKeys()
+                        + " from " + loaded.getFailedToLoadPaths());
+            }
+        });
+    }
+
+    /**
+     * {@link #write} that takes {@code keys} out of {@code packKey}'s layer of {@code store} through
+     * {@code AssetStore.removeAssets}, the way the engine's file watcher unloads a deleted pack file:
+     * only that pack's entry goes, so another pack's copy of the same id (the one this pack overrode)
+     * comes back.
+     */
+    @Nonnull
+    public static <K, T extends JsonAssetWithMap<K, M>, M extends AssetMap<K, T>> Result removeAssets(
+            @Nonnull String what, @Nonnull AssetStore<K, T, M> store, @Nonnull String packKey,
+            @Nonnull List<K> keys) {
+        return write(what, () -> store.removeAssets(packKey, false, keys, AssetUpdateQuery.DEFAULT));
     }
 
     /**

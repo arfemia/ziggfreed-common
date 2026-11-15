@@ -20,22 +20,19 @@ import com.hypixel.hytale.component.dependency.Order;
 import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.math.shape.Box;
-import com.hypixel.hytale.protocol.CombatTextUpdate;
 import com.hypixel.hytale.server.core.asset.type.model.config.DetailBox;
-import com.hypixel.hytale.server.core.asset.util.ColorParseUtil;
 import com.hypixel.hytale.server.core.modules.entity.component.BoundingBox;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageEventSystem;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageModule;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageSourceType;
-import com.hypixel.hytale.server.core.modules.entity.tracker.EntityTrackerSystems;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntityStatTypes;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.i18n.Msg;
-import com.ziggfreed.common.i18n.PlainText;
+import com.ziggfreed.common.damage.onhit.HitWords;
+import com.ziggfreed.common.stats.condition.BoundGrants;
 import com.ziggfreed.common.stats.damage.TypedDamageBonusSystem;
 import com.ziggfreed.common.stats.damage.TypedDamageBonuses;
 import com.ziggfreed.common.usegate.UseGateDamageSystem;
@@ -47,8 +44,10 @@ import com.ziggfreed.common.util.SafeLog;
  * already cancelled), so the bonus multiplies the whole hit, flats included, on top as a crit does. A consumer
  * whose fold must see the weak-spot amount (a lifesteal read off the hit) orders itself {@code AFTER} this class.
  *
- * <p><b>Cost.</b> A hit by an entity whose weak-spot stats are all 0 (every one until something raises them) pays
- * one component read and a stat read each and returns. A damage-over-time tick never asks. Only a nonzero attacker
+ * <p><b>Cost.</b> A hit by an entity whose weak-spot stats are all 0 (every one until something raises them) and who
+ * holds no bound grant a hit may pay ({@code BoundGrants.hasHitTerms}) pays one component read and a stat read each and
+ * returns; one who holds such a grant has each stat read again with its hit term once the hit is known to land. A
+ * damage-over-time tick never asks. Only a nonzero attacker
  * asks the ways in, cheapest first: vanilla's own headshot or backstab branch (a meta read, decided once a hit and
  * applied to each of its causes), the target's window effects (one pass over its active effects against a table), the
  * rear arc (two transform reads), the head box (the target's detail boxes), and last the target's health against the
@@ -57,7 +56,7 @@ import com.ziggfreed.common.util.SafeLog;
  */
 public final class WeakSpotSystem extends DamageEventSystem {
 
-    /** Where the word floats, beside the crit's (which a consumer draws at -20). */
+    /** Where the word floats, beside the crit's (the crit step's, at -20). */
     private static final float TEXT_ANGLE = 20f;
 
     /** The word's lang key, in this module's {@code ziggfreedcommon.weakspot.lang}. */
@@ -107,12 +106,20 @@ public final class WeakSpotSystem extends DamageEventSystem {
             // of the same hit (another cause) takes the same answer, even when the first was refused.
             VanillaWeakSpots.Paid vanilla = VanillaWeakSpots.paidForHit(damage, target);
             Ways ways = Ways.of(stats);
-            if (ways.base() <= 0.0 && !ways.anyWay() && !ways.sourcesMayPay()) {
+            boolean bound = BoundGrants.hasHitTerms(attacker);
+            if (!ways.mayPay() && !bound) {
                 return;
             }
             if (damage.isCancelled() || damage.getAmount() <= 0f
                     || target.equals(attacker) || !TypedDamageBonuses.attackerAllowed(store, attacker)) {
                 return;
+            }
+            if (bound) {
+                // A bound grant that is off may still count on this hit (R945): read once the hit is known to land.
+                ways = ways.withHitTerms(store, attacker, damage);
+                if (!ways.mayPay()) {
+                    return;
+                }
             }
             double base = ways.base() + WeakSpots.sourcePoints(store, attacker, damage, stats);
             WeakSpotSettingsAsset settings = WeakSpotSettingsConfig.getInstance().settings();
@@ -143,7 +150,7 @@ public final class WeakSpotSystem extends DamageEventSystem {
             }
             damage.putMetaObject(WeakSpots.hitKey(), (float) Math.max(0.0, ours - paid));
             if (settings.textEnabled()) {
-                showText(store, attacker, target, settings.textColor());
+                HitWords.show(store, attacker, target, TEXT_KEY, settings.textColor(), TEXT_ANGLE);
             }
         } catch (Throwable t) {
             SafeLog.warn("[weakspot] the weak-spot step failed: " + t.getMessage());
@@ -174,6 +181,26 @@ public final class WeakSpotSystem extends DamageEventSystem {
         /** Does a way of its own pay more on top (a head, back or window stat raised)? */
         boolean anyWay() {
             return head > 0.0 || back > 0.0 || staggered > 0.0;
+        }
+
+        /** Could a weak spot pay anything: the bonus, a way of its own or a source raised? */
+        boolean mayPay() {
+            return base > 0.0 || anyWay() || sourcesMayPay;
+        }
+
+        /**
+         * These stats on this hit: each with the attacker's bound grants on it that are off but hold on the hit
+         * ({@link BoundGrants#hitPoints}, R945).
+         */
+        @Nonnull
+        Ways withHitTerms(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> attacker,
+                @Nonnull Damage damage) {
+            return new Ways(base + BoundGrants.hitPoints(accessor, attacker, WeakSpots.DAMAGE_STAT, damage),
+                    head + BoundGrants.hitPoints(accessor, attacker, WeakSpots.HEAD_STAT, damage),
+                    back + BoundGrants.hitPoints(accessor, attacker, WeakSpots.BACK_STAT, damage),
+                    staggered + BoundGrants.hitPoints(accessor, attacker, WeakSpots.STAGGERED_STAT, damage),
+                    foeLow + BoundGrants.hitPoints(accessor, attacker, WeakSpots.FOE_LOW_STAT, damage),
+                    sourcesMayPay);
         }
     }
 
@@ -280,29 +307,5 @@ public final class WeakSpotSystem extends DamageEventSystem {
             double maxX, double maxY, double maxZ, double margin) {
         double m = Math.max(0.0, margin);
         return x >= minX - m && x <= maxX + m && y >= minY - m && y <= maxY + m && z >= minZ - m && z <= maxZ + m;
-    }
-
-    /** The word over the target, to the attacker alone, when the attacker is a player who can see it. */
-    private static void showText(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> attacker,
-            @Nonnull Ref<EntityStore> target, @Nonnull String color) {
-        try {
-            EntityTrackerSystems.EntityViewer viewer =
-                    store.getComponent(attacker, EntityTrackerSystems.EntityViewer.getComponentType());
-            if (viewer == null || !viewer.visible.contains(target)) {
-                return;
-            }
-            // The packet takes plain text, so the word is read in the server's language, as a crit's is.
-            String text = PlainText.of(Msg.key(TEXT_KEY));
-            if (text.isEmpty() || text.equals(TEXT_KEY)) {
-                return;
-            }
-            CombatTextUpdate update = new CombatTextUpdate();
-            update.hitAngleDeg = TEXT_ANGLE;
-            update.text = text;
-            update.color = ColorParseUtil.parseColor(color);
-            viewer.queueUpdate(target, update);
-        } catch (Throwable t) {
-            SafeLog.fine("[weakspot] the combat text failed: " + t.getMessage());
-        }
     }
 }

@@ -39,7 +39,6 @@ class RewardChestAssetCodecTest {
               "Open":     { "Credited": false },
               "Contents": { "Lootable": " MyPack_Trork_Hoard ", "Diminish": { "Steps": [1, 0.5], "Window": "Daily" },
                             "TitleKey": "mypack.chest.title" },
-              "View":     { "ItemsWindow": false },
               "Banner":   { "TitleKey": "mypack.chest.banner.title", "SubtitleKey": "mypack.chest.banner", "Major": true },
               "Text":     { "LeadKey": "mypack.chest.lead", "NoticeKey": "mypack.chest.notice" },
               "Despawn":  { "Lifetime": 120, "WhenEmptied": false }
@@ -57,7 +56,7 @@ class RewardChestAssetCodecTest {
         RewardChestAsset again = decode("MyPack_Trork_Chest",
                 RewardChestAsset.CODEC.encode(read, new ExtraInfo()).toJson(), null);
         assertFull(again);
-        for (String group : List.of("Look", "Open", "Contents", "View", "Banner", "Text", "Despawn")) {
+        for (String group : List.of("Look", "Open", "Contents", "Banner", "Text", "Despawn")) {
             assertNotNull(RewardChestAsset.CODEC.toSchema(new SchemaContext()).getProperties().get(group),
                     "the schema the Asset Editor loads declares " + group);
         }
@@ -72,7 +71,6 @@ class RewardChestAssetCodecTest {
         assertNull(bare.lootable(), "no Contents: it holds only what its source pays");
         assertNull(bare.diminish());
         assertNull(bare.contentsTitleKey());
-        assertTrue(bare.itemsWindow(), "what is not an item first, then the game's chest window");
         assertNull(bare.bannerTitleKey(), "no banner of its own");
         assertNull(bare.bannerSubtitleKey());
         assertFalse(bare.bannerMajor());
@@ -99,7 +97,6 @@ class RewardChestAssetCodecTest {
         assertNotNull(child.diminish());
         assertEquals("mypack.chest.banner.title", child.bannerTitleKey(), "an unmentioned group is the parent's");
         assertEquals(120, child.lifetimeSeconds());
-        assertFalse(child.itemsWindow());
     }
 
     @Test
@@ -151,7 +148,6 @@ class RewardChestAssetCodecTest {
         assertEquals("MyPack_Trork_Hoard", read.lootable(), "the table is read trimmed");
         assertNotNull(read.diminish());
         assertEquals("mypack.chest.title", read.contentsTitleKey());
-        assertFalse(read.itemsWindow());
         assertEquals("mypack.chest.banner.title", read.bannerTitleKey());
         assertEquals("mypack.chest.banner", read.bannerSubtitleKey());
         assertTrue(read.bannerMajor());
@@ -170,7 +166,6 @@ class RewardChestAssetCodecTest {
         assertEquals(expected.lootable(), actual.lootable(), why + ": Contents.Lootable");
         assertEquals(expected.diminish() == null, actual.diminish() == null, why + ": Contents.Diminish");
         assertEquals(expected.contentsTitleKey(), actual.contentsTitleKey(), why + ": Contents.TitleKey");
-        assertEquals(expected.itemsWindow(), actual.itemsWindow(), why + ": View.ItemsWindow");
         assertEquals(expected.bannerTitleKey(), actual.bannerTitleKey(), why + ": Banner.TitleKey");
         assertEquals(expected.bannerSubtitleKey(), actual.bannerSubtitleKey(), why + ": Banner.SubtitleKey");
         assertEquals(expected.bannerMajor(), actual.bannerMajor(), why + ": Banner.Major");

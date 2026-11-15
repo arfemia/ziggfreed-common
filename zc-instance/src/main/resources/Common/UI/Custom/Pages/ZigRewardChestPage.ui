@@ -7,13 +7,22 @@ $ZW = "../Common/ZigKit.ui";
 //
 // #Page is the kit's @ZigDetailPage, painted by com.ziggfreed.common.ui.kit.DetailPainter: the chest's picture,
 // "Your share", how many cards it shows and the difficulty pill; the chest's own line; then one cards block across
-// all the chest's Claims (a Pages/ZigTileSection.ui whose wrapping grid holds Pages/ZigRewardCard.ui cards, four a
-// row in this frame's 596px): what is not an item first on the warm plate, its picture over its own line, alike ones
-// summed into one card; a Pages/ZigRewardDivider.ui rule; then the items, best quality first, each on the game's own rarity slot
-// with its own tooltip. A click anywhere on a card takes it; then the hint and the gold Take All on the action bar.
-// #ChestEmpty, the kit's empty state, takes its place once nothing is left, the page staying open so the press's
-// toast is seen. The frame owns the size, the padding and the close button. Every press reopens the page, so every
-// build is a full one, and the page never spells a template's child ids: the kit's painters own them.
+// all the chest's Claims (a Pages/ZigTileSection.ui whose wrapping grid holds Pages/ZigRewardCard.ui cards in this
+// frame's 596px): what is not an item first on the warm plate, five a row, its picture over its own line, alike ones
+// of one payout kind summed into one card; a Pages/ZigRewardDivider.ui rule; then the items, four a row, best quality
+// first, each on the game's own rarity slot with its own tooltip. Every card names where it came from and wears its
+// rarity's slot art, word and (Epic and up) sheen. A click anywhere on a card takes it; then the hint and the gold
+// Take All on the action bar. #ChestEmpty, the kit's empty state, takes its place once nothing is left, the page
+// staying open so the press's toast is seen. The frame owns the size, the padding and the close button. Every press
+// reopens the page, so every build is a full one, and the page never spells a template's child ids: the kit's
+// painters own them.
+//
+// #OpenBurst is a gold flash behind the chest's picture (Common/Kit/RewardBurst.png: 13 frames of 80 x 80, the last
+// one empty; tools/ui/make_reward_sprites.py draws it), drawn first in #ChestBody's absolute layout so the page draws
+// over it, 80 x 80 at the corner that centres it on the 48px picture inside #Page's 16px padding. The client plays it
+// once and keeps the empty last frame (RepeatCount 1, KeepLastFrame true, as the release client's own
+// Client/Data/Game/Interface/InGame/Hud/EventTitle/GoblinBreach.ui plays its banner Sprite once, lines 15 to 22); the
+// page shows it on its first build only, so a press's rebuild never plays it again.
 //
 // Shipped once in ziggfreed-common; neutral Zig* ids. Smoke-test in-game.
 
@@ -25,13 +34,28 @@ $F.@ZigDecoratedFrame {
   Anchor: (Width: 680, Height: 780);
 
   #Content {
-    $ZW.@ZigDetailPage #Page {
+    Group #ChestBody {
       FlexWeight: 1;
-    }
+      LayoutMode: Full;
 
-    $ZW.@ZigEmptyState #ChestEmpty {
-      FlexWeight: 1;
-      Visible: false;
+      Sprite #OpenBurst {
+        Anchor: (Left: 0, Top: 0, Width: 80, Height: 80);
+        TexturePath: "../Common/Kit/RewardBurst.png";
+        Frame: (Width: 80, Height: 80, PerRow: 5, Count: 13);
+        FramesPerSecond: 20;
+        RepeatCount: 1;
+        KeepLastFrame: true;
+        Visible: false;
+      }
+
+      $ZW.@ZigDetailPage #Page {
+        Anchor: (Full: 0);
+      }
+
+      $ZW.@ZigEmptyState #ChestEmpty {
+        Anchor: (Full: 0);
+        Visible: false;
+      }
     }
   }
 }

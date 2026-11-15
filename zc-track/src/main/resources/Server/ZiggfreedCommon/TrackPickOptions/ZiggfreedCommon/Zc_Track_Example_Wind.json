@@ -1,7 +1,6 @@
 {
-  "$Comment": "One of the sample pick's options: each time it is chosen it raises the player's maximum stamina by the naming pick's Step. The sample deck offers it every other level or so (Bag Often), never more than three levels apart.",
+  "$Comment": "One of the sample pick's options: each time it is chosen it raises the player's maximum stamina by the naming pick's Step. It is offered at every level the sample pick opens a slot at.",
   "Text": { "TitleKey": "ziggfreedcommon.track.example.option.stamina", "FlavorKey": "ziggfreedcommon.track.example.option.stamina.desc" },
   "Icon": "Ingredient_Crystal_Yellow",
-  "Bag": "Often",
   "Grants": [ { "Kind": "Stat", "Stat": "Stamina", "Add": "{Step}" } ]
 }

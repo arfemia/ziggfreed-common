@@ -45,6 +45,9 @@ public class ZigFlairComponent implements Component<EntityStore> {
     /** The engine registry id; the persisted save key for this component. */
     public static final String REGISTRY_ID = "ZiggfreedCommon:Flairs";
 
+    /** The save's {@code Version} leaf: a save from before it reads as version 0, unchanged (zc-core's {@code codec/} router). */
+    public static final int VERSION = 1;
+
     public static ComponentType<EntityStore, ZigFlairComponent> TYPE;
 
     /** Lowercase flair ids the player has unlocked (any surface, any grantor). */
@@ -99,6 +102,7 @@ public class ZigFlairComponent implements Component<EntityStore> {
 
     static {
         var builder = BuilderCodec.builder(ZigFlairComponent.class, ZigFlairComponent::new);
+        builder.versioned().codecVersion(VERSION);
         builder.append(new KeyedCodec<>("UnlockedFlairs", Codec.STRING),
                 (c, v, info) -> c.unlockedFlairs = deserializeStringSet(v),
                 (c, info) -> serializeStringSet(c.unlockedFlairs)).add();

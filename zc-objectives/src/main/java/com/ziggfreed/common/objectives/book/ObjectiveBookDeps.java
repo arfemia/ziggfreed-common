@@ -1,7 +1,9 @@
 package com.ziggfreed.common.objectives.book;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import javax.annotation.Nonnull;
@@ -14,12 +16,20 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.achievement.Achievement;
+import com.ziggfreed.common.achievement.AchievementEngine;
+import com.ziggfreed.common.achievement.AchievementMilestone;
+import com.ziggfreed.common.achievement.AchievementStatus;
+import com.ziggfreed.common.achievement.asset.AchievementMilestoneAsset;
+import com.ziggfreed.common.achievement.asset.AchievementMilestoneConfig;
+import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.objectives.questlist.NpcQuestPageDeps;
+import com.ziggfreed.common.progress.ClaimAttempt;
 import com.ziggfreed.common.progress.gate.GateClause;
 import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.progress.runtime.ProgressionTexts;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.subject.Subject;
@@ -32,7 +42,7 @@ import com.ziggfreed.common.util.SafeLog;
  * <p>Every seam here has a DEFAULT that leaves the book fully working on a bare server: the
  * catalogue, the subject and the display text all come from the shared progression runtime, so a
  * consumer fills a seam only to say something the library genuinely cannot know - its
- * board-managed quests, who claimed a server-first, its points-milestone ladder. The book's frame
+ * board-managed quests, who claimed a server-first, its own words for a points-milestone rung. The book's frame
  * paint and its rail are the shared menu's, said through {@code ZigMenu.consumer}; a consumer's
  * statistics reach the book as a {@code LedgerContributions.STATISTICS} source.
  *
@@ -51,14 +61,16 @@ import com.ziggfreed.common.util.SafeLog;
  *   <li>{@link FirstClaimSource} - who claimed a server-first achievement; unfilled, the badge
  *       shows without a claimant line.</li>
  *   <li>{@link MilestoneSource} / {@link MilestoneClaim} - the points-milestone ladder and its
- *       claim; unfilled, the milestones block and the third header stat hide.</li>
+ *       claim. The default is the achievement engine's own ladder and collect
+ *       ({@link #ENGINE_MILESTONES}, {@link #ENGINE_MILESTONE_CLAIM}), so a server running nothing
+ *       else shows the rungs its milestone files publish; a consumer fills the source only to word
+ *       its rungs its own way, and {@link #NO_MILESTONES} hides the block and the third header
+ *       stat.</li>
  *   <li>{@link ActionFeedback} - what announces a quest accepted or abandoned from the book, so
  *       those moments read exactly like the consumer's own menu. A filled seam OWNS the
  *       announcement and the book's own toasts stand down; unfilled, the book's toasts are the
- *       announcement.</li>
- *   <li>{@link QuestClaimPreCheck} - a last word before a quest's claim reaches the engine, for a
- *       refusal only the consumer can know about (a board that wants its own room check, a paused
- *       economy). Default nothing to refuse, so every claim reaches the engine unchanged.</li>
+ *       announcement. An accept that finished the quest at once is announced by the library's
+ *       completion notice alone, so neither speaks for it.</li>
  *   <li>{@link DetailBlockSource} - extra blocks after a quest's or an achievement's own on its page;
  *       default none.</li>
  *   <li>{@link SeenMarks} - when the player last opened each achievement category, so a tile can say
@@ -148,11 +160,11 @@ public final class ObjectiveBookDeps {
     }
 
     /**
-     * One rung of the consumer's points-milestone ladder, ready to paint: the words are built by
-     * whoever owns the ladder, the rewards render through the shared chip reading, and
-     * {@code claimable} is true only when pressing Claim would actually pay.
+     * One rung of the points-milestone ladder, ready to paint: the words are built by whoever owns
+     * the ladder (a null {@code title} reads as the threshold alone), the rewards render through the
+     * shared chip reading, and {@code claimable} is true only when pressing Claim would actually pay.
      */
-    public record MilestoneView(int threshold, @Nonnull Message title, @Nullable Message description,
+    public record MilestoneView(int threshold, @Nullable Message title, @Nullable Message description,
                                 @Nonnull List<RewardSpec> rewards, boolean unlocked, boolean claimed,
                                 boolean claimable) {
     }
@@ -236,15 +248,15 @@ public final class ObjectiveBookDeps {
      * announcement.
      *
      * <p>An accept made through the library's own conversation binding
-     * ({@code objectives/dialogue/RuntimeDialogueQuests}) is announced through this seam too, with
-     * the same five arguments, so a consumer words its accepts once and a quest taken in
-     * conversation sounds like one taken from the book. A conversation has no toast of its own to
-     * stand down; unfilled, the line the conversation goes on to is the announcement.
+     * ({@code objectives/dialogue/RuntimeDialogueQuests}) is announced through this seam too, so a
+     * consumer words its accepts once and a quest taken in conversation sounds like one taken from
+     * the book. A conversation has no toast of its own to stand down; unfilled, the line the
+     * conversation goes on to is the announcement.
      *
-     * <p>The book asks the five-argument {@link #accepted(Quest, Store, Ref, Player,
-     * RewardGrants.GrantOutcome)}, carrying what the settle right behind the accept paid when the
-     * quest finished the instant it was taken; its default hands off to the four-argument form, so
-     * a fill that does not care about the payout implements that one and hears every accept.
+     * <p>An accept that FINISHED the quest at once (a standing value already met every step, so it
+     * paid out or parked in the same press) is never announced here: the library's completion
+     * notice ({@code Quest_Completed} or {@code Quest_Parked}) is the one announcement for it, on
+     * every surface.
      */
     public interface ActionFeedback {
 
@@ -252,34 +264,9 @@ public final class ObjectiveBookDeps {
                 @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
         }
 
-        /**
-         * A quest was accepted, and {@code settled} is what the settle right behind the accept
-         * paid - non-null only when a standing value already met every step and the quest paid out
-         * on the spot, so a completion toast raised here lists what was actually handed over. Null
-         * for an ordinary accept, and for one that finished but parked for collecting.
-         */
-        default void accepted(@Nonnull Quest quest, @Nonnull Store<EntityStore> store,
-                @Nonnull Ref<EntityStore> ref, @Nonnull Player player,
-                @Nullable RewardGrants.GrantOutcome settled) {
-            accepted(quest, store, ref, player);
-        }
-
         default void abandoned(@Nonnull Quest quest, @Nonnull Store<EntityStore> store,
                 @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
         }
-    }
-
-    /**
-     * A last word before a quest's claim reaches the engine. Returning a refusal STOPS the claim
-     * before {@code engine.claim} is ever called, and the page shows it as an error toast; null lets
-     * the claim proceed to the engine's own rules exactly as if nothing were registered.
-     */
-    @FunctionalInterface
-    public interface QuestClaimPreCheck {
-
-        @Nullable
-        Message refusalFor(@Nonnull Quest quest, @Nonnull Store<EntityStore> store,
-                @Nonnull Ref<EntityStore> ref, @Nonnull Player player);
     }
 
     /** No consumer controls, so an unexpected ext click is answered by the book alone. */
@@ -315,12 +302,27 @@ public final class ObjectiveBookDeps {
     public static final MilestoneClaim NO_MILESTONE_CLAIM =
             (threshold, store, ref, player) -> MilestoneClaimOutcome.NOT_READY;
 
+    /**
+     * The achievement engine's own points ladder, and the default: every rung the engine runs (this
+     * library's {@code AchievementMilestones} files and any layer a consumer published over them),
+     * where each stands for the subject, its rewards as the rung lists them, and its name from its
+     * file's {@code TitleKey} when the loaded catalogue ships it (else the book names it by its
+     * threshold). A server running nothing but this library shows its ladder this way.
+     */
+    public static final MilestoneSource ENGINE_MILESTONES = ObjectiveBookDeps::engineMilestones;
+
+    /**
+     * The achievement engine's own collect, and the default:
+     * {@code AchievementEngine.attemptClaimMilestone} for the runtime's subject, inside the registered
+     * achievement call scope, answering the payout's receipt; rewards that will not fit read as
+     * {@link MilestoneClaimOutcome#INVENTORY_FULL}, anything else that paid nothing as
+     * {@link MilestoneClaimOutcome#NOT_READY}.
+     */
+    public static final MilestoneClaim ENGINE_MILESTONE_CLAIM = new EngineMilestoneClaim();
+
     /** Nothing beside the engines' own announcements. */
     public static final ActionFeedback NO_FEEDBACK = new ActionFeedback() {
     };
-
-    /** Nothing to refuse, so every claim reaches the engine unchanged. */
-    public static final QuestClaimPreCheck NO_CLAIM_PRECHECK = (quest, store, ref, player) -> null;
 
     /** The marks a deps whose builder named none carries ({@link #libraryMarks}). */
     @Nonnull
@@ -338,7 +340,6 @@ public final class ObjectiveBookDeps {
     @Nonnull private final MilestoneSource milestones;
     @Nonnull private final MilestoneClaim milestoneClaim;
     @Nonnull private final ActionFeedback actionFeedback;
-    @Nonnull private final QuestClaimPreCheck claimPreCheck;
     @Nonnull private final DetailBlockSource detailBlocks;
     /** The builder's marks, or null for the library's own ({@link #libraryMarks}), read at each use. */
     @Nullable private final SeenMarks seen;
@@ -353,7 +354,6 @@ public final class ObjectiveBookDeps {
         this.milestones = builder.milestones;
         this.milestoneClaim = builder.milestoneClaim;
         this.actionFeedback = builder.actionFeedback;
-        this.claimPreCheck = builder.claimPreCheck;
         this.detailBlocks = builder.detailBlocks;
         this.seen = builder.seen;
     }
@@ -422,11 +422,6 @@ public final class ObjectiveBookDeps {
     }
 
     @Nonnull
-    public QuestClaimPreCheck claimPreCheck() {
-        return claimPreCheck;
-    }
-
-    @Nonnull
     public DetailBlockSource detailBlocks() {
         return detailBlocks;
     }
@@ -479,20 +474,6 @@ public final class ObjectiveBookDeps {
         }
     }
 
-    /**
-     * The claim pre-check's refusal, guarded: a throwing seam costs only its own answer, so the
-     * claim reaches the engine exactly as it would with nothing registered.
-     */
-    @Nullable
-    public Message claimPreCheckGuarded(@Nonnull Quest quest, @Nonnull Store<EntityStore> store,
-            @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
-        try {
-            return claimPreCheck.refusalFor(quest, store, ref, player);
-        } catch (Throwable t) {
-            return null;
-        }
-    }
-
     /** A tag chip's label, guarded: a seam that declines or throws falls to the tidied raw tag. */
     @Nonnull
     public Message tagLabelGuarded(@Nonnull String tag) {
@@ -528,6 +509,92 @@ public final class ObjectiveBookDeps {
             SafeLog.warn("[progression] the book's milestone source failed: " + t.getMessage());
             return List.of();
         }
+    }
+
+    /**
+     * {@link #ENGINE_MILESTONES}: the engine's rungs, lowest first, each as {@code subject} stands on it; none before
+     * the shared runtime is built.
+     */
+    @Nonnull
+    static List<MilestoneView> engineMilestones(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+            @Nonnull Subject subject) {
+        if (!ProgressionRuntime.isBuilt()) {
+            return List.of();
+        }
+        AchievementEngine engine = ProgressionRuntime.achievements();
+        List<AchievementMilestone> ladder = engine.milestones();
+        if (ladder.isEmpty()) {
+            return List.of();
+        }
+        // A rung's words ride its file, keyed by the threshold that is its identity; a rung a consumer published
+        // with no file here simply reads by its threshold.
+        Map<Integer, AchievementMilestoneAsset> files = new HashMap<>();
+        for (AchievementMilestoneAsset file : AchievementMilestoneConfig.getInstance().assetsByThreshold()) {
+            files.put(file.getThreshold(), file);
+        }
+        List<MilestoneView> out = new ArrayList<>(ladder.size());
+        for (AchievementMilestone rung : ladder) {
+            AchievementStatus status = engine.milestoneStatus(subject, rung.threshold());
+            AchievementMilestoneAsset file = files.get(rung.threshold());
+            List<RewardSpec> rewards = new ArrayList<>(rung.autoRewards());
+            rewards.addAll(rung.claimRewards());
+            boolean unlocked = status.isUnlocked();
+            boolean claimed = status.isClaimed();
+            out.add(new MilestoneView(rung.threshold(),
+                    shippedLine(file == null ? null : file.getTitleKey()),
+                    shippedLine(file == null ? null : file.getDescriptionKey()),
+                    rewards, unlocked, claimed, unlocked && !claimed && rung.requiresClaim()));
+        }
+        return out;
+    }
+
+    /** An authored key as its line when the loaded catalogue ships it; null for none, never a raw key. */
+    @Nullable
+    private static Message shippedLine(@Nullable String authoredKey) {
+        String key = authoredKey == null ? null : ContentKeys.pick(authoredKey, null);
+        return key == null ? null : ContentKeys.tr(key);
+    }
+
+    /** {@link #ENGINE_MILESTONE_CLAIM}: the engine's collect for the runtime's subject, in its call scope. */
+    private static final class EngineMilestoneClaim implements MilestoneClaim {
+
+        @Nonnull
+        @Override
+        public MilestoneClaimOutcome claim(int threshold, @Nonnull Store<EntityStore> store,
+                @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
+            return tryClaim(threshold, store, ref, player).outcome();
+        }
+
+        @Nonnull
+        @Override
+        public MilestoneClaimResult tryClaim(int threshold, @Nonnull Store<EntityStore> store,
+                @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
+            if (!ProgressionRuntime.isBuilt()) {
+                return MilestoneClaimResult.of(MilestoneClaimOutcome.NOT_READY);
+            }
+            Subject subject = ProgressionRuntime.subjects().achievementSubject(store, ref);
+            if (subject == null) {
+                return MilestoneClaimResult.of(MilestoneClaimOutcome.NOT_READY);
+            }
+            AchievementEngine engine = ProgressionRuntime.achievements();
+            return milestoneResult(ProgressionRuntime.achievementScope()
+                    .around(subject, s -> engine.attemptClaimMilestone(s, threshold)));
+        }
+    }
+
+    /**
+     * An engine collect in the book's words: the receipt when it paid, {@link MilestoneClaimOutcome#INVENTORY_FULL}
+     * when its rewards would not fit, {@link MilestoneClaimOutcome#NOT_READY} for anything else (a missing attempt
+     * included).
+     */
+    @Nonnull
+    static MilestoneClaimResult milestoneResult(@Nullable ClaimAttempt attempt) {
+        RewardGrants.GrantOutcome paid = ClaimAttempt.paidOf(attempt);
+        if (paid != null) {
+            return MilestoneClaimResult.paid(paid.receipt());
+        }
+        return MilestoneClaimResult.of(ClaimAttempt.refusalOf(attempt) == ClaimAttempt.Refusal.NO_ROOM
+                ? MilestoneClaimOutcome.INVENTORY_FULL : MilestoneClaimOutcome.NOT_READY);
     }
 
     /** The consumer's extra blocks on a quest's page, guarded: a throwing or null answer adds none. */
@@ -680,10 +747,9 @@ public final class ObjectiveBookDeps {
         @Nonnull private TagLabelSource tagLabels = RAW_TAGS;
         @Nonnull private NpcQuestPageDeps.RewardChipSource rewardChips = GENERIC_CHIPS;
         @Nonnull private FirstClaimSource firstClaims = NO_FIRST_CLAIMS;
-        @Nonnull private MilestoneSource milestones = NO_MILESTONES;
-        @Nonnull private MilestoneClaim milestoneClaim = NO_MILESTONE_CLAIM;
+        @Nonnull private MilestoneSource milestones = ENGINE_MILESTONES;
+        @Nonnull private MilestoneClaim milestoneClaim = ENGINE_MILESTONE_CLAIM;
         @Nonnull private ActionFeedback actionFeedback = NO_FEEDBACK;
-        @Nonnull private QuestClaimPreCheck claimPreCheck = NO_CLAIM_PRECHECK;
         @Nonnull private DetailBlockSource detailBlocks = DetailBlockSource.NONE;
         @Nullable private SeenMarks seen;
 
@@ -728,25 +794,19 @@ public final class ObjectiveBookDeps {
 
         @Nonnull
         public Builder milestones(@Nullable MilestoneSource value) {
-            this.milestones = value != null ? value : NO_MILESTONES;
+            this.milestones = value != null ? value : ENGINE_MILESTONES;
             return this;
         }
 
         @Nonnull
         public Builder milestoneClaim(@Nullable MilestoneClaim value) {
-            this.milestoneClaim = value != null ? value : NO_MILESTONE_CLAIM;
+            this.milestoneClaim = value != null ? value : ENGINE_MILESTONE_CLAIM;
             return this;
         }
 
         @Nonnull
         public Builder actionFeedback(@Nullable ActionFeedback value) {
             this.actionFeedback = value != null ? value : NO_FEEDBACK;
-            return this;
-        }
-
-        @Nonnull
-        public Builder claimPreCheck(@Nullable QuestClaimPreCheck value) {
-            this.claimPreCheck = value != null ? value : NO_CLAIM_PRECHECK;
             return this;
         }
 

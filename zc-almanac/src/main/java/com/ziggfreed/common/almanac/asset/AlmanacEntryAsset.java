@@ -117,7 +117,8 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
 
     /**
      * How many of a collection's slots its grid reads, in the order written: five rows of nine. A repeat or an item
-     * the server lacks among them draws nothing and gives its place to no later slot.
+     * the server lacks among them draws nothing and gives its place to no later slot; a slot gated on a missing mod
+     * is not on this server, so it is never among them ({@link AlmanacCollectionAsset#slots()}).
      */
     public static final int COLLECTION_MAX_ITEMS = 45;
 
@@ -296,7 +297,9 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
      * naming both an item and an NPC; and in the {@code Sections} the page draws, an entry naming no part or
      * two, a group that is no part of the page (one warning per entry), a built-in part placed again, too many
      * entries, a banner with nothing to show or too many items, a
-     * collection repeating an item or listing too many, and a banner's or a collection's button left out.
+     * collection repeating an item or listing too many, a slot's {@code Requires} condition a slot does not read,
+     * and a banner's or a collection's button left out. A slot gated on a missing mod is not on this server, so it
+     * raises none.
      */
     @Nonnull
     public List<Finding> findings() {

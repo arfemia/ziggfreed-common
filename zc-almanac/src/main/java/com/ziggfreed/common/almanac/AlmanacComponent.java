@@ -38,6 +38,9 @@ public class AlmanacComponent implements Component<EntityStore> {
     /** The engine registry id, and the save key. */
     public static final String REGISTRY_ID = "ZiggfreedCommon:Almanac";
 
+    /** The save's {@code Version} leaf: a save from before it reads as version 0, unchanged (zc-core's {@code codec/} router). */
+    public static final int VERSION = 1;
+
     public static ComponentType<EntityStore, AlmanacComponent> TYPE;
 
     /** Every tally this player holds, keyed by {@link AlmanacKeys}. */
@@ -47,6 +50,7 @@ public class AlmanacComponent implements Component<EntityStore> {
 
     static {
         var builder = BuilderCodec.builder(AlmanacComponent.class, AlmanacComponent::new);
+        builder.versioned().codecVersion(VERSION);
         builder.append(new KeyedCodec<>("Tallies", Codec.STRING),
                 (c, v, info) -> c.tallies = deserialize(v),
                 (c, info) -> serialize(c.tallies.all())).add();

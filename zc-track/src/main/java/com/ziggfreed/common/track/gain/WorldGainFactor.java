@@ -11,7 +11,7 @@ import com.ziggfreed.common.track.world.TrackWorldRules;
  * track off, the most specific {@code Multiplier} written for it otherwise, nothing at all in a world no rules
  * name.
  */
-public final class WorldGainFactor implements GainFactor {
+final class WorldGainFactor implements GainFactor {
 
     public static final WorldGainFactor INSTANCE = new WorldGainFactor();
 

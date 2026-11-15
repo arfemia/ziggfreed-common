@@ -49,9 +49,11 @@ import com.ziggfreed.common.asset.EditorSchema;
  * <p><b>What it pays</b> ({@code Pays}): {@code Damage} is a percent on the holder's hits through the library's route
  * step, under {@code DamageBonusMax} (on hits of its {@code Types}, and with {@code Like} only on hits where that stat's
  * own damage line counts, as a weapon skill's line counts only with its weapon); {@code Healing} is a percent on the
- * heals the holder gives; {@code Onto} folds the stat into other stats while its holder conditions hold (a resistance,
- * knockback), one modifier written only when it changes, so whatever reads them never knows the condition. A file with
- * no payout is read only by a consumer that asks for it ({@code ConditionalStats.pointsOnHit}).
+ * heals the holder gives; {@code CritChance} is a critical chance on the hits it counts on, through the library's crit
+ * step; {@code Onto} folds the stat into other stats while its holder conditions hold (a resistance, knockback, the
+ * every-type {@code DamageResist}), one modifier written only when it changes, so whatever reads them never knows the
+ * condition. A file with no payout is read only by a consumer that asks for it ({@code ConditionalStats.pointsOnHit}).
+ * Any living entity holds them, a creature as much as a player (R860).
  */
 public final class ConditionalStatAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, ConditionalStatAsset>> {
 
@@ -357,6 +359,7 @@ public final class ConditionalStatAsset implements JsonAssetWithMap<String, Defa
 
         @Nullable protected Damage damage;
         @Nullable protected Boolean healing;
+        @Nullable protected Boolean critChance;
         @Nullable protected String[] onto;
 
         public static final BuilderCodec<Pays> CODEC = BuilderCodec.builder(Pays.class, Pays::new)
@@ -369,6 +372,12 @@ public final class ConditionalStatAsset implements JsonAssetWithMap<String, Defa
                         (o, v) -> o.healing = v, o -> o.healing, (o, p) -> o.healing = p.healing)
                 .documentation("True: the stat is a percent on the heals the holder gives through the library's one "
                         + "healing path, beside HealingPower. False when unauthored.").add()
+                .appendInherited(new KeyedCodec<>("CritChance", Codec.BOOLEAN, false),
+                        (o, v) -> o.critChance = v, o -> o.critChance, (o, p) -> o.critChance = p.critChance)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("True: the stat is a critical chance on the holder's hits (whole percent points: 5 is "
+                        + "5% more), added to their CritChance in the library's crit step on the hits it counts on (a "
+                        + "frozen foe, say). False when unauthored.").add()
                 .appendInherited(new KeyedCodec<>("Onto", Codec.STRING_ARRAY, false),
                         (o, v) -> o.onto = v, o -> o.onto, (o, p) -> o.onto = p.onto)
                 .metadata(EditorSchema.assetRef(EntityStatType.class))
@@ -389,6 +398,11 @@ public final class ConditionalStatAsset implements JsonAssetWithMap<String, Defa
         /** Does it pay on heals? */
         public boolean healing() {
             return healing != null && healing;
+        }
+
+        /** Does it pay into the crit step's chance? */
+        public boolean critChance() {
+            return critChance != null && critChance;
         }
 
         /** The stats it folds onto, trimmed, blanks dropped, in the order written. */

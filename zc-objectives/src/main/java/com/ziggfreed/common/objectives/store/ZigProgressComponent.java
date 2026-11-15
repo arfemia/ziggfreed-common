@@ -78,6 +78,12 @@ public final class ZigProgressComponent implements Component<EntityStore> {
     /** The registration id (namespaced, stable - it is persisted in every saved world). */
     public static final String REGISTRY_ID = "ZiggfreedCommon:Progress";
 
+    /**
+     * The save's {@code Version} leaf: a blob from before it (the golden fixture among them) reads as
+     * version 0 through the same leaves, unchanged (zc-core's {@code codec/} router).
+     */
+    public static final int VERSION = 1;
+
     /** The registered type, or {@code null} until {@link #register} runs. */
     @Nullable
     public static ComponentType<EntityStore, ZigProgressComponent> TYPE;
@@ -85,6 +91,8 @@ public final class ZigProgressComponent implements Component<EntityStore> {
     @Nonnull
     public static final BuilderCodec<ZigProgressComponent> CODEC = BuilderCodec
             .builder(ZigProgressComponent.class, ZigProgressComponent::new)
+            .versioned()
+            .codecVersion(VERSION)
             .append(new KeyedCodec<>("QuestStates", Codec.STRING),
                     (c, v) -> c.questStates = ProgressBlob.deserializeStrings(v),
                     c -> ProgressBlob.serializeStrings(ProgressBlob.ordered(c.questStates))).add()

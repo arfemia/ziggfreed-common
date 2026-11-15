@@ -21,6 +21,7 @@ import com.ziggfreed.common.calendar.PlayerWorldThread;
 import com.ziggfreed.common.calendar.event.CalendarEvents;
 import com.ziggfreed.common.calendar.tick.CalendarTick;
 import com.ziggfreed.common.occurrence.Occurrence;
+import com.ziggfreed.common.playerdata.PlayerRecords;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -129,6 +130,9 @@ public final class CalendarAttendance {
                 return;
             }
             List<Occurrence> started = credit(record, runs);
+            if (!started.isEmpty()) {
+                PlayerRecords.changed(player.getUuid(), CalendarAttendanceComponent.REGISTRY_ID);
+            }
             for (Occurrence run : started) {
                 CalendarEvents.fireAttended(player.getUuid(), run, nowMs);
             }

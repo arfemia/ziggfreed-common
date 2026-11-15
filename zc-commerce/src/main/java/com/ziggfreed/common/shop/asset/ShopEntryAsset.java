@@ -14,7 +14,6 @@ import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
-import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.asset.EditorSchema;
@@ -169,7 +168,7 @@ public final class ShopEntryAsset
                     + "reads off, the offer is off the page and cannot be bought.")
             .add()
             .appendInherited(new KeyedCodec<>("Rewards",
-                            new ArrayCodec<>(RewardEntryAsset.CODEC, RewardEntryAsset[]::new), false),
+                            RewardEntryAsset.rows(), false),
                     (a, v) -> a.rewards = v, a -> a.rewards, (a, p) -> a.rewards = p.rewards)
             .documentation("What the player gets for the price. This is ONE leaf: author it and an inherited "
                     + "list is replaced whole, omit it and the inherited list carries over. An offer that hands "

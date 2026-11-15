@@ -7,7 +7,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nonnull;
@@ -18,7 +17,6 @@ import org.joml.Vector3d;
 import com.hypixel.hytale.assetstore.map.AssetMapWithIndexes;
 import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Ref;
-import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
 import com.hypixel.hytale.server.core.asset.type.entityeffect.config.OverlapBehavior;
 import com.hypixel.hytale.server.core.entity.effect.ActiveEntityEffect;
@@ -26,10 +24,8 @@ import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.effect.NativeEffectUtil;
 import com.ziggfreed.common.effect.control.AggroControl;
-import com.ziggfreed.common.entity.Allies;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorFormula;
-import com.ziggfreed.common.stats.condition.FirstHits;
 import com.ziggfreed.common.stats.condition.Nearby;
 
 /**
@@ -182,19 +178,12 @@ final class HeldEffects {
         }
         List<Ref<EntityStore>> out = new ArrayList<>();
         if (reach.allies()) {
-            UUID holderId = FirstHits.idOf(accessor, holder);
-            Store<EntityStore> store = context.store();
-            boolean pvp = store == null || ProcActions.pvpOn(store);
-            if (holderId != null) {
-                for (Ref<EntityStore> other : Nearby.playersAround(accessor, holder, at, reach.radius(),
-                        reach.conditions(), now, 0)) {
-                    UUID otherId = FirstHits.idOf(accessor, other);
-                    if (otherId != null && Allies.areAllies(holderId, otherId, pvp)
-                            && (look == null || behind(at, look, Nearby.positionOf(accessor, other)))) {
-                        out.add(other);
-                        if (out.size() >= max) {
-                            return out;
-                        }
+            for (Ref<EntityStore> other : Nearby.alliesAround(accessor, holder, at, reach.radius(),
+                    reach.conditions(), now, 0)) {
+                if (look == null || behind(at, look, Nearby.positionOf(accessor, other))) {
+                    out.add(other);
+                    if (out.size() >= max) {
+                        return out;
                     }
                 }
             }

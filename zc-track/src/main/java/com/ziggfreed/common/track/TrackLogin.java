@@ -20,7 +20,7 @@ import com.ziggfreed.common.util.SafeLog;
  * under the rules of the world they now stand in ({@link TrackDerived#rebuild}): an arena that strips passive stats
  * takes them off here, and the next world gives them back.
  */
-public final class TrackLogin {
+final class TrackLogin {
 
     private TrackLogin() {
     }

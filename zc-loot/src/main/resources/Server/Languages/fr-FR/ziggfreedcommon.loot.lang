@@ -6,3 +6,10 @@ preview.chance = {0, number} % :
 preview.sometimes = Parfois :
 preview.more = Et un peu plus.
 preview.hidden = Et quelques autres trouvailles rares.
+
+claim.kind.boss = Boss vaincu
+claim.kind.dungeon = Donjon terminé
+claim.kind.bonus = Bonus
+claim.kind.quest = Quête
+claim.kind.event = Événement
+claim.kind.admin = Cadeau

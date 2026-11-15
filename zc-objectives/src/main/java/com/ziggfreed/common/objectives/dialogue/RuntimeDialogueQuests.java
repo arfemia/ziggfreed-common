@@ -14,9 +14,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.dialogue.quest.DialogueQuests;
 import com.ziggfreed.common.inventory.PlayerAccess;
-import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.objectives.book.BookVerbs;
-import com.ziggfreed.common.objectives.book.ObjectiveBookDeps;
 import com.ziggfreed.common.objectives.book.ObjectiveBookPages;
 import com.ziggfreed.common.objectives.journal.QuestVerbs;
 import com.ziggfreed.common.objectives.questlist.CharacterQuestListing;
@@ -122,7 +120,7 @@ public class RuntimeDialogueQuests implements DialogueQuests {
         if (!accepted.accepted()) {
             return false;
         }
-        announceAccepted(subject, quest, accepted.settled());
+        announceAccepted(subject, quest, accepted);
         return true;
     }
 
@@ -192,39 +190,32 @@ public class RuntimeDialogueQuests implements DialogueQuests {
     }
 
     /**
-     * The accept announcement, through the objective book's {@code ActionFeedback} seam: the one
-     * place a consumer says how an accept made on a library surface sounds. Guarded, because a
-     * consumer's feedback failing costs its own moment, never the accept that earned it.
+     * The accept announcement, through the book's one accept announcement
+     * ({@link BookVerbs#announceAccepted}): nothing for an accept that finished the quest at once
+     * (its completion notice speaks), else the objective book's {@code ActionFeedback} seam, the one
+     * place a consumer says how an accept made on a library surface sounds.
      *
-     * <p>Where no consumer filled the seam, the library says it itself, with the book's own accept
-     * toast ({@link BookVerbs#acceptedToast}), drawn once the chosen line has settled into the page
-     * the player then has open (the conversation, or the quest list it routed to), else the corner
-     * feed. Never both: a filled seam owns the announcement.
+     * <p>Where no consumer filled the seam, the library's own accept line is drawn once the chosen
+     * line has settled into the page the player then has open (the conversation, or the quest list
+     * it routed to), else the corner feed. Never both: a filled seam owns the announcement.
      */
     private static void announceAccepted(@Nonnull Subject subject, @Nonnull Quest quest,
-            @Nullable RewardGrants.GrantOutcome settled) {
+            @Nonnull QuestVerbs.Accepted accepted) {
         Player player = subject.handleAs(Player.class);
         Ref<EntityStore> ref = player == null ? null : player.getReference();
         if (ref == null || !ref.isValid()) {
             return;
         }
-        ObjectiveBookDeps deps = ObjectiveBookPages.resolvedDeps();
-        try {
-            deps.actionFeedback().accepted(quest, ref.getStore(), ref, player, settled);
-        } catch (Throwable t) {
-            SafeLog.warn("[dialogue] the accept announcement for '" + quest.id() + "' failed: " + t.getMessage());
-        }
-        if (deps.announcesActions()) {
-            return;
-        }
-        try {
-            PlayerRef playerRef = PlayerAccess.playerRef(player);
-            if (playerRef != null) {
-                ToastDelivery.deliverWhenSettled(playerRef,
-                        BookVerbs.acceptedToast(quest, settled, deps.rewardChips()), BookVerbs::more);
-            }
-        } catch (Throwable t) {
-            SafeLog.warn("[dialogue] the accept toast for '" + quest.id() + "' failed: " + t.getMessage());
-        }
+        BookVerbs.announceAccepted(ObjectiveBookPages.resolvedDeps(), quest, accepted, ref.getStore(), ref, player,
+                spec -> {
+                    try {
+                        PlayerRef playerRef = PlayerAccess.playerRef(player);
+                        if (playerRef != null) {
+                            ToastDelivery.deliverWhenSettled(playerRef, spec, null);
+                        }
+                    } catch (Throwable t) {
+                        SafeLog.warn("[dialogue] the accept toast for '" + quest.id() + "' failed: " + t.getMessage());
+                    }
+                });
     }
 }

@@ -15,8 +15,9 @@ import com.ziggfreed.common.stats.damage.TypedDamageBonuses;
  * Registers conditional stats ({@link ConditionalStats}, R757) at plugin {@code setup()}, before any asset decodes:
  * the library's entity conditions into the engine's own condition map (R700), so an effect's {@code ApplyConditions}
  * and a stat's regeneration may name them too; the holder pass, the first-hit record and the forgetting of an
- * entity that left; the damage route term and the healing term the payouts ride; and the marks that keep the effect
- * family table in step with effect loads. Registration only. The two stores are the root's, with every framework
+ * entity that left; the damage route terms (the conditional payouts and the bound grants' hit term) and the healing
+ * term the payouts ride; the marks that keep the effect family table in step with effect loads; and the retired
+ * conditional ids' aliases onto the plain stats a grant now binds ({@code ConditionalStats.RETIRED}). Registration only. The two stores are the root's, with every framework
  * store. A failed registration rethrows (R700): every conditional stat would be gone.
  */
 public final class ConditionBootstrap {
@@ -27,6 +28,7 @@ public final class ConditionBootstrap {
     /** Call once from plugin {@code setup()}, after the per-type damage bonus step is installed. */
     public static void install(@Nonnull PluginBase plugin) {
         try {
+            ConditionalStats.registerRetiredAliases();
             var conditions = plugin.getCodecRegistry(Condition.CODEC);
             conditions.register(ZigNightCondition.TYPE_NAME, ZigNightCondition.class, ZigNightCondition.codec());
             conditions.register(ZigFoesNearCondition.TYPE_NAME, ZigFoesNearCondition.class,
@@ -49,6 +51,7 @@ public final class ConditionBootstrap {
             plugin.getEntityStoreRegistry().registerSystem(new ConditionalStatSystems.FirstHitRecord());
             plugin.getEntityStoreRegistry().registerSystem(new ConditionalStatSystems.Left());
             TypedDamageBonuses.registerRouteTerm(ConditionalStats.ROUTE_TERM_OWNER, ConditionalStats::damagePoints);
+            TypedDamageBonuses.registerRouteTerm(BoundGrants.ROUTE_TERM_OWNER, BoundGrants::damagePoints);
             HealthUtil.installHealingTerm(ConditionalStats::healingPoints);
             plugin.getEventRegistry().register(LoadedAssetsEvent.class, EntityEffect.class,
                     (LoadedAssetsEvent<String, EntityEffect, IndexedLookupTableAssetMap<String, EntityEffect>> ev) ->

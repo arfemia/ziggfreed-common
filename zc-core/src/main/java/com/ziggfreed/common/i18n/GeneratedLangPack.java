@@ -89,24 +89,26 @@ public final class GeneratedLangPack {
     }
 
     /**
-     * Escape a lang VALUE to the {@code key = value} grammar {@code I18nModule}'s parser reads
-     * (feature-matched to the MMO's {@code EnglishLangWriter.escapeValue}, the proven-in-game
-     * escaper): backslash / newline / tab escaped, carriage return dropped; a value with
-     * leading/trailing whitespace is wrapped in quotes (its inner quotes escaped). Inner
-     * double-quotes in a NON-wrapped value stay bare - the engine parser tolerates them (a
-     * generated {@code <color is="#hex">} description proves it). Pure.
+     * Write a lang VALUE in the {@code key = value} grammar the engine's {@code LangFileParser}
+     * reads: newline and tab become {@code \n} and {@code \t} (the only escapes it undoes), a
+     * carriage return is dropped, and the value is wrapped in one pair of quotes (inner quotes
+     * left bare; the parser strips only an outer pair) when it has leading or trailing whitespace
+     * the parser would trim, when it starts and ends with a quote the parser would strip, or when
+     * it ends with a backslash the parser would read as a line continuation. A backslash is
+     * written as it is: the grammar has no escape for one, so a backslash followed by {@code n} or
+     * {@code t} reads back as a newline or a tab, and a caller that cannot rule that out keeps
+     * backslashes out of its values. Pure.
      */
     @Nonnull
     static String escapeValue(@Nonnull String value) {
         String out = value
-                .replace("\\", "\\\\")
+                .replace("\r", "")
                 .replace("\n", "\\n")
-                .replace("\t", "\\t")
-                .replace("\r", "");
-        if (!out.equals(out.trim())) {
-            return "\"" + out.replace("\"", "\\\"") + "\"";
-        }
-        return out;
+                .replace("\t", "\\t");
+        boolean wrap = !out.equals(out.trim())
+                || (out.length() > 1 && out.charAt(0) == '"' && out.charAt(out.length() - 1) == '"')
+                || out.endsWith("\\");
+        return wrap ? "\"" + out + "\"" : out;
     }
 
     /**
@@ -131,6 +133,53 @@ public final class GeneratedLangPack {
         }
     }
 
+    /**
+     * Read back one {@code .lang} file {@link #writeLocaleFiles} wrote under {@code
+     * root/Server/Languages/<locale>/filename}: an ORDERED {@code entryKey -> value} map, each value
+     * as the engine reads it ({@link #unescapeValue}), which for a value holding no backslash is the
+     * exact string that was written, so a read-modify-write never drifts. Blank lines, {@code #}
+     * comments and lines with no {@code =} are skipped, and the first of two same-key lines wins, as
+     * the engine's parser keeps it. A missing file reads as empty.
+     *
+     * @throws IOException on a genuine filesystem failure reading a file that exists
+     */
+    @Nonnull
+    public static Map<String, String> readLocaleFile(@Nonnull Path root, @Nonnull String filename,
+            @Nonnull String bcp47) throws IOException {
+        Path file = root.resolve("Server").resolve("Languages").resolve(bcp47).resolve(filename);
+        Map<String, String> out = new LinkedHashMap<>();
+        if (!Files.isRegularFile(file)) {
+            return out;
+        }
+        for (String raw : Files.readAllLines(file, StandardCharsets.UTF_8)) {
+            String line = raw.trim();
+            int eq = line.indexOf('=');
+            if (line.isEmpty() || line.charAt(0) == '#' || eq <= 0) {
+                continue;
+            }
+            String key = line.substring(0, eq).trim();
+            String value = line.substring(eq + 1).trim();
+            if (!key.isEmpty() && !value.isEmpty()) {
+                out.putIfAbsent(key, unescapeValue(value));
+            }
+        }
+        return out;
+    }
+
+    /**
+     * A written value as the engine's {@code LangFileParser} reads it, and so the inverse of {@link
+     * #escapeValue}: one outer pair of quotes is stripped, then {@code \n} and {@code \t} become a
+     * newline and a tab. Pure.
+     */
+    @Nonnull
+    static String unescapeValue(@Nonnull String written) {
+        String body = written.trim();
+        if (body.length() > 1 && body.charAt(0) == '"' && body.charAt(body.length() - 1) == '"') {
+            body = body.substring(1, body.length() - 1);
+        }
+        return body.replace("\\n", "\n").replace("\\t", "\t");
+    }
+
     private static void writeLocaleFile(@Nonnull Path root, @Nonnull String filename, @Nonnull String bcp47,
             @Nonnull Map<String, String> entries, @Nullable String headerComment) throws IOException {
         StringBuilder sb = new StringBuilder(entries.size() * 64 + 256);
@@ -150,7 +199,16 @@ public final class GeneratedLangPack {
         }
         Path localeDir = root.resolve("Server").resolve("Languages").resolve(bcp47);
         Files.createDirectories(localeDir);
-        Files.writeString(localeDir.resolve(filename), sb.toString(), StandardCharsets.UTF_8);
+        // A sibling temporary file moved into place, so a failed or interrupted write leaves the last
+        // good file whole: the file may be the only copy of what it holds. Its .tmp name keeps it out
+        // of every zip, which takes .lang files only.
+        Path tmp = Files.createTempFile(localeDir, filename, ".tmp");
+        try {
+            Files.writeString(tmp, sb.toString(), StandardCharsets.UTF_8);
+            moveIntoPlace(tmp, localeDir.resolve(filename));
+        } finally {
+            Files.deleteIfExists(tmp);
+        }
     }
 
     /**

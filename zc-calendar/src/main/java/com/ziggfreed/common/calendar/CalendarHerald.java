@@ -12,7 +12,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
-import com.hypixel.hytale.server.core.HytaleServer;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -23,6 +22,7 @@ import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.occurrence.Occurrence;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.util.ZigScheduler;
 
 /**
  * The calendar's banners, through the library's one event-title seam ({@link EventTitles}). A run's START
@@ -210,7 +210,7 @@ public final class CalendarHerald {
     /** Show {@code line} to the player {@code delayMs} from now, if they are still connected and in a world. */
     private static void showLater(@Nonnull UUID playerId, @Nonnull CalendarEventAsset.HeraldLine line, long delayMs) {
         try {
-            HytaleServer.SCHEDULED_EXECUTOR.schedule(() -> showIfStillHere(playerId, line), delayMs,
+            ZigScheduler.schedule(() -> showIfStillHere(playerId, line), delayMs,
                     TimeUnit.MILLISECONDS);
         } catch (Throwable t) {
             SafeLog.warn("[calendar] could not queue a banner", t);

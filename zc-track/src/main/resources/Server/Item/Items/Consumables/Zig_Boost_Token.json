@@ -1,0 +1,40 @@
+{
+  "$Comment": "The library's boost token: one item id for a token of any boost. Which boost it starts, by how much, for how long and for which track ride the stack (key ZigBoost), so /zigboost give --player=<name> --boost=<id> hands one of any size, and its tooltip says what it starts. Hold right-click to use it: ZigBoost starts the boost under every limit and the one cap in boost-settings.json, and the token is spent only when the boost starts. Swapping the held item mid-hold cancels the use (OnItemChangeBehavior Cancel), so the spend never lands on another stack. One taken from the creative menu carries no boost and starts nothing. The art is a vanilla potion; point Icon, Model or Texture elsewhere, or override this file by id, to reskin it.",
+  "TranslationProperties": {
+    "Name": "ziggfreedcommon.boost.item.name",
+    "Description": "ziggfreedcommon.boost.item.description"
+  },
+  "Quality": "Rare",
+  "Icon": "Icons/ItemsGenerated/Potion_Cyan.png",
+  "Model": "Items/Consumables/Potions/Potion.blockymodel",
+  "Texture": "Items/Consumables/Potions/Potion_Textures/Cyan.png",
+  "Interactions": {
+    "Secondary": {
+      "Interactions": [
+        {
+          "Type": "Charging",
+          "FailOnDamage": true,
+          "OnItemChangeBehavior": "Cancel",
+          "HorizontalSpeedMultiplier": 0.5,
+          "Next": {
+            "1.0": {
+              "Type": "ZigBoost",
+              "Next": {
+                "Type": "ModifyInventory",
+                "AdjustHeldItemQuantity": -1
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "Tags": {
+    "Type": [
+      "Consumable"
+    ],
+    "Family": [
+      "ZiggfreedCommon"
+    ]
+  }
+}

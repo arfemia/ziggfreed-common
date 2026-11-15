@@ -7,9 +7,9 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 /**
  * The state the progression admin page round-trips on every binding.
  *
- * <p>{@code action} is one of {@code close}, {@code back}, or {@code toggle} (flip the switch named
- * in {@code id}). The page holds no filter state, so the full state a binding carries is exactly
- * these two fields.
+ * <p>{@code action} is one of {@code close}, {@code back}, {@code toggle} (flip the switch named
+ * in {@code id}) or {@code editor} (open the in-game editor whose wizard id is {@code id}). The page
+ * holds no filter state, so the full state a binding carries is exactly these two fields.
  */
 public class ProgressionAdminEventData {
 

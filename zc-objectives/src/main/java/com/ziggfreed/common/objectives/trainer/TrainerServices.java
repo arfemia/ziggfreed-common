@@ -12,31 +12,37 @@ import com.ziggfreed.common.track.TrackDef;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * The services a trainer offers for each track it teaches, beside the library's own respec: an open table a mod
- * fills, so the Services part shows a service only once something answers for it (R623). Three ids are reserved for
- * the services the design names, each with no entry and no UI until a consumer registers it:
+ * The services a trainer offers for each track it teaches, beside the library's own respec: an open table, each
+ * service shown only where it can do something for the player (R623). The library fills the three the design names
+ * by default ({@link #registerBuiltIns}, from the trainer's bootstrap), so a server running the library alone offers
+ * them (M513):
  *
  * <ul>
- *   <li>{@link #PRESTIGE}: the prestige ceremony, entered at the trainer;</li>
- *   <li>{@link #RECHOOSE}: re-choosing a single milestone, priced a fraction of a full respec (R665);</li>
- *   <li>{@link #SUGGESTED_BUILD}: the update-day suggested build.</li>
+ *   <li>{@link #PRESTIGE}: the track's next prestige, once the climb has reached the level it needs;</li>
+ *   <li>{@link #RECHOOSE}: choosing again, in one go, the picks a Remember prestige put aside (R598, R641);</li>
+ *   <li>{@link #SUGGESTED_BUILD}: the track's suggested build ({@code Starter}, R727), spent from where the player
+ *       stands.</li>
  * </ul>
  *
- * <p>A mod's service of any other kind registers under its own id. Each service is asked per track, in registration
- * order, after the respec; one that throws costs its own entries and nobody else's ({@link #info} keeps its history).
- * Backed by the shared registry ledger: ids are case-insensitive and a second registration under one id replaces the
- * first.
+ * <p>A mod replaces one of them by registering its own under the same id (said once at INFO, never warned, since
+ * replacing the library's own is what the id is for), and adds a service of any other kind under its own id. Each
+ * service is asked per track, sorted by id, after the respec; one that throws costs its own entries and nobody
+ * else's ({@link #info} keeps its history). Backed by the shared registry ledger: ids are case-insensitive, and a
+ * second registration of a mod's own id replaces the first with the ledger's one warning.
  */
 public final class TrainerServices {
 
-    /** The prestige ceremony. */
+    /** The prestige. */
     public static final String PRESTIGE = "Prestige";
 
-    /** Re-choosing a single milestone. */
+    /** Choosing again what a prestige put aside. */
     public static final String RECHOOSE = "Rechoose";
 
-    /** The update-day suggested build. */
+    /** The track's suggested build. */
     public static final String SUGGESTED_BUILD = "Suggested_Build";
+
+    /** The owner the library's own services are registered under. */
+    static final String LIBRARY = "ziggfreedcommon";
 
     /** One service: what it offers for one track at one trainer. World thread. */
     @FunctionalInterface
@@ -52,9 +58,26 @@ public final class TrainerServices {
     private TrainerServices() {
     }
 
-    /** Register {@code service} under {@code id} ({@link #PRESTIGE} or your own), for {@code owner}. Call at setup. */
+    /** The library's own three, each under its id ({@link ClimbServices}). Registration only; at setup. */
+    public static void registerBuiltIns() {
+        register(PRESTIGE, LIBRARY, ClimbServices.PRESTIGE);
+        register(RECHOOSE, LIBRARY, ClimbServices.RESPEND);
+        register(SUGGESTED_BUILD, LIBRARY, ClimbServices.STARTER);
+    }
+
+    /**
+     * Register {@code service} under {@code id} ({@link #PRESTIGE} and the others to replace the library's own, or
+     * your own), for {@code owner}. Call at setup.
+     */
     public static void register(@Nullable String id, @Nullable String owner, @Nullable TrainerService service) {
         if (id == null || id.isBlank() || service == null) {
+            return;
+        }
+        RegistryLedger.RegistrationInfo held = LEDGER.info().get(RegistryLedger.normalize(id));
+        if (held != null && LIBRARY.equals(held.owner()) && !LIBRARY.equals(owner)) {
+            LEDGER.putQuietly(id, owner, service);
+            SafeLog.info("[trainer] '" + owner + "' offers the trainer service '" + id.trim()
+                    + "' in place of the library's own");
             return;
         }
         LEDGER.put(id, owner, service);
@@ -71,7 +94,7 @@ public final class TrainerServices {
         return LEDGER.info();
     }
 
-    /** What every registered service offers for {@code track} at {@code at}, in registration order. */
+    /** What every registered service offers for {@code track} at {@code at}, sorted by id. */
     @Nonnull
     static List<TrainerEntry> entries(@Nonnull TrainerAt at, @Nonnull TrackDef track) {
         List<TrainerEntry> out = new ArrayList<>();

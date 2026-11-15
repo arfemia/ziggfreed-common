@@ -18,7 +18,7 @@ public final class DurationBootstrap {
     /** Call once from plugin {@code setup()}. */
     public static void install(@Nonnull PluginBase plugin) {
         try {
-            plugin.getEntityStoreRegistry().registerSystem(new EffectDurationSystems.Players());
+            plugin.getEntityStoreRegistry().registerSystem(new EffectDurationSystems.Carriers());
             plugin.getEntityStoreRegistry().registerSystem(new EffectDurationSystems.Watched());
             plugin.getEntityStoreRegistry().registerSystem(new EffectDurationSystems.Watch());
             plugin.getEntityStoreRegistry().registerSystem(new EffectDurationSystems.Left());

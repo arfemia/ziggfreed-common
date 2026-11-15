@@ -5,13 +5,13 @@ import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nonnull;
 
-import com.hypixel.hytale.server.core.HytaleServer;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.util.ZigScheduler;
 
 /**
- * The production scheduler: the server's own shared scheduled executor. In a JVM with no server (a unit
- * test, a headless tool) it cannot be reached, and then the calendar does not tick: one warning, never
- * a throw.
+ * The production scheduler: the library's own scheduler thread ({@link ZigScheduler}). In a JVM with no
+ * server (a unit test, a headless tool) it is not running, and then the calendar does not tick: one
+ * warning, never a throw.
  */
 public final class ExecutorTickScheduler implements TickScheduler {
 
@@ -24,11 +24,11 @@ public final class ExecutorTickScheduler implements TickScheduler {
     @Nonnull
     public Cancellable repeat(@Nonnull Runnable task, long initialDelayMs, long periodMs) {
         try {
-            ScheduledFuture<?> future = HytaleServer.SCHEDULED_EXECUTOR.scheduleAtFixedRate(guarded(task),
+            ScheduledFuture<?> future = ZigScheduler.scheduleAtFixedRate(guarded(task),
                     initialDelayMs, periodMs, TimeUnit.MILLISECONDS);
             return () -> future.cancel(false);
         } catch (Throwable t) {
-            SafeLog.warn("[calendar] there is no server scheduler to tick on, so the calendar will not notice a"
+            SafeLog.warn("[calendar] the library's scheduler is not running, so the calendar will not notice a"
                     + " start or an end: " + t.getMessage());
             return () -> { };
         }
@@ -37,9 +37,9 @@ public final class ExecutorTickScheduler implements TickScheduler {
     @Override
     public void runSoon(@Nonnull Runnable task) {
         try {
-            HytaleServer.SCHEDULED_EXECUTOR.execute(guarded(task));
+            ZigScheduler.execute(guarded(task));
         } catch (Throwable t) {
-            SafeLog.warn("[calendar] there is no server scheduler, so a calendar change waits for the next"
+            SafeLog.warn("[calendar] the library's scheduler is not running, so a calendar change waits for the next"
                     + " tick: " + t.getMessage());
         }
     }

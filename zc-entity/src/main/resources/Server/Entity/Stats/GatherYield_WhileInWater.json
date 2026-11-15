@@ -1,0 +1,8 @@
+{
+  "$Comment": "A conditional gathering yield in whole percent points (1 is +1 on the chance of a bonus find), added to its holder's GatherYield while they stand in water, so every break's and harvest's bonus finds read it then. Any item's StatModifiers raise it like any stat, and so does an effect's RawStatModifiers. Base 0.",
+  "InitialValue": 0.0,
+  "Min": -1000.0,
+  "Max": 0.0,
+  "Shared": false,
+  "HideFromTooltip": false
+}

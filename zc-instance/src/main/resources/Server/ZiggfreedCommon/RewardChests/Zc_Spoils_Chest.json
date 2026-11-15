@@ -7,9 +7,6 @@
   "Open": {
     "Credited": true
   },
-  "View": {
-    "ItemsWindow": true
-  },
   "Text": {
     "LeadKey": "ziggfreedcommon.claims.spoils.lead",
     "NoticeKey": "ziggfreedcommon.claims.notice.added.spoils"

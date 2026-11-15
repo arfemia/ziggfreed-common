@@ -29,6 +29,24 @@ public interface BonusEntry {
     FactorFormula chance();
 
     /**
+     * The group the row competes in, lower-cased: rows of one group give one answer for a name, and each group
+     * answers on its own ({@link BonusTable#answers}). Blank for the shared group, which a row joins unless it names
+     * one, and which is all a table whose rows name none ever has.
+     */
+    @Nonnull
+    default String group() {
+        return "";
+    }
+
+    /**
+     * Whether the moment's yield adds to the {@code Chance} the row writes, so a written chance with no term of its
+     * own can still rise off zero. False unless the table's pass adds one (the library's own rows do).
+     */
+    default boolean addsYield() {
+        return false;
+    }
+
+    /**
      * True when the row can never hand anything over: a hole that stops a broader pattern covering
      * the same name.
      */

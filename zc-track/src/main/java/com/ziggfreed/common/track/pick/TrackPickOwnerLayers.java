@@ -14,8 +14,8 @@ import com.ziggfreed.common.util.OwnerFiles;
  * differently, decoded against the packs' own answer through the same codec.
  *
  * <pre>{@code
- * track-picks.json:        { "Your_Swords_Lines":                             // pin what level 10 offers
- *                                { "Offers": { "10": [ "Your_Edge", "Your_Keen" ] } },
+ * track-picks.json:        { "Your_Swords_Lines":                             // keep a choice two levels apart
+ *                                { "Groups": [ { "From": 2, "Every": 2, "Options": [ "Your_Edge", "Your_Keen" ] } ] },
  *                            "Your_Trainer_Whirlwind":                        // or take a trainer's pick at home
  *                                { "Where": { "Placements": [] } } }
  * track-pick-options.json: { "Your_Edge": { "Enabled": false } }              // or keep an option out of every offer

@@ -2,6 +2,7 @@
   "$Comment": "Breaking a block. The target is a block id, so a step naming one exact block is drawn with that block's own picture.",
   "ValueBased": false,
   "Producible": true,
+  "Pick": { "List": "ziggfreedcommon:ids/BlockType" },
   "TargetNames": {
     "Item": true
   },

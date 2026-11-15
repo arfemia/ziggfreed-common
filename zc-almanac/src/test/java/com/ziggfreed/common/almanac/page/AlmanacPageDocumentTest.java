@@ -615,10 +615,10 @@ class AlmanacPageDocumentTest {
                 new BannerSection("UI/Custom/Almanac/Band.png", null, 96, "almanac.test.band", null, null),
                 new BannerSection(null, band, 120, "almanac.test.band", "almanac.test.line", stall),
                 new CollectionSection(null, null, List.of(
-                        new CollectionItem("Lantern", "Icons/ItemsGenerated/Lantern.png", true, true, null),
-                        new CollectionItem("Pumpkin", "Icons/ItemsGenerated/Pumpkin.png", false, true, null),
+                        new CollectionItem("Lantern", "Icons/ItemsGenerated/Lantern.png", true, true, null, null),
+                        new CollectionItem("Pumpkin", "Icons/ItemsGenerated/Pumpkin.png", false, true, null, null),
                         new CollectionItem("Bomb", "Icons/ItemsGenerated/Bomb.png", false, false,
-                                "almanac.test.source")), stall),
+                                "almanac.test.source", null)), stall),
                 new AchievementsSection(Almanac.of("harvest_moon"), null),
                 new TalliesSection(), new KeepsakesSection(), new LinksSection()));
     }

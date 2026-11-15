@@ -12,10 +12,16 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
+import com.hypixel.hytale.codec.schema.config.ObjectSchema;
 import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
+import com.ziggfreed.common.asset.KindSelectorCodec;
 import com.ziggfreed.common.asset.PresenceRequiresCodec;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.codec.ScalarStringCodec;
+import com.ziggfreed.common.loot.reward.RewardKindRegistry;
+import com.ziggfreed.common.loot.reward.RewardKinds;
+import com.ziggfreed.common.loot.reward.RewardParams;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.progress.gate.StoreGates;
@@ -102,7 +108,45 @@ public final class RewardEntryAsset {
                     .documentation(StoreGates.ROW_DOCUMENTATION).add()
                     .build();
 
+    /** The key a row's form turns on, and the key its parameters sit under. */
+    private static final String KIND_KEY = "Kind";
+    private static final String PARAMS_KEY = "Params";
+
+    /**
+     * One reward row as every {@code Rewards} list declares it: it decodes, encodes and inherits exactly as
+     * {@link #CODEC}, and in the in-game Asset Editor its {@code Kind} is a dropdown of every reward kind on
+     * the server that turns the row's {@code Params} into that kind's own form (one box per parameter, with
+     * its picker), read off the shared vocabulary's descriptions ({@code RewardKindRegistry.described}) when
+     * the editor makes its schemas. A kind nothing describes keeps the open map.
+     */
+    public static final KindSelectorCodec<RewardEntryAsset> ROW =
+            new KindSelectorCodec<>(CODEC, KIND_KEY, RewardEntryAsset::kindArms);
+
     public RewardEntryAsset() {
+    }
+
+    /** A fresh {@code Rewards} list codec of {@link #ROW}s, one per field that declares a list. */
+    @Nonnull
+    public static ArrayCodec<RewardEntryAsset> rows() {
+        return new ArrayCodec<>(ROW, RewardEntryAsset[]::new);
+    }
+
+    /** Every reward kind the shared vocabulary holds, each with its parameter form where it is described. */
+    @Nonnull
+    private static List<KindSelectorCodec.Arm> kindArms() {
+        RewardKindRegistry kinds = RewardKinds.shared();
+        List<KindSelectorCodec.Arm> arms = new ArrayList<>();
+        for (String id : kinds.spelledIds()) {
+            RewardParams described = kinds.described(id);
+            arms.add(new KindSelectorCodec.Arm(id, described == null ? null : described.documentation(),
+                    described == null ? null : (arm, context) -> {
+                        ObjectSchema form = described.toSchema();
+                        form.setTypes(new String[] {"object", "null"});
+                        form.setMarkdownDescription("What this reward pays: the kind's own parameters.");
+                        arm.getProperties().put(PARAMS_KEY, form);
+                    }));
+        }
+        return arms;
     }
 
     /** Java-side factory for an ungated row; sets the same fields the codec fills. */

@@ -890,20 +890,48 @@ public final class AchievementEngine {
      * {@link RewardGrants.GrantOutcome#receipt() receipt} is what actually reached the subject - a
      * rolled table as the items it produced - so a surface that presses Collect on a rung can list
      * it rather than the rung as authored. Null when the claim was refused, on exactly the rules
-     * {@code claimMilestone} refuses on.
+     * {@link #attemptClaimMilestone} refuses on.
      */
     @Nullable
     public RewardGrants.GrantOutcome tryClaimMilestone(@Nonnull Subject subject, int threshold) {
+        return attemptClaimMilestone(subject, threshold).paid();
+    }
+
+    /**
+     * {@link #tryClaimMilestone} answering WHY when it pays nothing, off the same checks in the same order as
+     * {@link #attemptClaim}: {@link ClaimAttempt.Refusal#NOT_WAITING} unless the rung exists and waits to be
+     * collected, and {@link ClaimAttempt.Refusal#NO_ROOM} when the gate says its waiting rewards cannot reach the
+     * subject now ({@link AchievementGates#canReceiveMilestoneRewards}; a gate that throws refuses the same way). A
+     * surface reads the refusal here rather than asking the bag again, so the line it shows is the reason the
+     * payout stopped. A refused press changes nothing.
+     */
+    @Nonnull
+    public ClaimAttempt attemptClaimMilestone(@Nonnull Subject subject, int threshold) {
         AchievementMilestone milestone = milestone(threshold);
         if (milestone == null || store.milestoneStatus(subject, threshold) != AchievementStatus.UNLOCKED) {
-            return null;
+            return ClaimAttempt.refused(ClaimAttempt.Refusal.NOT_WAITING);
+        }
+        if (!milestoneFits(subject, milestone)) {
+            return ClaimAttempt.refused(ClaimAttempt.Refusal.NO_ROOM);
         }
         RewardGrants.GrantOutcome outcome = grantMilestone(subject, milestone, milestone.claimRewards());
         store.setMilestoneStatus(subject, threshold, AchievementStatus.CLAIMED);
         // Collecting is a subject-owned transaction boundary, so the writes are committed here.
         store.markDirty(subject);
         store.flush(subject);
-        return outcome;
+        return ClaimAttempt.collected(outcome);
+    }
+
+    /** The milestone room gate, guarded like every other gate here: a gate that throws is a refusal. */
+    private boolean milestoneFits(@Nonnull Subject subject, @Nonnull AchievementMilestone milestone) {
+        try {
+            return gates.canReceiveMilestoneRewards(subject, milestone);
+        } catch (Throwable t) {
+            warnOnce("gate:canReceiveMilestoneRewards:" + milestone.threshold(),
+                    "the canReceiveMilestoneRewards gate failed for the " + milestone.threshold()
+                            + " milestone, so it is treated as a refusal: " + t.getMessage());
+            return false;
+        }
     }
 
     /** The milestone at this exact threshold, or null. */

@@ -466,9 +466,10 @@ record AlmanacPagePlan(@Nonnull LedgerModel seasons, @Nullable String selected, 
 
     /**
      * The items grid: its heading (the library's "Event items" unless the page writes its own), "1 of 3 found" over
-     * every item (a hidden one is counted: it can be found), its bar, its line, a slot per item, and its button. A
-     * slot shows its item once owned; a hidden item not yet owned is the mystery, its words "Not found yet"; any
-     * other shows the item's name, with where it comes from when the page writes that.
+     * every item (a hidden one is counted: it can be found, and so is a locked one), its bar, its line, a slot per
+     * item, and its button. A slot shows its item once owned; a hidden item not yet owned is the mystery, its words
+     * "Not found yet"; any other shows the item's name, with where it comes from when the page writes that. A slot
+     * whose own Requires shuts for the player, not yet owned, wears the lock, its words followed by what it needs.
      */
     @Nonnull
     private static CollectionPlan collection(@Nonnull CollectionSection collection) {
@@ -491,8 +492,12 @@ record AlmanacPagePlan(@Nonnull LedgerModel seasons, @Nullable String selected, 
                 tooltip = AlmanacText.line("collection.source", NativeNames.itemNameMsg(item.itemId()),
                         AlmanacText.authored(item.sourceKey(), item.sourceKey()));
             }
+            boolean locked = item.lock() != null && !item.owned();
+            if (locked) {
+                tooltip = AlmanacText.line("collection.locked", tooltip, item.lock());
+            }
             slots.add(new ItemSlotTile(item.itemId(), Picture.item(item.itemId()), item.owned(), mystery,
-                    AlmanacText.line("collection.mystery"), tooltip));
+                    AlmanacText.line("collection.mystery"), tooltip, locked));
         }
         return new CollectionPlan(title, AlmanacText.line("collection.meta", (long) owned, (long) total),
                 total == 0 ? 0f : (float) owned / total, line, List.copyOf(slots), linkButton(collection.button()));

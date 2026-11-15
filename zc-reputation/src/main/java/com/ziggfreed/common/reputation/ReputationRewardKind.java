@@ -5,16 +5,20 @@ import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.builtin.adventure.reputation.assets.ReputationGroup;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.asset.EditorPick;
 import com.ziggfreed.common.instance.reward.InstanceReward;
 import com.ziggfreed.common.loot.reward.RewardChip;
 import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardHandler;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
+import com.ziggfreed.common.loot.reward.RewardParam;
+import com.ziggfreed.common.loot.reward.RewardParams;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.subject.Subject;
 
@@ -55,6 +59,11 @@ public final class ReputationRewardKind implements RewardHandler {
     /** Register the kind into {@code kinds}. */
     public static void registerInto(@Nonnull RewardKindRegistry kinds, @Nonnull ReputationService service) {
         kinds.register(KIND, OWNER, new ReputationRewardKind(service));
+        kinds.describe(KIND, RewardParams.of("Moves the player's standing with a reputation.",
+                RewardParam.text("Reputation", "The reputation, by the id of its reputation group.").asRequired()
+                        .withPick(EditorPick.asset(ReputationGroup.class)),
+                RewardParam.integer("Amount", "How much standing. A negative amount costs standing.")
+                        .asRequired()));
     }
 
     /** How a Reputation reward reads in a reward list, for {@code RewardChips.contribute}. */

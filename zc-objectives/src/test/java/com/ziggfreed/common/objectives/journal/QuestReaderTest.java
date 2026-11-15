@@ -29,14 +29,10 @@ import javax.annotation.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import com.hypixel.hytale.component.Ref;
-import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.FormattedMessage;
 import com.hypixel.hytale.protocol.IntParamValue;
 import com.hypixel.hytale.protocol.LongParamValue;
 import com.hypixel.hytale.server.core.Message;
-import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.objectives.book.BookVerbs;
@@ -121,13 +117,6 @@ class QuestReaderTest {
         @Override
         public Message tagLabel(@Nonnull String tag) {
             return Msg.raw("Tag " + tag);
-        }
-
-        @Nullable
-        @Override
-        public Message claimPreCheck(@Nonnull Quest q, @Nonnull Store<EntityStore> s, @Nonnull Ref<EntityStore> r,
-                @Nonnull Player p) {
-            return null;
         }
 
         @Nullable

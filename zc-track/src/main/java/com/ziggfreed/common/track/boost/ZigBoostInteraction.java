@@ -18,6 +18,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.interaction.type.InteractionCtx;
 import com.ziggfreed.common.interaction.type.InteractionOutcome;
+import com.ziggfreed.common.track.asset.TrackAsset;
 
 /**
  * A boost token: starts a boost for the player using it, as a native interaction Type an item's chain names.
@@ -28,8 +29,10 @@ import com.ziggfreed.common.interaction.type.InteractionOutcome;
  *     "Next": { "Type": "ModifyInventory", "AdjustHeldItemQuantity": -1 } } ] } }
  * }</pre>
  *
- * <p>{@code Percent} and {@code Seconds} start it at a percent or a length of its own instead of the boost's. A
- * personal boost lifts the user; a server boost lifts everyone, and counts against the server's limit.
+ * <p>{@code Percent} and {@code Seconds} start it at a percent or a length of its own instead of the boost's, and
+ * {@code Track} points it at one track of those the boost lifts. A stack carrying its own numbers
+ * ({@link BoostToken}, minted by a command or a reward) starts what the stack says, so one item stands for a token of
+ * any size. A personal boost lifts the user; a server boost lifts everyone, and counts against the server's limit.
  *
  * <p><b>Resolves Failed whenever the boost did not start</b> (a wait not over, a limit reached, out of season, a
  * requirement not met, no such boost here), telling the player why, so the chain's {@code Next} (the consume, as
@@ -44,6 +47,7 @@ public final class ZigBoostInteraction extends SimpleInstantInteraction {
     @Nullable protected String boost;
     @Nullable protected Double percent;
     @Nullable protected Long seconds;
+    @Nullable protected String track;
 
     /** Lazy holder: an eager codec would class-init {@code Interaction}, which throws outside a live server. */
     private static final class Holder {
@@ -62,6 +66,11 @@ public final class ZigBoostInteraction extends SimpleInstantInteraction {
                         (i, v) -> i.seconds = v, i -> i.seconds, (i, p) -> i.seconds = p.seconds)
                 .documentation("How long this token's boost runs, in seconds, in place of the boost's own. Leave it "
                         + "out for the boost's own.").add()
+                .appendInherited(new KeyedCodec<>("Track", Codec.STRING, false),
+                        (i, v) -> i.track = v, i -> i.track, (i, p) -> i.track = p.track)
+                .metadata(EditorSchema.assetRef(TrackAsset.class))
+                .documentation("The one track this token's boost lifts, out of those the boost lifts (a token for "
+                        + "one skill of a boost that lifts every skill). Leave it out for all of them.").add()
                 .build();
     }
 
@@ -94,7 +103,11 @@ public final class ZigBoostInteraction extends SimpleInstantInteraction {
             if (player == null) {
                 return false;
             }
-            Boosts.Start start = Boosts.start(player.getUuid(), boost, percent, seconds, player.getUsername());
+            BoostToken held = BoostToken.of(ctx.getHeldItem());
+            Boosts.Start start = held == null
+                    ? Boosts.start(player.getUuid(), boost, percent, seconds, track, player.getUsername())
+                    : Boosts.start(player.getUuid(), held.boost(), held.percent(), held.seconds(), held.track(),
+                            player.getUsername());
             Message refusal = BoostText.refusal(start);
             if (refusal != null) {
                 player.sendMessage(refusal);

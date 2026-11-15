@@ -64,14 +64,37 @@ public final class InheritMapCodec<V> implements Codec<Map<String, V>>, InheritC
 
     private final Codec<V> valueCodec;
     private final Supplier<Map<String, V>> supplier;
+    /** What goes in the map, shown on the map's own object in the Asset Editor, or null. */
+    @Nullable private final String mapDocumentation;
+    /** What one entry holds, shown on each entry's value, or null. */
+    @Nullable private final String entryDocumentation;
 
     public InheritMapCodec(@Nonnull Codec<V> valueCodec) {
         this(valueCodec, LinkedHashMap::new);
     }
 
     public InheritMapCodec(@Nonnull Codec<V> valueCodec, @Nonnull Supplier<Map<String, V>> supplier) {
+        this(valueCodec, supplier, null, null);
+    }
+
+    private InheritMapCodec(@Nonnull Codec<V> valueCodec, @Nonnull Supplier<Map<String, V>> supplier,
+            @Nullable String mapDocumentation, @Nullable String entryDocumentation) {
         this.valueCodec = valueCodec;
         this.supplier = supplier;
+        this.mapDocumentation = mapDocumentation;
+        this.entryDocumentation = entryDocumentation;
+    }
+
+    /**
+     * This codec, its exported schema saying what goes in the map (on the map's own object) and what one
+     * entry holds (on each entry's value): the sentences an author reads in the Asset Editor on an open
+     * map whose keys nobody can list ahead of time. Schema only; it decodes exactly as before. A field
+     * declared with one keeps its own documentation on the map, so {@code mapDocumentation} speaks where
+     * the map is an entry of another one.
+     */
+    @Nonnull
+    public InheritMapCodec<V> documented(@Nullable String mapDocumentation, @Nullable String entryDocumentation) {
+        return new InheritMapCodec<>(valueCodec, supplier, mapDocumentation, entryDocumentation);
     }
 
     @Override
@@ -231,13 +254,30 @@ public final class InheritMapCodec<V> implements Codec<Map<String, V>>, InheritC
     public Schema toSchema(@Nonnull SchemaContext context) {
         ObjectSchema schema = new ObjectSchema();
         schema.setTitle("Map");
-        schema.setAdditionalProperties(context.refDefinition(valueCodec));
-        // Declare the engine's ten reserved editorial keys as properties, in the exact shape the
-        // engine's own BuilderCodec.toSchema gives them: one shared UNTYPED Schema (untyped is the
-        // point - any JSON value is legal there), hidden and unsuggested. The in-game Asset Editor
-        // resolves an authored key through the exported schema, so without this a map-level
-        // "$Comment" would be resolved through additionalProperties' VALUE schema, whose shape a
-        // comment does not fit, and the property pane would fail to mount.
+        if (mapDocumentation != null) {
+            schema.setMarkdownDescription(mapDocumentation);
+        }
+        Schema entry = context.refDefinition(valueCodec);
+        if (entryDocumentation != null) {
+            entry.setMarkdownDescription(entryDocumentation);
+        }
+        schema.setAdditionalProperties(entry);
+        // Declare the engine's ten reserved editorial keys as properties (see editorialProperties).
+        schema.setProperties(editorialProperties());
+        return schema;
+    }
+
+    /**
+     * The engine's ten reserved editorial keys ({@code $Comment}, {@code $Title}, ...), in the exact shape
+     * the engine's own {@code BuilderCodec.toSchema} gives them: one shared UNTYPED Schema (untyped is the
+     * point - any JSON value is legal there), hidden and unsuggested, as a fresh map for an object schema's
+     * properties. The in-game Asset Editor resolves an authored key through the exported schema, so an
+     * object that leaves them out and takes other keys (a map, a parameter form) would resolve a
+     * {@code "$Comment"} through some other schema, whose shape a comment does not fit, and the property
+     * pane would fail to mount.
+     */
+    @Nonnull
+    public static Map<String, Schema> editorialProperties() {
         Schema comment = new Schema();
         comment.getHytale().setUiPropertyTitle("Comment");
         comment.setDoNotSuggest(true);
@@ -256,7 +296,6 @@ public final class InheritMapCodec<V> implements Codec<Map<String, V>>, InheritC
         properties.put("$WorkspaceID", comment);
         properties.put("$NodeId", comment);
         properties.put("$NodeEditorMetadata", comment);
-        schema.setProperties(properties);
-        return schema;
+        return properties;
     }
 }

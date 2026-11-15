@@ -23,6 +23,7 @@ import com.ziggfreed.common.instance.leaderboard.statboard.StatSection;
 import com.ziggfreed.common.instance.leaderboard.statboard.StatSectionConfig;
 import com.ziggfreed.common.occurrence.Occurrence;
 import com.ziggfreed.common.occurrence.Occurrences;
+import com.ziggfreed.common.playerdata.PlayerRecords;
 import com.ziggfreed.common.playerstats.asset.StatConfig;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -48,7 +49,8 @@ import com.ziggfreed.common.util.SafeLog;
  * <p>Writes are called on the world thread that owns {@code store}, the way every producer runs. A
  * player with no record (the component never registered, or an entity that is not a player) counts
  * nothing; a stat id the key format cannot hold ({@link StatKeys#usableStatId}) counts nothing and is
- * reported once. With the store switched off ({@link StatsSwitch}) nothing is counted or ranked.
+ * reported once. With the store switched off ({@link StatsSwitch}) nothing is counted or ranked. Every write that
+ * lands on a record says so ({@code PlayerRecords.changed}), so a consumer keeping the record elsewhere saves it.
  */
 public final class PlayerStats {
 
@@ -150,6 +152,7 @@ public final class PlayerStats {
         if (record == null || !record.importOnce(claimId, lifetime, seasons)) {
             return false;
         }
+        PlayerRecords.changed(store, ref, PlayerStatsComponent.REGISTRY_ID);
         resync(store, ref);
         return true;
     }
@@ -251,6 +254,7 @@ public final class PlayerStats {
             return false;
         }
         SeasonLines.apply(record, writes);
+        PlayerRecords.changed(store, ref, PlayerStatsComponent.REGISTRY_ID);
         Map<String, Long> grown = new LinkedHashMap<>();
         Map<String, Long> lifetime = new LinkedHashMap<>();
         for (SeasonLines.Write write : writes) {
@@ -323,6 +327,7 @@ public final class PlayerStats {
                 }
             }
         }
+        PlayerRecords.changed(store, ref, PlayerStatsComponent.REGISTRY_ID);
         if (feed == StatRankFeed.NONE) {
             return;
         }

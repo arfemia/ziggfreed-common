@@ -3,14 +3,23 @@ package com.ziggfreed.common.instance.dungeon;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.inventory.ItemStack;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.instance.reward.InstanceReward;
 import com.ziggfreed.common.inventory.InventoryUtil;
+import com.ziggfreed.common.loot.claim.Claim;
+import com.ziggfreed.common.loot.claim.ClaimStore;
+import com.ziggfreed.common.loot.reward.LootRewardKinds;
+import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -25,12 +34,23 @@ import com.ziggfreed.common.util.SafeLog;
  * <p>{@link DungeonEntry} asks {@link #lacking} before it reserves anything, so a player who cannot pay is refused
  * with nothing reserved and nothing spent, and spends through {@link #spend} only once every other check has
  * passed, on the same world-thread step as the check, right before the teleport. A partymate who follows into the
- * area the party already holds is never asked. Every read and write here runs on the player's world thread through
+ * area the party already holds is never asked. Every read and take here runs on the player's world thread through
  * the caller's accessor: their store, or the command buffer of the interaction chain they are in.
+ *
+ * <p><b>A refund lands the way every item handed to a player lands, and a full bag never eats it.</b> What
+ * {@link #refund} gives back goes through {@link LootRewardKinds#handToPlayer}: where the player's own pickup settings
+ * route it, with the game's own pickup notice and sound for what went in, and whatever the bag cannot take to the
+ * server's overflow policy (by default the ground at their feet). That delivery reads the same bag through the
+ * player's own store, on the same world thread. A cost the player paid for an area whose copy or paste fails once
+ * the loading screen has begun comes back as a Claim instead ({@link #refundAsClaim}), since by then they may be in
+ * any world.
  */
 public final class DungeonEntryCost {
 
     private static final String LOG = "[dungeon] ";
+
+    /** What a refund is called in the line the delivery leaves when a pile it could not land is lost. */
+    private static final String REFUND_SOURCE = "dungeon entry refund";
 
     /** One item the way in takes, and how many: the id as the dungeon file writes it, the count at least one. */
     public record Item(@Nonnull String itemId, int count) {
@@ -100,18 +120,79 @@ public final class DungeonEntryCost {
     }
 
     /**
-     * Give {@code cost} back where it was taken from, on the same step that took it, so the room it left is still
-     * there; whatever still does not fit is logged.
+     * Give {@code cost} back on the same step that took it, through the library's one delivery for items handed
+     * straight to a player ({@link LootRewardKinds#handToPlayer}): the bag first, with the game's pickup notice, and
+     * whatever the bag still cannot take to the overflow policy as one pile, by default at the player's feet. Only a
+     * pile the policy could not land is lost, and the delivery warns about it by name; so does a stack that could not
+     * be built, or a player no longer there to give it to.
      */
     public static void refund(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
             @Nonnull List<Item> cost) {
+        if (cost.isEmpty()) {
+            return;
+        }
+        Subject subject = subjectOf(accessor, ref);
+        if (subject == null) {
+            SafeLog.warn(LOG + cost + " taken for a dungeon's entry could not be handed back: the player is gone");
+            return;
+        }
+        List<ItemStack> stacks = new ArrayList<>(cost.size());
         for (Item item : cost) {
-            int lost = InventoryUtil.give(accessor, ref, item.itemId(), item.count(),
-                    InventoryUtil.spendableSections());
-            if (lost > 0) {
-                SafeLog.warn(LOG + lost + " of " + item.itemId() + " taken for a dungeon's entry could not be given"
-                        + " back: the player's bag had no room");
+            try {
+                stacks.add(new ItemStack(item.itemId(), item.count()));
+            } catch (Throwable t) {
+                SafeLog.warn(LOG + item.count() + " x " + item.itemId() + " taken for a dungeon's entry could not be"
+                        + " handed back: " + t.getMessage());
             }
+        }
+        if (!stacks.isEmpty()) {
+            LootRewardKinds.handToPlayer(subject, REFUND_SOURCE, SafeLog::warn).build().spill(stacks);
+        }
+    }
+
+    /**
+     * Give {@code cost} back to {@code player} as a Claim, for an entry the player paid whose copy or paste failed
+     * ({@code why}) once the loading screen had begun, by when they may be in any world or none: one Claim per failed
+     * entry ({@code dungeon:<id>:refund:<player>:<millis>}, source {@code dungeon:<id>}), titled
+     * {@code entry.refund.title} over the dungeon's name, counted against no returns, waiting under Claims until
+     * they take it (M428). Any thread; never throws.
+     */
+    public static void refundAsClaim(@Nonnull UUID player, @Nonnull String dungeonId, @Nullable String nameKey,
+            @Nonnull List<Item> cost, @Nullable Throwable why) {
+        if (cost.isEmpty()) {
+            return;
+        }
+        try {
+            List<InstanceReward> rewards = new ArrayList<>(cost.size());
+            for (Item item : cost) {
+                rewards.add(InstanceReward.item(item.itemId(), item.count(), null));
+            }
+            long now = System.currentTimeMillis();
+            String source = DungeonRuns.SOURCE_PREFIX + dungeonId;
+            String name = nameKey == null || nameKey.isBlank() ? dungeonId : Claim.keyArg(nameKey);
+            Claim claim = new Claim(source + ":refund:" + player + ":" + now, source,
+                    DungeonRefusals.PREFIX + "entry.refund.title", List.of(name), null, rewards, now);
+            boolean written = ClaimStore.shared().award(player, claim, null, source, now);
+            SafeLog.info(LOG + "the copy or paste of " + dungeonId + " failed after " + player + " paid " + cost
+                    + (why == null ? "" : " (" + why.getMessage() + ")")
+                    + (written ? "; the cost waits for them under Claims" : "; the refund could not be written"));
+        } catch (Throwable t) {
+            SafeLog.warn(LOG + cost + " taken for " + dungeonId + "'s entry could not be given back as a Claim to "
+                    + player, t);
+        }
+    }
+
+    /** The player behind {@code ref} as the delivery's subject, read through the caller's accessor, or null. */
+    @Nullable
+    private static Subject subjectOf(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref) {
+        try {
+            if (!ref.isValid()) {
+                return null;
+            }
+            return Subject.of(accessor.getComponent(ref, PlayerRef.getComponentType()),
+                    accessor.getComponent(ref, Player.getComponentType()));
+        } catch (Throwable t) {
+            return null;
         }
     }
 }

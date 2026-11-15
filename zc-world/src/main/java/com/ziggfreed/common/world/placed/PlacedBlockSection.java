@@ -45,12 +45,14 @@ import it.unimi.dsi.fastutil.shorts.Short2ObjectOpenHashMap;
  * section-local {@link ChunkUtil#indexBlock} index, behind a versioned codec with a single byte-
  * array key.
  *
- * <p><b>The mark is the guard's whole record.</b> The guard refuses credit for any placement whoever
- * breaks it, so it reads only the bit. Placements that should NOT be guarded (an admin standing up an
- * ore vein for players to mine) are settled when the block goes down, by not marking it at all - see
- * {@link PlacedBlockRecorder}. Who placed a marked block is kept beside it for the rules that take only
- * a player's own blocks (a shape that tears down what you built), in a {@link PlacerPalette}: one id for
- * a section one player built in, a packed index a block only once a second placer arrives.
+ * <p><b>The mark says a player put the block there</b>, every real placement, whatever the anti-exploit
+ * guard says. Who placed it is kept beside it, in a {@link PlacerPalette}: one entry for a section one
+ * player built in, a packed index a block only once a second entry arrives. The palette also says whether
+ * the guard holds the placement (it refuses credit for breaking it, whoever breaks it): a placement the
+ * guard leaves alone (an admin standing up an ore vein for players to mine, a creative placement, one made
+ * while the guard was off) is decided when the block goes down, see {@link PlacedBlockRecorder}, and still
+ * names its placer for the rules that take only a player's own blocks (a shape that tears down what you
+ * built).
  *
  * <p><b>Spared blocks.</b> A sparse map, allocated only once one lands, says which placements did not
  * use up their item (a thrift step spared it), so breaking the block must not hand the item back a
@@ -73,14 +75,23 @@ public final class PlacedBlockSection implements Component<ChunkStore> {
 
     /** The saved form's leading flags: which parts follow it, in this order. */
     private static final int HAS_MARKS = 1;
-    /** Bare spared bits, written only by builds before the spared block was kept; read past and dropped. */
-    private static final int HAS_SPARED_BITS = 2;
-    /** The spared blocks and what each was; it sits where the bare bits did, and the two are never both written. */
+    /**
+     * Reserved, never written or read: a build that never shipped wrote bare spared bits under it, so no later part
+     * takes the bit.
+     */
+    static final int RESERVED_SPARED_BITS = 2;
+    /** The spared blocks and what each was. */
     private static final int HAS_SPARED = 8;
     private static final int HAS_PLACERS = 4;
 
-    /** A saved palette entry: a presence byte, then the id's two halves. */
+    /** A saved palette entry: a flag byte ({@link #ENTRY_NAMED}, {@link #ENTRY_UNGUARDED}), then the id's two halves. */
     private static final int ENTRY_BYTES = 1 + 2 * Long.BYTES;
+
+    /** An entry's flag: it names a placer (the two halves that follow are an id). */
+    private static final int ENTRY_NAMED = 1;
+
+    /** An entry's flag: the guard does not hold its placements. A section saved before it was kept reads guarded. */
+    private static final int ENTRY_UNGUARDED = 2;
 
     public static final BuilderCodec<PlacedBlockSection> CODEC =
             BuilderCodec.builder(PlacedBlockSection.class, PlacedBlockSection::new)
@@ -174,11 +185,21 @@ public final class PlacedBlockSection implements Component<ChunkStore> {
 
     /**
      * Set or clear the mark for one section-local index; a set records {@code placer} as who placed it (null for
-     * unknown), replacing whoever a mark already there named.
+     * unknown), the guard holding it, replacing whoever a mark already there named.
      *
      * @return true when this actually changed the mark
      */
     public boolean setMarked(int index, boolean marked, @Nullable UUID placer) {
+        return setMarked(index, marked, placer, true);
+    }
+
+    /**
+     * Set or clear the mark for one section-local index; a set records {@code placer} as who placed it (null for
+     * unknown) and whether the anti-exploit guard holds the placement, replacing what a mark already there said.
+     *
+     * @return true when this actually changed the mark
+     */
+    public boolean setMarked(int index, boolean marked, @Nullable UUID placer, boolean guarded) {
         byte[] data = marks;
         if (data == null) {
             if (!marked) {
@@ -191,7 +212,7 @@ public final class PlacedBlockSection implements Component<ChunkStore> {
         int bit = 1 << (index & 7);
         boolean was = (data[slot] & bit) != 0;
         if (marked) {
-            placers.set(index, placer, markedCount > (was ? 1 : 0));
+            placers.set(index, placer, guarded, markedCount > (was ? 1 : 0));
         }
         if (was == marked) {
             return false;
@@ -221,6 +242,11 @@ public final class PlacedBlockSection implements Component<ChunkStore> {
     @Nullable
     public UUID placerAt(int index) {
         return isMarked(index) ? placers.get(index) : null;
+    }
+
+    /** Is the block at this section-local index a placement the anti-exploit guard holds? False when unmarked. */
+    public boolean guardedAt(int index) {
+        return isMarked(index) && placers.guarded(index);
     }
 
     /** Is the block at this section-local index one whose placement did not use up its item? */
@@ -297,10 +323,32 @@ public final class PlacedBlockSection implements Component<ChunkStore> {
     /** {@link #mark(ComponentAccessor, Ref, int, int, int)}, naming who placed it (null for unknown). */
     public static void mark(@Nonnull ComponentAccessor<ChunkStore> accessor,
             @Nonnull Ref<ChunkStore> sectionRef, int x, int y, int z, @Nullable UUID placer) {
+        mark(accessor, sectionRef, x, y, z, placer, true);
+    }
+
+    /**
+     * {@link #mark(ComponentAccessor, Ref, int, int, int, UUID)}, saying whether the anti-exploit guard holds the
+     * placement.
+     */
+    public static void mark(@Nonnull ComponentAccessor<ChunkStore> accessor,
+            @Nonnull Ref<ChunkStore> sectionRef, int x, int y, int z, @Nullable UUID placer, boolean guarded) {
         PlacedBlockSection section = ensure(accessor, sectionRef);
         if (section != null) {
-            section.setMarked(ChunkUtil.indexBlock(x, y, z), true, placer);
+            section.setMarked(ChunkUtil.indexBlock(x, y, z), true, placer, guarded);
         }
+    }
+
+    /**
+     * Is the block at this position a placement the anti-exploit guard holds? False when unmarked or unregistered.
+     */
+    public static boolean isGuarded(@Nonnull ComponentAccessor<ChunkStore> accessor,
+            @Nonnull Ref<ChunkStore> sectionRef, int x, int y, int z) {
+        ComponentType<ChunkStore, PlacedBlockSection> componentType = type;
+        if (componentType == null) {
+            return false;
+        }
+        PlacedBlockSection section = accessor.getComponent(sectionRef, componentType);
+        return section != null && section.guardedAt(ChunkUtil.indexBlock(x, y, z));
     }
 
     /** Who placed the marked block at this position: null when unmarked, unknown or unregistered. */
@@ -432,7 +480,7 @@ public final class PlacedBlockSection implements Component<ChunkStore> {
         byte[] data = marks;
         byte[] kept = sparedBytes();
         UUID[] entries = placers.entries();
-        boolean named = data != null && entries.length > 0 && !(entries.length == 1 && entries[0] == null);
+        boolean named = data != null && placers.saysAnything();
         long[] packed = named ? placers.packed() : null;
         int bits = named ? placers.bits() : 0;
         int placerBytes = named ? 2 + entries.length * ENTRY_BYTES + PlacerPalette.longsFor(bits) * Long.BYTES : 0;
@@ -454,8 +502,10 @@ public final class PlacedBlockSection implements Component<ChunkStore> {
         if (named) {
             out.set(ValueLayout.JAVA_BYTE, at++, (byte) (entries.length - 1));
             out.set(ValueLayout.JAVA_BYTE, at++, (byte) bits);
-            for (UUID entry : entries) {
-                out.set(ValueLayout.JAVA_BYTE, at, (byte) (entry == null ? 0 : 1));
+            for (int i = 0; i < entries.length; i++) {
+                UUID entry = entries[i];
+                int entryFlags = (entry == null ? 0 : ENTRY_NAMED) | (placers.unguardedAt(i) ? ENTRY_UNGUARDED : 0);
+                out.set(ValueLayout.JAVA_BYTE, at, (byte) entryFlags);
                 if (entry != null) {
                     out.set(ValueLayout.JAVA_LONG_UNALIGNED, at + 1, entry.getMostSignificantBits());
                     out.set(ValueLayout.JAVA_LONG_UNALIGNED, at + 1 + Long.BYTES, entry.getLeastSignificantBits());
@@ -494,14 +544,6 @@ public final class PlacedBlockSection implements Component<ChunkStore> {
                 marks = data;
                 markedCount = count;
             }
-        }
-        if ((flags & HAS_SPARED_BITS) != 0) {
-            // A build that kept bare spared bits wrote them here; it never shipped, and a mark that cannot say which
-            // block it spared is dropped rather than guessed at.
-            if (bytes.length < at + MARKS_SIZE) {
-                return;
-            }
-            at += MARKS_SIZE;
         }
         if ((flags & HAS_SPARED) != 0) {
             if (bytes.length < at + Integer.BYTES) {
@@ -634,11 +676,14 @@ public final class PlacedBlockSection implements Component<ChunkStore> {
             return;
         }
         UUID[] entries = new UUID[count];
+        boolean[] unguarded = new boolean[count];
         for (int i = 0; i < count; i++) {
-            if (in.get(ValueLayout.JAVA_BYTE, at) != 0) {
+            int entryFlags = in.get(ValueLayout.JAVA_BYTE, at) & 0xFF;
+            if ((entryFlags & ENTRY_NAMED) != 0) {
                 entries[i] = new UUID(in.get(ValueLayout.JAVA_LONG_UNALIGNED, at + 1),
                         in.get(ValueLayout.JAVA_LONG_UNALIGNED, at + 1 + Long.BYTES));
             }
+            unguarded[i] = (entryFlags & ENTRY_UNGUARDED) != 0;
             at += ENTRY_BYTES;
         }
         long[] packed = null;
@@ -649,7 +694,7 @@ public final class PlacedBlockSection implements Component<ChunkStore> {
                 at += Long.BYTES;
             }
         }
-        placers.restore(entries, bits, packed);
+        placers.restore(entries, unguarded, bits, packed);
     }
 
     @Nonnull

@@ -7,9 +7,6 @@
   "Open": {
     "Credited": true
   },
-  "View": {
-    "ItemsWindow": true
-  },
   "Banner": {
     "TitleKey": "ziggfreedcommon.claims.chest.banner.title",
     "SubtitleKey": "ziggfreedcommon.claims.chest.banner",

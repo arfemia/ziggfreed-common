@@ -11,15 +11,14 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.instance.reward.InstanceReward;
 
 /**
- * A player collected a Claim, in whole or in part: a Claim press (zc-instance's {@code ClaimGrants}) took it and
- * handed {@link #delivered} over, or the player took items of it out of a spoils chest's window into their bag
- * (zc-instance's {@code SpoilsWindow}). Fired once per Claim a press took, after whatever did not fit went back to
- * wait, and never for a press that handed nothing of it over; from a chest's window, once per Claim an item left,
- * as it leaves, an item that comes back and leaves again never announced twice. What it delivered really reached
- * the player (an item into the bag, all of it or none, a command run, a currency paid).
+ * A player collected a Claim, in whole or in part: a Claim press (zc-instance's {@code ClaimGrants}: the Claims tab,
+ * a reward chest's line or Take All, a dungeon's results screen) took it and handed {@link #delivered} over. Fired
+ * once per Claim a press took, after whatever did not fit went back to wait, and never for a press that handed
+ * nothing of it over. What it delivered really reached the player (an item into the bag, all of it or none, a
+ * command run, a currency paid).
  *
- * <p>Dispatched synchronously on the player's world thread, inside the press or the window's change, so a listener
- * may touch the player through {@link #ref}; one that would re-enter a page or a payout hops to a later task itself.
+ * <p>Dispatched synchronously on the player's world thread, inside the press, so a listener may touch the player
+ * through {@link #ref}; one that would re-enter a page or a payout hops to a later task itself.
  */
 public final class ClaimCollectedEvent implements IEvent<Void> {
 

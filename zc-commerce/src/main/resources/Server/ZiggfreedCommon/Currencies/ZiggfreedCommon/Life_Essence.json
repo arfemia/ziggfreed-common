@@ -1,0 +1,15 @@
+{
+  "$Comment": "Life essence: the game's own Ingredient_Life_Essence as an item-backed wallet, so a player's balance IS how many of them they are carrying. That means it can be dropped, traded and stored like any other item, and whatever this world already does with items on death applies to it. It needs no Icon and no name key of its own: with Backing authored, both come from the backing item. CommonLib ships it so every mod prices in the same Life Essence whichever mods a server runs: a mod names Life_Essence in its prices and ships no copy of its own, since a second file with this id reads over this one. Meta holds knobs only the mod each block is named for reads (whether a skills mod shows the balance on its sidebar and pages); any other mod ignores them. A server owner retunes the wallet by id in the owner layer (mods/ziggfreedcommon/currencies.json).",
+  "Backing": {
+    "Item": "Ingredient_Life_Essence"
+  },
+  "Color": "#a7e0a7",
+  "Cap": 0,
+  "Meta": {
+    "mmoskilltree": {
+      "ShowOnSidebar": true,
+      "ShowOnMasteryPage": true,
+      "XpConversionPercent": 0
+    }
+  }
+}

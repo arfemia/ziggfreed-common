@@ -33,9 +33,10 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p><b>When.</b> The engine has no moment for an effect landing, so this reads an effect the first time it is seen
  * active, and again whenever its remaining time has grown since (a re-application that refreshed it), and changes its
- * remaining time once through the engine's own {@code addEffect} with the owner kept. Only entities that can carry
- * such an effect are read: every living player each tick, and every entity a player's hit landed on in the last
- * {@value #WATCH_SECONDS} seconds ({@link #watch}), so a creature no player touched costs nothing.
+ * remaining time once through the engine's own {@code addEffect} with the owner kept. Every living carrier is read
+ * (R860): a player each tick, a creature a few times a second, and each tick a creature any hit landed on in the last
+ * {@value #WATCH_SECONDS} seconds ({@link #watch}), so its effects are read as they land; a creature wearing no
+ * effect costs one look.
  *
  * <p>What was seen is kept per active effect object in a weak table, so a removed effect drops out on its own.
  * Transient and single-process; world thread only; never throws.
@@ -59,7 +60,7 @@ public final class EffectDurations {
     private EffectDurations() {
     }
 
-    /** Read {@code ref} for the next {@value #WATCH_SECONDS} seconds: a player's hit just landed on it. */
+    /** Read {@code ref} for the next {@value #WATCH_SECONDS} seconds: a hit just landed on it. */
     public static void watch(@Nonnull Ref<EntityStore> ref, long nanos) {
         WATCHED.put(ref, nanos + (long) (WATCH_SECONDS * 1_000_000_000L));
     }

@@ -14,7 +14,6 @@ import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.codec.JsonTreeCodec;
 import com.ziggfreed.common.text.ContentTextAsset;
-import com.ziggfreed.common.track.TrackKey;
 
 /**
  * One option a choice may offer, at {@code Server/ZiggfreedCommon/TrackPickOptions/<Owner>/<Id>.json}, shared by
@@ -24,22 +23,18 @@ import com.ziggfreed.common.track.TrackKey;
  *
  * <pre>{@code
  * { "Text": { "TitleKey": "yourmod.option.edge" },
- *   "Draw": "Line",
+ *   "From": 10,
  *   "Grants": [ { "Kind": "Stat", "Stat": "DamageBonus_{Cause}", "Add": "{Step}" } ] }
  * }</pre>
  *
- * <p>{@code Draw} is the part of an offer it fills (a deck reserves room for some, such as a knack slot, and offers
- * others only at its foe levels), {@code Bag} how often a deck brings it round and {@code Turn} where in each round,
- * {@code From} and {@code To} the levels it may be offered at. Every leaf inherits through {@code Parent}; a server
- * owner retunes an option in {@code mods/ziggfreedcommon/track-pick-options.json}.
+ * <p>{@code From} and {@code To} are the levels it is offered at: a slot offers every option of its group open at
+ * its level. Every leaf inherits through {@code Parent}; a server owner retunes an option in
+ * {@code mods/ziggfreedcommon/track-pick-options.json}.
  */
 public final class PickOptionAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, PickOptionAsset>> {
 
     /** The store's content path; the folders below it are the author's own grouping. */
     public static final String TYPE_ROOT = "ZiggfreedCommon/TrackPickOptions";
-
-    /** The part of an offer an option fills when it names none. */
-    public static final String DEFAULT_DRAW = "Line";
 
     private String id;
     private AssetExtraInfo.Data data;
@@ -47,9 +42,6 @@ public final class PickOptionAsset implements JsonAssetWithMap<String, DefaultAs
     @Nullable protected Boolean enabled;
     @Nullable protected ContentTextAsset text;
     @Nullable protected String icon;
-    @Nullable protected String draw;
-    @Nullable protected String bag;
-    @Nullable protected Integer turn;
     @Nullable protected Integer from;
     @Nullable protected Integer to;
     @Nullable protected JsonElement grants;
@@ -75,21 +67,6 @@ public final class PickOptionAsset implements JsonAssetWithMap<String, DefaultAs
                     (a, v) -> a.icon = v, a -> a.icon, (a, p) -> a.icon = p.icon)
             .metadata(EditorSchema.assetRef(Item.class))
             .documentation("The item whose picture stands for the option.").add()
-            .appendInherited(new KeyedCodec<>("Draw", Codec.STRING, false),
-                    (a, v) -> a.draw = v, a -> a.draw, (a, p) -> a.draw = p.draw)
-            .metadata(EditorSchema.defaultValue(DEFAULT_DRAW))
-            .documentation("The part of an offer this option fills, a word the deck reads: Line when unauthored, "
-                    + "Knack for the deck's knack slot, Foe for its foe levels, or any word a deck names.").add()
-            .appendInherited(new KeyedCodec<>("Bag", Codec.STRING, false),
-                    (a, v) -> a.bag = v, a -> a.bag, (a, p) -> a.bag = p.bag)
-            .documentation("How often a deck brings this option round, a word its Bag names (Often, Sometimes). "
-                    + "Unauthored, it may be offered at every level it is open.").add()
-            .appendInherited(new KeyedCodec<>("Turn", Codec.INTEGER, false),
-                    (a, v) -> a.turn = v, a -> a.turn, (a, p) -> a.turn = p.turn)
-            .documentation("Which slot of each round its Bag word sets this option comes due at, counted from 1: "
-                    + "with a deck's Bag { \"Often\": 2 }, Turn 1 brings an Often option at a group's first, third "
-                    + "and fifth slots, Turn 2 at its second, fourth and sixth. Unauthored, the options naming one "
-                    + "Bag word take turns in the order the group lists them. Read only with a Bag word.").add()
             .appendInherited(new KeyedCodec<>("From", Codec.INTEGER, false),
                     (a, v) -> a.from = v, a -> a.from, (a, p) -> a.from = p.from)
             .metadata(EditorSchema.defaultValue(1L))
@@ -133,31 +110,19 @@ public final class PickOptionAsset implements JsonAssetWithMap<String, DefaultAs
         return TrackPickAsset.blankToNull(icon);
     }
 
-    /** The part of an offer it fills, lower-cased ({@code line} unauthored). */
-    @Nonnull
-    public String draw() {
-        String own = TrackKey.normalize(draw);
-        return own.isEmpty() ? TrackKey.normalize(DEFAULT_DRAW) : own;
-    }
-
-    /** The deck's word for how often it comes round, lower-cased, or null for every level. */
-    @Nullable
-    public String bag() {
-        String own = TrackKey.normalize(bag);
-        return own.isEmpty() ? null : own;
-    }
-
-    /** Its authored turn in each round of its Bag word, from 1; 0 when unauthored (it takes its turn in order). */
-    public int turn() {
-        return turn == null ? 0 : Math.max(0, turn);
-    }
-
+    /** The first level it is offered at, 1 or more. */
     public int from() {
         return from == null ? 1 : Math.max(1, from);
     }
 
+    /** The last level it is offered at; {@link Integer#MAX_VALUE} for no end. */
     public int to() {
         return to == null ? Integer.MAX_VALUE : to;
+    }
+
+    /** Is it offered at {@code level}: between its {@code From} and its {@code To}? */
+    public boolean openAt(int level) {
+        return level >= from() && level <= to();
     }
 
     /** The {@code Grants} template as written, or null. */

@@ -1,6 +1,5 @@
 package com.ziggfreed.common.loot.claim;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -17,14 +16,15 @@ import javax.annotation.Nullable;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 import com.hypixel.hytale.event.IEventDispatcher;
 import com.hypixel.hytale.server.core.HytaleServer;
-import com.hypixel.hytale.server.core.util.io.FileUtil;
 import com.ziggfreed.common.instance.reward.InstanceReward;
 import com.ziggfreed.common.instance.reward.StoredReward;
 import com.ziggfreed.common.loot.StochasticCount;
 import com.ziggfreed.common.loot.diminish.DiminishLedger;
 import com.ziggfreed.common.loot.diminish.DiminishSpec;
+import com.ziggfreed.common.util.RecordFile;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -36,12 +36,13 @@ import com.ziggfreed.common.util.SafeLog;
  * <p>It sits beside {@code PendingRewardStore}, which stays the retry queue: a Claim is a payout the player
  * collects on purpose, a pending reward one that could not be delivered. A Claim never expires (lead's call).
  *
- * <p>One versioned JSON file, written atomically through the engine's {@code FileUtil} on every change (the
- * {@code PendingRewardStore} shape). A file declaring a newer version than this build reads is left unread,
- * and unwritten, with one warning; so is a file this build cannot read at all (a damaged or cut-short one),
- * so one bad read never costs a player the Claims on disk. A missing or empty file is a fresh start, not a
- * refusal. A write that fails keeps the Claims in memory, which a plain unit JVM (where the engine's writer
- * cannot load) relies on. A reward's optional spec (what a deferred row reads as, {@code StoredReward}) and drop
+ * <p>One versioned JSON file, written on every change through zc-core's {@code util/RecordFile} (the engine's
+ * atomic write with a {@code .bak}, the {@code PendingRewardStore} shape). A file declaring a newer version
+ * than this build reads is left unread, and unwritten, with one warning; a torn file reads its {@code .bak};
+ * and a file this build cannot read at all, backup included (a damaged or cut-short one), is left unread and
+ * unwritten too, so one bad read never costs a player the Claims on disk. A missing or empty file is a fresh
+ * start, not a refusal. A write that fails keeps the Claims in memory, which a plain unit JVM (where the
+ * engine's writer cannot load) relies on. A reward's optional spec (what a deferred row reads as, {@code StoredReward}) and drop
  * chance ({@link InstanceReward#dropChance}), and a Claim's optional fight ({@link Claim#fight()}), are additive
  * fields: a file written before any of them reads unchanged (a row with no fight is a Claim no fight paid, a reward
  * with no chance reads as its item's own quality) and the version does not move for them.
@@ -63,9 +64,8 @@ public final class ClaimStore {
     private final DoubleSupplier sample;
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     private final ConcurrentHashMap<UUID, List<StoredClaim>> claims = new ConcurrentHashMap<>();
-    @Nullable private volatile Path file;
-    /** True once a newer or unreadable file was found: it is never overwritten by this build. */
-    private volatile boolean refused;
+    /** The file, kept the one library way: a newer or unreadable file is never overwritten by this build. */
+    private final RecordFile file;
 
     /** Gson-friendly persisted shape of one Claim; each reward is {@code PendingRewardStore}'s own shape. */
     private static final class StoredClaim {
@@ -80,8 +80,8 @@ public final class ClaimStore {
         String fight;
     }
 
+    /** The file's leaves; its {@code version} is the record file's. */
     private static final class Dto {
-        int version;
         Map<String, List<StoredClaim>> players;
     }
 
@@ -97,6 +97,27 @@ public final class ClaimStore {
         this.fileName = name.endsWith(".json") ? name : name + ".json";
         this.ledger = ledger;
         this.sample = sample;
+        this.file = RecordFile.builder("claims", "the Claims in " + fileName, new RecordFile.Body() {
+                    @Override
+                    @Nonnull
+                    public JsonObject write() {
+                        return writeDoc();
+                    }
+
+                    @Override
+                    public void read(@Nonnull JsonObject doc, int version) {
+                        readDoc(doc);
+                    }
+
+                    @Override
+                    public void forget() {
+                        claims.clear();
+                    }
+                })
+                .version(SCHEMA_VERSION)
+                .lostWrite("a restart may lose a Claim")
+                .refuseUnreadable()
+                .build();
     }
 
     /** The library's one store, the one the Claims tab reads and every library payout writes. */
@@ -110,9 +131,7 @@ public final class ClaimStore {
         if (dataDir == null) {
             return;
         }
-        this.file = dataDir.resolve(fileName);
-        refused = false;
-        load();
+        file.persistTo(dataDir.resolve(fileName), null);
     }
 
     /**
@@ -340,65 +359,43 @@ public final class ClaimStore {
 
     // ==================== persistence ====================
 
-    private void load() {
-        Path f = file;
-        if (f == null || !Files.exists(f)) {
+    private void readDoc(@Nonnull JsonObject doc) {
+        Dto dto = gson.fromJson(doc, Dto.class);
+        claims.clear();
+        if (dto == null || dto.players == null) {
             return;
         }
-        try {
-            Dto dto = gson.fromJson(Files.readString(f), Dto.class);
-            if (dto != null && dto.version > SCHEMA_VERSION) {
-                refused = true;
-                SafeLog.warn("[claims] " + fileName + " declares version " + dto.version + ", newer than the "
-                        + SCHEMA_VERSION + " this build reads; leaving it unread and unwritten rather than "
-                        + "misreading it");
-                return;
+        for (Map.Entry<String, List<StoredClaim>> e : dto.players.entrySet()) {
+            UUID player = uuid(e.getKey());
+            if (player == null || e.getValue() == null) {
+                continue;
             }
-            claims.clear();
-            if (dto != null && dto.players != null) {
-                for (Map.Entry<String, List<StoredClaim>> e : dto.players.entrySet()) {
-                    UUID player = uuid(e.getKey());
-                    if (player == null || e.getValue() == null) {
-                        continue;
-                    }
-                    List<StoredClaim> held = new ArrayList<>();
-                    for (StoredClaim stored : e.getValue()) {
-                        if (stored != null && fromStored(stored) != null) {
-                            held.add(stored);
-                        }
-                    }
-                    if (!held.isEmpty()) {
-                        held.sort(BY_AGE);
-                        claims.put(player, held);
-                    }
+            List<StoredClaim> held = new ArrayList<>();
+            for (StoredClaim stored : e.getValue()) {
+                if (stored != null && fromStored(stored) != null) {
+                    held.add(stored);
                 }
             }
-        } catch (Throwable t) {
-            refused = true;
-            SafeLog.warn("[claims] " + fileName + " unreadable; starting with no Claims and leaving it unread and "
-                    + "unwritten: " + t.getMessage());
+            if (!held.isEmpty()) {
+                held.sort(BY_AGE);
+                claims.put(player, held);
+            }
         }
     }
 
+    @Nonnull
+    private JsonObject writeDoc() {
+        Dto dto = new Dto();
+        dto.players = new HashMap<>();
+        for (Map.Entry<UUID, List<StoredClaim>> e : claims.entrySet()) {
+            dto.players.put(e.getKey().toString(), new ArrayList<>(e.getValue()));
+        }
+        return gson.toJsonTree(dto).getAsJsonObject();
+    }
+
+    /** Write every Claim now; a refused file, or no data folder, writes nothing. */
     private void flush() {
-        Path f = file;
-        if (f == null || refused) {
-            return;
-        }
-        try {
-            Dto dto = new Dto();
-            dto.version = SCHEMA_VERSION;
-            dto.players = new HashMap<>();
-            for (Map.Entry<UUID, List<StoredClaim>> e : claims.entrySet()) {
-                dto.players.put(e.getKey().toString(), new ArrayList<>(e.getValue()));
-            }
-            if (f.getParent() != null) {
-                Files.createDirectories(f.getParent());
-            }
-            FileUtil.writeStringAtomic(f, gson.toJson(dto), true);
-        } catch (Throwable t) {
-            SafeLog.warn("[claims] " + fileName + " could not be written: " + t.getMessage());
-        }
+        file.writeNow();
     }
 
     @Nonnull

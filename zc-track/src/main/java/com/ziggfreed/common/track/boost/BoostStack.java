@@ -14,7 +14,7 @@ import javax.annotation.Nonnull;
  * server lift and the strongest personal lift count, each at least 0, added together and then capped. The result
  * is a multiplier through {@link #multiplier}: +50% is 1.5, and anything at or below -100% stops the gain.
  */
-public final class BoostStack {
+final class BoostStack {
 
     /** One boost lifting a track: its percent, and whose it is (which bucket {@code highestOnly} keeps). */
     public record Lift(double percent, @Nonnull BoostScope scope) {

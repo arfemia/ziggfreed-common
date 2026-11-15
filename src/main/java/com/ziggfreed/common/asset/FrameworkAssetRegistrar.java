@@ -51,6 +51,10 @@ import com.ziggfreed.common.instance.claims.RewardChestOwnerLayers;
 import com.ziggfreed.common.instance.dungeon.DungeonAsset;
 import com.ziggfreed.common.instance.dungeon.DungeonConfig;
 import com.ziggfreed.common.instance.dungeon.DungeonOwnerLayers;
+import com.ziggfreed.common.instance.dungeon.layout.asset.DungeonLayoutAsset;
+import com.ziggfreed.common.instance.dungeon.layout.asset.DungeonLayoutConfig;
+import com.ziggfreed.common.instance.dungeon.layout.asset.DungeonRoomAsset;
+import com.ziggfreed.common.instance.dungeon.layout.asset.DungeonRoomConfig;
 import com.ziggfreed.common.instance.effect.BandedEffectAsset;
 import com.ziggfreed.common.instance.effect.BandedEffectConfig;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardLayoutAsset;
@@ -72,6 +76,9 @@ import com.ziggfreed.common.loot.reward.RewardKindAsset;
 import com.ziggfreed.common.loot.reward.RewardKindConfig;
 import com.ziggfreed.common.loot.reward.RewardKindFold;
 import com.ziggfreed.common.loot.reward.RewardKinds;
+import com.ziggfreed.common.instance.reward.DropRarityAsset;
+import com.ziggfreed.common.instance.reward.DropRarityConfig;
+import com.ziggfreed.common.instance.reward.DropRarityOwnerLayers;
 import com.ziggfreed.common.loot.stamp.RollPoolAsset;
 import com.ziggfreed.common.loot.stamp.RollPoolConfig;
 import com.ziggfreed.common.loot.stamp.StatDisplayAsset;
@@ -160,14 +167,13 @@ import com.ziggfreed.common.track.asset.TrackCategoryConfig;
 import com.ziggfreed.common.track.asset.TrackConfig;
 import com.ziggfreed.common.track.asset.TrackCurveAsset;
 import com.ziggfreed.common.track.asset.TrackCurveConfig;
+import com.ziggfreed.common.track.asset.TrackCurveOwnerLayers;
 import com.ziggfreed.common.track.asset.TrackOwnerLayers;
 import com.ziggfreed.common.track.boost.BoostAsset;
 import com.ziggfreed.common.track.boost.BoostConfig;
 import com.ziggfreed.common.track.boost.BoostOwnerLayers;
 import com.ziggfreed.common.track.boost.BoostSettingsAsset;
 import com.ziggfreed.common.track.boost.BoostSettingsConfig;
-import com.ziggfreed.common.track.pick.PickDeckAsset;
-import com.ziggfreed.common.track.pick.PickDeckConfig;
 import com.ziggfreed.common.track.pick.PickOptionAsset;
 import com.ziggfreed.common.track.pick.PickOptionConfig;
 import com.ziggfreed.common.track.pick.TrackPickAsset;
@@ -196,6 +202,8 @@ import com.ziggfreed.common.world.WeightedPrefabPlacementConfig;
 import com.ziggfreed.common.world.gather.BlockFamilyAsset;
 import com.ziggfreed.common.world.gather.BlockFamilyConfig;
 import com.ziggfreed.common.world.gather.BlockFamilyOwnerLayers;
+import com.ziggfreed.common.world.gather.GatherRulesAsset;
+import com.ziggfreed.common.world.gather.GatherRulesConfig;
 import com.ziggfreed.common.world.gather.GatherShapeAsset;
 import com.ziggfreed.common.world.gather.GatherShapeConfig;
 import com.ziggfreed.common.world.gather.GatherShapeOwnerLayers;
@@ -315,6 +323,19 @@ public final class FrameworkAssetRegistrar {
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, RollPoolAsset.class,
                 (LoadedAssetsEvent<String, RollPoolAsset, DefaultAssetMap<String, RollPoolAsset>> ev) ->
                         RollPoolConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
+
+        // --- Drop rarities (Pattern A) - the rarity bands a reward reads as from its drop's chance, one
+        //     file per item quality id with its AtMostPercent; zc-loot ships the five vanilla qualities
+        //     (instance/reward/DropRarity reads them). Owner layer mods/ziggfreedcommon/drop-rarities.json,
+        //     read here once the packs have landed. No top-level Requires. ---
+        AssetStoreRegistrar.registerStore(DropRarityAsset.class,
+                new DefaultAssetMap<String, DropRarityAsset>(), DropRarityAsset.TYPE_ROOT,
+                DropRarityAsset::getId, DropRarityAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, DropRarityAsset.class,
+                (LoadedAssetsEvent<String, DropRarityAsset, DefaultAssetMap<String, DropRarityAsset>> ev) -> {
+                    DropRarityConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    DropRarityOwnerLayers.reload();
+                });
 
         // --- Bonus rows (Pattern A) - the library's moment-keyed bonus table: one row per file, a
         //     BreakBlock, KillMob or PickupItem moment plus a name pattern, a percent Chance and a
@@ -446,6 +467,18 @@ public final class FrameworkAssetRegistrar {
                     GatherShapeOwnerLayers.reload();
                 });
 
+        // --- Gather rules (Pattern A) - the gather steps' own numbers no stat carries: when a tree is tall, the
+        //     break chain's window and step cap, the shaped-placement flow. The library ships Default.json. Owner
+        //     file mods/ziggfreedcommon/gather-rules.json, re-read on this same event. No top-level Requires. ---
+        AssetStoreRegistrar.registerStore(GatherRulesAsset.class,
+                new DefaultAssetMap<String, GatherRulesAsset>(), GatherRulesAsset.TYPE_ROOT,
+                GatherRulesAsset::getId, GatherRulesAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, GatherRulesAsset.class,
+                (LoadedAssetsEvent<String, GatherRulesAsset, DefaultAssetMap<String, GatherRulesAsset>> ev) -> {
+                    GatherRulesConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    GatherRulesConfig.reloadOwner();
+                });
+
         // --- Gateways: where the way into another world stands, so a tracked quest whose character
         //     stands elsewhere points at the nearest way there (worldmap/Gateways). The base game's
         //     portals are read at boot into the defaults layer; files layer over them. No top-level
@@ -536,6 +569,24 @@ public final class FrameworkAssetRegistrar {
                     DungeonConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
                     DungeonOwnerLayers.reload();
                 });
+
+        // --- Dungeon rooms and layouts (Pattern A) - the procedural layout's data: a room per file (its prefab
+        //     pool, box, door sockets, roles, depth range and needs; the engine's own Tags) and a layout plan per
+        //     file (the beats of a run's path, its connectors, branches, strata and bounds), which the pure
+        //     generator in instance/dungeon/layout/ reads. The library ships none yet. No owner layer, no
+        //     top-level Requires. ---
+        AssetStoreRegistrar.registerStore(DungeonRoomAsset.class,
+                new DefaultAssetMap<String, DungeonRoomAsset>(), DungeonRoomAsset.TYPE_ROOT,
+                DungeonRoomAsset::getId, DungeonRoomAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, DungeonRoomAsset.class,
+                (LoadedAssetsEvent<String, DungeonRoomAsset, DefaultAssetMap<String, DungeonRoomAsset>> ev) ->
+                        DungeonRoomConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
+        AssetStoreRegistrar.registerStore(DungeonLayoutAsset.class,
+                new DefaultAssetMap<String, DungeonLayoutAsset>(), DungeonLayoutAsset.TYPE_ROOT,
+                DungeonLayoutAsset::getId, DungeonLayoutAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, DungeonLayoutAsset.class,
+                (LoadedAssetsEvent<String, DungeonLayoutAsset, DefaultAssetMap<String, DungeonLayoutAsset>> ev) ->
+                        DungeonLayoutConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
 
         // --- Reward chests (Pattern A) - what a chest a reward source stands is: its look, who opens it, what it
         //     holds of its own, how it shows it, its banner, its words and when it goes. The library ships
@@ -1062,14 +1113,17 @@ public final class FrameworkAssetRegistrar {
                 });
 
         // --- Track curves (Pattern A) - one level curve per file, which tracks share by id: its pieces, what lies
-        //     past the top, its tier names. The library ships Skill_Hybrid (and the sample track's curve). No
-        //     owner file; every fold drops the tabulated curves (TrackCurveConfig). ---
+        //     past the top, its tier names. The library ships Skill_Hybrid (and the sample track's curve). Owner
+        //     file mods/ziggfreedcommon/track-curves.json, re-read on this same event; every fold drops the
+        //     tabulated curves (TrackCurveConfig). ---
         AssetStoreRegistrar.registerStore(TrackCurveAsset.class,
                 new DefaultAssetMap<String, TrackCurveAsset>(), TrackCurveAsset.TYPE_ROOT,
                 TrackCurveAsset::getId, TrackCurveAsset.CODEC, null);
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, TrackCurveAsset.class,
-                (LoadedAssetsEvent<String, TrackCurveAsset, DefaultAssetMap<String, TrackCurveAsset>> ev) ->
-                        TrackCurveConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
+                (LoadedAssetsEvent<String, TrackCurveAsset, DefaultAssetMap<String, TrackCurveAsset>> ev) -> {
+                    TrackCurveConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    TrackCurveOwnerLayers.reload();
+                });
 
         // --- Track categories (Pattern A) - one category tracks file under per file: the shared category leaves
         //     and the prestige build its tracks default to. The library ships Combat, Gathering and Crafting. No
@@ -1128,7 +1182,7 @@ public final class FrameworkAssetRegistrar {
         //     offer and prestige perk is: its track, its choice groups or its cost and repeat, its Requires,
         //     prerequisites, spend cap, Where and grants. A file may gate on a mod through its top-level Requires.
         //     The library ships the sample track's one pick. Owner file mods/ziggfreedcommon/track-picks.json,
-        //     re-read on this same event. No loadsAfter: a pick names its track, options and deck by id and the
+        //     re-read on this same event. No loadsAfter: a pick names its track and options by id and the
         //     picks fold at first ask. ---
         AssetStoreRegistrar.registerStore(TrackPickAsset.class,
                 new DefaultAssetMap<String, TrackPickAsset>(), TrackPickAsset.TYPE_ROOT,
@@ -1155,9 +1209,9 @@ public final class FrameworkAssetRegistrar {
                 });
 
         // --- Track pick options (Pattern A) - one option a choice may offer per file, shared by every pick naming
-        //     it: its name, the part of an offer it fills, how often a deck brings it round, its levels and its
-        //     grants as a template the naming pick's Vars fill. The library ships the sample pick's three. Owner
-        //     file mods/ziggfreedcommon/track-pick-options.json, re-read on this same event. ---
+        //     it: its name, the levels it is offered at and its grants as a template the naming pick's Vars fill.
+        //     The library ships the sample pick's three. Owner file mods/ziggfreedcommon/track-pick-options.json,
+        //     re-read on this same event. ---
         AssetStoreRegistrar.registerStore(PickOptionAsset.class,
                 new DefaultAssetMap<String, PickOptionAsset>(), PickOptionAsset.TYPE_ROOT,
                 PickOptionAsset::getId, PickOptionAsset.CODEC, null);
@@ -1166,16 +1220,6 @@ public final class FrameworkAssetRegistrar {
                     PickOptionConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
                     TrackPickOwnerLayers.reloadOptions();
                 });
-
-        // --- Track pick decks (Pattern A) - how a choice group's offers are drawn per file, shared by every group
-        //     naming it: offer sizes by level, reserved room, the bag and its no-drought rule, the foe levels. The
-        //     library ships the sample pick's deck. No owner file. ---
-        AssetStoreRegistrar.registerStore(PickDeckAsset.class,
-                new DefaultAssetMap<String, PickDeckAsset>(), PickDeckAsset.TYPE_ROOT,
-                PickDeckAsset::getId, PickDeckAsset.CODEC, null);
-        plugin.getEventRegistry().register(LoadedAssetsEvent.class, PickDeckAsset.class,
-                (LoadedAssetsEvent<String, PickDeckAsset, DefaultAssetMap<String, PickDeckAsset>> ev) ->
-                        PickDeckConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
 
         // --- Boosts (Pattern A, gated) - one boost per file: the tracks it lifts (by id, by category, or All),
         //     its percent, whose it is, how long a start runs or that it stands, how it stacks with itself, its
@@ -1339,9 +1383,11 @@ public final class FrameworkAssetRegistrar {
                         HitTags.effectsRemoved(ev.getRemovedAssets()));
 
         SafeLog.info("ZiggfreedCommon framework stores registered (DialogueFragments, DialogueExtensions, Dialogues, Instances, "
-                        + "Lootables, RollPools, BonusRows (owner file mods/ziggfreedcommon/bonus-rows.json), "
+                        + "Lootables, RollPools, DropRarities (owner file mods/ziggfreedcommon/drop-rarities.json), "
+                        + "BonusRows (owner file mods/ziggfreedcommon/bonus-rows.json), "
                         + "StatDisplays, RewardKinds, BandedEffects, PrefabPlacements, Gateways, Leaderboard, "
-                        + "Arenas, Party, Dungeons (owner file mods/ziggfreedcommon/dungeons.json), "
+                        + "Arenas, Party, Dungeons (owner file mods/ziggfreedcommon/dungeons.json), DungeonRooms, "
+                        + "DungeonLayouts, "
                         + "RewardChests (owner file mods/ziggfreedcommon/reward-chests.json), "
                         + "NpcPlacements, NpcIdentities, Factors, FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, "
                         + "PlayerSettings (owner file mods/ziggfreedcommon/player-settings.json), "
@@ -1354,15 +1400,17 @@ public final class FrameworkAssetRegistrar {
                         + "GearSets (owner file mods/ziggfreedcommon/gear-sets.json), "
                         + "UseGates (owner file mods/ziggfreedcommon/use-gates.json), "
                         + "Titles (owner file mods/ziggfreedcommon/titles.json), "
-                        + "Reputations (owner file mods/ziggfreedcommon/reputation.json), TrackCurves, TrackCategories, "
+                        + "Reputations (owner file mods/ziggfreedcommon/reputation.json), "
+                        + "TrackCurves (owner file mods/ziggfreedcommon/track-curves.json), TrackCategories, "
                         + "Tracks (owner file mods/ziggfreedcommon/tracks.json), "
                         + "TrackSources (owner file mods/ziggfreedcommon/track-sources.json), "
                         + "TrackWorldRules (owner file mods/ziggfreedcommon/track-world-rules.json), "
                         + "TrackPicks (owner file mods/ziggfreedcommon/track-picks.json), TrackPickGenerators, "
-                        + "TrackPickOptions (owner file mods/ziggfreedcommon/track-pick-options.json), TrackPickDecks, "
+                        + "TrackPickOptions (owner file mods/ziggfreedcommon/track-pick-options.json), "
                         + "Boosts (owner file mods/ziggfreedcommon/boosts.json), "
                         + "BoostSettings (owner file mods/ziggfreedcommon/boost-settings.json), "
                         + "WeakSpotSettings (owner file mods/ziggfreedcommon/weak-spots.json), "
+                        + "GatherRules (owner file mods/ziggfreedcommon/gather-rules.json), "
                         + "EffectFamilies (owner file mods/ziggfreedcommon/effect-families.json), "
                         + "ConditionalStats (owner file mods/ziggfreedcommon/conditional-stats.json), "
                         + "Procs (owner file mods/ziggfreedcommon/procs.json), "

@@ -11,6 +11,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.track.GainCall;
 import com.ziggfreed.common.track.TrackStore;
 import com.ziggfreed.common.track.TrackStores;
+import com.ziggfreed.common.track.asset.TrackAsset;
 import com.ziggfreed.common.track.gain.GainFactor;
 import com.ziggfreed.common.track.gain.GainFactors;
 import com.ziggfreed.common.track.gain.GainPlans;
@@ -29,9 +30,9 @@ import com.ziggfreed.common.track.gain.GainStep;
  * turn on and off by itself (a {@code Season}, or a {@code Requires} beyond mod presence) is asked at each gain; with
  * none of those, the step is one multiplication. A track with no boost on it compiles to nothing.
  *
- * <p>The sum is the boosts' own: a mod's {@code Bonus} beside it adds to it rather than multiplying it, the way the
- * MMO has always stacked the two, because the track's {@code Gain.Additive} names both (the gain pipeline runs them
- * as one step); the cap bounds the boosts alone.
+ * <p>The sum is the boosts' own: the {@code Bonus} beside it adds to it rather than multiplying it, because the
+ * track's {@code Gain.Additive} names both (the gain pipeline runs them as one step); the cap bounds the boosts alone, and with them a prestiged climb's extra on a track whose
+ * {@code Prestige.InBoostCap} counts it as one of the player's own boosts (R852).
  */
 public final class BoostFactor implements GainFactor {
 
@@ -52,14 +53,21 @@ public final class BoostFactor implements GainFactor {
     /** What lifts the track now: the candidates, the earliest end among them, and whether any is conditional. */
     private record Lifts(@Nonnull List<Candidate> candidates, long until, boolean conditional) {
 
-        /** The multiplier the candidates apply for the player at {@code ref}, the conditional ones asked now. */
-        double multiplier(@Nullable Ref<EntityStore> ref) {
-            List<BoostStack.Lift> lifts = new ArrayList<>(candidates.size());
+        /**
+         * The multiplier the candidates apply for the player at {@code ref}, the conditional ones asked now, with
+         * {@code prestige} (a prestiged climb's extra counted inside the cap, 0 for none) as one more of the player's
+         * own lifts.
+         */
+        double multiplier(@Nullable Ref<EntityStore> ref, double prestige) {
+            List<BoostStack.Lift> lifts = new ArrayList<>(candidates.size() + 1);
             for (Candidate candidate : candidates) {
                 if (!candidate.conditional() || (candidate.boost().isPresent()
                         && Boosts.passes(candidate.boost().liveRequires(), ref))) {
                     lifts.add(new BoostStack.Lift(candidate.percent(), candidate.scope()));
                 }
+            }
+            if (prestige != 0.0) {
+                lifts.add(new BoostStack.Lift(prestige, BoostScope.PERSONAL));
             }
             BoostSettingsAsset settings = BoostSettingsConfig.getInstance().settings();
             return BoostStack.multiplier(BoostStack.percent(lifts, settings.cap(), settings.highestOnly()));
@@ -70,41 +78,75 @@ public final class BoostFactor implements GainFactor {
     @Override
     public GainStep compile(@Nonnull GainScope scope) {
         Lifts lifts = collect(scope, System.currentTimeMillis());
-        if (lifts.candidates().isEmpty()) {
+        double prestige = prestigePercent(scope);
+        if (lifts.candidates().isEmpty() && prestige == 0.0) {
             return GainStep.NONE;
         }
         if (lifts.conditional()) {
-            return (call, amount) -> amount * live(scope, lifts, call);
+            return (call, amount) -> amount * live(scope, lifts, call, prestige);
         }
-        double fixed = lifts.multiplier(null);
-        if (fixed == 1.0 && lifts.until() == Long.MAX_VALUE) {
+        double fixed = lifts.multiplier(null, 0.0);
+        double prestiged = prestige == 0.0 ? fixed : lifts.multiplier(null, prestige);
+        if (fixed == 1.0 && prestiged == 1.0 && lifts.until() == Long.MAX_VALUE) {
             return GainStep.NONE;
         }
-        return (call, amount) -> System.currentTimeMillis() < lifts.until() ? amount * fixed
-                : amount * live(scope, lifts, call);
+        return (call, amount) -> System.currentTimeMillis() < lifts.until()
+                ? amount * (call.before().prestige() > 0 ? prestiged : fixed)
+                : amount * live(scope, lifts, call, prestige);
+    }
+
+    /**
+     * The prestige extra {@code scope}'s track counts inside the boosts' cap ({@code Prestige.InBoostCap}, R852): its
+     * {@code Prestige.GainPercent} on a track that prestiges and says so, else 0 (the {@code Prestige} factor pays it
+     * on its own, or there is none). Paid only once the climb has prestiged, read off the gain's own record.
+     */
+    private static double prestigePercent(@Nonnull GainScope scope) {
+        TrackAsset track = scope.def().asset();
+        return track.prestiges() && track.prestigeInBoostCap() ? track.prestigeGainPercent() : 0.0;
     }
 
     /**
      * The multiplier now: the compiled lifts while none of them has ended, else summed again at this moment, the
-     * player's plan moved so the next gain builds without what ended.
+     * player's plan moved so the next gain builds without what ended; {@code prestige} counted when the gain's
+     * climb has prestiged.
      */
-    private static double live(@Nonnull GainScope scope, @Nonnull Lifts compiled, @Nonnull GainCall call) {
+    private static double live(@Nonnull GainScope scope, @Nonnull Lifts compiled, @Nonnull GainCall call,
+            double prestige) {
+        double own = call.before().prestige() > 0 ? prestige : 0.0;
         long now = System.currentTimeMillis();
         if (now < compiled.until()) {
-            return compiled.multiplier(call.ref());
+            return compiled.multiplier(call.ref(), own);
         }
         GainPlans.invalidate(call.playerId());
-        return collect(scope, now).multiplier(call.ref());
+        return collect(scope, now).multiplier(call.ref(), own);
     }
 
     /** Every boost lifting {@code scope}'s track at {@code nowMs}. */
     @Nonnull
     private static Lifts collect(@Nonnull GainScope scope, long nowMs) {
-        String trackId = scope.trackId();
-        String categoryId = scope.categoryId();
+        TrackStore store = scope.playerId() == null ? null : TrackStores.forKey(scope.key());
+        HeldBoosts held = store == null ? null : store.boosts(scope.key().subject());
+        return collect(scope.trackId(), scope.categoryId(), held, nowMs);
+    }
+
+    /**
+     * The multiplier every boost lifting {@code trackId} (in {@code categoryId}, null for none) would apply now for
+     * the player {@code held} belongs to (their own starts, null for none) at {@code ref} (asked a conditional boost's
+     * {@code Requires}; null passes none of them): the standing boosts, the server's starts and theirs, summed and
+     * capped as a gain's {@code Boost} step does, with no prestige extra. What {@link Boosts#multiplier} answers.
+     */
+    static double multiplier(@Nonnull String trackId, @Nullable String categoryId, @Nullable HeldBoosts held,
+            @Nullable Ref<EntityStore> ref) {
+        return collect(trackId, categoryId, held, System.currentTimeMillis()).multiplier(ref, 0.0);
+    }
+
+    /** Every boost lifting {@code trackId} at {@code nowMs}, the player's own starts read off {@code held}. */
+    @Nonnull
+    private static Lifts collect(@Nonnull String trackId, @Nullable String categoryId, @Nullable HeldBoosts held,
+            long nowMs) {
         List<Candidate> candidates = new ArrayList<>();
         // A standing boost lifts every player its Requires lets in, so it counts as the server's (the bucket
-        // HighestOnly keeps), as the MMO's standing rules always have, whatever its Scope says.
+        // HighestOnly keeps), whatever its Scope says.
         for (BoostAsset boost : BoostConfig.getInstance().standing()) {
             if (boost.lifts(trackId, categoryId)) {
                 candidates.add(new Candidate(boost, boost.percent(), BoostScope.SERVER, Long.MAX_VALUE));
@@ -113,8 +155,6 @@ public final class BoostFactor implements GainFactor {
         for (BoostRun run : ServerBoosts.shared().live(nowMs)) {
             addRun(candidates, run, BoostScope.SERVER, trackId, categoryId);
         }
-        TrackStore store = scope.playerId() == null ? null : TrackStores.forKey(scope.key());
-        HeldBoosts held = store == null ? null : store.boosts(scope.key().subject());
         if (held != null) {
             for (BoostRun run : held.runs()) {
                 if (run.liveAt(nowMs)) {
@@ -134,7 +174,8 @@ public final class BoostFactor implements GainFactor {
     private static void addRun(@Nonnull List<Candidate> into, @Nonnull BoostRun run, @Nonnull BoostScope scope,
             @Nonnull String trackId, @Nullable String categoryId) {
         BoostAsset boost = BoostConfig.getInstance().live(run.boost());
-        if (boost != null && !boost.isStanding() && boost.lifts(trackId, categoryId)) {
+        // A start naming one track lifts that one alone, and only inside what its boost lifts.
+        if (boost != null && !boost.isStanding() && run.names(trackId) && boost.lifts(trackId, categoryId)) {
             into.add(new Candidate(boost, run.percent(), scope, run.endsAt()));
         }
     }

@@ -9,7 +9,7 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
  * or one of the reading page's buttons, which act on whatever row the page shows and so carry no id), the {@code tab}
  * a tab's click names and the {@code row} a row's click names.
  */
-public class TreeEventData {
+class TreeEventData {
 
     public String action;
     public String tab;
