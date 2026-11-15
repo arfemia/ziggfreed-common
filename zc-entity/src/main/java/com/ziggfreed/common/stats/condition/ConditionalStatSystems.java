@@ -153,6 +153,7 @@ public final class ConditionalStatSystems {
             FirstHits.forget(ref);
             ConditionalStats.forget(ref);
             BoundGrants.forget(ref);
+            StationWork.forget(ref);
         }
     }
 }

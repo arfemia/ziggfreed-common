@@ -16,9 +16,11 @@ import com.ziggfreed.common.stats.damage.TypedDamageBonuses;
  * the library's entity conditions into the engine's own condition map (R700), so an effect's {@code ApplyConditions}
  * and a stat's regeneration may name them too; the holder pass, the first-hit record and the forgetting of an
  * entity that left; the damage route terms (the conditional payouts and the bound grants' hit term) and the healing
- * term the payouts ride; the marks that keep the effect family table in step with effect loads; and the retired
- * conditional ids' aliases onto the plain stats a grant now binds ({@code ConditionalStats.RETIRED}). Registration only. The two stores are the root's, with every framework
- * store. A failed registration rethrows (R700): every conditional stat would be gone.
+ * term the payouts ride; the marks that keep the effect family table in step with effect loads; the retired
+ * conditional ids' aliases onto the plain stats a grant now binds ({@code ConditionalStats.RETIRED}); and the
+ * {@code ziggfreedcommon:station_stat} reading ({@link StationStatReading}) beside the station condition it reads.
+ * Registration only. The two stores are the root's, with every framework store. A failed registration rethrows
+ * (R700): every conditional stat would be gone.
  */
 public final class ConditionBootstrap {
 
@@ -47,6 +49,9 @@ public final class ConditionBootstrap {
             conditions.register(ZigHeightCondition.TYPE_NAME, ZigHeightCondition.class, ZigHeightCondition.codec());
             conditions.register(ZigCrouchingCondition.TYPE_NAME, ZigCrouchingCondition.class,
                     ZigCrouchingCondition.codec());
+            conditions.register(ZigWorkingAtCondition.TYPE_NAME, ZigWorkingAtCondition.class,
+                    ZigWorkingAtCondition.codec());
+            StationStatReading.contribute();
             plugin.getEntityStoreRegistry().registerSystem(new ConditionalStatSystems.HolderPass());
             plugin.getEntityStoreRegistry().registerSystem(new ConditionalStatSystems.FirstHitRecord());
             plugin.getEntityStoreRegistry().registerSystem(new ConditionalStatSystems.Left());
