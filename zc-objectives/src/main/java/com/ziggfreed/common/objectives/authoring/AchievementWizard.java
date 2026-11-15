@@ -685,6 +685,13 @@ public final class AchievementWizard implements AuthoringWizard {
         if (titleDoc != null) {
             results.add(ServerContent.write(titles, titleId, titleDoc.toString()));
         }
+        for (ServerContent.Result before : results) {
+            if (before.refused()) {
+                // Its words, category or title were turned away before anything was queued: the achievement
+                // waits rather than land naming a key, a category or a title that is not there.
+                return results;
+            }
+        }
         results.add(ServerContent.write(store, id, doc.toString()));
         return results;
     }
